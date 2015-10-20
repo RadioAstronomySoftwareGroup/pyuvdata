@@ -1,6 +1,11 @@
+from astropy import constants as const
 class UVData:
     def __init__(self):
         #Basic information required by class
+        self.data_array         =   None    # array of the data (Nblts,Nfreqs,Npols), type=complex float, 
+                                            # in units of self.vis_units
+        self.nsample_array      =   None    # number of data points averaged into each data element, type=int,
+        self.flag_array         =   None    # boolean flag, True is flagged
         # they are populated on file read or by the calling code 
         self.Ntimes             =   None    # Number of times
         self.Nbls               =   None    # number of baselines
@@ -33,7 +38,7 @@ class UVData:
         self.dateobs            =   None    # date of observation start, units JD.  
         self.history            =   None    # string o' history units English
         self.vis_units          =   None    # Visibility units, options ['uncalib','Jy','K str']
-        self.phase_center_epoch =   None    # epoch of the phase applied to the data (ex 'J2000')
+        self.phase_center_epoch =   None    # epoch year of the phase applied to the data (eg 2000)
 
         #antenna information
         self.Nants              =   None    # number of antennas
@@ -54,6 +59,8 @@ class UVData:
         self.Rdate              =   None    # date for which the GST0 or orbits or whatever... applies
         self.earth_omega        =   None    # earth's rotation rate in degrees per day
         # stuff about reference frequencies and handedness is left out here as a favor to our children 
+
+        self.fits_header        =   None    # the entire fits header as an HDU object
         return True
 
     def write(self,filename):
@@ -67,19 +74,106 @@ class UVData:
         self.check()
     def check(self):
         return True
+    def _gethduaxis(self,D,axis):
+        ax = str(axis)
+        N = D.header['NAXIS'+ax]
+        X0 = D.header['CRVAL'+ax]
+        dX = D.header['CDELT'+ax]
+        Xi0 = D.header['CRPIX'+ax]
+        return n.arange(X0-dX*Xi0,X0-dX*Xi0+N*dX,dX)
+#    def gethdufreqs(self,D):
+#        nfreqs = D.header['NAXIS4']
+#        f0  = D.header['CRVAL4']
+#        df = D.header['CDELT4']
+#        fi0 = D.header['CRPIX4']-1  #convert 1 indexed to 0 indexed
+#        return n.arange(f0-df*fi0,f0-df*fi0 + nfreqs*df,df)
+#    def gethdupols(self,D):
+#        npols = D.header['NAXIS3']
+#        pol0 = D.header['CRVAL3']
+#        dpol = D.header['CDELT3']
+#        poli0 = D.header['CRPIX3']-1
+#        return n.arange(pol0-dpol*poli0,pol0-dpol*poli0+npols*dpol,dpol)
     def read_uvfits(self,filename):
         F = fits.open(filename)
         D = F[0]
-        self.times = D.data.field('DATE')
-        bls = D.data.field('BASELINE')
-        uvws  = n.array(zip(D.data.field('UU'),D.data.field('VV'),D.data.field('WW')))*1e9 #bl vectors in ns
-        DATA =D.data.field('DATA').squeeze()[:,:,:,0] + 1j*D.data.field('DATA').squeeze()[:,:,:,1]
-        MASK = (D.data.field('DATA').squeeze()[:,:,:,2]==0)
-        freqs = gethdufreqs(D)
-        Nfreqs = D.data.field('DATA').shape[3]
-        Npol = D.data.field('DATA').shape[4]
-        Nblt = D.data.field('DATA').shape[0] 
-        del(D)
-        ant2    = n.array(bls%256).astype(int)-1
-        ant1    = n.array((bls-ant2)/256).astype(int)-1        
+        #check that we have a single source file!! (TODO)
 
+        self.time_array = D.data.field('DATE')
+        self.baseline_array = D.data.field('BASELINE')
+
+        #check if we have an spw dimension
+        if D.header['NAXIS']==7: 
+            self.Nspws = D.header['NAXIS5']
+            self.data_array =D.data.field('DATA')[:,0,0,:,:,:,0] + 1j*D.data.field('DATA')[:,0,0,:,:,:,1]
+            self.flag_array = (D.data.field('DATA')[:,0,0,:,:,:,2]<=0)
+            self.nsample_array = n.abs(D.data.field('DATA')[:,0,0,:,:,:,2])
+            self.Nspws = D.header['NAXIS5']
+            assert(self.Nspws == self.data_array.shape[1])
+            self.spw_array = gethduaxis(D,5)
+            #the axis number for phase center depends on if the spw exists
+            self.phase_center_ra = D.header['CRVAL6']
+            self.phase_center_dec =D.header['CRVAL7']
+        else:
+            #in many uvfits files the spw axis is left out, here we put it back in so the dimensionality stays the same
+            self.data_array =D.data.field('DATA')[:,0,0,:,:,0] + 1j*D.data.field('DATA')[:,0,0,:,:,1]
+            self.data_array = self.data_array[:,n.newaxis,:,:]
+            self.flag_array = (D.data.field('DATA')[:,0,0,:,:,2]<=0)
+            self.flag_array = self.flag_array[:,n.newaxis,:,:]
+            self.nsample_array = n.abs(D.data.field('DATA')[:,0,0,:,:,2])
+            self.nsample_array = self.nsample_array[:,n.newaxis,:,:]
+            self.Nspws = 1
+            #the axis number for phase center depends on if the spw exists
+            self.phase_center_ra = D.header['CRVAL5']
+            self.phase_center_dec =D.header['CRVAL6']
+
+        #get my dimension sizes
+        self.Nfreqs = D.header['NAXIS4']
+        assert(self.Nfreqs == self.data_array.shape[2])
+        self.Npols = D.header['NAXIS3']
+        assert(self.Npols == self.data_array.shape[3])
+        self.Nblts = D.header['GCOUNT']
+        assert(self.Nblts == self.data_array.shape[0])
+
+
+        # read baseline vectors in units of seconds, return in meters
+        self.uvw_array  = n.array(zip(D.data.field('UU'),D.data.field('VV'),D.data.field('WW')))*const.c.to('m/s').value 
+        self.freq_array = self.gethduaxis(D,4)
+
+        #here we account for two standard methods of forming a single integer index based
+        #   on two integer antenna numbers
+        if n.max(self.baseline_array)<=2**16:  #for 255 and fewer antennas
+            self.ant_2_array    = n.array(self.baseline_array%2**8).astype(int)-1
+            self.ant_1_array    = n.array((self.baseline_array-self.ant_2_array)/2**8).astype(int)-1 
+            self.baseline_array = (self.ant_2_array+1)*2**11 + self.ant_1_array+1 + 2**16
+        elif n.min(self.baseline_array)>=2**16: # for 2047 and fewer antennas
+            bls = self.baseline_array - 2**16
+            self.ant_2_array    = n.array(bls%2**11).astype(int)-1
+            self.ant_1_array    = n.array((bls-self.ant_2_array)/2**11).astype(int)-1 
+        #todo build SKA and or FFTT
+
+        self.polarization_array = gethduaxis(D,3)
+        
+        #other info
+        try:
+            self.object_name            = D.header['OBJECT']
+            self.telescope              = D.header['TELESCOP']
+            self.instrument             = D.header['INSTRUME']
+            self.dataobs                = D.header['DATE-OBS']
+            self.history                = D.header['HISTORY']
+            self.vis_units              = D.header['BUNIT']
+            self.phase_center_epoch     = D.header['EPOCH']
+        except(KeyError):
+            print "WARNING (todo make actual warning), importing of non-essential data failed"
+        #find all the header items after the history and keep them as a dictionary
+        etcpointer = 0
+        for thing in D.header:
+            etcpointer +=1 
+            if thing=='HISTORY':break
+        self.etc_items = {}
+        for key in D.header[etcpointer:]:
+            self.etc_items[key] = D.header[key]
+
+            
+        del(D)
+        print "LOG (todo make actual log): file load did not fail"
+        return True
