@@ -60,8 +60,7 @@ class UVData:
         self.earth_omega        =   None    # earth's rotation rate in degrees per day
         # stuff about reference frequencies and handedness is left out here as a favor to our children 
 
-        self.fits_header        =   None    # the entire fits header as an HDU object
-        return True
+        self.fits_extra_keywords=   None    # the user supplied extra keywords in fits header, type=dict
 
     def write(self,filename):
         self.check()
