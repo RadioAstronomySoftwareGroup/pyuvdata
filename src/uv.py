@@ -37,6 +37,9 @@ class UVData:
         self.object_name        =   None    # this is the source or field that the telescope has observed. type=string
         self.telescope          =   None    # string name of telescope
         self.instrument         =   None    # receiver or whatever attached to the backend.
+        self.latitude           =   None    # latitude of telescope, units degrees
+        self.longitude          =   None    # longitude of telescope, units degrees
+        self.altitude           =   None    # altitude of telescope, units meters
         self.dateobs            =   None    # date of observation start, units JD.  
         self.history            =   None    # string o' history units English
         self.vis_units          =   None    # Visibility units, options ['uncalib','Jy','K str']
@@ -159,6 +162,9 @@ class UVData:
             self.object_name            = D.header['OBJECT']
             self.telescope              = D.header['TELESCOP']
             self.instrument             = D.header['INSTRUME']
+            self.latitude               = D.header['LAT']
+            self.longitude              = D.header['LON']
+            self.altitude               = D.header['ALT']
             self.dataobs                = D.header['DATE-OBS']
             self.history                = D.header['HISTORY']
             self.vis_units              = D.header['BUNIT']
@@ -196,24 +202,24 @@ class UVData:
         hdu = fits.GroupsHDU(hdu)
         
         hdu.header['PTYPE1  '] = 'UU      '
-        hdu.header['PSCAL1  '] = 1
-        hdu.header['PZERO1  '] = 0
+        hdu.header['PSCAL1  '] = 1.0
+        hdu.header['PZERO1  '] = 0.0
      
         hdu.header['PTYPE2  '] = 'VV      '
-        hdu.header['PSCAL2  '] = 1
-        hdu.header['PZERO2  '] = 0
+        hdu.header['PSCAL2  '] = 1.0
+        hdu.header['PZERO2  '] = 0.0
      
         hdu.header['PTYPE3  '] = 'WW      '
-        hdu.header['PSCAL3  '] = 1
-        hdu.header['PZERO3  '] = 0
+        hdu.header['PSCAL3  '] = 1.0
+        hdu.header['PZERO3  '] = 0.0
      
         hdu.header['PTYPE4  '] = 'DATE    '
-        hdu.header['PSCAL4  '] = 1
+        hdu.header['PSCAL4  '] = 1.0
         hdu.header['PZERO4  '] = jd_midnight 
     
         hdu.header['PTYPE5  '] = 'BASELINE'
-        hdu.header['PSCAL5  '] = 1
-        hdu.header['PZERO5  '] = 0
+        hdu.header['PSCAL5  '] = 1.0
+        hdu.header['PZERO5  '] = 0.0
  
         hdu.header['DATE-OBS']= Time(self.time_array[0],scale='utc',format='jd').iso 
         #ISO string of first time in self.time_array
@@ -250,6 +256,9 @@ class UVData:
 
         hdu.header['OBJECT  '] = self.object_name
         hdu.header['TELESCOP'] = self.telescope
+        hdu.header['LAT     '] = self.latitude
+        hdu.header['LON     '] = self.longitude
+        hdu.header['ALT     '] = self.altitude
         hdu.header['INSTRUME'] = self.instrument
         hdu.header['EPOCH   '] = self.phase_center_epoch
      
@@ -260,7 +269,4 @@ class UVData:
             keyword = key[:8].upper() #header keywords have to be 8 characters or less
             hdu.header[keyword] = value
  
-        #MWA specific keywords
-        #hdu.header['OBSRA   '] = phase_RA
-        #hdu.header['OBSDEC  '] = phase_DEC
-
+    

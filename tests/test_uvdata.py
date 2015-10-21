@@ -9,7 +9,7 @@ class TestUVDataInit(unittest.TestCase):
             'Nfreqs','Npols','Nspws','uvw_array','time_array','ant_1_array','ant_2_array',
             'baseline_array','freq_array','polarization_array','spw_array','phase_center_ra',
             'phase_center_dec','integration_time','channel_width','object_name','telescope',
-            'instrument','dateobs','history','vis_units','phase_center_epoch','Nants',
+            'instrument','latitude','longitude','altitude','dateobs','history','vis_units','phase_center_epoch','Nants',
             'antenna_names','antenna_indices','antenna_frame','x_array','y_array','z_array',
             'GST0','Rdate','earth_omega','fits_extra_keywords']    
         self.uv_object = UVData()
