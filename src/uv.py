@@ -1,11 +1,13 @@
 from astropy import constants as const
+from astropy.time import Time
+import numpy as n
 class UVData:
     def __init__(self):
         #Basic information required by class
-        self.data_array         =   None    # array of the data (Nblts,Nfreqs,Npols), type=complex float, 
+        self.data_array         =   None    # array of the data (Nblts,Nspws,Nfreqs,Npols), type=complex float, 
                                             # in units of self.vis_units
-        self.nsample_array      =   None    # number of data points averaged into each data element, type=int,
-        self.flag_array         =   None    # boolean flag, True is flagged
+        self.nsample_array      =   None    # number of data points averaged into each data element, type=int, same shape as data_array
+        self.flag_array         =   None    # boolean flag, True is flagged, same shape as data_array
         # they are populated on file read or by the calling code 
         self.Ntimes             =   None    # Number of times
         self.Nbls               =   None    # number of baselines
@@ -19,7 +21,7 @@ class UVData:
         self.ant_2_array        =   None    # array of antenna indices, dimensions (Nblts), type=int, 0 indexed
         self.baseline_array     =   None    # array of baseline indices, dimensions (Nblts), type=int 
                                             # baseline = 2048 * (ant2+1) + (ant1+1) + 2^16 #does this break casa?
-        self.freq_array         =   None    # array of frequencies, dimensions (Nfreqs), units Hz
+        self.freq_array         =   None    # array of frequencies, dimensions (Nspws,Nfreqs), units Hz
         self.polarization_array =   None    # array of polarization integers (Npols)
                                             # stokes 1:4 (I,Q,U,V); -1:-4 (RR,LL,RL,LR); -5:-8 (XX,YY,XY,YX) AIPS Memo 117
         self.spw_array          =   None    # array of spectral window numbers
@@ -97,7 +99,7 @@ class UVData:
         D = F[0]
         #check that we have a single source file!! (TODO)
 
-        self.time_array = D.data.field('DATE')
+        self.time_array = D.data.field('DATE') #astropy.io fits reader scales date according to relevant PZER0 (?)
         self.baseline_array = D.data.field('BASELINE')
 
         #check if we have an spw dimension
@@ -176,3 +178,89 @@ class UVData:
         del(D)
         print "LOG (todo make actual log): file load did not fail"
         return True
+    def write_uvfits(self,filename):
+        weights_array = self.nsample_array * n.where(self.flag_array, -1, 1)
+        data_array = self.data_array[:,n.newaxis,n.newaxis,:,:,:]
+        weights_array = weights_array[:,n.newaxis,n.newaxis,:,:,:]
+        uvfits_array_data = n.concatenate(data_array,weights_array,axis=6)
+        #uvfits_array_data shape is (Nblts,1,1,[Nspws],Nfreqs,Npols,3)
+        uvw_array_sec = self.uvw_array/const.c.to('m/s').value
+        jd_midnight = n.floor(self.time_array[0]-0.5)+0.5
+        time_array = self.time_array - jd_midnight       
+        #uvfits convention is that time_array + jd_midnight = actual JD
+        #jd_midnight is julian midnight on first day of observation
+        group_parameter_list = [uvw_array_sec[0],uvw_array_sec[1],uvw_array_sec[2],time_array,self.baseline_array]
+        #list contains arrays of [u,v,w,date,baseline]; each array has shape (Nblts) 
+        hdu = fits.GroupData(uvfits_array_data,parnames=['UU      ','VV      ','WW      ','DATE    ','BASELINE'], 
+            pardata=group_parameter_list, bitpix=-32)
+        hdu = fits.GroupsHDU(hdu)
+        
+        hdu.header['PTYPE1  '] = 'UU      '
+        hdu.header['PSCAL1  '] = 1
+        hdu.header['PZERO1  '] = 0
+     
+        hdu.header['PTYPE2  '] = 'VV      '
+        hdu.header['PSCAL2  '] = 1
+        hdu.header['PZERO2  '] = 0
+     
+        hdu.header['PTYPE3  '] = 'WW      '
+        hdu.header['PSCAL3  '] = 1
+        hdu.header['PZERO3  '] = 0
+     
+        hdu.header['PTYPE4  '] = 'DATE    '
+        hdu.header['PSCAL4  '] = 1
+        hdu.header['PZERO4  '] = jd_midnight 
+    
+        hdu.header['PTYPE5  '] = 'BASELINE'
+        hdu.header['PSCAL5  '] = 1
+        hdu.header['PZERO5  '] = 0
+ 
+        hdu.header['DATE-OBS']= Time(self.time_array[0],scale='utc',format='jd').iso 
+        #ISO string of first time in self.time_array
+     
+        hdu.header['CTYPE2  '] = 'COMPLEX '
+        hdu.header['CRVAL2  '] = 1.0
+        hdu.header['CRPIX2  '] = 1.0
+        hdu.header['CDELT2  '] = 1.0
+        
+        hdu.header['CTYPE3  '] = 'STOKES  '
+        hdu.header['CRVAL3  '] = self.polarization_array[0]
+        hdu.header['CRPIX3  '] = 1.0
+        hdu.header['CDELT3  '] = n.diff(self.polarization_array)[0]
+        
+        hdu.header['CTYPE4  '] = 'FREQ    '
+        hdu.header['CRVAL4  '] = self.freq_array[0,0]
+        hdu.header['CRPIX4  '] = 1.0
+        hdu.header['CDELT4  '] = n.diff(self.freq_array[0])[0]
+        
+        hdu.header['CTYPE5  '] = 'IF      '
+        hdu.header['CRVAL5  '] = 1.0
+        hdu.header['CRPIX5  '] = 1.0
+        hdu.header['CDELT5  '] = 1.0
+    
+        hdu.header['CTYPE6  '] = 'RA'
+        hdu.header['CRVAL6  '] = self.phase_center_ra
+
+        hdu.header['CTYPE7  '] = 'DEC'
+        hdu.header['CRVAL7  '] = self.phase_center_dec
+
+        hdu.header['BUNIT   '] = self.vis_units
+        hdu.header['BSCALE  '] = 1.0
+        hdu.header['BZERO   '] = 0.0
+
+        hdu.header['OBJECT  '] = self.object_name
+        hdu.header['TELESCOP'] = self.telescope
+        hdu.header['INSTRUME'] = self.instrument
+        hdu.header['EPOCH   '] = self.phase_center_epoch
+     
+        hdu.header['HISTORY '] = self.history
+        #end standard keywords; begin user-defined keywords
+     
+        for key, value in self.fits_extra_keywords.iteritems():
+            keyword = key[:8].upper() #header keywords have to be 8 characters or less
+            hdu.header[keyword] = value
+ 
+        #MWA specific keywords
+        #hdu.header['OBSRA   '] = phase_RA
+        #hdu.header['OBSDEC  '] = phase_DEC
+
