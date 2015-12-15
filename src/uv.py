@@ -35,7 +35,7 @@ class UVData:
         #observation information
 
         self.object_name        =   None    # this is the source or field that the telescope has observed. type=string
-        self.telescope          =   None    # string name of telescope
+        self.telescope_name          =   None    # string name of telescope
         self.instrument         =   None    # receiver or whatever attached to the backend.
         self.latitude           =   None    # latitude of telescope, units degrees
         self.longitude          =   None    # longitude of telescope, units degrees
@@ -53,16 +53,20 @@ class UVData:
                                             # there must be one entry here for each
                                             # unique entry in self.ant_1_array and self.ant_2_array
                                             # indexes into antenna_names (sort order must be preserved)
-        self.antenna_frame      =   None    # coordinate frame for antenna positions (eg 'ITRF' -also google ECEF)         
-        self.x_array            =   None    # x coordinate of array center in meters in frame self.antenna_frame
-        self.y_array            =   None    # y coordinate of array center in meters in frame self.antenna_frame
-        self.z_array            =   None    # z coordinate of array center in meters in frame self.antenna_frame
+        self.xyz_telescope_frame=   None    # coordinate frame for antenna positions (eg 'ITRF' -also google ECEF)         
+        self.x_telescope        =   None    # x coordinate of array center in meters in frame self.antenna_frame
+        self.y_telescope        =   None    # y coordinate of array center in meters in frame self.antenna_frame
+        self.z_telescope        =   None    # z coordinate of array center in meters in frame self.antenna_frame
                                             # NB: ECEF has x running through long=0 and z through the north pole
-        # the below are copied from AIPS memo 117, but we don't quite know why. 
+        self.antenna_positions  =   None    # array giving coordinates of antennas (Nants,3)
+                                            # coordinates relative to {x,y,z}_telescope in the same frame
+        # the below are copied from AIPS memo 117, but could be revised to merge with other sources of data 
         #  when available they are populated. user beware?
         self.GST0               =   None    # Greenwich sidereal time at midnight on reference date
         self.Rdate              =   None    # date for which the GST0 or orbits or whatever... applies
-        self.earth_omega        =   None    # earth's rotation rate in degrees per day
+        self.earth_omega        =   360.985 # earth's rotation rate in degrees per day (might not be enough sigfigs)
+        self.DUT1               =   0.0     # DUT1 (google it) AIPS 117 calls it UT1UTC
+        self.TIMESYS            =   'UTC'   #
         # stuff about reference frequencies and handedness is left out here as a favor to our children 
 
         self.fits_extra_keywords=   None    # the user supplied extra keywords in fits header, type=dict
@@ -149,7 +153,7 @@ class UVData:
         #other info
         try:
             self.object_name            = D.header['OBJECT']
-            self.telescope              = D.header['TELESCOP']
+            self.telescope_name         = D.header['TELESCOP']
             self.instrument             = D.header['INSTRUME']
             self.latitude               = D.header['LAT']
             self.longitude              = D.header['LON']
@@ -165,9 +169,28 @@ class UVData:
         for thing in D.header:
             etcpointer +=1 
             if thing=='HISTORY':break
-        self.etc_items = {}
+        #self.fits = {} #todo change this to fits_extra_keywords!
         for key in D.header[etcpointer:]:
-            self.etc_items[key] = D.header[key]
+            self.fits_extra_keywords[key] = D.header[key]
+        
+        #READ the antenna table
+        #TODO FINISH
+        ant_hdu = F[1]
+        #stuff in columns
+        self.antenna_names = ant_hdu.data.field('ANNAME')
+        self.antenna_indices = ant_hdu.data.field('NOSTA')
+        self.antenna_positions = ant_hdu.data.field('STABXYZ')
+        #stuff in the header
+        if self.telescope_name is None: self.telescope_name=ant_hdu.header['ARRNAM'] 
+        self.xyz_telescope_frame = ant_hdu.header['FRAME']
+        self.x_telescope    =   ant_hdu.header['ARRAYX']
+        self.y_telescope    =   ant_hdu.header['ARRAYY']
+        self.z_telescope    =   ant_hdu.header['ARRAYZ']
+        self.GST0           =   ant_hdu.header['GSTIA0']
+        self.Rdate          =   ant_hdu.header['RDATE']     
+        self.earth_omega    =   ant_hdu.header['DEGPDY']
+        self.DUT1           =   ant_hdu.header['UT1UTC']
+        self.TIMESYS        =   ant_hdu.header['TIMESYS']
 
             
         del(D)
@@ -258,64 +281,68 @@ class UVData:
             keyword = key[:8].upper() #header keywords have to be 8 characters or less
             hdu.header[keyword] = value
  
-        #ADD the ANTENNA table
-        #4 columns, ant#, E, N, Z      
-        n_tiles = len(positions)
+        #ADD the ANTENNA table 
+        mntsta = [0] * self.Nants #0 specifies alt-az, 6 would specify a phased array
+        staxof = [0] * self.Nants
+        poltya = ['X'] * self.Nants  #beware, X can mean just about anything
+        polaa = [90.0] * self.Nants     
+        poltyb = ['Y'] * self.Nants
+        polab = [0.0] * self.Nants
         
-        annames = n.arange(1,len(positions)+1)#positions[:,0].astype(str)
-        print "Tile Names:",annames
-        nosta = n.arange(n_tiles) + 1
-        mntsta = [0] * n_tiles
-        staxof = [0] * n_tiles
-        poltya = ['X'] * n_tiles
-        polaa = [90.0] * n_tiles
-        #polcala = [[0.0, 0.0, 0.0]] * n_tiles
-        polcala = positions[:,1:]
-        poltyb = ['Y'] * n_tiles
-        polab = [0.0] * n_tiles
-        polcalb = positions[:,1:]
         
-        #stabxyz = [[0.0, 0.0, 0.0]] * n_tiles
-        stabxyz = positions[:,1:]
-        
-        col1 = fits.Column(name='ANNAME', format='8A', array=annames)
-        col2 = fits.Column(name='STABXYZ', format='3D', array=stabxyz) 
-        col3 = fits.Column(name='NOSTA', format='1J', array=nosta)
+        col1 = fits.Column(name='ANNAME', format='8A', array=self.antenna_names)
+        col2 = fits.Column(name='STABXYZ', format='3D', array=self.antenna_positions) 
+        col3 = fits.Column(name='NOSTA', format='1J', array=self.antenna_indices)
         col4 = fits.Column(name='MNTSTA', format='1J', array=mntsta) 
         col5 = fits.Column(name='STAXOF', format='1E', array=staxof) 
         col6 = fits.Column(name='POLTYA', format='1A', array=poltya)
         col7 = fits.Column(name='POLAA', format='1E', array=polaa) 
-        col8 = fits.Column(name='POLCALA', format='3E', array=polcala)
+        #col8 = fits.Column(name='POLCALA', format='3E', array=polcala)
         col9 = fits.Column(name='POLTYB', format='1A', array=poltyb) 
         col10 = fits.Column(name='POLAB', format='1E', array=polab)
-        col11 = fits.Column(name='POLCALB', format='3E', array=polcalb) 
-        
-        cols = fits.ColDefs([col1, col2,col3, col4,col5, col6,col7, col8,col9, col10,col11])
+        #col11 = fits.Column(name='POLCALB', format='3E', array=polcalb) 
+        #note ORBPARM is technically required, but we didn't put it
+
+        cols = fits.ColDefs([col1, col2,col3, col4,col5, col6,col7,col9, col10,])
         # This only works for astropy 0.4 which is not available from pip
         ant_hdu = fits.BinTableHDU.from_columns(cols)
         
         
-        #ant_hdu = fits.new_table(cols)
         ant_hdu.header['EXTNAME'] = 'AIPS AN'
-        ant_hdu.header['FREQ'] = freqs[0]
-        # Some spoofed antenna table headers, these may need correcting
-        ant_hdu.header['ARRAYX'] = -2557572.345962
-        ant_hdu.header['ARRAYY'] = 5091627.14195476
-        ant_hdu.header['ARRAYZ'] = -2856535.56228611
-        ant_hdu.header['GSTIAO'] = 331.448628115495
-        ant_hdu.header['DEGPDY'] = 360.985
-        ant_hdu.header['DATE'] = times[0]
-        ant_hdu.header['POLARX'] = 0.0
-        ant_hdu.header['POLARY'] = 0.0
-        ant_hdu.header['UT1UTC'] = 0.0
-        ant_hdu.header['DATUTC'] = 0.0
-        ant_hdu.header['TIMSYS'] = 'UTC  '
-        ant_hdu.header['ARRNAM'] = telescope_name
+
+        ant_hdu.header['ARRAYX'] = self.x_telescope
+        ant_hdu.header['ARRAYY'] = self.y_telescope
+        ant_hdu.header['ARRAYZ'] = self.z_telescope
+        ant_hdu.header['FRAME'] = self.xyz_telescope_frame
+        ant_hdu.header['GSTIAO'] = self.GST0
+        ant_hdu.header['FREQ'] = self.freq_array[0]
+        ant_hdu.header['RDATE'] = self.RDate
+        ant_hdu.header['UT1UTC'] = self.UT1UTC
+
+        ant_hdu.header['TIMSYS'] = self.TIMESYS
+        if self.TIMESYS=='IAT': print "WARNING: FILES WITH TIME SYSTEM 'IAT' ARE NOT SUPPORTED" 
+        ant_hdu.header['ARRNAM'] = self.telescope_name
+        ant_hdu.header['NO_IF'] = self.Nspws
+        #ant_hdu.header['IATUTC'] = 35. 
+
+        #set mandatory parameters which are not supported by this object (or that we just don't understand)
+        ant_hdu.header['DEGPDY'] = 360.985 #if a comet stikes the earth, update.
         ant_hdu.header['NUMORB'] = 0
-        ant_hdu.header['NOPCAL'] = 3
+        ant_hdu.header['NOPCAL'] = 0  #note: Bart had this set to 3. We've set it 0 after aips 117. -jph
+        ant_hdu.header['POLTYPE'] = 'X-Y LIN'
         ant_hdu.header['FREQID'] = -1
-        ant_hdu.header['IATUTC'] = 35.
+        #note: we do not support the concept of "frequency setups" lists of spws given in a SU table. 
+        ant_hdu.header['POLARX'] = 0.0  #if there are offsets in images, this could be the culprit
+        ant_hdu.header['POLARY'] = 0.0
+        ant_hdu.header['DATUTC'] = 0 #ONLY UTC SUPPORTED
+        ant_hdu.header['XYZHAND'] = 'RIGHT' #we always output right handed coordinates
 
         #ADD the FQ table
-
+        # skipping for now and limiting to a single spw
+        
         #write the file
+        hdulist = fits.HDUList(hdus=[hdu,ant_hdu])
+        hdulist.writeto(filename,clobber=True)
+
+        return True
+
