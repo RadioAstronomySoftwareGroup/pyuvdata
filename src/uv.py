@@ -85,18 +85,7 @@ class UVData:
         dX = D.header['CDELT'+ax]
         Xi0 = D.header['CRPIX'+ax]
         return n.arange(X0-dX*Xi0,X0-dX*Xi0+N*dX,dX)
-#    def gethdufreqs(self,D):
-#        nfreqs = D.header['NAXIS4']
-#        f0  = D.header['CRVAL4']
-#        df = D.header['CDELT4']
-#        fi0 = D.header['CRPIX4']-1  #convert 1 indexed to 0 indexed
-#        return n.arange(f0-df*fi0,f0-df*fi0 + nfreqs*df,df)
-#    def gethdupols(self,D):
-#        npols = D.header['NAXIS3']
-#        pol0 = D.header['CRVAL3']
-#        dpol = D.header['CDELT3']
-#        poli0 = D.header['CRPIX3']-1
-#        return n.arange(pol0-dpol*poli0,pol0-dpol*poli0+npols*dpol,dpol)
+
     def read_uvfits(self,filename):
         F = fits.open(filename)
         D = F[0]
@@ -269,4 +258,64 @@ class UVData:
             keyword = key[:8].upper() #header keywords have to be 8 characters or less
             hdu.header[keyword] = value
  
-    
+        #ADD the ANTENNA table
+        #4 columns, ant#, E, N, Z      
+        n_tiles = len(positions)
+        
+        annames = n.arange(1,len(positions)+1)#positions[:,0].astype(str)
+        print "Tile Names:",annames
+        nosta = n.arange(n_tiles) + 1
+        mntsta = [0] * n_tiles
+        staxof = [0] * n_tiles
+        poltya = ['X'] * n_tiles
+        polaa = [90.0] * n_tiles
+        #polcala = [[0.0, 0.0, 0.0]] * n_tiles
+        polcala = positions[:,1:]
+        poltyb = ['Y'] * n_tiles
+        polab = [0.0] * n_tiles
+        polcalb = positions[:,1:]
+        
+        #stabxyz = [[0.0, 0.0, 0.0]] * n_tiles
+        stabxyz = positions[:,1:]
+        
+        col1 = fits.Column(name='ANNAME', format='8A', array=annames)
+        col2 = fits.Column(name='STABXYZ', format='3D', array=stabxyz) 
+        col3 = fits.Column(name='NOSTA', format='1J', array=nosta)
+        col4 = fits.Column(name='MNTSTA', format='1J', array=mntsta) 
+        col5 = fits.Column(name='STAXOF', format='1E', array=staxof) 
+        col6 = fits.Column(name='POLTYA', format='1A', array=poltya)
+        col7 = fits.Column(name='POLAA', format='1E', array=polaa) 
+        col8 = fits.Column(name='POLCALA', format='3E', array=polcala)
+        col9 = fits.Column(name='POLTYB', format='1A', array=poltyb) 
+        col10 = fits.Column(name='POLAB', format='1E', array=polab)
+        col11 = fits.Column(name='POLCALB', format='3E', array=polcalb) 
+        
+        cols = fits.ColDefs([col1, col2,col3, col4,col5, col6,col7, col8,col9, col10,col11])
+        # This only works for astropy 0.4 which is not available from pip
+        ant_hdu = fits.BinTableHDU.from_columns(cols)
+        
+        
+        #ant_hdu = fits.new_table(cols)
+        ant_hdu.header['EXTNAME'] = 'AIPS AN'
+        ant_hdu.header['FREQ'] = freqs[0]
+        # Some spoofed antenna table headers, these may need correcting
+        ant_hdu.header['ARRAYX'] = -2557572.345962
+        ant_hdu.header['ARRAYY'] = 5091627.14195476
+        ant_hdu.header['ARRAYZ'] = -2856535.56228611
+        ant_hdu.header['GSTIAO'] = 331.448628115495
+        ant_hdu.header['DEGPDY'] = 360.985
+        ant_hdu.header['DATE'] = times[0]
+        ant_hdu.header['POLARX'] = 0.0
+        ant_hdu.header['POLARY'] = 0.0
+        ant_hdu.header['UT1UTC'] = 0.0
+        ant_hdu.header['DATUTC'] = 0.0
+        ant_hdu.header['TIMSYS'] = 'UTC  '
+        ant_hdu.header['ARRNAM'] = telescope_name
+        ant_hdu.header['NUMORB'] = 0
+        ant_hdu.header['NOPCAL'] = 3
+        ant_hdu.header['FREQID'] = -1
+        ant_hdu.header['IATUTC'] = 35.
+
+        #ADD the FQ table
+
+        #write the file
