@@ -7,6 +7,13 @@ class UVData:
     def __init__(self):
         # Basic information required by class
 
+        # dimension definitions
+        self.Ntimes = None  # Number of times
+        self.Nbls = None    # number of baselines
+        self.Nblts = None   # Ntimes * Nbls
+        self.Nfreqs = None  # number of frequency channels
+        self.Npols = None   # number of polarizations
+
         # array of the visibility data (Nblts,Nspws,Nfreqs,Npols),
         #   type = complex float, in units of self.vis_units
         self.data_array = None
@@ -20,12 +27,6 @@ class UVData:
 
         # boolean flag, True is flagged, same shape as data_array.
         self.flag_array = None
-
-        self.Ntimes = None  # Number of times
-        self.Nbls = None    # number of baselines
-        self.Nblts = None   # Ntimes * Nbls
-        self.Nfreqs = None  # number of frequency channels
-        self.Npols = None   # number of polarizations
 
         # number of spectral windows (ie non-contiguous spectral chunks)
         self.Nspws = None
