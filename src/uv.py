@@ -1,5 +1,6 @@
 from astropy import constants as const
 from astropy.time import Time
+from astropy.io import fits
 import numpy as n
 
 
@@ -119,7 +120,7 @@ class UVData:
         # a favor to our children
 
         # the user supplied extra keywords in fits header, type=dict
-        self.fits_extra_keywords = None
+        self.fits_extra_keywords = {}
 
     def write(self, filename):
         self.check()
@@ -142,10 +143,20 @@ class UVData:
         dX = D.header['CDELT'+ax]
         Xi0 = D.header['CRPIX'+ax]
         return n.arange(X0-dX*Xi0, X0-dX*Xi0+N*dX, dX)
-
+    def _indexhdus(self,hdulist):
+        #input a list of hdus
+        #return a dictionary of table names
+        tablenames = {}
+        for i in xrange(len(hdulist)):
+            try:
+                tablenames[hdulist[i].header['EXTNAME']] = i
+            except(KeyError):
+                continue
+        return tablenames
     def read_uvfits(self, filename):
         F = fits.open(filename)
-        D = F[0]
+        D = F[0] #assumes the visibilities are in the primary hdu
+        hdunames = self._indexhdus(F) #find the rest of the tables
         # check that we have a single source file!! (TODO)
 
         # astropy.io fits reader scales date according to relevant PZER0 (?)
@@ -165,7 +176,7 @@ class UVData:
             assert(self.Nspws == self.data_array.shape[1])
 
             # the axis number for phase center depends on if the spw exists
-            self.spw_array = gethduaxis(D, 5)
+            self.spw_array = self._gethduaxis(D, 5)
 
             self.phase_center_ra = D.header['CRVAL6']
             self.phase_center_dec = D.header['CRVAL7']
@@ -199,7 +210,7 @@ class UVData:
                                       D.data.field('WW'))) *
                           const.c.to('m/s').value)
 
-        self.freq_array = self.gethduaxis(D, 4)
+        self.freq_array = self._gethduaxis(D, 4)
 
         # here we account for two standard methods of forming a single integer
         # index based on two integer antenna numbers
@@ -219,7 +230,7 @@ class UVData:
                                        2**11).astype(int) - 1
         # todo build SKA and or FFTT
 
-        self.polarization_array = gethduaxis(D, 3)
+        self.polarization_array = self._gethduaxis(D, 3)
 
         # other info -- not required but frequently used
         try:
@@ -248,7 +259,7 @@ class UVData:
 
         # READ the antenna table
         # TODO FINISH & test
-        ant_hdu = F[1]
+        ant_hdu = F[hdunames['AIPS AN']]
 
         # stuff in columns
         self.antenna_names = ant_hdu.data.field('ANNAME')
@@ -266,7 +277,11 @@ class UVData:
         self.Rdate = ant_hdu.header['RDATE']
         self.earth_omega = ant_hdu.header['DEGPDY']
         self.DUT1 = ant_hdu.header['UT1UTC']
-        self.TIMESYS = ant_hdu.header['TIMESYS']
+        try:
+            self.TIMESYS = ant_hdu.header['TIMESYS']
+        except(KeyError):
+            self.TIMESYS = ant_hdu.header['TIMSYS'] #CASA misspells this one
+
 
         del(D)
         print "LOG (todo make actual log): file load did not fail"
