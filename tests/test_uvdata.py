@@ -32,7 +32,25 @@ class TestUVDataInit(unittest.TestCase):
 class TestReadUVFits(unittest.TestCase):
     def setUp(self):
         import os
+        self.test_file_directory = './uvdata_test_temp'
+        if not os.path.exists(self.test_file_directory):
+            os.mkdir(self.test_file_directory)
 
+    def tearDown(self):
+        import shutil
+        shutil.rmtree(self.test_file_directory)
+    def test_ReadNRAO(self):
+        testfile='../data/day2_TDEM0003_10s_norx.uvfits'
+        UV = UVData()
+        test = UV.read_uvfits(testfile)
+        self.assertTrue(test)
+class TestWriteUVFits(unittest.TestCase):
+    def test_writeNRAO(self):
+        testfile='../data/day2_TDEM0003_10s_norx.uvfits'
+        UV = UVData()
+        UV.read_uvfits(testfile)
+        test = UV.write_uvfits('outtest.uvfits')
+        self.assertTrue(test)
 
 
 
