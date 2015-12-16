@@ -109,7 +109,7 @@ class UVData:
         # when available they are populated. user beware?
         # Greenwich sidereal time at midnight on reference date
         self.GST0 = None
-        self.Rdate = None  # date for which the GST0 or whatever... applies
+        self.RDate = None  # date for which the GST0 or whatever... applies
         # earth's rotation rate in degrees per day
         # (might not be enough sigfigs)
         self.earth_omega = 360.985
@@ -141,7 +141,7 @@ class UVData:
         N = D.header['NAXIS'+ax]
         X0 = D.header['CRVAL'+ax]
         dX = D.header['CDELT'+ax]
-        Xi0 = D.header['CRPIX'+ax]
+        Xi0 = D.header['CRPIX'+ax]-1
         return n.arange(X0-dX*Xi0, X0-dX*Xi0+N*dX, dX)
     def _indexhdus(self,hdulist):
         #input a list of hdus
@@ -208,9 +208,11 @@ class UVData:
         # read baseline vectors in units of seconds, return in meters
         self.uvw_array = (n.array(zip(D.data.field('UU'), D.data.field('VV'),
                                       D.data.field('WW'))) *
-                          const.c.to('m/s').value)
+                          const.c.to('m/s').value).T
 
         self.freq_array = self._gethduaxis(D, 4)
+        #TODO iterate over the spw axis, for now we just have one spw
+        self.freq_array.shape = (1,)+self.freq_array.shape
 
         # here we account for two standard methods of forming a single integer
         # index based on two integer antenna numbers
@@ -255,6 +257,7 @@ class UVData:
             if thing == 'HISTORY':
                 break
         for key in D.header[etcpointer:]:
+            if key=='':continue
             self.fits_extra_keywords[key] = D.header[key]
 
         # READ the antenna table
@@ -265,6 +268,7 @@ class UVData:
         self.antenna_names = ant_hdu.data.field('ANNAME')
         self.antenna_indices = ant_hdu.data.field('NOSTA')
         self.antenna_positions = ant_hdu.data.field('STABXYZ')
+        
 
         # stuff in the header
         if self.telescope_name is None:
@@ -274,7 +278,7 @@ class UVData:
         self.y_telescope = ant_hdu.header['ARRAYY']
         self.z_telescope = ant_hdu.header['ARRAYZ']
         self.GST0 = ant_hdu.header['GSTIA0']
-        self.Rdate = ant_hdu.header['RDATE']
+        self.RDate = ant_hdu.header['RDATE']
         self.earth_omega = ant_hdu.header['DEGPDY']
         self.DUT1 = ant_hdu.header['UT1UTC']
         try:
@@ -282,18 +286,22 @@ class UVData:
         except(KeyError):
             self.TIMESYS = ant_hdu.header['TIMSYS'] #CASA misspells this one
 
+        #initialize internal variables based on the antenna table
+        self.Nants = len(self.antenna_indices)
 
         del(D)
-        print "LOG (todo make actual log): file load did not fail"
         return True
 
     def write_uvfits(self, filename):
+        #TODO document the uvfits weights convention on wiki
         weights_array = self.nsample_array * n.where(self.flag_array, -1, 1)
-        data_array = self.data_array[:, n.newaxis, n.newaxis, :, :, :]
-        weights_array = weights_array[:, n.newaxis, n.newaxis, :, :, :]
-
-        # uvfits_array_data shape is (Nblts,1,1,[Nspws],Nfreqs,Npols,3)
-        uvfits_array_data = n.concatenate(data_array, weights_array, axis=6)
+        data_array = self.data_array[:, n.newaxis, n.newaxis, :, :, :,n.newaxis]
+        weights_array = weights_array[:, n.newaxis, n.newaxis, :, :, :,n.newaxis]
+        # uvfits_array_data shape will be  (Nblts,1,1,[Nspws],Nfreqs,Npols,3)
+        print "data_array.shape",data_array.shape
+        uvfits_array_data = n.concatenate([data_array.real,
+                                        data_array.imag, 
+                                        weights_array], axis=6)
 
         uvw_array_sec = self.uvw_array / const.c.to('m/s').value
         jd_midnight = n.floor(self.time_array[0]-0.5)+0.5
@@ -304,6 +312,9 @@ class UVData:
 
         # list contains arrays of [u,v,w,date,baseline];
         # each array has shape (Nblts)
+        print "uvw_array_sec.shape = ",uvw_array_sec.shape
+        print "self.baseline_array.shape = ",self.baseline_array.shape
+        print "time_array.shape = ",time_array.shape
         group_parameter_list = [uvw_array_sec[0], uvw_array_sec[1],
                                 uvw_array_sec[2], time_array,
                                 self.baseline_array]
@@ -369,7 +380,7 @@ class UVData:
         hdu.header['BZERO   '] = 0.0
 
         hdu.header['OBJECT  '] = self.object_name
-        hdu.header['TELESCOP'] = self.telescope
+        hdu.header['TELESCOP'] = self.telescope_name
         hdu.header['LAT     '] = self.latitude
         hdu.header['LON     '] = self.longitude
         hdu.header['ALT     '] = self.altitude
@@ -379,9 +390,12 @@ class UVData:
         hdu.header['HISTORY '] = self.history
 
         # end standard keywords; begin user-defined keywords
+        print "self.fits_extra_keywords = "
+        print self.fits_extra_keywords
         for key, value in self.fits_extra_keywords.iteritems():
             # header keywords have to be 8 characters or less
             keyword = key[:8].upper()
+            print "keyword=-value-",keyword+'='+'-'+str(value)+'-'
             hdu.header[keyword] = value
 
         # ADD the ANTENNA table
@@ -425,9 +439,9 @@ class UVData:
         ant_hdu.header['ARRAYZ'] = self.z_telescope
         ant_hdu.header['FRAME'] = self.xyz_telescope_frame
         ant_hdu.header['GSTIAO'] = self.GST0
-        ant_hdu.header['FREQ'] = self.freq_array[0]
+        ant_hdu.header['FREQ'] = self.freq_array[0,0]
         ant_hdu.header['RDATE'] = self.RDate
-        ant_hdu.header['UT1UTC'] = self.UT1UTC
+        ant_hdu.header['UT1UTC'] = self.DUT1
 
         ant_hdu.header['TIMSYS'] = self.TIMESYS
         if self.TIMESYS == 'IAT':
