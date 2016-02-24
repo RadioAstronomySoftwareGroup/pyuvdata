@@ -3,6 +3,7 @@ from astropy.time import Time
 from astropy.io import fits
 import numpy as n
 
+    
 
 class UVData:
     def __init__(self):
@@ -237,20 +238,16 @@ class UVData:
         self.polarization_array = self._gethduaxis(D, 3)
 
         # other info -- not required but frequently used
-        try:
-            self.object_name = D.header['OBJECT']
-            self.telescope_name = D.header['TELESCOP']
-            self.instrument = D.header['INSTRUME']
-            self.latitude = D.header['LAT']
-            self.longitude = D.header['LON']
-            self.altitude = D.header['ALT']
-            self.dataobs = D.header['DATE-OBS']
-            self.history = D.header['HISTORY']
-            self.vis_units = D.header['BUNIT']
-            self.phase_center_epoch = D.header['EPOCH']
-        except(KeyError):
-            # TODO make actual warning
-            print "WARNING, importing of non-essential data failed"
+        self.object_name = D.header.get('OBJECT',None)
+        self.telescope_name = D.header.get('TELESCOP',None)
+        self.instrument = D.header.get('INSTRUME',None)
+        self.latitude = D.header.get('LAT',None)
+        self.longitude = D.header.get('LON',None)
+        self.altitude = D.header.get('ALT',None)
+        self.dataobs = D.header.get('DATE-OBS',None)
+        self.history = str(D.header.get('HISTORY',''))
+        self.vis_units = D.header.get('BUNIT',None)
+        self.phase_center_epoch = D.header.get('EPOCH',None)
 
         # find all the header items after the history and keep them as a dict
         etcpointer = 0
@@ -361,7 +358,10 @@ class UVData:
         hdu.header['CTYPE3  '] = 'STOKES  '
         hdu.header['CRVAL3  '] = self.polarization_array[0]
         hdu.header['CRPIX3  '] = 1.0
-        hdu.header['CDELT3  '] = n.diff(self.polarization_array)[0]
+        try:
+            hdu.header['CDELT3  '] = n.diff(self.polarization_array)[0]
+        except(IndexError):
+            hdu.header['CDELT3  '] = 1.0
 
         hdu.header['CTYPE4  '] = 'FREQ    '
         hdu.header['CRVAL4  '] = self.freq_array[0, 0]
@@ -389,7 +389,7 @@ class UVData:
         hdu.header['LON     '] = self.longitude
         hdu.header['ALT     '] = self.altitude
         hdu.header['INSTRUME'] = self.instrument
-        hdu.header['EPOCH   '] = self.phase_center_epoch
+        hdu.header['EPOCH   '] = float(self.phase_center_epoch)
 
         hdu.header['HISTORY '] = self.history
 
@@ -442,7 +442,7 @@ class UVData:
         ant_hdu.header['ARRAYY'] = self.y_telescope
         ant_hdu.header['ARRAYZ'] = self.z_telescope
         ant_hdu.header['FRAME'] = self.xyz_telescope_frame
-        ant_hdu.header['GSTIAO'] = self.GST0
+        ant_hdu.header['GSTIA0'] = self.GST0
         ant_hdu.header['FREQ'] = self.freq_array[0, 0]
         ant_hdu.header['RDATE'] = self.RDate
         ant_hdu.header['UT1UTC'] = self.DUT1
