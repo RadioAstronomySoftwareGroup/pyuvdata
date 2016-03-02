@@ -7,7 +7,7 @@ setup_args = {
     'name': 'uvdata',
     'author': 'HERA Team',
     'license': 'BSD',
-    'package_dir': {'uvdata': 'src'},
+    'package_dir': {'uvdata': 'uvdata'},
     'packages': ['uvdata'],
     'scripts': glob.glob('scripts/*'),
     'version': __version__
