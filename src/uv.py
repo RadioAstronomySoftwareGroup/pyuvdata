@@ -3,7 +3,6 @@ from astropy.time import Time
 from astropy.io import fits
 import numpy as n
 
-    
 
 class UVData:
     def __init__(self):
@@ -238,16 +237,16 @@ class UVData:
         self.polarization_array = self._gethduaxis(D, 3)
 
         # other info -- not required but frequently used
-        self.object_name = D.header.get('OBJECT',None)
-        self.telescope_name = D.header.get('TELESCOP',None)
-        self.instrument = D.header.get('INSTRUME',None)
-        self.latitude = D.header.get('LAT',None)
-        self.longitude = D.header.get('LON',None)
-        self.altitude = D.header.get('ALT',None)
-        self.dataobs = D.header.get('DATE-OBS',None)
-        self.history = str(D.header.get('HISTORY',''))
-        self.vis_units = D.header.get('BUNIT',None)
-        self.phase_center_epoch = D.header.get('EPOCH',None)
+        self.object_name = D.header.get('OBJECT', None)
+        self.telescope_name = D.header.get('TELESCOP', None)
+        self.instrument = D.header.get('INSTRUME', None)
+        self.latitude = D.header.get('LAT', None)
+        self.longitude = D.header.get('LON', None)
+        self.altitude = D.header.get('ALT', None)
+        self.dataobs = D.header.get('DATE-OBS', None)
+        self.history = str(D.header.get('HISTORY', ''))
+        self.vis_units = D.header.get('BUNIT', None)
+        self.phase_center_epoch = D.header.get('EPOCH', None)
 
         # find all the header items after the history and keep them as a dict
         etcpointer = 0
@@ -326,23 +325,23 @@ class UVData:
                              pardata=group_parameter_list, bitpix=-32)
         hdu = fits.GroupsHDU(hdu)
 
-        hdu.header['PTYPE1  '] = 'UU      '
+        # hdu.header['PTYPE1  '] = 'UU      '
         hdu.header['PSCAL1  '] = 1.0
         hdu.header['PZERO1  '] = 0.0
 
-        hdu.header['PTYPE2  '] = 'VV      '
+        # hdu.header['PTYPE2  '] = 'VV      '
         hdu.header['PSCAL2  '] = 1.0
         hdu.header['PZERO2  '] = 0.0
 
-        hdu.header['PTYPE3  '] = 'WW      '
+        # hdu.header['PTYPE3  '] = 'WW      '
         hdu.header['PSCAL3  '] = 1.0
         hdu.header['PZERO3  '] = 0.0
 
-        hdu.header['PTYPE4  '] = 'DATE    '
+        # hdu.header['PTYPE4  '] = 'DATE    '
         hdu.header['PSCAL4  '] = 1.0
         hdu.header['PZERO4  '] = jd_midnight
 
-        hdu.header['PTYPE5  '] = 'BASELINE'
+        # hdu.header['PTYPE5  '] = 'BASELINE'
         hdu.header['PSCAL5  '] = 1.0
         hdu.header['PZERO5  '] = 0.0
 

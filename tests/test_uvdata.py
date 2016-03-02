@@ -2,6 +2,7 @@ import unittest
 import inspect
 from uvdata.uv import UVData
 
+
 class TestUVDataInit(unittest.TestCase):
     def setUp(self):
         self.default_attributes = ['data_array', 'nsample_array',
@@ -17,12 +18,10 @@ class TestUVDataInit(unittest.TestCase):
                                    'altitude', 'dateobs', 'history',
                                    'vis_units', 'phase_center_epoch', 'Nants',
                                    'antenna_names', 'antenna_indices',
-                                   'xyz_telescope_frame', 
-                                   'x_telescope', 'y_telescope',
-                                   'z_telescope', 'GST0', 'RDate', 'earth_omega',
-                                    'DUT1','TIMESYS',
-                                    'antenna_positions',
-                                   'fits_extra_keywords']
+                                   'xyz_telescope_frame', 'x_telescope',
+                                   'y_telescope', 'z_telescope', 'GST0',
+                                   'RDate', 'earth_omega', 'DUT1', 'TIMESYS',
+                                   'antenna_positions', 'fits_extra_keywords']
         self.uv_object = UVData()
 
     def tearDown(self):
@@ -60,7 +59,7 @@ class TestReadUVFits(unittest.TestCase):
         shutil.rmtree(self.test_file_directory)
 
     def test_ReadNRAO(self):
-        testfile = '../data/day2_TDEM0003_10s_norx.uvfits'
+        testfile = '../data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
         UV = UVData()
         test = UV.read_uvfits(testfile)
         self.assertTrue(test)
@@ -68,15 +67,21 @@ class TestReadUVFits(unittest.TestCase):
 
 class TestWriteUVFits(unittest.TestCase):
     def test_writeNRAO(self):
-        testfile = '../data/day2_TDEM0003_10s_norx_1scan.uvfits'
+        testfile = '../data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
         #testfile = '../data/PRISim_output_manual_conversion.uvfits'
         UV = UVData()
         UV.read_uvfits(testfile)
         #test = UV.write_uvfits('outtest.uvfits')
-        test = UV.write_uvfits('outtest_casa_1scan.uvfits')
+        test = UV.write_uvfits('outtest_casa_1src_1spw.uvfits')
         self.assertTrue(test)
+    def test_spwnotsupported(self):
+        #testfile = '../data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
+        #testfile = '../data/PRISim_output_manual_conversion.uvfits'
+        testfile='../data/day2_TDEM0003_10s_norx_1scan.uvfits'
+        UV = UVData()
+        self.assertRaises(IOError,UV.read_uvfits,testfile)
     def test_readwriteread(self):
-        testfile = '../data/day2_TDEM0003_10s_norx.uvfits'
+        testfile = '../data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
         UV = UVData()
         UV.read_uvfits(testfile)
         UV.write_uvfits('outtest_casa.uvfits')
