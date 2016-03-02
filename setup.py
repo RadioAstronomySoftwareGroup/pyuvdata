@@ -7,12 +7,11 @@ setup_args = {
     'name': 'uvdata',
     'author': 'HERA Team',
     'license': 'BSD',
-    'package_dir': {'uvdata':'src'},
+    'package_dir': {'uvdata': 'src'},
     'packages': ['uvdata'],
     'scripts': glob.glob('scripts/*'),
     'version': __version__
 }
 
-if __name__== '__main__':
+if __name__ == '__main__':
     apply(setup, (), setup_args)
-    
