@@ -168,6 +168,9 @@ class UVData:
 
         # check if we have an spw dimension
         if D.header['NAXIS'] == 7:
+            if D.header['NAXIS5'] >1: 
+                raise(IOError,"""Sorry.  Files with more than one spectral window (spw) are not yet supported. A great
+                project for the interested student!""")
             self.Nspws = D.header['NAXIS5']
             self.data_array = (D.data.field('DATA')[:, 0, 0, :, :, :, 0] +
                                1j * D.data.field('DATA')[:, 0, 0, :, :, :, 1])
