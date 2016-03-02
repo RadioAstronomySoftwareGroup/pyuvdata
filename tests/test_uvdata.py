@@ -68,12 +68,12 @@ class TestReadUVFits(unittest.TestCase):
 
 class TestWriteUVFits(unittest.TestCase):
     def test_writeNRAO(self):
-        testfile = '../data/day2_TDEM0003_10s_norx.uvfits'
+        testfile = '../data/day2_TDEM0003_10s_norx_1scan.uvfits'
         #testfile = '../data/PRISim_output_manual_conversion.uvfits'
         UV = UVData()
         UV.read_uvfits(testfile)
         #test = UV.write_uvfits('outtest.uvfits')
-        test = UV.write_uvfits('outtest_casa.uvfits')
+        test = UV.write_uvfits('outtest_casa_1scan.uvfits')
         self.assertTrue(test)
     def test_readwriteread(self):
         testfile = '../data/day2_TDEM0003_10s_norx.uvfits'
