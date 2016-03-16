@@ -5,6 +5,8 @@ import numpy as n
 
 
 class UVData:
+    self.supported_file_types = ['uvfits', 'miriad', 'fhd']
+
     def __init__(self):
         # Basic information required by class
 
@@ -128,9 +130,22 @@ class UVData:
         if filename.endswith('.uvfits'):
             self.write_uvfits(self, filename)
 
-    def read(self, filename):
-        if filename.endswith('.uvfits'):
+    def read(self, filename, file_type):
+        """
+        General read function which calls file_type specific read functions
+        Inputs:
+            filename: string
+                May be a directory or a list of files
+        """
+        if file_type not in self.supported_file_types:
+            raise ValueError('file_type must be one of ' +
+                             ' '.join(self.supported_file_types))
+        if file_type == '.uvfits':
             self.read_uvfits(self, filename)
+        elif file_type == 'miriad':
+            self.read_miriad(self, filename)
+        elif file_type == 'fhd':
+            self.read_fhd(self, filename)
         self.check()
 
     def check(self):
@@ -486,5 +501,14 @@ class UVData:
         # write the file
         hdulist = fits.HDUList(hdus=[hdu, ant_hdu])
         hdulist.writeto(filename, clobber=True)
+
+        return True
+
+    def read_fhd(self, filepath):
+
+
+        xx_datafile = filepath + '_vis_xx.sav'
+        yy_datafile = filepath + '_vis_yy.sav'
+        paramsfile = filepath + '_params.sav'
 
         return True
