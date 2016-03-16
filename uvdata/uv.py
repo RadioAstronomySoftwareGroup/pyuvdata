@@ -5,118 +5,124 @@ import numpy as n
 
 
 class UVData:
-    self.supported_file_types = ['uvfits', 'miriad', 'fhd']
-
-    def __init__(self):
-        # Basic information required by class
-
+    supported_file_types = ['uvfits', 'miriad', 'fhd']
+    default_required_attributes = {
         # dimension definitions
-        self.Ntimes = None  # Number of times
-        self.Nbls = None    # number of baselines
-        self.Nblts = None   # Ntimes * Nbls
-        self.Nfreqs = None  # number of frequency channels
-        self.Npols = None   # number of polarizations
+        'Ntimes': None,  # Number of times
+        'Nbls'  : None,    # number of baselines
+        'Nblts'  : None,   # Ntimes * Nbls
+        'Nfreqs'  : None,  # number of frequency channels
+        'Npols'  : None,   # number of polarizations
 
         # array of the visibility data (Nblts,Nspws,Nfreqs,Npols),
         #   type = complex float, in units of self.vis_units
-        self.data_array = None
+        'data_array'  : None,
 
         # Visibility units, options ['uncalib','Jy','K str']
-        self.vis_units = None
+        'vis_units'  : None,
 
         # number of data points averaged into each data element,
         #   type = int, same shape as data_array
-        self.nsample_array = None
+        'nsample_array'  : None,
 
         # boolean flag, True is flagged, same shape as data_array.
-        self.flag_array = None
+        'flag_array'  : None,
 
         # number of spectral windows (ie non-contiguous spectral chunks)
-        self.Nspws = None
-        self.spw_array = None  # array of spectral window numbers
+        'Nspws'  : None,
+        'spw_array'  : None,  # array of spectral window numbers
 
         # phase center of projected baseline vectors, (3,Nblts), units meters
-        self.uvw_array = None
+        'uvw_array'  : None,
 
         # array of times, center of integration, (Nblts), julian date
-        self.time_array = None
+        'time_array'  : None,
 
         # arrays of antenna indices, dimensions (Nblts), type = int, 0 indexed
-        self.ant_1_array = None
-        self.ant_2_array = None
+        'ant_1_array'  : None,
+        'ant_2_array'  : None,
 
         # array of baseline indices, dimensions (Nblts), type = int
         # baseline = 2048 * (ant2+1) + (ant1+1) + 2^16 # does this break casa?
-        self.baseline_array = None
+        'baseline_array'  : None,
 
         # array of frequencies, dimensions (Nspws,Nfreqs), units Hz
-        self.freq_array = None
+        'freq_array'  : None,
 
         # array of polarization integers (Npols)
         # AIPS Memo 117 says:
         #    stokes 1:4 (I,Q,U,V)
         #    circular -1:-4 (RR,LL,RL,LR)
         #    linear -5:-8 (XX,YY,XY,YX)
-        self.polarization_array = None
+        'polarization_array'  : None,
 
         # right ascension of phase center (see uvw_array), units degrees
-        self.phase_center_ra = None
+        'phase_center_ra'  : None,
         # declination of phase center (see uvw_array), units degrees
-        self.phase_center_dec = None
+        'phase_center_dec'  : None,
 
         # these are not strictly necessary and assume homogeniety of
         # time and frequency sampling
-        self.integration_time = None  # length of the integration (s)
-        self.channel_width = None     # width of channel (Hz)
+        'integration_time'  : None,  # length of the integration (s)
+        'channel_width'  : None,     # width of channel (Hz)
 
         # --- observation information ---
-        self.object_name = None     # source or field observed (string)
-        self.telescope_name = None  # name of telescope (string)
-        self.instrument = None      # receiver or backend.
-        self.latitude = None        # latitude of telescope, units degrees
-        self.longitude = None       # longitude of telescope, units degrees
-        self.altitude = None        # altitude of telescope, units meters
-        self.dateobs = None         # date of observation start, units JD.
-        self.history = None         # string o' history units English
+        'object_name'  : None,     # source or field observed (string)
+        'telescope_name'  : None,  # name of telescope (string)
+        'instrument'  : None,      # receiver or backend.
+        'latitude'  : None,        # latitude of telescope, units degrees
+        'longitude'  : None,       # longitude of telescope, units degrees
+        'altitude'  : None,        # altitude of telescope, units meters
+        'dateobs'  : None,         # date of observation start, units JD.
+        'history'  : None,         # string o' history units English
         # epoch year of the phase applied to the data (eg 2000)
-        self.phase_center_epoch = None
+        'phase_center_epoch'  : None,
 
         # --- antenna information ----
-        self.Nants = None    # number of antennas
+        'Nants'  : None,    # number of antennas
 
         # list of antenna names, dimensions (Nants),
         # indexed by self.ant_1_array, self.ant_2_array, self.antenna_indices
-        self.antenna_names = None
+        'antenna_names'  : None,
 
         # integer index into antenna_names, dimensions (Nants),
         #  there must be one entry here for each unique entry in
         #  self.ant_1_array and self.ant_2_array
         #  indexes into antenna_names (sort order must be preserved)
-        self.antenna_indices = None
+        'antenna_indices'  : None,
 
         # coordinate frame for antenna positions (eg 'ITRF' -also google ECEF)
         # NB: ECEF has x running through long=0 and z through the north pole
-        self.xyz_telescope_frame = None
+        'xyz_telescope_frame'  : None,
         # coordinates of array center in meters in coordinate frame
-        self.x_telescope = None
-        self.y_telescope = None
-        self.z_telescope = None
+        'x_telescope'  : None,
+        'y_telescope'  : None,
+        'z_telescope'  : None,
         # array giving coordinates of antennas relative to
         # {x,y,z}_telescope in the same frame, (Nants,3)
-        self.antenna_positions = None
+        'antenna_positions'  : None,
 
         # --- other stuff ---
         # the below are copied from AIPS memo 117, but could be revised to
         # merge with other sources of data.
         # when available they are populated. user beware?
         # Greenwich sidereal time at midnight on reference date
-        self.GST0 = None
-        self.RDate = None  # date for which the GST0 or whatever... applies
+        'GST0'  : None,
+        'RDate'  : None,  # date for which the GST0 or whatever... applies
         # earth's rotation rate in degrees per day
         # (might not be enough sigfigs)
-        self.earth_omega = 360.985
-        self.DUT1 = 0.0        # DUT1 (google it) AIPS 117 calls it UT1UTC
-        self.TIMESYS = 'UTC'   # We only support UTC
+        'earth_omega'  : 360.985,
+        'DUT1'  : 0.0,        # DUT1 (google it) AIPS 117 calls it UT1UTC
+        'TIMESYS'  : 'UTC',   # We only support UTC
+        }
+
+    def __init__(self):
+        # add the default_required_attributes to the class?
+        for attribute_key,attribute_value in self.default_required_attributes.iteritems():
+            exec("self.{attribute_key} = '{attribute_value}'".format(
+                        attribute_key=attribute_key,
+                        attribute_value=attribute_value))
+        
 
         # stuff about reference frequencies and handedness is left out here as
         # a favor to our children
@@ -149,6 +155,8 @@ class UVData:
         self.check()
 
     def check(self):
+        #loop through all required attributes, make sure that they are filled
+        attributes = [i for i in self.uv_object.__dict__.keys() if i[0] != '_']
         return True
 
     def _gethduaxis(self, D, axis):
@@ -511,4 +519,29 @@ class UVData:
         yy_datafile = filepath + '_vis_yy.sav'
         paramsfile = filepath + '_params.sav'
 
+        return True
+    def read_miriad(self,filepath):
+        #map uvdata attributes to miriad data values
+        # those which we can get directly from the miriad file
+        # (some, like n_times, have to be calculated)
+        miriad_header_data = {'Nfreqs':'nchan',
+                              'Npols':'npol',
+                              'Nspws':'nspec',
+                              'phase_center_ra':'ra',
+                              'phase_center_dec':'dec',
+                              'integration_time':'inttime',
+                              'channel_width':'sdf', #in Ghz!
+                              'object_name':'source',
+                              'telescope_name':'telescop',
+                              'latitude':'latitud',
+                              'longitude':'longitu', #in units of radians
+                              'dateobs':'time', #(get the first time in the ever changing header)
+                              'history':'history',
+                              'phase_center_epoch','epoch',
+                              'Nants':'nants',
+                              'antenna_positions','antpos', #take deltas
+                              'x_telescope':#mean of the antpos
+
+
+                              }
         return True
