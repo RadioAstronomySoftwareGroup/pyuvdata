@@ -135,7 +135,9 @@ class UVData:
         General read function which calls file_type specific read functions
         Inputs:
             filename: string
-                May be a directory or a list of files
+                May be a directory or a list of files depending on file_type
+            file_type: string
+                Must be a supported type, see self.supported_file_types
         """
         if file_type not in self.supported_file_types:
             raise ValueError('file_type must be one of ' +
