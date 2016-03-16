@@ -140,8 +140,11 @@ class UVData:
         """
         General read function which calls file_type specific read functions
         Inputs:
-            filename: string
-                May be a directory or a list of files
+            filename: string or list of strings
+                May be a file name, directory name or a list of file names
+                depending on file_type
+            file_type: string
+                Must be a supported type, see self.supported_file_types
         """
         if file_type not in self.supported_file_types:
             raise ValueError('file_type must be one of ' +
@@ -512,12 +515,23 @@ class UVData:
 
         return True
 
-    def read_fhd(self, filepath):
+    def read_fhd(self, filelist):
+        """
+        Read in fhd visibility save files
+            filelist: list
+                list of files containing fhd-style visibility data.
+                Must include at least one polarization file and a params file.
+        """
 
-
-        xx_datafile = filepath + '_vis_xx.sav'
-        yy_datafile = filepath + '_vis_yy.sav'
-        paramsfile = filepath + '_params.sav'
+        for file in filelist:
+            if file.endswith('_vis_xx.sav'):
+                xx_datafile = file
+            elif file.endswith('_vis_yy.sav'):
+                yy_datafile = file
+            elif file.endswith('_params.sav'):
+                params_file = file
+            else:
+                print(file + ' is not a recognized fhd file type')
 
         return True
     def read_miriad(self,filepath):
