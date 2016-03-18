@@ -2,7 +2,8 @@ from astropy import constants as const
 from astropy.time import Time
 from astropy.io import fits
 import numpy as n
-
+from scipy.io.idl import readsav
+import pandas as pd
 
 class UVData:
     supported_file_types = ['uvfits', 'miriad', 'fhd']
@@ -122,7 +123,7 @@ class UVData:
             exec("self.{attribute_key} = '{attribute_value}'".format(
                         attribute_key=attribute_key,
                         attribute_value=attribute_value))
-        
+
 
         # stuff about reference frequencies and handedness is left out here as
         # a favor to our children
@@ -533,7 +534,24 @@ class UVData:
             else:
                 print(file + ' is not a recognized fhd file type')
 
+        xx_dict = readsav(xx_datafile, python_dict=True)
+        yy_dict = readsav(yy_datafile, python_dict=True)
+        vis_xx = xx_dict['vis_ptr']
+        vis_yy = yy_dict['vis_ptr']
+        obs = pd.DataFrame(xx_dict['obs'])
+
+        params_dict = readsav(params_file, python_dict=True)
+        params = pd.DataFrame(params_dict['params'])
+
+        uu = p['UU'][0]
+        vv = p['VV'][0]
+        ww = p['WW'][0]
+        baseline = p['BASELINE_ARR'][0]
+        time = p['TIME'][0]
+
         return True
+
+
     def read_miriad(self,filepath):
         #map uvdata attributes to miriad data values
         # those which we can get directly from the miriad file
