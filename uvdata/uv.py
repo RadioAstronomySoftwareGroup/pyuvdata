@@ -534,13 +534,13 @@ class UVData:
                 print(file + ' is not a recognized fhd file type')
 
         return True
-    def read_miriad(self,filepath):
+    def read_miriad(self,filepath,FLEXIBLE_OPTION=True):
         #map uvdata attributes to miriad data values
         # those which we can get directly from the miriad file
         # (some, like n_times, have to be calculated)
         miriad_header_data = {'Nfreqs':'nchan',
                               'Npols':'npol',
-                              'Nspws':'nspec',
+                              'Nspws':'nspec', #not always available
                               'phase_center_ra':'ra',
                               'phase_center_dec':'dec',
                               'integration_time':'inttime',
@@ -554,8 +554,110 @@ class UVData:
                               'phase_center_epoch','epoch',
                               'Nants':'nants',
                               'antenna_positions','antpos', #take deltas
-                              'x_telescope':#mean of the antpos
 
 
                               }
+        #things not in the miriad header (but calculable from header)
+        #{x,y,z}_telescope
+        #spw_array
+        #freq_array
+
+
+        #things we need to get from scanning through the miriad file
+        #Ntimes
+        #Nbls
+        #Nblts
+        #data_array
+        #uvws  #will we support variable variations?
+        #n_sample_array
+        #flag_array
+        #baseline_array
+        #time_array
+        #polarization_array
+        #ant_1_array
+        #ant_2_array
+        ant_1_array = []
+        ant_2_array = []
+        pols = []
+        data_accumulator = {}
+        flag_accumulator = {}
+        for (uvw,t,(i,j)),d,f in uv.all(raw=True):
+            #control for the case of only a single spw not showing up in
+            # the dimension
+            if len(d.shape)==1: d.shape = (1,) +  d.shape
+            try: 
+                data_accumulator[uv['pol']].append([uvw,t,i,j,d,f])
+            except(KeyError):
+                data_accumulator[uv['pol']] = [uvw,t,i,j,d,f]
+                #NB: flag types in miriad are usually ints
+        self.polarization_array = n.sort(data_accumulator.keys())
+
+        if FLEXIBLE_OPTION:
+            #get all the unique list of all times ever listed in the file
+            times = list(set([[k[1] for k in d] for d in data_accumulator]))
+            times = n.sort(times)
+            bls = list(set([[(k[2],k[3]) for k in d] for d in data_accumulator]))
+            blts = []
+            for t in times:
+                for bl in bls:
+                    blts.append((t,bl))
+            #set the data sizes
+            self.Nblts = len(blts)
+            self.Nbls = len(bls)
+            self.Ntimes = len(times)
+            assert(self.Nblts=self.Nbls*self.Ntimes)
+
+            #slot the data into a grid
+            data_array = n.zeros((Nblts,Nspws,Nfreqs,Npols))
+            flag_array = n.zeros((Nblts,Nspws,Nfreqs,Npols))
+            for pol,data in data_accumulator.iteritems()
+                # search for the correct blt position
+                for iblt,blt in enumerate(blts):
+                    #TBD: this could be a source of slowness for large datasets
+                    if data[1] == blt[0] and (data[2],data[3]) == blt[1]:
+                        break
+                ipol = n.argwhere(self.polarization_array==pol)
+                #requires data to have dimension nspec,nfreq
+                # for the time being we'll set nspec=1
+                data_array[iblt,:,:,ipol] = data[4] 
+                flag_array[iblt,:,:,ipol] = data[5]
+
+
+
+
+        if not FLEXIBLE_OPTION:
+            pass
+            #this option would accumulate things requiring
+            # baselines and times are sorted in the same 
+            #          order for each polarization
+            # and that there are the same number of baselines 
+            #          and pols per timestep
+            #TBD impliment
+
+
+        # NOTES:         
+        #pyuvdata is natively 0 indexed as is miriad
+        #miriad uses the same pol2num standard as aips/casa
+
+        #things not in miriad files
+        #vis_units
+
+
+        
+
+
+
+        #things that might not be required?
+        #'GST0'  : None,
+        #'RDate'  : None,  # date for which the GST0 or whatever... applies
+        #'earth_omega'  : 360.985,
+        #'DUT1'  : 0.0,        # DUT1 (google it) AIPS 117 calls it UT1UTC
+        #'TIMESYS'  : 'UTC',   # We only support UTC
+        
+        #
+
+
+        #Phasing rule: if alt/az is set and ra/dec  are None, then its a drift scan
+
+
         return True
