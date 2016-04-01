@@ -567,9 +567,9 @@ class UVData:
                               'longitude':'longitu', #in units of radians
                               'dateobs':'time', #(get the first time in the ever changing header)
                               'history':'history',
-                              'phase_center_epoch','epoch',
+                              'phase_center_epoch':'epoch',
                               'Nants':'nants',
-                              'antenna_positions','antpos', #take deltas
+                              'antenna_positions':'antpos', #take deltas
 
 
                               }
@@ -621,12 +621,12 @@ class UVData:
             self.Nblts = len(blts)
             self.Nbls = len(bls)
             self.Ntimes = len(times)
-            assert(self.Nblts=self.Nbls*self.Ntimes)
+            assert(self.Nblts==self.Nbls*self.Ntimes)
 
             #slot the data into a grid
             data_array = n.zeros((Nblts,Nspws,Nfreqs,Npols))
             flag_array = n.zeros((Nblts,Nspws,Nfreqs,Npols))
-            for pol,data in data_accumulator.iteritems()
+            for pol,data in data_accumulator.iteritems():
                 # search for the correct blt position
                 for iblt,blt in enumerate(blts):
                     #TBD: this could be a source of slowness for large datasets
