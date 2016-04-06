@@ -116,7 +116,36 @@ class UVData:
         'DUT1'  : 0.0,        # DUT1 (google it) AIPS 117 calls it UT1UTC
         'TIMESYS'  : 'UTC',   # We only support UTC
         }
+    def bl_to_ij(self,bl):
+        # note that this assumes a max antenna standard of 2048
+        #  does not work on the older 256 standard used in many uvfits files
+        if self.Nants>2048: 
+            raise StandardError("error Nants={Nants}>2048 not supported".format(
+                                                        Nants=self.Nants))
+        if n.min(bl)>2**16:
+            i = (bl - 2**16)%2048 - 1
+            j = (bl - 2**16 - (i+1))/2048 - 1
+        else:
+            i = (bl)%256 - 1
+            j = (bl - (i+1))/256 - 1
+        return i,j
+    def ij_to_bl(self,i,j,attempt256=False):
+        # note that this assumes a max antenna standard of 2048
+        #  does not work on the older 256 standard used in many uvfits files
+        if self.Nants>2048: 
+            raise StandardError("cannot convert i,j to a bl index with Nants={Nants}>2048.".format(self.Nants))
+        if attempt256 and (n.max(i)<255 and n.max(j)<255):
+            return 256*(j+1) + (i+1)
+        else:
+            print("""ij_to_bl: found > 256 antennas, using 2048 baseline indexing. 
+                Beware compatibility with CASA etc""")
+        return 2048*(j+1)+(i+1)+2**16
 
+    def ijt_to_blt_index(self,i,j,t):
+        self.ant_1_array
+        self.ant_2_array
+        self.times_array
+        
     def __init__(self):
         # add the default_required_attributes to the class?
         for attribute_key,attribute_value in self.default_required_attributes.iteritems():
@@ -247,22 +276,24 @@ class UVData:
         # TODO iterate over the spw axis, for now we just have one spw
         self.freq_array.shape = (1,)+self.freq_array.shape
 
-        # here we account for two standard methods of forming a single integer
-        # index based on two integer antenna numbers
-        if n.max(self.baseline_array) <= 2**16:
-            # for 255 and fewer antennas
-            self.ant_2_array = n.array(self.baseline_array %
-                                       2**8).astype(int) - 1
-            self.ant_1_array = n.array((self.baseline_array -
-                                        self.ant_2_array) / 2**8).astype(int)-1
-            self.baseline_array = ((self.ant_2_array + 1)*2**11 +
-                                   self.ant_1_array + 1 + 2**16)
-        elif n.min(self.baseline_array) >= 2**16:
-            # for 2047 and fewer antennas
-            bls = self.baseline_array - 2**16
-            self.ant_2_array = n.array(bls % 2**11).astype(int) - 1
-            self.ant_1_array = n.array((bls - self.ant_2_array) /
-                                       2**11).astype(int) - 1
+#        # here we account for two standard methods of forming a single integer
+#        # index based on two integer antenna numbers
+#        if n.max(self.baseline_array) <= 2**16:
+#            # for 255 and fewer antennas
+#            self.ant_2_array = n.array(self.baseline_array %
+#                                       2**8).astype(int) - 1
+#            self.ant_1_array = n.array((self.baseline_array -
+#                                        self.ant_2_array) / 2**8).astype(int)-1
+#            self.baseline_array = ((self.ant_2_array + 1)*2**11 +
+#                                   self.ant_1_array + 1 + 2**16)
+#        elif n.min(self.baseline_array) >= 2**16:
+#            # for 2047 and fewer antennas
+#            bls = self.baseline_array - 2**16
+#            self.ant_2_array = n.array(bls % 2**11).astype(int) - 1
+#            self.ant_1_array = n.array((bls - self.ant_2_array) /
+#                                       2**11).astype(int) - 1
+
+        
         # todo build SKA and or FFTT
 
         self.polarization_array = self._gethduaxis(D, 3)
@@ -317,7 +348,7 @@ class UVData:
 
         # initialize internal variables based on the antenna table
         self.Nants = len(self.antenna_indices)
-
+        self.ant_1_array,self.ant_2_array = self.bl_to_ij(self.baseline_array)
         del(D)
         return True
 
