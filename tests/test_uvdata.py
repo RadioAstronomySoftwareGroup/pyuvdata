@@ -45,7 +45,19 @@ class TestUVDataInit(unittest.TestCase):
             self.assertTrue(attribute in self.default_attributes,
                             msg='unexpected attribute ' + attribute +
                             ' found in UVData')
-
+class TestUVmethods(unittest.TestCase):
+    def setUp(self):
+        self.uv_object = UVData()
+        self.uv_object.Nants = 128
+        
+    def test_ij2bl(self):
+        self.assertEqual(self.uv_object.bl_to_ij(67585),(0,0))
+        #self.Nants = 2049
+        #self.assertRaises(StandardError,self.uv_object.bl_to_ij,67585)
+        #self.Nants = 128
+    def test_bl2ij(self):
+        self.assertEqual(self.uv_object.ij_to_bl(0,0),67585)
+        self.assertEqual(self.uv_object.ij_to_bl(257,256),592130)
 
 class TestReadUVFits(unittest.TestCase):
     def setUp(self):
