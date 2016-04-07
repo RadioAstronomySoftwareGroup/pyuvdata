@@ -603,10 +603,10 @@ class UVData:
         for index, f in enumerate(flags_dict['flag_arr']):
             flag_data[fhd_pol_list[index]] = f
 
-        self.Ntimes = obs['N_TIME']
-        self.Nbls = obs['NBASELINES']
+        self.Ntimes = obs['N_TIME'][0]
+        self.Nbls = obs['NBASELINES'][0]
         self.Nblts = Ntimes * Nbls
-        self.Nfreqs = obs['N_FREQ']
+        self.Nfreqs = obs['N_FREQ'][0]
         self.Npols = len(vis_data.keys())
         self.Nspws = 1
         self.spw_array = [1]
@@ -637,9 +637,10 @@ class UVData:
         self.uvw_array[1, :] = params['VV'][0]
         self.uvw_array[2, :] = params['WW'][0]
 
-        # this isn't right. it needs to be added to a JD time, not sure which
-        # one (obs.jd0 and bl_info.jdate don't agree with eachother)
-        self.time_array = params['TIME'][0]
+        # params.time contains time offsets from the time it was phased to
+        # (often beginning or middle of the observation)
+        # obs.JD0 is the time the visibilities were phased to
+        self.time_array = params['TIME'][0] + obs['JD0'][0]
 
         self.ant_1_array = bl_info['TILE_A'][0]
         self.ant_2_array = bl_info['TILE_B'][0]
@@ -649,35 +650,44 @@ class UVData:
 
         self.freq_array = bl_info['FREQ'][0]
 
-        if not np.isclose(obs['OBSRA'], obs['PHASERA']) or \
-                not np.isclose(obs['OBSDEC'], obs['PHASEDEC']):
+        if not np.isclose(obs['OBSRA'][0], obs['PHASERA'][0]) or \
+                not np.isclose(obs['OBSDEC'][0], obs['PHASEDEC'][0]):
             warnings.warn('These visibilities may have been phased ' +
                           'improperly -- without changing the uvw locations')
 
-        self.phase_center_ra = obs['OBSRA']
-        self.phase_center_dec = obs['OBSDEC']
+        self.phase_center_ra = obs['OBSRA'][0]
+        self.phase_center_dec = obs['OBSDEC'][0]
 
         # why isn't this quite 2? Do we care?
-        self.integration_time = obs['TIME_RES']
+        self.integration_time = obs['TIME_RES'][0]
 
-        self.channel_width = obs['FREQ_RES']
+        self.channel_width = obs['FREQ_RES'][0]
 
         # # --- observation information ---
         # object_name -- don't know if this exists in fhd save files
         self.telescope_name = obs['INSTRUMENT'][0].decode("utf-8")
         self.instrument = telescope_name
-        self.latitude = obs['LAT']
-        self.longitude = obs['LON']
-        self.altitude = obs['ALT']
+        self.latitude = obs['LAT'][0]
+        self.longitude = obs['LON'][0]
+        self.altitude = obs['ALT'][0]
 
         # check this! Why doesn't it agree with bl_info.jdate?
-        self.dateobs = obs['JD0']
+        self.dateobs = obs['JD0'][0]
 
-        # history -- don't know if anything should be put into this
+        # history: add the first few lines from the settings file
+        if settings_file is not None:
+            history_list = ['fhd settings info']
+            with open(settings_file) as f:
+                head = list(islice(f, 11))
+            for line in head:
+                newline = ' '.join(str.split(line))
+                if not line.startswith('##'):
+                    history_list.append(newline)
+            self.history = history_list
 
-        self.phase_center_epoch = astrometry['EQUINOX']  # check this!
+        self.phase_center_epoch = astrometry['EQUINOX']
 
-        self.Nants = max(bl_info['TILE_A'][0])  # is this the best source?
+        self.Nants = max([max(self.ant_1_array), max(self.ant_2_array)])
         self.antenna_names = bl_info['TILE_NAMES'][0]
         self.antenna_indices = np.arange(Nants)
 
