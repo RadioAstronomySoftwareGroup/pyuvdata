@@ -4,6 +4,7 @@ from astropy.io import fits
 import numpy as n
 from scipy.io.idl import readsav
 import pandas as pd
+import warnings
 
 
 class UVData:
@@ -151,7 +152,8 @@ class UVData:
 
     def __init__(self):
         # add the default_required_attributes to the class?
-        for attribute_key, attribute_value in self.default_required_attributes.iteritems():
+        for attribute_key, attribute_value in \
+                self.default_required_attributes.iteritems():
             exec("self.{attribute_key} = '{attribute_value}'".format(
                         attribute_key=attribute_key,
                         attribute_value=attribute_value))
@@ -617,7 +619,6 @@ class UVData:
             if pol in vis_data:
                 pol_list.append(linear_pol_dict[pol])
         self.polarization_array = np.asarray(pol_list)
-        print(polarization_array)
 
         self.data_array = np.zeros((Nblts, Nspws, Nfreqs, Npols),
                                    dtype=np.complex_)
@@ -647,8 +648,14 @@ class UVData:
                                        self.ant_2_array)
 
         self.freq_array = bl_info['FREQ'][0]
-        self.phase_center_ra = obs['PHASERA']
-        self.phase_center_dec = obs['PHASEDEC']
+
+        if not np.isclose(obs['OBSRA'], obs['PHASERA']) or \
+                not np.isclose(obs['OBSDEC'], obs['PHASEDEC']):
+            warnings.warn('These visibilities may have been phased ' +
+                          'improperly -- without changing the uvw locations')
+
+        self.phase_center_ra = obs['OBSRA']
+        self.phase_center_dec = obs['OBSDEC']
 
         # why isn't this quite 2? Do we care?
         self.integration_time = obs['TIME_RES']
