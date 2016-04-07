@@ -553,7 +553,8 @@ class UVData:
         Read in fhd visibility save files
             filelist: list
                 list of files containing fhd-style visibility data.
-                Must include at least one polarization file and a params file.
+                Must include at least one polarization file, a params file and
+                a flag file.
         """
 
         for f in files:
@@ -574,6 +575,9 @@ class UVData:
                 flags_file = file
             else:
                 print(file + ' is not a recognized fhd file type')
+
+        # TODO: add checking to make sure params, flags and datafiles are
+        # consistent with each other
 
         vis_data = {}
         for pol, file in datafiles.iteritems():
