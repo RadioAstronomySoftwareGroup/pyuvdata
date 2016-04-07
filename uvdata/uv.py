@@ -561,8 +561,13 @@ class UVData:
 
         for f in files:
             filelist.append(op.join(filedir, f))
+
         datafiles = {}
+        params_file = None
+        flags_file = None
+        settings_file = None
         for file in filelist:
+            print(file)
             if file.lower().endswith('_vis_xx.sav'):
                 datafiles['xx'] = xx_datafile = file
             elif file.lower().endswith('_vis_yy.sav'):
@@ -575,8 +580,19 @@ class UVData:
                 params_file = file
             elif file.lower().endswith('_flags.sav'):
                 flags_file = file
+            elif file.lower().endswith('_settings.txt'):
+                settings_file = file
             else:
                 print(file + ' is not a recognized fhd file type')
+
+        if len(datafiles) < 1:
+            raise StandardError('No data files included in file list')
+        if params_file is None:
+            raise StandardError('No params file included in file list')
+        if flags_file is None:
+            raise StandardError('No flags file included in file list')
+        if settings_file is None:
+            warnings.warn('No flags file included in file list')
 
         # TODO: add checking to make sure params, flags and datafiles are
         # consistent with each other
