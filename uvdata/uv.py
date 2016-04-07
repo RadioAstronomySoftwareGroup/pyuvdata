@@ -5,154 +5,156 @@ import numpy as n
 from scipy.io.idl import readsav
 import pandas as pd
 
+
 class UVData:
     supported_file_types = ['uvfits', 'miriad', 'fhd']
     default_required_attributes = {
         # dimension definitions
         'Ntimes': None,  # Number of times
-        'Nbls'  : None,    # number of baselines
-        'Nblts'  : None,   # Ntimes * Nbls
-        'Nfreqs'  : None,  # number of frequency channels
-        'Npols'  : None,   # number of polarizations
+        'Nbls': None,    # number of baselines
+        'Nblts': None,   # Ntimes * Nbls
+        'Nfreqs': None,  # number of frequency channels
+        'Npols': None,   # number of polarizations
 
         # array of the visibility data (Nblts,Nspws,Nfreqs,Npols),
         #   type = complex float, in units of self.vis_units
-        'data_array'  : None,
+        'data_array': None,
 
         # Visibility units, options ['uncalib','Jy','K str']
-        'vis_units'  : None,
+        'vis_units': None,
 
         # number of data points averaged into each data element,
         #   type = int, same shape as data_array
-        'nsample_array'  : None,
+        'nsample_array': None,
 
         # boolean flag, True is flagged, same shape as data_array.
-        'flag_array'  : None,
+        'flag_array': None,
 
         # number of spectral windows (ie non-contiguous spectral chunks)
-        'Nspws'  : None,
-        'spw_array'  : None,  # array of spectral window numbers
+        'Nspws': None,
+        'spw_array': None,  # array of spectral window numbers
 
         # phase center of projected baseline vectors, (3,Nblts), units meters
-        'uvw_array'  : None,
+        'uvw_array': None,
 
         # array of times, center of integration, (Nblts), julian date
-        'time_array'  : None,
+        'time_array': None,
 
         # arrays of antenna indices, dimensions (Nblts), type = int, 0 indexed
-        'ant_1_array'  : None,
-        'ant_2_array'  : None,
+        'ant_1_array': None,
+        'ant_2_array': None,
 
         # array of baseline indices, dimensions (Nblts), type = int
         # baseline = 2048 * (ant2+1) + (ant1+1) + 2^16 # does this break casa?
-        'baseline_array'  : None,
+        'baseline_array': None,
 
         # array of frequencies, dimensions (Nspws,Nfreqs), units Hz
-        'freq_array'  : None,
+        'freq_array': None,
 
         # array of polarization integers (Npols)
         # AIPS Memo 117 says:
         #    stokes 1:4 (I,Q,U,V)
         #    circular -1:-4 (RR,LL,RL,LR)
         #    linear -5:-8 (XX,YY,XY,YX)
-        'polarization_array'  : None,
+        'polarization_array': None,
 
         # right ascension of phase center (see uvw_array), units degrees
-        'phase_center_ra'  : None,
+        'phase_center_ra': None,
         # declination of phase center (see uvw_array), units degrees
-        'phase_center_dec'  : None,
+        'phase_center_dec': None,
 
         # these are not strictly necessary and assume homogeniety of
         # time and frequency sampling
-        'integration_time'  : None,  # length of the integration (s)
-        'channel_width'  : None,     # width of channel (Hz)
+        'integration_time': None,  # length of the integration (s)
+        'channel_width': None,     # width of channel (Hz)
 
         # --- observation information ---
-        'object_name'  : None,     # source or field observed (string)
-        'telescope_name'  : None,  # name of telescope (string)
-        'instrument'  : None,      # receiver or backend.
-        'latitude'  : None,        # latitude of telescope, units degrees
-        'longitude'  : None,       # longitude of telescope, units degrees
-        'altitude'  : None,        # altitude of telescope, units meters
-        'dateobs'  : None,         # date of observation start, units JD.
-        'history'  : None,         # string o' history units English
+        'object_name': None,     # source or field observed (string)
+        'telescope_name': None,  # name of telescope (string)
+        'instrument': None,      # receiver or backend.
+        'latitude': None,        # latitude of telescope, units degrees
+        'longitude': None,       # longitude of telescope, units degrees
+        'altitude': None,        # altitude of telescope, units meters
+        'dateobs': None,         # date of observation start, units JD.
+        'history': None,         # string o' history units English
         # epoch year of the phase applied to the data (eg 2000)
-        'phase_center_epoch'  : None,
+        'phase_center_epoch': None,
 
         # --- antenna information ----
-        'Nants'  : None,    # number of antennas
+        'Nants': None,    # number of antennas
 
         # list of antenna names, dimensions (Nants),
         # indexed by self.ant_1_array, self.ant_2_array, self.antenna_indices
-        'antenna_names'  : None,
+        'antenna_names': None,
 
         # integer index into antenna_names, dimensions (Nants),
         #  there must be one entry here for each unique entry in
         #  self.ant_1_array and self.ant_2_array
         #  indexes into antenna_names (sort order must be preserved)
-        'antenna_indices'  : None,
+        'antenna_indices': None,
 
         # coordinate frame for antenna positions (eg 'ITRF' -also google ECEF)
         # NB: ECEF has x running through long=0 and z through the north pole
-        'xyz_telescope_frame'  : None,
+        'xyz_telescope_frame': None,
         # coordinates of array center in meters in coordinate frame
-        'x_telescope'  : None,
-        'y_telescope'  : None,
-        'z_telescope'  : None,
+        'x_telescope': None,
+        'y_telescope': None,
+        'z_telescope': None,
         # array giving coordinates of antennas relative to
         # {x,y,z}_telescope in the same frame, (Nants,3)
-        'antenna_positions'  : None,
+        'antenna_positions': None,
 
         # --- other stuff ---
         # the below are copied from AIPS memo 117, but could be revised to
         # merge with other sources of data.
         # when available they are populated. user beware?
         # Greenwich sidereal time at midnight on reference date
-        'GST0'  : None,
-        'RDate'  : None,  # date for which the GST0 or whatever... applies
+        'GST0': None,
+        'RDate': None,  # date for which the GST0 or whatever... applies
         # earth's rotation rate in degrees per day
         # (might not be enough sigfigs)
-        'earth_omega'  : 360.985,
-        'DUT1'  : 0.0,        # DUT1 (google it) AIPS 117 calls it UT1UTC
-        'TIMESYS'  : 'UTC',   # We only support UTC
+        'earth_omega': 360.985,
+        'DUT1': 0.0,        # DUT1 (google it) AIPS 117 calls it UT1UTC
+        'TIMESYS': 'UTC',   # We only support UTC
         }
-    def bl_to_ij(self,bl):
-        # note that this assumes a max antenna standard of 2048
-        #  does not work on the older 256 standard used in many uvfits files
-        if self.Nants>2048: 
-            raise StandardError("error Nants={Nants}>2048 not supported".format(
-                                                        Nants=self.Nants))
-        if n.min(bl)>2**16:
-            i = (bl - 2**16)%2048 - 1
+
+    def bl_to_ij(self, bl):
+        if self.Nants > 2048:
+            raise StandardError('error Nants={Nants}>2048 not ' +
+                                'supported'.format(Nants=self.Nants))
+        if n.min(bl) > 2**16:
+            i = (bl - 2**16) % 2048 - 1
             j = (bl - 2**16 - (i+1))/2048 - 1
         else:
-            i = (bl)%256 - 1
+            i = (bl) % 256 - 1
             j = (bl - (i+1))/256 - 1
-        return i,j
-    def ij_to_bl(self,i,j,attempt256=False):
-        # note that this assumes a max antenna standard of 2048
-        #  does not work on the older 256 standard used in many uvfits files
-        if self.Nants>2048: 
-            raise StandardError("cannot convert i,j to a bl index with Nants={Nants}>2048.".format(self.Nants))
-        if attempt256 and (n.max(i)<255 and n.max(j)<255):
+        return i, j
+
+    def ij_to_bl(self, i, j, attempt256=False):
+        # set the attempt256 keyword to True to (try to) use the older
+        # 256 standard used in many uvfits files
+        # (will use 2048 standard if there are more than 256 antennas)
+        if self.Nants > 2048:
+            raise StandardError('cannot convert i,j to a bl index with ' +
+                                'Nants={Nants}>2048.'.format(self.Nants))
+        if attempt256 and (n.max(i) < 255 and n.max(j) < 255):
             return 256*(j+1) + (i+1)
         else:
-            print("""ij_to_bl: found > 256 antennas, using 2048 baseline indexing. 
-                Beware compatibility with CASA etc""")
+            print('ij_to_bl: found > 256 antennas, using 2048 baseline ' +
+                  'indexing. Beware compatibility with CASA etc')
         return 2048*(j+1)+(i+1)+2**16
 
-    def ijt_to_blt_index(self,i,j,t):
+    def ijt_to_blt_index(self, i, j, t):
         self.ant_1_array
         self.ant_2_array
         self.times_array
-        
+
     def __init__(self):
         # add the default_required_attributes to the class?
-        for attribute_key,attribute_value in self.default_required_attributes.iteritems():
+        for attribute_key, attribute_value in self.default_required_attributes.iteritems():
             exec("self.{attribute_key} = '{attribute_value}'".format(
                         attribute_key=attribute_key,
                         attribute_value=attribute_value))
-
 
         # stuff about reference frequencies and handedness is left out here as
         # a favor to our children
@@ -188,7 +190,7 @@ class UVData:
         self.check()
 
     def check(self):
-        #loop through all required attributes, make sure that they are filled
+        # loop through all required attributes, make sure that they are filled
         attributes = [i for i in self.uv_object.__dict__.keys() if i[0] != '_']
         return True
 
@@ -283,7 +285,7 @@ class UVData:
 #            self.ant_2_array = n.array(self.baseline_array %
 #                                       2**8).astype(int) - 1
 #            self.ant_1_array = n.array((self.baseline_array -
-#                                        self.ant_2_array) / 2**8).astype(int)-1
+#                                       self.ant_2_array) / 2**8).astype(int)-1
 #            self.baseline_array = ((self.ant_2_array + 1)*2**11 +
 #                                   self.ant_1_array + 1 + 2**16)
 #        elif n.min(self.baseline_array) >= 2**16:
@@ -293,7 +295,6 @@ class UVData:
 #            self.ant_1_array = n.array((bls - self.ant_2_array) /
 #                                       2**11).astype(int) - 1
 
-        
         # todo build SKA and or FFTT
 
         self.polarization_array = self._gethduaxis(D, 3)
@@ -348,7 +349,7 @@ class UVData:
 
         # initialize internal variables based on the antenna table
         self.Nants = len(self.antenna_indices)
-        self.ant_1_array,self.ant_2_array = self.bl_to_ij(self.baseline_array)
+        self.ant_1_array, self.ant_2_array = self.bl_to_ij(self.baseline_array)
         del(D)
         return True
 
@@ -555,156 +556,260 @@ class UVData:
                 Must include at least one polarization file and a params file.
         """
 
+        for f in files:
+            filelist.append(op.join(filedir, f))
+        datafiles = {}
         for file in filelist:
-            if file.endswith('_vis_xx.sav'):
-                xx_datafile = file
-            elif file.endswith('_vis_yy.sav'):
-                yy_datafile = file
-            elif file.endswith('_params.sav'):
+            if file.lower().endswith('_vis_xx.sav'):
+                datafiles['xx'] = xx_datafile = file
+            elif file.lower().endswith('_vis_yy.sav'):
+                datafiles['yy'] = yy_datafile = file
+            elif file.lower().endswith('_vis_xy.sav'):
+                datafiles['xy'] = xy_datafile = file
+            elif file.lower().endswith('_vis_yx.sav'):
+                datafiles['yx'] = yx_datafile = file
+            elif file.lower().endswith('_params.sav'):
                 params_file = file
+            elif file.lower().endswith('_flags.sav'):
+                flags_file = file
             else:
                 print(file + ' is not a recognized fhd file type')
 
-        xx_dict = readsav(xx_datafile, python_dict=True)
-        yy_dict = readsav(yy_datafile, python_dict=True)
-        vis_xx = xx_dict['vis_ptr']
-        vis_yy = yy_dict['vis_ptr']
-        obs = pd.DataFrame(xx_dict['obs'])
+        vis_data = {}
+        for pol, file in datafiles.iteritems():
+            this_dict = readsav(file, python_dict=True)
+            vis_data[pol] = this_dict['vis_ptr']
+            this_obs = pd.DataFrame(this_dict['obs'])
+
+        obs = this_obs
+        bl_info = pd.DataFrame(obs['BASELINE_INFO'][0])
+        meta_data = pd.DataFrame(obs['META_DATA'][0])
+        astrometry = pd.DataFrame(obs['ASTR'][0])
+        fhd_pol_list = []
+        for pol in obs['POL_NAMES'][0]:
+            fhd_pol_list.append(pol.decode("utf-8").lower())
 
         params_dict = readsav(params_file, python_dict=True)
         params = pd.DataFrame(params_dict['params'])
 
-        uu = p['UU'][0]
-        vv = p['VV'][0]
-        ww = p['WW'][0]
-        baseline = p['BASELINE_ARR'][0]
-        time = p['TIME'][0]
+        flags_dict = readsav(flags_file, python_dict=True)
+        flag_data = {}
+        for index, f in enumerate(flags_dict['flag_arr']):
+            flag_data[fhd_pol_list[index]] = f
+
+        self.Ntimes = obs['N_TIME']
+        self.Nbls = obs['NBASELINES']
+        self.Nblts = Ntimes * Nbls
+        self.Nfreqs = obs['N_FREQ']
+        self.Npols = len(vis_data.keys())
+        self.Nspws = 1
+        self.spw_array = [1]
+        self.vis_units = ['Jy']
+
+        lin_pol_order = ['xx', 'yy', 'xy', 'yx']
+        linear_pol_dict = dict(zip(lin_pol_order, np.arange(5, 9)*-1))
+        pol_list = []
+        for pol in lin_pol_order:
+            if pol in vis_data:
+                pol_list.append(linear_pol_dict[pol])
+        self.polarization_array = np.asarray(pol_list)
+        print(polarization_array)
+
+        self.data_array = np.zeros((Nblts, Nspws, Nfreqs, Npols),
+                                   dtype=np.complex_)
+        self.nsample_array = np.zeros((Nblts, Nspws, Nfreqs, Npols),
+                                      dtype=np.float_)
+        self.flag_array = np.zeros((Nblts, Nspws, Nfreqs, Npols),
+                                   dtype=np.bool_)
+        for pol, vis in vis_data.iteritems():
+            pol_i = pol_list.index(linear_pol_dict[pol])
+            self.data_array[:, 0, :, pol_i] = vis
+            self.flag_array[:, 0, :, pol_i] = flag_data[pol] <= 0
+            self.nsample_array[:, 0, :, pol_i] = n.abs(flag_data[pol])
+
+        self.uvw_array = np.zeros((3, Nblts))
+        self.uvw_array[0, :] = params['UU'][0]
+        self.uvw_array[1, :] = params['VV'][0]
+        self.uvw_array[2, :] = params['WW'][0]
+
+        # this isn't right. it needs to be added to a JD time, not sure which
+        # one (obs.jd0 and bl_info.jdate don't agree with eachother)
+        self.time_array = params['TIME'][0]
+
+        self.ant_1_array = bl_info['TILE_A'][0]
+        self.ant_2_array = bl_info['TILE_B'][0]
+
+        self.baseline_array = ij_to_bl(self, self.ant_1_array,
+                                       self.ant_2_array)
+
+        self.freq_array = bl_info['FREQ'][0]
+        self.phase_center_ra = obs['PHASERA']
+        self.phase_center_dec = obs['PHASEDEC']
+
+        # why isn't this quite 2? Do we care?
+        self.integration_time = obs['TIME_RES']
+
+        self.channel_width = obs['FREQ_RES']
+
+        # # --- observation information ---
+        # object_name -- don't know if this exists in fhd save files
+        self.telescope_name = obs['INSTRUMENT'][0].decode("utf-8")
+        self.instrument = telescope_name
+        self.latitude = obs['LAT']
+        self.longitude = obs['LON']
+        self.altitude = obs['ALT']
+
+        # check this! Why doesn't it agree with bl_info.jdate?
+        self.dateobs = obs['JD0']
+
+        # history -- don't know if anything should be put into this
+
+        self.phase_center_epoch = astrometry['EQUINOX']  # check this!
+
+        self.Nants = max(bl_info['TILE_A'][0])  # is this the best source?
+        self.antenna_names = bl_info['TILE_NAMES'][0]
+        self.antenna_indices = np.arange(Nants)
+
+        # TODO fill in the following after hearing from Ian
+        # # coordinate frame for antenna positions (eg 'ITRF'-also google ECEF)
+        # # NB: ECEF has x running through long=0 and z through the north pole
+        # 'xyz_telescope_frame'  : None,
+        # # coordinates of array center in meters in coordinate frame
+        # 'x_telescope'  : None,
+        # 'y_telescope'  : None,
+        # 'z_telescope'  : None,
+        # # array giving coordinates of antennas relative to
+        # # {x,y,z}_telescope in the same frame, (Nants,3)
+        # 'antenna_positions'  : None,
+
+        # # --- other stuff ---
+        # # the below are copied from AIPS memo 117, but could be revised to
+        # # merge with other sources of data.
+        # # when available they are populated. user beware?
+        # # Greenwich sidereal time at midnight on reference date
+        # 'GST0'  : None,
+        # 'RDate'  : None,  # date for which the GST0 or whatever... applies
+        # # earth's rotation rate in degrees per day
+        # # (might not be enough sigfigs)
+        # 'earth_omega'  : 360.985,
+        # 'DUT1'  : 0.0,        # DUT1 (google it) AIPS 117 calls it UT1UTC
+        # 'TIMESYS'  : 'UTC',   # We only support UTC
 
         return True
-    def read_miriad(self,filepath,FLEXIBLE_OPTION=True):
-        #map uvdata attributes to miriad data values
+
+    def read_miriad(self, filepath, FLEXIBLE_OPTION=True):
+        # map uvdata attributes to miriad data values
         # those which we can get directly from the miriad file
         # (some, like n_times, have to be calculated)
-        miriad_header_data = {'Nfreqs':'nchan',
-                              'Npols':'npol',
-                              'Nspws':'nspec', #not always available
-                              'phase_center_ra':'ra',
-                              'phase_center_dec':'dec',
-                              'integration_time':'inttime',
-                              'channel_width':'sdf', #in Ghz!
-                              'object_name':'source',
-                              'telescope_name':'telescop',
-                              'latitude':'latitud',
-                              'longitude':'longitu', #in units of radians
-                              'dateobs':'time', #(get the first time in the ever changing header)
-                              'history':'history',
-                              'phase_center_epoch':'epoch',
-                              'Nants':'nants',
-                              'antenna_positions':'antpos', #take deltas
+        miriad_header_data = {'Nfreqs': 'nchan',
+                              'Npols': 'npol',
+                              'Nspws': 'nspec',  # not always available
+                              'phase_center_ra': 'ra',
+                              'phase_center_dec': 'dec',
+                              'integration_time': 'inttime',
+                              'channel_width': 'sdf',  # in Ghz!
+                              'object_name': 'source',
+                              'telescope_name': 'telescop',
+                              'latitude': 'latitud',
+                              'longitude': 'longitu',  # in units of radians
+                              'dateobs': 'time',  # (get the first time in the ever changing header)
+                              'history': 'history',
+                              'phase_center_epoch': 'epoch',
+                              'Nants': 'nants',
+                              'antenna_positions': 'antpos',  # take deltas
 
 
                               }
-        #things not in the miriad header (but calculable from header)
-        #{x,y,z}_telescope
-        #spw_array
-        #freq_array
+        # things not in the miriad header (but calculable from header)
+        # {x,y,z}_telescope
+        # spw_array
+        # freq_array
 
-
-        #things we need to get from scanning through the miriad file
-        #Ntimes
-        #Nbls
-        #Nblts
-        #data_array
-        #uvws  #will we support variable variations?
-        #n_sample_array
-        #flag_array
-        #baseline_array
-        #time_array
-        #polarization_array
-        #ant_1_array
-        #ant_2_array
+        # things we need to get from scanning through the miriad file
+        # Ntimes
+        # Nbls
+        # Nblts
+        # data_array
+        # uvws  #will we support variable variations?
+        # n_sample_array
+        # flag_array
+        # baseline_array
+        # time_array
+        # polarization_array
+        # ant_1_array
+        # ant_2_array
         ant_1_array = []
         ant_2_array = []
         pols = []
         data_accumulator = {}
         flag_accumulator = {}
-        for (uvw,t,(i,j)),d,f in uv.all(raw=True):
-            #control for the case of only a single spw not showing up in
+        for (uvw, t, (i, j)), d, f in uv.all(raw=True):
+            # control for the case of only a single spw not showing up in
             # the dimension
-            if len(d.shape)==1: d.shape = (1,) +  d.shape
-            try: 
-                data_accumulator[uv['pol']].append([uvw,t,i,j,d,f])
+            if len(d.shape) == 1:
+                d.shape = (1,) + d.shape
+            try:
+                data_accumulator[uv['pol']].append([uvw, t, i, j, d, f])
             except(KeyError):
-                data_accumulator[uv['pol']] = [uvw,t,i,j,d,f]
-                #NB: flag types in miriad are usually ints
+                data_accumulator[uv['pol']] = [uvw, t, i, j, d, f]
+                # NB: flag types in miriad are usually ints
         self.polarization_array = n.sort(data_accumulator.keys())
 
         if FLEXIBLE_OPTION:
-            #get all the unique list of all times ever listed in the file
+            # get all the unique list of all times ever listed in the file
             times = list(set([[k[1] for k in d] for d in data_accumulator]))
             times = n.sort(times)
-            bls = list(set([[(k[2],k[3]) for k in d] for d in data_accumulator]))
+            bls = list(set([[(k[2], k[3]) for k in d] for d in data_accumulator]))
             blts = []
             for t in times:
                 for bl in bls:
-                    blts.append((t,bl))
-            #set the data sizes
+                    blts.append((t, bl))
+            # set the data sizes
             self.Nblts = len(blts)
             self.Nbls = len(bls)
             self.Ntimes = len(times)
-            assert(self.Nblts==self.Nbls*self.Ntimes)
+            assert(self.Nblts == self.Nbls*self.Ntimes)
 
-            #slot the data into a grid
-            data_array = n.zeros((Nblts,Nspws,Nfreqs,Npols))
-            flag_array = n.zeros((Nblts,Nspws,Nfreqs,Npols))
-            for pol,data in data_accumulator.iteritems():
+            # slot the data into a grid
+            data_array = n.zeros((Nblts, Nspws, Nfreqs, Npols))
+            flag_array = n.zeros((Nblts, Nspws, Nfreqs, Npols))
+            for pol, data in data_accumulator.iteritems():
                 # search for the correct blt position
-                for iblt,blt in enumerate(blts):
-                    #TBD: this could be a source of slowness for large datasets
-                    if data[1] == blt[0] and (data[2],data[3]) == blt[1]:
+                for iblt, blt in enumerate(blts):
+                    # TBD: this could be a source of slowness for large datasets
+                    if data[1] == blt[0] and (data[2], data[3]) == blt[1]:
                         break
-                ipol = n.argwhere(self.polarization_array==pol)
-                #requires data to have dimension nspec,nfreq
+                ipol = n.argwhere(self.polarization_array == pol)
+                # requires data to have dimension nspec,nfreq
                 # for the time being we'll set nspec=1
-                data_array[iblt,:,:,ipol] = data[4] 
-                flag_array[iblt,:,:,ipol] = data[5]
-
-
-
+                data_array[iblt, :, :, ipol] = data[4]
+                flag_array[iblt, :, :, ipol] = data[5]
 
         if not FLEXIBLE_OPTION:
             pass
-            #this option would accumulate things requiring
-            # baselines and times are sorted in the same 
+            # this option would accumulate things requiring
+            # baselines and times are sorted in the same
             #          order for each polarization
-            # and that there are the same number of baselines 
+            # and that there are the same number of baselines
             #          and pols per timestep
-            #TBD impliment
+            # TBD impliment
 
+        # NOTES:
+        # pyuvdata is natively 0 indexed as is miriad
+        # miriad uses the same pol2num standard as aips/casa
 
-        # NOTES:         
-        #pyuvdata is natively 0 indexed as is miriad
-        #miriad uses the same pol2num standard as aips/casa
+        # things not in miriad files
+        # vis_units
 
-        #things not in miriad files
-        #vis_units
+        # things that might not be required?
+        # 'GST0'  : None,
+        # 'RDate'  : None,  # date for which the GST0 or whatever... applies
+        # 'earth_omega'  : 360.985,
+        # 'DUT1'  : 0.0,        # DUT1 (google it) AIPS 117 calls it UT1UTC
+        # 'TIMESYS'  : 'UTC',   # We only support UTC
 
-
-        
-
-
-
-        #things that might not be required?
-        #'GST0'  : None,
-        #'RDate'  : None,  # date for which the GST0 or whatever... applies
-        #'earth_omega'  : 360.985,
-        #'DUT1'  : 0.0,        # DUT1 (google it) AIPS 117 calls it UT1UTC
-        #'TIMESYS'  : 'UTC',   # We only support UTC
-        
         #
 
-
-        #Phasing rule: if alt/az is set and ra/dec  are None, then its a drift scan
-
+        # Phasing rule: if alt/az is set and ra/dec  are None, then its a drift scan
 
         return True
