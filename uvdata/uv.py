@@ -653,10 +653,15 @@ class UVData:
         self.uvw_array[1, :] = params['VV'][0]
         self.uvw_array[2, :] = params['WW'][0]
 
-        # params.time contains time offsets from the time it was phased to
-        # (often beginning or middle of the observation)
-        # obs.JD0 is the time the visibilities were phased to
-        self.time_array = params['TIME'][0] + obs['JD0'][0]
+        # bl_info.JDATE is the only safe date/time to use in FHD files.
+        # (obs.JD0 and params.TIME are context dependent and are not safe
+        #   because they depend on the phasing of the visibilities)
+        # the values in bl_info.JDATE are the JD for each integration.
+        # We need to expand up to Nblts.
+        int_times = bl_info['JDATE'][0]
+        self.time_array = np.zeros(Nblts)
+        for ii in range(0, Ntimes):
+            self.time_array[ii*Nbls:(ii+1)*Nbls] = int_times[ii]
 
         self.ant_1_array = bl_info['TILE_A'][0]
         self.ant_2_array = bl_info['TILE_B'][0]
@@ -674,21 +679,36 @@ class UVData:
         self.phase_center_ra = obs['OBSRA'][0]
         self.phase_center_dec = obs['OBSDEC'][0]
 
-        # why isn't this quite 2? Do we care?
+        # this is generated in FHD by subtracting the JD of neighboring
+        # integrations. This can have limited accuracy, so it can be slightly
+        # off the actual value.
+        # (e.g. 1.999426... rather than 2)
         self.integration_time = obs['TIME_RES'][0]
-
         self.channel_width = obs['FREQ_RES'][0]
 
         # # --- observation information ---
-        # object_name -- don't know if this exists in fhd save files
         self.telescope_name = obs['INSTRUMENT'][0].decode("utf-8")
+
+        # This is a bit of a kludge because nothing like object_name exists
+        # in FHD files.
+        # At least for the MWA, obs.ORIG_PHASERA and obs.ORIG_PHASEDEC specify
+        # the field the telescope was nominally pointing at
+        # (May need to be revisited, but probably isn't too important)
+        object_name = 'Field RA(deg): ' + str(obs['ORIG_PHASERA'][0]) + \
+                      ', Dec:' + str(obs['ORIG_PHASEDEC'][0])
+        # For the MWA, this can sometimes be converted to EoR fields
+        if self.telescope_name.lower() == 'mwa' and \
+                np.isclose(obs['ORIG_PHASERA'][0], 0) and \
+                np.isclose(obs['ORIG_PHASEDEC'][0], -27):
+            object_name = 'EoR 0 Field'
+
         self.instrument = telescope_name
         self.latitude = obs['LAT'][0]
         self.longitude = obs['LON'][0]
         self.altitude = obs['ALT'][0]
 
-        # check this! Why doesn't it agree with bl_info.jdate?
-        self.dateobs = obs['JD0'][0]
+        # Use the first integration time here
+        self.dateobs = min(self.time_array)
 
         # history: add the first few lines from the settings file
         if settings_file is not None:
@@ -701,7 +721,7 @@ class UVData:
                     history_list.append(newline)
             self.history = history_list
 
-        self.phase_center_epoch = astrometry['EQUINOX']
+        self.phase_center_epoch = astrometry['EQUINOX'][0]
 
         self.Nants = max([max(self.ant_1_array), max(self.ant_2_array)])
         self.antenna_names = bl_info['TILE_NAMES'][0]
