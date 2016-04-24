@@ -55,3 +55,7 @@ docs/_build/
 
 # PyBuilder
 target/
+
+# exclude data files (can override as needed)
+uvdata/data/
+uvdata/data/test/

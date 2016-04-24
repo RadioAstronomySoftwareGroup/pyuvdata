@@ -1,10 +1,12 @@
 from astropy import constants as const
 from astropy.time import Time
 from astropy.io import fits
-import numpy as n
+import os.path as op
+import numpy as np
 from scipy.io.idl import readsav
 import pandas as pd
 import warnings
+from itertools import islice
 
 
 class UVData:
@@ -94,6 +96,10 @@ class UVData:
         #  indexes into antenna_names (sort order must be preserved)
         'antenna_indices': None,
 
+        }
+
+    extra_attributes = {
+
         # coordinate frame for antenna positions (eg 'ITRF' -also google ECEF)
         # NB: ECEF has x running through long=0 and z through the north pole
         'xyz_telescope_frame': None,
@@ -117,38 +123,21 @@ class UVData:
         'earth_omega': 360.985,
         'DUT1': 0.0,        # DUT1 (google it) AIPS 117 calls it UT1UTC
         'TIMESYS': 'UTC',   # We only support UTC
+
+        # THIS IS AN FHD SPECIFIC THING THAT WE DON'T UNDERSTAND YET
+        # the time at which the phase center is normal to the chosen UV
+        # plane for phasing. In other words, the time at which W is minimum or
+        # when the uv plane points at the phase center.
+        # REQUIRED if data is phased
+        # nb: this parameter is often implicit or poorly defined in many
+        #    files/codes
+        'uvplane_reference_time': None
         }
 
-    def bl_to_ij(self, bl):
-        if self.Nants > 2048:
-            raise StandardError('error Nants={Nants}>2048 not ' +
-                                'supported'.format(Nants=self.Nants))
-        if n.min(bl) > 2**16:
-            i = (bl - 2**16) % 2048 - 1
-            j = (bl - 2**16 - (i+1))/2048 - 1
-        else:
-            i = (bl) % 256 - 1
-            j = (bl - (i+1))/256 - 1
-        return i, j
-
-    def ij_to_bl(self, i, j, attempt256=False):
-        # set the attempt256 keyword to True to (try to) use the older
-        # 256 standard used in many uvfits files
-        # (will use 2048 standard if there are more than 256 antennas)
-        if self.Nants > 2048:
-            raise StandardError('cannot convert i,j to a bl index with ' +
-                                'Nants={Nants}>2048.'.format(self.Nants))
-        if attempt256 and (n.max(i) < 255 and n.max(j) < 255):
-            return 256*(j+1) + (i+1)
-        else:
-            print('ij_to_bl: found > 256 antennas, using 2048 baseline ' +
-                  'indexing. Beware compatibility with CASA etc')
-        return 2048*(j+1)+(i+1)+2**16
-
-    def ijt_to_blt_index(self, i, j, t):
-        self.ant_1_array
-        self.ant_2_array
-        self.times_array
+    uvfits_required_extra = ['xyz_telescope_frame', 'x_telescope',
+                             'y_telescope', 'z_telescope',
+                             'antenna_positions', 'GST0', 'RDate',
+                             'earth_omega', 'DUT1', 'TIMESYS']
 
     def __init__(self):
         # add the default_required_attributes to the class?
@@ -161,8 +150,41 @@ class UVData:
         # stuff about reference frequencies and handedness is left out here as
         # a favor to our children
 
-        # the user supplied extra keywords in fits header, type=dict
-        self.fits_extra_keywords = {}
+        # any user supplied extra keywords, type=dict
+        self.extra_keywords = {}
+
+    def baseline_to_antnums(self, baseline):
+        if self.Nants > 2048:
+            raise StandardError('error Nants={Nants}>2048 not ' +
+                                'supported'.format(Nants=self.Nants))
+        if np.min(baseline) > 2**16:
+            i = (baseline - 2**16) % 2048 - 1
+            j = (baseline - 2**16 - (i+1))/2048 - 1
+        else:
+            i = (baseline) % 256 - 1
+            j = (baseline - (i+1))/256 - 1
+        return i, j
+
+    def antnums_to_baseline(self, i, j, attempt256=False):
+        # set the attempt256 keyword to True to (try to) use the older
+        # 256 standard used in many uvfits files
+        # (will use 2048 standard if there are more than 256 antennas)
+        if self.Nants > 2048:
+            raise StandardError('cannot convert i,j to a baseline index ' +
+                                'with Nants={Nants}>2048.'
+                                .format(Nants=self.Nants))
+        if attempt256 and (np.max(i) < 255 and np.max(j) < 255):
+            return 256*(j+1) + (i+1)
+        else:
+            print('antnums_to_baseline: found > 256 antennas, using ' +
+                  '2048 baseline indexing. Beware compatibility with CASA etc')
+        return 2048*(j+1)+(i+1)+2**16
+
+    # this needs to exist but doesn't yet
+    def ijt_to_blt_index(self, i, j, t):
+        self.ant_1_array
+        self.ant_2_array
+        self.times_array
 
     def write(self, filename):
         self.check()
@@ -202,7 +224,7 @@ class UVData:
         X0 = D.header['CRVAL'+ax]
         dX = D.header['CDELT'+ax]
         Xi0 = D.header['CRPIX'+ax]-1
-        return n.arange(X0-dX*Xi0, X0-dX*Xi0+N*dX, dX)
+        return np.arange(X0-dX*Xi0, X0-dX*Xi0+N*dX, dX)
 
     def _indexhdus(self, hdulist):
         # input a list of hdus
@@ -216,6 +238,12 @@ class UVData:
         return tablenames
 
     def read_uvfits(self, filename):
+        # assign extra_attributes required for uvfits
+        for attribute_key in self.uvfits_required_extra:
+            exec("self.{attribute_key} = '{attribute_value}'".format(
+                        attribute_key=attribute_key,
+                        attribute_value=self.extra_attributes[attribute_key]))
+
         F = fits.open(filename)
         D = F[0]  # assumes the visibilities are in the primary hdu
         hdunames = self._indexhdus(F)  # find the rest of the tables
@@ -236,8 +264,8 @@ class UVData:
             self.data_array = (D.data.field('DATA')[:, 0, 0, :, :, :, 0] +
                                1j * D.data.field('DATA')[:, 0, 0, :, :, :, 1])
             self.flag_array = (D.data.field('DATA')[:, 0, 0, :, :, :, 2] <= 0)
-            self.nsample_array = n.abs(D.data.field('DATA')
-                                       [:, 0, 0, :, :, :, 2])
+            self.nsample_array = np.abs(D.data.field('DATA')
+                                        [:, 0, 0, :, :, :, 2])
             self.Nspws = D.header['NAXIS5']
             assert(self.Nspws == self.data_array.shape[1])
 
@@ -251,11 +279,11 @@ class UVData:
             # here we put it back in so the dimensionality stays the same
             self.data_array = (D.data.field('DATA')[:, 0, 0, :, :, 0] +
                                1j * D.data.field('DATA')[:, 0, 0, :, :, 1])
-            self.data_array = self.data_array[:, n.newaxis, :, :]
+            self.data_array = self.data_array[:, np.newaxis, :, :]
             self.flag_array = (D.data.field('DATA')[:, 0, 0, :, :, 2] <= 0)
-            self.flag_array = self.flag_array[:, n.newaxis, :, :]
-            self.nsample_array = n.abs(D.data.field('DATA')[:, 0, 0, :, :, 2])
-            self.nsample_array = self.nsample_array[:, n.newaxis, :, :]
+            self.flag_array = self.flag_array[:, np.newaxis, :, :]
+            self.nsample_array = np.abs(D.data.field('DATA')[:, 0, 0, :, :, 2])
+            self.nsample_array = self.nsample_array[:, np.newaxis, :, :]
 
             # the axis number for phase center depends on if the spw exists
             self.Nspws = 1
@@ -272,8 +300,8 @@ class UVData:
         assert(self.Nblts == self.data_array.shape[0])
 
         # read baseline vectors in units of seconds, return in meters
-        self.uvw_array = (n.array(zip(D.data.field('UU'), D.data.field('VV'),
-                                      D.data.field('WW'))) *
+        self.uvw_array = (np.array(zip(D.data.field('UU'), D.data.field('VV'),
+                                       D.data.field('WW'))) *
                           const.c.to('m/s').value).T
 
         self.freq_array = self._gethduaxis(D, 4)
@@ -282,19 +310,19 @@ class UVData:
 
 #        # here we account for two standard methods of forming a single integer
 #        # index based on two integer antenna numbers
-#        if n.max(self.baseline_array) <= 2**16:
+#        if np.max(self.baseline_array) <= 2**16:
 #            # for 255 and fewer antennas
-#            self.ant_2_array = n.array(self.baseline_array %
+#            self.ant_2_array = np.array(self.baseline_array %
 #                                       2**8).astype(int) - 1
-#            self.ant_1_array = n.array((self.baseline_array -
+#            self.ant_1_array = np.array((self.baseline_array -
 #                                       self.ant_2_array) / 2**8).astype(int)-1
 #            self.baseline_array = ((self.ant_2_array + 1)*2**11 +
 #                                   self.ant_1_array + 1 + 2**16)
-#        elif n.min(self.baseline_array) >= 2**16:
+#        elif np.min(self.baseline_array) >= 2**16:
 #            # for 2047 and fewer antennas
 #            bls = self.baseline_array - 2**16
-#            self.ant_2_array = n.array(bls % 2**11).astype(int) - 1
-#            self.ant_1_array = n.array((bls - self.ant_2_array) /
+#            self.ant_2_array = np.array(bls % 2**11).astype(int) - 1
+#            self.ant_1_array = np.array((bls - self.ant_2_array) /
 #                                       2**11).astype(int) - 1
 
         # todo build SKA and or FFTT
@@ -322,7 +350,7 @@ class UVData:
         for key in D.header[etcpointer:]:
             if key == '':
                 continue
-            self.fits_extra_keywords[key] = D.header[key]
+            self.extra_keywords[key] = D.header[key]
 
         # READ the antenna table
         # TODO FINISH & test
@@ -351,25 +379,54 @@ class UVData:
 
         # initialize internal variables based on the antenna table
         self.Nants = len(self.antenna_indices)
-        self.ant_1_array, self.ant_2_array = self.bl_to_ij(self.baseline_array)
+        self.ant_1_array, self.ant_2_array = \
+            self.baseline_to_antnums(self.baseline_array)
         del(D)
         return True
 
-    def write_uvfits(self, filename):
+    def write_uvfits(self, filename, spoof_nonessential=False):
+
+        print(type(self.Nants))
+        for attribute_key in self.uvfits_required_extra:
+            exec("test = hasattr(self, '{attribute_key}')".format(
+                    attribute_key=attribute_key))
+            if test:
+                exec("test = self.{attribute_key}".format(
+                        attribute_key=attribute_key))
+            else:
+                test = None
+            if test is None:
+                if spoof_nonessential:
+                    # spoof extra keywords required for uvfits
+                    if attribute_key == 'antenna_positions':
+                        exec("self.{attribute_key} = {attribute_value:s}".
+                             format(attribute_key=attribute_key,
+                                    attribute_value='np.zeros((self.Nants, 3))'))
+                    else:
+                        exec("self.{attribute_key} = {attribute_value}".
+                             format(attribute_key=attribute_key,
+                                    attribute_value=0))
+                else:
+                    raise ValueError('''Required attribute {attribute} for
+                                      uvfits not defined. Define or set
+                                      spoof_nonessential to  True to spoof this
+                                      attribute.'''
+                                     .format(attribute=attribute_key))
+
         # TODO document the uvfits weights convention on wiki
-        weights_array = self.nsample_array * n.where(self.flag_array, -1, 1)
-        data_array = self.data_array[:, n.newaxis, n.newaxis, :, :, :,
-                                     n.newaxis]
-        weights_array = weights_array[:, n.newaxis, n.newaxis, :, :, :,
-                                      n.newaxis]
+        weights_array = self.nsample_array * np.where(self.flag_array, -1, 1)
+        data_array = self.data_array[:, np.newaxis, np.newaxis, :, :, :,
+                                     np.newaxis]
+        weights_array = weights_array[:, np.newaxis, np.newaxis, :, :, :,
+                                      np.newaxis]
         # uvfits_array_data shape will be  (Nblts,1,1,[Nspws],Nfreqs,Npols,3)
         print "data_array.shape", data_array.shape
-        uvfits_array_data = n.concatenate([data_array.real,
+        uvfits_array_data = np.concatenate([data_array.real,
                                            data_array.imag,
                                            weights_array], axis=6)
 
         uvw_array_sec = self.uvw_array / const.c.to('m/s').value
-        jd_midnight = n.floor(self.time_array[0]-0.5)+0.5
+        jd_midnight = np.floor(self.time_array[0]-0.5)+0.5
 
         # uvfits convention is that time_array + jd_midnight = actual JD
         # jd_midnight is julian midnight on first day of observation
@@ -423,14 +480,14 @@ class UVData:
         hdu.header['CRVAL3  '] = self.polarization_array[0]
         hdu.header['CRPIX3  '] = 1.0
         try:
-            hdu.header['CDELT3  '] = n.diff(self.polarization_array)[0]
+            hdu.header['CDELT3  '] = np.diff(self.polarization_array)[0]
         except(IndexError):
             hdu.header['CDELT3  '] = 1.0
 
         hdu.header['CTYPE4  '] = 'FREQ    '
         hdu.header['CRVAL4  '] = self.freq_array[0, 0]
         hdu.header['CRPIX4  '] = 1.0
-        hdu.header['CDELT4  '] = n.diff(self.freq_array[0])[0]
+        hdu.header['CDELT4  '] = np.diff(self.freq_array[0])[0]
 
         hdu.header['CTYPE5  '] = 'IF      '
         hdu.header['CRVAL5  '] = 1.0
@@ -458,9 +515,9 @@ class UVData:
         hdu.header['HISTORY '] = self.history
 
         # end standard keywords; begin user-defined keywords
-        print "self.fits_extra_keywords = "
-        print self.fits_extra_keywords
-        for key, value in self.fits_extra_keywords.iteritems():
+        print "self.extra_keywords = "
+        print self.extra_keywords
+        for key, value in self.extra_keywords.iteritems():
             # header keywords have to be 8 characters or less
             keyword = key[:8].upper()
             print "keyword=-value-", keyword+'='+'-'+str(value)+'-'
@@ -559,9 +616,6 @@ class UVData:
                 a flag file.
         """
 
-        for f in files:
-            filelist.append(op.join(filedir, f))
-
         datafiles = {}
         params_file = None
         flags_file = None
@@ -621,12 +675,12 @@ class UVData:
 
         self.Ntimes = obs['N_TIME'][0]
         self.Nbls = obs['NBASELINES'][0]
-        self.Nblts = Ntimes * Nbls
+        self.Nblts = self.Ntimes * self.Nbls
         self.Nfreqs = obs['N_FREQ'][0]
         self.Npols = len(vis_data.keys())
         self.Nspws = 1
         self.spw_array = [1]
-        self.vis_units = ['Jy']
+        self.vis_units = 'JY'
 
         lin_pol_order = ['xx', 'yy', 'xy', 'yx']
         linear_pol_dict = dict(zip(lin_pol_order, np.arange(5, 9)*-1))
@@ -636,40 +690,47 @@ class UVData:
                 pol_list.append(linear_pol_dict[pol])
         self.polarization_array = np.asarray(pol_list)
 
-        self.data_array = np.zeros((Nblts, Nspws, Nfreqs, Npols),
-                                   dtype=np.complex_)
-        self.nsample_array = np.zeros((Nblts, Nspws, Nfreqs, Npols),
-                                      dtype=np.float_)
-        self.flag_array = np.zeros((Nblts, Nspws, Nfreqs, Npols),
-                                   dtype=np.bool_)
+        self.data_array = np.zeros((self.Nblts, self.Nspws, self.Nfreqs,
+                                    self.Npols), dtype=np.complex_)
+        self.nsample_array = np.zeros((self.Nblts, self.Nspws, self.Nfreqs,
+                                       self.Npols), dtype=np.float_)
+        self.flag_array = np.zeros((self.Nblts, self.Nspws, self.Nfreqs,
+                                    self.Npols), dtype=np.bool_)
         for pol, vis in vis_data.iteritems():
             pol_i = pol_list.index(linear_pol_dict[pol])
             self.data_array[:, 0, :, pol_i] = vis
             self.flag_array[:, 0, :, pol_i] = flag_data[pol] <= 0
-            self.nsample_array[:, 0, :, pol_i] = n.abs(flag_data[pol])
+            self.nsample_array[:, 0, :, pol_i] = np.abs(flag_data[pol])
 
-        self.uvw_array = np.zeros((3, Nblts))
+        self.uvw_array = np.zeros((3, self.Nblts))
         self.uvw_array[0, :] = params['UU'][0]
         self.uvw_array[1, :] = params['VV'][0]
         self.uvw_array[2, :] = params['WW'][0]
 
-        # bl_info.JDATE is the only safe date/time to use in FHD files.
-        # (obs.JD0 and params.TIME are context dependent and are not safe
+        # bl_info.JDATE (a vector of length Ntimes) is the only safe date/time
+        # to use in FHD files.
+        # (obs.JD0 (float) and params.TIME (vector of length Nblts) are
+        #   context dependent and are not safe
         #   because they depend on the phasing of the visibilities)
         # the values in bl_info.JDATE are the JD for each integration.
         # We need to expand up to Nblts.
         int_times = bl_info['JDATE'][0]
-        self.time_array = np.zeros(Nblts)
-        for ii in range(0, Ntimes):
-            self.time_array[ii*Nbls:(ii+1)*Nbls] = int_times[ii]
+        self.time_array = np.zeros(self.Nblts)
+        for ii in range(0, self.Ntimes):
+            self.time_array[ii*self.Nbls:(ii+1)*self.Nbls] = int_times[ii]
 
         self.ant_1_array = bl_info['TILE_A'][0]
         self.ant_2_array = bl_info['TILE_B'][0]
 
-        self.baseline_array = ij_to_bl(self, self.ant_1_array,
-                                       self.ant_2_array)
+        self.Nants = max([max(self.ant_1_array), max(self.ant_2_array)])
+        self.antenna_names = bl_info['TILE_NAMES'][0].tolist()
+        self.antenna_indices = np.arange(self.Nants)
 
-        self.freq_array = bl_info['FREQ'][0]
+        self.baseline_array = self.antnums_to_baseline(self.ant_1_array,
+                                                       self.ant_2_array)
+
+        self.freq_array = np.zeros((self.Nspws, self.Nfreqs), dtype=np.float_)
+        self.freq_array[0, :] = bl_info['FREQ'][0]
 
         if not np.isclose(obs['OBSRA'][0], obs['PHASERA'][0]) or \
                 not np.isclose(obs['OBSDEC'][0], obs['PHASEDEC'][0]):
@@ -697,12 +758,12 @@ class UVData:
         object_name = 'Field RA(deg): ' + str(obs['ORIG_PHASERA'][0]) + \
                       ', Dec:' + str(obs['ORIG_PHASEDEC'][0])
         # For the MWA, this can sometimes be converted to EoR fields
-        if self.telescope_name.lower() == 'mwa' and \
-                np.isclose(obs['ORIG_PHASERA'][0], 0) and \
-                np.isclose(obs['ORIG_PHASEDEC'][0], -27):
-            object_name = 'EoR 0 Field'
+        if self.telescope_name.lower() == 'mwa':
+            if np.isclose(obs['ORIG_PHASERA'][0], 0) and \
+                    np.isclose(obs['ORIG_PHASEDEC'][0], -27):
+                object_name = 'EoR 0 Field'
 
-        self.instrument = telescope_name
+        self.instrument = self.telescope_name
         self.latitude = obs['LAT'][0]
         self.longitude = obs['LON'][0]
         self.altitude = obs['ALT'][0]
@@ -719,15 +780,12 @@ class UVData:
                 newline = ' '.join(str.split(line))
                 if not line.startswith('##'):
                     history_list.append(newline)
-            self.history = history_list
+            self.history = '    '.join(history_list)
 
         self.phase_center_epoch = astrometry['EQUINOX'][0]
 
-        self.Nants = max([max(self.ant_1_array), max(self.ant_2_array)])
-        self.antenna_names = bl_info['TILE_NAMES'][0]
-        self.antenna_indices = np.arange(Nants)
-
-        # TODO fill in the following after hearing from Ian
+        # TODO figure out how to calculate the following from what is in the
+        # metafits (and passed along by FHD)
         # # coordinate frame for antenna positions (eg 'ITRF'-also google ECEF)
         # # NB: ECEF has x running through long=0 and z through the north pole
         # 'xyz_telescope_frame'  : None,
@@ -810,12 +868,12 @@ class UVData:
             except(KeyError):
                 data_accumulator[uv['pol']] = [uvw, t, i, j, d, f]
                 # NB: flag types in miriad are usually ints
-        self.polarization_array = n.sort(data_accumulator.keys())
+        self.polarization_array = np.sort(data_accumulator.keys())
 
         if FLEXIBLE_OPTION:
             # get all the unique list of all times ever listed in the file
             times = list(set([[k[1] for k in d] for d in data_accumulator]))
-            times = n.sort(times)
+            times = np.sort(times)
             bls = list(set([[(k[2], k[3]) for k in d] for d in data_accumulator]))
             blts = []
             for t in times:
@@ -828,15 +886,15 @@ class UVData:
             assert(self.Nblts == self.Nbls*self.Ntimes)
 
             # slot the data into a grid
-            data_array = n.zeros((Nblts, Nspws, Nfreqs, Npols))
-            flag_array = n.zeros((Nblts, Nspws, Nfreqs, Npols))
+            data_array = np.zeros((Nblts, Nspws, Nfreqs, Npols))
+            flag_array = np.zeros((Nblts, Nspws, Nfreqs, Npols))
             for pol, data in data_accumulator.iteritems():
                 # search for the correct blt position
                 for iblt, blt in enumerate(blts):
                     # TBD: this could be a source of slowness for large datasets
                     if data[1] == blt[0] and (data[2], data[3]) == blt[1]:
                         break
-                ipol = n.argwhere(self.polarization_array == pol)
+                ipol = np.argwhere(self.polarization_array == pol)
                 # requires data to have dimension nspec,nfreq
                 # for the time being we'll set nspec=1
                 data_array[iblt, :, :, ipol] = data[4]
