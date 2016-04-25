@@ -20,11 +20,10 @@ class TestUVDataInit(unittest.TestCase):
                                     'instrument', 'latitude', 'longitude',
                                     'altitude', 'dateobs', 'history',
                                     'vis_units', 'phase_center_epoch', 'Nants',
-                                    'antenna_names', 'antenna_indices',
-                                    'extra_keywords']
+                                    'antenna_names', 'antenna_indices']
 
-        self.extra_properties = ['xyz_telescope_frame', 'x_telescope',
-                                 'y_telescope', 'z_telescope',
+        self.extra_properties = ['extra_keywords', 'xyz_telescope_frame',
+                                 'x_telescope', 'y_telescope', 'z_telescope',
                                  'antenna_positions', 'GST0', 'RDate',
                                  'earth_omega', 'DUT1', 'TIMESYS',
                                  'uvplane_reference_time']
@@ -32,6 +31,15 @@ class TestUVDataInit(unittest.TestCase):
 
     def tearDown(self):
         del(self.uv_object)
+
+    def test_property_iter(self):
+        all = []
+        for prop in self.uv_object.property_iter():
+            all.append(prop)
+        for a in self.required_properties + self.extra_properties:
+            self.assertTrue(a in all,
+                            msg='expected attribute ' + a +
+                            ' not returned in property_iter')
 
     def test_required_property_iter(self):
         required = []
@@ -164,7 +172,8 @@ class TestReadFHD(unittest.TestCase):
     #     UV.write_uvfits(op.join(self.test_file_directory,
     #                             'outtest_FHD.uvfits'),
     #                     spoof_nonessential=True)
-    #     test = UV.read_uvfits('outtest_FHD.uvfits')
+    #     test = UV.read_uvfits(op.join(self.test_file_directory,
+    #                           'outtest_FHD.uvfits'))
     #     self.assertTrue(test)
 
 

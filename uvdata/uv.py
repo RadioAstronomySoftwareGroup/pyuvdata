@@ -30,7 +30,7 @@ class ant_position_uv_property(uv_property):
 
 
 class extra_dict_uv_property(uv_property):
-    def __init__(self, required=True, value={}, spoof_val={}, units=None,
+    def __init__(self, required=False, value={}, spoof_val={}, units=None,
                  description=''):
         self.required = required
         # cannot set a spoof_val for required properties
@@ -150,10 +150,10 @@ class UVData:
                 'may be extras as well.')
         self.antenna_indices = uv_property(description=desc)
 
+        # -------- extra, non-required properties ----------
         desc = ('any user supplied extra keywords, type=dict')
         self.extra_keywords = extra_dict_uv_property(description=desc)
 
-        # -------- extra, non-required properties ----------
         desc = ('coordinate frame for antenna positions ' +
                 '(eg "ITRF" -also google ECEF). NB: ECEF has x running ' +
                 'through long=0 and z through the north pole')
@@ -300,8 +300,12 @@ class UVData:
         self.check()
 
     def check(self):
-        # loop through all required attributes, make sure that they are filled
-        attributes = [i for i in self.uv_object.__dict__.keys() if i[0] != '_']
+        # loop through all required properties, make sure that they are filled
+        for p in self.required_property_iter():
+            prop = getattr(self, p)
+            if prop.value is None:
+                raise ValueError('Required uv_property ' + p +
+                                 ' has not been set.')
         return True
 
     def _gethduaxis(self, D, axis):
@@ -331,9 +335,15 @@ class UVData:
         # check that we have a single source file!! (TODO)
 
         # astropy.io fits reader scales date according to relevant PZER0 (?)
-        self.time_array.value = D.data.field('DATE')
+        time0_array = D.data['DATE'].astype(np.double)
+        time1_array = D.data['_DATE'].astype(np.double)
+        self.time_array.value = time0_array + time1_array
+
+        self.Ntimes.value = len(np.unique(self.time_array.value))
+        print(self.Ntimes.value)
 
         self.baseline_array.value = D.data.field('BASELINE')
+        self.Nbls.value = len(np.unique(self.baseline_array.value))
 
         # check if we have an spw dimension
         if D.header['NAXIS'] == 7:
@@ -387,6 +397,18 @@ class UVData:
                                 const.c.to('m/s').value).T
 
         self.freq_array.value = self._gethduaxis(D, 4)
+        self.channel_width.value = D.header['CDELT4']
+
+        try:
+            self.integration_time.value = D.data.field('INTTIM')[0]
+        except:
+            if self.Ntimes.value > 1:
+                self.integration_time.value = \
+                    np.diff(np.sort(list(set(self.time_array.value))))[0]
+            else:
+                raise ValueError('integration time not specified and only ' +
+                                 'one time present')
+
         # TODO iterate over the spw axis, for now we just have one spw
         self.freq_array.value.shape = (1,)+self.freq_array.value.shape
 
@@ -446,9 +468,49 @@ class UVData:
         self.ant_1_array.value, self.ant_2_array.value = \
             self.baseline_to_antnums(self.baseline_array.value)
         del(D)
+
+        if (self.latitude.value is None or self.longitude.value is None or
+                self.altitude.value is None):
+            if (self.xyz_telescope_frame.value == "ITRF" or
+                    self.xyz_telescope_frame.value == "ECEF"):
+                # see wikipedia geodetic_datum and Datum transformations of
+                # GPS positions PDF in docs folder
+                gps_b = 6356752.31424518
+                gps_a = 6378137
+                e_squared = 6.69437999014e-3
+                e_prime_squared = 6.73949674228e-3
+                gps_p = np.sqrt(self.x_telescope.value**2 +
+                                self.y_telescope.value**2)
+                gps_theta = np.arctan2(self.z_telescope.value * gps_a,
+                                       gps_p * gps_b)
+                if self.latitude.value is None:
+                    self.latitude.value = np.arctan2(self.z_telescope.value +
+                                                     e_prime_squared * gps_b *
+                                                     np.sin(gps_theta)**3,
+                                                     gps_p-e_squared * gps_a *
+                                                     np.cos(gps_theta)**3)
+                if self.longitude.value is None:
+                    self.longitude.value = np.arctan2(self.y_telescope.value,
+                                                      self.x_telescope.value)
+                gps_N = gps_a / np.sqrt(1-e_squared *
+                                        np.sin(self.latitude.value)**2)
+                if self.altitude.value is None:
+                    self.altitude.value = ((gps_p /
+                                            np.cos(self.latitude.value)) -
+                                           gps_N)
+            else:
+                print(self.xyz_telescope_frame.value)
+                raise ValueError('No latitude or longitude or altitude ' +
+                                 'value assigned and xyz_telescope_frame ' +
+                                 'is not "ITRF" or "ECEF"')
+
+        # check if object has all required uv_properties set
+        self.check()
         return True
 
     def write_uvfits(self, filename, spoof_nonessential=False):
+        # first check if object has all required uv_properties set
+        self.check()
 
         for p in self.extra_property_iter():
             prop = getattr(self, p)
@@ -495,12 +557,13 @@ class UVData:
         print "self.baseline_array.shape = ", self.baseline_array.value.shape
         print "time_array.shape = ", time_array.shape
         group_parameter_list = [uvw_array_sec[0], uvw_array_sec[1],
-                                uvw_array_sec[2], time_array,
-                                baselines_use]
+                                uvw_array_sec[2],
+                                np.ones_like(time_array)*jd_midnight,
+                                time_array, baselines_use]
 
         hdu = fits.GroupData(uvfits_array_data,
                              parnames=['UU      ', 'VV      ', 'WW      ',
-                                       'DATE    ', 'BASELINE'],
+                                       'DATE    ', 'DATE    ', 'BASELINE'],
                              pardata=group_parameter_list, bitpix=-32)
         hdu = fits.GroupsHDU(hdu)
 
@@ -732,7 +795,7 @@ class UVData:
 
         self.Ntimes.value = obs['N_TIME'][0]
         self.Nbls.value = obs['NBASELINES'][0]
-        self.Nblts.value = self.Ntimes * self.Nbls
+        self.Nblts.value = self.Ntimes.value * self.Nbls.value
         self.Nfreqs.value = obs['N_FREQ'][0]
         self.Npols.value = len(vis_data.keys())
         self.Nspws.value = 1
@@ -747,20 +810,24 @@ class UVData:
                 pol_list.append(linear_pol_dict[pol])
         self.polarization_array.value = np.asarray(pol_list)
 
-        self.data_array.value = np.zeros((self.Nblts, self.Nspws, self.Nfreqs,
-                                          self.Npols), dtype=np.complex_)
-        self.nsample_array.value = np.zeros((self.Nblts, self.Nspws,
-                                             self.Nfreqs, self.Npols),
+        self.data_array.value = np.zeros((self.Nblts.value, self.Nspws.value,
+                                          self.Nfreqs.value, self.Npols.value),
+                                         dtype=np.complex_)
+        self.nsample_array.value = np.zeros((self.Nblts.value,
+                                             self.Nspws.value,
+                                             self.Nfreqs.value,
+                                             self.Npols.value),
                                             dtype=np.float_)
-        self.flag_array.value = np.zeros((self.Nblts, self.Nspws, self.Nfreqs,
-                                          self.Npols), dtype=np.bool_)
+        self.flag_array.value = np.zeros((self.Nblts.value, self.Nspws.value,
+                                          self.Nfreqs.value, self.Npols.value),
+                                         dtype=np.bool_)
         for pol, vis in vis_data.iteritems():
             pol_i = pol_list.index(linear_pol_dict[pol])
             self.data_array.value[:, 0, :, pol_i] = vis
             self.flag_array.value[:, 0, :, pol_i] = flag_data[pol] <= 0
             self.nsample_array.value[:, 0, :, pol_i] = np.abs(flag_data[pol])
 
-        self.uvw_array.value = np.zeros((3, self.Nblts))
+        self.uvw_array.value = np.zeros((3, self.Nblts.value))
         self.uvw_array.value[0, :] = params['UU'][0]
         self.uvw_array.value[1, :] = params['VV'][0]
         self.uvw_array.value[2, :] = params['WW'][0]
@@ -815,8 +882,9 @@ class UVData:
         # At least for the MWA, obs.ORIG_PHASERA and obs.ORIG_PHASEDEC specify
         # the field the telescope was nominally pointing at
         # (May need to be revisited, but probably isn't too important)
-        object_name = 'Field RA(deg): ' + str(obs['ORIG_PHASERA'][0]) + \
-                      ', Dec:' + str(obs['ORIG_PHASEDEC'][0])
+        self.object_name.value = 'Field RA(deg): ' + \
+                                 str(obs['ORIG_PHASERA'][0]) + \
+                                 ', Dec:' + str(obs['ORIG_PHASEDEC'][0])
         # For the MWA, this can sometimes be converted to EoR fields
         if self.telescope_name.value.lower() == 'mwa':
             if np.isclose(obs['ORIG_PHASERA'][0], 0) and \
@@ -870,6 +938,8 @@ class UVData:
         # 'DUT1'  : 0.0,        # DUT1 (google it) AIPS 117 calls it UT1UTC
         # 'TIMESYS'  : 'UTC',   # We only support UTC
 
+        # check if object has all required uv_properties set
+        self.check()
         return True
 
     def read_miriad(self, filepath, FLEXIBLE_OPTION=True):
@@ -987,4 +1057,6 @@ class UVData:
 
         # Phasing rule: if alt/az is set and ra/dec  are None, then its a drift scan
 
+        # check if object has all required uv_properties set
+        self.check()
         return True
