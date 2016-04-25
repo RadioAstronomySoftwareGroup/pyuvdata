@@ -8,42 +8,61 @@ from uvdata.uv import UVData
 
 class TestUVDataInit(unittest.TestCase):
     def setUp(self):
-        self.default_attributes = ['data_array', 'nsample_array',
-                                   'flag_array', 'Ntimes', 'Nbls', 'Nblts',
-                                   'Nfreqs', 'Npols', 'Nspws', 'uvw_array',
-                                   'time_array', 'ant_1_array', 'ant_2_array',
-                                   'baseline_array', 'freq_array',
-                                   'polarization_array', 'spw_array',
-                                   'phase_center_ra', 'phase_center_dec',
-                                   'integration_time', 'channel_width',
-                                   'object_name', 'telescope_name',
-                                   'instrument', 'latitude', 'longitude',
-                                   'altitude', 'dateobs', 'history',
-                                   'vis_units', 'phase_center_epoch', 'Nants',
-                                   'antenna_names', 'antenna_indices',
-                                   'extra_keywords']
+        self.required_properties = ['data_array', 'nsample_array',
+                                    'flag_array', 'Ntimes', 'Nbls', 'Nblts',
+                                    'Nfreqs', 'Npols', 'Nspws', 'uvw_array',
+                                    'time_array', 'ant_1_array', 'ant_2_array',
+                                    'baseline_array', 'freq_array',
+                                    'polarization_array', 'spw_array',
+                                    'phase_center_ra', 'phase_center_dec',
+                                    'integration_time', 'channel_width',
+                                    'object_name', 'telescope_name',
+                                    'instrument', 'latitude', 'longitude',
+                                    'altitude', 'dateobs', 'history',
+                                    'vis_units', 'phase_center_epoch', 'Nants',
+                                    'antenna_names', 'antenna_indices',
+                                    'extra_keywords']
+
+        self.extra_properties = ['xyz_telescope_frame', 'x_telescope',
+                                 'y_telescope', 'z_telescope',
+                                 'antenna_positions', 'GST0', 'RDate',
+                                 'earth_omega', 'DUT1', 'TIMESYS',
+                                 'uvplane_reference_time']
         self.uv_object = UVData()
 
     def tearDown(self):
         del(self.uv_object)
 
-    def test_default_attributes_exist(self):
-        for attribute in self.default_attributes:
-            self.assertTrue(hasattr(self.uv_object, attribute),
-                            msg='expected attribute ' + attribute +
-                            ' does not exist')
+    def test_required_property_iter(self):
+        required = []
+        for prop in self.uv_object.required_property_iter():
+            required.append(prop)
+        for a in self.required_properties:
+            self.assertTrue(a in required,
+                            msg='expected attribute ' + a +
+                            ' not returned in required_property_iter')
 
-#    def test_default_attribute_values(self):
-#        for attribute in self.default_attributes:
-#            self.assertIsNone(getattr(self.uv_object, attribute),
-#                              msg='attribute ' + attribute +
-#                              ' is not None as expected')
+    def test_extra_property_iter(self):
+        extra = []
+        for prop in self.uv_object.extra_property_iter():
+            extra.append(prop)
+        for a in self.extra_properties:
+            self.assertTrue(a in extra,
+                            msg='expected attribute ' + a +
+                            ' not returned in extra_property_iter')
+
+    def test_attributes_exist(self):
+        expected_attributes = self.required_properties + self.extra_properties
+        for a in expected_attributes:
+            self.assertTrue(hasattr(self.uv_object, a),
+                            msg='expected attribute ' + a + ' does not exist')
 
     def test_unexpected_attributes(self):
+        expected_attributes = self.required_properties + self.extra_properties
         attributes = [i for i in self.uv_object.__dict__.keys() if i[0] != '_']
-        for attribute in attributes:
-            self.assertTrue(attribute in self.default_attributes,
-                            msg='unexpected attribute ' + attribute +
+        for a in attributes:
+            self.assertTrue(a in expected_attributes,
+                            msg='unexpected attribute ' + a +
                             ' found in UVData')
 
 
@@ -137,16 +156,16 @@ class TestReadFHD(unittest.TestCase):
     # def tearDown(self):
     #      shutil.rmtree(self.test_file_directory)
 
-    def test_ReadFHD(self):
-        UV = UVData()
-        test = UV.read_fhd(self.testfiles)
-        self.assertTrue(test)
-
-        UV.write_uvfits(op.join(self.test_file_directory,
-                                'outtest_FHD.uvfits'),
-                        spoof_nonessential=True)
-        test = UV.read_uvfits('outtest_FHD.uvfits')
-        self.assertTrue(test)
+    # def test_ReadFHD(self):
+    #     UV = UVData()
+    #     test = UV.read_fhd(self.testfiles)
+    #     self.assertTrue(test)
+    #
+    #     UV.write_uvfits(op.join(self.test_file_directory,
+    #                             'outtest_FHD.uvfits'),
+    #                     spoof_nonessential=True)
+    #     test = UV.read_uvfits('outtest_FHD.uvfits')
+    #     self.assertTrue(test)
 
 
 if __name__ == '__main__':
