@@ -329,34 +329,33 @@ class UVData:
 
     def set_LatLonAlt(self):
         if (self.xyz_telescope_frame.value == "ITRF" and
-            self.x_telescope.value is not None and
-            self.y_telescope.value is not None and
-            self.y_telescope.value is not None):
-                # see wikipedia geodetic_datum and Datum transformations of
-                # GPS positions PDF in docs folder
-                gps_b = 6356752.31424518
-                gps_a = 6378137
-                e_squared = 6.69437999014e-3
-                e_prime_squared = 6.73949674228e-3
-                gps_p = np.sqrt(self.x_telescope.value**2 +
-                                self.y_telescope.value**2)
-                gps_theta = np.arctan2(self.z_telescope.value * gps_a,
-                                       gps_p * gps_b)
-                if self.latitude.value is None:
-                    self.latitude.value = np.arctan2(self.z_telescope.value +
-                                                     e_prime_squared * gps_b *
-                                                     np.sin(gps_theta)**3,
-                                                     gps_p-e_squared * gps_a *
-                                                     np.cos(gps_theta)**3)
-                if self.longitude.value is None:
-                    self.longitude.value = np.arctan2(self.y_telescope.value,
-                                                      self.x_telescope.value)
-                gps_N = gps_a / np.sqrt(1-e_squared *
-                                        np.sin(self.latitude.value)**2)
-                if self.altitude.value is None:
-                    self.altitude.value = ((gps_p /
-                                            np.cos(self.latitude.value)) -
-                                           gps_N)
+                self.x_telescope.value is not None and
+                self.y_telescope.value is not None and
+                self.y_telescope.value is not None):
+            # see wikipedia geodetic_datum and Datum transformations of
+            # GPS positions PDF in docs folder
+            gps_b = 6356752.31424518
+            gps_a = 6378137
+            e_squared = 6.69437999014e-3
+            e_prime_squared = 6.73949674228e-3
+            gps_p = np.sqrt(self.x_telescope.value**2 +
+                            self.y_telescope.value**2)
+            gps_theta = np.arctan2(self.z_telescope.value * gps_a,
+                                   gps_p * gps_b)
+            if self.latitude.value is None:
+                self.latitude.value = np.arctan2(self.z_telescope.value +
+                                                 e_prime_squared * gps_b *
+                                                 np.sin(gps_theta)**3,
+                                                 gps_p-e_squared * gps_a *
+                                                 np.cos(gps_theta)**3)
+            if self.longitude.value is None:
+                self.longitude.value = np.arctan2(self.y_telescope.value,
+                                                  self.x_telescope.value)
+            gps_N = gps_a / np.sqrt(1-e_squared *
+                                    np.sin(self.latitude.value)**2)
+            if self.altitude.value is None:
+                self.altitude.value = ((gps_p / np.cos(self.latitude.value)) -
+                                       gps_N)
         else:
             raise ValueError('No x/y/x_telescope value assigned and ' +
                              'xyz_telescope_frame is not "ITRF"')
@@ -386,9 +385,12 @@ class UVData:
                       window (spw) are not yet supported. A great
                       project for the interested student!""")
             self.Nspws.value = D.header['NAXIS5']
-            self.data_array.value = (D.data.field('DATA')[:, 0, 0, :, :, :, 0] +
-                                     1j * D.data.field('DATA')[:, 0, 0, :, :, :, 1])
-            self.flag_array.value = (D.data.field('DATA')[:, 0, 0, :, :, :, 2] <= 0)
+            self.data_array.value = (D.data.field('DATA')
+                                     [:, 0, 0, :, :, :, 0] +
+                                     1j * D.data.field('DATA')
+                                     [:, 0, 0, :, :, :, 1])
+            self.flag_array.value = (D.data.field('DATA')
+                                     [:, 0, 0, :, :, :, 2] <= 0)
             self.nsample_array.value = np.abs(D.data.field('DATA')
                                               [:, 0, 0, :, :, :, 2])
             self.Nspws.value = D.header['NAXIS5']
@@ -403,12 +405,16 @@ class UVData:
             # in many uvfits files the spw axis is left out,
             # here we put it back in so the dimensionality stays the same
             self.data_array.value = (D.data.field('DATA')[:, 0, 0, :, :, 0] +
-                                     1j * D.data.field('DATA')[:, 0, 0, :, :, 1])
+                                     1j * D.data.field('DATA')
+                                     [:, 0, 0, :, :, 1])
             self.data_array.value = self.data_array.value[:, np.newaxis, :, :]
-            self.flag_array.value = (D.data.field('DATA')[:, 0, 0, :, :, 2] <= 0)
+            self.flag_array.value = (D.data.field('DATA')
+                                     [:, 0, 0, :, :, 2] <= 0)
             self.flag_array.value = self.flag_array.value[:, np.newaxis, :, :]
-            self.nsample_array.value = np.abs(D.data.field('DATA')[:, 0, 0, :, :, 2])
-            self.nsample_array.value = self.nsample_array.value[:, np.newaxis, :, :]
+            self.nsample_array.value = np.abs(D.data.field('DATA')
+                                              [:, 0, 0, :, :, 2])
+            self.nsample_array.value = (self.nsample_array.value
+                                        [:, np.newaxis, :, :])
 
             # the axis number for phase center depends on if the spw exists
             self.Nspws.value = 1
@@ -652,7 +658,8 @@ class UVData:
         # 0 specifies alt-az, 6 would specify a phased array
         mntsta = [0] * self.Nants.value
 
-        poltya = ['X'] * self.Nants.value  # beware, X can mean just about anything
+        # beware, X can mean just about anything
+        poltya = ['X'] * self.Nants.value
         polaa = [90.0] * self.Nants.value
         poltyb = ['Y'] * self.Nants.value
         polab = [0.0] * self.Nants.value
@@ -845,7 +852,8 @@ class UVData:
         int_times = bl_info['JDATE'][0]
         self.time_array.value = np.zeros(self.Nblts.value)
         for ii in range(0, self.Ntimes.value):
-            self.time_array.value[ii*self.Nbls.value:(ii+1)*self.Nbls.value] = int_times[ii]
+            self.time_array.value[ii * self.Nbls.value:(ii+1) *
+                                  self.Nbls.value] = int_times[ii]
 
         self.ant_1_array.value = bl_info['TILE_A'][0]
         self.ant_2_array.value = bl_info['TILE_B'][0]
@@ -855,11 +863,12 @@ class UVData:
         self.antenna_names.value = bl_info['TILE_NAMES'][0].tolist()
         self.antenna_indices.value = np.arange(self.Nants.value)
 
-        self.baseline_array.value = self.antnums_to_baseline(self.ant_1_array.value,
-                                                             self.ant_2_array.value)
+        self.baseline_array.value = \
+            self.antnums_to_baseline(self.ant_1_array.value,
+                                     self.ant_2_array.value)
 
         self.freq_array.value = np.zeros((self.Nspws.value, self.Nfreqs.value),
-                                   dtype=np.float_)
+                                         dtype=np.float_)
         self.freq_array.value[0, :] = bl_info['FREQ'][0]
 
         if not np.isclose(obs['OBSRA'][0], obs['PHASERA'][0]) or \
