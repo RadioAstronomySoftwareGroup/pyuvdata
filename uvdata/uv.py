@@ -369,18 +369,23 @@ class UVData:
 
         # astropy.io fits reader scales date according to relevant PZER0 (?)
         time0_array = D.data['DATE']
-        try: 
-        #having DATE (full day) and _DATE (fractional day) is standard for uvfits
-             time1_array = D.data['_DATE']
-             self.time_array.value = time0_array.astype(np.double) + time1_array.astype(double)
+        try:
+            # uvfits standard is to have 2 DATE parameters, both floats:
+            # DATE (full day) and _DATE (fractional day)
+            time1_array = D.data['_DATE']
+            self.time_array.value = (time0_array.astype(np.double) +
+                                     time1_array.astype(double))
         except(KeyError):
-        #cotter uvfits files have one DATE that is a double
-             self.time_array.value = time0_array
-             if np.finfo(time0_array[0]).precision < 5: 
-                 raise ValueError('JDs in this file are not precise to better than a second.')
-             if np.finfo(time0_array[0]).precision > 5 and np.finfo(time0_array[0]).precision < 8: 
-                 warnings.warn('The JDs in your file have sub-second precision, ' +
-                               'but not sub-millisecond.  Use with caution.')
+            # cotter uvfits files have one DATE that is a double
+            self.time_array.value = time0_array
+            if np.finfo(time0_array[0]).precision < 5:
+                raise ValueError('JDs in this file are not precise to ' +
+                                 'better than a second.')
+            if (np.finfo(time0_array[0]).precision > 5 and
+                    np.finfo(time0_array[0]).precision < 8):
+                warnings.warn('The JDs in this file have sub-second ' +
+                              'precision, but not sub-millisecond. ' +
+                              'Use with caution.')
 
         self.Ntimes.value = len(np.unique(self.time_array.value))
         print(self.Ntimes.value)
