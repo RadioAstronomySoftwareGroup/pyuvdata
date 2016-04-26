@@ -327,6 +327,40 @@ class UVData:
                 continue
         return tablenames
 
+    def set_LatLonAlt(self):
+        if (self.xyz_telescope_frame.value == "ITRF" and
+            self.x_telescope.value is not None and
+            self.y_telescope.value is not None and
+            self.y_telescope.value is not None):
+                # see wikipedia geodetic_datum and Datum transformations of
+                # GPS positions PDF in docs folder
+                gps_b = 6356752.31424518
+                gps_a = 6378137
+                e_squared = 6.69437999014e-3
+                e_prime_squared = 6.73949674228e-3
+                gps_p = np.sqrt(self.x_telescope.value**2 +
+                                self.y_telescope.value**2)
+                gps_theta = np.arctan2(self.z_telescope.value * gps_a,
+                                       gps_p * gps_b)
+                if self.latitude.value is None:
+                    self.latitude.value = np.arctan2(self.z_telescope.value +
+                                                     e_prime_squared * gps_b *
+                                                     np.sin(gps_theta)**3,
+                                                     gps_p-e_squared * gps_a *
+                                                     np.cos(gps_theta)**3)
+                if self.longitude.value is None:
+                    self.longitude.value = np.arctan2(self.y_telescope.value,
+                                                      self.x_telescope.value)
+                gps_N = gps_a / np.sqrt(1-e_squared *
+                                        np.sin(self.latitude.value)**2)
+                if self.altitude.value is None:
+                    self.altitude.value = ((gps_p /
+                                            np.cos(self.latitude.value)) -
+                                           gps_N)
+        else:
+            raise ValueError('No x/y/x_telescope value assigned and ' +
+                             'xyz_telescope_frame is not "ITRF"')
+
     def read_uvfits(self, filename):
 
         F = fits.open(filename)
@@ -353,10 +387,10 @@ class UVData:
                       project for the interested student!""")
             self.Nspws.value = D.header['NAXIS5']
             self.data_array.value = (D.data.field('DATA')[:, 0, 0, :, :, :, 0] +
-                               1j * D.data.field('DATA')[:, 0, 0, :, :, :, 1])
+                                     1j * D.data.field('DATA')[:, 0, 0, :, :, :, 1])
             self.flag_array.value = (D.data.field('DATA')[:, 0, 0, :, :, :, 2] <= 0)
             self.nsample_array.value = np.abs(D.data.field('DATA')
-                                        [:, 0, 0, :, :, :, 2])
+                                              [:, 0, 0, :, :, :, 2])
             self.Nspws.value = D.header['NAXIS5']
             assert(self.Nspws.value == self.data_array.value.shape[1])
 
@@ -369,7 +403,7 @@ class UVData:
             # in many uvfits files the spw axis is left out,
             # here we put it back in so the dimensionality stays the same
             self.data_array.value = (D.data.field('DATA')[:, 0, 0, :, :, 0] +
-                               1j * D.data.field('DATA')[:, 0, 0, :, :, 1])
+                                     1j * D.data.field('DATA')[:, 0, 0, :, :, 1])
             self.data_array.value = self.data_array.value[:, np.newaxis, :, :]
             self.flag_array.value = (D.data.field('DATA')[:, 0, 0, :, :, 2] <= 0)
             self.flag_array.value = self.flag_array.value[:, np.newaxis, :, :]
@@ -471,38 +505,7 @@ class UVData:
 
         if (self.latitude.value is None or self.longitude.value is None or
                 self.altitude.value is None):
-            if (self.xyz_telescope_frame.value == "ITRF" or
-                    self.xyz_telescope_frame.value == "ECEF"):
-                # see wikipedia geodetic_datum and Datum transformations of
-                # GPS positions PDF in docs folder
-                gps_b = 6356752.31424518
-                gps_a = 6378137
-                e_squared = 6.69437999014e-3
-                e_prime_squared = 6.73949674228e-3
-                gps_p = np.sqrt(self.x_telescope.value**2 +
-                                self.y_telescope.value**2)
-                gps_theta = np.arctan2(self.z_telescope.value * gps_a,
-                                       gps_p * gps_b)
-                if self.latitude.value is None:
-                    self.latitude.value = np.arctan2(self.z_telescope.value +
-                                                     e_prime_squared * gps_b *
-                                                     np.sin(gps_theta)**3,
-                                                     gps_p-e_squared * gps_a *
-                                                     np.cos(gps_theta)**3)
-                if self.longitude.value is None:
-                    self.longitude.value = np.arctan2(self.y_telescope.value,
-                                                      self.x_telescope.value)
-                gps_N = gps_a / np.sqrt(1-e_squared *
-                                        np.sin(self.latitude.value)**2)
-                if self.altitude.value is None:
-                    self.altitude.value = ((gps_p /
-                                            np.cos(self.latitude.value)) -
-                                           gps_N)
-            else:
-                print(self.xyz_telescope_frame.value)
-                raise ValueError('No latitude or longitude or altitude ' +
-                                 'value assigned and xyz_telescope_frame ' +
-                                 'is not "ITRF" or "ECEF"')
+            self.set_LatLonAlt()
 
         # check if object has all required uv_properties set
         self.check()

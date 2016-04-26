@@ -173,7 +173,7 @@ class TestReadFHD(unittest.TestCase):
     #                             'outtest_FHD.uvfits'),
     #                     spoof_nonessential=True)
     #     test = UV.read_uvfits(op.join(self.test_file_directory,
-    #                           'outtest_FHD.uvfits'))
+    #                           'outtest_FHD_1061321792.uvfits'))
     #     self.assertTrue(test)
 
 
