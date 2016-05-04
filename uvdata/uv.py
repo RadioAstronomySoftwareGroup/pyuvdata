@@ -433,6 +433,7 @@ class UVData:
 
             # the axis number for phase center depends on if the spw exists
             self.Nspws.value = 1
+            self.spw_array.value = np.array([1])
 
             self.phase_center_ra.value = D.header['CRVAL5']
             self.phase_center_dec.value = D.header['CRVAL6']
@@ -478,7 +479,7 @@ class UVData:
         self.altitude.value = D.header.get('ALT', None)
         self.dateobs.value = D.header.get('DATE-OBS', None)
         self.history.value = str(D.header.get('HISTORY', ''))
-        self.vis_units.value = D.header.get('BUNIT', None)
+        self.vis_units.value = D.header.get('BUNIT', 'UNCALIB')
         self.phase_center_epoch.value = D.header.get('EPOCH', None)
 
         # find all the header items after the history and keep them as a dict
@@ -504,7 +505,19 @@ class UVData:
         # stuff in the header
         if self.telescope_name.value is None:
             self.telescope_name.value = ant_hdu.header['ARRNAM']
-        self.xyz_telescope_frame.value = ant_hdu.header['FRAME']
+
+        try:
+            self.xyz_telescope_frame.value = ant_hdu.header['FRAME']
+        except:
+            warnings.warn('Required Antenna frame keyword not set, ' +
+                          'if a Cotter file, will set to ITRF, ' +
+                          'otherwise will set to ????')
+            cotter_version = D.header.get('COTVER', None)
+            if cotter_version is None:
+                self.xyz_telescope_frame.value = '????'
+            else:
+                self.xyz_telescope_frame.value = 'ITRF'
+
         self.x_telescope.value = ant_hdu.header['ARRAYX']
         self.y_telescope.value = ant_hdu.header['ARRAYY']
         self.z_telescope.value = ant_hdu.header['ARRAYZ']
@@ -824,7 +837,7 @@ class UVData:
         self.Nfreqs.value = obs['N_FREQ'][0]
         self.Npols.value = len(vis_data.keys())
         self.Nspws.value = 1
-        self.spw_array.value = [1]
+        self.spw_array.value = np.array([1])
         self.vis_units.value = 'JY'
 
         lin_pol_order = ['xx', 'yy', 'xy', 'yx']
