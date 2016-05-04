@@ -343,14 +343,16 @@ class UVData:
             gps_theta = np.arctan2(self.z_telescope.value * gps_a,
                                    gps_p * gps_b)
             if self.latitude.value is None:
-                self.latitude.value = np.arctan2(self.z_telescope.value +
-                                                 e_prime_squared * gps_b *
-                                                 np.sin(gps_theta)**3,
-                                                 gps_p-e_squared * gps_a *
-                                                 np.cos(gps_theta)**3)
+                lat_radian = np.arctan2(self.z_telescope.value +
+                                        e_prime_squared * gps_b *
+                                        np.sin(gps_theta)**3,
+                                        gps_p-e_squared * gps_a *
+                                        np.cos(gps_theta)**3)
+                self.latitude.value = lat_radian * 180 / np.pi
             if self.longitude.value is None:
-                self.longitude.value = np.arctan2(self.y_telescope.value,
-                                                  self.x_telescope.value)
+                lon_radian = np.arctan2(self.y_telescope.value,
+                                        self.x_telescope.value)
+                self.longitude.value = lon_radian * 180 / np.pi
             gps_N = gps_a / np.sqrt(1-e_squared *
                                     np.sin(self.latitude.value)**2)
             if self.altitude.value is None:
@@ -509,13 +511,14 @@ class UVData:
         try:
             self.xyz_telescope_frame.value = ant_hdu.header['FRAME']
         except:
-            warnings.warn('Required Antenna frame keyword not set, ' +
-                          'if a Cotter file, will set to ITRF, ' +
-                          'otherwise will set to ????')
             cotter_version = D.header.get('COTVER', None)
             if cotter_version is None:
+                warnings.warn('Required Antenna frame keyword not set, ' +
+                              'setting to ????')
                 self.xyz_telescope_frame.value = '????'
             else:
+                warnings.warn('Required Antenna frame keyword not set, ' +
+                              ' since this is a Cotter file, setting to ITRF')
                 self.xyz_telescope_frame.value = 'ITRF'
 
         self.x_telescope.value = ant_hdu.header['ARRAYX']

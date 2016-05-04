@@ -164,16 +164,19 @@ class TestReadFHD(unittest.TestCase):
     # def tearDown(self):
     #      shutil.rmtree(self.test_file_directory)
 
-    # def test_ReadFHD(self):
-    #     UV = UVData()
-    #     test = UV.read_fhd(self.testfiles)
-    #     self.assertTrue(test)
+    def test_ReadFHD(self):
+        UV = UVData()
+        UV2 = UVData()
+        test = UV.read_fhd(self.testfiles)
+        self.assertTrue(test)
     #
     #     UV.write_uvfits(op.join(self.test_file_directory,
     #                             'outtest_FHD.uvfits'),
     #                     spoof_nonessential=True)
-    #     test = UV.read_uvfits(op.join(self.test_file_directory,
-    #                           'outtest_FHD_1061321792.uvfits'))
+    #     test = UV2.read_uvfits(op.join(self.test_file_directory,
+    #                            'outtest_FHD_1061321792.uvfits'))
+    #     self.assertEqual(UV, UV2)
+    #
     #     self.assertTrue(test)
 
 
