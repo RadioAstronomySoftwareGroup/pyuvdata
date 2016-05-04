@@ -374,7 +374,7 @@ class UVData:
             # DATE (full day) and _DATE (fractional day)
             time1_array = D.data['_DATE']
             self.time_array.value = (time0_array.astype(np.double) +
-                                     time1_array.astype(double))
+                                     time1_array.astype(np.double))
         except(KeyError):
             # cotter uvfits files have one DATE that is a double
             self.time_array.value = time0_array
