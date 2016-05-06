@@ -4,12 +4,11 @@ from astropy.io import fits
 import os.path as op
 import numpy as np
 from scipy.io.idl import readsav
-import pandas as pd
 import warnings
 from itertools import islice
 
 
-class uv_property:
+class UVProperty:
     def __init__(self, required=True, value=None, spoof_val=None, units=None,
                  description=''):
         self.required = required
@@ -20,16 +19,54 @@ class uv_property:
         self.units = units
         self.description = description
 
+    def __eq__(self, other):
+        if isinstance(other, self.__class__):
+            # only check that value is identical
+            equal = True
+            if not isinstance(self.value, other.value.__class__):
+                equal = False
+            if isinstance(self.value, np.ndarray):
+                if self.value.shape != other.value.shape:
+                    equal = False
+                if (self.value != other.value).all():
+                    equal = False
+            else:
+                str_type = False
+                if isinstance(self.value, (str, unicode)):
+                    str_type = True
+                if isinstance(self.value, list):
+                    if isinstance(self.value[0], str):
+                        str_type = True
+
+                if not str_type:
+                    if not np.isclose(np.array(self.value),
+                                      np.array(other.value)):
+                        equal = False
+                else:
+                    if self.value != other.value:
+                        if not isinstance(self.value, list):
+                            if self.value.replace('\n', '') != other.value.replace('\n', ''):
+                                equal = False
+                        else:
+                            equal = False
+
+            return equal
+        else:
+            return False
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
     def apply_spoof(self, *args):
         self.value = self.spoof_val
 
 
-class ant_position_uv_property(uv_property):
+class AntPositionUVProperty(UVProperty):
     def apply_spoof(self, uvdata):
         self.value = np.zeros((uvdata.Nants.value, 3))
 
 
-class extra_dict_uv_property(uv_property):
+class ExtraKeywordUVProperty(UVProperty):
     def __init__(self, required=False, value={}, spoof_val={}, units=None,
                  description=''):
         self.required = required
@@ -52,157 +89,158 @@ class UVData:
     def __init__(self):
         # add the default_required_attributes to the class?
         # dimension definitions
-        self.Ntimes = uv_property(description='Number of times')
-        self.Nbls = uv_property(description='number of baselines')
-        self.Nblts = uv_property(description='Ntimes * Nbls')
-        self.Nfreqs = uv_property(description='number of frequency channels')
-        self.Npols = uv_property(description='number of polarizations')
+        self.Ntimes = UVProperty(description='Number of times')
+        self.Nbls = UVProperty(description='number of baselines')
+        self.Nblts = UVProperty(description='Ntimes * Nbls')
+        self.Nfreqs = UVProperty(description='number of frequency channels')
+        self.Npols = UVProperty(description='number of polarizations')
 
-        desc = ('array of the visibility data, size: (Nblts, Nspws, Nfreqs, ' +
+        desc = ('array of the visibility data, size: (Nblts, Nspws, Nfreqs, '
                 'Npols), type = complex float, in units of self.vis_units')
-        self.data_array = uv_property(description=desc)
+        self.data_array = UVProperty(description=desc)
 
-        self.vis_units = uv_property(description='Visibility units, options ' +
-                                     '["uncalib","Jy","K str"]')
+        self.vis_units = UVProperty(description='Visibility units, options '
+                                    '["uncalib","Jy","K str"]')
 
-        desc = ('number of data points averaged into each data element, ' +
+        desc = ('number of data points averaged into each data element, '
                 'type = int, same shape as data_array')
-        self.nsample_array = uv_property(description=desc)
+        self.nsample_array = UVProperty(description=desc)
 
-        self.flag_array = uv_property(description='boolean flag, True is ' +
-                                      'flagged, same shape as data_array.')
+        self.flag_array = UVProperty(description='boolean flag, True is '
+                                     'flagged, same shape as data_array.')
 
-        self.Nspws = uv_property(description='number of spectral windows ' +
-                                 '(ie non-contiguous spectral chunks)')
+        self.Nspws = UVProperty(description='number of spectral windows '
+                                '(ie non-contiguous spectral chunks)')
 
-        self.spw_array = uv_property(description='array of spectral window ' +
-                                     'numbers')
+        self.spw_array = UVProperty(description='array of spectral window '
+                                    'numbers')
 
-        desc = ('phase center of projected baseline vectors, (3,Nblts), ' +
+        desc = ('phase center of projected baseline vectors, (3,Nblts), '
                 'units meters')
-        self.uvw_array = uv_property(description=desc)
+        self.uvw_array = UVProperty(description=desc)
 
-        self.time_array = uv_property(description='array of times, center ' +
-                                      'of integration, (Nblts), julian date')
+        self.time_array = UVProperty(description='array of times, center '
+                                     'of integration, dimension (Nblts), '
+                                     'units Julian Date')
 
-        desc = ('array of first antenna indices, dimensions (Nblts), ' +
+        desc = ('array of first antenna indices, dimensions (Nblts), '
                 'type = int, 0 indexed')
-        self.ant_1_array = uv_property(description=desc)
-        desc = ('array of second antenna indices, dimensions (Nblts), ' +
+        self.ant_1_array = UVProperty(description=desc)
+        desc = ('array of second antenna indices, dimensions (Nblts), '
                 'type = int, 0 indexed')
-        self.ant_2_array = uv_property(description=desc)
+        self.ant_2_array = UVProperty(description=desc)
 
-        desc = ('array of baseline indices, dimensions (Nblts), ' +
-                'type = int; baseline = 2048 * (ant2+1) + (ant1+1) + 2^16 ' +
+        desc = ('array of baseline indices, dimensions (Nblts), '
+                'type = int; baseline = 2048 * (ant2+1) + (ant1+1) + 2^16 '
                 '(may this break casa?)')
-        self.baseline_array = uv_property(description=desc)
+        self.baseline_array = UVProperty(description=desc)
 
-        self.freq_array = uv_property(description='array of frequencies, ' +
-                                      'dimensions (Nspws,Nfreqs), units Hz')
+        self.freq_array = UVProperty(description='array of frequencies, '
+                                     'dimensions (Nspws,Nfreqs), units Hz')
 
-        desc = ('array of polarization integers (Npols). ' +
-                'AIPS Memo 117 says: stokes 1:4 (I,Q,U,V);  ' +
+        desc = ('array of polarization integers (Npols). '
+                'AIPS Memo 117 says: stokes 1:4 (I,Q,U,V);  '
                 'circular -1:-4 (RR,LL,RL,LR); linear -5:-8 (XX,YY,XY,YX)')
-        self.polarization_array = uv_property(description=desc)
+        self.polarization_array = UVProperty(description=desc)
 
-        desc = ('right ascension of phase center (see uvw_array), ' +
+        desc = ('right ascension of phase center (see uvw_array), '
                 'units degrees')
-        self.phase_center_ra = uv_property(description=desc)
+        self.phase_center_ra = UVProperty(description=desc)
 
-        desc = ('declination of phase center (see uvw_array), ' +
+        desc = ('declination of phase center (see uvw_array), '
                 'units degrees')
-        self.phase_center_dec = uv_property(description=desc)
+        self.phase_center_dec = UVProperty(description=desc)
 
-        self.integration_time = uv_property(description='length of the ' +
-                                            'integration (s)')
-        self.channel_width = uv_property(description='width of channel (Hz)')
+        self.integration_time = UVProperty(description='length of the '
+                                           'integration (s)')
+        self.channel_width = UVProperty(description='width of channel (Hz)')
 
         # --- observation information ---
-        self.object_name = uv_property(description='source or field ' +
-                                       'observed (string)')
-        self.telescope_name = uv_property(description='name of telescope ' +
-                                          '(string)')
-        self.instrument = uv_property(description='receiver or backend.')
-        self.latitude = uv_property(description='latitude of telescope, ' +
+        self.object_name = UVProperty(description='source or field '
+                                      'observed (string)')
+        self.telescope_name = UVProperty(description='name of telescope '
+                                         '(string)')
+        self.instrument = UVProperty(description='receiver or backend.')
+        self.latitude = UVProperty(description='latitude of telescope, '
+                                   'units degrees')
+        self.longitude = UVProperty(description='longitude of telescope, '
                                     'units degrees')
-        self.longitude = uv_property(description='longitude of telescope, ' +
-                                     'units degrees')
-        self.altitude = uv_property(description='altitude of telescope, ' +
-                                    'units meters')
-        self.dateobs = uv_property(description='date of observation start, ' +
-                                   'units JD.')
-        self.history = uv_property(description='string of history, units ' +
-                                   'English')
+        self.altitude = UVProperty(description='altitude of telescope, '
+                                   'units meters')
+        self.history = UVProperty(description='string of history, units '
+                                  'English')
 
         desc = ('epoch year of the phase applied to the data (eg 2000)')
-        self.phase_center_epoch = uv_property(description=desc)
+        self.phase_center_epoch = UVProperty(description=desc)
 
         # --- antenna information ----
-        self.Nants = uv_property(description='number of antennas')
-        desc = ('list of antenna names, dimensions (Nants), ' +
-                'indexed by self.ant_1_array, self.ant_2_array, ' +
+        self.Nants = UVProperty(description='number of antennas')
+        desc = ('list of antenna names, dimensions (Nants), '
+                'indexed by self.ant_1_array, self.ant_2_array, '
                 'self.antenna_indices')
-        self.antenna_names = uv_property(description=desc)
+        self.antenna_names = UVProperty(description=desc)
 
-        desc = ('integer index into antenna_names, dimensions ' +
-                '(Nants), there must be one entry here for each unique ' +
-                'entry in self.ant_1_array and self.ant_2_array, but there ' +
+        desc = ('integer index into antenna_names, dimensions '
+                '(Nants), there must be one entry here for each unique '
+                'entry in self.ant_1_array and self.ant_2_array, but there '
                 'may be extras as well.')
-        self.antenna_indices = uv_property(description=desc)
+        self.antenna_indices = UVProperty(description=desc)
 
         # -------- extra, non-required properties ----------
         desc = ('any user supplied extra keywords, type=dict')
-        self.extra_keywords = extra_dict_uv_property(description=desc)
+        self.extra_keywords = ExtraKeywordUVProperty(description=desc)
 
-        desc = ('coordinate frame for antenna positions ' +
-                '(eg "ITRF" -also google ECEF). NB: ECEF has x running ' +
+        self.dateobs = UVProperty(required=False,
+                                  description='date of observation')
+
+        desc = ('coordinate frame for antenna positions '
+                '(eg "ITRF" -also google ECEF). NB: ECEF has x running '
                 'through long=0 and z through the north pole')
-        self.xyz_telescope_frame = uv_property(required=False,
-                                               description=desc,
-                                               spoof_val='ITRF')
+        self.xyz_telescope_frame = UVProperty(required=False, description=desc,
+                                              spoof_val='ITRF')
 
-        self.x_telescope = uv_property(required=False,
-                                       description='x coordinates of array ' +
-                                       'center in meters in coordinate frame',
-                                       spoof_val=0)
-        self.y_telescope = uv_property(required=False,
-                                       description='y coordinates of array ' +
-                                       'center in meters in coordinate frame',
-                                       spoof_val=0)
-        self.z_telescope = uv_property(required=False,
-                                       description='z coordinates of array ' +
-                                       'center in meters in coordinate frame',
-                                       spoof_val=0)
-        desc = ('array giving coordinates of antennas relative to ' +
+        self.x_telescope = UVProperty(required=False,
+                                      description='x coordinates of array '
+                                      'center in meters in coordinate frame',
+                                      spoof_val=0)
+        self.y_telescope = UVProperty(required=False,
+                                      description='y coordinates of array '
+                                      'center in meters in coordinate frame',
+                                      spoof_val=0)
+        self.z_telescope = UVProperty(required=False,
+                                      description='z coordinates of array '
+                                      'center in meters in coordinate frame',
+                                      spoof_val=0)
+        desc = ('array giving coordinates of antennas relative to '
                 '{x,y,z}_telescope in the same frame, (Nants,3)')
-        self.antenna_positions = ant_position_uv_property(required=False,
-                                                          description=desc)
+        self.antenna_positions = AntPositionUVProperty(required=False,
+                                                       description=desc)
 
         # --- other stuff ---
         # the below are copied from AIPS memo 117, but could be revised to
         # merge with other sources of data.
-        self.GST0 = uv_property(required=False,
-                                description='Greenwich sidereal time at ' +
-                                'midnight on reference date', spoof_val=0)
-        self.RDate = uv_property(required=False,
-                                 description='date for which the GST0 or ' +
-                                 'whatever... applies', spoof_val=0)
-        self.earth_omega = uv_property(required=False,
-                                       description='earth\'s rotation rate ' +
-                                       'in degrees per day', spoof_val=360.985)
-        self.DUT1 = uv_property(required=False,
-                                description='DUT1 (google it) AIPS 117 ' +
-                                'calls it UT1UTC', spoof_val=0.0)
-        self.TIMESYS = uv_property(required=False,
-                                   description='We only support UTC',
-                                   spoof_val='UTC')
+        self.GST0 = UVProperty(required=False,
+                               description='Greenwich sidereal time at '
+                               'midnight on reference date', spoof_val=0)
+        self.RDate = UVProperty(required=False,
+                                description='date for which the GST0 or '
+                                'whatever... applies', spoof_val=0)
+        self.earth_omega = UVProperty(required=False,
+                                      description='earth\'s rotation rate '
+                                      'in degrees per day', spoof_val=360.985)
+        self.DUT1 = UVProperty(required=False,
+                               description='DUT1 (google it) AIPS 117 '
+                               'calls it UT1UTC', spoof_val=0.0)
+        self.TIMESYS = UVProperty(required=False,
+                                  description='We only support UTC',
+                                  spoof_val='UTC')
 
-        desc = ('FHD thing we do not understand, something about the time ' +
-                'at which the phase center is normal to the chosen UV plane ' +
+        desc = ('FHD thing we do not understand, something about the time '
+                'at which the phase center is normal to the chosen UV plane '
                 'for phasing')
-        self.uvplane_reference_time = uv_property(required=False,
-                                                  description=desc,
-                                                  spoof_val=0)
+        self.uvplane_reference_time = UVProperty(required=False,
+                                                 description=desc,
+                                                 spoof_val=0)
 
     def property_iter(self):
         attribute_list = [a for a in dir(self) if not a.startswith('__') and
@@ -210,7 +248,7 @@ class UVData:
         prop_list = []
         for a in attribute_list:
             attr = getattr(self, a)
-            if isinstance(attr, uv_property):
+            if isinstance(attr, UVProperty):
                 prop_list.append(a)
         for a in prop_list:
             yield a
@@ -221,7 +259,7 @@ class UVData:
         required_list = []
         for a in attribute_list:
             attr = getattr(self, a)
-            if isinstance(attr, uv_property):
+            if isinstance(attr, UVProperty):
                 if attr.required:
                     required_list.append(a)
         for a in required_list:
@@ -233,15 +271,36 @@ class UVData:
         extra_list = []
         for a in attribute_list:
             attr = getattr(self, a)
-            if isinstance(attr, uv_property):
+            if isinstance(attr, UVProperty):
                 if not attr.required:
                     extra_list.append(a)
         for a in extra_list:
             yield a
 
+    def __eq__(self, other):
+        if isinstance(other, self.__class__):
+            # only check that required properties are identical
+            equal = True
+            for p in self.required_property_iter():
+                self_prop = getattr(self, p)
+                other_prop = getattr(other, p)
+                if self_prop != other_prop:
+                    print('property {pname} does not match. Left is {lval} '
+                          'and right is {rval}'.
+                          format(pname=p, lval=str(self_prop.value),
+                                 rval=str(other_prop.value)))
+                    equal = False
+            return equal
+        else:
+            print('Classes do not match')
+            return False
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
     def baseline_to_antnums(self, baseline):
         if self.Nants > 2048:
-            raise StandardError('error Nants={Nants}>2048 not ' +
+            raise StandardError('error Nants={Nants}>2048 not '
                                 'supported'.format(Nants=self.Nants))
         if np.min(baseline) > 2**16:
             i = (baseline - 2**16) % 2048 - 1
@@ -256,14 +315,19 @@ class UVData:
         # 256 standard used in many uvfits files
         # (will use 2048 standard if there are more than 256 antennas)
         if self.Nants > 2048:
-            raise StandardError('cannot convert i,j to a baseline index ' +
+            raise StandardError('cannot convert i,j to a baseline index '
                                 'with Nants={Nants}>2048.'
                                 .format(Nants=self.Nants))
-        if attempt256 and (np.max(i) < 255 and np.max(j) < 255):
-            return 256*(j+1) + (i+1)
-        else:
-            print('antnums_to_baseline: found > 256 antennas, using ' +
-                  '2048 baseline indexing. Beware compatibility with CASA etc')
+        if attempt256:
+            if (np.max(i) < 255 and np.max(j) < 255):
+                return 256*(j+1) + (i+1)
+            else:
+                print('Max antnums are {} and {}'.format(np.max(i), np.max(j)))
+                message = 'antnums_to_baseline: found > 256 antennas, using ' \
+                          '2048 baseline indexing. Beware compatibility ' \
+                          'with CASA etc'
+                warnings.warn(message)
+
         return 2048*(j+1)+(i+1)+2**16
 
     # this needs to exist but doesn't yet
@@ -271,42 +335,6 @@ class UVData:
         self.ant_1_array
         self.ant_2_array
         self.times_array
-
-    def write(self, filename):
-        self.check()
-        # filename ending in .uvfits gets written as a uvfits
-        if filename.endswith('.uvfits'):
-            self.write_uvfits(self, filename)
-
-    def read(self, filename, file_type):
-        """
-        General read function which calls file_type specific read functions
-        Inputs:
-            filename: string or list of strings
-                May be a file name, directory name or a list of file names
-                depending on file_type
-            file_type: string
-                Must be a supported type, see self.supported_file_types
-        """
-        if file_type not in self.supported_file_types:
-            raise ValueError('file_type must be one of ' +
-                             ' '.join(self.supported_file_types))
-        if file_type == '.uvfits':
-            self.read_uvfits(self, filename)
-        elif file_type == 'miriad':
-            self.read_miriad(self, filename)
-        elif file_type == 'fhd':
-            self.read_fhd(self, filename)
-        self.check()
-
-    def check(self):
-        # loop through all required properties, make sure that they are filled
-        for p in self.required_property_iter():
-            prop = getattr(self, p)
-            if prop.value is None:
-                raise ValueError('Required uv_property ' + p +
-                                 ' has not been set.')
-        return True
 
     def _gethduaxis(self, D, axis):
         ax = str(axis)
@@ -359,8 +387,44 @@ class UVData:
                 self.altitude.value = ((gps_p / np.cos(self.latitude.value)) -
                                        gps_N)
         else:
-            raise ValueError('No x/y/x_telescope value assigned and ' +
+            raise ValueError('No x/y/x_telescope value assigned and '
                              'xyz_telescope_frame is not "ITRF"')
+
+    def check(self):
+        # loop through all required properties, make sure that they are filled
+        for p in self.required_property_iter():
+            prop = getattr(self, p)
+            if prop.value is None:
+                raise ValueError('Required UVProperty ' + p +
+                                 ' has not been set.')
+        return True
+
+    def write(self, filename):
+        self.check()
+        # filename ending in .uvfits gets written as a uvfits
+        if filename.endswith('.uvfits'):
+            self.write_uvfits(self, filename)
+
+    def read(self, filename, file_type):
+        """
+        General read function which calls file_type specific read functions
+        Inputs:
+            filename: string or list of strings
+                May be a file name, directory name or a list of file names
+                depending on file_type
+            file_type: string
+                Must be a supported type, see self.supported_file_types
+        """
+        if file_type not in self.supported_file_types:
+            raise ValueError('file_type must be one of ' +
+                             ' '.join(self.supported_file_types))
+        if file_type == '.uvfits':
+            self.read_uvfits(self, filename)
+        elif file_type == 'miriad':
+            self.read_miriad(self, filename)
+        elif file_type == 'fhd':
+            self.read_fhd(self, filename)
+        self.check()
 
     def read_uvfits(self, filename):
 
@@ -381,19 +445,20 @@ class UVData:
             # cotter uvfits files have one DATE that is a double
             self.time_array.value = time0_array
             if np.finfo(time0_array[0]).precision < 5:
-                raise ValueError('JDs in this file are not precise to ' +
+                raise ValueError('JDs in this file are not precise to '
                                  'better than a second.')
             if (np.finfo(time0_array[0]).precision > 5 and
                     np.finfo(time0_array[0]).precision < 8):
-                warnings.warn('The JDs in this file have sub-second ' +
-                              'precision, but not sub-millisecond. ' +
+                warnings.warn('The JDs in this file have sub-second '
+                              'precision, but not sub-millisecond. '
                               'Use with caution.')
 
         self.Ntimes.value = len(np.unique(self.time_array.value))
-        print(self.Ntimes.value)
 
-        self.baseline_array.value = D.data.field('BASELINE')
-        self.Nbls.value = len(np.unique(self.baseline_array.value))
+        # cannot set this to be the baseline array because it uses the
+        # 256 convention, not our 2048 convention
+        bl_input_array = D.data.field('BASELINE')
+        self.Nbls.value = len(np.unique(bl_input_array))
 
         # check if we have an spw dimension
         if D.header['NAXIS'] == 7:
@@ -458,13 +523,13 @@ class UVData:
         self.channel_width.value = D.header['CDELT4']
 
         try:
-            self.integration_time.value = D.data.field('INTTIM')[0]
+            self.integration_time.value = float(D.data.field('INTTIM')[0])
         except:
             if self.Ntimes.value > 1:
                 self.integration_time.value = \
-                    np.diff(np.sort(list(set(self.time_array.value))))[0]
+                    float(np.diff(np.sort(list(set(self.time_array.value))))[0])
             else:
-                raise ValueError('integration time not specified and only ' +
+                raise ValueError('integration time not specified and only '
                                  'one time present')
 
         # TODO iterate over the spw axis, for now we just have one spw
@@ -489,9 +554,12 @@ class UVData:
         for thing in D.header:
             etcpointer += 1
             if thing == 'HISTORY':
+                etcpointer += 1
                 break
         for key in D.header[etcpointer:]:
             if key == '':
+                continue
+            if key == 'HISTORY':
                 continue
             self.extra_keywords.value[key] = D.header[key]
 
@@ -500,7 +568,8 @@ class UVData:
         ant_hdu = F[hdunames['AIPS AN']]
 
         # stuff in columns
-        self.antenna_names.value = ant_hdu.data.field('ANNAME')
+        self.antenna_names.value = ant_hdu.data.field('ANNAME').tolist()
+
         self.antenna_indices.value = ant_hdu.data.field('NOSTA')
         self.antenna_positions.value = ant_hdu.data.field('STABXYZ')
 
@@ -513,11 +582,11 @@ class UVData:
         except:
             cotter_version = D.header.get('COTVER', None)
             if cotter_version is None:
-                warnings.warn('Required Antenna frame keyword not set, ' +
+                warnings.warn('Required Antenna frame keyword not set, '
                               'setting to ????')
                 self.xyz_telescope_frame.value = '????'
             else:
-                warnings.warn('Required Antenna frame keyword not set, ' +
+                warnings.warn('Required Antenna frame keyword not set, '
                               ' since this is a Cotter file, setting to ITRF')
                 self.xyz_telescope_frame.value = 'ITRF'
 
@@ -536,8 +605,14 @@ class UVData:
 
         # initialize internal variables based on the antenna table
         self.Nants.value = len(self.antenna_indices.value)
+
+        # get antenna arrays based on uvfits baseline array, then convert to
+        # our convention for self.baseline_array
         self.ant_1_array.value, self.ant_2_array.value = \
-            self.baseline_to_antnums(self.baseline_array.value)
+            self.baseline_to_antnums(bl_input_array)
+        self.baseline_array.value = \
+            self.antnums_to_baseline(self.ant_1_array.value,
+                                     self.ant_2_array.value)
         del(D)
 
         if (self.latitude.value is None or self.longitude.value is None or
@@ -561,9 +636,9 @@ class UVData:
                         prop.apply_spoof(self)
                         setattr(self, p, prop)
                     else:
-                        raise ValueError('Required attribute {attribute} ' +
-                                         'for uvfits not defined. Define or ' +
-                                         'set spoof_nonessential to True to ' +
+                        raise ValueError('Required attribute {attribute} '
+                                         'for uvfits not defined. Define or '
+                                         'set spoof_nonessential to True to '
                                          'spoof this attribute.'
                                          .format(attribute=attribute_key))
 
@@ -575,7 +650,6 @@ class UVData:
         weights_array = weights_array[:, np.newaxis, np.newaxis, :, :, :,
                                       np.newaxis]
         # uvfits_array_data shape will be  (Nblts,1,1,[Nspws],Nfreqs,Npols,3)
-        print "data_array.shape", data_array.shape
         uvfits_array_data = np.concatenate([data_array.real,
                                            data_array.imag,
                                            weights_array], axis=6)
@@ -593,17 +667,19 @@ class UVData:
 
         # list contains arrays of [u,v,w,date,baseline];
         # each array has shape (Nblts)
-        print "uvw_array_sec.shape = ", uvw_array_sec.shape
-        print "self.baseline_array.shape = ", self.baseline_array.value.shape
-        print "time_array.shape = ", time_array.shape
+        int_time_array = (np.zeros_like((baselines_use), dtype=np.float) +
+                          self.integration_time.value)
+
         group_parameter_list = [uvw_array_sec[0], uvw_array_sec[1],
                                 uvw_array_sec[2],
-                                np.ones_like(time_array)*jd_midnight,
-                                time_array, baselines_use]
+                                np.zeros_like(time_array),
+                                time_array, baselines_use,
+                                int_time_array]
 
         hdu = fits.GroupData(uvfits_array_data,
                              parnames=['UU      ', 'VV      ', 'WW      ',
-                                       'DATE    ', 'DATE    ', 'BASELINE'],
+                                       'DATE    ', 'DATE    ', 'BASELINE',
+                                       'INTTIM'],
                              pardata=group_parameter_list, bitpix=-32)
         hdu = fits.GroupsHDU(hdu)
 
@@ -623,9 +699,17 @@ class UVData:
         hdu.header['PSCAL4  '] = 1.0
         hdu.header['PZERO4  '] = jd_midnight
 
-        # hdu.header['PTYPE5  '] = 'BASELINE'
+        # hdu.header['PTYPE5  '] = 'DATE    '
         hdu.header['PSCAL5  '] = 1.0
         hdu.header['PZERO5  '] = 0.0
+
+        # hdu.header['PTYPE6  '] = 'BASELINE'
+        hdu.header['PSCAL6  '] = 1.0
+        hdu.header['PZERO6  '] = 0.0
+
+        # hdu.header['PTYPE7  '] = 'INTTIM'
+        hdu.header['PSCAL7  '] = 1.0
+        hdu.header['PZERO7  '] = 0.0
 
         # ISO string of first time in self.time_array
         hdu.header['DATE-OBS'] = Time(self.time_array.value[0], scale='utc',
@@ -675,12 +759,10 @@ class UVData:
         hdu.header['HISTORY '] = self.history.value
 
         # end standard keywords; begin user-defined keywords
-        print "self.extra_keywords = "
-        print self.extra_keywords.value
         for key, value in self.extra_keywords.value.iteritems():
             # header keywords have to be 8 characters or less
             keyword = key[:8].upper()
-            print "keyword=-value-", keyword+'='+'-'+str(value)+'-'
+            # print "keyword=-value-", keyword+'='+'-'+str(value)+'-'
             hdu.header[keyword] = value
 
         # ADD the ANTENNA table
@@ -731,7 +813,8 @@ class UVData:
 
         ant_hdu.header['TIMSYS'] = self.TIMESYS.value
         if self.TIMESYS == 'IAT':
-                print "WARNING: FILES WITH TIME SYSTEM 'IAT' ARE NOT SUPPORTED"
+            warnings.warn('This file has an "IAT" time system. Files of '
+                          'this type are not properly supported')
         ant_hdu.header['ARRNAM'] = self.telescope_name.value
         ant_hdu.header['NO_IF'] = self.Nspws.value
         ant_hdu.header['DEGPDY'] = self.earth_omega.value
@@ -782,7 +865,6 @@ class UVData:
         flags_file = None
         settings_file = None
         for file in filelist:
-            print(file)
             if file.lower().endswith('_vis_xx.sav'):
                 datafiles['xx'] = xx_datafile = file
             elif file.lower().endswith('_vis_yy.sav'):
@@ -807,7 +889,7 @@ class UVData:
         if flags_file is None:
             raise StandardError('No flags file included in file list')
         if settings_file is None:
-            warnings.warn('No flags file included in file list')
+            warnings.warn('No settings file included in file list')
 
         # TODO: add checking to make sure params, flags and datafiles are
         # consistent with each other
@@ -816,28 +898,29 @@ class UVData:
         for pol, file in datafiles.iteritems():
             this_dict = readsav(file, python_dict=True)
             vis_data[pol] = this_dict['vis_ptr']
-            this_obs = pd.DataFrame(this_dict['obs'])
+            this_obs = this_dict['obs']
+            data_dimensions = vis_data[pol].shape
 
         obs = this_obs
-        bl_info = pd.DataFrame(obs['BASELINE_INFO'][0])
-        meta_data = pd.DataFrame(obs['META_DATA'][0])
-        astrometry = pd.DataFrame(obs['ASTR'][0])
+        bl_info = obs['BASELINE_INFO'][0]
+        meta_data = obs['META_DATA'][0]
+        astrometry = obs['ASTR'][0]
         fhd_pol_list = []
         for pol in obs['POL_NAMES'][0]:
             fhd_pol_list.append(pol.decode("utf-8").lower())
 
         params_dict = readsav(params_file, python_dict=True)
-        params = pd.DataFrame(params_dict['params'])
+        params = params_dict['params']
 
         flags_dict = readsav(flags_file, python_dict=True)
         flag_data = {}
         for index, f in enumerate(flags_dict['flag_arr']):
             flag_data[fhd_pol_list[index]] = f
 
-        self.Ntimes.value = obs['N_TIME'][0]
-        self.Nbls.value = obs['NBASELINES'][0]
-        self.Nblts.value = self.Ntimes.value * self.Nbls.value
-        self.Nfreqs.value = obs['N_FREQ'][0]
+        self.Ntimes.value = int(obs['N_TIME'][0])
+        self.Nbls.value = int(obs['NBASELINES'][0])
+        self.Nblts.value = data_dimensions[0]
+        self.Nfreqs.value = int(obs['N_FREQ'][0])
         self.Npols.value = len(vis_data.keys())
         self.Nspws.value = 1
         self.spw_array.value = np.array([1])
@@ -889,9 +972,10 @@ class UVData:
         self.ant_1_array.value = bl_info['TILE_A'][0]
         self.ant_2_array.value = bl_info['TILE_B'][0]
 
-        self.Nants.value = max([max(self.ant_1_array.value),
-                                max(self.ant_2_array.value)])
+        self.Nants.value = int(max([max(self.ant_1_array.value),
+                                    max(self.ant_2_array.value)]))
         self.antenna_names.value = bl_info['TILE_NAMES'][0].tolist()
+
         self.antenna_indices.value = np.arange(self.Nants.value)
 
         self.baseline_array.value = \
@@ -904,21 +988,21 @@ class UVData:
 
         if not np.isclose(obs['OBSRA'][0], obs['PHASERA'][0]) or \
                 not np.isclose(obs['OBSDEC'][0], obs['PHASEDEC'][0]):
-            warnings.warn('These visibilities may have been phased ' +
+            warnings.warn('These visibilities may have been phased '
                           'improperly -- without changing the uvw locations')
 
-        self.phase_center_ra.value = obs['OBSRA'][0]
-        self.phase_center_dec.value = obs['OBSDEC'][0]
+        self.phase_center_ra.value = float(obs['OBSRA'][0])
+        self.phase_center_dec.value = float(obs['OBSDEC'][0])
 
         # this is generated in FHD by subtracting the JD of neighboring
         # integrations. This can have limited accuracy, so it can be slightly
         # off the actual value.
         # (e.g. 1.999426... rather than 2)
-        self.integration_time.value = obs['TIME_RES'][0]
-        self.channel_width.value = obs['FREQ_RES'][0]
+        self.integration_time.value = float(obs['TIME_RES'][0])
+        self.channel_width.value = float(obs['FREQ_RES'][0])
 
         # # --- observation information ---
-        self.telescope_name.value = obs['INSTRUMENT'][0].decode("utf-8")
+        self.telescope_name.value = str(obs['INSTRUMENT'][0].decode())
 
         # This is a bit of a kludge because nothing like object_name exists
         # in FHD files.
@@ -935,9 +1019,9 @@ class UVData:
                 object_name = 'EoR 0 Field'
 
         self.instrument.value = self.telescope_name.value
-        self.latitude.value = obs['LAT'][0]
-        self.longitude.value = obs['LON'][0]
-        self.altitude.value = obs['ALT'][0]
+        self.latitude.value = float(obs['LAT'][0])
+        self.longitude.value = float(obs['LON'][0])
+        self.altitude.value = float(obs['ALT'][0])
 
         # Use the first integration time here
         self.dateobs.value = min(self.time_array.value)

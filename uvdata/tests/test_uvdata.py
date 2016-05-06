@@ -4,6 +4,7 @@ import os
 import os.path as op
 import shutil
 from uvdata.uv import UVData
+import numpy as np
 
 
 class TestUVDataInit(unittest.TestCase):
@@ -18,11 +19,12 @@ class TestUVDataInit(unittest.TestCase):
                                     'integration_time', 'channel_width',
                                     'object_name', 'telescope_name',
                                     'instrument', 'latitude', 'longitude',
-                                    'altitude', 'dateobs', 'history',
+                                    'altitude', 'history',
                                     'vis_units', 'phase_center_epoch', 'Nants',
                                     'antenna_names', 'antenna_indices']
 
-        self.extra_properties = ['extra_keywords', 'xyz_telescope_frame',
+        self.extra_properties = ['extra_keywords', 'dateobs',
+                                 'xyz_telescope_frame',
                                  'x_telescope', 'y_telescope', 'z_telescope',
                                  'antenna_positions', 'GST0', 'RDate',
                                  'earth_omega', 'DUT1', 'TIMESYS',
@@ -79,6 +81,9 @@ class TestUVmethods(unittest.TestCase):
         self.uv_object = UVData()
         self.uv_object.Nants = 128
 
+    def tearDown(self):
+        del(self.uv_object)
+
     def test_ij2bl(self):
         self.assertEqual(self.uv_object.baseline_to_antnums(67585),
                          (0, 0))
@@ -99,6 +104,7 @@ class TestReadUVFits(unittest.TestCase):
         UV = UVData()
         test = UV.read_uvfits(testfile)
         self.assertTrue(test)
+        del(UV)
     #
     # def test_readRTS(self):
     #     testfile = '../data/pumav2_SelfCal300_Peel300_01.uvfits'
@@ -122,10 +128,13 @@ class TestWriteUVFits(unittest.TestCase):
         # testfile = '../data/PRISim_output_manual_conversion.uvfits'
         UV = UVData()
         UV.read_uvfits(testfile)
-        # test = UV.write_uvfits('outtest.uvfits')
-        test = UV.write_uvfits(op.join(self.test_file_directory,
-                                       'outtest_casa_1src_1spw.uvfits'))
+
+        write_file = op.join(self.test_file_directory,
+                             'outtest_casa_1src_1spw.uvfits')
+
+        test = UV.write_uvfits(write_file)
         self.assertTrue(test)
+        del(UV)
 
     def test_spwnotsupported(self):
         # testfile = '../data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
@@ -134,16 +143,25 @@ class TestWriteUVFits(unittest.TestCase):
         self.assertTrue(os.path.exists(testfile))
         UV = UVData()
         self.assertRaises(IOError, UV.read_uvfits, testfile)
+        del(UV)
 
     def test_readwriteread(self):
         testfile = '../data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
-        UV = UVData()
-        UV.read_uvfits(testfile)
-        UV.write_uvfits(op.join(self.test_file_directory,
-                                'outtest_casa.uvfits'))
-        test = UV.read_uvfits(op.join(self.test_file_directory,
-                                      'outtest_casa.uvfits'))
-        self.assertTrue(test)
+        uv_in = UVData()
+        uv_out = UVData()
+
+        uv_in.read_uvfits(testfile)
+
+        write_file = op.join(self.test_file_directory,
+                             'outtest_casa.uvfits')
+
+        uv_in.write_uvfits(write_file)
+
+        uv_out.read_uvfits(write_file)
+
+        self.assertEqual(uv_in, uv_out)
+        del(uv_in)
+        del(uv_out)
 
 
 class TestReadFHD(unittest.TestCase):
@@ -164,21 +182,30 @@ class TestReadFHD(unittest.TestCase):
     # def tearDown(self):
     #      shutil.rmtree(self.test_file_directory)
 
-    # def test_ReadFHD(self):
-    #     UV = UVData()
-    #     UV2 = UVData()
-    #     test = UV.read_fhd(self.testfiles)
-    #     self.assertTrue(test)
-    #
-    #     UV.write_uvfits(op.join(self.test_file_directory,
-    #                             'outtest_FHD.uvfits'),
-    #                     spoof_nonessential=True)
-    #     test = UV2.read_uvfits(op.join(self.test_file_directory,
-    #                            'outtest_FHD_1061321792.uvfits'))
-    #     self.assertEqual(UV, UV2)
-    #
-    #     self.assertTrue(test)
+    def test_ReadFHD(self):
+        files_present = True
+        for f in self.testfiles:
+            if not os.path.isfile(f):
+                files_present = False
 
+        if not files_present:
+            print('FHD files not present, skipping test')
+        else:
+            fhd_uv = UVData()
+            uvfits_uv = UVData()
+            fhd_uv.read_fhd(self.testfiles)
+
+            fhd_uv.write_uvfits(op.join(self.test_file_directory,
+                                        'outtest_FHD_1061321792.uvfits'),
+                                spoof_nonessential=True)
+
+            uvfits_uv.read_uvfits(op.join(self.test_file_directory,
+                                  'outtest_FHD_1061321792.uvfits'))
+
+            self.assertEqual(fhd_uv, uvfits_uv)
+
+            del(fhd_uv)
+            del(uvfits_uv)
 
 if __name__ == '__main__':
     unittest.main()
