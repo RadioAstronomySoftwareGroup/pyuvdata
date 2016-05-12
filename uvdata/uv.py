@@ -463,7 +463,7 @@ class UVData:
         # check if we have an spw dimension
         if D.header['NAXIS'] == 7:
             if D.header['NAXIS5'] > 1:
-                raise(IOError, """Sorry.  Files with more than one spectral
+                raise(ValueError, """Sorry.  Files with more than one spectral
                       window (spw) are not yet supported. A great
                       project for the interested student!""")
             self.Nspws.value = D.header['NAXIS5']
@@ -1110,53 +1110,85 @@ class UVData:
         # polarization_array
         # ant_1_array
         # ant_2_array
-        ant_1_array = []
-        ant_2_array = []
-        pols = []
         data_accumulator = {}
-        flag_accumulator = {}
         for (uvw, t, (i, j)), d, f in uv.all(raw=True):
             # control for the case of only a single spw not showing up in
             # the dimension
             if len(d.shape) == 1:
                 d.shape = (1,) + d.shape
-            try:
-                data_accumulator[uv['pol']].append([uvw, t, i, j, d, f])
+                self.Nspws.value = d.shape[0]
+                self.spw_array.value = np.arange(self.Nspws.value)
+            else:
+                raise(ValueError, """Sorry.  Files with more than one spectral
+                      window (spw) are not yet supported. A great
+                      project for the interested student!""")
+            try: 
+                cnt = uv['cnt']
             except(KeyError):
-                data_accumulator[uv['pol']] = [uvw, t, i, j, d, f]
+                cnt = np.ones_like(d)
+
+            try:
+                data_accumulator[uv['pol']].append([uvw, t, i, j, d, f, cnt])
+            except(KeyError):
+                data_accumulator[uv['pol']] = [uvw, t, i, j, d, f, cnt]
                 # NB: flag types in miriad are usually ints
         self.polarization_array.value = np.sort(data_accumulator.keys())
 
         if FLEXIBLE_OPTION:
+            # makes a data_array (and flag_array) of zeroes to be filled in by data values
+            # any missing data will have zeros
+
             # get all the unique list of all times ever listed in the file
             times = list(set([[k[1] for k in d] for d in data_accumulator]))
             times = np.sort(times)
             bls = list(set([[(k[2], k[3]) for k in d] for d in data_accumulator]))
-            blts = []
+            t_grid = []
+            ant_i_grid = [] 
+            ant_j_grid = []
             for t in times:
                 for bl in bls:
-                    blts.append((t, bl))
+                    t_grid.append(t)
+                    ant_i_grid.append(bl[0])
+                    ant_j_grid.append(bl[1])
+            ant_i_grid = np.array(ant_i_grid)
+            ant_j_grid = np.array(ant_j_grid)
+            t_grid = np.array(t_grid)
             # set the data sizes
-            self.Nblts.value = len(blts)
+            self.Nblts.value = len(t_grid)
             self.Nbls.value = len(bls)
             self.Ntimes.value = len(times)
             assert(self.Nblts.value == self.Nbls.value*self.Ntimes.value)
+            self.time_array.value = t_grid
+            self.ant_1_array.value = ant_i_grid
+            self.ant_2_array.value = ant_j_grid
+            self.baseline_array.value = self.antnums_to_baseline(ant_i_grid,ant_j_grid)
 
             # slot the data into a grid
-            data_array = np.zeros((Nblts, Nspws, Nfreqs, Npols))
-            flag_array = np.zeros((Nblts, Nspws, Nfreqs, Npols))
+            self.data_array.value = np.zeros((self.Nblts.value, self.Nspws.value, self.Nfreqs.value, self.Npols.value))
+            self.flag_array.value = np.zeros_like(self.data_array.value)
             for pol, data in data_accumulator.iteritems():
-                # search for the correct blt position
-                for iblt, blt in enumerate(blts):
-                    # TBD: this could be a source of slowness for large datasets
-                    if data[1] == blt[0] and (data[2], data[3]) == blt[1]:
-                        break
-                ipol = np.argwhere(self.polarization_array.value == pol)
-                # requires data to have dimension nspec,nfreq
-                # for the time being we'll set nspec=1
-                data_array[iblt, :, :, ipol] = data[4]
-                flag_array[iblt, :, :, ipol] = data[5]
-
+                t = [d[1] for d in data_accumulator[pol]]
+                ant_i = [d[2] for d in data_accumulator[pol]]
+                ant_j = [d[3] for d in data_accumulator[pol]]
+                blt_indices = np.argwhere(np.logical_and(np.logical_and(t==t_grid,ant_i==ant_i_grid),
+                                         ant_j == ant_j_grid))
+                visibility_accumulator = np.array([d[4] for d in data_accumulator[pol]])
+                flag_accumulator = np.array([d[5] for d in data_accumulator[pol]])
+                cnt_accumulator = np.array([d[6] for d in data_accumulator[pol]])
+                assert(blt_indices.shape == visibility_accumulator.shape[0])
+                self.data_array[blt_indices,:,:,pol].value = visibility_accumulator
+                self.flag_array[blt_indices,:,:,pol].value = flag_accumulator
+                self.nsample_array[blt_indices,:,:,pol].value = cnt_accumulator
+   
+                #because there are uvws for each pol, and one pol may not have that visibility,
+                #we collapse along the polarization axis but avoid any missing visbilities
+                uvw_array.append(d[0] for d in data_accumulator[pol])
+             uvw_array = np.reshape(uvw_array,(self.Npols.value,self.Nblts.value))
+             uvw_array = np.ma.masked_where(uvw_array == 0,uvw_array)
+             #here we check that we have properly returned one non-zero uvw that is correct
+             assert(np.ma.sum(np.ma.abs((np.ma.diff(uvw_array,axis=0))) == 0.))
+             self.uvw_array.value = np.ma.mean(uvw_array,axis=0).data #remove flags so auto correlations show up
+                
         if not FLEXIBLE_OPTION:
             pass
             # this option would accumulate things requiring
