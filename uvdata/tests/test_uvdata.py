@@ -142,7 +142,7 @@ class TestWriteUVFits(unittest.TestCase):
         testfile = '../data/day2_TDEM0003_10s_norx_1scan.uvfits'
         self.assertTrue(os.path.exists(testfile))
         UV = UVData()
-        self.assertRaises(IOError, UV.read_uvfits, testfile)
+        self.assertRaises(ValueError, UV.read_uvfits, testfile)
         del(UV)
 
     def test_readwriteread(self):

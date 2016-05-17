@@ -348,7 +348,7 @@ class UVData:
         # input a list of hdus
         # return a dictionary of table names
         tablenames = {}
-        for i in xrange(len(hdulist)):
+        for i in range(len(hdulist)):
             try:
                 tablenames[hdulist[i].header['EXTNAME']] = i
             except(KeyError):
@@ -463,9 +463,9 @@ class UVData:
         # check if we have an spw dimension
         if D.header['NAXIS'] == 7:
             if D.header['NAXIS5'] > 1:
-                raise(ValueError, """Sorry.  Files with more than one spectral
-                      window (spw) are not yet supported. A great
-                      project for the interested student!""")
+                raise ValueError('Sorry.  Files with more than one spectral' +
+                                 'window (spw) are not yet supported. A ' +
+                                 'great project for the interested student!')
             self.Nspws.value = D.header['NAXIS5']
             self.data_array.value = (D.data.field('DATA')
                                      [:, 0, 0, :, :, :, 0] +
@@ -1123,7 +1123,7 @@ class UVData:
                 raise(ValueError, """Sorry.  Files with more than one spectral
                       window (spw) are not yet supported. A great
                       project for the interested student!""")
-            try: 
+            try:
                 cnt = uv['cnt']
             except(KeyError):
                 cnt = np.ones_like(d)
@@ -1144,7 +1144,7 @@ class UVData:
             times = np.sort(times)
             bls = list(set([[(k[2], k[3]) for k in d] for d in data_accumulator]))
             t_grid = []
-            ant_i_grid = [] 
+            ant_i_grid = []
             ant_j_grid = []
             for t in times:
                 for bl in bls:
@@ -1162,34 +1162,40 @@ class UVData:
             self.time_array.value = t_grid
             self.ant_1_array.value = ant_i_grid
             self.ant_2_array.value = ant_j_grid
-            self.baseline_array.value = self.antnums_to_baseline(ant_i_grid,ant_j_grid)
+            self.baseline_array.value = self.antnums_to_baseline(ant_i_grid,
+                                                                 ant_j_grid)
 
             # slot the data into a grid
-            self.data_array.value = np.zeros((self.Nblts.value, self.Nspws.value, self.Nfreqs.value, self.Npols.value))
+            self.data_array.value = np.zeros((self.Nblts.value,
+                                              self.Nspws.value,
+                                              self.Nfreqs.value,
+                                              self.Npols.value))
             self.flag_array.value = np.zeros_like(self.data_array.value)
             for pol, data in data_accumulator.iteritems():
                 t = [d[1] for d in data_accumulator[pol]]
                 ant_i = [d[2] for d in data_accumulator[pol]]
                 ant_j = [d[3] for d in data_accumulator[pol]]
-                blt_indices = np.argwhere(np.logical_and(np.logical_and(t==t_grid,ant_i==ant_i_grid),
-                                         ant_j == ant_j_grid))
+                blt_indices = np.argwhere(np.logical_and(np.logical_and(t==t_grid, ant_i==ant_i_grid),
+                                          ant_j == ant_j_grid))
                 visibility_accumulator = np.array([d[4] for d in data_accumulator[pol]])
                 flag_accumulator = np.array([d[5] for d in data_accumulator[pol]])
                 cnt_accumulator = np.array([d[6] for d in data_accumulator[pol]])
                 assert(blt_indices.shape == visibility_accumulator.shape[0])
-                self.data_array[blt_indices,:,:,pol].value = visibility_accumulator
-                self.flag_array[blt_indices,:,:,pol].value = flag_accumulator
-                self.nsample_array[blt_indices,:,:,pol].value = cnt_accumulator
-   
+                self.data_array[blt_indices, :, :, pol].value = visibility_accumulator
+                self.flag_array[blt_indices, :, :, pol].value = flag_accumulator
+                self.nsample_array[blt_indices, :, :, pol].value = cnt_accumulator
+
                 #because there are uvws for each pol, and one pol may not have that visibility,
                 #we collapse along the polarization axis but avoid any missing visbilities
                 uvw_array.append(d[0] for d in data_accumulator[pol])
-             uvw_array = np.reshape(uvw_array,(self.Npols.value,self.Nblts.value))
-             uvw_array = np.ma.masked_where(uvw_array == 0,uvw_array)
-             #here we check that we have properly returned one non-zero uvw that is correct
-             assert(np.ma.sum(np.ma.abs((np.ma.diff(uvw_array,axis=0))) == 0.))
-             self.uvw_array.value = np.ma.mean(uvw_array,axis=0).data #remove flags so auto correlations show up
-                
+
+            uvw_array = np.reshape(uvw_array, (self.Npols.value,
+                                               self.Nblts.value))
+            uvw_array = np.ma.masked_where(uvw_array == 0, uvw_array)
+            # here we check that we have properly returned one non-zero uvw that is correct
+            assert(np.ma.sum(np.ma.abs((np.ma.diff(uvw_array,axis=0))) == 0.))
+            self.uvw_array.value = np.ma.mean(uvw_array, axis=0).data  # remove flags so auto correlations show up
+
         if not FLEXIBLE_OPTION:
             pass
             # this option would accumulate things requiring
