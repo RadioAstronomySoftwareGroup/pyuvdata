@@ -517,7 +517,7 @@ class UVData:
         self.uvw_array.value = (np.array(np.stack((D.data.field('UU'),
                                                    D.data.field('VV'),
                                                    D.data.field('WW')))) *
-                                const.c.to('m/s'))
+                                const.c.to('m/s').value)
 
         self.freq_array.value = self._gethduaxis(D, 4)
         self.channel_width.value = D.header['CDELT4']
