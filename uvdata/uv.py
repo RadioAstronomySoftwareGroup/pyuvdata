@@ -951,10 +951,11 @@ class UVData:
             self.flag_array.value[:, 0, :, pol_i] = flag_data[pol] <= 0
             self.nsample_array.value[:, 0, :, pol_i] = np.abs(flag_data[pol])
 
+        # In FHD, uvws are in seconds not meters!
         self.uvw_array.value = np.zeros((3, self.Nblts.value))
-        self.uvw_array.value[0, :] = params['UU'][0]
-        self.uvw_array.value[1, :] = params['VV'][0]
-        self.uvw_array.value[2, :] = params['WW'][0]
+        self.uvw_array.value[0, :] = params['UU'][0] * const.c.to('m/s').value
+        self.uvw_array.value[1, :] = params['VV'][0] * const.c.to('m/s').value
+        self.uvw_array.value[2, :] = params['WW'][0] * const.c.to('m/s').value
 
         # bl_info.JDATE (a vector of length Ntimes) is the only safe date/time
         # to use in FHD files.
