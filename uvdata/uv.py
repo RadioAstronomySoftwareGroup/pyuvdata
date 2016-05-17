@@ -6,6 +6,8 @@ import numpy as np
 from scipy.io.idl import readsav
 import warnings
 from itertools import islice
+import aipy as a
+import os
 
 
 class UVProperty:
@@ -377,6 +379,7 @@ class UVData:
                                         gps_p-e_squared * gps_a *
                                         np.cos(gps_theta)**3)
                 self.latitude.value = lat_radian * 180 / np.pi
+            #todo these should probably always overwrite
             if self.longitude.value is None:
                 lon_radian = np.arctan2(self.y_telescope.value,
                                         self.x_telescope.value)
@@ -389,7 +392,22 @@ class UVData:
         else:
             raise ValueError('No x/y/x_telescope value assigned and '
                              'xyz_telescope_frame is not "ITRF"')
-
+    def setXYZ_from_LatLon(self):
+        #check that the coordinates we need actually exist
+        if None in (self.latitude.value,self.longitude.value,self.altitude.value):
+            raise ValueError('setXYZ_from_LatLon, lat/lon or altitude not found')
+        # see wikipedia geodetic_datum and Datum transformations of
+        # GPS positions PDF in docs folder
+        gps_b = 6356752.31424518
+        gps_a = 6378137
+        e_squared = 6.69437999014e-3
+        e_prime_squared = 6.73949674228e-3
+        gps_N = gps_a / np.sqrt(1-e_squared *
+                                np.sin(self.latitude.value)**2)
+        self.x_telescope.value = (gps_N + self.altitude.value)*np.cos(self.latitude.value)*np.cos(self.longitude.value)
+        self.y_telescope.value = (gps_N + self.altitude.value)*np.cos(self.latitude.value)*np.sin(self.longitude.value)
+        self.z_telescope.value = (gps_b**2/gps_a**2 * gps_N + self.altitude.value)*np.sin(self.latitude.value)
+        return True
     def check(self):
         # loop through all required properties, make sure that they are filled
         for p in self.required_property_iter():
@@ -1074,9 +1092,13 @@ class UVData:
         # map uvdata attributes to miriad data values
         # those which we can get directly from the miriad file
         # (some, like n_times, have to be calculated)
+        if not os.path.exists(filepath):
+            raise(IOError,filepath+' not found')
+        uv = a.miriad.UV(filepath)
+
         miriad_header_data = {'Nfreqs': 'nchan',
                               'Npols': 'npol',
-                              'Nspws': 'nspec',  # not always available
+                             # 'Nspws': 'nspec',  # not always available
                               'phase_center_ra': 'ra',
                               'phase_center_dec': 'dec',
                               'integration_time': 'inttime',
@@ -1090,27 +1112,21 @@ class UVData:
                               'phase_center_epoch': 'epoch',
                               'Nants': 'nants',
                               'antenna_positions': 'antpos',  # take deltas
-
-
                               }
-        # things not in the miriad header (but calculable from header)
-        # {x,y,z}_telescope
-        # spw_array
-        # freq_array
+        # TODO: actually get header items into object
+        for item in miriad_header_data:
+            exec("self.{item}.value = uv[miriad_header_data['{item}']]".format(
+                    item=item))
+        #fix some miriad specific things
+        #
+        # for now we're getting the Nspws from the data shape
+        #try:
+        #    self.Nspws.value = uv['nspec']
+        #except(KeyError)
+        #    pass
+        self.channel_width.value *= 1e9
 
-        # things we need to get from scanning through the miriad file
-        # Ntimes
-        # Nbls
-        # Nblts
-        # data_array
-        # uvws  #will we support variable variations?
-        # n_sample_array
-        # flag_array
-        # baseline_array
-        # time_array
-        # polarization_array
-        # ant_1_array
-        # ant_2_array
+            
         data_accumulator = {}
         for (uvw, t, (i, j)), d, f in uv.all(raw=True):
             # control for the case of only a single spw not showing up in
@@ -1140,9 +1156,9 @@ class UVData:
             # any missing data will have zeros
 
             # get all the unique list of all times ever listed in the file
-            times = list(set([[k[1] for k in d] for d in data_accumulator]))
+            times = list(set([[k[1] for k in d] for d in data_accumulator.values()]))
             times = np.sort(times)
-            bls = list(set([[(k[2], k[3]) for k in d] for d in data_accumulator]))
+            bls = list(set([[(k[2], k[3]) for k in d] for d in data_accumulator.values()]))
             t_grid = []
             ant_i_grid = []
             ant_j_grid = []
@@ -1195,6 +1211,14 @@ class UVData:
             # here we check that we have properly returned one non-zero uvw that is correct
             assert(np.ma.sum(np.ma.abs((np.ma.diff(uvw_array,axis=0))) == 0.))
             self.uvw_array.value = np.ma.mean(uvw_array, axis=0).data  # remove flags so auto correlations show up
+
+            #enforce drift scan/ phased convention
+            #convert lat/lon to x/y/z_telescope 
+            #    LLA to ECEF (see pdf in docs)
+            freq_array = np.arange(self.Nfreqs.value)*self.channel_width.value +\
+                    uv['sfreq']*1e9
+
+
 
         if not FLEXIBLE_OPTION:
             pass
