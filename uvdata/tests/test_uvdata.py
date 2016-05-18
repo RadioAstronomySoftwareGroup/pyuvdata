@@ -142,7 +142,7 @@ class TestWriteUVFits(unittest.TestCase):
         testfile = '../data/day2_TDEM0003_10s_norx_1scan.uvfits'
         self.assertTrue(os.path.exists(testfile))
         UV = UVData()
-        self.assertRaises(IOError, UV.read_uvfits, testfile)
+        self.assertRaises(ValueError, UV.read_uvfits, testfile)
         del(UV)
 
     def test_readwriteread(self):
@@ -206,6 +206,16 @@ class TestReadFHD(unittest.TestCase):
 
             del(fhd_uv)
             del(uvfits_uv)
-
+'''
+class TestReadMiriad(unittest.TestCase):
+    def setUp(self):
+        self.datafile = '../../data/zen.2456865.60537.uvcRRE'
+        if not os.path.exists(self.datafile):
+            raise(IOError,'miriad file not found')
+    def test_ReadMiriad(self):
+        miriad_uv = UVData()
+        status = miriad_uv.read_miriad(self.datafile)
+        self.assertTrue(status)
+'''        
 if __name__ == '__main__':
     unittest.main()
