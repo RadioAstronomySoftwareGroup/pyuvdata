@@ -1146,7 +1146,7 @@ class UVData:
         #    pass
         self.channel_width.value *= 1e9
 
-            
+
         data_accumulator = {}
         for (uvw, t, (i, j)), d, f in uv.all(raw=True):
             # control for the case of only a single spw not showing up in
@@ -1217,26 +1217,14 @@ class UVData:
                 flag_accumulator = np.array([d[5] for d in data_accumulator[pol]])
                 cnt_accumulator = np.array([d[6] for d in data_accumulator[pol]])
                 assert(blt_indices.shape == visibility_accumulator.shape[0])
-<<<<<<< HEAD
-                self.data_array[blt_indices,:,:,pol].value = visibility_accumulator
-                self.flag_array[blt_indices,:,:,pol].value = flag_accumulator
-                self.nsample_array[blt_indices,:,:,pol].value = cnt_accumulator
-=======
+
                 self.data_array[blt_indices, :, :, pol].value = visibility_accumulator
                 self.flag_array[blt_indices, :, :, pol].value = flag_accumulator
                 self.nsample_array[blt_indices, :, :, pol].value = cnt_accumulator
->>>>>>> a0adac64411b6208bc5b0df9fffc53c193f1256a
 
                 #because there are uvws for each pol, and one pol may not have that visibility,
                 #we collapse along the polarization axis but avoid any missing visbilities
                 uvw_array.append(d[0] for d in data_accumulator[pol])
-<<<<<<< HEAD
-             uvw_array = np.reshape(uvw_array,(self.Npols.value,self.Nblts.value))
-             uvw_array = np.ma.masked_where(uvw_array == 0,uvw_array)
-             #here we check that we have properly returned one non-zero uvw that is correct
-             assert(np.ma.sum(np.ma.abs((np.ma.diff(uvw_array,axis=0))) == 0.))
-             self.uvw_array.value = np.ma.mean(uvw_array,axis=0).data #remove flags so auto correlations show up
-=======
 
             uvw_array = np.reshape(uvw_array, (self.Npols.value,
                                                self.Nblts.value))
@@ -1246,14 +1234,11 @@ class UVData:
             self.uvw_array.value = np.ma.mean(uvw_array, axis=0).data  # remove flags so auto correlations show up
 
             #enforce drift scan/ phased convention
-            #convert lat/lon to x/y/z_telescope 
+            #convert lat/lon to x/y/z_telescope
             #    LLA to ECEF (see pdf in docs)
             freq_array = np.arange(self.Nfreqs.value)*self.channel_width.value +\
                     uv['sfreq']*1e9
-
-
->>>>>>> a0adac64411b6208bc5b0df9fffc53c193f1256a
-
+                    
         if not FLEXIBLE_OPTION:
             pass
             # this option would accumulate things requiring
