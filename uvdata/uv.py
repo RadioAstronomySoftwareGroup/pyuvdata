@@ -623,9 +623,6 @@ class UVData:
 
         # initialize internal variables based on the antenna table
         self.Nants.value = len(self.antenna_indices.value)
-        assert(self.Nants.value == max(self.ant_1_array.value))
-        assert(self.Nants.value == max(self.ant_2_array.value))
-
         # get antenna arrays based on uvfits baseline array, then convert to
         # our convention for self.baseline_array
         self.ant_1_array.value, self.ant_2_array.value = \

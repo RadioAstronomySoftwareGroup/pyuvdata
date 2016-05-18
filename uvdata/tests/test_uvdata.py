@@ -183,12 +183,16 @@ class TestReadFHD(unittest.TestCase):
     #      shutil.rmtree(self.test_file_directory)
 
     def test_ReadFHD(self):
+        supress_test = False
+
         files_present = True
         for f in self.testfiles:
             if not os.path.isfile(f):
                 files_present = False
 
-        if not files_present:
+        if supress_test:
+            print('FHD test supressed')
+        elif not files_present:
             print('FHD files not present, skipping test')
         else:
             fhd_uv = UVData()
@@ -216,6 +220,6 @@ class TestReadMiriad(unittest.TestCase):
         miriad_uv = UVData()
         status = miriad_uv.read_miriad(self.datafile)
         self.assertTrue(status)
-'''        
+'''
 if __name__ == '__main__':
     unittest.main()
