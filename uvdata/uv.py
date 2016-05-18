@@ -306,10 +306,10 @@ class UVData:
                                 'supported'.format(Nants=self.Nants))
         if np.min(baseline) > 2**16:
             i = (baseline - 2**16) % 2048 - 1
-            j = (baseline - 2**16 - (i+1))/2048 - 1
+            j = (baseline - 2**16 - (i + 1)) / 2048 - 1
         else:
             i = (baseline) % 256 - 1
-            j = (baseline - (i+1))/256 - 1
+            j = (baseline - (i + 1)) / 256 - 1
         return i, j
 
     def antnums_to_baseline(self, i, j, attempt256=False):
@@ -322,7 +322,7 @@ class UVData:
                                 .format(Nants=self.Nants))
         if attempt256:
             if (np.max(i) < 255 and np.max(j) < 255):
-                return 256*(j+1) + (i+1)
+                return 256 * (j + 1) + (i + 1)
             else:
                 print('Max antnums are {} and {}'.format(np.max(i), np.max(j)))
                 message = 'antnums_to_baseline: found > 256 antennas, using ' \
@@ -330,7 +330,7 @@ class UVData:
                           'with CASA etc'
                 warnings.warn(message)
 
-        return 2048*(j+1)+(i+1)+2**16
+        return 2048 * (j + 1) + (i + 1) + 2**16
 
     # this needs to exist but doesn't yet
     def ijt_to_blt_index(self, i, j, t):
@@ -340,11 +340,11 @@ class UVData:
 
     def _gethduaxis(self, D, axis):
         ax = str(axis)
-        N = D.header['NAXIS'+ax]
-        X0 = D.header['CRVAL'+ax]
-        dX = D.header['CDELT'+ax]
-        Xi0 = D.header['CRPIX'+ax]-1
-        return np.arange(X0-dX*Xi0, X0-dX*Xi0+N*dX, dX)
+        N = D.header['NAXIS' + ax]
+        X0 = D.header['CRVAL' + ax]
+        dX = D.header['CDELT' + ax]
+        Xi0 = D.header['CRPIX' + ax] - 1
+        return np.arange(X0 - dX * Xi0, X0 - dX * Xi0 + N * dX, dX)
 
     def _indexhdus(self, hdulist):
         # input a list of hdus
@@ -376,15 +376,15 @@ class UVData:
                 lat_radian = np.arctan2(self.z_telescope.value +
                                         e_prime_squared * gps_b *
                                         np.sin(gps_theta)**3,
-                                        gps_p-e_squared * gps_a *
+                                        gps_p - e_squared * gps_a *
                                         np.cos(gps_theta)**3)
                 self.latitude.value = lat_radian * 180 / np.pi
-            #todo these should probably always overwrite
+            # todo these should probably always overwrite
             if self.longitude.value is None:
                 lon_radian = np.arctan2(self.y_telescope.value,
                                         self.x_telescope.value)
                 self.longitude.value = lon_radian * 180 / np.pi
-            gps_N = gps_a / np.sqrt(1-e_squared *
+            gps_N = gps_a / np.sqrt(1 - e_squared *
                                     np.sin(self.latitude.value)**2)
             if self.altitude.value is None:
                 self.altitude.value = ((gps_p / np.cos(self.latitude.value)) -
@@ -392,22 +392,31 @@ class UVData:
         else:
             raise ValueError('No x/y/x_telescope value assigned and '
                              'xyz_telescope_frame is not "ITRF"')
+
     def setXYZ_from_LatLon(self):
-        #check that the coordinates we need actually exist
-        if None in (self.latitude.value,self.longitude.value,self.altitude.value):
-            raise ValueError('setXYZ_from_LatLon, lat/lon or altitude not found')
+        # check that the coordinates we need actually exist
+        if None in (self.latitude.value, self.longitude.value,
+                    self.altitude.value):
+            raise ValueError('lat/lon or altitude not found')
         # see wikipedia geodetic_datum and Datum transformations of
         # GPS positions PDF in docs folder
         gps_b = 6356752.31424518
         gps_a = 6378137
         e_squared = 6.69437999014e-3
         e_prime_squared = 6.73949674228e-3
-        gps_N = gps_a / np.sqrt(1-e_squared *
+        gps_N = gps_a / np.sqrt(1 - e_squared *
                                 np.sin(self.latitude.value)**2)
-        self.x_telescope.value = (gps_N + self.altitude.value)*np.cos(self.latitude.value)*np.cos(self.longitude.value)
-        self.y_telescope.value = (gps_N + self.altitude.value)*np.cos(self.latitude.value)*np.sin(self.longitude.value)
-        self.z_telescope.value = (gps_b**2/gps_a**2 * gps_N + self.altitude.value)*np.sin(self.latitude.value)
+        self.x_telescope.value = ((gps_N + self.altitude.value) *
+                                  np.cos(self.latitude.value) *
+                                  np.cos(self.longitude.value))
+        self.y_telescope.value = ((gps_N + self.altitude.value) *
+                                  np.cos(self.latitude.value) *
+                                  np.sin(self.longitude.value))
+        self.z_telescope.value = ((gps_b**2 / gps_a**2 * gps_N +
+                                   self.altitude.value) *
+                                  np.sin(self.latitude.value))
         return True
+
     def check(self):
         # loop through all required properties, make sure that they are filled
         for p in self.required_property_iter():
@@ -551,7 +560,7 @@ class UVData:
                                  'one time present')
 
         # TODO iterate over the spw axis, for now we just have one spw
-        self.freq_array.value.shape = (1,)+self.freq_array.value.shape
+        self.freq_array.value.shape = (1,) + self.freq_array.value.shape
 
         self.polarization_array.value = self._gethduaxis(D, 3)
 
@@ -630,6 +639,7 @@ class UVData:
         self.baseline_array.value = \
             self.antnums_to_baseline(self.ant_1_array.value,
                                      self.ant_2_array.value)
+
         del(D)
 
         if (self.latitude.value is None or self.longitude.value is None or
@@ -672,7 +682,7 @@ class UVData:
                                            weights_array], axis=6)
 
         uvw_array_sec = self.uvw_array.value / const.c.to('m/s').value
-        jd_midnight = np.floor(self.time_array.value[0]-0.5)+0.5
+        jd_midnight = np.floor(self.time_array.value[0] - 0.5) + 0.5
 
         # uvfits convention is that time_array + jd_midnight = actual JD
         # jd_midnight is julian midnight on first day of observation
@@ -966,7 +976,7 @@ class UVData:
         self.vis_units.value = 'JY'
 
         lin_pol_order = ['xx', 'yy', 'xy', 'yx']
-        linear_pol_dict = dict(zip(lin_pol_order, np.arange(5, 9)*-1))
+        linear_pol_dict = dict(zip(lin_pol_order, np.arange(5, 9) * -1))
         pol_list = []
         for pol in lin_pol_order:
             if pol in vis_data:
@@ -1006,7 +1016,7 @@ class UVData:
         int_times = bl_info['JDATE'][0]
         self.time_array.value = np.zeros(self.Nblts.value)
         for ii in range(0, self.Ntimes.value):
-            self.time_array.value[ii * self.Nbls.value:(ii+1) *
+            self.time_array.value[ii * self.Nbls.value:(ii + 1) *
                                   self.Nbls.value] = int_times[ii]
 
         self.ant_1_array.value = bl_info['TILE_A'][0]
@@ -1114,12 +1124,12 @@ class UVData:
         # those which we can get directly from the miriad file
         # (some, like n_times, have to be calculated)
         if not os.path.exists(filepath):
-            raise(IOError,filepath+' not found')
+            raise(IOError, filepath + ' not found')
         uv = a.miriad.UV(filepath)
 
         miriad_header_data = {'Nfreqs': 'nchan',
                               'Npols': 'npol',
-                             # 'Nspws': 'nspec',  # not always available
+                              # 'Nspws': 'nspec',  # not always available
                               'phase_center_ra': 'ra',
                               'phase_center_dec': 'dec',
                               'integration_time': 'inttime',
@@ -1136,17 +1146,15 @@ class UVData:
                               }
         # TODO: actually get header items into object
         for item in miriad_header_data:
-            exec("self.{item}.value = uv[miriad_header_data['{item}']]".format(
-                    item=item))
-        #fix some miriad specific things
+            exec("self.{item}.value = uv[miriad_header_data['{item}']]".format(item=item))
+        # fix some miriad specific things
         #
         # for now we're getting the Nspws from the data shape
-        #try:
-        #    self.Nspws.value = uv['nspec']
-        #except(KeyError)
-        #    pass
+        # try:
+        #     self.Nspws.value = uv['nspec']
+        # except(KeyError)
+        #     pass
         self.channel_width.value *= 1e9
-
 
         data_accumulator = {}
         for (uvw, t, (i, j)), d, f in uv.all(raw=True):
@@ -1173,7 +1181,8 @@ class UVData:
         self.polarization_array.value = np.sort(data_accumulator.keys())
 
         if FLEXIBLE_OPTION:
-            # makes a data_array (and flag_array) of zeroes to be filled in by data values
+            # makes a data_array (and flag_array) of zeroes to be filled in by
+            #   data values
             # any missing data will have zeros
 
             # get all the unique list of all times ever listed in the file
@@ -1195,7 +1204,7 @@ class UVData:
             self.Nblts.value = len(t_grid)
             self.Nbls.value = len(bls)
             self.Ntimes.value = len(times)
-            assert(self.Nblts.value == self.Nbls.value*self.Ntimes.value)
+            assert(self.Nblts.value == self.Nbls.value * self.Ntimes.value)
             self.time_array.value = t_grid
             self.ant_1_array.value = ant_i_grid
             self.ant_2_array.value = ant_j_grid
@@ -1212,7 +1221,7 @@ class UVData:
                 t = [d[1] for d in data_accumulator[pol]]
                 ant_i = [d[2] for d in data_accumulator[pol]]
                 ant_j = [d[3] for d in data_accumulator[pol]]
-                blt_indices = np.argwhere(np.logical_and(np.logical_and(t==t_grid, ant_i==ant_i_grid),
+                blt_indices = np.argwhere(np.logical_and(np.logical_and(t == t_grid, ant_i == ant_i_grid),
                                           ant_j == ant_j_grid))
                 visibility_accumulator = np.array([d[4] for d in data_accumulator[pol]])
                 flag_accumulator = np.array([d[5] for d in data_accumulator[pol]])
@@ -1223,23 +1232,26 @@ class UVData:
                 self.flag_array[blt_indices, :, :, pol].value = flag_accumulator
                 self.nsample_array[blt_indices, :, :, pol].value = cnt_accumulator
 
-                #because there are uvws for each pol, and one pol may not have that visibility,
-                #we collapse along the polarization axis but avoid any missing visbilities
+                # because there are uvws for each pol, and one pol may not
+                # have that visibility, we collapse along the polarization
+                # axis but avoid any missing visbilities
                 uvw_array.append(d[0] for d in data_accumulator[pol])
 
             uvw_array = np.reshape(uvw_array, (self.Npols.value,
                                                self.Nblts.value))
             uvw_array = np.ma.masked_where(uvw_array == 0, uvw_array)
-            # here we check that we have properly returned one non-zero uvw that is correct
-            assert(np.ma.sum(np.ma.abs((np.ma.diff(uvw_array,axis=0))) == 0.))
-            self.uvw_array.value = np.ma.mean(uvw_array, axis=0).data  # remove flags so auto correlations show up
+            # here we check that we have properly returned one non-zero uvw
+            #  that is correct
+            assert(np.ma.sum(np.ma.abs((np.ma.diff(uvw_array, axis=0))) == 0.))
+            # remove flags so auto correlations show up
+            self.uvw_array.value = np.ma.mean(uvw_array, axis=0).data
 
-            #enforce drift scan/ phased convention
-            #convert lat/lon to x/y/z_telescope
+            # enforce drift scan/ phased convention
+            # convert lat/lon to x/y/z_telescope
             #    LLA to ECEF (see pdf in docs)
-            freq_array = np.arange(self.Nfreqs.value)*self.channel_width.value +\
-                    uv['sfreq']*1e9
-                    
+            freq_array = (np.arange(self.Nfreqs.value) *
+                          self.channel_width.value + uv['sfreq'] * 1e9)
+
         if not FLEXIBLE_OPTION:
             pass
             # this option would accumulate things requiring
