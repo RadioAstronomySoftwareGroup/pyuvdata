@@ -678,12 +678,13 @@ class UVData:
         # jd_midnight is julian midnight on first day of observation
         time_array = self.time_array.value - jd_midnight
 
-        int_time_array = (np.zeros_like((baselines_use), dtype=np.float) +
+        int_time_array = (np.zeros_like((time_array), dtype=np.float) +
                           self.integration_time.value)
 
         # list contains arrays of [u,v,w,date,baseline];
         # each array has shape (Nblts)
-        if self.Nants.value < 255:
+        if (np.max(self.ant_1_array.value) < 255 and
+                np.max(self.ant_2_array.value) < 255):
             # if the number of antennas is less than 256 then include both the
             # baseline array and the antenna arrays in the group parameters.
             # Otherwise just use the antenna arrays
@@ -695,7 +696,8 @@ class UVData:
                                     uvw_array_sec[2],
                                     np.zeros_like(time_array),
                                     time_array, baselines_use,
-                                    self.ant_1_array, self.ant_2_array,
+                                    self.ant_1_array.value,
+                                    self.ant_2_array.value,
                                     int_time_array]
 
             hdu = fits.GroupData(uvfits_array_data,
@@ -707,8 +709,10 @@ class UVData:
             group_parameter_list = [uvw_array_sec[0], uvw_array_sec[1],
                                     uvw_array_sec[2],
                                     np.zeros_like(time_array),
-                                    time_array, self.ant_1_array,
-                                    self.ant_2_array, int_time_array]
+                                    time_array,
+                                    self.ant_1_array.value,
+                                    self.ant_2_array.value,
+                                    int_time_array]
 
             hdu = fits.GroupData(uvfits_array_data,
                                  parnames=['UU      ', 'VV      ', 'WW      ',
