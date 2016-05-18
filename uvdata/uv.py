@@ -605,6 +605,8 @@ class UVData:
 
         # initialize internal variables based on the antenna table
         self.Nants.value = len(self.antenna_indices.value)
+        assert(self.Nants.value == max(self.ant_1_array.value))
+        assert(self.Nants.value == max(self.ant_2_array.value))
 
         # get antenna arrays based on uvfits baseline array, then convert to
         # our convention for self.baseline_array
@@ -661,26 +663,44 @@ class UVData:
         # jd_midnight is julian midnight on first day of observation
         time_array = self.time_array.value - jd_midnight
 
-        ants = self.baseline_to_antnums(self.baseline_array.value)
-        baselines_use = self.antnums_to_baseline(ants[0], ants[1],
-                                                 attempt256=True)
-
-        # list contains arrays of [u,v,w,date,baseline];
-        # each array has shape (Nblts)
         int_time_array = (np.zeros_like((baselines_use), dtype=np.float) +
                           self.integration_time.value)
 
-        group_parameter_list = [uvw_array_sec[0], uvw_array_sec[1],
-                                uvw_array_sec[2],
-                                np.zeros_like(time_array),
-                                time_array, baselines_use,
-                                int_time_array]
+        # list contains arrays of [u,v,w,date,baseline];
+        # each array has shape (Nblts)
+        if self.Nants.value < 255:
+            # if the number of antennas is less than 256 then include both the
+            # baseline array and the antenna arrays in the group parameters.
+            # Otherwise just use the antenna arrays
+            baselines_use = self.antnums_to_baseline(self.ant_1_array.value,
+                                                     self.ant_2_array.value,
+                                                     attempt256=True)
 
-        hdu = fits.GroupData(uvfits_array_data,
-                             parnames=['UU      ', 'VV      ', 'WW      ',
-                                       'DATE    ', 'DATE    ', 'BASELINE',
-                                       'INTTIM'],
-                             pardata=group_parameter_list, bitpix=-32)
+            group_parameter_list = [uvw_array_sec[0], uvw_array_sec[1],
+                                    uvw_array_sec[2],
+                                    np.zeros_like(time_array),
+                                    time_array, baselines_use,
+                                    self.ant_1_array, self.ant_2_array,
+                                    int_time_array]
+
+            hdu = fits.GroupData(uvfits_array_data,
+                                 parnames=['UU      ', 'VV      ', 'WW      ',
+                                           'DATE    ', 'DATE    ', 'BASELINE',
+                                           'ANTENNA1', 'ANTENNA2', 'INTTIM'],
+                                 pardata=group_parameter_list, bitpix=-32)
+        else:
+            group_parameter_list = [uvw_array_sec[0], uvw_array_sec[1],
+                                    uvw_array_sec[2],
+                                    np.zeros_like(time_array),
+                                    time_array, self.ant_1_array,
+                                    self.ant_2_array, int_time_array]
+
+            hdu = fits.GroupData(uvfits_array_data,
+                                 parnames=['UU      ', 'VV      ', 'WW      ',
+                                           'DATE    ', 'DATE    ',
+                                           'ANTENNA1', 'ANTENNA2', 'INTTIM'],
+                                 pardata=group_parameter_list, bitpix=-32)
+
         hdu = fits.GroupsHDU(hdu)
 
         # hdu.header['PTYPE1  '] = 'UU      '
@@ -1123,7 +1143,7 @@ class UVData:
                 raise(ValueError, """Sorry.  Files with more than one spectral
                       window (spw) are not yet supported. A great
                       project for the interested student!""")
-            try: 
+            try:
                 cnt = uv['cnt']
             except(KeyError):
                 cnt = np.ones_like(d)
@@ -1144,7 +1164,7 @@ class UVData:
             times = np.sort(times)
             bls = list(set([[(k[2], k[3]) for k in d] for d in data_accumulator]))
             t_grid = []
-            ant_i_grid = [] 
+            ant_i_grid = []
             ant_j_grid = []
             for t in times:
                 for bl in bls:
@@ -1180,7 +1200,7 @@ class UVData:
                 self.data_array[blt_indices,:,:,pol].value = visibility_accumulator
                 self.flag_array[blt_indices,:,:,pol].value = flag_accumulator
                 self.nsample_array[blt_indices,:,:,pol].value = cnt_accumulator
-   
+
                 #because there are uvws for each pol, and one pol may not have that visibility,
                 #we collapse along the polarization axis but avoid any missing visbilities
                 uvw_array.append(d[0] for d in data_accumulator[pol])
@@ -1189,7 +1209,7 @@ class UVData:
              #here we check that we have properly returned one non-zero uvw that is correct
              assert(np.ma.sum(np.ma.abs((np.ma.diff(uvw_array,axis=0))) == 0.))
              self.uvw_array.value = np.ma.mean(uvw_array,axis=0).data #remove flags so auto correlations show up
-                
+
         if not FLEXIBLE_OPTION:
             pass
             # this option would accumulate things requiring
