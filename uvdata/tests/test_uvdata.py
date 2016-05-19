@@ -183,12 +183,16 @@ class TestReadFHD(unittest.TestCase):
     #      shutil.rmtree(self.test_file_directory)
 
     def test_ReadFHD(self):
+        supress_test = False
+
         files_present = True
         for f in self.testfiles:
             if not os.path.isfile(f):
                 files_present = False
 
-        if not files_present:
+        if supress_test:
+            print('FHD test supressed')
+        elif not files_present:
             print('FHD files not present, skipping test')
         else:
             fhd_uv = UVData()
@@ -206,6 +210,16 @@ class TestReadFHD(unittest.TestCase):
 
             del(fhd_uv)
             del(uvfits_uv)
-
+'''
+class TestReadMiriad(unittest.TestCase):
+    def setUp(self):
+        self.datafile = '../../data/zen.2456865.60537.uvcRRE'
+        if not os.path.exists(self.datafile):
+            raise(IOError,'miriad file not found')
+    def test_ReadMiriad(self):
+        miriad_uv = UVData()
+        status = miriad_uv.read_miriad(self.datafile)
+        self.assertTrue(status)
+'''
 if __name__ == '__main__':
     unittest.main()
