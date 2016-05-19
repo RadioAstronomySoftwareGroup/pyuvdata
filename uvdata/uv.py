@@ -482,10 +482,24 @@ class UVData:
 
         self.Ntimes.value = len(np.unique(self.time_array.value))
 
-        # cannot set this to be the baseline array because it uses the
-        # 256 convention, not our 2048 convention
-        bl_input_array = D.data.field('BASELINE')
-        self.Nbls.value = len(np.unique(bl_input_array))
+        # if antenna arrays are present, use them. otherwise use baseline array
+        try:
+            self.ant_1_array.value = D.data.field('ANTENNA1')
+            self.ant_2_array.value = D.data.field('ANTENNA2')
+        except:
+            # cannot set this to be the baseline array because it uses the
+            # 256 convention, not our 2048 convention
+            bl_input_array = D.data.field('BASELINE')
+
+            # get antenna arrays based on uvfits baseline array
+            self.ant_1_array.value, self.ant_2_array.value = \
+                self.baseline_to_antnums(bl_input_array)
+
+        # get self.baseline_array using our convention
+        self.baseline_array.value = \
+            self.antnums_to_baseline(self.ant_1_array.value,
+                                     self.ant_2_array.value)
+        self.Nbls.value = len(np.unique(self.baseline_array.value))
 
         # check if we have an spw dimension
         if D.header['NAXIS'] == 7:
@@ -632,13 +646,6 @@ class UVData:
 
         # initialize internal variables based on the antenna table
         self.Nants.value = len(self.antenna_indices.value)
-        # get antenna arrays based on uvfits baseline array, then convert to
-        # our convention for self.baseline_array
-        self.ant_1_array.value, self.ant_2_array.value = \
-            self.baseline_to_antnums(bl_input_array)
-        self.baseline_array.value = \
-            self.antnums_to_baseline(self.ant_1_array.value,
-                                     self.ant_2_array.value)
 
         del(D)
 
