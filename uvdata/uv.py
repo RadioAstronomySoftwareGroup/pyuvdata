@@ -176,16 +176,21 @@ class UVData:
         self.phase_center_epoch = UVProperty(description=desc)
 
         # --- antenna information ----
-        self.Nants = UVProperty(description='number of antennas')
-        desc = ('list of antenna names, dimensions (Nants), '
+        self.Nants = UVProperty(description='number of antennas with data ' +
+                                'present. May be different than the number ' +
+                                'of antennas in the array')
+        desc = ('list of antenna names, dimensions (>=Nants -- may include '
+                'antennas in the array that do not have data in this file), '
                 'indexed by self.ant_1_array, self.ant_2_array, '
-                'self.antenna_indices')
+                'self.antenna_indices. There must be one '
+                'entry here for each unique entry in self.ant_1_array and '
+                'self.ant_2_array, but there may be extras as well.')
         self.antenna_names = UVProperty(description=desc)
 
         desc = ('integer index into antenna_names, dimensions '
-                '(Nants), there must be one entry here for each unique '
-                'entry in self.ant_1_array and self.ant_2_array, but there '
-                'may be extras as well.')
+                '(>=Nants, same length as antenna_names). There must be one '
+                'entry here for each unique entry in self.ant_1_array and '
+                'self.ant_2_array, but there may be extras as well.')
         self.antenna_indices = UVProperty(description=desc)
 
         # -------- extra, non-required properties ----------
@@ -484,8 +489,10 @@ class UVData:
 
         # if antenna arrays are present, use them. otherwise use baseline array
         try:
-            self.ant_1_array.value = D.data.field('ANTENNA1')
-            self.ant_2_array.value = D.data.field('ANTENNA2')
+            # Note: uvfits antennas are 1 indexed,
+            # need to subtract one to get to 0-indexed
+            self.ant_1_array.value = D.data.field('ANTENNA1') - 1
+            self.ant_2_array.value = D.data.field('ANTENNA2') - 1
         except:
             # cannot set this to be the baseline array because it uses the
             # 256 convention, not our 2048 convention
@@ -500,6 +507,10 @@ class UVData:
             self.antnums_to_baseline(self.ant_1_array.value,
                                      self.ant_2_array.value)
         self.Nbls.value = len(np.unique(self.baseline_array.value))
+
+        # initialize internal variables based on the antenna table
+        self.Nants.value = np.max([len(np.unique(self.ant_1_array.value)),
+                                   len(np.unique(self.ant_2_array.value))])
 
         # check if we have an spw dimension
         if D.header['NAXIS'] == 7:
@@ -644,9 +655,6 @@ class UVData:
             # CASA misspells this one
             self.TIMESYS.value = ant_hdu.header['TIMSYS']
 
-        # initialize internal variables based on the antenna table
-        self.Nants.value = len(self.antenna_indices.value)
-
         del(D)
 
         if (self.latitude.value is None or self.longitude.value is None or
@@ -709,12 +717,14 @@ class UVData:
                                                      self.ant_2_array.value,
                                                      attempt256=True)
 
+            # Note that uvfits antenna arrays are 1-indexed so we add 1
+            # to our 0-indexed arrays
             group_parameter_list = [uvw_array_sec[0], uvw_array_sec[1],
                                     uvw_array_sec[2],
                                     np.zeros_like(time_array),
                                     time_array, baselines_use,
-                                    self.ant_1_array.value,
-                                    self.ant_2_array.value,
+                                    self.ant_1_array.value + 1,
+                                    self.ant_2_array.value + 1,
                                     int_time_array]
 
             hdu = fits.GroupData(uvfits_array_data,
@@ -723,12 +733,14 @@ class UVData:
                                            'ANTENNA1', 'ANTENNA2', 'INTTIM'],
                                  pardata=group_parameter_list, bitpix=-32)
         else:
+            # Note that uvfits antenna arrays are 1-indexed so we add 1
+            # to our 0-indexed arrays
             group_parameter_list = [uvw_array_sec[0], uvw_array_sec[1],
                                     uvw_array_sec[2],
                                     np.zeros_like(time_array),
                                     time_array,
-                                    self.ant_1_array.value,
-                                    self.ant_2_array.value,
+                                    self.ant_1_array.value + 1,
+                                    self.ant_2_array.value + 1,
                                     int_time_array]
 
             hdu = fits.GroupData(uvfits_array_data,
@@ -1026,14 +1038,17 @@ class UVData:
             self.time_array.value[ii * self.Nbls.value:(ii + 1) *
                                   self.Nbls.value] = int_times[ii]
 
-        self.ant_1_array.value = bl_info['TILE_A'][0]
-        self.ant_2_array.value = bl_info['TILE_B'][0]
+        # Note that FHD antenna arrays are 1-indexed so we subtract 1
+        # to get 0-indexed arrays
+        self.ant_1_array.value = bl_info['TILE_A'][0] - 1
+        self.ant_2_array.value = bl_info['TILE_B'][0] - 1
 
-        self.Nants.value = int(max([max(self.ant_1_array.value),
-                                    max(self.ant_2_array.value)]))
+        self.Nants.value = np.max([len(np.unique(self.ant_1_array.value)),
+                                   len(np.unique(self.ant_2_array.value))])
+
         self.antenna_names.value = bl_info['TILE_NAMES'][0].tolist()
 
-        self.antenna_indices.value = np.arange(self.Nants.value)
+        self.antenna_indices.value = np.arange(len(self.antenna_names.value))
 
         self.baseline_array.value = \
             self.antnums_to_baseline(self.ant_1_array.value,
