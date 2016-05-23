@@ -24,10 +24,10 @@ parser.add_argument('fhd_run_folder',
 parser.add_argument('--obsid_range', type=parse_range,
                     help='range of obsids to use, can be a single value or ' +
                          'a min and max with a dash between')
-parser.add_argument('--no-dirty', dest='dirty', action='store_false'
+parser.add_argument('--no-dirty', dest='dirty', action='store_false',
                     help='do not convert dirty visibilities')
 parser.set_defaults(dirty=True)
-parser.add_argument('--no-model', dest='model', action='store_false'
+parser.add_argument('--no-model', dest='model', action='store_false',
                     help='do not convert model visibilities')
 parser.set_defaults(model=True)
 args = parser.parse_args()
