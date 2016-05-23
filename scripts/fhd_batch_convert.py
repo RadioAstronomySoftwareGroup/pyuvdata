@@ -71,10 +71,21 @@ for k in file_dict.keys():
         file_dict.pop(k)
 
 for i, (k, v) in enumerate(file_dict.iteritems()):
-    print('converting obsid {}, ({} of {})'.format(k, i, len(file_dict)))
+    print('converting dirty vis for obsid {}, ({} of {})'.format(k, i, len(file_dict)))
 
     uvfits_file = op.join(output_folder, str(k) + '.uvfits')
     this_uv = UVData()
     this_uv.read_fhd(v)
 
     this_uv.write_uvfits(uvfits_file, spoof_nonessential=True)
+
+    del(this_uv)
+
+    print('converting model vis for obsid {}, ({} of {})'.format(k, i, len(file_dict)))
+    uvfits_file = op.join(output_folder, str(k) + '_model.uvfits')
+    this_uv = UVData()
+    this_uv.read_fhd(v, use_model=True)
+
+    this_uv.write_uvfits(uvfits_file, spoof_nonessential=True)
+
+    del(this_uv)

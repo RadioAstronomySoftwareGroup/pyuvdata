@@ -10,7 +10,8 @@ suppress_readMiriad = False  # Manually prevent TestReadMiriad from running
 suppress_readFHD = False  # Manually prevent TestReadFHD unittest from running
 # Next check that fhd data exists
 fhd_prefix = '../data/fhd_vis_data/1061321792_'
-fhd_suffix = ['flags.sav', 'vis_XX.sav', 'params.sav', 'vis_YY.sav', 'settings.txt']
+testfile_suffix = ['flags.sav', 'vis_XX.sav', 'params.sav', 'vis_YY.sav',
+                   'vis_model_XX.sav', 'vis_model_XX.sav', 'settings.txt']
 for s in ['flags.sav', 'vis_XX.sav', 'params.sav', 'vis_YY.sav', 'settings.txt']:
     if not os.path.isfile(fhd_prefix + s):
         suppress_readFHD = True
@@ -184,7 +185,8 @@ class TestReadFHD(unittest.TestCase):
         testdir = '../data/fhd_vis_data/'
         testfile_prefix = '1061321792_'
         testfile_suffix = ['flags.sav', 'vis_XX.sav', 'params.sav',
-                           'vis_YY.sav', 'settings.txt']
+                           'vis_YY.sav', 'vis_model_XX.sav',
+                           'vis_model_XX.sav', 'settings.txt']
         self.testfiles = []
         for s in testfile_suffix:
             self.testfiles.append(testdir + testfile_prefix + s)
@@ -204,6 +206,24 @@ class TestReadFHD(unittest.TestCase):
 
         uvfits_uv.read_uvfits(op.join(self.test_file_directory,
                               'outtest_FHD_1061321792.uvfits'))
+
+        self.assertEqual(fhd_uv, uvfits_uv)
+
+        del(fhd_uv)
+        del(uvfits_uv)
+
+    def test_ReadFHD_model(self):
+
+        fhd_uv = UVData()
+        uvfits_uv = UVData()
+        fhd_uv.read_fhd(self.testfiles, use_model=True)
+
+        fhd_uv.write_uvfits(op.join(self.test_file_directory,
+                                    'outtest_FHD_1061321792_model.uvfits'),
+                            spoof_nonessential=True)
+
+        uvfits_uv.read_uvfits(op.join(self.test_file_directory,
+                              'outtest_FHD_1061321792_model.uvfits'))
 
         self.assertEqual(fhd_uv, uvfits_uv)
 

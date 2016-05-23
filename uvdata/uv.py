@@ -971,7 +971,10 @@ class UVData:
         vis_data = {}
         for pol, file in datafiles.iteritems():
             this_dict = readsav(file, python_dict=True)
-            vis_data[pol] = this_dict['vis_ptr']
+            if use_model:
+                vis_data[pol] = this_dict['vis_model_ptr']
+            else:
+                vis_data[pol] = this_dict['vis_ptr']
             this_obs = this_dict['obs']
             data_dimensions = vis_data[pol].shape
 
@@ -1114,6 +1117,8 @@ class UVData:
                 if not line.startswith('##'):
                     history_list.append(newline)
             self.history.value = '    '.join(history_list)
+        else:
+            history = ''
 
         self.phase_center_epoch.value = astrometry['EQUINOX'][0]
 
