@@ -24,6 +24,12 @@ parser.add_argument('fhd_run_folder',
 parser.add_argument('--obsid_range', type=parse_range,
                     help='range of obsids to use, can be a single value or ' +
                          'a min and max with a dash between')
+parser.add_argument('--no-dirty', dest='dirty', action='store_false'
+                    help='do not convert dirty visibilities')
+parser.set_defaults(dirty=True)
+parser.add_argument('--no-model', dest='model', action='store_false'
+                    help='do not convert model visibilities')
+parser.set_defaults(model=True)
 args = parser.parse_args()
 
 vis_folder = op.join(args.fhd_run_folder, 'vis_data')
@@ -71,21 +77,22 @@ for k in file_dict.keys():
         file_dict.pop(k)
 
 for i, (k, v) in enumerate(file_dict.iteritems()):
-    print('converting dirty vis for obsid {}, ({} of {})'.format(k, i, len(file_dict)))
+    if args.dirty:
+        print('converting dirty vis for obsid {}, ({} of {})'.format(k, i, len(file_dict)))
+        uvfits_file = op.join(output_folder, str(k) + '.uvfits')
+        this_uv = UVData()
+        this_uv.read_fhd(v)
 
-    uvfits_file = op.join(output_folder, str(k) + '.uvfits')
-    this_uv = UVData()
-    this_uv.read_fhd(v)
+        this_uv.write_uvfits(uvfits_file, spoof_nonessential=True)
 
-    this_uv.write_uvfits(uvfits_file, spoof_nonessential=True)
+        del(this_uv)
 
-    del(this_uv)
+    if args.model:
+        print('converting model vis for obsid {}, ({} of {})'.format(k, i, len(file_dict)))
+        uvfits_file = op.join(output_folder, str(k) + '_model.uvfits')
+        this_uv = UVData()
+        this_uv.read_fhd(v, use_model=True)
 
-    print('converting model vis for obsid {}, ({} of {})'.format(k, i, len(file_dict)))
-    uvfits_file = op.join(output_folder, str(k) + '_model.uvfits')
-    this_uv = UVData()
-    this_uv.read_fhd(v, use_model=True)
+        this_uv.write_uvfits(uvfits_file, spoof_nonessential=True)
 
-    this_uv.write_uvfits(uvfits_file, spoof_nonessential=True)
-
-    del(this_uv)
+        del(this_uv)
