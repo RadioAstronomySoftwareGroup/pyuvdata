@@ -174,7 +174,7 @@ class TestWriteUVFits(unittest.TestCase):
         del(uv_out)
 
 
-@unittest.skipIf(suppress_readFHD,"Skipping because slow or because files not present")
+@unittest.skipIf(suppress_readFHD, "Skipping because slow or because files not present")
 class TestReadFHD(unittest.TestCase):
     def setUp(self):
         self.test_file_directory = '../data/test/'
@@ -211,12 +211,14 @@ class TestReadFHD(unittest.TestCase):
         del(fhd_uv)
         del(uvfits_uv)
 
-@unittest.skipIf(suppress_miriad_test,"Not supported yet")
+
+@unittest.skipIf(suppress_miriad_test, "Not supported yet")
 class TestReadMiriad(unittest.TestCase):
     def setUp(self):
         self.datafile = '../data/zen.2456865.60537.uvcRRE'
         if not os.path.exists(self.datafile):
-            raise(IOError,'miriad file not found')
+            raise(IOError, 'miriad file not found')
+
     def test_ReadMiriad(self):
         miriad_uv = UVData()
         status = miriad_uv.read_miriad(self.datafile)
