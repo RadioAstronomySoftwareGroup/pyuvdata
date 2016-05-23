@@ -6,7 +6,7 @@ import shutil
 from uvdata.uv import UVData
 import numpy as np
 
-suppress_readMiriad = True  # Manually prevent TestReadMiriad from running
+suppress_readMiriad = False  # Manually prevent TestReadMiriad from running
 suppress_readFHD = False  # Manually prevent TestReadFHD unittest from running
 # Next check that fhd data exists
 fhd_prefix = '../data/fhd_vis_data/1061321792_'
@@ -14,8 +14,6 @@ fhd_suffix = ['flags.sav', 'vis_XX.sav', 'params.sav', 'vis_YY.sav', 'settings.t
 for s in ['flags.sav', 'vis_XX.sav', 'params.sav', 'vis_YY.sav', 'settings.txt']:
     if not os.path.isfile(fhd_prefix + s):
         suppress_readFHD = True
-
-suppress_miriad_test = False
 
 class TestUVDataInit(unittest.TestCase):
     def setUp(self):
