@@ -30,8 +30,8 @@ if not os.path.isdir(vis_folder):
     raise IOError('There is no vis_data folder in {}'.format(args.fhd_run_folder))
 
 output_folder = op.join(args.fhd_run_folder, 'uvfits')
-if not os.path.exists(self.output_folder):
-    os.mkdir(self.output_folder)
+if not os.path.exists(output_folder):
+    os.mkdir(output_folder)
 
 files = []
 obsids = []
