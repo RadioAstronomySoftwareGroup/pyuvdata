@@ -14,7 +14,7 @@ def parse_range(string):
     start = m.group(1)
     end = m.group(2) or start
 
-    return start end
+    return start, end
 
 parser = argparse.ArgumentParser()
 parser.add_argument('fhd_run_folder',
