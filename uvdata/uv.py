@@ -921,7 +921,7 @@ class UVData:
 
         return True
 
-    def read_fhd(self, filelist):
+    def read_fhd(self, filelist, use_model=False):
         """
         Read in fhd visibility save files
             filelist: list
@@ -934,14 +934,18 @@ class UVData:
         params_file = None
         flags_file = None
         settings_file = None
+        if use_model:
+            data_name = '_vis_model_'
+        else:
+            data_name = '_vis_'
         for file in filelist:
-            if file.lower().endswith('_vis_xx.sav'):
+            if file.lower().endswith(data_name + 'xx.sav'):
                 datafiles['xx'] = xx_datafile = file
-            elif file.lower().endswith('_vis_yy.sav'):
+            elif file.lower().endswith(data_name + 'yy.sav'):
                 datafiles['yy'] = yy_datafile = file
-            elif file.lower().endswith('_vis_xy.sav'):
+            elif file.lower().endswith(data_name + 'xy.sav'):
                 datafiles['xy'] = xy_datafile = file
-            elif file.lower().endswith('_vis_yx.sav'):
+            elif file.lower().endswith(data_name + 'yx.sav'):
                 datafiles['yx'] = yx_datafile = file
             elif file.lower().endswith('_params.sav'):
                 params_file = file
@@ -950,7 +954,7 @@ class UVData:
             elif file.lower().endswith('_settings.txt'):
                 settings_file = file
             else:
-                print(file + ' is not a recognized fhd file type')
+                continue
 
         if len(datafiles) < 1:
             raise StandardError('No data files included in file list')
