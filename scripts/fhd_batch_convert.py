@@ -3,6 +3,7 @@
 import argparse
 import os
 import os.path as op
+import re
 from uvdata.uv import UVData
 
 
@@ -11,8 +12,8 @@ def parse_range(string):
     if not m:
         raise ArgumentTypeError("'" + string + "' is not a range of numbers." +
                                 " Expected forms like '0-5' or '2'.")
-    start = m.group(1)
-    end = m.group(2) or start
+    start = int(m.group(1))
+    end = int(m.group(2)) or start
 
     return start, end
 
@@ -29,43 +30,51 @@ vis_folder = op.join(args.fhd_run_folder, 'vis_data')
 if not os.path.isdir(vis_folder):
     raise IOError('There is no vis_data folder in {}'.format(args.fhd_run_folder))
 
+metadata_folder = op.join(args.fhd_run_folder, 'metadata')
+if not os.path.isdir(vis_folder):
+    raise IOError('There is no metadata folder in {}'.format(args.fhd_run_folder))
+
 output_folder = op.join(args.fhd_run_folder, 'uvfits')
 if not os.path.exists(output_folder):
     os.mkdir(output_folder)
 
 files = []
 obsids = []
-for (dirpath, dirnames, filenames) in os.walk(vis_folder):
-    files.extend(filenames)
-    break
+for f in os.listdir(vis_folder):
+    files.append(op.join(vis_folder, f))
 
+for f in os.listdir(metadata_folder):
+    files.append(op.join(metadata_folder, f))
+
+file_dict = {}
 for f in files:
-    fparts = f.split('_')
+    dirname, fname = op.split(f)
+    fparts = fname.split('_')
     try:
         obsid = int(fparts[0])
-        obsids.append(obsid)
+        if obsid in file_dict:
+            file_dict[obsid].append(f)
+        else:
+            file_dict[obsid] = [f]
     except:
         continue
 
-obsids.sort()
-obsids = list(set(obsids))
-
 try:
-    obs_min = arg.obsid_range(0)
-    obs_max = arg.obsid_range(1)
+    obs_min = args.obsid_range[0]
+    obs_max = args.obsid_range[1]
 except:
-    obs_min = min(obsids)
-    obs_max = max(obsids)
+    obs_min = min(file_dict.keys())
+    obs_max = max(file_dict.keys())
 
-obsids_use = [obs for obs in obsids if obs >= obs_min and obs <= obs_max]
+for k in file_dict.keys():
+    if k > obs_max or k < obs_min:
+        file_dict.pop(k)
 
-for obs in obsids_use:
-    obs_files = []
-    for f in (f for f in files if f.startswith(str(obs))):
-        obs_files.extend(f)
+for i, (k, v) in enumerate(file_dict.iteritems()):
+    print('converting obsid {}, ({} of {})'.format(k, i, len(file_dict)))
 
-    uvfits_file = op.join(output_folder, str(obs) + '.uvfits')
+    uvfits_file = op.join(output_folder, str(k) + '.uvfits')
     this_uv = UVData()
-    this_uv.read_fhd(obs_files)
+    this_uv.read_fhd(v)
 
     this_uv.write_uvfits(uvfits_file, spoof_nonessential=True)
