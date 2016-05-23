@@ -43,11 +43,12 @@ for f in files:
     fparts = f.split('_')
     try:
         obsid = int(fparts[0])
-        obsids.extend(obsid)
+        obsids.append(obsid)
     except:
         continue
 
-obsids = list(set(obsids.sort()))
+obsids.sort()
+obsids = list(set(obsids))
 
 try:
     obs_min = arg.obsid_range(0)
