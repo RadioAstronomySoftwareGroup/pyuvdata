@@ -15,6 +15,7 @@ for s in ['flags.sav', 'vis_XX.sav', 'params.sav', 'vis_YY.sav', 'settings.txt']
     if not os.path.isfile(fhd_prefix + s):
         suppress_readFHD = True
 
+
 class TestUVDataInit(unittest.TestCase):
     def setUp(self):
         self.required_properties = ['data_array', 'nsample_array',
@@ -216,11 +217,20 @@ class TestReadMiriad(unittest.TestCase):
         self.datafile = '../data/zen.2456865.60537.xy.uvcRREA'
         if not os.path.exists(self.datafile):
             raise(IOError, 'miriad file not found')
+        self.miriad_uv = UVData()
+        self.uvfits_uv = UVData()
+        self.test_file_directory = '../data/test/'
 
     def test_ReadMiriad(self):
-        miriad_uv = UVData()
-        status = miriad_uv.read_miriad(self.datafile)
+        status = self.miriad_uv.read_miriad(self.datafile)
         self.assertTrue(status)
+
+        # Test loop with writing/reading uvfits
+        uvfits_testfile = op.join(self.test_file_directory, 'outtest_miriad.uvfits')
+        self.miriad_uv.write_uvfits(uvfits_testfile, spoof_nonessential=True)
+        self.uvfits_uv.read_uvfits(uvfits_testfile)
+
+        self.assertEqual(self.miriad_uv, self.uvfits_uv)
 
 if __name__ == '__main__':
     unittest.main()
