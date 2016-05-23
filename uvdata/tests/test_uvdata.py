@@ -14,7 +14,7 @@ for s in ['flags.sav', 'vis_XX.sav', 'params.sav', 'vis_YY.sav', 'settings.txt']
     if not os.path.isfile(fhd_prefix + s):
         suppress_readFHD = True
 
-suppress_miriad_test = True
+suppress_readMiriad = True
 
 
 class TestUVDataInit(unittest.TestCase):
@@ -212,7 +212,7 @@ class TestReadFHD(unittest.TestCase):
         del(uvfits_uv)
 
 
-@unittest.skipIf(suppress_miriad_test, "Not supported yet")
+@unittest.skipIf(suppress_readMiriad, "Not supported yet")
 class TestReadMiriad(unittest.TestCase):
     def setUp(self):
         self.datafile = '../data/zen.2456865.60537.uvcRRE'
