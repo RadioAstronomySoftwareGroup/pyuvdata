@@ -1216,18 +1216,17 @@ class UVData:
             times = np.sort(times)
             ant_i_nums = list(set(
                 np.ravel([[k[2] for k in d] for d in data_accumulator.values()])))
-            ant_j_nums = list(set(np.ravel(
-                        [[k[3] for k in d] for d in data_accumulator.values()])))
-            assert(len(ant_i_nums)==len(ant_j_nums))
+            ant_j_nums = list(set(np.ravel([[k[3] for k in d] for d in data_accumulator.values()])))
+            assert(len(ant_i_nums) == len(ant_j_nums))
             self.Nbls.value = len(ant_i_nums)
-            
-            #form up a grid which indexes time and baselines along the 'long'
-            # axis of the visdata array 
+
+            # form up a grid which indexes time and baselines along the 'long'
+            # axis of the visdata array
             t_grid = []
             ant_i_grid = []
             ant_j_grid = []
             for t in times:
-                for bl in zip(ant_i_nums,ant_j_nums):
+                for bl in zip(ant_i_nums, ant_j_nums):
                     t_grid.append(t)
                     ant_i_grid.append(bl[0])
                     ant_j_grid.append(bl[1])
@@ -1255,15 +1254,13 @@ class UVData:
                 t = np.array([d[1] for d in data_accumulator[pol]])
                 ant_i = np.array([d[2] for d in data_accumulator[pol]])
                 ant_j = np.array([d[3] for d in data_accumulator[pol]])
-                print t.shape,t_grid.shape
-                #The below blt_indices lines are WRONG given our definition of t_grid
+                print t.shape, t_grid.shape
+                # The below blt_indices lines are WRONG given our definition of t_grid
                 #   possibly replace with digitize
-                #also t_grid is being built incorrectly
-                blt_indices = np.argwhere(
-                        np.logical_and(np.logical_and(
-                                            t==t_grid, 
-                                            ant_i==ant_i_grid),
-                                          ant_j == ant_j_grid))
+                # also t_grid is being built incorrectly
+                blt_indices = np.argwhere(np.logical_and(np.logical_and(t == t_grid,
+                                                                        ant_i == ant_i_grid),
+                                                         ant_j == ant_j_grid))
                 visibility_accumulator = np.array([d[4] for d in data_accumulator[pol]])
                 flag_accumulator = np.array([d[5] for d in data_accumulator[pol]])
                 cnt_accumulator = np.array([d[6] for d in data_accumulator[pol]])
