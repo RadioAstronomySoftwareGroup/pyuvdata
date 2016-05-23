@@ -1305,8 +1305,7 @@ class UVData:
         # pyuvdata is natively 0 indexed as is miriad
         # miriad uses the same pol2num standard as aips/casa
 
-        # things not in miriad files
-        # vis_units
+        self.vis_units.value = 'UNCALIB' #assume no calibration
 
         # things that might not be required?
         # 'GST0'  : None,
