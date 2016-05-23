@@ -14,8 +14,7 @@ for s in ['flags.sav', 'vis_XX.sav', 'params.sav', 'vis_YY.sav', 'settings.txt']
     if not os.path.isfile(fhd_prefix + s):
         suppress_readFHD = True
 
-suppress_miriad_test = True
-
+suppress_miriad_test = False
 
 class TestUVDataInit(unittest.TestCase):
     def setUp(self):
