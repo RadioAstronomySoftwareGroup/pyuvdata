@@ -214,7 +214,9 @@ class TestReadFHD(unittest.TestCase):
 @unittest.skipIf(suppress_readMiriad, "Not supported yet")
 class TestReadMiriad(unittest.TestCase):
     def setUp(self):
-        self.datafile = '../data/zen.2456865.60537.uvcRRE'
+        self.supress_miriad_test = False
+        if self.supress_miriad_test: return True
+        self.datafile = '../data/zen.2456865.60537.xy.uvcRRE'
         if not os.path.exists(self.datafile):
             raise(IOError, 'miriad file not found')
 

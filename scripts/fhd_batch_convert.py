@@ -14,13 +14,13 @@ def parse_range(string):
     start = m.group(1)
     end = m.group(2) or start
 
-    return start end
+    return start, end
 
 parser = argparse.ArgumentParser()
 parser.add_argument('fhd_run_folder',
                     help='name of an FHD output folder that contains a ' +
                          'vis_data folder')
-parser.add_argument('--obsid_range', type=parseRange
+parser.add_argument('--obsid_range', type=parseRange,
                     help='range of obsids to use, can be a single value or ' +
                          'a min and max with a dash between')
 args = parser.parse_args()
@@ -41,6 +41,8 @@ for (dirpath, dirnames, filenames) in os.walk(vis_folder):
     try:
         obsid = int(fparts[0])
         obsids.extend(obsid)
+    except:
+        continue
     break
 
 obsids = list(set(obsids.sort()))

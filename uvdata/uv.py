@@ -1140,7 +1140,15 @@ class UVData:
         # check if object has all required uv_properties set
         self.check()
         return True
-
+    def miriad_pol_to_ind(self,pol):
+        if self.polarization_array.value is None:
+            raise(ValueError,
+                "Can't index polarization {p} because polarization_array is not set".format(p=pol))
+        pol_ind = np.argwhere(self.polarization_array.value==pol)
+        if len(pol_ind)!=1:
+            raise(ValueError,
+                "multiple matches for pol={pol} in polarization_array".format(pol=pol))
+        return pol_ind
     def read_miriad(self, filepath, FLEXIBLE_OPTION=True):
         # map uvdata attributes to miriad data values
         # those which we can get directly from the miriad file
@@ -1169,15 +1177,16 @@ class UVData:
         # TODO: actually get header items into object
         for item in miriad_header_data:
             exec("self.{item}.value = uv[miriad_header_data['{item}']]".format(item=item))
-        # fix some miriad specific things
-        #
-        # for now we're getting the Nspws from the data shape
-        # try:
-        #     self.Nspws.value = uv['nspec']
-        # except(KeyError)
-        #     pass
-        self.channel_width.value *= 1e9
+        if self.telescope_name.value.startswith('PAPER') and \
+            self.altitude.value is None:
+            print "WARNING: Altitude not found for telescope PAPER. "
+            print "setting to 1100m"
+            self.altitude.value = 1100.
 
+        self.channel_width.value *= 1e9 #change from GHz to Hz
+
+
+        #read through the file and get the data
         data_accumulator = {}
         for (uvw, t, (i, j)), d, f in uv.all(raw=True):
             # control for the case of only a single spw not showing up in
@@ -1201,7 +1210,9 @@ class UVData:
                 data_accumulator[uv['pol']] = [[uvw, t, i, j, d, f, cnt]]
                 # NB: flag types in miriad are usually ints
         self.polarization_array.value = np.sort(data_accumulator.keys())
-
+        if len(self.polarization_array.value)>self.Npols.value:
+            print "WARNING: npols={npols} but found {l} pols in data file".format(
+                npols=self.Npols.value,l=len(self.polarization_array.value))
         if FLEXIBLE_OPTION:
             # makes a data_array (and flag_array) of zeroes to be filled in by
             #   data values
@@ -1214,22 +1225,25 @@ class UVData:
             times = list(set(
                 np.ravel([[k[1] for k in d] for d in data_accumulator.values()])))
             times = np.sort(times)
-            ant_i_nums = list(set(
+            self.antenna_names.value = list(set(
                 np.ravel([[k[2] for k in d] for d in data_accumulator.values()])))
-            ant_j_nums = list(set(np.ravel([[k[3] for k in d] for d in data_accumulator.values()])))
-            assert(len(ant_i_nums) == len(ant_j_nums))
-            self.Nbls.value = len(ant_i_nums)
-
-            # form up a grid which indexes time and baselines along the 'long'
-            # axis of the visdata array
+            ant_j_nums = list(set(np.ravel(
+                        [[k[3] for k in d] for d in data_accumulator.values()])))
+            assert(len(self.antenna_names.value)==len(ant_j_nums))
+            self.antenna_indices.value = self.antenna_names.value
+            self.Nbls.value = len(ant_j_nums)
+            
+            #form up a grid which indexes time and baselines along the 'long'
+            # axis of the visdata array 
             t_grid = []
             ant_i_grid = []
             ant_j_grid = []
             for t in times:
-                for bl in zip(ant_i_nums, ant_j_nums):
-                    t_grid.append(t)
-                    ant_i_grid.append(bl[0])
-                    ant_j_grid.append(bl[1])
+                for ant_i in self.antenna_names.value:
+                    for ant_j in self.antenna_names.value:
+                        t_grid.append(t)
+                        ant_i_grid.append(ant_i)
+                        ant_j_grid.append(ant_j)
             ant_i_grid = np.array(ant_i_grid)
             ant_j_grid = np.array(ant_j_grid)
             t_grid = np.array(t_grid)
@@ -1237,7 +1251,6 @@ class UVData:
             # set the data sizes
             self.Nblts.value = len(t_grid)
             self.Ntimes.value = len(times)
-            assert(self.Nblts.value == self.Nbls.value * self.Ntimes.value)
             self.time_array.value = t_grid
             self.ant_1_array.value = ant_i_grid
             self.ant_2_array.value = ant_j_grid
@@ -1249,47 +1262,34 @@ class UVData:
                                               self.Nspws.value,
                                               self.Nfreqs.value,
                                               self.Npols.value))
-            self.flag_array.value = np.zeros_like(self.data_array.value)
+            self.flag_array.value = np.ones_like(self.data_array.value)
+            self.uvw_array.value = np.zeros((3,self.Nblts.value))
+            self.nsample_array.value = np.ones_like(self.data_array.value)
+            self.freq_array = (np.arange(self.Nfreqs.value) *
+                          self.channel_width.value + uv['sfreq'] * 1e9)
+
             for pol, data in data_accumulator.iteritems():
-                t = np.array([d[1] for d in data_accumulator[pol]])
-                ant_i = np.array([d[2] for d in data_accumulator[pol]])
-                ant_j = np.array([d[3] for d in data_accumulator[pol]])
-                print t.shape, t_grid.shape
-                # The below blt_indices lines are WRONG given our definition of t_grid
-                #   possibly replace with digitize
-                # also t_grid is being built incorrectly
-                blt_indices = np.argwhere(np.logical_and(np.logical_and(t == t_grid,
-                                                                        ant_i == ant_i_grid),
-                                                         ant_j == ant_j_grid))
-                visibility_accumulator = np.array([d[4] for d in data_accumulator[pol]])
-                flag_accumulator = np.array([d[5] for d in data_accumulator[pol]])
-                cnt_accumulator = np.array([d[6] for d in data_accumulator[pol]])
-                print blt_indices.shape, visibility_accumulator.shape
-                assert(blt_indices.shape == visibility_accumulator.shape[0])
+                pol_ind = self.miriad_pol_to_ind(pol)
+                for ind,d in enumerate(data):
+                    t,ant_i,ant_j = d[1],d[2],d[3]
+                    blt_index = np.where(
+                            np.logical_and(np.logical_and(
+                                                t==t_grid, 
+                                                ant_i==ant_i_grid),
+                                              ant_j == ant_j_grid))[0].squeeze()
+                    self.data_array.value[blt_index, :, :, pol_ind] = d[4]
+                    self.flag_array.value[blt_index, :, :, pol_ind] = d[5]
+                    self.nsample_array.value[blt_index, :, :, pol_ind] = d[6]
 
-                self.data_array[blt_indices, :, :, pol].value = visibility_accumulator
-                self.flag_array[blt_indices, :, :, pol].value = flag_accumulator
-                self.nsample_array[blt_indices, :, :, pol].value = cnt_accumulator
-
-                # because there are uvws for each pol, and one pol may not
-                # have that visibility, we collapse along the polarization
-                # axis but avoid any missing visbilities
-                uvw_array.append(d[0] for d in data_accumulator[pol])
-
-            uvw_array = np.reshape(uvw_array, (self.Npols.value,
-                                               self.Nblts.value))
-            uvw_array = np.ma.masked_where(uvw_array == 0, uvw_array)
-            # here we check that we have properly returned one non-zero uvw
-            #  that is correct
-            assert(np.ma.sum(np.ma.abs((np.ma.diff(uvw_array, axis=0))) == 0.))
-            # remove flags so auto correlations show up
-            self.uvw_array.value = np.ma.mean(uvw_array, axis=0).data
-
+                    # because there are uvws for each pol, and one pol may not
+                    # have that visibility, we collapse along the polarization
+                    # axis but avoid any missing visbilities
+                    uvw = d[0]
+                    uvw.shape = (1,3)
+                    self.uvw_array.value[:,blt_index] = uvw
             # enforce drift scan/ phased convention
             # convert lat/lon to x/y/z_telescope
             #    LLA to ECEF (see pdf in docs)
-            freq_array = (np.arange(self.Nfreqs.value) *
-                          self.channel_width.value + uv['sfreq'] * 1e9)
 
         if not FLEXIBLE_OPTION:
             pass
