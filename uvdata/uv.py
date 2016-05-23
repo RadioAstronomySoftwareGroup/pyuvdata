@@ -1166,6 +1166,7 @@ class UVData:
                               'channel_width': 'sdf',  # in Ghz!
                               'object_name': 'source',
                               'telescope_name': 'telescop',
+                              'instrument': 'telescop',#same as telescope_name for now
                               'latitude': 'latitud',
                               'longitude': 'longitu',  # in units of radians
                               'dateobs': 'time',  # (get the first time in the ever changing header)
