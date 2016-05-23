@@ -183,12 +183,16 @@ class TestReadFHD(unittest.TestCase):
     #      shutil.rmtree(self.test_file_directory)
 
     def test_ReadFHD(self):
+        supress_test = False
+
         files_present = True
         for f in self.testfiles:
             if not os.path.isfile(f):
                 files_present = False
 
-        if not files_present:
+        if supress_test:
+            print('FHD test supressed')
+        elif not files_present:
             print('FHD files not present, skipping test')
         else:
             fhd_uv = UVData()
