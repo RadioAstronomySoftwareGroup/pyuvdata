@@ -37,13 +37,15 @@ files = []
 obsids = []
 for (dirpath, dirnames, filenames) in os.walk(vis_folder):
     files.extend(filenames)
-    fparts = filenames.split('_')
+    break
+
+for f in files:
+    fparts = f.split('_')
     try:
         obsid = int(fparts[0])
         obsids.extend(obsid)
     except:
         continue
-    break
 
 obsids = list(set(obsids.sort()))
 
