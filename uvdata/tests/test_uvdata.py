@@ -6,6 +6,16 @@ import shutil
 from uvdata.uv import UVData
 import numpy as np
 
+suppress_readFHD = False  # Manually prevent readFHD unittest from running
+# Next check that fhd data exists
+fhd_prefix = '../data/fhd_vis_data/1061321792_'
+fhd_suffix = ['flags.sav', 'vis_XX.sav', 'params.sav', 'vis_YY.sav', 'settings.txt']
+for s in ['flags.sav', 'vis_XX.sav', 'params.sav', 'vis_YY.sav', 'settings.txt']:
+    if not os.path.isfile(fhd_prefix + s):
+        suppress_readFHD = True
+
+suppress_miriad_test = True
+
 
 class TestUVDataInit(unittest.TestCase):
     def setUp(self):
@@ -164,6 +174,7 @@ class TestWriteUVFits(unittest.TestCase):
         del(uv_out)
 
 
+@unittest.skipIf(suppress_readFHD, "Skipping because slow or because files not present")
 class TestReadFHD(unittest.TestCase):
     def setUp(self):
         self.test_file_directory = '../data/test/'
@@ -183,43 +194,34 @@ class TestReadFHD(unittest.TestCase):
     #      shutil.rmtree(self.test_file_directory)
 
     def test_ReadFHD(self):
-        supress_test = False
 
-        files_present = True
-        for f in self.testfiles:
-            if not os.path.isfile(f):
-                files_present = False
+        fhd_uv = UVData()
+        uvfits_uv = UVData()
+        fhd_uv.read_fhd(self.testfiles)
 
-        if supress_test:
-            print('FHD test supressed')
-        elif not files_present:
-            print('FHD files not present, skipping test')
-        else:
-            fhd_uv = UVData()
-            uvfits_uv = UVData()
-            fhd_uv.read_fhd(self.testfiles)
+        fhd_uv.write_uvfits(op.join(self.test_file_directory,
+                                    'outtest_FHD_1061321792.uvfits'),
+                            spoof_nonessential=True)
 
-            fhd_uv.write_uvfits(op.join(self.test_file_directory,
-                                        'outtest_FHD_1061321792.uvfits'),
-                                spoof_nonessential=True)
+        uvfits_uv.read_uvfits(op.join(self.test_file_directory,
+                              'outtest_FHD_1061321792.uvfits'))
 
-            uvfits_uv.read_uvfits(op.join(self.test_file_directory,
-                                  'outtest_FHD_1061321792.uvfits'))
+        self.assertEqual(fhd_uv, uvfits_uv)
 
-            self.assertEqual(fhd_uv, uvfits_uv)
+        del(fhd_uv)
+        del(uvfits_uv)
 
-            del(fhd_uv)
-            del(uvfits_uv)
 
+@unittest.skipIf(suppress_miriad_test, "Not supported yet")
 class TestReadMiriad(unittest.TestCase):
     def setUp(self):
         self.supress_miriad_test = False
         if self.supress_miriad_test: return True
         self.datafile = '../data/zen.2456865.60537.xy.uvcRRE'
         if not os.path.exists(self.datafile):
-            raise(IOError,'miriad file not found')
+            raise(IOError, 'miriad file not found')
+
     def test_ReadMiriad(self):
-        if self.supress_miriad_test: return True
         miriad_uv = UVData()
         status = miriad_uv.read_miriad(self.datafile)
         self.assertTrue(status)
