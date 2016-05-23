@@ -137,6 +137,8 @@ class UVData:
                 '(may this break casa?)')
         self.baseline_array = UVProperty(description=desc)
 
+        #this dimensionality of freq_array does not allow for different spws to have
+        #different dimensions
         self.freq_array = UVProperty(description='array of frequencies, '
                                      'dimensions (Nspws,Nfreqs), units Hz')
 
