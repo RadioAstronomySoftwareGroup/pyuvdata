@@ -1233,9 +1233,9 @@ class UVData:
             assert(len(self.antenna_names.value)==len(ant_j_nums))
             self.antenna_indices.value = self.antenna_names.value
             self.Nbls.value = len(ant_j_nums)
-            
+
             #form up a grid which indexes time and baselines along the 'long'
-            # axis of the visdata array 
+            # axis of the visdata array
             t_grid = []
             ant_i_grid = []
             ant_j_grid = []
@@ -1266,16 +1266,17 @@ class UVData:
             self.flag_array.value = np.ones_like(self.data_array.value)
             self.uvw_array.value = np.zeros((3,self.Nblts.value))
             self.nsample_array.value = np.ones_like(self.data_array.value)
-            self.freq_array = (np.arange(self.Nfreqs.value) *
+            self.freq_array.value = (np.arange(self.Nfreqs.value) *
                           self.channel_width.value + uv['sfreq'] * 1e9)
-
+            # Tile freq_array to dimensions (Nspws, Nfreqs). Currently does not actually support Nspws>1!
+            self.freq_array.value = np.tile(self.freq_array.value,(self.Nspws.value,1))
             for pol, data in data_accumulator.iteritems():
                 pol_ind = self.miriad_pol_to_ind(pol)
                 for ind,d in enumerate(data):
                     t,ant_i,ant_j = d[1],d[2],d[3]
                     blt_index = np.where(
                             np.logical_and(np.logical_and(
-                                                t==t_grid, 
+                                                t==t_grid,
                                                 ant_i==ant_i_grid),
                                               ant_j == ant_j_grid))[0].squeeze()
                     self.data_array.value[blt_index, :, :, pol_ind] = d[4]
