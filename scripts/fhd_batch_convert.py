@@ -20,7 +20,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('fhd_run_folder',
                     help='name of an FHD output folder that contains a ' +
                          'vis_data folder')
-parser.add_argument('--obsid_range', type=parseRange,
+parser.add_argument('--obsid_range', type=parse_range,
                     help='range of obsids to use, can be a single value or ' +
                          'a min and max with a dash between')
 args = parser.parse_args()
@@ -30,22 +30,25 @@ if not os.path.isdir(vis_folder):
     raise IOError('There is no vis_data folder in {}'.format(args.fhd_run_folder))
 
 output_folder = op.join(args.fhd_run_folder, 'uvfits')
-if not os.path.exists(self.output_folder):
-    os.mkdir(self.output_folder)
+if not os.path.exists(output_folder):
+    os.mkdir(output_folder)
 
 files = []
 obsids = []
 for (dirpath, dirnames, filenames) in os.walk(vis_folder):
     files.extend(filenames)
-    fparts = filenames.split('_')
-    try:
-        obsid = int(fparts[0])
-        obsids.extend(obsid)
-    except:
-        continue
     break
 
-obsids = list(set(obsids.sort()))
+for f in files:
+    fparts = f.split('_')
+    try:
+        obsid = int(fparts[0])
+        obsids.append(obsid)
+    except:
+        continue
+
+obsids.sort()
+obsids = list(set(obsids))
 
 try:
     obs_min = arg.obsid_range(0)

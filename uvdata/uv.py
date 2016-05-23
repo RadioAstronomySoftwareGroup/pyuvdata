@@ -1166,6 +1166,7 @@ class UVData:
                               'channel_width': 'sdf',  # in Ghz!
                               'object_name': 'source',
                               'telescope_name': 'telescop',
+                              'instrument': 'telescop',#same as telescope_name for now
                               'latitude': 'latitud',
                               'longitude': 'longitu',  # in units of radians
                               'dateobs': 'time',  # (get the first time in the ever changing header)
@@ -1261,7 +1262,7 @@ class UVData:
             self.data_array.value = np.zeros((self.Nblts.value,
                                               self.Nspws.value,
                                               self.Nfreqs.value,
-                                              self.Npols.value))
+                                              self.Npols.value),dtype=np.complex64)
             self.flag_array.value = np.ones_like(self.data_array.value)
             self.uvw_array.value = np.zeros((3,self.Nblts.value))
             self.nsample_array.value = np.ones_like(self.data_array.value)
@@ -1304,8 +1305,7 @@ class UVData:
         # pyuvdata is natively 0 indexed as is miriad
         # miriad uses the same pol2num standard as aips/casa
 
-        # things not in miriad files
-        # vis_units
+        self.vis_units.value = 'UNCALIB' #assume no calibration
 
         # things that might not be required?
         # 'GST0'  : None,
