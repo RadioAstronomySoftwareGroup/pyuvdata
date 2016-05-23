@@ -213,9 +213,9 @@ class TestReadFHD(unittest.TestCase):
 
 class TestReadMiriad(unittest.TestCase):
     def setUp(self):
-        self.supress_miriad_test = True
+        self.supress_miriad_test = False
         if self.supress_miriad_test: return True
-        self.datafile = '../data/zen.2456865.60537.uvcRRE'
+        self.datafile = '../data/zen.2456865.60537.xy.uvcRRE'
         if not os.path.exists(self.datafile):
             raise(IOError,'miriad file not found')
     def test_ReadMiriad(self):
