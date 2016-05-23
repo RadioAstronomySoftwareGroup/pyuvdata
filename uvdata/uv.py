@@ -1179,7 +1179,11 @@ class UVData:
                               }
         # TODO: actually get header items into object
         for item in miriad_header_data:
-            exec("self.{item}.value = uv[miriad_header_data['{item}']]".format(item=item))
+             if isinstance(uv[miriad_header_data[item]],str):
+                 header_value = uv[miriad_header_data[item]].replace('\x00','')
+             else:
+                 header_value = uv[miriad_header_data[item]]
+             getattr(self,item).value = header_value
         if self.telescope_name.value.startswith('PAPER') and \
             self.altitude.value is None:
             print "WARNING: Altitude not found for telescope PAPER. "
