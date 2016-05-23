@@ -1172,7 +1172,7 @@ class UVData:
                               'latitude': 'latitud',
                               'longitude': 'longitu',  # in units of radians
                               'dateobs': 'time',  # (get the first time in the ever changing header)
-                              'history': 'history',
+                              #'history': 'history',
                               'phase_center_epoch': 'epoch',
                               'Nants': 'nants',
                               'antenna_positions': 'antpos',  # take deltas
@@ -1180,16 +1180,18 @@ class UVData:
         # TODO: actually get header items into object
         for item in miriad_header_data:
              if isinstance(uv[miriad_header_data[item]],str):
-                 header_value = uv[miriad_header_data[item]].replace('\x00','')
+                 header_value = uv[miriad_header_data[item]].replace('\x00',' ')
              else:
                  header_value = uv[miriad_header_data[item]]
              getattr(self,item).value = header_value
+        
         if self.telescope_name.value.startswith('PAPER') and \
             self.altitude.value is None:
             print "WARNING: Altitude not found for telescope PAPER. "
             print "setting to 1100m"
             self.altitude.value = 1100.
 
+        self.history.value = uv['history'].replace('\n',' ')
         self.channel_width.value *= 1e9 #change from GHz to Hz
 
 
