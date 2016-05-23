@@ -1262,7 +1262,7 @@ class UVData:
             self.data_array.value = np.zeros((self.Nblts.value,
                                               self.Nspws.value,
                                               self.Nfreqs.value,
-                                              self.Npols.value))
+                                              self.Npols.value),dtype=np.complex64)
             self.flag_array.value = np.ones_like(self.data_array.value)
             self.uvw_array.value = np.zeros((3,self.Nblts.value))
             self.nsample_array.value = np.ones_like(self.data_array.value)
