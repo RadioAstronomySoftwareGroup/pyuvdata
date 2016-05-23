@@ -390,7 +390,7 @@ class UVData:
                 self.altitude.value = ((gps_p / np.cos(self.latitude.value)) -
                                        gps_N)
         else:
-            raise ValueError('No x/y/x_telescope value assigned and '
+            raise ValueError('No x/y/z_telescope value assigned and '
                              'xyz_telescope_frame is not "ITRF"')
     def setXYZ_from_LatLon(self):
         #check that the coordinates we need actually exist
@@ -1147,7 +1147,7 @@ class UVData:
             try:
                 data_accumulator[uv['pol']].append([uvw, t, i, j, d, f, cnt])
             except(KeyError):
-                data_accumulator[uv['pol']] = [uvw, t, i, j, d, f, cnt]
+                data_accumulator[uv['pol']] = [[uvw, t, i, j, d, f, cnt]]
                 # NB: flag types in miriad are usually ints
         self.polarization_array.value = np.sort(data_accumulator.keys())
 
@@ -1155,24 +1155,36 @@ class UVData:
             # makes a data_array (and flag_array) of zeroes to be filled in by data values
             # any missing data will have zeros
 
-            # get all the unique list of all times ever listed in the file
-            times = list(set([[k[1] for k in d] for d in data_accumulator.values()]))
+            # use set to get the unique list of all times ever listed in the file
+            # iterate over polarizations and all spectra (bls and times) in two
+            # nested loops, then flatten into a single vector, then set
+            # then list again.
+            times = list(set(
+                np.ravel([[k[1] for k in d] for d in data_accumulator.values()])))
             times = np.sort(times)
-            bls = list(set([[(k[2], k[3]) for k in d] for d in data_accumulator.values()]))
+            ant_i_nums = list(set(
+                np.ravel([[k[2] for k in d] for d in data_accumulator.values()])))
+            ant_j_nums = list(set(np.ravel(
+                        [[k[3] for k in d] for d in data_accumulator.values()])))
+            assert(len(ant_i_nums)==len(ant_j_nums))
+            self.Nbls.value = len(ant_i_nums)
+            
+            #form up a grid which indexes time and baselines along the 'long'
+            # axis of the visdata array 
             t_grid = []
             ant_i_grid = []
             ant_j_grid = []
             for t in times:
-                for bl in bls:
+                for bl in zip(ant_i_nums,ant_j_nums):
                     t_grid.append(t)
                     ant_i_grid.append(bl[0])
                     ant_j_grid.append(bl[1])
             ant_i_grid = np.array(ant_i_grid)
             ant_j_grid = np.array(ant_j_grid)
             t_grid = np.array(t_grid)
+
             # set the data sizes
             self.Nblts.value = len(t_grid)
-            self.Nbls.value = len(bls)
             self.Ntimes.value = len(times)
             assert(self.Nblts.value == self.Nbls.value*self.Ntimes.value)
             self.time_array.value = t_grid
@@ -1188,14 +1200,22 @@ class UVData:
                                               self.Npols.value))
             self.flag_array.value = np.zeros_like(self.data_array.value)
             for pol, data in data_accumulator.iteritems():
-                t = [d[1] for d in data_accumulator[pol]]
-                ant_i = [d[2] for d in data_accumulator[pol]]
-                ant_j = [d[3] for d in data_accumulator[pol]]
-                blt_indices = np.argwhere(np.logical_and(np.logical_and(t==t_grid, ant_i==ant_i_grid),
+                t = np.array([d[1] for d in data_accumulator[pol]])
+                ant_i = np.array([d[2] for d in data_accumulator[pol]])
+                ant_j = np.array([d[3] for d in data_accumulator[pol]])
+                print t.shape,t_grid.shape
+                #The below blt_indices lines are WRONG given our definition of t_grid
+                #   possibly replace with digitize
+                #also t_grid is being built incorrectly
+                blt_indices = np.argwhere(
+                        np.logical_and(np.logical_and(
+                                            t==t_grid, 
+                                            ant_i==ant_i_grid),
                                           ant_j == ant_j_grid))
                 visibility_accumulator = np.array([d[4] for d in data_accumulator[pol]])
                 flag_accumulator = np.array([d[5] for d in data_accumulator[pol]])
                 cnt_accumulator = np.array([d[6] for d in data_accumulator[pol]])
+                print blt_indices.shape, visibility_accumulator.shape
                 assert(blt_indices.shape == visibility_accumulator.shape[0])
                 self.data_array[blt_indices, :, :, pol].value = visibility_accumulator
                 self.flag_array[blt_indices, :, :, pol].value = flag_accumulator
