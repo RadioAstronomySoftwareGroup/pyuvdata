@@ -41,6 +41,8 @@ for (dirpath, dirnames, filenames) in os.walk(vis_folder):
     try:
         obsid = int(fparts[0])
         obsids.extend(obsid)
+    except:
+        continue
     break
 
 obsids = list(set(obsids.sort()))
