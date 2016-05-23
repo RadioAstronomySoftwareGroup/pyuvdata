@@ -1,0 +1,7 @@
+CORR-DACQ: created file.
+/usr/local/bin/correct_psa128.py zen.2456865.60537.xy.uv
+/usr/local/bin/xrfi_simple.py -a 1 --df=6 -c 0_65,377_388,510,770,840,852,913,921_922,932_934,942_1023 --combine -t 80 zen.2456865.60537.xy.uvc
+/usr/local/bin/xrfi_simple.py -a all --combine -t 80 --from_npz=zen.2456865.60537.xy.uvcRE.npz zen.2456865.60537.xy.uvcR
+DDR FILTER, DDR:/usr/local/bin/ddr_filter_coarse.py -a all -p xx,xy,yx,yy --maxbl=301 --clean=1e-3 --output=ddr --nsections=20 zen.2456865.59841.xy.uvcR zen.2456865.60537.xy.uvcRR zen.2456865.61232.xy.uvcR
+PULL CHANS:/Users/djacobs/scripts/pull_chans.py -c 100_110 zen.2456865.60537.xy.uvcRRE
+PULL ANTPOLS:/Users/djacobs/scripts/pull_antpols.py -a (0,1,2,3,4,5)_(0,1,2,3,4,5) zen.2456865.60537.xy.uvcRREA
