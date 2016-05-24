@@ -1146,44 +1146,34 @@ class UVData:
 
         self.phase_center_epoch.value = astrometry['EQUINOX'][0]
 
-        # TODO figure out how to calculate the following from what is in the
-        # metafits (and passed along by FHD)
-        # # coordinate frame for antenna positions (eg 'ITRF'-also google ECEF)
-        # # NB: ECEF has x running through long=0 and z through the north pole
-        # 'xyz_telescope_frame'  : None,
-        # # coordinates of array center in meters in coordinate frame
-        # 'x_telescope'  : None,
-        # 'y_telescope'  : None,
-        # 'z_telescope'  : None,
-        # # array giving coordinates of antennas relative to
-        # # {x,y,z}_telescope in the same frame, (Nants,3)
-        # 'antenna_positions'  : None,
-
-        # # --- other stuff ---
-        # # the below are copied from AIPS memo 117, but could be revised to
-        # # merge with other sources of data.
-        # # when available they are populated. user beware?
-        # # Greenwich sidereal time at midnight on reference date
-        # 'GST0'  : None,
-        # 'RDate'  : None,  # date for which the GST0 or whatever... applies
-        # # earth's rotation rate in degrees per day
-        # # (might not be enough sigfigs)
-        # 'earth_omega'  : 360.985,
-        # 'DUT1'  : 0.0,        # DUT1 (google it) AIPS 117 calls it UT1UTC
-        # 'TIMESYS'  : 'UTC',   # We only support UTC
+        # TODO Once FHD starts reading and saving the antenna table info from
+        #    uvfits, that information should be read into the following optional
+        #    parameters:
+        # 'xyz_telescope_frame'
+        # 'x_telescope'
+        # 'y_telescope'
+        # 'z_telescope'
+        # 'antenna_positions'
+        # 'GST0'
+        # 'RDate'
+        # 'earth_omega'
+        # 'DUT1'
+        # 'TIMESYS'
 
         # check if object has all required uv_properties set
         self.check()
         return True
-    def miriad_pol_to_ind(self,pol):
+
+    def miriad_pol_to_ind(self, pol):
         if self.polarization_array.value is None:
-            raise(ValueError,
-                "Can't index polarization {p} because polarization_array is not set".format(p=pol))
-        pol_ind = np.argwhere(self.polarization_array.value==pol)
-        if len(pol_ind)!=1:
-            raise(ValueError,
-                "multiple matches for pol={pol} in polarization_array".format(pol=pol))
+            raise(ValueError, "Can't index polarization {p} because "
+                  "polarization_array is not set".format(p=pol))
+        pol_ind = np.argwhere(self.polarization_array.value == pol)
+        if len(pol_ind) != 1:
+            raise(ValueError, "multiple matches for pol={pol} in "
+                  "polarization_array".format(pol=pol))
         return pol_ind
+
     def read_miriad(self, filepath, FLEXIBLE_OPTION=True):
         # map uvdata attributes to miriad data values
         # those which we can get directly from the miriad file
