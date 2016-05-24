@@ -28,10 +28,10 @@ class UVProperty:
             if not isinstance(self.value, other.value.__class__):
                 equal = False
             if isinstance(self.value, np.ndarray):
-                if self.value.shape != other.value.shape:
-                    equal = False
-                if (self.value != other.value).all():
-                    equal = False
+               if self.value.shape != other.value.shape:
+                   equal = False
+               if (self.value != other.value).all():
+                   equal = False
             else:
                 str_type = False
                 if isinstance(self.value, (str, unicode)):
@@ -41,8 +41,12 @@ class UVProperty:
                         str_type = True
 
                 if not str_type:
-                    if not np.isclose(np.array(self.value),
-                                      np.array(other.value)):
+                    try:
+                        if not np.isclose(np.array(self.value),
+                                          np.array(other.value)):
+                            equal = False
+                    except:
+                        print self.value, other.value
                         equal = False
                 else:
                     if self.value != other.value:
@@ -65,7 +69,7 @@ class UVProperty:
 
 class AntPositionUVProperty(UVProperty):
     def apply_spoof(self, uvdata):
-        self.value = np.zeros((uvdata.Nants.value, 3))
+        self.value = np.zeros((len(uvdata.antenna_indices.value), 3))
 
 
 class ExtraKeywordUVProperty(UVProperty):
@@ -533,7 +537,7 @@ class UVData:
             assert(self.Nspws.value == self.data_array.value.shape[1])
 
             # the axis number for phase center depends on if the spw exists
-            self.spw_array.value = self._gethduaxis(D, 5)
+            self.spw_array.value = self._gethduaxis(D, 5) - 1 #subtract 1 to be zero-indexed
 
             self.phase_center_ra.value = D.header['CRVAL6']
             self.phase_center_dec.value = D.header['CRVAL7']
@@ -554,7 +558,7 @@ class UVData:
 
             # the axis number for phase center depends on if the spw exists
             self.Nspws.value = 1
-            self.spw_array.value = np.array([1])
+            self.spw_array.value = np.array([0])
 
             self.phase_center_ra.value = D.header['CRVAL5']
             self.phase_center_dec.value = D.header['CRVAL6']
@@ -826,7 +830,8 @@ class UVData:
         hdu.header['INSTRUME'] = self.instrument.value
         hdu.header['EPOCH   '] = float(self.phase_center_epoch.value)
 
-        hdu.header['HISTORY '] = self.history.value
+        for line in self.history.value.splitlines():
+            hdu.header.add_history(line)
 
         # end standard keywords; begin user-defined keywords
         for key, value in self.extra_keywords.value.iteritems():
@@ -1000,7 +1005,7 @@ class UVData:
         self.Nfreqs.value = int(obs['N_FREQ'][0])
         self.Npols.value = len(vis_data.keys())
         self.Nspws.value = 1
-        self.spw_array.value = np.array([1])
+        self.spw_array.value = np.array([0])
         self.vis_units.value = 'JY'
 
         lin_pol_order = ['xx', 'yy', 'xy', 'yx']
@@ -1183,13 +1188,12 @@ class UVData:
                               'dateobs': 'time',  # (get the first time in the ever changing header)
                               #'history': 'history',
                               'phase_center_epoch': 'epoch',
-                              'Nants': 'nants',
                               'antenna_positions': 'antpos',  # take deltas
                               }
         # TODO: actually get header items into object
         for item in miriad_header_data:
              if isinstance(uv[miriad_header_data[item]],str):
-                 header_value = uv[miriad_header_data[item]].replace('\x00',' ')
+                 header_value = uv[miriad_header_data[item]].replace('\x00','')
              else:
                  header_value = uv[miriad_header_data[item]]
              getattr(self,item).value = header_value
@@ -1200,7 +1204,8 @@ class UVData:
             print "setting to 1100m"
             self.altitude.value = 1100.
 
-        self.history.value = uv['history'].replace('\n',' ')
+        self.history.value = uv['history']
+        self.antenna_positions.value = self.antenna_positions.value.reshape(3,len(self.antenna_positions.value)/3).T
         self.channel_width.value *= 1e9 #change from GHz to Hz
 
 
@@ -1243,13 +1248,8 @@ class UVData:
             times = list(set(
                 np.ravel([[k[1] for k in d] for d in data_accumulator.values()])))
             times = np.sort(times)
-            self.antenna_names.value = list(set(
-                np.ravel([[k[2] for k in d] for d in data_accumulator.values()])))
-            ant_j_nums = list(set(np.ravel(
-                        [[k[3] for k in d] for d in data_accumulator.values()])))
-            assert(len(self.antenna_names.value)==len(ant_j_nums))
-            self.antenna_indices.value = self.antenna_names.value
-            self.Nbls.value = len(ant_j_nums)
+            self.antenna_indices.value = np.arange(self.antenna_positions.value.shape[0])
+            self.antenna_names.value = self.antenna_indices.value.astype(str).tolist()
 
             #form up a grid which indexes time and baselines along the 'long'
             # axis of the visdata array
@@ -1257,8 +1257,8 @@ class UVData:
             ant_i_grid = []
             ant_j_grid = []
             for t in times:
-                for ant_i in self.antenna_names.value:
-                    for ant_j in self.antenna_names.value:
+                for ant_i in self.antenna_indices.value:
+                    for ant_j in self.antenna_indices.value:
                         t_grid.append(t)
                         ant_i_grid.append(ant_i)
                         ant_j_grid.append(ant_j)
@@ -1272,9 +1272,11 @@ class UVData:
             self.time_array.value = t_grid
             self.ant_1_array.value = ant_i_grid
             self.ant_2_array.value = ant_j_grid
+            self.Nants.value = np.max([len(np.unique(self.ant_1_array.value)),
+                                       len(np.unique(self.ant_2_array.value))])
             self.baseline_array.value = self.antnums_to_baseline(ant_i_grid,
                                                                  ant_j_grid)
-
+            self.Nbls.value = len(np.unique(self.baseline_array.value))
             # slot the data into a grid
             self.data_array.value = np.zeros((self.Nblts.value,
                                               self.Nspws.value,
