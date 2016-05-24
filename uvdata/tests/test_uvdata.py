@@ -9,7 +9,7 @@ import numpy as np
 suppress_readMiriad = False  # Manually prevent TestReadMiriad from running
 suppress_readFHD = False  # Manually prevent TestReadFHD unittest from running
 # Next check that fhd data exists
-fhd_prefix = '../data/fhd_vis_data/1061321792_'
+fhd_prefix = '../data/fhd_vis_data/1061316296_'
 testfile_suffix = ['flags.sav', 'vis_XX.sav', 'params.sav', 'vis_YY.sav',
                    'vis_model_XX.sav', 'vis_model_XX.sav', 'settings.txt']
 for s in ['flags.sav', 'vis_XX.sav', 'params.sav', 'vis_YY.sav', 'settings.txt']:
@@ -186,10 +186,10 @@ class TestReadFHD(unittest.TestCase):
             os.mkdir(self.test_file_directory)
 
         testdir = '../data/fhd_vis_data/'
-        testfile_prefix = '1061321792_'
+        testfile_prefix = '1061316296_'
         testfile_suffix = ['flags.sav', 'vis_XX.sav', 'params.sav',
                            'vis_YY.sav', 'vis_model_XX.sav',
-                           'vis_model_XX.sav', 'settings.txt']
+                           'vis_model_YY.sav', 'settings.txt']
         self.testfiles = []
         for s in testfile_suffix:
             self.testfiles.append(testdir + testfile_prefix + s)
@@ -204,11 +204,11 @@ class TestReadFHD(unittest.TestCase):
         fhd_uv.read_fhd(self.testfiles)
 
         fhd_uv.write_uvfits(op.join(self.test_file_directory,
-                                    'outtest_FHD_1061321792.uvfits'),
+                                    'outtest_FHD_1061316296.uvfits'),
                             spoof_nonessential=True)
 
         uvfits_uv.read_uvfits(op.join(self.test_file_directory,
-                              'outtest_FHD_1061321792.uvfits'))
+                              'outtest_FHD_1061316296.uvfits'))
 
         self.assertEqual(fhd_uv, uvfits_uv)
 
@@ -222,11 +222,11 @@ class TestReadFHD(unittest.TestCase):
         fhd_uv.read_fhd(self.testfiles, use_model=True)
 
         fhd_uv.write_uvfits(op.join(self.test_file_directory,
-                                    'outtest_FHD_1061321792_model.uvfits'),
+                                    'outtest_FHD_1061316296_model.uvfits'),
                             spoof_nonessential=True)
 
         uvfits_uv.read_uvfits(op.join(self.test_file_directory,
-                              'outtest_FHD_1061321792_model.uvfits'))
+                              'outtest_FHD_1061316296_model.uvfits'))
 
         self.assertEqual(fhd_uv, uvfits_uv)
 

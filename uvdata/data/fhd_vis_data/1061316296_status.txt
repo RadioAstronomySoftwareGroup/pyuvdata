@@ -1,0 +1,25 @@
+HDR	 0		
+PARAMS	 1		
+OBS	 1		
+PSF	 1		
+ANTENNA	 0		
+JONES	 1		
+CAL	 1		
+SKYMODEL	 1		
+SOURCE_ARRAY	 1		
+FLAG_ARR	 1		
+AUTO_CORR	 1		
+VIS_PTR	 1	 1	 0	 0		
+VIS_MODEL_PTR	 1	 1	 0	 0		
+GRID_UV	 1	 1	 0	 0		
+WEIGHTS_UV	 1	 1	 0	 0		
+GRID_UV_MODEL	 1	 1	 0	 0		
+VIS_COUNT	 1		
+MAP_FN	 1	 1	 0	 0		
+FHD	 1		
+FHD_PARAMS	 1		
+HPX_CNV	 0		
+HEALPIX_CUBE	 0	 0	 0	 0		
+HPX_EVEN	 1	 1	 0	 0		
+HPX_ODD	 1	 1	 0	 0		
+COMPLETE	 1		
