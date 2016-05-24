@@ -314,7 +314,7 @@ class UVData:
     def __eq__(self, other):
         if isinstance(other, self.__class__):
             # only check that required properties are identical
-            equal = True
+            isequal = True
             for p in self.required_property_iter():
                 self_prop = getattr(self, p)
                 other_prop = getattr(other, p)
@@ -323,8 +323,8 @@ class UVData:
                           'and right is {rval}'.
                           format(pname=p, lval=str(self_prop.value),
                                  rval=str(other_prop.value)))
-                    equal = False
-            return equal
+                    isequal = False
+            return isequal
         else:
             print('Classes do not match')
             return False
