@@ -141,6 +141,10 @@ class UVData:
                                      'of integration, dimension (Nblts), '
                                      'units Julian Date')
 
+        self.lst_array = UVProperty(description='array of lsts, center '
+                                    'of integration, dimension (Nblts), '
+                                    'units radians')
+
         desc = ('array of first antenna indices, dimensions (Nblts), '
                 'type = int, 0 indexed')
         self.ant_1_array = UVProperty(description=desc)
@@ -387,7 +391,7 @@ class UVData:
         if (self.xyz_telescope_frame.value == "ITRF" and
                 self.x_telescope.value is not None and
                 self.y_telescope.value is not None and
-                self.y_telescope.value is not None):
+                self.z_telescope.value is not None):
             # see wikipedia geodetic_datum and Datum transformations of
             # GPS positions PDF in docs folder
             gps_b = 6356752.31424518
@@ -441,6 +445,46 @@ class UVData:
                                   np.sin(self.latitude.value))
         return True
 
+    def set_lsts_from_time_array(self):
+        lsts = []
+        curtime = self.time_array.value[0]
+        for ind, jd in enumerate(self.time_array.value):
+            if ind == 0 or not np.isclose(jd, curtime, atol=1e-6, rtol=1e-12):
+                curtime = jd
+                t = Time(jd, format='jd', location=(self.longitude.degrees(), self.latitude.degrees()))
+            lsts.append(t.sidereal_time('apparent').radian)
+        self.lst_array.value = np.array(lsts)
+        return True
+
+    def phase(self, ra=None, dec=None, time=None):
+        # phase drift scan data to a single ra/dec or time (i.e. ra/dec of zenith
+        # at that time).  will not phase already phased data.
+        if self.phase_center_ra.value is not None or self.phase_center_dec.value is not None:
+            raise ValueError('The data is already phased; can only phase drift scanning data.')
+
+        if ra is not None and dec is not None and time is None:
+            ra = ra
+            dec = dec
+        elif ra is None and dec is None and time is not None:
+            t = Time(time, format='jd', location=(self.longitude.degrees(), self.latitude.degrees()))
+            ra = self.longitude.value - t.sidereal_time('apparent').radian
+            dec = self.latitude.value
+        # calculate ra/dec from time
+        else:
+            raise ValueError('Need to define either ra/dec or time (but not both).')
+
+        self.phase_center_ra.value = ra
+        self.phase_center_dec.value = dec
+
+        for ind, lst in enumerate(self.lst_array.value):
+            m = a.coord.eq2top_m(lst - ra, dec)
+            uvw0 = self.uvw_array.value[:, ind]
+            uvw = np.dot(m, uvw0).transpose()
+            self.uvw_array.value[:, ind] = uvw
+            phs = np.exp(-1j * 2 * np.pi * uvw[2])
+            self.data_array.value[ind] *= phs
+        return True
+
     def check(self):
         # loop through all required properties, make sure that they are filled
         for p in self.required_property_iter():
@@ -448,11 +492,6 @@ class UVData:
             if prop.value is None:
                 raise ValueError('Required UVProperty ' + p +
                                  ' has not been set.')
-        return True
-
-    def isphased(self):
-        # check if uvdata object has been phased or is drift scanning
-        # convention is that az/el will be set and ra/dec will be none for drift scan
         return True
 
     def write(self, filename):
@@ -533,8 +572,8 @@ class UVData:
         self.Nbls.value = len(np.unique(self.baseline_array.value))
 
         # initialize internal variables based on the antenna table
-        self.Nants_data.value = np.max([len(np.unique(self.ant_1_array.value)),
-                                        len(np.unique(self.ant_2_array.value))])
+        self.Nants_data.value = int(np.max([len(np.unique(self.ant_1_array.value)),
+                                            len(np.unique(self.ant_2_array.value))]))
 
         # check if we have an spw dimension
         if D.header['NAXIS'] == 7:
@@ -647,7 +686,6 @@ class UVData:
         self.antenna_names.value = ant_hdu.data.field('ANNAME').tolist()
 
         self.antenna_indices.value = ant_hdu.data.field('NOSTA')
-        self.antenna_positions.value = ant_hdu.data.field('STABXYZ')
 
         self.Nants_telescope.value = len(self.antenna_indices.value)
 
@@ -668,9 +706,24 @@ class UVData:
                               ' since this is a Cotter file, setting to ITRF')
                 self.xyz_telescope_frame.value = 'ITRF'
 
-        self.x_telescope.value = ant_hdu.header['ARRAYX']
-        self.y_telescope.value = ant_hdu.header['ARRAYY']
-        self.z_telescope.value = ant_hdu.header['ARRAYZ']
+        # VLA incorrectly sets ARRAYX/ARRAYY/ARRAYZ to 0, and puts array center
+        # in the antenna positions themselves
+        if (np.isclose(ant_hdu.header['ARRAYX'], 0) and
+                np.isclose(ant_hdu.header['ARRAYY'], 0) and
+                np.isclose(ant_hdu.header['ARRAYZ'], 0)):
+            self.x_telescope.value = np.mean(ant_hdu.data['STABXYZ'][:, 0])
+            self.y_telescope.value = np.mean(ant_hdu.data['STABXYZ'][:, 1])
+            self.z_telescope.value = np.mean(ant_hdu.data['STABXYZ'][:, 2])
+            self.antenna_positions.value = (ant_hdu.data.field('STABXYZ') -
+                                            np.array([self.x_telescope.value,
+                                                      self.y_telescope.value,
+                                                      self.z_telescope.value]))
+
+        else:
+            self.x_telescope.value = ant_hdu.header['ARRAYX']
+            self.y_telescope.value = ant_hdu.header['ARRAYY']
+            self.z_telescope.value = ant_hdu.header['ARRAYZ']
+            self.antenna_positions.value = ant_hdu.data.field('STABXYZ')
         self.GST0.value = ant_hdu.header['GSTIA0']
         self.RDate.value = ant_hdu.header['RDATE']
         self.earth_omega.value = ant_hdu.header['DEGPDY']
@@ -687,6 +740,8 @@ class UVData:
                 self.altitude.value is None):
             self.set_LatLonAlt()
 
+        self.set_lsts_from_time_array()
+
         # check if object has all required uv_properties set
         self.check()
         return True
@@ -694,6 +749,13 @@ class UVData:
     def write_uvfits(self, filename, spoof_nonessential=False):
         # first check if object has all required uv_properties set
         self.check()
+
+        if self.phase_center_ra.value is None or self.phase_center_dec.value is None:
+            # raise ValueError('The data does not have a defined phase center, which '
+            #                  'means it is a drift scan.  Phase the data to a single '
+            #                  'point before writing a uvfits file.')
+            print 'The data does not have a defined phase center.  Phasing to zenith of the first timestamp.'
+            self.phase(time=self.time_array.value[0])
 
         for p in self.extra_property_iter():
             prop = getattr(self, p)
@@ -1131,6 +1193,8 @@ class UVData:
         self.longitude.set_degrees(float(obs['LON'][0]))
         self.altitude.value = float(obs['ALT'][0])
 
+        self.set_lsts_from_time_array()
+
         # Use the first integration time here
         self.dateobs.value = min(self.time_array.value)
 
@@ -1240,6 +1304,7 @@ class UVData:
                 cnt = np.ones(d.shape, dtype=np.int)
             zenith_ra = uv['ra']
             zenith_dec = uv['dec']
+            lst = uv['lst']
 
             try:
                 data_accumulator[uv['pol']].append([uvw, t, i, j, d, f, cnt,
@@ -1264,16 +1329,24 @@ class UVData:
             times = list(set(
                 np.ravel([[k[1] for k in d] for d in data_accumulator.values()])))
             times = np.sort(times)
+
+            ant_i_unique = list(set(
+                np.ravel([[k[2] for k in d] for d in data_accumulator.values()])))
+            ant_j_unique = list(set(
+                np.ravel([[k[3] for k in d] for d in data_accumulator.values()])))
+
+            self.Nants_data.value = max(len(ant_i_unique), len(ant_j_unique))
             self.antenna_indices.value = np.arange(self.Nants_telescope.value)
             self.antenna_names.value = self.antenna_indices.value.astype(str).tolist()
             # form up a grid which indexes time and baselines along the 'long'
             # axis of the visdata array
+            # TODO this requires that every baseline shows up at every time, which need not be true
             t_grid = []
             ant_i_grid = []
             ant_j_grid = []
             for t in times:
-                for ant_i in self.antenna_indices.value:
-                    for ant_j in self.antenna_indices.value:
+                for ant_i in ant_i_unique:
+                    for ant_j in ant_j_unique:
                         t_grid.append(t)
                         ant_i_grid.append(ant_i)
                         ant_j_grid.append(ant_j)
@@ -1287,8 +1360,7 @@ class UVData:
             self.time_array.value = t_grid
             self.ant_1_array.value = ant_i_grid
             self.ant_2_array.value = ant_j_grid
-            self.Nants_data.value = np.max([len(np.unique(self.ant_1_array.value)),
-                                            len(np.unique(self.ant_2_array.value))])
+
             self.baseline_array.value = self.antnums_to_baseline(ant_i_grid,
                                                                  ant_j_grid)
             self.Nbls.value = len(np.unique(self.baseline_array.value))
@@ -1300,6 +1372,9 @@ class UVData:
                                              dtype=np.complex64)
             self.flag_array.value = np.ones_like(self.data_array.value)
             self.uvw_array.value = np.zeros((3, self.Nblts.value))
+            # NOTE: Using our lst calculator, which uses astropy, instead of aipy values
+            # which come from pyephem.  The differences are of order 5 seconds.
+            self.set_lsts_from_time_array()
             self.nsample_array.value = np.ones(self.data_array.value.shape, dtype=np.int)
             self.freq_array.value = (np.arange(self.Nfreqs.value) *
                                      self.channel_width.value + uv['sfreq'] * 1e9)
@@ -1307,8 +1382,8 @@ class UVData:
             self.freq_array.value = np.tile(self.freq_array.value,
                                             (self.Nspws.value, 1))
 
-            ra_list = np.zeros((self.Nblts.value))
-            dec_list = np.zeros((self.Nblts.value))
+            ra_list = np.zeros(self.Nblts.value)
+            dec_list = np.zeros(self.Nblts.value)
 
             for pol, data in data_accumulator.iteritems():
                 pol_ind = self.miriad_pol_to_ind(pol)

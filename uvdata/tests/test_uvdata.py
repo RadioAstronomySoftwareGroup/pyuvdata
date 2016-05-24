@@ -23,6 +23,7 @@ class TestUVDataInit(unittest.TestCase):
                                     'flag_array', 'Ntimes', 'Nbls', 'Nblts',
                                     'Nfreqs', 'Npols', 'Nspws', 'uvw_array',
                                     'time_array', 'ant_1_array', 'ant_2_array',
+                                    'lst_array',
                                     'baseline_array', 'freq_array',
                                     'polarization_array', 'spw_array',
                                     'integration_time', 'channel_width',
