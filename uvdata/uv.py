@@ -1189,35 +1189,35 @@ class UVData:
                               'channel_width': 'sdf',  # in Ghz!
                               'object_name': 'source',
                               'telescope_name': 'telescop',
-                              'instrument': 'telescop',# same as telescope_name for now
+                              'instrument': 'telescop',  # same as telescope_name for now
                               'latitude': 'latitud',
                               'longitude': 'longitu',  # in units of radians
                               'dateobs': 'time',  # (get the first time in the ever changing header)
-                              #'history': 'history',
+                              # 'history': 'history',
                               'Nants_telescope': 'nants',
                               'phase_center_epoch': 'epoch',
                               'antenna_positions': 'antpos',  # take deltas
                               }
         # TODO: actually get header items into object
         for item in miriad_header_data:
-             if isinstance(uv[miriad_header_data[item]],str):
-                 header_value = uv[miriad_header_data[item]].replace('\x00','')
-             else:
-                 header_value = uv[miriad_header_data[item]]
-             getattr(self,item).value = header_value
+            if isinstance(uv[miriad_header_data[item]], str):
+                header_value = uv[miriad_header_data[item]].replace('\x00', '')
+            else:
+                header_value = uv[miriad_header_data[item]]
+            getattr(self, item).value = header_value
 
         if self.telescope_name.value.startswith('PAPER') and \
-            self.altitude.value is None:
+                self.altitude.value is None:
             print "WARNING: Altitude not found for telescope PAPER. "
             print "setting to 1100m"
             self.altitude.value = 1100.
 
         self.history.value = uv['history']
-        self.antenna_positions.value = self.antenna_positions.value.reshape(3, self.Nants_telescope.value).T
+        self.antenna_positions.value = \
+            self.antenna_positions.value.reshape(3, self.Nants_telescope.value).T
         self.channel_width.value *= 1e9  # change from GHz to Hz
 
-
-        #read through the file and get the data
+        # read through the file and get the data
         data_accumulator = {}
         for (uvw, t, (i, j)), d, f in uv.all(raw=True):
             # control for the case of only a single spw not showing up in
@@ -1233,19 +1233,21 @@ class UVData:
             try:
                 cnt = uv['cnt']
             except(KeyError):
-                cnt = np.ones(d.shape,dtype=np.int)
+                cnt = np.ones(d.shape, dtype=np.int)
             zenith_ra = uv['ra']
             zenith_dec = uv['dec']
 
             try:
-                data_accumulator[uv['pol']].append([uvw, t, i, j, d, f, cnt, zenith_ra, zenith_dec])
+                data_accumulator[uv['pol']].append([uvw, t, i, j, d, f, cnt,
+                                                    zenith_ra, zenith_dec])
             except(KeyError):
-                data_accumulator[uv['pol']] = [[uvw, t, i, j, d, f, cnt, zenith_ra, zenith_dec]]
+                data_accumulator[uv['pol']] = [[uvw, t, i, j, d, f, cnt,
+                                                zenith_ra, zenith_dec]]
                 # NB: flag types in miriad are usually ints
         self.polarization_array.value = np.sort(data_accumulator.keys())
-        if len(self.polarization_array.value)>self.Npols.value:
+        if len(self.polarization_array.value) > self.Npols.value:
             print "WARNING: npols={npols} but found {l} pols in data file".format(
-                npols=self.Npols.value,l=len(self.polarization_array.value))
+                npols=self.Npols.value, l=len(self.polarization_array.value))
         if FLEXIBLE_OPTION:
             # makes a data_array (and flag_array) of zeroes to be filled in by
             #   data values
@@ -1260,7 +1262,7 @@ class UVData:
             times = np.sort(times)
             self.antenna_indices.value = np.arange(self.Nants_telescope.value)
             self.antenna_names.value = self.antenna_indices.value.astype(str).tolist()
-            #form up a grid which indexes time and baselines along the 'long'
+            # form up a grid which indexes time and baselines along the 'long'
             # axis of the visdata array
             t_grid = []
             ant_i_grid = []
@@ -1282,7 +1284,7 @@ class UVData:
             self.ant_1_array.value = ant_i_grid
             self.ant_2_array.value = ant_j_grid
             self.Nants_data.value = np.max([len(np.unique(self.ant_1_array.value)),
-                                       len(np.unique(self.ant_2_array.value))])
+                                            len(np.unique(self.ant_2_array.value))])
             self.baseline_array.value = self.antnums_to_baseline(ant_i_grid,
                                                                  ant_j_grid)
             self.Nbls.value = len(np.unique(self.baseline_array.value))
@@ -1290,27 +1292,27 @@ class UVData:
             self.data_array.value = np.zeros((self.Nblts.value,
                                               self.Nspws.value,
                                               self.Nfreqs.value,
-                                              self.Npols.value),dtype=np.complex64)
+                                              self.Npols.value),
+                                             dtype=np.complex64)
             self.flag_array.value = np.ones_like(self.data_array.value)
-            self.uvw_array.value = np.zeros((3,self.Nblts.value))
+            self.uvw_array.value = np.zeros((3, self.Nblts.value))
             self.nsample_array.value = np.ones(self.data_array.value.shape, dtype=np.int)
             self.freq_array.value = (np.arange(self.Nfreqs.value) *
-                          self.channel_width.value + uv['sfreq'] * 1e9)
+                                     self.channel_width.value + uv['sfreq'] * 1e9)
             # Tile freq_array to dimensions (Nspws, Nfreqs). Currently does not actually support Nspws>1!
-            self.freq_array.value = np.tile(self.freq_array.value,(self.Nspws.value,1))
+            self.freq_array.value = np.tile(self.freq_array.value,
+                                            (self.Nspws.value, 1))
 
             ra_list = np.zeros((self.Nblts.value))
             dec_list = np.zeros((self.Nblts.value))
 
             for pol, data in data_accumulator.iteritems():
                 pol_ind = self.miriad_pol_to_ind(pol)
-                for ind,d in enumerate(data):
-                    t,ant_i,ant_j = d[1],d[2],d[3]
-                    blt_index = np.where(
-                            np.logical_and(np.logical_and(
-                                                t==t_grid,
-                                                ant_i==ant_i_grid),
-                                              ant_j == ant_j_grid))[0].squeeze()
+                for ind, d in enumerate(data):
+                    t, ant_i, ant_j = d[1], d[2], d[3]
+                    blt_index = np.where(np.logical_and(np.logical_and(t == t_grid,
+                                                                       ant_i == ant_i_grid),
+                                                        ant_j == ant_j_grid))[0].squeeze()
                     self.data_array.value[blt_index, :, :, pol_ind] = d[4]
                     self.flag_array.value[blt_index, :, :, pol_ind] = d[5]
                     self.nsample_array.value[blt_index, :, :, pol_ind] = d[6]
@@ -1319,14 +1321,14 @@ class UVData:
                     # have that visibility, we collapse along the polarization
                     # axis but avoid any missing visbilities
                     uvw = d[0]
-                    uvw.shape = (1,3)
-                    self.uvw_array.value[:,blt_index] = uvw
+                    uvw.shape = (1, 3)
+                    self.uvw_array.value[:, blt_index] = uvw
                     ra_list[blt_index] = d[7]
                     dec_list[blt_index] = d[8]
 
-            #check if ra is constant throughout file; if it is, file is tracking
+            # check if ra is constant throughout file; if it is, file is tracking
             # if not, file is drift scanning
-            if np.isclose(np.mean(np.diff(ra_list)),0.):
+            if np.isclose(np.mean(np.diff(ra_list)), 0.):
                 self.phase_center_ra.value = ra_list[0]
                 self.phase_center_dec.value = dec_list[0]
             else:
@@ -1336,8 +1338,6 @@ class UVData:
             # enforce drift scan/ phased convention
             # convert lat/lon to x/y/z_telescope
             #    LLA to ECEF (see pdf in docs)
-
-
 
         if not FLEXIBLE_OPTION:
             pass
@@ -1352,7 +1352,7 @@ class UVData:
         # pyuvdata is natively 0 indexed as is miriad
         # miriad uses the same pol2num standard as aips/casa
 
-        self.vis_units.value = 'UNCALIB' #assume no calibration
+        self.vis_units.value = 'UNCALIB'  # assume no calibration
 
         # things that might not be required?
         # 'GST0'  : None,
