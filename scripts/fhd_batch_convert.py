@@ -20,7 +20,7 @@ def parse_range(string):
 parser = argparse.ArgumentParser()
 parser.add_argument('fhd_run_folder',
                     help='name of an FHD output folder that contains a ' +
-                         'vis_data folder')
+                         'vis_data folder and a metadata folder')
 parser.add_argument('--obsid_range', type=parse_range,
                     help='range of obsids to use, can be a single value or ' +
                          'a min and max with a dash between')

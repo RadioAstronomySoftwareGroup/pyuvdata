@@ -1197,7 +1197,7 @@ class UVData:
              else:
                  header_value = uv[miriad_header_data[item]]
              getattr(self,item).value = header_value
-        
+
         if self.telescope_name.value.startswith('PAPER') and \
             self.altitude.value is None:
             print "WARNING: Altitude not found for telescope PAPER. "
@@ -1225,7 +1225,7 @@ class UVData:
             try:
                 cnt = uv['cnt']
             except(KeyError):
-                cnt = np.ones_like(d)
+                cnt = np.ones(d.shape,dtype=np.int)
 
             try:
                 data_accumulator[uv['pol']].append([uvw, t, i, j, d, f, cnt])
@@ -1284,7 +1284,7 @@ class UVData:
                                               self.Npols.value),dtype=np.complex64)
             self.flag_array.value = np.ones_like(self.data_array.value)
             self.uvw_array.value = np.zeros((3,self.Nblts.value))
-            self.nsample_array.value = np.ones_like(self.data_array.value)
+            self.nsample_array.value = np.ones(self.data_array.value.shape, dtype=np.int)
             self.freq_array.value = (np.arange(self.Nfreqs.value) *
                           self.channel_width.value + uv['sfreq'] * 1e9)
             # Tile freq_array to dimensions (Nspws, Nfreqs). Currently does not actually support Nspws>1!
