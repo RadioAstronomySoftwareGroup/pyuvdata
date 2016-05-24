@@ -1,0 +1,210 @@
+##MAIN	##		
+Calling program	EOR_FIRSTPASS_VERSIONS 	
+Machine	eor-10.mit.edu	
+User	nbarry	
+Date	Sat Mar 26 16:20:54 2016	
+##COMMAND_LINE	##	
+VERSION	nb_decon_March2016_small		
+##OBS	##	
+CODE_VERSION	v3.5-152-gee509cb-dirty		
+INSTRUMENT	mwa		
+OBSNAME	1061316296		
+DIMENSION	 1200.00		
+ELEMENTS	 1200.00		
+NBASELINES	 8128		
+DFT_THRESHOLD	 1.23683e-05		
+DOUBLE_PRECISION	 0		
+KPIX	 0.500000		
+DEGPIX	 0.0954930		
+OBSAZ	 258.567		
+OBSALT	 89.9999		
+OBSRA	 359.849		
+OBSDEC	 -26.7836		
+ZENRA	 359.850		
+ZENDEC	 -26.7836		
+OBSX	 600.000		
+OBSY	 600.000		
+ZENX	 600.001		
+ZENY	 600.000		
+PHASERA	 359.849		
+PHASEDEC	 -26.7836		
+ORIG_PHASERA	 0.00000		
+ORIG_PHASEDEC	 -27.0000		
+N_POL	 2		
+N_TILE	 128		
+N_TILE_FLAG	 4		
+N_FREQ	 384		
+N_FREQ_FLAG	 48		
+N_TIME	 56		
+N_TIME_FLAG	 0		
+N_VIS	 104504600		
+N_VIS_IN	 147425696		
+N_VIS_RAW	 174784512		
+NF_VIS	Long Integer array (384 elements)	
+BEAM_INTEGRAL	Pointer array (4 elements)	
+POL_NAMES	XX	YY	XY	YX	I	Q	U	V		
+JD0	 2456528.3		
+MAX_BASELINE	 600.000		
+MIN_BASELINE	 4.30636		
+DELAYS	Pointer	
+	->	 0.00000	 0.00000	 0.00000	 0.00000	 0.00000	 0.00000	 0.00000	 0.00000	 0.00000	 0.00000	 0.00000	 0.00000	 0.00000	 0.00000	 0.00000	 0.00000		
+LON	 116.671		
+LAT	 -26.7033		
+ALT	 377.827		
+FREQ_CENTER	 1.82515e+08		
+FREQ_RES	 80000.0		
+TIME_RES	 2.00071		
+ASTR	Structure (20 tags)	
+	NAXIS	 1200.00	 1200.00		
+	CD	 1.00000	 0.00000	 0.00000	 1.00000		
+	CDELT	 0.0954930	 0.0954930		
+	CRPIX	 601.000	 601.000		
+	CRVAL	 359.84943	 -26.783644		
+	CTYPE	RA---SIN	DEC--SIN		
+	LONGPOLE	 180.00000		
+	LATPOLE	 0.0000000		
+	PV2	 1.7010727e-06	 -9.5179814e-08		
+	PV1	 0.0000000	 0.0000000	 90.000000	 180.00000	 0.0000000		
+	AXES	 1	 2		
+	REVERSE			
+	COORD_SYS	C		
+	PROJECTION	SIN		
+	KNOWN			
+	RADECSYS	FK5		
+	EQUINOX	 2000.0000		
+	DATEOBS	2013-08-23T18:04:40.00		
+	MJDOBS	 56527.753		
+	X0Y0	 0.0000000	 0.0000000		
+ALPHA	 -0.800000		
+PFLAG	 0		
+CAL	 1.00000	 1.00000	 1.00000	 1.00000		
+RESIDUAL	 0		
+VIS_NOISE	Pointer	
+	->	Float array (2 x 384 elements)	
+BASELINE_INFO	Pointer	
+	->	Structure (12 tags)	
+		TILE_A	Long Integer array (455168 elements)	
+		TILE_B	Long Integer array (455168 elements)	
+		BIN_OFFSET	 0	 8128	 16256	 24384	 32512	 40640	 48768	 56896	 65024	 73152	 81280	 89408	 97536	 105664	 113792	 121920	 130048	 138176	 146304	 154432	 162560	 170688	 178816	 186944	 195072	 203200	 211328	 219456	 227584	 235712	 243840	 251968	 260096	 268224	 276352	 284480	 292608	 300736	 308864	 316992	 325120	 333248	 341376	 349504	 357632	 365760	 373888	 382016	 390144	 398272	 406400	 414528	 422656	 430784	 438912	 447040		
+		JDATE	 2456528.3	 2456528.3	 2456528.3	 2456528.3	 2456528.3	 2456528.3	 2456528.3	 2456528.3	 2456528.3	 2456528.3	 2456528.3	 2456528.3	 2456528.3	 2456528.3	 2456528.3	 2456528.3	 2456528.3	 2456528.3	 2456528.3	 2456528.3	 2456528.3	 2456528.3	 2456528.3	 2456528.3	 2456528.3	 2456528.3	 2456528.3	 2456528.3	 2456528.3	 2456528.3	 2456528.3	 2456528.3	 2456528.3	 2456528.3	 2456528.3	 2456528.3	 2456528.3	 2456528.3	 2456528.3	 2456528.3	 2456528.3	 2456528.3	 2456528.3	 2456528.3	 2456528.3	 2456528.3	 2456528.3	 2456528.3	 2456528.3	 2456528.3	 2456528.3	 2456528.3	 2456528.3	 2456528.3	 2456528.3	 2456528.3		
+		FREQ	Float array (384 elements)	
+		FBIN_I	Long Integer array (384 elements)	
+		FREQ_USE	Integer array (384 elements)	
+		TILE_USE	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 0	 1	 1	 1	 0	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 0	 1	 0	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1		
+		TIME_USE	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1	 1		
+		TILE_NAMES	 11	 12	 13	 14	 15	 16	 17	 18	 21	 22	 23	 24	 25	 26	 27	 28	 31	 32	 33	 34	 35	 36	 37	 38	 41	 42	 43	 44	 45	 46	 47	 48	 51	 52	 53	 54	 55	 56	 57	 58	 61	 62	 63	 64	 65	 66	 67	 68	 71	 72	 73	 74	 75	 76	 77	 78	 81	 82	 83	 84	 85	 86	 87	 88	 91	 92	 93	 94	 95	 96	 97	 98	 101	 102	 103	 104	 105	 106	 107	 108	 111	 112	 113	 114	 115	 116	 117	 118	 121	 122	 123	 124	 125	 126	 127	 128	 131	 132	 133	 134	 135	 136	 137	 138	 141	 142	 143	 144	 145	 146	 147	 148	 151	 152	 153	 154	 155	 156	 157	 158	 161	 162	 163	 164	 165	 166	 167	 168		
+		TILE_HEIGHT	 -0.816010	 -0.541992	 -0.518005	 -0.536011	 -0.488007	 -0.569000	 -0.557007	 -0.613007	 -0.824982	 -0.808990	 -0.777008	 -0.572998	 -0.574005	 -0.527008	 -0.528992	 -1.20401	 -1.02200	 -0.954987	 -0.865997	 -0.704010	 -0.587982	 -0.561005	 -0.647003	 -0.726990	 -0.591003	 -0.622986	 -0.574982	 -0.760986	 -0.737000	 -0.878998	 -0.645996	 -0.916992	 -1.02399	 -2.82199	 -1.47598	 -2.06699	 -1.35098	 -1.65201	 -1.77301	 -0.795990	 -0.571991	 -0.566986	 -0.557007	 -0.557007	 -0.571991	 -0.587982	 -0.617004	 -0.748993	 -0.665985	 -0.803009	 -2.92599	 -2.45499	 -2.71600	 -3.07498	 -2.08798	 -2.58701	 -3.05399	 -1.25699	 -0.635010	 -0.630981	 -0.777008	 -0.669983	 -3.31198	 -2.50500	 -3.88199	 -2.79498	 -0.934998	 -0.712006	 -0.670990	 -0.850983	 -1.64600	 -1.51300	 -5.22299	 -4.91998	 -4.45300	 -2.61499	 -3.36499	 -3.59100	 -0.817993	 -3.78799	 -6.75900	 -4.13300	 -3.60999	 -4.33499	 -3.73401	 -4.03000	 -4.31299	 -7.44598	 -3.22501	 -2.69299	 -2.02200	 -2.07901	 -1.82599	 -2.65698	 -1.55200	 -4.14499	 -5.13098	 -5.70499	 -7.47299	 -5.54300	 -5.31799	 -4.85999	 -5.03799	 -3.57599	 -8.76199	 -9.49899	 -4.60699	 -3.20898	 -3.48700	 -5.01498	 -5.02399	 -5.21399	 -6.75598	 -5.57599	 -4.91400	 -3.79300	 -2.56500	 -2.60599	 -2.79800	 -2.69901	 -3.85800	 -4.32401	 -2.10699	 -2.30499	 -2.48700	 -2.28299	 -2.21100	 -2.58099		
+		TILE_FLAG	Pointer array (4 elements)	
+META_DATA	Pointer	
+	->	Structure (13 tags)	
+		INPUT	Integer array (256 elements)	
+		ANTENNA	Integer array (256 elements)	
+		TILE	Integer array (256 elements)	
+		POL	String array (256 elements)	
+		RX	Integer array (256 elements)	
+		SLOT	Integer array (256 elements)	
+		FLAG	Integer array (256 elements)	
+		LENGTH	String array (256 elements)	
+		NORTH	Float array (256 elements)	
+		EAST	Float array (256 elements)	
+		HEIGHT	Float array (256 elements)	
+		GAINS	Integer array (24 x 256 elements)	
+		DELAYS	Integer array (16 x 256 elements)	
+META_HDR	Pointer	
+	->	SIMPLE = T / conforms to FITS standard 	BITPIX = 8 / array data type 	NAXIS = 0 / number of array dimensions 	EXTEND = T 	GPSTIME = 1061316296 / [s] GPS time of observation start 	EXPOSURE= 112 / [s] duration of observation 	FILENAME= 'high_season1_2456528' / Name of observation 	MJD = 56527 / [days] MJD of observation 	DATE-OBS= '2013-08-23T18:04:40' / [UT] Date and time of observation 	LST = 0.03173293333333333 / [deg] LST 	HA = '00:00:02' / [hours] hour angle 	AZIMUTH = 0.0 / [deg] Azimuth of pointing center 	ALTITUDE= 90.0 / [deg] Altitude of pointing center 	RA = 359.8494338190942 / [deg] RA of pointing center 	DEC = -26.78364391874284 / [deg] Dec of pointing center 	RAPHASE = 0.0 / [deg] RA of desired phase center 	DECPHASE= -27.0 / [deg] DEC of desired phase center 	SUN-DIST= 150.069211976512 / [deg] Distance from pointing center to Sun 	MOONDIST= 32.5919253467735 / [deg] Distance from pointing center to Moon 	JUP-DIST= 111.513347357113 / [deg] Distance from pointing center to Jupiter 	GRIDNAME= 'EOR1 ' / Pointing grid name 	GRIDNUM = 0 / Pointing grid number 	CREATOR = 'DJacobs ' / Observation creator 	PROJECT = 'G0009 ' / Project ID 	MODE = 'HW_LFILES' / Observation mode 	RECVRS = '13,7,12,8,16,1,15,9,11,6,4,14,3,2,5,10' / Active receivers 	DELAYS = '0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0' / Beamformer delays 	CALIBRAT= F / Intended for calibration 	CENTCHAN= 143 / Center coarse channel 	CHANNELS= '131,132,133,134,135,136,137,138,139,140,141,142,143,144,145,146,147&'	CONTINUE ',148,149,150,151,152,153,154&' 	CONTINUE '&' / Coarse channels 	CHANSEL = '0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23' / Subs	SUN-ALT = -60.06921197651185 / [deg] Altitude of Sun 	FIBRFACT= 0.673 / Fiber velocity factor 	TILEFLAG= '105 ' / Tiles flagged 	NAV_FREQ= 4 / Assumed frequency averaging 	FINECHAN= 40 / [kHz] Fine channel width 	INTTIME = 0.5 / [s] Individual integration time 	NSCANS = 224 / Number of scans (time instants) in correlation 	NINPUTS = 256 / Number of inputs into the correlation products 	NCHANS = 768 / Number of fine channels in spectrum 	BANDWDTH= 30.72 / [MHz] Total bandwidth 	FREQCENT= 182.415 / [MHz] Center frequency of observation 	TIMEOFF = 0 / [s] Offset between observation starttime and st	DATESTRT= '2013-08-23T18:04:40' / [UT] Date and time of correlations start 	VERSION = 1.1 / METAFITS version number 	MWAVER = 'v1.0.0-1-gf299cb4' / MWAPY version number 	MWADATE = '2014-02-12 16:59:15 +0800' / MWAPY version date 	TELESCOP= 'MWA128T ' 	DATE = '2014-09-30T20:04:20' / UT Date of file creation 	END 		
+DEGRID_SPECTRAL_TERMS	 0		
+GRID_SPECTRAL_TERMS	 0		
+GRID_INFO	Null pointer	
+HEALPIX	Structure (4 tags)	
+	NSIDE	 1024		
+	IND_LIST	EoR0_high_healpix_inds.idlsave		
+	N_PIX	 135413		
+	N_ZERO	 0		
+##ANTENNA	##	
+##PSF	##	
+BEAM_PTR	Pointer	
+	->	Pointer array (2 x 24 x 8128 elements)	
+XVALS	Pointer array (100 x 100 elements)	
+YVALS	Pointer array (100 x 100 elements)	
+PNORM	 1.00000	 1.00000		
+FNORM	 1.00000	 1.00000	 1.00000	 1.00000	 1.00000	 1.00000	 1.00000	 1.00000	 1.00000	 1.00000	 1.00000	 1.00000	 1.00000	 1.00000	 1.00000	 1.00000	 1.00000	 1.00000	 1.00000	 1.00000	 1.00000	 1.00000	 1.00000	 1.00000		
+ID	Long Integer array (2 x 24 x 8128 elements)	
+FBIN_I	Long Integer array (384 elements)	
+RESOLUTION	 100.000		
+DIM	 14.0000		
+COMPLEX_FLAG	 1		
+N_POL	 2		
+N_FREQ	 24		
+FREQ	 1.67795e+08	 1.69075e+08	 1.70355e+08	 1.71635e+08	 1.72915e+08	 1.74195e+08	 1.75475e+08	 1.76755e+08	 1.78035e+08	 1.79315e+08	 1.80595e+08	 1.81875e+08	 1.83155e+08	 1.84435e+08	 1.85715e+08	 1.86995e+08	 1.88275e+08	 1.89555e+08	 1.90835e+08	 1.92115e+08	 1.93395e+08	 1.94675e+08	 1.95955e+08	 1.97235e+08		
+INTERPOLATE_KERNEL	 0		
+##CAL	##	
+N_POL	 2		
+N_FREQ	 384		
+N_TILE	 128		
+N_TIME	 56		
+UU	Float array (455168 elements)	
+VV	Float array (455168 elements)	
+AUTO_INITIALIZE	 1		
+MAX_ITER	 100		
+PHASE_ITER	 10		
+TILE_A	Long Integer array (455168 elements)	
+TILE_B	Long Integer array (455168 elements)	
+TILE_NAMES	 11	 12	 13	 14	 15	 16	 17	 18	 21	 22	 23	 24	 25	 26	 27	 28	 31	 32	 33	 34	 35	 36	 37	 38	 41	 42	 43	 44	 45	 46	 47	 48	 51	 52	 53	 54	 55	 56	 57	 58	 61	 62	 63	 64	 65	 66	 67	 68	 71	 72	 73	 74	 75	 76	 77	 78	 81	 82	 83	 84	 85	 86	 87	 88	 91	 92	 93	 94	 95	 96	 97	 98	 101	 102	 103	 104	 105	 106	 107	 108	 111	 112	 113	 114	 115	 116	 117	 118	 121	 122	 123	 124	 125	 126	 127	 128	 131	 132	 133	 134	 135	 136	 137	 138	 141	 142	 143	 144	 145	 146	 147	 148	 151	 152	 153	 154	 155	 156	 157	 158	 161	 162	 163	 164	 165	 166	 167	 168		
+BIN_OFFSET	 0	 8128	 16256	 24384	 32512	 40640	 48768	 56896	 65024	 73152	 81280	 89408	 97536	 105664	 113792	 121920	 130048	 138176	 146304	 154432	 162560	 170688	 178816	 186944	 195072	 203200	 211328	 219456	 227584	 235712	 243840	 251968	 260096	 268224	 276352	 284480	 292608	 300736	 308864	 316992	 325120	 333248	 341376	 349504	 357632	 365760	 373888	 382016	 390144	 398272	 406400	 414528	 422656	 430784	 438912	 447040		
+FREQ	Float array (384 elements)	
+GAIN	Pointer array (2 elements)	
+GAIN_RESIDUAL	Pointer array (2 elements)	
+AUTO_SCALE	 -NaN	 -NaN		
+AUTO_PARAMS	Pointer array (2 elements)	
+MIN_CAL_BASELINE	 50.0000		
+MAX_CAL_BASELINE	 723.930		
+N_VIS_CAL	 106542613		
+TIME_AVG	 1		
+MIN_SOLNS	 5		
+REF_ANTENNA	 1		
+REF_ANTENNA_NAME	 12		
+CONV_THRESH	 1.00000e-07		
+CONVERGENCE	Pointer array (2 elements)	
+POLYFIT	 2		
+AMP_PARAMS	Pointer array (2 x 128 elements)	
+PHASE_PARAMS	Pointer array (2 x 128 elements)	
+MEAN_GAIN	 1.46885	 1.55047		
+MEAN_GAIN_RESIDUAL	 0.0666360	 0.0659966		
+MEAN_GAIN_RESTRICT	 0.0578605	 0.0567436		
+STDDEV_GAIN_RESIDUAL	 0.0426272	 0.0430156		
+BANDPASS	 1		
+MODE_FIT	 1.00000		
+MODE_PARAMS	Pointer array (2 x 128 elements)	
+CAL_ORIGIN	1061316296		
+SKYMODEL	Structure (8 tags)	
+	INCLUDE_CALIBRATION	 1		
+	N_SOURCES	 11054		
+	SOURCE_LIST	Structure (12 tags)	
+		ID	Long Integer array (11054 elements)	
+		X	Float array (11054 elements)	
+		Y	Float array (11054 elements)	
+		RA	Float array (11054 elements)	
+		DEC	Float array (11054 elements)	
+		STON	Float array (11054 elements)	
+		FREQ	Float array (11054 elements)	
+		ALPHA	Float array (11054 elements)	
+		GAIN	Float array (11054 elements)	
+		FLAG	Integer array (11054 elements)	
+		EXTEND	Pointer array (11054 elements)	
+		FLUX	Structure (8 tags)	
+			XX	Float array (11054 elements)	
+			YY	Float array (11054 elements)	
+			XY	Float array (11054 elements)	
+			YX	Float array (11054 elements)	
+			I	Float array (11054 elements)	
+			Q	Float array (11054 elements)	
+			U	Float array (11054 elements)	
+			V	Float array (11054 elements)	
+	CATALOG_NAME	master_sgal_cat		
+	GALAXY_MODEL	 0		
+	GALAXY_SPECTRAL_INDEX	 NaN		
+	DIFFUSE_MODEL			
+	DIFFUSE_SPECTRAL_INDEX	 NaN		
+##SKYMODEL	##	
+##FHD	##	
+##END	##	

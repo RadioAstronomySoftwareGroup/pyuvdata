@@ -1066,10 +1066,13 @@ class UVData:
         # the values in bl_info.JDATE are the JD for each integration.
         # We need to expand up to Nblts.
         int_times = bl_info['JDATE'][0]
+        bin_offset = bl_info['BIN_OFFSET'][0]
         self.time_array.value = np.zeros(self.Nblts.value)
         for ii in range(0, self.Ntimes.value):
-            self.time_array.value[ii * self.Nbls.value:(ii + 1) *
-                                  self.Nbls.value] = int_times[ii]
+            if ii < (self.Ntimes.value - 1):
+                self.time_array.value[bin_offset[ii]:bin_offset[ii + 1]] = int_times[ii]
+            else:
+                self.time_array.value[bin_offset[ii]:] = int_times[ii]
 
         # Note that FHD antenna arrays are 1-indexed so we subtract 1
         # to get 0-indexed arrays
