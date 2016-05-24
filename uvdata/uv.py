@@ -24,14 +24,14 @@ class UVProperty:
     def __eq__(self, other):
         if isinstance(other, self.__class__):
             # only check that value is identical
-            equal = True
+            isequal = True
             if not isinstance(self.value, other.value.__class__):
-                equal = False
+                isequal = False
             if isinstance(self.value, np.ndarray):
-               if self.value.shape != other.value.shape:
-                   equal = False
-               if (self.value != other.value).all():
-                   equal = False
+                if self.value.shape != other.value.shape:
+                    isequal = False
+                elif (self.value != other.value).all():
+                    isequal = False
             else:
                 str_type = False
                 if isinstance(self.value, (str, unicode)):
@@ -44,19 +44,19 @@ class UVProperty:
                     try:
                         if not np.isclose(np.array(self.value),
                                           np.array(other.value)):
-                            equal = False
+                            isequal = False
                     except:
                         print self.value, other.value
-                        equal = False
+                        isequal = False
                 else:
                     if self.value != other.value:
                         if not isinstance(self.value, list):
                             if self.value.replace('\n', '') != other.value.replace('\n', ''):
-                                equal = False
+                                isequal = False
                         else:
-                            equal = False
+                            isequal = False
 
-            return equal
+            return isequal
         else:
             return False
 
