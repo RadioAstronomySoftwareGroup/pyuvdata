@@ -1127,6 +1127,7 @@ class UVData:
         if settings_file is not None:
             history_list = ['fhd settings info']
             with open(settings_file) as f:
+                # TODO Make this reading more robust.
                 head = list(islice(f, 11))
             for line in head:
                 newline = ' '.join(str.split(line))
