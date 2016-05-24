@@ -380,7 +380,7 @@ class UVData:
         if (self.xyz_telescope_frame.value == "ITRF" and
                 self.x_telescope.value is not None and
                 self.y_telescope.value is not None and
-                self.y_telescope.value is not None):
+                self.z_telescope.value is not None):
             # see wikipedia geodetic_datum and Datum transformations of
             # GPS positions PDF in docs folder
             gps_b = 6356752.31424518
@@ -439,8 +439,8 @@ class UVData:
     def set_lsts_from_time_array(self):
         lsts = []
         for jd in self.time_array.value:
-            print jd
             t = Time(jd,format='jd',location=(self.longitude.value,self.latitude.value))
+            print t.sidereal_time('apparent')
             lsts.append(t.sidereal_time('apparent').radian)
         self.lst_array.value = np.array(lsts)
         return True
@@ -480,15 +480,6 @@ class UVData:
                                  ' has not been set.')
         return True
 
-<<<<<<< HEAD
-=======
-    def isphased(self):
-        #check if uvdata object has been phased or is drift scanning
-        #convention is that az/el will be set and ra/dec will be none for drift scan
-        return True
-
-
->>>>>>> 568bc7eb62fa575fb53c6baf186504cd1320fc80
     def write(self, filename):
         self.check()
         # filename ending in .uvfits gets written as a uvfits
@@ -681,7 +672,6 @@ class UVData:
         self.antenna_names.value = ant_hdu.data.field('ANNAME').tolist()
 
         self.antenna_indices.value = ant_hdu.data.field('NOSTA')
-        self.antenna_positions.value = ant_hdu.data.field('STABXYZ')
 
         self.Nants_telescope.value = len(self.antenna_indices.value)
 
@@ -702,9 +692,19 @@ class UVData:
                               ' since this is a Cotter file, setting to ITRF')
                 self.xyz_telescope_frame.value = 'ITRF'
 
-        self.x_telescope.value = ant_hdu.header['ARRAYX']
-        self.y_telescope.value = ant_hdu.header['ARRAYY']
-        self.z_telescope.value = ant_hdu.header['ARRAYZ']
+        #VLA incorrectly sets ARRAYX/ARRAYY/ARRAYZ to 0, and puts array center
+        #in the antenna positions themselves
+        if np.isclose(ant_hdu.header['ARRAYX'],0) and np.isclose(ant_hdu.header['ARRAYY'],0) and np.isclose(ant_hdu.header['ARRAYZ'],0):
+            self.x_telescope.value = np.mean(ant_hdu.data['STABXYZ'][:,0])
+            self.y_telescope.value = np.mean(ant_hdu.data['STABXYZ'][:,1])
+            self.z_telescope.value = np.mean(ant_hdu.data['STABXYZ'][:,2])
+            self.antenna_positions.value = ant_hdu.data.field('STABXYZ') - np.array([self.x_telescope.value, self.y_telescope.value,self.z_telescope.value])
+
+        else:
+            self.x_telescope.value = ant_hdu.header['ARRAYX']
+            self.y_telescope.value = ant_hdu.header['ARRAYY']
+            self.z_telescope.value = ant_hdu.header['ARRAYZ']
+            self.antenna_positions.value = ant_hdu.data.field('STABXYZ')
         self.GST0.value = ant_hdu.header['GSTIA0']
         self.RDate.value = ant_hdu.header['RDATE']
         self.earth_omega.value = ant_hdu.header['DEGPDY']
