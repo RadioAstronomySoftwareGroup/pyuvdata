@@ -448,8 +448,8 @@ class UVData:
     def isphased(self):
         #check if uvdata object has been phased or is drift scanning
         #convention is that az/el will be set and ra/dec will be none for drift scan
-        return True 
-        
+        return True
+
 
     def write(self, filename):
         self.check()
@@ -691,7 +691,7 @@ class UVData:
 
         for p in self.extra_property_iter():
             prop = getattr(self, p)
-            if prop in self.uvfits_required_extra:
+            if p in self.uvfits_required_extra:
                 if prop.value is None:
                     if spoof_nonessential:
                         # spoof extra keywords required for uvfits
@@ -1337,7 +1337,7 @@ class UVData:
             else:
                 self.zenith_ra.value = ra_list
                 self.zenith_dec.value = dec_list
-                              
+
             # enforce drift scan/ phased convention
             # convert lat/lon to x/y/z_telescope
             #    LLA to ECEF (see pdf in docs)
