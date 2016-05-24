@@ -462,11 +462,6 @@ class UVData:
         if self.phase_center_ra.value != None or self.phase_center_dec.value != None:
             raise ValueError('The data is already phased; can only phase drift scanning data.') 
 
-
-        self.phase_center_ra.value = 0.303
-        self.phase_center_dec.value = -0.536
-        return True
-
         if ra != None and dec != None and time == None:
             ra = ra
             dec = dec
