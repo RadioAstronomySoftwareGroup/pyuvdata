@@ -129,6 +129,10 @@ class UVData:
                                      'of integration, dimension (Nblts), '
                                      'units Julian Date')
 
+        self.lst_array = UVProperty(description='array of lsts, center '
+                                     'of integration, dimension (Nblts), '
+                                     'units radians')
+
         desc = ('array of first antenna indices, dimensions (Nblts), '
                 'type = int, 0 indexed')
         self.ant_1_array = UVProperty(description=desc)
@@ -436,6 +440,41 @@ class UVData:
                                   np.sin(self.latitude.value))
         return True
 
+    def set_lsts_from_time_array(self):
+        lsts = []
+        for jd in self.time_array.value:
+            print jd
+            t = Time(jd,format='jd',location=(self.longitude.value,self.latitude.value))
+            lsts.append(t.sidereal_time('apparent').radian)
+        self.lst_array.value = np.array(lsts)
+        return True
+
+    def phase(self, ra=None, dec=None, time=None):
+        #phase drift scan data to a single ra/dec or time (i.e. ra/dec of zenith
+        #at that time).  will not phase already phased data.
+        if self.phase_center_ra.value != None or self.phase_center_dec.value != None:
+            raise ValueError('The data is already phased; can only phase drift scanning data.') 
+
+        if ra != None and dec != None and time == None:
+            ra = ra
+            dec = dec
+        elif ra == None and dec == None and time != None:
+            t = Time(time,format='jd',location=(self.longitude.value,self.latitude.value))
+            ra = self.longitude.value - t.sidereal_time('apparent').radian
+            dec = self.latitude.value
+        #calculate ra/dec from time
+        else:
+            raise ValueError('Need to define either ra/dec or time (but not both).')
+
+        for ind,lst in enumerate(self.lst_array.value):
+            m = a.coord.eq2top_m(lst - ra, dec)
+            uvw0 = self.uvw_array.value[:,ind]
+            uvw = np.dot(m,uvw0).transpose()
+            self.uvw_array.value[:,ind] = uvw
+            phs = np.exp(-1j*2*np.pi*uvw[2])
+            self.data_array.value[ind] *= phs
+        return True
+ 
     def check(self):
         # loop through all required properties, make sure that they are filled
         for p in self.required_property_iter():
@@ -444,12 +483,6 @@ class UVData:
                 raise ValueError('Required UVProperty ' + p +
                                  ' has not been set.')
         return True
-
-    def isphased(self):
-        #check if uvdata object has been phased or is drift scanning
-        #convention is that az/el will be set and ra/dec will be none for drift scan
-        return True 
-        
 
     def write(self, filename):
         self.check()
@@ -681,6 +714,8 @@ class UVData:
                 self.altitude.value is None):
             self.set_LatLonAlt()
 
+        self.set_lsts_from_time_array()
+
         # check if object has all required uv_properties set
         self.check()
         return True
@@ -688,6 +723,14 @@ class UVData:
     def write_uvfits(self, filename, spoof_nonessential=False):
         # first check if object has all required uv_properties set
         self.check()
+
+        if self.phase_center_ra.value == None or self.phase_center_dec.value == None:
+            #raise ValueError('The data does not have a defined phase center, which '
+            #                  'means it is a drift scan.  Phase the data to a single '
+            #                  'point before writing a uvfits file.')
+            print 'The data does not have a defined phase center.  Phasing to zenith '
+            'of the first timestamp.'
+            self.phase(time=self.time_array.value[0])
 
         for p in self.extra_property_iter():
             prop = getattr(self, p)
@@ -1123,6 +1166,8 @@ class UVData:
         self.longitude.value = float(obs['LON'][0])
         self.altitude.value = float(obs['ALT'][0])
 
+        self.set_lsts_from_time_array()
+
         # Use the first integration time here
         self.dateobs.value = min(self.time_array.value)
 
@@ -1240,11 +1285,13 @@ class UVData:
                 cnt = np.ones(d.shape,dtype=np.int)
             zenith_ra = uv['ra']
             zenith_dec = uv['dec']
+            lst = uv['lst']
+            print lst
 
             try:
-                data_accumulator[uv['pol']].append([uvw, t, i, j, d, f, cnt, zenith_ra, zenith_dec])
+                data_accumulator[uv['pol']].append([uvw, t, i, j, d, f, cnt, zenith_ra, zenith_dec, lst])
             except(KeyError):
-                data_accumulator[uv['pol']] = [[uvw, t, i, j, d, f, cnt, zenith_ra, zenith_dec]]
+                data_accumulator[uv['pol']] = [[uvw, t, i, j, d, f, cnt, zenith_ra, zenith_dec, lst]]
                 # NB: flag types in miriad are usually ints
         self.polarization_array.value = np.sort(data_accumulator.keys())
         if len(self.polarization_array.value)>self.Npols.value:
@@ -1298,14 +1345,15 @@ class UVData:
                                               self.Npols.value),dtype=np.complex64)
             self.flag_array.value = np.ones_like(self.data_array.value)
             self.uvw_array.value = np.zeros((3,self.Nblts.value))
+            self.lst_array.value = np.zeros(self.Nblts.value)
             self.nsample_array.value = np.ones(self.data_array.value.shape, dtype=np.int)
             self.freq_array.value = (np.arange(self.Nfreqs.value) *
                           self.channel_width.value + uv['sfreq'] * 1e9)
             # Tile freq_array to dimensions (Nspws, Nfreqs). Currently does not actually support Nspws>1!
             self.freq_array.value = np.tile(self.freq_array.value,(self.Nspws.value,1))
 
-            ra_list = np.zeros((self.Nblts.value))
-            dec_list = np.zeros((self.Nblts.value))
+            ra_list = np.zeros(self.Nblts.value)
+            dec_list = np.zeros(self.Nblts.value)
 
             for pol, data in data_accumulator.iteritems():
                 pol_ind = self.miriad_pol_to_ind(pol)
@@ -1328,6 +1376,7 @@ class UVData:
                     self.uvw_array.value[:,blt_index] = uvw
                     ra_list[blt_index] = d[7]
                     dec_list[blt_index] = d[8]
+                    self.lst_array.value[blt_index] = d[9]
 
             #check if ra is constant throughout file; if it is, file is tracking
             # if not, file is drift scanning

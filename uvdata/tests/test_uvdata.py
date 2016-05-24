@@ -6,7 +6,7 @@ import shutil
 from uvdata.uv import UVData
 import numpy as np
 
-suppress_readMiriad = False  # Manually prevent TestReadMiriad from running
+suppress_readMiriad = True  # Manually prevent TestReadMiriad from running
 suppress_readFHD = False  # Manually prevent TestReadFHD unittest from running
 # Next check that fhd data exists
 fhd_prefix = '../data/fhd_vis_data/1061321792_'
@@ -30,7 +30,8 @@ class TestUVDataInit(unittest.TestCase):
                                     'instrument', 'latitude', 'longitude',
                                     'altitude', 'history',
                                     'vis_units', 'phase_center_epoch', 'Nants',
-                                    'antenna_names', 'antenna_indices']
+                                    'antenna_names', 'antenna_indices',
+                                    'lst_array']
 
         self.extra_properties = ['extra_keywords', 'dateobs',
                                  'xyz_telescope_frame',
