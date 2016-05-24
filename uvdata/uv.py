@@ -174,11 +174,13 @@ class UVData:
         self.phase_center_epoch = UVProperty(description=desc)
 
         # --- antenna information ----
-        self.Nants = UVProperty(description='number of antennas with data ' +
-                                'present. May be different than the number ' +
-                                'of antennas in the array')
-        desc = ('list of antenna names, dimensions (>=Nants -- may include '
-                'antennas in the array that do not have data in this file), '
+        desc = ('number of antennas with data present. May be smaller ' +
+                'than the number of antennas in the array')
+        self.Nants_data = UVProperty(description=desc)
+        desc = ('number of antennas in the array. May be larger ' +
+                'than the number of antennas with data')
+        self.Nants_telescope = UVProperty(description=desc)
+        desc = ('list of antenna names, dimensions (Nants_telescope), '
                 'indexed by self.ant_1_array, self.ant_2_array, '
                 'self.antenna_indices. There must be one '
                 'entry here for each unique entry in self.ant_1_array and '
@@ -186,7 +188,7 @@ class UVData:
         self.antenna_names = UVProperty(description=desc)
 
         desc = ('integer index into antenna_names, dimensions '
-                '(>=Nants, same length as antenna_names). There must be one '
+                '(Nants_telescope). There must be one '
                 'entry here for each unique entry in self.ant_1_array and '
                 'self.ant_2_array, but there may be extras as well.')
         self.antenna_indices = UVProperty(description=desc)
@@ -217,7 +219,7 @@ class UVData:
                                       'center in meters in coordinate frame',
                                       spoof_val=0)
         desc = ('array giving coordinates of antennas relative to '
-                '{x,y,z}_telescope in the same frame, (Nants,3)')
+                '{x,y,z}_telescope in the same frame, (Nants_telescope, 3)')
         self.antenna_positions = AntPositionUVProperty(required=False,
                                                        description=desc)
 
@@ -320,9 +322,9 @@ class UVData:
         return not self.__eq__(other)
 
     def baseline_to_antnums(self, baseline):
-        if self.Nants > 2048:
+        if self.Nants_telescope > 2048:
             raise StandardError('error Nants={Nants}>2048 not '
-                                'supported'.format(Nants=self.Nants))
+                                'supported'.format(Nants=self.Nants_telescope))
         if np.min(baseline) > 2**16:
             i = (baseline - 2**16) % 2048 - 1
             j = (baseline - 2**16 - (i + 1)) / 2048 - 1
@@ -335,10 +337,10 @@ class UVData:
         # set the attempt256 keyword to True to (try to) use the older
         # 256 standard used in many uvfits files
         # (will use 2048 standard if there are more than 256 antennas)
-        if self.Nants > 2048:
+        if self.Nants_telescope > 2048:
             raise StandardError('cannot convert i,j to a baseline index '
                                 'with Nants={Nants}>2048.'
-                                .format(Nants=self.Nants))
+                                .format(Nants=self.Nants_telescope))
         if attempt256:
             if (np.max(i) < 255 and np.max(j) < 255):
                 return 256 * (j + 1) + (i + 1)
@@ -523,8 +525,8 @@ class UVData:
         self.Nbls.value = len(np.unique(self.baseline_array.value))
 
         # initialize internal variables based on the antenna table
-        self.Nants.value = np.max([len(np.unique(self.ant_1_array.value)),
-                                   len(np.unique(self.ant_2_array.value))])
+        self.Nants_data.value = np.max([len(np.unique(self.ant_1_array.value)),
+                                        len(np.unique(self.ant_2_array.value))])
 
         # check if we have an spw dimension
         if D.header['NAXIS'] == 7:
@@ -638,6 +640,8 @@ class UVData:
 
         self.antenna_indices.value = ant_hdu.data.field('NOSTA')
         self.antenna_positions.value = ant_hdu.data.field('STABXYZ')
+
+        self.Nants_telescope.value = len(self.antenna_indices.value)
 
         # stuff in the header
         if self.telescope_name.value is None:
@@ -849,16 +853,16 @@ class UVData:
             hdu.header[keyword] = value
 
         # ADD the ANTENNA table
-        staxof = [0] * self.Nants.value
+        staxof = np.zeros(self.Nants_telescope.value)
 
         # 0 specifies alt-az, 6 would specify a phased array
-        mntsta = [0] * self.Nants.value
+        mntsta = np.zeros(self.Nants_telescope.value)
 
         # beware, X can mean just about anything
-        poltya = ['X'] * self.Nants.value
-        polaa = [90.0] * self.Nants.value
-        poltyb = ['Y'] * self.Nants.value
-        polab = [0.0] * self.Nants.value
+        poltya = np.full((self.Nants_telescope.value), 'X', dtype=np.object_)
+        polaa = [90.0] + np.zeros(self.Nants_telescope.value)
+        poltyb = np.full((self.Nants_telescope.value), 'Y', dtype=np.object_)
+        polab = [0.0] + np.zeros(self.Nants_telescope.value)
 
         col1 = fits.Column(name='ANNAME', format='8A',
                            array=self.antenna_names.value)
@@ -879,7 +883,6 @@ class UVData:
         cols = fits.ColDefs([col1, col2, col3, col4, col5, col6, col7, col9,
                              col10])
 
-        # This only works for astropy 0.4 which is not available from pip
         ant_hdu = fits.BinTableHDU.from_columns(cols)
 
         ant_hdu.header['EXTNAME'] = 'AIPS AN'
@@ -1065,12 +1068,12 @@ class UVData:
         self.ant_1_array.value = bl_info['TILE_A'][0] - 1
         self.ant_2_array.value = bl_info['TILE_B'][0] - 1
 
-        self.Nants.value = np.max([len(np.unique(self.ant_1_array.value)),
-                                   len(np.unique(self.ant_2_array.value))])
+        self.Nants_data.value = np.max([len(np.unique(self.ant_1_array.value)),
+                                        len(np.unique(self.ant_2_array.value))])
 
         self.antenna_names.value = bl_info['TILE_NAMES'][0].tolist()
-
-        self.antenna_indices.value = np.arange(len(self.antenna_names.value))
+        self.Nants_telescope.value = len(self.antenna_names.value)
+        self.antenna_indices.value = np.arange(self.Nants_telescope.value)
 
         self.baseline_array.value = \
             self.antnums_to_baseline(self.ant_1_array.value,
@@ -1188,11 +1191,12 @@ class UVData:
                               'channel_width': 'sdf',  # in Ghz!
                               'object_name': 'source',
                               'telescope_name': 'telescop',
-                              'instrument': 'telescop',#same as telescope_name for now
+                              'instrument': 'telescop',# same as telescope_name for now
                               'latitude': 'latitud',
                               'longitude': 'longitu',  # in units of radians
                               'dateobs': 'time',  # (get the first time in the ever changing header)
                               #'history': 'history',
+                              'Nants_telescope': 'nants',
                               'phase_center_epoch': 'epoch',
                               'antenna_positions': 'antpos',  # take deltas
                               }
@@ -1211,8 +1215,8 @@ class UVData:
             self.altitude.value = 1100.
 
         self.history.value = uv['history']
-        self.antenna_positions.value = self.antenna_positions.value.reshape(3,len(self.antenna_positions.value)/3).T
-        self.channel_width.value *= 1e9 #change from GHz to Hz
+        self.antenna_positions.value = self.antenna_positions.value.reshape(3, self.Nants_telescope.value).T
+        self.channel_width.value *= 1e9  # change from GHz to Hz
 
 
         #read through the file and get the data
@@ -1256,9 +1260,8 @@ class UVData:
             times = list(set(
                 np.ravel([[k[1] for k in d] for d in data_accumulator.values()])))
             times = np.sort(times)
-            self.antenna_indices.value = np.arange(self.antenna_positions.value.shape[0])
+            self.antenna_indices.value = np.arange(self.Nants_telescope.value)
             self.antenna_names.value = self.antenna_indices.value.astype(str).tolist()
-
             #form up a grid which indexes time and baselines along the 'long'
             # axis of the visdata array
             t_grid = []
@@ -1280,7 +1283,7 @@ class UVData:
             self.time_array.value = t_grid
             self.ant_1_array.value = ant_i_grid
             self.ant_2_array.value = ant_j_grid
-            self.Nants.value = np.max([len(np.unique(self.ant_1_array.value)),
+            self.Nants_data.value = np.max([len(np.unique(self.ant_1_array.value)),
                                        len(np.unique(self.ant_2_array.value))])
             self.baseline_array.value = self.antnums_to_baseline(ant_i_grid,
                                                                  ant_j_grid)
