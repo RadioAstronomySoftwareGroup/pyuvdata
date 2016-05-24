@@ -25,7 +25,6 @@ class TestUVDataInit(unittest.TestCase):
                                     'time_array', 'ant_1_array', 'ant_2_array',
                                     'baseline_array', 'freq_array',
                                     'polarization_array', 'spw_array',
-                                    'phase_center_ra', 'phase_center_dec',
                                     'integration_time', 'channel_width',
                                     'object_name', 'telescope_name',
                                     'instrument', 'latitude', 'longitude',
@@ -38,7 +37,9 @@ class TestUVDataInit(unittest.TestCase):
                                  'x_telescope', 'y_telescope', 'z_telescope',
                                  'antenna_positions', 'GST0', 'RDate',
                                  'earth_omega', 'DUT1', 'TIMESYS',
-                                 'uvplane_reference_time']
+                                 'uvplane_reference_time',
+                                 'phase_center_ra', 'phase_center_dec',
+                                 'zenith_ra', 'zenith_dec']
         self.uv_object = UVData()
 
     def tearDown(self):

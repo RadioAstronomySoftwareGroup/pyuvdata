@@ -151,14 +151,6 @@ class UVData:
                 'circular -1:-4 (RR,LL,RL,LR); linear -5:-8 (XX,YY,XY,YX)')
         self.polarization_array = UVProperty(description=desc)
 
-        desc = ('right ascension of phase center (see uvw_array), '
-                'units degrees')
-        self.phase_center_ra = UVProperty(description=desc)
-
-        desc = ('declination of phase center (see uvw_array), '
-                'units degrees')
-        self.phase_center_dec = UVProperty(description=desc)
-
         self.integration_time = UVProperty(description='length of the '
                                            'integration (s)')
         self.channel_width = UVProperty(description='width of channel (Hz)')
@@ -228,6 +220,22 @@ class UVData:
                 '{x,y,z}_telescope in the same frame, (Nants,3)')
         self.antenna_positions = AntPositionUVProperty(required=False,
                                                        description=desc)
+
+        desc = ('ra of zenith.  shape (Nblts)')
+        self.zenith_ra = UVProperty(required=False, description=desc)
+
+        desc = ('dec of zenith.  shape (Nblts)')
+        #in practice, dec of zenith will never change; does not need to be shape Nblts
+        self.zenith_dec = UVProperty(required=False, description=desc)
+
+        desc = ('right ascension of phase center (see uvw_array), '
+                'units degrees')
+        self.phase_center_ra = UVProperty(required=False, description=desc)
+
+        desc = ('declination of phase center (see uvw_array), '
+                'units degrees')
+        self.phase_center_dec = UVProperty(required=False, description=desc)
+
 
         # --- other stuff ---
         # the below are copied from AIPS memo 117, but could be revised to
@@ -436,6 +444,12 @@ class UVData:
                 raise ValueError('Required UVProperty ' + p +
                                  ' has not been set.')
         return True
+
+    def isphased(self):
+        #check if uvdata object has been phased or is drift scanning
+        #convention is that az/el will be set and ra/dec will be none for drift scan
+        return True 
+        
 
     def write(self, filename):
         self.check()
@@ -1176,8 +1190,6 @@ class UVData:
         miriad_header_data = {'Nfreqs': 'nchan',
                               'Npols': 'npol',
                               # 'Nspws': 'nspec',  # not always available
-                              'phase_center_ra': 'ra',
-                              'phase_center_dec': 'dec',
                               'integration_time': 'inttime',
                               'channel_width': 'sdf',  # in Ghz!
                               'object_name': 'source',
@@ -1226,11 +1238,13 @@ class UVData:
                 cnt = uv['cnt']
             except(KeyError):
                 cnt = np.ones(d.shape,dtype=np.int)
+            zenith_ra = uv['ra']
+            zenith_dec = uv['dec']
 
             try:
-                data_accumulator[uv['pol']].append([uvw, t, i, j, d, f, cnt])
+                data_accumulator[uv['pol']].append([uvw, t, i, j, d, f, cnt, zenith_ra, zenith_dec])
             except(KeyError):
-                data_accumulator[uv['pol']] = [[uvw, t, i, j, d, f, cnt]]
+                data_accumulator[uv['pol']] = [[uvw, t, i, j, d, f, cnt, zenith_ra, zenith_dec]]
                 # NB: flag types in miriad are usually ints
         self.polarization_array.value = np.sort(data_accumulator.keys())
         if len(self.polarization_array.value)>self.Npols.value:
@@ -1289,6 +1303,10 @@ class UVData:
                           self.channel_width.value + uv['sfreq'] * 1e9)
             # Tile freq_array to dimensions (Nspws, Nfreqs). Currently does not actually support Nspws>1!
             self.freq_array.value = np.tile(self.freq_array.value,(self.Nspws.value,1))
+
+            ra_list = np.zeros((self.Nblts.value))
+            dec_list = np.zeros((self.Nblts.value))
+
             for pol, data in data_accumulator.iteritems():
                 pol_ind = self.miriad_pol_to_ind(pol)
                 for ind,d in enumerate(data):
@@ -1302,15 +1320,29 @@ class UVData:
                     self.flag_array.value[blt_index, :, :, pol_ind] = d[5]
                     self.nsample_array.value[blt_index, :, :, pol_ind] = d[6]
 
-                    # because there are uvws for each pol, and one pol may not
+                    # because there are uvws/ra/dec for each pol, and one pol may not
                     # have that visibility, we collapse along the polarization
                     # axis but avoid any missing visbilities
                     uvw = d[0]
                     uvw.shape = (1,3)
                     self.uvw_array.value[:,blt_index] = uvw
+                    ra_list[blt_index] = d[7]
+                    dec_list[blt_index] = d[8]
+
+            #check if ra is constant throughout file; if it is, file is tracking
+            # if not, file is drift scanning
+            if np.isclose(np.mean(np.diff(ra_list)),0.):
+                self.phase_center_ra.value = ra_list[0]
+                self.phase_center_dec.value = dec_list[0]
+            else:
+                self.zenith_ra.value = ra_list
+                self.zenith_dec.value = dec_list
+                              
             # enforce drift scan/ phased convention
             # convert lat/lon to x/y/z_telescope
             #    LLA to ECEF (see pdf in docs)
+
+
 
         if not FLEXIBLE_OPTION:
             pass
