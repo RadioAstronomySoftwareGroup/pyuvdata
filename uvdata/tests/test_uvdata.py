@@ -29,9 +29,9 @@ class TestUVDataInit(unittest.TestCase):
                                     'object_name', 'telescope_name',
                                     'instrument', 'latitude', 'longitude',
                                     'altitude', 'history',
-                                    'vis_units', 'phase_center_epoch', 'Nants',
-                                    'antenna_names', 'antenna_indices',
-                                    'lst_array']
+                                    'vis_units', 'phase_center_epoch',
+                                    'Nants_data', 'Nants_telescope',
+                                    'antenna_names', 'antenna_indices']
 
         self.extra_properties = ['extra_keywords', 'dateobs',
                                  'xyz_telescope_frame',
