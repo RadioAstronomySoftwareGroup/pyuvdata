@@ -188,7 +188,7 @@ class TestReadFHD(unittest.TestCase):
         testfile_prefix = '1061316296_'
         testfile_suffix = ['flags.sav', 'vis_XX.sav', 'params.sav',
                            'vis_YY.sav', 'vis_model_XX.sav',
-                           'vis_model_XX.sav', 'settings.txt']
+                           'vis_model_YY.sav', 'settings.txt']
         self.testfiles = []
         for s in testfile_suffix:
             self.testfiles.append(testdir + testfile_prefix + s)
