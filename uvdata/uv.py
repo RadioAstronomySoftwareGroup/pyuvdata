@@ -448,8 +448,7 @@ class UVData:
     def set_lsts_from_time_array(self):
         lsts = []
         for jd in self.time_array.value:
-            t = Time(jd,format='jd',location=(self.longitude.value,self.latitude.value))
-            print t.sidereal_time('apparent')
+            t = Time(jd,format='jd',location=(self.longitude.degrees(),self.latitude.degrees()))
             lsts.append(t.sidereal_time('apparent').radian)
         self.lst_array.value = np.array(lsts)
         return True
@@ -464,12 +463,15 @@ class UVData:
             ra = ra
             dec = dec
         elif ra == None and dec == None and time != None:
-            t = Time(time,format='jd',location=(self.longitude.value,self.latitude.value))
+            t = Time(time,format='jd',location=(self.longitude.degrees(),self.latitude.degrees()))
             ra = self.longitude.value - t.sidereal_time('apparent').radian
             dec = self.latitude.value
         #calculate ra/dec from time
         else:
             raise ValueError('Need to define either ra/dec or time (but not both).')
+
+        self.phase_center_ra.value = ra
+        self.phase_center_dec.value = dec
 
         for ind,lst in enumerate(self.lst_array.value):
             m = a.coord.eq2top_m(lst - ra, dec)
@@ -744,8 +746,7 @@ class UVData:
             #raise ValueError('The data does not have a defined phase center, which '
             #                  'means it is a drift scan.  Phase the data to a single '
             #                  'point before writing a uvfits file.')
-            print 'The data does not have a defined phase center.  Phasing to zenith '
-            'of the first timestamp.'
+            print 'The data does not have a defined phase center.  Phasing to zenith of the first timestamp.'
             self.phase(time=self.time_array.value[0])
 
         for p in self.extra_property_iter():
@@ -1302,7 +1303,6 @@ class UVData:
             zenith_ra = uv['ra']
             zenith_dec = uv['dec']
             lst = uv['lst']
-            print lst
 
             try:
                 data_accumulator[uv['pol']].append([uvw, t, i, j, d, f, cnt, zenith_ra, zenith_dec, lst])
