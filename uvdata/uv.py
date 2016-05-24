@@ -121,7 +121,7 @@ class UVData:
         self.spw_array = UVProperty(description='array of spectral window '
                                     'numbers')
 
-        desc = ('phase center of projected baseline vectors, (3,Nblts), '
+        desc = ('Projected baseline vectors relative to phase center, (3,Nblts), '
                 'units meters')
         self.uvw_array = UVProperty(description=desc)
 
