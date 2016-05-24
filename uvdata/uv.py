@@ -351,12 +351,6 @@ class UVData:
 
         return 2048 * (j + 1) + (i + 1) + 2**16
 
-    # this needs to exist but doesn't yet
-    def ijt_to_blt_index(self, i, j, t):
-        self.ant_1_array
-        self.ant_2_array
-        self.times_array
-
     def _gethduaxis(self, D, axis):
         ax = str(axis)
         N = D.header['NAXIS' + ax]
