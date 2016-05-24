@@ -11,14 +11,13 @@ import os
 
 
 class UVProperty:
-    def __init__(self, required=True, value=None, spoof_val=None, units=None,
+    def __init__(self, required=True, value=None, spoof_val=None,
                  description=''):
         self.required = required
         # cannot set a spoof_val for required properties
         if not self.required:
             self.spoof_val = spoof_val
         self.value = value
-        self.units = units
         self.description = description
 
     def __eq__(self, other):
@@ -73,15 +72,28 @@ class AntPositionUVProperty(UVProperty):
 
 
 class ExtraKeywordUVProperty(UVProperty):
-    def __init__(self, required=False, value={}, spoof_val={}, units=None,
+    def __init__(self, required=False, value={}, spoof_val={},
                  description=''):
         self.required = required
         # cannot set a spoof_val for required properties
         if not self.required:
             self.spoof_val = spoof_val
         self.value = value
-        self.units = units
         self.description = description
+
+
+class AngleUVProperty(UVProperty):
+    def degrees(self):
+        if self.value is None:
+            return None
+        else:
+            return self.value * 180. / np.pi
+
+    def set_degrees(self, degree_val):
+        if degree_val is None:
+            self.value = None
+        else:
+            self.value = degree_val * np.pi / 180.
 
 
 class UVData:
@@ -121,7 +133,7 @@ class UVData:
         self.spw_array = UVProperty(description='array of spectral window '
                                     'numbers')
 
-        desc = ('phase center of projected baseline vectors, (3,Nblts), '
+        desc = ('Projected baseline vectors relative to phase center, (3,Nblts), '
                 'units meters')
         self.uvw_array = UVProperty(description=desc)
 
@@ -145,8 +157,8 @@ class UVData:
                 '(may this break casa?)')
         self.baseline_array = UVProperty(description=desc)
 
-        #this dimensionality of freq_array does not allow for different spws to have
-        #different dimensions
+        # this dimensionality of freq_array does not allow for different spws to have
+        # different dimensions
         self.freq_array = UVProperty(description='array of frequencies, '
                                      'dimensions (Nspws,Nfreqs), units Hz')
 
@@ -165,10 +177,10 @@ class UVData:
         self.telescope_name = UVProperty(description='name of telescope '
                                          '(string)')
         self.instrument = UVProperty(description='receiver or backend.')
-        self.latitude = UVProperty(description='latitude of telescope, '
-                                   'units degrees')
-        self.longitude = UVProperty(description='longitude of telescope, '
-                                    'units degrees')
+        self.latitude = AngleUVProperty(description='latitude of telescope, '
+                                        'units radians')
+        self.longitude = AngleUVProperty(description='longitude of telescope, '
+                                         'units degrees')
         self.altitude = UVProperty(description='altitude of telescope, '
                                    'units meters')
         self.history = UVProperty(description='string of history, units '
@@ -227,21 +239,20 @@ class UVData:
         self.antenna_positions = AntPositionUVProperty(required=False,
                                                        description=desc)
 
-        desc = ('ra of zenith.  shape (Nblts)')
-        self.zenith_ra = UVProperty(required=False, description=desc)
+        desc = ('ra of zenith. units: radians, shape (Nblts)')
+        self.zenith_ra = AngleUVProperty(required=False, description=desc)
 
-        desc = ('dec of zenith.  shape (Nblts)')
-        #in practice, dec of zenith will never change; does not need to be shape Nblts
-        self.zenith_dec = UVProperty(required=False, description=desc)
+        desc = ('dec of zenith. units: radians, shape (Nblts)')
+        # in practice, dec of zenith will never change; does not need to be shape Nblts
+        self.zenith_dec = AngleUVProperty(required=False, description=desc)
 
         desc = ('right ascension of phase center (see uvw_array), '
-                'units degrees')
-        self.phase_center_ra = UVProperty(required=False, description=desc)
+                'units radians')
+        self.phase_center_ra = AngleUVProperty(required=False, description=desc)
 
         desc = ('declination of phase center (see uvw_array), '
-                'units degrees')
-        self.phase_center_dec = UVProperty(required=False, description=desc)
-
+                'units radians')
+        self.phase_center_dec = AngleUVProperty(required=False, description=desc)
 
         # --- other stuff ---
         # the below are copied from AIPS memo 117, but could be revised to
@@ -392,17 +403,15 @@ class UVData:
             gps_theta = np.arctan2(self.z_telescope.value * gps_a,
                                    gps_p * gps_b)
             if self.latitude.value is None:
-                lat_radian = np.arctan2(self.z_telescope.value +
-                                        e_prime_squared * gps_b *
-                                        np.sin(gps_theta)**3,
-                                        gps_p - e_squared * gps_a *
-                                        np.cos(gps_theta)**3)
-                self.latitude.value = lat_radian * 180 / np.pi
+                self.latitude.value = np.arctan2(self.z_telescope.value +
+                                                 e_prime_squared * gps_b *
+                                                 np.sin(gps_theta)**3,
+                                                 gps_p - e_squared * gps_a *
+                                                 np.cos(gps_theta)**3)
             # todo these should probably always overwrite
             if self.longitude.value is None:
-                lon_radian = np.arctan2(self.y_telescope.value,
-                                        self.x_telescope.value)
-                self.longitude.value = lon_radian * 180 / np.pi
+                self.longitude.value = np.arctan2(self.y_telescope.value,
+                                                  self.x_telescope.value)
             gps_N = gps_a / np.sqrt(1 - e_squared *
                                     np.sin(self.latitude.value)**2)
             if self.altitude.value is None:
@@ -580,10 +589,10 @@ class UVData:
             assert(self.Nspws.value == self.data_array.value.shape[1])
 
             # the axis number for phase center depends on if the spw exists
-            self.spw_array.value = self._gethduaxis(D, 5) - 1 #subtract 1 to be zero-indexed
+            self.spw_array.value = self._gethduaxis(D, 5) - 1  # subtract 1 to be zero-indexed
 
-            self.phase_center_ra.value = D.header['CRVAL6']
-            self.phase_center_dec.value = D.header['CRVAL7']
+            self.phase_center_ra.set_degrees(np.array(D.header['CRVAL6']).astype(np.float64))
+            self.phase_center_dec.set_degrees(np.array(D.header['CRVAL7']).astype(np.float64))
         else:
             # in many uvfits files the spw axis is left out,
             # here we put it back in so the dimensionality stays the same
@@ -603,8 +612,8 @@ class UVData:
             self.Nspws.value = 1
             self.spw_array.value = np.array([0])
 
-            self.phase_center_ra.value = D.header['CRVAL5']
-            self.phase_center_dec.value = D.header['CRVAL6']
+            self.phase_center_ra.set_degrees(np.array(D.header['CRVAL5']).astype(np.float64))
+            self.phase_center_dec.set_degrees(np.array(D.header['CRVAL6']).astype(np.float64))
 
         # get dimension sizes
         self.Nfreqs.value = D.header['NAXIS4']
@@ -642,8 +651,8 @@ class UVData:
         self.object_name.value = D.header.get('OBJECT', None)
         self.telescope_name.value = D.header.get('TELESCOP', None)
         self.instrument.value = D.header.get('INSTRUME', None)
-        self.latitude.value = D.header.get('LAT', None)
-        self.longitude.value = D.header.get('LON', None)
+        self.latitude.set_degrees(D.header.get('LAT', None))
+        self.longitude.set_degrees(D.header.get('LON', None))
         self.altitude.value = D.header.get('ALT', None)
         self.dateobs.value = D.header.get('DATE-OBS', None)
         self.history.value = str(D.header.get('HISTORY', ''))
@@ -877,10 +886,10 @@ class UVData:
         hdu.header['CDELT5  '] = 1.0
 
         hdu.header['CTYPE6  '] = 'RA'
-        hdu.header['CRVAL6  '] = self.phase_center_ra.value
+        hdu.header['CRVAL6  '] = self.phase_center_ra.degrees()
 
         hdu.header['CTYPE7  '] = 'DEC'
-        hdu.header['CRVAL7  '] = self.phase_center_dec.value
+        hdu.header['CRVAL7  '] = self.phase_center_dec.degrees()
 
         hdu.header['BUNIT   '] = self.vis_units.value
         hdu.header['BSCALE  '] = 1.0
@@ -888,8 +897,8 @@ class UVData:
 
         hdu.header['OBJECT  '] = self.object_name.value
         hdu.header['TELESCOP'] = self.telescope_name.value
-        hdu.header['LAT     '] = self.latitude.value
-        hdu.header['LON     '] = self.longitude.value
+        hdu.header['LAT     '] = self.latitude.degrees()
+        hdu.header['LON     '] = self.longitude.degrees()
         hdu.header['ALT     '] = self.altitude.value
         hdu.header['INSTRUME'] = self.instrument.value
         hdu.header['EPOCH   '] = float(self.phase_center_epoch.value)
@@ -1140,8 +1149,8 @@ class UVData:
             warnings.warn('These visibilities may have been phased '
                           'improperly -- without changing the uvw locations')
 
-        self.phase_center_ra.value = float(obs['OBSRA'][0])
-        self.phase_center_dec.value = float(obs['OBSDEC'][0])
+        self.phase_center_ra.set_degrees(float(obs['OBSRA'][0]))
+        self.phase_center_dec.set_degrees(float(obs['OBSDEC'][0]))
 
         # this is generated in FHD by subtracting the JD of neighboring
         # integrations. This can have limited accuracy, so it can be slightly
@@ -1168,8 +1177,8 @@ class UVData:
                 object_name = 'EoR 0 Field'
 
         self.instrument.value = self.telescope_name.value
-        self.latitude.value = float(obs['LAT'][0])
-        self.longitude.value = float(obs['LON'][0])
+        self.latitude.set_degrees(float(obs['LAT'][0]))
+        self.longitude.set_degrees(float(obs['LON'][0]))
         self.altitude.value = float(obs['ALT'][0])
 
         self.set_lsts_from_time_array()
