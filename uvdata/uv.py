@@ -857,16 +857,16 @@ class UVData:
         hdu.header['PZERO4  '] = jd_midnight
 
         # hdu.header['PTYPE5  '] = 'DATE    '
-        #hdu.header['PSCAL5  '] = 1.0
-        #hdu.header['PZERO5  '] = 0.0
-
-        # hdu.header['PTYPE5  '] = 'BASELINE'
         hdu.header['PSCAL5  '] = 1.0
         hdu.header['PZERO5  '] = 0.0
 
-        # hdu.header['PTYPE6  '] = 'INTTIM'
+        # hdu.header['PTYPE6  '] = 'BASELINE'
         hdu.header['PSCAL6  '] = 1.0
         hdu.header['PZERO6  '] = 0.0
+
+        # hdu.header['PTYPE7  '] = 'INTTIM'
+        hdu.header['PSCAL7  '] = 1.0
+        hdu.header['PZERO7  '] = 0.0
 
         # ISO string of first time in self.time_array
         hdu.header['DATE-OBS'] = Time(self.time_array.value[0], scale='utc',
