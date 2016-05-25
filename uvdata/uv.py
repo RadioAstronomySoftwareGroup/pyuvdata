@@ -133,8 +133,8 @@ class UVData:
         self.spw_array = UVProperty(description='array of spectral window '
                                     'numbers')
 
-        desc = ('Projected baseline vectors relative to phase center, (3,Nblts), '
-                'units meters')
+        desc = ('Projected baseline vectors relative to phase center, ' +
+                '(3,Nblts), units meters')
         self.uvw_array = UVProperty(description=desc)
 
         self.time_array = UVProperty(description='array of times, center '
@@ -157,8 +157,8 @@ class UVData:
                 '(may this break casa?)')
         self.baseline_array = UVProperty(description=desc)
 
-        # this dimensionality of freq_array does not allow for different spws to have
-        # different dimensions
+        # this dimensionality of freq_array does not allow for different spws
+        # to have different dimensions
         self.freq_array = UVProperty(description='array of frequencies, '
                                      'dimensions (Nspws,Nfreqs), units Hz')
 
@@ -243,16 +243,19 @@ class UVData:
         self.zenith_ra = AngleUVProperty(required=False, description=desc)
 
         desc = ('dec of zenith. units: radians, shape (Nblts)')
-        # in practice, dec of zenith will never change; does not need to be shape Nblts
+        # in practice, dec of zenith will never change; does not need to
+        #  be shape Nblts
         self.zenith_dec = AngleUVProperty(required=False, description=desc)
 
         desc = ('right ascension of phase center (see uvw_array), '
                 'units radians')
-        self.phase_center_ra = AngleUVProperty(required=False, description=desc)
+        self.phase_center_ra = AngleUVProperty(required=False,
+                                               description=desc)
 
         desc = ('declination of phase center (see uvw_array), '
                 'units radians')
-        self.phase_center_dec = AngleUVProperty(required=False, description=desc)
+        self.phase_center_dec = AngleUVProperty(required=False,
+                                                description=desc)
 
         # --- other stuff ---
         # the below are copied from AIPS memo 117, but could be revised to
@@ -451,7 +454,8 @@ class UVData:
         for ind, jd in enumerate(self.time_array.value):
             if ind == 0 or not np.isclose(jd, curtime, atol=1e-6, rtol=1e-12):
                 curtime = jd
-                t = Time(jd, format='jd', location=(self.longitude.degrees(), self.latitude.degrees()))
+                t = Time(jd, format='jd', location=(self.longitude.degrees(),
+                                                    self.latitude.degrees()))
             lsts.append(t.sidereal_time('apparent').radian)
         self.lst_array.value = np.array(lsts)
         return True
@@ -459,19 +463,22 @@ class UVData:
     def phase(self, ra=None, dec=None, time=None):
         # phase drift scan data to a single ra/dec or time (i.e. ra/dec of zenith
         # at that time).  will not phase already phased data.
-        if self.phase_center_ra.value is not None or self.phase_center_dec.value is not None:
-            raise ValueError('The data is already phased; can only phase drift scanning data.')
+        if (self.phase_center_ra.value is not None or
+                self.phase_center_dec.value is not None):
+            raise ValueError('The data is already phased; can only phase ' +
+                             'drift scanning data.')
 
         if ra is not None and dec is not None and time is None:
-            ra = ra
-            dec = dec
+            pass
         elif ra is None and dec is None and time is not None:
-            t = Time(time, format='jd', location=(self.longitude.degrees(), self.latitude.degrees()))
+            t = Time(time, format='jd', location=(self.longitude.degrees(),
+                                                  self.latitude.degrees()))
             ra = self.longitude.value - t.sidereal_time('apparent').radian
             dec = self.latitude.value
         # calculate ra/dec from time
         else:
-            raise ValueError('Need to define either ra/dec or time (but not both).')
+            raise ValueError('Need to define either ra/dec or time ' +
+                             '(but not both).')
 
         self.phase_center_ra.value = ra
         self.phase_center_dec.value = dec
@@ -594,7 +601,8 @@ class UVData:
             assert(self.Nspws.value == self.data_array.value.shape[1])
 
             # the axis number for phase center depends on if the spw exists
-            self.spw_array.value = self._gethduaxis(D, 5) - 1  # subtract 1 to be zero-indexed
+            # subtract 1 to be zero-indexed
+            self.spw_array.value = self._gethduaxis(D, 5) - 1
 
             self.phase_center_ra.set_degrees(np.array(D.header['CRVAL6']).astype(np.float64))
             self.phase_center_dec.set_degrees(np.array(D.header['CRVAL7']).astype(np.float64))
@@ -746,16 +754,22 @@ class UVData:
         self.check()
         return True
 
-    def write_uvfits(self, filename, spoof_nonessential=False):
+    def write_uvfits(self, filename, spoof_nonessential=False,
+                     force_phase=False):
         # first check if object has all required uv_properties set
         self.check()
 
         if self.phase_center_ra.value is None or self.phase_center_dec.value is None:
-            # raise ValueError('The data does not have a defined phase center, which '
-            #                  'means it is a drift scan.  Phase the data to a single '
-            #                  'point before writing a uvfits file.')
-            print 'The data does not have a defined phase center.  Phasing to zenith of the first timestamp.'
-            self.phase(time=self.time_array.value[0])
+            if force_phase:
+                print('The data does not have a defined phase center. ' +
+                      'Phasing to zenith of the first timestamp.')
+                self.phase(time=self.time_array.value[0])
+            else:
+                raise ValueError('The data does not have a defined phase ' +
+                                 'center, which means it is a drift scan. ' +
+                                 'Set force_phase to true to phase the data ' +
+                                 'zenith of the first timestamp before ' +
+                                 'writing a uvfits file.')
 
         for p in self.extra_property_iter():
             prop = getattr(self, p)
@@ -1258,10 +1272,12 @@ class UVData:
                               'channel_width': 'sdf',  # in Ghz!
                               'object_name': 'source',
                               'telescope_name': 'telescop',
-                              'instrument': 'telescop',  # same as telescope_name for now
+                              # same as telescope_name for now
+                              'instrument': 'telescop',
                               'latitude': 'latitud',
                               'longitude': 'longitu',  # in units of radians
-                              'dateobs': 'time',  # (get the first time in the ever changing header)
+                              # (get the first time in the ever changing header)
+                              'dateobs': 'time',
                               # 'history': 'history',
                               'Nants_telescope': 'nants',
                               'phase_center_epoch': 'epoch',
@@ -1341,7 +1357,8 @@ class UVData:
             self.antenna_names.value = self.antenna_indices.value.astype(str).tolist()
             # form up a grid which indexes time and baselines along the 'long'
             # axis of the visdata array
-            # TODO this requires that every baseline shows up at every time, which need not be true
+            # TODO this requires that every baseline shows up at every time,
+            #   which need not be true
             t_grid = []
             ant_i_grid = []
             ant_j_grid = []
@@ -1373,13 +1390,17 @@ class UVData:
                                              dtype=np.complex64)
             self.flag_array.value = np.ones_like(self.data_array.value)
             self.uvw_array.value = np.zeros((3, self.Nblts.value))
-            # NOTE: Using our lst calculator, which uses astropy, instead of aipy values
-            # which come from pyephem.  The differences are of order 5 seconds.
+            # NOTE: Using our lst calculator, which uses astropy,
+            # instead of aipy values which come from pyephem.
+            # The differences are of order 5 seconds.
             self.set_lsts_from_time_array()
-            self.nsample_array.value = np.ones(self.data_array.value.shape, dtype=np.int)
+            self.nsample_array.value = np.ones(self.data_array.value.shape,
+                                               dtype=np.int)
             self.freq_array.value = (np.arange(self.Nfreqs.value) *
-                                     self.channel_width.value + uv['sfreq'] * 1e9)
-            # Tile freq_array to dimensions (Nspws, Nfreqs). Currently does not actually support Nspws>1!
+                                     self.channel_width.value +
+                                     uv['sfreq'] * 1e9)
+            # Tile freq_array to dimensions (Nspws, Nfreqs).
+            # Currently does not actually support Nspws>1!
             self.freq_array.value = np.tile(self.freq_array.value,
                                             (self.Nspws.value, 1))
 
@@ -1406,8 +1427,8 @@ class UVData:
                     ra_list[blt_index] = d[7]
                     dec_list[blt_index] = d[8]
 
-            # check if ra is constant throughout file; if it is, file is tracking
-            # if not, file is drift scanning
+            # check if ra is constant throughout file; if it is,
+            # file is tracking if not, file is drift scanning
             if np.isclose(np.mean(np.diff(ra_list)), 0.):
                 self.phase_center_ra.value = ra_list[0]
                 self.phase_center_dec.value = dec_list[0]
@@ -1443,7 +1464,8 @@ class UVData:
 
         #
 
-        # Phasing rule: if alt/az is set and ra/dec  are None, then its a drift scan
+        # Phasing rule: if alt/az is set and ra/dec are None,
+        #  then its a drift scan
 
         # check if object has all required uv_properties set
         self.check()
