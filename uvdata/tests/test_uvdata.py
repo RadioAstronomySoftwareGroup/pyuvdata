@@ -237,8 +237,10 @@ class TestReadMiriad(unittest.TestCase):
         self.assertTrue(status)
 
         # Test loop with writing/reading uvfits
-        uvfits_testfile = op.join(self.test_file_directory, 'outtest_miriad.uvfits')
-        self.miriad_uv.write_uvfits(uvfits_testfile, spoof_nonessential=True)
+        uvfits_testfile = op.join(self.test_file_directory,
+                                  'outtest_miriad.uvfits')
+        self.miriad_uv.write_uvfits(uvfits_testfile, spoof_nonessential=True,
+                                    force_phase=True)
         self.uvfits_uv.read_uvfits(uvfits_testfile)
 
         self.assertEqual(self.miriad_uv, self.uvfits_uv)
