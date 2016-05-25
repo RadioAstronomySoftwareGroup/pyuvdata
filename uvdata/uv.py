@@ -13,7 +13,7 @@ import ephem
 
 class UVProperty:
     def __init__(self, required=True, value=None, spoof_val=None,
-                 form=(), description=''):
+                 form=(), description='', expected_type=np.int):
         self.required = required
         # cannot set a spoof_val for required properties
         if not self.required:
@@ -21,6 +21,7 @@ class UVProperty:
         self.value = value
         self.description = description
         self.form = form
+        self.expected_type = expected_type
 
     def __eq__(self, other):
         if isinstance(other, self.__class__):
@@ -140,19 +141,22 @@ class UVData:
         desc = ('array of the visibility data, size: (Nblts, Nspws, Nfreqs, '
                 'Npols), type = complex float, in units of self.vis_units')
         self.data_array = UVProperty(description=desc,
-                                     form=('Nblts', 'Nspws', 'Nfreqs', 'Npols'))
+                                     form=('Nblts', 'Nspws', 'Nfreqs', 'Npols'),
+                                     expected_type=np.complex)
 
         self.vis_units = UVProperty(description='Visibility units, options '
-                                    '["uncalib","Jy","K str"]')
+                                    '["uncalib","Jy","K str"]', form='str')
 
         desc = ('number of data points averaged into each data element, '
                 'type = int, same shape as data_array')
         self.nsample_array = UVProperty(description=desc,
-                                        form=('Nblts', 'Nspws', 'Nfreqs', 'Npols'))
+                                        form=('Nblts', 'Nspws', 'Nfreqs', 'Npols'),
+                                        expected_type=(np.float, np.int))
 
         self.flag_array = UVProperty(description='boolean flag, True is '
                                      'flagged, same shape as data_array.',
-                                     form=('Nblts', 'Nspws', 'Nfreqs', 'Npols'))
+                                     form=('Nblts', 'Nspws', 'Nfreqs', 'Npols'),
+                                     expected_type=np.bool)
 
         self.Nspws = UVProperty(description='number of spectral windows '
                                 '(ie non-contiguous spectral chunks)')
@@ -162,15 +166,18 @@ class UVData:
 
         desc = ('Projected baseline vectors relative to phase center, ' +
                 '(3,Nblts), units meters')
-        self.uvw_array = UVProperty(description=desc, form=(3, 'Nblts'))
+        self.uvw_array = UVProperty(description=desc, form=(3, 'Nblts'),
+                                    expected_type=np.float)
 
         self.time_array = UVProperty(description='array of times, center '
                                      'of integration, dimension (Nblts), '
-                                     'units Julian Date', form=('Nblts',))
+                                     'units Julian Date', form=('Nblts',),
+                                     expected_type=np.float)
 
         self.lst_array = UVProperty(description='array of lsts, center '
                                     'of integration, dimension (Nblts), '
-                                    'units radians', form=('Nblts',))
+                                    'units radians', form=('Nblts',),
+                                    expected_type=np.float)
 
         desc = ('array of first antenna indices, dimensions (Nblts), '
                 'type = int, 0 indexed')
@@ -188,7 +195,8 @@ class UVData:
         # to have different dimensions
         self.freq_array = UVProperty(description='array of frequencies, '
                                      'dimensions (Nspws,Nfreqs), units Hz',
-                                     form=('Nspws', 'Nfreqs'))
+                                     form=('Nspws', 'Nfreqs'),
+                                     expected_type=np.float)
 
         desc = ('array of polarization integers (Npols). '
                 'AIPS Memo 117 says: stokes 1:4 (I,Q,U,V);  '
@@ -196,8 +204,10 @@ class UVData:
         self.polarization_array = UVProperty(description=desc, form=('Npols',))
 
         self.integration_time = UVProperty(description='length of the '
-                                           'integration (s)')
-        self.channel_width = UVProperty(description='width of channel (Hz)')
+                                           'integration (s)',
+                                           expected_type=np.float)
+        self.channel_width = UVProperty(description='width of channel (Hz)',
+                                        expected_type=np.float)
 
         # --- observation information ---
         self.object_name = UVProperty(description='source or field '
@@ -206,16 +216,16 @@ class UVData:
                                          '(string)', form='str')
         self.instrument = UVProperty(description='receiver or backend.', form='str')
         self.latitude = AngleUVProperty(description='latitude of telescope, '
-                                        'units radians')
+                                        'units radians', expected_type=np.float)
         self.longitude = AngleUVProperty(description='longitude of telescope, '
-                                         'units degrees')
+                                         'units degrees', expected_type=np.float)
         self.altitude = UVProperty(description='altitude of telescope, '
-                                   'units meters')
+                                   'units meters', expected_type=np.float)
         self.history = UVProperty(description='string of history, units '
                                   'English', form='str')
 
         desc = ('epoch year of the phase applied to the data (eg 2000)')
-        self.phase_center_epoch = UVProperty(description=desc)
+        self.phase_center_epoch = UVProperty(description=desc, expected_type=np.float)
 
         # --- antenna information ----
         desc = ('number of antennas with data present. May be smaller ' +
@@ -229,7 +239,8 @@ class UVData:
                 'self.antenna_indices. There must be one '
                 'entry here for each unique entry in self.ant_1_array and '
                 'self.ant_2_array, but there may be extras as well.')
-        self.antenna_names = UVProperty(description=desc, form=('Nants_telescope',))
+        self.antenna_names = UVProperty(description=desc, form=('Nants_telescope',),
+                                        expected_type=str)
 
         desc = ('integer index into antenna_names, dimensions '
                 '(Nants_telescope). There must be one '
@@ -380,12 +391,13 @@ class UVData:
         else:
             i = (baseline) % 256 - 1
             j = (baseline - (i + 1)) / 256 - 1
-        return i, j
+        return np.int32(i), np.int32(j)
 
     def antnums_to_baseline(self, i, j, attempt256=False):
         # set the attempt256 keyword to True to (try to) use the older
         # 256 standard used in many uvfits files
         # (will use 2048 standard if there are more than 256 antennas)
+        i,j = np.int64((i,j))
         if self.Nants_telescope > 2048:
             raise StandardError('cannot convert i,j to a baseline index '
                                 'with Nants={Nants}>2048.'
@@ -400,7 +412,7 @@ class UVData:
                           'with CASA etc'
                 warnings.warn(message)
 
-        return 2048 * (j + 1) + (i + 1) + 2**16
+        return np.int64(2048 * (j + 1) + (i + 1) + 2**16)
 
     def _gethduaxis(self, D, axis):
         ax = str(axis)
@@ -572,6 +584,28 @@ class UVData:
                 # returns an empty tuple for single numbers. esize should do the same.
                 if not np.shape(prop.value) == esize:
                     raise ValueError('UVProperty ' + p + 'is not expected size.')
+                if esize == ():
+                    # Single element
+                    if not isinstance(prop.value, prop.expected_type):
+                        raise ValueError('UVProperty ' + p + ' is not the appropriate'
+                                         ' type. Is: ' + str(type(prop.value)) +
+                                         '. Should be: ' + str(prop.expected_type))
+                else:
+                    # TODO: Should be more flexible and allow multiple type options
+                    # (e.g. float64 or float32)
+                    # Check if list
+                    if isinstance(prop.value, list):
+                        if not isinstance(prop.value[0], prop.expected_type):
+                            raise ValueError('UVProperty ' + p + ' is not the'
+                                             ' appropriate type. Is: ' +
+                                             str(type(prop.value[0])) + '. Should'
+                                             ' be: ' + str(prop.expected_type))
+                    else:
+                        # Array
+                        if not isinstance(prop.value.item(0), prop.expected_type):
+                            raise ValueError('UVProperty ' + p + ' is not the appropriate'
+                                             ' type. Is: ' + str(prop.value.dtype) +
+                                             '. Should be: ' + str(prop.expected_type))
 
             # TODO Check required property has reasonable value(s)
 
@@ -637,12 +671,12 @@ class UVData:
         try:
             # Note: uvfits antennas are 1 indexed,
             # need to subtract one to get to 0-indexed
-            self.ant_1_array.value = D.data.field('ANTENNA1') - 1
-            self.ant_2_array.value = D.data.field('ANTENNA2') - 1
+            self.ant_1_array.value = np.int32(D.data.field('ANTENNA1')) - 1
+            self.ant_2_array.value = np.int32(D.data.field('ANTENNA2')) - 1
         except:
             # cannot set this to be the baseline array because it uses the
             # 256 convention, not our 2048 convention
-            bl_input_array = D.data.field('BASELINE')
+            bl_input_array = np.int64(D.data.field('BASELINE'))
 
             # get antenna arrays based on uvfits baseline array
             self.ant_1_array.value, self.ant_2_array.value = \
@@ -678,7 +712,7 @@ class UVData:
 
             # the axis number for phase center depends on if the spw exists
             # subtract 1 to be zero-indexed
-            self.spw_array.value = self._gethduaxis(D, 5) - 1
+            self.spw_array.value = np.int32(self._gethduaxis(D, 5)) - 1
 
             self.phase_center_ra.set_degrees(np.array(D.header['CRVAL6']).astype(np.float64))
             self.phase_center_dec.set_degrees(np.array(D.header['CRVAL7']).astype(np.float64))
@@ -734,7 +768,7 @@ class UVData:
         # TODO iterate over the spw axis, for now we just have one spw
         self.freq_array.value.shape = (1,) + self.freq_array.value.shape
 
-        self.polarization_array.value = self._gethduaxis(D, 3)
+        self.polarization_array.value = np.int32(self._gethduaxis(D, 3))
 
         # other info -- not required but frequently used
         self.object_name.value = D.header.get('OBJECT', None)
@@ -1463,7 +1497,7 @@ class UVData:
                                               self.Nfreqs.value,
                                               self.Npols.value),
                                              dtype=np.complex64)
-            self.flag_array.value = np.ones_like(self.data_array.value)
+            self.flag_array.value = np.ones(self.data_array.value.shape, dtype=np.bool)
             self.uvw_array.value = np.zeros((3, self.Nblts.value))
             # NOTE: Using our lst calculator, which uses astropy,
             # instead of aipy values which come from pyephem.
