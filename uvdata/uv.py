@@ -460,7 +460,7 @@ class UVData:
         #phase drift scan data to a single ra/dec or time (i.e. ra/dec of zenith
         #at that time).  will not phase already phased data.
         if self.phase_center_ra.value != None or self.phase_center_dec.value != None:
-            raise ValueError('The data is already phased; can only phase drift scanning data.') 
+            raise ValueError('The data is already phased; can only phase drift scanning data.')
 
         if ra != None and dec != None and time == None:
             ra = ra
@@ -484,7 +484,7 @@ class UVData:
             phs = np.exp(-1j*2*np.pi*uvw[2])
             self.data_array.value[ind] *= phs
         return True
- 
+
     def check(self):
         # loop through all required properties, make sure that they are filled
         for p in self.required_property_iter():
@@ -785,6 +785,8 @@ class UVData:
         # uvfits convention is that time_array + jd_midnight = actual JD
         # jd_midnight is julian midnight on first day of observation
         time_array = self.time_array.value - jd_midnight
+        date1 = np.float32(time_array)
+        date2 = np.float32(time_array - np.float64(date1))
 
         int_time_array = (np.zeros_like((time_array), dtype=np.float) +
                           self.integration_time.value)
@@ -804,8 +806,8 @@ class UVData:
             # to our 0-indexed arrays
             group_parameter_list = [uvw_array_sec[0], uvw_array_sec[1],
                                     uvw_array_sec[2],
-                                    np.zeros_like(time_array),
-                                    time_array, baselines_use,
+                                    date1, date2,
+                                    baselines_use,
                                     self.ant_1_array.value + 1,
                                     self.ant_2_array.value + 1,
                                     int_time_array]
@@ -820,8 +822,7 @@ class UVData:
             # to our 0-indexed arrays
             group_parameter_list = [uvw_array_sec[0], uvw_array_sec[1],
                                     uvw_array_sec[2],
-                                    np.zeros_like(time_array),
-                                    time_array,
+                                    date1, date2,
                                     self.ant_1_array.value + 1,
                                     self.ant_2_array.value + 1,
                                     int_time_array]
