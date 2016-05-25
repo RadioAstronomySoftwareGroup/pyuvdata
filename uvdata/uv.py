@@ -13,7 +13,7 @@ import ephem
 
 class UVProperty:
     def __init__(self, required=True, value=None, spoof_val=None,
-                 form=(), description='', expected_type=np.int):
+                 form=(), description='', expected_type=np.int, sane_vals=None):
         self.required = required
         # cannot set a spoof_val for required properties
         if not self.required:
@@ -22,6 +22,7 @@ class UVProperty:
         self.description = description
         self.form = form
         self.expected_type = expected_type
+        self.sane_vals = sane_vals
 
     def __eq__(self, other):
         if isinstance(other, self.__class__):
@@ -32,7 +33,7 @@ class UVProperty:
             if isinstance(self.value, np.ndarray):
                 if self.value.shape != other.value.shape:
                     isequal = False
-                elif (self.value != other.value).all():
+                elif not np.allclose(self.value, other.value):
                     isequal = False
             else:
                 str_type = False
@@ -89,6 +90,18 @@ class UVProperty:
                                          'calculate expected size of property'.format(p=p))
                     esize = esize + (prop.value,)
             return esize
+
+    def sanity_check(self):
+        # A quick method for checking that values are sane
+        # This needs development
+        sane = False  # Default to insanity
+        if self.sane_vals is None:
+            sane = True
+        else:
+            testval = np.mean(np.abs(self.value))
+            if (testval >= self.sane_vals[0]) and (testval <= self.sane_vals[1]):
+                sane = True
+        return sane
 
 
 class AntPositionUVProperty(UVProperty):
@@ -167,7 +180,7 @@ class UVData:
         desc = ('Projected baseline vectors relative to phase center, ' +
                 '(3,Nblts), units meters')
         self.uvw_array = UVProperty(description=desc, form=(3, 'Nblts'),
-                                    expected_type=np.float)
+                                    expected_type=np.float, sane_vals=(1e-3, 1e8))
 
         self.time_array = UVProperty(description='array of times, center '
                                      'of integration, dimension (Nblts), '
@@ -397,7 +410,7 @@ class UVData:
         # set the attempt256 keyword to True to (try to) use the older
         # 256 standard used in many uvfits files
         # (will use 2048 standard if there are more than 256 antennas)
-        i,j = np.int64((i,j))
+        i, j = np.int64((i, j))
         if self.Nants_telescope > 2048:
             raise StandardError('cannot convert i,j to a baseline index '
                                 'with Nants={Nants}>2048.'
@@ -591,10 +604,8 @@ class UVData:
                                          ' type. Is: ' + str(type(prop.value)) +
                                          '. Should be: ' + str(prop.expected_type))
                 else:
-                    # TODO: Should be more flexible and allow multiple type options
-                    # (e.g. float64 or float32)
-                    # Check if list
                     if isinstance(prop.value, list):
+                        # List needs to be handled differently than array (I think)
                         if not isinstance(prop.value[0], prop.expected_type):
                             raise ValueError('UVProperty ' + p + ' is not the'
                                              ' appropriate type. Is: ' +
@@ -607,7 +618,8 @@ class UVData:
                                              ' type. Is: ' + str(prop.value.dtype) +
                                              '. Should be: ' + str(prop.expected_type))
 
-            # TODO Check required property has reasonable value(s)
+            if not prop.sanity_check():
+                raise ValueError('UVProperty ' + p + ' has insane values.')
 
         return True
 
