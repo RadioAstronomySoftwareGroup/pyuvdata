@@ -13,7 +13,8 @@ import ephem
 
 class UVProperty:
     def __init__(self, required=True, value=None, spoof_val=None,
-                 form=(), description='', expected_type=np.int, sane_vals=None):
+                 form=(), description='', expected_type=np.int, sane_vals=None,
+                 tols=(1e-05, 1e-08)):
         self.required = required
         # cannot set a spoof_val for required properties
         if not self.required:
@@ -23,6 +24,11 @@ class UVProperty:
         self.form = form
         self.expected_type = expected_type
         self.sane_vals = sane_vals
+        if np.size(tols) == 1:
+            # Only one tolerance given, assume absolute, set relative to zero
+            self.tols = (0, tols)
+        else:
+            self.tols = tols  # relative and absolute tolerances to be used in np.isclose
 
     def __eq__(self, other):
         if isinstance(other, self.__class__):
@@ -33,7 +39,8 @@ class UVProperty:
             if isinstance(self.value, np.ndarray):
                 if self.value.shape != other.value.shape:
                     isequal = False
-                elif not np.allclose(self.value, other.value):
+                elif not np.allclose(self.value, other.value,
+                                     rtol=self.tols[0], atol=self.tols[1]):
                     isequal = False
             else:
                 str_type = False
@@ -46,7 +53,8 @@ class UVProperty:
                 if not str_type:
                     try:
                         if not np.isclose(np.array(self.value),
-                                          np.array(other.value)):
+                                          np.array(other.value),
+                                          rtol=self.tols[0], atol=self.tols[1]):
                             isequal = False
                     except:
                         print self.value, other.value
@@ -180,17 +188,20 @@ class UVData:
         desc = ('Projected baseline vectors relative to phase center, ' +
                 '(3,Nblts), units meters')
         self.uvw_array = UVProperty(description=desc, form=(3, 'Nblts'),
-                                    expected_type=np.float, sane_vals=(1e-3, 1e8))
+                                    expected_type=np.float, sane_vals=(1e-3, 1e8),
+                                    tols=.001)
 
         self.time_array = UVProperty(description='array of times, center '
                                      'of integration, dimension (Nblts), '
                                      'units Julian Date', form=('Nblts',),
-                                     expected_type=np.float)
+                                     expected_type=np.float,
+                                     tols=1e-3 / (60.0 * 60.0 * 24.0))  # 1 ms in days
 
         self.lst_array = UVProperty(description='array of lsts, center '
                                     'of integration, dimension (Nblts), '
                                     'units radians', form=('Nblts',),
-                                    expected_type=np.float)
+                                    expected_type=np.float,
+                                    tols=2 * np.pi * 1e-3 / (60.0 * 60.0 * 24.0))  # 1 ms in radians
 
         desc = ('array of first antenna indices, dimensions (Nblts), '
                 'type = int, 0 indexed')
@@ -209,7 +220,8 @@ class UVData:
         self.freq_array = UVProperty(description='array of frequencies, '
                                      'dimensions (Nspws,Nfreqs), units Hz',
                                      form=('Nspws', 'Nfreqs'),
-                                     expected_type=np.float)
+                                     expected_type=np.float,
+                                     tols=1e-3)  # mHz
 
         desc = ('array of polarization integers (Npols). '
                 'AIPS Memo 117 says: stokes 1:4 (I,Q,U,V);  '
@@ -218,9 +230,11 @@ class UVData:
 
         self.integration_time = UVProperty(description='length of the '
                                            'integration (s)',
-                                           expected_type=np.float)
+                                           expected_type=np.float,
+                                           tols=1e-3)  # 1 ms
         self.channel_width = UVProperty(description='width of channel (Hz)',
-                                        expected_type=np.float)
+                                        expected_type=np.float,
+                                        tols=1e-3)  # 1 mHz
 
         # --- observation information ---
         self.object_name = UVProperty(description='source or field '
@@ -229,11 +243,14 @@ class UVData:
                                          '(string)', form='str')
         self.instrument = UVProperty(description='receiver or backend.', form='str')
         self.latitude = AngleUVProperty(description='latitude of telescope, '
-                                        'units radians', expected_type=np.float)
+                                        'units radians', expected_type=np.float,
+                                        tols=2 * np.pi * 1e-3 / (60.0 * 60.0 * 24.0))  # 1 mas in radians
         self.longitude = AngleUVProperty(description='longitude of telescope, '
-                                         'units degrees', expected_type=np.float)
+                                         'units degrees', expected_type=np.float,
+                                         tols=2 * np.pi * 1e-3 / (60.0 * 60.0 * 24.0))  # 1 mas in radians
         self.altitude = UVProperty(description='altitude of telescope, '
-                                   'units meters', expected_type=np.float)
+                                   'units meters', expected_type=np.float,
+                                   tols=1e-3)  # 1 mm
         self.history = UVProperty(description='string of history, units '
                                   'English', form='str')
 
@@ -277,40 +294,48 @@ class UVData:
         self.x_telescope = UVProperty(required=False,
                                       description='x coordinates of array '
                                       'center in meters in coordinate frame',
-                                      spoof_val=0)
+                                      spoof_val=0,
+                                      tols=1e-3)  # 1 mm
         self.y_telescope = UVProperty(required=False,
                                       description='y coordinates of array '
                                       'center in meters in coordinate frame',
-                                      spoof_val=0)
+                                      spoof_val=0,
+                                      tols=1e-3)  # 1 mm
         self.z_telescope = UVProperty(required=False,
                                       description='z coordinates of array '
                                       'center in meters in coordinate frame',
-                                      spoof_val=0)
+                                      spoof_val=0,
+                                      tols=1e-3)  # 1 mm
         desc = ('array giving coordinates of antennas relative to '
                 '{x,y,z}_telescope in the same frame, (Nants_telescope, 3)')
         self.antenna_positions = AntPositionUVProperty(required=False,
                                                        description=desc,
-                                                       form=('Nants_telescope', 3))
+                                                       form=('Nants_telescope', 3),
+                                                       tols=1e-3)  # 1 mm
 
         desc = ('ra of zenith. units: radians, shape (Nblts)')
         self.zenith_ra = AngleUVProperty(required=False, description=desc,
-                                         form=('Nblts',))
+                                         form=('Nblts',),
+                                         tols=2 * np.pi * 1e-3 / (60.0 * 60.0 * 24.0))  # 1 mas in radians
 
         desc = ('dec of zenith. units: radians, shape (Nblts)')
         # in practice, dec of zenith will never change; does not need to
         #  be shape Nblts
         self.zenith_dec = AngleUVProperty(required=False, description=desc,
-                                          form=('Nblts',))
+                                          form=('Nblts',),
+                                          tols=2 * np.pi * 1e-3 / (60.0 * 60.0 * 24.0))  # 1 mas in radians
 
         desc = ('right ascension of phase center (see uvw_array), '
                 'units radians')
         self.phase_center_ra = AngleUVProperty(required=False,
-                                               description=desc)
+                                               description=desc,
+                                               tols=2 * np.pi * 1e-3 / (60.0 * 60.0 * 24.0))  # 1 mas in radians
 
         desc = ('declination of phase center (see uvw_array), '
                 'units radians')
         self.phase_center_dec = AngleUVProperty(required=False,
-                                                description=desc)
+                                                description=desc,
+                                                tols=2 * np.pi * 1e-3 / (60.0 * 60.0 * 24.0))  # 1 mas in radians
 
         # --- other stuff ---
         # the below are copied from AIPS memo 117, but could be revised to
