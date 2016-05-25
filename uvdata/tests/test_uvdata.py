@@ -5,6 +5,7 @@ import os.path as op
 import shutil
 from uvdata.uv import UVData
 import numpy as np
+import copy
 
 
 class TestUVDataInit(unittest.TestCase):
@@ -99,6 +100,13 @@ class TestUVmethods(unittest.TestCase):
                          67585)
         self.assertEqual(self.uv_object.antnums_to_baseline(257, 256),
                          592130)
+
+    def test_data_inequality(self):
+        testfile = '../data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
+        self.uv_object.read_uvfits(testfile)
+        self.uv_object2 = copy.deepcopy(self.uv_object)
+        self.uv_object2.data_array.value[0, 0, 0, 0] += 1  # Force data to be not equal
+        self.assertNotEqual(self.uv_object, self.uv_object2)
 
 
 class TestReadUVFits(unittest.TestCase):
