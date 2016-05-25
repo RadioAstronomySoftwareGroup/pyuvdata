@@ -12,13 +12,14 @@ import os
 
 class UVProperty:
     def __init__(self, required=True, value=None, spoof_val=None,
-                 description=''):
+                 form=1, description=''):
         self.required = required
         # cannot set a spoof_val for required properties
         if not self.required:
             self.spoof_val = spoof_val
         self.value = value
         self.description = description
+        self.form = form
 
     def __eq__(self, other):
         if isinstance(other, self.__class__):
@@ -64,6 +65,28 @@ class UVProperty:
 
     def apply_spoof(self, *args):
         self.value = self.spoof_val
+
+    def expected_size(self, dataobj):
+        # Takes the form of the property and returns the size
+        # expected, given values in the UVData object
+        if self.form == 'str':
+            return self.form
+        elif isinstance(self.form, np.int):
+            # Fixed size, just return the form
+            return self.form
+        else:
+            # Given by other attributes, look up values
+            esize = ()
+            for p in self.form:
+                if isinstance(p, np.int):
+                    esize = esize + (p,)
+                else:
+                    prop = getattr(dataobj, p)
+                    if prop.value is None:
+                        raise ValueError('Missing UVData property {p} needed to '
+                                         'calculate expected size of property'.format(p=p))
+                    esize = esize + (prop.value,)
+            return esize
 
 
 class AntPositionUVProperty(UVProperty):
@@ -115,57 +138,61 @@ class UVData:
 
         desc = ('array of the visibility data, size: (Nblts, Nspws, Nfreqs, '
                 'Npols), type = complex float, in units of self.vis_units')
-        self.data_array = UVProperty(description=desc)
+        self.data_array = UVProperty(description=desc,
+                                     form=('Nblts', 'Nspws', 'Nfreqs', 'Npols'))
 
         self.vis_units = UVProperty(description='Visibility units, options '
                                     '["uncalib","Jy","K str"]')
 
         desc = ('number of data points averaged into each data element, '
                 'type = int, same shape as data_array')
-        self.nsample_array = UVProperty(description=desc)
+        self.nsample_array = UVProperty(description=desc,
+                                    form=('Nblts', 'Nspws', 'Nfreqs', 'Npols'))
 
         self.flag_array = UVProperty(description='boolean flag, True is '
-                                     'flagged, same shape as data_array.')
+                                     'flagged, same shape as data_array.',
+                                     form=('Nblts', 'Nspws', 'Nfreqs', 'Npols'))
 
         self.Nspws = UVProperty(description='number of spectral windows '
                                 '(ie non-contiguous spectral chunks)')
 
         self.spw_array = UVProperty(description='array of spectral window '
-                                    'numbers')
+                                    'numbers', form=('Nspws',))
 
         desc = ('Projected baseline vectors relative to phase center, ' +
                 '(3,Nblts), units meters')
-        self.uvw_array = UVProperty(description=desc)
+        self.uvw_array = UVProperty(description=desc, form=(3,'Nblts'))
 
         self.time_array = UVProperty(description='array of times, center '
                                      'of integration, dimension (Nblts), '
-                                     'units Julian Date')
+                                     'units Julian Date', form=('Nblts',))
 
         self.lst_array = UVProperty(description='array of lsts, center '
                                     'of integration, dimension (Nblts), '
-                                    'units radians')
+                                    'units radians', form=('Nblts',))
 
         desc = ('array of first antenna indices, dimensions (Nblts), '
                 'type = int, 0 indexed')
-        self.ant_1_array = UVProperty(description=desc)
+        self.ant_1_array = UVProperty(description=desc, form=('Nblts',))
         desc = ('array of second antenna indices, dimensions (Nblts), '
                 'type = int, 0 indexed')
-        self.ant_2_array = UVProperty(description=desc)
+        self.ant_2_array = UVProperty(description=desc, form=('Nblts',))
 
         desc = ('array of baseline indices, dimensions (Nblts), '
                 'type = int; baseline = 2048 * (ant2+1) + (ant1+1) + 2^16 '
                 '(may this break casa?)')
-        self.baseline_array = UVProperty(description=desc)
+        self.baseline_array = UVProperty(description=desc, form=('Nblts',))
 
         # this dimensionality of freq_array does not allow for different spws
         # to have different dimensions
         self.freq_array = UVProperty(description='array of frequencies, '
-                                     'dimensions (Nspws,Nfreqs), units Hz')
+                                     'dimensions (Nspws,Nfreqs), units Hz',
+                                     form=('Nspws', 'Nfreqs'))
 
         desc = ('array of polarization integers (Npols). '
                 'AIPS Memo 117 says: stokes 1:4 (I,Q,U,V);  '
                 'circular -1:-4 (RR,LL,RL,LR); linear -5:-8 (XX,YY,XY,YX)')
-        self.polarization_array = UVProperty(description=desc)
+        self.polarization_array = UVProperty(description=desc, form=('Npols',))
 
         self.integration_time = UVProperty(description='length of the '
                                            'integration (s)')
@@ -173,10 +200,10 @@ class UVData:
 
         # --- observation information ---
         self.object_name = UVProperty(description='source or field '
-                                      'observed (string)')
+                                      'observed (string)', form='str')
         self.telescope_name = UVProperty(description='name of telescope '
-                                         '(string)')
-        self.instrument = UVProperty(description='receiver or backend.')
+                                         '(string)', form='str')
+        self.instrument = UVProperty(description='receiver or backend.', form='str')
         self.latitude = AngleUVProperty(description='latitude of telescope, '
                                         'units radians')
         self.longitude = AngleUVProperty(description='longitude of telescope, '
@@ -184,7 +211,7 @@ class UVData:
         self.altitude = UVProperty(description='altitude of telescope, '
                                    'units meters')
         self.history = UVProperty(description='string of history, units '
-                                  'English')
+                                  'English', form='str')
 
         desc = ('epoch year of the phase applied to the data (eg 2000)')
         self.phase_center_epoch = UVProperty(description=desc)
@@ -201,13 +228,13 @@ class UVData:
                 'self.antenna_indices. There must be one '
                 'entry here for each unique entry in self.ant_1_array and '
                 'self.ant_2_array, but there may be extras as well.')
-        self.antenna_names = UVProperty(description=desc)
+        self.antenna_names = UVProperty(description=desc, form=('Nants_telescope',))
 
         desc = ('integer index into antenna_names, dimensions '
                 '(Nants_telescope). There must be one '
                 'entry here for each unique entry in self.ant_1_array and '
                 'self.ant_2_array, but there may be extras as well.')
-        self.antenna_indices = UVProperty(description=desc)
+        self.antenna_indices = UVProperty(description=desc, form=('Nants_telescope',))
 
         # -------- extra, non-required properties ----------
         desc = ('any user supplied extra keywords, type=dict')
@@ -220,7 +247,7 @@ class UVData:
                 '(eg "ITRF" -also google ECEF). NB: ECEF has x running '
                 'through long=0 and z through the north pole')
         self.xyz_telescope_frame = UVProperty(required=False, description=desc,
-                                              spoof_val='ITRF')
+                                              spoof_val='ITRF', form='str')
 
         self.x_telescope = UVProperty(required=False,
                                       description='x coordinates of array '
@@ -237,15 +264,18 @@ class UVData:
         desc = ('array giving coordinates of antennas relative to '
                 '{x,y,z}_telescope in the same frame, (Nants_telescope, 3)')
         self.antenna_positions = AntPositionUVProperty(required=False,
-                                                       description=desc)
+                                                       description=desc,
+                                                       form=('Nants_telescope', 3))
 
         desc = ('ra of zenith. units: radians, shape (Nblts)')
-        self.zenith_ra = AngleUVProperty(required=False, description=desc)
+        self.zenith_ra = AngleUVProperty(required=False, description=desc,
+                                         form=('Nblts',))
 
         desc = ('dec of zenith. units: radians, shape (Nblts)')
         # in practice, dec of zenith will never change; does not need to
         #  be shape Nblts
-        self.zenith_dec = AngleUVProperty(required=False, description=desc)
+        self.zenith_dec = AngleUVProperty(required=False, description=desc,
+                                          form=('Nblts',))
 
         desc = ('right ascension of phase center (see uvw_array), '
                 'units radians')
@@ -274,7 +304,7 @@ class UVData:
                                'calls it UT1UTC', spoof_val=0.0)
         self.TIMESYS = UVProperty(required=False,
                                   description='We only support UTC',
-                                  spoof_val='UTC')
+                                  spoof_val='UTC', form='str')
 
         desc = ('FHD thing we do not understand, something about the time '
                 'at which the phase center is normal to the chosen UV plane '
@@ -500,7 +530,26 @@ class UVData:
             if prop.value is None:
                 raise ValueError('Required UVProperty ' + p +
                                  ' has not been set.')
+
             # TODO Check required property is valid size and type
+            # Check required property size
+            print p
+            esize = prop.expected_size(self)
+            if esize is None:
+                raise ValueError('Required UVProperty ' + p +
+                                 ' expected size is not defined.')
+            elif esize == 'str':
+                # Check that it's a string
+                if not isinstance(prop.value,str):
+                    raise ValueError('UVProperty ' + p + 'expected to be '
+                                     'string, but is not')
+            elif esize == 1:
+                # Check for single number
+                pass
+            else:
+                # check size/length of array
+                pass
+
             # TODO Check required property has reasonable value(s)
 
         return True
