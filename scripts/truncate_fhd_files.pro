@@ -3,15 +3,15 @@ pro truncate_fhd_files
   observation = '1061316296'
   outdir = dir+'data_for_tests/'
 
-  chan_range = [196-1,196+1]
+  chan_range = [204-1,204+1]
   t0 = 4 ; Starting time so we don't include the first two seconds (which are flagged)
   nts_keep = 4 ; Will keep roughly 1/10 the times
-  ntile_keep = 10
+  ntile_keep = 9
   restore,dir+'metadata/'+observation+'_obs.sav' ; Need the obs to get time bins
   restore,dir+'metadata/'+observation+'_params.sav'
   tmin_ind = (*obs.baseline_info).bin_offset[t0]
   tmax_ind = (*obs.baseline_info).bin_offset[t0+nts_keep] ; Keep fraction of the original baseline times
-  blt_inds = where(((*obs.baseline_info).tile_a lt ntile_keep) and ((*obs.baseline_info).tile_b lt ntile_keep) $
+  blt_inds = where(((*obs.baseline_info).tile_a lt (ntile_keep+1)) and ((*obs.baseline_info).tile_b lt (ntile_keep+1)) $
                   and (params.time ge params.time[tmin_ind]) and (params.time lt params.time[tmax_ind]))
   npol = 2
   pols=['XX','YY']
