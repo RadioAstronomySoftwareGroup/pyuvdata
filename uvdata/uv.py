@@ -809,7 +809,6 @@ class UVData:
             # to our 0-indexed arrays
             group_parameter_list = [uvw_array_sec[0], uvw_array_sec[1],
                                     uvw_array_sec[2],
-                                    np.zeros_like(time_array),
                                     time_array, baselines_use,
                                     self.ant_1_array.value + 1,
                                     self.ant_2_array.value + 1,
@@ -817,7 +816,7 @@ class UVData:
 
             hdu = fits.GroupData(uvfits_array_data,
                                  parnames=['UU      ', 'VV      ', 'WW      ',
-                                           'DATE    ', 'DATE    ', 'BASELINE',
+                                           'DATE    ', 'BASELINE',
                                            'ANTENNA1', 'ANTENNA2', 'INTTIM'],
                                  pardata=group_parameter_list, bitpix=-32)
         else:
@@ -825,7 +824,6 @@ class UVData:
             # to our 0-indexed arrays
             group_parameter_list = [uvw_array_sec[0], uvw_array_sec[1],
                                     uvw_array_sec[2],
-                                    np.zeros_like(time_array),
                                     time_array,
                                     self.ant_1_array.value + 1,
                                     self.ant_2_array.value + 1,
@@ -833,7 +831,7 @@ class UVData:
 
             hdu = fits.GroupData(uvfits_array_data,
                                  parnames=['UU      ', 'VV      ', 'WW      ',
-                                           'DATE    ', 'DATE    ',
+                                           'DATE    ',
                                            'ANTENNA1', 'ANTENNA2', 'INTTIM'],
                                  pardata=group_parameter_list, bitpix=-32)
 
@@ -856,16 +854,16 @@ class UVData:
         hdu.header['PZERO4  '] = jd_midnight
 
         # hdu.header['PTYPE5  '] = 'DATE    '
+        #hdu.header['PSCAL5  '] = 1.0
+        #hdu.header['PZERO5  '] = 0.0
+
+        # hdu.header['PTYPE5  '] = 'BASELINE'
         hdu.header['PSCAL5  '] = 1.0
         hdu.header['PZERO5  '] = 0.0
 
-        # hdu.header['PTYPE6  '] = 'BASELINE'
+        # hdu.header['PTYPE6  '] = 'INTTIM'
         hdu.header['PSCAL6  '] = 1.0
         hdu.header['PZERO6  '] = 0.0
-
-        # hdu.header['PTYPE7  '] = 'INTTIM'
-        hdu.header['PSCAL7  '] = 1.0
-        hdu.header['PZERO7  '] = 0.0
 
         # ISO string of first time in self.time_array
         hdu.header['DATE-OBS'] = Time(self.time_array.value[0], scale='utc',
