@@ -606,7 +606,6 @@ class UVData:
                 raise ValueError('Required UVProperty ' + p +
                                  ' has not been set.')
 
-            # TODO Check required property is valid size and type
             # Check required property size
             esize = prop.expected_size(self)
             if esize is None:
