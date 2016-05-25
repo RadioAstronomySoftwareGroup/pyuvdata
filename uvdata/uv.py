@@ -521,9 +521,13 @@ class UVData:
         # loop through all required properties, make sure that they are filled
         for p in self.required_property_iter():
             prop = getattr(self, p)
+            # Check required property exists
             if prop.value is None:
                 raise ValueError('Required UVProperty ' + p +
                                  ' has not been set.')
+            # TODO Check required property is valid size and type
+            # TODO Check required property has reasonable value(s)
+
         return True
 
     def write(self, filename):
@@ -824,13 +828,12 @@ class UVData:
                                            weights_array], axis=6)
 
         uvw_array_sec = self.uvw_array.value / const.c.to('m/s').value
-        jd_midnight = np.floor(self.time_array.value[0] - 0.5) + 0.5
+        # jd_midnight = np.floor(self.time_array.value[0] - 0.5) + 0.5
+        tzero = np.float32(self.time_array.value[0])
 
-        # uvfits convention is that time_array + jd_midnight = actual JD
-        # jd_midnight is julian midnight on first day of observation
-        time_array = self.time_array.value - jd_midnight
-        date1 = np.float32(time_array)
-        date2 = np.float32(time_array - np.float64(date1))
+        # uvfits convention is that time_array + relevant PZERO = actual JD
+        # We are setting PZERO4 = float32(first time of observation)
+        time_array = np.float32(self.time_array.value - np.float64(tzero))
 
         int_time_array = (np.zeros_like((time_array), dtype=np.float) +
                           self.integration_time.value)
@@ -850,7 +853,7 @@ class UVData:
             # to our 0-indexed arrays
             group_parameter_list = [uvw_array_sec[0], uvw_array_sec[1],
                                     uvw_array_sec[2],
-                                    date1, date2,
+                                    time_array,
                                     baselines_use,
                                     self.ant_1_array.value + 1,
                                     self.ant_2_array.value + 1,
@@ -858,7 +861,7 @@ class UVData:
 
             hdu = fits.GroupData(uvfits_array_data,
                                  parnames=['UU      ', 'VV      ', 'WW      ',
-                                           'DATE    ', 'DATE    ', 'BASELINE',
+                                           'DATE    ', 'BASELINE',
                                            'ANTENNA1', 'ANTENNA2', 'INTTIM'],
                                  pardata=group_parameter_list, bitpix=-32)
         else:
@@ -866,14 +869,14 @@ class UVData:
             # to our 0-indexed arrays
             group_parameter_list = [uvw_array_sec[0], uvw_array_sec[1],
                                     uvw_array_sec[2],
-                                    date1, date2,
+                                    time_array,
                                     self.ant_1_array.value + 1,
                                     self.ant_2_array.value + 1,
                                     int_time_array]
 
             hdu = fits.GroupData(uvfits_array_data,
                                  parnames=['UU      ', 'VV      ', 'WW      ',
-                                           'DATE    ', 'DATE    ',
+                                           'DATE    ',
                                            'ANTENNA1', 'ANTENNA2', 'INTTIM'],
                                  pardata=group_parameter_list, bitpix=-32)
 
@@ -893,7 +896,7 @@ class UVData:
 
         # hdu.header['PTYPE4  '] = 'DATE    '
         hdu.header['PSCAL4  '] = 1.0
-        hdu.header['PZERO4  '] = jd_midnight
+        hdu.header['PZERO4  '] = tzero
 
         # hdu.header['PTYPE5  '] = 'DATE    '
         hdu.header['PSCAL5  '] = 1.0
