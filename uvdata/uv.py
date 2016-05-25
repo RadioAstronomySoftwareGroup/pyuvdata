@@ -8,6 +8,7 @@ import warnings
 from itertools import islice
 import aipy as a
 import os
+import ephem
 
 
 class UVProperty:
@@ -490,36 +491,60 @@ class UVData:
         self.lst_array.value = np.array(lsts)
         return True
 
-    def phase(self, ra=None, dec=None, time=None):
-        # phase drift scan data to a single ra/dec or time (i.e. ra/dec of zenith
-        # at that time).  will not phase already phased data.
+    def juldate2ephem(self,num):
+        """Convert Julian date to ephem date, measured from noon, Dec. 31, 1899."""
+        return ephem.date(num - 2415020.)
+
+    def phase(self, ra=None, dec=None, epoch=ephem.J2000, time=None):
+        # phase drift scan data to a single ra/dec at the set epoch
+        # or time in jd (i.e. ra/dec of zenith at that time in current epoch). 
+        # ra/dec should be in radians.
+        # epoch should be an ephem date, measured from noon Dec. 31, 1899.
+        # will not phase already phased data.
         if (self.phase_center_ra.value is not None or
                 self.phase_center_dec.value is not None):
             raise ValueError('The data is already phased; can only phase ' +
                              'drift scanning data.')
 
-        if ra is not None and dec is not None and time is None:
+        obs = ephem.Observer()
+        #obs inits with default values for parameters -- be sure to replace them
+        obs.lat = self.latitude.value
+        obs.lon = self.longitude.value
+        if ra is not None and dec is not None and epoch is not None and time is None:
             pass
+
         elif ra is None and dec is None and time is not None:
-            t = Time(time, format='jd', location=(self.longitude.degrees(),
-                                                  self.latitude.degrees()))
-            ra = self.longitude.value - t.sidereal_time('apparent').radian
+            #NB if phasing to a time, epoch does not need to be None, but it is ignored
+            obs.date, obs.epoch = self.juldate2ephem(time), self.juldate2ephem(time)
+            ra = self.longitude.value - obs.sidereal_time()
             dec = self.latitude.value
-        # calculate ra/dec from time
+            epoch = time
+
         else:
-            raise ValueError('Need to define either ra/dec or time ' +
+            raise ValueError('Need to define either ra/dec/epoch or time ' +
                              '(but not both).')
 
-        self.phase_center_ra.value = ra
-        self.phase_center_dec.value = dec
+        precess_pos = ephem.FixedBody(ra=ra,dec=dec,epoch=epoch)
 
-        for ind, lst in enumerate(self.lst_array.value):
-            m = a.coord.eq2top_m(lst - ra, dec)
+        #calculate RA/DEC in J2000 and write to object
+        obs.date, obs.epoch = ephem.J2000, ephem.J2000
+        precess_pos.compute(obs)
+        self.phase_center_ra.value = precess_pos.ra 
+        self.phase_center_dec.value = precess_pos.dec
+
+        for ind, jd in enumerate(self.time_array.value):
+            #calculate ra/dec of phase center in current epoch
+            obs.date, obs.epoch = self.juldate2ephem(jd), self.juldate2ephem(jd)
+            precess_pos.compute(obs)
+            ra,dec = precess_pos.ra, precess_pos.dec
+            m = a.coord.eq2top_m(self.lst_array.value[ind] - ra, dec)
             uvw0 = self.uvw_array.value[:, ind]
             uvw = np.dot(m, uvw0).transpose()
             self.uvw_array.value[:, ind] = uvw
             phs = np.exp(-1j * 2 * np.pi * uvw[2])
             self.data_array.value[ind] *= phs
+
+        del(obs)
         return True
 
     def check(self):
@@ -1409,8 +1434,8 @@ class UVData:
             self.antenna_names.value = self.antenna_indices.value.astype(str).tolist()
             # form up a grid which indexes time and baselines along the 'long'
             # axis of the visdata array
-            # TODO this requires that every baseline shows up at every time,
-            #   which need not be true
+            # TODO this makes a file where every baseline shows up at every time,
+            # which need not be true
             t_grid = []
             ant_i_grid = []
             ant_j_grid = []
