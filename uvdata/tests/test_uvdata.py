@@ -6,16 +6,6 @@ import shutil
 from uvdata.uv import UVData
 import numpy as np
 
-suppress_readMiriad = False  # Manually prevent TestReadMiriad from running
-suppress_readFHD = False  # Manually prevent TestReadFHD unittest from running
-# Next check that fhd data exists
-fhd_prefix = '../data/fhd_vis_data/1061316296_'
-testfile_suffix = ['flags.sav', 'vis_XX.sav', 'params.sav', 'vis_YY.sav',
-                   'vis_model_XX.sav', 'vis_model_XX.sav', 'settings.txt']
-for s in ['flags.sav', 'vis_XX.sav', 'params.sav', 'vis_YY.sav', 'settings.txt']:
-    if not os.path.isfile(fhd_prefix + s):
-        suppress_readFHD = True
-
 
 class TestUVDataInit(unittest.TestCase):
     def setUp(self):
@@ -177,7 +167,6 @@ class TestWriteUVFits(unittest.TestCase):
         del(uv_out)
 
 
-@unittest.skipIf(suppress_readFHD, "Skipping because slow or because files not present")
 class TestReadFHD(unittest.TestCase):
     def setUp(self):
         self.test_file_directory = '../data/test/'
@@ -234,7 +223,6 @@ class TestReadFHD(unittest.TestCase):
         del(uvfits_uv)
 
 
-@unittest.skipIf(suppress_readMiriad, "Not supported yet")
 class TestReadMiriad(unittest.TestCase):
     def setUp(self):
         self.datafile = '../data/zen.2456865.60537.xy.uvcRREAA'
