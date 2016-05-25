@@ -496,9 +496,13 @@ class UVData:
         # loop through all required properties, make sure that they are filled
         for p in self.required_property_iter():
             prop = getattr(self, p)
+            # Check required property exists
             if prop.value is None:
                 raise ValueError('Required UVProperty ' + p +
                                  ' has not been set.')
+            # TODO Check required property is valid size and type
+            # TODO Check required property has reasonable value(s)
+
         return True
 
     def write(self, filename):
