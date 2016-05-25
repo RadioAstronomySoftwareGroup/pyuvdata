@@ -9,6 +9,9 @@ from itertools import islice
 import aipy as a
 import os
 import ephem
+from astropy.utils import iers
+
+iers_a = iers.IERS_A.open('../data/finals.all')
 
 
 class UVProperty:
@@ -457,6 +460,7 @@ class UVData:
                 curtime = jd
                 t = Time(jd, format='jd', location=(self.longitude.degrees(),
                                                     self.latitude.degrees()))
+                t.delta_ut1_utc = iers_a.ut1_utc(t)
             lsts.append(t.sidereal_time('apparent').radian)
         self.lst_array.value = np.array(lsts)
         return True
