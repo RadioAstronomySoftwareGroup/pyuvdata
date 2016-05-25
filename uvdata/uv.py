@@ -461,7 +461,7 @@ class UVData:
         self.lst_array.value = np.array(lsts)
         return True
 
-    def juldate2ephem(num):
+    def juldate2ephem(self,num):
         """Convert Julian date to ephem date, measured from noon, Dec. 31, 1899."""
         return ephem.date(num - 2415020.)
 
@@ -485,7 +485,7 @@ class UVData:
 
         elif ra is None and dec is None and time is not None:
             #NB if phasing to a time, epoch does not need to be None, but it is ignored
-            obs.date, obs.epoch = juldate2ephem(time), juldate2ephem(time)
+            obs.date, obs.epoch = self.juldate2ephem(time), self.juldate2ephem(time)
             ra = self.longitude.value - obs.sidereal_time()
             dec = self.latitude.value
             epoch = time
@@ -504,7 +504,7 @@ class UVData:
 
         for ind, jd in enumerate(self.time_array.value):
             #calculate ra/dec of phase center in current epoch
-            obs.date, obs.epoch = juldate2ephem(jd), juldate2ephem(jd)
+            obs.date, obs.epoch = self.juldate2ephem(jd), self.juldate2ephem(jd)
             precess_pos.compute(obs)
             ra,dec = precess_pos.ra, precess_pos.dec
             m = a.coord.eq2top_m(self.lst_array.value[ind] - ra, dec)
