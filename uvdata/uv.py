@@ -558,7 +558,6 @@ class UVData:
 
             # TODO Check required property is valid size and type
             # Check required property size
-            print p
             esize = prop.expected_size(self)
             if esize is None:
                 raise ValueError('Required UVProperty ' + p +
