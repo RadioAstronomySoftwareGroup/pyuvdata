@@ -13,7 +13,7 @@ import ephem
 
 class UVProperty:
     def __init__(self, required=True, value=None, spoof_val=None,
-                 form=1, description=''):
+                 form=(), description=''):
         self.required = required
         # cannot set a spoof_val for required properties
         if not self.required:
@@ -148,7 +148,7 @@ class UVData:
         desc = ('number of data points averaged into each data element, '
                 'type = int, same shape as data_array')
         self.nsample_array = UVProperty(description=desc,
-                                    form=('Nblts', 'Nspws', 'Nfreqs', 'Npols'))
+                                        form=('Nblts', 'Nspws', 'Nfreqs', 'Npols'))
 
         self.flag_array = UVProperty(description='boolean flag, True is '
                                      'flagged, same shape as data_array.',
@@ -162,7 +162,7 @@ class UVData:
 
         desc = ('Projected baseline vectors relative to phase center, ' +
                 '(3,Nblts), units meters')
-        self.uvw_array = UVProperty(description=desc, form=(3,'Nblts'))
+        self.uvw_array = UVProperty(description=desc, form=(3, 'Nblts'))
 
         self.time_array = UVProperty(description='array of times, center '
                                      'of integration, dimension (Nblts), '
@@ -491,13 +491,13 @@ class UVData:
         self.lst_array.value = np.array(lsts)
         return True
 
-    def juldate2ephem(self,num):
+    def juldate2ephem(self, num):
         """Convert Julian date to ephem date, measured from noon, Dec. 31, 1899."""
         return ephem.date(num - 2415020.)
 
     def phase(self, ra=None, dec=None, epoch=ephem.J2000, time=None):
         # phase drift scan data to a single ra/dec at the set epoch
-        # or time in jd (i.e. ra/dec of zenith at that time in current epoch). 
+        # or time in jd (i.e. ra/dec of zenith at that time in current epoch).
         # ra/dec should be in radians.
         # epoch should be an ephem date, measured from noon Dec. 31, 1899.
         # will not phase already phased data.
@@ -507,14 +507,14 @@ class UVData:
                              'drift scanning data.')
 
         obs = ephem.Observer()
-        #obs inits with default values for parameters -- be sure to replace them
+        # obs inits with default values for parameters -- be sure to replace them
         obs.lat = self.latitude.value
         obs.lon = self.longitude.value
         if ra is not None and dec is not None and epoch is not None and time is None:
             pass
 
         elif ra is None and dec is None and time is not None:
-            #NB if phasing to a time, epoch does not need to be None, but it is ignored
+            # NB if phasing to a time, epoch does not need to be None, but it is ignored
             obs.date, obs.epoch = self.juldate2ephem(time), self.juldate2ephem(time)
             ra = self.longitude.value - obs.sidereal_time()
             dec = self.latitude.value
@@ -524,19 +524,19 @@ class UVData:
             raise ValueError('Need to define either ra/dec/epoch or time ' +
                              '(but not both).')
 
-        precess_pos = ephem.FixedBody(ra=ra,dec=dec,epoch=epoch)
+        precess_pos = ephem.FixedBody(ra=ra, dec=dec, epoch=epoch)
 
-        #calculate RA/DEC in J2000 and write to object
+        # calculate RA/DEC in J2000 and write to object
         obs.date, obs.epoch = ephem.J2000, ephem.J2000
         precess_pos.compute(obs)
-        self.phase_center_ra.value = precess_pos.ra 
+        self.phase_center_ra.value = precess_pos.ra
         self.phase_center_dec.value = precess_pos.dec
 
         for ind, jd in enumerate(self.time_array.value):
-            #calculate ra/dec of phase center in current epoch
+            # calculate ra/dec of phase center in current epoch
             obs.date, obs.epoch = self.juldate2ephem(jd), self.juldate2ephem(jd)
             precess_pos.compute(obs)
-            ra,dec = precess_pos.ra, precess_pos.dec
+            ra, dec = precess_pos.ra, precess_pos.dec
             m = a.coord.eq2top_m(self.lst_array.value[ind] - ra, dec)
             uvw0 = self.uvw_array.value[:, ind]
             uvw = np.dot(m, uvw0).transpose()
@@ -565,15 +565,14 @@ class UVData:
                                  ' expected size is not defined.')
             elif esize == 'str':
                 # Check that it's a string
-                if not isinstance(prop.value,str):
+                if not isinstance(prop.value, str):
                     raise ValueError('UVProperty ' + p + 'expected to be '
                                      'string, but is not')
-            elif esize == 1:
-                # Check for single number
-                pass
             else:
-                # check size/length of array
-                pass
+                # Check the size of the property value. Note that np.shape
+                # returns an empty tuple for single numbers. esize should do the same.
+                if not np.shape(prop.value) == esize:
+                    raise ValueError('UVProperty ' + p + 'is not expected size.')
 
             # TODO Check required property has reasonable value(s)
 
