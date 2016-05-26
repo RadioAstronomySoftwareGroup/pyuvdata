@@ -272,7 +272,7 @@ class TestReadFHD(unittest.TestCase):
 
         fhd_uv.write(op.join(self.test_file_directory,
                              'outtest_FHD_1061316296.uvfits'),
-                             spoof_nonessential=True)
+                     spoof_nonessential=True)
 
         uvfits_uv.read(op.join(self.test_file_directory,
                                'outtest_FHD_1061316296.uvfits'), 'uvfits')
@@ -296,7 +296,7 @@ class TestReadFHD(unittest.TestCase):
 
         fhd_uv.write(op.join(self.test_file_directory,
                              'outtest_FHD_1061316296_model.uvfits'),
-                             spoof_nonessential=True)
+                     spoof_nonessential=True)
 
         uvfits_uv.read(op.join(self.test_file_directory,
                        'outtest_FHD_1061316296_model.uvfits'), 'uvfits')

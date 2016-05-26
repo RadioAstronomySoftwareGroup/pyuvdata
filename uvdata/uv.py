@@ -10,8 +10,11 @@ import aipy as a
 import os
 import ephem
 from astropy.utils import iers
+import uvdata
 
-iers_a = iers.IERS_A.open('../data/finals.all')
+data_path = op.join(uvdata.__path__[0], 'data')
+
+iers_a = iers.IERS_A.open(op.join(data_path, 'finals.all'))
 
 
 class UVProperty:
@@ -495,7 +498,7 @@ class UVData:
                                                  np.sin(gps_theta)**3,
                                                  gps_p - e_squared * gps_a *
                                                  np.cos(gps_theta)**3)
-            # todo these should probably always overwrite
+
             if self.longitude.value is None:
                 self.longitude.value = np.arctan2(self.y_telescope.value,
                                                   self.x_telescope.value)
@@ -570,7 +573,7 @@ class UVData:
         elif ra is None and dec is None and time is not None:
             # NB if phasing to a time, epoch does not need to be None, but it is ignored
             obs.date, obs.epoch = self.juldate2ephem(time), self.juldate2ephem(time)
-            #TODO switch this back to using astropy time for lst and use IERS_A table to fix
+
             ra = self.longitude.value - obs.sidereal_time()
             dec = self.latitude.value
             epoch = time
@@ -580,9 +583,9 @@ class UVData:
                              '(but not both).')
 
         precess_pos = ephem.FixedBody()
-        precess_pos._ra=ra
-        precess_pos._dec=dec
-        precess_pos._epoch=epoch
+        precess_pos._ra = ra
+        precess_pos._dec = dec
+        precess_pos._epoch = epoch
 
         zen_pos = ephem.FixedBody()
         zen_pos._ra = self.lst_array.value[0]
@@ -599,15 +602,15 @@ class UVData:
             # calculate ra/dec of phase center in current epoch
             obs.date, obs.epoch = self.juldate2ephem(jd), self.juldate2ephem(jd)
             precess_pos.compute(obs)
-            ra,dec = precess_pos.ra, precess_pos.dec
+            ra, dec = precess_pos.ra, precess_pos.dec
             zen_pos.compute(obs)
             m0 = a.coord.top2eq_m(0., zen_pos.dec)
             m1 = a.coord.eq2top_m(self.lst_array.value[ind] - ra, dec)
-            m = np.dot(m1,m0)
+            m = np.dot(m1, m0)
             uvw0 = self.uvw_array.value[:, ind]
             uvw = np.dot(m, uvw0)
             self.uvw_array.value[:, ind] = uvw
-            w_lambda = uvw[2]/const.c.to('m/s').value*self.freq_array.value
+            w_lambda = uvw[2] / const.c.to('m/s').value * self.freq_array.value
             phs = np.exp(-1j * 2 * np.pi * w_lambda)
             phs.shape += (1,)
             self.data_array.value[ind] *= phs
@@ -700,7 +703,6 @@ class UVData:
         F = fits.open(filename)
         D = F[0]  # assumes the visibilities are in the primary hdu
         hdunames = self._indexhdus(F)  # find the rest of the tables
-        # check that we have a single source file!! (TODO)
 
         # astropy.io fits reader scales date according to relevant PZER0 (?)
         time0_array = D.data['DATE']
@@ -822,7 +824,6 @@ class UVData:
                 raise ValueError('integration time not specified and only '
                                  'one time present')
 
-        # TODO iterate over the spw axis, for now we just have one spw
         self.freq_array.value.shape = (1,) + self.freq_array.value.shape
 
         self.polarization_array.value = np.int32(self._gethduaxis(D, 3))
@@ -854,7 +855,6 @@ class UVData:
             self.extra_keywords.value[key] = D.header[key]
 
         # READ the antenna table
-        # TODO FINISH & test
         ant_hdu = F[hdunames['AIPS AN']]
 
         # stuff in columns
@@ -953,7 +953,6 @@ class UVData:
                                          'spoof this attribute.'
                                          .format(attribute=attribute_key))
 
-        # TODO document the uvfits weights convention on wiki
         weights_array = self.nsample_array.value * \
             np.where(self.flag_array.value, -1, 1)
         data_array = self.data_array.value[:, np.newaxis, np.newaxis, :, :, :,
@@ -1584,7 +1583,7 @@ class UVData:
                     # because there are uvws/ra/dec for each pol, and one pol may not
                     # have that visibility, we collapse along the polarization
                     # axis but avoid any missing visbilities
-                    uvw = d[0]*const.c.to('m/ns').value
+                    uvw = d[0] * const.c.to('m/ns').value
                     uvw.shape = (1, 3)
                     self.uvw_array.value[:, blt_index] = uvw
                     ra_list[blt_index] = d[7]
