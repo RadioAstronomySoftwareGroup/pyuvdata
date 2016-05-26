@@ -653,6 +653,7 @@ class UVData:
 
     def write(self, filename, spoof_nonessential=False, force_phase=False):
         self.check()
+        status = False
         # filename ending in .uvfits gets written as a uvfits
         if filename.endswith('.uvfits'):
             status = self.write_uvfits(filename, spoof_nonessential=spoof_nonessential, force_phase=force_phase)

@@ -145,6 +145,7 @@ class TestReadUVFits(unittest.TestCase):
     def test_ReadNRAO(self):
         testfile = '../data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
         UV = UVData()
+        self.assertRaises(ValueError, UV.read, testfile, 'vufits')  # Wrong filetype
         test = UV.read(testfile, 'uvfits')
         self.assertTrue(test)
         del(UV)
