@@ -5,6 +5,7 @@ import os.path as op
 import shutil
 from uvdata.uv import UVData
 import numpy as np
+import copy
 
 
 class TestUVDataInit(unittest.TestCase):
@@ -82,23 +83,62 @@ class TestUVDataInit(unittest.TestCase):
 class TestUVmethods(unittest.TestCase):
     def setUp(self):
         self.uv_object = UVData()
-        self.uv_object.Nants = 128
+        self.uv_object.Nants_telescope.value = 128
+        self.testfile = '../data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
 
     def tearDown(self):
         del(self.uv_object)
 
-    def test_ij2bl(self):
+    def test_bl2ij(self):
         self.assertEqual(self.uv_object.baseline_to_antnums(67585),
                          (0, 0))
-        # self.Nants = 2049
-        # self.assertRaises(StandardError,self.uv_object.bl_to_ij,67585)
-        # self.Nants = 128
+        Nants = self.uv_object.Nants_telescope.value
+        self.uv_object.Nants_telescope.value = 2049
+        self.assertRaises(StandardError, self.uv_object.baseline_to_antnums, 67585)
+        self.uv_object.Nants_telescope.value = Nants  # reset
 
-    def test_bl2ij(self):
+    def test_ij2bl(self):
         self.assertEqual(self.uv_object.antnums_to_baseline(0, 0),
                          67585)
         self.assertEqual(self.uv_object.antnums_to_baseline(257, 256),
                          592130)
+        # Check attempt256
+        self.assertEqual(self.uv_object.antnums_to_baseline(0, 0, attempt256=True),
+                         257)
+        self.assertEqual(self.uv_object.antnums_to_baseline(257, 256,
+                         attempt256=True), 592130)
+        Nants = self.uv_object.Nants_telescope.value
+        self.uv_object.Nants_telescope.value = 2049
+        self.assertRaises(StandardError, self.uv_object.antnums_to_baseline, 0, 0)
+        self.uv_object.Nants_telescope.value = Nants  # reset
+
+    def test_data_equality(self):
+        try:
+            self.uv_object.check()
+        except ValueError:
+            self.uv_object.read_uvfits(self.testfile)
+        self.assertEqual(self.uv_object, self.uv_object)
+        self.uv_object2 = copy.deepcopy(self.uv_object)
+        self.uv_object2.data_array.value[0, 0, 0, 0] += 1  # Force data to be not equal
+        self.assertNotEqual(self.uv_object, self.uv_object2)
+        # check class equality test
+        self.assertNotEqual(self.uv_object, self.uv_object.data_array)
+
+    def test_setXYZ_from_LatLon(self):
+        self.uv_object.latitude.set_degrees(-26.7)
+        self.uv_object.longitude.set_degrees(116.7)
+        self.uv_object.altitude.value = None
+        # Test that exception is raised.
+        self.assertRaises(ValueError, self.uv_object.setXYZ_from_LatLon)
+        self.uv_object.altitude.value = 377.8
+        status = self.uv_object.setXYZ_from_LatLon()
+        # Got reference by forcing http://www.oc.nps.edu/oc2902w/coord/llhxyz.htm
+        # to give additional precision.
+        ref_xyz = (-2562123.42683, 5094215.40141, -2848728.58869)
+        out_xyz = (self.uv_object.x_telescope.value, self.uv_object.y_telescope.value,
+                   self.uv_object.z_telescope.value)
+        print out_xyz
+        self.assertTrue(np.allclose(ref_xyz, out_xyz, rtol=0, atol=1e-3))
 
 
 class TestReadUVFits(unittest.TestCase):
@@ -239,8 +279,9 @@ class TestReadMiriad(unittest.TestCase):
         # Test loop with writing/reading uvfits
         uvfits_testfile = op.join(self.test_file_directory,
                                   'outtest_miriad.uvfits')
-        self.miriad_uv.write_uvfits(uvfits_testfile, spoof_nonessential=True,
-                                    force_phase=True)
+        # Simultaneously test the general write function for case of uvfits
+        self.miriad_uv.write(uvfits_testfile, spoof_nonessential=True,
+                             force_phase=True)
         self.uvfits_uv.read_uvfits(uvfits_testfile)
 
         self.assertEqual(self.miriad_uv, self.uvfits_uv)
