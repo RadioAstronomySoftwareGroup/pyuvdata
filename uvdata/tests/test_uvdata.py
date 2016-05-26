@@ -84,6 +84,7 @@ class TestUVmethods(unittest.TestCase):
     def setUp(self):
         self.uv_object = UVData()
         self.uv_object.Nants = 128
+        self.testfile = '../data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
 
     def tearDown(self):
         del(self.uv_object)
@@ -102,11 +103,27 @@ class TestUVmethods(unittest.TestCase):
                          592130)
 
     def test_data_inequality(self):
-        testfile = '../data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
-        self.uv_object.read_uvfits(testfile)
+        try:
+            self.uv_object.check()
+        except ValueError:
+            print 'reading file'
+            self.uv_object.read_uvfits(self.testfile)
         self.uv_object2 = copy.deepcopy(self.uv_object)
         self.uv_object2.data_array.value[0, 0, 0, 0] += 1  # Force data to be not equal
         self.assertNotEqual(self.uv_object, self.uv_object2)
+
+    def test_setXYZ_from_LatLon(self):
+        self.uv_object.latitude.set_degrees(-26.7)
+        self.uv_object.longitude.set_degrees(116.7)
+        self.uv_object.altitude.value = 377.8
+        status = self.uv_object.setXYZ_from_LatLon()
+        # Got reference by forcing http://www.oc.nps.edu/oc2902w/coord/llhxyz.htm
+        # to give additional precision.
+        ref_xyz = (-2562123.42683, 5094215.40141, -2848728.58869)
+        out_xyz = (self.uv_object.x_telescope.value, self.uv_object.y_telescope.value,
+                   self.uv_object.z_telescope.value)
+        print out_xyz
+        self.assertTrue(np.allclose(ref_xyz, out_xyz, rtol=0, atol=1e-3))
 
 
 class TestReadUVFits(unittest.TestCase):
