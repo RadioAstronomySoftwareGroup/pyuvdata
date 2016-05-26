@@ -1449,7 +1449,6 @@ class UVData:
                               'phase_center_epoch': 'epoch',
                               'antenna_positions': 'antpos',  # take deltas
                               }
-        # TODO: actually get header items into object
         for item in miriad_header_data:
             if isinstance(uv[miriad_header_data[item]], str):
                 header_value = uv[miriad_header_data[item]].replace('\x00', '')
@@ -1457,7 +1456,6 @@ class UVData:
                 header_value = uv[miriad_header_data[item]]
             getattr(self, item).value = header_value
 
-        # TODO actually try to read altitudes
         if self.telescope_name.value.startswith('PAPER') and \
                 self.altitude.value is None:
             print "WARNING: Altitude not found for telescope PAPER. "
@@ -1524,8 +1522,6 @@ class UVData:
             self.antenna_names.value = self.antenna_indices.value.astype(str).tolist()
             # form up a grid which indexes time and baselines along the 'long'
             # axis of the visdata array
-            # TODO this makes a file where every baseline shows up at every time,
-            # which need not be true
             t_grid = []
             ant_i_grid = []
             ant_j_grid = []
