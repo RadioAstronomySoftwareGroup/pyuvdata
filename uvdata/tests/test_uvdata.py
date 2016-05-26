@@ -170,6 +170,11 @@ class TestUVmethods(unittest.TestCase):
         self.uv_object.antenna_names.value = [1] * self.uv_object.antenna_names.expected_size(self.uv_object)[0]
         self.assertRaises(ValueError, self.uv_object.check)
         self.uv_object.antenna_names.value = antenna_names  # reset
+        # Sanity check
+        uvws = self.uv_object.uvw_array.value
+        self.uv_object.uvw_array.value = 1e-4 * np.ones_like(self.uv_object.uvw_array.value)
+        self.assertRaises(ValueError, self.uv_object.check)
+        self.uv_object.uvw_array.value = uvws
         self.assertTrue(self.uv_object.check())
 
 
