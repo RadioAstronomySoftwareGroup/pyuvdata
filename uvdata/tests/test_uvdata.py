@@ -137,7 +137,6 @@ class TestUVmethods(unittest.TestCase):
         ref_xyz = (-2562123.42683, 5094215.40141, -2848728.58869)
         out_xyz = (self.uv_object.x_telescope.value, self.uv_object.y_telescope.value,
                    self.uv_object.z_telescope.value)
-        print out_xyz
         self.assertTrue(np.allclose(ref_xyz, out_xyz, rtol=0, atol=1e-3))
 
     def test_check(self):
