@@ -332,5 +332,8 @@ class TestReadMiriad(unittest.TestCase):
 
         self.assertEqual(self.miriad_uv, self.uvfits_uv)
 
+        # Test exception
+        self.assertRaises(IOError, self.miriad_uv.read, 'foo', 'miriad')
+
 if __name__ == '__main__':
     unittest.main()
