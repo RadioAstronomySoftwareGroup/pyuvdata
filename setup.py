@@ -11,7 +11,7 @@ setup_args = {
     'package_dir': {'uvdata': 'uvdata'},
     'packages': ['uvdata'],
     'scripts': glob.glob('scripts/*'),
-    'version': __version__
+    'version': __version__,
     'package_data': {'uvdata': [op.join('data', '*')]}
 }
 
