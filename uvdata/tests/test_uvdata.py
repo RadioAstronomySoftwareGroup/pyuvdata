@@ -275,9 +275,15 @@ class TestReadFHD(unittest.TestCase):
                              spoof_nonessential=True)
 
         uvfits_uv.read(op.join(self.test_file_directory,
-                               'outtest_FHD_1061316296.uvfits'),'uvfits')
+                               'outtest_FHD_1061316296.uvfits'), 'uvfits')
 
         self.assertEqual(fhd_uv, uvfits_uv)
+
+        # Try various cases of incomplete file lists
+        self.assertRaises(StandardError, fhd_uv.read, self.testfiles[1:], 'fhd')
+        subfiles = [item for sublist in [self.testfiles[0:2], self.testfiles[3:]] for item in sublist]
+        self.assertRaises(StandardError, fhd_uv.read, subfiles, 'fhd')
+        # self.assertRaises(StandardError, fhd_uv.read, self.testfiles[:-1], 'fhd')
 
         del(fhd_uv)
         del(uvfits_uv)
