@@ -280,10 +280,12 @@ class TestReadFHD(unittest.TestCase):
         self.assertEqual(fhd_uv, uvfits_uv)
 
         # Try various cases of incomplete file lists
-        self.assertRaises(StandardError, fhd_uv.read, self.testfiles[1:], 'fhd')
+        self.assertRaises(StandardError, fhd_uv.read, self.testfiles[1:], 'fhd')  # Missing flags
         subfiles = [item for sublist in [self.testfiles[0:2], self.testfiles[3:]] for item in sublist]
-        self.assertRaises(StandardError, fhd_uv.read, subfiles, 'fhd')
-        # self.assertRaises(StandardError, fhd_uv.read, self.testfiles[:-1], 'fhd')
+        self.assertRaises(StandardError, fhd_uv.read, subfiles, 'fhd')  # Missing params
+        self.assertRaises(StandardError, fhd_uv.read, ['foo'], 'fhd')  # No data files
+        self.assertTrue(fhd_uv.read(self.testfiles[:-1], 'fhd'))  # missing settings
+        self.assertEqual(fhd_uv.history.value, '')  # Check empty history with no settings
 
         del(fhd_uv)
         del(uvfits_uv)
