@@ -570,6 +570,7 @@ class UVData:
         elif ra is None and dec is None and time is not None:
             # NB if phasing to a time, epoch does not need to be None, but it is ignored
             obs.date, obs.epoch = self.juldate2ephem(time), self.juldate2ephem(time)
+            #TODO switch this back to using astropy time for lst and use IERS_A table to fix
             ra = self.longitude.value - obs.sidereal_time()
             dec = self.latitude.value
             epoch = time
@@ -578,7 +579,15 @@ class UVData:
             raise ValueError('Need to define either ra/dec/epoch or time ' +
                              '(but not both).')
 
-        precess_pos = ephem.FixedBody(ra=ra, dec=dec, epoch=epoch)
+        precess_pos = ephem.FixedBody()
+        precess_pos._ra=ra
+        precess_pos._dec=dec
+        precess_pos._epoch=epoch
+
+        zen_pos = ephem.FixedBody()
+        zen_pos._ra = self.lst_array.value[0]
+        zen_pos._dec = self.latitude.value
+        zen_pos._epoch = self.juldate2ephem(self.time_array.value[0])
 
         # calculate RA/DEC in J2000 and write to object
         obs.date, obs.epoch = ephem.J2000, ephem.J2000
@@ -590,12 +599,17 @@ class UVData:
             # calculate ra/dec of phase center in current epoch
             obs.date, obs.epoch = self.juldate2ephem(jd), self.juldate2ephem(jd)
             precess_pos.compute(obs)
-            ra, dec = precess_pos.ra, precess_pos.dec
-            m = a.coord.eq2top_m(self.lst_array.value[ind] - ra, dec)
+            ra,dec = precess_pos.ra, precess_pos.dec
+            zen_pos.compute(obs)
+            m0 = a.coord.top2eq_m(0., zen_pos.dec)
+            m1 = a.coord.eq2top_m(self.lst_array.value[ind] - ra, dec)
+            m = np.dot(m1,m0)
             uvw0 = self.uvw_array.value[:, ind]
-            uvw = np.dot(m, uvw0).transpose()
+            uvw = np.dot(m, uvw0)
             self.uvw_array.value[:, ind] = uvw
-            phs = np.exp(-1j * 2 * np.pi * uvw[2])
+            w_lambda = uvw[2]/const.c.to('m/s').value*self.freq_array.value
+            phs = np.exp(-1j * 2 * np.pi * w_lambda)
+            phs.shape += (1,)
             self.data_array.value[ind] *= phs
 
         del(obs)
@@ -1443,6 +1457,7 @@ class UVData:
                 header_value = uv[miriad_header_data[item]]
             getattr(self, item).value = header_value
 
+        # TODO actually try to read altitudes
         if self.telescope_name.value.startswith('PAPER') and \
                 self.altitude.value is None:
             print "WARNING: Altitude not found for telescope PAPER. "
@@ -1573,7 +1588,7 @@ class UVData:
                     # because there are uvws/ra/dec for each pol, and one pol may not
                     # have that visibility, we collapse along the polarization
                     # axis but avoid any missing visbilities
-                    uvw = d[0]
+                    uvw = d[0]*const.c.to('m/ns').value
                     uvw.shape = (1, 3)
                     self.uvw_array.value[:, blt_index] = uvw
                     ra_list[blt_index] = d[7]
