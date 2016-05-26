@@ -1,5 +1,6 @@
 from distutils.core import setup
 import glob
+import os.path as op
 
 __version__ = '0.0.1'
 
@@ -11,6 +12,7 @@ setup_args = {
     'packages': ['uvdata'],
     'scripts': glob.glob('scripts/*'),
     'version': __version__
+    'package_data': {'uvdata': [op.join('data', '*')]}
 }
 
 if __name__ == '__main__':
