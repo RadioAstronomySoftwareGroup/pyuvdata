@@ -140,6 +140,39 @@ class TestUVmethods(unittest.TestCase):
         print out_xyz
         self.assertTrue(np.allclose(ref_xyz, out_xyz, rtol=0, atol=1e-3))
 
+    def test_check(self):
+        try:
+            self.uv_object.check()
+        except ValueError:
+            self.uv_object.read(self.testfile, 'uvfits')
+        self.assertTrue(self.uv_object.check())
+        # Now break it in every way I can.
+        # String cases
+        units = self.uv_object.vis_units.value
+        self.uv_object.vis_units.value = 1
+        self.assertRaises(ValueError, self.uv_object.check)
+        self.uv_object.vis_units.value = units  # reset it
+        # Single value cases
+        Nblts = self.uv_object.Nblts.value
+        self.uv_object.Nblts.value = 4
+        self.assertRaises(ValueError, self.uv_object.check)
+        self.uv_object.Nblts.value = np.float(Nblts)
+        self.assertRaises(ValueError, self.uv_object.check)
+        self.uv_object.Nblts.value = Nblts  # reset
+        # Array cases
+        data = self.uv_object.data_array.value
+        self.uv_object.data_array.value = np.array([4, 5, 6], dtype=np.complex64)
+        self.assertRaises(ValueError, self.uv_object.check)
+        self.uv_object.data_array.value = np.real(data)
+        self.assertRaises(ValueError, self.uv_object.check)
+        self.uv_object.data_array.value = data  # reset
+        # List cases
+        antenna_names = self.uv_object.antenna_names.value
+        self.uv_object.antenna_names.value = [1] * self.uv_object.antenna_names.expected_size(self.uv_object)[0]
+        self.assertRaises(ValueError, self.uv_object.check)
+        self.uv_object.antenna_names.value = antenna_names  # reset
+        self.assertTrue(self.uv_object.check())
+
 
 class TestReadUVFits(unittest.TestCase):
     def test_ReadNRAO(self):
