@@ -10,9 +10,9 @@ import aipy as a
 import os
 import ephem
 from astropy.utils import iers
-import hera_mc
+import uvdata
 
-data_path = op.join(hera_mc.__path__[0], 'data')
+data_path = op.join(uvdata.__path__[0], 'data')
 
 iers_a = iers.IERS_A.open(op.join(data_path, 'finals.all'))
 
