@@ -655,9 +655,10 @@ class UVData:
         self.check()
         # filename ending in .uvfits gets written as a uvfits
         if filename.endswith('.uvfits'):
-            self.write_uvfits(filename, spoof_nonessential=spoof_nonessential, force_phase=force_phase)
+            status = self.write_uvfits(filename, spoof_nonessential=spoof_nonessential, force_phase=force_phase)
+        return status
 
-    def read(self, filename, file_type):
+    def read(self, filename, file_type, use_model=False):
         """
         General read function which calls file_type specific read functions
         Inputs:
@@ -670,13 +671,14 @@ class UVData:
         if file_type not in self.supported_file_types:
             raise ValueError('file_type must be one of ' +
                              ' '.join(self.supported_file_types))
-        if file_type == '.uvfits':
-            self.read_uvfits(self, filename)
+        if file_type == 'uvfits':
+            status = self.read_uvfits(filename)
         elif file_type == 'miriad':
-            self.read_miriad(self, filename)
+            status = self.read_miriad(filename)
         elif file_type == 'fhd':
-            self.read_fhd(self, filename)
+            status = self.read_fhd(filename, use_model=use_model)
         self.check()
+        return status
 
     def read_uvfits(self, filename):
 

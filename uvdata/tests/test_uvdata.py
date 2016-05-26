@@ -116,7 +116,7 @@ class TestUVmethods(unittest.TestCase):
         try:
             self.uv_object.check()
         except ValueError:
-            self.uv_object.read_uvfits(self.testfile)
+            self.uv_object.read(self.testfile, 'uvfits')
         self.assertEqual(self.uv_object, self.uv_object)
         self.uv_object2 = copy.deepcopy(self.uv_object)
         self.uv_object2.data_array.value[0, 0, 0, 0] += 1  # Force data to be not equal
@@ -145,7 +145,7 @@ class TestReadUVFits(unittest.TestCase):
     def test_ReadNRAO(self):
         testfile = '../data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
         UV = UVData()
-        test = UV.read_uvfits(testfile)
+        test = UV.read(testfile, 'uvfits')
         self.assertTrue(test)
         del(UV)
     #
@@ -170,12 +170,12 @@ class TestWriteUVFits(unittest.TestCase):
         testfile = '../data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
         # testfile = '../data/PRISim_output_manual_conversion.uvfits'
         UV = UVData()
-        UV.read_uvfits(testfile)
+        UV.read(testfile, 'uvfits')
 
         write_file = op.join(self.test_file_directory,
                              'outtest_casa_1src_1spw.uvfits')
 
-        test = UV.write_uvfits(write_file)
+        test = UV.write(write_file)
         self.assertTrue(test)
         del(UV)
 
@@ -185,7 +185,7 @@ class TestWriteUVFits(unittest.TestCase):
         testfile = '../data/day2_TDEM0003_10s_norx_1scan.uvfits'
         self.assertTrue(os.path.exists(testfile))
         UV = UVData()
-        self.assertRaises(ValueError, UV.read_uvfits, testfile)
+        self.assertRaises(ValueError, UV.read, testfile, 'uvfits')
         del(UV)
 
     def test_readwriteread(self):
@@ -193,14 +193,14 @@ class TestWriteUVFits(unittest.TestCase):
         uv_in = UVData()
         uv_out = UVData()
 
-        uv_in.read_uvfits(testfile)
+        uv_in.read(testfile, 'uvfits')
 
         write_file = op.join(self.test_file_directory,
                              'outtest_casa.uvfits')
 
-        uv_in.write_uvfits(write_file)
+        uv_in.write(write_file)
 
-        uv_out.read_uvfits(write_file)
+        uv_out.read(write_file, 'uvfits')
 
         self.assertEqual(uv_in, uv_out)
         del(uv_in)
@@ -230,14 +230,14 @@ class TestReadFHD(unittest.TestCase):
 
         fhd_uv = UVData()
         uvfits_uv = UVData()
-        fhd_uv.read_fhd(self.testfiles)
+        fhd_uv.read(self.testfiles, 'fhd')
 
-        fhd_uv.write_uvfits(op.join(self.test_file_directory,
-                                    'outtest_FHD_1061316296.uvfits'),
-                            spoof_nonessential=True)
+        fhd_uv.write(op.join(self.test_file_directory,
+                             'outtest_FHD_1061316296.uvfits'),
+                             spoof_nonessential=True)
 
-        uvfits_uv.read_uvfits(op.join(self.test_file_directory,
-                              'outtest_FHD_1061316296.uvfits'))
+        uvfits_uv.read(op.join(self.test_file_directory,
+                               'outtest_FHD_1061316296.uvfits'),'uvfits')
 
         self.assertEqual(fhd_uv, uvfits_uv)
 
@@ -248,14 +248,14 @@ class TestReadFHD(unittest.TestCase):
 
         fhd_uv = UVData()
         uvfits_uv = UVData()
-        fhd_uv.read_fhd(self.testfiles, use_model=True)
+        fhd_uv.read(self.testfiles, 'fhd', use_model=True)
 
-        fhd_uv.write_uvfits(op.join(self.test_file_directory,
-                                    'outtest_FHD_1061316296_model.uvfits'),
-                            spoof_nonessential=True)
+        fhd_uv.write(op.join(self.test_file_directory,
+                             'outtest_FHD_1061316296_model.uvfits'),
+                             spoof_nonessential=True)
 
-        uvfits_uv.read_uvfits(op.join(self.test_file_directory,
-                              'outtest_FHD_1061316296_model.uvfits'))
+        uvfits_uv.read(op.join(self.test_file_directory,
+                       'outtest_FHD_1061316296_model.uvfits'), 'uvfits')
 
         self.assertEqual(fhd_uv, uvfits_uv)
 
@@ -273,7 +273,7 @@ class TestReadMiriad(unittest.TestCase):
         self.test_file_directory = '../data/test/'
 
     def test_ReadMiriad(self):
-        status = self.miriad_uv.read_miriad(self.datafile)
+        status = self.miriad_uv.read(self.datafile, 'miriad')
         self.assertTrue(status)
 
         # Test loop with writing/reading uvfits
@@ -282,7 +282,7 @@ class TestReadMiriad(unittest.TestCase):
         # Simultaneously test the general write function for case of uvfits
         self.miriad_uv.write(uvfits_testfile, spoof_nonessential=True,
                              force_phase=True)
-        self.uvfits_uv.read_uvfits(uvfits_testfile)
+        self.uvfits_uv.read(uvfits_testfile, 'uvfits')
 
         self.assertEqual(self.miriad_uv, self.uvfits_uv)
 
