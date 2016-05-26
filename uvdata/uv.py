@@ -423,9 +423,9 @@ class UVData:
         return not self.__eq__(other)
 
     def baseline_to_antnums(self, baseline):
-        if self.Nants_telescope > 2048:
+        if self.Nants_telescope.value > 2048:
             raise StandardError('error Nants={Nants}>2048 not '
-                                'supported'.format(Nants=self.Nants_telescope))
+                                'supported'.format(Nants=self.Nants_telescope.value))
         if np.min(baseline) > 2**16:
             i = (baseline - 2**16) % 2048 - 1
             j = (baseline - 2**16 - (i + 1)) / 2048 - 1
@@ -439,7 +439,7 @@ class UVData:
         # 256 standard used in many uvfits files
         # (will use 2048 standard if there are more than 256 antennas)
         i, j = np.int64((i, j))
-        if self.Nants_telescope > 2048:
+        if self.Nants_telescope.value > 2048:
             raise StandardError('cannot convert i,j to a baseline index '
                                 'with Nants={Nants}>2048.'
                                 .format(Nants=self.Nants_telescope))
