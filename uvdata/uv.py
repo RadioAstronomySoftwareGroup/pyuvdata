@@ -651,11 +651,11 @@ class UVData:
 
         return True
 
-    def write(self, filename):
+    def write(self, filename, spoof_nonessential=False, force_phase=False):
         self.check()
         # filename ending in .uvfits gets written as a uvfits
         if filename.endswith('.uvfits'):
-            self.write_uvfits(self, filename)
+            self.write_uvfits(filename, spoof_nonessential=spoof_nonessential, force_phase=force_phase)
 
     def read(self, filename, file_type):
         """
