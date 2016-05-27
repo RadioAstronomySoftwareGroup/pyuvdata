@@ -28,7 +28,10 @@ class UVProperty:
         self.value = value
         self.description = description
         self.form = form
-        self.expected_type = expected_type
+        if self.form == 'str':
+            self.expected_type = str
+        else:
+            self.expected_type = expected_type
         self.sane_vals = sane_vals
         if np.size(tols) == 1:
             # Only one tolerance given, assume absolute, set relative to zero
