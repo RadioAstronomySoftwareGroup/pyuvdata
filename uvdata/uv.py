@@ -585,15 +585,11 @@ class UVData:
             raise ValueError('Need to define either ra/dec/epoch or time ' +
                              '(but not both).')
 
+        #create a pyephem object for the phasing position
         precess_pos = ephem.FixedBody()
         precess_pos._ra = ra
         precess_pos._dec = dec
         precess_pos._epoch = epoch
-
-        zen_pos = ephem.FixedBody()
-        zen_pos._ra = self.lst_array.value[0]
-        zen_pos._dec = self.latitude.value
-        zen_pos._epoch = self.juldate2ephem(self.time_array.value[0])
 
         # calculate RA/DEC in J2000 and write to object
         obs.date, obs.epoch = ephem.J2000, ephem.J2000
@@ -605,14 +601,19 @@ class UVData:
             # calculate ra/dec of phase center in current epoch
             obs.date, obs.epoch = self.juldate2ephem(jd), self.juldate2ephem(jd)
             precess_pos.compute(obs)
-            ra, dec = precess_pos.ra, precess_pos.dec
-            zen_pos.compute(obs)
-            m0 = a.coord.top2eq_m(0., zen_pos.dec)
+            ra,dec = precess_pos.ra, precess_pos.dec
+
+            #generate rotation matrices
+            m0 = a.coord.top2eq_m(0., self.latitude.value)
             m1 = a.coord.eq2top_m(self.lst_array.value[ind] - ra, dec)
-            m = np.dot(m1, m0)
-            uvw0 = self.uvw_array.value[:, ind]
-            uvw = np.dot(m, uvw0)
+            
+            #rotate and write uvws
+            uvw = self.uvw_array.value[:, ind]
+            uvw = np.dot(m0, uvw)
+            uvw = np.dot(m1, uvw)
             self.uvw_array.value[:, ind] = uvw
+
+            #calculate data and apply phasor
             w_lambda = uvw[2] / const.c.to('m/s').value * self.freq_array.value
             phs = np.exp(-1j * 2 * np.pi * w_lambda)
             phs.shape += (1,)
