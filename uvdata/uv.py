@@ -1391,7 +1391,7 @@ class UVData:
                     history_list.append(newline)
             self.history.value = '    '.join(history_list)
         else:
-            history = ''
+            self.history.value = ''
 
         self.phase_center_epoch.value = astrometry['EQUINOX'][0]
 
