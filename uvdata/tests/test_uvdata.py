@@ -318,10 +318,10 @@ class TestReadMiriad(unittest.TestCase):
         self.uvfits_uv = UVData()
         self.test_file_directory = '../data/test/'
 
-    def test_ReadMiriad(self):
         status = self.miriad_uv.read(self.datafile, 'miriad')
         self.assertTrue(status)
 
+    def test_ReadMiriad(self):
         # Test loop with writing/reading uvfits
         uvfits_testfile = op.join(self.test_file_directory,
                                   'outtest_miriad.uvfits')
@@ -334,6 +334,12 @@ class TestReadMiriad(unittest.TestCase):
 
         # Test exception
         self.assertRaises(IOError, self.miriad_uv.read, 'foo', 'miriad')
+
+    def test_ReadMiriadPhase(self):
+        status = self.miriad_uv.read(self.datafile, 'miriad')
+        self.assertTrue(status)
+       
+        self.miriad_uv.phase(ra=0,dec=-0.5,epoch=ephem.J2000)
 
 if __name__ == '__main__':
     unittest.main()
