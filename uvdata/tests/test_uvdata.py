@@ -6,6 +6,7 @@ import shutil
 from uvdata.uv import UVData
 import numpy as np
 import copy
+import ephem
 
 
 class TestUVDataInit(unittest.TestCase):
@@ -323,6 +324,18 @@ class TestReadMiriad(unittest.TestCase):
             raise(IOError, 'miriad file not found')
         self.miriad_uv = UVData()
         self.uvfits_uv = UVData()
+
+        self.unphasedfile = '../data/new.uvA'
+        if not os.path.exists(self.unphasedfile):
+            raise(IOError, 'miriad file not found')
+        self.unphased = UVData()
+
+
+        self.phasedfile = '../data/new.uvA.phased'
+        if not os.path.exists(self.phasedfile):
+            raise(IOError, 'miriad file not found')
+        self.phased = UVData()
+
         self.test_file_directory = '../data/test/'
 
         status = self.miriad_uv.read(self.datafile, 'miriad')
@@ -343,10 +356,13 @@ class TestReadMiriad(unittest.TestCase):
         self.assertRaises(IOError, self.miriad_uv.read, 'foo', 'miriad')
 
     def test_ReadMiriadPhase(self):
-        status = self.miriad_uv.read(self.datafile, 'miriad')
-        self.assertTrue(status)
-       
-        self.miriad_uv.phase(ra=0,dec=-0.5,epoch=ephem.J2000)
+        #test that phasing makes files equal
+        self.unphased.read(self.unphasedfile,'miriad')
+        self.unphased.phase(ra=0.0,dec=0.0,epoch=ephem.J2000)
+
+        self.phased.read(self.phasedfile,'miriad')
+
+        self.assertEqual(self.unphased,self.phased)
 
 if __name__ == '__main__':
     unittest.main()

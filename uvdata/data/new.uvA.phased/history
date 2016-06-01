@@ -1,0 +1,9 @@
+MDLVIS: created file.
+MDLVIS: /opt/local/Library/Frameworks/Python.framework/Versions/2.7/bin/mdlvis.py -C psa898_v003 -a all -s pic,for,her,hyd,cen --nchan=128 --sfreq=.1 --sdf=0.00078125 --inttime=2 --startjd=2456200.5 --endjd=2456200.50069 --pol=xx
+PULL ANTPOLS:/Users/jpober/src/capo/scripts/pull_antpols.py new.uv -a 0_1
+PUTHD: Miriad PutHd: Version 1.0 13-dec-96
+PUTHD: Executed on: 2016-06-01T16:18:51.0
+PUTHD: Command line inputs follow:
+PUTHD:   in=new.uvA/telescop
+PUTHD:   value=PAPER
+PUTHD:   type=ascii
