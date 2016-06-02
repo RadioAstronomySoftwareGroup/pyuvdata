@@ -1466,8 +1466,11 @@ class UVData:
             self.altitude.value = 1100.
 
         self.history.value = uv['history']
-        self.antenna_positions.value = \
-            self.antenna_positions.value.reshape(3, self.Nants_telescope.value).T
+        try:
+            self.antenna_positions.value = \
+                self.antenna_positions.value.reshape(3, self.Nants_telescope.value).T
+        except(ValueError):
+            self.antenna_positions.value = None
         self.channel_width.value *= 1e9  # change from GHz to Hz
 
         # read through the file and get the data
