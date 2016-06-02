@@ -7,6 +7,34 @@ from uvdata.uv import UVData
 import numpy as np
 import copy
 import ephem
+import warnings
+import collections
+
+
+def get_iterable(x):
+    if isinstance(x, collections.Iterable):
+        return x
+    else:
+        return (x,)
+
+
+def checkWarnings(obj, func, func_args=[], func_kwargs={}, warning_cat=UserWarning,
+                  nwarnings=1, warning_message=None):
+    warning_cat = get_iterable(warning_cat)
+    warning_message = get_iterable(warning_message)
+
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")  # All warnings triggered
+        status = func(*func_args, **func_kwargs)  # Run function
+        # Verify
+        if len(w) != nwarnings:
+            obj.assertTrue(False)  # Fail the test, move on
+        else:
+            for i, w_i in enumerate(w):
+                obj.assertIs(w_i.category, warning_cat[i])
+                if warning_message[i] is not None:
+                    obj.assertIn(warning_message[i], str(w_i.message))
+    return status
 
 
 class TestUVDataInit(unittest.TestCase):
@@ -106,8 +134,9 @@ class TestUVmethods(unittest.TestCase):
         # Check attempt256
         self.assertEqual(self.uv_object.antnums_to_baseline(0, 0, attempt256=True),
                          257)
-        self.assertEqual(self.uv_object.antnums_to_baseline(257, 256,
-                         attempt256=True), 592130)
+        self.assertEqual(checkWarnings(self, self.uv_object.antnums_to_baseline,
+                                       [257, 256], {'attempt256': True},
+                                       warning_message='found > 256 antennas'), 592130)
         Nants = self.uv_object.Nants_telescope.value
         self.uv_object.Nants_telescope.value = 2049
         self.assertRaises(StandardError, self.uv_object.antnums_to_baseline, 0, 0)
@@ -294,7 +323,7 @@ class TestReadFHD(unittest.TestCase):
         self.assertRaises(StandardError, fhd_uv.read, ['foo'], 'fhd')  # No data files
         del(fhd_uv)
         fhd_uv = UVData()
-        self.assertTrue(fhd_uv.read(self.testfiles[:-1], 'fhd'))  # missing settings
+        self.assertTrue(checkWarnings(self, fhd_uv.read, [self.testfiles[:-1], 'fhd'], warning_message='No settings'))
         self.assertEqual(fhd_uv.history.value, '')  # Check empty history with no settings
         del(fhd_uv)
 
