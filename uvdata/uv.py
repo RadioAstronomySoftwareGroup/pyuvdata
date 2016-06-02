@@ -603,7 +603,7 @@ class UVData:
             precess_pos.compute(obs)
             ra, dec = precess_pos.ra, precess_pos.dec
 
-            #generate rotation matrices
+            # generate rotation matrices
             m0 = a.coord.top2eq_m(self.lst_array.value[ind] - obs.sidereal_time(), self.latitude.value)
             m1 = a.coord.eq2top_m(self.lst_array.value[ind] - ra, dec)
 

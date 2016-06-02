@@ -165,7 +165,8 @@ class TestUVmethods(unittest.TestCase):
         # Got reference by forcing http://www.oc.nps.edu/oc2902w/coord/llhxyz.htm
         # to give additional precision.
         ref_xyz = (-2562123.42683, 5094215.40141, -2848728.58869)
-        out_xyz = (self.uv_object.x_telescope.value, self.uv_object.y_telescope.value,
+        out_xyz = (self.uv_object.x_telescope.value,
+                   self.uv_object.y_telescope.value,
                    self.uv_object.z_telescope.value)
         self.assertTrue(np.allclose(ref_xyz, out_xyz, rtol=0, atol=1e-3))
 
@@ -323,7 +324,8 @@ class TestReadFHD(unittest.TestCase):
         self.assertRaises(StandardError, fhd_uv.read, ['foo'], 'fhd')  # No data files
         del(fhd_uv)
         fhd_uv = UVData()
-        self.assertTrue(checkWarnings(self, fhd_uv.read, [self.testfiles[:-1], 'fhd'], warning_message='No settings'))
+        self.assertTrue(checkWarnings(self, fhd_uv.read, [self.testfiles[:-1], 'fhd'],
+                                      warning_message='No settings'))
         self.assertEqual(fhd_uv.history.value, '')  # Check empty history with no settings
         del(fhd_uv)
 
@@ -359,7 +361,6 @@ class TestReadMiriad(unittest.TestCase):
             raise(IOError, 'miriad file not found')
         self.unphased = UVData()
 
-
         self.phasedfile = '../data/new.uvA.phased'
         if not os.path.exists(self.phasedfile):
             raise(IOError, 'miriad file not found')
@@ -385,13 +386,13 @@ class TestReadMiriad(unittest.TestCase):
         self.assertRaises(IOError, self.miriad_uv.read, 'foo', 'miriad')
 
     def test_ReadMiriadPhase(self):
-        #test that phasing makes files equal
-        self.unphased.read(self.unphasedfile,'miriad')
-        self.unphased.phase(ra=0.0,dec=0.0,epoch=ephem.J2000)
+        # test that phasing makes files equal
+        self.unphased.read(self.unphasedfile, 'miriad')
+        self.unphased.phase(ra=0.0, dec=0.0, epoch=ephem.J2000)
 
-        self.phased.read(self.phasedfile,'miriad')
+        self.phased.read(self.phasedfile, 'miriad')
 
-        self.assertEqual(self.unphased,self.phased)
+        self.assertEqual(self.unphased, self.phased)
 
 if __name__ == '__main__':
     unittest.main()
