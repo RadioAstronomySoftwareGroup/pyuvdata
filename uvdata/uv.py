@@ -351,10 +351,10 @@ class UVData:
         # merge with other sources of data.
         self.GST0 = UVProperty(required=False,
                                description='Greenwich sidereal time at '
-                               'midnight on reference date', spoof_val=0)
+                               'midnight on reference date', spoof_val=0.0)
         self.RDate = UVProperty(required=False,
                                 description='date for which the GST0 or '
-                                'whatever... applies', spoof_val=0)
+                                'whatever... applies', spoof_val=0.0)
         self.earth_omega = UVProperty(required=False,
                                       description='earth\'s rotation rate '
                                       'in degrees per day', spoof_val=360.985)
