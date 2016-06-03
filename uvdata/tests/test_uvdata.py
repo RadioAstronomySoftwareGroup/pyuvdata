@@ -170,6 +170,23 @@ class TestUVmethods(unittest.TestCase):
                    self.uv_object.z_telescope.value)
         self.assertTrue(np.allclose(ref_xyz, out_xyz, rtol=0, atol=1e-3))
 
+    def test_set_LatLonAlt_from_XYZ(self):
+        self.uv_object.xyz_telescope_frame.value = 'ITRF'
+        self.uv_object.x_telescope.value = -2562123.42683
+        self.uv_object.y_telescope.value = 5094215.40141
+        self.uv_object.z_telescope.value = None
+        # Test that exception is raised.
+        self.assertRaises(ValueError, self.uv_object.set_LatLonAlt_from_XYZ)
+        self.uv_object.z_telescope.value = -2848728.58869
+        status = self.uv_object.set_LatLonAlt_from_XYZ()
+        # Got reference by forcing http://www.oc.nps.edu/oc2902w/coord/llhxyz.htm
+        # to give additional precision.
+        ref_latlonalt = (-26.7,116.7,377.8)
+        out_latlonalt = (self.uv_object.latitude.degrees(),
+                         self.uv_object.longitude.degrees(),
+                         self.uv_object.altitude.value)
+        self.assertTrue(np.allclose(ref_latlonalt, out_latlonalt, rtol=0, atol=1e-3))
+
     def test_check(self):
         try:
             self.uv_object.check()
