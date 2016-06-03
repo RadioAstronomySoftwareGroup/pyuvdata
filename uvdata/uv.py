@@ -982,6 +982,27 @@ class UVData:
         int_time_array = (np.zeros_like((time_array), dtype=np.float) +
                           self.integration_time.value)
 
+        baselines_use = self.antnums_to_baseline(self.ant_1_array.value,
+                                                 self.ant_2_array.value,
+                                                 attempt256=True)
+        # Set up dictionaries for populating hdu
+        # Note that uvfits antenna arrays are 1-indexed so we add 1
+        # to our 0-indexed arrays
+        group_parameter_dict = {'UU      ': uvw_array_sec[0],
+                                'VV      ': uvw_array_sec[1],
+                                'WW      ': uvw_array_sec[2],
+                                'DATE    ': time_array,
+                                'BASELINE': baselines_use,
+                                'ANTENNA1': self.ant_1_array.value + 1,
+                                'ANTENNA2': self.ant_2_array.value + 1,
+                                'INTTIM': int_time_array}
+        pscal_dict = {'UU      ': 1.0, 'VV      ': 1.0, 'WW      ': 1.0,
+                      'DATE    ': 1.0, 'BASELINE': 1.0, 'ANTENNA1': 1.0,
+                      'ANTENNA2': 1.0, 'INTTIM': 1.0}
+        pzero_dict = {'UU      ': 0.0, 'VV      ': 0.0, 'WW      ': 0.0,
+                      'DATE    ': tzero, 'BASELINE': 0.0, 'ANTENNA1': 0.0,
+                      'ANTENNA2': 0.0, 'INTTIM': 0.0}
+
         # list contains arrays of [u,v,w,date,baseline];
         # each array has shape (Nblts)
         if (np.max(self.ant_1_array.value) < 255 and
@@ -989,70 +1010,22 @@ class UVData:
             # if the number of antennas is less than 256 then include both the
             # baseline array and the antenna arrays in the group parameters.
             # Otherwise just use the antenna arrays
-            baselines_use = self.antnums_to_baseline(self.ant_1_array.value,
-                                                     self.ant_2_array.value,
-                                                     attempt256=True)
-
-            # Note that uvfits antenna arrays are 1-indexed so we add 1
-            # to our 0-indexed arrays
-            group_parameter_list = [uvw_array_sec[0], uvw_array_sec[1],
-                                    uvw_array_sec[2],
-                                    time_array,
-                                    baselines_use,
-                                    self.ant_1_array.value + 1,
-                                    self.ant_2_array.value + 1,
-                                    int_time_array]
-
-            hdu = fits.GroupData(uvfits_array_data,
-                                 parnames=['UU      ', 'VV      ', 'WW      ',
-                                           'DATE    ', 'BASELINE',
-                                           'ANTENNA1', 'ANTENNA2', 'INTTIM'],
-                                 pardata=group_parameter_list, bitpix=-32)
+            parnames_use = ['UU      ', 'VV      ', 'WW      ',
+                            'DATE    ', 'BASELINE', 'ANTENNA1',
+                            'ANTENNA2', 'INTTIM']
         else:
-            # Note that uvfits antenna arrays are 1-indexed so we add 1
-            # to our 0-indexed arrays
-            group_parameter_list = [uvw_array_sec[0], uvw_array_sec[1],
-                                    uvw_array_sec[2],
-                                    time_array,
-                                    self.ant_1_array.value + 1,
-                                    self.ant_2_array.value + 1,
-                                    int_time_array]
+            parnames_use = ['UU      ', 'VV      ', 'WW      ',
+                            'DATE    ', 'ANTENNA1', 'ANTENNA2', 'INTTIM']
 
-            hdu = fits.GroupData(uvfits_array_data,
-                                 parnames=['UU      ', 'VV      ', 'WW      ',
-                                           'DATE    ',
-                                           'ANTENNA1', 'ANTENNA2', 'INTTIM'],
-                                 pardata=group_parameter_list, bitpix=-32)
-
+        group_parameter_list = [group_parameter_dict[parname] for
+                                parname in parnames_use]
+        hdu = fits.GroupData(uvfits_array_data, parnames=parnames_use,
+                             pardata=group_parameter_list, bitpix=-32)
         hdu = fits.GroupsHDU(hdu)
 
-        # hdu.header['PTYPE1  '] = 'UU      '
-        hdu.header['PSCAL1  '] = 1.0
-        hdu.header['PZERO1  '] = 0.0
-
-        # hdu.header['PTYPE2  '] = 'VV      '
-        hdu.header['PSCAL2  '] = 1.0
-        hdu.header['PZERO2  '] = 0.0
-
-        # hdu.header['PTYPE3  '] = 'WW      '
-        hdu.header['PSCAL3  '] = 1.0
-        hdu.header['PZERO3  '] = 0.0
-
-        # hdu.header['PTYPE4  '] = 'DATE    '
-        hdu.header['PSCAL4  '] = 1.0
-        hdu.header['PZERO4  '] = tzero
-
-        # hdu.header['PTYPE5  '] = 'DATE    '
-        hdu.header['PSCAL5  '] = 1.0
-        hdu.header['PZERO5  '] = 0.0
-
-        # hdu.header['PTYPE6  '] = 'BASELINE'
-        hdu.header['PSCAL6  '] = 1.0
-        hdu.header['PZERO6  '] = 0.0
-
-        # hdu.header['PTYPE7  '] = 'INTTIM'
-        hdu.header['PSCAL7  '] = 1.0
-        hdu.header['PZERO7  '] = 0.0
+        for i, key in enumerate(parnames_use):
+            hdu.header['PSCAL' + str(i + 1) + '  '] = pscal_dict[key]
+            hdu.header['PZERO' + str(i + 1) + '  '] = pzero_dict[key]
 
         # ISO string of first time in self.time_array
         hdu.header['DATE-OBS'] = Time(self.time_array.value[0], scale='utc',
