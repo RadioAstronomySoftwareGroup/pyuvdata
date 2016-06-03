@@ -480,11 +480,11 @@ class UVData:
                 continue
         return tablenames
 
-    def set_LatLonAlt(self):
+    def set_LatLonAlt_from_XYZ(self,overwrite=False):
         if (self.xyz_telescope_frame.value == "ITRF" and
-                self.x_telescope.value is not None and
-                self.y_telescope.value is not None and
-                self.z_telescope.value is not None):
+                not None in (self.x_telescope.value,
+                             self.y_telescope.value,
+                             self.z_telescope.value)):
             # see wikipedia geodetic_datum and Datum transformations of
             # GPS positions PDF in docs folder
             gps_b = 6356752.31424518
@@ -495,48 +495,51 @@ class UVData:
                             self.y_telescope.value**2)
             gps_theta = np.arctan2(self.z_telescope.value * gps_a,
                                    gps_p * gps_b)
-            if self.latitude.value is None:
+            if self.latitude.value is None or overwrite:
                 self.latitude.value = np.arctan2(self.z_telescope.value +
                                                  e_prime_squared * gps_b *
                                                  np.sin(gps_theta)**3,
                                                  gps_p - e_squared * gps_a *
                                                  np.cos(gps_theta)**3)
 
-            if self.longitude.value is None:
+            if self.longitude.value is None or overwrite:
                 self.longitude.value = np.arctan2(self.y_telescope.value,
                                                   self.x_telescope.value)
             gps_N = gps_a / np.sqrt(1 - e_squared *
                                     np.sin(self.latitude.value)**2)
-            if self.altitude.value is None:
+            if self.altitude.value is None or overwrite:
                 self.altitude.value = ((gps_p / np.cos(self.latitude.value)) -
                                        gps_N)
         else:
-            raise ValueError('No x/y/z_telescope value assigned and '
+            raise ValueError('No x, y or z_telescope value assigned or '
                              'xyz_telescope_frame is not "ITRF"')
 
-    def setXYZ_from_LatLon(self):
+    def set_XYZ_from_LatLonAlt(self,overwrite=False):
         # check that the coordinates we need actually exist
-        if None in (self.latitude.value, self.longitude.value,
-                    self.altitude.value):
-            raise ValueError('lat/lon or altitude not found')
-        # see wikipedia geodetic_datum and Datum transformations of
-        # GPS positions PDF in docs folder
-        gps_b = 6356752.31424518
-        gps_a = 6378137
-        e_squared = 6.69437999014e-3
-        e_prime_squared = 6.73949674228e-3
-        gps_N = gps_a / np.sqrt(1 - e_squared *
-                                np.sin(self.latitude.value)**2)
-        self.x_telescope.value = ((gps_N + self.altitude.value) *
-                                  np.cos(self.latitude.value) *
-                                  np.cos(self.longitude.value))
-        self.y_telescope.value = ((gps_N + self.altitude.value) *
-                                  np.cos(self.latitude.value) *
-                                  np.sin(self.longitude.value))
-        self.z_telescope.value = ((gps_b**2 / gps_a**2 * gps_N +
-                                   self.altitude.value) *
-                                  np.sin(self.latitude.value))
-        return True
+        if not None in (self.latitude.value, self.longitude.value,
+                        self.altitude.value):
+            # see wikipedia geodetic_datum and Datum transformations of
+            # GPS positions PDF in docs folder
+            gps_b = 6356752.31424518
+            gps_a = 6378137
+            e_squared = 6.69437999014e-3
+            e_prime_squared = 6.73949674228e-3
+            gps_N = gps_a / np.sqrt(1 - e_squared *
+                                    np.sin(self.latitude.value)**2)
+            if self.x_telescope.value is None or overwrite:
+                self.x_telescope.value = ((gps_N + self.altitude.value) *
+                                          np.cos(self.latitude.value) *
+                                          np.cos(self.longitude.value))
+            if self.y_telescope.value is None or overwrite:
+                self.y_telescope.value = ((gps_N + self.altitude.value) *
+                                          np.cos(self.latitude.value) *
+                                          np.sin(self.longitude.value))
+            if self.z_telescope.value is None or overwrite:
+                self.z_telescope.value = ((gps_b**2 / gps_a**2 * gps_N +
+                                          self.altitude.value) *
+                                          np.sin(self.latitude.value))
+        else:
+            raise ValueError('lat, lon or altitude not found')
 
     def set_lsts_from_time_array(self):
         lsts = []
@@ -917,7 +920,7 @@ class UVData:
 
         if (self.latitude.value is None or self.longitude.value is None or
                 self.altitude.value is None):
-            self.set_LatLonAlt()
+            self.set_LatLonAlt_from_XYZ()
 
         self.set_lsts_from_time_array()
 

@@ -154,14 +154,14 @@ class TestUVmethods(unittest.TestCase):
         # check class equality test
         self.assertNotEqual(self.uv_object, self.uv_object.data_array)
 
-    def test_setXYZ_from_LatLon(self):
+    def test_set_XYZ_from_LatLonAlt(self):
         self.uv_object.latitude.set_degrees(-26.7)
         self.uv_object.longitude.set_degrees(116.7)
         self.uv_object.altitude.value = None
         # Test that exception is raised.
-        self.assertRaises(ValueError, self.uv_object.setXYZ_from_LatLon)
+        self.assertRaises(ValueError, self.uv_object.set_XYZ_from_LatLonAlt)
         self.uv_object.altitude.value = 377.8
-        status = self.uv_object.setXYZ_from_LatLon()
+        status = self.uv_object.set_XYZ_from_LatLonAlt()
         # Got reference by forcing http://www.oc.nps.edu/oc2902w/coord/llhxyz.htm
         # to give additional precision.
         ref_xyz = (-2562123.42683, 5094215.40141, -2848728.58869)
