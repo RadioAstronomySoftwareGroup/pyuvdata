@@ -480,11 +480,11 @@ class UVData:
                 continue
         return tablenames
 
-    def set_LatLonAlt_from_XYZ(self,overwrite=False):
+    def set_LatLonAlt_from_XYZ(self, overwrite=False):
         if (self.xyz_telescope_frame.value == "ITRF" and
-                not None in (self.x_telescope.value,
-                             self.y_telescope.value,
-                             self.z_telescope.value)):
+            None not in (self.x_telescope.value,
+                         self.y_telescope.value,
+                         self.z_telescope.value)):
             # see wikipedia geodetic_datum and Datum transformations of
             # GPS positions PDF in docs folder
             gps_b = 6356752.31424518
@@ -514,9 +514,9 @@ class UVData:
             raise ValueError('No x, y or z_telescope value assigned or '
                              'xyz_telescope_frame is not "ITRF"')
 
-    def set_XYZ_from_LatLonAlt(self,overwrite=False):
+    def set_XYZ_from_LatLonAlt(self, overwrite=False):
         # check that the coordinates we need actually exist
-        if not None in (self.latitude.value, self.longitude.value,
+        if None not in (self.latitude.value, self.longitude.value,
                         self.altitude.value):
             # see wikipedia geodetic_datum and Datum transformations of
             # GPS positions PDF in docs folder

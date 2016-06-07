@@ -181,7 +181,7 @@ class TestUVmethods(unittest.TestCase):
         status = self.uv_object.set_LatLonAlt_from_XYZ()
         # Got reference by forcing http://www.oc.nps.edu/oc2902w/coord/llhxyz.htm
         # to give additional precision.
-        ref_latlonalt = (-26.7,116.7,377.8)
+        ref_latlonalt = (-26.7, 116.7, 377.8)
         out_latlonalt = (self.uv_object.latitude.degrees(),
                          self.uv_object.longitude.degrees(),
                          self.uv_object.altitude.value)
@@ -242,8 +242,6 @@ class TestReadUVFits(unittest.TestCase):
 
         del(UV)
 
-
-    #
     # def test_readRTS(self):
     #     testfile = '../data/pumav2_SelfCal300_Peel300_01.uvfits'
     #     UV = UVData()
