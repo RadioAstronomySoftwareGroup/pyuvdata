@@ -958,7 +958,7 @@ class UVData:
                                          'for uvfits not defined. Define or '
                                          'set spoof_nonessential to True to '
                                          'spoof this attribute.'
-                                         .format(attribute=attribute_key))
+                                         .format(attribute=p))
 
         weights_array = self.nsample_array.value * \
             np.where(self.flag_array.value, -1, 1)
