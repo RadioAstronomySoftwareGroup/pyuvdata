@@ -229,11 +229,20 @@ class TestUVmethods(unittest.TestCase):
 class TestReadUVFits(unittest.TestCase):
     def test_ReadNRAO(self):
         testfile = '../data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
+        testfile_no_spw = '../data/zen.2456865.60537.xy.uvcRREAAM.uvfits'
         UV = UVData()
         self.assertRaises(ValueError, UV.read, testfile, 'vufits')  # Wrong filetype
         test = UV.read(testfile, 'uvfits')
         self.assertTrue(test)
+        test = checkWarnings(self, UV.read, [testfile_no_spw, 'uvfits'],
+                             warning_message='Required Antenna frame keyword'
+                                             'not set, since this is a PAPER'
+                                             ' file, setting to ITRF')
+        self.assertTrue(test)
+
         del(UV)
+
+
     #
     # def test_readRTS(self):
     #     testfile = '../data/pumav2_SelfCal300_Peel300_01.uvfits'

@@ -880,9 +880,14 @@ class UVData:
         except:
             cotter_version = D.header.get('COTVER', None)
             if cotter_version is None:
-                warnings.warn('Required Antenna frame keyword not set, '
-                              'setting to ????')
-                self.xyz_telescope_frame.value = '????'
+                if self.telescope_name.value == 'PAPER':
+                    warnings.warn('Required Antenna frame keyword not set, '
+                                  'since this is a PAPER file, setting to ITRF')
+                    self.xyz_telescope_frame.value = 'ITRF'
+                else:
+                    warnings.warn('Required Antenna frame keyword not set, '
+                                  'setting to ????')
+                    self.xyz_telescope_frame.value = '????'
             else:
                 warnings.warn('Required Antenna frame keyword not set, '
                               ' since this is a Cotter file, setting to ITRF')
