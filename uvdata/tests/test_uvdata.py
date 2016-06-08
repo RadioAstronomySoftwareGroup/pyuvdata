@@ -154,6 +154,20 @@ class TestUVmethods(unittest.TestCase):
         # check class equality test
         self.assertNotEqual(self.uv_object, self.uv_object.data_array)
 
+        # Check some UVProperty specific inequalities.
+        self.uv_object2.data_array.value = 1.0  # Test values not same class
+        # Note that due to peculiarity of order of operations, need to reverse arrays.
+        self.assertNotEqual(self.uv_object2.data_array, self.uv_object.data_array)
+        self.uv_object2.data_array.value = np.array([1, 2, 3])  # Test different shapes
+        self.assertNotEqual(self.uv_object.data_array, self.uv_object2.data_array)
+        self.uv_object2.Ntimes.value = 1000.0  # Test values that are not close
+        self.assertNotEqual(self.uv_object.Ntimes, self.uv_object2.Ntimes)
+        self.uv_object2.vis_units.value = 'foo'  # Test unequal strings
+        self.assertNotEqual(self.uv_object.vis_units, self.uv_object2.vis_units)
+        self.uv_object2.antenna_names.value[0] = 'Bob'  # Test unequal string in list
+        self.assertNotEqual(self.uv_object.antenna_names, self.uv_object2.antenna_names)
+
+
     def test_set_XYZ_from_LatLonAlt(self):
         self.uv_object.latitude.set_degrees(-26.7)
         self.uv_object.longitude.set_degrees(116.7)
