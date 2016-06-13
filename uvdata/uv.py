@@ -625,7 +625,7 @@ class UVData:
         del(obs)
         return True
 
-    def check(self):
+    def check(self, run_sanity_check=True):
         # loop through all required properties, make sure that they are filled
         for p in self.required_property_iter():
             prop = getattr(self, p)
@@ -670,20 +670,24 @@ class UVData:
                                              ' type. Is: ' + str(prop.value.dtype) +
                                              '. Should be: ' + str(prop.expected_type))
 
-            if not prop.sanity_check():
-                raise ValueError('UVProperty ' + p + ' has insane values.')
+            if run_sanity_check:
+                if not prop.sanity_check():
+                    raise ValueError('UVProperty ' + p + ' has insane values.')
 
         return True
 
-    def write(self, filename, spoof_nonessential=False, force_phase=False):
-        self.check()
+    def write(self, filename, spoof_nonessential=False, force_phase=False,
+              run_check=True, run_sanity_check=True):
+        if run_check:
+            self.check(run_sanity_check=run_sanity_check)
         status = False
         # filename ending in .uvfits gets written as a uvfits
         if filename.endswith('.uvfits'):
             status = self.write_uvfits(filename, spoof_nonessential=spoof_nonessential, force_phase=force_phase)
         return status
 
-    def read(self, filename, file_type, use_model=False):
+    def read(self, filename, file_type, use_model=False, run_check=True,
+             run_sanity_check=True):
         """
         General read function which calls file_type specific read functions
         Inputs:
@@ -697,15 +701,19 @@ class UVData:
             raise ValueError('file_type must be one of ' +
                              ' '.join(self.supported_file_types))
         if file_type == 'uvfits':
-            status = self.read_uvfits(filename)
+            status = self.read_uvfits(filename, run_check=run_check,
+                                      run_sanity_check=run_sanity_check)
         elif file_type == 'miriad':
-            status = self.read_miriad(filename)
+            status = self.read_miriad(filename, run_check=run_check,
+                                      run_sanity_check=run_sanity_check)
         elif file_type == 'fhd':
-            status = self.read_fhd(filename, use_model=use_model)
-        self.check()
+            status = self.read_fhd(filename, use_model=use_model, run_check=run_check,
+                                   run_sanity_check=run_sanity_check)
+        if run_check:
+            self.check(run_sanity_check=run_sanity_check)
         return status
 
-    def read_uvfits(self, filename):
+    def read_uvfits(self, filename, run_check=True, run_sanity_check=True):
 
         F = fits.open(filename)
         D = F[0]  # assumes the visibilities are in the primary hdu
@@ -930,13 +938,15 @@ class UVData:
         self.set_lsts_from_time_array()
 
         # check if object has all required uv_properties set
-        self.check()
+        if run_check:
+            self.check(run_sanity_check=run_sanity_check)
         return True
 
     def write_uvfits(self, filename, spoof_nonessential=False,
-                     force_phase=False):
+                     force_phase=False, run_check=True, run_sanity_check=True):
         # first check if object has all required uv_properties set
-        self.check()
+        if run_check:
+            self.check(run_sanity_check=run_sanity_check)
 
         if self.phase_center_ra.value is None or self.phase_center_dec.value is None:
             if force_phase:
@@ -1172,7 +1182,8 @@ class UVData:
 
         return True
 
-    def read_fhd(self, filelist, use_model=False):
+    def read_fhd(self, filelist, use_model=False, run_check=True,
+                 run_sanity_check=True):
         """
         Read in fhd visibility save files
             filelist: list
@@ -1394,7 +1405,8 @@ class UVData:
         # 'TIMESYS'
 
         # check if object has all required uv_properties set
-        self.check()
+        if run_check:
+            self.check(run_sanity_check=run_sanity_check)
         return True
 
     def miriad_pol_to_ind(self, pol):
@@ -1407,7 +1419,8 @@ class UVData:
                   "polarization_array".format(pol=pol))
         return pol_ind
 
-    def read_miriad(self, filepath, FLEXIBLE_OPTION=True):
+    def read_miriad(self, filepath, FLEXIBLE_OPTION=True, run_check=True,
+                    run_sanity_check=True):
         # map uvdata attributes to miriad data values
         # those which we can get directly from the miriad file
         # (some, like n_times, have to be calculated)
@@ -1618,5 +1631,6 @@ class UVData:
         #  then its a drift scan
 
         # check if object has all required uv_properties set
-        self.check()
+        if run_check:
+            self.check(run_sanity_check=run_sanity_check)
         return True
