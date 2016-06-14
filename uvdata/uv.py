@@ -354,7 +354,7 @@ class UVData:
                                'midnight on reference date', spoof_val=0.0)
         self.RDate = UVProperty(required=False,
                                 description='date for which the GST0 or '
-                                'whatever... applies', spoof_val=0.0)
+                                'whatever... applies', spoof_val='')
         self.earth_omega = UVProperty(required=False,
                                       description='earth\'s rotation rate '
                                       'in degrees per day', spoof_val=360.985)
