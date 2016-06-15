@@ -1468,6 +1468,7 @@ class UVData:
         self.channel_width.value *= 1e9  # change from GHz to Hz
 
         # read through the file and get the data
+        _source = uv['source'] # check source of initial visibility
         data_accumulator = {}
         for (uvw, t, (i, j)), d, f in uv.all(raw=True):
             # control for the case of only a single spw not showing up in
@@ -1487,6 +1488,12 @@ class UVData:
             zenith_ra = uv['ra']
             zenith_dec = uv['dec']
             lst = uv['lst']
+            source = uv['source']
+            if source != _source:
+                raise(ValueError, """This appears to be a multi source file, which
+                      is not supported.""")
+            else:
+                _source = source
 
             try:
                 data_accumulator[uv['pol']].append([uvw, t, i, j, d, f, cnt,
