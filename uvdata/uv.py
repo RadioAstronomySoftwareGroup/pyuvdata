@@ -744,28 +744,33 @@ class UVData(object):
             setattr(other_obj, p, param)
         return other_obj
 
-    def read_uvfits(self, filename):
+    def read_uvfits(self, filename, run_check=True, run_sanity_check=True):
         uvfits_obj = uvdata.uvfits.UVFITS()
-        ret_val = uvfits_obj.read_uvfits(filename)
+        ret_val = uvfits_obj.read_uvfits(filename, run_check=True, run_sanity_check=True)
         self.convert_from_filetype(uvfits_obj)
         return ret_val
 
     def write_uvfits(self, filename, spoof_nonessential=False,
-                     force_phase=False):
+                     force_phase=False, run_check=True, run_sanity_check=True):
         uvfits_obj = self.convert_to_filetype('uvfits')
         ret_val = uvfits_obj.write_uvfits(filename,
                                           spoof_nonessential=spoof_nonessential,
-                                          force_phase=force_phase)
+                                          force_phase=force_phase,
+                                          run_check=True, run_sanity_check=True)
         return ret_val
 
-    def read_fhd(self, filelist, use_model=False):
+    def read_fhd(self, filelist, use_model=False, run_check=True,
+                 run_sanity_check=True):
         fhd_obj = uvdata.fhd.FHD()
-        ret_val = fhd_obj.read_fhd(filelist, use_model=use_model)
+        ret_val = fhd_obj.read_fhd(filelist, use_model=use_model,
+                                   run_check=True, run_sanity_check=True)
         self.convert_from_filetype(fhd_obj)
         return ret_val
 
-    def read_miriad(self, filepath, FLEXIBLE_OPTION=True):
+    def read_miriad(self, filepath, FLEXIBLE_OPTION=True, run_check=True,
+                    run_sanity_check=True):
         miriad_obj = uvdata.miriad.Miriad()
-        ret_val = miriad_obj.read_miriad(filepath, FLEXIBLE_OPTION=FLEXIBLE_OPTION)
+        ret_val = miriad_obj.read_miriad(filepath, FLEXIBLE_OPTION=FLEXIBLE_OPTION,
+                                         run_check=True, run_sanity_check=True)
         self.convert_from_filetype(miriad_obj)
         return ret_val
