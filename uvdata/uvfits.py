@@ -321,13 +321,14 @@ class UVFITS(uvdata.uv.UVData):
                                 'BASELINE': baselines_use,
                                 'ANTENNA1': self.ant_1_array + 1,
                                 'ANTENNA2': self.ant_2_array + 1,
+                                'SUBARRAY': np.ones_like(self.ant_1_array),
                                 'INTTIM': int_time_array}
         pscal_dict = {'UU      ': 1.0, 'VV      ': 1.0, 'WW      ': 1.0,
                       'DATE    ': 1.0, 'BASELINE': 1.0, 'ANTENNA1': 1.0,
-                      'ANTENNA2': 1.0, 'INTTIM': 1.0}
+                      'ANTENNA2': 1.0, 'SUBARRAY': 1.0, 'INTTIM': 1.0}
         pzero_dict = {'UU      ': 0.0, 'VV      ': 0.0, 'WW      ': 0.0,
                       'DATE    ': tzero, 'BASELINE': 0.0, 'ANTENNA1': 0.0,
-                      'ANTENNA2': 0.0, 'INTTIM': 0.0}
+                      'ANTENNA2': 0.0, 'SUBARRAY': 0.0, 'INTTIM': 0.0}
 
         # list contains arrays of [u,v,w,date,baseline];
         # each array has shape (Nblts)
@@ -338,10 +339,10 @@ class UVFITS(uvdata.uv.UVData):
             # Otherwise just use the antenna arrays
             parnames_use = ['UU      ', 'VV      ', 'WW      ',
                             'DATE    ', 'BASELINE', 'ANTENNA1',
-                            'ANTENNA2', 'INTTIM']
+                            'ANTENNA2', 'SUBARRAY', 'INTTIM']
         else:
-            parnames_use = ['UU      ', 'VV      ', 'WW      ',
-                            'DATE    ', 'ANTENNA1', 'ANTENNA2', 'INTTIM']
+            parnames_use = ['UU      ', 'VV      ', 'WW      ', 'DATE    ',
+                            'ANTENNA1', 'ANTENNA2', 'SUBARRAY', 'INTTIM']
 
         group_parameter_list = [group_parameter_dict[parname] for
                                 parname in parnames_use]
