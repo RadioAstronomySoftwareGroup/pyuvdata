@@ -9,10 +9,10 @@ import uvdata
 class Miriad(uvdata.uv.UVData):
 
     def miriad_pol_to_ind(self, pol):
-        if self.polarization_array.value is None:
+        if self.polarization_array is None:
             raise(ValueError, "Can't index polarization {p} because "
                   "polarization_array is not set".format(p=pol))
-        pol_ind = np.argwhere(self.polarization_array.value == pol)
+        pol_ind = np.argwhere(self.polarization_array == pol)
         if len(pol_ind) != 1:
             raise(ValueError, "multiple matches for pol={pol} in "
                   "polarization_array".format(pol=pol))
@@ -49,21 +49,21 @@ class Miriad(uvdata.uv.UVData):
                 header_value = uv[miriad_header_data[item]].replace('\x00', '')
             else:
                 header_value = uv[miriad_header_data[item]]
-            getattr(self, item).value = header_value
+            setattr(self, item, header_value)
 
-        if self.telescope_name.value.startswith('PAPER') and \
-                self.altitude.value is None:
+        if self.telescope_name.startswith('PAPER') and \
+                self.altitude is None:
             print "WARNING: Altitude not found for telescope PAPER. "
             print "setting to 1100m"
-            self.altitude.value = 1100.
+            self.altitude = 1100.
 
-        self.history.value = uv['history']
+        self.history = uv['history']
         try:
-            self.antenna_positions.value = \
-                self.antenna_positions.value.reshape(3, self.Nants_telescope.value).T
+            self.antenna_positions = \
+                self.antenna_positions.reshape(3, self.Nants_telescope).T
         except(ValueError):
-            self.antenna_positions.value = None
-        self.channel_width.value *= 1e9  # change from GHz to Hz
+            self.antenna_positions = None
+        self.channel_width *= 1e9  # change from GHz to Hz
 
         # read through the file and get the data
         data_accumulator = {}
@@ -72,8 +72,8 @@ class Miriad(uvdata.uv.UVData):
             # the dimension
             if len(d.shape) == 1:
                 d.shape = (1,) + d.shape
-                self.Nspws.value = d.shape[0]
-                self.spw_array.value = np.arange(self.Nspws.value)
+                self.Nspws = d.shape[0]
+                self.spw_array = np.arange(self.Nspws)
             else:
                 raise(ValueError, """Sorry.  Files with more than one spectral
                       window (spw) are not yet supported. A great
@@ -93,10 +93,10 @@ class Miriad(uvdata.uv.UVData):
                 data_accumulator[uv['pol']] = [[uvw, t, i, j, d, f, cnt,
                                                 zenith_ra, zenith_dec]]
                 # NB: flag types in miriad are usually ints
-        self.polarization_array.value = np.sort(data_accumulator.keys())
-        if len(self.polarization_array.value) > self.Npols.value:
+        self.polarization_array = np.sort(data_accumulator.keys())
+        if len(self.polarization_array) > self.Npols:
             print "WARNING: npols={npols} but found {l} pols in data file".format(
-                npols=self.Npols.value, l=len(self.polarization_array.value))
+                npols=self.Npols, l=len(self.polarization_array))
         if FLEXIBLE_OPTION:
             # makes a data_array (and flag_array) of zeroes to be filled in by
             #   data values
@@ -115,9 +115,9 @@ class Miriad(uvdata.uv.UVData):
             ant_j_unique = list(set(
                 np.ravel([[k[3] for k in d] for d in data_accumulator.values()])))
 
-            self.Nants_data.value = max(len(ant_i_unique), len(ant_j_unique))
-            self.antenna_indices.value = np.arange(self.Nants_telescope.value)
-            self.antenna_names.value = self.antenna_indices.value.astype(str).tolist()
+            self.Nants_data = max(len(ant_i_unique), len(ant_j_unique))
+            self.antenna_indices = np.arange(self.Nants_telescope)
+            self.antenna_names = self.antenna_indices.astype(str).tolist()
             # form up a grid which indexes time and baselines along the 'long'
             # axis of the visdata array
             t_grid = []
@@ -134,39 +134,33 @@ class Miriad(uvdata.uv.UVData):
             t_grid = np.array(t_grid)
 
             # set the data sizes
-            self.Nblts.value = len(t_grid)
-            self.Ntimes.value = len(times)
-            self.time_array.value = t_grid
-            self.ant_1_array.value = ant_i_grid
-            self.ant_2_array.value = ant_j_grid
+            self.Nblts = len(t_grid)
+            self.Ntimes = len(times)
+            self.time_array = t_grid
+            self.ant_1_array = ant_i_grid
+            self.ant_2_array = ant_j_grid
 
-            self.baseline_array.value = self.antnums_to_baseline(ant_i_grid,
-                                                                 ant_j_grid)
-            self.Nbls.value = len(np.unique(self.baseline_array.value))
+            self.baseline_array = self.antnums_to_baseline(ant_i_grid,
+                                                           ant_j_grid)
+            self.Nbls = len(np.unique(self.baseline_array))
             # slot the data into a grid
-            self.data_array.value = np.zeros((self.Nblts.value,
-                                              self.Nspws.value,
-                                              self.Nfreqs.value,
-                                              self.Npols.value),
-                                             dtype=np.complex64)
-            self.flag_array.value = np.ones(self.data_array.value.shape, dtype=np.bool)
-            self.uvw_array.value = np.zeros((3, self.Nblts.value))
+            self.data_array = np.zeros((self.Nblts, self.Nspws, self.Nfreqs,
+                                        self.Npols), dtype=np.complex64)
+            self.flag_array = np.ones(self.data_array.shape, dtype=np.bool)
+            self.uvw_array = np.zeros((3, self.Nblts))
             # NOTE: Using our lst calculator, which uses astropy,
             # instead of aipy values which come from pyephem.
             # The differences are of order 5 seconds.
             self.set_lsts_from_time_array()
-            self.nsample_array.value = np.ones(self.data_array.value.shape,
-                                               dtype=np.int)
-            self.freq_array.value = (np.arange(self.Nfreqs.value) *
-                                     self.channel_width.value +
-                                     uv['sfreq'] * 1e9)
+            self.nsample_array = np.ones(self.data_array.shape, dtype=np.int)
+            self.freq_array = (np.arange(self.Nfreqs) * self.channel_width +
+                               uv['sfreq'] * 1e9)
             # Tile freq_array to dimensions (Nspws, Nfreqs).
             # Currently does not actually support Nspws>1!
-            self.freq_array.value = np.tile(self.freq_array.value,
-                                            (self.Nspws.value, 1))
+            self.freq_array = np.tile(self.freq_array, (self.Nspws, 1))
 
-            ra_list = np.zeros(self.Nblts.value)
-            dec_list = np.zeros(self.Nblts.value)
+            ra_list = np.zeros(self.Nblts)
+            dec_list = np.zeros(self.Nblts)
 
             for pol, data in data_accumulator.iteritems():
                 pol_ind = self.miriad_pol_to_ind(pol)
@@ -175,27 +169,27 @@ class Miriad(uvdata.uv.UVData):
                     blt_index = np.where(np.logical_and(np.logical_and(t == t_grid,
                                                                        ant_i == ant_i_grid),
                                                         ant_j == ant_j_grid))[0].squeeze()
-                    self.data_array.value[blt_index, :, :, pol_ind] = d[4]
-                    self.flag_array.value[blt_index, :, :, pol_ind] = d[5]
-                    self.nsample_array.value[blt_index, :, :, pol_ind] = d[6]
+                    self.data_array[blt_index, :, :, pol_ind] = d[4]
+                    self.flag_array[blt_index, :, :, pol_ind] = d[5]
+                    self.nsample_array[blt_index, :, :, pol_ind] = d[6]
 
                     # because there are uvws/ra/dec for each pol, and one pol may not
                     # have that visibility, we collapse along the polarization
                     # axis but avoid any missing visbilities
                     uvw = d[0] * const.c.to('m/ns').value
                     uvw.shape = (1, 3)
-                    self.uvw_array.value[:, blt_index] = uvw
+                    self.uvw_array[:, blt_index] = uvw
                     ra_list[blt_index] = d[7]
                     dec_list[blt_index] = d[8]
 
             # check if ra is constant throughout file; if it is,
             # file is tracking if not, file is drift scanning
             if np.isclose(np.mean(np.diff(ra_list)), 0.):
-                self.phase_center_ra.value = ra_list[0]
-                self.phase_center_dec.value = dec_list[0]
+                self.phase_center_ra = ra_list[0]
+                self.phase_center_dec = dec_list[0]
             else:
-                self.zenith_ra.value = ra_list
-                self.zenith_dec.value = dec_list
+                self.zenith_ra = ra_list
+                self.zenith_dec = dec_list
 
             # enforce drift scan/ phased convention
             # convert lat/lon to x/y/z_telescope
@@ -214,7 +208,7 @@ class Miriad(uvdata.uv.UVData):
         # pyuvdata is natively 0 indexed as is miriad
         # miriad uses the same pol2num standard as aips/casa
 
-        self.vis_units.value = 'UNCALIB'  # assume no calibration
+        self.vis_units = 'UNCALIB'  # assume no calibration
 
         # things that might not be required?
         # 'GST0'  : None,

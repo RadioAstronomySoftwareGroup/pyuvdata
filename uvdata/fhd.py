@@ -81,14 +81,14 @@ class FHD(uvdata.uv.UVData):
         for index, f in enumerate(flags_dict['flag_arr']):
             flag_data[fhd_pol_list[index]] = f
 
-        self.Ntimes.value = int(obs['N_TIME'][0])
-        self.Nbls.value = int(obs['NBASELINES'][0])
-        self.Nblts.value = data_dimensions[0]
-        self.Nfreqs.value = int(obs['N_FREQ'][0])
-        self.Npols.value = len(vis_data.keys())
-        self.Nspws.value = 1
-        self.spw_array.value = np.array([0])
-        self.vis_units.value = 'JY'
+        self.Ntimes = int(obs['N_TIME'][0])
+        self.Nbls = int(obs['NBASELINES'][0])
+        self.Nblts = data_dimensions[0]
+        self.Nfreqs = int(obs['N_FREQ'][0])
+        self.Npols = len(vis_data.keys())
+        self.Nspws = 1
+        self.spw_array = np.array([0])
+        self.vis_units = 'JY'
 
         lin_pol_order = ['xx', 'yy', 'xy', 'yx']
         linear_pol_dict = dict(zip(lin_pol_order, np.arange(5, 9) * -1))
@@ -96,30 +96,25 @@ class FHD(uvdata.uv.UVData):
         for pol in lin_pol_order:
             if pol in vis_data:
                 pol_list.append(linear_pol_dict[pol])
-        self.polarization_array.value = np.asarray(pol_list)
+        self.polarization_array = np.asarray(pol_list)
 
-        self.data_array.value = np.zeros((self.Nblts.value, self.Nspws.value,
-                                          self.Nfreqs.value, self.Npols.value),
-                                         dtype=np.complex_)
-        self.nsample_array.value = np.zeros((self.Nblts.value,
-                                             self.Nspws.value,
-                                             self.Nfreqs.value,
-                                             self.Npols.value),
-                                            dtype=np.float_)
-        self.flag_array.value = np.zeros((self.Nblts.value, self.Nspws.value,
-                                          self.Nfreqs.value, self.Npols.value),
-                                         dtype=np.bool_)
+        self.data_array = np.zeros((self.Nblts, self.Nspws, self.Nfreqs,
+                                    self.Npols), dtype=np.complex_)
+        self.nsample_array = np.zeros((self.Nblts, self.Nspws, self.Nfreqs,
+                                       self.Npols), dtype=np.float_)
+        self.flag_array = np.zeros((self.Nblts, self.Nspws, self.Nfreqs,
+                                    self.Npols), dtype=np.bool_)
         for pol, vis in vis_data.iteritems():
             pol_i = pol_list.index(linear_pol_dict[pol])
-            self.data_array.value[:, 0, :, pol_i] = vis
-            self.flag_array.value[:, 0, :, pol_i] = flag_data[pol] <= 0
-            self.nsample_array.value[:, 0, :, pol_i] = np.abs(flag_data[pol])
+            self.data_array[:, 0, :, pol_i] = vis
+            self.flag_array[:, 0, :, pol_i] = flag_data[pol] <= 0
+            self.nsample_array[:, 0, :, pol_i] = np.abs(flag_data[pol])
 
         # In FHD, uvws are in seconds not meters!
-        self.uvw_array.value = np.zeros((3, self.Nblts.value))
-        self.uvw_array.value[0, :] = params['UU'][0] * const.c.to('m/s').value
-        self.uvw_array.value[1, :] = params['VV'][0] * const.c.to('m/s').value
-        self.uvw_array.value[2, :] = params['WW'][0] * const.c.to('m/s').value
+        self.uvw_array = np.zeros((3, self.Nblts))
+        self.uvw_array[0, :] = params['UU'][0] * const.c.to('m/s').value
+        self.uvw_array[1, :] = params['VV'][0] * const.c.to('m/s').value
+        self.uvw_array[2, :] = params['WW'][0] * const.c.to('m/s').value
 
         # bl_info.JDATE (a vector of length Ntimes) is the only safe date/time
         # to use in FHD files.
@@ -130,74 +125,72 @@ class FHD(uvdata.uv.UVData):
         # We need to expand up to Nblts.
         int_times = bl_info['JDATE'][0]
         bin_offset = bl_info['BIN_OFFSET'][0]
-        self.time_array.value = np.zeros(self.Nblts.value)
-        for ii in range(0, self.Ntimes.value):
-            if ii < (self.Ntimes.value - 1):
-                self.time_array.value[bin_offset[ii]:bin_offset[ii + 1]] = int_times[ii]
+        self.time_array = np.zeros(self.Nblts)
+        for ii in range(0, self.Ntimes):
+            if ii < (self.Ntimes - 1):
+                self.time_array[bin_offset[ii]:bin_offset[ii + 1]] = int_times[ii]
             else:
-                self.time_array.value[bin_offset[ii]:] = int_times[ii]
+                self.time_array[bin_offset[ii]:] = int_times[ii]
 
         # Note that FHD antenna arrays are 1-indexed so we subtract 1
         # to get 0-indexed arrays
-        self.ant_1_array.value = bl_info['TILE_A'][0] - 1
-        self.ant_2_array.value = bl_info['TILE_B'][0] - 1
+        self.ant_1_array = bl_info['TILE_A'][0] - 1
+        self.ant_2_array = bl_info['TILE_B'][0] - 1
 
-        self.Nants_data.value = np.max([len(np.unique(self.ant_1_array.value)),
-                                        len(np.unique(self.ant_2_array.value))])
+        self.Nants_data = np.max([len(np.unique(self.ant_1_array)),
+                                  len(np.unique(self.ant_2_array))])
 
-        self.antenna_names.value = bl_info['TILE_NAMES'][0].tolist()
-        self.Nants_telescope.value = len(self.antenna_names.value)
-        self.antenna_indices.value = np.arange(self.Nants_telescope.value)
+        self.antenna_names = bl_info['TILE_NAMES'][0].tolist()
+        self.Nants_telescope = len(self.antenna_names)
+        self.antenna_indices = np.arange(self.Nants_telescope)
 
-        self.baseline_array.value = \
-            self.antnums_to_baseline(self.ant_1_array.value,
-                                     self.ant_2_array.value)
+        self.baseline_array = \
+            self.antnums_to_baseline(self.ant_1_array,
+                                     self.ant_2_array)
 
-        self.freq_array.value = np.zeros((self.Nspws.value, self.Nfreqs.value),
-                                         dtype=np.float_)
-        self.freq_array.value[0, :] = bl_info['FREQ'][0]
+        self.freq_array = np.zeros((self.Nspws, self.Nfreqs), dtype=np.float_)
+        self.freq_array[0, :] = bl_info['FREQ'][0]
 
         if not np.isclose(obs['OBSRA'][0], obs['PHASERA'][0]) or \
                 not np.isclose(obs['OBSDEC'][0], obs['PHASEDEC'][0]):
             warnings.warn('These visibilities may have been phased '
                           'improperly -- without changing the uvw locations')
 
-        self.phase_center_ra.set_degrees(float(obs['OBSRA'][0]))
-        self.phase_center_dec.set_degrees(float(obs['OBSDEC'][0]))
+        self._phase_center_ra.set_degrees(float(obs['OBSRA'][0]))
+        self._phase_center_dec.set_degrees(float(obs['OBSDEC'][0]))
 
         # this is generated in FHD by subtracting the JD of neighboring
         # integrations. This can have limited accuracy, so it can be slightly
         # off the actual value.
         # (e.g. 1.999426... rather than 2)
-        self.integration_time.value = float(obs['TIME_RES'][0])
-        self.channel_width.value = float(obs['FREQ_RES'][0])
+        self.integration_time = float(obs['TIME_RES'][0])
+        self.channel_width = float(obs['FREQ_RES'][0])
 
         # # --- observation information ---
-        self.telescope_name.value = str(obs['INSTRUMENT'][0].decode())
+        self.telescope_name = str(obs['INSTRUMENT'][0].decode())
 
         # This is a bit of a kludge because nothing like object_name exists
         # in FHD files.
         # At least for the MWA, obs.ORIG_PHASERA and obs.ORIG_PHASEDEC specify
         # the field the telescope was nominally pointing at
         # (May need to be revisited, but probably isn't too important)
-        self.object_name.value = 'Field RA(deg): ' + \
-                                 str(obs['ORIG_PHASERA'][0]) + \
-                                 ', Dec:' + str(obs['ORIG_PHASEDEC'][0])
+        self.object_name = 'Field RA(deg): ' + str(obs['ORIG_PHASERA'][0]) + \
+                           ', Dec:' + str(obs['ORIG_PHASEDEC'][0])
         # For the MWA, this can sometimes be converted to EoR fields
-        if self.telescope_name.value.lower() == 'mwa':
+        if self.telescope_name.lower() == 'mwa':
             if np.isclose(obs['ORIG_PHASERA'][0], 0) and \
                     np.isclose(obs['ORIG_PHASEDEC'][0], -27):
                 object_name = 'EoR 0 Field'
 
-        self.instrument.value = self.telescope_name.value
-        self.latitude.set_degrees(float(obs['LAT'][0]))
-        self.longitude.set_degrees(float(obs['LON'][0]))
-        self.altitude.value = float(obs['ALT'][0])
+        self.instrument = self.telescope_name
+        self._latitude.set_degrees(float(obs['LAT'][0]))
+        self._longitude.set_degrees(float(obs['LON'][0]))
+        self.altitude = float(obs['ALT'][0])
 
         self.set_lsts_from_time_array()
 
         # Use the first integration time here
-        self.dateobs.value = min(self.time_array.value)
+        self.dateobs = min(self.time_array)
 
         # history: add the first few lines from the settings file
         if settings_file is not None:
@@ -209,11 +202,11 @@ class FHD(uvdata.uv.UVData):
                 newline = ' '.join(str.split(line))
                 if not line.startswith('##'):
                     history_list.append(newline)
-            self.history.value = '    '.join(history_list)
+            self.history = '    '.join(history_list)
         else:
-            self.history.value = ''
+            self.history = ''
 
-        self.phase_center_epoch.value = astrometry['EQUINOX'][0]
+        self.phase_center_epoch = astrometry['EQUINOX'][0]
 
         # TODO Once FHD starts reading and saving the antenna table info from
         #    uvfits, that information should be read into the following optional
