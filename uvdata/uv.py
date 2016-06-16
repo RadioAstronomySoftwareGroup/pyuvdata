@@ -695,7 +695,7 @@ class UVData(object):
         if filename.endswith('.uvfits'):
             status = self.write_uvfits(filename,
                                        spoof_nonessential=spoof_nonessential,
-                                       force_phase=force_phase)
+                                       force_phase=force_phase, run_check=False)
         else:
             warnings.warn('only uvfits writing is currently supported, ' +
                           'filename must end with ".uvfits" to be written.')
@@ -716,11 +716,12 @@ class UVData(object):
             raise ValueError('file_type must be one of ' +
                              ' '.join(self.supported_file_types))
         if file_type == 'uvfits':
-            status = self.read_uvfits(filename, run_check=True, run_sanity_check=True)
+            # Note we will run check later, not in specific read functions.
+            status = self.read_uvfits(filename, run_check=False)
         elif file_type == 'miriad':
-            status = self.read_miriad(filename, run_check=True, run_sanity_check=True)
+            status = self.read_miriad(filename, run_check=False)
         elif file_type == 'fhd':
-            status = self.read_fhd(filename, use_model=use_model, run_check=True, run_sanity_check=True)
+            status = self.read_fhd(filename, use_model=use_model, run_check=False)
         if run_check:
             self.check(run_sanity_check=run_sanity_check)
         return status
