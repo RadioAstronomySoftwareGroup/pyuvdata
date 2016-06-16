@@ -362,7 +362,7 @@ class UVData(object):
         self._RDate = UVParameter('RDate', required=False,
                                   description='date for which the GST0 or '
                                               'whatever... applies',
-                                  spoof_val=0.0)
+                                  spoof_val='')
         self._earth_omega = UVParameter('earth_omega', required=False,
                                         description='earth\'s rotation rate '
                                                     'in degrees per day',
@@ -634,7 +634,7 @@ class UVData(object):
         del(obs)
         return True
 
-    def check(self):
+    def check(self, run_sanity_check=True):
         # loop through all required parameters, make sure that they are filled
         for p in self.required_parameter_iter():
             param = getattr(self, p)
@@ -679,8 +679,9 @@ class UVData(object):
                                              ' type. Is: ' + str(param.value.dtype) +
                                              '. Should be: ' + str(param.expected_type))
 
-            if not param.sanity_check():
-                raise ValueError('UVParameter ' + p + ' has insane values.')
+            if run_sanity_check:
+                if not param.sanity_check():
+                    raise ValueError('UVParameter ' + p + ' has insane values.')
 
         return True
 
@@ -688,6 +689,10 @@ class UVData(object):
               run_check=True, run_sanity_check=True):
         if run_check:
             self.check(run_sanity_check=run_sanity_check)
+<<<<<<< d3fb76306237e38b486071aea0b6878aeeb38094
+=======
+
+>>>>>>> apply changes to keep up with master
         status = False
         # filename ending in .uvfits gets written as a uvfits
         if filename.endswith('.uvfits'):
@@ -714,6 +719,7 @@ class UVData(object):
             raise ValueError('file_type must be one of ' +
                              ' '.join(self.supported_file_types))
         if file_type == 'uvfits':
+<<<<<<< d3fb76306237e38b486071aea0b6878aeeb38094
             status = self.read_uvfits(filename, run_check=run_check,
                                       run_sanity_check=run_sanity_check)
         elif file_type == 'miriad':
@@ -722,6 +728,13 @@ class UVData(object):
         elif file_type == 'fhd':
             status = self.read_fhd(filename, use_model=use_model, run_check=run_check,
                                    run_sanity_check=run_sanity_check)
+=======
+            status = self.read_uvfits(filename, run_check=True, run_sanity_check=True)
+        elif file_type == 'miriad':
+            status = self.read_miriad(filename, run_check=True, run_sanity_check=True)
+        elif file_type == 'fhd':
+            status = self.read_fhd(filename, use_model=use_model, run_check=True, run_sanity_check=True)
+>>>>>>> apply changes to keep up with master
         if run_check:
             self.check(run_sanity_check=run_sanity_check)
         return status

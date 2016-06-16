@@ -32,7 +32,7 @@ class UVFITS(uvdata.uv.UVData):
                 continue
         return tablenames
 
-    def read_uvfits(self, filename):
+    def read_uvfits(self, filename, run_check=True, run_sanity_check=True):
 
         F = fits.open(filename)
         D = F[0]  # assumes the visibilities are in the primary hdu
@@ -250,13 +250,15 @@ class UVFITS(uvdata.uv.UVData):
         self.set_lsts_from_time_array()
 
         # check if object has all required UVParameters set
-        self.check()
+        if run_check:
+            self.check(run_sanity_check=run_sanity_check)
         return True
 
     def write_uvfits(self, filename, spoof_nonessential=False,
-                     force_phase=False):
+                     force_phase=False, run_check=True, run_sanity_check=True):
         # first check if object has all required UVParameters set
-        self.check()
+        if run_check:
+            self.check(run_sanity_check=run_sanity_check)
 
         if self.phase_center_ra is None or self.phase_center_dec is None:
             if force_phase:

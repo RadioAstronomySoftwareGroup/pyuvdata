@@ -18,7 +18,7 @@ class Miriad(uvdata.uv.UVData):
                   "polarization_array".format(pol=pol))
         return pol_ind
 
-    def read_miriad(self, filepath, FLEXIBLE_OPTION=True):
+    def read_miriad(self, filepath, FLEXIBLE_OPTION=True, run_check=True, run_sanity_check=True):
         # map uvdata attributes to miriad data values
         # those which we can get directly from the miriad file
         # (some, like n_times, have to be calculated)
@@ -66,6 +66,7 @@ class Miriad(uvdata.uv.UVData):
         self.channel_width *= 1e9  # change from GHz to Hz
 
         # read through the file and get the data
+        _source = uv['source']  # check source of initial visibility
         data_accumulator = {}
         for (uvw, t, (i, j)), d, f in uv.all(raw=True):
             # control for the case of only a single spw not showing up in
@@ -85,6 +86,11 @@ class Miriad(uvdata.uv.UVData):
             zenith_ra = uv['ra']
             zenith_dec = uv['dec']
             lst = uv['lst']
+            source = uv['source']
+            if source != _source:
+                raise(ValueError, 'This appears to be a multi source file, which is not supported.')
+            else:
+                _source = source
 
             try:
                 data_accumulator[uv['pol']].append([uvw, t, i, j, d, f, cnt,
@@ -223,5 +229,6 @@ class Miriad(uvdata.uv.UVData):
         #  then its a drift scan
 
         # check if object has all required uv_properties set
-        self.check()
+        if run_check:
+            self.check(run_sanity_check=run_sanity_check)
         return True

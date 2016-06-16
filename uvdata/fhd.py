@@ -8,7 +8,7 @@ import uvdata
 
 class FHD(uvdata.uv.UVData):
 
-    def read_fhd(self, filelist, use_model=False):
+    def read_fhd(self, filelist, use_model=False, run_check=True, run_sanity_check=True):
         """
         Read in fhd visibility save files
             filelist: list
@@ -223,5 +223,6 @@ class FHD(uvdata.uv.UVData):
         # 'TIMESYS'
 
         # check if object has all required uv_properties set
-        self.check()
+        if run_check:
+            self.check(run_sanity_check=run_sanity_check)
         return True
