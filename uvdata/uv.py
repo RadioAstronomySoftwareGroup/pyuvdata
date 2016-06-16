@@ -689,10 +689,7 @@ class UVData(object):
               run_check=True, run_sanity_check=True):
         if run_check:
             self.check(run_sanity_check=run_sanity_check)
-<<<<<<< d3fb76306237e38b486071aea0b6878aeeb38094
-=======
 
->>>>>>> apply changes to keep up with master
         status = False
         # filename ending in .uvfits gets written as a uvfits
         if filename.endswith('.uvfits'):
@@ -719,22 +716,11 @@ class UVData(object):
             raise ValueError('file_type must be one of ' +
                              ' '.join(self.supported_file_types))
         if file_type == 'uvfits':
-<<<<<<< d3fb76306237e38b486071aea0b6878aeeb38094
-            status = self.read_uvfits(filename, run_check=run_check,
-                                      run_sanity_check=run_sanity_check)
-        elif file_type == 'miriad':
-            status = self.read_miriad(filename, run_check=run_check,
-                                      run_sanity_check=run_sanity_check)
-        elif file_type == 'fhd':
-            status = self.read_fhd(filename, use_model=use_model, run_check=run_check,
-                                   run_sanity_check=run_sanity_check)
-=======
             status = self.read_uvfits(filename, run_check=True, run_sanity_check=True)
         elif file_type == 'miriad':
             status = self.read_miriad(filename, run_check=True, run_sanity_check=True)
         elif file_type == 'fhd':
             status = self.read_fhd(filename, use_model=use_model, run_check=True, run_sanity_check=True)
->>>>>>> apply changes to keep up with master
         if run_check:
             self.check(run_sanity_check=run_sanity_check)
         return status
