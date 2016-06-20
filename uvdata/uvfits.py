@@ -80,6 +80,14 @@ class UVFITS(uvdata.uv.UVData):
             # get antenna arrays based on uvfits baseline array
             self.ant_1_array, self.ant_2_array = \
                 self.baseline_to_antnums(bl_input_array)
+        # check for multi source files
+        try:
+            source = D.data.field('SOURCE')
+            if len(set(source)) > 1: 
+                raise ValueError('This file has multiple sources. Only single '
+                                 'source observations are supported.')
+        except:
+            pass
 
         # get self.baseline_array using our convention
         self.baseline_array = \
