@@ -72,7 +72,7 @@ class UVFITS(uvdata.uv.UVData):
                 raise ValueError('This file appears to have multiple subarray '
                                  'values; only files with one subarray are '
                                  'supported.')                                              
-        except:
+        except(KeyError):
             # cannot set this to be the baseline array because it uses the
             # 256 convention, not our 2048 convention
             bl_input_array = np.int64(D.data.field('BASELINE'))
