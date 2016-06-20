@@ -66,6 +66,12 @@ class UVFITS(uvdata.uv.UVData):
             # need to subtract one to get to 0-indexed
             self.ant_1_array = np.int32(D.data.field('ANTENNA1')) - 1
             self.ant_2_array = np.int32(D.data.field('ANTENNA2')) - 1
+            subarray = np.int32(D.data.field('SUBARRAY')) - 1
+            # error on files with multiple subarrays
+            if len(set(subarray)) > 1: 
+                raise ValueError('This file appears to have multiple subarray '
+                                 'values; only files with one subarray are '
+                                 'supported.')                                              
         except:
             # cannot set this to be the baseline array because it uses the
             # 256 convention, not our 2048 convention
