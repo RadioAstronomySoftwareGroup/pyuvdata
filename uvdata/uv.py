@@ -740,7 +740,7 @@ class UVData(object):
         elif filetype is 'miriad':
             other_obj = uvdata.miriad.Miriad()
         else:
-            raise ValueError('filetype must be uvfits or fhd')
+            raise ValueError('filetype must be uvfits, miriad, or fhd')
         for p in self.parameter_iter():
             param = getattr(self, p)
             setattr(other_obj, p, param)
@@ -775,4 +775,10 @@ class UVData(object):
         ret_val = miriad_obj.read_miriad(filepath, FLEXIBLE_OPTION=FLEXIBLE_OPTION,
                                          run_check=True, run_sanity_check=True)
         self.convert_from_filetype(miriad_obj)
+        return ret_val
+
+    def write_miriad(self, filename, run_check=True, run_sanity_check=True):
+        uvfits_obj = self.convert_to_filetype('miriad')
+        ret_val = uvfits_obj.write_miriad(filename,
+                                          run_check=True, run_sanity_check=True)
         return ret_val

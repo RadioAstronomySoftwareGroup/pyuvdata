@@ -232,3 +232,32 @@ class Miriad(uvdata.uv.UVData):
         if run_check:
             self.check(run_sanity_check=run_sanity_check)
         return True
+
+    def write_miriad(self, filepath, run_check=True, run_sanity_check=True):
+        #check for multiple spws
+        if self.data_array.shape[1] > 1: 
+            raise ValueError('write_miriad currently only handles single spw files.')
+
+        uv = a.miriad.UV(filepath,status='new')
+
+        #initialize header variables
+        uv._wrhd('obstype','mixed-auto-cross')
+        uv.add_var('pol', 'i')
+ 
+        #write data
+        for polcnt, pol in enumerate(self.polarization_array):
+            uv['pol'] = pol #XXX check that this is right format for pol
+            for viscnt, blt in enumerate(self.data_array):
+                uvw = self.uvw_array[:,viscnt]
+                t = self.time_array[viscnt]
+                i = self.ant_1_array[viscnt]
+                j = self.ant_2_array[viscnt]
+                preamble = (uvw,t,(i,j))
+                
+                data = self.data_array[viscnt,0,:,polcnt]
+                flags = self.flag_array[viscnt,0,:,polcnt]
+                
+                uv.write(preamble, data, flags)
+        if run_check:
+            self.check(run_sanity_check=run_sanity_check)
+        return True
