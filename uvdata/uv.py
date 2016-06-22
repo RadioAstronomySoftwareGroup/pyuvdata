@@ -606,7 +606,7 @@ class UVData(object):
         # calculate RA/DEC in J2000 and write to object
         obs.date, obs.epoch = ephem.J2000, ephem.J2000
         precess_pos.compute(obs)
-        
+
         self.phase_center_ra = precess_pos.ra
         self.phase_center_dec = precess_pos.dec
 

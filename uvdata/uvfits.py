@@ -68,10 +68,10 @@ class UVFITS(uvdata.uv.UVData):
             self.ant_2_array = np.int32(D.data.field('ANTENNA2')) - 1
             subarray = np.int32(D.data.field('SUBARRAY')) - 1
             # error on files with multiple subarrays
-            if len(set(subarray)) > 1: 
+            if len(set(subarray)) > 1:
                 raise ValueError('This file appears to have multiple subarray '
                                  'values; only files with one subarray are '
-                                 'supported.')                                              
+                                 'supported.')
         except(KeyError):
             # cannot set this to be the baseline array because it uses the
             # 256 convention, not our 2048 convention
@@ -83,7 +83,7 @@ class UVFITS(uvdata.uv.UVData):
         # check for multi source files
         try:
             source = D.data.field('SOURCE')
-            if len(set(source)) > 1: 
+            if len(set(source)) > 1:
                 raise ValueError('This file has multiple sources. Only single '
                                  'source observations are supported.')
         except:
