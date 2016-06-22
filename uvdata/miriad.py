@@ -242,18 +242,39 @@ class Miriad(uvdata.uv.UVData):
 
         #initialize header variables
         uv._wrhd('obstype','mixed-auto-cross')
+        uv._wrhd('history', self.history + '\n')
+
+        #required miriad variables
+        uv.add_var('nchan', 'i'); uv['nchan'] = self.Nfreqs
+        uv.add_var('npol', 'i'); uv['npol'] = self.Npols
+        uv.add_var('nspect', 'i'); uv['nspect'] = self.Nspws
+
+        #required pyuvdata variables that are not recognized miriad variables
+        uv.add_var('ntimes', 'i'); uv['ntimes'] = self.Ntimes
+        uv.add_var('nbls', 'i'); uv['nbls'] = self.Nbls
+        uv.add_var('nblts', 'i'); uv['nblts'] = self.Nblts
+        uv.add_var('visunits', 'a'); uv['visunits'] = self.vis_units
+
+        #variables that can get updated with every visibility
         uv.add_var('pol', 'i')
+        uv.add_var('lst', 'd')
+        uv.add_var('cnt', 'i')
  
         #write data
         for polcnt, pol in enumerate(self.polarization_array):
-            uv['pol'] = pol #XXX check that this is right format for pol
+            uv['pol'] = pol
             for viscnt, blt in enumerate(self.data_array):
-                uvw = self.uvw_array[:,viscnt]
+                uvw = self.uvw_array[:,viscnt] #Note issue 50 on conjugation
                 t = self.time_array[viscnt]
                 i = self.ant_1_array[viscnt]
                 j = self.ant_2_array[viscnt]
                 preamble = (uvw,t,(i,j))
-                
+   
+                uv['lst'] = self.lst_array[viscnt]
+ 
+                #NOTE only writing spw 0, not supporting multiple spws for write
+                uv['cnt'] = self.nsample_array[viscnt,0,:,polcnt]                
+
                 data = self.data_array[viscnt,0,:,polcnt]
                 flags = self.flag_array[viscnt,0,:,polcnt]
                 
