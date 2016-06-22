@@ -39,20 +39,44 @@ def checkWarnings(obj, func, func_args=[], func_kwargs={}, warning_cat=UserWarni
 
 class TestUVDataInit(unittest.TestCase):
     def setUp(self):
+        self.required_parameters = ['_data_array', '_nsample_array',
+                                    '_flag_array', '_Ntimes', '_Nbls',
+                                    '_Nblts', '_Nfreqs', '_Npols', '_Nspws',
+                                    '_uvw_array', '_time_array', '_ant_1_array',
+                                    '_ant_2_array', '_lst_array',
+                                    '_baseline_array', '_freq_array',
+                                    '_polarization_array', '_spw_array',
+                                    '_integration_time', '_channel_width',
+                                    '_object_name', '_telescope_name',
+                                    '_instrument', '_latitude', '_longitude',
+                                    '_altitude', '_history', '_vis_units',
+                                    '_phase_center_epoch', '_Nants_data',
+                                    '_Nants_telescope', '_antenna_names',
+                                    '_antenna_indices']
+
         self.required_properties = ['data_array', 'nsample_array',
-                                    'flag_array', 'Ntimes', 'Nbls', 'Nblts',
-                                    'Nfreqs', 'Npols', 'Nspws', 'uvw_array',
-                                    'time_array', 'ant_1_array', 'ant_2_array',
-                                    'lst_array',
+                                    'flag_array', 'Ntimes', 'Nbls',
+                                    'Nblts', 'Nfreqs', 'Npols', 'Nspws',
+                                    'uvw_array', 'time_array', 'ant_1_array',
+                                    'ant_2_array', 'lst_array',
                                     'baseline_array', 'freq_array',
                                     'polarization_array', 'spw_array',
                                     'integration_time', 'channel_width',
                                     'object_name', 'telescope_name',
                                     'instrument', 'latitude', 'longitude',
-                                    'altitude', 'history',
-                                    'vis_units', 'phase_center_epoch',
-                                    'Nants_data', 'Nants_telescope',
-                                    'antenna_names', 'antenna_indices']
+                                    'altitude', 'history', 'vis_units',
+                                    'phase_center_epoch', 'Nants_data',
+                                    'Nants_telescope', 'antenna_names',
+                                    'antenna_indices']
+
+        self.extra_parameters = ['_extra_keywords', '_dateobs',
+                                 '_xyz_telescope_frame',
+                                 '_x_telescope', '_y_telescope', '_z_telescope',
+                                 '_antenna_positions', '_GST0', '_RDate',
+                                 '_earth_omega', '_DUT1', '_TIMESYS',
+                                 '_uvplane_reference_time',
+                                 '_phase_center_ra', '_phase_center_dec',
+                                 '_zenith_ra', '_zenith_dec']
 
         self.extra_properties = ['extra_keywords', 'dateobs',
                                  'xyz_telescope_frame',
@@ -62,57 +86,68 @@ class TestUVDataInit(unittest.TestCase):
                                  'uvplane_reference_time',
                                  'phase_center_ra', 'phase_center_dec',
                                  'zenith_ra', 'zenith_dec']
+
         self.uv_object = UVData()
 
     def tearDown(self):
         del(self.uv_object)
 
-    def test_property_iter(self):
+    def test_parameter_iter(self):
         all = []
-        for prop in self.uv_object.property_iter():
+        for prop in self.uv_object.parameter_iter():
             all.append(prop)
-        for a in self.required_properties + self.extra_properties:
+        for a in self.required_parameters + self.extra_parameters:
             self.assertTrue(a in all,
                             msg='expected attribute ' + a +
-                            ' not returned in property_iter')
+                            ' not returned in parameter_iter')
 
-    def test_required_property_iter(self):
+    def test_required_parameter_iter(self):
         required = []
-        for prop in self.uv_object.required_property_iter():
+        for prop in self.uv_object.required_parameter_iter():
             required.append(prop)
-        for a in self.required_properties:
+        for a in self.required_parameters:
             self.assertTrue(a in required,
                             msg='expected attribute ' + a +
-                            ' not returned in required_property_iter')
+                            ' not returned in required_parameter_iter')
 
-    def test_extra_property_iter(self):
+    def test_extra_parameter_iter(self):
         extra = []
-        for prop in self.uv_object.extra_property_iter():
+        for prop in self.uv_object.extra_parameter_iter():
             extra.append(prop)
-        for a in self.extra_properties:
+        for a in self.extra_parameters:
             self.assertTrue(a in extra,
                             msg='expected attribute ' + a +
-                            ' not returned in extra_property_iter')
+                            ' not returned in extra_parameter_iter')
 
-    def test_attributes_exist(self):
-        expected_attributes = self.required_properties + self.extra_properties
-        for a in expected_attributes:
+    def test_parameters_exist(self):
+        expected_parameters = self.required_parameters + self.extra_parameters
+        for a in expected_parameters:
             self.assertTrue(hasattr(self.uv_object, a),
-                            msg='expected attribute ' + a + ' does not exist')
+                            msg='expected parameter ' + a + ' does not exist')
 
     def test_unexpected_attributes(self):
-        expected_attributes = self.required_properties + self.extra_properties
+        expected_attributes = self.required_parameters + self.extra_parameters + \
+            self.required_properties + self.extra_properties
         attributes = [i for i in self.uv_object.__dict__.keys() if i[0] != '_']
         for a in attributes:
             self.assertTrue(a in expected_attributes,
                             msg='unexpected attribute ' + a +
                             ' found in UVData')
 
+    def test_properties(self):
+        prop_dict = dict(zip(self.required_properties + self.extra_properties,
+                             self.required_parameters + self.extra_parameters))
+        for k, v in prop_dict.iteritems():
+            rand_num = np.random.rand()
+            setattr(self.uv_object, k, rand_num)
+            this_param = getattr(self.uv_object, v)
+            self.assertEqual(rand_num, this_param.value)
+
 
 class TestUVmethods(unittest.TestCase):
     def setUp(self):
         self.uv_object = UVData()
-        self.uv_object.Nants_telescope.value = 128
+        self.uv_object.Nants_telescope = 128
         self.testfile = '../data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
 
     def tearDown(self):
@@ -121,10 +156,10 @@ class TestUVmethods(unittest.TestCase):
     def test_bl2ij(self):
         self.assertEqual(self.uv_object.baseline_to_antnums(67585),
                          (0, 0))
-        Nants = self.uv_object.Nants_telescope.value
-        self.uv_object.Nants_telescope.value = 2049
+        Nants = self.uv_object.Nants_telescope
+        self.uv_object.Nants_telescope = 2049
         self.assertRaises(StandardError, self.uv_object.baseline_to_antnums, 67585)
-        self.uv_object.Nants_telescope.value = Nants  # reset
+        self.uv_object.Nants_telescope = Nants  # reset
 
     def test_ij2bl(self):
         self.assertEqual(self.uv_object.antnums_to_baseline(0, 0),
@@ -137,10 +172,10 @@ class TestUVmethods(unittest.TestCase):
         self.assertEqual(checkWarnings(self, self.uv_object.antnums_to_baseline,
                                        [257, 256], {'attempt256': True},
                                        warning_message='found > 256 antennas'), 592130)
-        Nants = self.uv_object.Nants_telescope.value
-        self.uv_object.Nants_telescope.value = 2049
+        Nants = self.uv_object.Nants_telescope
+        self.uv_object.Nants_telescope = 2049
         self.assertRaises(StandardError, self.uv_object.antnums_to_baseline, 0, 0)
-        self.uv_object.Nants_telescope.value = Nants  # reset
+        self.uv_object.Nants_telescope = Nants  # reset
 
     def test_data_equality(self):
         try:
@@ -149,56 +184,55 @@ class TestUVmethods(unittest.TestCase):
             self.uv_object.read(self.testfile, 'uvfits')
         self.assertEqual(self.uv_object, self.uv_object)
         self.uv_object2 = copy.deepcopy(self.uv_object)
-        self.uv_object2.data_array.value[0, 0, 0, 0] += 1  # Force data to be not equal
+        self.uv_object2.data_array[0, 0, 0, 0] += 1  # Force data to be not equal
         self.assertNotEqual(self.uv_object, self.uv_object2)
         # check class equality test
         self.assertNotEqual(self.uv_object, self.uv_object.data_array)
 
-        # Check some UVProperty specific inequalities.
-        self.uv_object2.data_array.value = 1.0  # Test values not same class
+        # Check some UVParameter specific inequalities.
+        self.uv_object2.data_array = 1.0  # Test values not same class
         # Note that due to peculiarity of order of operations, need to reverse arrays.
-        self.assertNotEqual(self.uv_object2.data_array, self.uv_object.data_array)
-        self.uv_object2.data_array.value = np.array([1, 2, 3])  # Test different shapes
-        self.assertNotEqual(self.uv_object.data_array, self.uv_object2.data_array)
-        self.uv_object2.Ntimes.value = 1000.0  # Test values that are not close
-        self.assertNotEqual(self.uv_object.Ntimes, self.uv_object2.Ntimes)
-        self.uv_object2.vis_units.value = 'foo'  # Test unequal strings
-        self.assertNotEqual(self.uv_object.vis_units, self.uv_object2.vis_units)
-        self.uv_object2.antenna_names.value[0] = 'Bob'  # Test unequal string in list
-        self.assertNotEqual(self.uv_object.antenna_names, self.uv_object2.antenna_names)
-
+        self.assertNotEqual(self.uv_object2._data_array, self.uv_object._data_array)
+        self.uv_object2.data_array = np.array([1, 2, 3])  # Test different shapes
+        self.assertNotEqual(self.uv_object._data_array, self.uv_object2._data_array)
+        self.uv_object2.Ntimes = 1000.0  # Test values that are not close
+        self.assertNotEqual(self.uv_object._Ntimes, self.uv_object2._Ntimes)
+        self.uv_object2.vis_units = 'foo'  # Test unequal strings
+        self.assertNotEqual(self.uv_object._vis_units, self.uv_object2._vis_units)
+        self.uv_object2.antenna_names[0] = 'Bob'  # Test unequal string in list
+        self.assertNotEqual(self.uv_object._antenna_names, self.uv_object2._antenna_names)
 
     def test_set_XYZ_from_LatLonAlt(self):
-        self.uv_object.latitude.set_degrees(-26.7)
-        self.uv_object.longitude.set_degrees(116.7)
-        self.uv_object.altitude.value = None
+        self.uv_object._latitude.set_degrees(-26.7)
+        self.uv_object._longitude.set_degrees(116.7)
+        self.uv_object.altitude = None
         # Test that exception is raised.
         self.assertRaises(ValueError, self.uv_object.set_XYZ_from_LatLonAlt)
-        self.uv_object.altitude.value = 377.8
+        self.uv_object.altitude = 377.8
         status = self.uv_object.set_XYZ_from_LatLonAlt()
         # Got reference by forcing http://www.oc.nps.edu/oc2902w/coord/llhxyz.htm
         # to give additional precision.
         ref_xyz = (-2562123.42683, 5094215.40141, -2848728.58869)
-        out_xyz = (self.uv_object.x_telescope.value,
-                   self.uv_object.y_telescope.value,
-                   self.uv_object.z_telescope.value)
+        out_xyz = (self.uv_object.x_telescope,
+                   self.uv_object.y_telescope,
+                   self.uv_object.z_telescope)
         self.assertTrue(np.allclose(ref_xyz, out_xyz, rtol=0, atol=1e-3))
 
     def test_set_LatLonAlt_from_XYZ(self):
-        self.uv_object.xyz_telescope_frame.value = 'ITRF'
-        self.uv_object.x_telescope.value = -2562123.42683
-        self.uv_object.y_telescope.value = 5094215.40141
-        self.uv_object.z_telescope.value = None
+        self.uv_object.xyz_telescope_frame = 'ITRF'
+        self.uv_object.x_telescope = -2562123.42683
+        self.uv_object.y_telescope = 5094215.40141
+        self.uv_object.z_telescope = None
         # Test that exception is raised.
         self.assertRaises(ValueError, self.uv_object.set_LatLonAlt_from_XYZ)
-        self.uv_object.z_telescope.value = -2848728.58869
+        self.uv_object.z_telescope = -2848728.58869
         status = self.uv_object.set_LatLonAlt_from_XYZ()
         # Got reference by forcing http://www.oc.nps.edu/oc2902w/coord/llhxyz.htm
         # to give additional precision.
         ref_latlonalt = (-26.7, 116.7, 377.8)
-        out_latlonalt = (self.uv_object.latitude.degrees(),
-                         self.uv_object.longitude.degrees(),
-                         self.uv_object.altitude.value)
+        out_latlonalt = (self.uv_object._latitude.degrees(),
+                         self.uv_object._longitude.degrees(),
+                         self.uv_object.altitude)
         self.assertTrue(np.allclose(ref_latlonalt, out_latlonalt, rtol=0, atol=1e-3))
 
     def test_check(self):
@@ -209,34 +243,34 @@ class TestUVmethods(unittest.TestCase):
         self.assertTrue(self.uv_object.check())
         # Now break it in every way I can.
         # String cases
-        units = self.uv_object.vis_units.value
-        self.uv_object.vis_units.value = 1
+        units = self.uv_object.vis_units
+        self.uv_object.vis_units = 1
         self.assertRaises(ValueError, self.uv_object.check)
-        self.uv_object.vis_units.value = units  # reset it
+        self.uv_object.vis_units = units  # reset it
         # Single value cases
-        Nblts = self.uv_object.Nblts.value
-        self.uv_object.Nblts.value = 4
+        Nblts = self.uv_object.Nblts
+        self.uv_object.Nblts = 4
         self.assertRaises(ValueError, self.uv_object.check)
-        self.uv_object.Nblts.value = np.float(Nblts)
+        self.uv_object.Nblts = np.float(Nblts)
         self.assertRaises(ValueError, self.uv_object.check)
-        self.uv_object.Nblts.value = Nblts  # reset
+        self.uv_object.Nblts = Nblts  # reset
         # Array cases
-        data = self.uv_object.data_array.value
-        self.uv_object.data_array.value = np.array([4, 5, 6], dtype=np.complex64)
+        data = self.uv_object.data_array
+        self.uv_object.data_array = np.array([4, 5, 6], dtype=np.complex64)
         self.assertRaises(ValueError, self.uv_object.check)
-        self.uv_object.data_array.value = np.real(data)
+        self.uv_object.data_array = np.real(data)
         self.assertRaises(ValueError, self.uv_object.check)
-        self.uv_object.data_array.value = data  # reset
+        self.uv_object.data_array = data  # reset
         # List cases
-        antenna_names = self.uv_object.antenna_names.value
-        self.uv_object.antenna_names.value = [1] * self.uv_object.antenna_names.expected_size(self.uv_object)[0]
+        antenna_names = self.uv_object.antenna_names
+        self.uv_object.antenna_names = [1] * self.uv_object._antenna_names.expected_size(self.uv_object)[0]
         self.assertRaises(ValueError, self.uv_object.check)
-        self.uv_object.antenna_names.value = antenna_names  # reset
+        self.uv_object.antenna_names = antenna_names  # reset
         # Sanity check
-        uvws = self.uv_object.uvw_array.value
-        self.uv_object.uvw_array.value = 1e-4 * np.ones_like(self.uv_object.uvw_array.value)
+        uvws = self.uv_object.uvw_array
+        self.uv_object.uvw_array = 1e-4 * np.ones_like(self.uv_object.uvw_array)
         self.assertRaises(ValueError, self.uv_object.check)
-        self.uv_object.uvw_array.value = uvws
+        self.uv_object.uvw_array = uvws
         self.assertTrue(self.uv_object.check())
 
 
@@ -364,7 +398,7 @@ class TestReadFHD(unittest.TestCase):
         fhd_uv = UVData()
         self.assertTrue(checkWarnings(self, fhd_uv.read, [self.testfiles[:-1], 'fhd'],
                                       warning_message='No settings'))
-        self.assertEqual(fhd_uv.history.value, '')  # Check empty history with no settings
+        self.assertEqual(fhd_uv.history, '')  # Check empty history with no settings
         del(fhd_uv)
 
     def test_ReadFHD_model(self):
