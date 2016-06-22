@@ -33,15 +33,15 @@ parser.set_defaults(model=True)
 args = parser.parse_args()
 
 vis_folder = op.join(args.fhd_run_folder, 'vis_data')
-if not os.path.isdir(vis_folder):
+if not op.isdir(vis_folder):
     raise IOError('There is no vis_data folder in {}'.format(args.fhd_run_folder))
 
 metadata_folder = op.join(args.fhd_run_folder, 'metadata')
-if not os.path.isdir(vis_folder):
+if not op.isdir(vis_folder):
     raise IOError('There is no metadata folder in {}'.format(args.fhd_run_folder))
 
 output_folder = op.join(args.fhd_run_folder, 'uvfits')
-if not os.path.exists(output_folder):
+if not op.exists(output_folder):
     os.mkdir(output_folder)
 
 files = []
