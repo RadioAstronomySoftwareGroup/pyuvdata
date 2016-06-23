@@ -263,7 +263,7 @@ class UVData(object):
         self._history = UVParameter('history', description='string of history, units English',
                                     form='str')
 
-        desc = ('epoch year of the phase applied to the data (eg 2000)')
+        desc = ('epoch year of the phase applied to the data (eg 2000.)')
         self._phase_center_epoch = UVParameter('phase_center_epoch', description=desc,
                                                expected_type=np.float)
 
@@ -688,7 +688,7 @@ class UVData(object):
         return True
 
     def write(self, filename, file_type, spoof_nonessential=False, force_phase=False,
-              run_check=True, run_sanity_check=True):
+              run_check=True, run_sanity_check=True, clobber=False):
         if run_check:
             self.check(run_sanity_check=run_sanity_check)
 
@@ -701,7 +701,8 @@ class UVData(object):
                                        spoof_nonessential=spoof_nonessential,
                                        force_phase=force_phase, run_check=False)
         elif file_type == 'miriad':
-            status = self.write_miriad(filename, file_type=file_type, run_check=False)
+            status = self.write_miriad(filename, file_type=file_type, run_check=False, 
+                                       clobber=clobber)
         return status
 
     def read(self, filename, file_type, use_model=False, run_check=True,
@@ -779,8 +780,10 @@ class UVData(object):
         self.convert_from_filetype(miriad_obj)
         return ret_val
 
-    def write_miriad(self, filename, file_type, run_check=True, run_sanity_check=True):
-        uvfits_obj = self.convert_to_filetype('miriad')
-        ret_val = uvfits_obj.write_miriad(filename,
-                                          run_check=True, run_sanity_check=True)
+    def write_miriad(self, filename, file_type, run_check=True, run_sanity_check=True,
+                     clobber=False):
+        miriad_obj = self.convert_to_filetype('miriad')
+        ret_val = miriad_obj.write_miriad(filename,
+                                          run_check=True, run_sanity_check=True,
+                                          clobber=clobber)
         return ret_val

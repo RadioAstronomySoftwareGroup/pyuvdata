@@ -468,42 +468,42 @@ class TestReadMiriad(unittest.TestCase):
 
         self.assertEqual(self.unphased, self.phased)
 
-#class TestWriteMiriad(unittest.TestCase):
-#    def setUp(self):
-#        self.test_file_directory = '../data/test/'
-#        if not os.path.exists(self.test_file_directory):
-#            print('making test directory')
-#            os.mkdir(self.test_file_directory)
-#
-#    def test_writePAPER(self):
-#        testfile = '../data/zen.2456865.60537.xy.uvcRREAA'
-#        UV = UVData()
-#        UV.read(testfile, 'miriad')
-#
-#        write_file = op.join(self.test_file_directory,
-#                             'outtest_miriad.uv')
-#
-#        test = UV.write(write_file, file_type='miriad')
-#        self.assertTrue(test)
-#        del(UV)
+class TestWriteMiriad(unittest.TestCase):
+    def setUp(self):
+        self.test_file_directory = '../data/test/'
+        if not os.path.exists(self.test_file_directory):
+            print('making test directory')
+            os.mkdir(self.test_file_directory)
 
-    #def test_readwriteread(self):
-    #    testfile = '../data/zen.2456865.60537.xy.uvcRREAA'
-    #    uv_in = UVData()
-    #    uv_out = UVData()
+    def test_writePAPER(self):
+        testfile = '../data/zen.2456865.60537.xy.uvcRREAA'
+        UV = UVData()
+        UV.read(testfile, 'miriad')
 
-    #    uv_in.read(testfile, 'miriad')
+        write_file = op.join(self.test_file_directory,
+                             'outtest_miriad.uv')
 
-    #    write_file = op.join(self.test_file_directory,
-    #                         'outtest_miriad.uv')
+        test = UV.write(write_file, file_type='miriad', clobber=True)
+        self.assertTrue(test)
+        del(UV)
 
-    #    uv_in.write(write_file)
+    def test_readwriteread(self):
+        testfile = '../data/zen.2456865.60537.xy.uvcRREAA'
+        uv_in = UVData()
+        uv_out = UVData()
 
-    #    uv_out.read(write_file, 'miriad')
+        uv_in.read(testfile, 'miriad')
 
-    #    self.assertEqual(uv_in, uv_out)
-    #    del(uv_in)
-    #    del(uv_out)
+        write_file = op.join(self.test_file_directory,
+                             'outtest_miriad.uv')
+
+        uv_in.write(write_file, file_type='miriad', clobber=True)
+
+        uv_out.read(write_file, 'miriad')
+
+        self.assertEqual(uv_in, uv_out)
+        del(uv_in)
+        del(uv_out)
 
 
 if __name__ == '__main__':

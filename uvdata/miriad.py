@@ -1,5 +1,5 @@
 from astropy import constants as const
-import os
+import os, shutil
 import numpy as np
 import warnings
 import aipy as a
@@ -235,10 +235,17 @@ class Miriad(uvdata.uv.UVData):
             self.check(run_sanity_check=run_sanity_check)
         return True
 
-    def write_miriad(self, filepath, run_check=True, run_sanity_check=True):
+    def write_miriad(self, filepath, run_check=True, run_sanity_check=True, clobber=False):
         #check for multiple spws
         if self.data_array.shape[1] > 1: 
             raise ValueError('write_miriad currently only handles single spw files.')
+
+        if os.path.exists(filepath):
+            if clobber:
+                print 'File exists: clobbering'
+                shutil.rmtree(filepath)
+            else:
+                raise ValueError('File exists: skipping')
 
         uv = a.miriad.UV(filepath,status='new')
 
@@ -258,6 +265,8 @@ class Miriad(uvdata.uv.UVData):
         uv.add_var('longitu', 'd'); uv['longitu'] = self.longitude
         uv.add_var('nants', 'i'); uv['nants'] = self.Nants_telescope
         uv.add_var('antpos', 'd'); uv['antpos'] = self.antenna_positions.T.flatten()
+        uv.add_var('sfreq', 'd'); uv['sfreq'] = self.freq_array[0]/1e9 #in GHz
+        uv.add_var('epoch', 'r'); uv['epoch'] = self.phase_center_epoch
 
         #required pyuvdata variables that are not recognized miriad variables
         uv.add_var('ntimes', 'i'); uv['ntimes'] = self.Ntimes
