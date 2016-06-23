@@ -26,6 +26,8 @@ class Miriad(uvdata.uv.UVData):
             raise(IOError, filepath + ' not found')
         uv = a.miriad.UV(filepath)
 
+        #TODO look for variables that are in header but not required
+
         miriad_header_data = {'Nfreqs': 'nchan',
                               'Npols': 'npol',
                               # 'Nspws': 'nspec',  # not always available
@@ -83,8 +85,8 @@ class Miriad(uvdata.uv.UVData):
                 cnt = uv['cnt']
             except(KeyError):
                 cnt = np.ones(d.shape, dtype=np.int)
-            zenith_ra = uv['ra']
-            zenith_dec = uv['dec']
+            zenith_ra = uv['ra'] #XXX the assumption that this is always zenith needs to be questioned
+            zenith_dec = uv['dec'] #XXX the assumption that this is always zenith needs to be questioned
             lst = uv['lst']
             source = uv['source']
             if source != _source:
@@ -244,21 +246,33 @@ class Miriad(uvdata.uv.UVData):
         uv._wrhd('obstype','mixed-auto-cross')
         uv._wrhd('history', self.history + '\n')
 
-        #required miriad variables
+        #recognized miriad variables
         uv.add_var('nchan', 'i'); uv['nchan'] = self.Nfreqs
         uv.add_var('npol', 'i'); uv['npol'] = self.Npols
         uv.add_var('nspect', 'i'); uv['nspect'] = self.Nspws
+        uv.add_var('inttime', 'd'); uv['inttime'] = self.integration_time
+        uv.add_var('sdf', 'd'); uv['sdf'] = self.channel_width/1e9 #in GHz
+        uv.add_var('source', 'a'); uv['source'] = self.object_name
+        uv.add_var('telescop', 'a'); uv['telescop'] = self.telescope_name
+        uv.add_var('latitud', 'd'); uv['latitud'] = self.latitude
+        uv.add_var('longitu', 'd'); uv['longitu'] = self.longitude
+        uv.add_var('nants', 'i'); uv['nants'] = self.nants_telescope
+        #uv.add_var('antpos', 'd')
 
         #required pyuvdata variables that are not recognized miriad variables
         uv.add_var('ntimes', 'i'); uv['ntimes'] = self.Ntimes
         uv.add_var('nbls', 'i'); uv['nbls'] = self.Nbls
         uv.add_var('nblts', 'i'); uv['nblts'] = self.Nblts
         uv.add_var('visunits', 'a'); uv['visunits'] = self.vis_units
+        uv.add_var('instrume', 'a'); uv['instrume'] = self.instrument
+        uv.add_var('altitude', 'd'); uv['altitude'] = self.altitude
 
         #variables that can get updated with every visibility
         uv.add_var('pol', 'i')
         uv.add_var('lst', 'd')
         uv.add_var('cnt', 'i')
+        uv.add_var('ra', 'd')
+        uv.add_var('dec', 'd')
  
         #write data
         for polcnt, pol in enumerate(self.polarization_array):
@@ -271,6 +285,8 @@ class Miriad(uvdata.uv.UVData):
                 preamble = (uvw,t,(i,j))
    
                 uv['lst'] = self.lst_array[viscnt]
+                uv['ra'] = self.zenith_ra[viscnt] #XXX assumes drift
+                uv['dec'] = self.zenith_dec[viscnt] #XXX assumes drift
  
                 #NOTE only writing spw 0, not supporting multiple spws for write
                 uv['cnt'] = self.nsample_array[viscnt,0,:,polcnt]                
