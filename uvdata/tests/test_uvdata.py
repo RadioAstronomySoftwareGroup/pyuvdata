@@ -316,7 +316,7 @@ class TestWriteUVFits(unittest.TestCase):
         write_file = op.join(self.test_file_directory,
                              'outtest_casa_1src_1spw.uvfits')
 
-        test = UV.write(write_file)
+        test = UV.write(write_file, file_type='uvfits')
         self.assertTrue(test)
         del(UV)
 
@@ -339,7 +339,7 @@ class TestWriteUVFits(unittest.TestCase):
         write_file = op.join(self.test_file_directory,
                              'outtest_casa.uvfits')
 
-        uv_in.write(write_file)
+        uv_in.write(write_file, file_type='uvfits')
 
         uv_out.read(write_file, 'uvfits')
 
@@ -375,6 +375,7 @@ class TestReadFHD(unittest.TestCase):
 
         fhd_uv.write(op.join(self.test_file_directory,
                              'outtest_FHD_1061316296.uvfits'),
+                     file_type='uvfits',
                      spoof_nonessential=True)
 
         uvfits_uv.read(op.join(self.test_file_directory,
@@ -409,6 +410,7 @@ class TestReadFHD(unittest.TestCase):
 
         fhd_uv.write(op.join(self.test_file_directory,
                              'outtest_FHD_1061316296_model.uvfits'),
+                     file_type='uvfits',
                      spoof_nonessential=True)
 
         uvfits_uv.read(op.join(self.test_file_directory,
@@ -448,7 +450,7 @@ class TestReadMiriad(unittest.TestCase):
         uvfits_testfile = op.join(self.test_file_directory,
                                   'outtest_miriad.uvfits')
         # Simultaneously test the general write function for case of uvfits
-        self.miriad_uv.write(uvfits_testfile, spoof_nonessential=True,
+        self.miriad_uv.write(uvfits_testfile, file_type='uvfits', spoof_nonessential=True,
                              force_phase=True)
         self.uvfits_uv.read(uvfits_testfile, 'uvfits')
 
@@ -465,6 +467,44 @@ class TestReadMiriad(unittest.TestCase):
         self.phased.read(self.phasedfile, 'miriad')
 
         self.assertEqual(self.unphased, self.phased)
+
+#class TestWriteMiriad(unittest.TestCase):
+#    def setUp(self):
+#        self.test_file_directory = '../data/test/'
+#        if not os.path.exists(self.test_file_directory):
+#            print('making test directory')
+#            os.mkdir(self.test_file_directory)
+#
+#    def test_writePAPER(self):
+#        testfile = '../data/zen.2456865.60537.xy.uvcRREAA'
+#        UV = UVData()
+#        UV.read(testfile, 'miriad')
+#
+#        write_file = op.join(self.test_file_directory,
+#                             'outtest_miriad.uv')
+#
+#        test = UV.write(write_file, file_type='miriad')
+#        self.assertTrue(test)
+#        del(UV)
+
+    #def test_readwriteread(self):
+    #    testfile = '../data/zen.2456865.60537.xy.uvcRREAA'
+    #    uv_in = UVData()
+    #    uv_out = UVData()
+
+    #    uv_in.read(testfile, 'miriad')
+
+    #    write_file = op.join(self.test_file_directory,
+    #                         'outtest_miriad.uv')
+
+    #    uv_in.write(write_file)
+
+    #    uv_out.read(write_file, 'miriad')
+
+    #    self.assertEqual(uv_in, uv_out)
+    #    del(uv_in)
+    #    del(uv_out)
+
 
 if __name__ == '__main__':
     unittest.main()

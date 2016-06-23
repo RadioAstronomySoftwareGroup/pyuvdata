@@ -150,7 +150,8 @@ class AngleParameter(UVParameter):
 
 
 class UVData(object):
-    supported_file_types = ['uvfits', 'miriad', 'fhd']
+    supported_read_file_types = ['uvfits', 'miriad', 'fhd']
+    supported_write_file_types = ['uvfits', 'miriad', 'fhd']
 
     def __init__(self):
         # add the UVParameters to the class
@@ -686,20 +687,21 @@ class UVData(object):
 
         return True
 
-    def write(self, filename, spoof_nonessential=False, force_phase=False,
+    def write(self, filename, file_type, spoof_nonessential=False, force_phase=False,
               run_check=True, run_sanity_check=True):
         if run_check:
             self.check(run_sanity_check=run_sanity_check)
 
         status = False
-        # filename ending in .uvfits gets written as a uvfits
-        if filename.endswith('.uvfits'):
-            status = self.write_uvfits(filename,
+        if file_type not in self.supported_write_file_types:
+            raise ValueError('file_type must be one of ' +
+                             ' '.join(self.supported_write_file_types))
+        if file_type == 'uvfits':
+            status = self.write_uvfits(filename, file_type=file_type, 
                                        spoof_nonessential=spoof_nonessential,
                                        force_phase=force_phase, run_check=False)
-        else:
-            warnings.warn('only uvfits writing is currently supported, ' +
-                          'filename must end with ".uvfits" to be written.')
+        elif file_type == 'miriad':
+            status = self.write_miriad(filename, file_type=file_type, run_check=False)
         return status
 
     def read(self, filename, file_type, use_model=False, run_check=True,
@@ -713,9 +715,9 @@ class UVData(object):
             file_type: string
                 Must be a supported type, see self.supported_file_types
         """
-        if file_type not in self.supported_file_types:
+        if file_type not in self.supported_read_file_types:
             raise ValueError('file_type must be one of ' +
-                             ' '.join(self.supported_file_types))
+                             ' '.join(self.supported_read_file_types))
         if file_type == 'uvfits':
             # Note we will run check later, not in specific read functions.
             status = self.read_uvfits(filename, run_check=False)
@@ -752,7 +754,7 @@ class UVData(object):
         self.convert_from_filetype(uvfits_obj)
         return ret_val
 
-    def write_uvfits(self, filename, spoof_nonessential=False,
+    def write_uvfits(self, filename, file_type, spoof_nonessential=False,
                      force_phase=False, run_check=True, run_sanity_check=True):
         uvfits_obj = self.convert_to_filetype('uvfits')
         ret_val = uvfits_obj.write_uvfits(filename,
@@ -777,7 +779,7 @@ class UVData(object):
         self.convert_from_filetype(miriad_obj)
         return ret_val
 
-    def write_miriad(self, filename, run_check=True, run_sanity_check=True):
+    def write_miriad(self, filename, file_type, run_check=True, run_sanity_check=True):
         uvfits_obj = self.convert_to_filetype('miriad')
         ret_val = uvfits_obj.write_miriad(filename,
                                           run_check=True, run_sanity_check=True)
