@@ -256,8 +256,8 @@ class Miriad(uvdata.uv.UVData):
         uv.add_var('telescop', 'a'); uv['telescop'] = self.telescope_name
         uv.add_var('latitud', 'd'); uv['latitud'] = self.latitude
         uv.add_var('longitu', 'd'); uv['longitu'] = self.longitude
-        uv.add_var('nants', 'i'); uv['nants'] = self.nants_telescope
-        #uv.add_var('antpos', 'd')
+        uv.add_var('nants', 'i'); uv['nants'] = self.Nants_telescope
+        uv.add_var('antpos', 'd'); uv['antpos'] = self.antenna_positions.T.flatten()
 
         #required pyuvdata variables that are not recognized miriad variables
         uv.add_var('ntimes', 'i'); uv['ntimes'] = self.Ntimes
