@@ -9,6 +9,7 @@ import copy
 import ephem
 import warnings
 import collections
+from astropy.io import fits
 
 
 def get_iterable(x):
@@ -36,6 +37,11 @@ def checkWarnings(obj, func, func_args=[], func_kwargs={}, warning_cat=UserWarni
                     obj.assertIn(warning_message[i], str(w_i.message))
     return status
 
+
+test_file_directory = '../data/test/'
+if not os.path.exists(test_file_directory):
+    print('making test directory')
+    os.mkdir(test_file_directory)
 
 class TestUVDataInit(unittest.TestCase):
     def setUp(self):
@@ -290,6 +296,24 @@ class TestReadUVFits(unittest.TestCase):
 
         del(UV)
 
+    def test_breaks(self):
+        # Here I'll group together tests that should raise exceptions
+        multi_subarray_file = '../data/test/multi_subarray.uvfits'
+        if not os.path.exists(multi_subarray_file):
+            # Make uvfits file with multiple subarrays
+            # First read/write using pyuvdata to force use of antenna arrays.
+            UV = UVData()
+            UV.read('../data/day2_TDEM0003_10s_norx_1src_1spw.uvfits', 'uvfits')
+            UV.write('../data/test/temp.uvfits', 'uvfits')
+            # Then use astropy.io.fits to change the subarray array
+            F = fits.open('../data/test/temp.uvfits')
+            F[0].data['SUBARRAY'][2] = 2.0
+            F.writeto(multi_subarray_file)
+            os.remove('../data/test/temp.uvfits')
+            del(UV)
+        UV = UVData()
+        self.assertRaises(ValueError, UV.read, multi_subarray_file, 'uvfits')
+
     # def test_readRTS(self):
     #     testfile = '../data/pumav2_SelfCal300_Peel300_01.uvfits'
     #     UV = UVData()
@@ -300,9 +324,6 @@ class TestReadUVFits(unittest.TestCase):
 class TestWriteUVFits(unittest.TestCase):
     def setUp(self):
         self.test_file_directory = '../data/test/'
-        if not os.path.exists(self.test_file_directory):
-            print('making test directory')
-            os.mkdir(self.test_file_directory)
 
     # def tearDown(self):
     #      shutil.rmtree(self.test_file_directory)
