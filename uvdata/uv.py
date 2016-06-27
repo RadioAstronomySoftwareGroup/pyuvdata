@@ -697,11 +697,11 @@ class UVData(object):
             raise ValueError('file_type must be one of ' +
                              ' '.join(self.supported_write_file_types))
         if file_type == 'uvfits':
-            status = self.write_uvfits(filename, file_type=file_type, 
+            status = self.write_uvfits(filename, 
                                        spoof_nonessential=spoof_nonessential,
                                        force_phase=force_phase, run_check=False)
         elif file_type == 'miriad':
-            status = self.write_miriad(filename, file_type=file_type, run_check=False, 
+            status = self.write_miriad(filename, run_check=False, 
                                        clobber=clobber)
         return status
 
@@ -755,7 +755,7 @@ class UVData(object):
         self.convert_from_filetype(uvfits_obj)
         return ret_val
 
-    def write_uvfits(self, filename, file_type, spoof_nonessential=False,
+    def write_uvfits(self, filename, spoof_nonessential=False,
                      force_phase=False, run_check=True, run_sanity_check=True):
         uvfits_obj = self.convert_to_filetype('uvfits')
         ret_val = uvfits_obj.write_uvfits(filename,
@@ -780,7 +780,7 @@ class UVData(object):
         self.convert_from_filetype(miriad_obj)
         return ret_val
 
-    def write_miriad(self, filename, file_type, run_check=True, run_sanity_check=True,
+    def write_miriad(self, filename, run_check=True, run_sanity_check=True,
                      clobber=False):
         miriad_obj = self.convert_to_filetype('miriad')
         ret_val = miriad_obj.write_miriad(filename,
