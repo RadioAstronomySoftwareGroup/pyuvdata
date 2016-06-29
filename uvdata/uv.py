@@ -590,7 +590,7 @@ class UVData(object):
             # NB if phasing to a time, epoch does not need to be None, but it is ignored
             obs.date, obs.epoch = self.juldate2ephem(time), self.juldate2ephem(time)
 
-            ra = self.longitude - obs.sidereal_time()
+            ra = obs.sidereal_time()
             dec = self.latitude
             epoch = self.juldate2ephem(time)
 
