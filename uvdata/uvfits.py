@@ -192,7 +192,10 @@ class UVFITS(uvdata.uv.UVData):
                 continue
             if key == 'HISTORY':
                 continue
-            self.extra_keywords[key] = D.header[key]
+            if key == 'COMMENT':
+                self.extra_keywords[key] = str(D.header[key])
+            else:
+                self.extra_keywords[key] = D.header[key]
 
         # READ the antenna table
         ant_hdu = F[hdunames['AIPS AN']]
@@ -422,7 +425,11 @@ class UVFITS(uvdata.uv.UVData):
             # header keywords have to be 8 characters or less
             keyword = key[:8].upper()
             # print "keyword=-value-", keyword+'='+'-'+str(value)+'-'
-            hdu.header[keyword] = value
+            if keyword == 'COMMENT':
+                for line in value.splitlines():
+                    hdu.header.add_comment(line)
+            else:
+                hdu.header[keyword] = value
 
         # ADD the ANTENNA table
         staxof = np.zeros(self.Nants_telescope)
