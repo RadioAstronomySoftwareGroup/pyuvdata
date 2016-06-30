@@ -1,6 +1,7 @@
 from astropy import constants as const
 from astropy.time import Time
 import os.path as op
+import os
 import numpy as np
 import warnings
 import aipy as a
@@ -696,6 +697,11 @@ class UVData(object):
         if file_type not in self.supported_write_file_types:
             raise ValueError('file_type must be one of ' +
                              ' '.join(self.supported_write_file_types))
+
+        file_path = op.dirname(filename)
+        if not op.exists(file_path):
+            os.mkdir(file_path)
+
         if file_type == 'uvfits':
             status = self.write_uvfits(filename, 
                                        spoof_nonessential=spoof_nonessential,
