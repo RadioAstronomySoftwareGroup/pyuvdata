@@ -468,8 +468,8 @@ class UVFITS(uvdata.uv.UVData):
         ant_hdu.header['EXTNAME'] = 'AIPS AN'
         ant_hdu.header['EXTVER'] = 1
 
-        #write XYZ coordinates if not already defined
-        if None in [self.x_telescope,self.y_telescope,self.z_telescope]:
+        # write XYZ coordinates if not already defined
+        if None in [self.x_telescope, self.y_telescope, self.z_telescope]:
             self.set_XYZ_from_LatLonAlt(overwrite=False)
         ant_hdu.header['ARRAYX'] = self.x_telescope
         ant_hdu.header['ARRAYY'] = self.y_telescope

@@ -1,5 +1,6 @@
 from astropy import constants as const
-import os, shutil
+import os
+import shutil
 import numpy as np
 import warnings
 import aipy as a
@@ -114,7 +115,7 @@ class Miriad(uvdata.uv.UVData):
             # iterate over polarizations and all spectra (bls and times) in two
             # nested loops, then flatten into a single vector, then set
             # then list again.
-           
+
             times = list(set(
                 np.concatenate([[k[1] for k in d] for d in data_accumulator.values()])))
             times = np.sort(times)
@@ -237,8 +238,8 @@ class Miriad(uvdata.uv.UVData):
         return True
 
     def write_miriad(self, filepath, run_check=True, run_sanity_check=True, clobber=False):
-        #check for multiple spws
-        if self.data_array.shape[1] > 1: 
+        # check for multiple spws
+        if self.data_array.shape[1] > 1:
             raise ValueError('write_miriad currently only handles single spw files.')
 
         if os.path.exists(filepath):
@@ -248,7 +249,7 @@ class Miriad(uvdata.uv.UVData):
             else:
                 raise ValueError('File exists: skipping')
 
-        uv = a.miriad.UV(filepath,status='new')
+        uv = a.miriad.UV(filepath, status='new')
 
         # initialize header variables
         uv._wrhd('obstype', 'mixed-auto-cross')
@@ -278,7 +279,7 @@ class Miriad(uvdata.uv.UVData):
         uv.add_var('antpos', 'd')
         uv['antpos'] = self.antenna_positions.T.flatten()
         uv.add_var('sfreq', 'd')
-        uv['sfreq'] = self.freq_array[0,0]/1e9 #first spw; in GHz
+        uv['sfreq'] = self.freq_array[0, 0] / 1e9  # first spw; in GHz
         uv.add_var('epoch', 'r')
         uv['epoch'] = self.phase_center_epoch
 
@@ -307,21 +308,21 @@ class Miriad(uvdata.uv.UVData):
         for polcnt, pol in enumerate(self.polarization_array):
             uv['pol'] = pol
             for viscnt, blt in enumerate(self.data_array):
-                uvw = self.uvw_array[:,viscnt] / const.c.to('m/ns').value #Note issue 50 on conjugation
+                uvw = self.uvw_array[:, viscnt] / const.c.to('m/ns').value  # Note issue 50 on conjugation
                 t = self.time_array[viscnt]
                 i = self.ant_1_array[viscnt]
                 j = self.ant_2_array[viscnt]
                 preamble = (uvw, t, (i, j))
 
                 uv['lst'] = self.lst_array[viscnt]
-                uv['ra'] = self.zenith_ra[viscnt] #XXX assumes drift
-                uv['dec'] = self.zenith_dec[viscnt] #XXX assumes drift
- 
-                #NOTE only writing spw 0, not supporting multiple spws for write
-                uv['cnt'] = self.nsample_array[viscnt,0,:,polcnt].astype(np.double)              
-                data = self.data_array[viscnt,0,:,polcnt]
-                flags = self.flag_array[viscnt,0,:,polcnt]
-                
+                uv['ra'] = self.zenith_ra[viscnt]  # XXX assumes drift
+                uv['dec'] = self.zenith_dec[viscnt]  # XXX assumes drift
+
+                # NOTE only writing spw 0, not supporting multiple spws for write
+                uv['cnt'] = self.nsample_array[viscnt, 0, :, polcnt].astype(np.double)
+                data = self.data_array[viscnt, 0, :, polcnt]
+                flags = self.flag_array[viscnt, 0, :, polcnt]
+
                 uv.write(preamble, data, flags)
         if run_check:
             self.check(run_sanity_check=run_sanity_check)

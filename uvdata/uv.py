@@ -703,11 +703,11 @@ class UVData(object):
             os.mkdir(file_path)
 
         if file_type == 'uvfits':
-            status = self.write_uvfits(filename, 
+            status = self.write_uvfits(filename,
                                        spoof_nonessential=spoof_nonessential,
                                        force_phase=force_phase, run_check=False)
         elif file_type == 'miriad':
-            status = self.write_miriad(filename, run_check=False, 
+            status = self.write_miriad(filename, run_check=False,
                                        clobber=clobber)
         return status
 
