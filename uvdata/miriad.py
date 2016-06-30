@@ -1,5 +1,5 @@
 from astropy import constants as const
-import os
+import os, shutil
 import numpy as np
 import warnings
 import aipy as a
@@ -25,6 +25,8 @@ class Miriad(uvdata.uv.UVData):
         if not os.path.exists(filepath):
             raise(IOError, filepath + ' not found')
         uv = a.miriad.UV(filepath)
+
+        # TODO look for variables that are in header but not required
 
         miriad_header_data = {'Nfreqs': 'nchan',
                               'Npols': 'npol',
@@ -83,8 +85,8 @@ class Miriad(uvdata.uv.UVData):
                 cnt = uv['cnt']
             except(KeyError):
                 cnt = np.ones(d.shape, dtype=np.int)
-            zenith_ra = uv['ra']
-            zenith_dec = uv['dec']
+            zenith_ra = uv['ra']  # XXX the assumption that this is always zenith needs to be questioned
+            zenith_dec = uv['dec']  # XXX the assumption that this is always zenith needs to be questioned
             lst = uv['lst']
             source = uv['source']
             if source != _source:
@@ -112,14 +114,15 @@ class Miriad(uvdata.uv.UVData):
             # iterate over polarizations and all spectra (bls and times) in two
             # nested loops, then flatten into a single vector, then set
             # then list again.
+           
             times = list(set(
-                np.ravel([[k[1] for k in d] for d in data_accumulator.values()])))
+                np.concatenate([[k[1] for k in d] for d in data_accumulator.values()])))
             times = np.sort(times)
 
             ant_i_unique = list(set(
-                np.ravel([[k[2] for k in d] for d in data_accumulator.values()])))
+                np.concatenate([[k[2] for k in d] for d in data_accumulator.values()])))
             ant_j_unique = list(set(
-                np.ravel([[k[3] for k in d] for d in data_accumulator.values()])))
+                np.concatenate([[k[3] for k in d] for d in data_accumulator.values()])))
 
             self.Nants_data = max(len(ant_i_unique), len(ant_j_unique))
             self.antenna_indices = np.arange(self.Nants_telescope)
@@ -233,48 +236,89 @@ class Miriad(uvdata.uv.UVData):
             self.check(run_sanity_check=run_sanity_check)
         return True
 
-    def write_miriad(self, filepath, run_check=True, run_sanity_check=True):
+    def write_miriad(self, filepath, run_check=True, run_sanity_check=True, clobber=False):
         #check for multiple spws
         if self.data_array.shape[1] > 1: 
             raise ValueError('write_miriad currently only handles single spw files.')
 
+        if os.path.exists(filepath):
+            if clobber:
+                print 'File exists: clobbering'
+                shutil.rmtree(filepath)
+            else:
+                raise ValueError('File exists: skipping')
+
         uv = a.miriad.UV(filepath,status='new')
 
-        #initialize header variables
-        uv._wrhd('obstype','mixed-auto-cross')
+        # initialize header variables
+        uv._wrhd('obstype', 'mixed-auto-cross')
         uv._wrhd('history', self.history + '\n')
 
-        #required miriad variables
-        uv.add_var('nchan', 'i'); uv['nchan'] = self.Nfreqs
-        uv.add_var('npol', 'i'); uv['npol'] = self.Npols
-        uv.add_var('nspect', 'i'); uv['nspect'] = self.Nspws
+        # recognized miriad variables
+        uv.add_var('nchan', 'i')
+        uv['nchan'] = self.Nfreqs
+        uv.add_var('npol', 'i')
+        uv['npol'] = self.Npols
+        uv.add_var('nspect', 'i')
+        uv['nspect'] = self.Nspws
+        uv.add_var('inttime', 'd')
+        uv['inttime'] = self.integration_time
+        uv.add_var('sdf', 'd')
+        uv['sdf'] = self.channel_width / 1e9  # in GHz
+        uv.add_var('source', 'a')
+        uv['source'] = self.object_name
+        uv.add_var('telescop', 'a')
+        uv['telescop'] = self.telescope_name
+        uv.add_var('latitud', 'd')
+        uv['latitud'] = self.latitude
+        uv.add_var('longitu', 'd')
+        uv['longitu'] = self.longitude
+        uv.add_var('nants', 'i')
+        uv['nants'] = self.Nants_telescope
+        uv.add_var('antpos', 'd')
+        uv['antpos'] = self.antenna_positions.T.flatten()
+        uv.add_var('sfreq', 'd')
+        uv['sfreq'] = self.freq_array[0,0]/1e9 #first spw; in GHz
+        uv.add_var('epoch', 'r')
+        uv['epoch'] = self.phase_center_epoch
 
-        #required pyuvdata variables that are not recognized miriad variables
-        uv.add_var('ntimes', 'i'); uv['ntimes'] = self.Ntimes
-        uv.add_var('nbls', 'i'); uv['nbls'] = self.Nbls
-        uv.add_var('nblts', 'i'); uv['nblts'] = self.Nblts
-        uv.add_var('visunits', 'a'); uv['visunits'] = self.vis_units
+        # required pyuvdata variables that are not recognized miriad variables
+        uv.add_var('ntimes', 'i')
+        uv['ntimes'] = self.Ntimes
+        uv.add_var('nbls', 'i')
+        uv['nbls'] = self.Nbls
+        uv.add_var('nblts', 'i')
+        uv['nblts'] = self.Nblts
+        uv.add_var('visunits', 'a')
+        uv['visunits'] = self.vis_units
+        uv.add_var('instrume', 'a')
+        uv['instrume'] = self.instrument
+        uv.add_var('altitude', 'd')
+        uv['altitude'] = self.altitude
 
-        #variables that can get updated with every visibility
+        # variables that can get updated with every visibility
         uv.add_var('pol', 'i')
         uv.add_var('lst', 'd')
-        uv.add_var('cnt', 'i')
- 
-        #write data
+        uv.add_var('cnt', 'd')
+        uv.add_var('ra', 'd')
+        uv.add_var('dec', 'd')
+
+        # write data
         for polcnt, pol in enumerate(self.polarization_array):
             uv['pol'] = pol
             for viscnt, blt in enumerate(self.data_array):
-                uvw = self.uvw_array[:,viscnt] #Note issue 50 on conjugation
+                uvw = self.uvw_array[:,viscnt] / const.c.to('m/ns').value #Note issue 50 on conjugation
                 t = self.time_array[viscnt]
                 i = self.ant_1_array[viscnt]
                 j = self.ant_2_array[viscnt]
-                preamble = (uvw,t,(i,j))
-   
+                preamble = (uvw, t, (i, j))
+
                 uv['lst'] = self.lst_array[viscnt]
+                uv['ra'] = self.zenith_ra[viscnt] #XXX assumes drift
+                uv['dec'] = self.zenith_dec[viscnt] #XXX assumes drift
  
                 #NOTE only writing spw 0, not supporting multiple spws for write
-                uv['cnt'] = self.nsample_array[viscnt,0,:,polcnt]                
-
+                uv['cnt'] = self.nsample_array[viscnt,0,:,polcnt].astype(np.double)              
                 data = self.data_array[viscnt,0,:,polcnt]
                 flags = self.flag_array[viscnt,0,:,polcnt]
                 
