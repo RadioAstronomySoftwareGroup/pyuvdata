@@ -36,6 +36,7 @@ class UVFITS(uvdata.uv.UVData):
 
         F = fits.open(filename)
         D = F[0]  # assumes the visibilities are in the primary hdu
+        hdr = D.header.copy()
         hdunames = self._indexhdus(F)  # find the rest of the tables
 
         # astropy.io fits reader scales date according to relevant PZER0 (?)
@@ -100,25 +101,24 @@ class UVFITS(uvdata.uv.UVData):
                                       len(np.unique(self.ant_2_array))]))
 
         # check if we have an spw dimension
-        if D.header['NAXIS'] == 7:
-            if D.header['NAXIS5'] > 1:
+        if hdr.pop('NAXIS') == 7:
+            if hdr['NAXIS5'] > 1:
                 raise ValueError('Sorry.  Files with more than one spectral' +
                                  'window (spw) are not yet supported. A ' +
                                  'great project for the interested student!')
-            self.Nspws = D.header['NAXIS5']
             self.data_array = (D.data.field('DATA')[:, 0, 0, :, :, :, 0] +
                                1j * D.data.field('DATA')[:, 0, 0, :, :, :, 1])
             self.flag_array = (D.data.field('DATA')[:, 0, 0, :, :, :, 2] <= 0)
             self.nsample_array = np.abs(D.data.field('DATA')[:, 0, 0, :, :, :, 2])
-            self.Nspws = D.header['NAXIS5']
+            self.Nspws = hdr.pop('NAXIS5')
             assert(self.Nspws == self.data_array.shape[1])
 
             # the axis number for phase center depends on if the spw exists
             # subtract 1 to be zero-indexed
             self.spw_array = np.int32(self._gethduaxis(D, 5)) - 1
 
-            self._phase_center_ra.set_degrees(np.array(D.header['CRVAL6']).astype(np.float64))
-            self._phase_center_dec.set_degrees(np.array(D.header['CRVAL7']).astype(np.float64))
+            self._phase_center_ra.set_degrees(np.array(hdr.pop('CRVAL6')).astype(np.float64))
+            self._phase_center_dec.set_degrees(np.array(hdr.pop('CRVAL7')).astype(np.float64))
         else:
             # in many uvfits files the spw axis is left out,
             # here we put it back in so the dimensionality stays the same
@@ -134,15 +134,15 @@ class UVFITS(uvdata.uv.UVData):
             self.Nspws = 1
             self.spw_array = np.array([0])
 
-            self._phase_center_ra.set_degrees(np.array(D.header['CRVAL5']).astype(np.float64))
-            self._phase_center_dec.set_degrees(np.array(D.header['CRVAL6']).astype(np.float64))
+            self._phase_center_ra.set_degrees(np.array(hdr.pop('CRVAL5')).astype(np.float64))
+            self._phase_center_dec.set_degrees(np.array(hdr.pop('CRVAL6')).astype(np.float64))
 
         # get dimension sizes
-        self.Nfreqs = D.header['NAXIS4']
+        self.Nfreqs = hdr.pop('NAXIS4')
         assert(self.Nfreqs == self.data_array.shape[2])
-        self.Npols = D.header['NAXIS3']
+        self.Npols = hdr.pop('NAXIS3')
         assert(self.Npols == self.data_array.shape[3])
-        self.Nblts = D.header['GCOUNT']
+        self.Nblts = hdr.pop('GCOUNT')
         assert(self.Nblts == self.data_array.shape[0])
 
         # read baseline vectors in units of seconds, return in meters
@@ -152,7 +152,7 @@ class UVFITS(uvdata.uv.UVData):
                           const.c.to('m/s').value)
 
         self.freq_array = self._gethduaxis(D, 4)
-        self.channel_width = D.header['CDELT4']
+        self.channel_width = hdr.pop('CDELT4')
 
         try:
             self.integration_time = float(D.data.field('INTTIM')[0])
@@ -164,38 +164,42 @@ class UVFITS(uvdata.uv.UVData):
                 raise ValueError('integration time not specified and only '
                                  'one time present')
 
-        self.freq_array.shape = (1,) + self.freq_array.shape
+        self.freq_array.shape = (self.Nspws,) + self.freq_array.shape
 
         self.polarization_array = np.int32(self._gethduaxis(D, 3))
 
         # other info -- not required but frequently used
-        self.object_name = D.header.get('OBJECT', None)
-        self.telescope_name = D.header.get('TELESCOP', None)
-        self.instrument = D.header.get('INSTRUME', None)
-        self._latitude.set_degrees(D.header.get('LAT', None))
-        self._longitude.set_degrees(D.header.get('LON', None))
-        self.altitude = D.header.get('ALT', None)
-        self.dateobs = D.header.get('DATE-OBS', None)
-        self.history = str(D.header.get('HISTORY', ''))
-        self.vis_units = D.header.get('BUNIT', 'UNCALIB')
-        self.phase_center_epoch = D.header.get('EPOCH', None)
+        self.object_name = hdr.pop('OBJECT', None)
+        self.telescope_name = hdr.pop('TELESCOP', None)
+        self.instrument = hdr.pop('INSTRUME', None)
+        self._latitude.set_degrees(hdr.pop('LAT', None))
+        self._longitude.set_degrees(hdr.pop('LON', None))
+        self.altitude = hdr.pop('ALT', None)
+        self.dateobs = hdr.pop('DATE-OBS', None)
+        self.history = str(hdr.get('HISTORY', ''))
+        while 'HISTORY' in hdr.keys():
+            hdr.remove('HISTORY')
+        self.vis_units = hdr.pop('BUNIT', 'UNCALIB')
+        self.phase_center_epoch = hdr.pop('EPOCH', None)
 
-        # find all the header items after the history and keep them as a dict
-        etcpointer = 0
-        for thing in D.header:
-            etcpointer += 1
-            if thing == 'HISTORY':
-                etcpointer += 1
-                break
-        for key in D.header[etcpointer:]:
+        # remove standard FITS header items that are still around
+        std_fits_substrings = ['SIMPLE', 'BITPIX', 'EXTEND', 'BLOCKED',
+                               'GROUPS', 'PCOUNT', 'BSCALE', 'BZERO', 'NAXIS',
+                               'PTYPE', 'PSCAL', 'PZERO', 'CTYPE', 'CRVAL',
+                               'CRPIX', 'CDELT', 'CROTA']
+        for key in hdr.keys():
+            for sub in std_fits_substrings:
+                if key.find(sub) > -1:
+                    hdr.remove(key)
+
+        # find all the remaining header items and keep them as extra_keywords
+        for key in hdr:
             if key == '':
                 continue
-            if key == 'HISTORY':
-                continue
             if key == 'COMMENT':
-                self.extra_keywords[key] = str(D.header[key])
+                self.extra_keywords[key] = str(hdr.get(key))
             else:
-                self.extra_keywords[key] = D.header[key]
+                self.extra_keywords[key] = hdr.get(key)
 
         # READ the antenna table
         ant_hdu = F[hdunames['AIPS AN']]
@@ -215,7 +219,7 @@ class UVFITS(uvdata.uv.UVData):
         try:
             self.xyz_telescope_frame = ant_hdu.header['FRAME']
         except:
-            cotter_version = D.header.get('COTVER', None)
+            cotter_version = hdr.get('COTVER', None)
             if cotter_version is None:
                 if self.telescope_name == 'PAPER':
                     warnings.warn('Required Antenna frame keyword not set, '
