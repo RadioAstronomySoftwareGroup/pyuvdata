@@ -288,6 +288,11 @@ class TestReadUVFits(unittest.TestCase):
         self.assertRaises(ValueError, UV.read, testfile, 'vufits')  # Wrong filetype
         test = UV.read(testfile, 'uvfits')
         self.assertTrue(test)
+        expected_extra_keywords = ['OBSERVER', 'SORTORD', 'SPECSYS',
+                                   'RESTFREQ', 'ORIGIN']
+        self.assertEqual(expected_extra_keywords.sort(),
+                         UV.extra_keywords.keys().sort())
+
         test = checkWarnings(self, UV.read, [testfile_no_spw, 'uvfits'],
                              warning_message='Required Antenna frame keyword'
                                              'not set, since this is a PAPER'
