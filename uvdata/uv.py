@@ -317,10 +317,10 @@ class UVData(object):
                 self_param = getattr(self, p)
                 other_param = getattr(other, p)
                 if self_param != other_param:
-                    print('parameter {pname} does not match. Left is {lval} '
-                          'and right is {rval}'.
-                          format(pname=p, lval=str(self_param.value),
-                                 rval=str(other_param.value)))
+                    # print('parameter {pname} does not match. Left is {lval} '
+                    #       'and right is {rval}'.
+                    #       format(pname=p, lval=str(self_param.value),
+                    #              rval=str(other_param.value)))
                     isequal = False
             return isequal
         else:
