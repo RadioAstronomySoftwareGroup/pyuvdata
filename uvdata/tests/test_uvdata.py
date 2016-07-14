@@ -19,7 +19,8 @@ def get_iterable(x):
         return (x,)
 
 
-def checkWarnings(obj, func, func_args=[], func_kwargs={}, warning_cat=UserWarning,
+def checkWarnings(obj, func, func_args=[], func_kwargs={},
+                  warning_cat=UserWarning,
                   nwarnings=1, warning_message=None):
     warning_cat = get_iterable(warning_cat)
     warning_message = get_iterable(warning_message)
@@ -42,6 +43,7 @@ test_file_directory = '../data/test/'
 if not os.path.exists(test_file_directory):
     print('making test directory')
     os.mkdir(test_file_directory)
+
 
 class TestUVDataInit(unittest.TestCase):
     def setUp(self):
@@ -132,8 +134,9 @@ class TestUVDataInit(unittest.TestCase):
                             msg='expected parameter ' + a + ' does not exist')
 
     def test_unexpected_attributes(self):
-        expected_attributes = self.required_parameters + self.extra_parameters + \
-            self.required_properties + self.extra_properties
+        expected_attributes = self.required_parameters + \
+            self.extra_parameters + self.required_properties + \
+            self.extra_properties
         attributes = [i for i in self.uv_object.__dict__.keys() if i[0] != '_']
         for a in attributes:
             self.assertTrue(a in expected_attributes,
@@ -164,7 +167,8 @@ class TestUVmethods(unittest.TestCase):
                          (0, 0))
         Nants = self.uv_object.Nants_telescope
         self.uv_object.Nants_telescope = 2049
-        self.assertRaises(StandardError, self.uv_object.baseline_to_antnums, 67585)
+        self.assertRaises(StandardError, self.uv_object.baseline_to_antnums,
+                          67585)
         self.uv_object.Nants_telescope = Nants  # reset
 
     def test_ij2bl(self):
@@ -173,14 +177,16 @@ class TestUVmethods(unittest.TestCase):
         self.assertEqual(self.uv_object.antnums_to_baseline(257, 256),
                          592130)
         # Check attempt256
-        self.assertEqual(self.uv_object.antnums_to_baseline(0, 0, attempt256=True),
-                         257)
+        self.assertEqual(self.uv_object.antnums_to_baseline(0, 0,
+                         attempt256=True), 257)
         self.assertEqual(checkWarnings(self, self.uv_object.antnums_to_baseline,
                                        [257, 256], {'attempt256': True},
-                                       warning_message='found > 256 antennas'), 592130)
+                                       warning_message='found > 256 antennas'),
+                         592130)
         Nants = self.uv_object.Nants_telescope
         self.uv_object.Nants_telescope = 2049
-        self.assertRaises(StandardError, self.uv_object.antnums_to_baseline, 0, 0)
+        self.assertRaises(StandardError, self.uv_object.antnums_to_baseline,
+                          0, 0)
         self.uv_object.Nants_telescope = Nants  # reset
 
     def test_data_equality(self):
@@ -198,15 +204,19 @@ class TestUVmethods(unittest.TestCase):
         # Check some UVParameter specific inequalities.
         self.uv_object2.data_array = 1.0  # Test values not same class
         # Note that due to peculiarity of order of operations, need to reverse arrays.
-        self.assertNotEqual(self.uv_object2._data_array, self.uv_object._data_array)
+        self.assertNotEqual(self.uv_object2._data_array,
+                            self.uv_object._data_array)
         self.uv_object2.data_array = np.array([1, 2, 3])  # Test different shapes
-        self.assertNotEqual(self.uv_object._data_array, self.uv_object2._data_array)
+        self.assertNotEqual(self.uv_object._data_array,
+                            self.uv_object2._data_array)
         self.uv_object2.Ntimes = 1000.0  # Test values that are not close
         self.assertNotEqual(self.uv_object._Ntimes, self.uv_object2._Ntimes)
         self.uv_object2.vis_units = 'foo'  # Test unequal strings
-        self.assertNotEqual(self.uv_object._vis_units, self.uv_object2._vis_units)
+        self.assertNotEqual(self.uv_object._vis_units,
+                            self.uv_object2._vis_units)
         self.uv_object2.antenna_names[0] = 'Bob'  # Test unequal string in list
-        self.assertNotEqual(self.uv_object._antenna_names, self.uv_object2._antenna_names)
+        self.assertNotEqual(self.uv_object._antenna_names,
+                            self.uv_object2._antenna_names)
 
     def test_set_XYZ_from_LatLonAlt(self):
         self.uv_object._latitude.set_degrees(-26.7)
@@ -239,7 +249,8 @@ class TestUVmethods(unittest.TestCase):
         out_latlonalt = (self.uv_object._latitude.degrees(),
                          self.uv_object._longitude.degrees(),
                          self.uv_object.altitude)
-        self.assertTrue(np.allclose(ref_latlonalt, out_latlonalt, rtol=0, atol=1e-3))
+        self.assertTrue(np.allclose(ref_latlonalt, out_latlonalt, rtol=0,
+                                    atol=1e-3))
 
     def test_check(self):
         try:
@@ -423,8 +434,8 @@ class TestReadFHD(unittest.TestCase):
         self.assertRaises(StandardError, fhd_uv.read, ['foo'], 'fhd')  # No data files
         del(fhd_uv)
         fhd_uv = UVData()
-        self.assertTrue(checkWarnings(self, fhd_uv.read, [self.testfiles[:-1], 'fhd'],
-                                      warning_message='No settings'))
+        self.assertTrue(checkWarnings(self, fhd_uv.read, [self.testfiles[:-1],
+                                      'fhd'], warning_message='No settings'))
         self.assertEqual(fhd_uv.history, '')  # Check empty history with no settings
         del(fhd_uv)
 
@@ -476,7 +487,8 @@ class TestReadMiriad(unittest.TestCase):
         uvfits_testfile = op.join(self.test_file_directory,
                                   'outtest_miriad.uvfits')
         # Simultaneously test the general write function for case of uvfits
-        self.miriad_uv.write(uvfits_testfile, file_type='uvfits', spoof_nonessential=True,
+        self.miriad_uv.write(uvfits_testfile, file_type='uvfits',
+                             spoof_nonessential=True,
                              force_phase=True)
         self.uvfits_uv.read(uvfits_testfile, 'uvfits')
 
@@ -493,6 +505,7 @@ class TestReadMiriad(unittest.TestCase):
         self.phased.read(self.phasedfile, 'miriad')
 
         self.assertEqual(self.unphased, self.phased)
+
 
 class TestWriteMiriad(unittest.TestCase):
     def setUp(self):
