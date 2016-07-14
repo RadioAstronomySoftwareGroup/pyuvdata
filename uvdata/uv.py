@@ -64,7 +64,7 @@ class UVParameter(object):
                                           rtol=self.tols[0], atol=self.tols[1]):
                             isequal = False
                     except:
-                        print self.value, other.value
+                        print(self.value, other.value)
                         isequal = False
                 else:
                     if self.value != other.value:
