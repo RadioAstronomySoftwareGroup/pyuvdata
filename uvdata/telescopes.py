@@ -148,3 +148,5 @@ def telescopes():
             obj.z_telescope = xyz[2]
 
         telescopes[telescope.name] = obj
+
+        return telescopes
