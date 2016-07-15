@@ -1,8 +1,9 @@
-import uvdata.parameter as uvp
 import numpy as np
+import uvdata.parameter as uvp
+import uvdata.utils as utils
 
 
-class telescope(object):
+class Telescope(object):
 
     def __init__(self):
         # add the UVParameters to the class
@@ -95,19 +96,55 @@ class telescope(object):
         return not self.__eq__(other)
 
 
-class PAPER_SA(telescope):
+def telescopes():
+    paper_sa = {name: 'PAPER_SA', frame: 'ITRF', center_xyz: [],
+                latitude: , longitude: , altitude: }
 
-    def init(self):
-        self.telescope_name = 'PAPER_SA'
+    hera = {name: 'HERA', frame: 'ITRF', center_xyz: [],
+            latitude: , longitude: , altitude: }
 
+    mwa = {name: 'MWA', frame: 'ITRF', center_xyz: [],
+           latitude: , longitude: , altitude: }
 
-class HERA(telescope):
+    dict_list = [paper_sa, hera, mwa]
 
-    def init(self):
-        self.telescope_name = 'HERA'
+    telescopes = {}
+    for telescope in dict_list:
+        obj = Telescope()
+        obj.telescope_name = telescope.name
+        if ('center_xyz' in telescope.keys() and 'frame' in telescope.keys()):
+            obj.xyz_telescope_frame = telescope.frame
+            obj.x_telescope = telescope.center_xyz[0]
+            obj.y_telescope = telescope.center_xyz[1]
+            obj.z_telescope = telescope.center_xyz[2]
 
+            if ('latitude' in telescope.keys() and 'longitude' in telescope.keys() and 'altitude' in telescope.keys()):
+                obj.latitude = telescope.latitude
+                obj.longitude = telescope.longitude
+                obj.altitude = telescope.altitude
+            else:
+                if telescope.frame == 'ITRF':
+                    latitude, longitude, altitude = utils.LatLonAlt_from_XYZ(telescope.center_xyz)
+                    obj.latitude = latitude
+                    obj.longitude = longitude
+                    obj.altitude = altitude
+                else:
+                    raise ValueError('latitude, longitude or altitude not
+                                     'specified and frame is not "ITRF"')
+        else:
+            if not ('latitude' in telescope.keys() and 'longitude' in telescope.keys() and 'altitude' in telescope.keys()):
+                raise ValueError('either the center_xyz and frame or the '
+                                 'latitude, longitude and altitude of the '
+                                 'telescope must be specified')
+            obj.latitude = telescope.latitude
+            obj.longitude = telescope.longitude
+            obj.latitude = telescope.latitude
 
-class MWA(telescope):
+            xyz = utils.XYZ_from_LatLonAlt(telescope.latitude, telescope.longitude,
+                                           telescope.altitude)
+            obj.xyz_telescope_frame = 'ITRF'
+            obj.x_telescope = xyz[0]
+            obj.y_telescope = xyz[1]
+            obj.z_telescope = xyz[2]
 
-    def init(self):
-        self.telescope_name = 'MWA'
+        telescopes[telescope.name] = obj
