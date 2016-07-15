@@ -1,3 +1,4 @@
+import numpy as np
 import uvdata.parameter as uvp
 
 
@@ -78,3 +79,54 @@ class UVBase(object):
 
     def __ne__(self, other):
         return not self.__eq__(other)
+
+    def check(self, run_sanity_check=True):
+        # loop through all required parameters, make sure that they are filled
+        for p in self.required_parameter_iter():
+            param = getattr(self, p)
+            # Check required parameter exists
+            if param.value is None:
+                raise ValueError('Required UVParameter ' + p +
+                                 ' has not been set.')
+
+            # Check required parameter size
+            esize = param.expected_size(self)
+            if esize is None:
+                raise ValueError('Required UVParameter ' + p +
+                                 ' expected size is not defined.')
+            elif esize == 'str':
+                # Check that it's a string
+                if not isinstance(param.value, str):
+                    raise ValueError('UVParameter ' + p + 'expected to be '
+                                     'string, but is not')
+            else:
+                # Check the size of the parameter value. Note that np.shape
+                # returns an empty tuple for single numbers. esize should do the same.
+                if not np.shape(param.value) == esize:
+                    raise ValueError('UVParameter ' + p + 'is not expected size.')
+                if esize == ():
+                    # Single element
+                    if not isinstance(param.value, param.expected_type):
+                        raise ValueError('UVParameter ' + p + ' is not the appropriate'
+                                         ' type. Is: ' + str(type(param.value)) +
+                                         '. Should be: ' + str(param.expected_type))
+                else:
+                    if isinstance(param.value, list):
+                        # List needs to be handled differently than array (I think)
+                        if not isinstance(param.value[0], param.expected_type):
+                            raise ValueError('UVParameter ' + p + ' is not the'
+                                             ' appropriate type. Is: ' +
+                                             str(type(param.value[0])) + '. Should'
+                                             ' be: ' + str(param.expected_type))
+                    else:
+                        # Array
+                        if not isinstance(param.value.item(0), param.expected_type):
+                            raise ValueError('UVParameter ' + p + ' is not the appropriate'
+                                             ' type. Is: ' + str(param.value.dtype) +
+                                             '. Should be: ' + str(param.expected_type))
+
+            if run_sanity_check:
+                if not param.sanity_check():
+                    raise ValueError('UVParameter ' + p + ' has insane values.')
+
+        return True
