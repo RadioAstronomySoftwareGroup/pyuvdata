@@ -368,30 +368,15 @@ class UVData(object):
             None not in (self.x_telescope,
                          self.y_telescope,
                          self.z_telescope)):
-            # see wikipedia geodetic_datum and Datum transformations of
-            # GPS positions PDF in docs folder
-            gps_b = 6356752.31424518
-            gps_a = 6378137
-            e_squared = 6.69437999014e-3
-            e_prime_squared = 6.73949674228e-3
-            gps_p = np.sqrt(self.x_telescope**2 +
-                            self.y_telescope**2)
-            gps_theta = np.arctan2(self.z_telescope * gps_a,
-                                   gps_p * gps_b)
-            if self.latitude is None or overwrite:
-                self.latitude = np.arctan2(self.z_telescope +
-                                           e_prime_squared * gps_b *
-                                           np.sin(gps_theta)**3,
-                                           gps_p - e_squared * gps_a *
-                                           np.cos(gps_theta)**3)
+            xyz = np.array([self.x_telescope, self.y_telescope, self.z_telescope])
+            latitude, longitude, altitude = uvdata.utils.LatLonAlt_from_XYZ(xyz)
 
+            if self.latitude is None or overwrite:
+                self.latitude = latitude
             if self.longitude is None or overwrite:
-                self.longitude = np.arctan2(self.y_telescope,
-                                            self.x_telescope)
-            gps_N = gps_a / np.sqrt(1 - e_squared *
-                                    np.sin(self.latitude)**2)
+                self.longitude = longitude
             if self.altitude is None or overwrite:
-                self.altitude = ((gps_p / np.cos(self.latitude)) - gps_N)
+                self.altitude = altitude
         else:
             raise ValueError('No x, y or z_telescope value assigned or '
                              'xyz_telescope_frame is not "ITRF"')
@@ -400,26 +385,15 @@ class UVData(object):
         # check that the coordinates we need actually exist
         if None not in (self.latitude, self.longitude,
                         self.altitude):
-            # see wikipedia geodetic_datum and Datum transformations of
-            # GPS positions PDF in docs folder
-            gps_b = 6356752.31424518
-            gps_a = 6378137
-            e_squared = 6.69437999014e-3
-            e_prime_squared = 6.73949674228e-3
-            gps_N = gps_a / np.sqrt(1 - e_squared *
-                                    np.sin(self.latitude)**2)
+
+            xyz = uvdata.utils.XYZ_from_LatLonAlt(self.latitude, self.longitude, self.altitude)
+
             if self.x_telescope is None or overwrite:
-                self.x_telescope = ((gps_N + self.altitude) *
-                                    np.cos(self.latitude) *
-                                    np.cos(self.longitude))
+                self.x_telescope = xyz[0]
             if self.y_telescope is None or overwrite:
-                self.y_telescope = ((gps_N + self.altitude) *
-                                    np.cos(self.latitude) *
-                                    np.sin(self.longitude))
+                self.y_telescope = xyz[1]
             if self.z_telescope is None or overwrite:
-                self.z_telescope = ((gps_b**2 / gps_a**2 * gps_N +
-                                    self.altitude) *
-                                    np.sin(self.latitude))
+                self.z_telescope = xyz[2]
         else:
             raise ValueError('lat, lon or altitude not found')
 
