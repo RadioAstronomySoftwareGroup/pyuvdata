@@ -8,6 +8,7 @@ import aipy as a
 import ephem
 from astropy.utils import iers
 import uvdata.parameter as uvp
+from uvdata.uvbase import UVBase
 import uvdata
 
 data_path = op.join(uvdata.__path__[0], 'data')
@@ -15,7 +16,7 @@ data_path = op.join(uvdata.__path__[0], 'data')
 iers_a = iers.IERS_A.open(op.join(data_path, 'finals.all'))
 
 
-class UVData(object):
+class UVData(UVBase):
     supported_read_file_types = ['uvfits', 'miriad', 'fhd']
     supported_write_file_types = ['uvfits', 'miriad', 'fhd']
 
@@ -256,79 +257,7 @@ class UVData(object):
                                                        description=desc,
                                                        spoof_val=0)
 
-        for p in self.parameter_iter():
-            this_param = getattr(self, p)
-            attr_name = this_param.name
-            setattr(self.__class__, attr_name, property(self.prop_fget(p), self.prop_fset(p)))
-
-    def prop_fget(self, param_name):
-        def fget(self):
-            this_param = getattr(self, param_name)
-            return this_param.value
-        return fget
-
-    def prop_fset(self, param_name):
-        def fset(self, value):
-            this_param = getattr(self, param_name)
-            this_param.value = value
-            setattr(self, param_name, this_param)
-        return fset
-
-    def parameter_iter(self):
-        attribute_list = [a for a in dir(self) if not a.startswith('__') and
-                          not callable(getattr(self, a))]
-        param_list = []
-        for a in attribute_list:
-            attr = getattr(self, a)
-            if isinstance(attr, uvp.UVParameter):
-                param_list.append(a)
-        for a in param_list:
-            yield a
-
-    def required_parameter_iter(self):
-        attribute_list = [a for a in dir(self) if not a.startswith('__') and
-                          not callable(getattr(self, a))]
-        required_list = []
-        for a in attribute_list:
-            attr = getattr(self, a)
-            if isinstance(attr, uvp.UVParameter):
-                if attr.required:
-                    required_list.append(a)
-        for a in required_list:
-            yield a
-
-    def extra_parameter_iter(self):
-        attribute_list = [a for a in dir(self) if not a.startswith('__') and
-                          not callable(getattr(self, a))]
-        extra_list = []
-        for a in attribute_list:
-            attr = getattr(self, a)
-            if isinstance(attr, uvp.UVParameter):
-                if not attr.required:
-                    extra_list.append(a)
-        for a in extra_list:
-            yield a
-
-    def __eq__(self, other):
-        if isinstance(other, self.__class__):
-            # only check that required parameters are identical
-            isequal = True
-            for p in self.required_parameter_iter():
-                self_param = getattr(self, p)
-                other_param = getattr(other, p)
-                if self_param != other_param:
-                    # print('parameter {pname} does not match. Left is {lval} '
-                    #       'and right is {rval}'.
-                    #       format(pname=p, lval=str(self_param.value),
-                    #              rval=str(other_param.value)))
-                    isequal = False
-            return isequal
-        else:
-            print('Classes do not match')
-            return False
-
-    def __ne__(self, other):
-        return not self.__eq__(other)
+        super(UVData, self).__init__()
 
     def baseline_to_antnums(self, baseline):
         if self.Nants_telescope > 2048:
@@ -368,6 +297,7 @@ class UVData(object):
             None not in (self.x_telescope,
                          self.y_telescope,
                          self.z_telescope)):
+
             xyz = np.array([self.x_telescope, self.y_telescope, self.z_telescope])
             latitude, longitude, altitude = uvdata.utils.LatLonAlt_from_XYZ(xyz)
 
@@ -386,7 +316,8 @@ class UVData(object):
         if None not in (self.latitude, self.longitude,
                         self.altitude):
 
-            xyz = uvdata.utils.XYZ_from_LatLonAlt(self.latitude, self.longitude, self.altitude)
+            xyz = uvdata.utils.XYZ_from_LatLonAlt(self.latitude, self.longitude,
+                                                  self.altitude)
 
             if self.x_telescope is None or overwrite:
                 self.x_telescope = xyz[0]
