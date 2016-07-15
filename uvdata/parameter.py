@@ -1,4 +1,3 @@
-import uvdata
 import numpy as np
 
 
@@ -74,7 +73,7 @@ class UVParameter(object):
 
     def expected_size(self, dataobj):
         # Takes the form of the parameter and returns the size
-        # expected, given values in the UVData object
+        # expected, given values in the UVBase object
         if self.form == 'str':
             return self.form
         elif isinstance(self.form, np.int):
@@ -89,7 +88,7 @@ class UVParameter(object):
                 else:
                     val = getattr(dataobj, p)
                     if val is None:
-                        raise ValueError('Missing UVData parameter {p} needed to '
+                        raise ValueError('Missing UVBase parameter {p} needed to '
                                          'calculate expected size of parameter'.format(p=p))
                     esize = esize + (val,)
             return esize
@@ -108,8 +107,8 @@ class UVParameter(object):
 
 
 class AntPositionParameter(UVParameter):
-    def apply_spoof(self, uvdata):
-        self.value = np.zeros((len(uvdata.antenna_indices), 3))
+    def apply_spoof(self, uvbase):
+        self.value = np.zeros((len(uvbase.antenna_indices), 3))
 
 
 class ExtraKeywordParameter(UVParameter):

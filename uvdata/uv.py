@@ -7,8 +7,9 @@ import warnings
 import aipy as a
 import ephem
 from astropy.utils import iers
-import uvdata.parameter as uvp
 from uvdata.uvbase import UVBase
+import uvdata.parameter as uvp
+import uvdata.utils as utils
 import uvdata
 
 data_path = op.join(uvdata.__path__[0], 'data')
@@ -299,7 +300,7 @@ class UVData(UVBase):
                          self.z_telescope)):
 
             xyz = np.array([self.x_telescope, self.y_telescope, self.z_telescope])
-            latitude, longitude, altitude = uvdata.utils.LatLonAlt_from_XYZ(xyz)
+            latitude, longitude, altitude = utils.LatLonAlt_from_XYZ(xyz)
 
             if self.latitude is None or overwrite:
                 self.latitude = latitude
@@ -316,8 +317,8 @@ class UVData(UVBase):
         if None not in (self.latitude, self.longitude,
                         self.altitude):
 
-            xyz = uvdata.utils.XYZ_from_LatLonAlt(self.latitude, self.longitude,
-                                                  self.altitude)
+            xyz = utils.XYZ_from_LatLonAlt(self.latitude, self.longitude,
+                                           self.altitude)
 
             if self.x_telescope is None or overwrite:
                 self.x_telescope = xyz[0]

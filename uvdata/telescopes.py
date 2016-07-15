@@ -1,7 +1,7 @@
 import numpy as np
+from uvdata.uvbase import UVBase
 import uvdata.parameter as uvp
 import uvdata.utils as utils
-from uvdata.uvbase import UVBase
 
 
 class Telescope(UVBase):

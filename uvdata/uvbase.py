@@ -4,7 +4,7 @@ import uvdata.parameter as uvp
 class UVBase(object):
 
     def __init__(self):
-        # set any uvparameters to be properties
+        # set any UVParameter attributes to be properties
         for p in self.parameter_iter():
             this_param = getattr(self, p)
             attr_name = this_param.name
