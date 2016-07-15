@@ -3,6 +3,13 @@ from uvdata.uvbase import UVBase
 import uvdata.parameter as uvp
 import uvdata.utils as utils
 
+telescope_dicts = [{name: 'PAPER_SA', frame: 'ITRF', center_xyz: None,
+                    latitude: None, longitude: None, altitude: None},
+                   {name: 'HERA', frame: 'ITRF', center_xyz: None,
+                    latitude: None, longitude: None, altitude: None}
+                   {name: 'MWA', frame: 'ITRF', center_xyz: None,
+                    latitude: None, longitude: None, altitude: None}]
+
 
 class Telescope(UVBase):
 
@@ -50,28 +57,19 @@ class Telescope(UVBase):
 
 
 def telescopes():
-    paper_sa = {name: 'PAPER_SA', frame: 'ITRF', center_xyz: [],
-                latitude: , longitude: , altitude: }
-
-    hera = {name: 'HERA', frame: 'ITRF', center_xyz: [],
-            latitude: , longitude: , altitude: }
-
-    mwa = {name: 'MWA', frame: 'ITRF', center_xyz: [],
-           latitude: , longitude: , altitude: }
-
-    dict_list = [paper_sa, hera, mwa]
 
     telescopes = {}
-    for telescope in dict_list:
+    for telescope in telescope_dicts:
         obj = Telescope()
         obj.telescope_name = telescope.name
-        if ('center_xyz' in telescope.keys() and 'frame' in telescope.keys()):
+        if (telescope.center_xyz is not None and telescope.frame is not None):
             obj.xyz_telescope_frame = telescope.frame
             obj.x_telescope = telescope.center_xyz[0]
             obj.y_telescope = telescope.center_xyz[1]
             obj.z_telescope = telescope.center_xyz[2]
 
-            if ('latitude' in telescope.keys() and 'longitude' in telescope.keys() and 'altitude' in telescope.keys()):
+            if (telescope.latitude is not None and telescope.longitude is not
+                    None and telescope.altitude is not None):
                 obj.latitude = telescope.latitude
                 obj.longitude = telescope.longitude
                 obj.altitude = telescope.altitude
@@ -85,7 +83,8 @@ def telescopes():
                     raise ValueError('latitude, longitude or altitude not
                                      'specified and frame is not "ITRF"')
         else:
-            if not ('latitude' in telescope.keys() and 'longitude' in telescope.keys() and 'altitude' in telescope.keys()):
+            if (telescope.latitude is None or telescope.longitude is
+                    None or telescope.altitude is None):
                 raise ValueError('either the center_xyz and frame or the '
                                  'latitude, longitude and altitude of the '
                                  'telescope must be specified')
