@@ -260,6 +260,20 @@ class UVData(UVBase):
 
         super(UVData, self).__init__()
 
+    def match_telescope(self):
+        telescope_list = uvdata.telescopes.get_telescopes()
+        if self.telescope_name in telescope_list.keys():
+            telescope_obj = telescope_list[self.telescope_name]
+            for p in telescope_obj.parameter_iter():
+                self_param = getattr(self, p)
+                if self_param.value is None:
+                    # should this only happen for required parameters?
+                    warnings.warn('{param_name} is not set. Using known value '
+                                  'for {telescope_name}.'.format(param_name=self_param.name,
+                                                                 telescope_name=self.telescope_name))
+                    prop_name = self_param.name
+                    setattr(self, prop_name, getattr(telescope_obj, prop_name))
+
     def baseline_to_antnums(self, baseline):
         if self.Nants_telescope > 2048:
             raise StandardError('error Nants={Nants}>2048 not '

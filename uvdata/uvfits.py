@@ -267,6 +267,8 @@ class UVFITS(uvdata.uv.UVData):
 
         del(D)
 
+        self.match_telescope()
+
         if (self.latitude is None or self.longitude is None or
                 self.altitude is None):
             self.set_LatLonAlt_from_XYZ()

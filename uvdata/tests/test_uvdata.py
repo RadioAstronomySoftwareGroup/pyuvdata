@@ -305,10 +305,10 @@ class TestReadUVFits(unittest.TestCase):
         self.assertEqual(expected_extra_keywords.sort(),
                          UV.extra_keywords.keys().sort())
 
-        test = checkWarnings(self, UV.read, [testfile_no_spw, 'uvfits'],
-                             warning_message='Required Antenna frame keyword'
-                                             'not set, since this is a PAPER'
-                                             ' file, setting to ITRF')
+        # test = checkWarnings(self, UV.read, [testfile_no_spw, 'uvfits'],
+        #                      warning_message='Required Antenna frame keyword'
+        #                                      'not set, since this is a PAPER'
+        #                                      ' file, setting to ITRF')
         self.assertTrue(test)
 
         del(UV)
