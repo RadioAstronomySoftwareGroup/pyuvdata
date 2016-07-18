@@ -11,6 +11,7 @@ import ephem
 import warnings
 import collections
 from astropy.io import fits
+import sys
 
 
 def get_iterable(x):
@@ -20,12 +21,32 @@ def get_iterable(x):
         return (x,)
 
 
+def clearWarnings():
+    # Quick code to make warnings reproducible
+    for name, mod in list(sys.modules.items()):
+        try:
+            reg = getattr(mod, "__warningregistry__", None)
+        except ImportError:
+            continue
+        if reg:
+            reg.clear()
+
+
 def checkWarnings(obj, func, func_args=[], func_kwargs={},
                   warning_cat=UserWarning,
-                  nwarnings=1, warning_message=None):
+                  nwarnings=1, warning_message=None, known_tel_miriad=False):
+
+    if known_tel_miriad:
+        # The default warnings for known telescopes when reading miriad files
+        warning_cat = [UserWarning] * 5
+        warning_message = ['altitude is not set.', 'x_telescope is not set.',
+                           'xyz_telescope_frame is not set.', 'y_telescope is not set.',
+                           'z_telescope is not set.']
+        nwarnings = 5
     warning_cat = get_iterable(warning_cat)
     warning_message = get_iterable(warning_message)
 
+    clearWarnings()
     with warnings.catch_warnings(record=True) as w:
         warnings.simplefilter("always")  # All warnings triggered
         status = func(*func_args, **func_kwargs)  # Run function
@@ -305,10 +326,17 @@ class TestReadUVFits(unittest.TestCase):
         self.assertEqual(expected_extra_keywords.sort(),
                          UV.extra_keywords.keys().sort())
 
-        # test = checkWarnings(self, UV.read, [testfile_no_spw, 'uvfits'],
-        #                      warning_message='Required Antenna frame keyword'
-        #                                      'not set, since this is a PAPER'
-        #                                      ' file, setting to ITRF')
+        del(UV)
+        UV = UVData()
+        test = checkWarnings(self, UV.read, [testfile_no_spw, 'uvfits'],
+                             warning_message=['Required Antenna frame keyword'
+                                              ' not set, since this is a PAPER'
+                                              ' file, setting to ITRF',
+                                              'altitude is not set.',
+                                              'latitude is not set.',
+                                              'longitude is not set.'],
+                             warning_cat=[UserWarning] * 4,
+                             nwarnings=4)
         self.assertTrue(test)
 
         del(UV)
@@ -480,7 +508,9 @@ class TestReadMiriad(unittest.TestCase):
 
         self.test_file_directory = '../data/test/'
 
-        status = self.miriad_uv.read(self.datafile, 'miriad')
+        status = checkWarnings(self, self.miriad_uv.read, [self.datafile, 'miriad'],
+                               known_tel_miriad=True)
+
         self.assertTrue(status)
 
     def test_ReadMiriad(self):
@@ -502,10 +532,11 @@ class TestReadMiriad(unittest.TestCase):
     to the astrometric ra/dec.  Hopefully we can reinstitute it one day.
     def test_ReadMiriadPhase(self):
         # test that phasing makes files equal
-        self.unphased.read(self.unphasedfile, 'miriad')
+        status = checkWarnings(self, self.unphased.read, [self.unphasedfile, 'miriad'],
+                               known_tel_miriad=True)
         self.unphased.phase(ra=0.0, dec=0.0, epoch=ephem.J2000)
-
-        self.phased.read(self.phasedfile, 'miriad')
+        status = checkWarnings(self, self.phased.read, [self.phasedfile, 'miriad'],
+                               known_tel_miriad=True)
 
         self.assertEqual(self.unphased, self.phased)
     '''
@@ -520,7 +551,8 @@ class TestWriteMiriad(unittest.TestCase):
     def test_writePAPER(self):
         testfile = '../data/zen.2456865.60537.xy.uvcRREAA'
         UV = UVData()
-        UV.read(testfile, 'miriad')
+        status = checkWarnings(self, UV.read, [testfile, 'miriad'],
+                               known_tel_miriad=True)
 
         write_file = op.join(self.test_file_directory,
                              'outtest_miriad.uv')
@@ -534,14 +566,16 @@ class TestWriteMiriad(unittest.TestCase):
         uv_in = UVData()
         uv_out = UVData()
 
-        uv_in.read(testfile, 'miriad')
+        status = checkWarnings(self, uv_in.read, [testfile, 'miriad'],
+                               known_tel_miriad=True)
 
         write_file = op.join(self.test_file_directory,
                              'outtest_miriad.uv')
 
         uv_in.write(write_file, file_type='miriad', clobber=True)
 
-        uv_out.read(write_file, 'miriad')
+        status = checkWarnings(self, uv_out.read, [write_file, 'miriad'],
+                               known_tel_miriad=True)
 
         self.assertEqual(uv_in, uv_out)
         del(uv_in)
