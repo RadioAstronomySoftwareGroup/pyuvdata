@@ -781,11 +781,10 @@ class UVData(object):
         self.convert_from_filetype(fhd_obj)
         return ret_val
 
-    def read_miriad(self, filepath, FLEXIBLE_OPTION=True, run_check=True,
-                    run_sanity_check=True):
+    def read_miriad(self, filepath, run_check=True, run_sanity_check=True):
         miriad_obj = uvdata.miriad.Miriad()
-        ret_val = miriad_obj.read_miriad(filepath, FLEXIBLE_OPTION=FLEXIBLE_OPTION,
-                                         run_check=True, run_sanity_check=True)
+        ret_val = miriad_obj.read_miriad(filepath, run_check=True, 
+                                         run_sanity_check=True)
         self.convert_from_filetype(miriad_obj)
         return ret_val
 

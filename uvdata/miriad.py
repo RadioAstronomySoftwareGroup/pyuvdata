@@ -19,30 +19,23 @@ class Miriad(uvdata.uv.UVData):
                   "polarization_array".format(pol=pol))
         return pol_ind
 
-    def read_miriad(self, filepath, FLEXIBLE_OPTION=True, run_check=True, run_sanity_check=True):
-        # map uvdata attributes to miriad data values
-        # those which we can get directly from the miriad file
-        # (some, like n_times, have to be calculated)
+    def read_miriad(self, filepath, run_check=True, run_sanity_check=True):
         if not os.path.exists(filepath):
             raise(IOError, filepath + ' not found')
         uv = a.miriad.UV(filepath)
 
-        # TODO look for variables that are in header but not required
-
         miriad_header_data = {'Nfreqs': 'nchan',
                               'Npols': 'npol',
-                              # 'Nspws': 'nspec',  # not always available
                               'integration_time': 'inttime',
                               'channel_width': 'sdf',  # in Ghz!
                               'object_name': 'source',
+                              #NB: telescope_name and instrument are treated
+                              #as the same
                               'telescope_name': 'telescop',
-                              # same as telescope_name for now
                               'instrument': 'telescop',
-                              'latitude': 'latitud',
+                              'latitude': 'latitud', # in units of radians
                               'longitude': 'longitu',  # in units of radians
-                              # (get the first time in the ever changing header)
-                              'dateobs': 'time',
-                              # 'history': 'history',
+                              'dateobs': 'time', #first time in file
                               'Nants_telescope': 'nants',
                               'phase_center_epoch': 'epoch',
                               'antenna_positions': 'antpos',  # take deltas
@@ -54,6 +47,7 @@ class Miriad(uvdata.uv.UVData):
                 header_value = uv[miriad_header_data[item]]
             setattr(self, item, header_value)
 
+        #This will be removed when we switch to the known_telescopes branch
         if self.telescope_name.startswith('PAPER') and \
                 self.altitude is None:
             print "WARNING: Altitude not found for telescope PAPER. "
@@ -86,8 +80,10 @@ class Miriad(uvdata.uv.UVData):
                 cnt = uv['cnt']
             except(KeyError):
                 cnt = np.ones(d.shape, dtype=np.int)
-            zenith_ra = uv['ra']  # XXX the assumption that this is always zenith needs to be questioned
-            zenith_dec = uv['dec']  # XXX the assumption that this is always zenith needs to be questioned
+            # XXX the assumption that this is always zenith needs to be questioned
+            # fixing this should play into the is_phased addition (issue #54)
+            zenith_ra = uv['ra']
+            zenith_dec = uv['dec']
             lst = uv['lst']
             source = uv['source']
             if source != _source:
@@ -106,131 +102,103 @@ class Miriad(uvdata.uv.UVData):
         if len(self.polarization_array) > self.Npols:
             print "WARNING: npols={npols} but found {l} pols in data file".format(
                 npols=self.Npols, l=len(self.polarization_array))
-        if FLEXIBLE_OPTION:
-            # makes a data_array (and flag_array) of zeroes to be filled in by
-            #   data values
-            # any missing data will have zeros
+        
+        # makes a data_array (and flag_array) of zeroes to be filled in by
+        #   data values
+        # any missing data will have zeros
 
-            # use set to get the unique list of all times ever listed in the file
-            # iterate over polarizations and all spectra (bls and times) in two
-            # nested loops, then flatten into a single vector, then set
-            # then list again.
+        # use set to get the unique list of all times ever listed in the file
+        # iterate over polarizations and all spectra (bls and times) in two
+        # nested loops, then flatten into a single vector, then set
+        # then list again.
 
-            times = list(set(
-                np.concatenate([[k[1] for k in d] for d in data_accumulator.values()])))
-            times = np.sort(times)
+        times = list(set(
+            np.concatenate([[k[1] for k in d] for d in data_accumulator.values()])))
+        times = np.sort(times)
 
-            ant_i_unique = list(set(
-                np.concatenate([[k[2] for k in d] for d in data_accumulator.values()])))
-            ant_j_unique = list(set(
-                np.concatenate([[k[3] for k in d] for d in data_accumulator.values()])))
+        ant_i_unique = list(set(
+            np.concatenate([[k[2] for k in d] for d in data_accumulator.values()])))
+        ant_j_unique = list(set(
+            np.concatenate([[k[3] for k in d] for d in data_accumulator.values()])))
 
-            self.Nants_data = max(len(ant_i_unique), len(ant_j_unique))
-            self.antenna_indices = np.arange(self.Nants_telescope)
-            self.antenna_names = self.antenna_indices.astype(str).tolist()
-            # form up a grid which indexes time and baselines along the 'long'
-            # axis of the visdata array
-            t_grid = []
-            ant_i_grid = []
-            ant_j_grid = []
-            for t in times:
-                for ant_i in ant_i_unique:
-                    for ant_j in ant_j_unique:
-                        t_grid.append(t)
-                        ant_i_grid.append(ant_i)
-                        ant_j_grid.append(ant_j)
-            ant_i_grid = np.array(ant_i_grid)
-            ant_j_grid = np.array(ant_j_grid)
-            t_grid = np.array(t_grid)
+        self.Nants_data = max(len(ant_i_unique), len(ant_j_unique))
+        self.antenna_indices = np.arange(self.Nants_telescope)
+        self.antenna_names = self.antenna_indices.astype(str).tolist()
+        # form up a grid which indexes time and baselines along the 'long'
+        # axis of the visdata array
+        t_grid = []
+        ant_i_grid = []
+        ant_j_grid = []
+        for t in times:
+            for ant_i in ant_i_unique:
+                for ant_j in ant_j_unique:
+                    t_grid.append(t)
+                    ant_i_grid.append(ant_i)
+                    ant_j_grid.append(ant_j)
+        ant_i_grid = np.array(ant_i_grid)
+        ant_j_grid = np.array(ant_j_grid)
+        t_grid = np.array(t_grid)
 
-            # set the data sizes
-            self.Nblts = len(t_grid)
-            self.Ntimes = len(times)
-            self.time_array = t_grid
-            self.ant_1_array = ant_i_grid
-            self.ant_2_array = ant_j_grid
+        # set the data sizes
+        self.Nblts = len(t_grid)
+        self.Ntimes = len(times)
+        self.time_array = t_grid
+        self.ant_1_array = ant_i_grid
+        self.ant_2_array = ant_j_grid
 
-            self.baseline_array = self.antnums_to_baseline(ant_i_grid,
-                                                           ant_j_grid)
-            self.Nbls = len(np.unique(self.baseline_array))
-            # slot the data into a grid
-            self.data_array = np.zeros((self.Nblts, self.Nspws, self.Nfreqs,
-                                        self.Npols), dtype=np.complex64)
-            self.flag_array = np.ones(self.data_array.shape, dtype=np.bool)
-            self.uvw_array = np.zeros((3, self.Nblts))
-            # NOTE: Using our lst calculator, which uses astropy,
-            # instead of aipy values which come from pyephem.
-            # The differences are of order 5 seconds.
-            self.set_lsts_from_time_array()
-            self.nsample_array = np.ones(self.data_array.shape, dtype=np.int)
-            self.freq_array = (np.arange(self.Nfreqs) * self.channel_width +
-                               uv['sfreq'] * 1e9)
-            # Tile freq_array to dimensions (Nspws, Nfreqs).
-            # Currently does not actually support Nspws>1!
-            self.freq_array = np.tile(self.freq_array, (self.Nspws, 1))
+        self.baseline_array = self.antnums_to_baseline(ant_i_grid,
+                                                       ant_j_grid)
+        self.Nbls = len(np.unique(self.baseline_array))
+        # slot the data into a grid
+        self.data_array = np.zeros((self.Nblts, self.Nspws, self.Nfreqs,
+                                    self.Npols), dtype=np.complex64)
+        self.flag_array = np.ones(self.data_array.shape, dtype=np.bool)
+        self.uvw_array = np.zeros((3, self.Nblts))
+        # NOTE: Using our lst calculator, which uses astropy,
+        # instead of aipy values which come from pyephem.
+        # The differences are of order 5 seconds.
+        self.set_lsts_from_time_array()
+        self.nsample_array = np.ones(self.data_array.shape, dtype=np.int)
+        self.freq_array = (np.arange(self.Nfreqs) * self.channel_width +
+                           uv['sfreq'] * 1e9)
+        # Tile freq_array to dimensions (Nspws, Nfreqs).
+        # Currently does not actually support Nspws>1!
+        self.freq_array = np.tile(self.freq_array, (self.Nspws, 1))
 
-            ra_list = np.zeros(self.Nblts)
-            dec_list = np.zeros(self.Nblts)
+        ra_list = np.zeros(self.Nblts)
+        dec_list = np.zeros(self.Nblts)
 
-            for pol, data in data_accumulator.iteritems():
-                pol_ind = self.miriad_pol_to_ind(pol)
-                for ind, d in enumerate(data):
-                    t, ant_i, ant_j = d[1], d[2], d[3]
-                    blt_index = np.where(np.logical_and(np.logical_and(t == t_grid,
-                                                                       ant_i == ant_i_grid),
-                                                        ant_j == ant_j_grid))[0].squeeze()
-                    self.data_array[blt_index, :, :, pol_ind] = d[4]
-                    self.flag_array[blt_index, :, :, pol_ind] = d[5]
-                    self.nsample_array[blt_index, :, :, pol_ind] = d[6]
+        for pol, data in data_accumulator.iteritems():
+            pol_ind = self.miriad_pol_to_ind(pol)
+            for ind, d in enumerate(data):
+                t, ant_i, ant_j = d[1], d[2], d[3]
+                blt_index = np.where(np.logical_and(np.logical_and(t == t_grid,
+                                                                   ant_i == ant_i_grid),
+                                                    ant_j == ant_j_grid))[0].squeeze()
+                self.data_array[blt_index, :, :, pol_ind] = d[4]
+                self.flag_array[blt_index, :, :, pol_ind] = d[5]
+                self.nsample_array[blt_index, :, :, pol_ind] = d[6]
 
-                    # because there are uvws/ra/dec for each pol, and one pol may not
-                    # have that visibility, we collapse along the polarization
-                    # axis but avoid any missing visbilities
-                    uvw = d[0] * const.c.to('m/ns').value
-                    uvw.shape = (1, 3)
-                    self.uvw_array[:, blt_index] = uvw
-                    ra_list[blt_index] = d[7]
-                    dec_list[blt_index] = d[8]
+                # because there are uvws/ra/dec for each pol, and one pol may not
+                # have that visibility, we collapse along the polarization
+                # axis but avoid any missing visbilities
+                uvw = d[0] * const.c.to('m/ns').value
+                uvw.shape = (1, 3)
+                self.uvw_array[:, blt_index] = uvw
+                ra_list[blt_index] = d[7]
+                dec_list[blt_index] = d[8]
 
-            # check if ra is constant throughout file; if it is,
-            # file is tracking if not, file is drift scanning
-            if np.isclose(np.mean(np.diff(ra_list)), 0.):
-                self.phase_center_ra = ra_list[0]
-                self.phase_center_dec = dec_list[0]
-            else:
-                self.zenith_ra = ra_list
-                self.zenith_dec = dec_list
-
-            # enforce drift scan/ phased convention
-            # convert lat/lon to x/y/z_telescope
-            #    LLA to ECEF (see pdf in docs)
-
-        if not FLEXIBLE_OPTION:
-            pass
-            # this option would accumulate things requiring
-            # baselines and times are sorted in the same
-            #          order for each polarization
-            # and that there are the same number of baselines
-            #          and pols per timestep
-            # TBD impliment
-
-        # NOTES:
-        # pyuvdata is natively 0 indexed as is miriad
-        # miriad uses the same pol2num standard as aips/casa
+        # check if ra is constant throughout file; if it is,
+        # file is tracking if not, file is drift scanning
+        # XXX update when addressing issue #54
+        if np.isclose(np.mean(np.diff(ra_list)), 0.):
+            self.phase_center_ra = ra_list[0]
+            self.phase_center_dec = dec_list[0]
+        else:
+            self.zenith_ra = ra_list
+            self.zenith_dec = dec_list
 
         self.vis_units = 'UNCALIB'  # assume no calibration
-
-        # things that might not be required?
-        # 'GST0'  : None,
-        # 'RDate'  : None,  # date for which the GST0 or whatever... applies
-        # 'earth_omega'  : 360.985,
-        # 'DUT1'  : 0.0,        # DUT1 (google it) AIPS 117 calls it UT1UTC
-        # 'TIMESYS'  : 'UTC',   # We only support UTC
-
-        #
-
-        # Phasing rule: if alt/az is set and ra/dec are None,
-        #  then its a drift scan
 
         # check if object has all required uv_properties set
         if run_check:
