@@ -496,7 +496,9 @@ class TestReadMiriad(unittest.TestCase):
 
         # Test exception
         self.assertRaises(IOError, self.miriad_uv.read, 'foo', 'miriad')
-
+    '''
+    This test is commented out since we no longer believe AIPY phases correctly
+    to the astrometric ra/dec.  Hopefully we can reinstitute it one day.
     def test_ReadMiriadPhase(self):
         # test that phasing makes files equal
         self.unphased.read(self.unphasedfile, 'miriad')
@@ -505,7 +507,7 @@ class TestReadMiriad(unittest.TestCase):
         self.phased.read(self.phasedfile, 'miriad')
 
         self.assertEqual(self.unphased, self.phased)
-
+    '''
 
 class TestWriteMiriad(unittest.TestCase):
     def setUp(self):

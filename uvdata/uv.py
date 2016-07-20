@@ -609,8 +609,8 @@ class UVData(object):
         obs.date, obs.epoch = ephem.J2000, ephem.J2000
         precess_pos.compute(obs)
 
-        self.phase_center_ra = precess_pos.ra
-        self.phase_center_dec = precess_pos.dec
+        self.phase_center_ra = precess_pos.a_ra
+        self.phase_center_dec = precess_pos.a_dec
         # explicitly set epoch to J2000
         self.phase_center_epoch = 2000.0
 
@@ -618,7 +618,7 @@ class UVData(object):
             # calculate ra/dec of phase center in current epoch
             obs.date, obs.epoch = self.juldate2ephem(jd), self.juldate2ephem(jd)
             precess_pos.compute(obs)
-            ra, dec = precess_pos.ra, precess_pos.dec
+            ra, dec = precess_pos.a_ra, precess_pos.a_dec
 
             # generate rotation matrices
             m0 = a.coord.top2eq_m(self.lst_array[ind] - obs.sidereal_time(), self.latitude)
