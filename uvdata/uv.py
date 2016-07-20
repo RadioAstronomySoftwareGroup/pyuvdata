@@ -607,7 +607,7 @@ class UVData(object):
 
         # calculate RA/DEC in J2000 and write to object
         obs.date, obs.epoch = ephem.J2000, ephem.J2000
-        precess_pos.compute(obs) 
+        precess_pos.compute(obs)
 
         self.phase_center_ra = precess_pos.ra
         self.phase_center_dec = precess_pos.dec
@@ -729,13 +729,14 @@ class UVData(object):
                              ' '.join(self.supported_read_file_types))
         if file_type == 'uvfits':
             # Note we will run check later, not in specific read functions.
-            status = self.read_uvfits(filename, run_check=False)
+            status = self.read_uvfits(filename, run_check=run_check,
+                                      run_sanity_check=run_sanity_check)
         elif file_type == 'miriad':
-            status = self.read_miriad(filename, run_check=False)
+            status = self.read_miriad(filename, run_check=run_check,
+                                      run_sanity_check=run_sanity_check)
         elif file_type == 'fhd':
-            status = self.read_fhd(filename, use_model=use_model, run_check=False)
-        if run_check:
-            self.check(run_sanity_check=run_sanity_check)
+            status = self.read_fhd(filename, use_model=use_model, run_check=run_check,
+                                   run_sanity_check=run_sanity_check)
         return status
 
     def convert_from_filetype(self, other):
