@@ -17,6 +17,10 @@ data_path = op.join(uvdata.__path__[0], 'data')
 iers_a = iers.IERS_A.open(op.join(data_path, 'finals.all'))
 
 
+def _warning(message, category=UserWarning, filename='', lineno=-1):
+    print(message)
+
+
 class UVData(UVBase):
     supported_read_file_types = ['uvfits', 'miriad', 'fhd']
     supported_write_file_types = ['uvfits', 'miriad', 'fhd']
@@ -259,20 +263,26 @@ class UVData(UVBase):
                                                        spoof_val=0)
 
         super(UVData, self).__init__()
+        warnings.showwarning = _warning
 
-    def match_telescope(self):
-        telescope_list = uvdata.telescopes.get_telescopes()
-        if self.telescope_name in telescope_list.keys():
-            telescope_obj = telescope_list[self.telescope_name]
+    def set_telescope_params(self, overwrite=False):
+        telescope_obj = uvdata.telescopes.get_telescope(self.telescope_name)
+        if telescope_obj is not False:
+            params_set = []
             for p in telescope_obj.parameter_iter():
                 self_param = getattr(self, p)
-                if self_param.value is None:
-                    # should this only happen for required parameters?
-                    warnings.warn('{param_name} is not set. Using known value '
-                                  'for {telescope_name}.'.format(param_name=self_param.name,
-                                                                 telescope_name=self.telescope_name))
+                if overwrite is True or self_param.value is None:
+                    params_set.append(self_param.name)
                     prop_name = self_param.name
                     setattr(self, prop_name, getattr(telescope_obj, prop_name))
+            if len(params_set) > 0:
+                params_set_str = ', '.join(params_set)
+                warnings.warn('{params} are not set. Using known values '
+                              'for {telescope_name}.'.format(params=params_set_str,
+                                                             telescope_name=telescope_obj.telescope_name))
+        else:
+            raise ValueError('Telescope {telescope_name} is not in '
+                             'known_telescopes.'.format(telescope_name=self.telescope_name))
 
     def baseline_to_antnums(self, baseline):
         if self.Nants_telescope > 2048:

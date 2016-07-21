@@ -223,7 +223,10 @@ class FHD(uvdata.uv.UVData):
         # 'DUT1'
         # 'TIMESYS'
 
-        self.match_telescope()
+        try:
+            self.set_telescope_params()
+        except ValueError, ve:
+            warnings.warn(str(ve))
 
         # check if object has all required uv_properties set
         if run_check:

@@ -322,7 +322,10 @@ class Miriad(uvdata.uv.UVData):
         # Phasing rule: if alt/az is set and ra/dec are None,
         #  then its a drift scan
 
-        self.match_telescope()
+        try:
+            self.set_telescope_params()
+        except ValueError, ve:
+            warnings.warn(str(ve))
 
 >>>>>>> Use known telescope list to set parameters that haven't been set
         # check if object has all required uv_properties set

@@ -5,23 +5,23 @@ import uvdata.parameter as uvp
 import uvdata.utils as utils
 
 
-telescope_dicts = [{'name': 'PAPER', 'frame': None, 'center_xyz': None,
-                    'latitude': Angle('-30d43m17.5s').radian,
-                    'longitude': Angle('21d25m41.9s').radian,
-                    'altitude': 1073.,
-                    'citation': 'value taken from capo/cals/hsa7458_v000.py, '
-                                'comment reads KAT/SA  (GPS), altitude from elevationmap.net'},
-                   {'name': 'HERA', 'frame': None, 'center_xyz': None,
-                    'latitude': Angle('-30d43m17.5s').radian,
-                    'longitude': Angle('21d25m41.9s').radian,
-                    'altitude': 1073.,
-                    'citation': 'value taken from capo/cals/hsa7458_v000.py, '
-                                'comment reads KAT/SA  (GPS), altitude from elevationmap.net'},
-                   {'name': 'MWA', 'frame': 'ITRF', 'center_xyz': None,
-                    'latitude': Angle('-26d42m11.94986s').radian,
-                    'longitude': Angle('116d40m14.93485s').radian,
-                    'altitude': 377.827,
-                    'citation': 'Tingay et al., 2013'}]
+telescopes = {'PAPER': {'frame': None, 'center_xyz': None,
+                        'latitude': Angle('-30d43m17.5s').radian,
+                        'longitude': Angle('21d25m41.9s').radian,
+                        'altitude': 1073.,
+                        'citation': 'value taken from capo/cals/hsa7458_v000.py, '
+                                    'comment reads KAT/SA  (GPS), altitude from elevationmap.net'},
+              'HERA': {'frame': None, 'center_xyz': None,
+                       'latitude': Angle('-30d43m17.5s').radian,
+                       'longitude': Angle('21d25m41.9s').radian,
+                       'altitude': 1073.,
+                       'citation': 'value taken from capo/cals/hsa7458_v000.py, '
+                                   'comment reads KAT/SA  (GPS), altitude from elevationmap.net'},
+              'MWA': {'frame': None, 'center_xyz': None,
+                      'latitude': Angle('-26d42m11.94986s').radian,
+                      'longitude': Angle('116d40m14.93485s').radian,
+                      'altitude': 377.827,
+                      'citation': 'Tingay et al., 2013'}}
 
 
 class Telescope(UVBase):
@@ -71,27 +71,33 @@ class Telescope(UVBase):
         super(UVBase, self).__init__()
 
 
-def get_telescopes():
+def known_telescopes():
+    return telescopes.keys()
 
-    telescopes = {}
-    for telescope in telescope_dicts:
+
+def get_telescope(telescope_name):
+
+    if telescope_name.upper() in (name.upper() for name in telescopes.keys()):
+        uc_telescope_list = [item.upper() for item in telescopes.keys()]
+        telescope_index = uc_telescope_list.index(telescope_name.upper())
+        telescope_dict = telescopes[uc_telescope_list[telescope_index]]
         obj = Telescope()
-        obj.citation = telescope['citation']
-        obj.telescope_name = telescope['name']
-        if (telescope['center_xyz'] is not None and telescope['frame'] is not None):
-            obj.xyz_telescope_frame = telescope['frame']
-            obj.x_telescope = telescope['center_xyz'][0]
-            obj.y_telescope = telescope['center_xyz'][1]
-            obj.z_telescope = telescope['center_xyz'][2]
+        obj.citation = telescope_dict['citation']
+        obj.telescope_name = uc_telescope_list[telescope_index]
+        if (telescope_dict['center_xyz'] is not None and telescope_dict['frame'] is not None):
+            obj.xyz_telescope_frame = telescope_dict['frame']
+            obj.x_telescope = telescope_dict['center_xyz'][0]
+            obj.y_telescope = telescope_dict['center_xyz'][1]
+            obj.z_telescope = telescope_dict['center_xyz'][2]
 
-            if (telescope['latitude'] is not None and telescope['longitude'] is not
-                    None and telescope['altitude'] is not None):
-                obj.latitude = telescope['latitude']
-                obj.longitude = telescope['longitude']
-                obj.altitude = telescope['altitude']
+            if (telescope_dict['latitude'] is not None and telescope_dict['longitude'] is not
+                    None and telescope_dict['altitude'] is not None):
+                obj.latitude = telescope_dict['latitude']
+                obj.longitude = telescope_dict['longitude']
+                obj.altitude = telescope_dict['altitude']
             else:
-                if telescope['frame'] == 'ITRF':
-                    latitude, longitude, altitude = utils.LatLonAlt_from_XYZ(telescope['center_xyz'])
+                if telescope_dict['frame'] == 'ITRF':
+                    latitude, longitude, altitude = utils.LatLonAlt_from_XYZ(telescope_dict['center_xyz'])
                     obj.latitude = latitude
                     obj.longitude = longitude
                     obj.altitude = altitude
@@ -99,22 +105,23 @@ def get_telescopes():
                     raise ValueError('latitude, longitude or altitude not'
                                      'specified and frame is not "ITRF"')
         else:
-            if (telescope['latitude'] is None or telescope['longitude'] is
-                    None or telescope['altitude'] is None):
+            if (telescope_dict['latitude'] is None or telescope_dict['longitude'] is
+                    None or telescope_dict['altitude'] is None):
                 raise ValueError('either the center_xyz and frame or the '
                                  'latitude, longitude and altitude of the '
                                  'telescope must be specified')
-            obj.latitude = telescope['latitude']
-            obj.longitude = telescope['longitude']
-            obj.altitude = telescope['altitude']
+            obj.latitude = telescope_dict['latitude']
+            obj.longitude = telescope_dict['longitude']
+            obj.altitude = telescope_dict['altitude']
 
-            xyz = utils.XYZ_from_LatLonAlt(telescope['latitude'], telescope['longitude'],
-                                           telescope['altitude'])
+            xyz = utils.XYZ_from_LatLonAlt(telescope_dict['latitude'], telescope_dict['longitude'],
+                                           telescope_dict['altitude'])
             obj.xyz_telescope_frame = 'ITRF'
             obj.x_telescope = xyz[0]
             obj.y_telescope = xyz[1]
             obj.z_telescope = xyz[2]
+    else:
+        # no telescope matching this name
+        return False
 
-        telescopes[telescope['name']] = obj
-
-        return telescopes
+    return obj

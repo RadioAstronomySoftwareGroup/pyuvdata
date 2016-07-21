@@ -267,7 +267,10 @@ class UVFITS(uvdata.uv.UVData):
 
         del(D)
 
-        self.match_telescope()
+        try:
+            self.set_telescope_params()
+        except ValueError, ve:
+            warnings.warn(str(ve))
 
         if (self.latitude is None or self.longitude is None or
                 self.altitude is None):
