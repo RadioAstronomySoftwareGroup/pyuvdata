@@ -34,15 +34,26 @@ def clearWarnings():
 
 def checkWarnings(obj, func, func_args=[], func_kwargs={},
                   warning_cat=UserWarning,
-                  nwarnings=1, warning_message=None, known_tel_miriad=False):
+                  nwarnings=1, warning_message=None, known_warning=None):
 
-    if known_tel_miriad:
+    if known_warning == 'miriad':
         # The default warnings for known telescopes when reading miriad files
-        warning_cat = [UserWarning] * 5
-        warning_message = ['altitude is not set.', 'x_telescope is not set.',
-                           'xyz_telescope_frame is not set.', 'y_telescope is not set.',
-                           'z_telescope is not set.']
-        nwarnings = 5
+        warning_cat = [UserWarning]
+        warning_message = ['altitude, x_telescope, xyz_telescope_frame, '
+                           'y_telescope, z_telescope are not set.']
+        nwarnings = 1
+    elif known_warning == 'uvfits':
+        # The default warnings for known telescopes when reading uvfits files
+        warning_cat = [UserWarning] * 2
+        warning_message = ['Required Antenna frame keyword',
+                           'altitude, latitude, longitude are not set.']
+        nwarnings = 2
+    elif known_warning == 'fhd':
+        warning_cat = [UserWarning]
+        warning_message = ['x_telescope, xyz_telescope_frame, y_telescope, '
+                           'z_telescope are not set.']
+        nwarnings = 1
+
     warning_cat = get_iterable(warning_cat)
     warning_message = get_iterable(warning_message)
 
@@ -215,7 +226,8 @@ class TestUVmethods(unittest.TestCase):
         try:
             self.uv_object.check()
         except ValueError:
-            self.uv_object.read(self.testfile, 'uvfits')
+            checkWarnings(self, self.uv_object.read, [self.testfile, 'uvfits'],
+                          warning_message='Telescope EVLA is not')
         self.assertEqual(self.uv_object, self.uv_object)
         self.uv_object2 = copy.deepcopy(self.uv_object)
         self.uv_object2.data_array[0, 0, 0, 0] += 1  # Force data to be not equal
@@ -278,7 +290,8 @@ class TestUVmethods(unittest.TestCase):
         try:
             self.uv_object.check()
         except ValueError:
-            self.uv_object.read(self.testfile, 'uvfits')
+            checkWarnings(self, self.uv_object.read, [self.testfile, 'uvfits'],
+                          warning_message='Telescope EVLA is not')
         self.assertTrue(self.uv_object.check())
         # Now break it in every way I can.
         # String cases
@@ -319,7 +332,8 @@ class TestReadUVFits(unittest.TestCase):
         testfile_no_spw = '../data/zen.2456865.60537.xy.uvcRREAAM.uvfits'
         UV = UVData()
         self.assertRaises(ValueError, UV.read, testfile, 'vufits')  # Wrong filetype
-        test = UV.read(testfile, 'uvfits')
+        test = checkWarnings(self, UV.read, [testfile, 'uvfits'],
+                             warning_message='Telescope EVLA is not')
         self.assertTrue(test)
         expected_extra_keywords = ['OBSERVER', 'SORTORD', 'SPECSYS',
                                    'RESTFREQ', 'ORIGIN']
@@ -329,14 +343,7 @@ class TestReadUVFits(unittest.TestCase):
         del(UV)
         UV = UVData()
         test = checkWarnings(self, UV.read, [testfile_no_spw, 'uvfits'],
-                             warning_message=['Required Antenna frame keyword'
-                                              ' not set, since this is a PAPER'
-                                              ' file, setting to ITRF',
-                                              'altitude is not set.',
-                                              'latitude is not set.',
-                                              'longitude is not set.'],
-                             warning_cat=[UserWarning] * 4,
-                             nwarnings=4)
+                             known_warning='uvfits')
         self.assertTrue(test)
 
         del(UV)
@@ -377,7 +384,8 @@ class TestWriteUVFits(unittest.TestCase):
         testfile = '../data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
         # testfile = '../data/PRISim_output_manual_conversion.uvfits'
         UV = UVData()
-        UV.read(testfile, 'uvfits')
+        checkWarnings(self, UV.read, [testfile, 'uvfits'],
+                      warning_message='Telescope EVLA is not')
 
         write_file = op.join(self.test_file_directory,
                              'outtest_casa_1src_1spw.uvfits')
@@ -399,16 +407,13 @@ class TestWriteUVFits(unittest.TestCase):
         testfile = '../data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
         uv_in = UVData()
         uv_out = UVData()
-
-        uv_in.read(testfile, 'uvfits')
-
+        checkWarnings(self, uv_in.read, [testfile, 'uvfits'],
+                      warning_message='Telescope EVLA is not')
         write_file = op.join(self.test_file_directory,
                              'outtest_casa.uvfits')
-
         uv_in.write(write_file, file_type='uvfits')
-
-        uv_out.read(write_file, 'uvfits')
-
+        checkWarnings(self, uv_out.read, [write_file, 'uvfits'],
+                      warning_message='Telescope EVLA is not')
         self.assertEqual(uv_in, uv_out)
         del(uv_in)
         del(uv_out)
@@ -437,8 +442,8 @@ class TestReadFHD(unittest.TestCase):
 
         fhd_uv = UVData()
         uvfits_uv = UVData()
-        fhd_uv.read(self.testfiles, 'fhd')
-
+        checkWarnings(self, fhd_uv.read, [self.testfiles, 'fhd'],
+                      known_warning='fhd')
         fhd_uv.write(op.join(self.test_file_directory,
                              'outtest_FHD_1061316296.uvfits'),
                      file_type='uvfits',
@@ -464,7 +469,12 @@ class TestReadFHD(unittest.TestCase):
         del(fhd_uv)
         fhd_uv = UVData()
         self.assertTrue(checkWarnings(self, fhd_uv.read, [self.testfiles[:-1],
-                                      'fhd'], warning_message='No settings'))
+                                      'fhd'], warning_message=['No settings',
+                                                               'x_telescope, '
+                                                               'xyz_telescope_frame, '
+                                                               'y_telescope, '
+                                                               'z_telescope are not set.'],
+                                      warning_cat=[UserWarning] * 2, nwarnings=2))
         self.assertEqual(fhd_uv.history, '')  # Check empty history with no settings
         del(fhd_uv)
 
@@ -472,7 +482,8 @@ class TestReadFHD(unittest.TestCase):
 
         fhd_uv = UVData()
         uvfits_uv = UVData()
-        fhd_uv.read(self.testfiles, 'fhd', use_model=True)
+        checkWarnings(self, fhd_uv.read, [self.testfiles, 'fhd'], {'use_model': True},
+                      known_warning='fhd')
 
         fhd_uv.write(op.join(self.test_file_directory,
                              'outtest_FHD_1061316296_model.uvfits'),
@@ -509,7 +520,7 @@ class TestReadMiriad(unittest.TestCase):
         self.test_file_directory = '../data/test/'
 
         status = checkWarnings(self, self.miriad_uv.read, [self.datafile, 'miriad'],
-                               known_tel_miriad=True)
+                               known_warning='miriad')
 
         self.assertTrue(status)
 
@@ -533,10 +544,10 @@ class TestReadMiriad(unittest.TestCase):
     def test_ReadMiriadPhase(self):
         # test that phasing makes files equal
         status = checkWarnings(self, self.unphased.read, [self.unphasedfile, 'miriad'],
-                               known_tel_miriad=True)
+                               known_warning='miriad')
         self.unphased.phase(ra=0.0, dec=0.0, epoch=ephem.J2000)
         status = checkWarnings(self, self.phased.read, [self.phasedfile, 'miriad'],
-                               known_tel_miriad=True)
+                               known_warning='miriad')
 
         self.assertEqual(self.unphased, self.phased)
     '''
@@ -552,7 +563,7 @@ class TestWriteMiriad(unittest.TestCase):
         testfile = '../data/zen.2456865.60537.xy.uvcRREAA'
         UV = UVData()
         status = checkWarnings(self, UV.read, [testfile, 'miriad'],
-                               known_tel_miriad=True)
+                               known_warning='miriad')
 
         write_file = op.join(self.test_file_directory,
                              'outtest_miriad.uv')
@@ -567,7 +578,7 @@ class TestWriteMiriad(unittest.TestCase):
         uv_out = UVData()
 
         status = checkWarnings(self, uv_in.read, [testfile, 'miriad'],
-                               known_tel_miriad=True)
+                               known_warning='miriad')
 
         write_file = op.join(self.test_file_directory,
                              'outtest_miriad.uv')
@@ -575,7 +586,7 @@ class TestWriteMiriad(unittest.TestCase):
         uv_in.write(write_file, file_type='miriad', clobber=True)
 
         status = checkWarnings(self, uv_out.read, [write_file, 'miriad'],
-                               known_tel_miriad=True)
+                               known_warning='miriad')
 
         self.assertEqual(uv_in, uv_out)
         del(uv_in)

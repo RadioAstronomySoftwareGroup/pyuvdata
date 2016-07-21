@@ -263,7 +263,7 @@ class UVData(UVBase):
                                                        spoof_val=0)
 
         super(UVData, self).__init__()
-        warnings.showwarning = _warning
+        # warnings.showwarning = _warning
 
     def set_telescope_params(self, overwrite=False):
         telescope_obj = uvdata.telescopes.get_telescope(self.telescope_name)
