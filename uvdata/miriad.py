@@ -29,21 +29,15 @@ class Miriad(uvdata.uv.UVData):
                               'integration_time': 'inttime',
                               'channel_width': 'sdf',  # in Ghz!
                               'object_name': 'source',
-                              #NB: telescope_name and instrument are treated
-                              #as the same
+                              # NB: telescope_name and instrument are treated
+                              # as the same
                               'telescope_name': 'telescop',
                               'instrument': 'telescop',
-<<<<<<< 18a872ba3d281f45d17f7d75099c3f057e961fd7
-                              'latitude': 'latitud', # in units of radians
-                              'longitude': 'longitu',  # in units of radians
-                              'dateobs': 'time', #first time in file
-=======
                               #   'latitude': 'latitud',
                               #   'longitude': 'longitu',  # in units of radians
                               # (get the first time in the ever changing header)
                               'dateobs': 'time',
                               # 'history': 'history',
->>>>>>> Major changes to only have one telescope location parameter
                               'Nants_telescope': 'nants',
                               'phase_center_epoch': 'epoch',
                               'antenna_positions': 'antpos',  # take deltas
