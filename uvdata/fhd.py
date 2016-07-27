@@ -156,8 +156,8 @@ class FHD(uvdata.uv.UVData):
             warnings.warn('These visibilities may have been phased '
                           'improperly -- without changing the uvw locations')
 
-        self._phase_center_ra.set_degrees(float(obs['OBSRA'][0]))
-        self._phase_center_dec.set_degrees(float(obs['OBSDEC'][0]))
+        self.phase_center_ra_degrees = float(obs['OBSRA'][0])
+        self.phase_center_dec_degrees = float(obs['OBSDEC'][0])
         self.is_phased = True
 
         # this is generated in FHD by subtracting the JD of neighboring
@@ -184,9 +184,9 @@ class FHD(uvdata.uv.UVData):
                 object_name = 'EoR 0 Field'
 
         self.instrument = self.telescope_name
-        self._latitude.set_degrees(float(obs['LAT'][0]))
-        self._longitude.set_degrees(float(obs['LON'][0]))
-        self.altitude = float(obs['ALT'][0])
+        self.telescope_location_lat_lon_alt_degrees = (float(obs['LAT'][0]),
+                                                       float(obs['LON'][0]),
+                                                       float(obs['ALT'][0]))
 
         self.set_lsts_from_time_array()
 

@@ -1,4 +1,5 @@
 import numpy as np
+import uvdata.utils as utils
 
 
 class UVParameter(object):
@@ -27,15 +28,17 @@ class UVParameter(object):
     def __eq__(self, other):
         if isinstance(other, self.__class__):
             # only check that value is identical
-            isequal = True
             if not isinstance(self.value, other.value.__class__):
-                isequal = False
+                print('parameter value classes are different')
+                return False
             if isinstance(self.value, np.ndarray):
                 if self.value.shape != other.value.shape:
-                    isequal = False
+                    print('parameter value is array, shapes are different')
+                    return False
                 elif not np.allclose(self.value, other.value,
                                      rtol=self.tols[0], atol=self.tols[1]):
-                    isequal = False
+                    print('parameter value is array, values are not close')
+                    return False
             else:
                 str_type = False
                 if isinstance(self.value, (str, unicode)):
@@ -49,20 +52,25 @@ class UVParameter(object):
                         if not np.isclose(np.array(self.value),
                                           np.array(other.value),
                                           rtol=self.tols[0], atol=self.tols[1]):
-                            isequal = False
+                            print('parameter value is not a string, values are not close')
+                            return False
                     except:
                         # print(self.value, other.value)
-                        isequal = False
+                        print('parameter value is not a string, cannot be cast as numpy array')
+                        return False
                 else:
                     if self.value != other.value:
                         if not isinstance(self.value, list):
                             if self.value.replace('\n', '') != other.value.replace('\n', ''):
-                                isequal = False
+                                print('parameter value is a string (not a list), values are different')
+                                return False
                         else:
-                            isequal = False
+                            print('parameter value is a list of strings, values are different')
+                            return False
 
-            return isequal
+            return True
         else:
+            print('parameter classes are different')
             return False
 
     def __ne__(self, other):
@@ -96,14 +104,13 @@ class UVParameter(object):
     def sanity_check(self):
         # A quick method for checking that values are sane
         # This needs development
-        sane = False  # Default to insanity
         if self.sane_vals is None:
-            sane = True
+            return True
         else:
             testval = np.mean(np.abs(self.value))
             if (testval >= self.sane_vals[0]) and (testval <= self.sane_vals[1]):
-                sane = True
-        return sane
+                return True
+        return False
 
 
 class AntPositionParameter(UVParameter):
@@ -135,3 +142,35 @@ class AngleParameter(UVParameter):
             self.value = None
         else:
             self.value = degree_val * np.pi / 180.
+
+
+class LocationParameter(UVParameter):
+    def lat_lon_alt(self):
+        if self.value is None:
+            return None
+        else:
+            return utils.LatLonAlt_from_XYZ(self.value)
+
+    def set_lat_lon_alt(self, lat_lon_alt):
+        if lat_lon_alt is None:
+            self.value = None
+        else:
+            self.value = utils.XYZ_from_LatLonAlt(lat_lon_alt[0],
+                                                  lat_lon_alt[1],
+                                                  lat_lon_alt[2])
+
+    def lat_lon_alt_degrees(self):
+        if self.value is None:
+            return None
+        else:
+            latitude, longitude, altitude = utils.LatLonAlt_from_XYZ(self.value)
+            return latitude * 180. / np.pi, longitude * 180. / np.pi, altitude
+
+    def set_lat_lon_alt_degrees(self, lat_lon_alt_degree):
+        if lat_lon_alt_degree is None:
+            self.value = None
+        else:
+            latitude, longitude, altitude = lat_lon_alt_degree
+            self.value = utils.XYZ_from_LatLonAlt(latitude * np.pi / 180.,
+                                                  longitude * np.pi / 180.,
+                                                  altitude)

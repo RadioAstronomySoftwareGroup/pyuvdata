@@ -121,18 +121,15 @@ class UVData(UVBase):
                                                '(string)', form='str')
         self._instrument = uvp.UVParameter('instrument', description='receiver or backend.',
                                            form='str')
-        self._latitude = uvp.AngleParameter('latitude',
-                                            description='latitude of telescope, units radians',
-                                            expected_type=np.float,
-                                            tols=2 * np.pi * 1e-3 / (60.0 * 60.0 * 24.0))  # 1 mas in radians
-        self._longitude = uvp.AngleParameter('longitude',
-                                             description='longitude of telescope, units radians',
-                                             expected_type=np.float,
-                                             tols=2 * np.pi * 1e-3 / (60.0 * 60.0 * 24.0))  # 1 mas in radians
-        self._altitude = uvp.UVParameter('altitude',
-                                         description='altitude of telescope, units meters',
-                                         expected_type=np.float,
-                                         tols=1e-3)  # 1 mm
+
+        desc = ('telescope location: xyz in ITRF (earth-centered frame). '
+                'Can also be set using telescope_location_lat_lon_alt or '
+                'telescope_location_lat_lon_alt_degrees properties')
+        self._telescope_location = uvp.LocationParameter('telescope_location',
+                                                         description=desc,
+                                                         expected_type=np.float,
+                                                         form=(3,), tols=1e-3)
+
         self._history = uvp.UVParameter('history', description='string of history, units English',
                                         form='str')
 
@@ -176,30 +173,8 @@ class UVData(UVBase):
         self._dateobs = uvp.UVParameter('dateobs', required=False,
                                         description='date of observation')
 
-        desc = ('coordinate frame for antenna positions '
-                '(eg "ITRF" -also google ECEF). NB: ECEF has x running '
-                'through long=0 and z through the north pole')
-        self._xyz_telescope_frame = uvp.UVParameter('xyz_telescope_frame',
-                                                    required=False, description=desc,
-                                                    spoof_val='ITRF', form='str')
-
-        self._x_telescope = uvp.UVParameter('x_telescope', required=False,
-                                            description='x coordinates of array '
-                                                        'center in meters in coordinate frame',
-                                            spoof_val=0,
-                                            tols=1e-3)  # 1 mm
-        self._y_telescope = uvp.UVParameter('y_telescope', required=False,
-                                            description='y coordinates of array '
-                                                        'center in meters in coordinate frame',
-                                            spoof_val=0,
-                                            tols=1e-3)  # 1 mm
-        self._z_telescope = uvp.UVParameter('z_telescope', required=False,
-                                            description='z coordinates of array '
-                                                        'center in meters in coordinate frame',
-                                            spoof_val=0,
-                                            tols=1e-3)  # 1 mm
         desc = ('array giving coordinates of antennas relative to '
-                '{x,y,z}_telescope in the same frame, (Nants_telescope, 3)')
+                'telescope_location (ITRF frame), (Nants_telescope, 3)')
         self._antenna_positions = uvp.AntPositionParameter('antenna_positions',
                                                            required=False,
                                                            description=desc,
@@ -275,7 +250,12 @@ class UVData(UVBase):
                     params_set.append(self_param.name)
                     prop_name = self_param.name
                     setattr(self, prop_name, getattr(telescope_obj, prop_name))
-            if len(params_set) > 0:
+            if len(params_set) == 1:
+                params_set_str = params_set[0]
+                warnings.warn('{param} is not set. Using known values '
+                              'for {telescope_name}.'.format(param=params_set_str,
+                                                             telescope_name=telescope_obj.telescope_name))
+            elif len(params_set) > 1:
                 params_set_str = ', '.join(params_set)
                 warnings.warn('{params} are not set. Using known values '
                               'for {telescope_name}.'.format(params=params_set_str,
@@ -317,41 +297,41 @@ class UVData(UVBase):
 
         return np.int64(2048 * (j + 1) + (i + 1) + 2**16)
 
-    def set_LatLonAlt_from_XYZ(self, overwrite=False):
-        if (self.xyz_telescope_frame == "ITRF" and
-            None not in (self.x_telescope,
-                         self.y_telescope,
-                         self.z_telescope)):
-
-            xyz = np.array([self.x_telescope, self.y_telescope, self.z_telescope])
-            latitude, longitude, altitude = utils.LatLonAlt_from_XYZ(xyz)
-
-            if self.latitude is None or overwrite:
-                self.latitude = latitude
-            if self.longitude is None or overwrite:
-                self.longitude = longitude
-            if self.altitude is None or overwrite:
-                self.altitude = altitude
-        else:
-            raise ValueError('No x, y or z_telescope value assigned or '
-                             'xyz_telescope_frame is not "ITRF"')
-
-    def set_XYZ_from_LatLonAlt(self, overwrite=False):
-        # check that the coordinates we need actually exist
-        if None not in (self.latitude, self.longitude,
-                        self.altitude):
-
-            xyz = utils.XYZ_from_LatLonAlt(self.latitude, self.longitude,
-                                           self.altitude)
-
-            if self.x_telescope is None or overwrite:
-                self.x_telescope = xyz[0]
-            if self.y_telescope is None or overwrite:
-                self.y_telescope = xyz[1]
-            if self.z_telescope is None or overwrite:
-                self.z_telescope = xyz[2]
-        else:
-            raise ValueError('lat, lon or altitude not found')
+    # def set_LatLonAlt_from_XYZ(self, overwrite=False):
+    #     if (self.xyz_telescope_frame == "ITRF" and
+    #         None not in (self.x_telescope,
+    #                      self.y_telescope,
+    #                      self.z_telescope)):
+    #
+    #         xyz = np.array([self.x_telescope, self.y_telescope, self.z_telescope])
+    #         latitude, longitude, altitude = utils.LatLonAlt_from_XYZ(xyz)
+    #
+    #         if self.latitude is None or overwrite:
+    #             self.latitude = latitude
+    #         if self.longitude is None or overwrite:
+    #             self.longitude = longitude
+    #         if self.altitude is None or overwrite:
+    #             self.altitude = altitude
+    #     else:
+    #         raise ValueError('No x, y or z_telescope value assigned or '
+    #                          'xyz_telescope_frame is not "ITRF"')
+    #
+    # def set_XYZ_from_LatLonAlt(self, overwrite=False):
+    #     # check that the coordinates we need actually exist
+    #     if None not in (self.latitude, self.longitude,
+    #                     self.altitude):
+    #
+    #         xyz = utils.XYZ_from_LatLonAlt(self.latitude, self.longitude,
+    #                                        self.altitude)
+    #
+    #         if self.x_telescope is None or overwrite:
+    #             self.x_telescope = xyz[0]
+    #         if self.y_telescope is None or overwrite:
+    #             self.y_telescope = xyz[1]
+    #         if self.z_telescope is None or overwrite:
+    #             self.z_telescope = xyz[2]
+    #     else:
+    #         raise ValueError('lat, lon or altitude not found')
 
     def set_lsts_from_time_array(self):
         lsts = []
@@ -359,8 +339,8 @@ class UVData(UVBase):
         for ind, jd in enumerate(self.time_array):
             if ind == 0 or not np.isclose(jd, curtime, atol=1e-6, rtol=1e-12):
                 curtime = jd
-                t = Time(jd, format='jd', location=(self._longitude.degrees(),
-                                                    self._latitude.degrees()))
+                latitude, longitude, altitude = self.telescope_location_lat_lon_alt_degrees
+                t = Time(jd, format='jd', location=(longitude, latitude))
                 t.delta_ut1_utc = iers_a.ut1_utc(t)
             lsts.append(t.sidereal_time('apparent').radian)
         self.lst_array = np.array(lsts)
@@ -434,8 +414,9 @@ class UVData(UVBase):
 
         obs = ephem.Observer()
         # obs inits with default values for parameters -- be sure to replace them
-        obs.lat = self.latitude
-        obs.lon = self.longitude
+        latitude, longitude, altitude = self.telescope_location_lat_lon_alt
+        obs.lat = latitude
+        obs.lon = longitude
         if ra is not None and dec is not None and epoch is not None and time is None:
             pass
 
@@ -444,7 +425,7 @@ class UVData(UVBase):
             obs.date, obs.epoch = self.juldate2ephem(time), self.juldate2ephem(time)
 
             ra = obs.sidereal_time()
-            dec = self.latitude
+            dec = latitude
             epoch = self.juldate2ephem(time)
 
         else:
@@ -473,7 +454,7 @@ class UVData(UVBase):
             ra, dec = precess_pos.a_ra, precess_pos.a_dec
 
             # generate rotation matrices
-            m0 = a.coord.top2eq_m(self.lst_array[ind] - obs.sidereal_time(), self.latitude)
+            m0 = a.coord.top2eq_m(self.lst_array[ind] - obs.sidereal_time(), latitude)
             m1 = a.coord.eq2top_m(self.lst_array[ind] - ra, dec)
 
             # rotate and write uvws

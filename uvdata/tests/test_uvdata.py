@@ -39,20 +39,14 @@ def checkWarnings(obj, func, func_args=[], func_kwargs={},
     if known_warning == 'miriad':
         # The default warnings for known telescopes when reading miriad files
         warning_cat = [UserWarning]
-        warning_message = ['altitude, x_telescope, xyz_telescope_frame, '
-                           'y_telescope, z_telescope are not set.']
+        warning_message = ['Altitude is not present in Miriad file, using known '
+                           'location values for PAPER.']
         nwarnings = 1
-    elif known_warning == 'uvfits':
+    elif known_warning == 'paper_uvfits':
         # The default warnings for known telescopes when reading uvfits files
         warning_cat = [UserWarning] * 2
-        warning_message = ['Required Antenna frame keyword',
-                           'altitude, latitude, longitude are not set.']
+        warning_message = ['Required Antenna frame keyword', 'telescope_location is not set']
         nwarnings = 2
-    elif known_warning == 'fhd':
-        warning_cat = [UserWarning]
-        warning_message = ['x_telescope, xyz_telescope_frame, y_telescope, '
-                           'z_telescope are not set.']
-        nwarnings = 1
 
     warning_cat = get_iterable(warning_cat)
     warning_message = get_iterable(warning_message)
@@ -63,6 +57,9 @@ def checkWarnings(obj, func, func_args=[], func_kwargs={},
         status = func(*func_args, **func_kwargs)  # Run function
         # Verify
         if len(w) != nwarnings:
+            print('wrong number of warnings')
+            for idx, wi in enumerate(w):
+                print('warning {i} is: {w}'.format(i=idx, w=wi))
             obj.assertTrue(False)  # Fail the test, move on
         else:
             for i, w_i in enumerate(w):
@@ -89,8 +86,8 @@ class TestUVDataInit(unittest.TestCase):
                                     '_polarization_array', '_spw_array',
                                     '_integration_time', '_channel_width',
                                     '_object_name', '_telescope_name',
-                                    '_instrument', '_latitude', '_longitude',
-                                    '_altitude', '_history', '_vis_units',
+                                    '_instrument', '_telescope_location',
+                                    '_history', '_vis_units',
                                     '_phase_center_epoch', '_Nants_data',
                                     '_Nants_telescope', '_antenna_names',
                                     '_antenna_indices']
@@ -104,15 +101,15 @@ class TestUVDataInit(unittest.TestCase):
                                     'polarization_array', 'spw_array',
                                     'integration_time', 'channel_width',
                                     'object_name', 'telescope_name',
-                                    'instrument', 'latitude', 'longitude',
-                                    'altitude', 'history', 'vis_units',
+                                    'instrument', 'telescope_location',
+                                    # 'telescope_location_lat_lon_alt',
+                                    # 'telescope_location_lat_lon_alt_degrees'
+                                    'history', 'vis_units',
                                     'phase_center_epoch', 'Nants_data',
                                     'Nants_telescope', 'antenna_names',
                                     'antenna_indices']
 
         self.extra_parameters = ['_extra_keywords', '_dateobs',
-                                 '_xyz_telescope_frame',
-                                 '_x_telescope', '_y_telescope', '_z_telescope',
                                  '_antenna_positions', '_GST0', '_RDate',
                                  '_earth_omega', '_DUT1', '_TIMESYS',
                                  '_uvplane_reference_time',
@@ -120,11 +117,11 @@ class TestUVDataInit(unittest.TestCase):
                                  '_zenith_ra', '_zenith_dec']
 
         self.extra_properties = ['extra_keywords', 'dateobs',
-                                 'xyz_telescope_frame',
-                                 'x_telescope', 'y_telescope', 'z_telescope',
                                  'antenna_positions', 'GST0', 'RDate',
                                  'earth_omega', 'DUT1', 'TIMESYS',
                                  'uvplane_reference_time',
+                                 #  'phase_center_ra_degrees', 'phase_center_dec_degrees',
+                                 #  'zenith_ra_degrees', 'zenith_dec_degrees',
                                  'phase_center_ra', 'phase_center_dec',
                                  'zenith_ra', 'zenith_dec']
 
@@ -183,7 +180,11 @@ class TestUVDataInit(unittest.TestCase):
             rand_num = np.random.rand()
             setattr(self.uv_object, k, rand_num)
             this_param = getattr(self.uv_object, v)
-            self.assertEqual(rand_num, this_param.value)
+            try:
+                self.assertEqual(rand_num, this_param.value)
+            except:
+                print('setting {prop_name} to a random number failed'.format(prop_name=k))
+                raise(AssertionError)
 
 
 class TestUVmethods(unittest.TestCase):
@@ -252,39 +253,39 @@ class TestUVmethods(unittest.TestCase):
         self.assertNotEqual(self.uv_object._antenna_names,
                             self.uv_object2._antenna_names)
 
-    def test_set_XYZ_from_LatLonAlt(self):
-        self.uv_object._latitude.set_degrees(-26.7)
-        self.uv_object._longitude.set_degrees(116.7)
-        self.uv_object.altitude = None
-        # Test that exception is raised.
-        self.assertRaises(ValueError, self.uv_object.set_XYZ_from_LatLonAlt)
-        self.uv_object.altitude = 377.8
-        status = self.uv_object.set_XYZ_from_LatLonAlt()
-        # Got reference by forcing http://www.oc.nps.edu/oc2902w/coord/llhxyz.htm
-        # to give additional precision.
-        ref_xyz = (-2562123.42683, 5094215.40141, -2848728.58869)
-        out_xyz = (self.uv_object.x_telescope,
-                   self.uv_object.y_telescope,
-                   self.uv_object.z_telescope)
-        self.assertTrue(np.allclose(ref_xyz, out_xyz, rtol=0, atol=1e-3))
-
-    def test_set_LatLonAlt_from_XYZ(self):
-        self.uv_object.xyz_telescope_frame = 'ITRF'
-        self.uv_object.x_telescope = -2562123.42683
-        self.uv_object.y_telescope = 5094215.40141
-        self.uv_object.z_telescope = None
-        # Test that exception is raised.
-        self.assertRaises(ValueError, self.uv_object.set_LatLonAlt_from_XYZ)
-        self.uv_object.z_telescope = -2848728.58869
-        status = self.uv_object.set_LatLonAlt_from_XYZ()
-        # Got reference by forcing http://www.oc.nps.edu/oc2902w/coord/llhxyz.htm
-        # to give additional precision.
-        ref_latlonalt = (-26.7, 116.7, 377.8)
-        out_latlonalt = (self.uv_object._latitude.degrees(),
-                         self.uv_object._longitude.degrees(),
-                         self.uv_object.altitude)
-        self.assertTrue(np.allclose(ref_latlonalt, out_latlonalt, rtol=0,
-                                    atol=1e-3))
+    # def test_set_XYZ_from_LatLonAlt(self):
+    #     self.uv_object._latitude.set_degrees(-26.7)
+    #     self.uv_object._longitude.set_degrees(116.7)
+    #     self.uv_object.altitude = None
+    #     # Test that exception is raised.
+    #     self.assertRaises(ValueError, self.uv_object.set_XYZ_from_LatLonAlt)
+    #     self.uv_object.altitude = 377.8
+    #     status = self.uv_object.set_XYZ_from_LatLonAlt()
+    #     # Got reference by forcing http://www.oc.nps.edu/oc2902w/coord/llhxyz.htm
+    #     # to give additional precision.
+    #     ref_xyz = (-2562123.42683, 5094215.40141, -2848728.58869)
+    #     out_xyz = (self.uv_object.x_telescope,
+    #                self.uv_object.y_telescope,
+    #                self.uv_object.z_telescope)
+    #     self.assertTrue(np.allclose(ref_xyz, out_xyz, rtol=0, atol=1e-3))
+    #
+    # def test_set_LatLonAlt_from_XYZ(self):
+    #     self.uv_object.xyz_telescope_frame = 'ITRF'
+    #     self.uv_object.x_telescope = -2562123.42683
+    #     self.uv_object.y_telescope = 5094215.40141
+    #     self.uv_object.z_telescope = None
+    #     # Test that exception is raised.
+    #     self.assertRaises(ValueError, self.uv_object.set_LatLonAlt_from_XYZ)
+    #     self.uv_object.z_telescope = -2848728.58869
+    #     status = self.uv_object.set_LatLonAlt_from_XYZ()
+    #     # Got reference by forcing http://www.oc.nps.edu/oc2902w/coord/llhxyz.htm
+    #     # to give additional precision.
+    #     ref_latlonalt = (-26.7, 116.7, 377.8)
+    #     out_latlonalt = (self.uv_object._latitude.degrees(),
+    #                      self.uv_object._longitude.degrees(),
+    #                      self.uv_object.altitude)
+    #     self.assertTrue(np.allclose(ref_latlonalt, out_latlonalt, rtol=0,
+    #                                 atol=1e-3))
 
     def test_check(self):
         try:
@@ -343,7 +344,7 @@ class TestReadUVFits(unittest.TestCase):
         del(UV)
         UV = UVData()
         test = checkWarnings(self, UV.read, [testfile_no_spw, 'uvfits'],
-                             known_warning='uvfits')
+                             known_warning='paper_uvfits')
         self.assertTrue(test)
 
         del(UV)
@@ -442,8 +443,7 @@ class TestReadFHD(unittest.TestCase):
 
         fhd_uv = UVData()
         uvfits_uv = UVData()
-        checkWarnings(self, fhd_uv.read, [self.testfiles, 'fhd'],
-                      known_warning='fhd')
+        fhd_uv.read(self.testfiles, 'fhd')
         fhd_uv.write(op.join(self.test_file_directory,
                              'outtest_FHD_1061316296.uvfits'),
                      file_type='uvfits',
@@ -469,12 +469,7 @@ class TestReadFHD(unittest.TestCase):
         del(fhd_uv)
         fhd_uv = UVData()
         self.assertTrue(checkWarnings(self, fhd_uv.read, [self.testfiles[:-1],
-                                      'fhd'], warning_message=['No settings',
-                                                               'x_telescope, '
-                                                               'xyz_telescope_frame, '
-                                                               'y_telescope, '
-                                                               'z_telescope are not set.'],
-                                      warning_cat=[UserWarning] * 2, nwarnings=2))
+                                      'fhd'], warning_message=['No settings']))
         self.assertEqual(fhd_uv.history, '')  # Check empty history with no settings
         del(fhd_uv)
 
@@ -482,8 +477,7 @@ class TestReadFHD(unittest.TestCase):
 
         fhd_uv = UVData()
         uvfits_uv = UVData()
-        checkWarnings(self, fhd_uv.read, [self.testfiles, 'fhd'], {'use_model': True},
-                      known_warning='fhd')
+        fhd_uv.read(self.testfiles, 'fhd')
 
         fhd_uv.write(op.join(self.test_file_directory,
                              'outtest_FHD_1061316296_model.uvfits'),
@@ -585,8 +579,7 @@ class TestWriteMiriad(unittest.TestCase):
 
         uv_in.write(write_file, file_type='miriad', clobber=True)
 
-        status = checkWarnings(self, uv_out.read, [write_file, 'miriad'],
-                               known_warning='miriad')
+        uv_out.read(write_file, 'miriad')
 
         self.assertEqual(uv_in, uv_out)
         del(uv_in)

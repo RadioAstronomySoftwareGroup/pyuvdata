@@ -9,7 +9,18 @@ class UVBase(object):
         for p in self.parameter_iter():
             this_param = getattr(self, p)
             attr_name = this_param.name
-            setattr(self.__class__, attr_name, property(self.prop_fget(p), self.prop_fset(p)))
+            setattr(self.__class__, attr_name, property(self.prop_fget(p),
+                                                        self.prop_fset(p)))
+            if isinstance(this_param, uvp.AngleParameter):
+                setattr(self.__class__, attr_name + '_degrees',
+                        property(self.degree_prop_fget(p), self.degree_prop_fset(p)))
+            elif isinstance(this_param, uvp.LocationParameter):
+                setattr(self.__class__, attr_name + '_lat_lon_alt',
+                        property(self.lat_lon_alt_prop_fget(p),
+                                 self.lat_lon_alt_prop_fset(p)))
+                setattr(self.__class__, attr_name + '_lat_lon_alt_degrees',
+                        property(self.lat_lon_alt_degrees_prop_fget(p),
+                                 self.lat_lon_alt_degrees_prop_fset(p)))
 
     def prop_fget(self, param_name):
         def fget(self):
@@ -21,6 +32,45 @@ class UVBase(object):
         def fset(self, value):
             this_param = getattr(self, param_name)
             this_param.value = value
+            setattr(self, param_name, this_param)
+        return fset
+
+    def degree_prop_fget(self, param_name):
+        def fget(self):
+            this_param = getattr(self, param_name)
+            return this_param.degrees()
+        return fget
+
+    def degree_prop_fset(self, param_name):
+        def fset(self, value):
+            this_param = getattr(self, param_name)
+            this_param.set_degrees(value)
+            setattr(self, param_name, this_param)
+        return fset
+
+    def lat_lon_alt_prop_fget(self, param_name):
+        def fget(self):
+            this_param = getattr(self, param_name)
+            return this_param.lat_lon_alt()
+        return fget
+
+    def lat_lon_alt_prop_fset(self, param_name):
+        def fset(self, value):
+            this_param = getattr(self, param_name)
+            this_param.set_lat_lon_alt(value)
+            setattr(self, param_name, this_param)
+        return fset
+
+    def lat_lon_alt_degrees_prop_fget(self, param_name):
+        def fget(self):
+            this_param = getattr(self, param_name)
+            return this_param.lat_lon_alt_degrees()
+        return fget
+
+    def lat_lon_alt_degrees_prop_fset(self, param_name):
+        def fset(self, value):
+            this_param = getattr(self, param_name)
+            this_param.set_lat_lon_alt_degrees(value)
             setattr(self, param_name, this_param)
         return fset
 
@@ -62,7 +112,6 @@ class UVBase(object):
     def __eq__(self, other):
         if isinstance(other, self.__class__):
             # only check that required parameters are identical
-            isequal = True
             for p in self.required_parameter_iter():
                 self_param = getattr(self, p)
                 other_param = getattr(other, p)
@@ -71,8 +120,8 @@ class UVBase(object):
                     #       'and right is {rval}'.
                     #       format(pname=p, lval=str(self_param.value),
                     #              rval=str(other_param.value)))
-                    isequal = False
-            return isequal
+                    return False
+            return True
         else:
             print('Classes do not match')
             return False
@@ -103,7 +152,10 @@ class UVBase(object):
                 # Check the size of the parameter value. Note that np.shape
                 # returns an empty tuple for single numbers. esize should do the same.
                 if not np.shape(param.value) == esize:
-                    raise ValueError('UVParameter ' + p + 'is not expected size.')
+                    raise ValueError('UVParameter {param} is not expected size. '
+                                     'Parameter size is {psize}, expected size is '
+                                     '{esize}.'.format(param=p, psize=np.shape(param.value),
+                                                       esize=esize))
                 if esize == ():
                     # Single element
                     if not isinstance(param.value, param.expected_type):

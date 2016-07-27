@@ -33,9 +33,17 @@ class Miriad(uvdata.uv.UVData):
                               #as the same
                               'telescope_name': 'telescop',
                               'instrument': 'telescop',
+<<<<<<< 18a872ba3d281f45d17f7d75099c3f057e961fd7
                               'latitude': 'latitud', # in units of radians
                               'longitude': 'longitu',  # in units of radians
                               'dateobs': 'time', #first time in file
+=======
+                              #   'latitude': 'latitud',
+                              #   'longitude': 'longitu',  # in units of radians
+                              # (get the first time in the ever changing header)
+                              'dateobs': 'time',
+                              # 'history': 'history',
+>>>>>>> Major changes to only have one telescope location parameter
                               'Nants_telescope': 'nants',
                               'phase_center_epoch': 'epoch',
                               'antenna_positions': 'antpos',  # take deltas
@@ -46,6 +54,46 @@ class Miriad(uvdata.uv.UVData):
             else:
                 header_value = uv[miriad_header_data[item]]
             setattr(self, item, header_value)
+
+        latitude = uv['latitud']  # in units of radians
+        longitude = uv['longitu']
+        try:
+            altitude = uv['altitude']
+            self.telescope_location_lat_lon_alt = (latitude, longitude, altitude)
+        except(KeyError):
+            # get info from known telescopes. Check to make sure the lat/lon values match reasonably well
+            telescope_obj = uvdata.telescopes.get_telescope(self.telescope_name)
+            if telescope_obj is not False:
+                # attribute_list = [a for a in dir(telescope_obj) if not a.startswith('__') and
+                #                   not callable(getattr(telescope_obj, a))]
+
+                tol = 2 * np.pi * 1e-3 / (60.0 * 60.0 * 24.0)  # 1mas in radians
+                lat_close = np.isclose(telescope_obj.telescope_location_lat_lon_alt[0],
+                                       latitude, rtol=0, atol=tol)
+                lon_close = np.isclose(telescope_obj.telescope_location_lat_lon_alt[1],
+                                       longitude, rtol=0, atol=tol)
+                self.telescope_location_lat_lon_alt = telescope_obj.telescope_location_lat_lon_alt
+                if lat_close and lon_close:
+                    warnings.warn('Altitude is not present in Miriad file, using known location values '
+                                  'for {telescope_name}.'.format(telescope_name=telescope_obj.telescope_name))
+                else:
+                    warn_string = ('Altitude is not present in file and ')
+                    if not lat_close and not lon_close:
+                        warn_string = warn_string + 'latitude and longitude values do not match values '
+                    else:
+                        if not lat_close:
+                            warn_string = warn_string + 'latitude value does not match value '
+                        else:
+                            warn_string = warn_string + 'longitude value does not match value '
+                    warn_string = (warn_string + 'for {telescope_name} in known '
+                                   'telescopes. Using values from known '
+                                   'telescopes.'.format(telescope_name=telescope_obj.telescope_name))
+                    warnings.warn(warn_string)
+            else:
+                warnings.warn('Altitude is not present in Miriad file, and ' +
+                              'telescope {telescope_name} is not in ' +
+                              'known_telescopes. Telescope location not '
+                              'set.'.format(telescope_name=self.telescope_name))
 
         self.history = uv['history']
         try:
@@ -91,7 +139,6 @@ class Miriad(uvdata.uv.UVData):
                 # NB: flag types in miriad are usually ints
         self.polarization_array = np.sort(data_accumulator.keys())
         if len(self.polarization_array) > self.Npols:
-<<<<<<< 939766ea87bd9c003b271b499157cfc1db386228
             print "WARNING: npols={npols} but found {l} pols in data file".format(
                 npols=self.Npols, l=len(self.polarization_array))
 
@@ -193,141 +240,11 @@ class Miriad(uvdata.uv.UVData):
 
         self.vis_units = 'UNCALIB'  # assume no calibration
 
-=======
-            warnings.warn("npols={npols} but found {l} pols in data file".format(
-                npols=self.Npols, l=len(self.polarization_array)))
-        if FLEXIBLE_OPTION:
-            # makes a data_array (and flag_array) of zeroes to be filled in by
-            #   data values
-            # any missing data will have zeros
-
-            # use set to get the unique list of all times ever listed in the file
-            # iterate over polarizations and all spectra (bls and times) in two
-            # nested loops, then flatten into a single vector, then set
-            # then list again.
-
-            times = list(set(
-                np.concatenate([[k[1] for k in d] for d in data_accumulator.values()])))
-            times = np.sort(times)
-
-            ant_i_unique = list(set(
-                np.concatenate([[k[2] for k in d] for d in data_accumulator.values()])))
-            ant_j_unique = list(set(
-                np.concatenate([[k[3] for k in d] for d in data_accumulator.values()])))
-
-            self.Nants_data = max(len(ant_i_unique), len(ant_j_unique))
-            self.antenna_indices = np.arange(self.Nants_telescope)
-            self.antenna_names = self.antenna_indices.astype(str).tolist()
-            # form up a grid which indexes time and baselines along the 'long'
-            # axis of the visdata array
-            t_grid = []
-            ant_i_grid = []
-            ant_j_grid = []
-            for t in times:
-                for ant_i in ant_i_unique:
-                    for ant_j in ant_j_unique:
-                        t_grid.append(t)
-                        ant_i_grid.append(ant_i)
-                        ant_j_grid.append(ant_j)
-            ant_i_grid = np.array(ant_i_grid)
-            ant_j_grid = np.array(ant_j_grid)
-            t_grid = np.array(t_grid)
-
-            # set the data sizes
-            self.Nblts = len(t_grid)
-            self.Ntimes = len(times)
-            self.time_array = t_grid
-            self.ant_1_array = ant_i_grid
-            self.ant_2_array = ant_j_grid
-
-            self.baseline_array = self.antnums_to_baseline(ant_i_grid,
-                                                           ant_j_grid)
-            self.Nbls = len(np.unique(self.baseline_array))
-            # slot the data into a grid
-            self.data_array = np.zeros((self.Nblts, self.Nspws, self.Nfreqs,
-                                        self.Npols), dtype=np.complex64)
-            self.flag_array = np.ones(self.data_array.shape, dtype=np.bool)
-            self.uvw_array = np.zeros((3, self.Nblts))
-            # NOTE: Using our lst calculator, which uses astropy,
-            # instead of aipy values which come from pyephem.
-            # The differences are of order 5 seconds.
-            self.set_lsts_from_time_array()
-            self.nsample_array = np.ones(self.data_array.shape, dtype=np.int)
-            self.freq_array = (np.arange(self.Nfreqs) * self.channel_width +
-                               uv['sfreq'] * 1e9)
-            # Tile freq_array to dimensions (Nspws, Nfreqs).
-            # Currently does not actually support Nspws>1!
-            self.freq_array = np.tile(self.freq_array, (self.Nspws, 1))
-
-            ra_list = np.zeros(self.Nblts)
-            dec_list = np.zeros(self.Nblts)
-
-            for pol, data in data_accumulator.iteritems():
-                pol_ind = self.miriad_pol_to_ind(pol)
-                for ind, d in enumerate(data):
-                    t, ant_i, ant_j = d[1], d[2], d[3]
-                    blt_index = np.where(np.logical_and(np.logical_and(t == t_grid,
-                                                                       ant_i == ant_i_grid),
-                                                        ant_j == ant_j_grid))[0].squeeze()
-                    self.data_array[blt_index, :, :, pol_ind] = d[4]
-                    self.flag_array[blt_index, :, :, pol_ind] = d[5]
-                    self.nsample_array[blt_index, :, :, pol_ind] = d[6]
-
-                    # because there are uvws/ra/dec for each pol, and one pol may not
-                    # have that visibility, we collapse along the polarization
-                    # axis but avoid any missing visbilities
-                    uvw = d[0] * const.c.to('m/ns').value
-                    uvw.shape = (1, 3)
-                    self.uvw_array[:, blt_index] = uvw
-                    ra_list[blt_index] = d[7]
-                    dec_list[blt_index] = d[8]
-
-            # check if ra is constant throughout file; if it is,
-            # file is tracking if not, file is drift scanning
-            if np.isclose(np.mean(np.diff(ra_list)), 0.):
-                self.phase_center_ra = ra_list[0]
-                self.phase_center_dec = dec_list[0]
-            else:
-                self.zenith_ra = ra_list
-                self.zenith_dec = dec_list
-
-            # enforce drift scan/ phased convention
-            # convert lat/lon to x/y/z_telescope
-            #    LLA to ECEF (see pdf in docs)
-
-        if not FLEXIBLE_OPTION:
-            pass
-            # this option would accumulate things requiring
-            # baselines and times are sorted in the same
-            #          order for each polarization
-            # and that there are the same number of baselines
-            #          and pols per timestep
-            # TBD impliment
-
-        # NOTES:
-        # pyuvdata is natively 0 indexed as is miriad
-        # miriad uses the same pol2num standard as aips/casa
-
-        self.vis_units = 'UNCALIB'  # assume no calibration
-
-        # things that might not be required?
-        # 'GST0'  : None,
-        # 'RDate'  : None,  # date for which the GST0 or whatever... applies
-        # 'earth_omega'  : 360.985,
-        # 'DUT1'  : 0.0,        # DUT1 (google it) AIPS 117 calls it UT1UTC
-        # 'TIMESYS'  : 'UTC',   # We only support UTC
-
-        #
-
-        # Phasing rule: if alt/az is set and ra/dec are None,
-        #  then its a drift scan
-
         try:
             self.set_telescope_params()
         except ValueError, ve:
             warnings.warn(str(ve))
 
->>>>>>> Use known telescope list to set parameters that haven't been set
         # check if object has all required uv_properties set
         if run_check:
             self.check(run_sanity_check=run_sanity_check)
@@ -367,9 +284,9 @@ class Miriad(uvdata.uv.UVData):
         uv.add_var('telescop', 'a')
         uv['telescop'] = self.telescope_name
         uv.add_var('latitud', 'd')
-        uv['latitud'] = self.latitude
+        uv['latitud'] = self.telescope_location_lat_lon_alt[0]
         uv.add_var('longitu', 'd')
-        uv['longitu'] = self.longitude
+        uv['longitu'] = self.telescope_location_lat_lon_alt[1]
         uv.add_var('nants', 'i')
         uv['nants'] = self.Nants_telescope
         uv.add_var('antpos', 'd')
@@ -391,7 +308,7 @@ class Miriad(uvdata.uv.UVData):
         uv.add_var('instrume', 'a')
         uv['instrume'] = self.instrument
         uv.add_var('altitude', 'd')
-        uv['altitude'] = self.altitude
+        uv['altitude'] = self.telescope_location_lat_lon_alt[2]
 
         # variables that can get updated with every visibility
         uv.add_var('pol', 'i')
