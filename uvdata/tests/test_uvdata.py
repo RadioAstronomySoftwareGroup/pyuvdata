@@ -125,6 +125,8 @@ class TestUVDataInit(unittest.TestCase):
                                  'phase_center_ra', 'phase_center_dec',
                                  'zenith_ra', 'zenith_dec']
 
+        self.known_telescopes = ['PAPER', 'HERA', 'MWA']
+
         self.uv_object = UVData()
 
     def tearDown(self):
@@ -185,6 +187,10 @@ class TestUVDataInit(unittest.TestCase):
             except:
                 print('setting {prop_name} to a random number failed'.format(prop_name=k))
                 raise(AssertionError)
+
+    def test_known_telescopes(self):
+        self.assertEqual(self.known_telescopes.sort(),
+                         self.uv_object.known_telescopes().sort())
 
 
 class TestUVmethods(unittest.TestCase):
@@ -545,6 +551,7 @@ class TestReadMiriad(unittest.TestCase):
 
         self.assertEqual(self.unphased, self.phased)
     '''
+
 
 class TestWriteMiriad(unittest.TestCase):
     def setUp(self):

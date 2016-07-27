@@ -240,6 +240,9 @@ class UVData(UVBase):
         super(UVData, self).__init__()
         # warnings.showwarning = _warning
 
+    def known_telescopes(self):
+        return uvdata.telescopes.known_telescopes()
+
     def set_telescope_params(self, overwrite=False):
         telescope_obj = uvdata.telescopes.get_telescope(self.telescope_name)
         if telescope_obj is not False:
@@ -566,7 +569,7 @@ class UVData(UVBase):
 
     def read_miriad(self, filepath, run_check=True, run_sanity_check=True):
         miriad_obj = uvdata.miriad.Miriad()
-        ret_val = miriad_obj.read_miriad(filepath, run_check=True, 
+        ret_val = miriad_obj.read_miriad(filepath, run_check=True,
                                          run_sanity_check=True)
         self.convert_from_filetype(miriad_obj)
         return ret_val
