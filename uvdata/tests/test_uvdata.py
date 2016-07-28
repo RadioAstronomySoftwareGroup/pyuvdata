@@ -562,7 +562,7 @@ class TestPhase(unittest.TestCase):
         UV_phase = UVData()
         UV_phase.read(testfile, 'miriad')
         UV_phase.phase(ra=0.,dec=0.,epoch=ephem.J2000)
-        UV_phase.phase_to_zenith()       
+        UV_phase.unphase_to_drift()       
  
         self.assertEqual(UV_raw,UV_phase)
         del(UV_phase)
