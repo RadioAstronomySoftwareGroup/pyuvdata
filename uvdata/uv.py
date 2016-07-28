@@ -569,6 +569,69 @@ class UVData(object):
         """Convert Julian date to ephem date, measured from noon, Dec. 31, 1899."""
         return ephem.date(num - 2415020.)
 
+    def phase_to_zenith(self):
+        '''
+        This is the shortcut way
+        #phase data
+        ws = self.uvw_array[2]
+        ws.shape += (1,)
+        freqs = self.freq_array.reshape((1,-1))
+        ws_lambda = ws / const.c.to('m/s').value * freqs
+        phs = np.exp(-1j * 2 * np.pi * (-1) * ws_lambda)
+        phs = phs.reshape(phs.shape[0],1,phs.shape[1],1) #add spw & pol axis
+        phs = np.repeat(phs,self.Nspws,axis=1)
+        phs = np.repeat(phs,self.Npols,axis=3)
+        self.data_array *= phs
+      
+        #calculate new uvws
+        for ind,(ant1,ant2) in enumerate(zip(self.ant_1_array, self.ant_2_array)):
+            uvw = self.antenna_positions[ant1] - self.antenna_positions[ant2]
+            self.uvw_array[:,ind] = uvw
+        '''
+
+        #self.zenith_ra = np.zeros_like(self.time_array)
+        #self.zenith_dec = np.zeros_like(self.time_array)
+
+        obs = ephem.Observer()
+        # obs inits with default values for parameters -- be sure to replace them
+        obs.lat = self.latitude
+        obs.lon = self.longitude
+
+        phase_center = ephem.FixedBody()
+        epoch = (self.phase_center_epoch-2000.)*365.2422 + ephem.J2000 #convert years to ephemtime
+        phase_center._epoch = epoch #this doesn't seem to matter at all
+        phase_center._ra = self.phase_center_ra
+        phase_center._dec = self.phase_center_dec
+
+        for ind, jd in enumerate(self.time_array):
+
+            # calculate ra/dec of phase center in current epoch
+            obs.date, obs.epoch = self.juldate2ephem(jd), self.juldate2ephem(jd)
+            phase_center.compute(obs)
+            phase_center_ra, phase_center_dec = phase_center.a_ra, phase_center.a_dec
+
+            zenith_ra = obs.sidereal_time()
+            #zenith_ra = self.lst_array[ind]
+            zenith_dec = self.latitude
+
+            # generate rotation matrices
+            m0 = a.coord.top2eq_m(0., phase_center_dec)
+            m1 = a.coord.eq2top_m(phase_center_ra - zenith_ra, zenith_dec)
+            
+            # rotate and write uvws
+            uvw = self.uvw_array[:, ind]
+            uvw = np.dot(m0, uvw)
+            uvw = np.dot(m1, uvw)
+            #delta_w = uvw[2] - self.uvw_array[2,ind]
+            delta_w = 0. - self.uvw_array[2,ind]
+            self.uvw_array[:, ind] = uvw
+
+            # calculate data and apply phasor
+            delta_w_lambda = delta_w / const.c.to('m/s').value * self.freq_array
+            phs = np.exp(-1j * 2 * np.pi * delta_w_lambda)
+            phs.shape += (1,)
+            self.data_array[ind] *= phs
+
     def phase(self, ra=None, dec=None, epoch=ephem.J2000, time=None):
         # phase drift scan data to a single ra/dec at the set epoch
         # or time in jd (i.e. ra/dec of zenith at that time in current epoch).

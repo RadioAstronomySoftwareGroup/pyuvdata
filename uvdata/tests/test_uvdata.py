@@ -3,6 +3,7 @@ import inspect
 import os
 import os.path as op
 import shutil
+import astropy.time #necessary for Jonnie's workflow help us all
 from uvdata.uv import UVData
 import numpy as np
 import copy
@@ -546,6 +547,26 @@ class TestWriteMiriad(unittest.TestCase):
         del(uv_in)
         del(uv_out)
 
+class TestPhase(unittest.TestCase):
+    def setUp(self):
+        self.test_file_directory = '../data/test/'
+        if not os.path.exists(self.test_file_directory):
+            print('making test directory')
+            os.mkdir(self.test_file_directory)
+
+    def test_phase_unphasePAPER(self):
+        testfile = '../data/zen.2456865.60537.xy.uvcRREAA'
+        UV_raw = UVData()
+        UV_raw.read(testfile, 'miriad')
+
+        UV_phase = UVData()
+        UV_phase.read(testfile, 'miriad')
+        UV_phase.phase(ra=0.,dec=0.,epoch=ephem.J2000)
+        UV_phase.phase_to_zenith()       
+ 
+        self.assertEqual(UV_raw,UV_phase)
+        del(UV_phase)
+        del(UV_raw)
 
 if __name__ == '__main__':
     unittest.main()
