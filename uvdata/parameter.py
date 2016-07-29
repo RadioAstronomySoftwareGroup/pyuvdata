@@ -115,7 +115,7 @@ class UVParameter(object):
 
 class AntPositionParameter(UVParameter):
     def apply_spoof(self, uvbase):
-        self.value = np.zeros((len(uvbase.antenna_indices), 3))
+        self.value = np.zeros((len(uvbase.antenna_numbers), 3))
 
 
 class ExtraKeywordParameter(UVParameter):

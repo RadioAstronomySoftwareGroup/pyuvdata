@@ -155,8 +155,8 @@ class Miriad(uvdata.uv.UVData):
             np.concatenate([[k[3] for k in d] for d in data_accumulator.values()])))
 
         self.Nants_data = max(len(ant_i_unique), len(ant_j_unique))
-        self.antenna_indices = np.arange(self.Nants_telescope)
-        self.antenna_names = self.antenna_indices.astype(str).tolist()
+        self.antenna_numbers = np.arange(self.Nants_telescope)
+        self.antenna_names = self.antenna_numbers.astype(str).tolist()
         # form up a grid which indexes time and baselines along the 'long'
         # axis of the visdata array
         t_grid = []

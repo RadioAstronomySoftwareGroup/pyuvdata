@@ -150,19 +150,19 @@ class UVData(UVBase):
                 'than the number of antennas with data')
         self._Nants_telescope = uvp.UVParameter('Nants_telescope', description=desc)
         desc = ('list of antenna names, dimensions (Nants_telescope), '
-                'indexed by self.ant_1_array, self.ant_2_array, '
-                'self.antenna_indices. There must be one '
-                'entry here for each unique entry in self.ant_1_array and '
-                'self.ant_2_array, but there may be extras as well.')
+                'with numbers given by antenna_numbers (which can be matched '
+                'to ant_1_array and ant_2_array). There must be one entry '
+                'here for each unique entry in ant_1_array and '
+                'ant_2_array, but there may be extras as well.')
         self._antenna_names = uvp.UVParameter('antenna_names', description=desc,
                                               form=('Nants_telescope',),
                                               expected_type=str)
 
-        desc = ('integer index into antenna_names, dimensions '
-                '(Nants_telescope). There must be one '
+        desc = ('integer antenna number corresponding to antenna_names, '
+                'dimensions (Nants_telescope). There must be one '
                 'entry here for each unique entry in self.ant_1_array and '
                 'self.ant_2_array, but there may be extras as well.')
-        self._antenna_indices = uvp.UVParameter('antenna_indices', description=desc,
+        self._antenna_numbers = uvp.UVParameter('antenna_numbers', description=desc,
                                                 form=('Nants_telescope',))
 
         # -------- extra, non-required parameters ----------

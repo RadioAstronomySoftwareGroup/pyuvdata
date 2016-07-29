@@ -208,9 +208,9 @@ class UVFITS(uvdata.uv.UVData):
         self.antenna_names = ant_hdu.data.field('ANNAME').tolist()
 
         # subtract one to get to 0-indexed values rather than 1-indexed values
-        self.antenna_indices = ant_hdu.data.field('NOSTA') - 1
+        self.antenna_numbers = ant_hdu.data.field('NOSTA') - 1
 
-        self.Nants_telescope = len(self.antenna_indices)
+        self.Nants_telescope = len(self.antenna_numbers)
 
         # stuff in the header
         if self.telescope_name is None:
@@ -450,7 +450,7 @@ class UVFITS(uvdata.uv.UVData):
                            array=self.antenna_positions)
         # convert to 1-indexed from 0-indexed indicies
         col3 = fits.Column(name='NOSTA', format='1J',
-                           array=self.antenna_indices + 1)
+                           array=self.antenna_numbers + 1)
         col4 = fits.Column(name='MNTSTA', format='1J', array=mntsta)
         col5 = fits.Column(name='STAXOF', format='1E', array=staxof)
         col6 = fits.Column(name='POLTYA', format='1A', array=poltya)

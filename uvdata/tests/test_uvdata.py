@@ -90,7 +90,7 @@ class TestUVDataInit(unittest.TestCase):
                                     '_history', '_vis_units',
                                     '_phase_center_epoch', '_Nants_data',
                                     '_Nants_telescope', '_antenna_names',
-                                    '_antenna_indices']
+                                    '_antenna_numbers']
 
         self.required_properties = ['data_array', 'nsample_array',
                                     'flag_array', 'Ntimes', 'Nbls',
@@ -107,7 +107,7 @@ class TestUVDataInit(unittest.TestCase):
                                     'history', 'vis_units',
                                     'phase_center_epoch', 'Nants_data',
                                     'Nants_telescope', 'antenna_names',
-                                    'antenna_indices']
+                                    'antenna_numbers']
 
         self.extra_parameters = ['_extra_keywords', '_dateobs',
                                  '_antenna_positions', '_GST0', '_RDate',

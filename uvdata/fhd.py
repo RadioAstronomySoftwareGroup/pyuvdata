@@ -142,7 +142,7 @@ class FHD(uvdata.uv.UVData):
 
         self.antenna_names = bl_info['TILE_NAMES'][0].tolist()
         self.Nants_telescope = len(self.antenna_names)
-        self.antenna_indices = np.arange(self.Nants_telescope)
+        self.antenna_numbers = np.arange(self.Nants_telescope)
 
         self.baseline_array = \
             self.antnums_to_baseline(self.ant_1_array,
