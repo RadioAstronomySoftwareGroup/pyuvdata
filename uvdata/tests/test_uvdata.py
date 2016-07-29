@@ -586,10 +586,12 @@ class TestPhase(unittest.TestCase):
     def test_phase_unphasePAPER(self):
         testfile = '../data/zen.2456865.60537.xy.uvcRREAA'
         UV_raw = UVData()
-        UV_raw.read(testfile, 'miriad')
+        status = checkWarnings(self, UV_raw.read, [testfile, 'miriad'],
+                               known_warning='miriad')
 
         UV_phase = UVData()
-        UV_phase.read(testfile, 'miriad')
+        status = checkWarnings(self, UV_phase.read, [testfile, 'miriad'],
+                               known_warning='miriad')
         UV_phase.phase(ra=0., dec=0., epoch=ephem.J2000)
         UV_phase.unphase_to_drift()
 
