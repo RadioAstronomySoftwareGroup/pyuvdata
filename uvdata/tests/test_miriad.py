@@ -4,7 +4,7 @@ import os.path as op
 import astropy.time  # necessary for Jonnie's workflow help us all
 from uvdata.uv import UVData
 import ephem
-from test_functions import *
+import uvdata.utils as ut
 
 
 class TestReadMiriad(unittest.TestCase):
@@ -27,8 +27,8 @@ class TestReadMiriad(unittest.TestCase):
 
         self.test_file_directory = '../data/test/'
 
-        status = checkWarnings(self.miriad_uv.read, [self.datafile, 'miriad'],
-                               known_warning='miriad')
+        status = ut.checkWarnings(self.miriad_uv.read, [self.datafile, 'miriad'],
+                                  known_warning='miriad')
 
         self.assertTrue(status[1])
 
@@ -51,10 +51,10 @@ class TestReadMiriad(unittest.TestCase):
     to the astrometric ra/dec.  Hopefully we can reinstitute it one day.
     def test_ReadMiriadPhase(self):
         # test that phasing makes files equal
-        status = checkWarnings(self.unphased.read, [self.unphasedfile, 'miriad'],
+        status = ut.checkWarnings(self.unphased.read, [self.unphasedfile, 'miriad'],
                                known_warning='miriad')
         self.unphased.phase(ra=0.0, dec=0.0, epoch=ephem.J2000)
-        status = checkWarnings(self.phased.read, [self.phasedfile, 'miriad'],
+        status = ut.checkWarnings(self.phased.read, [self.phasedfile, 'miriad'],
                                known_warning='miriad')
 
         self.assertEqual(self.unphased, self.phased)
@@ -71,7 +71,7 @@ class TestWriteMiriad(unittest.TestCase):
     def test_writePAPER(self):
         testfile = '../data/zen.2456865.60537.xy.uvcRREAA'
         UV = UVData()
-        status = checkWarnings(UV.read, [testfile, 'miriad'], known_warning='miriad')
+        status = ut.checkWarnings(UV.read, [testfile, 'miriad'], known_warning='miriad')
 
         write_file = op.join(self.test_file_directory,
                              'outtest_miriad.uv')
@@ -85,8 +85,8 @@ class TestWriteMiriad(unittest.TestCase):
         uv_in = UVData()
         uv_out = UVData()
 
-        status = checkWarnings(uv_in.read, [testfile, 'miriad'],
-                               known_warning='miriad')
+        status = ut.checkWarnings(uv_in.read, [testfile, 'miriad'],
+                                  known_warning='miriad')
 
         write_file = op.join(self.test_file_directory,
                              'outtest_miriad.uv')

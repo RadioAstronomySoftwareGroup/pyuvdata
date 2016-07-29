@@ -4,7 +4,7 @@ import os.path as op
 import shutil
 import astropy.time  # necessary for Jonnie's workflow help us all
 from uvdata.uv import UVData
-from test_functions import *
+import uvdata.utils as ut
 
 
 class TestReadFHD(unittest.TestCase):
@@ -55,8 +55,8 @@ class TestReadFHD(unittest.TestCase):
         self.assertRaises(StandardError, fhd_uv.read, ['foo'], 'fhd')  # No data files
         del(fhd_uv)
         fhd_uv = UVData()
-        self.assertTrue(checkWarnings(fhd_uv.read, [self.testfiles[:-1],
-                                      'fhd'], message=['No settings'])[1])
+        self.assertTrue(ut.checkWarnings(fhd_uv.read, [self.testfiles[:-1],
+                                         'fhd'], message=['No settings'])[1])
         self.assertEqual(fhd_uv.history, '')  # Check empty history with no settings
         del(fhd_uv)
 

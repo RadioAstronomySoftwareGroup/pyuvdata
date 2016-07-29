@@ -6,7 +6,7 @@ from uvdata.uv import UVData
 import numpy as np
 import copy
 import ephem
-from test_functions import *
+import uvdata.utils as ut
 
 
 class TestUVDataInit(unittest.TestCase):
@@ -153,9 +153,9 @@ class TestUVmethods(unittest.TestCase):
         # Check attempt256
         self.assertEqual(self.uv_object.antnums_to_baseline(0, 0,
                          attempt256=True), 257)
-        self.assertEqual(checkWarnings(self.uv_object.antnums_to_baseline,
-                                       [257, 256], {'attempt256': True},
-                                       message='found > 256 antennas'),
+        self.assertEqual(ut.checkWarnings(self.uv_object.antnums_to_baseline,
+                                          [257, 256], {'attempt256': True},
+                                          message='found > 256 antennas'),
                          (592130, True))  # Tests output and status from checkWarnings
         Nants = self.uv_object.Nants_telescope
         self.uv_object.Nants_telescope = 2049
@@ -167,8 +167,8 @@ class TestUVmethods(unittest.TestCase):
         try:
             self.uv_object.check()
         except ValueError:
-            checkWarnings(self.uv_object.read, [self.testfile, 'uvfits'],
-                          message='Telescope EVLA is not')
+            ut.checkWarnings(self.uv_object.read, [self.testfile, 'uvfits'],
+                             message='Telescope EVLA is not')
         self.assertEqual(self.uv_object, self.uv_object)
         self.uv_object2 = copy.deepcopy(self.uv_object)
         self.uv_object2.data_array[0, 0, 0, 0] += 1  # Force data to be not equal
@@ -193,13 +193,12 @@ class TestUVmethods(unittest.TestCase):
         self.assertNotEqual(self.uv_object._antenna_names,
                             self.uv_object2._antenna_names)
 
-
     def test_check(self):
         try:
             self.uv_object.check()
         except ValueError:
-            checkWarnings(self.uv_object.read, [self.testfile, 'uvfits'],
-                          message='Telescope EVLA is not')
+            ut.checkWarnings(self.uv_object.read, [self.testfile, 'uvfits'],
+                             message='Telescope EVLA is not')
         self.assertTrue(self.uv_object.check())
         # Now break it in every way I can.
         # String cases
@@ -244,12 +243,12 @@ class TestPhase(unittest.TestCase):
     def test_phase_unphasePAPER(self):
         testfile = '../data/zen.2456865.60537.xy.uvcRREAA'
         UV_raw = UVData()
-        status = checkWarnings(UV_raw.read, [testfile, 'miriad'],
-                               known_warning='miriad')
+        status = ut.checkWarnings(UV_raw.read, [testfile, 'miriad'],
+                                  known_warning='miriad')
 
         UV_phase = UVData()
-        status = checkWarnings(UV_phase.read, [testfile, 'miriad'],
-                               known_warning='miriad')
+        status = ut.checkWarnings(UV_phase.read, [testfile, 'miriad'],
+                                  known_warning='miriad')
         UV_phase.phase(ra=0., dec=0., epoch=ephem.J2000)
         UV_phase.unphase_to_drift()
 

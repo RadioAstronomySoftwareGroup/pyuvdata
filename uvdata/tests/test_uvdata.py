@@ -12,7 +12,6 @@ import warnings
 import collections
 from astropy.io import fits
 import sys
-from test_functions import *
 
 
 test_file_directory = '../data/test/'
