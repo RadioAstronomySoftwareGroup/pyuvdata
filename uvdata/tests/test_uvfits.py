@@ -38,7 +38,7 @@ def test_noSPW():
 #     test = UV.read_uvfits(testfile)
 #     nt.assert_true(test)
 
-def test_BreakReadUVFits():
+def test_breakReadUVFits():
     UV = UVData()
     testfile = '../data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
     multi_subarray_file = '../data/multi_subarray.uvfits'
