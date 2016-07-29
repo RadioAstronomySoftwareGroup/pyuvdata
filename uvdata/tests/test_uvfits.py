@@ -15,7 +15,7 @@ class TestReadUVFits(unittest.TestCase):
         UV = UVData()
         self.assertRaises(ValueError, UV.read, testfile, 'vufits')  # Wrong filetype
         test = checkWarnings(self, UV.read, [testfile, 'uvfits'],
-                             warning_message='Telescope EVLA is not')
+                             message='Telescope EVLA is not')
         self.assertTrue(test)
         expected_extra_keywords = ['OBSERVER', 'SORTORD', 'SPECSYS',
                                    'RESTFREQ', 'ORIGIN']
@@ -67,7 +67,7 @@ class TestWriteUVFits(unittest.TestCase):
         # testfile = '../data/PRISim_output_manual_conversion.uvfits'
         UV = UVData()
         checkWarnings(self, UV.read, [testfile, 'uvfits'],
-                      warning_message='Telescope EVLA is not')
+                      message='Telescope EVLA is not')
 
         write_file = op.join(self.test_file_directory,
                              'outtest_casa_1src_1spw.uvfits')
@@ -90,12 +90,12 @@ class TestWriteUVFits(unittest.TestCase):
         uv_in = UVData()
         uv_out = UVData()
         checkWarnings(self, uv_in.read, [testfile, 'uvfits'],
-                      warning_message='Telescope EVLA is not')
+                      message='Telescope EVLA is not')
         write_file = op.join(self.test_file_directory,
                              'outtest_casa.uvfits')
         uv_in.write(write_file, file_type='uvfits')
         checkWarnings(self, uv_out.read, [write_file, 'uvfits'],
-                      warning_message='Telescope EVLA is not')
+                      message='Telescope EVLA is not')
         self.assertEqual(uv_in, uv_out)
         del(uv_in)
         del(uv_out)

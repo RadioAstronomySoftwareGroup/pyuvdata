@@ -23,23 +23,23 @@ def clearWarnings():
 
 
 def checkWarnings(obj, func, func_args=[], func_kwargs={},
-                  warning_cat=UserWarning,
-                  nwarnings=1, warning_message=None, known_warning=None):
+                  category=UserWarning,
+                  nwarnings=1, message=None, known_warning=None):
 
     if known_warning == 'miriad':
         # The default warnings for known telescopes when reading miriad files
-        warning_cat = [UserWarning]
-        warning_message = ['Altitude is not present in Miriad file, using known '
-                           'location values for PAPER.']
+        category = [UserWarning]
+        message = ['Altitude is not present in Miriad file, using known '
+                   'location values for PAPER.']
         nwarnings = 1
     elif known_warning == 'paper_uvfits':
         # The default warnings for known telescopes when reading uvfits files
-        warning_cat = [UserWarning] * 2
-        warning_message = ['Required Antenna frame keyword', 'telescope_location is not set']
+        category = [UserWarning] * 2
+        message = ['Required Antenna frame keyword', 'telescope_location is not set']
         nwarnings = 2
 
-    warning_cat = get_iterable(warning_cat)
-    warning_message = get_iterable(warning_message)
+    category = get_iterable(category)
+    message = get_iterable(message)
 
     clearWarnings()
     with warnings.catch_warnings(record=True) as w:
@@ -53,7 +53,7 @@ def checkWarnings(obj, func, func_args=[], func_kwargs={},
             obj.assertTrue(False)  # Fail the test, move on
         else:
             for i, w_i in enumerate(w):
-                obj.assertIs(w_i.category, warning_cat[i])
-                if warning_message[i] is not None:
-                    obj.assertIn(warning_message[i], str(w_i.message))
+                obj.assertIs(w_i.category, category[i])
+                if message[i] is not None:
+                    obj.assertIn(message[i], str(w_i.message))
     return status

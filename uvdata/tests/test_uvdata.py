@@ -167,7 +167,7 @@ class TestUVmethods(unittest.TestCase):
                          attempt256=True), 257)
         self.assertEqual(checkWarnings(self, self.uv_object.antnums_to_baseline,
                                        [257, 256], {'attempt256': True},
-                                       warning_message='found > 256 antennas'),
+                                       message='found > 256 antennas'),
                          592130)
         Nants = self.uv_object.Nants_telescope
         self.uv_object.Nants_telescope = 2049
@@ -180,7 +180,7 @@ class TestUVmethods(unittest.TestCase):
             self.uv_object.check()
         except ValueError:
             checkWarnings(self, self.uv_object.read, [self.testfile, 'uvfits'],
-                          warning_message='Telescope EVLA is not')
+                          message='Telescope EVLA is not')
         self.assertEqual(self.uv_object, self.uv_object)
         self.uv_object2 = copy.deepcopy(self.uv_object)
         self.uv_object2.data_array[0, 0, 0, 0] += 1  # Force data to be not equal
@@ -227,7 +227,7 @@ class TestUVmethods(unittest.TestCase):
             self.uv_object.check()
         except ValueError:
             checkWarnings(self, self.uv_object.read, [self.testfile, 'uvfits'],
-                          warning_message='Telescope EVLA is not')
+                          message='Telescope EVLA is not')
         self.assertTrue(self.uv_object.check())
         # Now break it in every way I can.
         # String cases
@@ -311,7 +311,7 @@ class TestReadFHD(unittest.TestCase):
         del(fhd_uv)
         fhd_uv = UVData()
         self.assertTrue(checkWarnings(self, fhd_uv.read, [self.testfiles[:-1],
-                                      'fhd'], warning_message=['No settings']))
+                                      'fhd'], message=['No settings']))
         self.assertEqual(fhd_uv.history, '')  # Check empty history with no settings
         del(fhd_uv)
 
