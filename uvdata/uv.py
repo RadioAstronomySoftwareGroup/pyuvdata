@@ -268,6 +268,11 @@ class UVData(object):
         self._phase_center_epoch = UVParameter('phase_center_epoch', description=desc,
                                                expected_type=np.float)
 
+        self._is_phased = UVParameter('is_phased', required=True,
+                                        expected_type=bool,
+                                        description='true/false whether data is '
+                                                    'phased (true) or drift scanning (false)')
+
         # --- antenna information ----
         desc = ('number of antennas with data present. May be smaller ' +
                 'than the number of antennas in the array')
@@ -570,6 +575,9 @@ class UVData(object):
         return ephem.date(num - 2415020.)
 
     def unphase_to_drift(self):
+        if not self.is_phased:
+            raise ValueError('The data is already drift scanning; can only ' +
+                             'unphase phased data.')
         obs = ephem.Observer()
         # obs inits with default values for parameters -- be sure to replace them
         obs.lat = self.latitude
@@ -615,6 +623,7 @@ class UVData(object):
         #remove phase center
         self.phase_center_ra = None
         self.phase_center_dec = None
+        self.is_phased = False
         return True
 
     def phase(self, ra=None, dec=None, epoch=ephem.J2000, time=None):
@@ -623,8 +632,7 @@ class UVData(object):
         # ra/dec should be in radians.
         # epoch should be an ephem date, measured from noon Dec. 31, 1899.
         # will not phase already phased data.
-        if (self.phase_center_ra is not None or
-                self.phase_center_dec is not None):
+        if self.is_phased:
             raise ValueError('The data is already phased; can only phase ' +
                              'drift scanning data.')
 
@@ -685,6 +693,7 @@ class UVData(object):
             self.data_array[ind] *= phs
 
         del(obs)
+        self.is_phased = True
         return True
 
     def check(self, run_sanity_check=True):

@@ -119,6 +119,7 @@ class UVFITS(uvdata.uv.UVData):
 
             self._phase_center_ra.set_degrees(np.array(hdr.pop('CRVAL6')).astype(np.float64))
             self._phase_center_dec.set_degrees(np.array(hdr.pop('CRVAL7')).astype(np.float64))
+            self.is_phased = True
         else:
             # in many uvfits files the spw axis is left out,
             # here we put it back in so the dimensionality stays the same
@@ -136,6 +137,7 @@ class UVFITS(uvdata.uv.UVData):
 
             self._phase_center_ra.set_degrees(np.array(hdr.pop('CRVAL5')).astype(np.float64))
             self._phase_center_dec.set_degrees(np.array(hdr.pop('CRVAL6')).astype(np.float64))
+            self.is_phased = True
 
         # get dimension sizes
         self.Nfreqs = hdr.pop('NAXIS4')

@@ -158,6 +158,7 @@ class FHD(uvdata.uv.UVData):
 
         self._phase_center_ra.set_degrees(float(obs['OBSRA'][0]))
         self._phase_center_dec.set_degrees(float(obs['OBSDEC'][0]))
+        self.is_phased = True
 
         # this is generated in FHD by subtracting the JD of neighboring
         # integrations. This can have limited accuracy, so it can be slightly

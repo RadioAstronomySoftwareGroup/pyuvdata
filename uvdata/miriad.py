@@ -80,10 +80,8 @@ class Miriad(uvdata.uv.UVData):
                 cnt = uv['cnt']
             except(KeyError):
                 cnt = np.ones(d.shape, dtype=np.int)
-            # XXX the assumption that this is always zenith needs to be questioned
-            # fixing this should play into the is_phased addition (issue #54)
-            zenith_ra = uv['ra']
-            zenith_dec = uv['dec']
+            ra = uv['ra']
+            dec = uv['dec']
             lst = uv['lst']
             source = uv['source']
             if source != _source:
@@ -93,10 +91,10 @@ class Miriad(uvdata.uv.UVData):
 
             try:
                 data_accumulator[uv['pol']].append([uvw, t, i, j, d, f, cnt,
-                                                    zenith_ra, zenith_dec])
+                                                    ra, dec])
             except(KeyError):
                 data_accumulator[uv['pol']] = [[uvw, t, i, j, d, f, cnt,
-                                                zenith_ra, zenith_dec]]
+                                                ra, dec]]
                 # NB: flag types in miriad are usually ints
         self.polarization_array = np.sort(data_accumulator.keys())
         if len(self.polarization_array) > self.Npols:
@@ -190,13 +188,14 @@ class Miriad(uvdata.uv.UVData):
 
         # check if ra is constant throughout file; if it is,
         # file is tracking if not, file is drift scanning
-        # XXX update when addressing issue #54
         if np.isclose(np.mean(np.diff(ra_list)), 0.):
             self.phase_center_ra = ra_list[0]
             self.phase_center_dec = dec_list[0]
+            self.is_phased = True
         else:
             self.zenith_ra = ra_list
             self.zenith_dec = dec_list
+            self.is_phased = False
 
         self.vis_units = 'UNCALIB'  # assume no calibration
 
@@ -276,15 +275,19 @@ class Miriad(uvdata.uv.UVData):
         for polcnt, pol in enumerate(self.polarization_array):
             uv['pol'] = pol
             for viscnt, blt in enumerate(self.data_array):
-                uvw = self.uvw_array[:, viscnt] / const.c.to('m/ns').value  # Note issue 50 on conjugation
+                uvw = self.uvw_array[:, viscnt] / const.c.to('m/ns').value  # NOTE issue 50 on conjugation
                 t = self.time_array[viscnt]
                 i = self.ant_1_array[viscnt]
                 j = self.ant_2_array[viscnt]
                 preamble = (uvw, t, (i, j))
 
                 uv['lst'] = self.lst_array[viscnt]
-                uv['ra'] = self.zenith_ra[viscnt]  # XXX assumes drift
-                uv['dec'] = self.zenith_dec[viscnt]  # XXX assumes drift
+                if self.is_phased:
+                    uv['ra'] = self.phase_center_ra
+                    uv['dec'] = self.phase_center_dec
+                else:
+                    uv['ra'] = self.zenith_ra[viscnt]
+                    uv['dec'] = self.zenith_dec[viscnt]
 
                 # NOTE only writing spw 0, not supporting multiple spws for write
                 uv['cnt'] = self.nsample_array[viscnt, 0, :, polcnt].astype(np.double)
