@@ -29,13 +29,15 @@ class Miriad(uvdata.uv.UVData):
                               'integration_time': 'inttime',
                               'channel_width': 'sdf',  # in Ghz!
                               'object_name': 'source',
-                              #NB: telescope_name and instrument are treated
-                              #as the same
+                              # NB: telescope_name and instrument are treated
+                              # as the same
                               'telescope_name': 'telescop',
                               'instrument': 'telescop',
-                              'latitude': 'latitud', # in units of radians
-                              'longitude': 'longitu',  # in units of radians
-                              'dateobs': 'time', #first time in file
+                              #   'latitude': 'latitud',
+                              #   'longitude': 'longitu',  # in units of radians
+                              # (get the first time in the ever changing header)
+                              'dateobs': 'time',
+                              # 'history': 'history',
                               'Nants_telescope': 'nants',
                               'phase_center_epoch': 'epoch',
                               'antenna_positions': 'antpos',  # take deltas
@@ -47,12 +49,45 @@ class Miriad(uvdata.uv.UVData):
                 header_value = uv[miriad_header_data[item]]
             setattr(self, item, header_value)
 
-        #This will be removed when we switch to the known_telescopes branch
-        if self.telescope_name.startswith('PAPER') and \
-                self.altitude is None:
-            print "WARNING: Altitude not found for telescope PAPER. "
-            print "setting to 1100m"
-            self.altitude = 1100.
+        latitude = uv['latitud']  # in units of radians
+        longitude = uv['longitu']
+        try:
+            altitude = uv['altitude']
+            self.telescope_location_lat_lon_alt = (latitude, longitude, altitude)
+        except(KeyError):
+            # get info from known telescopes. Check to make sure the lat/lon values match reasonably well
+            telescope_obj = uvdata.telescopes.get_telescope(self.telescope_name)
+            if telescope_obj is not False:
+                # attribute_list = [a for a in dir(telescope_obj) if not a.startswith('__') and
+                #                   not callable(getattr(telescope_obj, a))]
+
+                tol = 2 * np.pi * 1e-3 / (60.0 * 60.0 * 24.0)  # 1mas in radians
+                lat_close = np.isclose(telescope_obj.telescope_location_lat_lon_alt[0],
+                                       latitude, rtol=0, atol=tol)
+                lon_close = np.isclose(telescope_obj.telescope_location_lat_lon_alt[1],
+                                       longitude, rtol=0, atol=tol)
+                self.telescope_location_lat_lon_alt = telescope_obj.telescope_location_lat_lon_alt
+                if lat_close and lon_close:
+                    warnings.warn('Altitude is not present in Miriad file, using known location values '
+                                  'for {telescope_name}.'.format(telescope_name=telescope_obj.telescope_name))
+                else:
+                    warn_string = ('Altitude is not present in file and ')
+                    if not lat_close and not lon_close:
+                        warn_string = warn_string + 'latitude and longitude values do not match values '
+                    else:
+                        if not lat_close:
+                            warn_string = warn_string + 'latitude value does not match value '
+                        else:
+                            warn_string = warn_string + 'longitude value does not match value '
+                    warn_string = (warn_string + 'for {telescope_name} in known '
+                                   'telescopes. Using values from known '
+                                   'telescopes.'.format(telescope_name=telescope_obj.telescope_name))
+                    warnings.warn(warn_string)
+            else:
+                warnings.warn('Altitude is not present in Miriad file, and ' +
+                              'telescope {telescope_name} is not in ' +
+                              'known_telescopes. Telescope location not '
+                              'set.'.format(telescope_name=self.telescope_name))
 
         self.history = uv['history']
         try:
@@ -100,7 +135,7 @@ class Miriad(uvdata.uv.UVData):
         if len(self.polarization_array) > self.Npols:
             print "WARNING: npols={npols} but found {l} pols in data file".format(
                 npols=self.Npols, l=len(self.polarization_array))
-        
+
         # makes a data_array (and flag_array) of zeroes to be filled in by
         #   data values
         # any missing data will have zeros
@@ -199,6 +234,11 @@ class Miriad(uvdata.uv.UVData):
 
         self.vis_units = 'UNCALIB'  # assume no calibration
 
+        try:
+            self.set_telescope_params()
+        except ValueError, ve:
+            warnings.warn(str(ve))
+
         # check if object has all required uv_properties set
         if run_check:
             self.check(run_sanity_check=run_sanity_check)
@@ -238,9 +278,9 @@ class Miriad(uvdata.uv.UVData):
         uv.add_var('telescop', 'a')
         uv['telescop'] = self.telescope_name
         uv.add_var('latitud', 'd')
-        uv['latitud'] = self.latitude
+        uv['latitud'] = self.telescope_location_lat_lon_alt[0]
         uv.add_var('longitu', 'd')
-        uv['longitu'] = self.longitude
+        uv['longitu'] = self.telescope_location_lat_lon_alt[1]
         uv.add_var('nants', 'i')
         uv['nants'] = self.Nants_telescope
         uv.add_var('antpos', 'd')
@@ -262,7 +302,7 @@ class Miriad(uvdata.uv.UVData):
         uv.add_var('instrume', 'a')
         uv['instrume'] = self.instrument
         uv.add_var('altitude', 'd')
-        uv['altitude'] = self.altitude
+        uv['altitude'] = self.telescope_location_lat_lon_alt[2]
 
         # variables that can get updated with every visibility
         uv.add_var('pol', 'i')

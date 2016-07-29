@@ -8,9 +8,7 @@ import uvdata
 
 class UVFITS(uvdata.uv.UVData):
 
-    uvfits_required_extra = ['xyz_telescope_frame', 'x_telescope',
-                             'y_telescope', 'z_telescope',
-                             'antenna_positions', 'GST0', 'RDate',
+    uvfits_required_extra = ['antenna_positions', 'GST0', 'RDate',
                              'earth_omega', 'DUT1', 'TIMESYS']
 
     def _gethduaxis(self, D, axis):
@@ -117,8 +115,8 @@ class UVFITS(uvdata.uv.UVData):
             # subtract 1 to be zero-indexed
             self.spw_array = np.int32(self._gethduaxis(D, 5)) - 1
 
-            self._phase_center_ra.set_degrees(np.array(hdr.pop('CRVAL6')).astype(np.float64))
-            self._phase_center_dec.set_degrees(np.array(hdr.pop('CRVAL7')).astype(np.float64))
+            self.phase_center_ra_degrees = np.array(hdr.pop('CRVAL6')).astype(np.float64)
+            self.phase_center_dec_degrees = np.array(hdr.pop('CRVAL7')).astype(np.float64)
             self.is_phased = True
         else:
             # in many uvfits files the spw axis is left out,
@@ -135,8 +133,8 @@ class UVFITS(uvdata.uv.UVData):
             self.Nspws = 1
             self.spw_array = np.array([0])
 
-            self._phase_center_ra.set_degrees(np.array(hdr.pop('CRVAL5')).astype(np.float64))
-            self._phase_center_dec.set_degrees(np.array(hdr.pop('CRVAL6')).astype(np.float64))
+            self.phase_center_ra_degrees = np.array(hdr.pop('CRVAL5')).astype(np.float64)
+            self.phase_center_dec_degrees = np.array(hdr.pop('CRVAL6')).astype(np.float64)
             self.is_phased = True
 
         # get dimension sizes
@@ -174,9 +172,9 @@ class UVFITS(uvdata.uv.UVData):
         self.object_name = hdr.pop('OBJECT', None)
         self.telescope_name = hdr.pop('TELESCOP', None)
         self.instrument = hdr.pop('INSTRUME', None)
-        self._latitude.set_degrees(hdr.pop('LAT', None))
-        self._longitude.set_degrees(hdr.pop('LON', None))
-        self.altitude = hdr.pop('ALT', None)
+        latitude_degrees = hdr.pop('LAT', None)
+        longitude_degrees = hdr.pop('LON', None)
+        altitude = hdr.pop('ALT', None)
         self.dateobs = hdr.pop('DATE-OBS', None)
         self.history = str(hdr.get('HISTORY', ''))
         while 'HISTORY' in hdr.keys():
@@ -219,22 +217,11 @@ class UVFITS(uvdata.uv.UVData):
             self.telescope_name = ant_hdu.header['ARRNAM']
 
         try:
-            self.xyz_telescope_frame = ant_hdu.header['FRAME']
+            xyz_telescope_frame = ant_hdu.header['FRAME']
         except:
-            cotter_version = hdr.get('COTVER', None)
-            if cotter_version is None:
-                if self.telescope_name == 'PAPER':
-                    warnings.warn('Required Antenna frame keyword not set, '
-                                  'since this is a PAPER file, setting to ITRF')
-                    self.xyz_telescope_frame = 'ITRF'
-                else:
-                    warnings.warn('Required Antenna frame keyword not set, '
-                                  'setting to ????')
-                    self.xyz_telescope_frame = '????'
-            else:
-                warnings.warn('Required Antenna frame keyword not set, '
-                              ' since this is a Cotter file, setting to ITRF')
-                self.xyz_telescope_frame = 'ITRF'
+            warnings.warn('Required Antenna frame keyword not set, '
+                          'setting to ????')
+            xyz_telescope_frame = '????'
 
         # VLA incorrectly sets ARRAYX/ARRAYY/ARRAYZ to 0, and puts array center
         # in the antenna positions themselves
@@ -242,19 +229,26 @@ class UVFITS(uvdata.uv.UVData):
         if (np.isclose(ant_hdu.header['ARRAYX'], 0) and
                 np.isclose(ant_hdu.header['ARRAYY'], 0) and
                 np.isclose(ant_hdu.header['ARRAYZ'], 0)):
-            self.x_telescope = np.mean(ant_hdu.data['STABXYZ'][:, 0])
-            self.y_telescope = np.mean(ant_hdu.data['STABXYZ'][:, 1])
-            self.z_telescope = np.mean(ant_hdu.data['STABXYZ'][:, 2])
+            x_telescope = np.mean(ant_hdu.data['STABXYZ'][:, 0])
+            y_telescope = np.mean(ant_hdu.data['STABXYZ'][:, 1])
+            z_telescope = np.mean(ant_hdu.data['STABXYZ'][:, 2])
             self.antenna_positions = (ant_hdu.data.field('STABXYZ') -
-                                      np.array([self.x_telescope,
-                                                self.y_telescope,
-                                                self.z_telescope]))
+                                      np.array([x_telescope,
+                                                y_telescope,
+                                                z_telescope]))
 
         else:
-            self.x_telescope = ant_hdu.header['ARRAYX']
-            self.y_telescope = ant_hdu.header['ARRAYY']
-            self.z_telescope = ant_hdu.header['ARRAYZ']
+            x_telescope = ant_hdu.header['ARRAYX']
+            y_telescope = ant_hdu.header['ARRAYY']
+            z_telescope = ant_hdu.header['ARRAYZ']
             self.antenna_positions = ant_hdu.data.field('STABXYZ')
+
+        if xyz_telescope_frame == 'ITRF':
+            self.telescope_location = np.array([x_telescope, y_telescope, z_telescope])
+        else:
+            if latitude_degrees is not None and longitude_degrees is not None and altitude is not None:
+                self.telescope_location_lat_lon_alt_degrees = (latitude_degrees, longitude_degrees, altitude)
+
         self.GST0 = ant_hdu.header['GSTIA0']
         self.RDate = ant_hdu.header['RDATE']
         self.earth_omega = ant_hdu.header['DEGPDY']
@@ -267,9 +261,10 @@ class UVFITS(uvdata.uv.UVData):
 
         del(D)
 
-        if (self.latitude is None or self.longitude is None or
-                self.altitude is None):
-            self.set_LatLonAlt_from_XYZ()
+        try:
+            self.set_telescope_params()
+        except ValueError, ve:
+            warnings.warn(str(ve))
 
         self.set_lsts_from_time_array()
 
@@ -406,10 +401,10 @@ class UVFITS(uvdata.uv.UVData):
         hdu.header['CDELT5  '] = 1.0
 
         hdu.header['CTYPE6  '] = 'RA'
-        hdu.header['CRVAL6  '] = self._phase_center_ra.degrees()
+        hdu.header['CRVAL6  '] = self.phase_center_ra_degrees
 
         hdu.header['CTYPE7  '] = 'DEC'
-        hdu.header['CRVAL7  '] = self._phase_center_dec.degrees()
+        hdu.header['CRVAL7  '] = self.phase_center_dec_degrees
 
         hdu.header['BUNIT   '] = self.vis_units
         hdu.header['BSCALE  '] = 1.0
@@ -417,9 +412,9 @@ class UVFITS(uvdata.uv.UVData):
 
         hdu.header['OBJECT  '] = self.object_name
         hdu.header['TELESCOP'] = self.telescope_name
-        hdu.header['LAT     '] = self._latitude.degrees()
-        hdu.header['LON     '] = self._longitude.degrees()
-        hdu.header['ALT     '] = self.altitude
+        hdu.header['LAT     '] = self.telescope_location_lat_lon_alt_degrees[0]
+        hdu.header['LON     '] = self.telescope_location_lat_lon_alt_degrees[1]
+        hdu.header['ALT     '] = self.telescope_location_lat_lon_alt[2]
         hdu.header['INSTRUME'] = self.instrument
         hdu.header['EPOCH   '] = float(self.phase_center_epoch)
 
@@ -475,12 +470,10 @@ class UVFITS(uvdata.uv.UVData):
         ant_hdu.header['EXTVER'] = 1
 
         # write XYZ coordinates if not already defined
-        if None in [self.x_telescope, self.y_telescope, self.z_telescope]:
-            self.set_XYZ_from_LatLonAlt(overwrite=False)
-        ant_hdu.header['ARRAYX'] = self.x_telescope
-        ant_hdu.header['ARRAYY'] = self.y_telescope
-        ant_hdu.header['ARRAYZ'] = self.z_telescope
-        ant_hdu.header['FRAME'] = self.xyz_telescope_frame
+        ant_hdu.header['ARRAYX'] = self.telescope_location[0]
+        ant_hdu.header['ARRAYY'] = self.telescope_location[1]
+        ant_hdu.header['ARRAYZ'] = self.telescope_location[2]
+        ant_hdu.header['FRAME'] = 'ITRF'
         ant_hdu.header['GSTIA0'] = self.GST0
         ant_hdu.header['FREQ'] = self.freq_array[0, 0]
         ant_hdu.header['RDATE'] = self.RDate

@@ -7,6 +7,9 @@ import warnings
 import aipy as a
 import ephem
 from astropy.utils import iers
+from uvdata.uvbase import UVBase
+import uvdata.parameter as uvp
+import uvdata.utils as utils
 import uvdata
 
 data_path = op.join(uvdata.__path__[0], 'data')
@@ -14,259 +17,125 @@ data_path = op.join(uvdata.__path__[0], 'data')
 iers_a = iers.IERS_A.open(op.join(data_path, 'finals.all'))
 
 
-class UVParameter(object):
-    def __init__(self, name, required=True, value=None, spoof_val=None,
-                 form=(), description='', expected_type=np.int, sane_vals=None,
-                 tols=(1e-05, 1e-08)):
-        self.name = name
-        self.required = required
-        # cannot set a spoof_val for required parameters
-        if not self.required:
-            self.spoof_val = spoof_val
-        self.value = value
-        self.description = description
-        self.form = form
-        if self.form == 'str':
-            self.expected_type = str
-        else:
-            self.expected_type = expected_type
-        self.sane_vals = sane_vals
-        if np.size(tols) == 1:
-            # Only one tolerance given, assume absolute, set relative to zero
-            self.tols = (0, tols)
-        else:
-            self.tols = tols  # relative and absolute tolerances to be used in np.isclose
-
-    def __eq__(self, other):
-        if isinstance(other, self.__class__):
-            # only check that value is identical
-            isequal = True
-            if not isinstance(self.value, other.value.__class__):
-                isequal = False
-            if isinstance(self.value, np.ndarray):
-                if self.value.shape != other.value.shape:
-                    isequal = False
-                elif not np.allclose(self.value, other.value,
-                                     rtol=self.tols[0], atol=self.tols[1]):
-                    isequal = False
-            else:
-                str_type = False
-                if isinstance(self.value, (str, unicode)):
-                    str_type = True
-                if isinstance(self.value, list):
-                    if isinstance(self.value[0], str):
-                        str_type = True
-
-                if not str_type:
-                    try:
-                        if not np.isclose(np.array(self.value),
-                                          np.array(other.value),
-                                          rtol=self.tols[0], atol=self.tols[1]):
-                            isequal = False
-                    except:
-                        print(self.value, other.value)
-                        isequal = False
-                else:
-                    if self.value != other.value:
-                        if not isinstance(self.value, list):
-                            if self.value.replace('\n', '') != other.value.replace('\n', ''):
-                                isequal = False
-                        else:
-                            isequal = False
-
-            return isequal
-        else:
-            return False
-
-    def __ne__(self, other):
-        return not self.__eq__(other)
-
-    def apply_spoof(self, *args):
-        self.value = self.spoof_val
-
-    def expected_size(self, dataobj):
-        # Takes the form of the parameter and returns the size
-        # expected, given values in the UVData object
-        if self.form == 'str':
-            return self.form
-        elif isinstance(self.form, np.int):
-            # Fixed size, just return the form
-            return self.form
-        else:
-            # Given by other attributes, look up values
-            esize = ()
-            for p in self.form:
-                if isinstance(p, np.int):
-                    esize = esize + (p,)
-                else:
-                    val = getattr(dataobj, p)
-                    if val is None:
-                        raise ValueError('Missing UVData parameter {p} needed to '
-                                         'calculate expected size of parameter'.format(p=p))
-                    esize = esize + (val,)
-            return esize
-
-    def sanity_check(self):
-        # A quick method for checking that values are sane
-        # This needs development
-        sane = False  # Default to insanity
-        if self.sane_vals is None:
-            sane = True
-        else:
-            testval = np.mean(np.abs(self.value))
-            if (testval >= self.sane_vals[0]) and (testval <= self.sane_vals[1]):
-                sane = True
-        return sane
+def _warning(message, category=UserWarning, filename='', lineno=-1):
+    print(message)
 
 
-class AntPositionParameter(UVParameter):
-    def apply_spoof(self, uvdata):
-        self.value = np.zeros((len(uvdata.antenna_indices), 3))
-
-
-class ExtraKeywordParameter(UVParameter):
-    def __init__(self, name, required=False, value={}, spoof_val={},
-                 description=''):
-        self.name = name
-        self.required = required
-        # cannot set a spoof_val for required parameters
-        if not self.required:
-            self.spoof_val = spoof_val
-        self.value = value
-        self.description = description
-
-
-class AngleParameter(UVParameter):
-    def degrees(self):
-        if self.value is None:
-            return None
-        else:
-            return self.value * 180. / np.pi
-
-    def set_degrees(self, degree_val):
-        if degree_val is None:
-            self.value = None
-        else:
-            self.value = degree_val * np.pi / 180.
-
-
-class UVData(object):
+class UVData(UVBase):
     supported_read_file_types = ['uvfits', 'miriad', 'fhd']
     supported_write_file_types = ['uvfits', 'miriad', 'fhd']
 
     def __init__(self):
         # add the UVParameters to the class
-        self._Ntimes = UVParameter('Ntimes', description='Number of times')
-        self._Nbls = UVParameter('Nbls', description='number of baselines')
-        self._Nblts = UVParameter('Nblts', description='Ntimes * Nbls')
-        self._Nfreqs = UVParameter('Nfreqs', description='number of frequency channels')
-        self._Npols = UVParameter('Npols', description='number of polarizations')
+        self._Ntimes = uvp.UVParameter('Ntimes', description='Number of times')
+        self._Nbls = uvp.UVParameter('Nbls', description='number of baselines')
+        self._Nblts = uvp.UVParameter('Nblts', description='Ntimes * Nbls')
+        self._Nfreqs = uvp.UVParameter('Nfreqs', description='number of frequency channels')
+        self._Npols = uvp.UVParameter('Npols', description='number of polarizations')
 
         desc = ('array of the visibility data, size: (Nblts, Nspws, Nfreqs, '
                 'Npols), type = complex float, in units of self.vis_units')
-        self._data_array = UVParameter('data_array', description=desc,
-                                       form=('Nblts', 'Nspws', 'Nfreqs', 'Npols'),
-                                       expected_type=np.complex)
+        self._data_array = uvp.UVParameter('data_array', description=desc,
+                                           form=('Nblts', 'Nspws', 'Nfreqs', 'Npols'),
+                                           expected_type=np.complex)
 
-        self._vis_units = UVParameter('vis_units',
-                                      description='Visibility units, options '
-                                                  '["uncalib","Jy","K str"]',
-                                      form='str')
+        self._vis_units = uvp.UVParameter('vis_units',
+                                          description='Visibility units, options '
+                                                      '["uncalib","Jy","K str"]',
+                                          form='str')
 
         desc = ('number of data points averaged into each data element, '
                 'type = int, same shape as data_array')
-        self._nsample_array = UVParameter('nsample_array', description=desc,
-                                          form=('Nblts', 'Nspws', 'Nfreqs', 'Npols'),
-                                          expected_type=(np.float, np.int))
+        self._nsample_array = uvp.UVParameter('nsample_array', description=desc,
+                                              form=('Nblts', 'Nspws', 'Nfreqs', 'Npols'),
+                                              expected_type=(np.float, np.int))
 
         desc = 'boolean flag, True is flagged, same shape as data_array.'
-        self._flag_array = UVParameter('flag_array', description=desc,
-                                       form=('Nblts', 'Nspws', 'Nfreqs', 'Npols'),
-                                       expected_type=np.bool)
+        self._flag_array = uvp.UVParameter('flag_array', description=desc,
+                                           form=('Nblts', 'Nspws', 'Nfreqs', 'Npols'),
+                                           expected_type=np.bool)
 
-        self._Nspws = UVParameter('Nspws', description='number of spectral windows '
-                                  '(ie non-contiguous spectral chunks)')
+        self._Nspws = uvp.UVParameter('Nspws', description='number of spectral windows '
+                                      '(ie non-contiguous spectral chunks)')
 
-        self._spw_array = UVParameter('spw_array', description='array of spectral window '
-                                      'numbers', form=('Nspws',))
+        self._spw_array = uvp.UVParameter('spw_array', description='array of spectral window '
+                                          'numbers', form=('Nspws',))
 
         desc = ('Projected baseline vectors relative to phase center, ' +
                 '(3,Nblts), units meters')
-        self._uvw_array = UVParameter('uvw_array', description=desc,
-                                      form=(3, 'Nblts'), expected_type=np.float,
-                                      sane_vals=(1e-3, 1e8), tols=.001)
+        self._uvw_array = uvp.UVParameter('uvw_array', description=desc,
+                                          form=(3, 'Nblts'), expected_type=np.float,
+                                          sane_vals=(1e-3, 1e8), tols=.001)
 
         desc = ('array of times, center of integration, dimension (Nblts), ' +
                 'units Julian Date')
-        self._time_array = UVParameter('time_array', description=desc,
-                                       form=('Nblts',), expected_type=np.float,
-                                       tols=1e-3 / (60.0 * 60.0 * 24.0))  # 1 ms in days
+        self._time_array = uvp.UVParameter('time_array', description=desc,
+                                           form=('Nblts',), expected_type=np.float,
+                                           tols=1e-3 / (60.0 * 60.0 * 24.0))  # 1 ms in days
 
         desc = ('array of lsts, center of integration, dimension (Nblts), ' +
                 'units radians')
-        self._lst_array = UVParameter('lst_array', description=desc, form=('Nblts',),
-                                      expected_type=np.float,
-                                      tols=2 * np.pi * 1e-3 / (60.0 * 60.0 * 24.0))  # 1 ms in radians
+        self._lst_array = uvp.UVParameter('lst_array', description=desc, form=('Nblts',),
+                                          expected_type=np.float,
+                                          tols=2 * np.pi * 1e-3 / (60.0 * 60.0 * 24.0))  # 1 ms in radians
 
         desc = ('array of first antenna indices, dimensions (Nblts), '
                 'type = int, 0 indexed')
-        self._ant_1_array = UVParameter('ant_1_array', description=desc, form=('Nblts',))
+        self._ant_1_array = uvp.UVParameter('ant_1_array', description=desc, form=('Nblts',))
         desc = ('array of second antenna indices, dimensions (Nblts), '
                 'type = int, 0 indexed')
-        self._ant_2_array = UVParameter('ant_2_array', description=desc, form=('Nblts',))
+        self._ant_2_array = uvp.UVParameter('ant_2_array', description=desc, form=('Nblts',))
 
         desc = ('array of baseline indices, dimensions (Nblts), '
                 'type = int; baseline = 2048 * (ant2+1) + (ant1+1) + 2^16 '
                 '(may this break casa?)')
-        self._baseline_array = UVParameter('baseline_array', description=desc, form=('Nblts',))
+        self._baseline_array = uvp.UVParameter('baseline_array', description=desc, form=('Nblts',))
 
         # this dimensionality of freq_array does not allow for different spws
         # to have different dimensions
         desc = 'array of frequencies, dimensions (Nspws,Nfreqs), units Hz'
-        self._freq_array = UVParameter('freq_array', description=desc,
-                                       form=('Nspws', 'Nfreqs'),
-                                       expected_type=np.float,
-                                       tols=1e-3)  # mHz
+        self._freq_array = uvp.UVParameter('freq_array', description=desc,
+                                           form=('Nspws', 'Nfreqs'),
+                                           expected_type=np.float,
+                                           tols=1e-3)  # mHz
 
         desc = ('array of polarization integers (Npols). '
                 'AIPS Memo 117 says: stokes 1:4 (I,Q,U,V);  '
                 'circular -1:-4 (RR,LL,RL,LR); linear -5:-8 (XX,YY,XY,YX)')
-        self._polarization_array = UVParameter('polarization_array',
-                                               description=desc, form=('Npols',))
+        self._polarization_array = uvp.UVParameter('polarization_array',
+                                                   description=desc, form=('Npols',))
 
-        self._integration_time = UVParameter('integration_time',
-                                             description='length of the integration (s)',
-                                             expected_type=np.float, tols=1e-3)  # 1 ms
-        self._channel_width = UVParameter('channel_width',
-                                          description='width of channel (Hz)',
-                                          expected_type=np.float,
-                                          tols=1e-3)  # 1 mHz
+        self._integration_time = uvp.UVParameter('integration_time',
+                                                 description='length of the integration (s)',
+                                                 expected_type=np.float, tols=1e-3)  # 1 ms
+        self._channel_width = uvp.UVParameter('channel_width',
+                                              description='width of channel (Hz)',
+                                              expected_type=np.float,
+                                              tols=1e-3)  # 1 mHz
 
         # --- observation information ---
-        self._object_name = UVParameter('object_name', description='source or field '
-                                        'observed (string)', form='str')
-        self._telescope_name = UVParameter('telescope_name', description='name of telescope '
-                                           '(string)', form='str')
-        self._instrument = UVParameter('instrument', description='receiver or backend.',
-                                       form='str')
-        self._latitude = AngleParameter('latitude',
-                                        description='latitude of telescope, units radians',
-                                        expected_type=np.float,
-                                        tols=2 * np.pi * 1e-3 / (60.0 * 60.0 * 24.0))  # 1 mas in radians
-        self._longitude = AngleParameter('longitude',
-                                         description='longitude of telescope, units radians',
-                                         expected_type=np.float,
-                                         tols=2 * np.pi * 1e-3 / (60.0 * 60.0 * 24.0))  # 1 mas in radians
-        self._altitude = UVParameter('altitude',
-                                     description='altitude of telescope, units meters',
-                                     expected_type=np.float,
-                                     tols=1e-3)  # 1 mm
-        self._history = UVParameter('history', description='string of history, units English',
-                                    form='str')
+        self._object_name = uvp.UVParameter('object_name', description='source or field '
+                                            'observed (string)', form='str')
+        self._telescope_name = uvp.UVParameter('telescope_name',
+                                               description='name of telescope '
+                                               '(string)', form='str')
+        self._instrument = uvp.UVParameter('instrument', description='receiver or backend.',
+                                           form='str')
+
+        desc = ('telescope location: xyz in ITRF (earth-centered frame). '
+                'Can also be set using telescope_location_lat_lon_alt or '
+                'telescope_location_lat_lon_alt_degrees properties')
+        self._telescope_location = uvp.LocationParameter('telescope_location',
+                                                         description=desc,
+                                                         expected_type=np.float,
+                                                         form=(3,), tols=1e-3)
+
+        self._history = uvp.UVParameter('history', description='string of history, units English',
+                                        form='str')
 
         desc = ('epoch year of the phase applied to the data (eg 2000.)')
-        self._phase_center_epoch = UVParameter('phase_center_epoch', description=desc,
-                                               expected_type=np.float)
+        self._phase_center_epoch = uvp.UVParameter('phase_center_epoch', description=desc,
+                                                   expected_type=np.float)
 
         self._is_phased = UVParameter('is_phased', required=True,
                                         expected_type=bool,
@@ -276,193 +145,127 @@ class UVData(object):
         # --- antenna information ----
         desc = ('number of antennas with data present. May be smaller ' +
                 'than the number of antennas in the array')
-        self._Nants_data = UVParameter('Nants_data', description=desc)
+        self._Nants_data = uvp.UVParameter('Nants_data', description=desc)
         desc = ('number of antennas in the array. May be larger ' +
                 'than the number of antennas with data')
-        self._Nants_telescope = UVParameter('Nants_telescope', description=desc)
+        self._Nants_telescope = uvp.UVParameter('Nants_telescope', description=desc)
         desc = ('list of antenna names, dimensions (Nants_telescope), '
                 'indexed by self.ant_1_array, self.ant_2_array, '
                 'self.antenna_indices. There must be one '
                 'entry here for each unique entry in self.ant_1_array and '
                 'self.ant_2_array, but there may be extras as well.')
-        self._antenna_names = UVParameter('antenna_names', description=desc,
-                                          form=('Nants_telescope',),
-                                          expected_type=str)
+        self._antenna_names = uvp.UVParameter('antenna_names', description=desc,
+                                              form=('Nants_telescope',),
+                                              expected_type=str)
 
         desc = ('integer index into antenna_names, dimensions '
                 '(Nants_telescope). There must be one '
                 'entry here for each unique entry in self.ant_1_array and '
                 'self.ant_2_array, but there may be extras as well.')
-        self._antenna_indices = UVParameter('antenna_indices', description=desc,
-                                            form=('Nants_telescope',))
+        self._antenna_indices = uvp.UVParameter('antenna_indices', description=desc,
+                                                form=('Nants_telescope',))
 
         # -------- extra, non-required parameters ----------
         desc = ('any user supplied extra keywords, type=dict')
-        self._extra_keywords = ExtraKeywordParameter('extra_keywords',
-                                                     description=desc)
+        self._extra_keywords = uvp.ExtraKeywordParameter('extra_keywords',
+                                                         description=desc)
 
-        self._dateobs = UVParameter('dateobs', required=False,
-                                    description='date of observation')
+        self._dateobs = uvp.UVParameter('dateobs', required=False,
+                                        description='date of observation')
 
-        desc = ('coordinate frame for antenna positions '
-                '(eg "ITRF" -also google ECEF). NB: ECEF has x running '
-                'through long=0 and z through the north pole')
-        self._xyz_telescope_frame = UVParameter('xyz_telescope_frame',
-                                                required=False, description=desc,
-                                                spoof_val='ITRF', form='str')
-
-        self._x_telescope = UVParameter('x_telescope', required=False,
-                                        description='x coordinates of array '
-                                                    'center in meters in coordinate frame',
-                                        spoof_val=0,
-                                        tols=1e-3)  # 1 mm
-        self._y_telescope = UVParameter('y_telescope', required=False,
-                                        description='y coordinates of array '
-                                                    'center in meters in coordinate frame',
-                                        spoof_val=0,
-                                        tols=1e-3)  # 1 mm
-        self._z_telescope = UVParameter('z_telescope', required=False,
-                                        description='z coordinates of array '
-                                                    'center in meters in coordinate frame',
-                                        spoof_val=0,
-                                        tols=1e-3)  # 1 mm
         desc = ('array giving coordinates of antennas relative to '
-                '{x,y,z}_telescope in the same frame, (Nants_telescope, 3)')
-        self._antenna_positions = AntPositionParameter('antenna_positions',
-                                                       required=False,
-                                                       description=desc,
-                                                       form=('Nants_telescope', 3),
-                                                       tols=1e-3)  # 1 mm
+                'telescope_location (ITRF frame), (Nants_telescope, 3)')
+        self._antenna_positions = uvp.AntPositionParameter('antenna_positions',
+                                                           required=False,
+                                                           description=desc,
+                                                           form=('Nants_telescope', 3),
+                                                           tols=1e-3)  # 1 mm
 
         desc = ('ra of zenith. units: radians, shape (Nblts)')
-        self._zenith_ra = AngleParameter('zenith_ra', required=False,
-                                         description=desc,
-                                         form=('Nblts',),
-                                         tols=2 * np.pi * 1e-3 / (60.0 * 60.0 * 24.0))  # 1 mas in radians
+        self._zenith_ra = uvp.AngleParameter('zenith_ra', required=False,
+                                             description=desc,
+                                             form=('Nblts',),
+                                             tols=2 * np.pi * 1e-3 / (60.0 * 60.0 * 24.0))  # 1 mas in radians
 
         desc = ('dec of zenith. units: radians, shape (Nblts)')
         # in practice, dec of zenith will never change; does not need to be shape Nblts
-        self._zenith_dec = AngleParameter('zenith_dec', required=False,
-                                          description=desc,
-                                          form=('Nblts',),
-                                          tols=2 * np.pi * 1e-3 / (60.0 * 60.0 * 24.0))  # 1 mas in radians
+        self._zenith_dec = uvp.AngleParameter('zenith_dec', required=False,
+                                              description=desc,
+                                              form=('Nblts',),
+                                              tols=2 * np.pi * 1e-3 / (60.0 * 60.0 * 24.0))  # 1 mas in radians
 
         desc = ('right ascension of phase center (see uvw_array), '
                 'units radians')
-        self._phase_center_ra = AngleParameter('phase_center_ra', required=False,
-                                               description=desc,
-                                               tols=2 * np.pi * 1e-3 / (60.0 * 60.0 * 24.0))  # 1 mas in radians
+        self._phase_center_ra = uvp.AngleParameter('phase_center_ra', required=False,
+                                                   description=desc,
+                                                   tols=2 * np.pi * 1e-3 / (60.0 * 60.0 * 24.0))  # 1 mas in radians
 
         desc = ('declination of phase center (see uvw_array), '
                 'units radians')
-        self._phase_center_dec = AngleParameter('phase_center_dec', required=False,
-                                                description=desc,
-                                                tols=2 * np.pi * 1e-3 / (60.0 * 60.0 * 24.0))  # 1 mas in radians
+        self._phase_center_dec = uvp.AngleParameter('phase_center_dec', required=False,
+                                                    description=desc,
+                                                    tols=2 * np.pi * 1e-3 / (60.0 * 60.0 * 24.0))  # 1 mas in radians
 
         # --- other stuff ---
         # the below are copied from AIPS memo 117, but could be revised to
         # merge with other sources of data.
-        self._GST0 = UVParameter('GST0', required=False,
-                                 description='Greenwich sidereal time at '
-                                             'midnight on reference date',
-                                 spoof_val=0.0)
-        self._RDate = UVParameter('RDate', required=False,
-                                  description='date for which the GST0 or '
-                                              'whatever... applies',
-                                  spoof_val='')
-        self._earth_omega = UVParameter('earth_omega', required=False,
-                                        description='earth\'s rotation rate '
-                                                    'in degrees per day',
-                                        spoof_val=360.985)
-        self._DUT1 = UVParameter('DUT1', required=False,
-                                 description='DUT1 (google it) AIPS 117 '
-                                             'calls it UT1UTC',
-                                 spoof_val=0.0)
-        self._TIMESYS = UVParameter('TIMESYS', required=False,
-                                    description='We only support UTC',
-                                    spoof_val='UTC', form='str')
+        self._GST0 = uvp.UVParameter('GST0', required=False,
+                                     description='Greenwich sidereal time at '
+                                                 'midnight on reference date',
+                                     spoof_val=0.0)
+        self._RDate = uvp.UVParameter('RDate', required=False,
+                                      description='date for which the GST0 or '
+                                                  'whatever... applies',
+                                      spoof_val='')
+        self._earth_omega = uvp.UVParameter('earth_omega', required=False,
+                                            description='earth\'s rotation rate '
+                                                        'in degrees per day',
+                                            spoof_val=360.985)
+        self._DUT1 = uvp.UVParameter('DUT1', required=False,
+                                     description='DUT1 (google it) AIPS 117 '
+                                                 'calls it UT1UTC',
+                                     spoof_val=0.0)
+        self._TIMESYS = uvp.UVParameter('TIMESYS', required=False,
+                                        description='We only support UTC',
+                                        spoof_val='UTC', form='str')
 
         desc = ('FHD thing we do not understand, something about the time '
                 'at which the phase center is normal to the chosen UV plane '
                 'for phasing')
-        self._uvplane_reference_time = UVParameter('uvplane_reference_time',
-                                                   required=False,
-                                                   description=desc,
-                                                   spoof_val=0)
+        self._uvplane_reference_time = uvp.UVParameter('uvplane_reference_time',
+                                                       required=False,
+                                                       description=desc,
+                                                       spoof_val=0)
 
-        for p in self.parameter_iter():
-            this_param = getattr(self, p)
-            attr_name = this_param.name
-            setattr(self.__class__, attr_name, property(self.prop_fget(p), self.prop_fset(p)))
+        super(UVData, self).__init__()
+        # warnings.showwarning = _warning
 
-    def prop_fget(self, param_name):
-        def fget(self):
-            this_param = getattr(self, param_name)
-            return this_param.value
-        return fget
+    def known_telescopes(self):
+        return uvdata.telescopes.known_telescopes()
 
-    def prop_fset(self, param_name):
-        def fset(self, value):
-            this_param = getattr(self, param_name)
-            this_param.value = value
-            setattr(self, param_name, this_param)
-        return fset
-
-    def parameter_iter(self):
-        attribute_list = [a for a in dir(self) if not a.startswith('__') and
-                          not callable(getattr(self, a))]
-        param_list = []
-        for a in attribute_list:
-            attr = getattr(self, a)
-            if isinstance(attr, UVParameter):
-                param_list.append(a)
-        for a in param_list:
-            yield a
-
-    def required_parameter_iter(self):
-        attribute_list = [a for a in dir(self) if not a.startswith('__') and
-                          not callable(getattr(self, a))]
-        required_list = []
-        for a in attribute_list:
-            attr = getattr(self, a)
-            if isinstance(attr, UVParameter):
-                if attr.required:
-                    required_list.append(a)
-        for a in required_list:
-            yield a
-
-    def extra_parameter_iter(self):
-        attribute_list = [a for a in dir(self) if not a.startswith('__') and
-                          not callable(getattr(self, a))]
-        extra_list = []
-        for a in attribute_list:
-            attr = getattr(self, a)
-            if isinstance(attr, UVParameter):
-                if not attr.required:
-                    extra_list.append(a)
-        for a in extra_list:
-            yield a
-
-    def __eq__(self, other):
-        if isinstance(other, self.__class__):
-            # only check that required parameters are identical
-            isequal = True
-            for p in self.required_parameter_iter():
+    def set_telescope_params(self, overwrite=False):
+        telescope_obj = uvdata.telescopes.get_telescope(self.telescope_name)
+        if telescope_obj is not False:
+            params_set = []
+            for p in telescope_obj.parameter_iter():
                 self_param = getattr(self, p)
-                other_param = getattr(other, p)
-                if self_param != other_param:
-                    print('parameter {pname} does not match. Left is {lval} '
-                          'and right is {rval}'.
-                          format(pname=p, lval=str(self_param.value),
-                                 rval=str(other_param.value)))
-                    isequal = False
-            return isequal
+                if overwrite is True or self_param.value is None:
+                    params_set.append(self_param.name)
+                    prop_name = self_param.name
+                    setattr(self, prop_name, getattr(telescope_obj, prop_name))
+            if len(params_set) == 1:
+                params_set_str = params_set[0]
+                warnings.warn('{param} is not set. Using known values '
+                              'for {telescope_name}.'.format(param=params_set_str,
+                                                             telescope_name=telescope_obj.telescope_name))
+            elif len(params_set) > 1:
+                params_set_str = ', '.join(params_set)
+                warnings.warn('{params} are not set. Using known values '
+                              'for {telescope_name}.'.format(params=params_set_str,
+                                                             telescope_name=telescope_obj.telescope_name))
         else:
-            print('Classes do not match')
-            return False
-
-    def __ne__(self, other):
-        return not self.__eq__(other)
+            raise ValueError('Telescope {telescope_name} is not in '
+                             'known_telescopes.'.format(telescope_name=self.telescope_name))
 
     def baseline_to_antnums(self, baseline):
         if self.Nants_telescope > 2048:
@@ -497,65 +300,41 @@ class UVData(object):
 
         return np.int64(2048 * (j + 1) + (i + 1) + 2**16)
 
-    def set_LatLonAlt_from_XYZ(self, overwrite=False):
-        if (self.xyz_telescope_frame == "ITRF" and
-            None not in (self.x_telescope,
-                         self.y_telescope,
-                         self.z_telescope)):
-            # see wikipedia geodetic_datum and Datum transformations of
-            # GPS positions PDF in docs folder
-            gps_b = 6356752.31424518
-            gps_a = 6378137
-            e_squared = 6.69437999014e-3
-            e_prime_squared = 6.73949674228e-3
-            gps_p = np.sqrt(self.x_telescope**2 +
-                            self.y_telescope**2)
-            gps_theta = np.arctan2(self.z_telescope * gps_a,
-                                   gps_p * gps_b)
-            if self.latitude is None or overwrite:
-                self.latitude = np.arctan2(self.z_telescope +
-                                           e_prime_squared * gps_b *
-                                           np.sin(gps_theta)**3,
-                                           gps_p - e_squared * gps_a *
-                                           np.cos(gps_theta)**3)
-
-            if self.longitude is None or overwrite:
-                self.longitude = np.arctan2(self.y_telescope,
-                                            self.x_telescope)
-            gps_N = gps_a / np.sqrt(1 - e_squared *
-                                    np.sin(self.latitude)**2)
-            if self.altitude is None or overwrite:
-                self.altitude = ((gps_p / np.cos(self.latitude)) - gps_N)
-        else:
-            raise ValueError('No x, y or z_telescope value assigned or '
-                             'xyz_telescope_frame is not "ITRF"')
-
-    def set_XYZ_from_LatLonAlt(self, overwrite=False):
-        # check that the coordinates we need actually exist
-        if None not in (self.latitude, self.longitude,
-                        self.altitude):
-            # see wikipedia geodetic_datum and Datum transformations of
-            # GPS positions PDF in docs folder
-            gps_b = 6356752.31424518
-            gps_a = 6378137
-            e_squared = 6.69437999014e-3
-            e_prime_squared = 6.73949674228e-3
-            gps_N = gps_a / np.sqrt(1 - e_squared *
-                                    np.sin(self.latitude)**2)
-            if self.x_telescope is None or overwrite:
-                self.x_telescope = ((gps_N + self.altitude) *
-                                    np.cos(self.latitude) *
-                                    np.cos(self.longitude))
-            if self.y_telescope is None or overwrite:
-                self.y_telescope = ((gps_N + self.altitude) *
-                                    np.cos(self.latitude) *
-                                    np.sin(self.longitude))
-            if self.z_telescope is None or overwrite:
-                self.z_telescope = ((gps_b**2 / gps_a**2 * gps_N +
-                                    self.altitude) *
-                                    np.sin(self.latitude))
-        else:
-            raise ValueError('lat, lon or altitude not found')
+    # def set_LatLonAlt_from_XYZ(self, overwrite=False):
+    #     if (self.xyz_telescope_frame == "ITRF" and
+    #         None not in (self.x_telescope,
+    #                      self.y_telescope,
+    #                      self.z_telescope)):
+    #
+    #         xyz = np.array([self.x_telescope, self.y_telescope, self.z_telescope])
+    #         latitude, longitude, altitude = utils.LatLonAlt_from_XYZ(xyz)
+    #
+    #         if self.latitude is None or overwrite:
+    #             self.latitude = latitude
+    #         if self.longitude is None or overwrite:
+    #             self.longitude = longitude
+    #         if self.altitude is None or overwrite:
+    #             self.altitude = altitude
+    #     else:
+    #         raise ValueError('No x, y or z_telescope value assigned or '
+    #                          'xyz_telescope_frame is not "ITRF"')
+    #
+    # def set_XYZ_from_LatLonAlt(self, overwrite=False):
+    #     # check that the coordinates we need actually exist
+    #     if None not in (self.latitude, self.longitude,
+    #                     self.altitude):
+    #
+    #         xyz = utils.XYZ_from_LatLonAlt(self.latitude, self.longitude,
+    #                                        self.altitude)
+    #
+    #         if self.x_telescope is None or overwrite:
+    #             self.x_telescope = xyz[0]
+    #         if self.y_telescope is None or overwrite:
+    #             self.y_telescope = xyz[1]
+    #         if self.z_telescope is None or overwrite:
+    #             self.z_telescope = xyz[2]
+    #     else:
+    #         raise ValueError('lat, lon or altitude not found')
 
     def set_lsts_from_time_array(self):
         lsts = []
@@ -563,8 +342,8 @@ class UVData(object):
         for ind, jd in enumerate(self.time_array):
             if ind == 0 or not np.isclose(jd, curtime, atol=1e-6, rtol=1e-12):
                 curtime = jd
-                t = Time(jd, format='jd', location=(self._longitude.degrees(),
-                                                    self._latitude.degrees()))
+                latitude, longitude, altitude = self.telescope_location_lat_lon_alt_degrees
+                t = Time(jd, format='jd', location=(longitude, latitude))
                 t.delta_ut1_utc = iers_a.ut1_utc(t)
             lsts.append(t.sidereal_time('apparent').radian)
         self.lst_array = np.array(lsts)
@@ -638,8 +417,9 @@ class UVData(object):
 
         obs = ephem.Observer()
         # obs inits with default values for parameters -- be sure to replace them
-        obs.lat = self.latitude
-        obs.lon = self.longitude
+        latitude, longitude, altitude = self.telescope_location_lat_lon_alt
+        obs.lat = latitude
+        obs.lon = longitude
         if ra is not None and dec is not None and epoch is not None and time is None:
             pass
 
@@ -648,7 +428,7 @@ class UVData(object):
             obs.date, obs.epoch = self.juldate2ephem(time), self.juldate2ephem(time)
 
             ra = obs.sidereal_time()
-            dec = self.latitude
+            dec = latitude
             epoch = self.juldate2ephem(time)
 
         else:
@@ -677,7 +457,7 @@ class UVData(object):
             ra, dec = precess_pos.a_ra, precess_pos.a_dec
 
             # generate rotation matrices
-            m0 = a.coord.top2eq_m(self.lst_array[ind] - obs.sidereal_time(), self.latitude)
+            m0 = a.coord.top2eq_m(self.lst_array[ind] - obs.sidereal_time(), latitude)
             m1 = a.coord.eq2top_m(self.lst_array[ind] - ra, dec)
 
             # rotate and write uvws
@@ -694,57 +474,6 @@ class UVData(object):
 
         del(obs)
         self.is_phased = True
-        return True
-
-    def check(self, run_sanity_check=True):
-        # loop through all required parameters, make sure that they are filled
-        for p in self.required_parameter_iter():
-            param = getattr(self, p)
-            # Check required parameter exists
-            if param.value is None:
-                raise ValueError('Required UVParameter ' + p +
-                                 ' has not been set.')
-
-            # Check required parameter size
-            esize = param.expected_size(self)
-            if esize is None:
-                raise ValueError('Required UVParameter ' + p +
-                                 ' expected size is not defined.')
-            elif esize == 'str':
-                # Check that it's a string
-                if not isinstance(param.value, str):
-                    raise ValueError('UVParameter ' + p + 'expected to be '
-                                     'string, but is not')
-            else:
-                # Check the size of the parameter value. Note that np.shape
-                # returns an empty tuple for single numbers. esize should do the same.
-                if not np.shape(param.value) == esize:
-                    raise ValueError('UVParameter ' + p + 'is not expected size.')
-                if esize == ():
-                    # Single element
-                    if not isinstance(param.value, param.expected_type):
-                        raise ValueError('UVParameter ' + p + ' is not the appropriate'
-                                         ' type. Is: ' + str(type(param.value)) +
-                                         '. Should be: ' + str(param.expected_type))
-                else:
-                    if isinstance(param.value, list):
-                        # List needs to be handled differently than array (I think)
-                        if not isinstance(param.value[0], param.expected_type):
-                            raise ValueError('UVParameter ' + p + ' is not the'
-                                             ' appropriate type. Is: ' +
-                                             str(type(param.value[0])) + '. Should'
-                                             ' be: ' + str(param.expected_type))
-                    else:
-                        # Array
-                        if not isinstance(param.value.item(0), param.expected_type):
-                            raise ValueError('UVParameter ' + p + ' is not the appropriate'
-                                             ' type. Is: ' + str(param.value.dtype) +
-                                             '. Should be: ' + str(param.expected_type))
-
-            if run_sanity_check:
-                if not param.sanity_check():
-                    raise ValueError('UVParameter ' + p + ' has insane values.')
-
         return True
 
     def write(self, filename, file_type, spoof_nonessential=False, force_phase=False,
@@ -840,7 +569,7 @@ class UVData(object):
 
     def read_miriad(self, filepath, run_check=True, run_sanity_check=True):
         miriad_obj = uvdata.miriad.Miriad()
-        ret_val = miriad_obj.read_miriad(filepath, run_check=True, 
+        ret_val = miriad_obj.read_miriad(filepath, run_check=True,
                                          run_sanity_check=True)
         self.convert_from_filetype(miriad_obj)
         return ret_val
