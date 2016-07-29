@@ -137,7 +137,7 @@ class UVData(UVBase):
         self._phase_center_epoch = uvp.UVParameter('phase_center_epoch', description=desc,
                                                    expected_type=np.float)
 
-        self._is_phased = UVParameter('is_phased', required=True,
+        self._is_phased = uvp.UVParameter('is_phased', required=True,
                                         expected_type=bool,
                                         description='true/false whether data is '
                                                     'phased (true) or drift scanning (false)')
@@ -357,10 +357,13 @@ class UVData(UVBase):
         if not self.is_phased:
             raise ValueError('The data is already drift scanning; can only ' +
                              'unphase phased data.')
+
+        latitude, longitude, altitude = self.telescope_location_lat_lon_alt
+
         obs = ephem.Observer()
         # obs inits with default values for parameters -- be sure to replace them
-        obs.lat = self.latitude
-        obs.lon = self.longitude
+        obs.lat = latitude
+        obs.lon = longitude
 
         phase_center = ephem.FixedBody()
         epoch = (self.phase_center_epoch-2000.)*365.2422 + ephem.J2000 #convert years to ephemtime
@@ -385,7 +388,7 @@ class UVData(UVBase):
             phase_center_ra, phase_center_dec = phase_center.a_ra, phase_center.a_dec
 
             zenith_ra = obs.sidereal_time()
-            zenith_dec = self.latitude
+            zenith_dec = latitude
             self.zenith_ra[ind] = zenith_ra
             self.zenith_dec[ind] = zenith_dec
 
