@@ -193,22 +193,6 @@ class TestUVmethods(unittest.TestCase):
         self.assertNotEqual(self.uv_object._antenna_names,
                             self.uv_object2._antenna_names)
 
-    def test_set_XYZ_from_LatLonAlt(self):
-        self.uv_object.telescope_location_lat_lon_alt_degrees = (-26.7, 116.7, 377.8)
-        # Got reference by forcing http://www.oc.nps.edu/oc2902w/coord/llhxyz.htm
-        # to give additional precision.
-        ref_xyz = (-2562123.42683, 5094215.40141, -2848728.58869)
-        out_xyz = self.uv_object.telescope_location
-        self.assertTrue(np.allclose(ref_xyz, out_xyz, rtol=0, atol=1e-3))
-
-    def test_set_LatLonAlt_from_XYZ(self):
-        self.uv_object.telescope_location = np.array([-2562123.42683, 5094215.40141, -2848728.58869])
-        # Got reference by forcing http://www.oc.nps.edu/oc2902w/coord/llhxyz.htm
-        # to give additional precision.
-        ref_latlonalt = (-26.7, 116.7, 377.8)
-        out_latlonalt = self.uv_object.telescope_location_lat_lon_alt_degrees
-        self.assertTrue(np.allclose(ref_latlonalt, out_latlonalt, rtol=0,
-                                    atol=1e-3))
 
     def test_check(self):
         try:
