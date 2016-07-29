@@ -138,9 +138,9 @@ class UVData(UVBase):
                                                    expected_type=np.float)
 
         self._is_phased = uvp.UVParameter('is_phased', required=True,
-                                        expected_type=bool,
-                                        description='true/false whether data is '
-                                                    'phased (true) or drift scanning (false)')
+                                          expected_type=bool,
+                                          description='true/false whether data is '
+                                                      'phased (true) or drift scanning (false)')
 
         # --- antenna information ----
         desc = ('number of antennas with data present. May be smaller ' +
@@ -300,42 +300,6 @@ class UVData(UVBase):
 
         return np.int64(2048 * (j + 1) + (i + 1) + 2**16)
 
-    # def set_LatLonAlt_from_XYZ(self, overwrite=False):
-    #     if (self.xyz_telescope_frame == "ITRF" and
-    #         None not in (self.x_telescope,
-    #                      self.y_telescope,
-    #                      self.z_telescope)):
-    #
-    #         xyz = np.array([self.x_telescope, self.y_telescope, self.z_telescope])
-    #         latitude, longitude, altitude = utils.LatLonAlt_from_XYZ(xyz)
-    #
-    #         if self.latitude is None or overwrite:
-    #             self.latitude = latitude
-    #         if self.longitude is None or overwrite:
-    #             self.longitude = longitude
-    #         if self.altitude is None or overwrite:
-    #             self.altitude = altitude
-    #     else:
-    #         raise ValueError('No x, y or z_telescope value assigned or '
-    #                          'xyz_telescope_frame is not "ITRF"')
-    #
-    # def set_XYZ_from_LatLonAlt(self, overwrite=False):
-    #     # check that the coordinates we need actually exist
-    #     if None not in (self.latitude, self.longitude,
-    #                     self.altitude):
-    #
-    #         xyz = utils.XYZ_from_LatLonAlt(self.latitude, self.longitude,
-    #                                        self.altitude)
-    #
-    #         if self.x_telescope is None or overwrite:
-    #             self.x_telescope = xyz[0]
-    #         if self.y_telescope is None or overwrite:
-    #             self.y_telescope = xyz[1]
-    #         if self.z_telescope is None or overwrite:
-    #             self.z_telescope = xyz[2]
-    #     else:
-    #         raise ValueError('lat, lon or altitude not found')
-
     def set_lsts_from_time_array(self):
         lsts = []
         curtime = self.time_array[0]
@@ -366,7 +330,7 @@ class UVData(UVBase):
         obs.lon = longitude
 
         phase_center = ephem.FixedBody()
-        epoch = (self.phase_center_epoch-2000.)*365.2422 + ephem.J2000 #convert years to ephemtime
+        epoch = (self.phase_center_epoch - 2000.) * 365.2422 + ephem.J2000  # convert years to ephemtime
         phase_center._epoch = epoch
         phase_center._ra = self.phase_center_ra
         phase_center._dec = self.phase_center_dec
@@ -377,7 +341,7 @@ class UVData(UVBase):
         for ind, jd in enumerate(self.time_array):
 
             # apply -w phasor
-            w_lambda = self.uvw_array[2,ind] / const.c.to('m/s').value * self.freq_array
+            w_lambda = self.uvw_array[2, ind] / const.c.to('m/s').value * self.freq_array
             phs = np.exp(-1j * 2 * np.pi * (-1) * w_lambda)
             phs.shape += (1,)
             self.data_array[ind] *= phs
@@ -395,14 +359,14 @@ class UVData(UVBase):
             # generate rotation matrices
             m0 = a.coord.top2eq_m(0., phase_center_dec)
             m1 = a.coord.eq2top_m(phase_center_ra - zenith_ra, zenith_dec)
-            
+
             # rotate and write uvws
             uvw = self.uvw_array[:, ind]
             uvw = np.dot(m0, uvw)
             uvw = np.dot(m1, uvw)
             self.uvw_array[:, ind] = uvw
 
-        #remove phase center
+        # remove phase center
         self.phase_center_ra = None
         self.phase_center_dec = None
         self.is_phased = False
