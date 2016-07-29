@@ -30,9 +30,9 @@ def test_breakReadMiriad():
 
 
 def test_writePAPER():
+    UV = UVData()
     testfile = '../data/zen.2456865.60537.xy.uvcRREAA'
     write_file = '../data/test/outtest_miriad.uv'
-    UV = UVData()
     read_out, status = ut.checkWarnings(UV.read, [testfile, 'miriad'],
                                         known_warning='miriad')
     test = UV.write(write_file, file_type='miriad', clobber=True)
@@ -42,10 +42,10 @@ def test_writePAPER():
 
 
 def test_readWriteReadMiriad():
-    testfile = '../data/zen.2456865.60537.xy.uvcRREAA'
-    write_file = '../data/test/outtest_miriad.uv'
     uv_in = UVData()
     uv_out = UVData()
+    testfile = '../data/zen.2456865.60537.xy.uvcRREAA'
+    write_file = '../data/test/outtest_miriad.uv'
     read_out, status = ut.checkWarnings(uv_in.read, [testfile, 'miriad'],
                                         known_warning='miriad')
     uv_in.write(write_file, file_type='miriad', clobber=True)
