@@ -14,9 +14,9 @@ class TestReadUVFits(unittest.TestCase):
         testfile_no_spw = '../data/zen.2456865.60537.xy.uvcRREAAM.uvfits'
         UV = UVData()
         self.assertRaises(ValueError, UV.read, testfile, 'vufits')  # Wrong filetype
-        test = checkWarnings(self, UV.read, [testfile, 'uvfits'],
+        test = checkWarnings(UV.read, [testfile, 'uvfits'],
                              message='Telescope EVLA is not')
-        self.assertTrue(test)
+        self.assertEqual(test, (True, True))
         expected_extra_keywords = ['OBSERVER', 'SORTORD', 'SPECSYS',
                                    'RESTFREQ', 'ORIGIN']
         self.assertEqual(expected_extra_keywords.sort(),
@@ -24,9 +24,9 @@ class TestReadUVFits(unittest.TestCase):
 
         del(UV)
         UV = UVData()
-        test = checkWarnings(self, UV.read, [testfile_no_spw, 'uvfits'],
+        test = checkWarnings(UV.read, [testfile_no_spw, 'uvfits'],
                              known_warning='paper_uvfits')
-        self.assertTrue(test)
+        self.assertEqual(test, (True, True))
 
         del(UV)
 
@@ -66,8 +66,7 @@ class TestWriteUVFits(unittest.TestCase):
         testfile = '../data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
         # testfile = '../data/PRISim_output_manual_conversion.uvfits'
         UV = UVData()
-        checkWarnings(self, UV.read, [testfile, 'uvfits'],
-                      message='Telescope EVLA is not')
+        checkWarnings(UV.read, [testfile, 'uvfits'], message='Telescope EVLA is not')
 
         write_file = op.join(self.test_file_directory,
                              'outtest_casa_1src_1spw.uvfits')
@@ -89,12 +88,11 @@ class TestWriteUVFits(unittest.TestCase):
         testfile = '../data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
         uv_in = UVData()
         uv_out = UVData()
-        checkWarnings(self, uv_in.read, [testfile, 'uvfits'],
-                      message='Telescope EVLA is not')
+        checkWarnings(uv_in.read, [testfile, 'uvfits'], message='Telescope EVLA is not')
         write_file = op.join(self.test_file_directory,
                              'outtest_casa.uvfits')
         uv_in.write(write_file, file_type='uvfits')
-        checkWarnings(self, uv_out.read, [write_file, 'uvfits'],
+        checkWarnings(uv_out.read, [write_file, 'uvfits'],
                       message='Telescope EVLA is not')
         self.assertEqual(uv_in, uv_out)
         del(uv_in)

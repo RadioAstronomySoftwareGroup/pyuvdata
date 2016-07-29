@@ -55,8 +55,8 @@ class TestReadFHD(unittest.TestCase):
         self.assertRaises(StandardError, fhd_uv.read, ['foo'], 'fhd')  # No data files
         del(fhd_uv)
         fhd_uv = UVData()
-        self.assertTrue(checkWarnings(self, fhd_uv.read, [self.testfiles[:-1],
-                                      'fhd'], message=['No settings']))
+        self.assertTrue(checkWarnings(fhd_uv.read, [self.testfiles[:-1],
+                                      'fhd'], message=['No settings'])[1])
         self.assertEqual(fhd_uv.history, '')  # Check empty history with no settings
         del(fhd_uv)
 

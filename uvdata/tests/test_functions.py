@@ -22,7 +22,7 @@ def clearWarnings():
             reg.clear()
 
 
-def checkWarnings(obj, func, func_args=[], func_kwargs={},
+def checkWarnings(func, func_args=[], func_kwargs={},
                   category=UserWarning,
                   nwarnings=1, message=None, known_warning=None):
 
@@ -44,16 +44,19 @@ def checkWarnings(obj, func, func_args=[], func_kwargs={},
     clearWarnings()
     with warnings.catch_warnings(record=True) as w:
         warnings.simplefilter("always")  # All warnings triggered
-        status = func(*func_args, **func_kwargs)  # Run function
+        output = func(*func_args, **func_kwargs)  # Run function
         # Verify
+        status = True
         if len(w) != nwarnings:
             print('wrong number of warnings')
             for idx, wi in enumerate(w):
                 print('warning {i} is: {w}'.format(i=idx, w=wi))
-            obj.assertTrue(False)  # Fail the test, move on
+            status = False
         else:
             for i, w_i in enumerate(w):
-                obj.assertIs(w_i.category, category[i])
+                if w_i.category is not category[i]:
+                    status = False
                 if message[i] is not None:
-                    obj.assertIn(message[i], str(w_i.message))
-    return status
+                    if message[i] not in str(w_i.message):
+                        status = False
+    return output, status

@@ -27,10 +27,10 @@ class TestReadMiriad(unittest.TestCase):
 
         self.test_file_directory = '../data/test/'
 
-        status = checkWarnings(self, self.miriad_uv.read, [self.datafile, 'miriad'],
+        status = checkWarnings(self.miriad_uv.read, [self.datafile, 'miriad'],
                                known_warning='miriad')
 
-        self.assertTrue(status)
+        self.assertTrue(status[1])
 
     def test_ReadMiriad(self):
         # Test loop with writing/reading uvfits
@@ -51,10 +51,10 @@ class TestReadMiriad(unittest.TestCase):
     to the astrometric ra/dec.  Hopefully we can reinstitute it one day.
     def test_ReadMiriadPhase(self):
         # test that phasing makes files equal
-        status = checkWarnings(self, self.unphased.read, [self.unphasedfile, 'miriad'],
+        status = checkWarnings(self.unphased.read, [self.unphasedfile, 'miriad'],
                                known_warning='miriad')
         self.unphased.phase(ra=0.0, dec=0.0, epoch=ephem.J2000)
-        status = checkWarnings(self, self.phased.read, [self.phasedfile, 'miriad'],
+        status = checkWarnings(self.phased.read, [self.phasedfile, 'miriad'],
                                known_warning='miriad')
 
         self.assertEqual(self.unphased, self.phased)
@@ -71,8 +71,7 @@ class TestWriteMiriad(unittest.TestCase):
     def test_writePAPER(self):
         testfile = '../data/zen.2456865.60537.xy.uvcRREAA'
         UV = UVData()
-        status = checkWarnings(self, UV.read, [testfile, 'miriad'],
-                               known_warning='miriad')
+        status = checkWarnings(UV.read, [testfile, 'miriad'], known_warning='miriad')
 
         write_file = op.join(self.test_file_directory,
                              'outtest_miriad.uv')
@@ -86,7 +85,7 @@ class TestWriteMiriad(unittest.TestCase):
         uv_in = UVData()
         uv_out = UVData()
 
-        status = checkWarnings(self, uv_in.read, [testfile, 'miriad'],
+        status = checkWarnings(uv_in.read, [testfile, 'miriad'],
                                known_warning='miriad')
 
         write_file = op.join(self.test_file_directory,

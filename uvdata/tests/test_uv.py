@@ -153,10 +153,10 @@ class TestUVmethods(unittest.TestCase):
         # Check attempt256
         self.assertEqual(self.uv_object.antnums_to_baseline(0, 0,
                          attempt256=True), 257)
-        self.assertEqual(checkWarnings(self, self.uv_object.antnums_to_baseline,
+        self.assertEqual(checkWarnings(self.uv_object.antnums_to_baseline,
                                        [257, 256], {'attempt256': True},
                                        message='found > 256 antennas'),
-                         592130)
+                         (592130, True))  # Tests output and status from checkWarnings
         Nants = self.uv_object.Nants_telescope
         self.uv_object.Nants_telescope = 2049
         self.assertRaises(StandardError, self.uv_object.antnums_to_baseline,
@@ -167,7 +167,7 @@ class TestUVmethods(unittest.TestCase):
         try:
             self.uv_object.check()
         except ValueError:
-            checkWarnings(self, self.uv_object.read, [self.testfile, 'uvfits'],
+            checkWarnings(self.uv_object.read, [self.testfile, 'uvfits'],
                           message='Telescope EVLA is not')
         self.assertEqual(self.uv_object, self.uv_object)
         self.uv_object2 = copy.deepcopy(self.uv_object)
@@ -214,7 +214,7 @@ class TestUVmethods(unittest.TestCase):
         try:
             self.uv_object.check()
         except ValueError:
-            checkWarnings(self, self.uv_object.read, [self.testfile, 'uvfits'],
+            checkWarnings(self.uv_object.read, [self.testfile, 'uvfits'],
                           message='Telescope EVLA is not')
         self.assertTrue(self.uv_object.check())
         # Now break it in every way I can.
@@ -260,11 +260,11 @@ class TestPhase(unittest.TestCase):
     def test_phase_unphasePAPER(self):
         testfile = '../data/zen.2456865.60537.xy.uvcRREAA'
         UV_raw = UVData()
-        status = checkWarnings(self, UV_raw.read, [testfile, 'miriad'],
+        status = checkWarnings(UV_raw.read, [testfile, 'miriad'],
                                known_warning='miriad')
 
         UV_phase = UVData()
-        status = checkWarnings(self, UV_phase.read, [testfile, 'miriad'],
+        status = checkWarnings(UV_phase.read, [testfile, 'miriad'],
                                known_warning='miriad')
         UV_phase.phase(ra=0., dec=0., epoch=ephem.J2000)
         UV_phase.unphase_to_drift()
