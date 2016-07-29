@@ -1,4 +1,4 @@
-import unittest
+import nose.tools as nt
 import os
 import os.path as op
 import astropy.time  # necessary for Jonnie's workflow help us all
@@ -7,94 +7,71 @@ import ephem
 import uvdata.utils as ut
 
 
-class TestReadMiriad(unittest.TestCase):
-    def setUp(self):
-        self.datafile = '../data/zen.2456865.60537.xy.uvcRREAA'
-        if not op.exists(self.datafile):
-            raise(IOError, 'miriad file not found')
-        self.miriad_uv = UVData()
-        self.uvfits_uv = UVData()
-
-        self.unphasedfile = '../data/new.uvA'
-        if not op.exists(self.unphasedfile):
-            raise(IOError, 'miriad file not found')
-        self.unphased = UVData()
-
-        self.phasedfile = '../data/new.uvA.phased'
-        if not os.path.exists(self.phasedfile):
-            raise(IOError, 'miriad file not found')
-        self.phased = UVData()
-
-        self.test_file_directory = '../data/test/'
-
-        status = ut.checkWarnings(self.miriad_uv.read, [self.datafile, 'miriad'],
-                                  known_warning='miriad')
-
-        self.assertTrue(status[1])
-
-    def test_ReadMiriad(self):
-        # Test loop with writing/reading uvfits
-        uvfits_testfile = op.join(self.test_file_directory,
-                                  'outtest_miriad.uvfits')
-        # Simultaneously test the general write function for case of uvfits
-        self.miriad_uv.write(uvfits_testfile, file_type='uvfits',
-                             spoof_nonessential=True,
-                             force_phase=True)
-        self.uvfits_uv.read(uvfits_testfile, 'uvfits')
-
-        self.assertEqual(self.miriad_uv, self.uvfits_uv)
-
-        # Test exception
-        self.assertRaises(IOError, self.miriad_uv.read, 'foo', 'miriad')
-    '''
-    This test is commented out since we no longer believe AIPY phases correctly
-    to the astrometric ra/dec.  Hopefully we can reinstitute it one day.
-    def test_ReadMiriadPhase(self):
-        # test that phasing makes files equal
-        status = ut.checkWarnings(self.unphased.read, [self.unphasedfile, 'miriad'],
-                               known_warning='miriad')
-        self.unphased.phase(ra=0.0, dec=0.0, epoch=ephem.J2000)
-        status = ut.checkWarnings(self.phased.read, [self.phasedfile, 'miriad'],
-                               known_warning='miriad')
-
-        self.assertEqual(self.unphased, self.phased)
-    '''
+def test_ReadMiriadWriteUVFits():
+    miriad_uv = UVData()
+    uvfits_uv = UVData()
+    miriad_file = '../data/zen.2456865.60537.xy.uvcRREAA'
+    testfile = '../data/test/outtest_miriad.uvfits'
+    miriad_out, miriad_status = ut.checkWarnings(miriad_uv.read, [miriad_file, 'miriad'],
+                                                 known_warning='miriad')
+    miriad_uv.write(testfile, file_type='uvfits', spoof_nonessential=True,
+                    force_phase=True)
+    uvfits_uv.read(testfile, 'uvfits')
+    nt.assert_true(miriad_status)
+    nt.assert_equal(miriad_uv, uvfits_uv)
+    del(miriad_uv)
+    del(uvfits_uv)
 
 
-class TestWriteMiriad(unittest.TestCase):
-    def setUp(self):
-        self.test_file_directory = '../data/test/'
-        if not os.path.exists(self.test_file_directory):
-            print('making test directory')
-            os.mkdir(self.test_file_directory)
+def test_breakReadMiriad():
+    UV = UVData()
+    nt.assert_raises(IOError, UV.read, 'foo', 'miriad')
+    del(UV)
 
-    def test_writePAPER(self):
-        testfile = '../data/zen.2456865.60537.xy.uvcRREAA'
-        UV = UVData()
-        status = ut.checkWarnings(UV.read, [testfile, 'miriad'], known_warning='miriad')
 
-        write_file = op.join(self.test_file_directory,
-                             'outtest_miriad.uv')
+def test_writePAPER():
+    testfile = '../data/zen.2456865.60537.xy.uvcRREAA'
+    write_file = '../data/test/outtest_miriad.uv'
+    UV = UVData()
+    read_out, status = ut.checkWarnings(UV.read, [testfile, 'miriad'],
+                                        known_warning='miriad')
+    test = UV.write(write_file, file_type='miriad', clobber=True)
+    nt.assert_true(status)
+    nt.assert_true(test)
+    del(UV)
 
-        test = UV.write(write_file, file_type='miriad', clobber=True)
-        self.assertTrue(test)
-        del(UV)
 
-    def test_readwriteread(self):
-        testfile = '../data/zen.2456865.60537.xy.uvcRREAA'
-        uv_in = UVData()
-        uv_out = UVData()
+def test_readWriteReadMiriad():
+    testfile = '../data/zen.2456865.60537.xy.uvcRREAA'
+    write_file = '../data/test/outtest_miriad.uv'
+    uv_in = UVData()
+    uv_out = UVData()
+    read_out, status = ut.checkWarnings(uv_in.read, [testfile, 'miriad'],
+                                        known_warning='miriad')
+    uv_in.write(write_file, file_type='miriad', clobber=True)
+    uv_out.read(write_file, 'miriad')
 
-        status = ut.checkWarnings(uv_in.read, [testfile, 'miriad'],
-                                  known_warning='miriad')
+    nt.assert_true(status)
+    nt.assert_equal(uv_in, uv_out)
+    del(uv_in)
+    del(uv_out)
 
-        write_file = op.join(self.test_file_directory,
-                             'outtest_miriad.uv')
 
-        uv_in.write(write_file, file_type='miriad', clobber=True)
-
-        uv_out.read(write_file, 'miriad')
-
-        self.assertEqual(uv_in, uv_out)
-        del(uv_in)
-        del(uv_out)
+'''
+This test is commented out since we no longer believe AIPY phases correctly
+to the astrometric ra/dec.  Hopefully we can reinstitute it one day.
+def test_ReadMiriadPhase():
+    unphasedfile = '../data/new.uvA'
+    phasedfile = '../data/new.uvA.phased'
+    unphased_uv = UVData()
+    phased_uv = UVData()
+    # test that phasing makes files equal
+    unphased_out, unphased_status = ut.checkWarnings(unphased.read, [unphasedfile, 'miriad'],
+                           known_warning='miriad')
+    unphased.phase(ra=0.0, dec=0.0, epoch=ephem.J2000)
+    phased_out, phased_status = ut.checkWarnings(phased.read, [phasedfile, 'miriad'],
+                           known_warning='miriad')
+    nt.assert_true(unphased_status)
+    nt.assert_true(phased_status)
+    nt.assert_equal(unphased, phased)
+'''
