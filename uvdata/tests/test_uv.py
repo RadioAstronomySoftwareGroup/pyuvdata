@@ -235,10 +235,7 @@ class TestUVDataMethods(unittest.TestCase):
 
 class TestPhase(unittest.TestCase):
     def setUp(self):
-        self.test_file_directory = '../data/test/'
-        if not op.exists(self.test_file_directory):
-            print('making test directory')
-            os.mkdir(self.test_file_directory)
+        ut.create_test_dir('../data/test/')
 
     def test_phase_unphasePAPER(self):
         testfile = '../data/zen.2456865.60537.xy.uvcRREAA'

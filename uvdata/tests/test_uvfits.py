@@ -49,6 +49,7 @@ def test_writeNRAO():
     UV = UVData()
     testfile = '../data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
     write_file = '../data/test/outtest_casa_1src_1spw.uvfits'
+    ut.create_test_dir('../data/test/')
     read_out, status = ut.checkWarnings(UV.read, [testfile, 'uvfits'],
                                         message='Telescope EVLA is not')
     test = UV.write(write_file, file_type='uvfits')
@@ -69,6 +70,7 @@ def test_readwriteread():
     uv_out = UVData()
     testfile = '../data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
     write_file = '../data/test/outtest_casa.uvfits'
+    ut.create_test_dir('../data/test/')
     read_out, read_status = ut.checkWarnings(uv_in.read, [testfile, 'uvfits'],
                                              message='Telescope EVLA is not')
     uv_in.write(write_file, file_type='uvfits')

@@ -2,6 +2,7 @@ import numpy as np
 import warnings
 import collections
 import sys
+import os
 
 # parameters for transforming between xyz & lat/lon/alt
 gps_b = 6356752.31424518
@@ -97,3 +98,9 @@ def checkWarnings(func, func_args=[], func_kwargs={},
                     if message[i] not in str(w_i.message):
                         status = False
     return output, status
+
+
+def create_test_dir(testdir):
+    if not os.path.exists(testdir):
+        print('making test directory')
+        os.mkdir(testdir)
