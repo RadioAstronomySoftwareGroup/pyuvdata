@@ -1,10 +1,6 @@
 import nose.tools as nt
-import os
-import os.path as op
-import shutil
 import astropy.time  # necessary for Jonnie's workflow help us all
 from uvdata.uv import UVData
-from astropy.io import fits
 import uvdata.utils as ut
 
 
