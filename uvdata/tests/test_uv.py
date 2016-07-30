@@ -1,4 +1,5 @@
 import unittest
+import nose.tools as nt
 import os
 import os.path as op
 import astropy.time  # necessary for Jonnie's workflow help us all
@@ -139,11 +140,9 @@ class TestUVmethods(unittest.TestCase):
     def test_bl2ij(self):
         self.assertEqual(self.uv_object.baseline_to_antnums(67585),
                          (0, 0))
-        Nants = self.uv_object.Nants_telescope
         self.uv_object.Nants_telescope = 2049
         self.assertRaises(StandardError, self.uv_object.baseline_to_antnums,
                           67585)
-        self.uv_object.Nants_telescope = Nants  # reset
 
     def test_ij2bl(self):
         self.assertEqual(self.uv_object.antnums_to_baseline(0, 0),
@@ -157,25 +156,34 @@ class TestUVmethods(unittest.TestCase):
                                           [257, 256], {'attempt256': True},
                                           message='found > 256 antennas'),
                          (592130, True))  # Tests output and status from checkWarnings
-        Nants = self.uv_object.Nants_telescope
         self.uv_object.Nants_telescope = 2049
         self.assertRaises(StandardError, self.uv_object.antnums_to_baseline,
                           0, 0)
-        self.uv_object.Nants_telescope = Nants  # reset
 
-    def test_data_equality(self):
-        try:
-            self.uv_object.check()
-        except ValueError:
-            ut.checkWarnings(self.uv_object.read, [self.testfile, 'uvfits'],
-                             message='Telescope EVLA is not')
-        self.assertEqual(self.uv_object, self.uv_object)
+
+class TestUVDataMethods(unittest.TestCase):
+    def setUp(self):
+        self.uv_object = UVData()
+        self.uv_object.Nants_telescope = 128
+        self.testfile = '../data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
+        ut.checkWarnings(self.uv_object.read, [self.testfile, 'uvfits'],
+                         message='Telescope EVLA is not')
         self.uv_object2 = copy.deepcopy(self.uv_object)
+
+    def tearDown(self):
+        del(self.uv_object)
+
+    def test_equality(self):
+        self.assertEqual(self.uv_object, self.uv_object)
+
+    def test_data_inequality(self):
         self.uv_object2.data_array[0, 0, 0, 0] += 1  # Force data to be not equal
         self.assertNotEqual(self.uv_object, self.uv_object2)
-        # check class equality test
+
+    def test_class_inequality(self):
         self.assertNotEqual(self.uv_object, self.uv_object.data_array)
 
+    def test_uvparameter_inequality(self):
         # Check some UVParameter specific inequalities.
         self.uv_object2.data_array = 1.0  # Test values not same class
         # Note that due to peculiarity of order of operations, need to reverse arrays.
@@ -194,43 +202,35 @@ class TestUVmethods(unittest.TestCase):
                             self.uv_object2._antenna_names)
 
     def test_check(self):
-        try:
-            self.uv_object.check()
-        except ValueError:
-            ut.checkWarnings(self.uv_object.read, [self.testfile, 'uvfits'],
-                             message='Telescope EVLA is not')
         self.assertTrue(self.uv_object.check())
-        # Now break it in every way I can.
-        # String cases
-        units = self.uv_object.vis_units
+
+    def test_string_check(self):
         self.uv_object.vis_units = 1
         self.assertRaises(ValueError, self.uv_object.check)
-        self.uv_object.vis_units = units  # reset it
-        # Single value cases
+
+    def test_single_value_check(self):
         Nblts = self.uv_object.Nblts
-        self.uv_object.Nblts = 4
+        self.uv_object.Nblts += 4
         self.assertRaises(ValueError, self.uv_object.check)
         self.uv_object.Nblts = np.float(Nblts)
         self.assertRaises(ValueError, self.uv_object.check)
-        self.uv_object.Nblts = Nblts  # reset
-        # Array cases
+
+    def test_array_check(self):
         data = self.uv_object.data_array
         self.uv_object.data_array = np.array([4, 5, 6], dtype=np.complex64)
         self.assertRaises(ValueError, self.uv_object.check)
         self.uv_object.data_array = np.real(data)
         self.assertRaises(ValueError, self.uv_object.check)
-        self.uv_object.data_array = data  # reset
-        # List cases
+
+    def test_list_check(self):
         antenna_names = self.uv_object.antenna_names
         self.uv_object.antenna_names = [1] * self.uv_object._antenna_names.expected_size(self.uv_object)[0]
         self.assertRaises(ValueError, self.uv_object.check)
-        self.uv_object.antenna_names = antenna_names  # reset
-        # Sanity check
+
+    def test_sanity_check(self):
         uvws = self.uv_object.uvw_array
         self.uv_object.uvw_array = 1e-4 * np.ones_like(self.uv_object.uvw_array)
         self.assertRaises(ValueError, self.uv_object.check)
-        self.uv_object.uvw_array = uvws
-        self.assertTrue(self.uv_object.check())
 
 
 class TestPhase(unittest.TestCase):
