@@ -28,6 +28,7 @@ def test_noSPW():
     del(UV)
 
 
+# this test commented out because the file is too large to include in the repo
 # def test_readRTS():
 #     UV = UVData()
 #     testfile = '../data/pumav2_SelfCal300_Peel300_01.uvfits'
