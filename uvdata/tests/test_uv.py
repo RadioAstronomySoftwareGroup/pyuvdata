@@ -1,6 +1,5 @@
 import unittest
 import nose.tools as nt
-import os
 import os.path as op
 import astropy.time  # necessary for Jonnie's workflow help us all
 from uvdata.uv import UVData
@@ -37,8 +36,6 @@ class TestUVDataInit(unittest.TestCase):
                                     'integration_time', 'channel_width',
                                     'object_name', 'telescope_name',
                                     'instrument', 'telescope_location',
-                                    # 'telescope_location_lat_lon_alt',
-                                    # 'telescope_location_lat_lon_alt_degrees'
                                     'history', 'vis_units',
                                     'phase_center_epoch', 'Nants_data',
                                     'Nants_telescope', 'antenna_names',
@@ -55,10 +52,13 @@ class TestUVDataInit(unittest.TestCase):
                                  'antenna_positions', 'GST0', 'RDate',
                                  'earth_omega', 'DUT1', 'TIMESYS',
                                  'uvplane_reference_time',
-                                 #  'phase_center_ra_degrees', 'phase_center_dec_degrees',
-                                 #  'zenith_ra_degrees', 'zenith_dec_degrees',
                                  'phase_center_ra', 'phase_center_dec',
                                  'zenith_ra', 'zenith_dec']
+
+        self.other_attributes = ['telescope_location_lat_lon_alt',
+                                 'telescope_location_lat_lon_alt_degrees',
+                                 'phase_center_ra_degrees', 'phase_center_dec_degrees',
+                                 'zenith_ra_degrees', 'zenith_dec_degrees']
 
         self.known_telescopes = ['PAPER', 'HERA', 'MWA']
 
@@ -101,9 +101,8 @@ class TestUVDataInit(unittest.TestCase):
                             msg='expected parameter ' + a + ' does not exist')
 
     def test_unexpected_attributes(self):
-        expected_attributes = self.required_parameters + \
-            self.extra_parameters + self.required_properties + \
-            self.extra_properties
+        expected_attributes = self.required_properties + \
+            self.extra_properties + self.other_attributes
         attributes = [i for i in self.uv_object.__dict__.keys() if i[0] != '_']
         for a in attributes:
             self.assertTrue(a in expected_attributes,
@@ -132,7 +131,6 @@ class TestUVmethods(unittest.TestCase):
     def setUp(self):
         self.uv_object = UVData()
         self.uv_object.Nants_telescope = 128
-        self.testfile = '../data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
 
     def tearDown(self):
         del(self.uv_object)
@@ -164,7 +162,6 @@ class TestUVmethods(unittest.TestCase):
 class TestUVDataMethods(unittest.TestCase):
     def setUp(self):
         self.uv_object = UVData()
-        self.uv_object.Nants_telescope = 128
         self.testfile = '../data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
         ut.checkWarnings(self.uv_object.read, [self.testfile, 'uvfits'],
                          message='Telescope EVLA is not')
@@ -172,6 +169,7 @@ class TestUVDataMethods(unittest.TestCase):
 
     def tearDown(self):
         del(self.uv_object)
+        del(self.uv_object2)
 
     def test_equality(self):
         self.assertEqual(self.uv_object, self.uv_object)
@@ -233,22 +231,19 @@ class TestUVDataMethods(unittest.TestCase):
         self.assertRaises(ValueError, self.uv_object.check)
 
 
-class TestPhase(unittest.TestCase):
-    def setUp(self):
-        ut.create_test_dir('../data/test/')
+def test_phase_unphasePAPER():
+    ut.create_test_dir('../data/test/')
+    testfile = '../data/zen.2456865.60537.xy.uvcRREAA'
+    UV_raw = UVData()
+    status = ut.checkWarnings(UV_raw.read, [testfile, 'miriad'],
+                              known_warning='miriad')
 
-    def test_phase_unphasePAPER(self):
-        testfile = '../data/zen.2456865.60537.xy.uvcRREAA'
-        UV_raw = UVData()
-        status = ut.checkWarnings(UV_raw.read, [testfile, 'miriad'],
-                                  known_warning='miriad')
+    UV_phase = UVData()
+    status = ut.checkWarnings(UV_phase.read, [testfile, 'miriad'],
+                              known_warning='miriad')
+    UV_phase.phase(ra=0., dec=0., epoch=ephem.J2000)
+    UV_phase.unphase_to_drift()
 
-        UV_phase = UVData()
-        status = ut.checkWarnings(UV_phase.read, [testfile, 'miriad'],
-                                  known_warning='miriad')
-        UV_phase.phase(ra=0., dec=0., epoch=ephem.J2000)
-        UV_phase.unphase_to_drift()
-
-        self.assertEqual(UV_raw, UV_phase)
-        del(UV_phase)
-        del(UV_raw)
+    nt.assert_equal(UV_raw, UV_phase)
+    del(UV_phase)
+    del(UV_raw)

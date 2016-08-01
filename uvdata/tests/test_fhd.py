@@ -5,21 +5,18 @@ from uvdata.uv import UVData
 import uvdata.utils as ut
 
 
-def get_testfiles():
-    testdir = '../data/fhd_vis_data/'
-    testfile_prefix = '1061316296_'
-    testfile_suffix = ['flags.sav', 'vis_XX.sav', 'params.sav', 'vis_YY.sav',
-                       'vis_model_XX.sav', 'vis_model_YY.sav', 'settings.txt']
-    testfiles = []
-    for s in testfile_suffix:
-        testfiles.append(testdir + testfile_prefix + s)
-    return testfiles
+testdir = '../data/fhd_vis_data/'
+testfile_prefix = '1061316296_'
+testfile_suffix = ['flags.sav', 'vis_XX.sav', 'params.sav', 'vis_YY.sav',
+                   'vis_model_XX.sav', 'vis_model_YY.sav', 'settings.txt']
+testfiles = []
+for s in testfile_suffix:
+    testfiles.append(testdir + testfile_prefix + s)
 
 
 def test_ReadFHDWriteReadUVFits():
     fhd_uv = UVData()
     uvfits_uv = UVData()
-    testfiles = get_testfiles()
     ut.create_test_dir('../data/test/')
     fhd_uv.read(testfiles, 'fhd')
     fhd_uv.write(op.join('../data/test/outtest_FHD_1061316296.uvfits'),
@@ -33,7 +30,6 @@ def test_ReadFHDWriteReadUVFits():
 def test_breakReadFHD():
     # Try various cases of incomplete file lists
     fhd_uv = UVData()
-    testfiles = get_testfiles()
     nt.assert_raises(StandardError, fhd_uv.read, testfiles[1:], 'fhd')  # Missing flags
     del(fhd_uv)
     fhd_uv = UVData()
@@ -53,7 +49,6 @@ def test_breakReadFHD():
 def test_ReadFHD_model():
     fhd_uv = UVData()
     uvfits_uv = UVData()
-    testfiles = get_testfiles()
     ut.create_test_dir('../data/test/')
     fhd_uv.read(testfiles, 'fhd')
     fhd_uv.write('../data/test/outtest_FHD_1061316296_model.uvfits',
