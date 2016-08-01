@@ -201,11 +201,11 @@ class TestBaselineAntnumMethods(object):
         del(self.uv_object)
         del(self.uv_object2)
 
-    def test_bl2ij():
+    def test_bl2ij(self):
         nt.assert_equal(self.uv_object.baseline_to_antnums(67585), (0, 0))
         nt.assert_raises(StandardError, self.uv_object2.baseline_to_antnums, 67585)
 
-    def test_ij2bl():
+    def test_ij2bl(self):
         nt.assert_equal(self.uv_object.antnums_to_baseline(0, 0), 67585)
         nt.assert_equal(self.uv_object.antnums_to_baseline(257, 256), 592130)
         # Check attempt256
