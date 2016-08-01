@@ -10,7 +10,6 @@ def test_ReadMiriadWriteUVFits():
     uvfits_uv = UVData()
     miriad_file = '../data/zen.2456865.60537.xy.uvcRREAA'
     testfile = '../data/test/outtest_miriad.uvfits'
-    ut.create_test_dir('../data/test/')
     miriad_out, miriad_status = ut.checkWarnings(miriad_uv.read, [miriad_file, 'miriad'],
                                                  known_warning='miriad')
     miriad_uv.write(testfile, file_type='uvfits', spoof_nonessential=True,
@@ -32,7 +31,6 @@ def test_writePAPER():
     UV = UVData()
     testfile = '../data/zen.2456865.60537.xy.uvcRREAA'
     write_file = '../data/test/outtest_miriad.uv'
-    ut.create_test_dir('../data/test/')
     read_out, status = ut.checkWarnings(UV.read, [testfile, 'miriad'],
                                         known_warning='miriad')
     test = UV.write(write_file, file_type='miriad', clobber=True)
@@ -46,7 +44,6 @@ def test_readWriteReadMiriad():
     uv_out = UVData()
     testfile = '../data/zen.2456865.60537.xy.uvcRREAA'
     write_file = '../data/test/outtest_miriad.uv'
-    ut.create_test_dir('../data/test/')
     read_out, status = ut.checkWarnings(uv_in.read, [testfile, 'miriad'],
                                         known_warning='miriad')
     uv_in.write(write_file, file_type='miriad', clobber=True)

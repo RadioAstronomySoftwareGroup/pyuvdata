@@ -232,7 +232,6 @@ class TestUVDataMethods(unittest.TestCase):
 
 
 def test_phase_unphasePAPER():
-    ut.create_test_dir('../data/test/')
     testfile = '../data/zen.2456865.60537.xy.uvcRREAA'
     UV_raw = UVData()
     status = ut.checkWarnings(UV_raw.read, [testfile, 'miriad'],

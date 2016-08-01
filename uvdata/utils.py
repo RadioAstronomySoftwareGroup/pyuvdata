@@ -98,9 +98,3 @@ def checkWarnings(func, func_args=[], func_kwargs={},
                     if message[i] not in str(w_i.message):
                         status = False
     return output, status
-
-
-def create_test_dir(testdir):
-    if not os.path.exists(testdir):
-        print('making test directory')
-        os.mkdir(testdir)
