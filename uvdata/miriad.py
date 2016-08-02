@@ -319,7 +319,6 @@ class Miriad(uvdata.uv.UVData):
                 t = self.time_array[viscnt]
                 i = self.ant_1_array[viscnt]
                 j = self.ant_2_array[viscnt]
-                preamble = (uvw, t, (i, j))
 
                 uv['lst'] = self.lst_array[viscnt]
                 if self.is_phased:
@@ -331,8 +330,11 @@ class Miriad(uvdata.uv.UVData):
 
                 # NOTE only writing spw 0, not supporting multiple spws for write
                 uv['cnt'] = self.nsample_array[viscnt, 0, :, polcnt].astype(np.double)
+ 
                 data = self.data_array[viscnt, 0, :, polcnt]
                 flags = self.flag_array[viscnt, 0, :, polcnt]
+                if i > j: i,j,data = j,i,np.conjugate(data)        
+                preamble = (uvw, t, (i, j))
 
                 uv.write(preamble, data, flags)
         if run_check:
