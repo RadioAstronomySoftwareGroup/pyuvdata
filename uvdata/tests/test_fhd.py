@@ -2,7 +2,7 @@ import nose.tools as nt
 import os.path as op
 import astropy.time  # necessary for Jonnie's workflow help us all
 from uvdata.uv import UVData
-import uvdata.utils as ut
+import uvdata.tests as uvtest
 
 
 testdir = '../data/fhd_vis_data/'
@@ -39,8 +39,8 @@ def test_breakReadFHD():
     nt.assert_raises(StandardError, fhd_uv.read, ['foo'], 'fhd')  # No data files
     del(fhd_uv)
     fhd_uv = UVData()
-    nt.assert_true(ut.checkWarnings(fhd_uv.read, [testfiles[:-1],
-                                    'fhd'], message=['No settings'])[1])
+    nt.assert_true(uvtest.checkWarnings(fhd_uv.read, [testfiles[:-1],
+                                        'fhd'], message=['No settings'])[1])
     nt.assert_equal(fhd_uv.history, '')  # Check empty history with no settings
     del(fhd_uv)
 

@@ -1,7 +1,7 @@
 import nose.tools as nt
 import astropy.time  # necessary for Jonnie's workflow help us all
 from uvdata.uv import UVData
-import uvdata.utils as ut
+import uvdata.tests as uvtest
 
 
 def test_ReadNRAO():
@@ -9,8 +9,8 @@ def test_ReadNRAO():
     testfile = '../data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
     expected_extra_keywords = ['OBSERVER', 'SORTORD', 'SPECSYS',
                                'RESTFREQ', 'ORIGIN']
-    read_out, status = ut.checkWarnings(UV.read, [testfile, 'uvfits'],
-                                        message='Telescope EVLA is not')
+    read_out, status = uvtest.checkWarnings(UV.read, [testfile, 'uvfits'],
+                                            message='Telescope EVLA is not')
     nt.assert_true(read_out)
     nt.assert_true(status)
     nt.assert_equal(expected_extra_keywords.sort(),
@@ -21,8 +21,8 @@ def test_ReadNRAO():
 def test_noSPW():
     UV = UVData()
     testfile_no_spw = '../data/zen.2456865.60537.xy.uvcRREAAM.uvfits'
-    read_output, status = ut.checkWarnings(UV.read, [testfile_no_spw, 'uvfits'],
-                                           known_warning='paper_uvfits')
+    read_output, status = uvtest.checkWarnings(UV.read, [testfile_no_spw, 'uvfits'],
+                                               known_warning='paper_uvfits')
     nt.assert_true(read_output)
     nt.assert_true(status)
     del(UV)
@@ -50,8 +50,8 @@ def test_writeNRAO():
     UV = UVData()
     testfile = '../data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
     write_file = '../data/test/outtest_casa_1src_1spw.uvfits'
-    read_out, status = ut.checkWarnings(UV.read, [testfile, 'uvfits'],
-                                        message='Telescope EVLA is not')
+    read_out, status = uvtest.checkWarnings(UV.read, [testfile, 'uvfits'],
+                                            message='Telescope EVLA is not')
     test = UV.write(write_file, file_type='uvfits')
     nt.assert_true(status)
     nt.assert_true(test)
@@ -70,11 +70,11 @@ def test_readwriteread():
     uv_out = UVData()
     testfile = '../data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
     write_file = '../data/test/outtest_casa.uvfits'
-    read_out, read_status = ut.checkWarnings(uv_in.read, [testfile, 'uvfits'],
-                                             message='Telescope EVLA is not')
+    read_out, read_status = uvtest.checkWarnings(uv_in.read, [testfile, 'uvfits'],
+                                                 message='Telescope EVLA is not')
     uv_in.write(write_file, file_type='uvfits')
-    write_out, write_status = ut.checkWarnings(uv_out.read, [write_file, 'uvfits'],
-                                               message='Telescope EVLA is not')
+    write_out, write_status = uvtest.checkWarnings(uv_out.read, [write_file, 'uvfits'],
+                                                   message='Telescope EVLA is not')
     nt.assert_true(read_status)
     nt.assert_true(write_status)
     nt.assert_equal(uv_in, uv_out)

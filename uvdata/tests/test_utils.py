@@ -1,12 +1,12 @@
 import nose.tools as nt
 import astropy.time  # necessary for Jonnie's workflow help us all
-import uvdata.utils as utils
+import uvdata.utils as ut
 import numpy as np
 
 
 def test_XYZ_from_LatLonAlt():
-    out_xyz = utils.XYZ_from_LatLonAlt(-26.7 * np.pi / 180.0,
-                                       116.7 * np.pi / 180.0, 377.8)
+    out_xyz = ut.XYZ_from_LatLonAlt(-26.7 * np.pi / 180.0,
+                                    116.7 * np.pi / 180.0, 377.8)
     # Got reference by forcing http://www.oc.nps.edu/oc2902w/coord/llhxyz.htm
     # to give additional precision.
     ref_xyz = (-2562123.42683, 5094215.40141, -2848728.58869)
@@ -14,8 +14,8 @@ def test_XYZ_from_LatLonAlt():
 
 
 def test_LatLonAlt_from_XYZ():
-    out_latlonalt = utils.LatLonAlt_from_XYZ([-2562123.42683, 5094215.40141,
-                                              -2848728.58869])
+    out_latlonalt = ut.LatLonAlt_from_XYZ([-2562123.42683, 5094215.40141,
+                                           -2848728.58869])
     # Got reference by forcing http://www.oc.nps.edu/oc2902w/coord/llhxyz.htm
     # to give additional precision.
     ref_latlonalt = (-26.7 * np.pi / 180.0, 116.7 * np.pi / 180.0, 377.8)

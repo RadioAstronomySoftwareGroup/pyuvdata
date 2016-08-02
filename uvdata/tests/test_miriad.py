@@ -2,7 +2,7 @@ import nose.tools as nt
 import astropy.time  # necessary for Jonnie's workflow help us all
 from uvdata.uv import UVData
 import ephem
-import uvdata.utils as ut
+import uvdata.tests as uvtest
 
 
 def test_ReadMiriadWriteUVFits():
@@ -10,8 +10,8 @@ def test_ReadMiriadWriteUVFits():
     uvfits_uv = UVData()
     miriad_file = '../data/zen.2456865.60537.xy.uvcRREAA'
     testfile = '../data/test/outtest_miriad.uvfits'
-    miriad_out, miriad_status = ut.checkWarnings(miriad_uv.read, [miriad_file, 'miriad'],
-                                                 known_warning='miriad')
+    miriad_out, miriad_status = uvtest.checkWarnings(miriad_uv.read, [miriad_file, 'miriad'],
+                                                     known_warning='miriad')
     miriad_uv.write(testfile, file_type='uvfits', spoof_nonessential=True,
                     force_phase=True)
     uvfits_uv.read(testfile, 'uvfits')
@@ -31,8 +31,8 @@ def test_writePAPER():
     UV = UVData()
     testfile = '../data/zen.2456865.60537.xy.uvcRREAA'
     write_file = '../data/test/outtest_miriad.uv'
-    read_out, status = ut.checkWarnings(UV.read, [testfile, 'miriad'],
-                                        known_warning='miriad')
+    read_out, status = uvtest.checkWarnings(UV.read, [testfile, 'miriad'],
+                                            known_warning='miriad')
     test = UV.write(write_file, file_type='miriad', clobber=True)
     nt.assert_true(status)
     nt.assert_true(test)
@@ -44,8 +44,8 @@ def test_readWriteReadMiriad():
     uv_out = UVData()
     testfile = '../data/zen.2456865.60537.xy.uvcRREAA'
     write_file = '../data/test/outtest_miriad.uv'
-    read_out, status = ut.checkWarnings(uv_in.read, [testfile, 'miriad'],
-                                        known_warning='miriad')
+    read_out, status = uvtest.checkWarnings(uv_in.read, [testfile, 'miriad'],
+                                            known_warning='miriad')
     uv_in.write(write_file, file_type='miriad', clobber=True)
     uv_out.read(write_file, 'miriad')
 
@@ -64,10 +64,10 @@ def test_ReadMiriadPhase():
     unphased_uv = UVData()
     phased_uv = UVData()
     # test that phasing makes files equal
-    unphased_out, unphased_status = ut.checkWarnings(unphased.read, [unphasedfile, 'miriad'],
+    unphased_out, unphased_status = uvtest.checkWarnings(unphased.read, [unphasedfile, 'miriad'],
                            known_warning='miriad')
     unphased.phase(ra=0.0, dec=0.0, epoch=ephem.J2000)
-    phased_out, phased_status = ut.checkWarnings(phased.read, [phasedfile, 'miriad'],
+    phased_out, phased_status = uvtest.checkWarnings(phased.read, [phasedfile, 'miriad'],
                            known_warning='miriad')
     nt.assert_true(unphased_status)
     nt.assert_true(phased_status)
