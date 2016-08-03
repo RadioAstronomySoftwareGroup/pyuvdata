@@ -165,6 +165,7 @@ class Miriad(uvdata.uv.UVData):
         for t in times:
             for ant_i in ant_i_unique:
                 for ant_j in ant_j_unique:
+                    if ant_i > ant_j: continue
                     t_grid.append(t)
                     ant_i_grid.append(ant_i)
                     ant_j_grid.append(ant_j)
@@ -312,23 +313,23 @@ class Miriad(uvdata.uv.UVData):
         uv.add_var('dec', 'd')
 
         # write data
-        for polcnt, pol in enumerate(self.polarization_array):
-            uv['pol'] = pol
-            for viscnt, blt in enumerate(self.data_array):
-                uvw = self.uvw_array[:, viscnt] / const.c.to('m/ns').value  # NOTE issue 50 on conjugation
-                t = self.time_array[viscnt]
-                i = self.ant_1_array[viscnt]
-                j = self.ant_2_array[viscnt]
+        for viscnt, blt in enumerate(self.data_array):
+            uvw = self.uvw_array[:, viscnt] / const.c.to('m/ns').value  # NOTE issue 50 on conjugation
+            t = self.time_array[viscnt]
+            i = self.ant_1_array[viscnt]
+            j = self.ant_2_array[viscnt]
 
-                uv['lst'] = self.lst_array[viscnt]
-                if self.is_phased:
-                    uv['ra'] = self.phase_center_ra
-                    uv['dec'] = self.phase_center_dec
-                else:
-                    uv['ra'] = self.zenith_ra[viscnt]
-                    uv['dec'] = self.zenith_dec[viscnt]
+            uv['lst'] = self.lst_array[viscnt]
+            if self.is_phased:
+                uv['ra'] = self.phase_center_ra
+                uv['dec'] = self.phase_center_dec
+            else:
+                uv['ra'] = self.zenith_ra[viscnt]
+                uv['dec'] = self.zenith_dec[viscnt]
 
-                # NOTE only writing spw 0, not supporting multiple spws for write
+            # NOTE only writing spw 0, not supporting multiple spws for write
+            for polcnt, pol in enumerate(self.polarization_array):
+                uv['pol'] = pol
                 uv['cnt'] = self.nsample_array[viscnt, 0, :, polcnt].astype(np.double)
  
                 data = self.data_array[viscnt, 0, :, polcnt]
