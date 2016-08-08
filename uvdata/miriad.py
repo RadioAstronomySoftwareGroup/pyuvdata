@@ -165,7 +165,8 @@ class Miriad(uvdata.uv.UVData):
         for t in times:
             for ant_i in ant_i_unique:
                 for ant_j in ant_j_unique:
-                    if ant_i > ant_j: continue
+                    if ant_i > ant_j:
+                        continue
                     t_grid.append(t)
                     ant_i_grid.append(ant_i)
                     ant_j_grid.append(ant_j)
@@ -331,10 +332,11 @@ class Miriad(uvdata.uv.UVData):
             for polcnt, pol in enumerate(self.polarization_array):
                 uv['pol'] = pol
                 uv['cnt'] = self.nsample_array[viscnt, 0, :, polcnt].astype(np.double)
- 
+
                 data = self.data_array[viscnt, 0, :, polcnt]
                 flags = self.flag_array[viscnt, 0, :, polcnt]
-                if i > j: i,j,data = j,i,np.conjugate(data)        
+                if i > j:
+                    i, j, data = j, i, np.conjugate(data)
                 preamble = (uvw, t, (i, j))
 
                 uv.write(preamble, data, flags)
