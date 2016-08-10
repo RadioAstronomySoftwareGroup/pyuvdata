@@ -93,7 +93,7 @@ class Miriad(uvdata.uv.UVData):
         try:
             self.antenna_positions = \
                 self.antenna_positions.reshape(3, self.Nants_telescope).T
-        except(ValueError):
+        except(ValueError, AttributeError): #workaround for known errors with bad antenna positions
             self.antenna_positions = None
         self.channel_width *= 1e9  # change from GHz to Hz
 
