@@ -271,7 +271,6 @@ class UVFITS(uvdata.uv.UVData):
         # check if object has all required UVParameters set
         if run_check:
             self.check(run_sanity_check=run_sanity_check)
-        return True
 
     def write_uvfits(self, filename, spoof_nonessential=False,
                      force_phase=False, run_check=True, run_sanity_check=True):
@@ -516,5 +515,3 @@ class UVFITS(uvdata.uv.UVData):
         # write the file
         hdulist = fits.HDUList(hdus=[hdu, ant_hdu])
         hdulist.writeto(filename, clobber=True)
-
-        return True

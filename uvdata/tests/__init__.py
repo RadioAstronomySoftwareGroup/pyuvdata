@@ -51,19 +51,18 @@ def checkWarnings(func, func_args=[], func_kwargs={},
     clearWarnings()
     with warnings.catch_warnings(record=True) as w:
         warnings.simplefilter("always")  # All warnings triggered
-        output = func(*func_args, **func_kwargs)  # Run function
+        func(*func_args, **func_kwargs)  # Run function
         # Verify
-        status = True
         if len(w) != nwarnings:
             print('wrong number of warnings')
             for idx, wi in enumerate(w):
                 print('warning {i} is: {w}'.format(i=idx, w=wi))
-            status = False
+            return False
         else:
             for i, w_i in enumerate(w):
                 if w_i.category is not category[i]:
                     status = False
                 if message[i] is not None:
                     if message[i] not in str(w_i.message):
-                        status = False
-    return output, status
+                        return False
+    return True

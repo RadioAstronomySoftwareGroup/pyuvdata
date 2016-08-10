@@ -244,7 +244,6 @@ class Miriad(uvdata.uv.UVData):
         # check if object has all required uv_properties set
         if run_check:
             self.check(run_sanity_check=run_sanity_check)
-        return True
 
     def write_miriad(self, filepath, run_check=True, run_sanity_check=True, clobber=False):
         # check for multiple spws
@@ -345,4 +344,3 @@ class Miriad(uvdata.uv.UVData):
                 uv.write(preamble, data, flags)
         if run_check:
             self.check(run_sanity_check=run_sanity_check)
-        return True

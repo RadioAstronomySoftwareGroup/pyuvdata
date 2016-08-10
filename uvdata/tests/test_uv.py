@@ -209,10 +209,10 @@ class TestBaselineAntnumMethods(object):
         nt.assert_equal(self.uv_object.antnums_to_baseline(257, 256), 592130)
         # Check attempt256
         nt.assert_equal(self.uv_object.antnums_to_baseline(0, 0, attempt256=True), 257)
-        nt.assert_equal(uvtest.checkWarnings(self.uv_object.antnums_to_baseline,
-                                             [257, 256], {'attempt256': True},
-                                             message='found > 256 antennas'),
-                        (592130, True))  # Tests output and status from uvtest.checkWarnings
+        nt.assert_equal(self.uv_object.antnums_to_baseline(257, 256), 592130)
+        nt.assert_true(uvtest.checkWarnings(self.uv_object.antnums_to_baseline,
+                                            [257, 256], {'attempt256': True},
+                                            message='found > 256 antennas'))
         nt.assert_raises(StandardError, self.uv_object2.antnums_to_baseline, 0, 0)
 
 

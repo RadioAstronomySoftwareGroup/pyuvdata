@@ -311,7 +311,6 @@ class UVData(UVBase):
                 t.delta_ut1_utc = iers_a.ut1_utc(t)
             lsts.append(t.sidereal_time('apparent').radian)
         self.lst_array = np.array(lsts)
-        return True
 
     def juldate2ephem(self, num):
         """Convert Julian date to ephem date, measured from noon, Dec. 31, 1899."""
@@ -370,7 +369,6 @@ class UVData(UVBase):
         self.phase_center_ra = None
         self.phase_center_dec = None
         self.is_phased = False
-        return True
 
     def phase(self, ra=None, dec=None, epoch=ephem.J2000, time=None):
         # phase drift scan data to a single ra/dec at the set epoch
@@ -441,7 +439,6 @@ class UVData(UVBase):
 
         del(obs)
         self.is_phased = True
-        return True
 
     def write(self, filename, file_type, spoof_nonessential=False, force_phase=False,
               run_check=True, run_sanity_check=True, clobber=False):
