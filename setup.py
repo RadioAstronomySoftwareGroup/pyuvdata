@@ -12,7 +12,10 @@ setup_args = {
     'packages': ['uvdata'],
     'scripts': glob.glob('scripts/*'),
     'version': __version__,
-    'package_data': {'uvdata': [op.join('data', '*')]}
+    'package_data': {'uvdata': [op.join('data', '*')]},
+    # note pyfits is only a dependency because it is an aipy dependency.
+    # It should be removed when aipy is.
+    'requires': ['numpy', 'scipy', 'astropy', 'pyephem', 'pyfits', 'aipy']
 }
 
 if __name__ == '__main__':
