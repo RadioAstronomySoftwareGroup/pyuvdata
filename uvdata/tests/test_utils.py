@@ -1,5 +1,4 @@
 import nose.tools as nt
-import astropy.time  # necessary for Jonnie's workflow help us all
 import uvdata.utils as ut
 import numpy as np
 

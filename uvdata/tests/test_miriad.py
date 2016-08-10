@@ -1,5 +1,4 @@
 import nose.tools as nt
-import astropy.time  # necessary for Jonnie's workflow help us all
 from uvdata.uv import UVData
 import ephem
 import uvdata.tests as uvtest
