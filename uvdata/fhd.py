@@ -76,10 +76,17 @@ class FHD(uvdata.uv.UVData):
         params_dict = readsav(params_file, python_dict=True)
         params = params_dict['params']
 
-        flags_dict = readsav(flags_file, python_dict=True)
-        flag_data = {}
-        for index, f in enumerate(flags_dict['flag_arr']):
-            flag_data[fhd_pol_list[index]] = f
+        flag_file_dict = readsav(flags_file, python_dict=True)
+        # The name for this variable changed recently (July 2016). Test for both.
+        vis_weights_data = {}
+        if 'flag_arr' in flag_file_dict:
+            weights_key = 'flag_arr'
+        elif 'vis_weights' in flag_file_dict:
+            weights_key = 'vis_weights'
+        else:
+            raise ValueError('No recognized key for visibility weights in flags_file.')
+        for index, w in enumerate(flag_file_dict[weights_key]):
+            vis_weights_data[fhd_pol_list[index]] = w
 
         self.Ntimes = int(obs['N_TIME'][0])
         self.Nbls = int(obs['NBASELINES'][0])
@@ -107,8 +114,8 @@ class FHD(uvdata.uv.UVData):
         for pol, vis in vis_data.iteritems():
             pol_i = pol_list.index(linear_pol_dict[pol])
             self.data_array[:, 0, :, pol_i] = vis
-            self.flag_array[:, 0, :, pol_i] = flag_data[pol] <= 0
-            self.nsample_array[:, 0, :, pol_i] = np.abs(flag_data[pol])
+            self.flag_array[:, 0, :, pol_i] = vis_weights_data[pol] <= 0
+            self.nsample_array[:, 0, :, pol_i] = np.abs(vis_weights_data[pol])
 
         # In FHD, uvws are in seconds not meters!
         self.uvw_array = np.zeros((3, self.Nblts))
