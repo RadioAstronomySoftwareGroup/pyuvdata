@@ -370,7 +370,28 @@ class UVData(UVBase):
         self.phase_center_dec = None
         self.is_phased = False
 
-    def phase(self, ra=None, dec=None, epoch=ephem.J2000, time=None):
+    def phase_to_time(self, time):
+        # phase drift scan data to a time in jd 
+        #(i.e. ra/dec of zenith at that time in current epoch).
+
+        obs = ephem.Observer()
+        # obs inits with default values for parameters -- be sure to replace them
+        latitude, longitude, altitude = self.telescope_location_lat_lon_alt
+        obs.lat = latitude
+        obs.lon = longitude
+
+        if self.is_phased:
+            raise ValueError('The data is already phased; can only phase ' +
+                             'drift scanning data.')
+        obs.date, obs.epoch = self.juldate2ephem(time), self.juldate2ephem(time)
+
+        ra = obs.sidereal_time()
+        dec = latitude
+        epoch = self.juldate2ephem(time)
+        self.phase(ra,dec,epoch)
+
+
+    def phase(self, ra, dec, epoch):
         # phase drift scan data to a single ra/dec at the set epoch
         # or time in jd (i.e. ra/dec of zenith at that time in current epoch).
         # ra/dec should be in radians.
@@ -385,20 +406,6 @@ class UVData(UVBase):
         latitude, longitude, altitude = self.telescope_location_lat_lon_alt
         obs.lat = latitude
         obs.lon = longitude
-        if ra is not None and dec is not None and epoch is not None and time is None:
-            pass
-
-        elif ra is None and dec is None and time is not None:
-            # NB if phasing to a time, epoch does not need to be None, but it is ignored
-            obs.date, obs.epoch = self.juldate2ephem(time), self.juldate2ephem(time)
-
-            ra = obs.sidereal_time()
-            dec = latitude
-            epoch = self.juldate2ephem(time)
-
-        else:
-            raise ValueError('Need to define either ra/dec/epoch or time ' +
-                             '(but not both).')
 
         # create a pyephem object for the phasing position
         precess_pos = ephem.FixedBody()

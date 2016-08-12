@@ -282,7 +282,7 @@ class UVFITS(uvdata.uv.UVData):
             if force_phase:
                 print('The data does not have a defined phase center. ' +
                       'Phasing to zenith of the first timestamp.')
-                self.phase(time=self.time_array[0])
+                self.phase_to_time(self.time_array[0])
             else:
                 raise ValueError('The data does not have a defined phase ' +
                                  'center, which means it is a drift scan. ' +

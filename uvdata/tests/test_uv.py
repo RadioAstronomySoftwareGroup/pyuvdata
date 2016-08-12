@@ -232,7 +232,7 @@ def test_phase_unphasePAPER():
     UV_phase = UVData()
     status = uvtest.checkWarnings(UV_phase.read, [testfile, 'miriad'],
                                   known_warning='miriad')
-    UV_phase.phase(ra=0., dec=0., epoch=ephem.J2000)
+    UV_phase.phase(0., 0., ephem.J2000)
     UV_phase.unphase_to_drift()
 
     nt.assert_equal(UV_raw, UV_phase)
