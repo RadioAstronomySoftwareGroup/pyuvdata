@@ -495,12 +495,12 @@ class UVData(UVBase):
                                    run_sanity_check=run_sanity_check)
         return status
 
-    def convert_from_filetype(self, other):
+    def _convert_from_filetype(self, other):
         for p in other.parameter_iter():
             param = getattr(other, p)
             setattr(self, p, param)
 
-    def convert_to_filetype(self, filetype):
+    def _convert_to_filetype(self, filetype):
         if filetype is 'uvfits':
             other_obj = uvdata.uvfits.UVFITS()
         elif filetype is 'fhd':
@@ -517,12 +517,12 @@ class UVData(UVBase):
     def read_uvfits(self, filename, run_check=True, run_sanity_check=True):
         uvfits_obj = uvdata.uvfits.UVFITS()
         ret_val = uvfits_obj.read_uvfits(filename, run_check=True, run_sanity_check=True)
-        self.convert_from_filetype(uvfits_obj)
+        self._convert_from_filetype(uvfits_obj)
         return ret_val
 
     def write_uvfits(self, filename, spoof_nonessential=False,
                      force_phase=False, run_check=True, run_sanity_check=True):
-        uvfits_obj = self.convert_to_filetype('uvfits')
+        uvfits_obj = self._convert_to_filetype('uvfits')
         ret_val = uvfits_obj.write_uvfits(filename,
                                           spoof_nonessential=spoof_nonessential,
                                           force_phase=force_phase,
@@ -534,19 +534,19 @@ class UVData(UVBase):
         fhd_obj = uvdata.fhd.FHD()
         ret_val = fhd_obj.read_fhd(filelist, use_model=use_model,
                                    run_check=True, run_sanity_check=True)
-        self.convert_from_filetype(fhd_obj)
+        self._convert_from_filetype(fhd_obj)
         return ret_val
 
     def read_miriad(self, filepath, run_check=True, run_sanity_check=True):
         miriad_obj = uvdata.miriad.Miriad()
         ret_val = miriad_obj.read_miriad(filepath, run_check=True,
                                          run_sanity_check=True)
-        self.convert_from_filetype(miriad_obj)
+        self._convert_from_filetype(miriad_obj)
         return ret_val
 
     def write_miriad(self, filename, run_check=True, run_sanity_check=True,
                      clobber=False):
-        miriad_obj = self.convert_to_filetype('miriad')
+        miriad_obj = self._convert_to_filetype('miriad')
         ret_val = miriad_obj.write_miriad(filename,
                                           run_check=True, run_sanity_check=True,
                                           clobber=clobber)
