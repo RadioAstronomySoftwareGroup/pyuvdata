@@ -290,7 +290,7 @@ class UVFITS(uvdata.uv.UVData):
                                  'zenith of the first timestamp before ' +
                                  'writing a uvfits file.')
 
-        for p in self.extra_parameter_iter():
+        for p in self.extra():
             param = getattr(self, p)
             if param.name in self.uvfits_required_extra:
                 if param.value is None:

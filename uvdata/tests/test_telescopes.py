@@ -13,21 +13,21 @@ expected_known_telescopes = ['PAPER', 'HERA', 'MWA']
 def test_parameter_iter():
     telescope_obj = uvtel.Telescope()
     all = []
-    for prop in telescope_obj.parameter_iter():
+    for prop in telescope_obj:
         all.append(prop)
     for a in required_parameters:
         nt.assert_true(a in all, msg='expected attribute ' + a +
-                       ' not returned in parameter_iter')
+                       ' not returned in object iterator')
 
 
 def test_required_parameter_iter():
     telescope_obj = uvtel.Telescope()
     required = []
-    for prop in telescope_obj.required_parameter_iter():
+    for prop in telescope_obj.required():
         required.append(prop)
     for a in required_parameters:
         nt.assert_true(a in required, msg='expected attribute ' + a +
-                       ' not returned in required_parameter_iter')
+                       ' not returned in required iterator')
 
 
 def test_parameters_exist():

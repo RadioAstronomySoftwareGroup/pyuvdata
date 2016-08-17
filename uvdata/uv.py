@@ -247,7 +247,7 @@ class UVData(UVBase):
         telescope_obj = uvdata.telescopes.get_telescope(self.telescope_name)
         if telescope_obj is not False:
             params_set = []
-            for p in telescope_obj.parameter_iter():
+            for p in telescope_obj:
                 self_param = getattr(self, p)
                 if overwrite is True or self_param.value is None:
                     params_set.append(self_param.name)
@@ -496,7 +496,7 @@ class UVData(UVBase):
         return status
 
     def _convert_from_filetype(self, other):
-        for p in other.parameter_iter():
+        for p in other:
             param = getattr(other, p)
             setattr(self, p, param)
 
@@ -509,7 +509,7 @@ class UVData(UVBase):
             other_obj = uvdata.miriad.Miriad()
         else:
             raise ValueError('filetype must be uvfits, miriad, or fhd')
-        for p in self.parameter_iter():
+        for p in self:
             param = getattr(self, p)
             setattr(other_obj, p, param)
         return other_obj

@@ -66,27 +66,27 @@ class TestUVDataInit(object):
 
     def test_parameter_iter(self):
         all = []
-        for prop in self.uv_object.parameter_iter():
+        for prop in self.uv_object:
             all.append(prop)
         for a in self.required_parameters + self.extra_parameters:
             nt.assert_true(a in all, msg='expected attribute ' + a +
-                           ' not returned in parameter_iter')
+                           ' not returned in object iterator')
 
     def test_required_parameter_iter(self):
         required = []
-        for prop in self.uv_object.required_parameter_iter():
+        for prop in self.uv_object.required():
             required.append(prop)
         for a in self.required_parameters:
             nt.assert_true(a in required, msg='expected attribute ' + a +
-                           ' not returned in required_parameter_iter')
+                           ' not returned in required iterator')
 
     def test_extra_parameter_iter(self):
         extra = []
-        for prop in self.uv_object.extra_parameter_iter():
+        for prop in self.uv_object.extra():
             extra.append(prop)
         for a in self.extra_parameters:
             nt.assert_true(a in extra, msg='expected attribute ' + a +
-                           ' not returned in extra_parameter_iter')
+                           ' not returned in extra iterator')
 
     def test_parameters_exist(self):
         expected_parameters = self.required_parameters + self.extra_parameters

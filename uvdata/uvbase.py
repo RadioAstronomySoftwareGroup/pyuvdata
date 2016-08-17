@@ -6,7 +6,7 @@ class UVBase(object):
 
     def __init__(self):
         # set any UVParameter attributes to be properties
-        for p in self.parameter_iter():
+        for p in self:
             this_param = getattr(self, p)
             attr_name = this_param.name
             setattr(self.__class__, attr_name, property(self.prop_fget(p),
@@ -74,7 +74,7 @@ class UVBase(object):
             setattr(self, param_name, this_param)
         return fset
 
-    def parameter_iter(self):
+    def __iter__(self):
         attribute_list = [a for a in dir(self) if not a.startswith('__') and
                           not callable(getattr(self, a))]
         param_list = []
@@ -85,7 +85,7 @@ class UVBase(object):
         for a in param_list:
             yield a
 
-    def required_parameter_iter(self):
+    def required(self):
         attribute_list = [a for a in dir(self) if not a.startswith('__') and
                           not callable(getattr(self, a))]
         required_list = []
@@ -97,7 +97,7 @@ class UVBase(object):
         for a in required_list:
             yield a
 
-    def extra_parameter_iter(self):
+    def extra(self):
         attribute_list = [a for a in dir(self) if not a.startswith('__') and
                           not callable(getattr(self, a))]
         extra_list = []
@@ -112,7 +112,7 @@ class UVBase(object):
     def __eq__(self, other):
         if isinstance(other, self.__class__):
             # only check that required parameters are identical
-            for p in self.required_parameter_iter():
+            for p in self.required():
                 self_param = getattr(self, p)
                 other_param = getattr(other, p)
                 if self_param != other_param:
@@ -131,7 +131,7 @@ class UVBase(object):
 
     def check(self, run_sanity_check=True):
         # loop through all required parameters, make sure that they are filled
-        for p in self.required_parameter_iter():
+        for p in self.required():
             param = getattr(self, p)
             # Check required parameter exists
             if param.value is None:
