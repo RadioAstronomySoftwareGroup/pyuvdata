@@ -371,8 +371,8 @@ class UVData(UVBase):
         self.is_phased = False
 
     def phase_to_time(self, time):
-        # phase drift scan data to a time in jd 
-        #(i.e. ra/dec of zenith at that time in current epoch).
+        # phase drift scan data to a time in jd
+        # (i.e. ra/dec of zenith at that time in current epoch).
 
         obs = ephem.Observer()
         # obs inits with default values for parameters -- be sure to replace them
@@ -388,8 +388,7 @@ class UVData(UVBase):
         ra = obs.sidereal_time()
         dec = latitude
         epoch = self.juldate2ephem(time)
-        self.phase(ra,dec,epoch)
-
+        self.phase(ra, dec, epoch)
 
     def phase(self, ra, dec, epoch):
         # phase drift scan data to a single ra/dec at the set epoch

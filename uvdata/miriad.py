@@ -93,7 +93,7 @@ class Miriad(uvdata.uv.UVData):
         try:
             self.antenna_positions = \
                 self.antenna_positions.reshape(3, self.Nants_telescope).T
-        except(ValueError): #workaround for known errors with bad antenna positions
+        except(ValueError):  # workaround for known errors with bad antenna positions
             self.antenna_positions = None
         self.channel_width *= 1e9  # change from GHz to Hz
 
@@ -288,7 +288,7 @@ class Miriad(uvdata.uv.UVData):
             uv.add_var('antpos', 'd')
             uv['antpos'] = self.antenna_positions.T.flatten()
         except(AttributeError):
-            pass #don't write bad antenna positions
+            pass  # don't write bad antenna positions
         uv.add_var('sfreq', 'd')
         uv['sfreq'] = self.freq_array[0, 0] / 1e9  # first spw; in GHz
         uv.add_var('epoch', 'r')
