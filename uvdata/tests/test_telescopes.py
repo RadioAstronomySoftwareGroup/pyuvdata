@@ -1,4 +1,3 @@
-import unittest
 import numpy as np
 import nose.tools as nt
 import uvdata

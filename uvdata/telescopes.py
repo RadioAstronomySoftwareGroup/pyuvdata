@@ -31,14 +31,14 @@ class Telescope(uvbase.UVBase):
         self.citation = None
 
         self._telescope_name = uvp.UVParameter('telescope_name', description='name of telescope '
-                                                  '(string)', form='str')
+                                               '(string)', form='str')
         desc = ('telescope location: xyz in ITRF (earth-centered frame). '
                 'Can also be set using telescope_location_lat_lon_alt or '
                 'telescope_location_lat_lon_alt_degrees properties')
         self._telescope_location = uvp.LocationParameter('telescope_location',
-                                                            description=desc,
-                                                            expected_type=np.float,
-                                                            form=(3,), tols=1e-3)
+                                                         description=desc,
+                                                         expected_type=np.float,
+                                                         form=(3,), tols=1e-3)
         # possibly add in future versions:
         # Antenna positions (but what about reconfigurable/growing telescopes?)
 
