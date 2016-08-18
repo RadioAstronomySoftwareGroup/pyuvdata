@@ -7,21 +7,16 @@ import warnings
 import aipy as a
 import ephem
 from astropy.utils import iers
-from uvdata.uvbase import UVBase
-import uvdata.parameter as uvp
-import uvdata.utils as utils
-import uvdata
-
-data_path = op.join(uvdata.__path__[0], 'data')
-
-iers_a = iers.IERS_A.open(op.join(data_path, 'finals.all'))
+import uvbase
+import parameter as uvp
+import telescopes as uvtel
 
 
 def _warning(message, category=UserWarning, filename='', lineno=-1):
     print(message)
 
 
-class UVData(UVBase):
+class UVData(uvbase.UVBase):
     supported_read_file_types = ['uvfits', 'miriad', 'fhd']
     supported_write_file_types = ['uvfits', 'miriad', 'fhd']
 
@@ -58,38 +53,46 @@ class UVData(UVBase):
         self._Nspws = uvp.UVParameter('Nspws', description='number of spectral windows '
                                       '(ie non-contiguous spectral chunks)')
 
-        self._spw_array = uvp.UVParameter('spw_array', description='array of spectral window '
+        self._spw_array = uvp.UVParameter('spw_array',
+                                          description='array of spectral window '
                                           'numbers', form=('Nspws',))
 
         desc = ('Projected baseline vectors relative to phase center, ' +
                 '(3,Nblts), units meters')
         self._uvw_array = uvp.UVParameter('uvw_array', description=desc,
-                                          form=(3, 'Nblts'), expected_type=np.float,
+                                          form=(3, 'Nblts'),
+                                          expected_type=np.float,
                                           sane_vals=(1e-3, 1e8), tols=.001)
 
         desc = ('array of times, center of integration, dimension (Nblts), ' +
                 'units Julian Date')
         self._time_array = uvp.UVParameter('time_array', description=desc,
-                                           form=('Nblts',), expected_type=np.float,
+                                           form=('Nblts',),
+                                           expected_type=np.float,
                                            tols=1e-3 / (60.0 * 60.0 * 24.0))  # 1 ms in days
 
         desc = ('array of lsts, center of integration, dimension (Nblts), ' +
                 'units radians')
-        self._lst_array = uvp.UVParameter('lst_array', description=desc, form=('Nblts',),
+        self._lst_array = uvp.UVParameter('lst_array', description=desc,
+                                          form=('Nblts',),
                                           expected_type=np.float,
                                           tols=2 * np.pi * 1e-3 / (60.0 * 60.0 * 24.0))  # 1 ms in radians
 
         desc = ('array of first antenna indices, dimensions (Nblts), '
                 'type = int, 0 indexed')
-        self._ant_1_array = uvp.UVParameter('ant_1_array', description=desc, form=('Nblts',))
+        self._ant_1_array = uvp.UVParameter('ant_1_array', description=desc,
+                                            form=('Nblts',))
         desc = ('array of second antenna indices, dimensions (Nblts), '
                 'type = int, 0 indexed')
-        self._ant_2_array = uvp.UVParameter('ant_2_array', description=desc, form=('Nblts',))
+        self._ant_2_array = uvp.UVParameter('ant_2_array', description=desc,
+                                            form=('Nblts',))
 
         desc = ('array of baseline indices, dimensions (Nblts), '
                 'type = int; baseline = 2048 * (ant2+1) + (ant1+1) + 2^16 '
                 '(may this break casa?)')
-        self._baseline_array = uvp.UVParameter('baseline_array', description=desc, form=('Nblts',))
+        self._baseline_array = uvp.UVParameter('baseline_array',
+                                               description=desc,
+                                               form=('Nblts',))
 
         # this dimensionality of freq_array does not allow for different spws
         # to have different dimensions
@@ -103,7 +106,8 @@ class UVData(UVBase):
                 'AIPS Memo 117 says: stokes 1:4 (I,Q,U,V);  '
                 'circular -1:-4 (RR,LL,RL,LR); linear -5:-8 (XX,YY,XY,YX)')
         self._polarization_array = uvp.UVParameter('polarization_array',
-                                                   description=desc, form=('Npols',))
+                                                   description=desc,
+                                                   form=('Npols',))
 
         self._integration_time = uvp.UVParameter('integration_time',
                                                  description='length of the integration (s)',
@@ -114,7 +118,8 @@ class UVData(UVBase):
                                               tols=1e-3)  # 1 mHz
 
         # --- observation information ---
-        self._object_name = uvp.UVParameter('object_name', description='source or field '
+        self._object_name = uvp.UVParameter('object_name',
+                                            description='source or field '
                                             'observed (string)', form='str')
         self._telescope_name = uvp.UVParameter('telescope_name',
                                                description='name of telescope '
@@ -241,10 +246,10 @@ class UVData(UVBase):
         # warnings.showwarning = _warning
 
     def known_telescopes(self):
-        return uvdata.telescopes.known_telescopes()
+        return uvtel.known_telescopes()
 
     def set_telescope_params(self, overwrite=False):
-        telescope_obj = uvdata.telescopes.get_telescope(self.telescope_name)
+        telescope_obj = uvtel.get_telescope(self.telescope_name)
         if telescope_obj is not False:
             params_set = []
             for p in telescope_obj:
@@ -308,7 +313,7 @@ class UVData(UVBase):
                 curtime = jd
                 latitude, longitude, altitude = self.telescope_location_lat_lon_alt_degrees
                 t = Time(jd, format='jd', location=(longitude, latitude))
-                t.delta_ut1_utc = iers_a.ut1_utc(t)
+                # t.delta_ut1_utc = iers_a.ut1_utc(t)
             lsts.append(t.sidereal_time('apparent').radian)
         self.lst_array = np.array(lsts)
 
@@ -502,11 +507,14 @@ class UVData(UVBase):
 
     def _convert_to_filetype(self, filetype):
         if filetype is 'uvfits':
-            other_obj = uvdata.uvfits.UVFITS()
+            import uvfits
+            other_obj = uvfits.UVFITS()
         elif filetype is 'fhd':
-            other_obj = uvdata.fhd.FHD()
+            import fhd
+            other_obj = fhd.FHD()
         elif filetype is 'miriad':
-            other_obj = uvdata.miriad.Miriad()
+            import miriad
+            other_obj = miriad.Miriad()
         else:
             raise ValueError('filetype must be uvfits, miriad, or fhd')
         for p in self:
@@ -515,7 +523,8 @@ class UVData(UVBase):
         return other_obj
 
     def read_uvfits(self, filename, run_check=True, run_sanity_check=True):
-        uvfits_obj = uvdata.uvfits.UVFITS()
+        import uvfits
+        uvfits_obj = uvfits.UVFITS()
         ret_val = uvfits_obj.read_uvfits(filename, run_check=True, run_sanity_check=True)
         self._convert_from_filetype(uvfits_obj)
         return ret_val
@@ -531,14 +540,16 @@ class UVData(UVBase):
 
     def read_fhd(self, filelist, use_model=False, run_check=True,
                  run_sanity_check=True):
-        fhd_obj = uvdata.fhd.FHD()
+        import fhd
+        fhd_obj = fhd.FHD()
         ret_val = fhd_obj.read_fhd(filelist, use_model=use_model,
                                    run_check=True, run_sanity_check=True)
         self._convert_from_filetype(fhd_obj)
         return ret_val
 
     def read_miriad(self, filepath, run_check=True, run_sanity_check=True):
-        miriad_obj = uvdata.miriad.Miriad()
+        import miriad
+        miriad_obj = miriad.Miriad()
         ret_val = miriad_obj.read_miriad(filepath, run_check=True,
                                          run_sanity_check=True)
         self._convert_from_filetype(miriad_obj)

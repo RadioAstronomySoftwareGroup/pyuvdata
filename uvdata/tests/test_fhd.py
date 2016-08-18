@@ -1,6 +1,6 @@
 import nose.tools as nt
 import os.path as op
-from uvdata.uv import UVData
+from uvdata import UVData
 import uvdata.tests as uvtest
 
 

@@ -3,10 +3,10 @@ from scipy.io.idl import readsav
 from itertools import islice
 import numpy as np
 import warnings
-import uvdata
+from uvdata import UVData
 
 
-class FHD(uvdata.uv.UVData):
+class FHD(UVData):
 
     def read_fhd(self, filelist, use_model=False, run_check=True, run_sanity_check=True):
         """

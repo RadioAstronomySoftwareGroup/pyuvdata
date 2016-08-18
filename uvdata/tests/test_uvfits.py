@@ -1,5 +1,5 @@
 import nose.tools as nt
-from uvdata.uv import UVData
+from uvdata import UVData
 import uvdata.tests as uvtest
 
 

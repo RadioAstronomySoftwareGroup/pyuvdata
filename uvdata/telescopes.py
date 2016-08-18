@@ -1,8 +1,7 @@
 import numpy as np
 from astropy.coordinates import Angle
-from uvdata.uvbase import UVBase
-import uvdata.parameter as uvp
-import uvdata.utils as utils
+import uvbase
+import parameter as uvp
 
 # center_xyz is the location of the telescope in ITRF (earth-centered frame)
 telescopes = {'PAPER': {'center_xyz': None,
@@ -24,7 +23,7 @@ telescopes = {'PAPER': {'center_xyz': None,
                       'citation': 'Tingay et al., 2013'}}
 
 
-class Telescope(UVBase):
+class Telescope(uvbase.UVBase):
 
     def __init__(self):
         # add the UVParameters to the class
@@ -32,14 +31,14 @@ class Telescope(UVBase):
         self.citation = None
 
         self._telescope_name = uvp.UVParameter('telescope_name', description='name of telescope '
-                                               '(string)', form='str')
+                                                  '(string)', form='str')
         desc = ('telescope location: xyz in ITRF (earth-centered frame). '
                 'Can also be set using telescope_location_lat_lon_alt or '
                 'telescope_location_lat_lon_alt_degrees properties')
         self._telescope_location = uvp.LocationParameter('telescope_location',
-                                                         description=desc,
-                                                         expected_type=np.float,
-                                                         form=(3,), tols=1e-3)
+                                                            description=desc,
+                                                            expected_type=np.float,
+                                                            form=(3,), tols=1e-3)
         # possibly add in future versions:
         # Antenna positions (but what about reconfigurable/growing telescopes?)
 

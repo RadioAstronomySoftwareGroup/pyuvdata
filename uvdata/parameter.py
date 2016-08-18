@@ -1,5 +1,5 @@
 import numpy as np
-import uvdata.utils as utils
+import utils
 
 
 class UVParameter(object):
@@ -155,8 +155,7 @@ class LocationParameter(UVParameter):
         if lat_lon_alt is None:
             self.value = None
         else:
-            self.value = utils.XYZ_from_LatLonAlt(lat_lon_alt[0],
-                                                  lat_lon_alt[1],
+            self.value = utils.XYZ_from_LatLonAlt(lat_lon_alt[0], lat_lon_alt[1],
                                                   lat_lon_alt[2])
 
     def lat_lon_alt_degrees(self):

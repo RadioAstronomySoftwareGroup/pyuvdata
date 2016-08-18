@@ -4,10 +4,11 @@ import shutil
 import numpy as np
 import warnings
 import aipy as a
-import uvdata
+from uvdata import UVData
+import telescopes as uvtel
 
 
-class Miriad(uvdata.uv.UVData):
+class Miriad(UVData):
 
     def miriad_pol_to_ind(self, pol):
         if self.polarization_array is None:
@@ -56,7 +57,7 @@ class Miriad(uvdata.uv.UVData):
             self.telescope_location_lat_lon_alt = (latitude, longitude, altitude)
         except(KeyError):
             # get info from known telescopes. Check to make sure the lat/lon values match reasonably well
-            telescope_obj = uvdata.telescopes.get_telescope(self.telescope_name)
+            telescope_obj = uvtel.get_telescope(self.telescope_name)
             if telescope_obj is not False:
                 # attribute_list = [a for a in dir(telescope_obj) if not a.startswith('__') and
                 #                   not callable(getattr(telescope_obj, a))]

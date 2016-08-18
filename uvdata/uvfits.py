@@ -3,10 +3,10 @@ from astropy.time import Time
 from astropy.io import fits
 import numpy as np
 import warnings
-import uvdata
+from uvdata import UVData
 
 
-class UVFITS(uvdata.uv.UVData):
+class UVFITS(UVData):
 
     uvfits_required_extra = ['antenna_positions', 'GST0', 'RDate',
                              'earth_omega', 'DUT1', 'TIMESYS']

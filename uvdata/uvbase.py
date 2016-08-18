@@ -1,5 +1,5 @@
 import numpy as np
-import uvdata.parameter as uvp
+import parameter as uvp
 
 
 class UVBase(object):
