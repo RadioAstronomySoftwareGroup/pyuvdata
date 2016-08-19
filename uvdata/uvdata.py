@@ -58,7 +58,7 @@ class UVData(uvbase.UVBase):
         desc = ('Projected baseline vectors relative to phase center, ' +
                 '(3,Nblts), units meters')
         self._uvw_array = uvp.UVParameter('uvw_array', description=desc,
-                                          form=(3, 'Nblts'),
+                                          form=('Nblts', 3),
                                           expected_type=np.float,
                                           sane_vals=(1e-3, 1e8), tols=.001)
 
@@ -343,7 +343,7 @@ class UVData(uvbase.UVBase):
         for ind, jd in enumerate(self.time_array):
 
             # apply -w phasor
-            w_lambda = self.uvw_array[2, ind] / const.c.to('m/s').value * self.freq_array
+            w_lambda = self.uvw_array[ind,2] / const.c.to('m/s').value * self.freq_array
             phs = np.exp(-1j * 2 * np.pi * (-1) * w_lambda)
             phs.shape += (1,)
             self.data_array[ind] *= phs
@@ -363,10 +363,10 @@ class UVData(uvbase.UVBase):
             m1 = a.coord.eq2top_m(phase_center_ra - zenith_ra, zenith_dec)
 
             # rotate and write uvws
-            uvw = self.uvw_array[:, ind]
+            uvw = self.uvw_array[ind,:]
             uvw = np.dot(m0, uvw)
             uvw = np.dot(m1, uvw)
-            self.uvw_array[:, ind] = uvw
+            self.uvw_array[ind,:] = uvw
 
         # remove phase center
         self.phase_center_ra = None
@@ -435,10 +435,10 @@ class UVData(uvbase.UVBase):
             m1 = a.coord.eq2top_m(self.lst_array[ind] - ra, dec)
 
             # rotate and write uvws
-            uvw = self.uvw_array[:, ind]
+            uvw = self.uvw_array[ind,:]
             uvw = np.dot(m0, uvw)
             uvw = np.dot(m1, uvw)
-            self.uvw_array[:, ind] = uvw
+            self.uvw_array[ind,:] = uvw
 
             # calculate data and apply phasor
             w_lambda = uvw[2] / const.c.to('m/s').value * self.freq_array

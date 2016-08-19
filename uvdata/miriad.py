@@ -189,7 +189,7 @@ class Miriad(UVData):
         self.data_array = np.zeros((self.Nblts, self.Nspws, self.Nfreqs,
                                     self.Npols), dtype=np.complex64)
         self.flag_array = np.ones(self.data_array.shape, dtype=np.bool)
-        self.uvw_array = np.zeros((3, self.Nblts))
+        self.uvw_array = np.zeros((self.Nblts, 3))
         # NOTE: Using our lst calculator, which uses astropy,
         # instead of aipy values which come from pyephem.
         # The differences are of order 5 seconds.
@@ -220,7 +220,7 @@ class Miriad(UVData):
                 # axis but avoid any missing visbilities
                 uvw = d[0] * const.c.to('m/ns').value
                 uvw.shape = (1, 3)
-                self.uvw_array[:, blt_index] = uvw
+                self.uvw_array[blt_index] = uvw
                 ra_list[blt_index] = d[7]
                 dec_list[blt_index] = d[8]
 
@@ -318,7 +318,7 @@ class Miriad(UVData):
 
         # write data
         for viscnt, blt in enumerate(self.data_array):
-            uvw = self.uvw_array[:, viscnt] / const.c.to('m/ns').value  # NOTE issue 50 on conjugation
+            uvw = self.uvw_array[viscnt] / const.c.to('m/ns').value  # NOTE issue 50 on conjugation
             t = self.time_array[viscnt]
             i = self.ant_1_array[viscnt]
             j = self.ant_2_array[viscnt]
