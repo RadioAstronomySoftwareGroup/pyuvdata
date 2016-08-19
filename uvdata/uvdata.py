@@ -212,7 +212,7 @@ class UVData(uvbase.UVBase):
         # --- other stuff ---
         # the below are copied from AIPS memo 117, but could be revised to
         # merge with other sources of data.
-        self._GST0 = uvp.UVParameter('GST0', required=False,
+        self._gst0 = uvp.UVParameter('gst0', required=False,
                                      description='Greenwich sidereal time at '
                                                  'midnight on reference date',
                                      spoof_val=0.0)
@@ -224,7 +224,7 @@ class UVData(uvbase.UVBase):
                                             description='earth\'s rotation rate '
                                                         'in degrees per day',
                                             spoof_val=360.985)
-        self._DUT1 = uvp.UVParameter('DUT1', required=False,
+        self._dut1 = uvp.UVParameter('dut1', required=False,
                                      description='DUT1 (google it) AIPS 117 '
                                                  'calls it UT1UTC',
                                      spoof_val=0.0)

@@ -8,8 +8,8 @@ from uvdata import UVData
 
 class UVFITS(UVData):
 
-    uvfits_required_extra = ['antenna_positions', 'GST0', 'rdate',
-                             'earth_omega', 'DUT1', 'timesys']
+    uvfits_required_extra = ['antenna_positions', 'gst0', 'rdate',
+                             'earth_omega', 'dut1', 'timesys']
 
     def _gethduaxis(self, D, axis):
         ax = str(axis)
@@ -249,10 +249,10 @@ class UVFITS(UVData):
             if latitude_degrees is not None and longitude_degrees is not None and altitude is not None:
                 self.telescope_location_lat_lon_alt_degrees = (latitude_degrees, longitude_degrees, altitude)
 
-        self.GST0 = ant_hdu.header['GSTIA0']
+        self.gst0 = ant_hdu.header['GSTIA0']
         self.rdate = ant_hdu.header['RDATE']
         self.earth_omega = ant_hdu.header['DEGPDY']
-        self.DUT1 = ant_hdu.header['UT1UTC']
+        self.dut1 = ant_hdu.header['UT1UTC']
         try:
             self.timesys = ant_hdu.header['TIMESYS']
         except(KeyError):
@@ -473,10 +473,10 @@ class UVFITS(UVData):
         ant_hdu.header['ARRAYY'] = self.telescope_location[1]
         ant_hdu.header['ARRAYZ'] = self.telescope_location[2]
         ant_hdu.header['FRAME'] = 'ITRF'
-        ant_hdu.header['GSTIA0'] = self.GST0
+        ant_hdu.header['GSTIA0'] = self.gst0
         ant_hdu.header['FREQ'] = self.freq_array[0, 0]
         ant_hdu.header['RDATE'] = self.rdate
-        ant_hdu.header['UT1UTC'] = self.DUT1
+        ant_hdu.header['UT1UTC'] = self.dut1
 
         ant_hdu.header['TIMSYS'] = self.timesys
         if self.timesys == 'IAT':
