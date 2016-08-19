@@ -216,7 +216,7 @@ class UVData(uvbase.UVBase):
                                      description='Greenwich sidereal time at '
                                                  'midnight on reference date',
                                      spoof_val=0.0)
-        self._RDate = uvp.UVParameter('RDate', required=False,
+        self._rdate = uvp.UVParameter('rdate', required=False,
                                       description='date for which the GST0 or '
                                                   'whatever... applies',
                                       spoof_val='')
@@ -228,7 +228,7 @@ class UVData(uvbase.UVBase):
                                      description='DUT1 (google it) AIPS 117 '
                                                  'calls it UT1UTC',
                                      spoof_val=0.0)
-        self._TIMESYS = uvp.UVParameter('TIMESYS', required=False,
+        self._timesys = uvp.UVParameter('timesys', required=False,
                                         description='We only support UTC',
                                         spoof_val='UTC', form='str')
 

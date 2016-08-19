@@ -8,8 +8,8 @@ from uvdata import UVData
 
 class UVFITS(UVData):
 
-    uvfits_required_extra = ['antenna_positions', 'GST0', 'RDate',
-                             'earth_omega', 'DUT1', 'TIMESYS']
+    uvfits_required_extra = ['antenna_positions', 'GST0', 'rdate',
+                             'earth_omega', 'DUT1', 'timesys']
 
     def _gethduaxis(self, D, axis):
         ax = str(axis)
@@ -250,14 +250,14 @@ class UVFITS(UVData):
                 self.telescope_location_lat_lon_alt_degrees = (latitude_degrees, longitude_degrees, altitude)
 
         self.GST0 = ant_hdu.header['GSTIA0']
-        self.RDate = ant_hdu.header['RDATE']
+        self.rdate = ant_hdu.header['RDATE']
         self.earth_omega = ant_hdu.header['DEGPDY']
         self.DUT1 = ant_hdu.header['UT1UTC']
         try:
-            self.TIMESYS = ant_hdu.header['TIMESYS']
+            self.timesys = ant_hdu.header['TIMESYS']
         except(KeyError):
             # CASA misspells this one
-            self.TIMESYS = ant_hdu.header['TIMSYS']
+            self.timesys = ant_hdu.header['TIMSYS']
 
         del(D)
 
@@ -475,11 +475,11 @@ class UVFITS(UVData):
         ant_hdu.header['FRAME'] = 'ITRF'
         ant_hdu.header['GSTIA0'] = self.GST0
         ant_hdu.header['FREQ'] = self.freq_array[0, 0]
-        ant_hdu.header['RDATE'] = self.RDate
+        ant_hdu.header['RDATE'] = self.rdate
         ant_hdu.header['UT1UTC'] = self.DUT1
 
-        ant_hdu.header['TIMSYS'] = self.TIMESYS
-        if self.TIMESYS == 'IAT':
+        ant_hdu.header['TIMSYS'] = self.timesys
+        if self.timesys == 'IAT':
             warnings.warn('This file has an "IAT" time system. Files of '
                           'this type are not properly supported')
         ant_hdu.header['ARRNAM'] = self.telescope_name
