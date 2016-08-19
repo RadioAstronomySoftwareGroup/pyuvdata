@@ -371,6 +371,7 @@ class UVData(uvbase.UVBase):
         # remove phase center
         self.phase_center_ra = None
         self.phase_center_dec = None
+        self.phase_center_epoch = None
         self.is_phased = False
 
     def phase_to_time(self, time):
