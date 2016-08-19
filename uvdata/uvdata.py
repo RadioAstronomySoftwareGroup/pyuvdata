@@ -10,8 +10,8 @@ import parameter as uvp
 import telescopes as uvtel
 
 
-def _warning(message, category=UserWarning, filename='', lineno=-1):
-    print(message)
+def _warning(msg, *a):
+    return str(msg) + '\n'
 
 
 class UVData(uvbase.UVBase):
@@ -241,7 +241,7 @@ class UVData(uvbase.UVBase):
                                                        spoof_val=0)
 
         super(UVData, self).__init__()
-        # warnings.showwarning = _warning
+        warnings.formatwarning = _warning
 
     def known_telescopes(self):
         return uvtel.known_telescopes()
@@ -448,55 +448,6 @@ class UVData(uvbase.UVBase):
 
         del(obs)
         self.is_phased = True
-
-    def write(self, filename, file_type, spoof_nonessential=False, force_phase=False,
-              run_check=True, run_sanity_check=True, clobber=False):
-        if run_check:
-            self.check(run_sanity_check=run_sanity_check)
-
-        status = False
-        if file_type not in self.supported_write_file_types:
-            raise ValueError('file_type must be one of ' +
-                             ' '.join(self.supported_write_file_types))
-
-        file_path = os.path.dirname(filename)
-        if not os.path.exists(file_path):
-            os.mkdir(file_path)
-
-        if file_type == 'uvfits':
-            status = self.write_uvfits(filename,
-                                       spoof_nonessential=spoof_nonessential,
-                                       force_phase=force_phase, run_check=False)
-        elif file_type == 'miriad':
-            status = self.write_miriad(filename, run_check=False,
-                                       clobber=clobber)
-        return status
-
-    def read(self, filename, file_type, use_model=False, run_check=True,
-             run_sanity_check=True):
-        """
-        General read function which calls file_type specific read functions
-        Inputs:
-            filename: string or list of strings
-                May be a file name, directory name or a list of file names
-                depending on file_type
-            file_type: string
-                Must be a supported type, see self.supported_file_types
-        """
-        if file_type not in self.supported_read_file_types:
-            raise ValueError('file_type must be one of ' +
-                             ' '.join(self.supported_read_file_types))
-        if file_type == 'uvfits':
-            # Note we will run check later, not in specific read functions.
-            status = self.read_uvfits(filename, run_check=run_check,
-                                      run_sanity_check=run_sanity_check)
-        elif file_type == 'miriad':
-            status = self.read_miriad(filename, run_check=run_check,
-                                      run_sanity_check=run_sanity_check)
-        elif file_type == 'fhd':
-            status = self.read_fhd(filename, use_model=use_model, run_check=run_check,
-                                   run_sanity_check=run_sanity_check)
-        return status
 
     def _convert_from_filetype(self, other):
         for p in other:

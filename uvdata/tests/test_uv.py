@@ -120,7 +120,7 @@ class TestUVDataBasicMethods(object):
     def setUp(self):
         self.uv_object = UVData()
         self.testfile = '../data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
-        uvtest.checkWarnings(self.uv_object.read, [self.testfile, 'uvfits'],
+        uvtest.checkWarnings(self.uv_object.read_uvfits, [self.testfile],
                              message='Telescope EVLA is not')
         self.uv_object2 = copy.deepcopy(self.uv_object)
 
@@ -225,11 +225,11 @@ def test_known_telescopes():
 def test_phase_unphasePAPER():
     testfile = '../data/zen.2456865.60537.xy.uvcRREAA'
     UV_raw = UVData()
-    status = uvtest.checkWarnings(UV_raw.read, [testfile, 'miriad'],
+    status = uvtest.checkWarnings(UV_raw.read_miriad, [testfile],
                                   known_warning='miriad')
 
     UV_phase = UVData()
-    status = uvtest.checkWarnings(UV_phase.read, [testfile, 'miriad'],
+    status = uvtest.checkWarnings(UV_phase.read_miriad, [testfile],
                                   known_warning='miriad')
     UV_phase.phase(0., 0., ephem.J2000)
     UV_phase.unphase_to_drift()
