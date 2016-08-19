@@ -1,12 +1,10 @@
 from astropy import constants as const
 from astropy.time import Time
-import os.path as op
 import os
 import numpy as np
 import warnings
 import aipy as a
 import ephem
-from astropy.utils import iers
 import uvbase
 import parameter as uvp
 import telescopes as uvtel
@@ -461,8 +459,8 @@ class UVData(uvbase.UVBase):
             raise ValueError('file_type must be one of ' +
                              ' '.join(self.supported_write_file_types))
 
-        file_path = op.dirname(filename)
-        if not op.exists(file_path):
+        file_path = os.path.dirname(filename)
+        if not os.path.exists(file_path):
             os.mkdir(file_path)
 
         if file_type == 'uvfits':

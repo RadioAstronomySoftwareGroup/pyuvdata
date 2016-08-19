@@ -1,5 +1,5 @@
 import nose.tools as nt
-import os.path as op
+import os
 from uvdata import UVData
 import uvdata.tests as uvtest
 
@@ -17,9 +17,9 @@ def test_ReadFHDWriteReadUVFits():
     fhd_uv = UVData()
     uvfits_uv = UVData()
     fhd_uv.read(testfiles, 'fhd')
-    fhd_uv.write(op.join('../data/test/outtest_FHD_1061316296.uvfits'),
+    fhd_uv.write(os.path.join('../data/test/outtest_FHD_1061316296.uvfits'),
                  file_type='uvfits', spoof_nonessential=True)
-    uvfits_uv.read(op.join('../data/test/outtest_FHD_1061316296.uvfits'), 'uvfits')
+    uvfits_uv.read(os.path.join('../data/test/outtest_FHD_1061316296.uvfits'), 'uvfits')
     nt.assert_equal(fhd_uv, uvfits_uv)
     del(fhd_uv)
     del(uvfits_uv)
