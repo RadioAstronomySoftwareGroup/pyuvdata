@@ -12,8 +12,8 @@ import parameter as uvp
 import telescopes as uvtel
 
 
-def _warning(message, category=UserWarning, filename='', lineno=-1):
-    print(message)
+def _warning(msg, *a):
+    return str(msg) + '\n'
 
 
 class UVData(uvbase.UVBase):
@@ -243,7 +243,7 @@ class UVData(uvbase.UVBase):
                                                        spoof_val=0)
 
         super(UVData, self).__init__()
-        # warnings.showwarning = _warning
+        warnings.formatwarning = _warning
 
     def known_telescopes(self):
         return uvtel.known_telescopes()
