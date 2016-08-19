@@ -17,7 +17,7 @@ def test_ReadFHDWriteReadUVFits():
     fhd_uv = UVData()
     uvfits_uv = UVData()
     fhd_uv.read_fhd(testfiles)
-    fhd_uv.write_uvfits(op.join('../data/test/outtest_FHD_1061316296.uvfits'),
+    fhd_uv.write_uvfits(os.path.join('../data/test/outtest_FHD_1061316296.uvfits'),
                         spoof_nonessential=True)
     uvfits_uv.read_uvfits(os.path.join('../data/test/outtest_FHD_1061316296.uvfits'))
     nt.assert_equal(fhd_uv, uvfits_uv)
