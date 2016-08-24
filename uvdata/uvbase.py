@@ -112,6 +112,15 @@ class UVBase(object):
     def __eq__(self, other):
         if isinstance(other, self.__class__):
             # only check that required parameters are identical
+            self_required = []
+            other_required = []
+            for p in self.required():
+                self_required.append(p)
+            for p in other.required():
+                other_required.append(p)
+            if set(self_required) != set(other_required):
+                return False
+
             for p in self.required():
                 self_param = getattr(self, p)
                 other_param = getattr(other, p)
