@@ -4,6 +4,7 @@ from astropy.io import fits
 import numpy as np
 import warnings
 from uvdata import UVData
+import parameter as uvp
 
 
 class UVFITS(UVData):
@@ -296,7 +297,10 @@ class UVFITS(UVData):
                 if param.value is None:
                     if spoof_nonessential:
                         # spoof extra keywords required for uvfits
-                        param.apply_spoof(self)
+                        if isinstance(param, uvp.AntPositionParameter):
+                            param.apply_spoof(self, 'Nants_telescope')
+                        else:
+                            param.apply_spoof()
                         setattr(self, p, param)
                     else:
                         raise ValueError('Required attribute {attribute} '
