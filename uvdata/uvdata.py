@@ -63,10 +63,10 @@ class UVData(UVBase):
 
         self._spw_array = uvp.UVParameter('spw_array',
                                           description='array of spectral window '
-                                          'numbers', form=('Nspws',))
+                                          'numbers, shape (Nspws)', form=('Nspws',))
 
         desc = ('Projected baseline vectors relative to phase center, ' +
-                '(3,Nblts), units meters')
+                'shape (3, Nblts), units meters')
         self._uvw_array = uvp.UVParameter('uvw_array', description=desc,
                                           form=('Nblts', 3),
                                           expected_type=np.float,
@@ -96,21 +96,20 @@ class UVData(UVBase):
                                             form=('Nblts',))
 
         desc = ('array of baseline indices, shape (Nblts), '
-                'type = int; baseline = 2048 * (ant2+1) + (ant1+1) + 2^16 '
-                '(may this break casa?)')
+                'type = int; baseline = 2048 * (ant2+1) + (ant1+1) + 2^16')
         self._baseline_array = uvp.UVParameter('baseline_array',
                                                description=desc,
                                                form=('Nblts',))
 
         # this dimensionality of freq_array does not allow for different spws
         # to have different dimensions
-        desc = 'array of frequencies, shape (Nspws,Nfreqs), units Hz'
+        desc = 'array of frequencies, shape (Nspws, Nfreqs), units Hz'
         self._freq_array = uvp.UVParameter('freq_array', description=desc,
                                            form=('Nspws', 'Nfreqs'),
                                            expected_type=np.float,
                                            tols=1e-3)  # mHz
 
-        desc = ('array of polarization integers (Npols). '
+        desc = ('array of polarization integers, shape (Npols). '
                 'AIPS Memo 117 says: stokes 1:4 (I,Q,U,V);  '
                 'circular -1:-4 (RR,LL,RL,LR); linear -5:-8 (XX,YY,XY,YX)')
         self._polarization_array = uvp.UVParameter('polarization_array',
@@ -197,9 +196,11 @@ class UVData(UVBase):
         desc = ('number of antennas with data present. May be smaller ' +
                 'than the number of antennas in the array')
         self._Nants_data = uvp.UVParameter('Nants_data', description=desc)
+
         desc = ('number of antennas in the array. May be larger ' +
                 'than the number of antennas with data')
         self._Nants_telescope = uvp.UVParameter('Nants_telescope', description=desc)
+
         desc = ('list of antenna names, shape (Nants_telescope), '
                 'with numbers given by antenna_numbers (which can be matched '
                 'to ant_1_array and ant_2_array). There must be one entry '
@@ -226,7 +227,7 @@ class UVData(UVBase):
                                         description='date of observation')
 
         desc = ('array giving coordinates of antennas relative to '
-                'telescope_location (ITRF frame), (Nants_telescope, 3)')
+                'telescope_location (ITRF frame), shape (Nants_telescope, 3)')
         self._antenna_positions = uvp.AntPositionParameter('antenna_positions',
                                                            required=False,
                                                            description=desc,
@@ -471,7 +472,7 @@ class UVData(UVBase):
                              'drift scanning data.')
         else:
             raise ValueError('The phasing type of the data is unknown. '
-                             'Set the phase_type to drift or phased to '
+                             'Set the phase_type to "drift" or "phased" to '
                              'reflect the phasing status of the data')
 
         obs = ephem.Observer()
@@ -545,41 +546,38 @@ class UVData(UVBase):
     def read_uvfits(self, filename, run_check=True, run_sanity_check=True):
         import uvfits
         uvfits_obj = uvfits.UVFITS()
-        ret_val = uvfits_obj.read_uvfits(filename, run_check=True, run_sanity_check=True)
+        uvfits_obj.read_uvfits(filename, run_check=True, run_sanity_check=True)
         self._convert_from_filetype(uvfits_obj)
-        return ret_val
+        del(uvfits_obj)
 
     def write_uvfits(self, filename, spoof_nonessential=False,
                      force_phase=False, run_check=True, run_sanity_check=True):
         uvfits_obj = self._convert_to_filetype('uvfits')
-        ret_val = uvfits_obj.write_uvfits(filename,
-                                          spoof_nonessential=spoof_nonessential,
-                                          force_phase=force_phase,
-                                          run_check=True, run_sanity_check=True)
-        return ret_val
+        uvfits_obj.write_uvfits(filename, spoof_nonessential=spoof_nonessential,
+                                force_phase=force_phase, run_check=True,
+                                run_sanity_check=True)
+        del(uvfits_obj)
 
     def read_fhd(self, filelist, use_model=False, run_check=True,
                  run_sanity_check=True):
         import fhd
         fhd_obj = fhd.FHD()
-        ret_val = fhd_obj.read_fhd(filelist, use_model=use_model,
-                                   run_check=True, run_sanity_check=True)
+        fhd_obj.read_fhd(filelist, use_model=use_model, run_check=True,
+                         run_sanity_check=True)
         self._convert_from_filetype(fhd_obj)
-        return ret_val
+        del(fhd_obj)
 
     def read_miriad(self, filepath, run_check=True, run_sanity_check=True):
         """read in data from a miriad file"""
         import miriad
         miriad_obj = miriad.Miriad()
-        ret_val = miriad_obj.read_miriad(filepath, run_check=True,
-                                         run_sanity_check=True)
+        miriad_obj.read_miriad(filepath, run_check=True, run_sanity_check=True)
         self._convert_from_filetype(miriad_obj)
-        return ret_val
+        del(miriad_obj)
 
     def write_miriad(self, filename, run_check=True, run_sanity_check=True,
                      clobber=False):
         miriad_obj = self._convert_to_filetype('miriad')
-        ret_val = miriad_obj.write_miriad(filename,
-                                          run_check=True, run_sanity_check=True,
-                                          clobber=clobber)
-        return ret_val
+        miriad_obj.write_miriad(filename, run_check=True, run_sanity_check=True,
+                                clobber=clobber)
+        del(miriad_obj)
