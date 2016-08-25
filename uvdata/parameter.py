@@ -25,9 +25,9 @@ class UVParameter(object):
             This is not an attribute of required UVParameters.
         form: Either 'str' or a tuple giving information about the expected
             shape of the value. Elements of the tuple may be the name of other
-            UVParameters that indicate data axes sizes. Examples:
+            UVParameters that indicate data shapes. Examples:
                 'str': a string value
-                ('Nblts', 3): indicating the value should be an array of size
+                ('Nblts', 3): indicating the value should be an array of shape:
                     Nblts (another UVParameter name), 3
         description: A string description of the data or metadata in the object.
         expected_type: The type that the data or metadata should be.
@@ -121,34 +121,34 @@ class UVParameter(object):
         """Set value to spoof_val for non-required UVParameters."""
         self.value = self.spoof_val
 
-    def expected_size(self, uvbase):
+    def expected_shape(self, uvbase):
         """
-        Get the expected size of the value based on the form.
+        Get the expected shape of the value based on the form.
 
         Args:
             uvbase: object with this UVParameter as an attribute. Needed
                 because the form can refer to other UVParameters on this object.
         Returns:
-            The expected size of the value.
+            The expected shape of the value.
         """
         if self.form == 'str':
             return self.form
         elif isinstance(self.form, np.int):
-            # Fixed size, just return the form
+            # Fixed shape, just return the form
             return self.form
         else:
             # Given by other attributes, look up values
-            esize = ()
+            eshape = ()
             for p in self.form:
                 if isinstance(p, np.int):
-                    esize = esize + (p,)
+                    eshape = eshape + (p,)
                 else:
                     val = getattr(uvbase, p)
                     if val is None:
                         raise ValueError('Missing UVBase parameter {p} needed to '
-                                         'calculate expected size of parameter'.format(p=p))
-                    esize = esize + (val,)
-            return esize
+                                         'calculate expected shape of parameter'.format(p=p))
+                    eshape = eshape + (val,)
+            return eshape
 
     def sanity_check(self):
         """Check that values are sane."""
@@ -165,13 +165,13 @@ class AntPositionParameter(UVParameter):
     """
     Subclass of UVParameter for antenna positions.
 
-    Overrides apply_spoof method to generate an array of the correct size based
+    Overrides apply_spoof method to generate an array of the correct shape based
     on the number of antennas on the object with this UVParameter as an attribute.
     """
 
     def apply_spoof(self, uvbase, antnum_name):
         """
-        Set value to zeroed array of size: number of antennas, 3.
+        Set value to zeroed array of shape: number of antennas, 3.
 
         Args:
             uvbase: object with this UVParameter as an attribute. Needed

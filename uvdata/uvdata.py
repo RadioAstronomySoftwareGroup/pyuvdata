@@ -20,13 +20,15 @@ class UVData(uvbase.UVBase):
 
     def __init__(self):
         # add the UVParameters to the class
+        radian_tol = 2 * np.pi * 1e-3 / (60.0 * 60.0 * 24.0)  # 1 mas in radians
+
         self._Ntimes = uvp.UVParameter('Ntimes', description='Number of times')
         self._Nbls = uvp.UVParameter('Nbls', description='number of baselines')
         self._Nblts = uvp.UVParameter('Nblts', description='Ntimes * Nbls')
         self._Nfreqs = uvp.UVParameter('Nfreqs', description='number of frequency channels')
         self._Npols = uvp.UVParameter('Npols', description='number of polarizations')
 
-        desc = ('array of the visibility data, size: (Nblts, Nspws, Nfreqs, '
+        desc = ('array of the visibility data, shape: (Nblts, Nspws, Nfreqs, '
                 'Npols), type = complex float, in units of self.vis_units')
         self._data_array = uvp.UVParameter('data_array', description=desc,
                                            form=('Nblts', 'Nspws', 'Nfreqs', 'Npols'),
@@ -62,30 +64,30 @@ class UVData(uvbase.UVBase):
                                           expected_type=np.float,
                                           sane_vals=(1e-3, 1e8), tols=.001)
 
-        desc = ('array of times, center of integration, dimension (Nblts), ' +
+        desc = ('array of times, center of integration, shape (Nblts), ' +
                 'units Julian Date')
         self._time_array = uvp.UVParameter('time_array', description=desc,
                                            form=('Nblts',),
                                            expected_type=np.float,
                                            tols=1e-3 / (60.0 * 60.0 * 24.0))  # 1 ms in days
 
-        desc = ('array of lsts, center of integration, dimension (Nblts), ' +
+        desc = ('array of lsts, center of integration, shape (Nblts), ' +
                 'units radians')
         self._lst_array = uvp.UVParameter('lst_array', description=desc,
                                           form=('Nblts',),
                                           expected_type=np.float,
-                                          tols=2 * np.pi * 1e-3 / (60.0 * 60.0 * 24.0))  # 1 ms in radians
+                                          tols=radian_tol)
 
-        desc = ('array of first antenna indices, dimensions (Nblts), '
+        desc = ('array of first antenna indices, shape (Nblts), '
                 'type = int, 0 indexed')
         self._ant_1_array = uvp.UVParameter('ant_1_array', description=desc,
                                             form=('Nblts',))
-        desc = ('array of second antenna indices, dimensions (Nblts), '
+        desc = ('array of second antenna indices, shape (Nblts), '
                 'type = int, 0 indexed')
         self._ant_2_array = uvp.UVParameter('ant_2_array', description=desc,
                                             form=('Nblts',))
 
-        desc = ('array of baseline indices, dimensions (Nblts), '
+        desc = ('array of baseline indices, shape (Nblts), '
                 'type = int; baseline = 2048 * (ant2+1) + (ant1+1) + 2^16 '
                 '(may this break casa?)')
         self._baseline_array = uvp.UVParameter('baseline_array',
@@ -94,7 +96,7 @@ class UVData(uvbase.UVBase):
 
         # this dimensionality of freq_array does not allow for different spws
         # to have different dimensions
-        desc = 'array of frequencies, dimensions (Nspws,Nfreqs), units Hz'
+        desc = 'array of frequencies, shape (Nspws,Nfreqs), units Hz'
         self._freq_array = uvp.UVParameter('freq_array', description=desc,
                                            form=('Nspws', 'Nfreqs'),
                                            expected_type=np.float,
@@ -153,7 +155,7 @@ class UVData(uvbase.UVBase):
         desc = ('number of antennas in the array. May be larger ' +
                 'than the number of antennas with data')
         self._Nants_telescope = uvp.UVParameter('Nants_telescope', description=desc)
-        desc = ('list of antenna names, dimensions (Nants_telescope), '
+        desc = ('list of antenna names, shape (Nants_telescope), '
                 'with numbers given by antenna_numbers (which can be matched '
                 'to ant_1_array and ant_2_array). There must be one entry '
                 'here for each unique entry in ant_1_array and '
@@ -163,7 +165,7 @@ class UVData(uvbase.UVBase):
                                               expected_type=str)
 
         desc = ('integer antenna number corresponding to antenna_names, '
-                'dimensions (Nants_telescope). There must be one '
+                'shape (Nants_telescope). There must be one '
                 'entry here for each unique entry in self.ant_1_array and '
                 'self.ant_2_array, but there may be extras as well.')
         self._antenna_numbers = uvp.UVParameter('antenna_numbers', description=desc,

@@ -55,7 +55,7 @@ class TestUVDataInit(object):
                                  'phase_center_epoch',
                                  'zenith_ra', 'zenith_dec']
 
-        self.other_attributes = ['telescope_location_lat_lon_alt',
+        self.other_properties = ['telescope_location_lat_lon_alt',
                                  'telescope_location_lat_lon_alt_degrees',
                                  'phase_center_ra_degrees', 'phase_center_dec_degrees',
                                  'zenith_ra_degrees', 'zenith_dec_degrees']
@@ -97,7 +97,7 @@ class TestUVDataInit(object):
 
     def test_unexpected_attributes(self):
         expected_attributes = self.required_properties + \
-            self.extra_properties + self.other_attributes
+            self.extra_properties + self.other_properties
         attributes = [i for i in self.uv_object.__dict__.keys() if i[0] != '_']
         for a in attributes:
             nt.assert_true(a in expected_attributes,
@@ -181,7 +181,7 @@ class TestUVDataBasicMethods(object):
 
     def test_list_check(self):
         antenna_names = self.uv_object.antenna_names
-        self.uv_object.antenna_names = [1] * self.uv_object._antenna_names.expected_size(self.uv_object)[0]
+        self.uv_object.antenna_names = [1] * self.uv_object._antenna_names.expected_shape(self.uv_object)[0]
         nt.assert_raises(ValueError, self.uv_object.check)
 
     def test_sanity_check(self):

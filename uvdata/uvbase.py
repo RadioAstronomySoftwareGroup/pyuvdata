@@ -176,7 +176,7 @@ class UVBase(object):
         """
         Check that all required parameters are set reasonably.
 
-        Check that required parameters exist and have appropriate sizes.
+        Check that required parameters exist and have appropriate shapes.
         Optionally check if the values are sane.
 
         Args:
@@ -190,25 +190,25 @@ class UVBase(object):
                 raise ValueError('Required UVParameter ' + p +
                                  ' has not been set.')
 
-            # Check required parameter size
-            esize = param.expected_size(self)
-            if esize is None:
+            # Check required parameter shape
+            eshape = param.expected_shape(self)
+            if eshape is None:
                 raise ValueError('Required UVParameter ' + p +
-                                 ' expected size is not defined.')
-            elif esize == 'str':
+                                 ' expected shape is not defined.')
+            elif eshape == 'str':
                 # Check that it's a string
                 if not isinstance(param.value, str):
                     raise ValueError('UVParameter ' + p + 'expected to be '
                                      'string, but is not')
             else:
-                # Check the size of the parameter value. Note that np.shape
-                # returns an empty tuple for single numbers. esize should do the same.
-                if not np.shape(param.value) == esize:
-                    raise ValueError('UVParameter {param} is not expected size. '
-                                     'Parameter size is {psize}, expected size is '
-                                     '{esize}.'.format(param=p, psize=np.shape(param.value),
-                                                       esize=esize))
-                if esize == ():
+                # Check the shape of the parameter value. Note that np.shape
+                # returns an empty tuple for single numbers. eshape should do the same.
+                if not np.shape(param.value) == eshape:
+                    raise ValueError('UVParameter {param} is not expected shape. '
+                                     'Parameter shape is {pshape}, expected shape is '
+                                     '{eshape}.'.format(param=p, pshape=np.shape(param.value),
+                                                        eshape=eshape))
+                if eshape == ():
                     # Single element
                     if not isinstance(param.value, param.expected_type):
                         raise ValueError('UVParameter ' + p + ' is not the appropriate'
