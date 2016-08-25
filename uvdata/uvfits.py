@@ -99,6 +99,7 @@ class UVFITS(UVData):
         self.Nants_data = int(np.max([len(np.unique(self.ant_1_array)),
                                       len(np.unique(self.ant_2_array))]))
 
+        self.set_phased()
         # check if we have an spw dimension
         if hdr.pop('NAXIS') == 7:
             if hdr['NAXIS5'] > 1:
@@ -116,9 +117,8 @@ class UVFITS(UVData):
             # subtract 1 to be zero-indexed
             self.spw_array = np.int32(self._gethduaxis(D, 5)) - 1
 
-            self.phase_center_ra_degrees = np.array(hdr.pop('CRVAL6')).astype(np.float64)
-            self.phase_center_dec_degrees = np.array(hdr.pop('CRVAL7')).astype(np.float64)
-            self.is_phased = True
+            self.phase_center_ra_degrees = np.float(hdr.pop('CRVAL6'))
+            self.phase_center_dec_degrees = np.float(hdr.pop('CRVAL7'))
         else:
             # in many uvfits files the spw axis is left out,
             # here we put it back in so the dimensionality stays the same
@@ -134,9 +134,8 @@ class UVFITS(UVData):
             self.Nspws = 1
             self.spw_array = np.array([0])
 
-            self.phase_center_ra_degrees = np.array(hdr.pop('CRVAL5')).astype(np.float64)
-            self.phase_center_dec_degrees = np.array(hdr.pop('CRVAL6')).astype(np.float64)
-            self.is_phased = True
+            self.phase_center_ra_degrees = np.float(hdr.pop('CRVAL5'))
+            self.phase_center_dec_degrees = np.float(hdr.pop('CRVAL6'))
 
         # get shapes
         self.Nfreqs = hdr.pop('NAXIS4')
@@ -279,17 +278,23 @@ class UVFITS(UVData):
         if run_check:
             self.check(run_sanity_check=run_sanity_check)
 
-        if not self.is_phased:
+        if self.phase_type == 'phased':
+            pass
+        elif self.phase_type == 'drift':
             if force_phase:
-                print('The data does not have a defined phase center. ' +
-                      'Phasing to zenith of the first timestamp.')
+                print('The data are in drift mode and do not have a '
+                      'defined phase center. Phasing to zenith of the first '
+                      'timestamp.')
                 self.phase_to_time(self.time_array[0])
             else:
-                raise ValueError('The data is not phased, ' +
-                                 'which means it is a drift scan. ' +
+                raise ValueError('The data are in drift mode. ' +
                                  'Set force_phase to true to phase the data ' +
-                                 'zenith of the first timestamp before ' +
+                                 'to zenith of the first timestamp before ' +
                                  'writing a uvfits file.')
+        else:
+            raise ValueError('The phasing type of the data is unknown. '
+                             'Set the phase_type to drift or phased to '
+                             'reflect the phasing status of the data')
 
         for p in self.extra():
             param = getattr(self, p)

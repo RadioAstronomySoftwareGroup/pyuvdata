@@ -19,10 +19,9 @@ class TestUVDataInit(object):
                                     '_integration_time', '_channel_width',
                                     '_object_name', '_telescope_name',
                                     '_instrument', '_telescope_location',
-                                    '_history', '_vis_units',
-                                    '_Nants_data',
+                                    '_history', '_vis_units', '_Nants_data',
                                     '_Nants_telescope', '_antenna_names',
-                                    '_antenna_numbers']
+                                    '_antenna_numbers', '_phase_type']
 
         self.required_properties = ['data_array', 'nsample_array',
                                     'flag_array', 'Ntimes', 'Nbls',
@@ -34,10 +33,9 @@ class TestUVDataInit(object):
                                     'integration_time', 'channel_width',
                                     'object_name', 'telescope_name',
                                     'instrument', 'telescope_location',
-                                    'history', 'vis_units',
-                                    'Nants_data',
+                                    'history', 'vis_units', 'Nants_data',
                                     'Nants_telescope', 'antenna_names',
-                                    'antenna_numbers']
+                                    'antenna_numbers', 'phase_type']
 
         self.extra_parameters = ['_extra_keywords', '_dateobs',
                                  '_antenna_positions', '_gst0', '_rdate',
@@ -236,9 +234,10 @@ def test_phase_unphasePAPER():
     UV_phase.phase(0., 0., ephem.J2000)
     UV_phase.unphase_to_drift()
 
-    print UV_raw.phase_center_epoch
-    print UV_phase.phase_center_epoch
-
+    print('min, max zenith_ra of UV_raw: {min}, {max}'.format(min=UV_raw.zenith_ra.min(),
+                                                              max=UV_raw.zenith_ra.max()))
+    print('min, max zenith_ra of UV_phase: {min}, {max}'.format(min=UV_phase.zenith_ra.min(),
+                                                                max=UV_phase.zenith_ra.max()))
     nt.assert_equal(UV_raw, UV_phase)
     del(UV_phase)
     del(UV_raw)

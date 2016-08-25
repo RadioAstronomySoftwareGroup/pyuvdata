@@ -158,10 +158,6 @@ class UVBase(object):
                 self_param = getattr(self, p)
                 other_param = getattr(other, p)
                 if self_param != other_param:
-                    # print('parameter {pname} does not match. Left is {lval} '
-                    #       'and right is {rval}'.
-                    #       format(pname=p, lval=str(self_param.value),
-                    #              rval=str(other_param.value)))
                     return False
             return True
         else:
@@ -231,6 +227,15 @@ class UVBase(object):
 
             if run_sanity_check:
                 if not param.sanity_check():
-                    raise ValueError('UVParameter ' + p + ' has insane values.')
+                    if param.expected_type == str:
+                        message = ('Value is {val}, allowed values are: '
+                                   '{sane_vals}'.format(val=param.value,
+                                                        sane_vals=param.sane_vals))
+                    else:
+                        message = ('Test value is {val}, sane range is: '
+                                   '{sane_vals}'.format(val=np.mean(np.abs(param.value)),
+                                                        sane_vals=param.sane_vals))
+                    raise ValueError('UVParameter ' + p + ' has insane values. ' +
+                                     message)
 
         return True

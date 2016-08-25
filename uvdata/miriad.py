@@ -228,14 +228,14 @@ class Miriad(UVData):
         # check if ra is constant throughout file; if it is,
         # file is tracking if not, file is drift scanning
         if np.isclose(np.mean(np.diff(ra_list)), 0.):
+            self.set_phased()
             self.phase_center_ra = ra_list[0]
             self.phase_center_dec = dec_list[0]
             self.phase_center_epoch = uv['epoch']
-            self.is_phased = True
         else:
+            self.set_drift()
             self.zenith_ra = ra_list
             self.zenith_dec = dec_list
-            self.is_phased = False
 
         self.vis_units = 'UNCALIB'  # assume no calibration
 
@@ -298,7 +298,7 @@ class Miriad(UVData):
             pass  # don't write bad antenna positions
         uv.add_var('sfreq', 'd')
         uv['sfreq'] = self.freq_array[0, 0] / 1e9  # first spw; in GHz
-        if self.is_phased:
+        if self.phase_type == 'phased':
             uv.add_var('epoch', 'r')
             uv['epoch'] = self.phase_center_epoch
 
@@ -331,12 +331,16 @@ class Miriad(UVData):
             j = self.ant_2_array[viscnt]
 
             uv['lst'] = self.lst_array[viscnt]
-            if self.is_phased:
+            if self.phase_type == 'phased':
                 uv['ra'] = self.phase_center_ra
                 uv['dec'] = self.phase_center_dec
-            else:
+            elif self.phase_type == 'drift':
                 uv['ra'] = self.zenith_ra[viscnt]
                 uv['dec'] = self.zenith_dec[viscnt]
+            else:
+                raise ValueError('The phasing type of the data is unknown. '
+                                 'Set the phase_type to "drift" or "phased" to '
+                                 'reflect the phasing status of the data')
 
             # NOTE only writing spw 0, not supporting multiple spws for write
             for polcnt, pol in enumerate(self.polarization_array):

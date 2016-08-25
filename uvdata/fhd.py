@@ -166,9 +166,9 @@ class FHD(UVData):
             warnings.warn('These visibilities may have been phased '
                           'improperly -- without changing the uvw locations')
 
-        self.phase_center_ra_degrees = float(obs['OBSRA'][0])
-        self.phase_center_dec_degrees = float(obs['OBSDEC'][0])
-        self.is_phased = True
+        self.set_phased()
+        self.phase_center_ra_degrees = np.float(obs['OBSRA'][0])
+        self.phase_center_dec_degrees = np.float(obs['OBSDEC'][0])
 
         # this is generated in FHD by subtracting the JD of neighboring
         # integrations. This can have limited accuracy, so it can be slightly
