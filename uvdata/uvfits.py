@@ -9,9 +9,7 @@ from uvdata import UVData
 class UVFITS(UVData):
 
     uvfits_required_extra = ['antenna_positions', 'gst0', 'rdate',
-                             'earth_omega', 'dut1', 'timesys',
-                             'phase_center_ra', 'phase_center_dec',
-                             'phase_center_epoch']
+                             'earth_omega', 'dut1', 'timesys']
 
     def _gethduaxis(self, D, axis):
         ax = str(axis)
