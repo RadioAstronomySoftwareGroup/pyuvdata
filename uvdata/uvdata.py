@@ -42,9 +42,8 @@ class UVData(UVBase):
                                            form=('Nblts', 'Nspws', 'Nfreqs', 'Npols'),
                                            expected_type=np.complex)
 
-        self._vis_units = uvp.UVParameter('vis_units',
-                                          description='Visibility units, options are'
-                                                      '"uncalib", "Jy" or "K str"',
+        desc = 'Visibility units, options are: "uncalib", "Jy" or "K str"'
+        self._vis_units = uvp.UVParameter('vis_units', description=desc,
                                           form='str',
                                           sane_vals=["uncalib", "Jy", "K str"])
 
@@ -491,8 +490,8 @@ class UVData(UVBase):
         obs.date, obs.epoch = ephem.J2000, ephem.J2000
         precess_pos.compute(obs)
 
-        self.phase_center_ra = precess_pos.a_ra + 0.0
-        self.phase_center_dec = precess_pos.a_dec + 0.0
+        self.phase_center_ra = precess_pos.a_ra + 0.0  # force to be a float not ephem.Angle
+        self.phase_center_dec = precess_pos.a_dec + 0.0  # force to be a float not ephem.Angle
         # explicitly set epoch to J2000
         self.phase_center_epoch = 2000.0
 
