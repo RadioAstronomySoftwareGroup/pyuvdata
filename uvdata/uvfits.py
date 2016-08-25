@@ -138,7 +138,7 @@ class UVFITS(UVData):
             self.phase_center_dec_degrees = np.array(hdr.pop('CRVAL6')).astype(np.float64)
             self.is_phased = True
 
-        # get dimension sizes
+        # get shapes
         self.Nfreqs = hdr.pop('NAXIS4')
         assert(self.Nfreqs == self.data_array.shape[2])
         self.Npols = hdr.pop('NAXIS3')

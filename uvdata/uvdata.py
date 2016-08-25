@@ -191,26 +191,26 @@ class UVData(uvbase.UVBase):
         self._zenith_ra = uvp.AngleParameter('zenith_ra', required=False,
                                              description=desc,
                                              form=('Nblts',),
-                                             tols=2 * np.pi * 1e-3 / (60.0 * 60.0 * 24.0))  # 1 mas in radians
+                                             tols=radian_tol)
 
         desc = ('dec of zenith. units: radians, shape (Nblts)')
         # in practice, dec of zenith will never change; does not need to be shape Nblts
         self._zenith_dec = uvp.AngleParameter('zenith_dec', required=False,
                                               description=desc,
                                               form=('Nblts',),
-                                              tols=2 * np.pi * 1e-3 / (60.0 * 60.0 * 24.0))  # 1 mas in radians
+                                              tols=radian_tol)
 
         desc = ('right ascension of phase center (see uvw_array), '
                 'units radians')
         self._phase_center_ra = uvp.AngleParameter('phase_center_ra', required=False,
                                                    description=desc,
-                                                   tols=2 * np.pi * 1e-3 / (60.0 * 60.0 * 24.0))  # 1 mas in radians
+                                                   tols=radian_tol)
 
         desc = ('declination of phase center (see uvw_array), '
                 'units radians')
         self._phase_center_dec = uvp.AngleParameter('phase_center_dec', required=False,
                                                     description=desc,
-                                                    tols=2 * np.pi * 1e-3 / (60.0 * 60.0 * 24.0))  # 1 mas in radians
+                                                    tols=radian_tol)
 
         # --- other stuff ---
         # the below are copied from AIPS memo 117, but could be revised to

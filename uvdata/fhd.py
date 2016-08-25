@@ -63,7 +63,7 @@ class FHD(UVData):
             else:
                 vis_data[pol] = this_dict['vis_ptr']
             this_obs = this_dict['obs']
-            data_dimensions = vis_data[pol].shape
+            data_shape = vis_data[pol].shape
 
         obs = this_obs
         bl_info = obs['BASELINE_INFO'][0]
@@ -90,7 +90,7 @@ class FHD(UVData):
 
         self.Ntimes = int(obs['N_TIME'][0])
         self.Nbls = int(obs['NBASELINES'][0])
-        self.Nblts = data_dimensions[0]
+        self.Nblts = data_shape[0]
         self.Nfreqs = int(obs['N_FREQ'][0])
         self.Npols = len(vis_data.keys())
         self.Nspws = 1

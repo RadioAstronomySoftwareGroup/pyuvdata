@@ -193,7 +193,7 @@ class Miriad(UVData):
         self.nsample_array = np.ones(self.data_array.shape, dtype=np.int)
         self.freq_array = (np.arange(self.Nfreqs) * self.channel_width +
                            uv['sfreq'] * 1e9)
-        # Tile freq_array to dimensions (Nspws, Nfreqs).
+        # Tile freq_array to shape (Nspws, Nfreqs).
         # Currently does not actually support Nspws>1!
         self.freq_array = np.tile(self.freq_array, (self.Nspws, 1))
 
