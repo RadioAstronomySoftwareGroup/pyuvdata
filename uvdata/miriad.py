@@ -34,13 +34,9 @@ class Miriad(UVData):
                               # as the same
                               'telescope_name': 'telescop',
                               'instrument': 'telescop',
-                              #   'latitude': 'latitud',
-                              #   'longitude': 'longitu',  # in units of radians
                               # (get the first time in the ever changing header)
                               'dateobs': 'time',
-                              # 'history': 'history',
                               'Nants_telescope': 'nants',
-                              'phase_center_epoch': 'epoch',
                               'antenna_positions': 'antpos',  # take deltas
                               }
         for item in miriad_header_data:
@@ -229,6 +225,7 @@ class Miriad(UVData):
         if np.isclose(np.mean(np.diff(ra_list)), 0.):
             self.phase_center_ra = ra_list[0]
             self.phase_center_dec = dec_list[0]
+            self.phase_center_epoch = uv['epoch']
             self.is_phased = True
         else:
             self.zenith_ra = ra_list
@@ -292,8 +289,9 @@ class Miriad(UVData):
             pass  # don't write bad antenna positions
         uv.add_var('sfreq', 'd')
         uv['sfreq'] = self.freq_array[0, 0] / 1e9  # first spw; in GHz
-        uv.add_var('epoch', 'r')
-        uv['epoch'] = self.phase_center_epoch
+        if self.is_phased:
+            uv.add_var('epoch', 'r')
+            uv['epoch'] = self.phase_center_epoch
 
         # required pyuvdata variables that are not recognized miriad variables
         uv.add_var('ntimes', 'i')

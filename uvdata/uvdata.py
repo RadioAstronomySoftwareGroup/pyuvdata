@@ -137,10 +137,11 @@ class UVData(uvbase.UVBase):
                                         form='str')
 
         desc = ('epoch year of the phase applied to the data (eg 2000.)')
-        self._phase_center_epoch = uvp.UVParameter('phase_center_epoch', description=desc,
+        self._phase_center_epoch = uvp.UVParameter('phase_center_epoch', required=False,
+                                                   description=desc,
                                                    expected_type=np.float)
 
-        self._is_phased = uvp.UVParameter('is_phased', required=True,
+        self._is_phased = uvp.UVParameter('is_phased',
                                           expected_type=bool,
                                           description='true/false whether data is '
                                                       'phased (true) or drift scanning (false)')

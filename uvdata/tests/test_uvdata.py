@@ -20,7 +20,7 @@ class TestUVDataInit(object):
                                     '_object_name', '_telescope_name',
                                     '_instrument', '_telescope_location',
                                     '_history', '_vis_units',
-                                    '_phase_center_epoch', '_Nants_data',
+                                    '_Nants_data',
                                     '_Nants_telescope', '_antenna_names',
                                     '_antenna_numbers']
 
@@ -35,7 +35,7 @@ class TestUVDataInit(object):
                                     'object_name', 'telescope_name',
                                     'instrument', 'telescope_location',
                                     'history', 'vis_units',
-                                    'phase_center_epoch', 'Nants_data',
+                                    'Nants_data',
                                     'Nants_telescope', 'antenna_names',
                                     'antenna_numbers']
 
@@ -44,6 +44,7 @@ class TestUVDataInit(object):
                                  '_earth_omega', '_dut1', '_timesys',
                                  '_uvplane_reference_time',
                                  '_phase_center_ra', '_phase_center_dec',
+                                 '_phase_center_epoch',
                                  '_zenith_ra', '_zenith_dec']
 
         self.extra_properties = ['extra_keywords', 'dateobs',
@@ -51,6 +52,7 @@ class TestUVDataInit(object):
                                  'earth_omega', 'dut1', 'timesys',
                                  'uvplane_reference_time',
                                  'phase_center_ra', 'phase_center_dec',
+                                 'phase_center_epoch',
                                  'zenith_ra', 'zenith_dec']
 
         self.other_attributes = ['telescope_location_lat_lon_alt',
@@ -233,6 +235,9 @@ def test_phase_unphasePAPER():
                                   known_warning='miriad')
     UV_phase.phase(0., 0., ephem.J2000)
     UV_phase.unphase_to_drift()
+
+    print UV_raw.phase_center_epoch
+    print UV_phase.phase_center_epoch
 
     nt.assert_equal(UV_raw, UV_phase)
     del(UV_phase)

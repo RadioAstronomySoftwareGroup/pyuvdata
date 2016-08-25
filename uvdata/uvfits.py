@@ -9,7 +9,9 @@ from uvdata import UVData
 class UVFITS(UVData):
 
     uvfits_required_extra = ['antenna_positions', 'gst0', 'rdate',
-                             'earth_omega', 'dut1', 'timesys']
+                             'earth_omega', 'dut1', 'timesys',
+                             'phase_center_ra', 'phase_center_dec',
+                             'phase_center_epoch']
 
     def _gethduaxis(self, D, axis):
         ax = str(axis)
@@ -278,14 +280,14 @@ class UVFITS(UVData):
         if run_check:
             self.check(run_sanity_check=run_sanity_check)
 
-        if self.phase_center_ra is None or self.phase_center_dec is None:
+        if not self.is_phased:
             if force_phase:
                 print('The data does not have a defined phase center. ' +
                       'Phasing to zenith of the first timestamp.')
                 self.phase_to_time(self.time_array[0])
             else:
-                raise ValueError('The data does not have a defined phase ' +
-                                 'center, which means it is a drift scan. ' +
+                raise ValueError('The data is not phased, ' +
+                                 'which means it is a drift scan. ' +
                                  'Set force_phase to true to phase the data ' +
                                  'zenith of the first timestamp before ' +
                                  'writing a uvfits file.')
