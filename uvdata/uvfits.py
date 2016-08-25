@@ -336,9 +336,9 @@ class UVFITS(UVData):
         # Set up dictionaries for populating hdu
         # Note that uvfits antenna arrays are 1-indexed so we add 1
         # to our 0-indexed arrays
-        group_parameter_dict = {'UU      ': uvw_array_sec[:,0],
-                                'VV      ': uvw_array_sec[:,1],
-                                'WW      ': uvw_array_sec[:,2],
+        group_parameter_dict = {'UU      ': uvw_array_sec[:, 0],
+                                'VV      ': uvw_array_sec[:, 1],
+                                'WW      ': uvw_array_sec[:, 2],
                                 'DATE    ': time_array,
                                 'BASELINE': baselines_use,
                                 'ANTENNA1': self.ant_1_array + 1,

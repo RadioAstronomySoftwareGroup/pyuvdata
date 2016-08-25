@@ -76,7 +76,7 @@ class UVParameter(object):
     def __ne__(self, other):
         return not self.__eq__(other)
 
-    def apply_spoof(self, *args):
+    def apply_spoof(self):
         self.value = self.spoof_val
 
     def expected_size(self, dataobj):

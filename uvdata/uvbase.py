@@ -139,7 +139,7 @@ class UVBase(object):
             yield a
 
     def __eq__(self, other):
-        """Equal if class types match and required parameters are equal."""
+        """Equal if classes match and required parameters are equal."""
         if isinstance(other, self.__class__):
             # only check that required parameters are identical
             self_required = []
@@ -149,6 +149,9 @@ class UVBase(object):
             for p in other.required():
                 other_required.append(p)
             if set(self_required) != set(other_required):
+                print('Sets of required parameters do not match. Left is {lset},'
+                      ' right is {rset}'.format(lset=self_required,
+                                                rset=other_required))
                 return False
 
             for p in self.required():
