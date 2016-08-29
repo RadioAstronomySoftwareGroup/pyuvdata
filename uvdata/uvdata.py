@@ -6,7 +6,7 @@ import numpy as np
 import warnings
 import aipy as a
 import ephem
-import uvbase
+from uvbase import UVBase
 import parameter as uvp
 import telescopes as uvtel
 
@@ -20,6 +20,7 @@ class UVData(UVBase):
     """A container for defining a radio interferometer dataset.
 
     Currently supported file types: uvfits, miriad, fhd
+    Provides phasing functions.
     """
     supported_read_file_types = ['uvfits', 'miriad', 'fhd']
     supported_write_file_types = ['uvfits', 'miriad', 'fhd']
@@ -256,7 +257,7 @@ class UVData(UVBase):
     def known_telescopes(self):
         """Retun a list of telescopes known to pyuvdata
         (this is a shortcut to uvdata.telescopes.known_telescopes())"""
-        return uvdata.telescopes.known_telescopes()
+        return uvtel.known_telescopes()
 
 
     def set_telescope_params(self, overwrite=False):
@@ -511,6 +512,7 @@ class UVData(UVBase):
         return ret_val
 
     def read_miriad(self, filepath, run_check=True, run_sanity_check=True):
+        """read in data from a miriad file"""
         import miriad
         miriad_obj = miriad.Miriad()
         ret_val = miriad_obj.read_miriad(filepath, run_check=True,
