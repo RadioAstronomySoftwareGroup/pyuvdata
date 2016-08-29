@@ -9,9 +9,11 @@ pyuvdata
    :maxdepth: 1
 
    installation
+   tutorial
    parameters
    uvdata
-   
+   miriad
+
 
 
 Indices and tables
