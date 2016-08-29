@@ -254,13 +254,10 @@ class UVData(UVBase):
         warnings.formatwarning = _warning
 
     def known_telescopes(self):
-<<<<<<< HEAD:uvdata/uv.py
         """Retun a list of telescopes known to pyuvdata
         (this is a shortcut to uvdata.telescopes.known_telescopes())"""
         return uvdata.telescopes.known_telescopes()
-=======
-        return uvtel.known_telescopes()
->>>>>>> 549c5cd5a7027ad38c59d6685913a8b4fa3440df:uvdata/uvdata.py
+
 
     def set_telescope_params(self, overwrite=False):
         telescope_obj = uvtel.get_telescope(self.telescope_name)
@@ -392,11 +389,7 @@ class UVData(UVBase):
 
     def phase_to_time(self, time):
         # phase drift scan data to a time in jd
-<<<<<<< HEAD:uvdata/uv.py
         #(i.e. ra/dec of zenith at that time in current epoch).
-=======
-        # (i.e. ra/dec of zenith at that time in current epoch).
->>>>>>> 549c5cd5a7027ad38c59d6685913a8b4fa3440df:uvdata/uvdata.py
 
         obs = ephem.Observer()
         # obs inits with default values for parameters -- be sure to replace them
