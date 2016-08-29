@@ -363,7 +363,6 @@ class UVData(UVBase):
                 curtime = jd
                 latitude, longitude, altitude = self.telescope_location_lat_lon_alt_degrees
                 t = Time(jd, format='jd', location=(longitude, latitude))
-                # t.delta_ut1_utc = iers_a.ut1_utc(t)
             lsts.append(t.sidereal_time('apparent').radian)
         self.lst_array = np.array(lsts)
 
