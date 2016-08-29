@@ -1,3 +1,4 @@
+""""""
 from astropy import constants as const
 from astropy.time import Time
 import os.path as op
@@ -22,10 +23,15 @@ def _warning(message, category=UserWarning, filename='', lineno=-1):
 
 
 class UVData(UVBase):
+    """A container for defining a radio interferometer dataset.
+
+    Currently supported file types: uvfits, miriad, fhd
+    """
     supported_read_file_types = ['uvfits', 'miriad', 'fhd']
     supported_write_file_types = ['uvfits', 'miriad', 'fhd']
 
     def __init__(self):
+        """Create a new UVData object."""
         # add the UVParameters to the class
         self._Ntimes = uvp.UVParameter('Ntimes', description='Number of times')
         self._Nbls = uvp.UVParameter('Nbls', description='number of baselines')
@@ -241,6 +247,8 @@ class UVData(UVBase):
         # warnings.showwarning = _warning
 
     def known_telescopes(self):
+        """Retun a list of telescopes known to pyuvdata
+        (this is a shortcut to uvdata.telescopes.known_telescopes())"""
         return uvdata.telescopes.known_telescopes()
 
     def set_telescope_params(self, overwrite=False):
@@ -371,7 +379,7 @@ class UVData(UVBase):
         self.is_phased = False
 
     def phase_to_time(self, time):
-        # phase drift scan data to a time in jd 
+        # phase drift scan data to a time in jd
         #(i.e. ra/dec of zenith at that time in current epoch).
 
         obs = ephem.Observer()
