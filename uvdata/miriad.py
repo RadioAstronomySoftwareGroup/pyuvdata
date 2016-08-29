@@ -351,4 +351,5 @@ class Miriad(UVData):
 
                 uv.write(preamble, data, flags)
         if run_check:
+            """Check for units sanity."""
             self.check(run_sanity_check=run_sanity_check)
