@@ -1,6 +1,6 @@
-UVDdata Class
+UVdata Class
 =============
 
 
-.. automodule:: uvdata.uvdata.UV
-   :members:
+.. automodule:: uvdata.uv
+   :members: UVData
