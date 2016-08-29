@@ -1,3 +1,4 @@
+""""""
 from astropy import constants as const
 import os
 import shutil
@@ -9,7 +10,7 @@ import telescopes as uvtel
 
 
 class Miriad(UVData):
-
+    """Defines a Miriad-speficic class for reading and writing miriad. """
     def miriad_pol_to_ind(self, pol):
         if self.polarization_array is None:
             raise(ValueError, "Can't index polarization {p} because "
@@ -21,6 +22,10 @@ class Miriad(UVData):
         return pol_ind
 
     def read_miriad(self, filepath, run_check=True, run_sanity_check=True):
+        """Read data from a miriad file.
+        run_sanity_check = check, that where possible, things seem to have the right units
+        run_check = Run checks to make sure required variables are set and they have internally consistent shapes
+        """
         if not os.path.exists(filepath):
             raise(IOError, filepath + ' not found')
         uv = a.miriad.UV(filepath)
@@ -244,6 +249,10 @@ class Miriad(UVData):
             self.check(run_sanity_check=run_sanity_check)
 
     def write_miriad(self, filepath, run_check=True, run_sanity_check=True, clobber=False):
+        """Read data from a miriad file.
+        run_sanity_check = checks the data for internal consistency
+        run_check = Run checks to make sure required variables are set and (where possible) things seem to have the right units
+        """
         # check for multiple spws
         if self.data_array.shape[1] > 1:
             raise ValueError('write_miriad currently only handles single spw files.')
