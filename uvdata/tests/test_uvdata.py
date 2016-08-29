@@ -238,6 +238,12 @@ def test_phase_unphasePAPER():
                                                               max=UV_raw.zenith_ra.max()))
     print('min, max zenith_ra of UV_phase: {min}, {max}'.format(min=UV_phase.zenith_ra.min(),
                                                                 max=UV_phase.zenith_ra.max()))
+
+    print('min, max zenith_dec of UV_raw: {min}, {max}'.format(min=UV_raw.zenith_dec.min(),
+                                                               max=UV_raw.zenith_dec.max()))
+    print('min, max zenith_dec of UV_phase: {min}, {max}'.format(min=UV_phase.zenith_dec.min(),
+                                                                 max=UV_phase.zenith_dec.max()))
+
     nt.assert_equal(UV_raw, UV_phase)
     del(UV_phase)
     del(UV_raw)
