@@ -1,6 +1,6 @@
 import nose.tools as nt
-import os.path as op
-from uvdata.uv import UVData
+import os
+from uvdata import UVData
 import uvdata.tests as uvtest
 
 
@@ -16,10 +16,10 @@ for s in testfile_suffix:
 def test_ReadFHDWriteReadUVFits():
     fhd_uv = UVData()
     uvfits_uv = UVData()
-    fhd_uv.read(testfiles, 'fhd')
-    fhd_uv.write(op.join('../data/test/outtest_FHD_1061316296.uvfits'),
-                 file_type='uvfits', spoof_nonessential=True)
-    uvfits_uv.read(op.join('../data/test/outtest_FHD_1061316296.uvfits'), 'uvfits')
+    fhd_uv.read_fhd(testfiles)
+    fhd_uv.write_uvfits(os.path.join('../data/test/outtest_FHD_1061316296.uvfits'),
+                        spoof_nonessential=True)
+    uvfits_uv.read_uvfits(os.path.join('../data/test/outtest_FHD_1061316296.uvfits'))
     nt.assert_equal(fhd_uv, uvfits_uv)
     del(fhd_uv)
     del(uvfits_uv)
@@ -28,18 +28,18 @@ def test_ReadFHDWriteReadUVFits():
 def test_breakReadFHD():
     # Try various cases of incomplete file lists
     fhd_uv = UVData()
-    nt.assert_raises(StandardError, fhd_uv.read, testfiles[1:], 'fhd')  # Missing flags
+    nt.assert_raises(StandardError, fhd_uv.read_fhd, testfiles[1:])  # Missing flags
     del(fhd_uv)
     fhd_uv = UVData()
     subfiles = [item for sublist in [testfiles[0:2], testfiles[3:]] for item in sublist]
-    nt.assert_raises(StandardError, fhd_uv.read, subfiles, 'fhd')  # Missing params
+    nt.assert_raises(StandardError, fhd_uv.read_fhd, subfiles)  # Missing params
     del(fhd_uv)
     fhd_uv = UVData()
-    nt.assert_raises(StandardError, fhd_uv.read, ['foo'], 'fhd')  # No data files
+    nt.assert_raises(StandardError, fhd_uv.read_fhd, ['foo'])  # No data files
     del(fhd_uv)
     fhd_uv = UVData()
-    nt.assert_true(uvtest.checkWarnings(fhd_uv.read, [testfiles[:-1],
-                                        'fhd'], message=['No settings']))
+    nt.assert_true(uvtest.checkWarnings(fhd_uv.read_fhd, [testfiles[:-1]],
+                                        message=['No settings']))
     nt.assert_equal(fhd_uv.history, '')  # Check empty history with no settings
     del(fhd_uv)
 
@@ -47,10 +47,10 @@ def test_breakReadFHD():
 def test_ReadFHD_model():
     fhd_uv = UVData()
     uvfits_uv = UVData()
-    fhd_uv.read(testfiles, 'fhd')
-    fhd_uv.write('../data/test/outtest_FHD_1061316296_model.uvfits',
-                 file_type='uvfits', spoof_nonessential=True)
-    uvfits_uv.read('../data/test/outtest_FHD_1061316296_model.uvfits', 'uvfits')
+    fhd_uv.read_fhd(testfiles)
+    fhd_uv.write_uvfits('../data/test/outtest_FHD_1061316296_model.uvfits',
+                        spoof_nonessential=True)
+    uvfits_uv.read_uvfits('../data/test/outtest_FHD_1061316296_model.uvfits')
     nt.assert_equal(fhd_uv, uvfits_uv)
     del(fhd_uv)
     del(uvfits_uv)

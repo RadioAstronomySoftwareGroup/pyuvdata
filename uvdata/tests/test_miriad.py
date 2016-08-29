@@ -1,5 +1,5 @@
 import nose.tools as nt
-from uvdata.uv import UVData
+from uvdata import UVData
 import ephem
 import uvdata.tests as uvtest
 
@@ -9,11 +9,11 @@ def test_ReadMiriadWriteUVFits():
     uvfits_uv = UVData()
     miriad_file = '../data/zen.2456865.60537.xy.uvcRREAA'
     testfile = '../data/test/outtest_miriad.uvfits'
-    miriad_status = uvtest.checkWarnings(miriad_uv.read, [miriad_file, 'miriad'],
+    miriad_status = uvtest.checkWarnings(miriad_uv.read_miriad, [miriad_file],
                                          known_warning='miriad')
-    miriad_uv.write(testfile, file_type='uvfits', spoof_nonessential=True,
-                    force_phase=True)
-    uvfits_uv.read(testfile, 'uvfits')
+    miriad_uv.write_uvfits(testfile, spoof_nonessential=True,
+                           force_phase=True)
+    uvfits_uv.read_uvfits(testfile)
     nt.assert_true(miriad_status)
     nt.assert_equal(miriad_uv, uvfits_uv)
     del(miriad_uv)
@@ -22,7 +22,7 @@ def test_ReadMiriadWriteUVFits():
 
 def test_breakReadMiriad():
     UV = UVData()
-    nt.assert_raises(IOError, UV.read, 'foo', 'miriad')
+    nt.assert_raises(IOError, UV.read_miriad, 'foo')
     del(UV)
 
 
@@ -30,9 +30,9 @@ def test_writePAPER():
     UV = UVData()
     testfile = '../data/zen.2456865.60537.xy.uvcRREAA'
     write_file = '../data/test/outtest_miriad.uv'
-    status = uvtest.checkWarnings(UV.read, [testfile, 'miriad'],
+    status = uvtest.checkWarnings(UV.read_miriad, [testfile],
                                   known_warning='miriad')
-    UV.write(write_file, file_type='miriad', clobber=True)
+    UV.write_miriad(write_file, clobber=True)
     nt.assert_true(status)
     del(UV)
 
@@ -42,10 +42,10 @@ def test_readWriteReadMiriad():
     uv_out = UVData()
     testfile = '../data/zen.2456865.60537.xy.uvcRREAA'
     write_file = '../data/test/outtest_miriad.uv'
-    status = uvtest.checkWarnings(uv_in.read, [testfile, 'miriad'],
+    status = uvtest.checkWarnings(uv_in.read_miriad, [testfile],
                                   known_warning='miriad')
-    uv_in.write(write_file, file_type='miriad', clobber=True)
-    uv_out.read(write_file, 'miriad')
+    uv_in.write_miriad(write_file, clobber=True)
+    uv_out.read_miriad(write_file)
 
     nt.assert_true(status)
     nt.assert_equal(uv_in, uv_out)

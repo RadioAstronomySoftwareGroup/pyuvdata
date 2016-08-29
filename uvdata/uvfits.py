@@ -3,13 +3,14 @@ from astropy.time import Time
 from astropy.io import fits
 import numpy as np
 import warnings
-import uvdata
+from uvdata import UVData
+import parameter as uvp
 
 
-class UVFITS(uvdata.uv.UVData):
+class UVFITS(UVData):
 
-    uvfits_required_extra = ['antenna_positions', 'GST0', 'RDate',
-                             'earth_omega', 'DUT1', 'TIMESYS']
+    uvfits_required_extra = ['antenna_positions', 'gst0', 'rdate',
+                             'earth_omega', 'dut1', 'timesys']
 
     def _gethduaxis(self, D, axis):
         ax = str(axis)
@@ -137,7 +138,7 @@ class UVFITS(uvdata.uv.UVData):
             self.phase_center_dec_degrees = np.array(hdr.pop('CRVAL6')).astype(np.float64)
             self.is_phased = True
 
-        # get dimension sizes
+        # get shapes
         self.Nfreqs = hdr.pop('NAXIS4')
         assert(self.Nfreqs == self.data_array.shape[2])
         self.Npols = hdr.pop('NAXIS3')
@@ -149,7 +150,7 @@ class UVFITS(uvdata.uv.UVData):
         self.uvw_array = (np.array(np.stack((D.data.field('UU'),
                                              D.data.field('VV'),
                                              D.data.field('WW')))) *
-                          const.c.to('m/s').value)
+                          const.c.to('m/s').value).T
 
         self.freq_array = self._gethduaxis(D, 4)
         self.channel_width = hdr.pop('CDELT4')
@@ -249,15 +250,15 @@ class UVFITS(uvdata.uv.UVData):
             if latitude_degrees is not None and longitude_degrees is not None and altitude is not None:
                 self.telescope_location_lat_lon_alt_degrees = (latitude_degrees, longitude_degrees, altitude)
 
-        self.GST0 = ant_hdu.header['GSTIA0']
-        self.RDate = ant_hdu.header['RDATE']
+        self.gst0 = ant_hdu.header['GSTIA0']
+        self.rdate = ant_hdu.header['RDATE']
         self.earth_omega = ant_hdu.header['DEGPDY']
-        self.DUT1 = ant_hdu.header['UT1UTC']
+        self.dut1 = ant_hdu.header['UT1UTC']
         try:
-            self.TIMESYS = ant_hdu.header['TIMESYS']
+            self.timesys = ant_hdu.header['TIMESYS']
         except(KeyError):
             # CASA misspells this one
-            self.TIMESYS = ant_hdu.header['TIMSYS']
+            self.timesys = ant_hdu.header['TIMSYS']
 
         del(D)
 
@@ -278,25 +279,28 @@ class UVFITS(uvdata.uv.UVData):
         if run_check:
             self.check(run_sanity_check=run_sanity_check)
 
-        if self.phase_center_ra is None or self.phase_center_dec is None:
+        if not self.is_phased:
             if force_phase:
                 print('The data does not have a defined phase center. ' +
                       'Phasing to zenith of the first timestamp.')
                 self.phase_to_time(self.time_array[0])
             else:
-                raise ValueError('The data does not have a defined phase ' +
-                                 'center, which means it is a drift scan. ' +
+                raise ValueError('The data is not phased, ' +
+                                 'which means it is a drift scan. ' +
                                  'Set force_phase to true to phase the data ' +
                                  'zenith of the first timestamp before ' +
                                  'writing a uvfits file.')
 
-        for p in self.extra_parameter_iter():
+        for p in self.extra():
             param = getattr(self, p)
             if param.name in self.uvfits_required_extra:
                 if param.value is None:
                     if spoof_nonessential:
                         # spoof extra keywords required for uvfits
-                        param.apply_spoof(self)
+                        if isinstance(param, uvp.AntPositionParameter):
+                            param.apply_spoof(self, 'Nants_telescope')
+                        else:
+                            param.apply_spoof()
                         setattr(self, p, param)
                     else:
                         raise ValueError('Required attribute {attribute} '
@@ -332,9 +336,9 @@ class UVFITS(uvdata.uv.UVData):
         # Set up dictionaries for populating hdu
         # Note that uvfits antenna arrays are 1-indexed so we add 1
         # to our 0-indexed arrays
-        group_parameter_dict = {'UU      ': uvw_array_sec[0],
-                                'VV      ': uvw_array_sec[1],
-                                'WW      ': uvw_array_sec[2],
+        group_parameter_dict = {'UU      ': uvw_array_sec[:, 0],
+                                'VV      ': uvw_array_sec[:, 1],
+                                'WW      ': uvw_array_sec[:, 2],
                                 'DATE    ': time_array,
                                 'BASELINE': baselines_use,
                                 'ANTENNA1': self.ant_1_array + 1,
@@ -473,13 +477,13 @@ class UVFITS(uvdata.uv.UVData):
         ant_hdu.header['ARRAYY'] = self.telescope_location[1]
         ant_hdu.header['ARRAYZ'] = self.telescope_location[2]
         ant_hdu.header['FRAME'] = 'ITRF'
-        ant_hdu.header['GSTIA0'] = self.GST0
+        ant_hdu.header['GSTIA0'] = self.gst0
         ant_hdu.header['FREQ'] = self.freq_array[0, 0]
-        ant_hdu.header['RDATE'] = self.RDate
-        ant_hdu.header['UT1UTC'] = self.DUT1
+        ant_hdu.header['RDATE'] = self.rdate
+        ant_hdu.header['UT1UTC'] = self.dut1
 
-        ant_hdu.header['TIMSYS'] = self.TIMESYS
-        if self.TIMESYS == 'IAT':
+        ant_hdu.header['TIMSYS'] = self.timesys
+        if self.timesys == 'IAT':
             warnings.warn('This file has an "IAT" time system. Files of '
                           'this type are not properly supported')
         ant_hdu.header['ARRNAM'] = self.telescope_name

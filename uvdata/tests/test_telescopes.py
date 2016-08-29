@@ -1,7 +1,6 @@
-import unittest
 import numpy as np
 import nose.tools as nt
-import uvdata.telescopes as uvtel
+import uvdata
 
 required_parameters = ['_telescope_name', '_telescope_location']
 required_properties = ['telescope_name', 'telescope_location']
@@ -11,27 +10,27 @@ expected_known_telescopes = ['PAPER', 'HERA', 'MWA']
 
 
 def test_parameter_iter():
-    telescope_obj = uvtel.Telescope()
+    telescope_obj = uvdata.Telescope()
     all = []
-    for prop in telescope_obj.parameter_iter():
+    for prop in telescope_obj:
         all.append(prop)
     for a in required_parameters:
         nt.assert_true(a in all, msg='expected attribute ' + a +
-                       ' not returned in parameter_iter')
+                       ' not returned in object iterator')
 
 
 def test_required_parameter_iter():
-    telescope_obj = uvtel.Telescope()
+    telescope_obj = uvdata.Telescope()
     required = []
-    for prop in telescope_obj.required_parameter_iter():
+    for prop in telescope_obj.required():
         required.append(prop)
     for a in required_parameters:
         nt.assert_true(a in required, msg='expected attribute ' + a +
-                       ' not returned in required_parameter_iter')
+                       ' not returned in required iterator')
 
 
 def test_parameters_exist():
-    telescope_obj = uvtel.Telescope()
+    telescope_obj = uvdata.Telescope()
     expected_parameters = required_parameters
     for a in expected_parameters:
         nt.assert_true(hasattr(telescope_obj, a),
@@ -39,7 +38,7 @@ def test_parameters_exist():
 
 
 def test_unexpected_attributes():
-    telescope_obj = uvtel.Telescope()
+    telescope_obj = uvdata.Telescope()
     expected_attributes = required_properties + other_attributes
     attributes = [i for i in telescope_obj.__dict__.keys() if i[0] != '_']
     for a in attributes:
@@ -48,7 +47,7 @@ def test_unexpected_attributes():
 
 
 def test_properties():
-    telescope_obj = uvtel.Telescope()
+    telescope_obj = uvdata.Telescope()
     prop_dict = dict(zip(required_properties, required_parameters))
     for k, v in prop_dict.iteritems():
         rand_num = np.random.rand()
@@ -62,4 +61,4 @@ def test_properties():
 
 
 def test_known_telescopes():
-    nt.assert_equal(uvtel.known_telescopes().sort(), expected_known_telescopes.sort())
+    nt.assert_equal(uvdata.known_telescopes().sort(), expected_known_telescopes.sort())

@@ -3,10 +3,10 @@ from scipy.io.idl import readsav
 from itertools import islice
 import numpy as np
 import warnings
-import uvdata
+from uvdata import UVData
 
 
-class FHD(uvdata.uv.UVData):
+class FHD(UVData):
 
     def read_fhd(self, filelist, use_model=False, run_check=True, run_sanity_check=True):
         """
@@ -63,7 +63,7 @@ class FHD(uvdata.uv.UVData):
             else:
                 vis_data[pol] = this_dict['vis_ptr']
             this_obs = this_dict['obs']
-            data_dimensions = vis_data[pol].shape
+            data_shape = vis_data[pol].shape
 
         obs = this_obs
         bl_info = obs['BASELINE_INFO'][0]
@@ -90,7 +90,7 @@ class FHD(uvdata.uv.UVData):
 
         self.Ntimes = int(obs['N_TIME'][0])
         self.Nbls = int(obs['NBASELINES'][0])
-        self.Nblts = data_dimensions[0]
+        self.Nblts = data_shape[0]
         self.Nfreqs = int(obs['N_FREQ'][0])
         self.Npols = len(vis_data.keys())
         self.Nspws = 1
@@ -118,10 +118,10 @@ class FHD(uvdata.uv.UVData):
             self.nsample_array[:, 0, :, pol_i] = np.abs(vis_weights_data[pol])
 
         # In FHD, uvws are in seconds not meters!
-        self.uvw_array = np.zeros((3, self.Nblts))
-        self.uvw_array[0, :] = params['UU'][0] * const.c.to('m/s').value
-        self.uvw_array[1, :] = params['VV'][0] * const.c.to('m/s').value
-        self.uvw_array[2, :] = params['WW'][0] * const.c.to('m/s').value
+        self.uvw_array = np.zeros((self.Nblts, 3))
+        self.uvw_array[:, 0] = params['UU'][0] * const.c.to('m/s').value
+        self.uvw_array[:, 1] = params['VV'][0] * const.c.to('m/s').value
+        self.uvw_array[:, 2] = params['WW'][0] * const.c.to('m/s').value
 
         # bl_info.JDATE (a vector of length Ntimes) is the only safe date/time
         # to use in FHD files.

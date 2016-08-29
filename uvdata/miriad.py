@@ -4,10 +4,11 @@ import shutil
 import numpy as np
 import warnings
 import aipy as a
-import uvdata
+from uvdata import UVData
+import telescopes as uvtel
 
 
-class Miriad(uvdata.uv.UVData):
+class Miriad(UVData):
 
     def miriad_pol_to_ind(self, pol):
         if self.polarization_array is None:
@@ -33,13 +34,9 @@ class Miriad(uvdata.uv.UVData):
                               # as the same
                               'telescope_name': 'telescop',
                               'instrument': 'telescop',
-                              #   'latitude': 'latitud',
-                              #   'longitude': 'longitu',  # in units of radians
                               # (get the first time in the ever changing header)
                               'dateobs': 'time',
-                              # 'history': 'history',
                               'Nants_telescope': 'nants',
-                              'phase_center_epoch': 'epoch',
                               'antenna_positions': 'antpos',  # take deltas
                               }
         for item in miriad_header_data:
@@ -56,7 +53,7 @@ class Miriad(uvdata.uv.UVData):
             self.telescope_location_lat_lon_alt = (latitude, longitude, altitude)
         except(KeyError):
             # get info from known telescopes. Check to make sure the lat/lon values match reasonably well
-            telescope_obj = uvdata.telescopes.get_telescope(self.telescope_name)
+            telescope_obj = uvtel.get_telescope(self.telescope_name)
             if telescope_obj is not False:
                 # attribute_list = [a for a in dir(telescope_obj) if not a.startswith('__') and
                 #                   not callable(getattr(telescope_obj, a))]
@@ -93,7 +90,7 @@ class Miriad(uvdata.uv.UVData):
         try:
             self.antenna_positions = \
                 self.antenna_positions.reshape(3, self.Nants_telescope).T
-        except(ValueError): #workaround for known errors with bad antenna positions
+        except(ValueError):  # workaround for known errors with bad antenna positions
             self.antenna_positions = None
         self.channel_width *= 1e9  # change from GHz to Hz
 
@@ -188,7 +185,7 @@ class Miriad(uvdata.uv.UVData):
         self.data_array = np.zeros((self.Nblts, self.Nspws, self.Nfreqs,
                                     self.Npols), dtype=np.complex64)
         self.flag_array = np.ones(self.data_array.shape, dtype=np.bool)
-        self.uvw_array = np.zeros((3, self.Nblts))
+        self.uvw_array = np.zeros((self.Nblts, 3))
         # NOTE: Using our lst calculator, which uses astropy,
         # instead of aipy values which come from pyephem.
         # The differences are of order 5 seconds.
@@ -196,7 +193,7 @@ class Miriad(uvdata.uv.UVData):
         self.nsample_array = np.ones(self.data_array.shape, dtype=np.int)
         self.freq_array = (np.arange(self.Nfreqs) * self.channel_width +
                            uv['sfreq'] * 1e9)
-        # Tile freq_array to dimensions (Nspws, Nfreqs).
+        # Tile freq_array to shape (Nspws, Nfreqs).
         # Currently does not actually support Nspws>1!
         self.freq_array = np.tile(self.freq_array, (self.Nspws, 1))
 
@@ -219,7 +216,7 @@ class Miriad(uvdata.uv.UVData):
                 # axis but avoid any missing visbilities
                 uvw = d[0] * const.c.to('m/ns').value
                 uvw.shape = (1, 3)
-                self.uvw_array[:, blt_index] = uvw
+                self.uvw_array[blt_index] = uvw
                 ra_list[blt_index] = d[7]
                 dec_list[blt_index] = d[8]
 
@@ -228,6 +225,7 @@ class Miriad(uvdata.uv.UVData):
         if np.isclose(np.mean(np.diff(ra_list)), 0.):
             self.phase_center_ra = ra_list[0]
             self.phase_center_dec = dec_list[0]
+            self.phase_center_epoch = uv['epoch']
             self.is_phased = True
         else:
             self.zenith_ra = ra_list
@@ -288,11 +286,12 @@ class Miriad(uvdata.uv.UVData):
             uv.add_var('antpos', 'd')
             uv['antpos'] = self.antenna_positions.T.flatten()
         except(AttributeError):
-            pass #don't write bad antenna positions
+            pass  # don't write bad antenna positions
         uv.add_var('sfreq', 'd')
         uv['sfreq'] = self.freq_array[0, 0] / 1e9  # first spw; in GHz
-        uv.add_var('epoch', 'r')
-        uv['epoch'] = self.phase_center_epoch
+        if self.is_phased:
+            uv.add_var('epoch', 'r')
+            uv['epoch'] = self.phase_center_epoch
 
         # required pyuvdata variables that are not recognized miriad variables
         uv.add_var('ntimes', 'i')
@@ -317,7 +316,7 @@ class Miriad(uvdata.uv.UVData):
 
         # write data
         for viscnt, blt in enumerate(self.data_array):
-            uvw = self.uvw_array[:, viscnt] / const.c.to('m/ns').value  # NOTE issue 50 on conjugation
+            uvw = self.uvw_array[viscnt] / const.c.to('m/ns').value  # NOTE issue 50 on conjugation
             t = self.time_array[viscnt]
             i = self.ant_1_array[viscnt]
             j = self.ant_2_array[viscnt]

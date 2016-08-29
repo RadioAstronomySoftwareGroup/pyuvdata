@@ -1,6 +1,5 @@
 import nose.tools as nt
-import os.path as op
-from uvdata.uv import UVData
+from uvdata import UVData
 import numpy as np
 import copy
 import ephem
@@ -21,7 +20,7 @@ class TestUVDataInit(object):
                                     '_object_name', '_telescope_name',
                                     '_instrument', '_telescope_location',
                                     '_history', '_vis_units',
-                                    '_phase_center_epoch', '_Nants_data',
+                                    '_Nants_data',
                                     '_Nants_telescope', '_antenna_names',
                                     '_antenna_numbers']
 
@@ -36,25 +35,27 @@ class TestUVDataInit(object):
                                     'object_name', 'telescope_name',
                                     'instrument', 'telescope_location',
                                     'history', 'vis_units',
-                                    'phase_center_epoch', 'Nants_data',
+                                    'Nants_data',
                                     'Nants_telescope', 'antenna_names',
                                     'antenna_numbers']
 
         self.extra_parameters = ['_extra_keywords', '_dateobs',
-                                 '_antenna_positions', '_GST0', '_RDate',
-                                 '_earth_omega', '_DUT1', '_TIMESYS',
+                                 '_antenna_positions', '_gst0', '_rdate',
+                                 '_earth_omega', '_dut1', '_timesys',
                                  '_uvplane_reference_time',
                                  '_phase_center_ra', '_phase_center_dec',
+                                 '_phase_center_epoch',
                                  '_zenith_ra', '_zenith_dec']
 
         self.extra_properties = ['extra_keywords', 'dateobs',
-                                 'antenna_positions', 'GST0', 'RDate',
-                                 'earth_omega', 'DUT1', 'TIMESYS',
+                                 'antenna_positions', 'gst0', 'rdate',
+                                 'earth_omega', 'dut1', 'timesys',
                                  'uvplane_reference_time',
                                  'phase_center_ra', 'phase_center_dec',
+                                 'phase_center_epoch',
                                  'zenith_ra', 'zenith_dec']
 
-        self.other_attributes = ['telescope_location_lat_lon_alt',
+        self.other_properties = ['telescope_location_lat_lon_alt',
                                  'telescope_location_lat_lon_alt_degrees',
                                  'phase_center_ra_degrees', 'phase_center_dec_degrees',
                                  'zenith_ra_degrees', 'zenith_dec_degrees']
@@ -66,27 +67,27 @@ class TestUVDataInit(object):
 
     def test_parameter_iter(self):
         all = []
-        for prop in self.uv_object.parameter_iter():
+        for prop in self.uv_object:
             all.append(prop)
         for a in self.required_parameters + self.extra_parameters:
             nt.assert_true(a in all, msg='expected attribute ' + a +
-                           ' not returned in parameter_iter')
+                           ' not returned in object iterator')
 
     def test_required_parameter_iter(self):
         required = []
-        for prop in self.uv_object.required_parameter_iter():
+        for prop in self.uv_object.required():
             required.append(prop)
         for a in self.required_parameters:
             nt.assert_true(a in required, msg='expected attribute ' + a +
-                           ' not returned in required_parameter_iter')
+                           ' not returned in required iterator')
 
     def test_extra_parameter_iter(self):
         extra = []
-        for prop in self.uv_object.extra_parameter_iter():
+        for prop in self.uv_object.extra():
             extra.append(prop)
         for a in self.extra_parameters:
             nt.assert_true(a in extra, msg='expected attribute ' + a +
-                           ' not returned in extra_parameter_iter')
+                           ' not returned in extra iterator')
 
     def test_parameters_exist(self):
         expected_parameters = self.required_parameters + self.extra_parameters
@@ -96,7 +97,7 @@ class TestUVDataInit(object):
 
     def test_unexpected_attributes(self):
         expected_attributes = self.required_properties + \
-            self.extra_properties + self.other_attributes
+            self.extra_properties + self.other_properties
         attributes = [i for i in self.uv_object.__dict__.keys() if i[0] != '_']
         for a in attributes:
             nt.assert_true(a in expected_attributes,
@@ -121,7 +122,7 @@ class TestUVDataBasicMethods(object):
     def setUp(self):
         self.uv_object = UVData()
         self.testfile = '../data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
-        uvtest.checkWarnings(self.uv_object.read, [self.testfile, 'uvfits'],
+        uvtest.checkWarnings(self.uv_object.read_uvfits, [self.testfile],
                              message='Telescope EVLA is not')
         self.uv_object2 = copy.deepcopy(self.uv_object)
 
@@ -180,7 +181,7 @@ class TestUVDataBasicMethods(object):
 
     def test_list_check(self):
         antenna_names = self.uv_object.antenna_names
-        self.uv_object.antenna_names = [1] * self.uv_object._antenna_names.expected_size(self.uv_object)[0]
+        self.uv_object.antenna_names = [1] * self.uv_object._antenna_names.expected_shape(self.uv_object)[0]
         nt.assert_raises(ValueError, self.uv_object.check)
 
     def test_sanity_check(self):
@@ -226,14 +227,17 @@ def test_known_telescopes():
 def test_phase_unphasePAPER():
     testfile = '../data/zen.2456865.60537.xy.uvcRREAA'
     UV_raw = UVData()
-    status = uvtest.checkWarnings(UV_raw.read, [testfile, 'miriad'],
+    status = uvtest.checkWarnings(UV_raw.read_miriad, [testfile],
                                   known_warning='miriad')
 
     UV_phase = UVData()
-    status = uvtest.checkWarnings(UV_phase.read, [testfile, 'miriad'],
+    status = uvtest.checkWarnings(UV_phase.read_miriad, [testfile],
                                   known_warning='miriad')
     UV_phase.phase(0., 0., ephem.J2000)
     UV_phase.unphase_to_drift()
+
+    print UV_raw.phase_center_epoch
+    print UV_phase.phase_center_epoch
 
     nt.assert_equal(UV_raw, UV_phase)
     del(UV_phase)

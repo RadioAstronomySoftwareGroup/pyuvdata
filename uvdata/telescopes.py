@@ -1,8 +1,7 @@
 import numpy as np
 from astropy.coordinates import Angle
-from uvdata.uvbase import UVBase
-import uvdata.parameter as uvp
-import uvdata.utils as utils
+import uvbase
+import parameter as uvp
 
 # center_xyz is the location of the telescope in ITRF (earth-centered frame)
 telescopes = {'PAPER': {'center_xyz': None,
@@ -24,7 +23,7 @@ telescopes = {'PAPER': {'center_xyz': None,
                       'citation': 'Tingay et al., 2013'}}
 
 
-class Telescope(UVBase):
+class Telescope(uvbase.UVBase):
 
     def __init__(self):
         # add the UVParameters to the class
