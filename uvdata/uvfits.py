@@ -175,7 +175,6 @@ class UVFITS(UVData):
         latitude_degrees = hdr.pop('LAT', None)
         longitude_degrees = hdr.pop('LON', None)
         altitude = hdr.pop('ALT', None)
-        self.dateobs = hdr.pop('DATE-OBS', None)
         self.history = str(hdr.get('HISTORY', ''))
         while 'HISTORY' in hdr.keys():
             hdr.remove('HISTORY')

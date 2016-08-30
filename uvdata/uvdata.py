@@ -15,7 +15,6 @@ def _warning(msg, *a):
     return str(msg) + '\n'
 
 
-
 class UVData(UVBase):
     """A container for defining a radio interferometer dataset.
 
@@ -223,9 +222,6 @@ class UVData(UVBase):
                                                description=desc, value={},
                                                spoof_val={}, expected_type=dict)
 
-        self._dateobs = uvp.UVParameter('dateobs', required=False,
-                                        description='date of observation')
-
         desc = ('array giving coordinates of antennas relative to '
                 'telescope_location (ITRF frame), shape (Nants_telescope, 3)')
         self._antenna_positions = uvp.AntPositionParameter('antenna_positions',
@@ -296,7 +292,6 @@ class UVData(UVBase):
         """Retun a list of telescopes known to pyuvdata
         (this is a shortcut to uvdata.telescopes.known_telescopes())"""
         return uvtel.known_telescopes()
-
 
     def set_telescope_params(self, overwrite=False):
         telescope_obj = uvtel.get_telescope(self.telescope_name)
@@ -433,7 +428,7 @@ class UVData(UVBase):
 
     def phase_to_time(self, time):
         # phase drift scan data to a time in jd
-        #(i.e. ra/dec of zenith at that time in current epoch).
+        # (i.e. ra/dec of zenith at that time in current epoch).
 
         if self.phase_type == 'drift':
             pass
