@@ -133,11 +133,14 @@ class FHD(UVData):
         int_times = bl_info['JDATE'][0]
         bin_offset = bl_info['BIN_OFFSET'][0]
         self.time_array = np.zeros(self.Nblts)
-        for ii in range(0, self.Ntimes):
-            if ii < (self.Ntimes - 1):
-                self.time_array[bin_offset[ii]:bin_offset[ii + 1]] = int_times[ii]
-            else:
-                self.time_array[bin_offset[ii]:] = int_times[ii]
+        if self.Ntimes == 1:
+            self.time_array.fill(int_times)
+        else:
+            for ii in range(0, self.Ntimes):
+                if ii < (self.Ntimes - 1):
+                    self.time_array[bin_offset[ii]:bin_offset[ii + 1]] = int_times[ii]
+                else:
+                    self.time_array[bin_offset[ii]:] = int_times[ii]
 
         # Note that FHD antenna arrays are 1-indexed so we subtract 1
         # to get 0-indexed arrays
