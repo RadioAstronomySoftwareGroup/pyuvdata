@@ -12,13 +12,17 @@ class FHD(UVData):
 
     def read_fhd(self, filelist, use_model=False, run_check=True, run_sanity_check=True):
         """
-        Read in fhd visibility save files.
+        Read in data from a list of FHD files.
 
         Args:
-            filelist: list
-                list of files containing fhd-style visibility data.
-                Must include at least one polarization file, a params file and
-                a flag file.
+            filelist: The list of FHD save files to read from. Must include at
+                least one polarization file, a params file and a flag file.
+            use_model: Option to read in the model visibilities rather than the
+                dirty visibilities. Default is False.
+            run_check: Option to check for the existence and proper shapes of
+                required parameters after reading in the file. Default is True.
+            run_sanity_check: Option to sanity check the values of
+                required parameters after reading in the file. Default is True.
         """
         datafiles = {}
         params_file = None

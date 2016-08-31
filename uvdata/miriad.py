@@ -1,4 +1,4 @@
-""""""
+"""Class for reading and writing Miriad files."""
 from astropy import constants as const
 import os
 import shutil
@@ -10,8 +10,9 @@ import telescopes as uvtel
 
 
 class Miriad(UVData):
-    """Defines a Miriad-speficic class for reading and writing miriad. """
-    def miriad_pol_to_ind(self, pol):
+    """Defines a Miriad-speficic class for reading and writing Miriad files."""
+
+    def _pol_to_ind(self, pol):
         if self.polarization_array is None:
             raise(ValueError, "Can't index polarization {p} because "
                   "polarization_array is not set".format(p=pol))
@@ -22,9 +23,15 @@ class Miriad(UVData):
         return pol_ind
 
     def read_miriad(self, filepath, run_check=True, run_sanity_check=True):
-        """Read data from a miriad file.
-        run_sanity_check = check, that where possible, things seem to have the right units
-        run_check = Run checks to make sure required variables are set and they have internally consistent shapes
+        """
+        Read in data from a miriad file.
+
+        Args:
+            filepath: The miriad file directory to read from.
+            run_check: Option to check for the existence and proper shapes of
+                required parameters after reading in the file. Default is True.
+            run_sanity_check: Option to sanity check the values of
+                required parameters after reading in the file. Default is True.
         """
         if not os.path.exists(filepath):
             raise(IOError, filepath + ' not found')
@@ -204,7 +211,7 @@ class Miriad(UVData):
         dec_list = np.zeros(self.Nblts)
 
         for pol, data in data_accumulator.iteritems():
-            pol_ind = self.miriad_pol_to_ind(pol)
+            pol_ind = self._pol_to_ind(pol)
             for ind, d in enumerate(data):
                 t, ant_i, ant_j = d[1], d[2], d[3]
                 blt_index = np.where(np.logical_and(np.logical_and(t == t_grid,
@@ -247,9 +254,17 @@ class Miriad(UVData):
             self.check(run_sanity_check=run_sanity_check)
 
     def write_miriad(self, filepath, run_check=True, run_sanity_check=True, clobber=False):
-        """Read data from a miriad file.
-        run_sanity_check = checks the data for internal consistency
-        run_check = Run checks to make sure required variables are set and (where possible) things seem to have the right units
+        """
+        Write the data to a miriad file.
+
+        Args:
+            filename: The miriad file directory to write to.
+            run_check: Option to check for the existence and proper shapes of
+                required parameters before writing the file. Default is True.
+            run_sanity_check: Option to sanity check the values of
+                required parameters before writing the file. Default is True.
+            clobber: Option to overwrite the filename if the file already exists.
+                Default is False.
         """
         # check for multiple spws
         if self.data_array.shape[1] > 1:

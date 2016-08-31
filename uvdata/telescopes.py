@@ -1,3 +1,4 @@
+"""Telescope information and known telescope list."""
 import numpy as np
 from astropy.coordinates import Angle
 import uvbase
@@ -24,8 +25,19 @@ telescopes = {'PAPER': {'center_xyz': None,
 
 
 class Telescope(uvbase.UVBase):
+    """
+    A class for defining a telescope for use with UVData objects.
+
+    Attributes:
+        citation: text giving source of telescope information
+        UVParameters:
+            telescope_name: string name of the telescope
+            telescope_location: telescope location xyz coordinates in ITRF
+                (earth-centered frame).
+    """
 
     def __init__(self):
+        """Create a new Telescope object."""
         # add the UVParameters to the class
         # use the same names as in UVData so they can be automatically set
         self.citation = None
@@ -46,11 +58,17 @@ class Telescope(uvbase.UVBase):
 
 
 def known_telescopes():
+    """Get list of known telescopes."""
     return telescopes.keys()
 
 
 def get_telescope(telescope_name):
+    """
+    Get Telescope object for a telescope in known_telescopes().
 
+    Args:
+        telescope_name: string name of a telescope, must be in known_telescopes().
+    """
     if telescope_name.upper() in (name.upper() for name in telescopes.keys()):
         uc_telescope_list = [item.upper() for item in telescopes.keys()]
         telescope_index = uc_telescope_list.index(telescope_name.upper())

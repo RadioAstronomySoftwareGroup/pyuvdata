@@ -1,3 +1,4 @@
+"""Class for reading and writing uvfits files."""
 from astropy import constants as const
 from astropy.time import Time
 from astropy.io import fits
@@ -8,6 +9,13 @@ import parameter as uvp
 
 
 class UVFITS(UVData):
+    """
+    Defines a uvfits-specific class for reading and writing uvfits files.
+
+    Attributes:
+        uvfits_required_extra: Names of optional UVParameters that are required
+            for uvfits.
+    """
 
     uvfits_required_extra = ['antenna_positions', 'gst0', 'rdate',
                              'earth_omega', 'dut1', 'timesys']
@@ -32,7 +40,16 @@ class UVFITS(UVData):
         return tablenames
 
     def read_uvfits(self, filename, run_check=True, run_sanity_check=True):
+        """
+        Read in data from a uvfits file.
 
+        Args:
+            filename: The uvfits file to read from.
+            run_check: Option to check for the existence and proper shapes of
+                required parameters after reading in the file. Default is True.
+            run_sanity_check: Option to sanity check the values of
+                required parameters after reading in the file. Default is True.
+        """
         F = fits.open(filename)
         D = F[0]  # assumes the visibilities are in the primary hdu
         hdr = D.header.copy()
@@ -273,7 +290,21 @@ class UVFITS(UVData):
 
     def write_uvfits(self, filename, spoof_nonessential=False,
                      force_phase=False, run_check=True, run_sanity_check=True):
-        # first check if object has all required UVParameters set
+        """
+        Write the data to a uvfits file.
+
+        Args:
+            filename: The uvfits file to write to.
+            spoof_nonessential: Option to spoof the values of optional
+                UVParameters that are not set but are required for uvfits files.
+                Default is False.
+            force_phase: Option to automatically phase drift scan data to
+                zenith of the first timestamp. Default is False.
+            run_check: Option to check for the existence and proper shapes of
+                required parameters before writing the file. Default is True.
+            run_sanity_check: Option to sanity check the values of
+                required parameters before writing the file. Default is True.
+        """
         if run_check:
             self.check(run_sanity_check=run_sanity_check)
 

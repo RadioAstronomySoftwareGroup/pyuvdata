@@ -630,10 +630,11 @@ class UVData(UVBase):
     def read_fhd(self, filelist, use_model=False, run_check=True,
                  run_sanity_check=True):
         """
-        Read in data from a set of FHD files.
+        Read in data from a list of FHD files.
 
         Args:
-            filelist: The list of FHD save files to read from.
+            filelist: The list of FHD save files to read from. Must include at
+                least one polarization file, a params file and a flag file.
             use_model: Option to read in the model visibilities rather than the
                 dirty visibilities. Default is False.
             run_check: Option to check for the existence and proper shapes of
@@ -650,7 +651,7 @@ class UVData(UVBase):
 
     def read_miriad(self, filepath, run_check=True, run_sanity_check=True):
         """
-        Read in data from a uvfits file.
+        Read in data from a miriad file.
 
         Args:
             filepath: The miriad file directory to read from.
@@ -665,13 +666,13 @@ class UVData(UVBase):
         self._convert_from_filetype(miriad_obj)
         del(miriad_obj)
 
-    def write_miriad(self, filename, run_check=True, run_sanity_check=True,
+    def write_miriad(self, filepath, run_check=True, run_sanity_check=True,
                      clobber=False):
         """
-        Write the data to a uvfits file.
+        Write the data to a miriad file.
 
         Args:
-            filename: The uvfits file to write to.
+            filename: The miriad file directory to write to.
             run_check: Option to check for the existence and proper shapes of
                 required parameters before writing the file. Default is True.
             run_sanity_check: Option to sanity check the values of
@@ -680,6 +681,6 @@ class UVData(UVBase):
                 Default is False.
         """
         miriad_obj = self._convert_to_filetype('miriad')
-        miriad_obj.write_miriad(filename, run_check=True, run_sanity_check=True,
+        miriad_obj.write_miriad(filepath, run_check=True, run_sanity_check=True,
                                 clobber=clobber)
         del(miriad_obj)
