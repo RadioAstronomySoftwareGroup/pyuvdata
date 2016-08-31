@@ -3,9 +3,12 @@ Installation
 
 Requirements
 -----------------
-* astropy >1.0
+* numpy
+* scipy
+* astropy >= 1.2
 * pyephem
-
+* pyfits
+* aipy
 
 pyuvdata
 -----------------
