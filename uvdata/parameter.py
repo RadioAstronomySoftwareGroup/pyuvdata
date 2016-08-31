@@ -66,18 +66,20 @@ class UVParameter(object):
         if isinstance(other, self.__class__):
             # only check that value is identical
             if not isinstance(self.value, other.value.__class__):
-                print('{name} parameter value classes are different. Left is {lclass}, '
-                      'right is {rclass}'.format(name=self.name,
-                                                 lclass=self.value.__class__,
-                                                 rclass=other.value.__class__))
+                print('{name} parameter value classes are different. Left is '
+                      '{lclass}, right is {rclass}'.format(name=self.name,
+                                                           lclass=self.value.__class__,
+                                                           rclass=other.value.__class__))
                 return False
             if isinstance(self.value, np.ndarray):
                 if self.value.shape != other.value.shape:
-                    print('parameter value is array, shapes are different')
+                    print('{name} parameter value is array, shapes are '
+                          'different'.format(name=self.name))
                     return False
                 elif not np.allclose(self.value, other.value,
                                      rtol=self.tols[0], atol=self.tols[1]):
-                    print('parameter value is array, values are not close')
+                    print('{name} parameter value is array, values are not '
+                          'close'.format(name=self.name))
                     return False
             else:
                 str_type = False
@@ -92,25 +94,29 @@ class UVParameter(object):
                         if not np.isclose(np.array(self.value),
                                           np.array(other.value),
                                           rtol=self.tols[0], atol=self.tols[1]):
-                            print('parameter value is not a string, values are not close')
+                            print('{name} parameter value is not a string, '
+                                  'values are not close'.format(name=self.name))
                             return False
                     except:
                         # print(self.value, other.value)
-                        print('parameter value is not a string, cannot be cast as numpy array')
+                        print('{name} parameter value is not a string, cannot '
+                              'be cast as numpy array'.format(name=self.name))
                         return False
                 else:
                     if self.value != other.value:
                         if not isinstance(self.value, list):
                             if self.value.replace('\n', '') != other.value.replace('\n', ''):
-                                print('parameter value is a string (not a list), values are different')
+                                print('{name} parameter value is a string (not '
+                                      'a list), values are different'.format(name=self.name))
                                 return False
                         else:
-                            print('parameter value is a list of strings, values are different')
+                            print('{name} parameter value is a list of strings, '
+                                  'values are different'.format(name=self.name))
                             return False
 
             return True
         else:
-            print('parameter classes are different')
+            print('{name} parameter classes are different'.format(name=self.name))
             return False
 
     def __ne__(self, other):
@@ -155,9 +161,13 @@ class UVParameter(object):
         if self.sane_vals is None:
             return True
         else:
-            testval = np.mean(np.abs(self.value))
-            if (testval >= self.sane_vals[0]) and (testval <= self.sane_vals[1]):
-                return True
+            if self.expected_type is str:
+                if self.value.lower() in (vals.lower() for vals in self.sane_vals):
+                    return True
+            else:
+                testval = np.mean(np.abs(self.value))
+                if (testval >= self.sane_vals[0]) and (testval <= self.sane_vals[1]):
+                    return True
         return False
 
 
@@ -180,25 +190,6 @@ class AntPositionParameter(UVParameter):
                 the number of antennas.
         """
         self.value = np.zeros((getattr(uvbase, antnum_name), 3))
-
-
-class ExtraKeywordParameter(UVParameter):
-    """
-    Subclass of UVParameter for extra keyword dictionary.
-
-    Overrides init method to default value and spoof_val to an empty dict.
-    """
-
-    def __init__(self, name, required=False, value={}, spoof_val={},
-                 description=''):
-        """Init ExtraKeywordParameter object."""
-        self.name = name
-        self.required = required
-        # cannot set a spoof_val for required parameters
-        if not self.required:
-            self.spoof_val = spoof_val
-        self.value = value
-        self.description = description
 
 
 class AngleParameter(UVParameter):

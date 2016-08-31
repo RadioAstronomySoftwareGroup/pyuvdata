@@ -42,10 +42,10 @@ class UVData(UVBase):
                                            form=('Nblts', 'Nspws', 'Nfreqs', 'Npols'),
                                            expected_type=np.complex)
 
-        self._vis_units = uvp.UVParameter('vis_units',
-                                          description='Visibility units, options '
-                                                      '["uncalib","Jy","K str"]',
-                                          form='str')
+        desc = 'Visibility units, options are: "uncalib", "Jy" or "K str"'
+        self._vis_units = uvp.UVParameter('vis_units', description=desc,
+                                          form='str',
+                                          sane_vals=["uncalib", "Jy", "K str"])
 
         desc = ('number of data points averaged into each data element, '
                 'type = int, same shape as data_array')
@@ -63,10 +63,10 @@ class UVData(UVBase):
 
         self._spw_array = uvp.UVParameter('spw_array',
                                           description='array of spectral window '
-                                          'numbers', form=('Nspws',))
+                                          'numbers, shape (Nspws)', form=('Nspws',))
 
         desc = ('Projected baseline vectors relative to phase center, ' +
-                '(3,Nblts), units meters')
+                'shape (3, Nblts), units meters')
         self._uvw_array = uvp.UVParameter('uvw_array', description=desc,
                                           form=('Nblts', 3),
                                           expected_type=np.float,
@@ -96,21 +96,20 @@ class UVData(UVBase):
                                             form=('Nblts',))
 
         desc = ('array of baseline indices, shape (Nblts), '
-                'type = int; baseline = 2048 * (ant2+1) + (ant1+1) + 2^16 '
-                '(may this break casa?)')
+                'type = int; baseline = 2048 * (ant2+1) + (ant1+1) + 2^16')
         self._baseline_array = uvp.UVParameter('baseline_array',
                                                description=desc,
                                                form=('Nblts',))
 
         # this dimensionality of freq_array does not allow for different spws
         # to have different dimensions
-        desc = 'array of frequencies, shape (Nspws,Nfreqs), units Hz'
+        desc = 'array of frequencies, shape (Nspws, Nfreqs), units Hz'
         self._freq_array = uvp.UVParameter('freq_array', description=desc,
                                            form=('Nspws', 'Nfreqs'),
                                            expected_type=np.float,
                                            tols=1e-3)  # mHz
 
-        desc = ('array of polarization integers (Npols). '
+        desc = ('array of polarization integers, shape (Npols). '
                 'AIPS Memo 117 says: stokes 1:4 (I,Q,U,V);  '
                 'circular -1:-4 (RR,LL,RL,LR); linear -5:-8 (XX,YY,XY,YX)')
         self._polarization_array = uvp.UVParameter('polarization_array',
@@ -146,23 +145,62 @@ class UVData(UVBase):
         self._history = uvp.UVParameter('history', description='string of history, units English',
                                         form='str')
 
-        desc = ('epoch year of the phase applied to the data (eg 2000.)')
-        self._phase_center_epoch = uvp.UVParameter('phase_center_epoch', required=False,
+        # --- phasing information ---
+        desc = ('string indicating phasing type. Allowed values are "drift", '
+                '"phased" and "unknown"')
+        self._phase_type = uvp.UVParameter('phase_type', form='str',
+                                           description=desc, value='unknown',
+                                           sane_vals=['drift', 'phased', 'unknown'])
+
+        desc = ('Required if phase_type = "drift". Right ascension of zenith. '
+                'units: radians, shape (Nblts)')
+        self._zenith_ra = uvp.AngleParameter('zenith_ra', required=False,
+                                             description=desc,
+                                             expected_type=np.float,
+                                             form=('Nblts',),
+                                             tols=radian_tol)
+
+        desc = ('Required if phase_type = "drift". Declination of zenith. '
+                'units: radians, shape (Nblts)')
+        # in practice, dec of zenith will never change; does not need to be shape Nblts
+        self._zenith_dec = uvp.AngleParameter('zenith_dec', required=False,
+                                              description=desc,
+                                              expected_type=np.float,
+                                              form=('Nblts',),
+                                              tols=radian_tol)
+
+        desc = ('Required if phase_type = "phased". Epoch year of the phase '
+                'applied to the data (eg 2000.)')
+        self._phase_center_epoch = uvp.UVParameter('phase_center_epoch',
+                                                   required=False,
                                                    description=desc,
                                                    expected_type=np.float)
 
-        self._is_phased = uvp.UVParameter('is_phased',
-                                          expected_type=bool,
-                                          description='true/false whether data is '
-                                                      'phased (true) or drift scanning (false)')
+        desc = ('Required if phase_type = "phased". Right ascension of phase '
+                'center (see uvw_array), units radians')
+        self._phase_center_ra = uvp.AngleParameter('phase_center_ra',
+                                                   required=False,
+                                                   description=desc,
+                                                   expected_type=np.float,
+                                                   tols=radian_tol)
+
+        desc = ('Required if phase_type = "phased". Declination of phase center '
+                '(see uvw_array), units radians')
+        self._phase_center_dec = uvp.AngleParameter('phase_center_dec',
+                                                    required=False,
+                                                    description=desc,
+                                                    expected_type=np.float,
+                                                    tols=radian_tol)
 
         # --- antenna information ----
         desc = ('number of antennas with data present. May be smaller ' +
                 'than the number of antennas in the array')
         self._Nants_data = uvp.UVParameter('Nants_data', description=desc)
+
         desc = ('number of antennas in the array. May be larger ' +
                 'than the number of antennas with data')
         self._Nants_telescope = uvp.UVParameter('Nants_telescope', description=desc)
+
         desc = ('list of antenna names, shape (Nants_telescope), '
                 'with numbers given by antenna_numbers (which can be matched '
                 'to ant_1_array and ant_2_array). There must be one entry '
@@ -181,44 +219,20 @@ class UVData(UVBase):
 
         # -------- extra, non-required parameters ----------
         desc = ('any user supplied extra keywords, type=dict')
-        self._extra_keywords = uvp.ExtraKeywordParameter('extra_keywords',
-                                                         description=desc)
+        self._extra_keywords = uvp.UVParameter('extra_keywords', required=False,
+                                               description=desc, value={},
+                                               spoof_val={}, expected_type=dict)
 
         self._dateobs = uvp.UVParameter('dateobs', required=False,
                                         description='date of observation')
 
         desc = ('array giving coordinates of antennas relative to '
-                'telescope_location (ITRF frame), (Nants_telescope, 3)')
+                'telescope_location (ITRF frame), shape (Nants_telescope, 3)')
         self._antenna_positions = uvp.AntPositionParameter('antenna_positions',
                                                            required=False,
                                                            description=desc,
                                                            form=('Nants_telescope', 3),
                                                            tols=1e-3)  # 1 mm
-
-        desc = ('ra of zenith. units: radians, shape (Nblts)')
-        self._zenith_ra = uvp.AngleParameter('zenith_ra', required=False,
-                                             description=desc,
-                                             form=('Nblts',),
-                                             tols=radian_tol)
-
-        desc = ('dec of zenith. units: radians, shape (Nblts)')
-        # in practice, dec of zenith will never change; does not need to be shape Nblts
-        self._zenith_dec = uvp.AngleParameter('zenith_dec', required=False,
-                                              description=desc,
-                                              form=('Nblts',),
-                                              tols=radian_tol)
-
-        desc = ('right ascension of phase center (see uvw_array), '
-                'units radians')
-        self._phase_center_ra = uvp.AngleParameter('phase_center_ra', required=False,
-                                                   description=desc,
-                                                   tols=radian_tol)
-
-        desc = ('declination of phase center (see uvw_array), '
-                'units radians')
-        self._phase_center_dec = uvp.AngleParameter('phase_center_dec', required=False,
-                                                    description=desc,
-                                                    tols=radian_tol)
 
         # --- other stuff ---
         # the below are copied from AIPS memo 117, but could be revised to
@@ -253,6 +267,30 @@ class UVData(UVBase):
 
         super(UVData, self).__init__()
         warnings.formatwarning = _warning
+
+    def set_drift(self):
+        self.phase_type = 'drift'
+        self._zenith_ra.required = True
+        self._zenith_dec.required = True
+        self._phase_center_epoch.required = False
+        self._phase_center_ra.required = False
+        self._phase_center_dec.required = False
+
+    def set_phased(self):
+        self.phase_type = 'phased'
+        self._zenith_ra.required = False
+        self._zenith_dec.required = False
+        self._phase_center_epoch.required = True
+        self._phase_center_ra.required = True
+        self._phase_center_dec.required = True
+
+    def set_unknown_phase_type(self):
+        self.phase_type = 'unknown'
+        self._zenith_ra.required = False
+        self._zenith_dec.required = False
+        self._phase_center_epoch.required = False
+        self._phase_center_ra.required = False
+        self._phase_center_dec.required = False
 
     def known_telescopes(self):
         """Retun a list of telescopes known to pyuvdata
@@ -325,7 +363,6 @@ class UVData(UVBase):
                 curtime = jd
                 latitude, longitude, altitude = self.telescope_location_lat_lon_alt_degrees
                 t = Time(jd, format='jd', location=(longitude, latitude))
-                # t.delta_ut1_utc = iers_a.ut1_utc(t)
             lsts.append(t.sidereal_time('apparent').radian)
         self.lst_array = np.array(lsts)
 
@@ -334,9 +371,15 @@ class UVData(UVBase):
         return ephem.date(num - 2415020.)
 
     def unphase_to_drift(self):
-        if not self.is_phased:
+        if self.phase_type == 'phased':
+            pass
+        elif self.phase_type == 'drift':
             raise ValueError('The data is already drift scanning; can only ' +
                              'unphase phased data.')
+        else:
+            raise ValueError('The phasing type of the data is unknown. '
+                             'Set the phase_type to drift or phased to '
+                             'reflect the phasing status of the data')
 
         latitude, longitude, altitude = self.telescope_location_lat_lon_alt
 
@@ -386,11 +429,21 @@ class UVData(UVBase):
         self.phase_center_ra = None
         self.phase_center_dec = None
         self.phase_center_epoch = None
-        self.is_phased = False
+        self.set_drift()
 
     def phase_to_time(self, time):
         # phase drift scan data to a time in jd
         #(i.e. ra/dec of zenith at that time in current epoch).
+
+        if self.phase_type == 'drift':
+            pass
+        elif self.phase_type == 'phased':
+            raise ValueError('The data is already phased; can only phase ' +
+                             'drift scanning data.')
+        else:
+            raise ValueError('The phasing type of the data is unknown. '
+                             'Set the phase_type to drift or phased to '
+                             'reflect the phasing status of the data')
 
         obs = ephem.Observer()
         # obs inits with default values for parameters -- be sure to replace them
@@ -398,9 +451,6 @@ class UVData(UVBase):
         obs.lat = latitude
         obs.lon = longitude
 
-        if self.is_phased:
-            raise ValueError('The data is already phased; can only phase ' +
-                             'drift scanning data.')
         obs.date, obs.epoch = self.juldate2ephem(time), self.juldate2ephem(time)
 
         ra = obs.sidereal_time()
@@ -414,9 +464,15 @@ class UVData(UVBase):
         # ra/dec should be in radians.
         # epoch should be an ephem date, measured from noon Dec. 31, 1899.
         # will not phase already phased data.
-        if self.is_phased:
+        if self.phase_type == 'drift':
+            pass
+        elif self.phase_type == 'phased':
             raise ValueError('The data is already phased; can only phase ' +
                              'drift scanning data.')
+        else:
+            raise ValueError('The phasing type of the data is unknown. '
+                             'Set the phase_type to "drift" or "phased" to '
+                             'reflect the phasing status of the data')
 
         obs = ephem.Observer()
         # obs inits with default values for parameters -- be sure to replace them
@@ -434,8 +490,8 @@ class UVData(UVBase):
         obs.date, obs.epoch = ephem.J2000, ephem.J2000
         precess_pos.compute(obs)
 
-        self.phase_center_ra = precess_pos.a_ra
-        self.phase_center_dec = precess_pos.a_dec
+        self.phase_center_ra = precess_pos.a_ra + 0.0  # force to be a float not ephem.Angle
+        self.phase_center_dec = precess_pos.a_dec + 0.0  # force to be a float not ephem.Angle
         # explicitly set epoch to J2000
         self.phase_center_epoch = 2000.0
 
@@ -462,7 +518,7 @@ class UVData(UVBase):
             self.data_array[ind] *= phs
 
         del(obs)
-        self.is_phased = True
+        self.set_phased()
 
     def _convert_from_filetype(self, other):
         for p in other:
@@ -489,41 +545,38 @@ class UVData(UVBase):
     def read_uvfits(self, filename, run_check=True, run_sanity_check=True):
         import uvfits
         uvfits_obj = uvfits.UVFITS()
-        ret_val = uvfits_obj.read_uvfits(filename, run_check=True, run_sanity_check=True)
+        uvfits_obj.read_uvfits(filename, run_check=True, run_sanity_check=True)
         self._convert_from_filetype(uvfits_obj)
-        return ret_val
+        del(uvfits_obj)
 
     def write_uvfits(self, filename, spoof_nonessential=False,
                      force_phase=False, run_check=True, run_sanity_check=True):
         uvfits_obj = self._convert_to_filetype('uvfits')
-        ret_val = uvfits_obj.write_uvfits(filename,
-                                          spoof_nonessential=spoof_nonessential,
-                                          force_phase=force_phase,
-                                          run_check=True, run_sanity_check=True)
-        return ret_val
+        uvfits_obj.write_uvfits(filename, spoof_nonessential=spoof_nonessential,
+                                force_phase=force_phase, run_check=True,
+                                run_sanity_check=True)
+        del(uvfits_obj)
 
     def read_fhd(self, filelist, use_model=False, run_check=True,
                  run_sanity_check=True):
         import fhd
         fhd_obj = fhd.FHD()
-        ret_val = fhd_obj.read_fhd(filelist, use_model=use_model,
-                                   run_check=True, run_sanity_check=True)
+        fhd_obj.read_fhd(filelist, use_model=use_model, run_check=True,
+                         run_sanity_check=True)
         self._convert_from_filetype(fhd_obj)
-        return ret_val
+        del(fhd_obj)
 
     def read_miriad(self, filepath, run_check=True, run_sanity_check=True):
         """read in data from a miriad file"""
         import miriad
         miriad_obj = miriad.Miriad()
-        ret_val = miriad_obj.read_miriad(filepath, run_check=True,
-                                         run_sanity_check=True)
+        miriad_obj.read_miriad(filepath, run_check=True, run_sanity_check=True)
         self._convert_from_filetype(miriad_obj)
-        return ret_val
+        del(miriad_obj)
 
     def write_miriad(self, filename, run_check=True, run_sanity_check=True,
                      clobber=False):
         miriad_obj = self._convert_to_filetype('miriad')
-        ret_val = miriad_obj.write_miriad(filename,
-                                          run_check=True, run_sanity_check=True,
-                                          clobber=clobber)
-        return ret_val
+        miriad_obj.write_miriad(filename, run_check=True, run_sanity_check=True,
+                                clobber=clobber)
+        del(miriad_obj)
