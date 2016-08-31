@@ -21,8 +21,6 @@ class UVData(UVBase):
     Currently supported file types: uvfits, miriad, fhd
     Provides phasing functions.
     """
-    supported_read_file_types = ['uvfits', 'miriad', 'fhd']
-    supported_write_file_types = ['uvfits', 'miriad', 'fhd']
 
     def __init__(self):
         """Create a new UVData object."""
