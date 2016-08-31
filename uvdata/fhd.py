@@ -1,3 +1,4 @@
+"""Class for reading FHD save files."""
 from astropy import constants as const
 from scipy.io.idl import readsav
 from itertools import islice
@@ -7,16 +8,18 @@ from uvdata import UVData
 
 
 class FHD(UVData):
+    """Defines a FHD-specific class for reading FHD save files."""
 
     def read_fhd(self, filelist, use_model=False, run_check=True, run_sanity_check=True):
         """
-        Read in fhd visibility save files
+        Read in fhd visibility save files.
+
+        Args:
             filelist: list
                 list of files containing fhd-style visibility data.
                 Must include at least one polarization file, a params file and
                 a flag file.
         """
-
         datafiles = {}
         params_file = None
         flags_file = None
