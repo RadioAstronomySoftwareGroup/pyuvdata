@@ -39,8 +39,6 @@ class Miriad(UVData):
                               # as the same
                               'telescope_name': 'telescop',
                               'instrument': 'telescop',
-                              # (get the first time in the ever changing header)
-                              'dateobs': 'time',
                               'Nants_telescope': 'nants',
                               'antenna_positions': 'antpos',  # take deltas
                               }

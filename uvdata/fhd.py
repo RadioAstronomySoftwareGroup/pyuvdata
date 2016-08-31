@@ -200,9 +200,6 @@ class FHD(UVData):
 
         self.set_lsts_from_time_array()
 
-        # Use the first integration time here
-        self.dateobs = min(self.time_array)
-
         # history: add the first few lines from the settings file
         if settings_file is not None:
             history_list = ['fhd settings info']
