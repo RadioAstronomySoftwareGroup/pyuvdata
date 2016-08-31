@@ -41,14 +41,14 @@ class UVBase(object):
                                  self.lat_lon_alt_degrees_prop_fset(p)))
 
     def prop_fget(self, param_name):
-        """getter method for UVParameter properties."""
+        """Getter method for UVParameter properties."""
         def fget(self):
             this_param = getattr(self, param_name)
             return this_param.value
         return fget
 
     def prop_fset(self, param_name):
-        """setter method for UVParameter properties."""
+        """Setter method for UVParameter properties."""
         def fset(self, value):
             this_param = getattr(self, param_name)
             this_param.value = value
@@ -56,14 +56,14 @@ class UVBase(object):
         return fset
 
     def degree_prop_fget(self, param_name):
-        """degree getter method for AngleParameter properties."""
+        """Degree getter method for AngleParameter properties."""
         def fget(self):
             this_param = getattr(self, param_name)
             return this_param.degrees()
         return fget
 
     def degree_prop_fset(self, param_name):
-        """degree setter method for AngleParameter properties."""
+        """Degree setter method for AngleParameter properties."""
         def fset(self, value):
             this_param = getattr(self, param_name)
             this_param.set_degrees(value)
@@ -71,14 +71,14 @@ class UVBase(object):
         return fset
 
     def lat_lon_alt_prop_fget(self, param_name):
-        """lat/lon/alt getter method for LocationParameter properties."""
+        """Lat/lon/alt getter method for LocationParameter properties."""
         def fget(self):
             this_param = getattr(self, param_name)
             return this_param.lat_lon_alt()
         return fget
 
     def lat_lon_alt_prop_fset(self, param_name):
-        """lat/lon/alt setter method for LocationParameter properties."""
+        """Lat/lon/alt setter method for LocationParameter properties."""
         def fset(self, value):
             this_param = getattr(self, param_name)
             this_param.set_lat_lon_alt(value)
@@ -86,14 +86,14 @@ class UVBase(object):
         return fset
 
     def lat_lon_alt_degrees_prop_fget(self, param_name):
-        """lat/lon/alt degree getter method for LocationParameter properties."""
+        """Lat/lon/alt degree getter method for LocationParameter properties."""
         def fget(self):
             this_param = getattr(self, param_name)
             return this_param.lat_lon_alt_degrees()
         return fget
 
     def lat_lon_alt_degrees_prop_fset(self, param_name):
-        """lat/lon/alt degree setter method for LocationParameter properties."""
+        """Lat/lon/alt degree setter method for LocationParameter properties."""
         def fset(self, value):
             this_param = getattr(self, param_name)
             this_param.set_lat_lon_alt_degrees(value)

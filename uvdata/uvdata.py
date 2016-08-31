@@ -1,4 +1,4 @@
-""""""
+"""Primary container for radio interferometer datasets."""
 from astropy import constants as const
 from astropy.time import Time
 import os
@@ -12,14 +12,20 @@ import telescopes as uvtel
 
 
 def _warning(msg, *a):
+    """Improve the printing of user warnings."""
     return str(msg) + '\n'
 
 
 class UVData(UVBase):
-    """A container for defining a radio interferometer dataset.
+    """
+    A class for defining a radio interferometer dataset.
 
     Currently supported file types: uvfits, miriad, fhd
     Provides phasing functions.
+
+    Attributes are all UVParameter objects. For full list see docs/parameters.rst
+        Some are always required, some are required for certain phase_types
+        and others are always optional.
     """
 
     def __init__(self):
@@ -263,6 +269,7 @@ class UVData(UVBase):
         warnings.formatwarning = _warning
 
     def set_drift(self):
+        """Set phase_type to 'drift' and adjust required parameters."""
         self.phase_type = 'drift'
         self._zenith_ra.required = True
         self._zenith_dec.required = True
@@ -271,6 +278,7 @@ class UVData(UVBase):
         self._phase_center_dec.required = False
 
     def set_phased(self):
+        """Set phase_type to 'phased' and adjust required parameters."""
         self.phase_type = 'phased'
         self._zenith_ra.required = False
         self._zenith_dec.required = False
@@ -279,6 +287,7 @@ class UVData(UVBase):
         self._phase_center_dec.required = True
 
     def set_unknown_phase_type(self):
+        """Set phase_type to 'unknown' and adjust required parameters."""
         self.phase_type = 'unknown'
         self._zenith_ra.required = False
         self._zenith_dec.required = False
@@ -287,11 +296,26 @@ class UVData(UVBase):
         self._phase_center_dec.required = False
 
     def known_telescopes(self):
-        """Retun a list of telescopes known to pyuvdata
-        (this is a shortcut to uvdata.telescopes.known_telescopes())"""
+        """
+        Retun a list of telescopes known to pyuvdata.
+
+        This is just a shortcut to uvdata.telescopes.known_telescopes()
+        """
         return uvtel.known_telescopes()
 
     def set_telescope_params(self, overwrite=False):
+        """
+        Set telescope related parameters.
+
+        If the telescope_name is in the known_telescopes, set any missing
+        telescope-associated parameters (e.g. telescope location) to the value
+        for the known telescope.
+
+        Args:
+            overwrite: Option to overwrite existing telescope-associated
+                parameters with the values from the known telescope.
+                Default is False.
+        """
         telescope_obj = uvtel.get_telescope(self.telescope_name)
         if telescope_obj is not False:
             params_set = []
@@ -316,6 +340,14 @@ class UVData(UVBase):
                              'known_telescopes.'.format(telescope_name=self.telescope_name))
 
     def baseline_to_antnums(self, baseline):
+        """
+        Get the antenna numbers corresponding to a given baseline number.
+
+        Args:
+            baseline: integer baseline number
+        Returns:
+            tuple with the two antenna numbers corresponding to the baseline.
+        """
         if self.Nants_telescope > 2048:
             raise StandardError('error Nants={Nants}>2048 not '
                                 'supported'.format(Nants=self.Nants_telescope))
@@ -328,9 +360,18 @@ class UVData(UVBase):
         return np.int32(i), np.int32(j)
 
     def antnums_to_baseline(self, i, j, attempt256=False):
-        # set the attempt256 keyword to True to (try to) use the older
-        # 256 standard used in many uvfits files
-        # (will use 2048 standard if there are more than 256 antennas)
+        """
+        Get the baseline number corresponding to two given antenna numbers.
+
+        Args:
+            i: first antenna number (integer)
+            j: second antenna number (integer)
+            attempt256: Option to try to use the older 256 standard used in
+                many uvfits files (will use 2048 standard if there are more
+                than 256 antennas). Default is False.
+        Returns:
+            integer baseline number corresponding to the two antenna numbers.
+        """
         i, j = np.int64((i, j))
         if self.Nants_telescope > 2048:
             raise StandardError('cannot convert i,j to a baseline index '
@@ -349,6 +390,7 @@ class UVData(UVBase):
         return np.int64(2048 * (j + 1) + (i + 1) + 2**16)
 
     def set_lsts_from_time_array(self):
+        """Set the lst_array based from the time_array."""
         lsts = []
         curtime = self.time_array[0]
         for ind, jd in enumerate(self.time_array):
@@ -364,6 +406,7 @@ class UVData(UVBase):
         return ephem.date(num - 2415020.)
 
     def unphase_to_drift(self):
+        """Convert from a phased dataset to a drift dataset."""
         if self.phase_type == 'phased':
             pass
         elif self.phase_type == 'drift':
@@ -425,9 +468,12 @@ class UVData(UVBase):
         self.set_drift()
 
     def phase_to_time(self, time):
-        # phase drift scan data to a time in jd
-        # (i.e. ra/dec of zenith at that time in current epoch).
+        """
+        Phase a drift scan dataset to the ra/dec of zenith at a particular time.
 
+        Args:
+            time: The time to phase to.
+        """
         if self.phase_type == 'drift':
             pass
         elif self.phase_type == 'phased':
@@ -452,16 +498,22 @@ class UVData(UVBase):
         self.phase(ra, dec, epoch)
 
     def phase(self, ra, dec, epoch):
-        # phase drift scan data to a single ra/dec at the set epoch
-        # or time in jd (i.e. ra/dec of zenith at that time in current epoch).
-        # ra/dec should be in radians.
-        # epoch should be an ephem date, measured from noon Dec. 31, 1899.
-        # will not phase already phased data.
+        """
+        Phase a drift scan dataset to a single ra/dec at a particular epoch.
+
+        Will not phase already phased data.
+        Args:
+            ra: The ra to phase to in radians.
+            dec: The dec to phase to in radians.
+            epoch: The epoch to use for phasing. Should be an ephem date,
+                measured from noon Dec. 31, 1899.
+        """
         if self.phase_type == 'drift':
             pass
         elif self.phase_type == 'phased':
-            raise ValueError('The data is already phased; can only phase ' +
-                             'drift scanning data.')
+            raise ValueError('The data is already phased; can only phase '
+                             'drift scan data. Use unphase_to_drift to '
+                             'convert to a drift scan.')
         else:
             raise ValueError('The phasing type of the data is unknown. '
                              'Set the phase_type to "drift" or "phased" to '
@@ -536,6 +588,16 @@ class UVData(UVBase):
         return other_obj
 
     def read_uvfits(self, filename, run_check=True, run_sanity_check=True):
+        """
+        Read in data from a uvfits file.
+
+        Args:
+            filename: The uvfits file to read from.
+            run_check: Option to check for the existence and proper shapes of
+                required parameters after reading in the file. Default is True.
+            run_sanity_check: Option to sanity check the values of
+                required parameters after reading in the file. Default is True.
+        """
         import uvfits
         uvfits_obj = uvfits.UVFITS()
         uvfits_obj.read_uvfits(filename, run_check=True, run_sanity_check=True)
@@ -544,6 +606,21 @@ class UVData(UVBase):
 
     def write_uvfits(self, filename, spoof_nonessential=False,
                      force_phase=False, run_check=True, run_sanity_check=True):
+        """
+        Write the data to a uvfits file.
+
+        Args:
+            filename: The uvfits file to write to.
+            spoof_nonessential: Option to spoof the values of optional
+                UVParameters that are not set but are required for uvfits files.
+                Default is False.
+            force_phase: Option to automatically phase drift scan data to
+                zenith of the first timestamp. Default is False.
+            run_check: Option to check for the existence and proper shapes of
+                required parameters before writing the file. Default is True.
+            run_sanity_check: Option to sanity check the values of
+                required parameters before writing the file. Default is True.
+        """
         uvfits_obj = self._convert_to_filetype('uvfits')
         uvfits_obj.write_uvfits(filename, spoof_nonessential=spoof_nonessential,
                                 force_phase=force_phase, run_check=True,
@@ -552,6 +629,18 @@ class UVData(UVBase):
 
     def read_fhd(self, filelist, use_model=False, run_check=True,
                  run_sanity_check=True):
+        """
+        Read in data from a set of FHD files.
+
+        Args:
+            filelist: The list of FHD save files to read from.
+            use_model: Option to read in the model visibilities rather than the
+                dirty visibilities. Default is False.
+            run_check: Option to check for the existence and proper shapes of
+                required parameters after reading in the file. Default is True.
+            run_sanity_check: Option to sanity check the values of
+                required parameters after reading in the file. Default is True.
+        """
         import fhd
         fhd_obj = fhd.FHD()
         fhd_obj.read_fhd(filelist, use_model=use_model, run_check=True,
@@ -560,7 +649,16 @@ class UVData(UVBase):
         del(fhd_obj)
 
     def read_miriad(self, filepath, run_check=True, run_sanity_check=True):
-        """read in data from a miriad file"""
+        """
+        Read in data from a uvfits file.
+
+        Args:
+            filepath: The miriad file directory to read from.
+            run_check: Option to check for the existence and proper shapes of
+                required parameters after reading in the file. Default is True.
+            run_sanity_check: Option to sanity check the values of
+                required parameters after reading in the file. Default is True.
+        """
         import miriad
         miriad_obj = miriad.Miriad()
         miriad_obj.read_miriad(filepath, run_check=True, run_sanity_check=True)
@@ -569,6 +667,18 @@ class UVData(UVBase):
 
     def write_miriad(self, filename, run_check=True, run_sanity_check=True,
                      clobber=False):
+        """
+        Write the data to a uvfits file.
+
+        Args:
+            filename: The uvfits file to write to.
+            run_check: Option to check for the existence and proper shapes of
+                required parameters before writing the file. Default is True.
+            run_sanity_check: Option to sanity check the values of
+                required parameters before writing the file. Default is True.
+            clobber: Option to overwrite the filename if the file already exists.
+                Default is False.
+        """
         miriad_obj = self._convert_to_filetype('miriad')
         miriad_obj.write_miriad(filename, run_check=True, run_sanity_check=True,
                                 clobber=clobber)
