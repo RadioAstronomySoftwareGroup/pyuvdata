@@ -134,6 +134,7 @@ class UVParameter(object):
         Args:
             uvbase: object with this UVParameter as an attribute. Needed
                 because the form can refer to other UVParameters on this object.
+
         Returns:
             The expected shape of the value.
         """

@@ -14,6 +14,7 @@ def LatLonAlt_from_XYZ(xyz):
 
     Args:
         xyz: numpy array, shape (3,), with topocentric x,y,z coordinates
+
     Returns:
         tuple of latitude, longitude, altitude values in radians & meters
     """
@@ -39,6 +40,7 @@ def XYZ_from_LatLonAlt(latitude, longitude, altitude):
         latitude: latitude in radians
         longitude: longitude in radians
         altitude: altitude in meters
+
     Returns:
         numpy array, shape (3,), with topocentric x,y,z coordinates
     """
