@@ -10,6 +10,6 @@ pyuvdata
 
    installation
    tutorial
-   parameters
    uvdata
+   parameters
    developer_docs
