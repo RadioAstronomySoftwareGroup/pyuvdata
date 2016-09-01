@@ -1,9 +1,11 @@
+"""Tests for UVFITS object."""
 import nose.tools as nt
 from uvdata import UVData
 import uvdata.tests as uvtest
 
 
 def test_ReadNRAO():
+    """Test reading in a CASA tutorial uvfits file."""
     UV = UVData()
     testfile = '../data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
     expected_extra_keywords = ['OBSERVER', 'SORTORD', 'SPECSYS',
@@ -17,6 +19,7 @@ def test_ReadNRAO():
 
 
 def test_noSPW():
+    """Test reading in a PAPER uvfits file with no spw axis."""
     UV = UVData()
     testfile_no_spw = '../data/zen.2456865.60537.xy.uvcRREAAM.uvfits'
     status = uvtest.checkWarnings(UV.read_uvfits, [testfile_no_spw],
@@ -27,31 +30,22 @@ def test_noSPW():
 
 # this test commented out because the file is too large to include in the repo
 # def test_readRTS():
+#    """Test reading in an RTS UVFITS file."""
 #     UV = UVData()
 #     testfile = '../data/pumav2_SelfCal300_Peel300_01.uvfits'
 #     test = UV.read_uvfits(testfile)
 #     nt.assert_true(test)
 
 def test_breakReadUVFits():
+    """Test errors on reading in a uvfits file with subarrays."""
     UV = UVData()
-    testfile = '../data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
     multi_subarray_file = '../data/multi_subarray.uvfits'
     nt.assert_raises(ValueError, UV.read_uvfits, multi_subarray_file)
     del(UV)
 
 
-def test_writeNRAO():
-    UV = UVData()
-    testfile = '../data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
-    write_file = '../data/test/outtest_casa_1src_1spw.uvfits'
-    status = uvtest.checkWarnings(UV.read_uvfits, [testfile],
-                                  message='Telescope EVLA is not')
-    UV.write_uvfits(write_file)
-    nt.assert_true(status)
-    del(UV)
-
-
 def test_spwnotsupported():
+    """Test errors on reading in a uvfits file with multiple spws."""
     UV = UVData()
     testfile = '../data/day2_TDEM0003_10s_norx_1scan.uvfits'
     nt.assert_raises(ValueError, UV.read_uvfits, testfile)
@@ -59,6 +53,12 @@ def test_spwnotsupported():
 
 
 def test_readwriteread():
+    """
+    CASA tutorial uvfits loopback test.
+
+    Read in uvfits file, write out new uvfits file, read back in and check for
+    object equality.
+    """
     uv_in = UVData()
     uv_out = UVData()
     testfile = '../data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'

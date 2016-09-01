@@ -1,9 +1,11 @@
+"""Tests for common utility functions."""
 import nose.tools as nt
 import uvdata
 import numpy as np
 
 
 def test_XYZ_from_LatLonAlt():
+    """Test conversion from lat/lon/alt to topocentric xyz with reference values."""
     out_xyz = uvdata.XYZ_from_LatLonAlt(-26.7 * np.pi / 180.0,
                                         116.7 * np.pi / 180.0, 377.8)
     # Got reference by forcing http://www.oc.nps.edu/oc2902w/coord/llhxyz.htm
@@ -13,6 +15,7 @@ def test_XYZ_from_LatLonAlt():
 
 
 def test_LatLonAlt_from_XYZ():
+    """Test conversion from topocentric xyz to lat/lon/alt with reference values."""
     out_latlonalt = uvdata.LatLonAlt_from_XYZ([-2562123.42683, 5094215.40141,
                                                -2848728.58869])
     # Got reference by forcing http://www.oc.nps.edu/oc2902w/coord/llhxyz.htm

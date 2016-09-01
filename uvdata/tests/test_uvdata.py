@@ -1,3 +1,4 @@
+"""Tests for uvdata object."""
 import nose.tools as nt
 from uvdata import UVData
 import numpy as np
@@ -6,9 +7,9 @@ import ephem
 import uvdata.tests as uvtest
 
 
-# test basic parameters, properties and iterators
 class TestUVDataInit(object):
     def setUp(self):
+        """Setup for basic parameter, property and iterator tests."""
         self.required_parameters = ['_data_array', '_nsample_array',
                                     '_flag_array', '_Ntimes', '_Nbls',
                                     '_Nblts', '_Nfreqs', '_Npols', '_Nspws',
@@ -59,9 +60,11 @@ class TestUVDataInit(object):
         self.uv_object = UVData()
 
     def teardown(self):
+        """Test teardown: delete object."""
         del(self.uv_object)
 
     def test_parameter_iter(self):
+        "Test expected parameters."
         all = []
         for prop in self.uv_object:
             all.append(prop)
@@ -70,6 +73,7 @@ class TestUVDataInit(object):
                            ' not returned in object iterator')
 
     def test_required_parameter_iter(self):
+        "Test expected required parameters."
         required = []
         for prop in self.uv_object.required():
             required.append(prop)
@@ -78,6 +82,7 @@ class TestUVDataInit(object):
                            ' not returned in required iterator')
 
     def test_extra_parameter_iter(self):
+        "Test expected optional parameters."
         extra = []
         for prop in self.uv_object.extra():
             extra.append(prop)
@@ -85,13 +90,8 @@ class TestUVDataInit(object):
             nt.assert_true(a in extra, msg='expected attribute ' + a +
                            ' not returned in extra iterator')
 
-    def test_parameters_exist(self):
-        expected_parameters = self.required_parameters + self.extra_parameters
-        for a in expected_parameters:
-            nt.assert_true(hasattr(self.uv_object, a),
-                           msg='expected parameter ' + a + ' does not exist')
-
     def test_unexpected_attributes(self):
+        "Test for extra attributes."
         expected_attributes = self.required_properties + \
             self.extra_properties + self.other_properties
         attributes = [i for i in self.uv_object.__dict__.keys() if i[0] != '_']
@@ -100,6 +100,7 @@ class TestUVDataInit(object):
                            msg='unexpected attribute ' + a + ' found in UVData')
 
     def test_properties(self):
+        "Test that properties can be get and set properly."
         prop_dict = dict(zip(self.required_properties + self.extra_properties,
                              self.required_parameters + self.extra_parameters))
         for k, v in prop_dict.iteritems():
@@ -113,9 +114,9 @@ class TestUVDataInit(object):
                 raise(AssertionError)
 
 
-# test methods
 class TestUVDataBasicMethods(object):
     def setUp(self):
+        """Setup for tests of basic methods."""
         self.uv_object = UVData()
         self.testfile = '../data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
         uvtest.checkWarnings(self.uv_object.read_uvfits, [self.testfile],
@@ -123,21 +124,25 @@ class TestUVDataBasicMethods(object):
         self.uv_object2 = copy.deepcopy(self.uv_object)
 
     def teardown(self):
+        """Test teardown: delete objects."""
         del(self.uv_object)
         del(self.uv_object2)
 
     def test_equality(self):
+        """Basic equality test."""
         nt.assert_equal(self.uv_object, self.uv_object)
 
     def test_data_inequality(self):
+        """Test equality error for different data."""
         self.uv_object2.data_array[0, 0, 0, 0] += 1  # Force data to be not equal
         nt.assert_not_equal(self.uv_object, self.uv_object2)
 
     def test_class_inequality(self):
+        """Test equality error for different classes."""
         nt.assert_not_equal(self.uv_object, self.uv_object.data_array)
 
     def test_uvparameter_inequality(self):
-        # Check some UVParameter specific inequalities.
+        """Test some UVParameter specific inequalities."""
         self.uv_object2.data_array = 1.0  # Test values not same class
         # Note that due to peculiarity of order of operations, need to reverse arrays.
         nt.assert_not_equal(self.uv_object2._data_array,
@@ -155,13 +160,16 @@ class TestUVDataBasicMethods(object):
                             self.uv_object2._antenna_names)
 
     def test_check(self):
+        """Test simple check function."""
         nt.assert_true(self.uv_object.check())
 
     def test_string_check(self):
+        """Test check function with wrong type (string)."""
         self.uv_object.vis_units = 1
         nt.assert_raises(ValueError, self.uv_object.check)
 
     def test_single_value_check(self):
+        """Test check function with wrong dimensions or type."""
         Nblts = self.uv_object.Nblts
         self.uv_object.Nblts += 4
         nt.assert_raises(ValueError, self.uv_object.check)
@@ -169,6 +177,7 @@ class TestUVDataBasicMethods(object):
         nt.assert_raises(ValueError, self.uv_object.check)
 
     def test_array_check(self):
+        """Test check function with wrong array dimensions or type."""
         data = self.uv_object.data_array
         self.uv_object.data_array = np.array([4, 5, 6], dtype=np.complex64)
         nt.assert_raises(ValueError, self.uv_object.check)
@@ -176,17 +185,20 @@ class TestUVDataBasicMethods(object):
         nt.assert_raises(ValueError, self.uv_object.check)
 
     def test_list_check(self):
+        """Test check function with wrong list dimensions."""
         antenna_names = self.uv_object.antenna_names
         self.uv_object.antenna_names = [1] * self.uv_object._antenna_names.expected_shape(self.uv_object)[0]
         nt.assert_raises(ValueError, self.uv_object.check)
 
     def test_sanity_check(self):
+        """Test check function with out of range values."""
         uvws = self.uv_object.uvw_array
         self.uv_object.uvw_array = 1e-4 * np.ones_like(self.uv_object.uvw_array)
         nt.assert_raises(ValueError, self.uv_object.check)
 
 
 class TestBaselineAntnumMethods(object):
+    """Setup for tests on antnum, baseline conversion."""
     def setup(self):
         self.uv_object = UVData()
         self.uv_object.Nants_telescope = 128
@@ -194,14 +206,17 @@ class TestBaselineAntnumMethods(object):
         self.uv_object2.Nants_telescope = 2049
 
     def teardown(self):
+        """Test teardown: delete objects."""
         del(self.uv_object)
         del(self.uv_object2)
 
     def test_baseline_to_antnums(self):
+        """Test baseline to antnum conversion for 256 & larger conventions."""
         nt.assert_equal(self.uv_object.baseline_to_antnums(67585), (0, 0))
         nt.assert_raises(StandardError, self.uv_object2.baseline_to_antnums, 67585)
 
     def test_antnums_to_baselines(self):
+        """Test antums to baseline conversion for 256 & larger conventions."""
         nt.assert_equal(self.uv_object.antnums_to_baseline(0, 0), 67585)
         nt.assert_equal(self.uv_object.antnums_to_baseline(257, 256), 592130)
         # Check attempt256
@@ -214,6 +229,7 @@ class TestBaselineAntnumMethods(object):
 
 
 def test_known_telescopes():
+    """Test known_telescopes method returns expected results."""
     uv_object = UVData()
     known_telescopes = ['PAPER', 'HERA', 'MWA']
     nt.assert_equal(known_telescopes.sort(),
@@ -221,6 +237,11 @@ def test_known_telescopes():
 
 
 def test_phase_unphasePAPER():
+    """
+    Phasing loopback test.
+
+    Read in drift data, phase to an RA/DEC, unphase and check for object equality.
+    """
     testfile = '../data/zen.2456865.60537.xy.uvcRREAA'
     UV_raw = UVData()
     status = uvtest.checkWarnings(UV_raw.read_miriad, [testfile],

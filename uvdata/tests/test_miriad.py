@@ -1,3 +1,4 @@
+"""Tests for Miriad object."""
 import nose.tools as nt
 from uvdata import UVData
 import ephem
@@ -5,6 +6,12 @@ import uvdata.tests as uvtest
 
 
 def test_ReadMiriadWriteUVFits():
+    """
+    Miriad to uvfits loopback test.
+
+    Read in Miriad files, write out as uvfits, read back in and check for
+    object equality.
+    """
     miriad_uv = UVData()
     uvfits_uv = UVData()
     miriad_file = '../data/zen.2456865.60537.xy.uvcRREAA'
@@ -21,12 +28,14 @@ def test_ReadMiriadWriteUVFits():
 
 
 def test_breakReadMiriad():
+    """Test Miriad file checking."""
     UV = UVData()
     nt.assert_raises(IOError, UV.read_miriad, 'foo')
     del(UV)
 
 
 def test_writePAPER():
+    """Test reading & writing PAPER Miriad file."""
     UV = UVData()
     testfile = '../data/zen.2456865.60537.xy.uvcRREAA'
     write_file = '../data/test/outtest_miriad.uv'
@@ -38,6 +47,12 @@ def test_writePAPER():
 
 
 def test_readWriteReadMiriad():
+    """
+    PAPER file Miriad loopback test.
+
+    Read in Miriad PAPER file, write out as new Miriad file, read back in and
+    check for object equality.
+    """
     uv_in = UVData()
     uv_out = UVData()
     testfile = '../data/zen.2456865.60537.xy.uvcRREAA'

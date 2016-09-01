@@ -1,3 +1,4 @@
+"""Setup testing environment, define useful testing functions."""
 import os
 import warnings
 import collections
@@ -5,6 +6,7 @@ import sys
 
 
 def setup_package():
+    """Make data/test directory to put test output files in."""
     testdir = '../data/test/'
     if not os.path.exists(testdir):
         print('making test directory')
@@ -13,6 +15,7 @@ def setup_package():
 
 # Functions that are useful for testing:
 def get_iterable(x):
+    """Helper function for checkWarnings."""
     if isinstance(x, collections.Iterable):
         return x
     else:
@@ -20,7 +23,7 @@ def get_iterable(x):
 
 
 def clearWarnings():
-    # Quick code to make warnings reproducible
+    """Quick code to make warnings reproducible."""
     for name, mod in list(sys.modules.items()):
         try:
             reg = getattr(mod, "__warningregistry__", None)
@@ -33,6 +36,7 @@ def clearWarnings():
 def checkWarnings(func, func_args=[], func_kwargs={},
                   category=UserWarning,
                   nwarnings=1, message=None, known_warning=None):
+    """Function to check expected warnings."""
 
     if known_warning == 'miriad':
         # The default warnings for known telescopes when reading miriad files

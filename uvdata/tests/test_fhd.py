@@ -1,9 +1,10 @@
+"""Tests for FHD object."""
 import nose.tools as nt
 import os
 from uvdata import UVData
 import uvdata.tests as uvtest
 
-
+# set up FHD file list
 testdir = '../data/fhd_vis_data/'
 testfile_prefix = '1061316296_'
 testfile_suffix = ['flags.sav', 'vis_XX.sav', 'params.sav', 'vis_YY.sav',
@@ -14,6 +15,12 @@ for s in testfile_suffix:
 
 
 def test_ReadFHDWriteReadUVFits():
+    """
+    FHD to uvfits loopback test.
+
+    Read in FHD files, write out as uvfits, read back in and check for object
+    equality.
+    """
     fhd_uv = UVData()
     uvfits_uv = UVData()
     fhd_uv.read_fhd(testfiles)
@@ -26,7 +33,7 @@ def test_ReadFHDWriteReadUVFits():
 
 
 def test_breakReadFHD():
-    # Try various cases of incomplete file lists
+    """Try various cases of incomplete file lists."""
     fhd_uv = UVData()
     nt.assert_raises(StandardError, fhd_uv.read_fhd, testfiles[1:])  # Missing flags
     del(fhd_uv)
@@ -45,6 +52,7 @@ def test_breakReadFHD():
 
 
 def test_ReadFHD_model():
+    """FHD to uvfits loopback test with model visibilities."""
     fhd_uv = UVData()
     uvfits_uv = UVData()
     fhd_uv.read_fhd(testfiles)

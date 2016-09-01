@@ -1,3 +1,4 @@
+"""Tests for telescope objects and functions."""
 import numpy as np
 import nose.tools as nt
 import uvdata
@@ -9,7 +10,9 @@ other_attributes = ['citation', 'telescope_location_lat_lon_alt',
 expected_known_telescopes = ['PAPER', 'HERA', 'MWA']
 
 
+# Tests for Telescope object
 def test_parameter_iter():
+    "Test expected parameters."
     telescope_obj = uvdata.Telescope()
     all = []
     for prop in telescope_obj:
@@ -20,6 +23,7 @@ def test_parameter_iter():
 
 
 def test_required_parameter_iter():
+    "Test expected required parameters."
     telescope_obj = uvdata.Telescope()
     required = []
     for prop in telescope_obj.required():
@@ -30,6 +34,7 @@ def test_required_parameter_iter():
 
 
 def test_parameters_exist():
+    "Test expected optional parameters."
     telescope_obj = uvdata.Telescope()
     expected_parameters = required_parameters
     for a in expected_parameters:
@@ -38,6 +43,7 @@ def test_parameters_exist():
 
 
 def test_unexpected_attributes():
+    "Test for extra attributes."
     telescope_obj = uvdata.Telescope()
     expected_attributes = required_properties + other_attributes
     attributes = [i for i in telescope_obj.__dict__.keys() if i[0] != '_']
@@ -47,6 +53,7 @@ def test_unexpected_attributes():
 
 
 def test_properties():
+    "Test that properties can be get and set properly."
     telescope_obj = uvdata.Telescope()
     prop_dict = dict(zip(required_properties, required_parameters))
     for k, v in prop_dict.iteritems():
@@ -61,4 +68,5 @@ def test_properties():
 
 
 def test_known_telescopes():
+    """Test known_telescopes function returns expected results."""
     nt.assert_equal(uvdata.known_telescopes().sort(), expected_known_telescopes.sort())
