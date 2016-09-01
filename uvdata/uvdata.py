@@ -359,35 +359,35 @@ class UVData(UVBase):
             j = (baseline - (i + 1)) / 256 - 1
         return np.int32(i), np.int32(j)
 
-    def antnums_to_baseline(self, i, j, attempt256=False):
+    def antnums_to_baseline(self, ant1, ant2, attempt256=False):
         """
         Get the baseline number corresponding to two given antenna numbers.
 
         Args:
-            i: first antenna number (integer)
-            j: second antenna number (integer)
+            ant1: first antenna number (integer)
+            ant2: second antenna number (integer)
             attempt256: Option to try to use the older 256 standard used in
                 many uvfits files (will use 2048 standard if there are more
                 than 256 antennas). Default is False.
         Returns:
             integer baseline number corresponding to the two antenna numbers.
         """
-        i, j = np.int64((i, j))
+        ant1, ant2 = np.int64((ant1, ant2))
         if self.Nants_telescope > 2048:
-            raise StandardError('cannot convert i,j to a baseline index '
+            raise StandardError('cannot convert ant1, ant2 to a baseline index '
                                 'with Nants={Nants}>2048.'
                                 .format(Nants=self.Nants_telescope))
         if attempt256:
-            if (np.max(i) < 255 and np.max(j) < 255):
-                return 256 * (j + 1) + (i + 1)
+            if (np.max(ant1) < 255 and np.max(ant2) < 255):
+                return 256 * (ant2 + 1) + (ant1 + 1)
             else:
-                print('Max antnums are {} and {}'.format(np.max(i), np.max(j)))
+                print('Max antnums are {} and {}'.format(np.max(ant1), np.max(ant2)))
                 message = 'antnums_to_baseline: found > 256 antennas, using ' \
                           '2048 baseline indexing. Beware compatibility ' \
                           'with CASA etc'
                 warnings.warn(message)
 
-        return np.int64(2048 * (j + 1) + (i + 1) + 2**16)
+        return np.int64(2048 * (ant2 + 1) + (ant1 + 1) + 2**16)
 
     def set_lsts_from_time_array(self):
         """Set the lst_array based from the time_array."""
