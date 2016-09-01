@@ -16,10 +16,12 @@ class UVBase(object):
     defined. The init method of this base class creates properties
     (named using UVParameter.name) from all the UVParameter attributes on the subclass.
     AngleParameter and LocationParameter attributes also have extra convenience
-    properties defined: AngleParameter attributes have UVParameter.name+'_degrees'
-    properties and LocationParameter attributes have
-    UVParameter.name+'_lat_lon_alt' and UVParameter.name+'_lat_lon_alt_degrees'
-    properties.
+    properties defined:\n
+        AngleParameter:\n
+            UVParameter.name+'_degrees'\n
+        LocationParameter:\n
+            UVParameter.name+'_lat_lon_alt'\n
+            UVParameter.name+'_lat_lon_alt_degrees'
     """
 
     def __init__(self):
