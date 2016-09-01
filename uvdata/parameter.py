@@ -14,7 +14,7 @@ class UVParameter(object):
     """
     Data and metadata objects for interferometric data sets.
 
-     Attributes:
+    Attributes:
         name: A string giving the name of the attribute. Used as the associated
             property name in classes based on UVBase.
 
