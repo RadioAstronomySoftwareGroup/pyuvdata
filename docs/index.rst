@@ -12,3 +12,4 @@ pyuvdata
    tutorial
    parameters
    uvdata
+   developer_docs

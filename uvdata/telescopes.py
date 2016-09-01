@@ -29,11 +29,10 @@ class Telescope(uvbase.UVBase):
     A class for defining a telescope for use with UVData objects.
 
     Attributes:
-        citation: text giving source of telescope information
-        UVParameters:
-            telescope_name: string name of the telescope
-            telescope_location: telescope location xyz coordinates in ITRF
-                (earth-centered frame).
+        citation (str): text giving source of telescope information
+        telescope_name (string, UVParameter): name of the telescope
+        telescope_location (array_like, UVParameter): telescope location xyz coordinates in ITRF
+            (earth-centered frame).
     """
 
     def __init__(self):
@@ -68,6 +67,9 @@ def get_telescope(telescope_name):
 
     Args:
         telescope_name: string name of a telescope, must be in known_telescopes().
+
+    Returns:
+        The Telescope object associated with telescope_name.
     """
     if telescope_name.upper() in (name.upper() for name in telescopes.keys()):
         uc_telescope_list = [item.upper() for item in telescopes.keys()]

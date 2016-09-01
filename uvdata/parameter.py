@@ -17,22 +17,30 @@ class UVParameter(object):
      Attributes:
         name: A string giving the name of the attribute. Used as the associated
             property name in classes based on UVBase.
+
         required: A boolean indicating whether this is required metadata for
             the class with this UVParameter as an attribute. Default is True.
+
         value: The value of the data or metadata.
+
         spoof_val: A fake value that can be assigned to a non-required
             UVParameter if the metadata is required for a particular file-type.
             This is not an attribute of required UVParameters.
+
         form: Either 'str' or a tuple giving information about the expected
             shape of the value. Elements of the tuple may be the name of other
-            UVParameters that indicate data shapes. Examples:
-                'str': a string value
-                ('Nblts', 3): indicating the value should be an array of shape:
-                    Nblts (another UVParameter name), 3
+            UVParameters that indicate data shapes. \n
+            Examples:\n
+                'str': a string value\n
+                ('Nblts', 3): the value should be an array of shape: Nblts (another UVParameter name), 3
+
         description: A string description of the data or metadata in the object.
+
         expected_type: The type that the data or metadata should be.
             Default is np.int or str if form is 'str'
+
         sane_vals: Optional. Tuple giving a range of reasonable values for elements of value.
+
         tols: Tolerances for testing the equality of UVParameters. Either a
             single absolute value or a tuple of relative and absolute values to
             be used by np.isclose()
