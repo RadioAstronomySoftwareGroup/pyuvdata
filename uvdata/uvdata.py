@@ -23,9 +23,10 @@ class UVData(UVBase):
     Currently supported file types: uvfits, miriad, fhd.
     Provides phasing functions.
 
-    Attributes are all UVParameter objects. For full list see docs/parameters.rst
-        Some are always required, some are required for certain phase_types
-        and others are always optional.
+    Attributes:
+        UVParameter objects: For full list see docs/parameters.rst
+            Some are always required, some are required for certain phase_types
+            and others are always optional.
     """
 
     def __init__(self):
@@ -345,6 +346,7 @@ class UVData(UVBase):
 
         Args:
             baseline: integer baseline number
+
         Returns:
             tuple with the two antenna numbers corresponding to the baseline.
         """
@@ -369,6 +371,7 @@ class UVData(UVBase):
             attempt256: Option to try to use the older 256 standard used in
                 many uvfits files (will use 2048 standard if there are more
                 than 256 antennas). Default is False.
+
         Returns:
             integer baseline number corresponding to the two antenna numbers.
         """
@@ -502,6 +505,7 @@ class UVData(UVBase):
         Phase a drift scan dataset to a single ra/dec at a particular epoch.
 
         Will not phase already phased data.
+
         Args:
             ra: The ra to phase to in radians.
             dec: The dec to phase to in radians.
