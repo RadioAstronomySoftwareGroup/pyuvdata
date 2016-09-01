@@ -24,7 +24,7 @@ class UVData(UVBase):
     Provides phasing functions.
 
     Attributes:
-        UVParameter objects: For full list see docs/parameters.rst
+        UVParameter objects: For full list see Parameters (docs/parameters.rst).
             Some are always required, some are required for certain phase_types
             and others are always optional.
     """
