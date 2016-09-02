@@ -31,4 +31,5 @@ if uv1 == uv2:
 else:
     print('uvdata objects from files are not equal')
 
-del(this_uv)
+del(uv1)
+del(uv2)
