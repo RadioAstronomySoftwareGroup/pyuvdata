@@ -55,7 +55,7 @@ def test_ReadFHD_model():
     """FHD to uvfits loopback test with model visibilities."""
     fhd_uv = UVData()
     uvfits_uv = UVData()
-    fhd_uv.read_fhd(testfiles)
+    fhd_uv.read_fhd(testfiles, use_model=True)
     fhd_uv.write_uvfits('../data/test/outtest_FHD_1061316296_model.uvfits',
                         spoof_nonessential=True)
     uvfits_uv.read_uvfits('../data/test/outtest_FHD_1061316296_model.uvfits')
