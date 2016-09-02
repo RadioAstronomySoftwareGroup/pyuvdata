@@ -16,7 +16,7 @@ setup_args = {
     'package_data': {'uvdata': [f for f in listdir('./uvdata/data') if op.isfile(op.join('./uvdata/data', f))]},
     # note pyfits is only a dependency because it is an aipy dependency.
     # It should be removed when aipy is.
-    'install_requires': ['numpy', 'scipy', 'astropy>=1.2', 'pyephem', 'pyfits', 'aipy']
+    'install_requires': ['numpy>=1.10', 'scipy', 'astropy>=1.2', 'pyephem', 'pyfits', 'aipy']
 }
 
 if __name__ == '__main__':

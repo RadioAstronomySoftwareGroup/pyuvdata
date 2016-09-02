@@ -3,7 +3,7 @@ Installation
 
 Requirements
 -----------------
-* numpy
+* numpy >= 1.10
 * scipy
 * astropy >= 1.2
 * pyephem
