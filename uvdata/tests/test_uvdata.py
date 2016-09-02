@@ -132,32 +132,9 @@ class TestUVDataBasicMethods(object):
         """Basic equality test."""
         nt.assert_equal(self.uv_object, self.uv_object)
 
-    def test_data_inequality(self):
-        """Test equality error for different data."""
-        self.uv_object2.data_array[0, 0, 0, 0] += 1  # Force data to be not equal
-        nt.assert_not_equal(self.uv_object, self.uv_object2)
-
-    def test_class_inequality(self):
+    def test_uvdata_class_inequality(self):
         """Test equality error for different classes."""
         nt.assert_not_equal(self.uv_object, self.uv_object.data_array)
-
-    def test_uvparameter_inequality(self):
-        """Test some UVParameter specific inequalities."""
-        self.uv_object2.data_array = 1.0  # Test values not same class
-        # Note that due to peculiarity of order of operations, need to reverse arrays.
-        nt.assert_not_equal(self.uv_object2._data_array,
-                            self.uv_object._data_array)
-        self.uv_object2.data_array = np.array([1, 2, 3])  # Test different shapes
-        nt.assert_not_equal(self.uv_object._data_array,
-                            self.uv_object2._data_array)
-        self.uv_object2.Ntimes = 1000.0  # Test values that are not close
-        nt.assert_not_equal(self.uv_object._Ntimes, self.uv_object2._Ntimes)
-        self.uv_object2.vis_units = 'foo'  # Test unequal strings
-        nt.assert_not_equal(self.uv_object._vis_units,
-                            self.uv_object2._vis_units)
-        self.uv_object2.antenna_names[0] = 'Bob'  # Test unequal string in list
-        nt.assert_not_equal(self.uv_object._antenna_names,
-                            self.uv_object2._antenna_names)
 
     def test_check(self):
         """Test simple check function."""

@@ -106,10 +106,11 @@ class UVParameter(object):
                                   'values are not close'.format(name=self.name))
                             return False
                     except:
-                        # print(self.value, other.value)
-                        print('{name} parameter value is not a string, cannot '
-                              'be cast as numpy array'.format(name=self.name))
-                        return False
+                        if self.value != other.value:
+                            print('{name} parameter value is not a string, cannot '
+                                  'be cast as numpy array, is not equal.'.format(name=self.name))
+                            return False
+
                 else:
                     if self.value != other.value:
                         if not isinstance(self.value, list):
