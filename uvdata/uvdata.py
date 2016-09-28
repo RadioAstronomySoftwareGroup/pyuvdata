@@ -32,7 +32,10 @@ class UVData(UVBase):
     def __init__(self):
         """Create a new UVData object."""
         # add the UVParameters to the class
-        radian_tol = 2 * np.pi * 1e-3 / (60.0 * 60.0 * 24.0)  # 1 mas in radians
+
+        # standard angle tolerance: 10 mas in radians.
+        # Should perhaps be decreased to 1 mas in the future
+        radian_tol = 10 * 2 * np.pi * 1e-3 / (60.0 * 60.0 * 360.0)
 
         self._Ntimes = uvp.UVParameter('Ntimes', description='Number of times')
         self._Nbls = uvp.UVParameter('Nbls', description='number of baselines')
