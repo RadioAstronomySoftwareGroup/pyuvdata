@@ -73,3 +73,24 @@ def test_readwriteread():
     nt.assert_equal(uv_in, uv_out)
     del(uv_in)
     del(uv_out)
+
+
+def test_ReadUVFitsWriteMiriad():
+    """
+    uvfits to miriad loopback test. ***THIS TEST IS KNOWN TO CURRENTLY FAIL.***
+
+    Read in uvfits file, write out as miriad, read back in and check for
+    object equality.
+    """
+    uvfits_uv = UVData()
+    miriad_uv = UVData()
+    uvfits_file = '../data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
+    testfile = '../data/test/outtest_miriad'
+    read_status = uvtest.checkWarnings(uvfits_uv.read_uvfits, [uvfits_file],
+                                       message='Telescope EVLA is not')
+    uvfits_uv.write_miriad(testfile, clobber=True)
+    miriad_uv.read_miriad(testfile)
+    nt.assert_true(read_status)
+    nt.assert_equal(miriad_uv, uvfits_uv)
+    del(uvfits_uv)
+    del(miriad_uv)
