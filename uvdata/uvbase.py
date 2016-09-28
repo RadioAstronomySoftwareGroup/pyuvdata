@@ -160,9 +160,10 @@ class UVBase(object):
             for p in self.required():
                 self_param = getattr(self, p)
                 other_param = getattr(other, p)
+                p_equal = True
                 if self_param != other_param:
-                    return False
-            return True
+                    p_equal = False
+            return p_equal
         else:
             print('Classes do not match')
             return False

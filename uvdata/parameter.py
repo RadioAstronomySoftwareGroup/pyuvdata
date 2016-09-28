@@ -112,16 +112,17 @@ class UVParameter(object):
                             return False
 
                 else:
-                    if self.value != other.value:
-                        if not isinstance(self.value, list):
+                    if isinstance(self.value, list):
+                        if [s.strip() for s in self.value] != [s.strip() for s in other.value]:
+                            print('{name} parameter value is a list of strings, '
+                                  'values are different'.format(name=self.name))
+                            return False
+                    else:
+                        if self.value.strip() != other.value.strip():
                             if self.value.replace('\n', '') != other.value.replace('\n', ''):
                                 print('{name} parameter value is a string (not '
                                       'a list), values are different'.format(name=self.name))
                                 return False
-                        else:
-                            print('{name} parameter value is a list of strings, '
-                                  'values are different'.format(name=self.name))
-                            return False
 
             return True
         else:

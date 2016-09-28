@@ -338,7 +338,8 @@ class Miriad(UVData):
 
         # write data
         for viscnt, blt in enumerate(self.data_array):
-            uvw = self.uvw_array[viscnt] / const.c.to('m/ns').value  # NOTE issue 50 on conjugation
+            uvw = (self.uvw_array[viscnt] /
+                   const.c.to('m/ns').value).astype(np.double)  # NOTE issue 50 on conjugation
             t = self.time_array[viscnt]
             i = self.ant_1_array[viscnt]
             j = self.ant_2_array[viscnt]
@@ -357,7 +358,7 @@ class Miriad(UVData):
 
             # NOTE only writing spw 0, not supporting multiple spws for write
             for polcnt, pol in enumerate(self.polarization_array):
-                uv['pol'] = pol
+                uv['pol'] = pol.astype(np.int)
                 uv['cnt'] = self.nsample_array[viscnt, 0, :, polcnt].astype(np.double)
 
                 data = self.data_array[viscnt, 0, :, polcnt]
