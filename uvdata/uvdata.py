@@ -357,11 +357,11 @@ class UVData(UVBase):
             raise StandardError('error Nants={Nants}>2048 not '
                                 'supported'.format(Nants=self.Nants_telescope))
         if np.min(baseline) > 2**16:
-            ant1 = (baseline - 2**16 - (i + 1)) / 2048 - 1
             ant2 = (baseline - 2**16) % 2048 - 1
+            ant1 = (baseline - 2**16 - (ant2 + 1)) / 2048 - 1
         else:
-            ant1 = (baseline - (i + 1)) / 256 - 1
             ant2 = (baseline) % 256 - 1
+            ant1 = (baseline - (ant2 + 1)) / 256 - 1
         return np.int32(ant1), np.int32(ant2)
 
     def antnums_to_baseline(self, ant1, ant2, attempt256=False):
