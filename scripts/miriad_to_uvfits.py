@@ -16,6 +16,6 @@ for filename in args:
     UV = uvdata.UVData()
     UV.read_miriad(filename, 'miriad')
     outfilename = filename + '.uvfits'
-    UV.phase(time=UV.time_array[0])
+    UV.phase_to_time(UV.time_array[0])
     UV.write_uvfits(outfilename, 'uvfits')
 show()
