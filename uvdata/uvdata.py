@@ -357,12 +357,12 @@ class UVData(UVBase):
             raise StandardError('error Nants={Nants}>2048 not '
                                 'supported'.format(Nants=self.Nants_telescope))
         if np.min(baseline) > 2**16:
-            i = (baseline - 2**16) % 2048 - 1
-            j = (baseline - 2**16 - (i + 1)) / 2048 - 1
+            ant1 = (baseline - 2**16 - (i + 1)) / 2048 - 1
+            ant2 = (baseline - 2**16) % 2048 - 1
         else:
-            i = (baseline) % 256 - 1
-            j = (baseline - (i + 1)) / 256 - 1
-        return np.int32(i), np.int32(j)
+            ant1 = (baseline - (i + 1)) / 256 - 1
+            ant2 = (baseline) % 256 - 1
+        return np.int32(ant1), np.int32(ant2)
 
     def antnums_to_baseline(self, ant1, ant2, attempt256=False):
         """
@@ -385,7 +385,7 @@ class UVData(UVBase):
                                 .format(Nants=self.Nants_telescope))
         if attempt256:
             if (np.max(ant1) < 255 and np.max(ant2) < 255):
-                return 256 * (ant2 + 1) + (ant1 + 1)
+                return 256 * (ant1 + 1) + (ant2 + 1)
             else:
                 print('Max antnums are {} and {}'.format(np.max(ant1), np.max(ant2)))
                 message = 'antnums_to_baseline: found > 256 antennas, using ' \
