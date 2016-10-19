@@ -215,7 +215,7 @@ def test_known_telescopes():
 
 def test_phase_unphasePAPER():
     """
-    Phasing loopback test.
+    Phasing loopback test. ***THIS TEST IS KNOWN TO CURRENTLY FAIL.***
 
     Read in drift data, phase to an RA/DEC, unphase and check for object equality.
     """
