@@ -207,8 +207,10 @@ class Miriad(UVData):
         # Currently does not actually support Nspws>1!
         self.freq_array = np.tile(self.freq_array, (self.Nspws, 1))
 
-        ra_list = np.zeros(self.Nblts)
-        dec_list = np.zeros(self.Nblts)
+        # Temporary arrays to hold polarization axis, which will be collapsed
+        ra_pol_list = np.zeros((self.Nblts, self.Npols))
+        dec_pol_list = np.zeros((self.Nblts, self.Npols))
+        uvw_pol_list = np.zeros((self.Nblts, 3, self.Npols))
 
         for pol, data in data_accumulator.iteritems():
             pol_ind = self._pol_to_ind(pol)
@@ -226,13 +228,46 @@ class Miriad(UVData):
                 # axis but avoid any missing visbilities
                 uvw = d[0] * const.c.to('m/ns').value
                 uvw.shape = (1, 3)
-                self.uvw_array[blt_index] = uvw
-                ra_list[blt_index] = d[7]
-                dec_list[blt_index] = d[8]
+                uvw_pol_list[blt_index, :, pol_ind] = uvw
+                ra_pol_list[blt_index, pol_ind] = d[7]
+                dec_pol_list[blt_index, pol_ind] = d[8]
+
+        # Collapse pol axis for ra_list, dec_list, and uvw_list
+        ra_list = np.zeros(self.Nblts)
+        dec_list = np.zeros(self.Nblts)
+        for blt_index in xrange(self.Nblts):
+            test = ~np.all(self.flag_array[blt_index, :, :, :], axis=(0, 1))
+            good_pol = np.where(test)[0]
+            if len(good_pol) == 1:
+                # Only one good pol, use it
+                self.uvw_array[blt_index, :] = uvw_pol_list[blt_index, :, good_pol]
+                ra_list[blt_index] = ra_pol_list[blt_index, good_pol]
+                dec_list[blt_index] = dec_pol_list[blt_index, good_pol]
+            elif len(good_pol) > 1:
+                # Multiple good pols, check for consistency. pyuvdata does not
+                # support pol-dependent uvw, ra, or dec.
+                if np.any(np.diff(uvw_pol_list[blt_index, :, good_pol], axis=0)):
+                    raise ValueError('uvw values are different by polarization.')
+                else:
+                    self.uvw_array[blt_index, :] = uvw_pol_list[blt_index, :, good_pol[0]]
+                if np.any(np.diff(ra_pol_list[blt_index, good_pol])):
+                    raise ValueError('ra values are different by polarization.')
+                else:
+                    ra_list[blt_index] = ra_pol_list[blt_index, good_pol[0]]
+                if np.any(np.diff(dec_pol_list[blt_index, good_pol])):
+                    raise ValueError('dec values are different by polarization.')
+                else:
+                    dec_list[blt_index] = dec_pol_list[blt_index, good_pol[0]]
+            else:
+                # No good pols for this blt. Fill with first one.
+                self.uvw_array[blt_index, :] = uvw_pol_list[blt_index, :, 0]
+                ra_list[blt_index] = ra_pol_list[blt_index, 0]
+                dec_list[blt_index] = dec_pol_list[blt_index, 0]
 
         # check if ra is constant throughout file; if it is,
         # file is tracking if not, file is drift scanning
-        if np.isclose(np.mean(np.diff(ra_list)), 0.):
+        blt_good = np.where(~np.all(self.flag_array, axis=(1, 2, 3)))
+        if np.isclose(np.mean(np.diff(ra_list[blt_good])), 0.):
             self.set_phased()
             self.phase_center_ra = ra_list[0]
             self.phase_center_dec = dec_list[0]
