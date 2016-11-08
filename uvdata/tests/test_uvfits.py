@@ -77,8 +77,6 @@ def test_readwriteread():
 
 def test_ReadUVFitsWriteMiriad():
     """
-    uvfits to miriad loopback test. ***THIS TEST IS KNOWN TO CURRENTLY FAIL.***
-
     Read in uvfits file, write out as miriad, read back in and check for
     object equality.
     """
@@ -89,8 +87,10 @@ def test_ReadUVFitsWriteMiriad():
     read_status = uvtest.checkWarnings(uvfits_uv.read_uvfits, [uvfits_file],
                                        message='Telescope EVLA is not')
     uvfits_uv.write_miriad(testfile, clobber=True)
-    miriad_uv.read_miriad(testfile)
+    miriad_read_status = uvtest.checkWarnings(miriad_uv.read_miriad, [testfile],
+                                              message='Telescope EVLA is not')
     nt.assert_true(read_status)
+    nt.assert_true(miriad_read_status)
     nt.assert_equal(miriad_uv, uvfits_uv)
     del(uvfits_uv)
     del(miriad_uv)
