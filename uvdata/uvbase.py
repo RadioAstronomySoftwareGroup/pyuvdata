@@ -157,10 +157,10 @@ class UVBase(object):
                                                 rset=other_required))
                 return False
 
+            p_equal = True
             for p in self.required():
                 self_param = getattr(self, p)
                 other_param = getattr(other, p)
-                p_equal = True
                 if self_param != other_param:
                     p_equal = False
             return p_equal

@@ -132,6 +132,11 @@ class TestUVDataBasicMethods(object):
         """Basic equality test."""
         nt.assert_equal(self.uv_object, self.uv_object)
 
+    def test_inequality(self):
+        """Check that inequality is handled correctly."""
+        self.uv_object2.phase_center_ra = 0
+        nt.assert_not_equal(self.uv_object, self.uv_object2)
+
     def test_uvdata_class_inequality(self):
         """Test equality error for different classes."""
         nt.assert_not_equal(self.uv_object, self.uv_object.data_array)
