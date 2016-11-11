@@ -1,10 +1,12 @@
 """Tests for uvdata object."""
 import nose.tools as nt
-from uvdata import UVData
+import os
 import numpy as np
 import copy
 import ephem
+from uvdata import UVData
 import uvdata.tests as uvtest
+from uvdata.data import DATA_PATH
 
 
 class TestUVDataInit(object):
@@ -118,7 +120,7 @@ class TestUVDataBasicMethods(object):
     def setUp(self):
         """Setup for tests of basic methods."""
         self.uv_object = UVData()
-        self.testfile = '../data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
+        self.testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
         uvtest.checkWarnings(self.uv_object.read_uvfits, [self.testfile],
                              message='Telescope EVLA is not')
         self.uv_object2 = copy.deepcopy(self.uv_object)
@@ -224,7 +226,7 @@ def test_phase_unphasePAPER():
 
     Read in drift data, phase to an RA/DEC, unphase and check for object equality.
     """
-    testfile = '../data/zen.2456865.60537.xy.uvcRREAA'
+    testfile = os.path.join(DATA_PATH, 'zen.2456865.60537.xy.uvcRREAA')
     UV_raw = UVData()
     status = uvtest.checkWarnings(UV_raw.read_miriad, [testfile],
                                   known_warning='miriad')

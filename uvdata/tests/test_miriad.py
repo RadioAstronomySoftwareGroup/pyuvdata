@@ -1,8 +1,10 @@
 """Tests for Miriad object."""
 import nose.tools as nt
-from uvdata import UVData
+import os
 import ephem
+from uvdata import UVData
 import uvdata.tests as uvtest
+from uvdata.data import DATA_PATH
 
 
 def test_ReadMiriadWriteUVFits():
@@ -14,8 +16,8 @@ def test_ReadMiriadWriteUVFits():
     """
     miriad_uv = UVData()
     uvfits_uv = UVData()
-    miriad_file = '../data/zen.2456865.60537.xy.uvcRREAA'
-    testfile = '../data/test/outtest_miriad.uvfits'
+    miriad_file = os.path.join(DATA_PATH, 'zen.2456865.60537.xy.uvcRREAA')
+    testfile = os.path.join(DATA_PATH, 'test/outtest_miriad.uvfits')
     miriad_status = uvtest.checkWarnings(miriad_uv.read_miriad, [miriad_file],
                                          known_warning='miriad')
     miriad_uv.write_uvfits(testfile, spoof_nonessential=True,
@@ -37,8 +39,8 @@ def test_breakReadMiriad():
 def test_writePAPER():
     """Test reading & writing PAPER Miriad file."""
     UV = UVData()
-    testfile = '../data/zen.2456865.60537.xy.uvcRREAA'
-    write_file = '../data/test/outtest_miriad.uv'
+    testfile = os.path.join(DATA_PATH, 'zen.2456865.60537.xy.uvcRREAA')
+    write_file = os.path.join(DATA_PATH, 'test/outtest_miriad.uv')
     status = uvtest.checkWarnings(UV.read_miriad, [testfile],
                                   known_warning='miriad')
     UV.write_miriad(write_file, clobber=True)
@@ -55,8 +57,8 @@ def test_readWriteReadMiriad():
     """
     uv_in = UVData()
     uv_out = UVData()
-    testfile = '../data/zen.2456865.60537.xy.uvcRREAA'
-    write_file = '../data/test/outtest_miriad.uv'
+    testfile = os.path.join(DATA_PATH, 'zen.2456865.60537.xy.uvcRREAA')
+    write_file = os.path.join(DATA_PATH, 'test/outtest_miriad.uv')
     status = uvtest.checkWarnings(uv_in.read_miriad, [testfile],
                                   known_warning='miriad')
     uv_in.write_miriad(write_file, clobber=True)
@@ -72,8 +74,8 @@ def test_readWriteReadMiriad():
 This test is commented out since we no longer believe AIPY phases correctly
 to the astrometric ra/dec.  Hopefully we can reinstitute it one day.
 def test_ReadMiriadPhase():
-    unphasedfile = '../data/new.uvA'
-    phasedfile = '../data/new.uvA.phased'
+    unphasedfile = os.path.join(DATA_PATH, 'new.uvA')
+    phasedfile = os.path.join(DATA_PATH, 'new.uvA.phased')
     unphased_uv = UVData()
     phased_uv = UVData()
     # test that phasing makes files equal

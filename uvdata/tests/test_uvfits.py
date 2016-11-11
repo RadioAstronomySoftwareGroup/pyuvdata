@@ -1,13 +1,15 @@
 """Tests for UVFITS object."""
 import nose.tools as nt
+import os
 from uvdata import UVData
 import uvdata.tests as uvtest
+from uvdata.data import DATA_PATH
 
 
 def test_ReadNRAO():
     """Test reading in a CASA tutorial uvfits file."""
     UV = UVData()
-    testfile = '../data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
+    testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
     expected_extra_keywords = ['OBSERVER', 'SORTORD', 'SPECSYS',
                                'RESTFREQ', 'ORIGIN']
     status = uvtest.checkWarnings(UV.read_uvfits, [testfile],
@@ -21,7 +23,7 @@ def test_ReadNRAO():
 def test_noSPW():
     """Test reading in a PAPER uvfits file with no spw axis."""
     UV = UVData()
-    testfile_no_spw = '../data/zen.2456865.60537.xy.uvcRREAAM.uvfits'
+    testfile_no_spw = os.path.join(DATA_PATH, 'zen.2456865.60537.xy.uvcRREAAM.uvfits')
     status = uvtest.checkWarnings(UV.read_uvfits, [testfile_no_spw],
                                   known_warning='paper_uvfits')
     nt.assert_true(status)
@@ -32,14 +34,14 @@ def test_noSPW():
 # def test_readRTS():
 #    """Test reading in an RTS UVFITS file."""
 #     UV = UVData()
-#     testfile = '../data/pumav2_SelfCal300_Peel300_01.uvfits'
+#     testfile = os.path.join(DATA_PATH, 'pumav2_SelfCal300_Peel300_01.uvfits')
 #     test = UV.read_uvfits(testfile)
 #     nt.assert_true(test)
 
 def test_breakReadUVFits():
     """Test errors on reading in a uvfits file with subarrays."""
     UV = UVData()
-    multi_subarray_file = '../data/multi_subarray.uvfits'
+    multi_subarray_file = os.path.join(DATA_PATH, 'multi_subarray.uvfits')
     nt.assert_raises(ValueError, UV.read_uvfits, multi_subarray_file)
     del(UV)
 
@@ -47,7 +49,7 @@ def test_breakReadUVFits():
 def test_spwnotsupported():
     """Test errors on reading in a uvfits file with multiple spws."""
     UV = UVData()
-    testfile = '../data/day2_TDEM0003_10s_norx_1scan.uvfits'
+    testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1scan.uvfits')
     nt.assert_raises(ValueError, UV.read_uvfits, testfile)
     del(UV)
 
@@ -61,8 +63,8 @@ def test_readwriteread():
     """
     uv_in = UVData()
     uv_out = UVData()
-    testfile = '../data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
-    write_file = '../data/test/outtest_casa.uvfits'
+    testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    write_file = os.path.join(DATA_PATH, 'test/outtest_casa.uvfits')
     read_status = uvtest.checkWarnings(uv_in.read_uvfits, [testfile],
                                        message='Telescope EVLA is not')
     uv_in.write_uvfits(write_file)
@@ -83,8 +85,8 @@ def test_ReadUVFitsWriteMiriad():
     """
     uvfits_uv = UVData()
     miriad_uv = UVData()
-    uvfits_file = '../data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
-    testfile = '../data/test/outtest_miriad'
+    uvfits_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    testfile = os.path.join(DATA_PATH, 'test/outtest_miriad')
     read_status = uvtest.checkWarnings(uvfits_uv.read_uvfits, [uvfits_file],
                                        message='Telescope EVLA is not')
     uvfits_uv.write_miriad(testfile, clobber=True)

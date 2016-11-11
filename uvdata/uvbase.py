@@ -4,7 +4,7 @@ Base class for objects with UVParameter attributes.
 Subclassed by UVData and Telescope.
 """
 import numpy as np
-import parameter as uvp
+from . import parameter as uvp
 
 
 class UVBase(object):

@@ -3,9 +3,10 @@ import nose.tools as nt
 import os
 from uvdata import UVData
 import uvdata.tests as uvtest
+from uvdata.data import DATA_PATH
 
 # set up FHD file list
-testdir = '../data/fhd_vis_data/'
+testdir = os.path.join(DATA_PATH, 'fhd_vis_data/')
 testfile_prefix = '1061316296_'
 testfile_suffix = ['flags.sav', 'vis_XX.sav', 'params.sav', 'vis_YY.sav',
                    'vis_model_XX.sav', 'vis_model_YY.sav', 'settings.txt']
@@ -24,9 +25,9 @@ def test_ReadFHDWriteReadUVFits():
     fhd_uv = UVData()
     uvfits_uv = UVData()
     fhd_uv.read_fhd(testfiles)
-    fhd_uv.write_uvfits(os.path.join('../data/test/outtest_FHD_1061316296.uvfits'),
+    fhd_uv.write_uvfits(os.path.join(DATA_PATH, 'test/outtest_FHD_1061316296.uvfits'),
                         spoof_nonessential=True)
-    uvfits_uv.read_uvfits(os.path.join('../data/test/outtest_FHD_1061316296.uvfits'))
+    uvfits_uv.read_uvfits(os.path.join(DATA_PATH, 'test/outtest_FHD_1061316296.uvfits'))
     nt.assert_equal(fhd_uv, uvfits_uv)
     del(fhd_uv)
     del(uvfits_uv)
@@ -56,9 +57,9 @@ def test_ReadFHD_model():
     fhd_uv = UVData()
     uvfits_uv = UVData()
     fhd_uv.read_fhd(testfiles, use_model=True)
-    fhd_uv.write_uvfits('../data/test/outtest_FHD_1061316296_model.uvfits',
+    fhd_uv.write_uvfits(os.path.join(DATA_PATH, 'test/outtest_FHD_1061316296_model.uvfits'),
                         spoof_nonessential=True)
-    uvfits_uv.read_uvfits('../data/test/outtest_FHD_1061316296_model.uvfits')
+    uvfits_uv.read_uvfits(os.path.join(DATA_PATH, 'test/outtest_FHD_1061316296_model.uvfits'))
     nt.assert_equal(fhd_uv, uvfits_uv)
     del(fhd_uv)
     del(uvfits_uv)
