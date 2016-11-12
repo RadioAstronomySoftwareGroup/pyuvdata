@@ -161,6 +161,13 @@ class Miriad(UVData):
         ant_j_unique = list(set(
             np.concatenate([[k[3] for k in d] for d in data_accumulator.values()])))
 
+        unique_blts = []
+        for d in data_accumulator.values():
+            for k in d:
+                blt = [k[1], k[2], k[3]]
+                if blt not in unique_blts:
+                    unique_blts.append(blt)
+
         self.Nants_data = max(len(ant_i_unique), len(ant_j_unique))
         self.antenna_numbers = np.arange(self.Nants_telescope)
         self.antenna_names = self.antenna_numbers.astype(str).tolist()
@@ -173,6 +180,8 @@ class Miriad(UVData):
             for ant_i in ant_i_unique:
                 for ant_j in ant_j_unique:
                     if ant_i > ant_j:
+                        continue
+                    if [t, ant_i, ant_j] not in unique_blts:
                         continue
                     t_grid.append(t)
                     ant_i_grid.append(ant_i)
