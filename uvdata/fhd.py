@@ -154,8 +154,7 @@ class FHD(UVData):
         self.ant_1_array = bl_info['TILE_A'][0] - 1
         self.ant_2_array = bl_info['TILE_B'][0] - 1
 
-        self.Nants_data = np.max([len(np.unique(self.ant_1_array)),
-                                  len(np.unique(self.ant_2_array))])
+        self.Nants_data = int(len(np.unique(self.ant_1_array.tolist() + self.ant_2_array.tolist())))
 
         self.antenna_names = bl_info['TILE_NAMES'][0].tolist()
         self.Nants_telescope = len(self.antenna_names)

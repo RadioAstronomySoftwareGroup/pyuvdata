@@ -113,8 +113,7 @@ class UVFITS(UVData):
         self.Nbls = len(np.unique(self.baseline_array))
 
         # initialize internal variables based on the antenna table
-        self.Nants_data = int(np.max([len(np.unique(self.ant_1_array)),
-                                      len(np.unique(self.ant_2_array))]))
+        self.Nants_data = int(len(np.unique(self.ant_1_array.tolist() + self.ant_2_array.tolist())))
 
         self.set_phased()
         # check if we have an spw dimension

@@ -162,6 +162,7 @@ class Miriad(UVData):
             np.concatenate([[k[2] for k in d] for d in data_accumulator.values()])))
         ant_j_unique = list(set(
             np.concatenate([[k[3] for k in d] for d in data_accumulator.values()])))
+        sorted_unique_ants = sorted(list(set(ant_i_unique + ant_j_unique)))
 
         unique_blts = []
         for d in data_accumulator.values():
@@ -169,8 +170,8 @@ class Miriad(UVData):
                 blt = [k[1], k[2], k[3]]
                 if blt not in unique_blts:
                     unique_blts.append(blt)
+        self.Nants_data = len(sorted_unique_ants)
 
-        self.Nants_data = max(len(ant_i_unique), len(ant_j_unique))
         self.antenna_numbers = np.arange(self.Nants_telescope)
         self.antenna_names = self.antenna_numbers.astype(str).tolist()
         # form up a grid which indexes time and baselines along the 'long'
