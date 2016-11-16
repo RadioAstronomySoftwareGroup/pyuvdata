@@ -55,10 +55,10 @@ class UVData(UVBase):
                                           sane_vals=["uncalib", "Jy", "K str"])
 
         desc = ('number of data points averaged into each data element, '
-                'type = int, same shape as data_array')
+                'type = float, same shape as data_array')
         self._nsample_array = uvp.UVParameter('nsample_array', description=desc,
                                               form=('Nblts', 'Nspws', 'Nfreqs', 'Npols'),
-                                              expected_type=(np.float, np.int))
+                                              expected_type=(np.float))
 
         desc = 'boolean flag, True is flagged, same shape as data_array.'
         self._flag_array = uvp.UVParameter('flag_array', description=desc,
