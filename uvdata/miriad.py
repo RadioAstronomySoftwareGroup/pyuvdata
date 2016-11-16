@@ -107,6 +107,7 @@ class Miriad(UVData):
         # read through the file and get the data
         _source = uv['source']  # check source of initial visibility
         data_accumulator = {}
+        pol_list = []
         for (uvw, t, (i, j)), d, f in uv.all(raw=True):
             # control for the case of only a single spw not showing up in
             # the dimension
@@ -137,8 +138,9 @@ class Miriad(UVData):
             except(KeyError):
                 data_accumulator[uv['pol']] = [[uvw, t, i, j, d, f, cnt,
                                                 ra, dec]]
+                pol_list.append(uv['pol'])
                 # NB: flag types in miriad are usually ints
-        self.polarization_array = np.sort(data_accumulator.keys())
+        self.polarization_array = np.array(pol_list)
         if len(self.polarization_array) > self.Npols:
             print "WARNING: npols={npols} but found {l} pols in data file".format(
                 npols=self.Npols, l=len(self.polarization_array))
