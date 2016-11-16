@@ -220,7 +220,10 @@ class UVFITS(UVData):
         ant_hdu = F[hdunames['AIPS AN']]
 
         # stuff in columns
-        self.antenna_names = ant_hdu.data.field('ANNAME').tolist()
+        ant_names = ant_hdu.data.field('ANNAME').tolist()
+        self.antenna_names = []
+        for name in ant_names:
+            self.antenna_names.append(name.replace('\x00!', ''))
 
         # subtract one to get to 0-indexed values rather than 1-indexed values
         self.antenna_numbers = ant_hdu.data.field('NOSTA') - 1
