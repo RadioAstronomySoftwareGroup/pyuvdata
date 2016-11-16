@@ -204,15 +204,31 @@ class Miriad(UVData):
         t_grid = np.array(t_grid)
 
         # set the data sizes
-        self.Nblts = len(t_grid)
-        self.Ntimes = len(times)
+        try:
+            self.Nblts = uv['nblts']
+            if self.Nblts != len(t_grid):
+                raise ValueError('Nblts does not match the number of unique blts in the data')
+        except(KeyError):
+            self.Nblts = len(t_grid)
+        try:
+            self.Ntimes = uv['ntimes']
+            if self.Ntimes != len(times):
+                raise ValueError('Ntimes does not match the number of unique times in the data')
+        except(KeyError):
+            self.Ntimes = len(times)
         self.time_array = t_grid
         self.ant_1_array = ant_i_grid
         self.ant_2_array = ant_j_grid
 
         self.baseline_array = self.antnums_to_baseline(ant_i_grid,
                                                        ant_j_grid)
-        self.Nbls = len(np.unique(self.baseline_array))
+        try:
+            self.Nbls = uv['nbls']
+            if self.Nbls != len(np.unique(self.baseline_array)):
+                raise ValueError('Nbls does not match the number of unique baselines in the data')
+        except(KeyError):
+            self.Nbls = len(np.unique(self.baseline_array))
+
         # slot the data into a grid
         self.data_array = np.zeros((self.Nblts, self.Nspws, self.Nfreqs,
                                     self.Npols), dtype=np.complex64)
