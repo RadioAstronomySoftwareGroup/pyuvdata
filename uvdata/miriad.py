@@ -171,8 +171,18 @@ class Miriad(UVData):
                 if blt not in unique_blts:
                     unique_blts.append(blt)
         self.Nants_data = len(sorted_unique_ants)
+        try:
+            self.antenna_numbers = uv['antnums'].astype(int)
+        except(KeyError):
+            if self.Nants_data == self.Nants_telescope:
+                self.antenna_numbers = np.array(sorted_unique_ants)
+            elif self.Nants_data < self.Nants_telescope:
+                self.antenna_numbers = np.array(sorted_unique_ants +
+                                                list(np.arange(self.Nants_telescope - self.Nants_data) +
+                                                     max(sorted_unique_ants) + 1))
+            else:
+                raise ValueError('Nants_data cannot be less than Nants_telescope')
 
-        self.antenna_numbers = np.arange(self.Nants_telescope)
         self.antenna_names = self.antenna_numbers.astype(str).tolist()
         # form up a grid which indexes time and baselines along the 'long'
         # axis of the visdata array
@@ -375,6 +385,8 @@ class Miriad(UVData):
         uv['instrume'] = self.instrument
         uv.add_var('altitude', 'd')
         uv['altitude'] = self.telescope_location_lat_lon_alt[2]
+        uv.add_var('antnums', 'd')
+        uv['antnums'] = self.antenna_numbers.astype(np.float64)
 
         # variables that can get updated with every visibility
         uv.add_var('pol', 'i')

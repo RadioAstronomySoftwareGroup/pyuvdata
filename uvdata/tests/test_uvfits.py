@@ -97,9 +97,6 @@ def test_ReadUVFitsWriteMiriad():
 
     print('uvfits antenna_names: {ant}'.format(ant=uvfits_uv.antenna_names))
     print('miriad antenna_names: {ant}'.format(ant=miriad_uv.antenna_names))
-    print(' ')
-    print('uvfits antenna_numbers: {ant}'.format(ant=uvfits_uv.antenna_numbers))
-    print('miriad antenna_numbers: {ant}'.format(ant=miriad_uv.antenna_numbers))
 
     # antenna_names, antenna_numbers, data_array, nsample_array, polarization_array do not match
 
