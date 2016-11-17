@@ -40,4 +40,4 @@ From the source pyuvdata directory run `nosetests`.
 
 
 # API
-The primary interface to data from python is via the UVData object. This is described in detail at https://pyuvdata.readthedocs.io.
+The primary interface to data from python is via the UVData object. This is described in detail at https://pyuvdata.readthedocs.io or [here](https://github.com/HERA-Team/pyuvdata/blob/master/docs/parameters.rst).
