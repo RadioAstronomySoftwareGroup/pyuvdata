@@ -1,9 +1,10 @@
 # pyuvdata
-pyuvdata defines a pythonic interface to interferometric data sets. Currently pyuvdata supports reading and writing of miriad and uvfits.   
+pyuvdata defines a pythonic interface to interferometric data sets. Currently pyuvdata supports reading and writing of miriad and uvfits and reading of FHD ([Fast Holographic Deconvolution](https://github.com/EoRImaging/FHD)) save files.   
 
 
 # Motivation
-The two main goals are
+The two main goals are:
+
 1. to provide a high quality, well documented path to convert between datasets
 2. support the direct use of datasets from python with minimal software
 3. provide precise data definition via both human readable code and high quality online documentation
@@ -28,7 +29,7 @@ First install dependencies. The numpy and astropy versions are important, so be 
 Download the latest release here github.com/HERA-Team/pyuvdata/release1.0
 
 Navigate into the directory and run.
-`python setup.py install  #note that this will automatically` install all dependencies.  If you use anaconda or another package manager you might prefer to do not do this.
+`python setup.py install` Note that this will automatically install all dependencies.  If you use anaconda or another package manager you might prefer to do not do this.
 
 To install without dependencies, run
 `python setup.py install --no-dependencies`
@@ -39,4 +40,4 @@ From the source pyuvdata directory run `nosetests`.
 
 
 # API
-One interfaces to data from python via the UVData object. This is described at pyuvdata.readthedocs.io
+One interfaces to data from python via the UVData object. This is described at https://pyuvdata.readthedocs.io
