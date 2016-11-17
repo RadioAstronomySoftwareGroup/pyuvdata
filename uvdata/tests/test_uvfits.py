@@ -79,7 +79,7 @@ def test_readwriteread():
 
 def test_ReadUVFitsWriteMiriad():
     """
-    *** read uvfits, write miriad test. THIS TEST IS KNOWN TO CURRENTLY FAIL.***
+    read uvfits, write miriad test.
     Read in uvfits file, write out as miriad, read back in and check for
     object equality.
     """
