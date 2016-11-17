@@ -18,91 +18,91 @@ These parameters are required to have a sensible UVData object and
 are required for most kinds of uv data files.
 
 **Nants_data**
-     number of antennas with data present. May be smaller than the number of antennas in the array
+     Number of antennas with data present (i.e. number of unique entries in ant_1_array and ant_2_array). May be smaller than the number of antennas in the array
 
 **Nants_telescope**
-     number of antennas in the array. May be larger than the number of antennas with data
+     Number of antennas in the array. May be larger than the number of antennas with data
 
 **Nbls**
-     number of baselines
+     Number of baselines
 
 **Nblts**
-     Ntimes * Nbls
+     Number of baseline-times (i.e. number of spectra). Not necessarily equal to Nbls * Ntimes
 
 **Nfreqs**
-     number of frequency channels
+     Number of frequency channels
 
 **Npols**
-     number of polarizations
+     Number of polarizations
 
 **Nspws**
-     number of spectral windows (ie non-contiguous spectral chunks)
+     Number of spectral windows (ie non-contiguous spectral chunks). More than one spectral window is not currently supported.
 
 **Ntimes**
      Number of times
 
 **ant_1_array**
-     array of first antenna indices, shape (Nblts), type = int, 0 indexed
+     Array of first antenna indices, shape (Nblts), type = int, 0 indexed
 
 **ant_2_array**
-     array of second antenna indices, shape (Nblts), type = int, 0 indexed
+     Array of second antenna indices, shape (Nblts), type = int, 0 indexed
 
 **antenna_names**
-     list of antenna names, shape (Nants_telescope), with numbers given by antenna_numbers (which can be matched to ant_1_array and ant_2_array). There must be one entry here for each unique entry in ant_1_array and ant_2_array, but there may be extras as well.
+     List of antenna names, shape (Nants_telescope), with numbers given by antenna_numbers (which can be matched to ant_1_array and ant_2_array). There must be one entry here for each unique entry in ant_1_array and ant_2_array, but there may be extras as well.
 
 **antenna_numbers**
-     integer antenna number corresponding to antenna_names, shape (Nants_telescope). There must be one entry here for each unique entry in self.ant_1_array and self.ant_2_array, but there may be extras as well.
+     List of integer antenna numbers corresponding to antenna_names, shape (Nants_telescope). There must be one entry here for each unique entry in ant_1_array and ant_2_array, but there may be extras as well.
 
 **baseline_array**
-     array of baseline indices, shape (Nblts), type = int; baseline = 2048 * (ant2+1) + (ant1+1) + 2^16
+     Array of baseline indices, shape (Nblts), type = int; baseline = 2048 * (ant2+1) + (ant1+1) + 2^16
 
 **channel_width**
-     width of channel (Hz)
+     Width of frequency channels (Hz)
 
 **data_array**
-     array of the visibility data, shape: (Nblts, Nspws, Nfreqs, Npols), type = complex float, in units of self.vis_units
+     Array of the visibility data, shape: (Nblts, Nspws, Nfreqs, Npols), type = complex float, in units of self.vis_units
 
 **flag_array**
-     boolean flag, True is flagged, same shape as data_array.
+     Boolean flag, True is flagged, same shape as data_array.
 
 **freq_array**
-     array of frequencies, shape (Nspws, Nfreqs), units Hz
+     Array of frequencies, shape (Nspws, Nfreqs), units Hz
 
 **history**
-     string of history, units English
+     String of history, units English
 
 **instrument**
-     receiver or backend.
+     Receiver or backend. Sometimes identical to telescope_name
 
 **integration_time**
-     length of the integration (s)
+     Length of the integration (s)
 
 **lst_array**
-     array of lsts, center of integration, shape (Nblts), units radians
+     Array of lsts, center of integration, shape (Nblts), units radians
 
 **nsample_array**
-     number of data points averaged into each data element, type = int, same shape as data_array
+     Number of data points averaged into each data element, NOT required to be an integer. type = float, same shape as data_array
 
 **object_name**
-     source or field observed (string)
+     Source or field observed (string)
 
 **phase_type**
-     string indicating phasing type. Allowed values are "drift", "phased" and "unknown"
+     String indicating phasing type. Allowed values are "drift", "phased" and "unknown"
 
 **polarization_array**
-     array of polarization integers, shape (Npols). AIPS Memo 117 says: stokes 1:4 (I,Q,U,V);  circular -1:-4 (RR,LL,RL,LR); linear -5:-8 (XX,YY,XY,YX)
+     Array of polarization integers, shape (Npols). AIPS Memo 117 says: stokes 1:4 (I,Q,U,V);  circular -1:-4 (RR,LL,RL,LR); linear -5:-8 (XX,YY,XY,YX)
 
 **spw_array**
-     array of spectral window numbers, shape (Nspws)
+     Array of spectral window Numbers, shape (Nspws)
 
 **telescope_location**
-     telescope location: xyz in ITRF (earth-centered frame). Can also be set using telescope_location_lat_lon_alt or telescope_location_lat_lon_alt_degrees properties
+     Telescope location: xyz in ITRF (earth-centered frame). Can also be accessed using telescope_location_lat_lon_alt or telescope_location_lat_lon_alt_degrees properties
 
 **telescope_name**
-     name of telescope (string)
+     Name of telescope (string)
 
 **time_array**
-     array of times, center of integration, shape (Nblts), units Julian Date
+     Array of times, center of integration, shape (Nblts), units Julian Date
 
 **uvw_array**
      Projected baseline vectors relative to phase center, shape (3, Nblts), units meters
@@ -116,31 +116,31 @@ These parameters are defined by one or more file standard but are not always req
 Some of them are required depending on the phase_type (as noted below).
 
 **antenna_positions**
-     array giving coordinates of antennas relative to telescope_location (ITRF frame), shape (Nants_telescope, 3)
+     Array giving coordinates of antennas relative to telescope_location (ITRF frame), shape (Nants_telescope, 3)
 
 **dut1**
      DUT1 (google it) AIPS 117 calls it UT1UTC
 
 **earth_omega**
-     earth's rotation rate in degrees per day
+     Earth's rotation rate in degrees per day
 
 **extra_keywords**
-     any user supplied extra keywords, type=dict
+     Any user supplied extra keywords, type=dict
 
 **gst0**
      Greenwich sidereal time at midnight on reference date
 
 **phase_center_dec**
-     Required if phase_type = "phased". Declination of phase center (see uvw_array), units radians
+     Required if phase_type = "phased". Declination of phase center (see uvw_array), units radians. Can also be accessed using phase_center_dec_degrees.
 
 **phase_center_epoch**
      Required if phase_type = "phased". Epoch year of the phase applied to the data (eg 2000.)
 
 **phase_center_ra**
-     Required if phase_type = "phased". Right ascension of phase center (see uvw_array), units radians
+     Required if phase_type = "phased". Right ascension of phase center (see uvw_array), units radians. Can also be accessed using phase_center_ra_degrees.
 
 **rdate**
-     date for which the GST0 or whatever... applies
+     Date for which the GST0 or whatever... applies
 
 **timesys**
      We only support UTC
@@ -149,9 +149,9 @@ Some of them are required depending on the phase_type (as noted below).
      FHD thing we do not understand, something about the time at which the phase center is normal to the chosen UV plane for phasing
 
 **zenith_dec**
-     Required if phase_type = "drift". Declination of zenith. units: radians, shape (Nblts)
+     Required if phase_type = "drift". Declination of zenith. units: radians, shape (Nblts). Can also be accessed using zenith_dec_degrees.
 
 **zenith_ra**
-     Required if phase_type = "drift". Right ascension of zenith. units: radians, shape (Nblts)
+     Required if phase_type = "drift". Right ascension of zenith. units: radians, shape (Nblts). Can also be accessed using zenith_ra_degrees.
 
-last updated: 2016-09-01
+last updated: 2016-11-17

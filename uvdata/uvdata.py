@@ -38,12 +38,13 @@ class UVData(UVBase):
         radian_tol = 10 * 2 * np.pi * 1e-3 / (60.0 * 60.0 * 360.0)
 
         self._Ntimes = uvp.UVParameter('Ntimes', description='Number of times')
-        self._Nbls = uvp.UVParameter('Nbls', description='number of baselines')
-        self._Nblts = uvp.UVParameter('Nblts', description='Ntimes * Nbls')
-        self._Nfreqs = uvp.UVParameter('Nfreqs', description='number of frequency channels')
-        self._Npols = uvp.UVParameter('Npols', description='number of polarizations')
+        self._Nbls = uvp.UVParameter('Nbls', description='Number of baselines')
+        self._Nblts = uvp.UVParameter('Nblts', description='Number of baseline-times (i.e. number of spectra). '
+                                      'Not necessarily equal to Nbls * Ntimes')
+        self._Nfreqs = uvp.UVParameter('Nfreqs', description='Number of frequency channels')
+        self._Npols = uvp.UVParameter('Npols', description='Number of polarizations')
 
-        desc = ('array of the visibility data, shape: (Nblts, Nspws, Nfreqs, '
+        desc = ('Array of the visibility data, shape: (Nblts, Nspws, Nfreqs, '
                 'Npols), type = complex float, in units of self.vis_units')
         self._data_array = uvp.UVParameter('data_array', description=desc,
                                            form=('Nblts', 'Nspws', 'Nfreqs', 'Npols'),
@@ -54,23 +55,24 @@ class UVData(UVBase):
                                           form='str',
                                           sane_vals=["uncalib", "Jy", "K str"])
 
-        desc = ('number of data points averaged into each data element, '
-                'type = float, same shape as data_array')
+        desc = ('Number of data points averaged into each data element, '
+                'NOT required to be an integer. type = float, same shape as data_array')
         self._nsample_array = uvp.UVParameter('nsample_array', description=desc,
                                               form=('Nblts', 'Nspws', 'Nfreqs', 'Npols'),
                                               expected_type=(np.float))
 
-        desc = 'boolean flag, True is flagged, same shape as data_array.'
+        desc = 'Boolean flag, True is flagged, same shape as data_array.'
         self._flag_array = uvp.UVParameter('flag_array', description=desc,
                                            form=('Nblts', 'Nspws', 'Nfreqs', 'Npols'),
                                            expected_type=np.bool)
 
-        self._Nspws = uvp.UVParameter('Nspws', description='number of spectral windows '
-                                      '(ie non-contiguous spectral chunks)')
+        self._Nspws = uvp.UVParameter('Nspws', description='Number of spectral windows '
+                                      '(ie non-contiguous spectral chunks). '
+                                      'More than one spectral window is not currently supported.')
 
         self._spw_array = uvp.UVParameter('spw_array',
-                                          description='array of spectral window '
-                                          'numbers, shape (Nspws)', form=('Nspws',))
+                                          description='Array of spectral window '
+                                          'Numbers, shape (Nspws)', form=('Nspws',))
 
         desc = ('Projected baseline vectors relative to phase center, ' +
                 'shape (3, Nblts), units meters')
@@ -79,30 +81,30 @@ class UVData(UVBase):
                                           expected_type=np.float,
                                           sane_vals=(1e-3, 1e8), tols=.001)
 
-        desc = ('array of times, center of integration, shape (Nblts), ' +
+        desc = ('Array of times, center of integration, shape (Nblts), ' +
                 'units Julian Date')
         self._time_array = uvp.UVParameter('time_array', description=desc,
                                            form=('Nblts',),
                                            expected_type=np.float,
                                            tols=1e-3 / (60.0 * 60.0 * 24.0))  # 1 ms in days
 
-        desc = ('array of lsts, center of integration, shape (Nblts), ' +
+        desc = ('Array of lsts, center of integration, shape (Nblts), ' +
                 'units radians')
         self._lst_array = uvp.UVParameter('lst_array', description=desc,
                                           form=('Nblts',),
                                           expected_type=np.float,
                                           tols=radian_tol)
 
-        desc = ('array of first antenna indices, shape (Nblts), '
+        desc = ('Array of first antenna indices, shape (Nblts), '
                 'type = int, 0 indexed')
         self._ant_1_array = uvp.UVParameter('ant_1_array', description=desc,
                                             form=('Nblts',))
-        desc = ('array of second antenna indices, shape (Nblts), '
+        desc = ('Array of second antenna indices, shape (Nblts), '
                 'type = int, 0 indexed')
         self._ant_2_array = uvp.UVParameter('ant_2_array', description=desc,
                                             form=('Nblts',))
 
-        desc = ('array of baseline indices, shape (Nblts), '
+        desc = ('Array of baseline indices, shape (Nblts), '
                 'type = int; baseline = 2048 * (ant2+1) + (ant1+1) + 2^16')
         self._baseline_array = uvp.UVParameter('baseline_array',
                                                description=desc,
@@ -110,13 +112,13 @@ class UVData(UVBase):
 
         # this dimensionality of freq_array does not allow for different spws
         # to have different dimensions
-        desc = 'array of frequencies, shape (Nspws, Nfreqs), units Hz'
+        desc = 'Array of frequencies, shape (Nspws, Nfreqs), units Hz'
         self._freq_array = uvp.UVParameter('freq_array', description=desc,
                                            form=('Nspws', 'Nfreqs'),
                                            expected_type=np.float,
                                            tols=1e-3)  # mHz
 
-        desc = ('array of polarization integers, shape (Npols). '
+        desc = ('Array of polarization integers, shape (Npols). '
                 'AIPS Memo 117 says: stokes 1:4 (I,Q,U,V);  '
                 'circular -1:-4 (RR,LL,RL,LR); linear -5:-8 (XX,YY,XY,YX)')
         self._polarization_array = uvp.UVParameter('polarization_array',
@@ -124,43 +126,44 @@ class UVData(UVBase):
                                                    form=('Npols',))
 
         self._integration_time = uvp.UVParameter('integration_time',
-                                                 description='length of the integration (s)',
+                                                 description='Length of the integration (s)',
                                                  expected_type=np.float, tols=1e-3)  # 1 ms
         self._channel_width = uvp.UVParameter('channel_width',
-                                              description='width of channel (Hz)',
+                                              description='Width of frequency channels (Hz)',
                                               expected_type=np.float,
                                               tols=1e-3)  # 1 mHz
 
         # --- observation information ---
         self._object_name = uvp.UVParameter('object_name',
-                                            description='source or field '
+                                            description='Source or field '
                                             'observed (string)', form='str')
         self._telescope_name = uvp.UVParameter('telescope_name',
-                                               description='name of telescope '
+                                               description='Name of telescope '
                                                '(string)', form='str')
-        self._instrument = uvp.UVParameter('instrument', description='receiver or backend.',
+        self._instrument = uvp.UVParameter('instrument', description='Receiver or backend. '
+                                           'Sometimes identical to telescope_name',
                                            form='str')
 
-        desc = ('telescope location: xyz in ITRF (earth-centered frame). '
-                'Can also be set using telescope_location_lat_lon_alt or '
+        desc = ('Telescope location: xyz in ITRF (earth-centered frame). '
+                'Can also be accessed using telescope_location_lat_lon_alt or '
                 'telescope_location_lat_lon_alt_degrees properties')
         self._telescope_location = uvp.LocationParameter('telescope_location',
                                                          description=desc,
                                                          expected_type=np.float,
                                                          form=(3,), tols=1e-3)
 
-        self._history = uvp.UVParameter('history', description='string of history, units English',
+        self._history = uvp.UVParameter('history', description='String of history, units English',
                                         form='str')
 
         # --- phasing information ---
-        desc = ('string indicating phasing type. Allowed values are "drift", '
+        desc = ('String indicating phasing type. Allowed values are "drift", '
                 '"phased" and "unknown"')
         self._phase_type = uvp.UVParameter('phase_type', form='str',
                                            description=desc, value='unknown',
                                            sane_vals=['drift', 'phased', 'unknown'])
 
         desc = ('Required if phase_type = "drift". Right ascension of zenith. '
-                'units: radians, shape (Nblts)')
+                'units: radians, shape (Nblts). Can also be accessed using zenith_ra_degrees.')
         self._zenith_ra = uvp.AngleParameter('zenith_ra', required=False,
                                              description=desc,
                                              expected_type=np.float,
@@ -168,7 +171,7 @@ class UVData(UVBase):
                                              tols=radian_tol)
 
         desc = ('Required if phase_type = "drift". Declination of zenith. '
-                'units: radians, shape (Nblts)')
+                'units: radians, shape (Nblts). Can also be accessed using zenith_dec_degrees.')
         # in practice, dec of zenith will never change; does not need to be shape Nblts
         self._zenith_dec = uvp.AngleParameter('zenith_dec', required=False,
                                               description=desc,
@@ -184,7 +187,7 @@ class UVData(UVBase):
                                                    expected_type=np.float)
 
         desc = ('Required if phase_type = "phased". Right ascension of phase '
-                'center (see uvw_array), units radians')
+                'center (see uvw_array), units radians. Can also be accessed using phase_center_ra_degrees.')
         self._phase_center_ra = uvp.AngleParameter('phase_center_ra',
                                                    required=False,
                                                    description=desc,
@@ -192,7 +195,7 @@ class UVData(UVBase):
                                                    tols=radian_tol)
 
         desc = ('Required if phase_type = "phased". Declination of phase center '
-                '(see uvw_array), units radians')
+                '(see uvw_array), units radians. Can also be accessed using phase_center_dec_degrees.')
         self._phase_center_dec = uvp.AngleParameter('phase_center_dec',
                                                     required=False,
                                                     description=desc,
@@ -200,15 +203,16 @@ class UVData(UVBase):
                                                     tols=radian_tol)
 
         # --- antenna information ----
-        desc = ('number of antennas with data present. May be smaller ' +
+        desc = ('Number of antennas with data present (i.e. number of unique '
+                'entries in ant_1_array and ant_2_array). May be smaller ' +
                 'than the number of antennas in the array')
         self._Nants_data = uvp.UVParameter('Nants_data', description=desc)
 
-        desc = ('number of antennas in the array. May be larger ' +
+        desc = ('Number of antennas in the array. May be larger ' +
                 'than the number of antennas with data')
         self._Nants_telescope = uvp.UVParameter('Nants_telescope', description=desc)
 
-        desc = ('list of antenna names, shape (Nants_telescope), '
+        desc = ('List of antenna names, shape (Nants_telescope), '
                 'with numbers given by antenna_numbers (which can be matched '
                 'to ant_1_array and ant_2_array). There must be one entry '
                 'here for each unique entry in ant_1_array and '
@@ -217,20 +221,20 @@ class UVData(UVBase):
                                               form=('Nants_telescope',),
                                               expected_type=str)
 
-        desc = ('integer antenna number corresponding to antenna_names, '
+        desc = ('List of integer antenna numbers corresponding to antenna_names, '
                 'shape (Nants_telescope). There must be one '
-                'entry here for each unique entry in self.ant_1_array and '
-                'self.ant_2_array, but there may be extras as well.')
+                'entry here for each unique entry in ant_1_array and '
+                'ant_2_array, but there may be extras as well.')
         self._antenna_numbers = uvp.UVParameter('antenna_numbers', description=desc,
                                                 form=('Nants_telescope',))
 
         # -------- extra, non-required parameters ----------
-        desc = ('any user supplied extra keywords, type=dict')
+        desc = ('Any user supplied extra keywords, type=dict')
         self._extra_keywords = uvp.UVParameter('extra_keywords', required=False,
                                                description=desc, value={},
                                                spoof_val={}, expected_type=dict)
 
-        desc = ('array giving coordinates of antennas relative to '
+        desc = ('Array giving coordinates of antennas relative to '
                 'telescope_location (ITRF frame), shape (Nants_telescope, 3)')
         self._antenna_positions = uvp.AntPositionParameter('antenna_positions',
                                                            required=False,
@@ -246,11 +250,11 @@ class UVData(UVBase):
                                                  'midnight on reference date',
                                      spoof_val=0.0)
         self._rdate = uvp.UVParameter('rdate', required=False,
-                                      description='date for which the GST0 or '
+                                      description='Date for which the GST0 or '
                                                   'whatever... applies',
                                       spoof_val='')
         self._earth_omega = uvp.UVParameter('earth_omega', required=False,
-                                            description='earth\'s rotation rate '
+                                            description='Earth\'s rotation rate '
                                                         'in degrees per day',
                                             spoof_val=360.985)
         self._dut1 = uvp.UVParameter('dut1', required=False,
