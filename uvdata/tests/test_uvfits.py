@@ -95,11 +95,6 @@ def test_ReadUVFitsWriteMiriad():
     nt.assert_true(read_status)
     nt.assert_true(miriad_read_status)
 
-    print('uvfits antenna_names: {ant}'.format(ant=uvfits_uv.antenna_names))
-    print('miriad antenna_names: {ant}'.format(ant=miriad_uv.antenna_names))
-
-    # antenna_names, antenna_numbers, data_array, nsample_array, polarization_array do not match
-
     nt.assert_equal(miriad_uv, uvfits_uv)
     del(uvfits_uv)
     del(miriad_uv)

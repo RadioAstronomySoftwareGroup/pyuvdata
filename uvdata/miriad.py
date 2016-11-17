@@ -172,6 +172,8 @@ class Miriad(UVData):
                     unique_blts.append(blt)
         self.Nants_data = len(sorted_unique_ants)
         try:
+            # for some reason Miriad doesn't handle an array of integers properly,
+            # so convert to floats on write and back here
             self.antenna_numbers = uv['antnums'].astype(int)
         except(KeyError):
             if self.Nants_data == self.Nants_telescope:
@@ -182,8 +184,17 @@ class Miriad(UVData):
                                                      max(sorted_unique_ants) + 1))
             else:
                 raise ValueError('Nants_data cannot be less than Nants_telescope')
+        try:
+            # horrible hack to save & recover antenna_names array. Miriad can't handle arrays
+            # of strings or a long enough single string to put them all into one string
+            # so we convert them into hex values and then into floats on write and convert
+            # back to strings here
+            ant_name_flt = uv['antnames']
+            ant_name_list = [('%x' % elem.astype(np.int64)).decode('hex') for elem in ant_name_flt]
+            self.antenna_names = ant_name_list
+        except(KeyError):
+            self.antenna_names = self.antenna_numbers.astype(str).tolist()
 
-        self.antenna_names = self.antenna_numbers.astype(str).tolist()
         # form up a grid which indexes time and baselines along the 'long'
         # axis of the visdata array
         t_grid = []
@@ -401,8 +412,19 @@ class Miriad(UVData):
         uv['instrume'] = self.instrument
         uv.add_var('altitude', 'd')
         uv['altitude'] = self.telescope_location_lat_lon_alt[2]
+
+        # for some reason Miriad doesn't handle an array of integers properly,
+        # so convert to floats here and integers on read
         uv.add_var('antnums', 'd')
         uv['antnums'] = self.antenna_numbers.astype(np.float64)
+
+        # horrible hack to save antenna_names array. Miriad can't handle arrays
+        # of strings or a long enough single string to put them all into one string
+        # so we convert them into hex values and then into floats and convert
+        # back to strings on read
+        ant_name_flt = np.array([int(elem.encode("hex"), 16) for elem in self.antenna_names]).astype(np.float64)
+        uv.add_var('antnames', 'd')
+        uv['antnames'] = ant_name_flt
 
         # variables that can get updated with every visibility
         uv.add_var('pol', 'i')
