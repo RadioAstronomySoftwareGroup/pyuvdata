@@ -34,17 +34,19 @@ bibliography: paper.bib
 
 There are several standard formats for astronomical interferometric data, but
 converting between them in a stable and repeatable way has historically been
-very challenging. This is partly because of different assumptions and standards
-in the formats and partly because data analysis for individual telescopes
+very challenging. This is partly because of subtle assumptions in the
+implementations of the formats and the complexity of the mathematical
+relationships between the different formats (e.g. drift mode vs phased data)
+and partly because data analysis for individual telescopes
 typically used just one of the standards along with the associated analysis
-code. With more recently built low frequency instruments
-(i.e. MWA (http://www.mwatelescope.org/), PAPER (http://eor.berkeley.edu/),
-HERA (http://reionization.org/)), new custom analysis and simulation software
-has been required and these codes rely on a range of different file formats.
-pyuvdata was designed to facilitate interoperability between these instruments
-and codes by providing high quality, well documented conversion routines as well
-as an interface to interact with interferometric data and simulations directly
-in python. pyuvdata currently supports reading and writing uvfits [@uvfits] and
-miriad [@miriad] files and reading FHD [@fhd] visibility save files.
+code. New low frequency instruments (i.e. MWA (http://www.mwatelescope.org/),
+PAPER (http://eor.berkeley.edu/), HERA (http://reionization.org/)),
+have required custom analysis and simulation software that rely on a range of
+different file formats. pyuvdata was designed to facilitate interoperability
+between these instruments and codes by providing high quality, well documented
+conversion routines as well as an interface to interact with interferometric
+data and simulations directly in python. pyuvdata currently supports reading
+and writing uvfits [@uvfits] and miriad [@miriad] files and reading FHD [@fhd]
+visibility save files.
 
 # References
