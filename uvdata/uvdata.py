@@ -75,7 +75,7 @@ class UVData(UVBase):
                                           'Numbers, shape (Nspws)', form=('Nspws',))
 
         desc = ('Projected baseline vectors relative to phase center, ' +
-                'shape (3, Nblts), units meters')
+                'shape (Nblts, 3), units meters')
         self._uvw_array = uvp.UVParameter('uvw_array', description=desc,
                                           form=('Nblts', 3),
                                           expected_type=np.float,
