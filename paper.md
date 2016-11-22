@@ -39,14 +39,15 @@ implementations of the formats and the complexity of the mathematical
 relationships between the different formats (e.g. drift mode vs phased data)
 and partly because data analysis for individual telescopes
 typically used just one of the standards along with the associated analysis
-code. New low frequency instruments (i.e. MWA (http://www.mwatelescope.org/),
+code. New low frequency instruments (e.g. MWA (http://www.mwatelescope.org/),
 PAPER (http://eor.berkeley.edu/), HERA (http://reionization.org/)),
 have required custom analysis and simulation software that rely on a range of
 different file formats. pyuvdata was designed to facilitate interoperability
 between these instruments and codes by providing high quality, well documented
 conversion routines as well as an interface to interact with interferometric
-data and simulations directly in python. pyuvdata currently supports reading
-and writing uvfits [@uvfits] and miriad [@miriad] files and reading FHD [@fhd]
-visibility save files.
+data and simulations directly in python.
+
+pyuvdata currently supports reading and writing uvfits [@uvfits] and
+miriad [@miriad] files and reading FHD [@fhd] visibility save files.
 
 # References
