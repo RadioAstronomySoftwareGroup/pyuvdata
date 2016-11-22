@@ -19,7 +19,7 @@ def LatLonAlt_from_XYZ(xyz):
         tuple of latitude, longitude, altitude values in radians & meters
     """
     # see wikipedia geodetic_datum and Datum transformations of
-    # GPS positions PDF in docs folder
+    # GPS positions PDF in docs/references folder
     gps_p = np.sqrt(xyz[0]**2 + xyz[1]**2)
     gps_theta = np.arctan2(xyz[2] * gps_a, gps_p * gps_b)
     latitude = np.arctan2(xyz[2] + e_prime_squared * gps_b *
@@ -45,7 +45,7 @@ def XYZ_from_LatLonAlt(latitude, longitude, altitude):
         numpy array, shape (3,), with topocentric x,y,z coordinates
     """
     # see wikipedia geodetic_datum and Datum transformations of
-    # GPS positions PDF in docs folder
+    # GPS positions PDF in docs/references folder
     gps_N = gps_a / np.sqrt(1 - e_squared * np.sin(latitude)**2)
     xyz = np.zeros(3)
     xyz[0] = ((gps_N + altitude) * np.cos(latitude) * np.cos(longitude))
