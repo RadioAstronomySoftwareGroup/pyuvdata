@@ -18,6 +18,10 @@ def LatLonAlt_from_XYZ(xyz):
     Returns:
         tuple of latitude, longitude, altitude values in radians & meters
     """
+    # sanity checking values
+    if np.linalg.norm(xyz) < 6.35e6 or np.linalg.norm(xyz) > 6.39e6:
+        raise ValueError('xyz values should be topocentric x, y, z coordinates in meters')
+
     # see wikipedia geodetic_datum and Datum transformations of
     # GPS positions PDF in docs/references folder
     gps_p = np.sqrt(xyz[0]**2 + xyz[1]**2)
