@@ -277,6 +277,23 @@ class UVData(UVBase):
         super(UVData, self).__init__()
         warnings.formatwarning = _warning
 
+    def check(self, run_sanity_check=True):
+        """
+        Add some extra checks on top of checks on UVBase class.
+
+        Check that all required parameters are set reasonably.
+
+        Check that required parameters exist and have appropriate shapes.
+        Optionally check if the values are sane.
+
+        Args:
+            run_sanity_check: Option to check if values in required parameters
+                are sane. Default is True.
+        """
+        if self.Nants_data > self.Nants_telescope:
+            raise ValueError('Nants_data must be less than or equal to Nants_telescope')
+        return super(UVData, self).check(run_sanity_check=True)
+
     def set_drift(self):
         """Set phase_type to 'drift' and adjust required parameters."""
         self.phase_type = 'drift'

@@ -180,6 +180,10 @@ class TestUVDataBasicMethods(object):
         self.uv_object.uvw_array = 1e-4 * np.ones_like(self.uv_object.uvw_array)
         nt.assert_raises(ValueError, self.uv_object.check)
 
+    def test_nants_data_telescope(self):
+        self.uv_object.Nants_data = self.uv_object.Nants_telescope + 1
+        nt.assert_raises(ValueError, self.uv_object.check)
+
 
 class TestBaselineAntnumMethods(object):
     """Setup for tests on antnum, baseline conversion."""
