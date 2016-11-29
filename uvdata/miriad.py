@@ -179,14 +179,12 @@ class Miriad(UVData):
             # so convert to floats on write and back here
             self.antenna_numbers = uv['antnums'].astype(int)
         except(KeyError):
-            if self.Nants_data == self.Nants_telescope:
-                self.antenna_numbers = np.array(sorted_unique_ants)
-            elif self.Nants_data < self.Nants_telescope:
-                self.antenna_numbers = np.array(sorted_unique_ants +
-                                                list(np.arange(self.Nants_telescope - self.Nants_data) +
-                                                     max(sorted_unique_ants) + 1))
+            if np.max(sorted_unique_ants) < self.Nants_telescope:
+                self.antenna_numbers = np.arange(self.Nants_telescope)
             else:
-                raise ValueError('Nants_data cannot be less than Nants_telescope')
+                raise ValueError('Max antenna number is larger than supported '
+                                 'by the antenna position array and antnums is '
+                                 'not present to convert numbers to indices')
         try:
             # horrible hack to save & recover antenna_names array. Miriad can't handle arrays
             # of strings or a long enough single string to put them all into one string
