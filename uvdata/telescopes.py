@@ -49,6 +49,7 @@ class Telescope(uvbase.UVBase):
         self._telescope_location = uvp.LocationParameter('telescope_location',
                                                          description=desc,
                                                          expected_type=np.float,
+                                                         sane_vals=(6.35e6, 6.39e6),
                                                          form=(3,), tols=1e-3)
         # possibly add in future versions:
         # Antenna positions (but what about reconfigurable/growing telescopes?)
@@ -89,6 +90,8 @@ def get_telescope(telescope_name):
             obj.telescope_location_lat_lon_alt = (telescope_dict['latitude'],
                                                   telescope_dict['longitude'],
                                                   telescope_dict['altitude'])
+
+            obj.check(run_sanity_check=True)
     else:
         # no telescope matching this name
         return False
