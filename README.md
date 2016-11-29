@@ -40,4 +40,7 @@ From the source pyuvdata directory run `nosetests`.
 
 
 # API
-The primary interface to data from python is via the UVData object. This is described in detail at https://pyuvdata.readthedocs.io or [here](https://github.com/HERA-Team/pyuvdata/blob/master/docs/parameters.rst).
+The primary interface to data from python is via the UVData object. It provides
+import and export functionality to all supported file formats (UVFITS, Miriad, FHD)
+and can be interacted with directly. The attributes of the UVData object are
+described in the parameters description at https://pyuvdata.readthedocs.io or [here](https://github.com/HERA-Team/pyuvdata/blob/master/docs/parameters.rst).
