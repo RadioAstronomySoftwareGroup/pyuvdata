@@ -150,6 +150,7 @@ class UVData(UVBase):
         self._telescope_location = uvp.LocationParameter('telescope_location',
                                                          description=desc,
                                                          expected_type=np.float,
+                                                         sane_vals=(6.35e6, 6.39e6),
                                                          form=(3,), tols=1e-3)
 
         self._history = uvp.UVParameter('history', description='String of history, units English',

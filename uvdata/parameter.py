@@ -284,3 +284,19 @@ class LocationParameter(UVParameter):
             self.value = utils.XYZ_from_LatLonAlt(latitude * np.pi / 180.,
                                                   longitude * np.pi / 180.,
                                                   altitude)
+
+    def sanity_check(self):
+        """Check that values are sane. Special case for location, where
+            we want to check the vector magnitude
+        """
+        if self.sane_vals is None:
+            return True
+        else:
+            if self.expected_type is str:
+                if self.value.lower() in (vals.lower() for vals in self.sane_vals):
+                    return True
+            else:
+                testval = np.sqrt(np.sum(np.abs(self.value)**2))
+                if (testval >= self.sane_vals[0]) and (testval <= self.sane_vals[1]):
+                    return True
+        return False
