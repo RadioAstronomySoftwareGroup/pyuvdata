@@ -111,6 +111,9 @@ class Miriad(UVData):
         for (uvw, t, (i, j)), d, f in uv.all(raw=True):
             # control for the case of only a single spw not showing up in
             # the dimension
+            # Note that the (i, j) tuple is calculated from a baseline number in
+            # aipy (see miriad_wrap.h). The i, j values are also adjusted by aipy
+            # to start at 0 rather than 1.
             if len(d.shape) == 1:
                 d.shape = (1,) + d.shape
                 self.Nspws = d.shape[0]
