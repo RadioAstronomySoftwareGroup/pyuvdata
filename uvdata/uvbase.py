@@ -230,15 +230,8 @@ class UVBase(object):
                                              '. Should be: ' + str(param.expected_type))
 
             if run_sanity_check:
-                if not param.sanity_check():
-                    if param.expected_type == str:
-                        message = ('Value is {val}, allowed values are: '
-                                   '{sane_vals}'.format(val=param.value,
-                                                        sane_vals=param.sane_vals))
-                    else:
-                        message = ('Test value is {val}, sane range is: '
-                                   '{sane_vals}'.format(val=np.mean(np.abs(param.value)),
-                                                        sane_vals=param.sane_vals))
+                sane, message = param.sanity_check()
+                if not sane:
                     raise ValueError('UVParameter ' + p + ' has insane values. ' +
                                      message)
 

@@ -39,7 +39,9 @@ class UVParameter(object):
         expected_type: The type that the data or metadata should be.
             Default is np.int or str if form is 'str'
 
-        sane_vals: Optional. Tuple giving a range of reasonable values for elements of value.
+        sane_vals: Optional. List giving allowed values for elements of value.
+
+        sane_range: Optional. Tuple giving a range of allowed magnitudes for elements of value.
 
         tols: Tolerances for testing the equality of UVParameters. Either a
             single absolute value or a tuple of relative and absolute values to
@@ -48,7 +50,7 @@ class UVParameter(object):
 
     def __init__(self, name, required=True, value=None, spoof_val=None,
                  form=(), description='', expected_type=np.int, sane_vals=None,
-                 tols=(1e-05, 1e-08)):
+                 sane_range=None, tols=(1e-05, 1e-08)):
         """Init UVParameter object."""
         self.name = name
         self.required = required
@@ -63,6 +65,7 @@ class UVParameter(object):
         else:
             self.expected_type = expected_type
         self.sane_vals = sane_vals
+        self.sane_range = sane_range
         if np.size(tols) == 1:
             # Only one tolerance given, assume absolute, set relative to zero
             self.tols = (0, tols)
@@ -169,17 +172,45 @@ class UVParameter(object):
 
     def sanity_check(self):
         """Check that values are sane."""
-        if self.sane_vals is None:
-            return True
+        if self.sane_vals is None and self.sane_range is None:
+            return True, 'No sanity check'
         else:
-            if self.expected_type is str:
-                if self.value.lower() in (vals.lower() for vals in self.sane_vals):
-                    return True
+            # either sane_vals or sane_range is set. Prefer sane_vals
+            if self.sane_vals is not None:
+                # sane_vals are a list of allowed values
+                if self.expected_type is str:
+                    # strings need to be converted to lower case
+                    if isinstance(self.value, str):
+                        value_set = set([self.value.lower()])
+                    else:
+                        # this is a list or array of strings, make them all lower case
+                        value_set = set([x.lower() for x in self.value])
+                    sane_vals = [x.lower() for x in self.sane_vals]
+                else:
+                    if isinstance(self.value, (list, np.ndarray)):
+                        value_set = set(list(self.value))
+                    else:
+                        value_set = set([self.value])
+                    sane_vals = self.sane_vals
+                for elem in value_set:
+                    if elem not in sane_vals:
+                        message = ('Value {val}, is not in allowed values: '
+                                   '{sane_vals}'.format(val=elem, sane_vals=sane_vals))
+                        return False, message
+                return True, 'Value is sane'
             else:
+                # sane_range is a tuple giving a range of allowed magnitudes
+                # testval_min = np.min(np.abs(self.value))
+                # testval_max = np.max(np.abs(self.value))
                 testval = np.mean(np.abs(self.value))
-                if (testval >= self.sane_vals[0]) and (testval <= self.sane_vals[1]):
-                    return True
-        return False
+                # if (testval_min >= self.sane_range[0]) and (testval_max <= self.sane_range[1]):
+                #     return True
+                if (testval >= self.sane_range[0]) and (testval <= self.sane_range[1]):
+                    return True, 'Value is sane'
+                else:
+                    message = ('Value {val}, is not in allowed range: '
+                               '{sane_range}'.format(val=testval, sane_range=self.sane_range))
+                    return False, message
 
 
 class AntPositionParameter(UVParameter):
@@ -289,14 +320,42 @@ class LocationParameter(UVParameter):
         """Check that values are sane. Special case for location, where
             we want to check the vector magnitude
         """
-        if self.sane_vals is None:
-            return True
+        if self.sane_vals is None and self.sane_range is None:
+            return True, 'No sanity check'
         else:
-            if self.expected_type is str:
-                if self.value.lower() in (vals.lower() for vals in self.sane_vals):
-                    return True
+            # either sane_vals or sane_range is set. Prefer sane_vals
+            if self.sane_vals is not None:
+                # sane_vals are a list of allowed values
+                if self.expected_type is str:
+                    # strings need to be converted to lower case
+                    if isinstance(self.value, str):
+                        value_set = set([self.value.lower()])
+                    else:
+                        # this is a list or array of strings, make them all lower case
+                        value_set = set([x.lower() for x in self.value])
+                    sane_vals = [x.lower() for x in self.sane_vals]
+                else:
+                    if isinstance(self.value, (list, np.ndarray)):
+                        value_set = set(list(self.value))
+                    else:
+                        value_set = set([self.value])
+                    sane_vals = self.sane_vals
+                for elem in value_set:
+                    if elem not in sane_vals:
+                        message = ('Value {val}, is not in allowed values: '
+                                   '{sane_vals}'.format(val=elem, sane_vals=sane_vals))
+                        return False, message
+                return True, 'Value is sane'
             else:
+                # sane_range is a tuple giving a range of allowed vector magnitudes
+                # testval_min = np.min(np.abs(self.value))
+                # testval_max = np.max(np.abs(self.value))
+                # if (testval_min >= self.sane_range[0]) and (testval_max <= self.sane_range[1]):
+                #     return True
                 testval = np.sqrt(np.sum(np.abs(self.value)**2))
-                if (testval >= self.sane_vals[0]) and (testval <= self.sane_vals[1]):
-                    return True
-        return False
+                if (testval >= self.sane_range[0]) and (testval <= self.sane_range[1]):
+                    return True, 'Value is sane'
+                else:
+                    message = ('Value {val}, is not in allowed range: '
+                               '{sane_range}'.format(val=testval, sane_range=self.sane_range))
+                    return False, message
