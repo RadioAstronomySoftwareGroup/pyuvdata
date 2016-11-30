@@ -290,9 +290,19 @@ class UVData(UVBase):
             run_sanity_check: Option to check if values in required parameters
                 are sane. Default is True.
         """
+        # first run the basic check from UVBase
+        super(UVData, self).check(run_sanity_check=True)
+
+        # then check some other things
+        nants_data_calc = int(len(np.unique(self.ant_1_array.tolist() +
+                                            self.ant_2_array.tolist())))
+        if self.Nants_data != nants_data_calc:
+            raise ValueError('Nants_data must be equal to the number of unique '
+                             'values in ant_1_array and ant_2_array')
+
         if self.Nants_data > self.Nants_telescope:
             raise ValueError('Nants_data must be less than or equal to Nants_telescope')
-        return super(UVData, self).check(run_sanity_check=True)
+        return True
 
     def set_drift(self):
         """Set phase_type to 'drift' and adjust required parameters."""
