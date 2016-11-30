@@ -200,11 +200,7 @@ class UVParameter(object):
                 return True, 'Value is sane'
             else:
                 # sane_range is a tuple giving a range of allowed magnitudes
-                # testval_min = np.min(np.abs(self.value))
-                # testval_max = np.max(np.abs(self.value))
                 testval = np.mean(np.abs(self.value))
-                # if (testval_min >= self.sane_range[0]) and (testval_max <= self.sane_range[1]):
-                #     return True
                 if (testval >= self.sane_range[0]) and (testval <= self.sane_range[1]):
                     return True, 'Value is sane'
                 else:
@@ -348,10 +344,6 @@ class LocationParameter(UVParameter):
                 return True, 'Value is sane'
             else:
                 # sane_range is a tuple giving a range of allowed vector magnitudes
-                # testval_min = np.min(np.abs(self.value))
-                # testval_max = np.max(np.abs(self.value))
-                # if (testval_min >= self.sane_range[0]) and (testval_max <= self.sane_range[1]):
-                #     return True
                 testval = np.sqrt(np.sum(np.abs(self.value)**2))
                 if (testval >= self.sane_range[0]) and (testval <= self.sane_range[1]):
                     return True, 'Value is sane'
