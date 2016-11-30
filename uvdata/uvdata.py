@@ -306,7 +306,7 @@ class UVData(UVBase):
                 are sane. Default is True.
         """
         # first run the basic check from UVBase
-        super(UVData, self).check(run_sanity_check=True)
+        super(UVData, self).check(run_sanity_check=run_sanity_check)
 
         # then check some other things
         nants_data_calc = int(len(np.unique(self.ant_1_array.tolist() +
