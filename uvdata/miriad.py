@@ -22,12 +22,14 @@ class Miriad(UVData):
                   "polarization_array".format(pol=pol))
         return pol_ind
 
-    def read_miriad(self, filepath, run_check=True, run_sanity_check=True):
+    def read_miriad(self, filepath, correct_lat_lon=True, run_check=True, run_sanity_check=True):
         """
         Read in data from a miriad file.
 
         Args:
             filepath: The miriad file directory to read from.
+            correct_lat_lon: flag -- that only matters if altitude is missing --
+                to update the latitude and longitude from the known_telescopes list
             run_check: Option to check for the existence and proper shapes of
                 required parameters after reading in the file. Default is True.
             run_sanity_check: Option to sanity check the values of
@@ -73,23 +75,40 @@ class Miriad(UVData):
                                        latitude, rtol=0, atol=tol)
                 lon_close = np.isclose(telescope_obj.telescope_location_lat_lon_alt[1],
                                        longitude, rtol=0, atol=tol)
-                self.telescope_location_lat_lon_alt = telescope_obj.telescope_location_lat_lon_alt
-                if lat_close and lon_close:
-                    warnings.warn('Altitude is not present in Miriad file, using known location values '
-                                  'for {telescope_name}.'.format(telescope_name=telescope_obj.telescope_name))
+                if correct_lat_lon:
+                    self.telescope_location_lat_lon_alt = telescope_obj.telescope_location_lat_lon_alt
                 else:
-                    warn_string = ('Altitude is not present in file and ')
+                    self.telescope_location_lat_lon_alt = (latitude, longitude, telescope_obj.telescope_location_lat_lon_alt[2])
+                if lat_close and lon_close:
+                    if correct_lat_lon:
+                        warnings.warn('Altitude is not present in Miriad file, '
+                                      'using known location values for '
+                                      '{telescope_name}.'.format(telescope_name=telescope_obj.telescope_name))
+                    else:
+                        warnings.warn('Altitude is not present in Miriad file, '
+                                      'using known location altitude value '
+                                      'for {telescope_name} and lat/lon from '
+                                      'file.'.format(telescope_name=telescope_obj.telescope_name))
+                else:
+                    warn_string = ('Altitude is not present in file ')
                     if not lat_close and not lon_close:
-                        warn_string = warn_string + 'latitude and longitude values do not match values '
+                        warn_string = warn_string + 'and latitude and longitude values do not match values '
                     else:
                         if not lat_close:
-                            warn_string = warn_string + 'latitude value does not match value '
+                            warn_string = warn_string + 'and latitude value does not match value '
                         else:
-                            warn_string = warn_string + 'longitude value does not match value '
-                    warn_string = (warn_string + 'for {telescope_name} in known '
-                                   'telescopes. Using values from known '
-                                   'telescopes.'.format(telescope_name=telescope_obj.telescope_name))
-                    warnings.warn(warn_string)
+                            warn_string = warn_string + 'and longitude value does not match value '
+                    if correct_lat_lon:
+                        warn_string = (warn_string + 'for {telescope_name} in known '
+                                       'telescopes. Using values from known '
+                                       'telescopes.'.format(telescope_name=telescope_obj.telescope_name))
+                        warnings.warn(warn_string)
+                    else:
+                        warn_string = (warn_string + 'for {telescope_name} in known '
+                                       'telescopes. Using altitude value from known '
+                                       'telescopes and lat/lon from '
+                                       'file.'.format(telescope_name=telescope_obj.telescope_name))
+                        warnings.warn(warn_string)
             else:
                 warnings.warn('Altitude is not present in Miriad file, and ' +
                               'telescope {telescope_name} is not in ' +
