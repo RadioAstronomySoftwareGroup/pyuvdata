@@ -654,7 +654,8 @@ class UVData(UVBase):
         """
         import uvfits
         uvfits_obj = uvfits.UVFITS()
-        uvfits_obj.read_uvfits(filename, run_check=True, run_sanity_check=True)
+        uvfits_obj.read_uvfits(filename, run_check=run_check,
+                               run_sanity_check=run_sanity_check)
         self._convert_from_filetype(uvfits_obj)
         del(uvfits_obj)
 
@@ -677,8 +678,8 @@ class UVData(UVBase):
         """
         uvfits_obj = self._convert_to_filetype('uvfits')
         uvfits_obj.write_uvfits(filename, spoof_nonessential=spoof_nonessential,
-                                force_phase=force_phase, run_check=True,
-                                run_sanity_check=True)
+                                force_phase=force_phase, run_check=run_check,
+                                run_sanity_check=run_sanity_check)
         del(uvfits_obj)
 
     def read_fhd(self, filelist, use_model=False, run_check=True,
@@ -698,12 +699,12 @@ class UVData(UVBase):
         """
         import fhd
         fhd_obj = fhd.FHD()
-        fhd_obj.read_fhd(filelist, use_model=use_model, run_check=True,
-                         run_sanity_check=True)
+        fhd_obj.read_fhd(filelist, use_model=use_model, run_check=run_check,
+                         run_sanity_check=run_sanity_check)
         self._convert_from_filetype(fhd_obj)
         del(fhd_obj)
 
-    def read_miriad(self, filepath, run_check=True, run_sanity_check=True):
+    def read_miriad(self, filepath, correct_lat_lon=True, run_check=True, run_sanity_check=True):
         """
         Read in data from a miriad file.
 
@@ -716,7 +717,8 @@ class UVData(UVBase):
         """
         import miriad
         miriad_obj = miriad.Miriad()
-        miriad_obj.read_miriad(filepath, run_check=True, run_sanity_check=True)
+        miriad_obj.read_miriad(filepath, correct_lat_lon=correct_lat_lon,
+                               run_check=run_check, run_sanity_check=run_sanity_check)
         self._convert_from_filetype(miriad_obj)
         del(miriad_obj)
 
@@ -735,6 +737,6 @@ class UVData(UVBase):
                 Default is False.
         """
         miriad_obj = self._convert_to_filetype('miriad')
-        miriad_obj.write_miriad(filepath, run_check=True, run_sanity_check=True,
-                                clobber=clobber)
+        miriad_obj.write_miriad(filepath, run_check=run_check,
+                                run_sanity_check=run_sanity_check, clobber=clobber)
         del(miriad_obj)
