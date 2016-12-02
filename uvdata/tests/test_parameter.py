@@ -96,20 +96,22 @@ def test_close():
 
 def test_sanity():
     """Test sanity_check function."""
-    param1 = uvdata.UVParameter(name='p1', value=1000, sane_vals=[1, 10])
-    nt.assert_false(param1.sanity_check())
+    param1 = uvdata.UVParameter(name='p1', value=1000, sane_range=(1, 10))
+    nt.assert_false(param1.sanity_check()[0])
+    param2 = uvdata.UVParameter(name='p2', value=5, sane_range=(1, 10))
+    nt.assert_true(param2.sanity_check()[0])
     param2 = uvdata.UVParameter(name='p2', value=5, sane_vals=[1, 10])
-    nt.assert_true(param2.sanity_check())
+    nt.assert_false(param2.sanity_check()[0])
 
 
 def test_string_sanity():
     """Test sanity_check function with strings."""
     param1 = uvdata.UVParameter(name='p1', value='Bob', form='str',
                                 sane_vals=['Alice', 'Eve'])
-    nt.assert_false(param1.sanity_check())
+    nt.assert_false(param1.sanity_check()[0])
     param2 = uvdata.UVParameter(name='p2', value='Eve', form='str',
                                 sane_vals=['Alice', 'Eve'])
-    nt.assert_true(param2.sanity_check())
+    nt.assert_true(param2.sanity_check()[0])
 
 
 def test_expected_shape():

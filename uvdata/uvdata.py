@@ -86,7 +86,7 @@ class UVData(UVBase):
         self._uvw_array = uvp.UVParameter('uvw_array', description=desc,
                                           form=('Nblts', 3),
                                           expected_type=np.float,
-                                          sane_vals=(1e-3, 1e8), tols=.001)
+                                          sane_range=(1e-3, 1e8), tols=.001)
 
         desc = ('Array of times, center of integration, shape (Nblts), ' +
                 'units Julian Date')
@@ -131,6 +131,7 @@ class UVData(UVBase):
         self._polarization_array = uvp.UVParameter('polarization_array',
                                                    description=desc,
                                                    expected_type=int,
+                                                   sane_vals=list(np.arange(-8, 0)) + list(np.arange(1, 5)),
                                                    form=('Npols',))
 
         self._integration_time = uvp.UVParameter('integration_time',
@@ -160,7 +161,7 @@ class UVData(UVBase):
         self._telescope_location = uvp.LocationParameter('telescope_location',
                                                          description=desc,
                                                          expected_type=np.float,
-                                                         sane_vals=(6.35e6, 6.39e6),
+                                                         sane_range=(6.35e6, 6.39e6),
                                                          form=(3,), tols=1e-3)
 
         self._history = uvp.UVParameter('history', description='String of history, units English',
@@ -305,7 +306,7 @@ class UVData(UVBase):
                 are sane. Default is True.
         """
         # first run the basic check from UVBase
-        super(UVData, self).check(run_sanity_check=True)
+        super(UVData, self).check(run_sanity_check=run_sanity_check)
 
         # then check some other things
         nants_data_calc = int(len(np.unique(self.ant_1_array.tolist() +
