@@ -224,20 +224,21 @@ def test_known_telescopes():
                     uv_object.known_telescopes().sort())
 
 
-def test_phase_unphasePAPER():
+def test_phase_unphaseHERA():
     """
-    Phasing loopback test. ***THIS TEST IS KNOWN TO CURRENTLY FAIL.***
-
     Read in drift data, phase to an RA/DEC, unphase and check for object equality.
     """
-    testfile = os.path.join(DATA_PATH, 'zen.2456865.60537.xy.uvcRREAA')
+    testfile = os.path.join(DATA_PATH, 'hera_testfile')
     UV_raw = UVData()
+    # Note the RA/DEC values in the raw file were calculated from the lat/long
+    # in the file, which don't agree with our known_telescopes.
+    # So for this test we use the lat/lon in the file.
     status = uvtest.checkWarnings(UV_raw.read_miriad, [testfile],
-                                  known_warning='miriad')
+                                  {'correct_lat_lon': False}, known_warning='miriad')
 
     UV_phase = UVData()
     status = uvtest.checkWarnings(UV_phase.read_miriad, [testfile],
-                                  known_warning='miriad')
+                                  {'correct_lat_lon': False}, known_warning='miriad')
     UV_phase.phase(0., 0., ephem.J2000)
     UV_phase.unphase_to_drift()
 
