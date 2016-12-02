@@ -322,20 +322,11 @@ class LocationParameter(UVParameter):
             # either sane_vals or sane_range is set. Prefer sane_vals
             if self.sane_vals is not None:
                 # sane_vals are a list of allowed values
-                if self.expected_type is str:
-                    # strings need to be converted to lower case
-                    if isinstance(self.value, str):
-                        value_set = set([self.value.lower()])
-                    else:
-                        # this is a list or array of strings, make them all lower case
-                        value_set = set([x.lower() for x in self.value])
-                    sane_vals = [x.lower() for x in self.sane_vals]
+                if isinstance(self.value, (list, np.ndarray)):
+                    value_set = set(list(self.value))
                 else:
-                    if isinstance(self.value, (list, np.ndarray)):
-                        value_set = set(list(self.value))
-                    else:
-                        value_set = set([self.value])
-                    sane_vals = self.sane_vals
+                    value_set = set([self.value])
+                sane_vals = self.sane_vals
                 for elem in value_set:
                     if elem not in sane_vals:
                         message = ('Value {val}, is not in allowed values: '
