@@ -49,7 +49,7 @@ class UVParameter(object):
     """
 
     def __init__(self, name, required=True, value=None, spoof_val=None,
-                 form=(), description='', expected_type=np.int, sane_vals=None,
+                 form=(), description='', expected_type=None, sane_vals=None,
                  sane_range=None, tols=(1e-05, 1e-08)):
         """Init UVParameter object."""
         self.name = name
@@ -266,6 +266,13 @@ class LocationParameter(UVParameter):
     degrees (used by UVBase objects for _lat_lon_alt and _lat_lon_alt_degrees
     properties associated with these parameters).
     """
+    def __init__(self, name, required=True, value=None, spoof_val=None, description='',
+                 sane_range=(6.35e6, 6.39e6), tols=1e-3):
+        super(LocationParameter, self).__init__(name, required=required, value=value,
+                                                spoof_val=spoof_val, form=(3,),
+                                                description=description,
+                                                expected_type=np.float,
+                                                sane_range=sane_range, tols=tols)
 
     def lat_lon_alt(self):
         """Get value in (latitude, longitude, altitude) tuple in radians."""
@@ -316,29 +323,14 @@ class LocationParameter(UVParameter):
         """Check that values are sane. Special case for location, where
             we want to check the vector magnitude
         """
-        if self.sane_vals is None and self.sane_range is None:
+        if self.sane_range is None:
             return True, 'No sanity check'
         else:
-            # either sane_vals or sane_range is set. Prefer sane_vals
-            if self.sane_vals is not None:
-                # sane_vals are a list of allowed values
-                if isinstance(self.value, (list, np.ndarray)):
-                    value_set = set(list(self.value))
-                else:
-                    value_set = set([self.value])
-                sane_vals = self.sane_vals
-                for elem in value_set:
-                    if elem not in sane_vals:
-                        message = ('Value {val}, is not in allowed values: '
-                                   '{sane_vals}'.format(val=elem, sane_vals=sane_vals))
-                        return False, message
+            # sane_range is a tuple giving a range of allowed vector magnitudes
+            testval = np.sqrt(np.sum(np.abs(self.value)**2))
+            if (testval >= self.sane_range[0]) and (testval <= self.sane_range[1]):
                 return True, 'Value is sane'
             else:
-                # sane_range is a tuple giving a range of allowed vector magnitudes
-                testval = np.sqrt(np.sum(np.abs(self.value)**2))
-                if (testval >= self.sane_range[0]) and (testval <= self.sane_range[1]):
-                    return True, 'Value is sane'
-                else:
-                    message = ('Value {val}, is not in allowed range: '
-                               '{sane_range}'.format(val=testval, sane_range=self.sane_range))
-                    return False, message
+                message = ('Value {val}, is not in allowed range: '
+                           '{sane_range}'.format(val=testval, sane_range=self.sane_range))
+                return False, message
