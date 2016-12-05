@@ -24,4 +24,4 @@ out += ('\n\nFurther Documentation\n====================================\n'
         '   developer_docs\n')
 F = open('index.rst', 'w')
 F.write(out)
-print "wrote index.rst"
+print("wrote index.rst")

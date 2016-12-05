@@ -1,5 +1,5 @@
 .. pyuvdata documentation master file, created by
-   make_index.py on 2016-11-29
+   make_index.py on 2016-12-05
 
 pyuvdata
 ========
@@ -20,6 +20,40 @@ The three main goals are:
 2. Support the direct use of datasets from python with minimal software
 3. Provide precise data definition via both human readable code and high
    quality online documentation
+
+Package Details
+===============
+
+Tested File Paths
+-----------------
+
+-  uvfits -> miriad (aipy)
+-  miriad (aipy) -> uvfits
+-  FHD -> uvfits
+-  FHD -> miriad
+
+File standards
+--------------
+
+-  miriad is supported for aipy-style analysis, further testing is
+   required for use in the miriad package
+-  uvfits conforms to AIPS memo 117 (as of May 2015). It is tested
+   against FHD, CASA, and AIPS. However AIPS is limited to <80 antennas
+   and CASA imaging does not seem to support >255 antennas.
+-  FHD (read-only support, tested against MWA and PAPER data)
+
+Known Issues and Planned Improvements
+-------------------------------------
+
+-  different multiple spectral windows or multiple sources are not
+   currently supported
+-  testing against miriad package
+-  replacing AIPY and pyephem with astropy+NOVAS for time and phase
+   calculations
+-  support for direct reading and writing of Measurement Sets For
+   details see the `issue
+   log <https://github.com/HERA-Team/pyuvdata/issues>`__. Contributions
+   are welcome!
 
 History
 =======
