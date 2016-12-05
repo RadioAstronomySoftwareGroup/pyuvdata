@@ -3,7 +3,7 @@ import glob
 import os.path as op
 from os import listdir
 
-__version__ = '0.0.1'
+__version__ = '1.0'
 
 setup_args = {
     'name': 'uvdata',
