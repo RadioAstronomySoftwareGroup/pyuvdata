@@ -26,6 +26,7 @@ The three main goals are:
 * testing against miriad package
 * replacing AIPY and pyephem with astropy+NOVAS for time and phase calculations
 * support for direct reading and writing of Measurement Sets
+
 For details see the [issue log](https://github.com/HERA-Team/pyuvdata/issues). Contributions are welcome!
 
 
