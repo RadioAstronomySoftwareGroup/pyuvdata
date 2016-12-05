@@ -12,7 +12,7 @@ authors:
    orcid: 0000-0002-0917-2269
    affiliation: 3
  - name: Jonathan C. Pober
-   orcid:
+   orcid: 0000-0002-3492-0433
    affiliation: 4
  - name: Adam P. Beardsley
    orcid: 0000-0001-9428-8233
