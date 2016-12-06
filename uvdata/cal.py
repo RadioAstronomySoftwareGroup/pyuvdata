@@ -2,6 +2,11 @@
 #1. Currently supporting direction independent gains. Future versions may
 #   support direction dependent gains with list of such objects.
 #2.
+import numpy as np
+from uvbase import UVBase
+import parameter as uvp
+
+
 class UVCal(UVBase):
     """ A class defining a calibration """
     def __init__(self):
@@ -110,7 +115,7 @@ class UVCal(UVBase):
         self._delay_array = uvp.UVParameter('delay_array', description=desc,
                                             required=False,
                                             form=('Nants_data', 'Ntimes',
-                                                   'Npols')
+                                                   'Npols'),
                                             expected_type=np.float)
 
 #--- truly optional parameters ---
@@ -122,5 +127,5 @@ class UVCal(UVBase):
                                            form=('Nants_data', 'Nfreqs',
                                                  'Ntimes', 'Npols'),
                                            expected_type=np.bool)
-        super(UVData, self).__init__()
+        super(UVCal, self).__init__()
         #need to have either gain_array or delay_array
