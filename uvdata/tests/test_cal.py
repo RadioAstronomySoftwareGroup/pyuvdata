@@ -1,14 +1,14 @@
-"""Tests for uvdata object."""
+"""Tests for uvcal object."""
 import nose.tools as nt
 import os
 import numpy as np
 import copy
 import ephem
-from uvdata import UVData
+from uvdata.cal import UVCal
 import uvdata.tests as uvtest
 from uvdata.data import DATA_PATH
 
-class TestUVDataInit(object):
+class TestUVCalInit(object):
     def setUp(self):
         """Setup for basic parameter, property and iterator tests."""
         self.required_parameters = ['_Nfreqs', '_Npols', '_Ntimes', '_history',
@@ -37,7 +37,7 @@ class TestUVDataInit(object):
 
     def teardown(self):
         """Test teardown: delete object."""
-        del(self.uv_object)
+        del(self.uv_cal_object)
 
     def test_parameter_iter(self):
         "Test expected parameters."
@@ -61,7 +61,7 @@ class TestUVDataInit(object):
     def test_unexpected_attributes(self):
         "Test for extra attributes."
         expected_attributes = self.required_properties + \
-            self.extra_properties + self.other_properties
+            self.extra_properties
         attributes = [i for i in self.uv_cal_object.__dict__.keys() if i[0] != '_']
         for a in attributes:
             nt.assert_true(a in expected_attributes,
@@ -73,8 +73,8 @@ class TestUVDataInit(object):
                              self.required_parameters + self.extra_parameters))
         for k, v in prop_dict.iteritems():
             rand_num = np.random.rand()
-            setattr(self.uv_object, k, rand_num)
-            this_param = getattr(self.uv_object, v)
+            setattr(self.uv_cal_object, k, rand_num)
+            this_param = getattr(self.uv_cal_object, v)
             try:
                 nt.assert_equal(rand_num, this_param.value)
             except:
