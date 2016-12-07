@@ -1,5 +1,5 @@
 .. pyuvdata documentation master file, created by
-   make_index.py on 2016-12-05
+   make_index.py on 2016-12-07
 
 pyuvdata
 ========
@@ -50,10 +50,11 @@ Known Issues and Planned Improvements
 -  testing against miriad package
 -  replacing AIPY and pyephem with astropy+NOVAS for time and phase
    calculations
--  support for direct reading and writing of Measurement Sets For
-   details see the `issue
-   log <https://github.com/HERA-Team/pyuvdata/issues>`__. Contributions
-   are welcome!
+-  support for direct reading and writing of Measurement Sets
+
+For details see the `issue
+log <https://github.com/HERA-Team/pyuvdata/issues>`__. Contributions are
+welcome!
 
 History
 =======
