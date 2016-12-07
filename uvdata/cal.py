@@ -107,7 +107,7 @@ class UVCal(UVBase):
         self._x_orientation = uvp.UVParameter('x_orientation', description=desc,
                                               expected_type=str,
                                               sane_vals=['E', 'N', 'U'])
-# --- optional parameters ---
+        # --- delay_gain_switch parameters ---
         desc = ('Array of gains, shape: (Nants_data, Nfreqs, Ntimes, '
                 'Npols), type = complex float.')
         self._gain_array = uvp.UVParameter('gain_array', description=desc,
@@ -119,11 +119,10 @@ class UVCal(UVBase):
         desc = ('Array of delays. shape= (Nants_data, Ntimes, Npols), type = float')
         self._delay_array = uvp.UVParameter('delay_array', description=desc,
                                             required=False,
-                                            form=('Nants_data', 'Ntimes',
-                                                  'Npols'),
+                                            form=('Nants_data', 'Ntimes', 'Npols'),
                                             expected_type=np.float)
 
-# --- truly optional parameters ---
+        # --- truly optional parameters ---
         desc = ('Array of input flags, True is flagged. shape: (Nants_data, '
                 'Nfreqs, Ntimes, Npols), type = bool.')
         self._input_flag_array = uvp.UVParameter('input_flag_array',

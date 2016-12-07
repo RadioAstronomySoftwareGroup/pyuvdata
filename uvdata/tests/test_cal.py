@@ -8,6 +8,7 @@ from uvdata.cal import UVCal
 import uvdata.tests as uvtest
 from uvdata.data import DATA_PATH
 
+
 class TestUVCalInit(object):
     def setUp(self):
         """Setup for basic parameter, property and iterator tests."""
@@ -56,7 +57,6 @@ class TestUVCalInit(object):
         for a in self.required_parameters:
             nt.assert_true(a in required, msg='expected attribute ' + a +
                            ' not returned in required iterator')
-
 
     def test_unexpected_attributes(self):
         "Test for extra attributes."
