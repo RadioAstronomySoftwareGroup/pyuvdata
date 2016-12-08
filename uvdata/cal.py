@@ -97,17 +97,17 @@ class UVCal(UVBase):
                                               form=('Nants_data', 'Nfreqs',
                                                     'Ntimes', 'Npols'),
                                               expected_type=np.float)
-        desc = ('Delay or gain switch parameter. Values are delay/gain.')
-        self._delay_gain_switch = uvp.UVParameter('delay_gain_switch', form='str',
-                                                  expected_type=str,
-                                                  description=desc,
-                                                  sane_vals=['delay', 'gain'])
+        desc = ('cal type parameter. Values are delay, gain or unknown.')
+        self._cal_type = uvp.UVParameter('cal_type', form='str',
+                                         expected_type=str, value='unknown',
+                                         description=desc,
+                                         sane_vals=['delay', 'gain', 'unknown'])
 
         desc = ('Polarization orientation. Values are E/N/Unknown.')
         self._x_orientation = uvp.UVParameter('x_orientation', description=desc,
                                               expected_type=str,
                                               sane_vals=['E', 'N', 'U'])
-        # --- delay_gain_switch parameters ---
+        # --- cal_type parameters ---
         desc = ('Array of gains, shape: (Nants_data, Nfreqs, Ntimes, '
                 'Npols), type = complex float.')
         self._gain_array = uvp.UVParameter('gain_array', description=desc,
@@ -116,7 +116,7 @@ class UVCal(UVBase):
                                                  'Ntimes', 'Npols'),
                                            expected_type=np.complex)
 
-        desc = ('Array of delays. shape= (Nants_data, Ntimes, Npols), type = float')
+        desc = ('Array of delays. shape: (Nants_data, Ntimes, Npols), type = float')
         self._delay_array = uvp.UVParameter('delay_array', description=desc,
                                             required=False,
                                             form=('Nants_data', 'Ntimes', 'Npols'),
@@ -132,4 +132,21 @@ class UVCal(UVBase):
                                                        'Ntimes', 'Npols'),
                                                  expected_type=np.bool)
         super(UVCal, self).__init__()
-        # need to have either gain_array or delay_array
+
+    def set_gain(self):
+        """Set cal_type to 'gain' and adjust required parameters."""
+        self.cal_type = 'gain'
+        self._gain_array.required = True
+        self._delay_array.required = False
+
+    def set_delay(self):
+        """Set cal_type to 'delay' and adjust required parameters."""
+        self.cal_type = 'delay'
+        self._gain_array.required = False
+        self._delay_array.required = True
+
+    def set_unknown_phase_type(self):
+        """Set cal_type to 'unknown' and adjust required parameters."""
+        self.cal_type = 'unknown'
+        self._gain_array.required = False
+        self._delay_array.required = False

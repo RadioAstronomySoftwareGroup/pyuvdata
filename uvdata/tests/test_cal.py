@@ -17,7 +17,7 @@ class TestUVCalInit(object):
                                     '_Nants_telescope', '_freq_array',
                                     '_polarization_array', '_time_array',
                                     '_gain_convention', '_flag_array',
-                                    '_quality_array', '_delay_gain_switch',
+                                    '_quality_array', '_cal_type',
                                     '_x_orientation']
 
         self.required_properties = ['Nfreqs', 'Npols', 'Ntimes', 'history',
@@ -25,7 +25,7 @@ class TestUVCalInit(object):
                                     'Nants_telescope', 'freq_array',
                                     'polarization_array', 'time_array',
                                     'gain_convention', 'flag_array',
-                                    'quality_array', 'delay_gain_switch',
+                                    'quality_array', 'cal_type',
                                     'x_orientation']
 
         self.extra_parameters = ['_gain_array', '_delay_array',
