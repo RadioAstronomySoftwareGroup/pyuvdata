@@ -184,3 +184,14 @@ class UVCal(UVBase):
         self.cal_type = 'unknown'
         self._gain_array.required = False
         self._delay_array.required = False
+
+    def _convert_to_filetype(self, filetype):
+        if filetype is 'uvfits':
+            import calfits
+            other_obj = calfits.CALFITS()
+        else:
+            raise ValueError('filetype must be uvfits.')
+        for p in self:
+            param = getattr(self, p)
+            setattr(other_obj, p, param)
+        return other_obj
