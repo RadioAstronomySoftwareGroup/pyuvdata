@@ -98,6 +98,12 @@ def test_sanity():
     """Test sanity_check function."""
     param1 = uvdata.UVParameter(name='p1', value=1000, sane_range=(1, 10))
     nt.assert_false(param1.sanity_check()[0])
+
+    param1 = uvdata.UVParameter(name='p1', value=np.random.rand(100), sane_range=(.1, .9))
+    nt.assert_true(param1.sanity_check()[0])
+    param1 = uvdata.UVParameter(name='p1', value=np.random.rand(100) * 1e-4, sane_range=(.1, .9))
+    nt.assert_false(param1.sanity_check()[0])
+
     param2 = uvdata.UVParameter(name='p2', value=5, sane_range=(1, 10))
     nt.assert_true(param2.sanity_check()[0])
     param2 = uvdata.UVParameter(name='p2', value=5, sane_vals=[1, 10])

@@ -134,53 +134,13 @@ class TestUVDataBasicMethods(object):
         """Basic equality test."""
         nt.assert_equal(self.uv_object, self.uv_object)
 
-    def test_inequality(self):
-        """Check that inequality is handled correctly."""
-        self.uv_object2.phase_center_ra = 0
-        nt.assert_not_equal(self.uv_object, self.uv_object2)
-
-    def test_uvdata_class_inequality(self):
-        """Test equality error for different classes."""
-        nt.assert_not_equal(self.uv_object, self.uv_object.data_array)
-
     def test_check(self):
         """Test simple check function."""
         nt.assert_true(self.uv_object.check())
 
-    def test_string_check(self):
-        """Test check function with wrong type (string)."""
-        self.uv_object.vis_units = 1
-        nt.assert_raises(ValueError, self.uv_object.check)
-
-    def test_single_value_check(self):
-        """Test check function with wrong dimensions or type."""
-        Nblts = self.uv_object.Nblts
-        self.uv_object.Nblts += 4
-        nt.assert_raises(ValueError, self.uv_object.check)
-        self.uv_object.Nblts = np.float(Nblts)
-        nt.assert_raises(ValueError, self.uv_object.check)
-
-    def test_array_check(self):
-        """Test check function with wrong array dimensions or type."""
-        data = self.uv_object.data_array
-        self.uv_object.data_array = np.array([4, 5, 6], dtype=np.complex64)
-        nt.assert_raises(ValueError, self.uv_object.check)
-        self.uv_object.data_array = np.real(data)
-        nt.assert_raises(ValueError, self.uv_object.check)
-
-    def test_list_check(self):
-        """Test check function with wrong list dimensions."""
-        antenna_names = self.uv_object.antenna_names
-        self.uv_object.antenna_names = [1] * self.uv_object._antenna_names.expected_shape(self.uv_object)[0]
-        nt.assert_raises(ValueError, self.uv_object.check)
-
-    def test_sanity_check(self):
-        """Test check function with out of range values."""
-        uvws = self.uv_object.uvw_array
-        self.uv_object.uvw_array = 1e-4 * np.ones_like(self.uv_object.uvw_array)
-        nt.assert_raises(ValueError, self.uv_object.check)
-
     def test_nants_data_telescope(self):
+        self.uv_object.Nants_data = self.uv_object.Nants_telescope - 1
+        nt.assert_true(self.uv_object.check)
         self.uv_object.Nants_data = self.uv_object.Nants_telescope + 1
         nt.assert_raises(ValueError, self.uv_object.check)
 
@@ -241,15 +201,6 @@ def test_phase_unphaseHERA():
                                   {'correct_lat_lon': False}, known_warning='miriad')
     UV_phase.phase(0., 0., ephem.J2000)
     UV_phase.unphase_to_drift()
-
-    print('min, max zenith_ra of UV_raw: {min}, {max}'.format(min=UV_raw.zenith_ra.min(),
-                                                              max=UV_raw.zenith_ra.max()))
-    print('min, max zenith_ra of UV_phase: {min}, {max}'.format(min=UV_phase.zenith_ra.min(),
-                                                                max=UV_phase.zenith_ra.max()))
-    print('min, max difference of zenith_ra: {min}, {max}'.format(min=(UV_raw.zenith_ra - UV_phase.zenith_ra).min(),
-                                                                  max=(UV_raw.zenith_ra - UV_phase.zenith_ra).max()))
-    print('zenith_ra tolerance for UV_raw: {tol}'.format(tol=UV_raw._zenith_ra.tols))
-    print('zenith_ra tolerance for UV_phase: {tol}'.format(tol=UV_phase._zenith_ra.tols))
 
     nt.assert_equal(UV_raw, UV_phase)
     del(UV_phase)
