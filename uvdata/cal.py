@@ -43,8 +43,7 @@ class UVCal(UVBase):
                                               form=('Nants_telescope',),
                                               expected_type=str)
 
-        desc = ('List of integer antenna numbers corresponding to'
-                'antenna_names,'
+        desc = ('List of integer antenna numbers corresponding to antenna_names,'
                 'shape (Nants_telescope). There must be one '
                 'entry here for each unique entry in ant_1_array and '
                 'ant_2_array, but there may be extras as well.')
@@ -82,7 +81,8 @@ class UVCal(UVBase):
                                            tols=1e-3 / (60.0 * 60.0 * 24.0))
 
         desc = ('The convention for applying he calibration solutions to data.'
-                'Divide/multiply uncalibrated data by gains.')
+                'Indicates that to calibrate one should divide or multiply '
+                'uncalibrated data by gains.')
         self._gain_convention = uvp.UVParameter('gain_convention', form='str',
                                                 expected_type=str,
                                                 description=desc,
@@ -101,17 +101,20 @@ class UVCal(UVBase):
                                               form=('Nants_data', 'Nfreqs',
                                                     'Ntimes', 'Npols'),
                                               expected_type=np.float)
+        desc = ('Orientation of the physical dipole corresponding to what is '
+                'labelled as the x polarization. Values are east '
+                '(east/west orientation),  north (north/south orientation) or '
+                'unknown.')
+        self._x_orientation = uvp.UVParameter('x_orientation', description=desc,
+                                              expected_type=str,
+                                              sane_vals=['east', 'north', 'unknown'])
+        # --- cal_type parameters ---
         desc = ('cal type parameter. Values are delay, gain or unknown.')
         self._cal_type = uvp.UVParameter('cal_type', form='str',
                                          expected_type=str, value='unknown',
                                          description=desc,
                                          sane_vals=['delay', 'gain', 'unknown'])
 
-        desc = ('Polarization orientation. Values are E/N/Unknown.')
-        self._x_orientation = uvp.UVParameter('x_orientation', description=desc,
-                                              expected_type=str,
-                                              sane_vals=['E', 'N', 'U'])
-        # --- cal_type parameters ---
         desc = ('Array of gains, shape: (Nants_data, Nfreqs, Ntimes, '
                 'Npols), type = complex float.')
         self._gain_array = uvp.UVParameter('gain_array', description=desc,
@@ -136,6 +139,33 @@ class UVCal(UVBase):
                                                        'Ntimes', 'Npols'),
                                                  expected_type=np.bool)
         super(UVCal, self).__init__()
+
+    def check(self, run_sanity_check=True):
+        """
+        Add some extra checks on top of checks on UVBase class.
+
+        Check that all required parameters are set reasonably.
+
+        Check that required parameters exist and have appropriate shapes.
+        Optionally check if the values are sane.
+
+        Args:
+            run_sanity_check: Option to check if values in required parameters
+                are sane. Default is True.
+        """
+        # first run the basic check from UVBase
+        super(UVData, self).check(run_sanity_check=run_sanity_check)
+
+        # then check some other things
+        nants_data_calc = int(len(np.unique(self.ant_1_array.tolist() +
+                                            self.ant_2_array.tolist())))
+        if self.Nants_data != nants_data_calc:
+            raise ValueError('Nants_data must be equal to the number of unique '
+                             'values in ant_1_array and ant_2_array')
+
+        if self.Nants_data > self.Nants_telescope:
+            raise ValueError('Nants_data must be less than or equal to Nants_telescope')
+        return True
 
     def set_gain(self):
         """Set cal_type to 'gain' and adjust required parameters."""
