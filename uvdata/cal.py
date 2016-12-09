@@ -22,6 +22,10 @@ class UVCal(UVBase):
         self._history = uvp.UVParameter('history',
                                         description='String of history, units English',
                                         form='str', expected_type=str)
+        self._Nspws = uvp.UVParameter('Nspws', description='Number of spectral windows '
+                                      '(ie non-contiguous spectral chunks). '
+                                      'More than one spectral window is not '
+                                      'currently supported.', expected_type=int)
 
         desc = ('Number of antennas with data present (i.e. number of unique '
                 'entries in ant_1_array and ant_2_array). May be smaller ' +
