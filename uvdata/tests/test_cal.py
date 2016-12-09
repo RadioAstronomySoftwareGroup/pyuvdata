@@ -80,3 +80,16 @@ class TestUVCalInit(object):
             except:
                 print('setting {prop_name} to a random number failed'.format(prop_name=k))
                 raise(AssertionError)
+
+class TestUVCalBasicMethods(object):
+    def setUp(self):
+        """Set up test"""
+        self.uv_cal_object = UVCal()
+
+    def teardown(self):
+        """Tear down test"""
+        del(self.uv_cal_object)
+
+    def test_check(self):
+        """Test that parameter checks run properly"""
+        nt.assert_true(self.uv_cal_object.check())
