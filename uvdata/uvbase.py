@@ -5,6 +5,12 @@ Subclassed by UVData and Telescope.
 """
 import numpy as np
 from . import parameter as uvp
+import warnings
+
+
+def _warning(msg, *a):
+    """Improve the printing of user warnings."""
+    return str(msg) + '\n'
 
 
 class UVBase(object):
@@ -26,6 +32,9 @@ class UVBase(object):
 
     def __init__(self):
         """Create properties from UVParameter attributes."""
+
+        warnings.formatwarning = _warning
+
         # set any UVParameter attributes to be properties
         for p in self:
             this_param = getattr(self, p)

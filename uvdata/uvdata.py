@@ -11,11 +11,6 @@ import parameter as uvp
 import telescopes as uvtel
 
 
-def _warning(msg, *a):
-    """Improve the printing of user warnings."""
-    return str(msg) + '\n'
-
-
 class UVData(UVBase):
     """
     A class for defining a radio interferometer dataset.
@@ -289,7 +284,6 @@ class UVData(UVBase):
                                                        spoof_val=0)
 
         super(UVData, self).__init__()
-        warnings.formatwarning = _warning
 
     def check(self, run_sanity_check=True):
         """
