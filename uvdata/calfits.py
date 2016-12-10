@@ -49,20 +49,22 @@ class CALFITS(UVCal):
         # Need to add in switch for gain/delay.
         # This is first draft of writing to FITS.
 
-         today = datetime.date.today().strftime("Date: %d, %b %Y")
-         prihdr = fits.Header()
-         prihdr['DATE'] = today
-
-         prihdu = fits.PrimaryHDU(header=prihdr)
-         colnam = fits.Column(name='ANT NAME', format='A10', array=self.antenna_names)
-         colnum = fits.Column(name='ANT INDEX', format='I',array=self.antenna_numbers)
-         colf = fits.Column(name='FREQ (MHZ)', format='E', array=self.freq_array)
-         colp = fits.Column(name='POL', format='A4', array=self.polarization_array)
-         colt = fits.Column(name='TIME (JD)', format='D', array=self.time_array)
-         coldat = fits.Column(name='GAIN', format='M', array=self.gain_array)
-         colflg = fits.Column(name='FLAG', format='L', array=self.flag_array)
-         cols = fits.ColDefs([colnam, colnum, colf, colp, colt, coldat, colflg])
-         tbhdu = fits.BinTableHDU.from_columns(cols)
-         hdulist = fits.HDUList([prihdu, tbhdu])
-         hdulist.writeto(outfn)
-
+        today = datetime.date.today().strftime("Date: %d, %b %Y")
+        prihdr = fits.Header()
+        prihdr['DATE'] = today
+        prihdu = fits.PrimaryHDU(header=prihdr)
+        colnam = fits.Column(name='ANT NAME', format='A10',
+                             array=self.antenna_names)
+        colnum = fits.Column(name='ANT INDEX', format='I',
+                             array=self.antenna_numbers)
+        colf = fits.Column(name='FREQ (MHZ)', format='E',
+                           array=self.freq_array)
+        colp = fits.Column(name='POL', format='A4',
+                           array=self.polarization_array)
+        colt = fits.Column(name='TIME (JD)', format='D', array=self.time_array)
+        coldat = fits.Column(name='GAIN', format='M', array=self.gain_array)
+        colflg = fits.Column(name='FLAG', format='L', array=self.flag_array)
+        cols = fits.ColDefs([colnam, colnum, colf, colp, colt, coldat, colflg])
+        tbhdu = fits.BinTableHDU.from_columns(cols)
+        hdulist = fits.HDUList([prihdu, tbhdu])
+        hdulist.writeto(outfn)
