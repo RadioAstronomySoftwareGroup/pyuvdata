@@ -1,7 +1,3 @@
-# comment notes
-# 1. Currently supporting direction independent gains. Future versions may
-#   support direction dependent gains with list of such objects.
-# 2.
 import numpy as np
 from uvbase import UVBase
 import parameter as uvp
