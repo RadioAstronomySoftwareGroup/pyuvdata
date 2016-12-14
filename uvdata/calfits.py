@@ -6,9 +6,6 @@ class CALFITS(UVCal):
     Defines a calfits-specific class for reading and writing uvfits files.
     """
 
-    uvfits_required_extra = ['antenna_positions', 'gst0', 'rdate',
-                             'earth_omega', 'dut1', 'timesys']
-
     def write_uvfits(self, filename, spoof_nonessential=False,
                      run_check=True, run_sanity_check=True):
         """
