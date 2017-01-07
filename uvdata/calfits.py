@@ -1,10 +1,14 @@
+from astropy.io import fits
 from .cal import UVCal
+import datetime
 
 
 class CALFITS(UVCal):
     """
     Defines a calfits-specific class for reading and writing uvfits files.
     """
+
+    uvfits_required_extra = []
 
     def write_uvfits(self, filename, spoof_nonessential=False,
                      run_check=True, run_sanity_check=True):
@@ -49,6 +53,20 @@ class CALFITS(UVCal):
         today = datetime.date.today().strftime("Date: %d, %b %Y")
         prihdr = fits.Header()
         prihdr['DATE'] = today
+        prihdr['ORIGIN'] = 'blank'
+        prihdr['HASH'] = 'blank'
+        prihdr['GNCONVEN'] = self.gain_convention
+        prihdr['NTIMES'] = self.Ntimes
+        prihdr['NFREQS'] = self.Nfreqs
+        prihdr['NANTS'] = self.Nants_data
+        prihdr['NPOLS'] = self.Npols
+
+        prihdr['NANTSTEL'] = self.Nants_telescope
+        prihdr['HISTORY'] = self.history
+        prihdr['NSPWS'] = self.Nspws
+        prihdr['NANTSDATA'] = self.Nants_data
+        prihdr['XORIENT'] = self.x_orientation
+
         prihdu = fits.PrimaryHDU(header=prihdr)
         colnam = fits.Column(name='ANT NAME', format='A10',
                              array=self.antenna_names)
@@ -61,7 +79,13 @@ class CALFITS(UVCal):
         colt = fits.Column(name='TIME (JD)', format='D', array=self.time_array)
         coldat = fits.Column(name='GAIN', format='M', array=self.gain_array)
         colflg = fits.Column(name='FLAG', format='L', array=self.flag_array)
-        cols = fits.ColDefs([colnam, colnum, colf, colp, colt, coldat, colflg])
+        colqual = fits.Column(name='QUALITY', format='D', array=self.quality_array)
+        cols = fits.ColDefs([colnam, colnum, colf, colp,
+                             colt, coldat, colflg, colqual])
         tbhdu = fits.BinTableHDU.from_columns(cols)
         hdulist = fits.HDUList([prihdu, tbhdu])
-        hdulist.writeto(outfn)
+        hdulist.writeto(filename)
+
+    def read_uvfits(self, filename):
+        F = fits.open(filename)
+        D = F[0] # primary header
