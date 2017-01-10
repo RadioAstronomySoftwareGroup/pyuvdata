@@ -285,6 +285,14 @@ class UVData(UVBase):
                                                        required=False,
                                                        description=desc,
                                                        spoof_val=0)
+        self._datacolumn = uvp.UVParameter('data_column',required=False,
+                                         description='For measurement sets, specifies the CASA data column '
+                                         ' that the data_array represents. Can be "DATA"'
+                                         ', "MODEL", or "CORRECTED_DATA"',
+                                         spoof_val='DATA',form='str')
+
+
+
 
         # String to add to history of any files written with this version of pyuvdata
         self.pyuvdata_version_str = ('  Read/written with pyuvdata version: ' +
