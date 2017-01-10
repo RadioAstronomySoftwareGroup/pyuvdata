@@ -1,4 +1,5 @@
 from astropy.io import fits
+import numpy as np
 from .cal import UVCal
 import datetime
 
@@ -58,28 +59,32 @@ class CALFITS(UVCal):
         prihdr['GNCONVEN'] = self.gain_convention
         prihdr['NTIMES'] = self.Ntimes
         prihdr['NFREQS'] = self.Nfreqs
-        prihdr['NANTS'] = self.Nants_data
+        prihdr['NANTSDAT'] = self.Nants_data
         prihdr['NPOLS'] = self.Npols
 
         prihdr['NANTSTEL'] = self.Nants_telescope
         prihdr['HISTORY'] = self.history
         prihdr['NSPWS'] = self.Nspws
-        prihdr['NANTSDATA'] = self.Nants_data
         prihdr['XORIENT'] = self.x_orientation
 
         prihdu = fits.PrimaryHDU(header=prihdr)
-        colnam = fits.Column(name='ANT NAME', format='A10',
+        colnam = fits.Column(name='ANTNAME', format='A10',
                              array=self.antenna_names)
-        colnum = fits.Column(name='ANT INDEX', format='I',
+        colnum = fits.Column(name='ANTINDEX', format='I',
                              array=self.antenna_numbers)
-        colf = fits.Column(name='FREQ (MHZ)', format='E',
+        colf = fits.Column(name='FREQ', format='D',
                            array=self.freq_array)
         colp = fits.Column(name='POL', format='A4',
                            array=self.polarization_array)
-        colt = fits.Column(name='TIME (JD)', format='D', array=self.time_array)
-        coldat = fits.Column(name='GAIN', format='M', array=self.gain_array)
-        colflg = fits.Column(name='FLAG', format='L', array=self.flag_array)
-        colqual = fits.Column(name='QUALITY', format='D', array=self.quality_array)
+        colt = fits.Column(name='TIME', format='D',
+                           array=self.time_array)
+        coldat = fits.Column(name='GAIN', format='M',
+                             array=self.gain_array)
+        colflg = fits.Column(name='FLAG', format='L',
+                             array=self.flag_array)
+        colqual = fits.Column(name='QUALITY', format='D',
+                              array=self.quality_array)
+
         cols = fits.ColDefs([colnam, colnum, colf, colp,
                              colt, coldat, colflg, colqual])
         tbhdu = fits.BinTableHDU.from_columns(cols)
@@ -88,4 +93,31 @@ class CALFITS(UVCal):
 
     def read_uvfits(self, filename):
         F = fits.open(filename)
-        D = F[0] # primary header
+        D = F[1]
+        hdr = F[0].header.copy()
+
+        self.Nfreqs = hdr['NFREQS']
+        self.Npols = hdr['NPOLS']
+        self.Ntimes = hdr['NTIMES']
+        self.history = hdr['HISTORY']
+        self.Nspws = hdr['NSPWS']
+        self.Nants_data = hdr['NANTSDAT']
+        self.antenna_names = np.sort(np.unique(D.data['ANTNAME']))
+        self.antenna_numbers = np.sort(np.unique(D.data['ANTINDEX']))
+        self.Nants_telescope = hdr['NANTSTEL']
+
+        ptypes = {'Nfreqs': self.Nfreqs,
+                  'Npols': self.Npols,
+                  'Ntimes': self.Ntimes,
+                  'Nants_data': self.Nants_data}
+
+        #import IPython; IPython.embed()
+        self.freq_array = np.sort(np.unique(D.data['FREQ']))
+        self.polarization_array = np.sort(np.unique(D.data['POL']))
+        self.time_array = np.sort(np.unique(D.data['TIME']))
+        rs = [ptypes[i] for i in self._gain_array.form]
+        self.gain_array = D.data['GAIN'].reshape(rs)
+        rs = [ptypes[i] for i in self._flag_array.form]
+        self.flag_array = D.data['FLAG'].reshape(rs)
+        rs = [ptypes[i] for i in self._quality_array.form]
+        self.quality_array = D.data['QUALITY'].reshape(rs)
