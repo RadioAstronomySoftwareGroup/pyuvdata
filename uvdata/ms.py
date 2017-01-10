@@ -11,6 +11,7 @@ import telescopes
 
 polDict={1:1,2:2,3:3,4:4,5:-1,6:-3,7:-4,8:-2,9:-5,10:-7,11:-8,12:-6}
 
+
 #convert from casa stokes integers to pyuvdata
 class MS(UVData):
     """
@@ -20,6 +21,7 @@ class MS(UVData):
     """
     ms_required_extra=['data_column','antenna_positions']
     def _ms_hist_to_string(self,history_table):
+
         '''
         converts a CASA history table into a string that can be stored as the uvdata history parameter.
         Returns this string
@@ -27,6 +29,7 @@ class MS(UVData):
         Returns: casa history table converted to a string with \n denoting new lines and     denoting column breaks
         '''
         history_str='APP_PARAMS;CLI_COMMAND;APPLICATION;MESSAGE;OBJECT_ID;OBSERVATION_ID;ORIGIN;PRIORITY;TIME\n'
+
         app_params=history_table.getcol('APP_PARAMS')['array']
         cli_command=history_table.getcol('CLI_COMMAND')['array']
         application=history_table.getcol('APPLICATION')
@@ -47,6 +50,7 @@ class MS(UVData):
             +';'+str(origin[tbrow]) \
             +';'+str(priority[tbrow]) \
             +';'+str(times[tbrow])+'\n'
+
             history_str+=newline
         return history_str
 
