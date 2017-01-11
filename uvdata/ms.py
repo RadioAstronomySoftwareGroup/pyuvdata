@@ -1,14 +1,16 @@
 """Class for reading and writing casa measurement sets."""
 from astropy import constants as const
-from astropy.time import Time
+import astropy.time as time
 import numpy as np
+import os
 import warnings
 from uvdata import UVData
 import parameter as uvp
 import casacore.tables as tables
 import telescopes
 
-polDict={1:1,2:2,3:3,4:4,5:-1,6:-2,7:-3,8:-4,9:-5,10:-6,11:-7,12:-8}
+polDict={1:1,2:2,3:3,4:4,5:-1,6:-3,7:-4,8:-2,9:-5,10:-7,11:-8,12:-6}
+
 #convert from casa stokes integers to pyuvdata
 class MS(UVData):
     """
@@ -16,14 +18,15 @@ class MS(UVData):
     Attributs:
       ms_required_extra: Names of optional MSParameters that are required for casa ms
     """
-    def _ms_hist_to_string(history_table):
+    ms_required_extra=['data_column','antenna_positions']
+    def _ms_hist_to_string(self,history_table):
         '''
         converts a CASA history table into a string that can be stored as the uvdata history parameter.
         Returns this string
         Args: history_table, a casa table object
-        Returns: casa history table converted to a string with \n denoting new lines and \t denoting column breaks
+        Returns: casa history table converted to a string with \n denoting new lines and     denoting column breaks
         '''
-        history_str='APP_PARAMS\tCLI_COMMAND\tAPPLICATION\tMESSAGE\tOBJECT_ID\tOBSERVATION_ID\tORIGIN\tPRIORITY\tTIME\n'
+        history_str='APP_PARAMS;CLI_COMMAND;APPLICATION;MESSAGE;OBJECT_ID;OBSERVATION_ID;ORIGIN;PRIORITY;TIME\n'
         app_params=history_table.getcol('APP_PARAMS')['array']
         cli_command=history_table.getcol('CLI_COMMAND')['array']
         application=history_table.getcol('APPLICATION')
@@ -36,14 +39,14 @@ class MS(UVData):
         #Now loop through columns and generate history string
         for tbrow in range(len(times)):
             newline=str(app_params[tbrow]) \
-            +'\t'+str(cli_command[tbrow]) \
-            +'\t'+str(application[tbrow]) \
-            +'\t'+str(message[tbrow]) \
-            +'\t'+str(obj_id[tbrow]) \
-            +'\t'+str(obs_id[tbrow]) \
-            +'\t'+str(origin[tbrow]) \
-            +'\t'+str(priority[tbrow]) \
-            +'\t'+str(times[tbrow])+'\n'
+            +';'+str(cli_command[tbrow]) \
+            +';'+str(application[tbrow]) \
+            +';'+str(message[tbrow]) \
+            +';'+str(obj_id[tbrow]) \
+            +';'+str(obs_id[tbrow]) \
+            +';'+str(origin[tbrow]) \
+            +';'+str(priority[tbrow]) \
+            +';'+str(times[tbrow])+'\n'
             history_str+=newline
         return history_str
 
@@ -57,104 +60,131 @@ class MS(UVData):
 
 
 
-    def read_ms(self,filename,run_check=True,run_sanity_check=True,data_column='DATA'):
-    '''
-    read in a casa measurement set
-    ARGS:
+    def read_ms(self,filepath,run_check=True,run_sanity_check=True,data_column='DATA'):
+        '''
+        read in a casa measurement set
+        ARGS:
         filename: name of the measurement set folder
         run_check:
-    '''
-            if not os.path.exists(filepath):
-                raise(IOError, filepath + ' not found')
-            #set visibility units
-            if(data_column=='DATA'):
-                self.vis_units.value="uncalib"
-            elif(data_column=='CORRECTED_DATA'):
-                self.vis_units.value="Jy"
-            elif(data_column=='MODEL'):
-                self.vis_units.value="Jy"
-            self.data_column.value=data_column
-            #get spectral window information
-            tb_spws=casacore.tables.table(filename+'/SPECTRAL_WINDOW')
-            freqs=tb_spws.getcol('CHAN_FREQ')
-            self.freq_array.value=freqs
-            self.Nfreqs.value=int(freqs.shape[1])
-            self.channel_width.value=tb_spws.getcol('CHAN_WIDTH')[0,0]
-            self.Nspws.value=int(freqs.shape[0])
-            self.spw_array.value=n.arange(self.Nspws.value)
-            tb_spws.close()
-            #now get the data
-            tb=casacore.tables.table(filename)
-            times_unique=np.unique(tb.getcol('TIME'))
-            self.Ntimes.value=int(len(times_unique))
-            data_array=tb.getcol(data_column)
-            flag_array=tb.getcol('FLAG')
-            self.Nbls.value=int(self.Nblts.value/self.nTimes.value)
-            #CASA stores data in complex array with dimension NbltsxNfreqsxNpols
-            #-!-What about multiple spws?-!-
-            if(len(data_array.shape)==3):
-                data_array=np.expand_dims(data_array,axis=1)
-                flag_array=np.expand_dims(flag_array,axis=1)
-            self.data_array.value=data_array
-            self.Npols.value=int(data_array.shape[2])
-            self.uvw_array.value=tb.getcol('UVW').T
-            self.ant_1_array.value=tb.getcol('ANTENNA1').astype(int32)
-            self.ant_2_array.value=tb.getcol('ANTENNA2').astype(int32)
-            self.Nants_data.value=len(np.unique(self.ant_1_array))
-            self.basline_array.value=self.antnums_to_baseline(self.ant_1_array.value,self.ant2_array.value)
-            #Get times. MS that I'm used to are modified Julian dates in seconds (thanks to Danny Jacobs for figuring out the proper conversion)
-            self.time_array.value=time.Time(tb.getcol('TIME')/(3600.*24.),format='mjd').jd
-            #Polarization array
-            tbPol=tables.table(filename+'.ms/POLARIZATION')
-            self.polarization_array.value=polDict[tbPol.getcol('CORR_TYPE')].astype(int)
-            tbPol.close()
-            #Integration time
-            #use first interval and assume rest are constant (though measurement set has all integration times for each Nblt )
-            self.integration_time.value=tb.getcol('INTERVAL')[0]
-            #open table with antenna location information
-            tbAnt=tables.table(filename+'/ANTENNA')
-            #antenna names
-            self.antenna_names.value=tbAnt.getcol('NAME')
-            self.Nants_telescope.value=len(self.antenna_names)
-            self.dish_diameters.value=tbAnt.getcol('DISH_DIAMETER')
-            self.flag_row.value=tbAnt.getcol('FLAG_ROW')
-            self.mount.value=tbAnt.getcol('MOUNT')
-            #Source Field
-            self.antenna_numbers.value=np.unique(tbAnt.getcol('ANTENNA1')).astype(int)
-            #Telescope Name
-            #Instrument
-            self.instrument.value=tbAnt.getcol('STATION')[0]
-            self.telescope_name.value=tbAnt.getcol('STATION')[0]
-            #Use Telescopes.py dictionary to set array position
-            self.antenna_positions=np.array(tbAnt.getcol('POSITION')-np.mean(tbAnt.getcol('POSITION'),axis=1))
-            try:
-                thisTelescope=telescopes.get_telescope(self.instrument.value)
-                self.telescope_location_lat_lon_alt_degrees.value=(np.degrees(thisTelescope['latitude']),np.degrees(thisTelescope['longitutde']),thisTelescope['altitude'])
-                self.telescope_location.value=np.array(np.mean(tbAnt.getcol('POSITION'),axis=1))
-            except:
-                #If Telescope is unknown, use mean ITRF Positions of antennas
-                self.telescope_location.value=np.array(np.mean(tbAnt.getcol('POSITION'),axis=1))
-            tbAnt.close()
-            tbField=tables.table(filename+'/FIELD')
-            if(tbField.getcol('PHASE_DIR').shape[1]==2):
-                self.phase_type.value='drift'
-            elif(tbField.getcol('PHASE_DIR').shape[1]==1):
-                self.phase_type.value='phased'
-                self.phase_center_epoch=2000.#MSv2.0 appears to assume J2000. Not sure how to specifiy otherwise
-                self.phase_center_ra=tbField.getcol('PHASE_DIR')[0][0]
-                self.phase_center_dec=tbField.getcol('PHASE_DIR')[0][1]
-            #else:
-            #    self.phase_type.value='unknown'
-            #set LST array from times and itrf
-            self.set_lsts_from_time_array()
+        '''
+        if not os.path.exists(filepath):
+            raise(IOError, filepath + ' not found')
+        #set visibility units
+        if(data_column=='DATA'):
+            self.vis_units="uncalib"
+        elif(data_column=='CORRECTED_DATA'):
+            self.vis_units="Jy"
+        elif(data_column=='MODEL'):
+            self.vis_units="Jy"
+        self.data_column=data_column
+        #get spectral window information
+        tb_spws=tables.table(filepath+'/SPECTRAL_WINDOW')
+        freqs=tb_spws.getcol('CHAN_FREQ')
+        self.freq_array=freqs
+        self.Nfreqs=int(freqs.shape[1])
+        self.channel_width=tb_spws.getcol('CHAN_WIDTH')[0,0]
+        self.Nspws=int(freqs.shape[0])
+        self.spw_array=np.arange(self.Nspws)
+        tb_spws.close()
+        #now get the data
+        tb=tables.table(filepath)
+        times_unique=time.Time(np.unique(tb.getcol('TIME')/(3600.*24.)),format='mjd').jd
+        self.Ntimes=int(len(times_unique))
+        data_array=tb.getcol(data_column)
+        self.Nblts=int(data_array.shape[0])
+        flag_array=tb.getcol('FLAG')
+        self.Nbls=int(self.Nblts/self.Ntimes)
+        #CASA stores data in complex array with dimension NbltsxNfreqsxNpols
+        #-!-What about multiple spws?-!-
+        if(len(data_array.shape)==3):
+            data_array=np.expand_dims(data_array,axis=1)
+            flag_array=np.expand_dims(flag_array,axis=1)
+        self.data_array=data_array
+        self.flag_array=flag_array
+        self.Npols=int(data_array.shape[-1])
+        self.uvw_array=tb.getcol('UVW')
+        self.ant_1_array=tb.getcol('ANTENNA1').astype(np.int32)
+        self.ant_2_array=tb.getcol('ANTENNA2').astype(np.int32)
+        self.Nants_data=len(np.unique(np.concatenate((np.unique(self.ant_1_array),np.unique(self.ant_2_array)))))
+        self.baseline_array=self.antnums_to_baseline(self.ant_1_array,self.ant_2_array)
+        #Get times. MS that I'm used to are modified Julian dates in seconds (thanks to Danny Jacobs for figuring out the proper conversion)
+        self.time_array=time.Time(tb.getcol('TIME')/(3600.*24.),format='mjd').jd
+        #Polarization array
+        tbPol=tables.table(filepath+'/POLARIZATION')
+        polList=tbPol.getcol('CORR_TYPE')[0]#list of lists, probably with each list corresponding to SPW. 
+        self.polarization_array=np.zeros(len(polList),dtype=np.int32)
+        for polnum in range(len(polList)):
+            self.polarization_array[polnum]=int(polDict[polList[polnum]])
+        tbPol.close()
+        #Integration time
+        #use first interval and assume rest are constant (though measurement set has all integration times for each Nblt )
+        #self.integration_time=tb.getcol('INTERVAL')[0]
+        #for some reason, interval ends up larger than the difference between times...
+        self.integration_time=(times_unique[1]-times_unique[0])*3600.*24.
 
-            #set the history parameter
-            #as a string with \t indicating column breaks
-            #\n indicating row breaks.
-            self.history=self._ms_hist_to_string(tables.table(filename+'/HISTORY'))
-            #CASA weights column keeps track of number of data points averaged.
-            self.nsample_array=tb.getcol('WEIGHT')
-            self.object_name=''
-            tb.close()
-            if run_check:
-                self.check(run_sanity_check=run_sanity_check)
+        #open table with antenna location information
+        tbAnt=tables.table(filepath+'/ANTENNA')
+        #antenna names
+        ant_names=tbAnt.getcol('STATION')
+        test_name=ant_names[0]
+        names_same=True
+        for antNum in range(len(ant_names)):
+            if(not(ant_names[antNum]==test_name)):
+                names_same=False
+        if(not(names_same)):
+            self.antenna_names=ant_names#cotter measurement sets store antenna names in the NAMES column. 
+        else:
+            self.antenna_names=tbAnt.getcol('NAME')#importuvfits measurement sets store antenna namesin the STATION column.
+        self.Nants_telescope=len(self.antenna_names)
+        #self.dish_diameters=tbAnt.getcol('DISH_DIAMETER')
+        #self.flag_row=tbAnt.getcol('FLAG_ROW')
+        #self.mount=tbAnt.getcol('MOUNT')
+        #Source Field
+        self.antenna_numbers=np.arange(self.Nants_telescope).astype(int)
+        #Telescope Name
+        #Instrument
+        tbObs=tables.table(filepath+'/OBSERVATION')
+        self.telescope_name=tbObs.getcol('TELESCOPE_NAME')[0]
+        self.instrument=tbObs.getcol('TELESCOPE_NAME')[0]
+        tbObs.close()
+        #Use Telescopes.py dictionary to set array position
+        self.antenna_positions=np.array(tbAnt.getcol('POSITION'))
+        for axnum in range(self.antenna_positions.shape[1]):
+            self.antenna_positions[:,axnum]-=np.mean(self.antenna_positions[:,axnum])
+        try:
+            thisTelescope=telescopes.get_telescope(self.instrument)
+            self.telescope_location_lat_lon_alt_degrees=(np.degrees(thisTelescope['latitude']),np.degrees(thisTelescope['longitutde']),thisTelescope['altitude'])
+            self.telescope_location=np.array(np.mean(tbAnt.getcol('POSITION'),axis=0))
+        except:
+            #If Telescope is unknown, use mean ITRF Positions of antennas
+            self.telescope_location=np.array(np.mean(tbAnt.getcol('POSITION'),axis=0))
+        tbAnt.close()
+        tbField=tables.table(filepath+'/FIELD')
+        #print 'shape='+str(tbField.getcol('PHASE_DIR').shape[1])
+        if(tbField.getcol('PHASE_DIR').shape[1]==2):
+            self.phase_type='drift'
+            self.set_drift()
+        elif(tbField.getcol('PHASE_DIR').shape[1]==1):
+            self.phase_type='phased'
+            self.phase_center_epoch=2000.#MSv2.0 appears to assume J2000. Not sure how to specifiy otherwise
+            self.phase_center_ra=tbField.getcol('PHASE_DIR')[0][0][0]
+            self.phase_center_dec=tbField.getcol('PHASE_DIR')[0][0][1]
+            self.set_phased()
+        #else:
+        #    self.phase_type='unknown'
+        #set LST array from times and itrf
+        self.set_lsts_from_time_array()
+
+        #set the history parameter
+        #as a string with \t indicating column breaks
+        #\n indicating row breaks.
+        self.history=self._ms_hist_to_string(tables.table(filepath+'/HISTORY'))
+        #CASA weights column keeps track of number of data points averaged.
+        self.nsample_array=tb.getcol('WEIGHT_SPECTRUM')
+        if(len(self.nsample_array.shape)==3):
+            self.nsample_array=np.expand_dims(self.nsample_array,axis=1)
+        self.object_name=tbField.getcol('NAME')[0]
+        tbField.close()
+        tb.close()
+        if run_check:
+            self.check(run_sanity_check=run_sanity_check)
