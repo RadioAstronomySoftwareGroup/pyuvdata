@@ -27,6 +27,7 @@ setup_args = {
                     'Programming Language :: Python :: 2.7',
                     'Topic :: Scientific/Engineering :: Astronomy'],
     'keywords': 'radio astronomy interferometry'
+
 }
 
 if __name__ == '__main__':
