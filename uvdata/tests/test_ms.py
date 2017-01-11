@@ -26,6 +26,7 @@ def test_ReadMSWriteReadUVFits(msname):
     ms_uv.order_pols(order='CASA')
     uvfits_uv.read_uvfits(os.path.join(DATA_PATH, 'outtest_'+msname+'.uvfits'))
 
+
     
     #print ms_uv.required()
     #for pnum,p in enumerate(ms_uv.required()):
@@ -59,6 +60,7 @@ def test_ReadMSWriteReadUVFits(msname):
     #print uvfits_uv.vis_units
     #print uvfits_uv_orig.vis_units
     ms_uv.order_pols()
+
 
     nt.assert_equal(ms_uv, uvfits_uv)
     nt.assert_equal(uvfits_uv,uvfits_uv_orig)
