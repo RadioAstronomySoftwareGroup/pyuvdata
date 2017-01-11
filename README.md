@@ -44,7 +44,6 @@ First install dependencies. The numpy and astropy versions are important, so be 
 * scipy
 * astropy >= 1.2
 * pyephem
-* pyfits
 * aipy
 
 ## Install pyuvdata

@@ -1,5 +1,5 @@
 .. pyuvdata documentation master file, created by
-   make_index.py on 2016-12-07
+   make_index.py on 2017-01-11
 
 pyuvdata
 ========
@@ -72,8 +72,7 @@ Dependencies
 
 First install dependencies. The numpy and astropy versions are
 important, so be sure to make sure these are up to date before you
-install. \* numpy >= 1.10 \* scipy \* astropy >= 1.2 \* pyephem \*
-pyfits \* aipy
+install. \* numpy >= 1.10 \* scipy \* astropy >= 1.2 \* pyephem \* aipy
 
 Install pyuvdata
 ----------------
