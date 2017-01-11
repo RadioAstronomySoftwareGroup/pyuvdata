@@ -40,14 +40,16 @@ pyuvdata was originally developed in the low frequency 21cm community to support
 # Installation
 ## Dependencies
 First install dependencies. The numpy and astropy versions are important, so be sure to make sure these are up to date before you install.
+
 * numpy >= 1.10
 * scipy
 * astropy >= 1.2
 * pyephem
 * aipy
 
+
 ## Install pyuvdata
-Download the latest release here github.com/HERA-Team/pyuvdata/release1.0
+Download the latest release here: https://github.com/HERA-Team/pyuvdata/releases/latest
 
 Navigate into the directory and run
 `python setup.py install` Note that this will automatically install all dependencies.  If you use anaconda or another package manager you might prefer to do not do this.
