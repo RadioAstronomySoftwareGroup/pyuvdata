@@ -159,6 +159,7 @@ class UVFITS(UVData):
                 self.integration_time = \
                     float(np.diff(np.sort(list(set(self.time_array))))[0]) * 86400
 
+
             else:
                 raise ValueError('integration time not specified and only '
                                  'one time present')
