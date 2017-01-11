@@ -78,12 +78,21 @@ class CALFITS(UVCal):
                            array=self.polarization_array)
         colt = fits.Column(name='TIME', format='D',
                            array=self.time_array)
-        coldat = fits.Column(name='GAIN', format='M',
-                             array=self.gain_array)
-        colflg = fits.Column(name='FLAG', format='L',
-                             array=self.flag_array)
-        colqual = fits.Column(name='QUALITY', format='D',
-                              array=self.quality_array)
+        if self.gain_array:
+            coldat = fits.Column(name='GAIN', format='M',
+                                 array=self.gain_array)
+            colflg = fits.Column(name='FLAG', format='L',
+                                 array=self.flag_array)
+            colqual = fits.Column(name='QUALITY', format='D',
+                                  array=self.quality_array)
+        elif self.delay_array:
+            coldat = fits.Column(name='DELAY', format='D',
+                                 array=self.delay_array)
+            colflg = fits.Column(name='FLAG', format='L',
+                                 array=self.flag_array)
+            colqual = fits.Column(name='QUALITY', format='D'
+                                  array=self.quality_array)
+
 
         cols = fits.ColDefs([colnam, colnum, colf, colp,
                              colt, coldat, colflg, colqual])
@@ -111,12 +120,21 @@ class CALFITS(UVCal):
                   'Ntimes': self.Ntimes,
                   'Nants_data': self.Nants_data}
 
-        #import IPython; IPython.embed()
+        # import IPython; IPython.embed()
         self.freq_array = np.sort(np.unique(D.data['FREQ']))
         self.polarization_array = np.sort(np.unique(D.data['POL']))
         self.time_array = np.sort(np.unique(D.data['TIME']))
-        rs = [ptypes[i] for i in self._gain_array.form]
-        self.gain_array = D.data['GAIN'].reshape(rs)
+        try:
+            rs = [ptypes[i] for i in self._gain_array.form]
+            self.gain_array = D.data['GAIN'].reshape(rs)
+            self.set_gain()
+        except(KeyError):
+            rs = [ptypes[i] for i in self._delay_array.form]
+            self.delay_array = D.data['DELAY'].reshape(rs)
+            self.set_delay()
+        else:
+            raise("No data to load. Aborting.")
+
         rs = [ptypes[i] for i in self._flag_array.form]
         self.flag_array = D.data['FLAG'].reshape(rs)
         rs = [ptypes[i] for i in self._quality_array.form]
