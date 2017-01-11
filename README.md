@@ -61,8 +61,10 @@ For anaconda users, we suggest using conda to install astropy, numpy and scipy a
 * astropy >= 1.2
 * aipy
 
+
 ## Install pyuvdata
 For simple installation, the latest stable version is available via pip using ```pip install pyuvdata```
+
 
 ### Optionally install the development version
 For the development version, clone the repository using
