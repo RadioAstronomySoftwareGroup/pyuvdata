@@ -167,6 +167,7 @@ class MS(UVData):
         self.antenna_positions=self.antenna_positions[np.invert(antFlags),:]
         '''
         #remove blank names
+
         for axnum in range(self.antenna_positions.shape[1]):
             self.antenna_positions[:,axnum]-=np.mean(self.antenna_positions[:,axnum])
         try:
@@ -183,6 +184,7 @@ class MS(UVData):
         #        try:
         #except:
             
+
         tbAnt.close()
         tbField=tables.table(filepath+'/FIELD')
         #print 'shape='+str(tbField.getcol('PHASE_DIR').shape[1])
