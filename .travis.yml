@@ -3,6 +3,6 @@ python:
   - "2.7"
 # command to install dependencies
 install:
-  - pip install .
+  - pip install --user .
 # command to run tests
 script: nosetests
