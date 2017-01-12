@@ -62,7 +62,16 @@ def test_ReadMSWriteReadUVFits(msname):
     ms_uv.order_pols()
 
 
-    nt.assert_equal(ms_uv, uvfits_uv)
-    nt.assert_equal(uvfits_uv,uvfits_uv_orig)
-    del(ms_uv)
-    del(uvfits_uv)
+=======
+    print uvfits_uv.lst_array
+    print uvfits_uv_orig.lst_array
+
+    print uvfits_uv.phase_center_epoch
+    print uvfits_uv_orig.phase_center_epoch
+
+    print uvfits_uv.telescope_location
+    print uvfits_uv_orig.telescope_location
+
+    print uvfits_uv.vis_units
+    print uvfits_uv_orig.vis_units
+ 
