@@ -71,11 +71,11 @@ class MS(UVData):
             raise(IOError, filepath + ' not found')
         #set visibility units
         if(data_column=='DATA'):
-            self.vis_units="uncalib"
+            self.vis_units="UNCALIB"
         elif(data_column=='CORRECTED_DATA'):
-            self.vis_units="Jy"
+            self.vis_units="JY"
         elif(data_column=='MODEL'):
-            self.vis_units="Jy"
+            self.vis_units="JY"
         self.data_column=data_column
         #get spectral window information
         tb_spws=tables.table(filepath+'/SPECTRAL_WINDOW')
@@ -149,15 +149,21 @@ class MS(UVData):
         tbObs.close()
         #Use Telescopes.py dictionary to set array position
         self.antenna_positions=np.array(tbAnt.getcol('POSITION'))
+        '''
         for axnum in range(self.antenna_positions.shape[1]):
             self.antenna_positions[:,axnum]-=np.mean(self.antenna_positions[:,axnum])
         try:
             thisTelescope=telescopes.get_telescope(self.instrument)
-            self.telescope_location_lat_lon_alt_degrees=(np.degrees(thisTelescope['latitude']),np.degrees(thisTelescope['longitutde']),thisTelescope['altitude'])
-            self.telescope_location=np.array(np.mean(tbAnt.getcol('POSITION'),axis=0))
+            self.telescope_location_lat_lon_alt_degrees=(np.degrees(thisTelescope['latitude']),np.degrees(thisTelescope['longitude']),thisTelescope['altitude'])
+            #self.telescope_location=np.array(np.mean(tbAnt.getcol('POSITION'),axis=0))
+            print 'Telescope %s is known. Using stored values.'%(self.instrument)
         except:
             #If Telescope is unknown, use mean ITRF Positions of antennas
             self.telescope_location=np.array(np.mean(tbAnt.getcol('POSITION'),axis=0))
+        '''
+        #self.telescope_location=np.array(np.mean(tbAnt.getcol('POSITION'),axis=0))
+        #Warning: the value one gets with set_telescope_params is different from the mean of antenna locations. 
+        self.set_telescope_params()
         tbAnt.close()
         tbField=tables.table(filepath+'/FIELD')
         #print 'shape='+str(tbField.getcol('PHASE_DIR').shape[1])
