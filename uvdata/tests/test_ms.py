@@ -38,7 +38,17 @@ def test_ReadMSWriteReadUVFits(msname):
     #print uvfits_uv_orig.instrument
     #print uvfits_uv.object_name
     #print uvfits_uv_orig.object_name
+    print uvfits_uv.lst_array
+    print uvfits_uv_orig.lst_array
 
+    print uvfits_uv.phase_center_epoch
+    print uvfits_uv_orig.phase_center_epoch
+
+    print uvfits_uv.telescope_location
+    print uvfits_uv_orig.telescope_location
+
+    print uvfits_uv.vis_units
+    print uvfits_uv_orig.vis_units
     
     
     nt.assert_equal(ms_uv, uvfits_uv)
