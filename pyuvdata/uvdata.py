@@ -1189,6 +1189,26 @@ class UVData(UVBase):
                                 run_check_acceptability=run_check_acceptability)
         del(uvfits_obj)
 
+    def read_ms(self, filepath, run_check=True,
+                 run_sanity_check=True,data_column='DATA'):
+        """
+        Read in data from a measurement set
+
+        Args:
+            filelist: The list of measurement sets to read from.
+            run_check: Option to check for the existence and proper shapes of
+                required parameters after reading in the file. Default is True.
+            run_sanity_check: Option to sanity check the values of
+                required parameters after reading in the file. Default is True.
+            data_column: name of CASA data column to read into data_array. 'DATA', 'MODEL', or 'CORRECTED_DATA'
+        """
+        import ms
+        ms_obj = ms.MS()
+        ms_obj.read_ms(filepath, run_check=run_check,
+                         run_sanity_check=run_sanity_check, data_column=data_column)
+        self._convert_from_filetype(ms_obj)
+        del(ms_obj)
+        
     def read_fhd(self, filelist, use_model=False, run_check=True,
                  run_check_acceptability=True):
         """
