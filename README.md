@@ -27,9 +27,17 @@ The three main goals are:
 * replacing AIPY and pyephem with astropy+NOVAS for time and phase calculations
 * support for direct reading and writing of Measurement Sets
 
-For details see the [issue log](https://github.com/HERA-Team/pyuvdata/issues). Contributions are welcome!
+For details see the [issue log](https://github.com/HERA-Team/pyuvdata/issues).
 
+## Community Guidelines
+Contributions to this package to add new file formats or address any of the
+issues in the [issue log](https://github.com/HERA-Team/pyuvdata/issues) are very welcome.
+Please submit improvements as pull requests against the repo after verifying that
+the existing tests pass and any new code is well covered by unit tests.
 
+Bug reports or feature requests are also very welcome, please add them to the
+issue log after verifying that the issue does not already exist.
+Comments on existing issues are also welcome.
 
 # History
 pyuvdata was originally developed in the low frequency 21cm community to support the development of calibration and foreground subtraction pipelines. Particular focus has been paid to supporting drift and phased array modes.
