@@ -69,10 +69,10 @@ class UVCal(UVBase):
                                                    sane_vals=list(np.arange(-8, 0)) + list(np.arange(1, 5)),
                                                    form=('Npols',))
 
-        desc = ('Array of times, center of integration, shape (Nblts), ' +
+        desc = ('Array of times, center of integration, shape (Ntimes), ' +
                 'units Julian Date')
         self._time_array = uvp.UVParameter('time_array', description=desc,
-                                           form=('Nblts',),
+                                           form=('Ntimes',),
                                            expected_type=np.float,
                                            tols=1e-3 / (60.0 * 60.0 * 24.0))
 
@@ -150,14 +150,13 @@ class UVCal(UVBase):
                 are sane. Default is True.
         """
         # first run the basic check from UVBase
-        super(UVData, self).check(run_sanity_check=run_sanity_check)
+        super(UVCal, self).check(run_sanity_check=run_sanity_check)
 
         # then check some other things
-        nants_data_calc = int(len(np.unique(self.ant_1_array.tolist() +
-                                            self.ant_2_array.tolist())))
+        nants_data_calc = int(len(np.unique(self.antenna_numbers)))
         if self.Nants_data != nants_data_calc:
             raise ValueError('Nants_data must be equal to the number of unique '
-                             'values in ant_1_array and ant_2_array')
+                             'values antenna_numbers.')
 
         if self.Nants_data > self.Nants_telescope:
             raise ValueError('Nants_data must be less than or equal to Nants_telescope')
@@ -181,13 +180,53 @@ class UVCal(UVBase):
         self._gain_array.required = False
         self._delay_array.required = False
 
+    def _convert_from_filetype(self, other):
+        for p in other:
+            param = getattr(other, p)
+            setattr(self, p, param)
+
     def _convert_to_filetype(self, filetype):
-        if filetype is 'uvfits':
+        if filetype is 'calfits':
             import calfits
             other_obj = calfits.CALFITS()
         else:
-            raise ValueError('filetype must be uvfits.')
+            raise ValueError('filetype must be calfits.')
         for p in self:
             param = getattr(self, p)
             setattr(other_obj, p, param)
         return other_obj
+
+    def read_calfits(self, filename, run_check=True, run_sanity_check=True):
+        """
+        Read in data from a calfits file.
+
+        Args:
+            filename: The uvfits file to read from.
+        """
+        import calfits
+        uvfits_obj = calfits.CALFITS()
+        uvfits_obj.read_calfits(filename, run_check=run_check,
+                                run_sanity_check=run_sanity_check)
+        self._convert_from_filetype(uvfits_obj)
+        del(uvfits_obj)
+
+    def write_calfits(self, filename, spoof_nonessential=False,
+                      run_check=True, run_sanity_check=True):
+        """Write data to a calfits file.
+
+        Args:
+            filename: The calfits filename to write to.
+            spoof_nonessential: Option to spoof the values of optional
+                UVParameters that are not set but are required for uvfits files.
+                Default is False.
+            run_check: Option to check for the existence and proper shapes of
+                required parameters before writing the file. Default is True.
+            run_sanity_check: Option to sanity check the values of
+                required parameters before writing the file. Default is True.
+        """
+        calfits_obj = self._convert_to_filetype('calfits')
+        calfits_obj.write_calfits(filename,
+                                  spoof_nonessential=spoof_nonessential,
+                                  run_check=run_check,
+                                  run_sanity_check=run_sanity_check)
+        del(calfits_obj)
