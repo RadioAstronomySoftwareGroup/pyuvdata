@@ -458,7 +458,37 @@ class UVData(UVBase):
                           'with CASA etc'
                 warnings.warn(message)
 
-        return np.int64(2048 * (ant1 + 1) + (ant2 + 1) + 2**16)
+        return np.int64(2048 * (ant2 + 1) + (ant1 + 1) + 2**16)
+    
+    def order_pols(self,order='AIPS'):
+        '''
+        Arranges polarizations in orders corresponding to either AIPS or CASA convention.
+        CASA stokes types are ordered with cross-pols in between (e.g. XX,XY,YX,YY) while
+        AIPS orders pols with auto-pols followed by cross-pols (e.g. XX,YY,XY,YX)
+        Args:
+        order: string, either 'CASA' or 'AIPS'. Default='AIPS'
+        '''
+        if(order=='AIPS'):
+            pol_array_sorted=np.sort(self.polarization_array)
+            pol_array_sorted=pol_array_sorted[::-1]
+        elif(order=='CASA'):#sandwich 
+            casa_order=np.array([1,2,3,4,-1,-3,-4,-2,-5,-7,-8,-6])
+            polInds=[]
+            for pol in self.polarization_array:
+                polInds.append(np.where(casa_order==pol)[0][0])
+            polInds=np.sort(np.array(polInds))
+            pol_array_sorted=casa_order[polInds]
+        else:
+            print('Invalid order supplied. No sorting performed')
+            pol_array_sorted=self.polarization_array
+        #Generate a map from original indices to new indices
+        polMap=[]
+        for pol in pol_array_sorted:
+            polMap.append(np.where(self.polarization_array==pol)[0][0])
+        self.polarization_array=pol_array_sorted
+        self.data_array=self.data_array[:,:,:,polMap]
+        
+    
 
     def set_lsts_from_time_array(self):
         """Set the lst_array based from the time_array."""
