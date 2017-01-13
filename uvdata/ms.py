@@ -183,8 +183,6 @@ class MS(UVData):
         #Warning: the value one gets with set_telescope_params is different from the mean of antenna locations.
         #        try:
         #except:
-            
-
         tbAnt.close()
         tbField=tables.table(filepath+'/FIELD')
         #print 'shape='+str(tbField.getcol('PHASE_DIR').shape[1])
