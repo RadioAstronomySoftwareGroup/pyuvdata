@@ -11,7 +11,7 @@ class CALFITS(UVCal):
 
     uvfits_required_extra = []
 
-    def write_uvfits(self, filename, spoof_nonessential=False,
+    def write_calfits(self, filename, spoof_nonessential=False,
                      run_check=True, run_sanity_check=True):
         """
         Write the data to a uvfits file.
@@ -28,7 +28,7 @@ class CALFITS(UVCal):
 
         """
         if run_check:
-            self.check(run_sanity_check=True)
+            self.check(run_sanity_check=run_sanity_check)
 
         for p in self.extra():
             param = getattr(self, p)
@@ -66,33 +66,32 @@ class CALFITS(UVCal):
         prihdr['HISTORY'] = self.history
         prihdr['NSPWS'] = self.Nspws
         prihdr['XORIENT'] = self.x_orientation
-
         prihdu = fits.PrimaryHDU(header=prihdr)
-        colnam = fits.Column(name='ANTNAME', format='A10',
-                             array=self.antenna_names)
-        colnum = fits.Column(name='ANTINDEX', format='I',
-                             array=self.antenna_numbers)
-        colf = fits.Column(name='FREQ', format='D',
-                           array=self.freq_array)
-        colp = fits.Column(name='POL', format='A4',
-                           array=self.polarization_array)
-        colt = fits.Column(name='TIME', format='D',
-                           array=self.time_array)
-        if self.gain_array:
+
+        if np.all(self.gain_array):
             coldat = fits.Column(name='GAIN', format='M',
                                  array=self.gain_array)
             colflg = fits.Column(name='FLAG', format='L',
                                  array=self.flag_array)
             colqual = fits.Column(name='QUALITY', format='D',
                                   array=self.quality_array)
-        elif self.delay_array:
+        elif np.all(self.delay_array):
             coldat = fits.Column(name='DELAY', format='D',
                                  array=self.delay_array)
             colflg = fits.Column(name='FLAG', format='L',
                                  array=self.flag_array)
-            colqual = fits.Column(name='QUALITY', format='D'
+            colqual = fits.Column(name='QUALITY', format='D',
                                   array=self.quality_array)
-
+        colnam = fits.Column(name='ANTNAME', format='A10',
+                             array=self.antenna_names)
+        colnum = fits.Column(name='ANTINDEX', format='I',
+                             array=self.antenna_numbers)
+        colf = fits.Column(name='FREQ', format='D',
+                           array=self.freq_array)
+        colp = fits.Column(name='POL', format='I',
+                           array=self.polarization_array)
+        colt = fits.Column(name='TIME', format='D',
+                           array=self.time_array)
 
         cols = fits.ColDefs([colnam, colnum, colf, colp,
                              colt, coldat, colflg, colqual])
@@ -100,7 +99,7 @@ class CALFITS(UVCal):
         hdulist = fits.HDUList([prihdu, tbhdu])
         hdulist.writeto(filename)
 
-    def read_uvfits(self, filename):
+    def read_calfits(self, filename, run_check=True, run_sanity_check=True):
         F = fits.open(filename)
         D = F[1]
         hdr = F[0].header.copy()
@@ -108,20 +107,21 @@ class CALFITS(UVCal):
         self.Nfreqs = hdr['NFREQS']
         self.Npols = hdr['NPOLS']
         self.Ntimes = hdr['NTIMES']
-        self.history = hdr['HISTORY']
+        self.history = str(hdr.get('HISTORY', ''))
         self.Nspws = hdr['NSPWS']
         self.Nants_data = hdr['NANTSDAT']
         self.antenna_names = np.sort(np.unique(D.data['ANTNAME']))
         self.antenna_numbers = np.sort(np.unique(D.data['ANTINDEX']))
         self.Nants_telescope = hdr['NANTSTEL']
+        self.gain_convention = hdr['GNCONVEN']
+        self.x_orientation = hdr['XORIENT']
 
         ptypes = {'Nfreqs': self.Nfreqs,
                   'Npols': self.Npols,
                   'Ntimes': self.Ntimes,
                   'Nants_data': self.Nants_data}
 
-        # import IPython; IPython.embed()
-        self.freq_array = np.sort(np.unique(D.data['FREQ']))
+        self.freq_array = np.sort(np.unique(D.data['FREQ'])).reshape(1,-1)
         self.polarization_array = np.sort(np.unique(D.data['POL']))
         self.time_array = np.sort(np.unique(D.data['TIME']))
         try:
@@ -132,10 +132,10 @@ class CALFITS(UVCal):
             rs = [ptypes[i] for i in self._delay_array.form]
             self.delay_array = D.data['DELAY'].reshape(rs)
             self.set_delay()
-        else:
-            raise("No data to load. Aborting.")
-
         rs = [ptypes[i] for i in self._flag_array.form]
         self.flag_array = D.data['FLAG'].reshape(rs)
         rs = [ptypes[i] for i in self._quality_array.form]
         self.quality_array = D.data['QUALITY'].reshape(rs)
+
+        if run_check:
+            self.check(run_sanity_check=run_sanity_check)
