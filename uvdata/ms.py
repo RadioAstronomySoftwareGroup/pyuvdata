@@ -93,7 +93,6 @@ class MS(UVData):
         data_array=tb.getcol(data_column)
         self.Nblts=int(data_array.shape[0])
         flag_array=tb.getcol('FLAG')
-        self.Nbls=int(self.Nblts/self.Ntimes)
         #CASA stores data in complex array with dimension NbltsxNfreqsxNpols
         #-!-What about multiple spws?-!-
         if(len(data_array.shape)==3):
@@ -107,6 +106,7 @@ class MS(UVData):
         self.ant_2_array=tb.getcol('ANTENNA2').astype(np.int32)
         self.Nants_data=len(np.unique(np.concatenate((np.unique(self.ant_1_array),np.unique(self.ant_2_array)))))
         self.baseline_array=self.antnums_to_baseline(self.ant_1_array,self.ant_2_array)
+        self.Nbls=len(np.unique(self.baseline_array))
         #Get times. MS that I'm used to are modified Julian dates in seconds (thanks to Danny Jacobs for figuring out the proper conversion)
         self.time_array=time.Time(tb.getcol('TIME')/(3600.*24.),format='mjd').jd
         #Polarization array
@@ -128,8 +128,8 @@ class MS(UVData):
         ant_names=tbAnt.getcol('STATION')
         test_name=ant_names[0]
         names_same=True
-        for antNum in range(len(ant_names)):
-            if(not(ant_names[antNum]==test_name)):
+        for antnum in range(len(ant_names)):
+            if(not(ant_names[antnum]==test_name)):
                 names_same=False
         if(not(names_same)):
             self.antenna_names=ant_names#cotter measurement sets store antenna names in the NAMES column. 
@@ -148,7 +148,17 @@ class MS(UVData):
         self.instrument=tbObs.getcol('TELESCOPE_NAME')[0]
         tbObs.close()
         #Use Telescopes.py dictionary to set array position
-        self.antenna_positions=np.array(tbAnt.getcol('POSITION'))
+        self.antenna_positions=tbAnt.getcol('POSITION')
+        xyz_telescope_frame = tbAnt.getcolkeyword('POSITION','MEASINFO')['Ref']
+        try:
+            self.set_telescope_params()
+        except:
+            if(xyz_telescope_frame=='ITRF'):
+                antFlags=np.empty(self.Nants_telescope,dtype=bool)
+                antFlags[:]=False
+                for antnum in range(len(antFlags)):
+                    antFlags[antnum]=np.all(self.antenna_positions[antnum,:]==0)
+                self.telescope_location=np.array(np.mean(self.antenna_positions[np.invert(antFlags),:],axis=0))
         '''
         for axnum in range(self.antenna_positions.shape[1]):
             self.antenna_positions[:,axnum]-=np.mean(self.antenna_positions[:,axnum])
@@ -162,8 +172,10 @@ class MS(UVData):
             self.telescope_location=np.array(np.mean(tbAnt.getcol('POSITION'),axis=0))
         '''
         #self.telescope_location=np.array(np.mean(tbAnt.getcol('POSITION'),axis=0))
-        #Warning: the value one gets with set_telescope_params is different from the mean of antenna locations. 
-        self.set_telescope_params()
+        #Warning: the value one gets with set_telescope_params is different from the mean of antenna locations.
+        #        try:
+        #except:
+            
         tbAnt.close()
         tbField=tables.table(filepath+'/FIELD')
         #print 'shape='+str(tbField.getcol('PHASE_DIR').shape[1])
@@ -172,7 +184,7 @@ class MS(UVData):
             self.set_drift()
         elif(tbField.getcol('PHASE_DIR').shape[1]==1):
             self.phase_type='phased'
-            self.phase_center_epoch=2000.#MSv2.0 appears to assume J2000. Not sure how to specifiy otherwise
+            self.phase_center_epoch=float(tb.getcolkeyword('UVW','MEASINFO')['Ref'][1:])#MSv2.0 appears to assume J2000. Not sure how to specifiy otherwise
             self.phase_center_ra=tbField.getcol('PHASE_DIR')[0][0][0]
             self.phase_center_dec=tbField.getcol('PHASE_DIR')[0][0][1]
             self.set_phased()
