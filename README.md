@@ -1,4 +1,7 @@
 # pyuvdata
+
+[![Build Status](https://travis-ci.org/HERA-Team/pyuvdata.svg?branch=master)](https://travis-ci.org/HERA-Team/pyuvdata)
+
 pyuvdata defines a pythonic interface to interferometric data sets. Currently pyuvdata supports reading and writing of miriad and uvfits files and reading of FHD ([Fast Holographic Deconvolution](https://github.com/EoRImaging/FHD)) visibility save files.   
 
 
