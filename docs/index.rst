@@ -1,8 +1,11 @@
 .. pyuvdata documentation master file, created by
-   make_index.py on 2017-01-11
+   make_index.py on 2017-01-14
 
 pyuvdata
 ========
+
+.. image:: https://travis-ci.org/HERA-Team/pyuvdata.svg?branch=master
+    :target: https://travis-ci.org/HERA-Team/pyuvdata
 
 pyuvdata defines a pythonic interface to interferometric data sets.
 Currently pyuvdata supports reading and writing of miriad and uvfits
@@ -58,10 +61,12 @@ log <https://github.com/HERA-Team/pyuvdata/issues>`__.
 Community Guidelines
 --------------------
 
-Contributions are to this package to add new file formats or address any
-of the issues in the `issue
+Contributions to this package to add new file formats or address any of
+the issues in the `issue
 log <https://github.com/HERA-Team/pyuvdata/issues>`__ are very welcome.
-Please submit improvements as pull requests against the repo.
+Please submit improvements as pull requests against the repo after
+verifying that the existing tests pass and any new code is well covered
+by unit tests.
 
 Bug reports or feature requests are also very welcome, please add them
 to the issue log after verifying that the issue does not already exist.
