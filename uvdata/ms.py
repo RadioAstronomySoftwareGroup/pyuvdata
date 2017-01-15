@@ -153,7 +153,6 @@ class MS(UVData):
             self.antenna_names=ant_names#cotter measurement sets store antenna names in the NAMES column. 
         else:
             self.antenna_names=tbAnt.getcol('NAME')#importuvfits measurement sets store antenna namesin the STATION column.
-
         self.antenna_numbers=np.arange(len(self.antenna_names)).astype(int)
         nAntOrig=len(self.antenna_names)
         ant_names=[]
