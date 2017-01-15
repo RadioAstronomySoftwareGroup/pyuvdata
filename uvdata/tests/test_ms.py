@@ -18,11 +18,14 @@ def test_ReadMSWriteReadUVFits(msname):
     ms_uv = UVData()
     uvfits_uv = UVData()
     uvfits_uv_orig=UVData()
+    uvfits_uv_orig.read_uvfits(DATA_PATH+'/'+msname+'.uvfits')
     ms_uv.read_ms(DATA_PATH+'/'+msname+'.ms')
+    ms_uv.order_pols()
     ms_uv.write_uvfits(os.path.join(DATA_PATH, 'outtest_'+msname+'.uvfits'),
                         spoof_nonessential=True)
+    ms_uv.order_pols(order='CASA')
     uvfits_uv.read_uvfits(os.path.join(DATA_PATH, 'outtest_'+msname+'.uvfits'))
-    uvfits_uv_orig.read_uvfits(DATA_PATH+'/'+msname+'.uvfits')
+
     
     #print ms_uv.required()
     #for pnum,p in enumerate(ms_uv.required()):
@@ -38,19 +41,24 @@ def test_ReadMSWriteReadUVFits(msname):
     #print uvfits_uv_orig.instrument
     #print uvfits_uv.object_name
     #print uvfits_uv_orig.object_name
-    print uvfits_uv.lst_array
-    print uvfits_uv_orig.lst_array
+    #print uvfits_uv.lst_array
+    #print uvfits_uv_orig.lst_array
 
-    print uvfits_uv.phase_center_epoch
-    print uvfits_uv_orig.phase_center_epoch
+    #print uvfits_uv.phase_center_epoch
+    #print uvfits_uv_orig.phase_center_epoch
+    #print uvfits_uv.Nbls
+    #print uvfits_uv_orig.Nbls
+    #print ms_uv.Nbls
+    #print uvfits_uv.polarization_array
+    #print uvfits_uv_orig.polarization_array
+    #print ms_uv.polarization_array
 
-    print uvfits_uv.telescope_location
-    print uvfits_uv_orig.telescope_location
+    #print uvfits_uv.telescope_location
+    #print uvfits_uv_orig.telescope_location
 
-    print uvfits_uv.vis_units
-    print uvfits_uv_orig.vis_units
-    
-    
+    #print uvfits_uv.vis_units
+    #print uvfits_uv_orig.vis_units
+    ms_uv.order_pols()
     nt.assert_equal(ms_uv, uvfits_uv)
     nt.assert_equal(uvfits_uv,uvfits_uv_orig)
     del(ms_uv)

@@ -124,8 +124,25 @@ class MS(UVData):
 
         #open table with antenna location information
         tbAnt=tables.table(filepath+'/ANTENNA')
-        #antenna names
+        tbObs=tables.table(filepath+'/OBSERVATION')
+        self.telescope_name=tbObs.getcol('TELESCOPE_NAME')[0]
+        self.instrument=tbObs.getcol('TELESCOPE_NAME')[0]
+        tbObs.close()
+        #Use Telescopes.py dictionary to set array position
+        self.antenna_positions=tbAnt.getcol('POSITION')
+        xyz_telescope_frame = tbAnt.getcolkeyword('POSITION','MEASINFO')['Ref']
+        antFlags=np.empty(len(self.antenna_positions),dtype=bool)
+        antFlags[:]=False
+        for antnum in range(len(antFlags)):
+            antFlags[antnum]=np.all(self.antenna_positions[antnum,:]==0)
+        try:
+            self.set_telescope_params()
+        except:
+            if(xyz_telescope_frame=='ITRF'):
+                self.telescope_location=np.array(np.mean(self.antenna_positions[np.invert(antFlags),:],axis=0))
+                #antenna names
         ant_names=tbAnt.getcol('STATION')
+        self.Nants_telescope=len(antFlags[np.invert(antFlags)])
         test_name=ant_names[0]
         names_same=True
         for antnum in range(len(ant_names)):
@@ -135,31 +152,17 @@ class MS(UVData):
             self.antenna_names=ant_names#cotter measurement sets store antenna names in the NAMES column. 
         else:
             self.antenna_names=tbAnt.getcol('NAME')#importuvfits measurement sets store antenna namesin the STATION column.
-        self.Nants_telescope=len(self.antenna_names)
-        #self.dish_diameters=tbAnt.getcol('DISH_DIAMETER')
-        #self.flag_row=tbAnt.getcol('FLAG_ROW')
-        #self.mount=tbAnt.getcol('MOUNT')
-        #Source Field
-        self.antenna_numbers=np.arange(self.Nants_telescope).astype(int)
-        #Telescope Name
-        #Instrument
-        tbObs=tables.table(filepath+'/OBSERVATION')
-        self.telescope_name=tbObs.getcol('TELESCOPE_NAME')[0]
-        self.instrument=tbObs.getcol('TELESCOPE_NAME')[0]
-        tbObs.close()
-        #Use Telescopes.py dictionary to set array position
-        self.antenna_positions=tbAnt.getcol('POSITION')
-        xyz_telescope_frame = tbAnt.getcolkeyword('POSITION','MEASINFO')['Ref']
-        try:
-            self.set_telescope_params()
-        except:
-            if(xyz_telescope_frame=='ITRF'):
-                antFlags=np.empty(self.Nants_telescope,dtype=bool)
-                antFlags[:]=False
-                for antnum in range(len(antFlags)):
-                    antFlags[antnum]=np.all(self.antenna_positions[antnum,:]==0)
-                self.telescope_location=np.array(np.mean(self.antenna_positions[np.invert(antFlags),:],axis=0))
+        self.antenna_numbers=np.arange(len(self.antenna_names)).astype(int)
+        nAntOrig=len(self.antenna_names)
+        ant_names=[]
+        for antNum in range(len(self.antenna_names)):
+            if not(antFlags[antNum]):
+                ant_names.append(self.antenna_names[antNum])
+        self.antenna_names=ant_names
+        self.antenna_numbers=self.antenna_numbers[np.invert(antFlags)]
+        self.antenna_positions=self.antenna_positions[np.invert(antFlags),:]
         '''
+        #remove blank names
         for axnum in range(self.antenna_positions.shape[1]):
             self.antenna_positions[:,axnum]-=np.mean(self.antenna_positions[:,axnum])
         try:
