@@ -26,7 +26,6 @@ def test_ReadMSWriteReadUVFits(msname):
     ms_uv.order_pols(order='CASA')
     uvfits_uv.read_uvfits(os.path.join(DATA_PATH, 'outtest_'+msname+'.uvfits'))
 
-
     
     #print ms_uv.required()
     #for pnum,p in enumerate(ms_uv.required()):
@@ -62,15 +61,21 @@ def test_ReadMSWriteReadUVFits(msname):
     ms_uv.order_pols()
 
 
-=======
     print uvfits_uv.lst_array
     print uvfits_uv_orig.lst_array
 
-    print uvfits_uv.phase_center_epoch
-    print uvfits_uv_orig.phase_center_epoch
 
-    print uvfits_uv.telescope_location
-    print uvfits_uv_orig.telescope_location
+    #print uvfits_uv.phase_center_epoch
+    #print uvfits_uv_orig.phase_center_epoch
+    #print uvfits_uv.Nbls
+    #print uvfits_uv_orig.Nbls
+    #print ms_uv.Nbls
+    #print uvfits_uv.polarization_array
+    #print uvfits_uv_orig.polarization_array
+    #print ms_uv.polarization_array
+
+    #print uvfits_uv.telescope_location
+    #print uvfits_uv_orig.telescope_location
 
     print uvfits_uv.vis_units
     print uvfits_uv_orig.vis_units
