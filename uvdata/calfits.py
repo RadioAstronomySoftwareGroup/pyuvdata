@@ -50,12 +50,23 @@ class CALFITS(UVCal):
 
         # Need to add in switch for gain/delay.
         # This is first draft of writing to FITS.
-
         today = datetime.date.today().strftime("Date: %d, %b %Y")
         prihdr = fits.Header()
+        #Conforming to fits format
+        prihdr['SIMPLE'] = True
+        prihdr['BITPIX'] = 32
+        prihdr['NAXIS'] = 5
+        prihdr['NAXIS1'] = (self.Nants_data, 'Number and antennas')
+
+        prihdr['NAXIS3'] = (self.Ntimes, 'Number of time samples')
+        prihdr['NAXIS4'] = (self.Npols, 'Number of polarizations')
+
+        prihdr['TELESCOP'] = ('HERA', 'Telescope of calibration')
+        prihdr['OBSERVER'] = 'Observer'
         prihdr['DATE'] = today
-        prihdr['ORIGIN'] = 'blank'
-        prihdr['HASH'] = 'blank'
+        prihdr['CALPIPE'] = ('Omnical', 'Calibration pipeline')
+        prihdr['ORIGIN'] = ('origin', 'git origin of pipeline')
+        prihdr['HASH'] = ('git hash', 'git hash number')
         prihdr['GNCONVEN'] = self.gain_convention
         prihdr['NTIMES'] = self.Ntimes
         prihdr['NFREQS'] = self.Nfreqs
@@ -66,7 +77,7 @@ class CALFITS(UVCal):
         prihdr['HISTORY'] = self.history
         prihdr['NSPWS'] = self.Nspws
         prihdr['XORIENT'] = self.x_orientation
-        prihdu = fits.PrimaryHDU(header=prihdr)
+        prihdr['END']
 
         if np.all(self.gain_array):
             coldat = fits.Column(name='GAIN', format='M',
@@ -75,6 +86,19 @@ class CALFITS(UVCal):
                                  array=self.flag_array)
             colqual = fits.Column(name='QUALITY', format='D',
                                   array=self.quality_array)
+            # Set header variable for gain.
+            prihdr['NAXIS2'] = (self.Nfreqs, 'Number of frequency channels')
+            prihdr['CTYPE2'] = ('FREQS', 'Frequency.')
+            prihdr['CUNIT2'] = ('GHz', 'Unit of frequecy.')
+            prihdr['CRVAL2'] = self.freq_array[0]
+            prihdr['CDELT2'] = self.freq_array[1] - self.freq_array[0]
+            # set the last axis for number of arrays.
+            prihdr['NAXIS5'] = (4, 'Number of data arrays:gain.real, \
+                                    gain.imag, flag, quality')
+            prihdr['CTYPE5'] = ('Narrays', 'Number of image arrays.')
+            prihdr['CUNIT5'] = ('Integer', 'Number of image arrays. Increment.')
+            prihdr['CRVAL5'] = 0
+            prihdr['CDELT5'] = 1
         elif np.all(self.delay_array):
             coldat = fits.Column(name='DELAY', format='D',
                                  array=self.delay_array)
@@ -82,6 +106,34 @@ class CALFITS(UVCal):
                                  array=self.flag_array)
             colqual = fits.Column(name='QUALITY', format='D',
                                   array=self.quality_array)
+            # Set header variable for gain.
+            prihdr['NAXIS2'] = (1, 'Number of delay solutions.')
+            prihdr['CTYPE2'] = ('DELAYS', 'Delay number.')
+            prihdr['CUNIT2'] = ('ns', 'Nanosecond units.')
+            prihdr['CRVAL2'] = 0
+            prihdr['CDELT2'] = 0
+            # set the last axis for number of arrays.
+            prihdr['NAXIS5'] = (3, 'Number of data arrays:delay,flag, quality')
+            prihdr['CTYPE5'] = ('Narrays', 'Number of image arrays.')
+            prihdr['CUNIT5'] = ('Integer', 'Number of image arrays. Increment.')
+            prihdr['CRVAL5'] = 0
+            prihdr['CDELT5'] = 1
+
+        #header ctypes for NAXIS
+        prihdr['CTYPE1'] = ('ANTS', 'Antenna numbering.')
+        prihdr['CUNIT1'] = 'Integer'
+        prihdr['CRVAL1'] = 0
+        prihdr['CDELT1'] = -1
+
+        prihdr['CTYPE3'] = ('TIME', 'Time axis.')
+        prihdr['CUNIT3'] = ('JD', 'Time in julian date format')
+        prihdr['CRVAL3'] = time_array[0]
+        prihdr['CDELT3'] = time_array[1] - time_array[0]
+
+        prihdr['CTYPE4'] = ('POLS', 'Polarization array')
+        prihdr['CUNIT4'] = ('Integer', 'representative integer for polarization.')
+        prihdr['CRVAL4'] = -5
+        prihdr['CDELT4'] = 1
         colnam = fits.Column(name='ANTNAME', format='A10',
                              array=self.antenna_names)
         colnum = fits.Column(name='ANTINDEX', format='I',
@@ -92,6 +144,12 @@ class CALFITS(UVCal):
                            array=self.polarization_array)
         colt = fits.Column(name='TIME', format='D',
                            array=self.time_array)
+
+        pridata = np.concatenate([self.gain_array.real,
+                                  self.gain_array.imag,
+                                  self.flag_array,
+                                  self.quality_array])
+        prihdu = fits.PrimaryHDU(data=pridata, header=prihdr)
 
         cols = fits.ColDefs([colnam, colnum, colf, colp,
                              colt, coldat, colflg, colqual])
