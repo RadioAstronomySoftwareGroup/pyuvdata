@@ -56,11 +56,7 @@ class CALFITS(UVCal):
         prihdr['SIMPLE'] = True
         prihdr['BITPIX'] = 32
         prihdr['NAXIS'] = 5
-        prihdr['NAXIS1'] = (self.Nants_data, 'Number and antennas')
-
-        prihdr['NAXIS3'] = (self.Ntimes, 'Number of time samples')
-        prihdr['NAXIS4'] = (self.Npols, 'Number of polarizations')
-
+        #prihdr['NAXIS1'] = (self.Nants_data, 'Number and antennas')
         prihdr['TELESCOP'] = ('HERA', 'Telescope of calibration')
         prihdr['OBSERVER'] = 'Observer'
         prihdr['DATE'] = today
@@ -77,89 +73,66 @@ class CALFITS(UVCal):
         prihdr['HISTORY'] = self.history
         prihdr['NSPWS'] = self.Nspws
         prihdr['XORIENT'] = self.x_orientation
-        prihdr['END']
 
         if np.all(self.gain_array):
-            coldat = fits.Column(name='GAIN', format='M',
-                                 array=self.gain_array)
-            colflg = fits.Column(name='FLAG', format='L',
-                                 array=self.flag_array)
-            colqual = fits.Column(name='QUALITY', format='D',
-                                  array=self.quality_array)
             # Set header variable for gain.
-            prihdr['NAXIS2'] = (self.Nfreqs, 'Number of frequency channels')
-            prihdr['CTYPE2'] = ('FREQS', 'Frequency.')
-            prihdr['CUNIT2'] = ('GHz', 'Unit of frequecy.')
-            prihdr['CRVAL2'] = self.freq_array[0]
-            prihdr['CDELT2'] = self.freq_array[1] - self.freq_array[0]
-            # set the last axis for number of arrays.
-            prihdr['NAXIS5'] = (4, 'Number of data arrays:gain.real, \
-                                    gain.imag, flag, quality')
-            prihdr['CTYPE5'] = ('Narrays', 'Number of image arrays.')
-            prihdr['CUNIT5'] = ('Integer', 'Number of image arrays. Increment.')
-            prihdr['CRVAL5'] = 0
-            prihdr['CDELT5'] = 1
-        elif np.all(self.delay_array):
-            coldat = fits.Column(name='DELAY', format='D',
-                                 array=self.delay_array)
-            colflg = fits.Column(name='FLAG', format='L',
-                                 array=self.flag_array)
-            colqual = fits.Column(name='QUALITY', format='D',
-                                  array=self.quality_array)
-            # Set header variable for gain.
-            prihdr['NAXIS2'] = (1, 'Number of delay solutions.')
-            prihdr['CTYPE2'] = ('DELAYS', 'Delay number.')
-            prihdr['CUNIT2'] = ('ns', 'Nanosecond units.')
-            prihdr['CRVAL2'] = 0
-            prihdr['CDELT2'] = 0
-            # set the last axis for number of arrays.
-            prihdr['NAXIS5'] = (3, 'Number of data arrays:delay,flag, quality')
-            prihdr['CTYPE5'] = ('Narrays', 'Number of image arrays.')
-            prihdr['CUNIT5'] = ('Integer', 'Number of image arrays. Increment.')
-            prihdr['CRVAL5'] = 0
-            prihdr['CDELT5'] = 1
+            prihdr['CTYPE4'] = ('FREQS', 'Frequency.')
+            prihdr['CUNIT4'] = ('GHz', 'Units of frequecy.')
+            prihdr['CRVAL4'] = self.freq_array[0][0]
+            prihdr['CDELT4'] = self.freq_array[0][1] - self.freq_array[0][0]
 
-        #header ctypes for NAXIS
-        prihdr['CTYPE1'] = ('ANTS', 'Antenna numbering.')
-        prihdr['CUNIT1'] = 'Integer'
-        prihdr['CRVAL1'] = 0
-        prihdr['CDELT1'] = -1
+            # set the last axis for number of arrays.
+            prihdr['CTYPE1'] = ('Narrays', 'Number of image arrays.')
+            prihdr['CUNIT1'] = ('Integer', 'Number of image arrays. Increment.')
+            prihdr['CRVAL1'] = (4, 'Number of image arryays.')
+            prihdr['CDELT1'] = 1
+
+            pridata = np.concatenate([self.gain_array.real[:, :, :, :, np.newaxis],
+                                      self.gain_array.imag[:, :, :, :, np.newaxis],
+                                      self.flag_array[:, :, :, :, np.newaxis],
+                                      self.quality_array[:, :, :, :, np.newaxis]],
+                                     axis=-1)
+
+        elif np.all(self.delay_array):
+            # Set header variable for gain.
+            prihdr['CTYPE4'] = ('FREQS', 'Valid frequencies to apply delay.')
+            prihdr['CUNIT4'] = ('GHz', 'Units of frequecy.')
+            prihdr['CRVAL4'] = self.freq_array[0][0]
+            prihdr['CDELT4'] = self.freq_array[0][1] - self.freq_array[0][0]
+            # set the last axis for number of arrays.
+            prihdr['CTYPE1'] = ('Narrays', 'Number of image arrays.')
+            prihdr['CUNIT1'] = ('Integer', 'Number of image arrays. Value.')
+            prihdr['CRVAL1'] = (3, 'Number of image arrays.')
+            prihdr['CDELT1'] = 1
+
+            pridata = np.concatenate([self.delay_array[:, :, :, :, np.newaxis],
+                                      self.flag_array[:, :, :, :, np.newaxis],
+                                      self.quality_array[:, :, :, :, np.newaxis]],
+                                     axis=-1)
+
+        # header ctypes for NAXIS
+        prihdr['CTYPE5'] = ('ANTS', 'Antenna numbering.')
+        prihdr['CUNIT5'] = 'Integer'
+        prihdr['CRVAL5'] = 0
+        prihdr['CDELT5'] = -1
 
         prihdr['CTYPE3'] = ('TIME', 'Time axis.')
         prihdr['CUNIT3'] = ('JD', 'Time in julian date format')
-        prihdr['CRVAL3'] = time_array[0]
-        prihdr['CDELT3'] = time_array[1] - time_array[0]
+        prihdr['CRVAL3'] = self.time_array[0]
+        prihdr['CDELT3'] = self.time_array[1] - self.time_array[0]
 
-        prihdr['CTYPE4'] = ('POLS', 'Polarization array')
-        prihdr['CUNIT4'] = ('Integer', 'representative integer for polarization.')
-        prihdr['CRVAL4'] = -5
-        prihdr['CDELT4'] = 1
-        colnam = fits.Column(name='ANTNAME', format='A10',
-                             array=self.antenna_names)
-        colnum = fits.Column(name='ANTINDEX', format='I',
-                             array=self.antenna_numbers)
-        colf = fits.Column(name='FREQ', format='D',
-                           array=self.freq_array)
-        colp = fits.Column(name='POL', format='I',
-                           array=self.polarization_array)
-        colt = fits.Column(name='TIME', format='D',
-                           array=self.time_array)
+        prihdr['CTYPE2'] = ('POLS', 'Polarization array')
+        prihdr['CUNIT2'] = ('Integer', 'representative integer for polarization.')
+        prihdr['CRVAL2'] = self.polarization_array[0] #always start with xx data etc.
+        prihdr['CDELT2'] = 1*np.sign(self.polarization_array[0])
 
-        pridata = np.concatenate([self.gain_array.real,
-                                  self.gain_array.imag,
-                                  self.flag_array,
-                                  self.quality_array])
         prihdu = fits.PrimaryHDU(data=pridata, header=prihdr)
-
-        cols = fits.ColDefs([colnam, colnum, colf, colp,
-                             colt, coldat, colflg, colqual])
-        tbhdu = fits.BinTableHDU.from_columns(cols)
-        hdulist = fits.HDUList([prihdu, tbhdu])
+        hdulist = fits.HDUList([prihdu])
         hdulist.writeto(filename)
 
     def read_calfits(self, filename, run_check=True, run_sanity_check=True):
         F = fits.open(filename)
-        D = F[1]
+        data = F[0].data
         hdr = F[0].header.copy()
 
         self.Nfreqs = hdr['NFREQS']
@@ -168,32 +141,28 @@ class CALFITS(UVCal):
         self.history = str(hdr.get('HISTORY', ''))
         self.Nspws = hdr['NSPWS']
         self.Nants_data = hdr['NANTSDAT']
-        self.antenna_names = np.sort(np.unique(D.data['ANTNAME']))
-        self.antenna_numbers = np.sort(np.unique(D.data['ANTINDEX']))
+        self.antenna_names = map(str, np.arange(self.Nants_data)*hdr['CDELT5'] + hdr['CRVAL5'])
+        self.antenna_numbers = np.arange(self.Nants_data)*hdr['CDELT5'] + hdr['CRVAL5']
         self.Nants_telescope = hdr['NANTSTEL']
         self.gain_convention = hdr['GNCONVEN']
         self.x_orientation = hdr['XORIENT']
 
-        ptypes = {'Nfreqs': self.Nfreqs,
-                  'Npols': self.Npols,
-                  'Ntimes': self.Ntimes,
-                  'Nants_data': self.Nants_data}
-
-        self.freq_array = np.sort(np.unique(D.data['FREQ'])).reshape(1,-1)
-        self.polarization_array = np.sort(np.unique(D.data['POL']))
-        self.time_array = np.sort(np.unique(D.data['TIME']))
-        try:
-            rs = [ptypes[i] for i in self._gain_array.form]
-            self.gain_array = D.data['GAIN'].reshape(rs)
+        #get data
+        if data.shape[-1] == 4:
+            self.gain_array = data[:, :, :, :, 0] + 1j*data[:, :, :, :, 1]
+            self.flag_array = np.array(data[:, :, :, :, 2], dtype=np.bool)
+            self.quality_array = data[:, :, :, :, 3]
             self.set_gain()
-        except(KeyError):
-            rs = [ptypes[i] for i in self._delay_array.form]
-            self.delay_array = D.data['DELAY'].reshape(rs)
+        if data.shape[-1] == 3:
+            self.delay_array = data[:, :, :, : 0]
+            self.flag_array = np.array(data[:, :, :, :, 1], dtype=np.bool)
+            self.quality_array = data[:, :, :, :, 2]
             self.set_delay()
-        rs = [ptypes[i] for i in self._flag_array.form]
-        self.flag_array = D.data['FLAG'].reshape(rs)
-        rs = [ptypes[i] for i in self._quality_array.form]
-        self.quality_array = D.data['QUALITY'].reshape(rs)
+
+        # generate frequency, polarization, and time array.
+        self.freq_array = np.arange(self.Nfreqs).reshape(1,-1)*hdr['CDELT4'] + hdr['CRVAL4']
+        self.polarization_array = np.arange(self.Npols)*hdr['CDELT2'] + hdr['CRVAL2']
+        self.time_array = np.arange(self.Ntimes)*hdr['CDELT3'] + hdr['CRVAL3']
 
         if run_check:
             self.check(run_sanity_check=run_sanity_check)
