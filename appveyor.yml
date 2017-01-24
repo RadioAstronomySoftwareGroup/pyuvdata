@@ -16,6 +16,7 @@ environment:
     # /E:ON and /V:ON options are not enabled in the batch script intepreter
     # See: http://stackoverflow.com/a/13751649/163740
     CMD_IN_ENV: "cmd /E:ON /V:ON /C .\\ci\\run_with_env.cmd"
+    CONDA_BLD: "C:\\conda"
 
   matrix:
 
@@ -51,7 +52,7 @@ install:
   - cmd: rmdir C:\cygwin /s /q
 
   # install our build environment
-  - cmd: conda config --set show_channel_urls true --set always_yes true --set changeps1 false
+  - cmd: %CONDA_BLD%\Scripts\conda config --set show_channel_urls true --set always_yes true --set changeps1 false
   - cmd: conda update -q conda
   # Useful for debugging any issues with conda
   - cmd: conda info -a
