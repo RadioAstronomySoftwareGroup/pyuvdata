@@ -1,0 +1,73 @@
+# based on PANDAS appveyor.yml
+# https://searchcode.com/file/116370094/appveyor.yml
+# Which references the following sites as inspiration
+# http://tjelvarolsson.com/blog/how-to-continuously-test-your-python-code-on-windows-using-appveyor/
+# https://packaging.python.org/en/latest/appveyor/
+# https://github.com/rmcgibbo/python-appveyor-conda-example
+
+# Backslashes in quotes need to be escaped: \ -> "\\"
+
+matrix:
+  fast_finish: true     # immediately finish build once one of the jobs fails.
+
+environment:
+  global:
+    # SDK v7.0 MSVC Express 2008's SetEnv.cmd script will fail if the
+    # /E:ON and /V:ON options are not enabled in the batch script intepreter
+    # See: http://stackoverflow.com/a/13751649/163740
+    CMD_IN_ENV: "cmd /E:ON /V:ON /C .\\ci\\run_with_env.cmd"
+
+  matrix:
+
+    - PYTHON: "C:\\Python27_64"
+      PYTHON_VERSION: "2.7"
+      PYTHON_ARCH: "64"
+      CONDA_PY: "27"
+      CONDA_NPY: "110"
+
+
+# We always use a 64-bit machine, but can build x86 distributions
+# with the PYTHON_ARCH variable (which is used by CMD_IN_ENV).
+platform:
+    - x64
+
+# all our python builds have to happen in tests_script...
+build: false
+
+init:
+  - "ECHO %PYTHON_VERSION% %PYTHON%"
+
+install:
+  # this installs the appropriate Miniconda (Py2/Py3, 32/64 bit)
+  # updates conda & installs: conda-build jinja2 anaconda-client
+  - powershell .\ci\install.ps1
+  - SET PATH=%PYTHON%;%PYTHON%\Scripts;%PATH%
+  - echo "install"
+  - cd
+  - ls -ltr
+  - git tag --sort v:refname
+
+  # this can conflict with git
+  - cmd: rmdir C:\cygwin /s /q
+
+  # install our build environment
+  - cmd: conda config --set show_channel_urls true --set always_yes true --set changeps1 false
+  - cmd: conda update -q conda
+  # Useful for debugging any issues with conda
+  - cmd: conda info -a
+
+  # build em using the local source checkout in the correct windows env
+  - cmd: '%CMD_IN_ENV% conda build ci\appveyor.recipe -q'
+
+  # create our env
+  - cmd: conda create -q -n test-environment python=%PYTHON_VERSION% astropy nose
+  - cmd: activate test-environment
+  - cmd: conda install -c pkgw aipy
+  - cmd: python setup.py install
+
+test_script:
+  # tests
+  - cd \
+  - cmd: activate test-environment
+  - cmd: conda list
+  - cmd: nosetests
