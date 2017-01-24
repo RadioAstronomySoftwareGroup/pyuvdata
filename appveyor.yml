@@ -1,9 +1,12 @@
 # based on PANDAS appveyor.yml
 # https://searchcode.com/file/116370094/appveyor.yml
 # Which references the following sites as inspiration
-# http://tjelvarolsson.com/blog/how-to-continuously-test-your-python-code-on-windows-using-appveyor/
-# https://packaging.python.org/en/latest/appveyor/
-# https://github.com/rmcgibbo/python-appveyor-conda-example
+#   http://tjelvarolsson.com/blog/how-to-continuously-test-your-python-code-on-windows-using-appveyor/
+#   https://packaging.python.org/en/latest/appveyor/
+#   https://github.com/rmcgibbo/python-appveyor-conda-example
+
+# Also looked at:
+# https://github.com/pythonnet/pythonnet/blob/master/appveyor.yml
 
 # Backslashes in quotes need to be escaped: \ -> "\\"
 
@@ -16,7 +19,6 @@ environment:
     # /E:ON and /V:ON options are not enabled in the batch script intepreter
     # See: http://stackoverflow.com/a/13751649/163740
     CMD_IN_ENV: "cmd /E:ON /V:ON /C .\\ci\\run_with_env.cmd"
-    CONDA_BLD: "C:\\conda"
 
   matrix:
 
@@ -52,7 +54,7 @@ install:
   - cmd: rmdir C:\cygwin /s /q
 
   # install our build environment
-  - "%CONDA_BLD%\\Scripts\\conda config --set show_channel_urls true --set always_yes true --set changeps1 false"
+  - cmd: conda config --set show_channel_urls true --set always_yes true --set changeps1 false
   - cmd: conda update -q conda
   # Useful for debugging any issues with conda
   - cmd: conda info -a
