@@ -40,7 +40,7 @@ init:
 install:
   # this installs the appropriate Miniconda (Py2/Py3, 32/64 bit)
   # updates conda & installs: conda-build jinja2 anaconda-client
-  - powershell .\\ci\\install.ps1
+  - ps: ".\\ci\\install.ps1"
   - SET PATH=%PYTHON%;%PYTHON%\Scripts;%PATH%
   - echo "install"
   - cd
