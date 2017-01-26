@@ -127,7 +127,16 @@ class CALFITS(UVCal):
         prihdr['CDELT2'] = 1*np.sign(self.polarization_array[0])
 
         prihdu = fits.PrimaryHDU(data=pridata, header=prihdr)
-        hdulist = fits.HDUList([prihdu])
+
+        col1 = fits.Column(name='ANTNAME', format='8A',
+                           array=self.antenna_names)
+        col2 = fits.Column(name='ANTINDEX', format='D',
+                           array=self.antenna_numbers)
+        cols = fits.ColDefs([col1, col2])
+        ant_hdu = fits.BinTableHDU.from_columns(cols)
+
+        prihdu = fits.PrimaryHDU(data=pridata, header=prihdr)
+        hdulist = fits.HDUList([prihdu, ant_hdu])
         hdulist.writeto(filename)
 
     def read_calfits(self, filename, run_check=True, run_sanity_check=True):
@@ -135,19 +144,20 @@ class CALFITS(UVCal):
         data = F[0].data
         hdr = F[0].header.copy()
 
+        antdata = F[1].data
+        self.antenna_names = map(str, antdata['ANTNAME'])
+        self.antenna_numbers = map(int, antdata['ANTINDEX'])
         self.Nfreqs = hdr['NFREQS']
         self.Npols = hdr['NPOLS']
         self.Ntimes = hdr['NTIMES']
         self.history = str(hdr.get('HISTORY', ''))
         self.Nspws = hdr['NSPWS']
         self.Nants_data = hdr['NANTSDAT']
-        self.antenna_names = map(str, np.arange(self.Nants_data)*hdr['CDELT5'] + hdr['CRVAL5'])
-        self.antenna_numbers = np.arange(self.Nants_data)*hdr['CDELT5'] + hdr['CRVAL5']
         self.Nants_telescope = hdr['NANTSTEL']
         self.gain_convention = hdr['GNCONVEN']
         self.x_orientation = hdr['XORIENT']
 
-        #get data
+        # get data
         if data.shape[-1] == 4:
             self.gain_array = data[:, :, :, :, 0] + 1j*data[:, :, :, :, 1]
             self.flag_array = np.array(data[:, :, :, :, 2], dtype=np.bool)
