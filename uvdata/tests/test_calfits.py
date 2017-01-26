@@ -14,17 +14,18 @@ def test_readwriteread():
     """
     uv_in = UVCal()
     uv_out = UVCal()
-    testfile = os.path.join(DATA_PATH, '/Users/sherlock/src/pyuvdata/uvdata/data/zen.2457698.50098.xx.fits')
+    testfile = os.path.join(DATA_PATH, 'test123.fits')
     write_file = os.path.join(DATA_PATH, 'test/outtest_omnical.fits')
-
     read_status = uvtest.checkWarnings(uv_in.read_calfits, [testfile],
+                                       nwarnings=0,
                                        message='Telescope EVLA is not')
-    import IPython; IPython.embed()
-    uv_in.write_calfits(write_file, run_check=False)
+    uv_in.write_calfits(write_file)
     write_status = uvtest.checkWarnings(uv_out.read_calfits, [write_file],
+                                        nwarnings=0,
                                         message='Telescope EVLA is not')
     nt.assert_true(read_status)
     nt.assert_true(write_status)
     nt.assert_equal(uv_in, uv_out)
+    del(uv_in)
+    del(uv_out)
 
-test_readwriteread()
