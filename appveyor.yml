@@ -10,9 +10,6 @@
 
 # Backslashes in quotes need to be escaped: \ -> "\\"
 
-matrix:
-  fast_finish: true     # immediately finish build once one of the jobs fails.
-
 environment:
   global:
     # SDK v7.0 MSVC Express 2008's SetEnv.cmd script will fail if the
@@ -21,8 +18,9 @@ environment:
     CMD_IN_ENV: "cmd /E:ON /V:ON /C .\\ci\\run_with_env.cmd"
 
   matrix:
+    fast_finish: true     # immediately finish build once one of the jobs fails.
 
-    - CONDA_ROOT: "C:\\Miniconda3.5_64"
+    - PYTHON: "C:\\Python27_64"
       PYTHON_VERSION: "2.7"
       PYTHON_ARCH: "64"
       CONDA_PY: "27"
