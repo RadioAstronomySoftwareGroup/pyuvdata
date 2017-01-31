@@ -164,10 +164,11 @@ class CALFITS(UVCal):
             self.quality_array = data[:, :, :, :, 3]
             self.set_gain()
         if data.shape[-1] == 3:
-            self.delay_array = data[:, :, :, : 0]
+            self.set_delay()
+            self.delay_array = data[:, :, :, :, 0]
             self.flag_array = np.array(data[:, :, :, :, 1], dtype=np.bool)
             self.quality_array = data[:, :, :, :, 2]
-            self.set_delay()
+
 
         # generate frequency, polarization, and time array.
         self.freq_array = np.arange(self.Nfreqs).reshape(1,-1)*hdr['CDELT4'] + hdr['CRVAL4']
