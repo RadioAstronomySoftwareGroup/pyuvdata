@@ -122,7 +122,7 @@ class UVCal(UVBase):
         desc = ('Array of delays. shape: (Nants_data, Ntimes, Npols), type = float')
         self._delay_array = uvp.UVParameter('delay_array', description=desc,
                                             required=False,
-                                            form=('Nants_data', 'Ntimes', 'Npols'),
+                                            form=('Nants_data', 1, 'Ntimes', 'Npols'),
                                             expected_type=np.float)
 
         # --- truly optional parameters ---
@@ -173,6 +173,10 @@ class UVCal(UVBase):
         self.cal_type = 'delay'
         self._gain_array.required = False
         self._delay_array.required = True
+        # need to specify array shapes for quality and flag if delay.
+        self._quality_array.form = self._delay_array.form
+        self._flag_array.form = self._delay_array.form
+        # self._quality_array.expected_type self.expected_type
 
     def set_unknown_phase_type(self):
         """Set cal_type to 'unknown' and adjust required parameters."""
