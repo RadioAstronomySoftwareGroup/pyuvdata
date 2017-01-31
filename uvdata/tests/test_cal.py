@@ -81,6 +81,7 @@ class TestUVCalInit(object):
                 print('setting {prop_name} to a random number failed'.format(prop_name=k))
                 raise(AssertionError)
 
+
 class TestUVCalBasicMethods(object):
     def setUp(self):
         """Set up test"""
@@ -89,12 +90,36 @@ class TestUVCalBasicMethods(object):
         self.uv_cal_object.read_calfits(self.testfile)
         uvtest.checkWarnings(self.uv_cal_object.read_calfits, [self.testfile],
                              message='Telescope EVLA is not')
-        self.uv_object2 = copy.deepcopy(self.uv_cal_object)
+        self.uv_cal_object2 = copy.deepcopy(self.uv_cal_object)
 
     def teardown(self):
         """Tear down test"""
         del(self.uv_cal_object)
+        del(self.uv_cal_object2)
+
+    def test_equality(self):
+        """Basic equality test"""
+        nt.assert_equal(self.uv_cal_object, self.uv_cal_object)
 
     def test_check(self):
         """Test that parameter checks run properly"""
         nt.assert_true(self.uv_cal_object.check())
+
+    def test_nants_data_telescope(self):
+        self.uv_cal_object.Nants_data = self.uv_cal_object.Nants_telescope - 1
+        nt.assert_true(self.uv_cal_object.check)
+        self.uv_cal_object.Nants_data = self.uv_cal_object.Nants_telescope + 1
+        nt.assert_raises(ValueError, self.uv_cal_object.check)
+
+    def test_set_gain(self):
+        self.uv_cal_object.set_gain()
+        nt.assert_true(self.uv_cal_object._gain_array.required)
+        nt.assert_false(self.uv_cal_object._delay_array.required)
+
+    def test_set_delay(self):
+        self.uv_cal_object.set_delay()
+        nt.assert_true(self.uv_cal_object._delay_array.required)
+        nt.assert_false(self.uv_cal_object._gain_array.required)
+        nt.assert_equal(self.uv_cal_object._delay_array.form, self.uv_cal_object._flag_array.form)
+        nt.assert_equal(self.uv_cal_object._delay_array.form, self.uv_cal_object._quality_array.form)
+        nt.assert_equal(self.uv_cal_object._quality_array.form, self.uv_cal_object._flag_array.form)
