@@ -3,7 +3,11 @@ Tutorial
 
 Example 1
 ---------
-Converting a miriad data set to uvfits::
+Converting between tested data formats
+
+a) miriad (aipy) -> uvfits
+**************************
+::
 
   from uvdata import UVData
   UV = UVData()
@@ -11,9 +15,9 @@ Converting a miriad data set to uvfits::
   UV.read_miriad(miriad_file)  # this miriad file is known to be a drift scan
   UV.write_uvfits('new.uvfits', force_phase=True, spoof_nonessential=True)  # write out the uvfits file
 
-Example 2
----------
-Converting a uvfits data set to miriad::
+b) uvfits -> miriad (aipy)
+**************************
+::
 
   from uvdata import UVData
   UV = UVData()
@@ -21,7 +25,35 @@ Converting a uvfits data set to miriad::
   UV.read_uvfits(uvfits_file)
   UV.write_uvfits('day2_TDEM0003_10s_norx_1src_1spw.uv')  # write out the miriad file
 
-Example 3
+c) FHD -> uvfits
+****************
+When reading FHD format, we need to point to several files.::
+
+  from uvdata import UVData
+  UV = UVData()
+  fhd_prefix = 'uvdata/data/fhd_vis_data/1061316296_'
+  # Construct the list of files
+  fhd_files = [fhd_prefix + f for f in ['flags.sav', 'vis_XX.sav', 'params.sav',
+                                        'vis_YY.sav', 'vis_model_XX.sav',
+                                        'vis_model_YY.sav', 'settings.txt']]
+  UV.read_fhd(fhd_files)
+  UV.write_uvfits('1061316296.uvfits', spoof_nonessential=True)
+
+d) FHD -> miriad
+****************
+::
+
+  from uvdata import UVData
+  UV = UVData()
+  fhd_prefix = 'uvdata/data/fhd_vis_data/1061316296_'
+  # Construct the list of files
+  fhd_files = [fhd_prefix + f for f in ['flags.sav', 'vis_XX.sav', 'params.sav',
+                                        'vis_YY.sav', 'vis_model_XX.sav',
+                                        'vis_model_YY.sav', 'settings.txt']]
+  UV.read_fhd(fhd_files)
+  UV.write_uvfits('1061316296.uvfits')
+
+Example 2
 ---------
 Phasing/unphasing data::
 
@@ -36,7 +68,7 @@ Phasing/unphasing data::
   UV.unphase_to_drift()  # Undo phasing to try another phase center
   UV.phase(5.23368, 0.710940, ephem.J2000)  # Phase to a specific ra/dec/epoch (in radians)
 
-Example 4
+Example 3
 ---------
 Making a simple waterfall plot::
 
