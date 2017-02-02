@@ -67,10 +67,10 @@ install:
   - cmd: activate test-environment
 #  - cmd: pip install aipy
 #  - cmd: conda install -c pkgw aipy
-  - cmd: git clone git@github.com:HERA-Team/aipy.git
-  - cmd: cd aipy
+  - cmd: git clone -q --branch=master https://github.com:HERA-Team/aipy.git C:\projects\aipy
+  - cmd: cd ../aipy
   - cmd: python setup.py install
-  - cmd: cd ../
+  - cmd: cd ../pyuvdata
   - cmd: python setup.py install
 
 test_script:
