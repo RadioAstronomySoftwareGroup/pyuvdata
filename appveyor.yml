@@ -63,10 +63,14 @@ install:
   - cmd: '%CMD_IN_ENV% conda build ci\appveyor.recipe -q'
 
   # create our env
-  - cmd: conda create -q -n test-environment python=%PYTHON_VERSION% astropy nose
+  - cmd: conda create -q -n test-environment python=%PYTHON_VERSION% numpy scipy astropy nose
   - cmd: activate test-environment
-  - cmd: pip install aipy
+#  - cmd: pip install aipy
 #  - cmd: conda install -c pkgw aipy
+  - cmd: git clone git@github.com:HERA-Team/aipy.git
+  - cmd: cd aipy
+  - cmd: python setup.py install
+  - cmd: cd ../
   - cmd: python setup.py install
 
 test_script:
