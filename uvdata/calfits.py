@@ -79,7 +79,10 @@ class CALFITS(UVCal):
             prihdr['CTYPE4'] = ('FREQS', 'Frequency.')
             prihdr['CUNIT4'] = ('GHz', 'Units of frequecy.')
             prihdr['CRVAL4'] = self.freq_array[0][0]
-            prihdr['CDELT4'] = self.freq_array[0][1] - self.freq_array[0][0]
+            try:
+                prihdr['CDELT4'] = self.freq_array[0][1] - self.freq_array[0][0]
+            except(IndexError):
+                prihdr['CDELT4'] = 0.0
 
             # set the last axis for number of arrays.
             prihdr['CTYPE1'] = ('Narrays', 'Number of image arrays.')
@@ -98,6 +101,10 @@ class CALFITS(UVCal):
             prihdr['CTYPE4'] = ('FREQS', 'Valid frequencies to apply delay.')
             prihdr['CUNIT4'] = ('GHz', 'Units of frequecy.')
             prihdr['CRVAL4'] = self.freq_array[0][0]
+            try:
+                prihdr['CDELT4'] = self.freq_array[0][1] - self.freq_array[0][0]
+            except(IndexError):
+                prihdr['CDELT4'] = 0.0
             prihdr['CDELT4'] = self.freq_array[0][1] - self.freq_array[0][0]
             # set the last axis for number of arrays.
             prihdr['CTYPE1'] = ('Narrays', 'Number of image arrays.')
@@ -119,7 +126,10 @@ class CALFITS(UVCal):
         prihdr['CTYPE3'] = ('TIME', 'Time axis.')
         prihdr['CUNIT3'] = ('JD', 'Time in julian date format')
         prihdr['CRVAL3'] = self.time_array[0]
-        prihdr['CDELT3'] = self.time_array[1] - self.time_array[0]
+        try:
+            prihdr['CDELT3'] = self.time_array[1] - self.time_array[0]
+        except(IndexError):
+            prihdr['CDELT3'] = 0.0
 
         prihdr['CTYPE2'] = ('POLS', 'Polarization array')
         prihdr['CUNIT2'] = ('Integer', 'representative integer for polarization.')
