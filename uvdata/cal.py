@@ -6,6 +6,7 @@ import parameter as uvp
 class UVCal(UVBase):
     """ A class defining a calibration """
     def __init__(self):
+        radian_tol = 10 * 2 * np.pi * 1e-3 / (60.0 * 60.0 * 360.0)
         self._Nfreqs = uvp.UVParameter('Nfreqs',
                                        description='Number of frequency channels',
                                        expected_type=int)
@@ -75,6 +76,13 @@ class UVCal(UVBase):
                                            form=('Ntimes',),
                                            expected_type=np.float,
                                            tols=1e-3 / (60.0 * 60.0 * 24.0))
+
+#        desc = ('Array of lsts, corresponding to the time array,' +
+#                ' shape is (Ntimes), units Julian Date')
+#        self._lst_array = uvp.UVParameter('lst_array', description=desc,
+#                                          form=('Ntimes',),
+#                                          expected_type=np.float,
+#                                          tols=radian_tol)
 
         desc = ('The convention for applying he calibration solutions to data.'
                 'Indicates that to calibrate one should divide or multiply '
