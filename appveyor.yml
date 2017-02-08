@@ -22,9 +22,11 @@ environment:
 
   matrix:
 
-    - PYTHON: "C:\\Python27_64"
+    # don't use 64 bit on windows because of python compiling error.
+    # see https://github.com/numpy/numpy/issues/6882
+    - PYTHON: "C:\\Python27"
       PYTHON_VERSION: "2.7"
-      PYTHON_ARCH: "64"
+      PYTHON_ARCH: "x86"
       CONDA_PY: "27"
       CONDA_NPY: "110"
 
