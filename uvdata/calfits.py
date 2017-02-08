@@ -12,7 +12,7 @@ class CALFITS(UVCal):
     uvfits_required_extra = []
 
     def write_calfits(self, filename, spoof_nonessential=False,
-                     run_check=True, run_sanity_check=True):
+                      run_check=True, run_sanity_check=True, clobber=False):
         """
         Write the data to a uvfits file.
 
@@ -147,7 +147,7 @@ class CALFITS(UVCal):
 
         prihdu = fits.PrimaryHDU(data=pridata, header=prihdr)
         hdulist = fits.HDUList([prihdu, ant_hdu])
-        hdulist.writeto(filename)
+        hdulist.writeto(filename, clobber=clobber)
 
     def read_calfits(self, filename, run_check=True, run_sanity_check=True):
         F = fits.open(filename)

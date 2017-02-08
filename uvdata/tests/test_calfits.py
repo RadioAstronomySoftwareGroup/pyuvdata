@@ -20,7 +20,7 @@ def test_readwriteread():
     read_status = uvtest.checkWarnings(uv_in.read_calfits, [testfile],
                                        nwarnings=0,
                                        message='Telescope EVLA is not')
-    uv_in.write_calfits(write_file)
+    uv_in.write_calfits(write_file, clobber=True)
     write_status = uvtest.checkWarnings(uv_out.read_calfits, [write_file],
                                         nwarnings=0,
                                         message='Telescope EVLA is not')
@@ -56,7 +56,7 @@ def test_readwriteread_delays():
     read_status = uvtest.checkWarnings(uv_in.read_calfits, [testfile],
                                        nwarnings=0,
                                        message='Telescope EVLA is not')
-    uv_in.write_calfits(write_file)
+    uv_in.write_calfits(write_file, clobber=True)
     write_status = uvtest.checkWarnings(uv_out.read_calfits, [write_file],
                                         nwarnings=0,
                                         message='Telescope EVLA is not')

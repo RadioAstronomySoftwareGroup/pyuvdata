@@ -223,7 +223,7 @@ class UVCal(UVBase):
         del(uvfits_obj)
 
     def write_calfits(self, filename, spoof_nonessential=False,
-                      run_check=True, run_sanity_check=True):
+                      run_check=True, run_sanity_check=True, clobber=False):
         """Write data to a calfits file.
 
         Args:
@@ -235,10 +235,12 @@ class UVCal(UVBase):
                 required parameters before writing the file. Default is True.
             run_sanity_check: Option to sanity check the values of
                 required parameters before writing the file. Default is True.
+            clobber: Overwrite file.
         """
         calfits_obj = self._convert_to_filetype('calfits')
         calfits_obj.write_calfits(filename,
                                   spoof_nonessential=spoof_nonessential,
                                   run_check=run_check,
-                                  run_sanity_check=run_sanity_check)
+                                  run_sanity_check=run_sanity_check,
+                                  clobber=clobber)
         del(calfits_obj)
