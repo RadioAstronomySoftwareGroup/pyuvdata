@@ -65,7 +65,8 @@ install:
 #  - cmd: pip install aipy
 #  - cmd: conda install -c pkgw aipy
   - cmd: set DISTUTILS_DEBUG='test'
-  - cmd: git clone -q --branch=master https://github.com/HERA-Team/aipy.git C:\projects\aipy
+#  - cmd: git clone -q --branch=master https://github.com/HERA-Team/aipy.git C:\projects\aipy
+  - cmd: git clone -q --branch=master https://github.com/bhazelton/aipy.git C:\projects\aipy
   - cmd: cd ../aipy
   - cmd: python setup.py install
   - cmd: cd ../pyuvdata
