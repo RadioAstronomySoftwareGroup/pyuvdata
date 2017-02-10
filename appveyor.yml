@@ -65,7 +65,7 @@ install:
 #  - cmd: pip install aipy
 #  - cmd: conda install -c pkgw aipy
   - cmd: set DISTUTILS_DEBUG='test'
-  - cmd: ls -ltr C:\Program Files (x86)\Microsoft Visual Studio 9.0\VC\BIN\
+  - cmd: ls -ltr "C:\\Program Files (x86)\\Microsoft Visual Studio 9.0\\VC\\BIN\\"
 #  - cmd: git clone -q --branch=master https://github.com/HERA-Team/aipy.git C:\projects\aipy
   - cmd: git clone -q --branch=master https://github.com/bhazelton/aipy.git C:\projects\aipy
   - cmd: cd ../aipy
