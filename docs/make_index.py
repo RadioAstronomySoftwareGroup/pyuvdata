@@ -67,3 +67,4 @@ def write_index_rst(readme_file=None, write_file=None):
     F = open(write_file, 'w')
     F.write(out)
     print("wrote " + write_file)
+

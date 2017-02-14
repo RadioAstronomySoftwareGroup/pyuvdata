@@ -16,6 +16,7 @@ class UVFITS(UVData):
     This class should not be interacted with directly, instead use the read_uvfits
     and write_uvfits methods on the UVData class.
 
+
     Attributes:
         uvfits_required_extra: Names of optional UVParameters that are required
             for uvfits.
