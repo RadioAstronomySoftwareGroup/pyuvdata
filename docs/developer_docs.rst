@@ -19,9 +19,13 @@ Classes
   :members:
 
 .. autoclass:: uvbase.UVBase
+
   :members:
 
-.. autoclass:: uvdata.UVData
+.. autoclass:: parameter.LocationParameter
+  :members:
+
+.. autoclass:: uvbase.UVBase
   :members:
 
 .. autoclass:: uvfits.UVFITS
