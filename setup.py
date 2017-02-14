@@ -6,14 +6,14 @@ from os import listdir
 __version__ = '1.0'
 
 setup_args = {
-    'name': 'uvdata',
+    'name': 'pyuvdata',
     'author': 'HERA Team',
     'license': 'BSD',
-    'package_dir': {'uvdata': 'uvdata'},
-    'packages': ['uvdata'],
+    'package_dir': {'pyuvdata': 'pyuvdata'},
+    'packages': ['pyuvdata'],
     'scripts': glob.glob('scripts/*'),
     'version': __version__,
-    'package_data': {'uvdata': [f for f in listdir('./uvdata/data') if op.isfile(op.join('./uvdata/data', f))]},
+    'package_data': {'pyuvdata': [f for f in listdir('./pyuvdata/data') if op.isfile(op.join('./pyuvdata/data', f))]},
     'install_requires': ['numpy>=1.10', 'scipy', 'astropy>=1.2', 'pyephem', 'aipy']
 }
 
