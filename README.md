@@ -17,7 +17,7 @@ The three main goals are:
 * uvfits -> miriad (aipy)
 * miriad (aipy) -> uvfits
 * FHD -> uvfits
-* FHD -> miriad
+* FHD -> miriad (aipy)
 
 ## File standards
 * miriad is supported for aipy-style analysis, further testing is required for use in the miriad package
@@ -55,7 +55,6 @@ First install dependencies. The numpy and astropy versions are important, so be 
 * numpy >= 1.10
 * scipy
 * astropy >= 1.2
-* pyephem
 * aipy
 
 
