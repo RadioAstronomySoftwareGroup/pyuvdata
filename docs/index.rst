@@ -113,6 +113,7 @@ install.
 -  numpy >= 1.10
 -  scipy
 -  astropy >= 1.2
+-  pyephem
 -  aipy
 
 Install pyuvdata
