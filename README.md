@@ -53,8 +53,8 @@ First install dependencies. The numpy and astropy versions are important, so be 
 * numpy >= 1.10
 * scipy
 * astropy >= 1.2
+* pyephem
 * aipy
-
 
 ## Install pyuvdata
 For simple installation, the latest stable version is available via pip using ```pip install pyuvdata```
