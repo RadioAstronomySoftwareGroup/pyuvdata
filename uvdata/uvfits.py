@@ -11,6 +11,8 @@ import parameter as uvp
 class UVFITS(UVData):
     """
     Defines a uvfits-specific subclass of UVData for reading and writing uvfits files.
+    This class should not be interacted with directly, instead use the read_uvfits
+    and write_uvfits methods on the UVData class.
 
     Attributes:
         uvfits_required_extra: Names of optional UVParameters that are required

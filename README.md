@@ -29,6 +29,7 @@ The three main goals are:
 * testing against miriad package
 * replacing AIPY and pyephem with astropy+NOVAS for time and phase calculations
 * support for direct reading and writing of Measurement Sets
+* support for calibration solutions: define a cal object with read/write support for FITS and other formats
 
 For details see the [issue log](https://github.com/HERA-Team/pyuvdata/issues).
 
@@ -45,9 +46,6 @@ Comments on existing issues are also welcome.
 # History
 pyuvdata was originally developed in the low frequency 21cm community to support the development of calibration and foreground subtraction pipelines. Particular focus has been paid to supporting drift and phased array modes.
 
-
-
-
 # Installation
 ## Dependencies
 First install dependencies. The numpy and astropy versions are important, so be sure to make sure these are up to date before you install.
@@ -59,17 +57,21 @@ First install dependencies. The numpy and astropy versions are important, so be 
 
 
 ## Install pyuvdata
-Download the latest release here: https://github.com/HERA-Team/pyuvdata/releases/latest
+For simple installation, the latest stable version is available via pip using ```pip install pyuvdata```
 
-Navigate into the directory and run
-`python setup.py install` Note that this will automatically install all dependencies.  If you use anaconda or another package manager you might prefer to do not do this.
+### Optionally install the development version
+For the development version, clone the repository using
+```git clone https://github.com/HERA-Team/pyuvdata/releases/latest```
+
+Navigate into the directory and run ```python setup.py install```.
+Note that this will automatically install all dependencies. If you use anaconda or another package manager you might prefer not to do this.
 
 To install without dependencies, run
-`python setup.py install --no-dependencies`
+```python setup.py install --no-dependencies```
 
 ## Tests
 Requires installation of `nose` package.
-From the source pyuvdata directory run `nosetests`.
+From the source pyuvdata directory run ```nosetests```.
 
 
 # API

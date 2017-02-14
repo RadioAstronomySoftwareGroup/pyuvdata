@@ -54,6 +54,8 @@ Known Issues and Planned Improvements
 -  replacing AIPY and pyephem with astropy+NOVAS for time and phase
    calculations
 -  support for direct reading and writing of Measurement Sets
+-  support for calibration solutions: define a cal object with
+   read/write support for FITS and other formats
 
 For details see the `issue
 log <https://github.com/HERA-Team/pyuvdata/issues>`__.
@@ -98,12 +100,18 @@ install.
 Install pyuvdata
 ----------------
 
-Download the latest release here:
-https://github.com/HERA-Team/pyuvdata/releases/latest
+For simple installation, the latest stable version is available via pip
+using ``pip install pyuvdata``
 
-Navigate into the directory and run ``python setup.py install`` Note
+Optionally install the development version
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+For the development version, clone the repository using
+``git clone https://github.com/HERA-Team/pyuvdata/releases/latest``
+
+Navigate into the directory and run ``python setup.py install``. Note
 that this will automatically install all dependencies. If you use
-anaconda or another package manager you might prefer to do not do this.
+anaconda or another package manager you might prefer not to do this.
 
 To install without dependencies, run
 ``python setup.py install --no-dependencies``
