@@ -4,9 +4,9 @@ import os
 import numpy as np
 import copy
 import ephem
-from uvdata import UVData
-import uvdata.tests as uvtest
-from uvdata.data import DATA_PATH
+from pyuvdata import UVData
+import pyuvdata.tests as uvtest
+from pyuvdata.data import DATA_PATH
 
 
 class TestUVDataInit(object):

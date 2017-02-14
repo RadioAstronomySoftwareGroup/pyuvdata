@@ -2,8 +2,8 @@
 import nose.tools as nt
 import numpy as np
 import copy
-from uvdata import UVBase
-from uvdata import parameter as uvp
+from pyuvdata import UVBase
+from pyuvdata import parameter as uvp
 
 
 class UVTest(UVBase):

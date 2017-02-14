@@ -9,9 +9,9 @@ a) miriad (aipy) -> uvfits
 **************************
 ::
 
-  from uvdata import UVData
+  from pyuvdata import UVData
   UV = UVData()
-  miriad_file = 'uvdata/data/new.uvA'
+  miriad_file = 'pyuvdata/data/new.uvA'
   UV.read_miriad(miriad_file)  # this miriad file is known to be a drift scan
   UV.write_uvfits('new.uvfits', force_phase=True, spoof_nonessential=True)  # write out the uvfits file
 
@@ -19,9 +19,9 @@ b) uvfits -> miriad (aipy)
 **************************
 ::
 
-  from uvdata import UVData
+  from pyuvdata import UVData
   UV = UVData()
-  uvfits_file = 'uvdata/data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
+  uvfits_file = 'pyuvdata/data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
   UV.read_uvfits(uvfits_file)
   UV.write_uvfits('day2_TDEM0003_10s_norx_1src_1spw.uv')  # write out the miriad file
 
@@ -29,9 +29,9 @@ c) FHD -> uvfits
 ****************
 When reading FHD format, we need to point to several files.::
 
-  from uvdata import UVData
+  from pyuvdata import UVData
   UV = UVData()
-  fhd_prefix = 'uvdata/data/fhd_vis_data/1061316296_'
+  fhd_prefix = 'pyuvdata/data/fhd_vis_data/1061316296_'
   # Construct the list of files
   fhd_files = [fhd_prefix + f for f in ['flags.sav', 'vis_XX.sav', 'params.sav',
                                         'vis_YY.sav', 'vis_model_XX.sav',
@@ -43,9 +43,9 @@ d) FHD -> miriad (aipy)
 ****************
 ::
 
-  from uvdata import UVData
+  from pyuvdata import UVData
   UV = UVData()
-  fhd_prefix = 'uvdata/data/fhd_vis_data/1061316296_'
+  fhd_prefix = 'pyuvdata/data/fhd_vis_data/1061316296_'
   # Construct the list of files
   fhd_files = [fhd_prefix + f for f in ['flags.sav', 'vis_XX.sav', 'params.sav',
                                         'vis_YY.sav', 'vis_model_XX.sav',
@@ -57,10 +57,10 @@ Example 2
 ---------
 Phasing/unphasing data::
 
-  from uvdata import UVData
+  from pyuvdata import UVData
   import ephem
   UV = UVData()
-  miriad_file = 'uvdata/data/new.uvA'
+  miriad_file = 'pyuvdata/data/new.uvA'
   UV.read_miriad(miriad_file)
   print(UV.phase_type)  # Data is a drift scan
   UV.phase_to_time(UV.time_array[0])  # Phases the data to the zenith at first time step
@@ -72,11 +72,11 @@ Example 3
 ---------
 Making a simple waterfall plot::
 
-  from uvdata import UVData
+  from pyuvdata import UVData
   import numpy as np
   import matplotlib.pyplot as plt
   UV = UVData()
-  filename = 'uvdata/data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
+  filename = 'pyuvdata/data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
   UV.read_uvfits(filename)
   print(UV.data_array.shape)  # Data should have shape (Nblts, Nspws, Nfreqs, Npols)
   print(UV.Ntimes)  # Number of time samples in data

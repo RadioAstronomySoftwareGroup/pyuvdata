@@ -1,9 +1,9 @@
 """Tests for UVFITS object."""
 import nose.tools as nt
 import os
-from uvdata import UVData
-import uvdata.tests as uvtest
-from uvdata.data import DATA_PATH
+from pyuvdata import UVData
+import pyuvdata.tests as uvtest
+from pyuvdata.data import DATA_PATH
 
 
 def test_ReadNRAO():

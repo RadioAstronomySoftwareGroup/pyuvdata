@@ -1,4 +1,4 @@
-"""init file for uvdata."""
+"""init file for pyuvdata."""
 from .uvbase import *
 from .parameter import *
 from .uvdata import *

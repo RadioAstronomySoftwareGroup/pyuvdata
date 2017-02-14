@@ -1,9 +1,9 @@
 """Tests for FHD object."""
 import nose.tools as nt
 import os
-from uvdata import UVData
-import uvdata.tests as uvtest
-from uvdata.data import DATA_PATH
+from pyuvdata import UVData
+import pyuvdata.tests as uvtest
+from pyuvdata.data import DATA_PATH
 
 # set up FHD file list
 testdir = os.path.join(DATA_PATH, 'fhd_vis_data/')
