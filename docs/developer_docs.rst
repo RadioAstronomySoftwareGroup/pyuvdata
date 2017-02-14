@@ -34,5 +34,8 @@ Functions
 
 .. autofunction:: telescopes.get_telescope
 
+
+Utility Functions
+-----------------
 .. automodule:: utils
   :members:
