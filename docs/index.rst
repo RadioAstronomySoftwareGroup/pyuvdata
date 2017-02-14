@@ -3,6 +3,7 @@
 
 
 
+
 pyuvdata
 ========
 
@@ -49,6 +50,7 @@ File formats for calibration data
    coming versions, based on user needs. Consider it to be in a beta
    version, but we will strive to make future versions backwards
    compatible with the current format.
+
 
 File standards
 --------------
@@ -110,7 +112,6 @@ install.
 -  numpy >= 1.10
 -  scipy
 -  astropy >= 1.2
--  pyephem
 -  aipy
 
 Install pyuvdata
