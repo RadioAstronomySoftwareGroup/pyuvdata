@@ -21,6 +21,9 @@ Classes
 .. autoclass:: uvbase.UVBase
   :members:
 
+.. autoclass:: uvdata.UVData
+  :members:
+
 .. autoclass:: uvfits.UVFITS
   :members:
 
