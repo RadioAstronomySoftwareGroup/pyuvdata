@@ -36,6 +36,7 @@ The three main goals are:
 * support for direct reading and writing of Measurement Sets
 * expand support for calibration solutions: support other formats beyond FITS
 
+
 For details see the [issue log](https://github.com/HERA-Team/pyuvdata/issues).
 
 ## Community Guidelines
@@ -70,6 +71,7 @@ For simple installation, the latest stable version is available via pip using ``
 ### Optionally install the development version
 For the development version, clone the repository using
 ```git clone https://github.com/HERA-Team/pyuvdata.git```
+
 
 Navigate into the directory and run ```python setup.py install```.
 Note that this will automatically install any missing dependencies. If you use anaconda or another package manager you might prefer to first install the dependencies as described above.

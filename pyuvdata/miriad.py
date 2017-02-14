@@ -17,6 +17,7 @@ class Miriad(UVData):
     """
 
 
+
     def _pol_to_ind(self, pol):
         if self.polarization_array is None:
             raise(ValueError, "Can't index polarization {p} because "

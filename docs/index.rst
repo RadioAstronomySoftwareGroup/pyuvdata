@@ -74,6 +74,7 @@ Known Issues and Planned Improvements
 -  expand support for calibration solutions: support other formats
    beyond FITS
 
+
 For details see the `issue
 log <https://github.com/HERA-Team/pyuvdata/issues>`__.
 
@@ -126,6 +127,7 @@ Optionally install the development version
 
 For the development version, clone the repository using
 ``git clone https://github.com/HERA-Team/pyuvdata.git``
+
 
 Navigate into the directory and run ``python setup.py install``. Note
 that this will automatically install all dependencies. If you use
