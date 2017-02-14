@@ -1,4 +1,4 @@
-UVdata Class
+UVData Class
 =============
 
 UVData is the main user class. It provides import and export functionality to
