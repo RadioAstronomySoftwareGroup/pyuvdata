@@ -7,7 +7,7 @@ UVBase. This module also includes specialiazed sublasses for particular types
 of metadata.
 """
 import numpy as np
-from . import utils
+import utils
 
 
 class UVParameter(object):
