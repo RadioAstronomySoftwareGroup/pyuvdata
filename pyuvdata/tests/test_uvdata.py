@@ -4,9 +4,9 @@ import os
 import numpy as np
 import copy
 import ephem
-from pyuvdata import UVData
-import pyuvdata.tests as uvtest
-from pyuvdata.data import DATA_PATH
+from uvdata import UVData
+import uvdata.tests as uvtest
+from uvdata.data import DATA_PATH
 
 
 class TestUVDataInit(object):
@@ -57,8 +57,7 @@ class TestUVDataInit(object):
         self.other_properties = ['telescope_location_lat_lon_alt',
                                  'telescope_location_lat_lon_alt_degrees',
                                  'phase_center_ra_degrees', 'phase_center_dec_degrees',
-                                 'zenith_ra_degrees', 'zenith_dec_degrees',
-                                 'pyuvdata_version_str']
+                                 'zenith_ra_degrees', 'zenith_dec_degrees']
 
         self.uv_object = UVData()
 
@@ -145,27 +144,6 @@ class TestUVDataBasicMethods(object):
 
     def test_check(self):
         """Test simple check function."""
-        nt.assert_true(self.uv_object.check())
-        # Check variety of special cases
-        self.uv_object.Nants_data += 1
-        nt.assert_raises(ValueError, self.uv_object.check)
-        self.uv_object.Nants_data -= 1
-        self.uv_object.Nbls += 1
-        nt.assert_raises(ValueError, self.uv_object.check)
-        self.uv_object.Nbls -= 1
-        self.uv_object.Ntimes += 1
-        nt.assert_raises(ValueError, self.uv_object.check)
-        self.uv_object.Ntimes -= 1
-
-        # Check case where all data is autocorrelations
-        # Currently only test files that have autos are fhd files
-        testdir = os.path.join(DATA_PATH, 'fhd_vis_data/')
-        self.uv_object.read_fhd([testdir + '1061316296_flags.sav',
-                                 testdir + '1061316296_vis_XX.sav',
-                                 testdir + '1061316296_params.sav',
-                                 testdir + '1061316296_settings.txt'])
-        self.uv_object.select(blt_inds=np.where(self.uv_object.ant_1_array ==
-                                                self.uv_object.ant_2_array)[0])
         nt.assert_true(self.uv_object.check())
 
     def test_nants_data_telescope(self):
