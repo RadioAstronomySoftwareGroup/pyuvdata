@@ -1,5 +1,5 @@
 .. pyuvdata documentation master file, created by
-   make_index.py on 2017-01-14
+   make_index.py on 2017-02-14
 
 pyuvdata
 ========
@@ -33,7 +33,7 @@ Tested File Paths
 -  uvfits -> miriad (aipy)
 -  miriad (aipy) -> uvfits
 -  FHD -> uvfits
--  FHD -> miriad
+-  FHD -> miriad (aipy)
 
 File standards
 --------------
@@ -93,7 +93,6 @@ install.
 -  numpy >= 1.10
 -  scipy
 -  astropy >= 1.2
--  pyephem
 -  aipy
 
 Install pyuvdata

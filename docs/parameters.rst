@@ -105,7 +105,7 @@ are required for most kinds of uv data files.
      Array of times, center of integration, shape (Nblts), units Julian Date
 
 **uvw_array**
-     Projected baseline vectors relative to phase center, shape (Nblts, 3), units meters
+     Projected baseline vectors relative to phase center, shape (3, Nblts), units meters
 
 **vis_units**
      Visibility units, options are: "uncalib", "Jy" or "K str"
@@ -154,4 +154,4 @@ Some of them are required depending on the phase_type (as noted below).
 **zenith_ra**
      Required if phase_type = "drift". Right ascension of zenith. units: radians, shape (Nblts). Can also be accessed using zenith_ra_degrees.
 
-last updated: 2016-11-22
+last updated: 2017-02-14
