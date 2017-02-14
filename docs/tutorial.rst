@@ -39,7 +39,7 @@ When reading FHD format, we need to point to several files.::
   UV.read_fhd(fhd_files)
   UV.write_uvfits('1061316296.uvfits', spoof_nonessential=True)
 
-d) FHD -> miriad
+d) FHD -> miriad (aipy)
 ****************
 ::
 
