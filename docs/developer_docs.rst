@@ -9,10 +9,16 @@ Classes
 .. autoclass:: parameter.UVParameter
   :members:
 
-.. autoclass:: uvbase.UVBase
+.. autoclass:: parameter.AntPositionParameter
   :members:
 
-.. autoclass:: uvdata.UVData
+.. autoclass:: parameter.AngleParameter
+  :members:
+
+.. autoclass:: parameter.LocationParameter
+  :members:
+
+.. autoclass:: uvbase.UVBase
   :members:
 
 .. autoclass:: uvfits.UVFITS

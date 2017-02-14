@@ -26,6 +26,7 @@ out += ('\n\nFurther Documentation\n====================================\n'
         '   :maxdepth: 1\n\n'
         '   tutorial\n'
         '   parameters\n'
+        '   uvdata\n'
         '   developer_docs\n')
 F = open('index.rst', 'w')
 F.write(out)

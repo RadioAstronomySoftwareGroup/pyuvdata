@@ -129,4 +129,5 @@ Further Documentation
 
    tutorial
    parameters
+   uvdata
    developer_docs

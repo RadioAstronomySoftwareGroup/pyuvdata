@@ -19,7 +19,7 @@ class UVData(UVBase):
     Provides phasing functions.
 
     Attributes:
-        UVParameter objects: For full list see Parameters (docs/parameters.rst).
+        UVParameter objects: For full list see Parameters (docs/parameters.rst or https://pyuvdata.readthedocs.io/en/latest/parameters.html).
             Some are always required, some are required for certain phase_types
             and others are always optional.
     """
@@ -448,7 +448,15 @@ class UVData(UVBase):
         self.lst_array = np.array(lsts)
 
     def juldate2ephem(self, num):
-        """Convert Julian date to ephem date, measured from noon, Dec. 31, 1899."""
+        """
+        Convert Julian date to ephem date, measured from noon, Dec. 31, 1899.
+
+        Args:
+            num: Julian date
+
+        Returns:
+            ephem date, measured from noon, Dec. 31, 1899.
+        """
         return ephem.date(num - 2415020.)
 
     def unphase_to_drift(self):

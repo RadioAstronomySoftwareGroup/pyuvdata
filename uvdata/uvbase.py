@@ -113,7 +113,7 @@ class UVBase(object):
         return fset
 
     def __iter__(self):
-        """Iterate through all UVParameter attributes."""
+        """Iterator for all UVParameter attributes."""
         attribute_list = [a for a in dir(self) if not a.startswith('__') and
                           not callable(getattr(self, a))]
         param_list = []
@@ -125,7 +125,7 @@ class UVBase(object):
             yield a
 
     def required(self):
-        """Iterate through all required UVParameter attributes."""
+        """Iterator for all required UVParameter attributes."""
         attribute_list = [a for a in dir(self) if not a.startswith('__') and
                           not callable(getattr(self, a))]
         required_list = []
@@ -138,7 +138,7 @@ class UVBase(object):
             yield a
 
     def extra(self):
-        """Iterate through all non-required UVParameter attributes."""
+        """Iterator for all non-required UVParameter attributes."""
         attribute_list = [a for a in dir(self) if not a.startswith('__') and
                           not callable(getattr(self, a))]
         extra_list = []

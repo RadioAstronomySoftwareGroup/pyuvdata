@@ -8,7 +8,7 @@ from uvdata import UVData
 
 
 class FHD(UVData):
-    """Defines a FHD-specific class for reading FHD save files."""
+    """Defines a FHD-specific subclass of UVData for reading FHD save files."""
 
     def read_fhd(self, filelist, use_model=False, run_check=True, run_sanity_check=True):
         """

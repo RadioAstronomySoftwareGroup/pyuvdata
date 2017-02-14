@@ -10,7 +10,7 @@ import telescopes as uvtel
 
 
 class Miriad(UVData):
-    """Defines a Miriad-speficic class for reading and writing Miriad files."""
+    """Defines a Miriad-speficic subclass of UVData for reading and writing Miriad files."""
 
     def _pol_to_ind(self, pol):
         if self.polarization_array is None:
