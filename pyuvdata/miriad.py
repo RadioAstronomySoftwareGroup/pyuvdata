@@ -457,6 +457,7 @@ class Miriad(UVData):
 
     def write_miriad(self, filepath, run_check=True, run_check_acceptability=True,
                      clobber=False, no_antnums=False):
+
         """
         Write the data to a miriad file.
 

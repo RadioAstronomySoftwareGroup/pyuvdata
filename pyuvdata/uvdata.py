@@ -322,6 +322,7 @@ class UVData(UVBase):
         if np.all(self.ant_1_array == self.ant_2_array):
             # Special case of only containing auto correlations
             self._uvw_array.acceptable_range = (0.0, 0.0)
+
         super(UVData, self).check(run_check_acceptability=run_check_acceptability)
 
         # Check internal consistency of numbers which don't explicitly correspond
@@ -1311,6 +1312,7 @@ class UVData(UVBase):
 
     def write_miriad(self, filepath, run_check=True, run_check_acceptability=True,
                      clobber=False, no_antnums=False):
+
         """
         Write the data to a miriad file.
 
@@ -1327,6 +1329,7 @@ class UVData(UVBase):
         miriad_obj.write_miriad(filepath, run_check=run_check,
                                 run_check_acceptability=run_check_acceptability,
                                 clobber=clobber, no_antnums=no_antnums)
+
         del(miriad_obj)
 
     def reorder_pols(self, order=None, run_check=True, run_check_acceptability=True):
