@@ -181,16 +181,16 @@ class UVBase(object):
         """Not equal."""
         return not self.__eq__(other)
 
-    def check(self, run_sanity_check=True):
+    def check(self, run_check_acceptability=True):
         """
         Check that all required parameters are set reasonably.
 
         Check that required parameters exist and have appropriate shapes.
-        Optionally check if the values are sane.
+        Optionally check if the values are acceptable.
 
         Args:
-            run_sanity_check: Option to check if values in required parameters
-                are sane. Default is True.
+            run_check_acceptability: Option to check if values in required parameters
+                are acceptable. Default is True.
         """
         for p in self.required():
             param = getattr(self, p)
@@ -240,10 +240,10 @@ class UVBase(object):
                                              ' type. Is: ' + str(param.value.dtype) +
                                              '. Should be: ' + str(param.expected_type))
 
-            if run_sanity_check:
-                sane, message = param.sanity_check()
-                if not sane:
-                    raise ValueError('UVParameter ' + p + ' has insane values. ' +
+            if run_check_acceptability:
+                accept, message = param.check_acceptability()
+                if not accept:
+                    raise ValueError('UVParameter ' + p + ' has unacceptable values. ' +
                                      message)
 
         return True

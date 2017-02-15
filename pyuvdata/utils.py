@@ -18,7 +18,7 @@ def LatLonAlt_from_XYZ(xyz):
     Returns:
         tuple of latitude, longitude, altitude values in radians & meters
     """
-    # sanity checking values
+    # checking for acceptable values
     if np.linalg.norm(xyz) < 6.35e6 or np.linalg.norm(xyz) > 6.39e6:
         raise ValueError('xyz values should be topocentric x, y, z coordinates in meters')
 

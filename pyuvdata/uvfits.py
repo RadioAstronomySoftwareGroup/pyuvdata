@@ -41,7 +41,7 @@ class UVFITS(UVData):
                 continue
         return tablenames
 
-    def read_uvfits(self, filename, run_check=True, run_sanity_check=True):
+    def read_uvfits(self, filename, run_check=True, run_check_acceptability=True):
         """
         Read in data from a uvfits file.
 
@@ -49,7 +49,7 @@ class UVFITS(UVData):
             filename: The uvfits file to read from.
             run_check: Option to check for the existence and proper shapes of
                 required parameters after reading in the file. Default is True.
-            run_sanity_check: Option to sanity check the values of
+            run_check_acceptability: Option to check acceptable range of the values of
                 required parameters after reading in the file. Default is True.
         """
         F = fits.open(filename)
@@ -290,10 +290,10 @@ class UVFITS(UVData):
 
         # check if object has all required UVParameters set
         if run_check:
-            self.check(run_sanity_check=run_sanity_check)
+            self.check(run_check_acceptability=run_check_acceptability)
 
     def write_uvfits(self, filename, spoof_nonessential=False,
-                     force_phase=False, run_check=True, run_sanity_check=True):
+                     force_phase=False, run_check=True, run_check_acceptability=True):
         """
         Write the data to a uvfits file.
 
@@ -306,11 +306,11 @@ class UVFITS(UVData):
                 zenith of the first timestamp. Default is False.
             run_check: Option to check for the existence and proper shapes of
                 required parameters before writing the file. Default is True.
-            run_sanity_check: Option to sanity check the values of
+            run_check_acceptability: Option to check acceptable range of the values of
                 required parameters before writing the file. Default is True.
         """
         if run_check:
-            self.check(run_sanity_check=run_sanity_check)
+            self.check(run_check_acceptability=run_check_acceptability)
 
         if self.phase_type == 'phased':
             pass

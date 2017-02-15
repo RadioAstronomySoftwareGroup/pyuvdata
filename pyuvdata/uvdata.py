@@ -53,7 +53,7 @@ class UVData(UVBase):
         desc = 'Visibility units, options are: "uncalib", "Jy" or "K str"'
         self._vis_units = uvp.UVParameter('vis_units', description=desc,
                                           form='str', expected_type=str,
-                                          sane_vals=["uncalib", "Jy", "K str"])
+                                          acceptable_vals=["uncalib", "Jy", "K str"])
 
         desc = ('Number of data points averaged into each data element, '
                 'NOT required to be an integer. type = float, same shape as data_array')
@@ -81,7 +81,7 @@ class UVData(UVBase):
         self._uvw_array = uvp.UVParameter('uvw_array', description=desc,
                                           form=('Nblts', 3),
                                           expected_type=np.float,
-                                          sane_range=(1e-3, 1e8), tols=.001)
+                                          acceptable_range=(1e-3, 1e8), tols=.001)
 
         desc = ('Array of times, center of integration, shape (Nblts), ' +
                 'units Julian Date')
@@ -126,7 +126,7 @@ class UVData(UVBase):
         self._polarization_array = uvp.UVParameter('polarization_array',
                                                    description=desc,
                                                    expected_type=int,
-                                                   sane_vals=list(np.arange(-8, 0)) + list(np.arange(1, 5)),
+                                                   acceptable_vals=list(np.arange(-8, 0)) + list(np.arange(1, 5)),
                                                    form=('Npols',))
 
         self._integration_time = uvp.UVParameter('integration_time',
@@ -155,7 +155,7 @@ class UVData(UVBase):
                 'telescope_location_lat_lon_alt_degrees properties')
         self._telescope_location = uvp.LocationParameter('telescope_location',
                                                          description=desc,
-                                                         sane_range=(6.35e6, 6.39e6),
+                                                         acceptable_range=(6.35e6, 6.39e6),
                                                          tols=1e-3)
 
         self._history = uvp.UVParameter('history', description='String of history, units English',
@@ -166,7 +166,7 @@ class UVData(UVBase):
                 '"phased" and "unknown"')
         self._phase_type = uvp.UVParameter('phase_type', form='str', expected_type=str,
                                            description=desc, value='unknown',
-                                           sane_vals=['drift', 'phased', 'unknown'])
+                                           acceptable_vals=['drift', 'phased', 'unknown'])
 
         desc = ('Required if phase_type = "drift". Right ascension of zenith. '
                 'units: radians, shape (Nblts). Can also be accessed using zenith_ra_degrees.')
@@ -285,21 +285,21 @@ class UVData(UVBase):
 
         super(UVData, self).__init__()
 
-    def check(self, run_sanity_check=True):
+    def check(self, run_check_acceptability=True):
         """
         Add some extra checks on top of checks on UVBase class.
 
         Check that all required parameters are set reasonably.
 
         Check that required parameters exist and have appropriate shapes.
-        Optionally check if the values are sane.
+        Optionally check if the values are acceptable.
 
         Args:
-            run_sanity_check: Option to check if values in required parameters
-                are sane. Default is True.
+            run_check_acceptability: Option to check if values in required parameters
+                are acceptable. Default is True.
         """
         # first run the basic check from UVBase
-        super(UVData, self).check(run_sanity_check=run_sanity_check)
+        super(UVData, self).check(run_check_acceptability=run_check_acceptability)
 
         # then check some other things
         nants_data_calc = int(len(np.unique(self.ant_1_array.tolist() +
@@ -642,7 +642,7 @@ class UVData(UVBase):
             setattr(other_obj, p, param)
         return other_obj
 
-    def read_uvfits(self, filename, run_check=True, run_sanity_check=True):
+    def read_uvfits(self, filename, run_check=True, run_check_acceptability=True):
         """
         Read in data from a uvfits file.
 
@@ -650,18 +650,18 @@ class UVData(UVBase):
             filename: The uvfits file to read from.
             run_check: Option to check for the existence and proper shapes of
                 required parameters after reading in the file. Default is True.
-            run_sanity_check: Option to sanity check the values of
+            run_check_acceptability: Option to check acceptable range of the values of
                 required parameters after reading in the file. Default is True.
         """
         import uvfits
         uvfits_obj = uvfits.UVFITS()
         uvfits_obj.read_uvfits(filename, run_check=run_check,
-                               run_sanity_check=run_sanity_check)
+                               run_check_acceptability=run_check_acceptability)
         self._convert_from_filetype(uvfits_obj)
         del(uvfits_obj)
 
     def write_uvfits(self, filename, spoof_nonessential=False,
-                     force_phase=False, run_check=True, run_sanity_check=True):
+                     force_phase=False, run_check=True, run_check_acceptability=True):
         """
         Write the data to a uvfits file.
 
@@ -674,17 +674,17 @@ class UVData(UVBase):
                 zenith of the first timestamp. Default is False.
             run_check: Option to check for the existence and proper shapes of
                 required parameters before writing the file. Default is True.
-            run_sanity_check: Option to sanity check the values of
+            run_check_acceptability: Option to check acceptable range of the values of
                 required parameters before writing the file. Default is True.
         """
         uvfits_obj = self._convert_to_filetype('uvfits')
         uvfits_obj.write_uvfits(filename, spoof_nonessential=spoof_nonessential,
                                 force_phase=force_phase, run_check=run_check,
-                                run_sanity_check=run_sanity_check)
+                                run_check_acceptability=run_check_acceptability)
         del(uvfits_obj)
 
     def read_fhd(self, filelist, use_model=False, run_check=True,
-                 run_sanity_check=True):
+                 run_check_acceptability=True):
         """
         Read in data from a list of FHD files.
 
@@ -695,17 +695,17 @@ class UVData(UVBase):
                 dirty visibilities. Default is False.
             run_check: Option to check for the existence and proper shapes of
                 required parameters after reading in the file. Default is True.
-            run_sanity_check: Option to sanity check the values of
+            run_check_acceptability: Option to check acceptable range of the values of
                 required parameters after reading in the file. Default is True.
         """
         import fhd
         fhd_obj = fhd.FHD()
         fhd_obj.read_fhd(filelist, use_model=use_model, run_check=run_check,
-                         run_sanity_check=run_sanity_check)
+                         run_check_acceptability=run_check_acceptability)
         self._convert_from_filetype(fhd_obj)
         del(fhd_obj)
 
-    def read_miriad(self, filepath, correct_lat_lon=True, run_check=True, run_sanity_check=True):
+    def read_miriad(self, filepath, correct_lat_lon=True, run_check=True, run_check_acceptability=True):
         """
         Read in data from a miriad file.
 
@@ -713,17 +713,17 @@ class UVData(UVBase):
             filepath: The miriad file directory to read from.
             run_check: Option to check for the existence and proper shapes of
                 required parameters after reading in the file. Default is True.
-            run_sanity_check: Option to sanity check the values of
+            run_check_acceptability: Option to check acceptable range of the values of
                 required parameters after reading in the file. Default is True.
         """
         import miriad
         miriad_obj = miriad.Miriad()
         miriad_obj.read_miriad(filepath, correct_lat_lon=correct_lat_lon,
-                               run_check=run_check, run_sanity_check=run_sanity_check)
+                               run_check=run_check, run_check_acceptability=run_check_acceptability)
         self._convert_from_filetype(miriad_obj)
         del(miriad_obj)
 
-    def write_miriad(self, filepath, run_check=True, run_sanity_check=True,
+    def write_miriad(self, filepath, run_check=True, run_check_acceptability=True,
                      clobber=False):
         """
         Write the data to a miriad file.
@@ -732,12 +732,12 @@ class UVData(UVBase):
             filename: The miriad file directory to write to.
             run_check: Option to check for the existence and proper shapes of
                 required parameters before writing the file. Default is True.
-            run_sanity_check: Option to sanity check the values of
+            run_check_acceptability: Option to check acceptable range of the values of
                 required parameters before writing the file. Default is True.
             clobber: Option to overwrite the filename if the file already exists.
                 Default is False.
         """
         miriad_obj = self._convert_to_filetype('miriad')
         miriad_obj.write_miriad(filepath, run_check=run_check,
-                                run_sanity_check=run_sanity_check, clobber=clobber)
+                                run_check_acceptability=run_check_acceptability, clobber=clobber)
         del(miriad_obj)

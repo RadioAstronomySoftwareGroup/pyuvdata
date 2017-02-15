@@ -95,30 +95,30 @@ def test_close():
     nt.assert_equal(param1, param2)
 
 
-def test_sanity():
-    """Test sanity_check function."""
-    param1 = uvp.UVParameter(name='p1', value=1000, sane_range=(1, 10))
-    nt.assert_false(param1.sanity_check()[0])
+def test_acceptability():
+    """Test check_acceptability function."""
+    param1 = uvp.UVParameter(name='p1', value=1000, acceptable_range=(1, 10))
+    nt.assert_false(param1.check_acceptability()[0])
 
-    param1 = uvp.UVParameter(name='p1', value=np.random.rand(100), sane_range=(.1, .9))
-    nt.assert_true(param1.sanity_check()[0])
-    param1 = uvp.UVParameter(name='p1', value=np.random.rand(100) * 1e-4, sane_range=(.1, .9))
-    nt.assert_false(param1.sanity_check()[0])
+    param1 = uvp.UVParameter(name='p1', value=np.random.rand(100), acceptable_range=(.1, .9))
+    nt.assert_true(param1.check_acceptability()[0])
+    param1 = uvp.UVParameter(name='p1', value=np.random.rand(100) * 1e-4, acceptable_range=(.1, .9))
+    nt.assert_false(param1.check_acceptability()[0])
 
-    param2 = uvp.UVParameter(name='p2', value=5, sane_range=(1, 10))
-    nt.assert_true(param2.sanity_check()[0])
-    param2 = uvp.UVParameter(name='p2', value=5, sane_vals=[1, 10])
-    nt.assert_false(param2.sanity_check()[0])
+    param2 = uvp.UVParameter(name='p2', value=5, acceptable_range=(1, 10))
+    nt.assert_true(param2.check_acceptability()[0])
+    param2 = uvp.UVParameter(name='p2', value=5, acceptable_vals=[1, 10])
+    nt.assert_false(param2.check_acceptability()[0])
 
 
-def test_string_sanity():
-    """Test sanity_check function with strings."""
+def test_string_acceptability():
+    """Test check_acceptability function with strings."""
     param1 = uvp.UVParameter(name='p1', value='Bob', form='str',
-                             sane_vals=['Alice', 'Eve'])
-    nt.assert_false(param1.sanity_check()[0])
+                             acceptable_vals=['Alice', 'Eve'])
+    nt.assert_false(param1.check_acceptability()[0])
     param2 = uvp.UVParameter(name='p2', value='Eve', form='str',
-                             sane_vals=['Alice', 'Eve'])
-    nt.assert_true(param2.sanity_check()[0])
+                             acceptable_vals=['Alice', 'Eve'])
+    nt.assert_true(param2.check_acceptability()[0])
 
 
 def test_expected_shape():
