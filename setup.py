@@ -21,7 +21,7 @@ setup_args = {
                     'License :: OSI Approved :: BSD License',
                     'Programming Language :: Python :: 2.7',
                     'Topic :: Scientific/Engineering :: Astronomy'],
-    keywords: 'radio astronomy interferometry'
+    'keywords': 'radio astronomy interferometry'
 }
 
 if __name__ == '__main__':
