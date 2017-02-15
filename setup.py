@@ -15,6 +15,7 @@ setup_args = {
     'url': 'https://github.com/HERA-Team/pyuvdata',
     'license': 'BSD',
     'description': 'an interface for astronomical interferometeric datasets in python',
+
     'package_dir': {'pyuvdata': 'pyuvdata', 'uvdata': 'uvdata'},
     'packages': ['pyuvdata', 'uvdata'],
     'scripts': glob.glob('scripts/*'),
