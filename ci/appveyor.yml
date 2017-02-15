@@ -1,3 +1,6 @@
+# Doesn't work because aipy doesn't compile on Windows.
+# Moved out of main folder until aipy dependency is resolved.
+#
 # based on PANDAS appveyor.yml
 # https://searchcode.com/file/116370094/appveyor.yml
 # Which references the following sites as inspiration
