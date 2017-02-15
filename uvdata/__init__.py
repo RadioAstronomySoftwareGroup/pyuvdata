@@ -1,3 +1,3 @@
 """init file for uvdata."""
 
-raise ImportError('uvdata is depricated. Please use "import pyuvdata".')
+raise ImportError('uvdata is deprecated. Please use "import pyuvdata".')
