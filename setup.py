@@ -31,9 +31,6 @@ setup_args = {
                     'Topic :: Scientific/Engineering :: Astronomy'],
     'keywords': 'radio astronomy interferometry'
 
-
-
-
 }
 
 if __name__ == '__main__':
