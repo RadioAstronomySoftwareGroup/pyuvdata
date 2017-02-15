@@ -20,7 +20,7 @@ setup_args = {
                     'Intended Audience :: Science/Research',
                     'License :: OSI Approved :: BSD License',
                     'Programming Language :: Python :: 2.7',
-                    'Topic :: Scientific/Engineering :: Astronomy']
+                    'Topic :: Scientific/Engineering :: Astronomy'],
     keywords: 'radio astronomy interferometry'
 }
 
