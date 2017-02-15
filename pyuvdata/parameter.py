@@ -39,9 +39,9 @@ class UVParameter(object):
         expected_type: The type that the data or metadata should be.
             Default is np.int or str if form is 'str'
 
-        sane_vals: Optional. List giving allowed values for elements of value.
+        acceptable_vals: Optional. List giving allowed values for elements of value.
 
-        sane_range: Optional. Tuple giving a range of allowed magnitudes for elements of value.
+        acceptable_range: Optional. Tuple giving a range of allowed magnitudes for elements of value.
 
         tols: Tolerances for testing the equality of UVParameters. Either a
             single absolute value or a tuple of relative and absolute values to
@@ -49,8 +49,8 @@ class UVParameter(object):
     """
 
     def __init__(self, name, required=True, value=None, spoof_val=None,
-                 form=(), description='', expected_type=None, sane_vals=None,
-                 sane_range=None, tols=(1e-05, 1e-08)):
+                 form=(), description='', expected_type=None, acceptable_vals=None,
+                 acceptable_range=None, tols=(1e-05, 1e-08)):
         """Init UVParameter object."""
         self.name = name
         self.required = required
@@ -64,8 +64,8 @@ class UVParameter(object):
             self.expected_type = str
         else:
             self.expected_type = expected_type
-        self.sane_vals = sane_vals
-        self.sane_range = sane_range
+        self.acceptable_vals = acceptable_vals
+        self.acceptable_range = acceptable_range
         if np.size(tols) == 1:
             # Only one tolerance given, assume absolute, set relative to zero
             self.tols = (0, tols)
@@ -170,14 +170,14 @@ class UVParameter(object):
                     eshape = eshape + (val,)
             return eshape
 
-    def sanity_check(self):
-        """Check that values are sane."""
-        if self.sane_vals is None and self.sane_range is None:
-            return True, 'No sanity check'
+    def check_acceptability(self):
+        """Check that values are acceptable."""
+        if self.acceptable_vals is None and self.acceptable_range is None:
+            return True, 'No acceptability check'
         else:
-            # either sane_vals or sane_range is set. Prefer sane_vals
-            if self.sane_vals is not None:
-                # sane_vals are a list of allowed values
+            # either acceptable_vals or acceptable_range is set. Prefer acceptable_vals
+            if self.acceptable_vals is not None:
+                # acceptable_vals are a list of allowed values
                 if self.expected_type is str:
                     # strings need to be converted to lower case
                     if isinstance(self.value, str):
@@ -185,27 +185,27 @@ class UVParameter(object):
                     else:
                         # this is a list or array of strings, make them all lower case
                         value_set = set([x.lower() for x in self.value])
-                    sane_vals = [x.lower() for x in self.sane_vals]
+                    acceptable_vals = [x.lower() for x in self.acceptable_vals]
                 else:
                     if isinstance(self.value, (list, np.ndarray)):
                         value_set = set(list(self.value))
                     else:
                         value_set = set([self.value])
-                    sane_vals = self.sane_vals
+                    acceptable_vals = self.acceptable_vals
                 for elem in value_set:
-                    if elem not in sane_vals:
+                    if elem not in acceptable_vals:
                         message = ('Value {val}, is not in allowed values: '
-                                   '{sane_vals}'.format(val=elem, sane_vals=sane_vals))
+                                   '{acceptable_vals}'.format(val=elem, acceptable_vals=acceptable_vals))
                         return False, message
-                return True, 'Value is sane'
+                return True, 'Value is acceptable'
             else:
-                # sane_range is a tuple giving a range of allowed magnitudes
+                # acceptable_range is a tuple giving a range of allowed magnitudes
                 testval = np.mean(np.abs(self.value))
-                if (testval >= self.sane_range[0]) and (testval <= self.sane_range[1]):
-                    return True, 'Value is sane'
+                if (testval >= self.acceptable_range[0]) and (testval <= self.acceptable_range[1]):
+                    return True, 'Value is acceptable'
                 else:
                     message = ('Value {val}, is not in allowed range: '
-                               '{sane_range}'.format(val=testval, sane_range=self.sane_range))
+                               '{acceptable_range}'.format(val=testval, acceptable_range=self.acceptable_range))
                     return False, message
 
 
@@ -267,12 +267,12 @@ class LocationParameter(UVParameter):
     properties associated with these parameters).
     """
     def __init__(self, name, required=True, value=None, spoof_val=None, description='',
-                 sane_range=(6.35e6, 6.39e6), tols=1e-3):
+                 acceptable_range=(6.35e6, 6.39e6), tols=1e-3):
         super(LocationParameter, self).__init__(name, required=required, value=value,
                                                 spoof_val=spoof_val, form=(3,),
                                                 description=description,
                                                 expected_type=np.float,
-                                                sane_range=sane_range, tols=tols)
+                                                acceptable_range=acceptable_range, tols=tols)
 
     def lat_lon_alt(self):
         """Get value in (latitude, longitude, altitude) tuple in radians."""
@@ -319,18 +319,18 @@ class LocationParameter(UVParameter):
                                                   longitude * np.pi / 180.,
                                                   altitude)
 
-    def sanity_check(self):
-        """Check that values are sane. Special case for location, where
+    def check_acceptability(self):
+        """Check that values are acceptable. Special case for location, where
             we want to check the vector magnitude
         """
-        if self.sane_range is None:
-            return True, 'No sanity check'
+        if self.acceptable_range is None:
+            return True, 'No acceptability check'
         else:
-            # sane_range is a tuple giving a range of allowed vector magnitudes
+            # acceptable_range is a tuple giving a range of allowed vector magnitudes
             testval = np.sqrt(np.sum(np.abs(self.value)**2))
-            if (testval >= self.sane_range[0]) and (testval <= self.sane_range[1]):
-                return True, 'Value is sane'
+            if (testval >= self.acceptable_range[0]) and (testval <= self.acceptable_range[1]):
+                return True, 'Value is acceptable'
             else:
                 message = ('Value {val}, is not in allowed range: '
-                           '{sane_range}'.format(val=testval, sane_range=self.sane_range))
+                           '{acceptable_range}'.format(val=testval, acceptable_range=self.acceptable_range))
                 return False, message

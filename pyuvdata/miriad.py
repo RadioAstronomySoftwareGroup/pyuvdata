@@ -26,7 +26,7 @@ class Miriad(UVData):
                   "polarization_array".format(pol=pol))
         return pol_ind
 
-    def read_miriad(self, filepath, correct_lat_lon=True, run_check=True, run_sanity_check=True):
+    def read_miriad(self, filepath, correct_lat_lon=True, run_check=True, run_check_acceptability=True):
         """
         Read in data from a miriad file.
 
@@ -36,7 +36,7 @@ class Miriad(UVData):
                 to update the latitude and longitude from the known_telescopes list
             run_check: Option to check for the existence and proper shapes of
                 required parameters after reading in the file. Default is True.
-            run_sanity_check: Option to sanity check the values of
+            run_check_acceptability: Option to check acceptable range of the values of
                 required parameters after reading in the file. Default is True.
         """
         if not os.path.exists(filepath):
@@ -359,9 +359,9 @@ class Miriad(UVData):
 
         # check if object has all required uv_properties set
         if run_check:
-            self.check(run_sanity_check=run_sanity_check)
+            self.check(run_check_acceptability=run_check_acceptability)
 
-    def write_miriad(self, filepath, run_check=True, run_sanity_check=True, clobber=False):
+    def write_miriad(self, filepath, run_check=True, run_check_acceptability=True, clobber=False):
         """
         Write the data to a miriad file.
 
@@ -369,7 +369,7 @@ class Miriad(UVData):
             filename: The miriad file directory to write to.
             run_check: Option to check for the existence and proper shapes of
                 required parameters before writing the file. Default is True.
-            run_sanity_check: Option to sanity check the values of
+            run_check_acceptability: Option to check acceptable range of the values of
                 required parameters before writing the file. Default is True.
             clobber: Option to overwrite the filename if the file already exists.
                 Default is False.
@@ -490,5 +490,5 @@ class Miriad(UVData):
 
                 uv.write(preamble, data, flags)
         if run_check:
-            """Check for units sanity."""
-            self.check(run_sanity_check=run_sanity_check)
+            """Check for acceptable units."""
+            self.check(run_check_acceptability=run_check_acceptability)
