@@ -3,7 +3,7 @@ import os
 import warnings
 import collections
 import sys
-from uvdata.data import DATA_PATH
+from pyuvdata.data import DATA_PATH
 
 
 def setup_package():

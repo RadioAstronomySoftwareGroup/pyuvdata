@@ -2,7 +2,7 @@
 
 import argparse
 import os.path as op
-from uvdata import UVData
+from pyuvdata import UVData
 
 parser = argparse.ArgumentParser()
 parser.add_argument('uvfits1',
@@ -27,9 +27,9 @@ uv2 = UVData()
 uv2.read_uvfits(uvfits_file2)
 
 if uv1 == uv2:
-    print('uvdata objects from files are equal')
+    print('UVData objects from files are equal')
 else:
-    print('uvdata objects from files are not equal')
+    print('UVData objects from files are not equal')
 
 del(uv1)
 del(uv2)

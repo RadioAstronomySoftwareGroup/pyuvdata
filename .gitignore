@@ -42,7 +42,7 @@ htmlcov/
 nosetests.xml
 coverage.xml
 *,cover
-uvdata/tests/cover
+pyuvdata/tests/cover
 
 # Translations
 *.mo
@@ -58,5 +58,5 @@ docs/_build/
 target/
 
 # exclude data files (can override as needed)
-uvdata/data/
-uvdata/data/test/
+pyuvdata/data/
+pyuvdata/data/test/

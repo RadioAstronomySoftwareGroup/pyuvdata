@@ -2,7 +2,7 @@
 
 import argparse
 import os.path as op
-from uvdata import UVData
+from pyuvdata import UVData
 
 parser = argparse.ArgumentParser()
 parser.add_argument('uvfits_read',

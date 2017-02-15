@@ -4,7 +4,7 @@ import argparse
 import os
 import os.path as op
 import re
-from uvdata import UVData
+from pyuvdata import UVData
 
 
 def parse_range(string):

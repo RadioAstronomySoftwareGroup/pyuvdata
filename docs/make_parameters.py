@@ -1,7 +1,7 @@
 """
 Format the UVData object parameters into a sphinx rst file.
 """
-from uvdata import UVData
+from pyuvdata import UVData
 import numpy as np
 from astropy.time import Time
 
