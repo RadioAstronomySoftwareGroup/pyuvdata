@@ -1,5 +1,5 @@
 .. pyuvdata documentation master file, created by
-   make_index.py on 2017-02-14
+   make_index.py on 2017-02-15
 
 pyuvdata
 ========
@@ -121,7 +121,7 @@ Tests
 -----
 
 Requires installation of ``nose`` package. From the source pyuvdata
-directory run ``nosetests``.
+directory run ``nosetests pyuvdata``.
 
 API
 ===

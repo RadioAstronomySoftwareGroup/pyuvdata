@@ -25,4 +25,4 @@ install:
   - conda install -c pkgw aipy
   - python setup.py install
 
-script: nosetests
+script: nosetests pyuvdata

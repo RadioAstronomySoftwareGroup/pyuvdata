@@ -71,7 +71,7 @@ To install without dependencies, run
 
 ## Tests
 Requires installation of `nose` package.
-From the source pyuvdata directory run ```nosetests```.
+From the source pyuvdata directory run ```nosetests pyuvdata```.
 
 
 # API
