@@ -67,7 +67,7 @@ class UVCal(UVBase):
         self._polarization_array = uvp.UVParameter('polarization_array',
                                                    description=desc,
                                                    expected_type=int,
-                                                   sane_vals=list(np.arange(-8, 0)) + list(np.arange(1, 5)),
+                                                   acceptable_vals=list(np.arange(-8, 0)) + list(np.arange(1, 5)),
                                                    form=('Npols',))
 
         desc = ('Array of times, center of integration, shape (Ntimes), ' +
@@ -90,7 +90,7 @@ class UVCal(UVBase):
         self._gain_convention = uvp.UVParameter('gain_convention', form='str',
                                                 expected_type=str,
                                                 description=desc,
-                                                sane_vals=['divide', 'multiply'])
+                                                acceptable_vals=['divide', 'multiply'])
 
         desc = ('Array of flags, True is flagged.'
                 'shape: (Nants_data, Nfreqs, Ntimes, Npols), type = bool.')
@@ -111,13 +111,13 @@ class UVCal(UVBase):
                 'unknown.')
         self._x_orientation = uvp.UVParameter('x_orientation', description=desc,
                                               expected_type=str,
-                                              sane_vals=['east', 'north', 'unknown'])
+                                              acceptable_vals=['east', 'north', 'unknown'])
         # --- cal_type parameters ---
         desc = ('cal type parameter. Values are delay, gain or unknown.')
         self._cal_type = uvp.UVParameter('cal_type', form='str',
                                          expected_type=str, value='unknown',
                                          description=desc,
-                                         sane_vals=['delay', 'gain', 'unknown'])
+                                         acceptable_vals=['delay', 'gain', 'unknown'])
 
         desc = ('Array of gains, shape: (Nants_data, Nfreqs, Ntimes, '
                 'Npols), type = complex float.')
@@ -144,21 +144,21 @@ class UVCal(UVBase):
                                                  expected_type=np.bool)
         super(UVCal, self).__init__()
 
-    def check(self, run_sanity_check=True):
+    def check(self, run_check_acceptability=True):
         """
         Add some extra checks on top of checks on UVBase class.
 
         Check that all required parameters are set reasonably.
 
         Check that required parameters exist and have appropriate shapes.
-        Optionally check if the values are sane.
+        Optionally check if the values are acceptable.
 
         Args:
-            run_sanity_check: Option to check if values in required parameters
-                are sane. Default is True.
+            run_check_acceptability: Option to check if values in required parameters
+                are acceptable. Default is True.
         """
         # first run the basic check from UVBase
-        super(UVCal, self).check(run_sanity_check=run_sanity_check)
+        super(UVCal, self).check(run_check_acceptability=run_check_acceptability)
 
         # then check some other things
         nants_data_calc = int(len(np.unique(self.antenna_numbers)))
@@ -208,7 +208,7 @@ class UVCal(UVBase):
             setattr(other_obj, p, param)
         return other_obj
 
-    def read_calfits(self, filename, run_check=True, run_sanity_check=True):
+    def read_calfits(self, filename, run_check=True, run_check_acceptability=True):
         """
         Read in data from a calfits file.
 
@@ -218,12 +218,12 @@ class UVCal(UVBase):
         import calfits
         uvfits_obj = calfits.CALFITS()
         uvfits_obj.read_calfits(filename, run_check=run_check,
-                                run_sanity_check=run_sanity_check)
+                                run_check_acceptability=run_check_acceptability)
         self._convert_from_filetype(uvfits_obj)
         del(uvfits_obj)
 
     def write_calfits(self, filename, spoof_nonessential=False,
-                      run_check=True, run_sanity_check=True, clobber=False):
+                      run_check=True, run_check_acceptability=True, clobber=False):
         """Write data to a calfits file.
 
         Args:
@@ -233,7 +233,7 @@ class UVCal(UVBase):
                 Default is False.
             run_check: Option to check for the existence and proper shapes of
                 required parameters before writing the file. Default is True.
-            run_sanity_check: Option to sanity check the values of
+            run_check_acceptability: Option to check acceptability of the values of
                 required parameters before writing the file. Default is True.
             clobber: Overwrite file.
         """
@@ -241,6 +241,6 @@ class UVCal(UVBase):
         calfits_obj.write_calfits(filename,
                                   spoof_nonessential=spoof_nonessential,
                                   run_check=run_check,
-                                  run_sanity_check=run_sanity_check,
+                                  run_check_acceptability=run_check_acceptability,
                                   clobber=clobber)
         del(calfits_obj)

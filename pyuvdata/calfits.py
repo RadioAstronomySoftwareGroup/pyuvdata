@@ -12,7 +12,7 @@ class CALFITS(UVCal):
     uvfits_required_extra = []
 
     def write_calfits(self, filename, spoof_nonessential=False,
-                      run_check=True, run_sanity_check=True, clobber=False):
+                      run_check=True, run_check_acceptability=True, clobber=False):
         """
         Write the data to a uvfits file.
 
@@ -23,12 +23,12 @@ class CALFITS(UVCal):
                 Default is False.
             run_check: Option to check for the existence and proper shapes of
                 required parameters before writing the file. Default is True.
-            run_sanity_check: Option to sanity check the values of
+            run_check_acceptability: Option to check acceptability of the values of
                 required parameters before writing the file. Default is True.
 
         """
         if run_check:
-            self.check(run_sanity_check=run_sanity_check)
+            self.check(run_check_acceptability=run_check_acceptability)
 
         for p in self.extra():
             param = getattr(self, p)
@@ -149,7 +149,7 @@ class CALFITS(UVCal):
         hdulist = fits.HDUList([prihdu, ant_hdu])
         hdulist.writeto(filename, clobber=clobber)
 
-    def read_calfits(self, filename, run_check=True, run_sanity_check=True):
+    def read_calfits(self, filename, run_check=True, run_check_acceptability=True):
         F = fits.open(filename)
         data = F[0].data
         hdr = F[0].header.copy()
@@ -186,4 +186,4 @@ class CALFITS(UVCal):
         self.time_array = np.arange(self.Ntimes)*hdr['CDELT3'] + hdr['CRVAL3']
 
         if run_check:
-            self.check(run_sanity_check=run_sanity_check)
+            self.check(run_check_acceptability=run_check_acceptability)
