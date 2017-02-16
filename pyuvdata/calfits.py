@@ -1,6 +1,6 @@
 from astropy.io import fits
 import numpy as np
-from .cal import UVCal
+from cal import UVCal
 import datetime
 
 
