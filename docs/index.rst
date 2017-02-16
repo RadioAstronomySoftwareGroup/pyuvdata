@@ -1,5 +1,5 @@
 .. pyuvdata documentation master file, created by
-   make_index.py on 2017-03-16
+   make_index.py on 2017-02-16
 
 pyuvdata
 ========
@@ -131,8 +131,10 @@ API
 
 The primary interface to data from python is via the UVData object. It
 provides import and export functionality to all supported file formats
-(UVFITS, Miriad, FHD) and can be interacted with directly. The
-attributes of the UVData object are described in the parameters description.
+(UVFITS, Miriad, FHD) and can be interacted with directly. The primary
+calibration interface is via the UVCal object. The attributes of the
+UVData and UVCal objects are described in the parameters and
+cal\_parameters description.
 
 Further Documentation
 ====================================
@@ -142,4 +144,6 @@ Further Documentation
    tutorial
    parameters
    uvdata
+   cal_parameters
+   uvcal
    developer_docs

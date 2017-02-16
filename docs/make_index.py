@@ -48,6 +48,8 @@ out += ('\n\nFurther Documentation\n====================================\n'
         '   tutorial\n'
         '   parameters\n'
         '   uvdata\n'
+        '   cal_parameters\n'
+        '   uvcal\n'
         '   developer_docs\n')
 F = open('index.rst', 'w')
 F.write(out)
