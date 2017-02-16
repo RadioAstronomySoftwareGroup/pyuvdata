@@ -1,0 +1,10 @@
+include *.md
+include LICENSE
+include *.bib
+include scripts/*.pro
+include scripts/*.sh
+recursive-include pyuvdata/data *
+prune pyuvdata/data/test
+recursive-include docs *
+exclude docs/.DS_Store
+prune docs/_build

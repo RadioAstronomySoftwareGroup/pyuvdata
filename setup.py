@@ -3,13 +3,14 @@ import glob
 import os.path as op
 from os import listdir
 
-__version__ = '1.0'
+__version__ = '1.0.1'
 
 setup_args = {
     'name': 'pyuvdata',
     'author': 'HERA Team',
     'url': 'https://github.com/HERA-Team/pyuvdata',
     'license': 'BSD',
+    'description': 'an interface for astronomical interferometeric datasets in python',
     'package_dir': {'pyuvdata': 'pyuvdata', 'uvdata': 'uvdata'},
     'packages': ['pyuvdata', 'uvdata'],
     'scripts': glob.glob('scripts/*'),
