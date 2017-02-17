@@ -10,9 +10,18 @@ t.out_subfmt = 'date'
 out = ('.. pyuvdata documentation master file, created by\n'
        '   make_index.py on {date}\n\n').format(date=t.iso)
 
+readme_md = pypandoc.convert_file('../readme.md', 'md')
+branch_str = 'https://travis-ci.org/HERA-Team/pyuvdata.svg'
+regex_branch = re.compile(branch_str)
+loc_branch = re.search(regex_branch, readme_md).start()
+end_branch_str = '\)\]'
+regex_end = re.compile(end_branch_str)
+loc_end = re.search(regex_end, readme_md).start()
+branch_url = readme_md[loc_branch:loc_end]
+
 readme_text = pypandoc.convert_file('../readme.md', 'rst')
 
-rst_status_badge = '.. image:: https://travis-ci.org/HERA-Team/pyuvdata.svg?branch=master\n    :target: https://travis-ci.org/HERA-Team/pyuvdata'
+rst_status_badge = '.. image:: ' + branch_url + '\n    :target: https://travis-ci.org/HERA-Team/pyuvdata'
 status_badge_text = '|Build Status|'
 readme_text = readme_text.replace(status_badge_text, rst_status_badge)
 
