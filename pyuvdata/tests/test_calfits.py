@@ -15,7 +15,7 @@ def test_readwriteread():
     """
     uv_in = UVCal()
     uv_out = UVCal()
-    testfile = os.path.join(DATA_PATH, 'test123.fits')
+    testfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.fitsA')
     write_file = os.path.join(DATA_PATH, 'test/outtest_omnical.fits')
     read_status = uvtest.checkWarnings(uv_in.read_calfits, [testfile],
                                        nwarnings=0,

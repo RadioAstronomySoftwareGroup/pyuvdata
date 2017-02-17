@@ -86,7 +86,7 @@ class TestUVCalBasicMethods(object):
     def setUp(self):
         """Set up test"""
         self.uv_cal_object = UVCal()
-        self.testfile = os.path.join(DATA_PATH, 'test123.fits')
+        self.testfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.fitsA')
         self.uv_cal_object.read_calfits(self.testfile)
         uvtest.checkWarnings(self.uv_cal_object.read_calfits, [self.testfile],
                              message='Telescope EVLA is not')
