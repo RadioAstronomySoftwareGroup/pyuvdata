@@ -1,5 +1,6 @@
 """Class for reading and writing uvfits files."""
 from astropy import constants as const
+import astropy
 from astropy.time import Time
 from astropy.io import fits
 import numpy as np
@@ -557,4 +558,7 @@ class UVFITS(UVData):
 
         # write the file
         hdulist = fits.HDUList(hdus=[hdu, ant_hdu])
-        hdulist.writeto(filename, clobber=True)
+        if float(astropy.__version__[0:3]) < 1.3:
+            hdulist.writeto(filename, clobber=True)
+        else:
+            hdulist.writeto(filename, overwrite=True)
