@@ -71,8 +71,6 @@ class Miriad(UVData):
             # get info from known telescopes. Check to make sure the lat/lon values match reasonably well
             telescope_obj = uvtel.get_telescope(self.telescope_name)
             if telescope_obj is not False:
-                # attribute_list = [a for a in dir(telescope_obj) if not a.startswith('__') and
-                #                   not callable(getattr(telescope_obj, a))]
 
                 tol = 2 * np.pi * 1e-3 / (60.0 * 60.0 * 24.0)  # 1mas in radians
                 lat_close = np.isclose(telescope_obj.telescope_location_lat_lon_alt[0],
