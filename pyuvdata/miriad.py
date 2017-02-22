@@ -55,6 +55,7 @@ class Miriad(UVData):
                               # as the same
                               'telescope_name': 'telescop',
                               'instrument': 'telescop'
+
                               }
         for item in miriad_header_data:
             if isinstance(uv[miriad_header_data[item]], str):
@@ -63,6 +64,10 @@ class Miriad(UVData):
                 header_value = uv[miriad_header_data[item]]
             setattr(self, item, header_value)
 
+	try:
+            self.antenna_positions=uv['antpos']
+        except(KeyError):
+            self.antenna_positions=np.zeros((3, self.Nants_telescope)).T
         latitude = uv['latitud']  # in units of radians
         longitude = uv['longitu']
         try:
