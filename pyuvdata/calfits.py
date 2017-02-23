@@ -9,8 +9,6 @@ class CALFITS(UVCal):
     Defines a calfits-specific class for reading and writing uvfits files.
     """
 
-    uvfits_required_extra = []
-
     def write_calfits(self, filename, spoof_nonessential=False,
                       run_check=True, run_check_acceptability=True, clobber=False):
         """
@@ -30,24 +28,6 @@ class CALFITS(UVCal):
         if run_check:
             self.check(run_check_acceptability=run_check_acceptability)
 
-        for p in self.extra():
-            param = getattr(self, p)
-            if param.name in self.uvfits_required_extra:
-                if param.value is None:
-                    if spoof_nonessential:
-                        # spoof extra keywords required for uvfits
-                        if isinstance(param, uvp.AntPositionParameter):
-                            param.apply_spoof(self, 'Nants_telescope')
-                        else:
-                            param.apply_spoof()
-                        setattr(self, p, param)
-                    else:
-                        raise ValueError('Required attribute {attribute} '
-                                         'for uvfits not defined. Define or '
-                                         'set spoof_nonessential to True to '
-                                         'spoof this attribute.'
-                                         .format(attribute=p))
-
         # Need to add in switch for gain/delay.
         # This is first draft of writing to FITS.
         today = datetime.date.today().strftime("Date: %d, %b %Y")
@@ -57,65 +37,64 @@ class CALFITS(UVCal):
         prihdr['BITPIX'] = 32
         prihdr['NAXIS'] = 5
         #prihdr['NAXIS1'] = (self.Nants_data, 'Number and antennas')
-        prihdr['TELESCOP'] = ('HERA', 'Telescope of calibration')
-        prihdr['OBSERVER'] = 'Observer'
-        prihdr['DATE'] = today
-        prihdr['CALPIPE'] = ('Omnical', 'Calibration pipeline')
-        prihdr['ORIGIN'] = ('origin', 'git origin of pipeline')
-        prihdr['HASH'] = ('git hash', 'git hash number')
+        prihdr['TELESCOP'] = self.telescope
         prihdr['GNCONVEN'] = self.gain_convention
         prihdr['NTIMES'] = self.Ntimes
         prihdr['NFREQS'] = self.Nfreqs
         prihdr['NANTSDAT'] = self.Nants_data
         prihdr['NPOLS'] = self.Npols
-
+        prihdr['CALTYPE'] = self.cal_type
+        prihdr['INTTIME'] = self.integration_time
+        prihdr['CHWIDTH'] = self.channel_width
         prihdr['NANTSTEL'] = self.Nants_telescope
         prihdr['HISTORY'] = self.history
         prihdr['NSPWS'] = self.Nspws
         prihdr['XORIENT'] = self.x_orientation
 
-        if np.all(self.gain_array):
+        if self.pipeline: prihdr['CALPIPE'] = self.pipeline
+        if self.observer: prihdr['OBSERVER'] = self.observer
+        if self.git_origin: prihdr['ORIGIN'] = self.git_origin
+        if self.git_hash: prihdr['HASH'] = self.git_hash
+
+        if self.cal_type == 'gain':
             # Set header variable for gain.
             prihdr['CTYPE4'] = ('FREQS', 'Frequency.')
-            prihdr['CUNIT4'] = ('GHz', 'Units of frequecy.')
+            prihdr['CUNIT4'] = ('Hz', 'Units of frequecy.')
             prihdr['CRVAL4'] = self.freq_array[0][0]
-            try:
-                prihdr['CDELT4'] = self.freq_array[0][1] - self.freq_array[0][0]
-            except(IndexError):
-                prihdr['CDELT4'] = 0.0
+            prihdr['CDELT4'] = self.channel_width
 
             # set the last axis for number of arrays.
             prihdr['CTYPE1'] = ('Narrays', 'Number of image arrays.')
             prihdr['CUNIT1'] = ('Integer', 'Number of image arrays. Increment.')
-            prihdr['CRVAL1'] = (4, 'Number of image arryays.')
+            prihdr['CRVAL1'] = (3, 'Number of image arryays.')
             prihdr['CDELT1'] = 1
 
             pridata = np.concatenate([self.gain_array.real[:, :, :, :, np.newaxis],
                                       self.gain_array.imag[:, :, :, :, np.newaxis],
-                                      self.flag_array[:, :, :, :, np.newaxis],
+                                      # self.flag_array[:, :, :, :, np.newaxis],
                                       self.quality_array[:, :, :, :, np.newaxis]],
                                      axis=-1)
 
-        elif np.all(self.delay_array):
+        if self.cal_type == 'delay':
             # Set header variable for gain.
             prihdr['CTYPE4'] = ('FREQS', 'Valid frequencies to apply delay.')
-            prihdr['CUNIT4'] = ('GHz', 'Units of frequecy.')
+            prihdr['CUNIT4'] = ('Hz', 'Units of frequecy.')
             prihdr['CRVAL4'] = self.freq_array[0][0]
-            try:
-                prihdr['CDELT4'] = self.freq_array[0][1] - self.freq_array[0][0]
-            except(IndexError):
-                prihdr['CDELT4'] = 0.0
-            prihdr['CDELT4'] = self.freq_array[0][1] - self.freq_array[0][0]
+            prihdr['CDELT4'] = self.channel_width
             # set the last axis for number of arrays.
             prihdr['CTYPE1'] = ('Narrays', 'Number of image arrays.')
             prihdr['CUNIT1'] = ('Integer', 'Number of image arrays. Value.')
-            prihdr['CRVAL1'] = (3, 'Number of image arrays.')
+            prihdr['CRVAL1'] = (2, 'Number of image arrays.')
             prihdr['CDELT1'] = 1
 
             pridata = np.concatenate([self.delay_array[:, :, :, :, np.newaxis],
-                                      self.flag_array[:, :, :, :, np.newaxis],
+                                      # self.flag_array[:, :, :, :, np.newaxis],
                                       self.quality_array[:, :, :, :, np.newaxis]],
                                      axis=-1)
+
+        if self.cal_type == 'unknown':
+            raise ValueError("unknown calibration type. Do not know how to"
+                             "store parameters")
 
         # header ctypes for NAXIS
         prihdr['CTYPE5'] = ('ANTS', 'Antenna numbering.')
@@ -126,11 +105,9 @@ class CALFITS(UVCal):
         prihdr['CTYPE3'] = ('TIME', 'Time axis.')
         prihdr['CUNIT3'] = ('JD', 'Time in julian date format')
         prihdr['CRVAL3'] = self.time_array[0]
-        try:
-            prihdr['CDELT3'] = self.time_array[1] - self.time_array[0]
-        except(IndexError):
-            prihdr['CDELT3'] = 0.0
+        prihdr['CDELT3'] = self.integration_time
 
+        # more checks for polarization. check ordering.
         prihdr['CTYPE2'] = ('POLS', 'Polarization array')
         prihdr['CUNIT2'] = ('Integer', 'representative integer for polarization.')
         prihdr['CRVAL2'] = self.polarization_array[0] #always start with xx data etc.
@@ -145,8 +122,13 @@ class CALFITS(UVCal):
         cols = fits.ColDefs([col1, col2])
         ant_hdu = fits.BinTableHDU.from_columns(cols)
 
+        sechdr = fits.Header()
+        secdata = self.flag_array
+
+        sechdu = fits.PrimaryHDU(data=secdata, header=sechdr)
+        sechdu = fits.PrimaryHDU(data=secdata, header=sechdr)
         prihdu = fits.PrimaryHDU(data=pridata, header=prihdr)
-        hdulist = fits.HDUList([prihdu, ant_hdu])
+        hdulist = fits.HDUList([prihdu, ant_hdu, sechdu])
         hdulist.writeto(filename, clobber=clobber)
 
     def read_calfits(self, filename, run_check=True, run_check_acceptability=True):
@@ -157,17 +139,36 @@ class CALFITS(UVCal):
         antdata = F[1].data
         self.antenna_names = map(str, antdata['ANTNAME'])
         self.antenna_numbers = map(int, antdata['ANTINDEX'])
+
         self.Nfreqs = hdr['NFREQS']
         self.Npols = hdr['NPOLS']
         self.Ntimes = hdr['NTIMES']
+        self.channel_widt = hdr['CHWIDHT']
+        self.integration_time = hdr['INTTIME']
+        self.telescope_name = hdr['TELESCOP']
+        #for line in self.history.splitlines():
+        #    hdu.header.add_history(line)
+        # see 196 in uvfits.
         self.history = str(hdr.get('HISTORY', ''))
         self.Nspws = hdr['NSPWS']
         self.Nants_data = hdr['NANTSDAT']
         self.Nants_telescope = hdr['NANTSTEL']
         self.gain_convention = hdr['GNCONVEN']
         self.x_orientation = hdr['XORIENT']
+        try:
+            self.observer = hdr['OBSERVER']
+        except: pass
+        try:
+            self.pipeline = hdr['CALPIPE']
+        except: pass
+        try:
+            self.git_origin = hd['ORIGIN']
+        except: pass
+        try:
+            self.git_hash = hd['HASH']
+        except: pass
 
-        # get data
+        # get data. XXX check file type for switch.
         if data.shape[-1] == 4:
             self.gain_array = data[:, :, :, :, 0] + 1j*data[:, :, :, :, 1]
             self.flag_array = np.array(data[:, :, :, :, 2], dtype=np.bool)
