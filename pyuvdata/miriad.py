@@ -68,6 +68,7 @@ class Miriad(UVData):
             self.antenna_positions=uv['antpos']
         except(KeyError):
             self.antenna_positions=np.zeros((3, self.Nants_telescope)).T
+
         latitude = uv['latitud']  # in units of radians
         longitude = uv['longitu']
         try:
