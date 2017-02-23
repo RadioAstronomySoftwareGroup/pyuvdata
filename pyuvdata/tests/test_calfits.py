@@ -1,7 +1,7 @@
 """Tests for calfits object"""
 import nose.tools as nt
 import os
-from pyuvdata.cal import UVCal
+from pyuvdata.uvcal import UVCal
 import pyuvdata.tests as uvtest
 from pyuvdata.data import DATA_PATH
 

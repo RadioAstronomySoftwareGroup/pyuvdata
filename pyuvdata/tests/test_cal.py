@@ -4,7 +4,7 @@ import os
 import numpy as np
 import copy
 import ephem
-from pyuvdata.cal import UVCal
+from pyuvdata.uvcal import UVCal
 import pyuvdata.tests as uvtest
 from pyuvdata.data import DATA_PATH
 
@@ -120,6 +120,5 @@ class TestUVCalBasicMethods(object):
         self.uv_cal_object.set_delay()
         nt.assert_true(self.uv_cal_object._delay_array.required)
         nt.assert_false(self.uv_cal_object._gain_array.required)
-        nt.assert_equal(self.uv_cal_object._delay_array.form, self.uv_cal_object._flag_array.form)
+        nt.assert_equal(self.uv_cal_object._gain_array.form, self.uv_cal_object._flag_array.form)
         nt.assert_equal(self.uv_cal_object._delay_array.form, self.uv_cal_object._quality_array.form)
-        nt.assert_equal(self.uv_cal_object._quality_array.form, self.uv_cal_object._flag_array.form)
