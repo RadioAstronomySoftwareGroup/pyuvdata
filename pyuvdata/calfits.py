@@ -1,6 +1,6 @@
 from astropy.io import fits
 import numpy as np
-from cal import UVCal
+from uvcal import UVCal
 import datetime
 
 
@@ -36,8 +36,7 @@ class CALFITS(UVCal):
         prihdr['SIMPLE'] = True
         prihdr['BITPIX'] = 32
         prihdr['NAXIS'] = 5
-        #prihdr['NAXIS1'] = (self.Nants_data, 'Number and antennas')
-        prihdr['TELESCOP'] = self.telescope
+        prihdr['TELESCOP'] = self.telescope_name
         prihdr['GNCONVEN'] = self.gain_convention
         prihdr['NTIMES'] = self.Ntimes
         prihdr['NFREQS'] = self.Nfreqs
@@ -47,14 +46,22 @@ class CALFITS(UVCal):
         prihdr['INTTIME'] = self.integration_time
         prihdr['CHWIDTH'] = self.channel_width
         prihdr['NANTSTEL'] = self.Nants_telescope
-        prihdr['HISTORY'] = self.history
         prihdr['NSPWS'] = self.Nspws
         prihdr['XORIENT'] = self.x_orientation
+        for line in self.history.splitlines():
+            hdu.header.add_history(line)
 
-        if self.pipeline: prihdr['CALPIPE'] = self.pipeline
-        if self.observer: prihdr['OBSERVER'] = self.observer
-        if self.git_origin: prihdr['ORIGIN'] = self.git_origin
-        if self.git_hash: prihdr['HASH'] = self.git_hash
+        for p in self.extra():
+            ep = getattr(self, p)
+            if ep.form is 'str':
+                prihdr['{0}'.format(p.upper().replace('_', '')[:8])] = ep.value
+            else:
+                continue
+
+        # if self.pipeline: prihdr['CALPIPE'] = self.pipeline
+        # if self.observer: prihdr['OBSERVER'] = self.observer
+        # if self.git_origin: prihdr['ORIGIN'] = self.git_origin
+        # if self.git_hash: prihdr['HASH'] = self.git_hash
 
         if self.cal_type == 'gain':
             # Set header variable for gain.
@@ -123,11 +130,9 @@ class CALFITS(UVCal):
         ant_hdu = fits.BinTableHDU.from_columns(cols)
 
         sechdr = fits.Header()
-        secdata = self.flag_array
-
-        sechdu = fits.PrimaryHDU(data=secdata, header=sechdr)
-        sechdu = fits.PrimaryHDU(data=secdata, header=sechdr)
+        secdata = self.flag_array.astype(np.int64) # Can't be bool
         prihdu = fits.PrimaryHDU(data=pridata, header=prihdr)
+        sechdu = fits.ImageHDU(data=secdata, header=sechdr)
         hdulist = fits.HDUList([prihdu, ant_hdu, sechdu])
         hdulist.writeto(filename, clobber=clobber)
 
@@ -143,18 +148,18 @@ class CALFITS(UVCal):
         self.Nfreqs = hdr['NFREQS']
         self.Npols = hdr['NPOLS']
         self.Ntimes = hdr['NTIMES']
-        self.channel_widt = hdr['CHWIDHT']
+        self.channel_width = hdr['CHWIDTH']
         self.integration_time = hdr['INTTIME']
         self.telescope_name = hdr['TELESCOP']
-        #for line in self.history.splitlines():
-        #    hdu.header.add_history(line)
-        # see 196 in uvfits.
         self.history = str(hdr.get('HISTORY', ''))
+        while 'HISTORY' in hdr.keys():
+            hdr.remove('HISTORY')
         self.Nspws = hdr['NSPWS']
         self.Nants_data = hdr['NANTSDAT']
         self.Nants_telescope = hdr['NANTSTEL']
         self.gain_convention = hdr['GNCONVEN']
         self.x_orientation = hdr['XORIENT']
+        self.cal_type = hdr['CALTYPE']
         try:
             self.observer = hdr['OBSERVER']
         except: pass
@@ -169,18 +174,17 @@ class CALFITS(UVCal):
         except: pass
 
         # get data. XXX check file type for switch.
-        if data.shape[-1] == 4:
-            self.gain_array = data[:, :, :, :, 0] + 1j*data[:, :, :, :, 1]
-            self.flag_array = np.array(data[:, :, :, :, 2], dtype=np.bool)
-            self.quality_array = data[:, :, :, :, 3]
+        if self.cal_type == 'gain':
             self.set_gain()
-        if data.shape[-1] == 3:
+            self.gain_array = data[:, :, :, :, 0] + 1j*data[:, :, :, :, 1]
+            self.quality_array = data[:, :, :, :, 2]
+        if self.cal_type == 'delay':
             self.set_delay()
             self.delay_array = data[:, :, :, :, 0]
-            self.flag_array = np.array(data[:, :, :, :, 1], dtype=np.bool)
-            self.quality_array = data[:, :, :, :, 2]
+            self.quality_array = data[:, :, :, :, 1]
 
-
+        flag_data = F[2].data
+        self.flag_array = np.array(flag_data, dtype=np.bool)
         # generate frequency, polarization, and time array.
         self.freq_array = np.arange(self.Nfreqs).reshape(1,-1)*hdr['CDELT4'] + hdr['CRVAL4']
         self.polarization_array = np.arange(self.Npols)*hdr['CDELT2'] + hdr['CRVAL2']
