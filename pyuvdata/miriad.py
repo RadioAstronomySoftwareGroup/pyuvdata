@@ -61,10 +61,10 @@ class Miriad(UVData):
                 header_value = uv[miriad_header_data[item]]
             setattr(self, item, header_value)
 
-	try:
-            self.antenna_positions=uv['antpos']
+        try:
+            self.antenna_positions = uv['antpos']
         except(KeyError):
-            self.antenna_positions=None
+            self.antenna_positions = None
 
         latitude = uv['latitud']  # in units of radians
         longitude = uv['longitu']
