@@ -162,7 +162,7 @@ class UVCal(UVBase):
                                            description=desc,
                                            required=False)
 
-        desc = ('Commit hash of calibration software (from git_origin) used'
+        desc = ('Commit hash of calibration software(from git_origin) used'
                 'to generate solutions.')
         self._git_hash = uvp.UVParameter('git_hash', form='str',
                                          expected_type=str,
@@ -176,11 +176,10 @@ class UVCal(UVBase):
                                          required=False)
 
         desc = ('Name of observer who calculated solutions in this file.')
-        self._observer = uvp.UVParameter('observer',
-                                               description=desc,
-                                               form='str',
-                                               expected_type=str,
-                                               required=False)
+        self._observer = uvp.UVParameter('observer', form='str',
+                                         description=desc,
+                                         expected_type=str,
+                                         required=False)
 
 
         super(UVCal, self).__init__()
