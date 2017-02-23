@@ -56,6 +56,7 @@ class Miriad(UVData):
                               'telescope_name': 'telescop',
                               'instrument': 'telescop'
 
+
                               }
         for item in miriad_header_data:
             if isinstance(uv[miriad_header_data[item]], str):
