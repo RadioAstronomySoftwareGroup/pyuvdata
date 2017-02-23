@@ -24,6 +24,12 @@ class UVCal(UVBase):
                                       'More than one spectral window is not '
                                       'currently supported.', expected_type=int)
 
+        desc = ('Name of telescope. e.g. HERA. String.')
+        self._telescope_name = uvp.UVParameter('telescope_name',
+                                               description=desc,
+                                               form='str',
+                                               expected_type=str)
+
         desc = ('Number of antennas with data present (i.e. number of unique '
                 'entries in ant_1_array and ant_2_array). May be smaller ' +
                 'than the number of antennas in the array')
@@ -84,7 +90,7 @@ class UVCal(UVBase):
                                            tols=1e-3 / (60.0 * 60.0 * 24.0))
 
         desc = ('Integration time of a time bin. Units in JD')
-        self.integration_time = uvp.UVParameter('integration time',
+        self._integration_time = uvp.UVParameter('integration_time',
                                                 description=desc,
                                                 expected_type=np.float)
 
@@ -152,16 +158,30 @@ class UVCal(UVBase):
 
         desc = ('Origin (on github for e.g) of calibration software. ')
         self._git_origin = uvp.UVParameter('git_origin', form='str',
-                                           expected_type=str, value='none',
+                                           expected_type=str,
                                            description=desc,
                                            required=False)
 
-        desc = ('Commit hash of calibration software (from git_origin) used
+        desc = ('Commit hash of calibration software (from git_origin) used'
                 'to generate solutions.')
         self._git_hash = uvp.UVParameter('git_hash', form='str',
-                                         expected_type=str, value='none',
+                                         expected_type=str,
                                          description=desc,
                                          required=False)
+
+        decs = ('Name of calibration pipeline, e.g. Omnical. String.')
+        self._pipeline = uvp.UVParameter('pipeline', form='str',
+                                         expected_type=str,
+                                         description=desc,
+                                         required=False)
+
+        desc = ('Name of observer who calculated solutions in this file.')
+        self._observer = uvp.UVParameter('observer',
+                                               description=desc,
+                                               form='str',
+                                               expected_type=str,
+                                               required=False)
+
 
         super(UVCal, self).__init__()
 
@@ -196,15 +216,14 @@ class UVCal(UVBase):
         self.cal_type = 'gain'
         self._gain_array.required = True
         self._delay_array.required = False
-        self.quality_array.form = self._gain_array.form
-        self.flag_array.form = self._gain_array.form
+        self._quality_array.form = self._gain_array.form
+        self._flag_array.form = self._gain_array.form
 
     def set_delay(self):
         """Set cal_type to 'delay' and adjust required parameters."""
         self.cal_type = 'delay'
         self._gain_array.required = False
         self._delay_array.required = True
-        # need to specify array shapes for quality and flag if delay.
         self._quality_array.form = self._delay_array.form
         self._flag_array.form = self._gain_array.form
 
@@ -213,8 +232,8 @@ class UVCal(UVBase):
         self.cal_type = 'unknown'
         self._gain_array.required = False
         self._delay_array.required = False
-        self.quality_array.form = self.gain_array.form
-        self.flag_array.form = self._gain_array.form
+        self._quality_array.form = self.gain_array.form
+        self._flag_array.form = self._gain_array.form
 
     def _convert_from_filetype(self, other):
         for p in other:
