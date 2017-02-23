@@ -89,10 +89,11 @@ class UVCal(UVBase):
                                            expected_type=np.float,
                                            tols=1e-3 / (60.0 * 60.0 * 24.0))
 
-        desc = ('Integration time of a time bin. Units in JD')
+        desc = ('Integration time of a time bin (s).')
         self._integration_time = uvp.UVParameter('integration_time',
-                                                description=desc,
-                                                expected_type=np.float)
+                                                 description=desc,
+                                                 expected_type=np.float,
+                                                 tols=1e-3)  # 1ms
 
         desc = ('The convention for applying he calibration solutions to data.'
                 'Indicates that to calibrate one should divide or multiply '
@@ -216,7 +217,7 @@ class UVCal(UVBase):
         self._gain_array.required = True
         self._delay_array.required = False
         self._quality_array.form = self._gain_array.form
-        self._flag_array.form = self._gain_array.form
+
 
     def set_delay(self):
         """Set cal_type to 'delay' and adjust required parameters."""
@@ -224,7 +225,7 @@ class UVCal(UVBase):
         self._gain_array.required = False
         self._delay_array.required = True
         self._quality_array.form = self._delay_array.form
-        self._flag_array.form = self._gain_array.form
+
 
     def set_unknown_cal_type(self):
         """Set cal_type to 'unknown' and adjust required parameters."""
@@ -232,7 +233,7 @@ class UVCal(UVBase):
         self._gain_array.required = False
         self._delay_array.required = False
         self._quality_array.form = self.gain_array.form
-        self._flag_array.form = self._gain_array.form
+        
 
     def _convert_from_filetype(self, other):
         for p in other:

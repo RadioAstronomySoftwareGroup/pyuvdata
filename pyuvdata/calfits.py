@@ -49,7 +49,7 @@ class CALFITS(UVCal):
         prihdr['NSPWS'] = self.Nspws
         prihdr['XORIENT'] = self.x_orientation
         for line in self.history.splitlines():
-            hdu.header.add_history(line)
+            prihdr.add_history(line)
 
         for p in self.extra():
             ep = getattr(self, p)
