@@ -1,0 +1,9 @@
+# Don't build any extra formats
+formats:
+    - none
+conda:
+    file: ci/rtd_env.yml
+python:
+   version: 2.7
+python:
+   setup_py_install: true

@@ -1,0 +1,8 @@
+# conda environment specification for Read the Docs
+name: rtd
+dependencies:
+  - python=2.7
+  - numpy
+  - scipy
+  - astropy
+  - pkgw::aipy
