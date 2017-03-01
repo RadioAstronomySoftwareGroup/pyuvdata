@@ -1,10 +1,11 @@
 .. pyuvdata documentation master file, created by
    make_index.py on 2017-04-14
 
+
 pyuvdata
 ========
 
-.. image:: https://travis-ci.org/HERA-Team/pyuvdata.svg?branch=master
+.. image:: https://travis-ci.org/HERA-Team/pyuvdata.svg?branch=cal
     :target: https://travis-ci.org/HERA-Team/pyuvdata
 
 .. image:: https://coveralls.io/repos/github/HERA-Team/pyuvdata/badge.svg?branch=master
