@@ -11,7 +11,7 @@ import telescopes as uvtel
 
 class Miriad(UVData):
     """
-    Defines a Miriad-speficic subclass of UVData for reading and writing Miriad files.
+    Defines a Miriad-specific subclass of UVData for reading and writing Miriad files.
     This class should not be interacted with directly, instead use the read_miriad
     and write_miriad methods on the UVData class.
     """
@@ -244,8 +244,8 @@ class Miriad(UVData):
         if self.antenna_numbers is None:
             # there are no antenna_numbers or antenna_positions, so just use
             # the ones present in the data
-            if np.max(sorted_unique_ants) < self.Nants_telescope:
-                self.antenna_numbers = np.arange(self.Nants_telescope)
+            self.Nants_telescope = self.Nants_data
+            self.antenna_numbers = np.arange(self.Nants_telescope)
 
         try:
             # horrible hack to save & recover antenna_names array. Miriad can't handle arrays
