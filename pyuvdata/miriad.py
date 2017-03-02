@@ -212,29 +212,38 @@ class Miriad(UVData):
         try:
             antpos = uv['antpos'].reshape(3, nants).T
             if self.Nants_telescope is not None:
+                # in this case there is an antnums variable
+                # (so the file was written with pyuvdata), so we'll use it
                 if nants == self.Nants_telescope:
+                    # no inflation, so just use the positions
                     self.antenna_positions = antpos
                 else:
+                    # there is some inflation, just use the ones that appear in antnums
                     self.antenna_positions = np.zeros((self.Nants_telescope, 3), dtype=antpos.dtype)
                     for ai, num in enumerate(self.antenna_numbers):
                         self.antenna_positions[ai, :] = antpos[num, :]
             else:
+                # there is no antnums variable, test for antennas with non-zero
+                # positions and/or that appear in ant_1_array or ant_2_array
                 antpos_length = np.sqrt(np.sum(np.abs(antpos)**2, axis=1))
                 good_antpos = np.where(antpos_length > 0)[0]
-                if len(good_antpos) >= self.Nants_data:
-                    self.Nants_telescope = len(good_antpos)
-                    self.antenna_numbers = good_antpos
-                    self.antenna_positions = np.zeros((self.Nants_telescope, 3), dtype=antpos.dtype)
-                    for ai, num in enumerate(self.antenna_numbers):
-                        self.antenna_positions[ai, :] = antpos[num, :]
-                else:
-                    raise ValueError('Max antenna number is larger than supported '
-                                     'by the antenna position array and antnums is '
-                                     'not present to convert numbers to indices')
+                ants_use = set(good_antpos).union(sorted_unique_ants)
+                self.Nants_telescope = len(ants_use)
+                self.antenna_numbers = np.array(list(ants_use))
+                self.antenna_positions = np.zeros((self.Nants_telescope, 3), dtype=antpos.dtype)
+                for ai, num in enumerate(self.antenna_numbers):
+                    self.antenna_positions[ai, :] = antpos[num, :]
+                    if antpos_length[num] == 0:
+                        warnings.warn('antenna number {n} has visibilities '
+                                      'associated with it, but it has a position'
+                                      ' of (0,0,0)'.format(n=num))
         except(KeyError):
+            # there is no antpos variable
             self.antenna_positions = None
 
         if self.antenna_numbers is None:
+            # there are no antenna_numbers or antenna_positions, so just use
+            # the ones present in the data
             if np.max(sorted_unique_ants) < self.Nants_telescope:
                 self.antenna_numbers = np.arange(self.Nants_telescope)
 
