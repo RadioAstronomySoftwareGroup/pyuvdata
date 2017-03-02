@@ -51,8 +51,7 @@ class Miriad(UVData):
                               # NB: telescope_name and instrument are treated
                               # as the same
                               'telescope_name': 'telescop',
-                              'instrument': 'telescop',
-                              'Nants_telescope': 'nants'
+                              'instrument': 'telescop'
                               }
         for item in miriad_header_data:
             if isinstance(uv[miriad_header_data[item]], str):
@@ -60,11 +59,6 @@ class Miriad(UVData):
             else:
                 header_value = uv[miriad_header_data[item]]
             setattr(self, item, header_value)
-
-        try:
-            self.antenna_positions = uv['antpos']
-        except(KeyError):
-            self.antenna_positions = None
 
         latitude = uv['latitud']  # in units of radians
         longitude = uv['longitu']
@@ -122,11 +116,6 @@ class Miriad(UVData):
                               'set.'.format(telescope_name=self.telescope_name))
 
         self.history = uv['history']
-        try:
-            self.antenna_positions = \
-                self.antenna_positions.reshape(3, self.Nants_telescope).T
-        except(ValueError):  # workaround for known errors with bad antenna positions
-            self.antenna_positions = None
         self.channel_width *= 1e9  # change from GHz to Hz
 
         # read through the file and get the data
@@ -199,17 +188,56 @@ class Miriad(UVData):
                 if blt not in unique_blts:
                     unique_blts.append(blt)
         self.Nants_data = len(sorted_unique_ants)
+
         try:
             # for some reason Miriad doesn't handle an array of integers properly,
             # so convert to floats on write and back here
             self.antenna_numbers = uv['antnums'].astype(int)
+            self.Nants_telescope = len(self.antenna_numbers)
         except(KeyError):
+            self.antenna_numbers = None
+            self.Nants_telescope = None
+
+        # Miriad has no way to keep track of antenna numbers, so the antenna
+        # numbers are simply the index for each antenna in any array that
+        # describes antenna attributes (e.g. antpos for the antenna_postions).
+        # Therefore, the nants needs to be expanded to be the max value of
+        # antenna_numbers+1 and the antpos array needs to be inflated with
+        # zeros at locations where we don't have antenna information.
+        # These inflations need to be undone at read. If antnums is present,
+        # we can use that, otherwise we need to test for zeros in the antpos
+        # array and/or antennas with no visibilities. (The antnums variable is
+        # safer in the case that there are no antenna_positions)
+        nants = uv['nants']
+        try:
+            antpos = uv['antpos'].reshape(3, nants).T
+            if self.Nants_telescope is not None:
+                if nants == self.Nants_telescope:
+                    self.antenna_positions = antpos
+                else:
+                    self.antenna_positions = np.zeros((self.Nants_telescope, 3), dtype=antpos.dtype)
+                    for ai, num in enumerate(self.antenna_numbers):
+                        self.antenna_positions[ai, :] = antpos[num, :]
+            else:
+                antpos_length = np.sqrt(np.sum(np.abs(antpos)**2, axis=1))
+                good_antpos = np.where(antpos_length > 0)[0]
+                if len(good_antpos) >= self.Nants_data:
+                    self.Nants_telescope = len(good_antpos)
+                    self.antenna_numbers = good_antpos
+                    self.antenna_positions = np.zeros((self.Nants_telescope, 3), dtype=antpos.dtype)
+                    for ai, num in enumerate(self.antenna_numbers):
+                        self.antenna_positions[ai, :] = antpos[num, :]
+                else:
+                    raise ValueError('Max antenna number is larger than supported '
+                                     'by the antenna position array and antnums is '
+                                     'not present to convert numbers to indices')
+        except(KeyError):
+            self.antenna_positions = None
+
+        if self.antenna_numbers is None:
             if np.max(sorted_unique_ants) < self.Nants_telescope:
                 self.antenna_numbers = np.arange(self.Nants_telescope)
-            else:
-                raise ValueError('Max antenna number is larger than supported '
-                                 'by the antenna position array and antnums is '
-                                 'not present to convert numbers to indices')
+
         try:
             # horrible hack to save & recover antenna_names array. Miriad can't handle arrays
             # of strings or a long enough single string to put them all into one string
@@ -413,10 +441,25 @@ class Miriad(UVData):
         uv.add_var('longitu', 'd')
         uv['longitu'] = self.telescope_location_lat_lon_alt[1]
         uv.add_var('nants', 'i')
-        uv['nants'] = self.Nants_telescope
+
+        # Miriad has no way to keep track of antenna numbers, so the antenna
+        # numbers are simply the index for each antenna in any array that
+        # describes antenna attributes (e.g. antpos for the antenna_postions).
+        # Therefore, the nants needs to be expanded to be the max value of
+        # antenna_numbers+1 and the antpos array needs to be inflated with
+        # zeros at locations where we don't have antenna information.
+        # These inflations need to be undone at read. If antnums is present,
+        # we can use that, otherwise we need to test for zeros in the antpos
+        # array and/or antennas with no visibilities. (The antnums variable is
+        # safer in the case that there are no antenna_positions)
+        nants = np.max(self.antenna_numbers) + 1
+        uv['nants'] = nants
         try:
+            antpos = np.zeros((nants, 3), dtype=self.antenna_positions.dtype)
+            for ai, num in enumerate(self.antenna_numbers):
+                antpos[num, :] = self.antenna_positions[ai, :]
             uv.add_var('antpos', 'd')
-            uv['antpos'] = self.antenna_positions.T.flatten()
+            uv['antpos'] = antpos.T.flatten()
         except(AttributeError):
             pass  # don't write bad antenna positions
         uv.add_var('sfreq', 'd')
