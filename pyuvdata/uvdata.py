@@ -626,11 +626,11 @@ class UVData(UVBase):
         if min(blt_inds) < 0:
             raise ValueError('blt_inds contains indices that are negative')
 
-        blt_inds = sorted(list(blt_inds))
+        blt_inds = list(sorted(set(list(blt_inds))))
         self.Nblts = len(blt_inds)
         self.ant_1_array = self.ant_1_array[blt_inds]
         self.ant_2_array = self.ant_2_array[blt_inds]
-        self.Nants_data = int(len(np.unique(self.ant_1_array.tolist() + self.ant_2_array.tolist())))
+        self.Nants_data = int(len(set(self.ant_1_array.tolist() + self.ant_2_array.tolist())))
         self.baseline_array = self.baseline_array[blt_inds]
         self.data_array = self.data_array[blt_inds, :, :, :]
         self.flag_array = self.flag_array[blt_inds, :, :, :]
@@ -648,6 +648,21 @@ class UVData(UVBase):
         if run_check:
             self.check(run_check_acceptability=run_check_acceptability)
 
+    def select_antennas(self, antennas_to_keep, run_check=True, run_check_acceptability=True):
+        inds1 = np.zeros(0, dtype=np.int)
+        inds2 = np.zeros(0, dtype=np.int)
+        for ant in antennas_to_keep:
+            if ant in self.ant_1_array or ant in self.ant_2_array:
+                wh1 = np.where(self.ant_1_array == ant)[0]
+                wh2 = np.where(self.ant_2_array == ant)[0]
+                inds1 = np.append(inds1, list(wh1))
+                inds2 = np.append(inds2, list(wh2))
+            else:
+                raise ValueError('Antenna {a} is not present in the ant_1_array or ant_2_array'.format(a=ant))
+        blt_inds = list(set(inds1).intersection(inds2))
+
+        self.select_blts(blt_inds, run_check=run_check, run_check_acceptability=run_check_acceptability)
+
     def select_times(self, times_to_keep, run_check=True, run_check_acceptability=True):
         blt_inds = np.zeros(0, dtype=np.int)
         for jd in times_to_keep:
@@ -656,6 +671,7 @@ class UVData(UVBase):
                 blt_inds = np.append(blt_inds, np.where(self.time_array == jd)[0])
             else:
                 raise ValueError('Time {t} is not present in the time_array'.format(t=jd))
+
         self.select_blts(blt_inds, run_check=run_check, run_check_acceptability=run_check_acceptability)
 
     def _convert_from_filetype(self, other):

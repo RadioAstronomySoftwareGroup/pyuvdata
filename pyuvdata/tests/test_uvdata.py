@@ -217,6 +217,23 @@ def test_select_blts():
     uv_object.select_blts(blt_inds)
 
 
+def test_antennas():
+    uv_object = UVData()
+    testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    uvtest.checkWarnings(uv_object.read_uvfits, [testfile],
+                         message='Telescope EVLA is not')
+    unique_ants = np.unique(uv_object.ant_1_array.tolist() + uv_object.ant_2_array.tolist())
+    ants_to_keep = np.random.choice(unique_ants, len(unique_ants) / 2, replace=False)
+
+    uv_object.select_antennas(ants_to_keep)
+
+    nt.assert_equal(len(ants_to_keep), uv_object.Nants_data)
+    for ant in ants_to_keep:
+        nt.assert_true(ant in uv_object.ant_1_array or ant in uv_object.ant_2_array)
+    for ant in np.unique(uv_object.ant_1_array.tolist() + uv_object.ant_2_array.tolist()):
+        nt.assert_true(ant in ants_to_keep)
+
+
 def test_select_times():
     uv_object = UVData()
     testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
@@ -224,9 +241,6 @@ def test_select_times():
                          message='Telescope EVLA is not')
     unique_times = np.unique(uv_object.time_array)
     times_to_keep = np.random.choice(unique_times, uv_object.Ntimes / 2, replace=False)
-    for t in times_to_keep:
-        if t not in uv_object.time_array:
-            raise ValueError('chosen time not in time_array!')
 
     uv_object.select_times(times_to_keep)
 
