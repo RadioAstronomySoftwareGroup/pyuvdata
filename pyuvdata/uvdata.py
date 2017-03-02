@@ -628,17 +628,19 @@ class UVData(UVBase):
 
         blt_inds = list(sorted(set(list(blt_inds))))
         self.Nblts = len(blt_inds)
+        self.baseline_array = self.baseline_array[blt_inds]
+        self.time_array = self.time_array[blt_inds]
+        self.lst_array = self.lst_array[blt_inds]
+        self.data_array = self.data_array[blt_inds, :, :, :]
+        self.flag_array = self.flag_array[blt_inds, :, :, :]
+        self.nsample_array = self.nsample_array[blt_inds, :, :, :]
+        self.uvw_array = self.uvw_array[blt_inds, :]
+
         self.ant_1_array = self.ant_1_array[blt_inds]
         self.ant_2_array = self.ant_2_array[blt_inds]
         self.Nants_data = int(len(set(self.ant_1_array.tolist() + self.ant_2_array.tolist())))
-        self.baseline_array = self.baseline_array[blt_inds]
-        self.data_array = self.data_array[blt_inds, :, :, :]
-        self.flag_array = self.flag_array[blt_inds, :, :, :]
-        self.lst_array = self.lst_array[blt_inds]
-        self.nsample_array = self.nsample_array[blt_inds, :, :, :]
-        self.time_array = self.time_array[blt_inds]
+
         self.Ntimes = len(np.unique(self.time_array))
-        self.uvw_array = self.uvw_array[blt_inds, :]
 
         if self.phase_type == 'drift':
             self.zenith_ra = self.zenith_ra[blt_inds]
@@ -665,13 +667,52 @@ class UVData(UVBase):
     def select_times(self, times_to_keep, run_check=True, run_check_acceptability=True):
         blt_inds = np.zeros(0, dtype=np.int)
         for jd in times_to_keep:
-            # test_arr = np.isclose(self.time_array, jd, rtol=self._time_array.tols[0], atol=self._time_array.tols[1])
             if jd in self.time_array:
                 blt_inds = np.append(blt_inds, np.where(self.time_array == jd)[0])
             else:
                 raise ValueError('Time {t} is not present in the time_array'.format(t=jd))
 
         self.select_blts(blt_inds, run_check=run_check, run_check_acceptability=run_check_acceptability)
+
+    def select_frequencies(self, freqs_to_keep, run_check=True, run_check_acceptability=True):
+        freq_inds = np.zeros(0, dtype=np.int)
+        # this works because we only allow one SPW. This will have to be reworked when we support more.
+        freq_arr_use = self.freq_array[0, :]
+        for f in freqs_to_keep:
+            if f in freq_arr_use:
+                freq_inds = np.append(freq_inds, np.where(freq_arr_use == f)[0])
+            else:
+                raise ValueError('Frequency {f} is not present in the freq_array'.format(f=f))
+
+        freq_inds = list(sorted(set(list(freq_inds))))
+        self.Nfreqs = len(freq_inds)
+        self.freq_array = self.freq_array[:, freq_inds]
+        self.data_array = self.data_array[:, :, freq_inds, :]
+        self.flag_array = self.flag_array[:, :, freq_inds, :]
+        self.nsample_array = self.nsample_array[:, :, freq_inds, :]
+
+        # check if object is self-consistent
+        if run_check:
+            self.check(run_check_acceptability=run_check_acceptability)
+
+    def select_polarizations(self, pols_to_keep, run_check=True, run_check_acceptability=True):
+        pol_inds = np.zeros(0, dtype=np.int)
+        for p in pols_to_keep:
+            if p in self.polarization_array:
+                pol_inds = np.append(pol_inds, np.where(self.polarization_array == p)[0])
+            else:
+                raise ValueError('Polarization {p} is not present in the polarization_array'.format(p=p))
+
+        pol_inds = list(sorted(set(list(pol_inds))))
+        self.Npols = len(pol_inds)
+        self.polarization_array = self.polarization_array[pol_inds]
+        self.data_array = self.data_array[:, :, :, pol_inds]
+        self.flag_array = self.flag_array[:, :, :, pol_inds]
+        self.nsample_array = self.nsample_array[:, :, :, pol_inds]
+
+        # check if object is self-consistent
+        if run_check:
+            self.check(run_check_acceptability=run_check_acceptability)
 
     def _convert_from_filetype(self, other):
         for p in other:

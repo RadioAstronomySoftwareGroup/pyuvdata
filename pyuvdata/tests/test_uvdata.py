@@ -249,3 +249,34 @@ def test_select_times():
         nt.assert_true(t in uv_object.time_array)
     for t in np.unique(uv_object.time_array):
         nt.assert_true(t in times_to_keep)
+
+
+def test_select_frequencies():
+    uv_object = UVData()
+    testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    uvtest.checkWarnings(uv_object.read_uvfits, [testfile],
+                         message='Telescope EVLA is not')
+    freqs_to_keep = np.random.choice(uv_object.freq_array[0, :], uv_object.Nfreqs / 10, replace=False)
+    uv_object.select_frequencies(freqs_to_keep)
+
+    nt.assert_equal(len(freqs_to_keep), uv_object.Nfreqs)
+    for t in freqs_to_keep:
+        nt.assert_true(t in uv_object.freq_array)
+    for t in np.unique(uv_object.freq_array):
+        nt.assert_true(t in freqs_to_keep)
+
+
+def test_select_polarizations():
+    uv_object = UVData()
+    testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    uvtest.checkWarnings(uv_object.read_uvfits, [testfile],
+                         message='Telescope EVLA is not')
+    pols_to_keep = np.random.choice(uv_object.polarization_array, uv_object.Npols / 2, replace=False)
+    print('keeping {n} polarizations'.format(n=len(pols_to_keep)))
+    uv_object.select_polarizations(pols_to_keep)
+
+    nt.assert_equal(len(pols_to_keep), uv_object.Npols)
+    for t in pols_to_keep:
+        nt.assert_true(t in uv_object.polarization_array)
+    for t in np.unique(uv_object.polarization_array):
+        nt.assert_true(t in pols_to_keep)
