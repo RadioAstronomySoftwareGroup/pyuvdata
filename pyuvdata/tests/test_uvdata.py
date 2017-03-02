@@ -217,7 +217,7 @@ def test_select_blts():
     uv_object.select_blts(blt_inds)
 
 
-def test_antennas():
+def test_select_antennas():
     uv_object = UVData()
     testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
     uvtest.checkWarnings(uv_object.read_uvfits, [testfile],

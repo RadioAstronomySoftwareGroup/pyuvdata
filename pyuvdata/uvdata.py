@@ -659,8 +659,7 @@ class UVData(UVBase):
                 inds2 = np.append(inds2, list(wh2))
             else:
                 raise ValueError('Antenna {a} is not present in the ant_1_array or ant_2_array'.format(a=ant))
-        blt_inds = list(set(inds1).intersection(inds2))
-
+        blt_inds = np.array(list(set(inds1).intersection(inds2)), dtype=np.int)
         self.select_blts(blt_inds, run_check=run_check, run_check_acceptability=run_check_acceptability)
 
     def select_times(self, times_to_keep, run_check=True, run_check_acceptability=True):
