@@ -205,3 +205,33 @@ def test_phase_unphaseHERA():
     nt.assert_equal(UV_raw, UV_phase)
     del(UV_phase)
     del(UV_raw)
+
+
+def test_select_blts():
+    uv_object = UVData()
+    testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    uvtest.checkWarnings(uv_object.read_uvfits, [testfile],
+                         message='Telescope EVLA is not')
+    blt_inds = np.random.choice(uv_object.Nblts, uv_object.Nblts / 10, replace=False)
+
+    uv_object.select_blts(blt_inds)
+
+
+def test_select_times():
+    uv_object = UVData()
+    testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    uvtest.checkWarnings(uv_object.read_uvfits, [testfile],
+                         message='Telescope EVLA is not')
+    unique_times = np.unique(uv_object.time_array)
+    times_to_keep = np.random.choice(unique_times, uv_object.Ntimes / 2, replace=False)
+    for t in times_to_keep:
+        if t not in uv_object.time_array:
+            raise ValueError('chosen time not in time_array!')
+
+    uv_object.select_times(times_to_keep)
+
+    nt.assert_equal(len(times_to_keep), uv_object.Ntimes)
+    for t in times_to_keep:
+        nt.assert_true(t in uv_object.time_array)
+    for t in np.unique(uv_object.time_array):
+        nt.assert_true(t in times_to_keep)

@@ -620,6 +620,44 @@ class UVData(UVBase):
         del(obs)
         self.set_phased()
 
+    def select_blts(self, blt_inds, run_check=True, run_check_acceptability=True):
+        if max(blt_inds) >= self.Nblts:
+            raise ValueError('blt_inds contains indices that are too large')
+        if min(blt_inds) < 0:
+            raise ValueError('blt_inds contains indices that are negative')
+
+        blt_inds = sorted(list(blt_inds))
+        self.Nblts = len(blt_inds)
+        self.ant_1_array = self.ant_1_array[blt_inds]
+        self.ant_2_array = self.ant_2_array[blt_inds]
+        self.Nants_data = int(len(np.unique(self.ant_1_array.tolist() + self.ant_2_array.tolist())))
+        self.baseline_array = self.baseline_array[blt_inds]
+        self.data_array = self.data_array[blt_inds, :, :, :]
+        self.flag_array = self.flag_array[blt_inds, :, :, :]
+        self.lst_array = self.lst_array[blt_inds]
+        self.nsample_array = self.nsample_array[blt_inds, :, :, :]
+        self.time_array = self.time_array[blt_inds]
+        self.Ntimes = len(np.unique(self.time_array))
+        self.uvw_array = self.uvw_array[blt_inds, :]
+
+        if self.phase_type == 'drift':
+            self.zenith_ra = self.zenith_ra[blt_inds]
+            self.zenith_dec = self.zenith_dec[blt_inds]
+
+        # check if object is self-consistent
+        if run_check:
+            self.check(run_check_acceptability=run_check_acceptability)
+
+    def select_times(self, times_to_keep, run_check=True, run_check_acceptability=True):
+        blt_inds = np.zeros(0, dtype=np.int)
+        for jd in times_to_keep:
+            # test_arr = np.isclose(self.time_array, jd, rtol=self._time_array.tols[0], atol=self._time_array.tols[1])
+            if jd in self.time_array:
+                blt_inds = np.append(blt_inds, np.where(self.time_array == jd)[0])
+            else:
+                raise ValueError('Time {t} is not present in the time_array'.format(t=jd))
+        self.select_blts(blt_inds, run_check=run_check, run_check_acceptability=run_check_acceptability)
+
     def _convert_from_filetype(self, other):
         for p in other:
             param = getattr(other, p)
