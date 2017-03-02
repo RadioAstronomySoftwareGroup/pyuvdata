@@ -620,7 +620,8 @@ class UVData(UVBase):
         del(obs)
         self.set_phased()
 
-    def select_blts(self, blt_inds, run_check=True, run_check_acceptability=True):
+    def select_blts(self, blt_inds, run_check=True, run_check_acceptability=True,
+                    update_history=True):
         if max(blt_inds) >= self.Nblts:
             raise ValueError('blt_inds contains indices that are too large')
         if min(blt_inds) < 0:
@@ -646,6 +647,9 @@ class UVData(UVBase):
             self.zenith_ra = self.zenith_ra[blt_inds]
             self.zenith_dec = self.zenith_dec[blt_inds]
 
+        if update_history:
+            self.history = self.history + '  Downselected to specific baseline-times using pyuvdata.'
+
         # check if object is self-consistent
         if run_check:
             self.check(run_check_acceptability=run_check_acceptability)
@@ -661,8 +665,14 @@ class UVData(UVBase):
                 inds2 = np.append(inds2, list(wh2))
             else:
                 raise ValueError('Antenna {a} is not present in the ant_1_array or ant_2_array'.format(a=ant))
+
         blt_inds = np.array(list(set(inds1).intersection(inds2)), dtype=np.int)
-        self.select_blts(blt_inds, run_check=run_check, run_check_acceptability=run_check_acceptability)
+
+        self.history = self.history + '  Downselected to specific antennas using pyuvdata.'
+
+        self.select_blts(blt_inds, run_check=run_check,
+                         run_check_acceptability=run_check_acceptability,
+                         update_history=False)
 
     def select_times(self, times_to_keep, run_check=True, run_check_acceptability=True):
         blt_inds = np.zeros(0, dtype=np.int)
@@ -672,7 +682,11 @@ class UVData(UVBase):
             else:
                 raise ValueError('Time {t} is not present in the time_array'.format(t=jd))
 
-        self.select_blts(blt_inds, run_check=run_check, run_check_acceptability=run_check_acceptability)
+        self.history = self.history + '  Downselected to specific times using pyuvdata.'
+
+        self.select_blts(blt_inds, run_check=run_check,
+                         run_check_acceptability=run_check_acceptability,
+                         update_history=False)
 
     def select_frequencies(self, freqs_to_keep, run_check=True, run_check_acceptability=True):
         freq_inds = np.zeros(0, dtype=np.int)
@@ -690,6 +704,8 @@ class UVData(UVBase):
         self.data_array = self.data_array[:, :, freq_inds, :]
         self.flag_array = self.flag_array[:, :, freq_inds, :]
         self.nsample_array = self.nsample_array[:, :, freq_inds, :]
+
+        self.history = self.history + '  Downselected to specific frequencies using pyuvdata.'
 
         # check if object is self-consistent
         if run_check:
@@ -709,6 +725,8 @@ class UVData(UVBase):
         self.data_array = self.data_array[:, :, :, pol_inds]
         self.flag_array = self.flag_array[:, :, :, pol_inds]
         self.nsample_array = self.nsample_array[:, :, :, pol_inds]
+
+        self.history = self.history + '  Downselected to specific polarizations using pyuvdata.'
 
         # check if object is self-consistent
         if run_check:
