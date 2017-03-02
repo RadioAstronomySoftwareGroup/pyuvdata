@@ -244,8 +244,8 @@ class Miriad(UVData):
         if self.antenna_numbers is None:
             # there are no antenna_numbers or antenna_positions, so just use
             # the ones present in the data
-            self.Nants_telescope = self.Nants_data
-            self.antenna_numbers = np.arange(self.Nants_telescope)
+            self.antenna_numbers = np.array(sorted_unique_ants)
+            self.Nants_telescope = len(self.antenna_numbers)
 
         try:
             # horrible hack to save & recover antenna_names array. Miriad can't handle arrays
