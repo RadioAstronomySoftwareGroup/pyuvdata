@@ -654,11 +654,11 @@ class UVData(UVBase):
         if run_check:
             self.check(run_check_acceptability=run_check_acceptability)
 
-    def select_antennas(self, antennas_to_keep, run_check=True, run_check_acceptability=True,
+    def select_antennas(self, antennas, run_check=True, run_check_acceptability=True,
                         update_history=True):
         inds1 = np.zeros(0, dtype=np.int)
         inds2 = np.zeros(0, dtype=np.int)
-        for ant in antennas_to_keep:
+        for ant in antennas:
             if ant in self.ant_1_array or ant in self.ant_2_array:
                 wh1 = np.where(self.ant_1_array == ant)[0]
                 wh2 = np.where(self.ant_2_array == ant)[0]
@@ -676,10 +676,10 @@ class UVData(UVBase):
                          run_check_acceptability=run_check_acceptability,
                          update_history=False)
 
-    def select_times(self, times_to_keep, run_check=True, run_check_acceptability=True,
+    def select_times(self, times, run_check=True, run_check_acceptability=True,
                      update_history=True):
         blt_inds = np.zeros(0, dtype=np.int)
-        for jd in times_to_keep:
+        for jd in times:
             if jd in self.time_array:
                 blt_inds = np.append(blt_inds, np.where(self.time_array == jd)[0])
             else:
@@ -692,12 +692,12 @@ class UVData(UVBase):
                          run_check_acceptability=run_check_acceptability,
                          update_history=False)
 
-    def select_frequencies(self, freqs_to_keep, run_check=True, run_check_acceptability=True,
+    def select_frequencies(self, frequencies, run_check=True, run_check_acceptability=True,
                            update_history=True):
         freq_inds = np.zeros(0, dtype=np.int)
         # this works because we only allow one SPW. This will have to be reworked when we support more.
         freq_arr_use = self.freq_array[0, :]
-        for f in freqs_to_keep:
+        for f in frequencies:
             if f in freq_arr_use:
                 freq_inds = np.append(freq_inds, np.where(freq_arr_use == f)[0])
             else:
@@ -717,10 +717,10 @@ class UVData(UVBase):
         if run_check:
             self.check(run_check_acceptability=run_check_acceptability)
 
-    def select_polarizations(self, pols_to_keep, run_check=True, run_check_acceptability=True,
+    def select_polarizations(self, polarizations, run_check=True, run_check_acceptability=True,
                              update_history=True):
         pol_inds = np.zeros(0, dtype=np.int)
-        for p in pols_to_keep:
+        for p in polarizations:
             if p in self.polarization_array:
                 pol_inds = np.append(pol_inds, np.where(self.polarization_array == p)[0])
             else:
