@@ -654,7 +654,8 @@ class UVData(UVBase):
         if run_check:
             self.check(run_check_acceptability=run_check_acceptability)
 
-    def select_antennas(self, antennas_to_keep, run_check=True, run_check_acceptability=True):
+    def select_antennas(self, antennas_to_keep, run_check=True, run_check_acceptability=True,
+                        update_history=True):
         inds1 = np.zeros(0, dtype=np.int)
         inds2 = np.zeros(0, dtype=np.int)
         for ant in antennas_to_keep:
@@ -668,13 +669,15 @@ class UVData(UVBase):
 
         blt_inds = np.array(list(set(inds1).intersection(inds2)), dtype=np.int)
 
-        self.history = self.history + '  Downselected to specific antennas using pyuvdata.'
+        if update_history:
+            self.history = self.history + '  Downselected to specific antennas using pyuvdata.'
 
         self.select_blts(blt_inds, run_check=run_check,
                          run_check_acceptability=run_check_acceptability,
                          update_history=False)
 
-    def select_times(self, times_to_keep, run_check=True, run_check_acceptability=True):
+    def select_times(self, times_to_keep, run_check=True, run_check_acceptability=True,
+                     update_history=True):
         blt_inds = np.zeros(0, dtype=np.int)
         for jd in times_to_keep:
             if jd in self.time_array:
@@ -682,13 +685,15 @@ class UVData(UVBase):
             else:
                 raise ValueError('Time {t} is not present in the time_array'.format(t=jd))
 
-        self.history = self.history + '  Downselected to specific times using pyuvdata.'
+        if update_history:
+            self.history = self.history + '  Downselected to specific times using pyuvdata.'
 
         self.select_blts(blt_inds, run_check=run_check,
                          run_check_acceptability=run_check_acceptability,
                          update_history=False)
 
-    def select_frequencies(self, freqs_to_keep, run_check=True, run_check_acceptability=True):
+    def select_frequencies(self, freqs_to_keep, run_check=True, run_check_acceptability=True,
+                           update_history=True):
         freq_inds = np.zeros(0, dtype=np.int)
         # this works because we only allow one SPW. This will have to be reworked when we support more.
         freq_arr_use = self.freq_array[0, :]
@@ -705,13 +710,15 @@ class UVData(UVBase):
         self.flag_array = self.flag_array[:, :, freq_inds, :]
         self.nsample_array = self.nsample_array[:, :, freq_inds, :]
 
-        self.history = self.history + '  Downselected to specific frequencies using pyuvdata.'
+        if update_history:
+            self.history = self.history + '  Downselected to specific frequencies using pyuvdata.'
 
         # check if object is self-consistent
         if run_check:
             self.check(run_check_acceptability=run_check_acceptability)
 
-    def select_polarizations(self, pols_to_keep, run_check=True, run_check_acceptability=True):
+    def select_polarizations(self, pols_to_keep, run_check=True, run_check_acceptability=True,
+                             update_history=True):
         pol_inds = np.zeros(0, dtype=np.int)
         for p in pols_to_keep:
             if p in self.polarization_array:
@@ -726,11 +733,72 @@ class UVData(UVBase):
         self.flag_array = self.flag_array[:, :, :, pol_inds]
         self.nsample_array = self.nsample_array[:, :, :, pol_inds]
 
-        self.history = self.history + '  Downselected to specific polarizations using pyuvdata.'
+        if update_history:
+            self.history = self.history + '  Downselected to specific polarizations using pyuvdata.'
 
         # check if object is self-consistent
         if run_check:
             self.check(run_check_acceptability=run_check_acceptability)
+
+    def select(self, antennas=None, blt_inds=None, frequencies=None, times=None,
+               polarizations=None, run_check=True, run_check_acceptability=True,
+               update_history=True):
+        # build up history string as we go
+        history_update_string = '  Downselected to specific '
+        n_selects = 0
+
+        # need to run the select on blt_inds first, because those will change
+        # after selects on antennas or times
+        if blt_inds is not None:
+            history_update_string += 'baseline-times'
+            n_selects += 1
+            self.select_blts(blt_inds, run_check=run_check,
+                             run_check_acceptability=run_check_acceptability,
+                             update_history=False)
+
+        if antennas is not None:
+            if n_selects > 0:
+                history_update_string += ', antennas'
+            else:
+                history_update_string += 'antennas'
+            n_selects += 1
+            self.select_antennas(antennas, run_check=run_check,
+                                 run_check_acceptability=run_check_acceptability,
+                                 update_history=False)
+
+        if frequencies is not None:
+            if n_selects > 0:
+                history_update_string += ', frequencies'
+            else:
+                history_update_string += 'frequencies'
+            n_selects += 1
+            self.select_frequencies(frequencies, run_check=run_check,
+                                    run_check_acceptability=run_check_acceptability,
+                                    update_history=False)
+
+        if times is not None:
+            if n_selects > 0:
+                history_update_string += ', times'
+            else:
+                history_update_string += 'times'
+            n_selects += 1
+            self.select_times(times, run_check=run_check,
+                              run_check_acceptability=run_check_acceptability,
+                              update_history=False)
+
+        if polarizations is not None:
+            if n_selects > 0:
+                history_update_string += ', polarizations'
+            else:
+                history_update_string += 'polarizations'
+            n_selects += 1
+            self.select_polarizations(polarizations, run_check=run_check,
+                                      run_check_acceptability=run_check_acceptability,
+                                      update_history=False)
+
+        history_update_string += ' using pyuvdata.'
+        if update_history:
+            self.history = self.history + history_update_string
 
     def _convert_from_filetype(self, other):
         for p in other:
