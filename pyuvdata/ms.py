@@ -9,8 +9,8 @@ import parameter as uvp
 import casacore.tables as tables
 import telescopes
 
-polDict={1:1,2:2,3:3,4:4,5:-1,6:-3,7:-4,8:-2,9:-5,10:-7,11:-8,12:-6}
 
+polDict={1:1,2:2,3:3,4:4,5:-1,6:-3,7:-4,8:-2,9:-5,10:-7,11:-8,12:-6}
 
 #convert from casa stokes integers to pyuvdata
 class MS(UVData):
@@ -21,7 +21,6 @@ class MS(UVData):
     """
     ms_required_extra=['data_column','antenna_positions']
     def _ms_hist_to_string(self,history_table):
-
         '''
         converts a CASA history table into a string that can be stored as the uvdata history parameter.
         Returns this string
@@ -29,7 +28,6 @@ class MS(UVData):
         Returns: casa history table converted to a string with \n denoting new lines and     denoting column breaks
         '''
         history_str='APP_PARAMS;CLI_COMMAND;APPLICATION;MESSAGE;OBJECT_ID;OBSERVATION_ID;ORIGIN;PRIORITY;TIME\n'
-
         app_params=history_table.getcol('APP_PARAMS')['array']
         cli_command=history_table.getcol('CLI_COMMAND')['array']
         application=history_table.getcol('APPLICATION')
@@ -50,14 +48,13 @@ class MS(UVData):
             +';'+str(origin[tbrow]) \
             +';'+str(priority[tbrow]) \
             +';'+str(times[tbrow])+'\n'
-
             history_str+=newline
         return history_str
 
 
 
 
-    def write_ms():
+    def write_ms(self):
         '''
         writing ms is not yet supported
         '''
@@ -167,7 +164,6 @@ class MS(UVData):
         self.antenna_positions=self.antenna_positions[np.invert(antFlags),:]
         '''
         #remove blank names
-
         for axnum in range(self.antenna_positions.shape[1]):
             self.antenna_positions[:,axnum]-=np.mean(self.antenna_positions[:,axnum])
         try:
@@ -182,7 +178,7 @@ class MS(UVData):
         #self.telescope_location=np.array(np.mean(tbAnt.getcol('POSITION'),axis=0))
         #Warning: the value one gets with set_telescope_params is different from the mean of antenna locations.
         #        try:
-        #except:
+        #except:            
         tbAnt.close()
         tbField=tables.table(filepath+'/FIELD')
         #print 'shape='+str(tbField.getcol('PHASE_DIR').shape[1])
