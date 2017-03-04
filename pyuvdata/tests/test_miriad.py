@@ -105,25 +105,17 @@ def test_rwrMiriad_antpos_issues():
 
     status = uvtest.checkWarnings(uv_in.read_miriad, [testfile],
                                   known_warning='miriad')
-    print(uv_in.Nants_telescope)
-    print(uv_in.antenna_numbers)
     uv_in.antenna_positions = None
-    ants_with_data = list(set(uv_in.ant_1_array).union(uv_in.ant_2_array))
+    ants_with_data = sorted(list(set(uv_in.ant_1_array).union(uv_in.ant_2_array)))
     new_nums = []
     new_names = []
     for a in ants_with_data:
         new_nums.append(a)
-        new_names.append(uv_in.antenna_names[np.where(uv_in.antenna_numbers == a)[0]])
-    new_nums = np.array(new_nums)
-    new_names = np.array(new_names)
-    inds = new_nums.argsort()
-    print(inds)
-    print(inds.shape)
-    uv_in.antenna_numbers = new_nums[inds]
-    uv_in.antenna_names = list(new_names[inds])
+        ind = np.where(uv_in.antenna_numbers == a)[0][0]
+        new_names.append(uv_in.antenna_names[ind])
+    uv_in.antenna_numbers = np.array(new_nums)
+    uv_in.antenna_names = new_names
     uv_in.Nants_telescope = len(uv_in.antenna_numbers)
-    print(uv_in.Nants_telescope)
-    print(uv_in.antenna_numbers)
     uv_in.write_miriad(write_file, clobber=True, no_antnums=True)
     uv_out.read_miriad(write_file)
 
