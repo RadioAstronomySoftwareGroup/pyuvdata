@@ -724,7 +724,7 @@ class UVData(UVBase):
         del(miriad_obj)
 
     def write_miriad(self, filepath, run_check=True, run_check_acceptability=True,
-                     clobber=False):
+                     clobber=False, no_antnums=False):
         """
         Write the data to a miriad file.
 
@@ -739,5 +739,6 @@ class UVData(UVBase):
         """
         miriad_obj = self._convert_to_filetype('miriad')
         miriad_obj.write_miriad(filepath, run_check=run_check,
-                                run_check_acceptability=run_check_acceptability, clobber=clobber)
+                                run_check_acceptability=run_check_acceptability,
+                                clobber=clobber, no_antnums=no_antnums)
         del(miriad_obj)

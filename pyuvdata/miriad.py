@@ -189,31 +189,32 @@ class Miriad(UVData):
                     unique_blts.append(blt)
         self.Nants_data = len(sorted_unique_ants)
 
+        # Miriad has no way to keep track of antenna numbers, so the antenna
+        # numbers are simply the index for each antenna in any array that
+        # describes antenna attributes (e.g. antpos for the antenna_postions).
+        # Therefore on write, nants (which gives the size of the antpos array)
+        # needs to be increased to be the max value of antenna_numbers+1 and the
+        # antpos array needs to be inflated with zeros at locations where we
+        # don't have antenna information. These inflations need to be undone at
+        # read. If the file was written by pyuvdata, then the variable antnums
+        # will be present and we can use it, otherwise we need to test for zeros
+        # in the antpos array and/or antennas with no visibilities.
         try:
-            # for some reason Miriad doesn't handle an array of integers properly,
-            # so convert to floats on write and back here
+            # The antnums variable will only exist if the file was written with pyuvdata.
+            # For some reason Miriad doesn't handle an array of integers properly,
+            # so we convert to floats on write and back here
             self.antenna_numbers = uv['antnums'].astype(int)
             self.Nants_telescope = len(self.antenna_numbers)
         except(KeyError):
             self.antenna_numbers = None
             self.Nants_telescope = None
 
-        # Miriad has no way to keep track of antenna numbers, so the antenna
-        # numbers are simply the index for each antenna in any array that
-        # describes antenna attributes (e.g. antpos for the antenna_postions).
-        # Therefore, the nants needs to be expanded to be the max value of
-        # antenna_numbers+1 and the antpos array needs to be inflated with
-        # zeros at locations where we don't have antenna information.
-        # These inflations need to be undone at read. If antnums is present,
-        # we can use that, otherwise we need to test for zeros in the antpos
-        # array and/or antennas with no visibilities. (The antnums variable is
-        # safer in the case that there are no antenna_positions)
         nants = uv['nants']
         try:
             antpos = uv['antpos'].reshape(3, nants).T
             if self.Nants_telescope is not None:
                 # in this case there is an antnums variable
-                # (so the file was written with pyuvdata), so we'll use it
+                # (meaning that the file was written with pyuvdata), so we'll use it
                 if nants == self.Nants_telescope:
                     # no inflation, so just use the positions
                     self.antenna_positions = antpos
@@ -223,11 +224,18 @@ class Miriad(UVData):
                     for ai, num in enumerate(self.antenna_numbers):
                         self.antenna_positions[ai, :] = antpos[num, :]
             else:
-                # there is no antnums variable, test for antennas with non-zero
-                # positions and/or that appear in ant_1_array or ant_2_array
+                # there is no antnums variable (meaning that this file was not
+                # written by pyuvdata), so we test for antennas with non-zero
+                # positions and/or that appear in the visibility data
+                # (meaning that they have entries in ant_1_array or ant_2_array)
                 antpos_length = np.sqrt(np.sum(np.abs(antpos)**2, axis=1))
                 good_antpos = np.where(antpos_length > 0)[0]
+                # take the union of the antennas with good positions (good_antpos)
+                # and the antennas that have visisbilities (sorted_unique_ants)
+                # if there are antennas with visibilities but zeroed positions we issue a warning below
                 ants_use = set(good_antpos).union(sorted_unique_ants)
+                # ants_use are the antennas we'll keep track of in the UVData
+                # object, so they dictate Nants_telescope
                 self.Nants_telescope = len(ants_use)
                 self.antenna_numbers = np.array(list(ants_use))
                 self.antenna_positions = np.zeros((self.Nants_telescope, 3), dtype=antpos.dtype)
@@ -243,12 +251,15 @@ class Miriad(UVData):
 
         if self.antenna_numbers is None:
             # there are no antenna_numbers or antenna_positions, so just use
-            # the ones present in the data
+            # the antennas present in the visibilities
+            # (Nants_data will therefore match Nants_telescope)
             self.antenna_numbers = np.array(sorted_unique_ants)
             self.Nants_telescope = len(self.antenna_numbers)
 
+        # antenna names is a foreign concept in miriad but required in other formats.
         try:
-            # horrible hack to save & recover antenna_names array. Miriad can't handle arrays
+            # Here we deal with the way pyuvdata tacks it on to keep the name information if we have it:
+            # This is a horrible hack to save & recover antenna_names array. Miriad can't handle arrays
             # of strings or a long enough single string to put them all into one string
             # so we convert them into hex values and then into floats on write and convert
             # back to strings here
@@ -400,7 +411,8 @@ class Miriad(UVData):
         if run_check:
             self.check(run_check_acceptability=run_check_acceptability)
 
-    def write_miriad(self, filepath, run_check=True, run_check_acceptability=True, clobber=False):
+    def write_miriad(self, filepath, run_check=True, run_check_acceptability=True,
+                     clobber=False, no_antnums=False):
         """
         Write the data to a miriad file.
 
@@ -412,6 +424,8 @@ class Miriad(UVData):
                 required parameters before writing the file. Default is True.
             clobber: Option to overwrite the filename if the file already exists.
                 Default is False.
+            no_antnums: Option to not write the antnums variable to the file.
+                Should only be used for testing purposes.
         """
         # check for multiple spws
         if self.data_array.shape[1] > 1:
@@ -454,23 +468,22 @@ class Miriad(UVData):
         # Miriad has no way to keep track of antenna numbers, so the antenna
         # numbers are simply the index for each antenna in any array that
         # describes antenna attributes (e.g. antpos for the antenna_postions).
-        # Therefore, the nants needs to be expanded to be the max value of
-        # antenna_numbers+1 and the antpos array needs to be inflated with
-        # zeros at locations where we don't have antenna information.
-        # These inflations need to be undone at read. If antnums is present,
-        # we can use that, otherwise we need to test for zeros in the antpos
-        # array and/or antennas with no visibilities. (The antnums variable is
-        # safer in the case that there are no antenna_positions)
+        # Therefore on write, nants (which gives the size of the antpos array)
+        # needs to be increased to be the max value of antenna_numbers+1 and the
+        # antpos array needs to be inflated with zeros at locations where we
+        # don't have antenna information. These inflations need to be undone at
+        # read. If the file was written by pyuvdata, then the variable antnums
+        # will be present and we can use it, otherwise we need to test for zeros
+        # in the antpos array and/or antennas with no visibilities.
         nants = np.max(self.antenna_numbers) + 1
         uv['nants'] = nants
-        try:
+        if self.antenna_positions is not None:
             antpos = np.zeros((nants, 3), dtype=self.antenna_positions.dtype)
             for ai, num in enumerate(self.antenna_numbers):
                 antpos[num, :] = self.antenna_positions[ai, :]
             uv.add_var('antpos', 'd')
             uv['antpos'] = antpos.T.flatten()
-        except(AttributeError):
-            pass  # don't write bad antenna positions
+
         uv.add_var('sfreq', 'd')
         uv['sfreq'] = self.freq_array[0, 0] / 1e9  # first spw; in GHz
         if self.phase_type == 'phased':
@@ -491,12 +504,15 @@ class Miriad(UVData):
         uv.add_var('altitude', 'd')
         uv['altitude'] = self.telescope_location_lat_lon_alt[2]
 
-        # for some reason Miriad doesn't handle an array of integers properly,
-        # so convert to floats here and integers on read
-        uv.add_var('antnums', 'd')
-        uv['antnums'] = self.antenna_numbers.astype(np.float64)
+        if not no_antnums:
+            # Add in the antenna_numbers so we have them if we read this file back in
+            # for some reason Miriad doesn't handle an array of integers properly,
+            # so convert to floats here and integers on read
+            uv.add_var('antnums', 'd')
+            uv['antnums'] = self.antenna_numbers.astype(np.float64)
 
-        # horrible hack to save antenna_names array. Miriad can't handle arrays
+        # antenna names is a foreign concept in miriad but required in other formats.
+        # This is a horrible hack to save antenna_names array. Miriad can't handle arrays
         # of strings or a long enough single string to put them all into one string
         # so we convert them into hex values and then into floats and convert
         # back to strings on read
