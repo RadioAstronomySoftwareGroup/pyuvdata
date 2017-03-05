@@ -26,7 +26,7 @@ class Miriad(UVData):
                   "polarization_array".format(pol=pol))
         return pol_ind
 
-    @profile
+#    @profile
     def read_miriad(self, filepath, correct_lat_lon=True, run_check=True, run_check_acceptability=True):
         """
         Read in data from a miriad file.
@@ -348,13 +348,19 @@ class Miriad(UVData):
         dec_pol_list = np.zeros((self.Nblts, self.Npols))
         uvw_pol_list = np.zeros((self.Nblts, 3, self.Npols))
         c_ns = const.c.to('m/ns').value
+        print len(data_accumulator[-5][0])
+        print data_accumulator[-5][0][0].shape
+        import sys
+        sys.exit()
         for pol, data in data_accumulator.iteritems():
+            blt_inds = 
             pol_ind = self._pol_to_ind(pol)
             for ind, d in enumerate(data):
                 t, ant_i, ant_j = d[1], d[2], d[3]
                 blt_index = np.where(np.logical_and(np.logical_and(t == t_grid,
                                                                    ant_i == ant_i_grid),
-                                                    ant_j == ant_j_grid))[0].squeeze()
+                                                                   ant_j == ant_j_grid))[0].squeeze()
+                print blt_index
                 self.data_array[blt_index, :, :, pol_ind] = d[4]
                 self.flag_array[blt_index, :, :, pol_ind] = d[5]
                 self.nsample_array[blt_index, :, :, pol_ind] = d[6]
