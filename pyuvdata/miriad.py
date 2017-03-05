@@ -26,7 +26,7 @@ class Miriad(UVData):
                   "polarization_array".format(pol=pol))
         return pol_ind
 
-    @profile
+#    @profile
     def read_miriad(self, filepath, correct_lat_lon=True, run_check=True, run_check_acceptability=True):
         """
         Read in data from a miriad file.
@@ -371,6 +371,7 @@ class Miriad(UVData):
 
             for ind, d in enumerate(data):
                 t, ant_i, ant_j = d[1], d[2], d[3]
+
                 bl = self.antnums_to_baseline(ant_i, ant_j) 
                 blt_index = np.intersect1d(t_inds[t], bl_inds[bl]).squeeze()   #This is a bottleneck, but it's a little faster than what was done before.
  
