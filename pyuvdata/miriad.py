@@ -199,6 +199,12 @@ class Miriad(UVData):
                 blts.append(blt)
         unique_blts = np.unique(np.array(blts))
 
+#        def resplit(a):
+#            a = a.split('_')
+#            return [float(a[0]), int(a[1]), int(a[2])]
+#
+#        unique_blts = map(resplit, unique_blts)
+
         self.Nants_data = len(sorted_unique_ants)
 
         # Miriad has no way to keep track of antenna numbers, so the antenna
