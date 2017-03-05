@@ -183,12 +183,19 @@ class Miriad(UVData):
             np.concatenate([[k[3] for k in d] for d in data_accumulator.values()])))
         sorted_unique_ants = sorted(list(set(ant_i_unique + ant_j_unique)))
 
-        unique_blts = []
         for d in data_accumulator.values():
             for k in d:
                 blt = [k[1], k[2], k[3]]
-                if blt not in unique_blts:
-                    unique_blts.append(blt)
+                blt = "_".join(map(str, blt))
+                blts.append(blt)
+        unique_blts = np.unique(np.array(blts))
+
+#        def resplit(a):
+#            a = a.split('_')
+#            return [float(a[0]), int(a[1]), int(a[2])]
+#
+#        unique_blts = map(resplit, unique_blts)
+
         self.Nants_data = len(sorted_unique_ants)
 
         # Miriad has no way to keep track of antenna numbers, so the antenna
@@ -281,8 +288,8 @@ class Miriad(UVData):
                 for ant_j in ant_j_unique:
                     if ant_i > ant_j:
                         continue
-                    if [t, ant_i, ant_j] not in unique_blts:
-                        continue
+               #     if "_".join(map(str,[t, ant_i, ant_j])) not in unique_blts:
+               #         continue
                     t_grid.append(t)
                     ant_i_grid.append(ant_i)
                     ant_j_grid.append(ant_j)
@@ -308,7 +315,6 @@ class Miriad(UVData):
         self.time_array = t_grid
         self.ant_1_array = ant_i_grid
         self.ant_2_array = ant_j_grid
-
         self.baseline_array = self.antnums_to_baseline(ant_i_grid,
                                                        ant_j_grid)
         try:
@@ -354,9 +360,12 @@ class Miriad(UVData):
                 # because there are uvws/ra/dec for each pol, and one pol may not
                 # have that visibility, we collapse along the polarization
                 # axis but avoid any missing visbilities
-                uvw = d[0] * const.c.to('m/ns').value
-                uvw.shape = (1, 3)
-                uvw_pol_list[blt_index, :, pol_ind] = uvw
+#                uvw = ne.evaluate("d[0] * const.c.to('m/ns').value")
+#                uvw.shape = (1, 3)
+#                uvw_pol_list[blt_index, :, pol_ind] = uvw
+                uvw = (d[0]).reshape(1,3)
+                c = const.c.to('m/ns').value
+                uvw_pol_list[blt_index, :, pol_ind] = ne.evaluate("uvw *  c")
                 ra_pol_list[blt_index, pol_ind] = d[7]
                 dec_pol_list[blt_index, pol_ind] = d[8]
 
