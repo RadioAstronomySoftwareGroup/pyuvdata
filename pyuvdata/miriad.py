@@ -26,6 +26,7 @@ class Miriad(UVData):
                   "polarization_array".format(pol=pol))
         return pol_ind
 
+    @profile
     def read_miriad(self, filepath, correct_lat_lon=True, run_check=True, run_check_acceptability=True):
         """
         Read in data from a miriad file.
@@ -183,6 +184,7 @@ class Miriad(UVData):
             np.concatenate([[k[3] for k in d] for d in data_accumulator.values()])))
         sorted_unique_ants = sorted(list(set(ant_i_unique + ant_j_unique)))
 
+        blts = []
         for d in data_accumulator.values():
             for k in d:
                 blt = [k[1], k[2], k[3]]
@@ -345,7 +347,7 @@ class Miriad(UVData):
         ra_pol_list = np.zeros((self.Nblts, self.Npols))
         dec_pol_list = np.zeros((self.Nblts, self.Npols))
         uvw_pol_list = np.zeros((self.Nblts, 3, self.Npols))
-
+        c_ns = const.c.to('m/ns').value
         for pol, data in data_accumulator.iteritems():
             pol_ind = self._pol_to_ind(pol)
             for ind, d in enumerate(data):
@@ -359,13 +361,10 @@ class Miriad(UVData):
 
                 # because there are uvws/ra/dec for each pol, and one pol may not
                 # have that visibility, we collapse along the polarization
-                # axis but avoid any missing visbilities
-#                uvw = ne.evaluate("d[0] * const.c.to('m/ns').value")
-#                uvw.shape = (1, 3)
-#                uvw_pol_list[blt_index, :, pol_ind] = uvw
-                uvw = (d[0]).reshape(1,3)
-                c = const.c.to('m/ns').value
-                uvw_pol_list[blt_index, :, pol_ind] = ne.evaluate("uvw *  c")
+		# axis but avoid any missing visbilities
+                uvw = d[0] * c_ns
+                uvw.shape = (1, 3)
+                uvw_pol_list[blt_index, :, pol_ind] = uvw
                 ra_pol_list[blt_index, pol_ind] = d[7]
                 dec_pol_list[blt_index, pol_ind] = d[8]
 
