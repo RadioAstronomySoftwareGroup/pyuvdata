@@ -26,7 +26,6 @@ class Miriad(UVData):
                   "polarization_array".format(pol=pol))
         return pol_ind
 
-#    @profile
     def read_miriad(self, filepath, correct_lat_lon=True, run_check=True, run_check_acceptability=True):
         """
         Read in data from a miriad file.
@@ -160,6 +159,10 @@ class Miriad(UVData):
                                                 ra, dec]]
                 pol_list.append(uv['pol'])
                 # NB: flag types in miriad are usually ints
+
+        for pol,data in data_accumulator.iteritems():
+            data_accumulator[pol] = np.array(data)
+
         self.polarization_array = np.array(pol_list)
         if len(self.polarization_array) != self.Npols:
             warnings.warn('npols={npols} but found {l} pols in data file'.format(
@@ -195,8 +198,8 @@ class Miriad(UVData):
 #        def resplit(a):
 #            a = a.split('_')
 #            return [float(a[0]), int(a[1]), int(a[2])]
-#
-#        unique_blts = map(resplit, unique_blts)
+
+#        unique_blts = np.array(map(resplit, unique_blts))
 
         self.Nants_data = len(sorted_unique_ants)
 
@@ -290,8 +293,8 @@ class Miriad(UVData):
                 for ant_j in ant_j_unique:
                     if ant_i > ant_j:
                         continue
-               #     if "_".join(map(str,[t, ant_i, ant_j])) not in unique_blts:
-               #         continue
+                    if "_".join(map(str,[t, ant_i, ant_j])) not in unique_blts:
+                        continue
                     t_grid.append(t)
                     ant_i_grid.append(ant_i)
                     ant_j_grid.append(ant_j)
@@ -317,6 +320,7 @@ class Miriad(UVData):
         self.time_array = t_grid
         self.ant_1_array = ant_i_grid
         self.ant_2_array = ant_j_grid
+
         self.baseline_array = self.antnums_to_baseline(ant_i_grid,
                                                        ant_j_grid)
         try:
@@ -348,19 +352,14 @@ class Miriad(UVData):
         dec_pol_list = np.zeros((self.Nblts, self.Npols))
         uvw_pol_list = np.zeros((self.Nblts, 3, self.Npols))
         c_ns = const.c.to('m/ns').value
-        print len(data_accumulator[-5][0])
-        print data_accumulator[-5][0][0].shape
-        import sys
-        sys.exit()
+
         for pol, data in data_accumulator.iteritems():
-            blt_inds = 
             pol_ind = self._pol_to_ind(pol)
             for ind, d in enumerate(data):
                 t, ant_i, ant_j = d[1], d[2], d[3]
                 blt_index = np.where(np.logical_and(np.logical_and(t == t_grid,
                                                                    ant_i == ant_i_grid),
-                                                                   ant_j == ant_j_grid))[0].squeeze()
-                print blt_index
+                                                    ant_j == ant_j_grid))[0].squeeze()
                 self.data_array[blt_index, :, :, pol_ind] = d[4]
                 self.flag_array[blt_index, :, :, pol_ind] = d[5]
                 self.nsample_array[blt_index, :, :, pol_ind] = d[6]
