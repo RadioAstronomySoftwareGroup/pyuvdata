@@ -1,6 +1,7 @@
 """Tests for Miriad object."""
 import nose.tools as nt
 import os
+import numpy as np
 import ephem
 from pyuvdata import UVData
 import pyuvdata.tests as uvtest
@@ -69,6 +70,57 @@ def test_readWriteReadMiriad():
     del(uv_in)
     del(uv_out)
 
+
+def test_rwrMiriad_antpos_issues():
+    """
+    test warnings and errors associated with antenna position issues in Miriad files
+
+    Read in Miriad PAPER file, mess with various antpos issues and write out as
+    a new Miriad file, read back in and check for appropriate behavior.
+    """
+    uv_in = UVData()
+    uv_out = UVData()
+    testfile = os.path.join(DATA_PATH, 'zen.2456865.60537.xy.uvcRREAA')
+    write_file = os.path.join(DATA_PATH, 'test/outtest_miriad.uv')
+    status = uvtest.checkWarnings(uv_in.read_miriad, [testfile],
+                                  known_warning='miriad')
+    uv_in.antenna_positions = None
+    uv_in.write_miriad(write_file, clobber=True)
+    uv_out.read_miriad(write_file)
+
+    nt.assert_true(status)
+    nt.assert_equal(uv_in, uv_out)
+
+    status = uvtest.checkWarnings(uv_in.read_miriad, [testfile],
+                                  known_warning='miriad')
+    ants_with_data = list(set(uv_in.ant_1_array).union(uv_in.ant_2_array))
+    ant_ind = np.where(uv_in.antenna_numbers == ants_with_data[0])[0]
+    uv_in.antenna_positions[ant_ind, :] = [0, 0, 0]
+    uv_in.write_miriad(write_file, clobber=True, no_antnums=True)
+    status = uvtest.checkWarnings(uv_out.read_miriad, [write_file],
+                                  message=['antenna number'])
+
+    nt.assert_true(status)
+    nt.assert_equal(uv_in, uv_out)
+
+    status = uvtest.checkWarnings(uv_in.read_miriad, [testfile],
+                                  known_warning='miriad')
+    uv_in.antenna_positions = None
+    ants_with_data = sorted(list(set(uv_in.ant_1_array).union(uv_in.ant_2_array)))
+    new_nums = []
+    new_names = []
+    for a in ants_with_data:
+        new_nums.append(a)
+        ind = np.where(uv_in.antenna_numbers == a)[0][0]
+        new_names.append(uv_in.antenna_names[ind])
+    uv_in.antenna_numbers = np.array(new_nums)
+    uv_in.antenna_names = new_names
+    uv_in.Nants_telescope = len(uv_in.antenna_numbers)
+    uv_in.write_miriad(write_file, clobber=True, no_antnums=True)
+    uv_out.read_miriad(write_file)
+
+    nt.assert_true(status)
+    nt.assert_equal(uv_in, uv_out)
 
 '''
 This test is commented out since we no longer believe AIPY phases correctly
