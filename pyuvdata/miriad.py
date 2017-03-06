@@ -356,6 +356,8 @@ class Miriad(UVData):
         uvw_pol_list = np.zeros((self.Nblts, 3, self.Npols))
         c_ns = const.c.to('m/ns').value
 
+       ## TODO -- Build an array of blt_indices (length nblts) giving the index corresponding with each t==t_grid AND i == i_grid AND j == j_grid, using numpy methods, so that on the actual data_accumulator loop this can be looked up instead of doing three simulataneous searches
+
         for pol, data in data_accumulator.iteritems():
             ## The following builds a dictionary of { baseline : [indices] }. The [indices] refer to positions in the data_array for that given baseline.
             bls_comp = self.antnums_to_baseline(data[:,2], data[:,3])
