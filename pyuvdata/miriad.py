@@ -353,13 +353,15 @@ class Miriad(UVData):
         uvw_pol_list = np.zeros((self.Nblts, 3, self.Npols))
         c_ns = const.c.to('m/ns').value
 
+       ## TODO -- Build an array of blt_indices (length nblts) giving the index corresponding with each t==t_grid AND i == i_grid AND j == j_grid, using numpy methods, so that on the actual data_accumulator loop this can be looked up instead of doing three simulataneous searches
+
         for pol, data in data_accumulator.iteritems():
             pol_ind = self._pol_to_ind(pol)
             for ind, d in enumerate(data):
                 t, ant_i, ant_j = d[1], d[2], d[3]
                 blt_index = np.where(np.logical_and(np.logical_and(t == t_grid,
                                                                    ant_i == ant_i_grid),
-                                                    ant_j == ant_j_grid))[0].squeeze()
+                                                    ant_j == ant_j_grid))[0].squeeze()    #Bottleneck on large arrays
                 self.data_array[blt_index, :, :, pol_ind] = d[4]
                 self.flag_array[blt_index, :, :, pol_ind] = d[5]
                 self.nsample_array[blt_index, :, :, pol_ind] = d[6]
