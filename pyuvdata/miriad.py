@@ -26,7 +26,6 @@ class Miriad(UVData):
                   "polarization_array".format(pol=pol))
         return pol_ind
 
-#    @profile
     def read_miriad(self, filepath, correct_lat_lon=True, run_check=True, run_check_acceptability=True):
         """
         Read in data from a miriad file.
@@ -202,8 +201,8 @@ class Miriad(UVData):
 #        def resplit(a):
 #            a = a.split('_')
 #            return [float(a[0]), int(a[1]), int(a[2])]
-#
-#        unique_blts = map(resplit, unique_blts)
+
+#        unique_blts = np.array(map(resplit, unique_blts))
 
         self.Nants_data = len(sorted_unique_ants)
 
@@ -321,6 +320,7 @@ class Miriad(UVData):
         except(KeyError):
             self.Ntimes = len(times)
         self.time_array = t_grid
+
         self.ant_1_array = ant_i_grid.astype(int)
         self.ant_2_array = ant_j_grid.astype(int)
 
