@@ -10,9 +10,10 @@ class UVCal(UVBase):
         self._Nfreqs = uvp.UVParameter('Nfreqs',
                                        description='Number of frequency channels',
                                        expected_type=int)
-        self._Npols = uvp.UVParameter('Npols',
-                                      description='Number of polarizations',
-                                      expected_type=int)
+        self._Njones = uvp.UVParameter('Njones',
+                                       description='Number of polarizations calibration'
+                                       'parameters (Number of jones matrix elements.).',
+                                       expected_type=int)
         self._Ntimes = uvp.UVParameter('Ntimes',
                                        description='Number of times',
                                        expected_type=int)
@@ -73,14 +74,15 @@ class UVCal(UVBase):
                                               expected_type=np.float,
                                               tols=1e-3)
 
-        desc = ('Array of polarization integers, shape (Npols). '
-                'AIPS Memo 117 says: stokes 1:4 (I,Q,U,V);  '
-                'circular -1:-4 (RR,LL,RL,LR); linear -5:-8 (XX,YY,XY,YX)')
-        self._polarization_array = uvp.UVParameter('polarization_array',
-                                                   description=desc,
-                                                   expected_type=int,
-                                                   acceptable_vals=list(np.arange(-8, 0)) + list(np.arange(1, 5)),
-                                                   form=('Npols',))
+        desc = ('Array of antenna polarization integers, shape (Njones). '
+                'linear pols -5:-8 (jxx, jyy, jxy, jyx).'
+                'circular pols -1:-4 (jrr, jll. jrl, jlr).')
+
+        self._jones_array = uvp.UVParameter('jones_array',
+                                            description=desc,
+                                            expected_type=int,
+                                            acceptable_vals=list(np.arange(-8, 0)),
+                                            form=('Njones',))
 
         desc = ('Array of times, center of integration, shape (Ntimes), ' +
                 'units Julian Date')
@@ -157,31 +159,24 @@ class UVCal(UVBase):
                                                        'Ntimes', 'Npols'),
                                                  expected_type=np.bool)
 
-        desc = ('Origin (on github for e.g) of calibration software. ')
-        self._git_origin = uvp.UVParameter('git_origin', form='str',
-                                           expected_type=str,
-                                           description=desc,
-                                           required=False)
+        desc = ('Origin (on github for e.g) of calibration software. Url and branch.')
+        self._git_origin_cal = uvp.UVParameter('git_origin_cal', form='str',
+                                               expected_type=str,
+                                               description=desc,
+                                               required=False)
 
-        desc = ('Commit hash of calibration software(from git_origin) used'
+        desc = ('Commit hash of calibration software(from git_origin_cal) used'
                 'to generate solutions.')
-        self._git_hash = uvp.UVParameter('git_hash', form='str',
-                                         expected_type=str,
-                                         description=desc,
-                                         required=False)
-
-        decs = ('Name of calibration pipeline, e.g. Omnical. String.')
-        self._pipeline = uvp.UVParameter('pipeline', form='str',
-                                         expected_type=str,
-                                         description=desc,
-                                         required=False)
+        self._git_hash_cal = uvp.UVParameter('git_hash_cal', form='str',
+                                             expected_type=str,
+                                             description=desc,
+                                             required=False)
 
         desc = ('Name of observer who calculated solutions in this file.')
         self._observer = uvp.UVParameter('observer', form='str',
                                          description=desc,
                                          expected_type=str,
                                          required=False)
-
 
         super(UVCal, self).__init__()
 
@@ -218,7 +213,6 @@ class UVCal(UVBase):
         self._delay_array.required = False
         self._quality_array.form = self._gain_array.form
 
-
     def set_delay(self):
         """Set cal_type to 'delay' and adjust required parameters."""
         self.cal_type = 'delay'
@@ -226,14 +220,12 @@ class UVCal(UVBase):
         self._delay_array.required = True
         self._quality_array.form = self._delay_array.form
 
-
     def set_unknown_cal_type(self):
         """Set cal_type to 'unknown' and adjust required parameters."""
         self.cal_type = 'unknown'
         self._gain_array.required = False
         self._delay_array.required = False
         self._quality_array.form = self.gain_array.form
-        
 
     def _convert_from_filetype(self, other):
         for p in other:
