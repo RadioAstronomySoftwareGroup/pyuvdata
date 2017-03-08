@@ -26,6 +26,7 @@ class Miriad(UVData):
                   "polarization_array".format(pol=pol))
         return pol_ind
 
+    #@profile
     def read_miriad(self, filepath, correct_lat_lon=True, run_check=True, run_check_acceptability=True):
         """
         Read in data from a miriad file.
@@ -185,7 +186,10 @@ class Miriad(UVData):
             np.concatenate([[k[2] for k in d] for d in data_accumulator.values()])))
         ant_j_unique = list(set(
             np.concatenate([[k[3] for k in d] for d in data_accumulator.values()])))
+
         sorted_unique_ants = sorted(list(set(ant_i_unique + ant_j_unique)))
+        ant_i_unique = np.array(ant_i_unique)
+        ant_j_unique = np.array(ant_j_unique)
 
         blts = []
         for d in data_accumulator.values():
@@ -288,19 +292,53 @@ class Miriad(UVData):
         t_grid = []
         ant_i_grid = []
         ant_j_grid = []
-        for t in times:
-            for ant_i in ant_i_unique:
-                for ant_j in ant_j_unique:
-                    if ant_i > ant_j:
-                        continue
-                    if "_".join(map(str,[t, ant_i, ant_j])) not in unique_blts:
-                        continue
-                    t_grid.append(t)
-                    ant_i_grid.append(ant_i)
-                    ant_j_grid.append(ant_j)
-        ant_i_grid = np.array(ant_i_grid)
-        ant_j_grid = np.array(ant_j_grid)
-        t_grid = np.array(t_grid)
+
+
+
+#        ant_i_unique.sort()
+#        ant_j_unique.sort()
+#        import sys
+#        import time
+#        t0 = time.time()
+
+        iterator = iter(["_".join(map(repr,[t, ant_i, ant_j])) for t in times for ant_i in ant_i_unique for ant_j in ant_j_unique  if ant_i <= ant_j])
+#        print time.time() - t0
+
+#        print len(unique_blts[0])
+
+#        t0 = time.time()
+        tij_grid = np.fromiter(iterator,
+			 dtype='|S30')
+
+ #       t0=time.time()
+
+
+        ## Verify that each item in tij_grid is also in unique_blts  TODO
+
+        ## Split tij_grid into t_grid, ant_i_grid, and ant_j_grid. Reset dtypes on ant_i and ant_j to ints
+
+        tij_grid = np.array(map( lambda x: map(float, x.split("_")), tij_grid))
+        t_grid, ant_i_grid, ant_j_grid = tij_grid.T
+
+#        t_grid2, ant_i_grid2, ant_j_grid2 = [], [], []
+
+
+#       print time.time() - t0
+#        print t_grid
+#        sys.exit()
+#        for t in times:
+#            for ant_i in ant_i_unique:
+#               for ant_j in ant_j_unique:
+#                    if ant_i > ant_j:
+#                        continue
+#                    if not "_".join(map(str,[t, ant_i, ant_j])) in unique_blts:
+#                        continue
+#                    t_grid2.append(t)
+#                    ant_i_grid2.append(ant_i)
+#                    ant_j_grid2.append(ant_j)
+#        ant_i_grid2 = np.array(ant_i_grid2)
+#        ant_j_grid2 = np.array(ant_j_grid2)
+#        t_grid2 = np.array(t_grid2)
 
         # set the data sizes
         try:
@@ -318,11 +356,11 @@ class Miriad(UVData):
         except(KeyError):
             self.Ntimes = len(times)
         self.time_array = t_grid
-        self.ant_1_array = ant_i_grid
-        self.ant_2_array = ant_j_grid
+        self.ant_1_array = ant_i_grid.astype(int)
+        self.ant_2_array = ant_j_grid.astype(int)
 
-        self.baseline_array = self.antnums_to_baseline(ant_i_grid,
-                                                       ant_j_grid)
+        self.baseline_array = self.antnums_to_baseline(ant_i_grid.astype(int),
+                                                       ant_j_grid.astype(int))
         try:
             self.Nbls = uv['nbls']
             if self.Nbls != len(np.unique(self.baseline_array)):
@@ -353,15 +391,25 @@ class Miriad(UVData):
         uvw_pol_list = np.zeros((self.Nblts, 3, self.Npols))
         c_ns = const.c.to('m/ns').value
 
+
        ## TODO -- Build an array of blt_indices (length nblts) giving the index corresponding with each t==t_grid AND i == i_grid AND j == j_grid, using numpy methods, so that on the actual data_accumulator loop this can be looked up instead of doing three simulataneous searches
 
         for pol, data in data_accumulator.iteritems():
+
+            print type(data)
+
             pol_ind = self._pol_to_ind(pol)
             for ind, d in enumerate(data):
                 t, ant_i, ant_j = d[1], d[2], d[3]
+         #       import pickle as pkl, sys
+         #       dic = { "data" : data, "t_grid" : t_grid, "ant_i_grid": ant_i_grid, "ant_j_grid" : ant_j_grid}
+         #       with open('test_data','w') as pfile:
+         #              pkl.dump(dic, pfile)
+
                 blt_index = np.where(np.logical_and(np.logical_and(t == t_grid,
                                                                    ant_i == ant_i_grid),
-                                                    ant_j == ant_j_grid))[0].squeeze()    #Bottleneck on large arrays
+                                                    ant_j == ant_j_grid))    #Bottleneck on large arrays
+#                blt_index = np.logical_and(t == t_grid,  bl_inds[ind] == self.baseline_array),
                 self.data_array[blt_index, :, :, pol_ind] = d[4]
                 self.flag_array[blt_index, :, :, pol_ind] = d[5]
                 self.nsample_array[blt_index, :, :, pol_ind] = d[6]
@@ -419,7 +467,6 @@ class Miriad(UVData):
             self.set_drift()
             self.zenith_ra = ra_list
             self.zenith_dec = dec_list
-
         self.vis_units = 'UNCALIB'  # assume no calibration
 
         try:
@@ -428,8 +475,8 @@ class Miriad(UVData):
             warnings.warn(str(ve))
 
         # check if object has all required uv_properties set
-        if run_check:
-            self.check(run_check_acceptability=run_check_acceptability)
+#        if run_check:
+#            self.check(run_check_acceptability=run_check_acceptability)
 
     def write_miriad(self, filepath, run_check=True, run_check_acceptability=True,
                      clobber=False, no_antnums=False):
