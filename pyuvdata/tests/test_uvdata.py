@@ -220,6 +220,7 @@ def test_select_blts():
     nt.assert_equal(old_history + '  Downselected to specific baseline-times '
                     'using pyuvdata.', uv_object.history)
 
+    # check for errors associated with out of bounds indices
     uvtest.checkWarnings(uv_object.read_miriad, [testfile],
                          known_warning='miriad')
     nt.assert_raises(ValueError, uv_object.select, blt_inds=np.arange(-10, -5))
@@ -261,6 +262,7 @@ def test_select_antennas():
 
     nt.assert_equal(uv_object, uv_object2)
 
+    # check for errors associated with antennas not included in data, bad names or providing numbers and names
     uvtest.checkWarnings(uv_object.read_uvfits, [testfile],
                          message='Telescope EVLA is not')
     nt.assert_raises(ValueError, uv_object.select, antenna_nums=np.max(unique_ants) + np.arange(1, 3))
@@ -288,6 +290,7 @@ def test_select_times():
     nt.assert_equal(old_history + '  Downselected to specific times '
                     'using pyuvdata.', uv_object.history)
 
+    # check for errors associated with times not included in data
     uvtest.checkWarnings(uv_object.read_uvfits, [testfile],
                          message='Telescope EVLA is not')
     nt.assert_raises(ValueError, uv_object.select, times=[np.min(unique_times) - uv_object.integration_time])
@@ -313,10 +316,12 @@ def test_select_frequencies():
     nt.assert_equal(old_history + '  Downselected to specific frequencies '
                     'using pyuvdata.', uv_object.history)
 
+    # check for errors associated with frequencies not included in data
     uvtest.checkWarnings(uv_object.read_uvfits, [testfile],
                          message='Telescope EVLA is not')
     nt.assert_raises(ValueError, uv_object.select, frequencies=[np.max(uv_object.freq_array) + uv_object.channel_width])
 
+    # check for warnings and errors associated with unevenly spaced or non-contiguous frequencies
     status = uvtest.checkWarnings(uv_object.select, [], {'frequencies': uv_object.freq_array[0, [0, 5, 6]]},
                                   message='Selected frequencies are not evenly spaced')
     nt.assert_true(status)
@@ -354,11 +359,12 @@ def test_select_polarizations():
     nt.assert_equal(old_history + '  Downselected to specific polarizations '
                     'using pyuvdata.', uv_object.history)
 
+    # check for errors associated with polarizations not included in data
     nt.assert_raises(ValueError, uv_object.select, polarizations=pols_dropped)
 
+    # check for warnings and errors associated with unevenly spaced polarizations
     uvtest.checkWarnings(uv_object.read_uvfits, [testfile],
                          message='Telescope EVLA is not')
-    print(uv_object.polarization_array)
     status = uvtest.checkWarnings(uv_object.select, [], {'polarizations': uv_object.polarization_array[[0, 1, 3]]},
                                   message='Selected polarization values are not evenly spaced')
     nt.assert_true(status)
@@ -367,7 +373,7 @@ def test_select_polarizations():
 
 
 def test_select():
-    # now test selecting along multiple axes at once
+    # now test selecting along all axes at once
     uv_object = UVData()
     testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
     uvtest.checkWarnings(uv_object.read_uvfits, [testfile],
@@ -392,10 +398,16 @@ def test_select():
 
     for ant in np.unique(uv_object.ant_1_array.tolist() + uv_object.ant_2_array.tolist()):
         nt.assert_true(ant in ants_to_keep)
+    nt.assert_equal(len(freqs_to_keep), uv_object.Nfreqs)
+    for f in freqs_to_keep:
+        nt.assert_true(f in uv_object.freq_array)
     for f in np.unique(uv_object.freq_array):
         nt.assert_true(f in freqs_to_keep)
     for t in np.unique(uv_object.time_array):
         nt.assert_true(t in times_to_keep)
+    nt.assert_equal(len(pols_to_keep), uv_object.Npols)
+    for p in pols_to_keep:
+        nt.assert_true(p in uv_object.polarization_array)
     for p in np.unique(uv_object.polarization_array):
         nt.assert_true(p in pols_to_keep)
 
