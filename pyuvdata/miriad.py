@@ -334,7 +334,7 @@ class Miriad(UVData):
         # NOTE: Using our lst calculator, which uses astropy,
         # instead of aipy values which come from pyephem.
         # The differences are of order 5 seconds.
-#        self.set_lsts_from_time_array()
+        self.set_lsts_from_time_array()
         self.nsample_array = np.ones(self.data_array.shape, dtype=np.float)
         self.freq_array = (np.arange(self.Nfreqs) * self.channel_width +
                            uv['sfreq'] * 1e9)
