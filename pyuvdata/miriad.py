@@ -198,12 +198,6 @@ class Miriad(UVData):
                 blts.append(blt)
         unique_blts = np.unique(np.array(blts))
 
-#        def resplit(a):
-#            a = a.split('_')
-#            return [float(a[0]), int(a[1]), int(a[2])]
-
-#        unique_blts = np.array(map(resplit, unique_blts))
-
         self.Nants_data = len(sorted_unique_ants)
 
         # Miriad has no way to keep track of antenna numbers, so the antenna
@@ -292,14 +286,12 @@ class Miriad(UVData):
         ant_i_grid = []
         ant_j_grid = []
 
-        iterator = iter(["_".join(map(repr,[t, ant_i, ant_j]))
-                           for t in times for ant_i in ant_i_unique for ant_j in ant_j_unique  if ant_i <= ant_j])
+        iterator = iter(["_".join(map(repr,[t, ant_i, ant_j])) for t in times for ant_i in ant_i_unique for ant_j in ant_j_unique  if ant_i <= ant_j])
 
+        tij_grid = np.fromiter(iterator,
+			 dtype='|S30')
 
-        ## Warning -- This will cut off antenna numbers if the total number of characters in this string exceeds 30.
-        tij_grid = np.fromiter(iterator, dtype='|S30')
-
-        ## TODO Efficiently verify that each item in tij_grid is also in unique_blts
+        ## Verify that each item in tij_grid is also in unique_blts  TODO
 
         tij_grid = np.array(map( lambda x: map(float, x.split("_")), tij_grid))
         t_grid, ant_i_grid, ant_j_grid = tij_grid.T
@@ -342,7 +334,7 @@ class Miriad(UVData):
         # NOTE: Using our lst calculator, which uses astropy,
         # instead of aipy values which come from pyephem.
         # The differences are of order 5 seconds.
-        self.set_lsts_from_time_array()
+#        self.set_lsts_from_time_array()
         self.nsample_array = np.ones(self.data_array.shape, dtype=np.float)
         self.freq_array = (np.arange(self.Nfreqs) * self.channel_width +
                            uv['sfreq'] * 1e9)
@@ -355,8 +347,6 @@ class Miriad(UVData):
         dec_pol_list = np.zeros((self.Nblts, self.Npols))
         uvw_pol_list = np.zeros((self.Nblts, 3, self.Npols))
         c_ns = const.c.to('m/ns').value
-
-       ## TODO -- Build an array of blt_indices (length nblts) giving the index corresponding with each t==t_grid AND i == i_grid AND j == j_grid, using numpy methods, so that on the actual data_accumulator loop this can be looked up instead of doing three simulataneous searches
 
         for pol, data in data_accumulator.iteritems():
             ## The following builds a dictionary of { baseline : [indices] }. The [indices] refer to positions in the data_array for that given baseline.
