@@ -287,12 +287,14 @@ class Miriad(UVData):
         ant_i_grid = []
         ant_j_grid = []
 
-        iterator = iter(["_".join(map(repr,[t, ant_i, ant_j])) for t in times for ant_i in ant_i_unique for ant_j in ant_j_unique  if ant_i <= ant_j])
+        iterator = iter(["_".join(map(repr,[t, ant_i, ant_j]))
+                           for t in times for ant_i in ant_i_unique for ant_j in ant_j_unique  if ant_i <= ant_j])
 
-        tij_grid = np.fromiter(iterator,
-			 dtype='|S30')
 
-        ## Verify that each item in tij_grid is also in unique_blts  TODO
+        ## Warning -- This will cut off antenna numbers if the total number of characters in this string exceeds 30.
+        tij_grid = np.fromiter(iterator, dtype='|S30')
+
+        ## TODO Efficiently verify that each item in tij_grid is also in unique_blts
 
         tij_grid = np.array(map( lambda x: map(float, x.split("_")), tij_grid))
         t_grid, ant_i_grid, ant_j_grid = tij_grid.T
@@ -364,7 +366,7 @@ class Miriad(UVData):
             for ind, d in enumerate(data):
                 t, ant_i, ant_j = d[1], d[2], d[3]
                 bl = self.antnums_to_baseline(ant_i, ant_j) 
-                blt_index = np.intersect1d(t_inds[t], bl_inds[bl]).squeeze()
+                blt_index = np.intersect1d(t_inds[t], bl_inds[bl]).squeeze()   #This is a bottleneck, but it's a little faster than what was done before.
  
                 self.data_array[blt_index, :, :, pol_ind] = d[4]
                 self.flag_array[blt_index, :, :, pol_ind] = d[5]
