@@ -26,7 +26,7 @@ class Miriad(UVData):
                   "polarization_array".format(pol=pol))
         return pol_ind
 
-    #@profile
+    @profile
     def read_miriad(self, filepath, correct_lat_lon=True, run_check=True, run_check_acceptability=True):
         """
         Read in data from a miriad file.
@@ -199,12 +199,6 @@ class Miriad(UVData):
                 blts.append(blt)
         unique_blts = np.unique(np.array(blts))
 
-#        def resplit(a):
-#            a = a.split('_')
-#            return [float(a[0]), int(a[1]), int(a[2])]
-
-#        unique_blts = np.array(map(resplit, unique_blts))
-
         self.Nants_data = len(sorted_unique_ants)
 
         # Miriad has no way to keep track of antenna numbers, so the antenna
@@ -293,52 +287,15 @@ class Miriad(UVData):
         ant_i_grid = []
         ant_j_grid = []
 
-
-
-#        ant_i_unique.sort()
-#        ant_j_unique.sort()
-#        import sys
-#        import time
-#        t0 = time.time()
-
         iterator = iter(["_".join(map(repr,[t, ant_i, ant_j])) for t in times for ant_i in ant_i_unique for ant_j in ant_j_unique  if ant_i <= ant_j])
-#        print time.time() - t0
 
-#        print len(unique_blts[0])
-
-#        t0 = time.time()
         tij_grid = np.fromiter(iterator,
 			 dtype='|S30')
 
- #       t0=time.time()
-
-
         ## Verify that each item in tij_grid is also in unique_blts  TODO
-
-        ## Split tij_grid into t_grid, ant_i_grid, and ant_j_grid. Reset dtypes on ant_i and ant_j to ints
 
         tij_grid = np.array(map( lambda x: map(float, x.split("_")), tij_grid))
         t_grid, ant_i_grid, ant_j_grid = tij_grid.T
-
-#        t_grid2, ant_i_grid2, ant_j_grid2 = [], [], []
-
-
-#       print time.time() - t0
-#        print t_grid
-#        sys.exit()
-#        for t in times:
-#            for ant_i in ant_i_unique:
-#               for ant_j in ant_j_unique:
-#                    if ant_i > ant_j:
-#                        continue
-#                    if not "_".join(map(str,[t, ant_i, ant_j])) in unique_blts:
-#                        continue
-#                    t_grid2.append(t)
-#                    ant_i_grid2.append(ant_i)
-#                    ant_j_grid2.append(ant_j)
-#        ant_i_grid2 = np.array(ant_i_grid2)
-#        ant_j_grid2 = np.array(ant_j_grid2)
-#        t_grid2 = np.array(t_grid2)
 
         # set the data sizes
         try:
@@ -377,7 +334,7 @@ class Miriad(UVData):
         # NOTE: Using our lst calculator, which uses astropy,
         # instead of aipy values which come from pyephem.
         # The differences are of order 5 seconds.
-        self.set_lsts_from_time_array()
+#        self.set_lsts_from_time_array()
         self.nsample_array = np.ones(self.data_array.shape, dtype=np.float)
         self.freq_array = (np.arange(self.Nfreqs) * self.channel_width +
                            uv['sfreq'] * 1e9)
@@ -391,25 +348,24 @@ class Miriad(UVData):
         uvw_pol_list = np.zeros((self.Nblts, 3, self.Npols))
         c_ns = const.c.to('m/ns').value
 
-
-       ## TODO -- Build an array of blt_indices (length nblts) giving the index corresponding with each t==t_grid AND i == i_grid AND j == j_grid, using numpy methods, so that on the actual data_accumulator loop this can be looked up instead of doing three simulataneous searches
-
         for pol, data in data_accumulator.iteritems():
-
-            print type(data)
-
+            ## The following builds a dictionary of { baseline : [indices] }. The [indices] refer to positions in the data_array for that given baseline.
+            bls_comp = self.antnums_to_baseline(data[:,2], data[:,3])
+            idx_sort = bls_comp.argsort()
+            vals, idx_start, count = np.unique(bls_comp[idx_sort], return_counts=True, return_index=True)
+            bl_inds = dict(zip(vals, np.split(idx_sort, idx_start[1:])))
+          
+            ## The following builds a dictionary of { times : [indices] }. The [indices] refer to positions in the data_array for that given time.
+            idx_sort = t_grid.argsort()
+            vals, idx_start, count = np.unique(t_grid[idx_sort], return_counts=True, return_index=True)
+            t_inds = dict(zip(vals, np.split(idx_sort, idx_start[1:])))
             pol_ind = self._pol_to_ind(pol)
+
             for ind, d in enumerate(data):
                 t, ant_i, ant_j = d[1], d[2], d[3]
-         #       import pickle as pkl, sys
-         #       dic = { "data" : data, "t_grid" : t_grid, "ant_i_grid": ant_i_grid, "ant_j_grid" : ant_j_grid}
-         #       with open('test_data','w') as pfile:
-         #              pkl.dump(dic, pfile)
-
-                blt_index = np.where(np.logical_and(np.logical_and(t == t_grid,
-                                                                   ant_i == ant_i_grid),
-                                                    ant_j == ant_j_grid))    #Bottleneck on large arrays
-#                blt_index = np.logical_and(t == t_grid,  bl_inds[ind] == self.baseline_array),
+                bl = self.antnums_to_baseline(ant_i, ant_j) 
+                blt_index = np.intersect1d(t_inds[t], bl_inds[bl]).squeeze()
+ 
                 self.data_array[blt_index, :, :, pol_ind] = d[4]
                 self.flag_array[blt_index, :, :, pol_ind] = d[5]
                 self.nsample_array[blt_index, :, :, pol_ind] = d[6]
@@ -422,7 +378,7 @@ class Miriad(UVData):
                 uvw_pol_list[blt_index, :, pol_ind] = uvw
                 ra_pol_list[blt_index, pol_ind] = d[7]
                 dec_pol_list[blt_index, pol_ind] = d[8]
-
+        
         # Collapse pol axis for ra_list, dec_list, and uvw_list
         ra_list = np.zeros(self.Nblts)
         dec_list = np.zeros(self.Nblts)
