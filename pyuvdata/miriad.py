@@ -438,6 +438,19 @@ class Miriad(UVData):
             else:
                 raise ValueError('File exists: skipping')
 
+        freq_spacing = self.freq_array[0, 1:] - self.freq_array[0, :-1]
+        if not np.isclose(np.min(freq_spacing), np.max(freq_spacing),
+                          rtol=self._freq_array.tols[0], atol=self._freq_array.tols[1]):
+            raise ValueError('The frequencies are not evenly spaced (probably '
+                             'because of a select operation). The miriad format '
+                             'does not support unevenly spaced frequencies.')
+        if not np.isclose(np.max(freq_spacing), self.channel_width,
+                          rtol=self._freq_array.tols[0], atol=self._freq_array.tols[1]):
+            raise ValueError('The frequencies are separated by more than their '
+                             'channel width (probably because of a select operation). '
+                             'The miriad format does not support frequencies '
+                             'that are spaced by more than their channel width.')
+
         uv = a.miriad.UV(filepath, status='new')
 
         # initialize header variables

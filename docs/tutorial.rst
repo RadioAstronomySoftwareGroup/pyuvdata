@@ -85,3 +85,44 @@ Making a simple waterfall plot::
   bl_ind = np.where(UV.baseline_array == bl)[0]  # Indices corresponding to baseline
   plt.imshow(np.abs(UV.data_array[bl_ind, 0, :, 0]))  # Amplitude waterfall for 0th spectral window and 0th polarization
   plt.show()
+
+Example 4
+---------
+Selecting data: The select method lets you select specific antennas, frequencies,
+times or polarizations to keep in the object while removing others.
+
+a) Select 3 antennas to keep using the antenna number.
+****************
+::
+
+  from pyuvdata import UVData
+  import numpy as np
+  UV = UVData()
+  filename = 'pyuvdata/data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
+  UV.read_uvfits(filename)
+  # print all the antennas numbers with data in the original file
+  print(np.unique(UV.ant_1_array.tolist() + UV.ant_2_array.tolist()))
+  UV.select(antenna_nums=[0, 11, 20])
+  # print all the antennas numbers with data after the select
+  print(np.unique(UV.ant_1_array.tolist() + UV.ant_2_array.tolist()))
+
+b) Select 3 antennas to keep using the antenna names, also select 5 frequencies to keep.
+****************
+::
+
+  from pyuvdata import UVData
+  import numpy as np
+  UV = UVData()
+  filename = 'pyuvdata/data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
+  UV.read_uvfits(filename)
+  # print all the antenna names with data in the original file
+  unique_ants = np.unique(UV.ant_1_array.tolist() + UV.ant_2_array.tolist())
+  print([UV.antenna_names[np.where(UV.antenna_numbers==a)[0][0]] for a in unique_ants])
+  # print all the frequencies in the original file
+  print(UV.freq_array)
+  UV.select(antenna_names=['N02', 'E09', 'W06'], frequencies=UV.freq_array[0,0:4])
+  # print all the antenna names with data after the select
+  unique_ants = np.unique(UV.ant_1_array.tolist() + UV.ant_2_array.tolist())
+  print([UV.antenna_names[np.where(UV.antenna_numbers==a)[0][0]] for a in unique_ants])
+  # print all the frequencies after the select
+  print(UV.freq_array)
