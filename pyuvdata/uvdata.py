@@ -9,6 +9,7 @@ import ephem
 from uvbase import UVBase
 import parameter as uvp
 import telescopes as uvtel
+import utils as uvutils
 
 
 class UVData(UVBase):
@@ -657,6 +658,7 @@ class UVData(UVBase):
 
         # test for blt_inds presence before adding inds from antennas & times
         if blt_inds is not None:
+            blt_inds = uvutils.get_iterable(blt_inds)
             history_update_string += 'baseline-times'
             n_selects += 1
 
@@ -664,6 +666,7 @@ class UVData(UVBase):
             if antenna_nums is not None:
                 raise ValueError('Only one of antenna_nums and antenna_names can be provided.')
 
+            antenna_names = uvutils.get_iterable(antenna_names)
             antenna_nums = []
             for s in antenna_names:
                 if s not in self.antenna_names:
@@ -671,6 +674,7 @@ class UVData(UVBase):
                 antenna_nums.append(self.antenna_numbers[np.where(np.array(self.antenna_names) == s)[0]])
 
         if antenna_nums is not None:
+            antenna_nums = uvutils.get_iterable(antenna_nums)
             if n_selects > 0:
                 history_update_string += ', antennas'
             else:
@@ -694,6 +698,7 @@ class UVData(UVBase):
                 blt_inds = ant_blt_inds
 
         if times is not None:
+            times = uvutils.get_iterable(times)
             if n_selects > 0:
                 history_update_string += ', times'
             else:
@@ -742,6 +747,7 @@ class UVData(UVBase):
                 self.zenith_dec = self.zenith_dec[blt_inds]
 
         if frequencies is not None:
+            frequencies = uvutils.get_iterable(frequencies)
             if n_selects > 0:
                 history_update_string += ', frequencies'
             else:
@@ -775,6 +781,7 @@ class UVData(UVBase):
             self.nsample_array = self.nsample_array[:, :, freq_inds, :]
 
         if polarizations is not None:
+            polarizations = uvutils.get_iterable(polarizations)
             if n_selects > 0:
                 history_update_string += ', polarizations'
             else:

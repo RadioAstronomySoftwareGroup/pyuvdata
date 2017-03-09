@@ -1,5 +1,6 @@
 """Commonly used utility functions."""
 import numpy as np
+import collections
 
 # parameters for transforming between xyz & lat/lon/alt
 gps_b = 6356752.31424518
@@ -57,3 +58,11 @@ def XYZ_from_LatLonAlt(latitude, longitude, altitude):
     xyz[2] = ((gps_b**2 / gps_a**2 * gps_N + altitude) * np.sin(latitude))
 
     return xyz
+
+
+def get_iterable(x):
+    """Helper function to ensure iterability."""
+    if isinstance(x, collections.Iterable):
+        return x
+    else:
+        return (x,)
