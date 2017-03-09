@@ -216,15 +216,14 @@ def test_select_blts():
     blt_inds = np.random.choice(uv_object.Nblts, uv_object.Nblts / 10, replace=False)
     selected_data = uv_object.data_array[np.sort(blt_inds), :, :, :]
 
-    uv_object.select(blt_inds=blt_inds)
-    nt.assert_equal(len(blt_inds), uv_object.Nblts)
+    uv_object2 = copy.deepcopy(uv_object)
+    uv_object2.select(blt_inds=blt_inds)
+    nt.assert_equal(len(blt_inds), uv_object2.Nblts)
     nt.assert_equal(old_history + '  Downselected to specific baseline-times '
-                    'using pyuvdata.', uv_object.history)
-    nt.assert_true(np.all(selected_data == uv_object.data_array))
+                    'using pyuvdata.', uv_object2.history)
+    nt.assert_true(np.all(selected_data == uv_object2.data_array))
 
     # check for errors associated with out of bounds indices
-    uvtest.checkWarnings(uv_object.read_miriad, [testfile],
-                         known_warning='miriad')
     nt.assert_raises(ValueError, uv_object.select, blt_inds=np.arange(-10, -5))
     nt.assert_raises(ValueError, uv_object.select, blt_inds=np.arange(uv_object.Nblts + 1, uv_object.Nblts + 10))
 
@@ -242,32 +241,30 @@ def test_select_antennas():
                    zip(uv_object.ant_1_array, uv_object.ant_2_array)]
     Nblts_selected = np.sum(blts_select)
 
-    uv_object.select(antenna_nums=ants_to_keep)
+    uv_object2 = copy.deepcopy(uv_object)
+    uv_object2.select(antenna_nums=ants_to_keep)
 
-    nt.assert_equal(len(ants_to_keep), uv_object.Nants_data)
-    nt.assert_equal(Nblts_selected, uv_object.Nblts)
+    nt.assert_equal(len(ants_to_keep), uv_object2.Nants_data)
+    nt.assert_equal(Nblts_selected, uv_object2.Nblts)
     for ant in ants_to_keep:
-        nt.assert_true(ant in uv_object.ant_1_array or ant in uv_object.ant_2_array)
-    for ant in np.unique(uv_object.ant_1_array.tolist() + uv_object.ant_2_array.tolist()):
+        nt.assert_true(ant in uv_object2.ant_1_array or ant in uv_object2.ant_2_array)
+    for ant in np.unique(uv_object2.ant_1_array.tolist() + uv_object2.ant_2_array.tolist()):
         nt.assert_true(ant in ants_to_keep)
 
     nt.assert_equal(old_history + '  Downselected to specific antennas '
-                    'using pyuvdata.', uv_object.history)
+                    'using pyuvdata.', uv_object2.history)
 
     # now test using antenna_names to specify antennas to keep
-    uv_object2 = UVData()
-    uvtest.checkWarnings(uv_object2.read_uvfits, [testfile],
-                         message='Telescope EVLA is not')
-
+    uv_object3 = copy.deepcopy(uv_object)
     ants_to_keep = np.array(sorted(list(ants_to_keep)))
     ant_names = []
     for a in ants_to_keep:
-        ind = np.where(uv_object2.antenna_numbers == a)[0][0]
-        ant_names.append(uv_object2.antenna_names[ind])
+        ind = np.where(uv_object3.antenna_numbers == a)[0][0]
+        ant_names.append(uv_object3.antenna_names[ind])
 
-    uv_object2.select(antenna_names=ant_names)
+    uv_object3.select(antenna_names=ant_names)
 
-    nt.assert_equal(uv_object, uv_object2)
+    nt.assert_equal(uv_object2, uv_object3)
 
     # check for errors associated with antennas not included in data, bad names or providing numbers and names
     uvtest.checkWarnings(uv_object.read_uvfits, [testfile],
@@ -288,21 +285,20 @@ def test_select_times():
 
     Nblts_selected = np.sum([t in times_to_keep for t in uv_object.time_array])
 
-    uv_object.select(times=times_to_keep)
+    uv_object2 = copy.deepcopy(uv_object)
+    uv_object2.select(times=times_to_keep)
 
-    nt.assert_equal(len(times_to_keep), uv_object.Ntimes)
-    nt.assert_equal(Nblts_selected, uv_object.Nblts)
+    nt.assert_equal(len(times_to_keep), uv_object2.Ntimes)
+    nt.assert_equal(Nblts_selected, uv_object2.Nblts)
     for t in times_to_keep:
-        nt.assert_true(t in uv_object.time_array)
-    for t in np.unique(uv_object.time_array):
+        nt.assert_true(t in uv_object2.time_array)
+    for t in np.unique(uv_object2.time_array):
         nt.assert_true(t in times_to_keep)
 
     nt.assert_equal(old_history + '  Downselected to specific times '
-                    'using pyuvdata.', uv_object.history)
+                    'using pyuvdata.', uv_object2.history)
 
     # check for errors associated with times not included in data
-    uvtest.checkWarnings(uv_object.read_uvfits, [testfile],
-                         message='Telescope EVLA is not')
     nt.assert_raises(ValueError, uv_object.select, times=[np.min(unique_times) - uv_object.integration_time])
 
 
@@ -315,38 +311,37 @@ def test_select_frequencies():
     start_ind = np.random.randint(0, int(uv_object.Nfreqs * .9))
     freqs_to_keep = uv_object.freq_array[0, start_ind:start_ind + (uv_object.Nfreqs / 10)]
 
-    uv_object.select(frequencies=freqs_to_keep)
+    uv_object2 = copy.deepcopy(uv_object)
+    uv_object2.select(frequencies=freqs_to_keep)
 
-    nt.assert_equal(len(freqs_to_keep), uv_object.Nfreqs)
+    nt.assert_equal(len(freqs_to_keep), uv_object2.Nfreqs)
     for f in freqs_to_keep:
-        nt.assert_true(f in uv_object.freq_array)
-    for f in np.unique(uv_object.freq_array):
+        nt.assert_true(f in uv_object2.freq_array)
+    for f in np.unique(uv_object2.freq_array):
         nt.assert_true(f in freqs_to_keep)
 
     nt.assert_equal(old_history + '  Downselected to specific frequencies '
-                    'using pyuvdata.', uv_object.history)
+                    'using pyuvdata.', uv_object2.history)
 
     # check for errors associated with frequencies not included in data
-    uvtest.checkWarnings(uv_object.read_uvfits, [testfile],
-                         message='Telescope EVLA is not')
     nt.assert_raises(ValueError, uv_object.select, frequencies=[np.max(uv_object.freq_array) + uv_object.channel_width])
 
     # check for warnings and errors associated with unevenly spaced or non-contiguous frequencies
-    status = uvtest.checkWarnings(uv_object.select, [], {'frequencies': uv_object.freq_array[0, [0, 5, 6]]},
+    uv_object2 = copy.deepcopy(uv_object)
+    status = uvtest.checkWarnings(uv_object2.select, [], {'frequencies': uv_object2.freq_array[0, [0, 5, 6]]},
                                   message='Selected frequencies are not evenly spaced')
     nt.assert_true(status)
     write_file_uvfits = os.path.join(DATA_PATH, 'test/select_test.uvfits')
     write_file_miriad = os.path.join(DATA_PATH, 'test/select_test.uv')
-    nt.assert_raises(ValueError, uv_object.write_uvfits, write_file_uvfits)
-    nt.assert_raises(ValueError, uv_object.write_miriad, write_file_miriad)
+    nt.assert_raises(ValueError, uv_object2.write_uvfits, write_file_uvfits)
+    nt.assert_raises(ValueError, uv_object2.write_miriad, write_file_miriad)
 
-    uvtest.checkWarnings(uv_object.read_uvfits, [testfile],
-                         message='Telescope EVLA is not')
-    status = uvtest.checkWarnings(uv_object.select, [], {'frequencies': uv_object.freq_array[0, [0, 2, 4]]},
+    uv_object2 = copy.deepcopy(uv_object)
+    status = uvtest.checkWarnings(uv_object2.select, [], {'frequencies': uv_object2.freq_array[0, [0, 2, 4]]},
                                   message='Selected frequencies are not contiguous')
     nt.assert_true(status)
-    nt.assert_raises(ValueError, uv_object.write_uvfits, write_file_uvfits)
-    nt.assert_raises(ValueError, uv_object.write_miriad, write_file_miriad)
+    nt.assert_raises(ValueError, uv_object2.write_uvfits, write_file_uvfits)
+    nt.assert_raises(ValueError, uv_object2.write_miriad, write_file_miriad)
 
 
 def test_select_polarizations():
@@ -358,23 +353,22 @@ def test_select_polarizations():
     pols_to_keep = np.random.choice(uv_object.polarization_array, uv_object.Npols / 2, replace=False)
     pols_dropped = [p for p in uv_object.polarization_array if p not in pols_to_keep]
 
-    uv_object.select(polarizations=pols_to_keep)
+    uv_object2 = copy.deepcopy(uv_object)
+    uv_object2.select(polarizations=pols_to_keep)
 
-    nt.assert_equal(len(pols_to_keep), uv_object.Npols)
+    nt.assert_equal(len(pols_to_keep), uv_object2.Npols)
     for p in pols_to_keep:
-        nt.assert_true(p in uv_object.polarization_array)
-    for p in np.unique(uv_object.polarization_array):
+        nt.assert_true(p in uv_object2.polarization_array)
+    for p in np.unique(uv_object2.polarization_array):
         nt.assert_true(p in pols_to_keep)
 
     nt.assert_equal(old_history + '  Downselected to specific polarizations '
-                    'using pyuvdata.', uv_object.history)
+                    'using pyuvdata.', uv_object2.history)
 
     # check for errors associated with polarizations not included in data
-    nt.assert_raises(ValueError, uv_object.select, polarizations=pols_dropped)
+    nt.assert_raises(ValueError, uv_object2.select, polarizations=pols_dropped)
 
     # check for warnings and errors associated with unevenly spaced polarizations
-    uvtest.checkWarnings(uv_object.read_uvfits, [testfile],
-                         message='Telescope EVLA is not')
     status = uvtest.checkWarnings(uv_object.select, [], {'polarizations': uv_object.polarization_array[[0, 1, 3]]},
                                   message='Selected polarization values are not evenly spaced')
     nt.assert_true(status)
