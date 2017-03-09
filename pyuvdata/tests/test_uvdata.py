@@ -213,7 +213,23 @@ def test_select_blts():
     uvtest.checkWarnings(uv_object.read_miriad, [testfile],
                          known_warning='miriad')
     old_history = uv_object.history
-    blt_inds = np.random.choice(uv_object.Nblts, uv_object.Nblts / 10, replace=False)
+    blt_inds = np.array([172, 182, 132, 227, 144, 44, 16, 104, 385, 134, 326, 140, 116,
+                         218, 178, 391, 111, 276, 274, 308, 38, 64, 317, 76, 239, 246,
+                         34, 39, 83, 184, 208, 60, 374, 295, 118, 337, 261, 21, 375,
+                         396, 355, 187, 95, 122, 186, 113, 260, 264, 156, 13, 228, 291,
+                         302, 72, 137, 216, 299, 341, 207, 256, 223, 250, 268, 147, 73,
+                         32, 142, 383, 221, 203, 258, 286, 324, 265, 170, 236, 8, 275,
+                         304, 117, 29, 167, 15, 388, 171, 82, 322, 248, 160, 85, 66,
+                         46, 272, 328, 323, 152, 200, 119, 359, 23, 363, 56, 219, 257,
+                         11, 307, 336, 289, 136, 98, 37, 163, 158, 80, 125, 40, 298,
+                         75, 320, 74, 57, 346, 121, 129, 332, 238, 93, 18, 330, 339,
+                         381, 234, 176, 22, 379, 199, 266, 100, 90, 292, 205, 58, 222,
+                         350, 109, 273, 191, 368, 88, 101, 65, 155, 2, 296, 306, 398,
+                         369, 378, 254, 67, 249, 102, 348, 392, 20, 28, 169, 262, 269,
+                         287, 86, 300, 143, 177, 42, 290, 284, 123, 189, 175, 97, 340,
+                         242, 342, 331, 282, 235, 344, 63, 115, 78, 30, 226, 157, 133,
+                         71, 35, 212, 333])
+
     selected_data = uv_object.data_array[np.sort(blt_inds), :, :, :]
 
     uv_object2 = copy.deepcopy(uv_object)
@@ -235,7 +251,7 @@ def test_select_antennas():
                          message='Telescope EVLA is not')
     old_history = uv_object.history
     unique_ants = np.unique(uv_object.ant_1_array.tolist() + uv_object.ant_2_array.tolist())
-    ants_to_keep = np.random.choice(unique_ants, len(unique_ants) / 2, replace=False)
+    ants_to_keep = np.array([0, 19, 11, 24, 3, 23, 1, 20, 21])
 
     blts_select = [(a1 in ants_to_keep) & (a2 in ants_to_keep) for (a1, a2) in
                    zip(uv_object.ant_1_array, uv_object.ant_2_array)]
@@ -281,7 +297,7 @@ def test_select_times():
                          message='Telescope EVLA is not')
     old_history = uv_object.history
     unique_times = np.unique(uv_object.time_array)
-    times_to_keep = np.random.choice(unique_times, uv_object.Ntimes / 2, replace=False)
+    times_to_keep = unique_times[[0, 3, 5, 6, 7, 10, 14]]
 
     Nblts_selected = np.sum([t in times_to_keep for t in uv_object.time_array])
 
@@ -309,7 +325,7 @@ def test_select_frequencies():
                          message='Telescope EVLA is not')
     old_history = uv_object.history
     start_ind = np.random.randint(0, int(uv_object.Nfreqs * .9))
-    freqs_to_keep = uv_object.freq_array[0, start_ind:start_ind + (uv_object.Nfreqs / 10)]
+    freqs_to_keep = uv_object.freq_array[0, np.arange(12, 22)]
 
     uv_object2 = copy.deepcopy(uv_object)
     uv_object2.select(frequencies=freqs_to_keep)
@@ -350,8 +366,7 @@ def test_select_polarizations():
     uvtest.checkWarnings(uv_object.read_uvfits, [testfile],
                          message='Telescope EVLA is not')
     old_history = uv_object.history
-    pols_to_keep = np.random.choice(uv_object.polarization_array, uv_object.Npols / 2, replace=False)
-    pols_dropped = [p for p in uv_object.polarization_array if p not in pols_to_keep]
+    pols_to_keep = [-1, -2]
 
     uv_object2 = copy.deepcopy(uv_object)
     uv_object2.select(polarizations=pols_to_keep)
@@ -366,7 +381,7 @@ def test_select_polarizations():
                     'using pyuvdata.', uv_object2.history)
 
     # check for errors associated with polarizations not included in data
-    nt.assert_raises(ValueError, uv_object2.select, polarizations=pols_dropped)
+    nt.assert_raises(ValueError, uv_object2.select, polarizations=[-3, -4])
 
     # check for warnings and errors associated with unevenly spaced polarizations
     status = uvtest.checkWarnings(uv_object.select, [], {'polarizations': uv_object.polarization_array[[0, 1, 3]]},
