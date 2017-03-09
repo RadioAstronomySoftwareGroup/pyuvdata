@@ -214,11 +214,13 @@ def test_select_blts():
                          known_warning='miriad')
     old_history = uv_object.history
     blt_inds = np.random.choice(uv_object.Nblts, uv_object.Nblts / 10, replace=False)
+    selected_data = uv_object.data_array[np.sort(blt_inds), :, :, :]
 
     uv_object.select(blt_inds=blt_inds)
     nt.assert_equal(len(blt_inds), uv_object.Nblts)
     nt.assert_equal(old_history + '  Downselected to specific baseline-times '
                     'using pyuvdata.', uv_object.history)
+    nt.assert_true(np.all(selected_data == uv_object.data_array))
 
     # check for errors associated with out of bounds indices
     uvtest.checkWarnings(uv_object.read_miriad, [testfile],
@@ -236,9 +238,14 @@ def test_select_antennas():
     unique_ants = np.unique(uv_object.ant_1_array.tolist() + uv_object.ant_2_array.tolist())
     ants_to_keep = np.random.choice(unique_ants, len(unique_ants) / 2, replace=False)
 
+    blts_select = [(a1 in ants_to_keep) & (a2 in ants_to_keep) for (a1, a2) in
+                   zip(uv_object.ant_1_array, uv_object.ant_2_array)]
+    Nblts_selected = np.sum(blts_select)
+
     uv_object.select(antenna_nums=ants_to_keep)
 
     nt.assert_equal(len(ants_to_keep), uv_object.Nants_data)
+    nt.assert_equal(Nblts_selected, uv_object.Nblts)
     for ant in ants_to_keep:
         nt.assert_true(ant in uv_object.ant_1_array or ant in uv_object.ant_2_array)
     for ant in np.unique(uv_object.ant_1_array.tolist() + uv_object.ant_2_array.tolist()):
@@ -279,9 +286,12 @@ def test_select_times():
     unique_times = np.unique(uv_object.time_array)
     times_to_keep = np.random.choice(unique_times, uv_object.Ntimes / 2, replace=False)
 
+    Nblts_selected = np.sum([t in times_to_keep for t in uv_object.time_array])
+
     uv_object.select(times=times_to_keep)
 
     nt.assert_equal(len(times_to_keep), uv_object.Ntimes)
+    nt.assert_equal(Nblts_selected, uv_object.Nblts)
     for t in times_to_keep:
         nt.assert_true(t in uv_object.time_array)
     for t in np.unique(uv_object.time_array):
@@ -393,9 +403,18 @@ def test_select():
 
     pols_to_keep = np.random.choice(uv_object.polarization_array, uv_object.Npols / 2, replace=False)
 
+    # Independently count blts that should be selected
+    blts_blt_select = [i in blt_inds for i in np.arange(uv_object.Nblts)]
+    blts_ant_select = [(a1 in ants_to_keep) & (a2 in ants_to_keep) for (a1, a2) in
+                       zip(uv_object.ant_1_array, uv_object.ant_2_array)]
+    blts_time_select = [t in times_to_keep for t in uv_object.time_array]
+    Nblts_select = np.sum([bi & ai & ti for (bi, ai, ti) in
+                          zip(blts_blt_select, blts_ant_select, blts_time_select)])
+
     uv_object.select(blt_inds=blt_inds, antenna_nums=ants_to_keep, frequencies=freqs_to_keep,
                      times=times_to_keep, polarizations=pols_to_keep)
 
+    nt.assert_equal(Nblts_select, uv_object.Nblts)
     for ant in np.unique(uv_object.ant_1_array.tolist() + uv_object.ant_2_array.tolist()):
         nt.assert_true(ant in ants_to_keep)
     nt.assert_equal(len(freqs_to_keep), uv_object.Nfreqs)
