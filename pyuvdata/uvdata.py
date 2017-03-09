@@ -714,6 +714,8 @@ class UVData(UVBase):
 
         if blt_inds is not None:
 
+            if len(blt_inds) == 0:
+                raise ValueError('No baseline-times were found that match criteria')
             if max(blt_inds) >= self.Nblts:
                 raise ValueError('blt_inds contains indices that are too large')
             if min(blt_inds) < 0:
