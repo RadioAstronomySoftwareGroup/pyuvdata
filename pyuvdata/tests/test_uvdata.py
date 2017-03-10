@@ -324,7 +324,6 @@ def test_select_frequencies():
     uvtest.checkWarnings(uv_object.read_uvfits, [testfile],
                          message='Telescope EVLA is not')
     old_history = uv_object.history
-    start_ind = np.random.randint(0, int(uv_object.Nfreqs * .9))
     freqs_to_keep = uv_object.freq_array[0, np.arange(12, 22)]
 
     uv_object2 = copy.deepcopy(uv_object)
@@ -416,7 +415,6 @@ def test_select():
     unique_ants = np.unique(uv_object.ant_1_array.tolist() + uv_object.ant_2_array.tolist())
     ants_to_keep = np.array([11, 6, 20, 26, 2, 27, 3, 7, 14])
 
-    start_ind = np.random.randint(0, int(uv_object.Nfreqs * .9))
     freqs_to_keep = uv_object.freq_array[0, np.arange(31, 39)]
 
     unique_times = np.unique(uv_object.time_array)
