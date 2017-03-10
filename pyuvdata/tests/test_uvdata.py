@@ -399,18 +399,30 @@ def test_select():
                          message='Telescope EVLA is not')
     old_history = uv_object.history
 
-    blt_inds = np.random.choice(uv_object.Nblts, uv_object.Nblts / 10, replace=False)
+    blt_inds = np.array([1057, 461, 1090, 354, 528, 654, 882, 775, 369, 906, 748,
+                         875, 296, 773, 554, 395, 1003, 476, 762, 976, 1285, 874,
+                         717, 383, 1281, 924, 264, 1163, 297, 857, 1258, 1000, 180,
+                         1303, 1139, 393, 42, 135, 789, 713, 527, 1218, 576, 100,
+                         1311, 4, 653, 724, 591, 889, 36, 1033, 113, 479, 322,
+                         118, 898, 1263, 477, 96, 935, 238, 195, 531, 124, 198,
+                         992, 1131, 305, 154, 961, 6, 1175, 76, 663, 82, 637,
+                         288, 1152, 845, 1290, 379, 1225, 1240, 733, 1172, 937, 1325,
+                         817, 416, 261, 1316, 957, 723, 215, 237, 270, 1309, 208,
+                         17, 1028, 895, 574, 166, 784, 834, 732, 1022, 1068, 1207,
+                         356, 474, 313, 137, 172, 181, 925, 201, 190, 1277, 1044,
+                         1242, 702, 567, 557, 1032, 1352, 504, 545, 422, 179, 780,
+                         280, 890, 774, 884])
 
     unique_ants = np.unique(uv_object.ant_1_array.tolist() + uv_object.ant_2_array.tolist())
-    ants_to_keep = np.random.choice(unique_ants, len(unique_ants) / 2, replace=False)
+    ants_to_keep = np.array([11, 6, 20, 26, 2, 27, 3, 7, 14])
 
     start_ind = np.random.randint(0, int(uv_object.Nfreqs * .9))
-    freqs_to_keep = uv_object.freq_array[0, start_ind:start_ind + (uv_object.Nfreqs / 10)]
+    freqs_to_keep = uv_object.freq_array[0, np.arange(31, 39)]
 
     unique_times = np.unique(uv_object.time_array)
-    times_to_keep = np.random.choice(unique_times, uv_object.Ntimes / 2, replace=False)
+    times_to_keep = unique_times[[0, 2, 6, 8, 10, 13, 14]]
 
-    pols_to_keep = np.random.choice(uv_object.polarization_array, uv_object.Npols / 2, replace=False)
+    pols_to_keep = [-1, -3]
 
     # Independently count blts that should be selected
     blts_blt_select = [i in blt_inds for i in np.arange(uv_object.Nblts)]
@@ -420,25 +432,29 @@ def test_select():
     Nblts_select = np.sum([bi & ai & ti for (bi, ai, ti) in
                           zip(blts_blt_select, blts_ant_select, blts_time_select)])
 
-    uv_object.select(blt_inds=blt_inds, antenna_nums=ants_to_keep, frequencies=freqs_to_keep,
-                     times=times_to_keep, polarizations=pols_to_keep)
+    uv_object2 = copy.deepcopy(uv_object)
+    uv_object2.select(blt_inds=blt_inds, antenna_nums=ants_to_keep, frequencies=freqs_to_keep,
+                      times=times_to_keep, polarizations=pols_to_keep)
 
-    nt.assert_equal(Nblts_select, uv_object.Nblts)
-    for ant in np.unique(uv_object.ant_1_array.tolist() + uv_object.ant_2_array.tolist()):
+    nt.assert_equal(Nblts_select, uv_object2.Nblts)
+    for ant in np.unique(uv_object2.ant_1_array.tolist() + uv_object2.ant_2_array.tolist()):
         nt.assert_true(ant in ants_to_keep)
-    nt.assert_equal(len(freqs_to_keep), uv_object.Nfreqs)
+    nt.assert_equal(len(freqs_to_keep), uv_object2.Nfreqs)
     for f in freqs_to_keep:
-        nt.assert_true(f in uv_object.freq_array)
-    for f in np.unique(uv_object.freq_array):
+        nt.assert_true(f in uv_object2.freq_array)
+    for f in np.unique(uv_object2.freq_array):
         nt.assert_true(f in freqs_to_keep)
-    for t in np.unique(uv_object.time_array):
+    for t in np.unique(uv_object2.time_array):
         nt.assert_true(t in times_to_keep)
-    nt.assert_equal(len(pols_to_keep), uv_object.Npols)
+    nt.assert_equal(len(pols_to_keep), uv_object2.Npols)
     for p in pols_to_keep:
-        nt.assert_true(p in uv_object.polarization_array)
-    for p in np.unique(uv_object.polarization_array):
+        nt.assert_true(p in uv_object2.polarization_array)
+    for p in np.unique(uv_object2.polarization_array):
         nt.assert_true(p in pols_to_keep)
 
     nt.assert_equal(old_history + '  Downselected to specific baseline-times, antennas, '
                     'times, frequencies, polarizations using pyuvdata.',
-                    uv_object.history)
+                    uv_object2.history)
+
+    # test that a ValueError is raised if the selection eliminates all blts
+    nt.assert_raises(ValueError, uv_object.select, times=unique_times[0], antenna_nums=1)
