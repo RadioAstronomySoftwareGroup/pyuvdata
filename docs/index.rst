@@ -1,5 +1,5 @@
 .. pyuvdata documentation master file, created by
-   make_index.py on 2017-02-15
+   make_index.py on 2017-03-13
 
 pyuvdata
 ========
@@ -108,7 +108,7 @@ Optionally install the development version
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 For the development version, clone the repository using
-``git clone https://github.com/HERA-Team/pyuvdata/releases/latest``
+``git clone https://github.com/HERA-Team/pyuvdata.git``
 
 Navigate into the directory and run ``python setup.py install``. Note
 that this will automatically install all dependencies. If you use
