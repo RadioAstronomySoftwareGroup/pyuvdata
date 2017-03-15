@@ -331,6 +331,25 @@ class UVFITS(UVData):
                              'Set the phase_type to drift or phased to '
                              'reflect the phasing status of the data')
 
+        freq_spacing = self.freq_array[0, 1:] - self.freq_array[0, :-1]
+        if not np.isclose(np.min(freq_spacing), np.max(freq_spacing),
+                          rtol=self._freq_array.tols[0], atol=self._freq_array.tols[1]):
+            raise ValueError('The frequencies are not evenly spaced (probably '
+                             'because of a select operation). The uvfits format '
+                             'does not support unevenly spaced frequencies.')
+        if not np.isclose(np.max(freq_spacing), self.channel_width,
+                          rtol=self._freq_array.tols[0], atol=self._freq_array.tols[1]):
+            raise ValueError('The frequencies are separated by more than their '
+                             'channel width (probably because of a select operation). '
+                             'The uvfits format does not support frequencies '
+                             'that are spaced by more than their channel width.')
+        if self.Npols > 2:
+            pol_spacing = self.polarization_array[1:] - self.polarization_array[:-1]
+            if np.min(pol_spacing) < np.max(pol_spacing):
+                raise ValueError('The polarization values are not evenly spaced (probably '
+                                 'because of a select operation). The uvfits format '
+                                 'does not support unevenly spaced polarizations.')
+
         for p in self.extra():
             param = getattr(self, p)
             if param.name in self.uvfits_required_extra:

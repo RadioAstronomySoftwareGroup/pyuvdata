@@ -9,6 +9,7 @@ import ephem
 from uvbase import UVBase
 import parameter as uvp
 import telescopes as uvtel
+import utils as uvutils
 
 
 class UVData(UVBase):
@@ -619,6 +620,201 @@ class UVData(UVBase):
 
         del(obs)
         self.set_phased()
+
+    def select(self, antenna_nums=None, antenna_names=None, frequencies=None,
+               times=None, polarizations=None, blt_inds=None, run_check=True,
+               run_check_acceptability=True):
+        """
+        Select specific antennas, frequencies, times and polarizations to keep
+        in the object while discarding others.
+
+        Also supports selecting specific baseline-time indices to keep while
+        discarding others, but this is not commonly used. The history attribute
+        on the object will be updated to identify the operations performed.
+
+        Args:
+            antenna_nums: The antennas numbers to keep in the object (antenna
+                positions and names for the removed antennas will be retained).
+                This cannot be provided if antenna_names is also provided.
+            antenna_names: The antennas names to keep in the object (antenna
+                positions and names for the removed antennas will be retained).
+                This cannot be provided if antenna_nums is also provided.
+            frequencies: The frequencies to keep in the object.
+            times: The times to keep in the object.
+            polarizations: The polarizations to keep in the object.
+            blt_inds: The baseline-time indices to keep in the object. This is
+                not commonly used.
+            run_check: Option to check for the existence and proper shapes of
+                required parameters after downselecting data on this object. Default is True.
+            run_check_acceptability: Option to check acceptable range of the values of
+                required parameters after  downselecting data on this object. Default is True.
+        """
+        # build up history string as we go
+        history_update_string = '  Downselected to specific '
+        n_selects = 0
+
+        # Antennas, times and blt_inds all need to be combined into a set of
+        # blts indices to keep.
+
+        # test for blt_inds presence before adding inds from antennas & times
+        if blt_inds is not None:
+            blt_inds = uvutils.get_iterable(blt_inds)
+            history_update_string += 'baseline-times'
+            n_selects += 1
+
+        if antenna_names is not None:
+            if antenna_nums is not None:
+                raise ValueError('Only one of antenna_nums and antenna_names can be provided.')
+
+            antenna_names = uvutils.get_iterable(antenna_names)
+            antenna_nums = []
+            for s in antenna_names:
+                if s not in self.antenna_names:
+                    raise ValueError('Antenna name {a} is not present in the antenna_names array'.format(a=s))
+                antenna_nums.append(self.antenna_numbers[np.where(np.array(self.antenna_names) == s)[0]])
+
+        if antenna_nums is not None:
+            antenna_nums = uvutils.get_iterable(antenna_nums)
+            if n_selects > 0:
+                history_update_string += ', antennas'
+            else:
+                history_update_string += 'antennas'
+            n_selects += 1
+            inds1 = np.zeros(0, dtype=np.int)
+            inds2 = np.zeros(0, dtype=np.int)
+            for ant in antenna_nums:
+                if ant in self.ant_1_array or ant in self.ant_2_array:
+                    wh1 = np.where(self.ant_1_array == ant)[0]
+                    wh2 = np.where(self.ant_2_array == ant)[0]
+                    inds1 = np.append(inds1, list(wh1))
+                    inds2 = np.append(inds2, list(wh2))
+                else:
+                    raise ValueError('Antenna number {a} is not present in the ant_1_array or ant_2_array'.format(a=ant))
+
+            ant_blt_inds = np.array(list(set(inds1).intersection(inds2)), dtype=np.int)
+            if blt_inds is not None:
+                blt_inds = np.array(list(set(blt_inds).intersection(ant_blt_inds)), dtype=np.int)
+            else:
+                blt_inds = ant_blt_inds
+
+        if times is not None:
+            times = uvutils.get_iterable(times)
+            if n_selects > 0:
+                history_update_string += ', times'
+            else:
+                history_update_string += 'times'
+            n_selects += 1
+
+            time_blt_inds = np.zeros(0, dtype=np.int)
+            for jd in times:
+                if jd in self.time_array:
+                    time_blt_inds = np.append(time_blt_inds, np.where(self.time_array == jd)[0])
+                else:
+                    raise ValueError('Time {t} is not present in the time_array'.format(t=jd))
+
+            if blt_inds is not None:
+                blt_inds = np.array(list(set(blt_inds).intersection(time_blt_inds)), dtype=np.int)
+            else:
+                blt_inds = time_blt_inds
+
+        if blt_inds is not None:
+
+            if len(blt_inds) == 0:
+                raise ValueError('No baseline-times were found that match criteria')
+            if max(blt_inds) >= self.Nblts:
+                raise ValueError('blt_inds contains indices that are too large')
+            if min(blt_inds) < 0:
+                raise ValueError('blt_inds contains indices that are negative')
+
+            blt_inds = list(sorted(set(list(blt_inds))))
+            self.Nblts = len(blt_inds)
+            self.baseline_array = self.baseline_array[blt_inds]
+            self.time_array = self.time_array[blt_inds]
+            self.lst_array = self.lst_array[blt_inds]
+            self.data_array = self.data_array[blt_inds, :, :, :]
+            self.flag_array = self.flag_array[blt_inds, :, :, :]
+            self.nsample_array = self.nsample_array[blt_inds, :, :, :]
+            self.uvw_array = self.uvw_array[blt_inds, :]
+
+            self.ant_1_array = self.ant_1_array[blt_inds]
+            self.ant_2_array = self.ant_2_array[blt_inds]
+            self.Nants_data = int(len(set(self.ant_1_array.tolist() + self.ant_2_array.tolist())))
+
+            self.Ntimes = len(np.unique(self.time_array))
+
+            if self.phase_type == 'drift':
+                self.zenith_ra = self.zenith_ra[blt_inds]
+                self.zenith_dec = self.zenith_dec[blt_inds]
+
+        if frequencies is not None:
+            frequencies = uvutils.get_iterable(frequencies)
+            if n_selects > 0:
+                history_update_string += ', frequencies'
+            else:
+                history_update_string += 'frequencies'
+            n_selects += 1
+
+            freq_inds = np.zeros(0, dtype=np.int)
+            # this works because we only allow one SPW. This will have to be reworked when we support more.
+            freq_arr_use = self.freq_array[0, :]
+            for f in frequencies:
+                if f in freq_arr_use:
+                    freq_inds = np.append(freq_inds, np.where(freq_arr_use == f)[0])
+                else:
+                    raise ValueError('Frequency {f} is not present in the freq_array'.format(f=f))
+
+            freq_ind_separation = freq_inds[1:] - freq_inds[:-1]
+            if np.min(freq_ind_separation) < np.max(freq_ind_separation):
+                warnings.warn('Selected frequencies are not evenly spaced. This '
+                              'will make it impossible to write this data out to '
+                              'some file types')
+            elif np.max(freq_ind_separation) > 1:
+                warnings.warn('Selected frequencies are not contiguous. This '
+                              'will make it impossible to write this data out to '
+                              'some file types.')
+
+            freq_inds = list(sorted(set(list(freq_inds))))
+            self.Nfreqs = len(freq_inds)
+            self.freq_array = self.freq_array[:, freq_inds]
+            self.data_array = self.data_array[:, :, freq_inds, :]
+            self.flag_array = self.flag_array[:, :, freq_inds, :]
+            self.nsample_array = self.nsample_array[:, :, freq_inds, :]
+
+        if polarizations is not None:
+            polarizations = uvutils.get_iterable(polarizations)
+            if n_selects > 0:
+                history_update_string += ', polarizations'
+            else:
+                history_update_string += 'polarizations'
+            n_selects += 1
+
+            pol_inds = np.zeros(0, dtype=np.int)
+            for p in polarizations:
+                if p in self.polarization_array:
+                    pol_inds = np.append(pol_inds, np.where(self.polarization_array == p)[0])
+                else:
+                    raise ValueError('Polarization {p} is not present in the polarization_array'.format(p=p))
+
+            if len(pol_inds) > 2:
+                pol_ind_separation = pol_inds[1:] - pol_inds[:-1]
+                if np.min(pol_ind_separation) < np.max(pol_ind_separation):
+                    warnings.warn('Selected polarization values are not evenly spaced. This '
+                                  'will make it impossible to write this data out to '
+                                  'some file types')
+
+            pol_inds = list(sorted(set(list(pol_inds))))
+            self.Npols = len(pol_inds)
+            self.polarization_array = self.polarization_array[pol_inds]
+            self.data_array = self.data_array[:, :, :, pol_inds]
+            self.flag_array = self.flag_array[:, :, :, pol_inds]
+            self.nsample_array = self.nsample_array[:, :, :, pol_inds]
+
+        history_update_string += ' using pyuvdata.'
+        self.history = self.history + history_update_string
+
+        # check if object is self-consistent
+        if run_check:
+            self.check(run_check_acceptability=run_check_acceptability)
 
     def _convert_from_filetype(self, other):
         for p in other:

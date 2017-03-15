@@ -1,9 +1,9 @@
 """Setup testing environment, define useful testing functions."""
 import os
 import warnings
-import collections
 import sys
 from pyuvdata.data import DATA_PATH
+import pyuvdata.utils as uvutils
 
 
 def setup_package():
@@ -15,14 +15,6 @@ def setup_package():
 
 
 # Functions that are useful for testing:
-def get_iterable(x):
-    """Helper function for checkWarnings."""
-    if isinstance(x, collections.Iterable):
-        return x
-    else:
-        return (x,)
-
-
 def clearWarnings():
     """Quick code to make warnings reproducible."""
     for name, mod in list(sys.modules.items()):
@@ -51,8 +43,8 @@ def checkWarnings(func, func_args=[], func_kwargs={},
         message = ['Required Antenna frame keyword', 'telescope_location is not set']
         nwarnings = 2
 
-    category = get_iterable(category)
-    message = get_iterable(message)
+    category = uvutils.get_iterable(category)
+    message = uvutils.get_iterable(message)
 
     clearWarnings()
     with warnings.catch_warnings(record=True) as w:
