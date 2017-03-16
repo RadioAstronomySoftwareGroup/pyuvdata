@@ -32,7 +32,7 @@ class CALFITS(UVCal):
         # This is first draft of writing to FITS.
         today = datetime.date.today().strftime("Date: %d, %b %Y")
         prihdr = fits.Header()
-        #Conforming to fits format
+        # Conforming to fits format
         prihdr['SIMPLE'] = True
         prihdr['BITPIX'] = 32
         prihdr['NAXIS'] = 5
@@ -41,7 +41,7 @@ class CALFITS(UVCal):
         prihdr['NTIMES'] = self.Ntimes
         prihdr['NFREQS'] = self.Nfreqs
         prihdr['NANTSDAT'] = self.Nants_data
-        prihdr['NPOLS'] = self.Npols
+        prihdr['NJONES'] = self.Njones
         prihdr['CALTYPE'] = self.cal_type
         prihdr['INTTIME'] = self.integration_time
         prihdr['CHWIDTH'] = self.channel_width
@@ -115,10 +115,10 @@ class CALFITS(UVCal):
         prihdr['CDELT3'] = self.integration_time
 
         # more checks for polarization. check ordering.
-        prihdr['CTYPE2'] = ('POLS', 'Polarization array')
+        prihdr['CTYPE2'] = ('JONES', 'Jones matrix array')
         prihdr['CUNIT2'] = ('Integer', 'representative integer for polarization.')
-        prihdr['CRVAL2'] = self.polarization_array[0] #always start with xx data etc.
-        prihdr['CDELT2'] = 1*np.sign(self.polarization_array[0])
+        prihdr['CRVAL2'] = self.jones_array[0]  # always start with first jones.
+        prihdr['CDELT2'] = -1
 
         prihdu = fits.PrimaryHDU(data=pridata, header=prihdr)
 
@@ -146,7 +146,7 @@ class CALFITS(UVCal):
         self.antenna_numbers = map(int, antdata['ANTINDEX'])
 
         self.Nfreqs = hdr['NFREQS']
-        self.Npols = hdr['NPOLS']
+        self.Njones = hdr['NJONES']
         self.Ntimes = hdr['NTIMES']
         self.channel_width = hdr['CHWIDTH']
         self.integration_time = hdr['INTTIME']
@@ -186,9 +186,9 @@ class CALFITS(UVCal):
         flag_data = F[2].data
         self.flag_array = np.array(flag_data, dtype=np.bool)
         # generate frequency, polarization, and time array.
-        self.freq_array = np.arange(self.Nfreqs).reshape(1,-1)*hdr['CDELT4'] + hdr['CRVAL4']
-        self.polarization_array = np.arange(self.Npols)*hdr['CDELT2'] + hdr['CRVAL2']
-        self.time_array = np.arange(self.Ntimes)*hdr['CDELT3'] + hdr['CRVAL3']
+        self.freq_array = np.arange(self.Nfreqs).reshape(1, -1) * hdr['CDELT4'] + hdr['CRVAL4']
+        self.jones_array = np.arange(self.Njones) * hdr['CDELT2'] + hdr['CRVAL2']
+        self.time_array = np.arange(self.Ntimes) * hdr['CDELT3'] + hdr['CRVAL3']
 
         if run_check:
             self.check(run_check_acceptability=run_check_acceptability)
