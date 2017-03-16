@@ -20,9 +20,13 @@ install:
   - conda info -a
 
   # create environment and install dependencies
-  - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION numpy scipy astropy nose
+  - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION numpy scipy astropy nose pip
   - source activate test-environment
   - conda install -c pkgw aipy
+  - pip install coveralls
   - python setup.py install
 
-script: nosetests pyuvdata
+script: nosetests pyuvdata --with-coverage --cover-package=pyuvdata
+
+after_success:
+    - coveralls
