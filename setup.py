@@ -23,15 +23,13 @@ except:
     git_hash = ''
     git_description = ''
     git_branch = ''
-    git_version = ''
 
 print('Version = {0}'.format(__version__))
 print('git origin = {0}'.format(git_origin))
 print('git description = {0}'.format(git_description))
 version_text = ('version = "{0}"\ngit_origin = "{1}"\ngit_hash = "{2}"\n' +
-                'git_description = "{3}"\ngit_branch = "{4}"\n' +
-                'git_version="{5}"').format(__version__, git_origin, git_hash,
-                                            git_description, git_branch, git_version)
+                'git_description = "{3}"\ngit_branch = "{4}"'
+                ).format(__version__, git_origin, git_hash, git_description, git_branch)
 open('pyuvdata/version.py', 'w').write(version_text)
 
 setup_args = {

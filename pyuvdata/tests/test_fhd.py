@@ -48,7 +48,8 @@ def test_breakReadFHD():
     fhd_uv = UVData()
     nt.assert_true(uvtest.checkWarnings(fhd_uv.read_fhd, [testfiles[:-1]],
                                         message=['No settings']))
-    nt.assert_equal(fhd_uv.history, '')  # Check empty history with no settings
+    # Check only pyuvdata history with no settings file
+    nt.assert_equal(fhd_uv.history, fhd_uv.pyuvdata_version_str)  # Check empty history with no settings
     del(fhd_uv)
 
 
