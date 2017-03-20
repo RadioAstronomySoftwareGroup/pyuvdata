@@ -10,6 +10,17 @@ class CALFITS(UVCal):
     Defines a calfits-specific class for reading and writing uvfits files.
     """
 
+    def _indexhdus(self, hdulist):
+        # input a list of hdus
+        # return a dictionary of table names
+        tablenames = {}
+        for i in range(len(hdulist)):
+            try:
+                tablenames[hdulist[i].header['EXTNAME']] = i
+            except(KeyError):
+                continue
+        return tablenames
+
     def write_calfits(self, filename, spoof_nonessential=False,
                       run_check=True, run_check_acceptability=True, clobber=False):
         """
@@ -249,9 +260,9 @@ class CALFITS(UVCal):
         if self.cal_type == 'gain':
             self.set_gain()
             self.gain_array = data[:, :, :, :, 0] + 1j * data[:, :, :, :, 1]
-            self.flag_array = data[:, :, :, :, 2]
+            self.flag_array = data[:, :, :, :, 2].astype('bool')
             if hdr['CTYPE1'] == 5:
-                self.input_flag_array = data[:, :, :, :, 3]
+                self.input_flag_array = data[:, :, :, :, 3].astype('bool')
                 self.quality_array = data[:, :, :, :, 4]
             else:
                 self.quality_array = data[:, :, :, :, 3]
@@ -262,10 +273,10 @@ class CALFITS(UVCal):
             sechdu = F[hdunames['FLAGS']]
             flag_data = sechdu.data
             if sechdu.header['CTYPE1'] == 2:
-                self.flag_array = sechdu.data[:, :, :, :, 0]
+                self.flag_array = sechdu.data[:, :, :, :, 0].astype('bool')
                 self.input_flag_array = sechdu.data[:, :, :, :, 1]
             else:
-                self.flag_array = sechdu.daa[:, :, :, :, 0]
+                self.flag_array = sechdu.daa[:, :, :, :, 0].astype('bool')
 
         # generate frequency, polarization, and time array.
         self.freq_array = np.arange(self.Nfreqs).reshape(1, -1) * hdr['CDELT4'] + hdr['CRVAL4']
