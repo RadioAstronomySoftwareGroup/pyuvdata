@@ -162,12 +162,20 @@ class CALFITS(UVCal):
         self.cal_type = hdr['CALTYPE']
         try:
             self.observer = hdr['OBSERVER']
+        except:
+            pass
         try:
             self.pipeline = hdr['CALPIPE']
+        except:
+            pass
         try:
             self.git_origin = hd['ORIGIN']
+        except:
+            pass
         try:
             self.git_hash = hd['HASH']
+        except:
+            pass
 
         # get data. XXX check file type for switch.
         if self.cal_type == 'gain':
