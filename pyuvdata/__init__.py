@@ -19,4 +19,3 @@ except ImportError:
     git_hash = ''
     git_description = ''
     git_branch = ''
-    git_version = ''

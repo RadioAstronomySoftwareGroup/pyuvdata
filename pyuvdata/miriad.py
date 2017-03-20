@@ -116,6 +116,8 @@ class Miriad(UVData):
                               'set.'.format(telescope_name=self.telescope_name))
 
         self.history = uv['history']
+        if self.pyuvdata_version_str not in self.history.replace('\n', ''):
+            self.history += self.pyuvdata_version_str
         self.channel_width *= 1e9  # change from GHz to Hz
 
         # read through the file and get the data
