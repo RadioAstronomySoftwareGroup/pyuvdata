@@ -276,7 +276,7 @@ class CALFITS(UVCal):
                 self.flag_array = sechdu.data[:, :, :, :, 0].astype('bool')
                 self.input_flag_array = sechdu.data[:, :, :, :, 1]
             else:
-                self.flag_array = sechdu.daa[:, :, :, :, 0].astype('bool')
+                self.flag_array = sechdu.data[:, :, :, :, 0].astype('bool')
 
         # generate frequency, polarization, and time array.
         self.freq_array = np.arange(self.Nfreqs).reshape(1, -1) * hdr['CDELT4'] + hdr['CRVAL4']
