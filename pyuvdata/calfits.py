@@ -1,3 +1,4 @@
+import astropy
 from astropy.io import fits
 import numpy as np
 from uvcal import UVCal
@@ -134,7 +135,10 @@ class CALFITS(UVCal):
         prihdu = fits.PrimaryHDU(data=pridata, header=prihdr)
         sechdu = fits.ImageHDU(data=secdata, header=sechdr)
         hdulist = fits.HDUList([prihdu, ant_hdu, sechdu])
-        hdulist.writeto(filename, clobber=clobber)
+        if float(astropy.__version__[0:3]) < 1.3:
+            hdulist.writeto(filename, clobber=clobber)
+        else:
+            hdulist.writeto(filename, overwrite=clobber)
 
     def read_calfits(self, filename, run_check=True, run_check_acceptability=True):
         F = fits.open(filename)
