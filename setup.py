@@ -2,8 +2,31 @@ from setuptools import setup
 import glob
 import os.path as op
 from os import listdir
+import subprocess
 
-__version__ = '1.0.1'
+print "Generating pyuvdata/__version__.py: ",
+try:
+    __version__ = open('VERSION').read().strip()
+except:
+    __version__ = ''
+try:
+    git_origin = subprocess.check_output(['git', 'config', '--get', 'remote.origin.url'],
+                                         stderr=subprocess.STDOUT).strip()
+    git_hash = subprocess.check_output(['git', 'rev-parse', 'HEAD'],
+                                       stderr=subprocess.STDOUT).strip()
+    git_description = subprocess.check_output(['git', 'describe', '--dirty']).strip()
+    if git_description[-5:] == 'dirty':
+        git_hash += '-dirty'
+except:
+    git_origin = ''
+    git_hash = ''
+
+print('Version = {0}'.format(__version__))
+print('git origin = {0}'.format(git_origin))
+print('git hash = {0}'.format(git_hash))
+version_text = ('__version__ = "{0}"\ngit_origin = "{1}"\n' +
+                'git_hash = "{2}"').format(__version__, git_origin, git_hash)
+open('pyuvdata/version.py', 'w').write(version_text)
 
 setup_args = {
     'name': 'pyuvdata',
