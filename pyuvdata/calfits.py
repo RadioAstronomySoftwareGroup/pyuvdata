@@ -33,7 +33,8 @@ class CALFITS(UVCal):
         prihdr = fits.Header()
         if self.cal_type != 'gain':
             sechdr = fits.Header()
-            secdata = self.flag_array.astype(np.int64) # Can't be bool
+            secdata = self.flag_array.astype(np.int64)  # Can't be bool
+            sechdr['EXTNAME'] = 'FLAGS'
         # Conforming to fits format
         prihdr['SIMPLE'] = True
         prihdr['BITPIX'] = 32
@@ -163,6 +164,7 @@ class CALFITS(UVCal):
                            array=self.antenna_numbers)
         cols = fits.ColDefs([col1, col2])
         ant_hdu = fits.BinTableHDU.from_columns(cols)
+        ant_hdu.header['EXTNAME'] = 'ANTENNAS'
 
         if self.cal_type != 'gain':
             prihdu = fits.PrimaryHDU(data=pridata, header=prihdr)
@@ -182,8 +184,10 @@ class CALFITS(UVCal):
         F = fits.open(filename)
         data = F[0].data
         hdr = F[0].header.copy()
+        hdunames = self._indexhdus(F)
 
-        antdata = F[1].data
+        anthdu = F[hdunames['ANTENNAS']]
+        antdata = anthdu.data
         self.antenna_names = map(str, antdata['ANTNAME'])
         self.antenna_numbers = map(int, antdata['ANTINDEX'])
 
@@ -222,7 +226,7 @@ class CALFITS(UVCal):
         # get data. XXX check file type for switch.
         if self.cal_type == 'gain':
             self.set_gain()
-            self.gain_array = data[:, :, :, :, 0] + 1j*data[:, :, :, :, 1]
+            self.gain_array = data[:, :, :, :, 0] + 1j * data[:, :, :, :, 1]
             self.flag_array = data[:, :, :, :, 2]
             self.quality_array = data[:, :, :, :, 3]
 >>>>>>> Add in checks for jones_array. Add axis descriptions to second table.
@@ -230,9 +234,10 @@ class CALFITS(UVCal):
             self.set_delay()
             self.delay_array = data[:, :, :, :, 0]
             self.quality_array = data[:, :, :, :, 1]
-            flag_data = F[2].data
+            sechdu = F[hdunames['FLAGS']]
+            flag_data = sechdu.data
             self.flag_array = np.array(flag_data, dtype=np.bool)
-        
+
         # generate frequency, polarization, and time array.
         self.freq_array = np.arange(self.Nfreqs).reshape(1, -1) * hdr['CDELT4'] + hdr['CRVAL4']
         self.jones_array = np.arange(self.Njones) * hdr['CDELT2'] + hdr['CRVAL2']
