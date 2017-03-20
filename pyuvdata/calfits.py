@@ -33,7 +33,6 @@ class CALFITS(UVCal):
         prihdr = fits.Header()
         if self.cal_type != 'gain':
             sechdr = fits.Header()
-            secdata = self.flag_array.astype(np.int64)  # Can't be bool
             sechdr['EXTNAME'] = 'FLAGS'
         # Conforming to fits format
         prihdr['SIMPLE'] = True
@@ -76,14 +75,22 @@ class CALFITS(UVCal):
             # set the last axis for number of arrays.
             prihdr['CTYPE1'] = ('Narrays', 'Number of image arrays.')
             prihdr['CUNIT1'] = ('Integer', 'Number of image arrays. Increment.')
-            prihdr['CRVAL1'] = (4, 'Number of image arryays.')
-            prihdr['CDELT1'] = 1
-
-            pridata = np.concatenate([self.gain_array.real[:, :, :, :, np.newaxis],
-                                      self.gain_array.imag[:, :, :, :, np.newaxis],
-                                      self.flag_array[:, :, :, :, np.newaxis],
-                                      self.quality_array[:, :, :, :, np.newaxis]],
-                                     axis=-1)
+            if self.input_flag_array:
+                prihdr['CRVAL1'] = (5, 'Number of image arryays.')
+                pridata = np.concatenate([self.gain_array.real[:, :, :, :, np.newaxis],
+                                          self.gain_array.imag[:, :, :, :, np.newaxis],
+                                          self.flag_array[:, :, :, :, np.newaxis],
+                                          self.input_flag_array[:, :, :, :, np.newaxis],
+                                          self.quality_array[:, :, :, :, np.newaxis]],
+                                         axis=-1)
+            else:
+                prihdr['CRVAL1'] = (4, 'Number of image arryays.')
+                pridata = np.concatenate([self.gain_array.real[:, :, :, :, np.newaxis],
+                                          self.gain_array.imag[:, :, :, :, np.newaxis],
+                                          self.flag_array[:, :, :, :, np.newaxis],
+                                          self.quality_array[:, :, :, :, np.newaxis]],
+                                         axis=-1)
+                prihdr['CDELT1'] = 1
 
         if self.cal_type == 'delay':
             # Set header variable for gain.
@@ -109,25 +116,43 @@ class CALFITS(UVCal):
                     raise ValueError('The jones values are not evenly spaced.'
                                      'The calibration fits file format does not'
                                      ' support unevenly spaced polarizations.')
-            sechdr['CTYPE1'] = ('JONES', 'Jones matrix array')
-            sechdr['CUNIT1'] = ('Integer', 'representative integer for polarization.')
-            sechdr['CRVAL1'] = self.jones_array[0]  # always start with first jones.
-            sechdr['CDELT1'] = -1
 
-            sechdr['CTYPE2'] = ('TIME', 'Time axis.')
-            sechdr['CUNIT2'] = ('JD', 'Time in julian date format')
-            sechdr['CRVAL2'] = self.time_array[0]
-            sechdr['CDELT2'] = self.integration_time
+            sechdr['CTYPE2'] = ('JONES', 'Jones matrix array')
+            sechdr['CUNIT2'] = ('Integer', 'representative integer for polarization.')
+            sechdr['CRVAL2'] = self.jones_array[0]  # always start with first jones.
+            sechdr['CDELT2'] = -1
 
-            sechdr['CTYPE3'] = ('FREQS', 'Valid frequencies to apply delay.')
-            sechdr['CUNIT3'] = ('Hz', 'Units of frequecy.')
-            sechdr['CRVAL3'] = self.freq_array[0][0]
-            sechdr['CDELT3'] = self.channel_width
+            sechdr['CTYPE3'] = ('TIME', 'Time axis.')
+            sechdr['CUNIT3'] = ('JD', 'Time in julian date format')
+            sechdr['CRVAL3'] = self.time_array[0]
+            sechdr['CDELT3'] = self.integration_time
 
-            sechdr['CTYPE4'] = ('ANTS', 'Antenna numbering.')
-            sechdr['CUNIT4'] = 'Integer'
-            sechdr['CRVAL4'] = 0
-            sechdr['CDELT4'] = -1
+            sechdr['CTYPE4'] = ('FREQS', 'Valid frequencies to apply delay.')
+            sechdr['CUNIT4'] = ('Hz', 'Units of frequecy.')
+            sechdr['CRVAL4'] = self.freq_array[0][0]
+            sechdr['CDELT4'] = self.channel_width
+
+            sechdr['CTYPE5'] = ('ANTS', 'Antenna numbering.')
+            sechdr['CUNIT5'] = 'Integer'
+            sechdr['CRVAL5'] = 0
+            sechdr['CDELT5'] = -1
+
+            if self.input_flag_array:
+                secdata = np.concatenate([self.flag_array[:, :, :, :, np.newaxis],
+                                          self.input_flag_array[:, :, :, :, np.newaxis]],
+                                         axis=-1)
+                sechdr['CTYPE1'] = ('Narrays', 'Number of image arrays.')
+                sechdr['CUNIT1'] = ('Integer', 'Number of image arrays. Value.')
+                sechdr['CRVAL1'] = (2, 'Number of image arrays.')
+                sechdr['CDELT1'] = 1
+
+            else:
+                secdata = self.flag_array.astype(np.int64)[:, :, :, :, np.newaxis]  # Can't be bool
+                sechdr['CTYPE1'] = ('Narrays', 'Number of image arrays.')
+                sechdr['CUNIT1'] = ('Integer', 'Number of image arrays. Value.')
+                sechdr['CRVAL1'] = (1, 'Number of image arrays.')
+                sechdr['CDELT1'] = 1
+
 
         if self.cal_type == 'unknown':
             raise ValueError("unknown calibration type. Do not know how to"
@@ -228,15 +253,22 @@ class CALFITS(UVCal):
             self.set_gain()
             self.gain_array = data[:, :, :, :, 0] + 1j * data[:, :, :, :, 1]
             self.flag_array = data[:, :, :, :, 2]
-            self.quality_array = data[:, :, :, :, 3]
->>>>>>> Add in checks for jones_array. Add axis descriptions to second table.
+            if hdr['CTYPE1'] == 5:
+                self.input_flag_array = data[:, :, :, :, 3]
+                self.quality_array = data[:, :, :, :, 4]
+            else:
+                self.quality_array = data[:, :, :, :, 3]
         if self.cal_type == 'delay':
             self.set_delay()
             self.delay_array = data[:, :, :, :, 0]
             self.quality_array = data[:, :, :, :, 1]
             sechdu = F[hdunames['FLAGS']]
             flag_data = sechdu.data
-            self.flag_array = np.array(flag_data, dtype=np.bool)
+            if sechdu.header['CTYPE1'] == 2:
+                self.flag_array = sechdu.data[:, :, :, :, 0]
+                self.input_flag_array = sechdu.data[:, :, :, :, 1]
+            else:
+                self.flag_array = sechdu.daa[:, :, :, :, 0]
 
         # generate frequency, polarization, and time array.
         self.freq_array = np.arange(self.Nfreqs).reshape(1, -1) * hdr['CDELT4'] + hdr['CRVAL4']
