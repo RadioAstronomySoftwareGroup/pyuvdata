@@ -10,11 +10,13 @@ from .miriad import *
 
 
 try:
-    from .version import __version__
-    from .version import git_origin
-    from .version import git_hash
+    from .version import *
+    __version__ = version
 except ImportError:
     # TODO: Issue a warning using the logging framework
     __version__ = ''
     git_origin = ''
     git_hash = ''
+    git_description = ''
+    git_branch = ''
+    git_version = ''

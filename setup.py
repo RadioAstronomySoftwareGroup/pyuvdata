@@ -15,17 +15,23 @@ try:
     git_hash = subprocess.check_output(['git', 'rev-parse', 'HEAD'],
                                        stderr=subprocess.STDOUT).strip()
     git_description = subprocess.check_output(['git', 'describe', '--dirty']).strip()
-    if git_description[-5:] == 'dirty':
-        git_hash += '-dirty'
+    git_branch = subprocess.check_output(['git', 'rev-parse', '--abbrev-ref', 'HEAD'],
+                                         stderr=subprocess.STDOUT).strip()
+    git_version = subprocess.check_output(['git', 'describe', '--abbrev=0']).strip()
 except:
     git_origin = ''
     git_hash = ''
+    git_description = ''
+    git_branch = ''
+    git_version = ''
 
 print('Version = {0}'.format(__version__))
 print('git origin = {0}'.format(git_origin))
-print('git hash = {0}'.format(git_hash))
-version_text = ('__version__ = "{0}"\ngit_origin = "{1}"\n' +
-                'git_hash = "{2}"').format(__version__, git_origin, git_hash)
+print('git description = {0}'.format(git_description))
+version_text = ('version = "{0}"\ngit_origin = "{1}"\ngit_hash = "{2}"\n' +
+                'git_description = "{3}"\ngit_branch = "{4}"\n' +
+                'git_version="{5}"').format(__version__, git_origin, git_hash,
+                                            git_description, git_branch, git_version)
 open('pyuvdata/version.py', 'w').write(version_text)
 
 setup_args = {
