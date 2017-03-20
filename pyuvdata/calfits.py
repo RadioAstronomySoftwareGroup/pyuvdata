@@ -130,7 +130,7 @@ class CALFITS(UVCal):
         ant_hdu = fits.BinTableHDU.from_columns(cols)
 
         sechdr = fits.Header()
-        secdata = self.flag_array.astype(np.int64) # Can't be bool
+        secdata = self.flag_array.astype(np.int64)  # Can't be bool
         prihdu = fits.PrimaryHDU(data=pridata, header=prihdr)
         sechdu = fits.ImageHDU(data=secdata, header=sechdr)
         hdulist = fits.HDUList([prihdu, ant_hdu, sechdu])
@@ -162,21 +162,17 @@ class CALFITS(UVCal):
         self.cal_type = hdr['CALTYPE']
         try:
             self.observer = hdr['OBSERVER']
-        except: pass
         try:
             self.pipeline = hdr['CALPIPE']
-        except: pass
         try:
             self.git_origin = hd['ORIGIN']
-        except: pass
         try:
             self.git_hash = hd['HASH']
-        except: pass
 
         # get data. XXX check file type for switch.
         if self.cal_type == 'gain':
             self.set_gain()
-            self.gain_array = data[:, :, :, :, 0] + 1j*data[:, :, :, :, 1]
+            self.gain_array = data[:, :, :, :, 0] + 1j * data[:, :, :, :, 1]
             self.quality_array = data[:, :, :, :, 2]
         if self.cal_type == 'delay':
             self.set_delay()
