@@ -65,6 +65,10 @@ class CALFITS(UVCal):
         # if self.git_origin: prihdr['ORIGIN'] = self.git_origin
         # if self.git_hash: prihdr['HASH'] = self.git_hash
 
+        if self.cal_type == 'unknown':
+            raise ValueError("unknown calibration type. Do not know how to"
+                             "store parameters")
+
         if self.cal_type == 'gain':
             # Set header variable for gain.
             prihdr['CTYPE4'] = ('FREQS', 'Frequency.')
@@ -75,6 +79,7 @@ class CALFITS(UVCal):
             # set the last axis for number of arrays.
             prihdr['CTYPE1'] = ('Narrays', 'Number of image arrays.')
             prihdr['CUNIT1'] = ('Integer', 'Number of image arrays. Increment.')
+            prihdr['CDELT1'] = 1
             if self.input_flag_array:
                 prihdr['CRVAL1'] = (5, 'Number of image arryays.')
                 pridata = np.concatenate([self.gain_array.real[:, :, :, :, np.newaxis],
@@ -90,26 +95,26 @@ class CALFITS(UVCal):
                                           self.flag_array[:, :, :, :, np.newaxis],
                                           self.quality_array[:, :, :, :, np.newaxis]],
                                          axis=-1)
-                prihdr['CDELT1'] = 1
 
         if self.cal_type == 'delay':
             # Set header variable for gain.
-            prihdr['CTYPE4'] = ('FREQS', 'Valid frequencies to apply delay.')
-            prihdr['CUNIT4'] = ('Hz', 'Units of frequecy.')
-            prihdr['CRVAL4'] = self.freq_array[0][0]
-            prihdr['CDELT4'] = self.channel_width
             # set the last axis for number of arrays.
             prihdr['CTYPE1'] = ('Narrays', 'Number of image arrays.')
             prihdr['CUNIT1'] = ('Integer', 'Number of image arrays. Value.')
             prihdr['CRVAL1'] = (2, 'Number of image arrays.')
             prihdr['CDELT1'] = 1
 
+            prihdr['CTYPE4'] = ('FREQS', 'Valid frequencies to apply delay.')
+            prihdr['CUNIT4'] = ('Hz', 'Units of frequecy.')
+            prihdr['CRVAL4'] = self.freq_array[0][0]
+            prihdr['CDELT4'] = self.channel_width
+
             pridata = np.concatenate([self.delay_array[:, :, :, :, np.newaxis],
                                       # self.flag_array[:, :, :, :, np.newaxis],
                                       self.quality_array[:, :, :, :, np.newaxis]],
                                      axis=-1)
 
-            # Set headers for the second hdu containing the flags.
+            # Set headers for the second hdu containing the flags. Only in cal_type=delay.
             if self.Njones > 1:
                 jones_spacing = np.diff(self.jones_array)
                 if np.min(jones_spacing) < np.max(jones_spacing):
@@ -132,10 +137,7 @@ class CALFITS(UVCal):
             sechdr['CRVAL4'] = self.freq_array[0][0]
             sechdr['CDELT4'] = self.channel_width
 
-            sechdr['CTYPE5'] = ('ANTS', 'Antenna numbering.')
-            sechdr['CUNIT5'] = 'Integer'
-            sechdr['CRVAL5'] = 0
-            sechdr['CDELT5'] = -1
+            sechdr['CTYPE5'] = ('ANTAXIS', 'See antenna_numberse and antenna_names variables for values.')
 
             if self.input_flag_array:
                 secdata = np.concatenate([self.flag_array[:, :, :, :, np.newaxis],
@@ -153,23 +155,8 @@ class CALFITS(UVCal):
                 sechdr['CRVAL1'] = (1, 'Number of image arrays.')
                 sechdr['CDELT1'] = 1
 
-
-        if self.cal_type == 'unknown':
-            raise ValueError("unknown calibration type. Do not know how to"
-                             "store parameters")
-
-        # header ctypes for NAXIS
-        prihdr['CTYPE5'] = ('ANTS', 'Antenna numbering.')
-        prihdr['CUNIT5'] = 'Integer'
-        prihdr['CRVAL5'] = 0
-        prihdr['CDELT5'] = -1
-
-        prihdr['CTYPE3'] = ('TIME', 'Time axis.')
-        prihdr['CUNIT3'] = ('JD', 'Time in julian date format')
-        prihdr['CRVAL3'] = self.time_array[0]
-        prihdr['CDELT3'] = self.integration_time
-
-        # more checks for polarization. check ordering.
+        # primary header ctypes for NAXIS [ for both gain and delay cal_type.]
+        # Check polarizations.
         if self.Njones > 1:
             jones_spacing = np.diff(self.jones_array)
             if np.min(jones_spacing) < np.max(jones_spacing):
@@ -180,6 +167,16 @@ class CALFITS(UVCal):
         prihdr['CUNIT2'] = ('Integer', 'representative integer for polarization.')
         prihdr['CRVAL2'] = self.jones_array[0]  # always start with first jones.
         prihdr['CDELT2'] = -1
+
+        prihdr['CTYPE3'] = ('TIME', 'Time axis.')
+        prihdr['CUNIT3'] = ('JD', 'Time in julian date format')
+        prihdr['CRVAL3'] = self.time_array[0]
+        prihdr['CDELT3'] = self.integration_time
+
+        prihdr['CTYPE5'] = ('ANTAXIS', 'See antenna_numberse and antenna_names variables for values.')
+        prihdr['CUNIT5'] = 'Integer'
+        prihdr['CRVAL5'] = 0
+        prihdr['CDELT5'] = -1
 
         prihdu = fits.PrimaryHDU(data=pridata, header=prihdr)
 
