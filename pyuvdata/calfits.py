@@ -29,10 +29,11 @@ class CALFITS(UVCal):
         if run_check:
             self.check(run_check_acceptability=run_check_acceptability)
 
-        # Need to add in switch for gain/delay.
-        # This is first draft of writing to FITS.
         today = datetime.date.today().strftime("Date: %d, %b %Y")
         prihdr = fits.Header()
+        if self.cal_type != 'gain':
+            sechdr = fits.Header()
+            secdata = self.flag_array.astype(np.int64) # Can't be bool
         # Conforming to fits format
         prihdr['SIMPLE'] = True
         prihdr['BITPIX'] = 32
@@ -74,12 +75,12 @@ class CALFITS(UVCal):
             # set the last axis for number of arrays.
             prihdr['CTYPE1'] = ('Narrays', 'Number of image arrays.')
             prihdr['CUNIT1'] = ('Integer', 'Number of image arrays. Increment.')
-            prihdr['CRVAL1'] = (3, 'Number of image arryays.')
+            prihdr['CRVAL1'] = (4, 'Number of image arryays.')
             prihdr['CDELT1'] = 1
 
             pridata = np.concatenate([self.gain_array.real[:, :, :, :, np.newaxis],
                                       self.gain_array.imag[:, :, :, :, np.newaxis],
-                                      # self.flag_array[:, :, :, :, np.newaxis],
+                                      self.flag_array[:, :, :, :, np.newaxis],
                                       self.quality_array[:, :, :, :, np.newaxis]],
                                      axis=-1)
 
@@ -100,6 +101,33 @@ class CALFITS(UVCal):
                                       self.quality_array[:, :, :, :, np.newaxis]],
                                      axis=-1)
 
+            # Set headers for the second hdu containing the flags.
+            if self.Njones > 1:
+                jones_spacing = np.diff(self.jones_array)
+                if np.min(jones_spacing) < np.max(jones_spacing):
+                    raise ValueError('The jones values are not evenly spaced.'
+                                     'The calibration fits file format does not'
+                                     ' support unevenly spaced polarizations.')
+            sechdr['CTYPE1'] = ('JONES', 'Jones matrix array')
+            sechdr['CUNIT1'] = ('Integer', 'representative integer for polarization.')
+            sechdr['CRVAL1'] = self.jones_array[0]  # always start with first jones.
+            sechdr['CDELT1'] = -1
+
+            sechdr['CTYPE2'] = ('TIME', 'Time axis.')
+            sechdr['CUNIT2'] = ('JD', 'Time in julian date format')
+            sechdr['CRVAL2'] = self.time_array[0]
+            sechdr['CDELT2'] = self.integration_time
+
+            sechdr['CTYPE3'] = ('FREQS', 'Valid frequencies to apply delay.')
+            sechdr['CUNIT3'] = ('Hz', 'Units of frequecy.')
+            sechdr['CRVAL3'] = self.freq_array[0][0]
+            sechdr['CDELT3'] = self.channel_width
+
+            sechdr['CTYPE4'] = ('ANTS', 'Antenna numbering.')
+            sechdr['CUNIT4'] = 'Integer'
+            sechdr['CRVAL4'] = 0
+            sechdr['CDELT4'] = -1
+
         if self.cal_type == 'unknown':
             raise ValueError("unknown calibration type. Do not know how to"
                              "store parameters")
@@ -116,6 +144,12 @@ class CALFITS(UVCal):
         prihdr['CDELT3'] = self.integration_time
 
         # more checks for polarization. check ordering.
+        if self.Njones > 1:
+            jones_spacing = np.diff(self.jones_array)
+            if np.min(jones_spacing) < np.max(jones_spacing):
+                raise ValueError('The jones values are not evenly spaced.'
+                                 'The calibration fits file format does not'
+                                 ' support unevenly spaced polarizations.')
         prihdr['CTYPE2'] = ('JONES', 'Jones matrix array')
         prihdr['CUNIT2'] = ('Integer', 'representative integer for polarization.')
         prihdr['CRVAL2'] = self.jones_array[0]  # always start with first jones.
@@ -130,11 +164,15 @@ class CALFITS(UVCal):
         cols = fits.ColDefs([col1, col2])
         ant_hdu = fits.BinTableHDU.from_columns(cols)
 
-        sechdr = fits.Header()
-        secdata = self.flag_array.astype(np.int64)  # Can't be bool
-        prihdu = fits.PrimaryHDU(data=pridata, header=prihdr)
-        sechdu = fits.ImageHDU(data=secdata, header=sechdr)
-        hdulist = fits.HDUList([prihdu, ant_hdu, sechdu])
+        if self.cal_type != 'gain':
+            prihdu = fits.PrimaryHDU(data=pridata, header=prihdr)
+            sechdu = fits.ImageHDU(data=secdata, header=sechdr)
+            hdulist = fits.HDUList([prihdu, ant_hdu, sechdu])
+
+        else:
+            prihdu = fits.PrimaryHDU(data=pridata, header=prihdr)
+            hdulist = fits.HDUList([prihdu, ant_hdu])
+
         if float(astropy.__version__[0:3]) < 1.3:
             hdulist.writeto(filename, clobber=clobber)
         else:
@@ -184,15 +222,17 @@ class CALFITS(UVCal):
         # get data. XXX check file type for switch.
         if self.cal_type == 'gain':
             self.set_gain()
-            self.gain_array = data[:, :, :, :, 0] + 1j * data[:, :, :, :, 1]
-            self.quality_array = data[:, :, :, :, 2]
+            self.gain_array = data[:, :, :, :, 0] + 1j*data[:, :, :, :, 1]
+            self.flag_array = data[:, :, :, :, 2]
+            self.quality_array = data[:, :, :, :, 3]
+>>>>>>> Add in checks for jones_array. Add axis descriptions to second table.
         if self.cal_type == 'delay':
             self.set_delay()
             self.delay_array = data[:, :, :, :, 0]
             self.quality_array = data[:, :, :, :, 1]
-
-        flag_data = F[2].data
-        self.flag_array = np.array(flag_data, dtype=np.bool)
+            flag_data = F[2].data
+            self.flag_array = np.array(flag_data, dtype=np.bool)
+        
         # generate frequency, polarization, and time array.
         self.freq_array = np.arange(self.Nfreqs).reshape(1, -1) * hdr['CDELT4'] + hdr['CRVAL4']
         self.jones_array = np.arange(self.Njones) * hdr['CDELT2'] + hdr['CRVAL2']
