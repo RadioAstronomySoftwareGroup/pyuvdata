@@ -61,6 +61,8 @@ class CALFITS(UVCal):
         prihdr['NANTSTEL'] = self.Nants_telescope
         prihdr['NSPWS'] = self.Nspws
         prihdr['XORIENT'] = self.x_orientation
+        prihdr['FRQRANGE'] = ','.join(map(str, self.freq_range))
+        prihdr['TMERANGE'] = ','.join(map(str, self.time_range))
         for line in self.history.splitlines():
             prihdr.add_history(line)
 
@@ -239,6 +241,8 @@ class CALFITS(UVCal):
         self.history = str(hdr.get('HISTORY', ''))
         while 'HISTORY' in hdr.keys():
             hdr.remove('HISTORY')
+        self.freq_range = map(float, hdr['FRQRANGE'].split(','))
+        self.time_range = map(float, hdr['TMERANGE'].split(','))
         self.Nspws = hdr['NSPWS']
         self.Nants_data = hdr['NANTSDAT']
         self.Nants_telescope = hdr['NANTSTEL']

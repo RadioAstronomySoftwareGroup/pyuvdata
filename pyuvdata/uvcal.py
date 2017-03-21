@@ -25,6 +25,20 @@ class UVCal(UVBase):
                                       'More than one spectral window is not '
                                       'currently supported.', expected_type=int)
 
+        desc = ('Frequency range that gain solutions are valid for.',
+                'list: (start_frequency, end_frequency) in Hz.')
+        self._freq_range = uvp.UVParameter('freq_range',
+                                           description=desc,
+                                           form=(2,),
+                                           expected_type=float)
+
+        desc = ('Time range (in JD) that gain solutions are valid for.','
+                'list: (start_time, end_time) in JD.')
+        self._time_range = uvp.UVParameter('time_range',
+                                           description=desc,
+                                           form=(2,),
+                                           expected_type=float)
+
         desc = ('Name of telescope. e.g. HERA. String.')
         self._telescope_name = uvp.UVParameter('telescope_name',
                                                description=desc,
