@@ -92,7 +92,7 @@ class CALFITS(UVCal):
             prihdr['CUNIT1'] = ('Integer', 'Number of image arrays. Increment.')
             prihdr['CDELT1'] = 1
             if self.input_flag_array:
-                prihdr['CRVAL1'] = (5, 'Number of image arryays.')
+                prihdr['CRVAL1'] = (5, 'Number of image arrays.')
                 pridata = np.concatenate([self.gain_array.real[:, :, :, :, np.newaxis],
                                           self.gain_array.imag[:, :, :, :, np.newaxis],
                                           self.flag_array[:, :, :, :, np.newaxis],
@@ -100,7 +100,7 @@ class CALFITS(UVCal):
                                           self.quality_array[:, :, :, :, np.newaxis]],
                                          axis=-1)
             else:
-                prihdr['CRVAL1'] = (4, 'Number of image arryays.')
+                prihdr['CRVAL1'] = (4, 'Number of image arrays.')
                 pridata = np.concatenate([self.gain_array.real[:, :, :, :, np.newaxis],
                                           self.gain_array.imag[:, :, :, :, np.newaxis],
                                           self.flag_array[:, :, :, :, np.newaxis],
@@ -151,7 +151,7 @@ class CALFITS(UVCal):
             sechdr['CRVAL4'] = self.freq_array[0][0]
             sechdr['CDELT4'] = self.channel_width
 
-            sechdr['CTYPE5'] = ('ANTAXIS', 'See antenna_numberse and antenna_names variables for values.')
+            sechdr['CTYPE5'] = ('ANTAXIS', 'See antenna_numbers/names for values.')
 
             if self.input_flag_array:
                 secdata = np.concatenate([self.flag_array[:, :, :, :, np.newaxis],
@@ -190,7 +190,7 @@ class CALFITS(UVCal):
         prihdr['CRVAL3'] = self.time_array[0]
         prihdr['CDELT3'] = self.integration_time
 
-        prihdr['CTYPE5'] = ('ANTAXIS', 'See antenna_numberse and antenna_names variables for values.')
+        prihdr['CTYPE5'] = ('ANTAXIS', 'See antenna_numbers/names for values.')
         prihdr['CUNIT5'] = 'Integer'
         prihdr['CRVAL5'] = 0
         prihdr['CDELT5'] = -1
@@ -254,11 +254,11 @@ class CALFITS(UVCal):
         except:
             pass
         try:
-            self.git_origin = hd['ORIGIN']
+            self.git_origin = hdr['ORIGIN']
         except:
             pass
         try:
-            self.git_hash = hd['HASH']
+            self.git_hash = hdr['HASH']
         except:
             pass
 
