@@ -32,7 +32,7 @@ class UVCal(UVBase):
                                            form=(2,),
                                            expected_type=float)
 
-        desc = ('Time range (in JD) that gain solutions are valid for.','
+        desc = ('Time range (in JD) that gain solutions are valid for.',
                 'list: (start_time, end_time) in JD.')
         self._time_range = uvp.UVParameter('time_range',
                                            description=desc,
