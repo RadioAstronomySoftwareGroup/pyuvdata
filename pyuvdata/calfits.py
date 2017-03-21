@@ -137,7 +137,7 @@ class CALFITS(UVCal):
             sechdr['CUNIT2'] = ('Integer', 'representative integer for polarization.')
             sechdr['CRVAL2'] = self.jones_array[0]  # always start with first jones.
             if self.Njones > 1:
-                sechdr['CDELT2'] = jones_spacing
+                sechdr['CDELT2'] = jones_spacing[0]
             else:
                 sechdr['CDELT2'] = -1
 
@@ -181,7 +181,7 @@ class CALFITS(UVCal):
         prihdr['CUNIT2'] = ('Integer', 'representative integer for polarization.')
         prihdr['CRVAL2'] = self.jones_array[0]  # always start with first jones.
         if self.Njones > 1:
-            prihdr['CDELT2'] = jones_spacing
+            prihdr['CDELT2'] = jones_spacing[0]
         else:
             prihdr['CDELT2'] = -1
 
