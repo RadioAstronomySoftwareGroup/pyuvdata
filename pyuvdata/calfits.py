@@ -136,7 +136,10 @@ class CALFITS(UVCal):
             sechdr['CTYPE2'] = ('JONES', 'Jones matrix array')
             sechdr['CUNIT2'] = ('Integer', 'representative integer for polarization.')
             sechdr['CRVAL2'] = self.jones_array[0]  # always start with first jones.
-            sechdr['CDELT2'] = -1
+            if self.Njones > 1:
+                sechdr['CDELT2'] = jones_spacing
+            else:
+                sechdr['CDELT2'] = -1
 
             sechdr['CTYPE3'] = ('TIME', 'Time axis.')
             sechdr['CUNIT3'] = ('JD', 'Time in julian date format')
@@ -177,7 +180,10 @@ class CALFITS(UVCal):
         prihdr['CTYPE2'] = ('JONES', 'Jones matrix array')
         prihdr['CUNIT2'] = ('Integer', 'representative integer for polarization.')
         prihdr['CRVAL2'] = self.jones_array[0]  # always start with first jones.
-        prihdr['CDELT2'] = -1
+        if self.Njones > 1:
+            prihdr['CDELT2'] = jones_spacing
+        else:
+            prihdr['CDELT2'] = -1
 
         prihdr['CTYPE3'] = ('TIME', 'Time axis.')
         prihdr['CUNIT3'] = ('JD', 'Time in julian date format')
