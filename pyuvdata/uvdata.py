@@ -621,12 +621,13 @@ class UVData(UVBase):
         del(obs)
         self.set_phased()
 
-    def select(self, antenna_nums=None, antenna_names=None, frequencies=None,
+    def select(self, antenna_nums=None, antenna_names=None, ant_pairs_nums=None,
+               frequencies=None,
                times=None, polarizations=None, blt_inds=None, run_check=True,
                run_check_acceptability=True):
         """
-        Select specific antennas, frequencies, times and polarizations to keep
-        in the object while discarding others.
+        Select specific antennas, antenna pairs, frequencies, times and
+        polarizations to keep in the object while discarding others.
 
         Also supports selecting specific baseline-time indices to keep while
         discarding others, but this is not commonly used. The history attribute
@@ -639,6 +640,9 @@ class UVData(UVBase):
             antenna_names: The antennas names to keep in the object (antenna
                 positions and names for the removed antennas will be retained).
                 This cannot be provided if antenna_nums is also provided.
+            ant_pairs_nums: A list of antenna number tuples (e.g. [(0,1), (3,2)])
+                specifying baselines to keep in the object. Ordering of the
+                numbers within the tuple does not matter.
             frequencies: The frequencies to keep in the object.
             times: The times to keep in the object.
             polarizations: The polarizations to keep in the object.
@@ -686,16 +690,55 @@ class UVData(UVBase):
                 if ant in self.ant_1_array or ant in self.ant_2_array:
                     wh1 = np.where(self.ant_1_array == ant)[0]
                     wh2 = np.where(self.ant_2_array == ant)[0]
-                    inds1 = np.append(inds1, list(wh1))
-                    inds2 = np.append(inds2, list(wh2))
+                    if len(wh1) > 0:
+                        inds1 = np.append(inds1, list(wh1))
+                    if len(wh2) > 0:
+                        inds2 = np.append(inds2, list(wh2))
                 else:
-                    raise ValueError('Antenna number {a} is not present in the ant_1_array or ant_2_array'.format(a=ant))
+                    raise ValueError('Antenna number {a} is not present in the '
+                                     'ant_1_array or ant_2_array'.format(a=ant))
 
             ant_blt_inds = np.array(list(set(inds1).intersection(inds2)), dtype=np.int)
             if blt_inds is not None:
                 blt_inds = np.array(list(set(blt_inds).intersection(ant_blt_inds)), dtype=np.int)
             else:
                 blt_inds = ant_blt_inds
+
+        if ant_pairs_nums is not None:
+            if isinstance(ant_pairs_nums, tuple) and len(ant_pairs_nums) == 2:
+                ant_pairs_nums = [ant_pairs_nums]
+            if not all(isinstance(item, tuple) for item in ant_pairs_nums):
+                raise ValueError('ant_pairs_nums must be a list of tuples of antenna numbers.')
+            if not all([isinstance(item[0], (int, long)) for item in ant_pairs_nums] +
+                       [isinstance(item[1], (int, long)) for item in ant_pairs_nums]):
+                raise ValueError('ant_pairs_nums must be a list of tuples of antenna numbers.')
+            if n_selects > 0:
+                history_update_string += ', antenna pairs'
+            else:
+                history_update_string += 'antenna pairs'
+            n_selects += 1
+            ant_pair_blt_inds = np.zeros(0, dtype=np.int)
+            for pair in ant_pairs_nums:
+                if not (pair[0] in self.ant_1_array or pair[0] in self.ant_2_array):
+                    raise ValueError('Antenna number {a} is not present in the '
+                                     'ant_1_array or ant_2_array'.format(a=pair[0]))
+                if not (pair[1] in self.ant_1_array or pair[1] in self.ant_2_array):
+                    raise ValueError('Antenna number {a} is not present in the '
+                                     'ant_1_array or ant_2_array'.format(a=pair[1]))
+                wh1 = np.where(np.logical_and(self.ant_1_array == pair[0], self.ant_2_array == pair[1]))[0]
+                wh2 = np.where(np.logical_and(self.ant_1_array == pair[1], self.ant_2_array == pair[0]))[0]
+                if len(wh1) > 0:
+                    ant_pair_blt_inds = np.append(ant_pair_blt_inds, list(wh1))
+                if len(wh2) > 0:
+                    ant_pair_blt_inds = np.append(ant_pair_blt_inds, list(wh2))
+                if len(wh1) == 0 and len(wh2) == 0:
+                    raise ValueError('Antenna pair {p} does not have any data '
+                                     'associated with it.'.format(p=pair))
+
+            if blt_inds is not None:
+                blt_inds = np.array(list(set(blt_inds).intersection(ant_pair_blt_inds)), dtype=np.int)
+            else:
+                blt_inds = ant_pair_blt_inds
 
         if times is not None:
             times = uvutils.get_iterable(times)

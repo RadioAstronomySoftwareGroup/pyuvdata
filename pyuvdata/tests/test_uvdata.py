@@ -283,11 +283,60 @@ def test_select_antennas():
     nt.assert_equal(uv_object2, uv_object3)
 
     # check for errors associated with antennas not included in data, bad names or providing numbers and names
-    uvtest.checkWarnings(uv_object.read_uvfits, [testfile],
-                         message='Telescope EVLA is not')
     nt.assert_raises(ValueError, uv_object.select, antenna_nums=np.max(unique_ants) + np.arange(1, 3))
     nt.assert_raises(ValueError, uv_object.select, antenna_names='test1')
     nt.assert_raises(ValueError, uv_object.select, antenna_nums=ants_to_keep, antenna_names=ant_names)
+
+
+def test_select_ant_pairs():
+    uv_object = UVData()
+    testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    uvtest.checkWarnings(uv_object.read_uvfits, [testfile],
+                         message='Telescope EVLA is not')
+    old_history = uv_object.history
+    first_ants = [6, 2, 7, 2, 21, 27, 8]
+    second_ants = [0, 20, 8, 1, 2, 3, 22]
+    new_unique_ants = np.unique(first_ants + second_ants)
+    ant_pairs_to_keep = zip(first_ants, second_ants)
+    sorted_pairs_to_keep = [tuple(sorted(p)) for p in ant_pairs_to_keep]
+
+    sorted_pairs_object = [tuple(sorted(p)) for p in zip(uv_object.ant_1_array, uv_object.ant_2_array)]
+
+    blts_select = [tuple(sorted((a1, a2))) in sorted_pairs_to_keep for (a1, a2) in
+                   zip(uv_object.ant_1_array, uv_object.ant_2_array)]
+    Nblts_selected = np.sum(blts_select)
+
+    uv_object2 = copy.deepcopy(uv_object)
+    uv_object2.select(ant_pairs_nums=ant_pairs_to_keep)
+    sorted_pairs_object2 = [tuple(sorted(p)) for p in zip(uv_object2.ant_1_array, uv_object2.ant_2_array)]
+
+    nt.assert_equal(len(new_unique_ants), uv_object2.Nants_data)
+    nt.assert_equal(Nblts_selected, uv_object2.Nblts)
+    for ant in new_unique_ants:
+        nt.assert_true(ant in uv_object2.ant_1_array or ant in uv_object2.ant_2_array)
+    for ant in np.unique(uv_object2.ant_1_array.tolist() + uv_object2.ant_2_array.tolist()):
+        nt.assert_true(ant in new_unique_ants)
+    for pair in sorted_pairs_to_keep:
+        nt.assert_true(pair in sorted_pairs_object2)
+    for pair in sorted_pairs_object2:
+        nt.assert_true(pair in sorted_pairs_to_keep)
+
+    nt.assert_equal(old_history + '  Downselected to specific antenna pairs '
+                    'using pyuvdata.', uv_object2.history)
+
+    # check that you can specify a single pair without errors
+    uv_object2.select(ant_pairs_nums=(0, 6))
+    sorted_pairs_object2 = [tuple(sorted(p)) for p in zip(uv_object2.ant_1_array, uv_object2.ant_2_array)]
+    nt.assert_equal(list(set(sorted_pairs_object2)), [(0, 6)])
+
+    # check for errors associated with antenna pairs not included in data and bad inputs
+    nt.assert_raises(ValueError, uv_object.select,
+                     ant_pairs_nums=zip(first_ants, second_ants) + [0, 6])
+    nt.assert_raises(ValueError, uv_object.select,
+                     ant_pairs_nums=[(uv_object.antenna_names[0], uv_object.antenna_names[1])])
+    nt.assert_raises(ValueError, uv_object.select, ant_pairs_nums=(5, 1))
+    nt.assert_raises(ValueError, uv_object.select, ant_pairs_nums=(0, 5))
+    nt.assert_raises(ValueError, uv_object.select, ant_pairs_nums=(27, 27))
 
 
 def test_select_times():
@@ -415,6 +464,9 @@ def test_select():
     unique_ants = np.unique(uv_object.ant_1_array.tolist() + uv_object.ant_2_array.tolist())
     ants_to_keep = np.array([11, 6, 20, 26, 2, 27, 3, 7, 14])
 
+    ant_pairs_to_keep = [(2, 11), (20, 26), (6, 7), (3, 27), (14, 6)]
+    sorted_pairs_to_keep = [tuple(sorted(p)) for p in ant_pairs_to_keep]
+
     freqs_to_keep = uv_object.freq_array[0, np.arange(31, 39)]
 
     unique_times = np.unique(uv_object.time_array)
@@ -426,24 +478,35 @@ def test_select():
     blts_blt_select = [i in blt_inds for i in np.arange(uv_object.Nblts)]
     blts_ant_select = [(a1 in ants_to_keep) & (a2 in ants_to_keep) for (a1, a2) in
                        zip(uv_object.ant_1_array, uv_object.ant_2_array)]
+    blts_pair_select = [tuple(sorted((a1, a2))) in sorted_pairs_to_keep for (a1, a2) in
+                        zip(uv_object.ant_1_array, uv_object.ant_2_array)]
     blts_time_select = [t in times_to_keep for t in uv_object.time_array]
-    Nblts_select = np.sum([bi & ai & ti for (bi, ai, ti) in
-                          zip(blts_blt_select, blts_ant_select, blts_time_select)])
+    Nblts_select = np.sum([bi & ai & pi & ti for (bi, ai, pi, ti) in
+                          zip(blts_blt_select, blts_ant_select, blts_pair_select,
+                              blts_time_select)])
 
     uv_object2 = copy.deepcopy(uv_object)
-    uv_object2.select(blt_inds=blt_inds, antenna_nums=ants_to_keep, frequencies=freqs_to_keep,
+    uv_object2.select(blt_inds=blt_inds, antenna_nums=ants_to_keep,
+                      ant_pairs_nums=ant_pairs_to_keep, frequencies=freqs_to_keep,
                       times=times_to_keep, polarizations=pols_to_keep)
 
     nt.assert_equal(Nblts_select, uv_object2.Nblts)
     for ant in np.unique(uv_object2.ant_1_array.tolist() + uv_object2.ant_2_array.tolist()):
         nt.assert_true(ant in ants_to_keep)
+
+    sorted_pairs_object2 = [tuple(sorted(p)) for p in zip(uv_object2.ant_1_array, uv_object2.ant_2_array)]
+    for pair in sorted_pairs_object2:
+        nt.assert_true(pair in sorted_pairs_to_keep)
+
     nt.assert_equal(len(freqs_to_keep), uv_object2.Nfreqs)
     for f in freqs_to_keep:
         nt.assert_true(f in uv_object2.freq_array)
     for f in np.unique(uv_object2.freq_array):
         nt.assert_true(f in freqs_to_keep)
+
     for t in np.unique(uv_object2.time_array):
         nt.assert_true(t in times_to_keep)
+
     nt.assert_equal(len(pols_to_keep), uv_object2.Npols)
     for p in pols_to_keep:
         nt.assert_true(p in uv_object2.polarization_array)
@@ -451,7 +514,7 @@ def test_select():
         nt.assert_true(p in pols_to_keep)
 
     nt.assert_equal(old_history + '  Downselected to specific baseline-times, antennas, '
-                    'times, frequencies, polarizations using pyuvdata.',
+                    'antenna pairs, times, frequencies, polarizations using pyuvdata.',
                     uv_object2.history)
 
     # test that a ValueError is raised if the selection eliminates all blts

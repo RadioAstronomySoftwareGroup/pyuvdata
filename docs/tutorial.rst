@@ -126,3 +126,18 @@ b) Select 3 antennas to keep using the antenna names, also select 5 frequencies 
   print([UV.antenna_names[np.where(UV.antenna_numbers==a)[0][0]] for a in unique_ants])
   # print all the frequencies after the select
   print(UV.freq_array)
+
+c) Select a few antenna pairs to keep
+****************
+::
+
+  from pyuvdata import UVData
+  UV = UVData()
+  filename = 'pyuvdata/data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
+  UV.read_uvfits(filename)
+  # print all the antenna pairs with data in the original file
+  print(set(zip(UV.ant_1_array, UV.ant_2_array)))
+  UV.select(ant_pairs_nums=[(0, 2), (6, 0), (0, 21)])
+  # note that order of the values in the pair does not matter
+  # print all the antenna pairs after the select
+  print(set(zip(UV.ant_1_array, UV.ant_2_array)))
