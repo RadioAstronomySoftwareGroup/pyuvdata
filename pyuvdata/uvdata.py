@@ -311,6 +311,10 @@ class UVData(UVBase):
 
         if self.Nants_data > self.Nants_telescope:
             raise ValueError('Nants_data must be less than or equal to Nants_telescope')
+
+        if self.Nbls != len(np.unique(self.baseline_array)):
+            raise ValueError('Nbls must be equal to the number of unique '
+                             'baselines in the data_array')
         return True
 
     def set_drift(self):
