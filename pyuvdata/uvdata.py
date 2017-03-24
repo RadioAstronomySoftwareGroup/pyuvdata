@@ -772,6 +772,7 @@ class UVData(UVBase):
             blt_inds = list(sorted(set(list(blt_inds))))
             self.Nblts = len(blt_inds)
             self.baseline_array = self.baseline_array[blt_inds]
+            self.Nbls = len(np.unique(self.baseline_array))
             self.time_array = self.time_array[blt_inds]
             self.lst_array = self.lst_array[blt_inds]
             self.data_array = self.data_array[blt_inds, :, :, :]
