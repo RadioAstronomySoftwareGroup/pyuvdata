@@ -54,7 +54,7 @@ class MS(UVData):
 
 
 
-    def write_ms():
+    def write_ms(self):
         '''
         writing ms is not yet supported
         '''
