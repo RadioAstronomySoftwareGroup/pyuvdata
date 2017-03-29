@@ -204,7 +204,7 @@ class UVParameter(object):
                 if (testval >= self.acceptable_range[0]) and (testval <= self.acceptable_range[1]):
                     return True, 'Value is acceptable'
                 else:
-                    message = ('Value {val}, is not in allowed range: '
+                    message = ('Mean of abs values, {val}, is not in allowed range: '
                                '{acceptable_range}'.format(val=testval, acceptable_range=self.acceptable_range))
                     return False, message
 
