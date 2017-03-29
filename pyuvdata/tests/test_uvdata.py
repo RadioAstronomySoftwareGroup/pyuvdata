@@ -137,6 +137,16 @@ class TestUVDataBasicMethods(object):
     def test_check(self):
         """Test simple check function."""
         nt.assert_true(self.uv_object.check())
+        # Check variety of special cases
+        self.uv_object.Nants_data += 1
+        nt.assert_raises(ValueError, self.uv_object.check)
+        self.uv_object.Nants_data -= 1
+        self.uv_object.Nbls += 1
+        nt.assert_raises(ValueError, self.uv_object.check)
+        self.uv_object.Nbls -= 1
+        self.uv_object.Ntimes += 1
+        nt.assert_raises(ValueError, self.uv_object.check)
+        self.uv_object.Ntimes -= 1
 
     def test_nants_data_telescope(self):
         self.uv_object.Nants_data = self.uv_object.Nants_telescope - 1
