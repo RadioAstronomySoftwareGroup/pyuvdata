@@ -158,11 +158,15 @@ class UVFITS(UVData):
 
         # get shapes
         self.Nfreqs = hdr.pop('NAXIS4')
-        assert(self.Nfreqs == self.data_array.shape[2])
+        if self.data_array.shape[2] != self.Nfreqs:
+            warnings.warn('Nfreqs does not match the number of frequencies in the data')
         self.Npols = hdr.pop('NAXIS3')
-        assert(self.Npols == self.data_array.shape[3])
+        if self.data_array.shape[3] != self.Npols:
+            warnings.warn('npols={npols} but found {l} pols in data file'.format(
+                npols=self.Npols, l=len(self.polarization_array)))
         self.Nblts = hdr.pop('GCOUNT')
-        assert(self.Nblts == self.data_array.shape[0])
+        if self.data_array.shape[0] != self.Nblts:
+            warnings.warn('Nblts does not match the number of unique blts in the data')
 
         # read baseline vectors in units of seconds, return in meters
         self.uvw_array = (np.array(np.stack((D.data.field('UU'),

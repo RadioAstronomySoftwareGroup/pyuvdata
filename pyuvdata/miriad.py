@@ -158,9 +158,9 @@ class Miriad(UVData):
                 pol_list.append(uv['pol'])
                 # NB: flag types in miriad are usually ints
         self.polarization_array = np.array(pol_list)
-        if len(self.polarization_array) > self.Npols:
-            print "WARNING: npols={npols} but found {l} pols in data file".format(
-                npols=self.Npols, l=len(self.polarization_array))
+        if len(self.polarization_array) != self.Npols:
+            warnings.warn('npols={npols} but found {l} pols in data file'.format(
+                npols=self.Npols, l=len(self.polarization_array)))
 
         # makes a data_array (and flag_array) of zeroes to be filled in by
         #   data values
@@ -292,13 +292,13 @@ class Miriad(UVData):
         try:
             self.Nblts = uv['nblts']
             if self.Nblts != len(t_grid):
-                raise ValueError('Nblts does not match the number of unique blts in the data')
+                warnings.warn('Nblts does not match the number of unique blts in the data')
         except(KeyError):
             self.Nblts = len(t_grid)
         try:
             self.Ntimes = uv['ntimes']
             if self.Ntimes != len(times):
-                raise ValueError('Ntimes does not match the number of unique times in the data')
+                warnings.warn('Ntimes does not match the number of unique times in the data')
         except(KeyError):
             self.Ntimes = len(times)
         self.time_array = t_grid
@@ -310,7 +310,7 @@ class Miriad(UVData):
         try:
             self.Nbls = uv['nbls']
             if self.Nbls != len(np.unique(self.baseline_array)):
-                raise ValueError('Nbls does not match the number of unique baselines in the data')
+                warnings.warn('Nbls does not match the number of unique baselines in the data')
         except(KeyError):
             self.Nbls = len(np.unique(self.baseline_array))
 

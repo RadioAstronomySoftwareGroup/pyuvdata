@@ -143,12 +143,14 @@ class FHD(UVData):
         # We need to expand up to Nblts.
         int_times = bl_info['JDATE'][0]
         bin_offset = bl_info['BIN_OFFSET'][0]
+        if self.Ntimes != len(int_times):
+            warnings.warn('Ntimes does not match the number of unique times in the data')
         self.time_array = np.zeros(self.Nblts)
         if self.Ntimes == 1:
             self.time_array.fill(int_times)
         else:
-            for ii in range(0, self.Ntimes):
-                if ii < (self.Ntimes - 1):
+            for ii in range(0, len(int_times)):
+                if ii < (len(int_times) - 1):
                     self.time_array[bin_offset[ii]:bin_offset[ii + 1]] = int_times[ii]
                 else:
                     self.time_array[bin_offset[ii]:] = int_times[ii]
@@ -167,8 +169,12 @@ class FHD(UVData):
         self.baseline_array = \
             self.antnums_to_baseline(self.ant_1_array,
                                      self.ant_2_array)
+        if self.Nbls != len(np.unique(self.baseline_array)):
+            warnings.warn('Nbls does not match the number of unique baselines in the data')
 
-        self.freq_array = np.zeros((self.Nspws, self.Nfreqs), dtype=np.float_)
+        if len(bl_info['FREQ'][0]) != self.Nfreqs:
+            warnings.warn('Nfreqs does not match the number of frequencies in the data')
+        self.freq_array = np.zeros((self.Nspws, len(bl_info['FREQ'][0])), dtype=np.float_)
         self.freq_array[0, :] = bl_info['FREQ'][0]
 
         if not np.isclose(obs['OBSRA'][0], obs['PHASERA'][0]) or \
