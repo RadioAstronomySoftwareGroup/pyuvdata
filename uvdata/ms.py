@@ -153,6 +153,7 @@ class MS(UVData):
             self.antenna_names=ant_names#cotter measurement sets store antenna names in the NAMES column. 
         else:
             self.antenna_names=tbAnt.getcol('NAME')#importuvfits measurement sets store antenna namesin the STATION column.
+
         self.antenna_numbers=np.arange(len(self.antenna_names)).astype(int)
         nAntOrig=len(self.antenna_names)
         ant_names=[]
@@ -178,8 +179,7 @@ class MS(UVData):
         #self.telescope_location=np.array(np.mean(tbAnt.getcol('POSITION'),axis=0))
         #Warning: the value one gets with set_telescope_params is different from the mean of antenna locations.
         #        try:
-        #except:
-            
+        #except:            
         tbAnt.close()
         tbField=tables.table(filepath+'/FIELD')
         #print 'shape='+str(tbField.getcol('PHASE_DIR').shape[1])
