@@ -300,6 +300,9 @@ class UVData(UVBase):
                 are acceptable. Default is True.
         """
         # first run the basic check from UVBase
+        if np.all(self.ant_1_array == self.ant_2_array):
+            # Special case of only containing auto correlations
+            self._uvw_array.acceptable_range = (0.0, 0.0)
         super(UVData, self).check(run_check_acceptability=run_check_acceptability)
 
         # Check internal consistency of numbers which don't explicitly correspond

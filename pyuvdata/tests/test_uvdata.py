@@ -148,6 +148,18 @@ class TestUVDataBasicMethods(object):
         nt.assert_raises(ValueError, self.uv_object.check)
         self.uv_object.Ntimes -= 1
 
+        # Check case where all data is autocorrelations
+        # Currently only test files that have autos are fhd files
+        testdir = os.path.join(DATA_PATH, 'fhd_vis_data/')
+        self.uv_object.read_fhd([testdir + '1061316296_flags.sav',
+                                 testdir + '1061316296_vis_XX.sav',
+                                 testdir + '1061316296_params.sav',
+                                 testdir + '1061316296_settings.txt'])
+        self.uv_object.select(blt_inds=np.where(self.uv_object.ant_1_array ==
+                                                self.uv_object.ant_2_array)[0])
+        nt.assert_true(self.uv_object.check())
+
+
     def test_nants_data_telescope(self):
         self.uv_object.Nants_data = self.uv_object.Nants_telescope - 1
         nt.assert_true(self.uv_object.check)
