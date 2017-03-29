@@ -302,19 +302,22 @@ class UVData(UVBase):
         # first run the basic check from UVBase
         super(UVData, self).check(run_check_acceptability=run_check_acceptability)
 
-        # then check some other things
+        # Check internal consistency of numbers which don't explicitly correspond
+        # to the shape of another array.
         nants_data_calc = int(len(np.unique(self.ant_1_array.tolist() +
                                             self.ant_2_array.tolist())))
         if self.Nants_data != nants_data_calc:
             raise ValueError('Nants_data must be equal to the number of unique '
                              'values in ant_1_array and ant_2_array')
 
-        if self.Nants_data > self.Nants_telescope:
-            raise ValueError('Nants_data must be less than or equal to Nants_telescope')
-
         if self.Nbls != len(np.unique(self.baseline_array)):
             raise ValueError('Nbls must be equal to the number of unique '
                              'baselines in the data_array')
+
+        if self.Ntimes != len(np.unique(self.time_array)):
+            raise ValueError('Ntimes must be equal to the number of unique '
+                             'times in the time_array')
+
         return True
 
     def set_drift(self):
