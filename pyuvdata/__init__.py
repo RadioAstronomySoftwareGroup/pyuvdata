@@ -10,3 +10,5 @@ from .miriad import *
 from .uvcal import *
 from .calfits import *
 from .version import *
+
+__version__ = version
