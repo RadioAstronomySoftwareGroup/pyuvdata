@@ -8,3 +8,5 @@ from .uvfits import *
 from .fhd import *
 from .miriad import *
 from .version import *
+
+__version__ = version
