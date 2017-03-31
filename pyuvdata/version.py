@@ -1,9 +1,9 @@
 
 def construct_version_info():
     try:
-        __version__ = open('VERSION').read().strip()
+        version = open('VERSION').read().strip()
     except:
-        __version__ = ''
+        version = ''
     try:
         git_origin = subprocess.check_output(['git', 'config', '--get', 'remote.origin.url'],
                                              stderr=subprocess.STDOUT).strip()
@@ -19,7 +19,7 @@ def construct_version_info():
         git_description = ''
         git_branch = ''
 
-    version_info = {'version': __version__, 'git_origin': git_origin,
+    version_info = {'version': version, 'git_origin': git_origin,
                     'git_hash': git_hash, 'git_description': git_description,
                     'git_branch': git_branch}
     return version_info
