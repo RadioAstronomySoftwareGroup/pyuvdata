@@ -9,14 +9,4 @@ from .fhd import *
 from .miriad import *
 from .uvcal import *
 from .calfits import *
-
-try:
-    from .version import *
-    __version__ = version
-except ImportError:
-    # TODO: Issue a warning using the logging framework
-    __version__ = ''
-    git_origin = ''
-    git_hash = ''
-    git_description = ''
-    git_branch = ''
+from .version import *
