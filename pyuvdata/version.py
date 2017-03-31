@@ -5,7 +5,6 @@ from data import DATA_PATH
 
 def construct_version_info():
     version_file = os.path.join(os.path.dirname(os.path.dirname(DATA_PATH)), 'VERSION')
-    print(os.path.dirname(__file__))
     version = open(version_file).read().strip()
 
     try:
