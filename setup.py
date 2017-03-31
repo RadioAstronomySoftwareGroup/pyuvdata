@@ -2,7 +2,6 @@ from setuptools import setup
 import glob
 import os.path as op
 from os import listdir
-import subprocess
 
 setup_args = {
     'name': 'pyuvdata',
