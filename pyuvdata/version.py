@@ -1,9 +1,13 @@
+import os
+import subprocess
+from data import DATA_PATH
+
 
 def construct_version_info():
-    try:
-        version = open('VERSION').read().strip()
-    except:
-        version = ''
+    version_file = os.path.join(os.path.dirname(os.path.dirname(DATA_PATH)), 'VERSION')
+    print(os.path.dirname(__file__))
+    version = open(version_file).read().strip()
+
     try:
         git_origin = subprocess.check_output(['git', 'config', '--get', 'remote.origin.url'],
                                              stderr=subprocess.STDOUT).strip()
