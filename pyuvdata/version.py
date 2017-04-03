@@ -34,8 +34,12 @@ git_hash = version_info['git_hash']
 git_description = version_info['git_description']
 git_branch = version_info['git_branch']
 
-if __name__ == '__main__':
+
+def main():
     print('Version = {0}'.format(version))
     print('git origin = {0}'.format(git_origin))
     print('git branch = {0}'.format(git_branch))
     print('git description = {0}'.format(git_description))
+
+if __name__ == '__main__':
+    main()
