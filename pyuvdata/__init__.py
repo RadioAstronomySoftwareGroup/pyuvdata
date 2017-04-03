@@ -9,6 +9,6 @@ from .fhd import *
 from .miriad import *
 from .uvcal import *
 from .calfits import *
-from .version import *
+import version
 
-__version__ = version
+__version__ = version.version
