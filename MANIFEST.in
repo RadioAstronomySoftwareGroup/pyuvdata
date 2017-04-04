@@ -1,5 +1,7 @@
 include *.md
 include LICENSE
+include pyuvdata/VERSION
+include pyuvdata/GIT_INFO
 include *.bib
 include scripts/*.pro
 include scripts/*.sh
