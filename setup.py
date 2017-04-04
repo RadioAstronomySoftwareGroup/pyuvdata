@@ -2,6 +2,13 @@ from setuptools import setup
 import glob
 import os.path as op
 from os import listdir
+from pyuvdata import version
+
+version_text = ('"git_origin","{0}"\n"git_hash","{1}"\n' +
+                '"git_description","{2}"\n"git_branch","{3}"'
+                ).format(version.git_origin, version.git_hash,
+                         version.git_description, version.git_branch)
+open(op.join('pyuvdata', 'GIT_INFO'), 'w').write(version_text)
 
 setup_args = {
     'name': 'pyuvdata',
@@ -13,7 +20,7 @@ setup_args = {
     'packages': ['pyuvdata', 'uvdata'],
     'scripts': glob.glob('scripts/*'),
     'version': open('VERSION').read().strip(),
-    'package_data': {'pyuvdata': [f for f in listdir('./pyuvdata/data') if op.isfile(op.join('./pyuvdata/data', f))]},
+    'include_package_data': True,
     'install_requires': ['numpy>=1.10', 'scipy', 'astropy>=1.2', 'pyephem', 'aipy'],
     'classifiers': ['Development Status :: 5 - Production/Stable',
                     'Intended Audience :: Science/Research',

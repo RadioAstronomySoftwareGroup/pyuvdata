@@ -60,3 +60,4 @@ target/
 # exclude data files (can override as needed)
 pyuvdata/data/
 pyuvdata/data/test/
+pyuvdata/GIT_INFO
