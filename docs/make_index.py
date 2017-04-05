@@ -37,7 +37,7 @@ readme_text = readme_text.replace(status_badge_text, rst_status_badge)
 
 readme_text = readme_text.replace(' ' + rst_status_badge, rst_status_badge)
 
-end_text = 'parameters description'
+end_text = 'parameters descriptions'
 regex = re.compile(end_text.replace(' ', '\s+'))
 loc = re.search(regex, readme_text).start()
 
@@ -46,9 +46,9 @@ out += ('\n\nFurther Documentation\n====================================\n'
         '.. toctree::\n'
         '   :maxdepth: 1\n\n'
         '   tutorial\n'
-        '   parameters\n'
+        '   uvdata_parameters\n'
         '   uvdata\n'
-        '   cal_parameters\n'
+        '   uvcal_parameters\n'
         '   uvcal\n'
         '   developer_docs\n')
 F = open('index.rst', 'w')

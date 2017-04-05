@@ -6,7 +6,7 @@ import numpy as np
 from astropy.time import Time
 
 cal = UVCal()
-out = 'Cal Parameters\n==============\n'
+out = 'UVCal Parameters\n==============\n'
 out += ("These are the standard attributes of UVCal objects.\n\nUnder the hood "
         "they are actually properties based on UVParameter objects.\n\n")
 out += 'Required\n----------------\n'
@@ -33,6 +33,6 @@ for thing in cal.extra():
 t = Time.now()
 t.out_subfmt = 'date'
 out += "last updated: {date}".format(date=t.iso)
-F = open('cal_parameters.rst', 'w')
+F = open('uvcal_parameters.rst', 'w')
 F.write(out)
-print "wrote cal_parameters.rst"
+print "wrote uvcal_parameters.rst"

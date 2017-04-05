@@ -1,5 +1,5 @@
 .. pyuvdata documentation master file, created by
-   make_index.py on 2017-03-01
+   make_index.py on 2017-04-05
 
 pyuvdata
 ========
@@ -7,8 +7,8 @@ pyuvdata
 .. image:: https://travis-ci.org/HERA-Team/pyuvdata.svg?branch=cal
     :target: https://travis-ci.org/HERA-Team/pyuvdata
 
-.. image:: https://coveralls.io/repos/github/HERA-Team/pyuvdata/badge.svg?branch=master
-    :target: https://coveralls.io/github/HERA-Team/pyuvdata?branch=master
+.. image:: https://coveralls.io/repos/github/HERA-Team/pyuvdata/badge.svg?branch=cal
+    :target: https://coveralls.io/github/HERA-Team/pyuvdata?branch=cal
 
 pyuvdata defines a pythonic interface to interferometric data sets.
 Currently pyuvdata supports reading and writing of miriad and uvfits
@@ -57,8 +57,8 @@ Known Issues and Planned Improvements
 -  replacing AIPY and pyephem with astropy+NOVAS for time and phase
    calculations
 -  support for direct reading and writing of Measurement Sets
--  support for calibration solutions: define a cal object with
-   read/write support for FITS and other formats
+-  expand support for calibration solutions: support other formats
+   beyond FITS
 
 For details see the `issue
 log <https://github.com/HERA-Team/pyuvdata/issues>`__.
@@ -133,8 +133,8 @@ The primary interface to data from python is via the UVData object. It
 provides import and export functionality to all supported file formats
 (UVFITS, Miriad, FHD) and can be interacted with directly. The primary
 calibration interface is via the UVCal object. The attributes of the
-UVData and UVCal objects are described in the parameters and
-cal\_parameters description.
+UVData and UVCal objects are described in the uvdata\_parameters and
+uvcal\_parameters descriptions.
 
 Further Documentation
 ====================================
@@ -142,8 +142,8 @@ Further Documentation
    :maxdepth: 1
 
    tutorial
-   parameters
+   uvdata_parameters
    uvdata
-   cal_parameters
+   uvcal_parameters
    uvcal
    developer_docs

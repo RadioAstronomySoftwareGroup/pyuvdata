@@ -6,7 +6,7 @@ import numpy as np
 from astropy.time import Time
 
 UV = UVData()
-out = 'Parameters\n==============\n'
+out = 'UVData Parameters\n==============\n'
 out += ("These are the standard attributes of UVData objects.\n\nUnder the hood "
         "they are actually properties based on UVParameter objects.\n\nAngle type "
         "attributes also have convenience properties named the same thing \nwith "
@@ -40,6 +40,6 @@ for thing in UV.extra():
 t = Time.now()
 t.out_subfmt = 'date'
 out += "last updated: {date}".format(date=t.iso)
-F = open('parameters.rst', 'w')
+F = open('uvdata_parameters.rst', 'w')
 F.write(out)
-print "wrote parameters.rst"
+print "wrote uvdata_parameters.rst"

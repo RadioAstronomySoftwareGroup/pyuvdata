@@ -1,4 +1,4 @@
-Parameters
+UVData Parameters
 ==============
 These are the standard attributes of UVData objects.
 
@@ -154,4 +154,4 @@ Some of them are required depending on the phase_type (as noted below).
 **zenith_ra**
      Required if phase_type = "drift". Right ascension of zenith. units: radians, shape (Nblts). Can also be accessed using zenith_ra_degrees.
 
-last updated: 2017-02-15
+last updated: 2017-04-05

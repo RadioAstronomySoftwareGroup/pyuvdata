@@ -1,6 +1,7 @@
 # pyuvdata
 
 [![Build Status](https://travis-ci.org/HERA-Team/pyuvdata.svg?branch=cal)](https://travis-ci.org/HERA-Team/pyuvdata)
+[![Coverage Status](https://coveralls.io/repos/github/HERA-Team/pyuvdata/badge.svg?branch=cal)](https://coveralls.io/github/HERA-Team/pyuvdata?branch=cal)
 
 pyuvdata defines a pythonic interface to interferometric data sets. Currently pyuvdata supports reading and writing of miriad and uvfits files and reading of FHD ([Fast Holographic Deconvolution](https://github.com/EoRImaging/FHD)) visibility save files.   
 
@@ -79,4 +80,4 @@ The primary interface to data from python is via the UVData object. It provides
 import and export functionality to all supported file formats (UVFITS, Miriad, FHD)
 and can be interacted with directly. The primary calibration interface is via the
 UVCal object. The attributes of the UVData and UVCal objects are
-described in the parameters and cal_parameters descriptions at https://pyuvdata.readthedocs.io or [here](https://github.com/HERA-Team/pyuvdata/blob/master/docs).
+described in the uvdata_parameters and uvcal_parameters descriptions at https://pyuvdata.readthedocs.io or [here](https://github.com/HERA-Team/pyuvdata/blob/master/docs).
