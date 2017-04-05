@@ -3,12 +3,11 @@ import glob
 import os.path as op
 from os import listdir
 from pyuvdata import version
+import json
 
-version_text = ('"git_origin","{0}"\n"git_hash","{1}"\n' +
-                '"git_description","{2}"\n"git_branch","{3}"'
-                ).format(version.git_origin, version.git_hash,
-                         version.git_description, version.git_branch)
-open(op.join('pyuvdata', 'GIT_INFO'), 'w').write(version_text)
+data = [version.git_origin, version.git_hash, version.git_description, version.git_branch]
+with open(op.join('pyuvdata', 'GIT_INFO'), 'w') as outfile:
+    json.dump(data, outfile)
 
 setup_args = {
     'name': 'pyuvdata',
