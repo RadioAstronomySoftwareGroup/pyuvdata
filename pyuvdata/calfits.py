@@ -73,10 +73,13 @@ class CALFITS(UVCal):
             else:
                 continue
 
-        # if self.pipeline: prihdr['CALPIPE'] = self.pipeline
-        # if self.observer: prihdr['OBSERVER'] = self.observer
-        # if self.git_origin: prihdr['ORIGIN'] = self.git_origin
-        # if self.git_hash: prihdr['HASH'] = self.git_hash
+
+        if self.observer:
+            prihdr['OBSERVER'] = self.observer
+        if self.git_origin:
+            prihdr['ORIGCAL'] = self.git_origin_cal
+        if self.git_hash:
+            prihdr['HASHCAL'] = self.git_hash_cal
 
         if self.cal_type == 'unknown':
             raise ValueError("unknown calibration type. Do not know how to"
@@ -123,7 +126,6 @@ class CALFITS(UVCal):
             prihdr['CDELT4'] = self.channel_width
 
             pridata = np.concatenate([self.delay_array[:, :, :, :, np.newaxis],
-                                      # self.flag_array[:, :, :, :, np.newaxis],
                                       self.quality_array[:, :, :, :, np.newaxis]],
                                      axis=-1)
 
@@ -254,19 +256,15 @@ class CALFITS(UVCal):
         except:
             pass
         try:
-            self.pipeline = hdr['CALPIPE']
+            self.git_origin_cal = hdr['ORIGCAL']
         except:
             pass
         try:
-            self.git_origin = hdr['ORIGIN']
-        except:
-            pass
-        try:
-            self.git_hash = hdr['HASH']
+            self.git_hash_cal = hdr['HASHCAL']
         except:
             pass
 
-        # get data. XXX check file type for switch.
+        # get data.
         if self.cal_type == 'gain':
             self.set_gain()
             self.gain_array = data[:, :, :, :, 0] + 1j * data[:, :, :, :, 1]
