@@ -76,9 +76,9 @@ class CALFITS(UVCal):
 
         if self.observer:
             prihdr['OBSERVER'] = self.observer
-        if self.git_origin:
+        if self.git_origin_cal:
             prihdr['ORIGCAL'] = self.git_origin_cal
-        if self.git_hash:
+        if self.git_hash_cal:
             prihdr['HASHCAL'] = self.git_hash_cal
 
         if self.cal_type == 'unknown':
