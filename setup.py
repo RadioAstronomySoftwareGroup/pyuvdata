@@ -18,7 +18,7 @@ setup_args = {
     'package_dir': {'pyuvdata': 'pyuvdata', 'uvdata': 'uvdata'},
     'packages': ['pyuvdata', 'uvdata'],
     'scripts': glob.glob('scripts/*'),
-    'version': open('VERSION').read().strip(),
+    'version': version.version,
     'include_package_data': True,
     'install_requires': ['numpy>=1.10', 'scipy', 'astropy>=1.2', 'pyephem', 'aipy'],
     'classifiers': ['Development Status :: 5 - Production/Stable',
