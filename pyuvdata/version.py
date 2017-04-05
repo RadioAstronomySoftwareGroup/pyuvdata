@@ -1,6 +1,6 @@
 import os
 import subprocess
-import csv
+import json
 
 
 def construct_version_info():
@@ -25,12 +25,12 @@ def construct_version_info():
         try:
             # Check if a GIT_INFO file was created when installing package
             git_file = os.path.join(pyuvdata_dir, 'GIT_INFO')
-            csvfile = csv.reader(open(git_file))
-            git_info = dict(csvfile)
-            git_origin = git_info['git_origin']
-            git_hash = git_info['git_hash']
-            git_description = git_info['git_description']
-            git_branch = git_info['git_branch']
+            with open(git_file) as data_file:
+                data = [x.encode('UTF8') for x in json.loads(data_file.read().strip())]
+                git_origin = data[0]
+                git_hash = data[1]
+                git_description = data[2]
+                git_branch = data[3]
         except:
             git_origin = ''
             git_hash = ''
