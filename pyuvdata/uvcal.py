@@ -51,6 +51,12 @@ class UVCal(UVBase):
         self._Nants_data = uvp.UVParameter('Nants_data', description=desc,
                                            expected_type=int)
 
+        desc = ('Number of antennas in the array. May be larger ' +
+                'than the number of antennas with data')
+        self._Nants_telescope = uvp.UVParameter('Nants_telescope',
+                                                description=desc,
+                                                expected_type=int)
+
         desc = ('List of antenna names, shape (Nants_telescope), '
                 'with numbers given by antenna_numbers (which can be matched '
                 'to ant_1_array and ant_2_array). There must be one entry '
@@ -68,12 +74,6 @@ class UVCal(UVBase):
         self._antenna_numbers = uvp.UVParameter('antenna_numbers',
                                                 description=desc,
                                                 form=('Nants_telescope',),
-                                                expected_type=int)
-
-        desc = ('Number of antennas in the array. May be larger ' +
-                'than the number of antennas with data')
-        self._Nants_telescope = uvp.UVParameter('Nants_telescope',
-                                                description=desc,
                                                 expected_type=int)
 
         desc = 'Array of frequencies, shape (Nspws, Nfreqs), units Hz'
@@ -193,32 +193,6 @@ class UVCal(UVBase):
                                          required=False)
 
         super(UVCal, self).__init__()
-
-    def check(self, run_check_acceptability=True):
-        """
-        Add some extra checks on top of checks on UVBase class.
-
-        Check that all required parameters are set reasonably.
-
-        Check that required parameters exist and have appropriate shapes.
-        Optionally check if the values are acceptable.
-
-        Args:
-            run_check_acceptability: Option to check if values in required parameters
-                are acceptable. Default is True.
-        """
-        # first run the basic check from UVBase
-        super(UVCal, self).check(run_check_acceptability=run_check_acceptability)
-
-        # then check some other things
-        nants_data_calc = int(len(np.unique(self.antenna_numbers)))
-        if self.Nants_data != nants_data_calc:
-            raise ValueError('Nants_data must be equal to the number of unique '
-                             'values antenna_numbers.')
-
-        if self.Nants_data > self.Nants_telescope:
-            raise ValueError('Nants_data must be less than or equal to Nants_telescope')
-        return True
 
     def set_gain(self):
         """Set cal_type to 'gain' and adjust required parameters."""
