@@ -73,7 +73,6 @@ class CALFITS(UVCal):
             else:
                 continue
 
-
         if self.observer:
             prihdr['OBSERVER'] = self.observer
         if self.git_origin_cal:
@@ -96,7 +95,7 @@ class CALFITS(UVCal):
             prihdr['CTYPE1'] = ('Narrays', 'Number of image arrays.')
             prihdr['CUNIT1'] = ('Integer', 'Number of image arrays. Increment.')
             prihdr['CDELT1'] = 1
-            if self.input_flag_array:
+            if self.input_flag_array is not None:
                 prihdr['CRVAL1'] = (5, 'Number of image arrays.')
                 pridata = np.concatenate([self.gain_array.real[:, :, :, :, np.newaxis],
                                           self.gain_array.imag[:, :, :, :, np.newaxis],
@@ -157,9 +156,9 @@ class CALFITS(UVCal):
 
             sechdr['CTYPE5'] = ('ANTAXIS', 'See antenna_numbers/names for values.')
 
-            if self.input_flag_array:
-                secdata = np.concatenate([self.flag_array[:, :, :, :, np.newaxis],
-                                          self.input_flag_array[:, :, :, :, np.newaxis]],
+            if self.input_flag_array is not None:
+                secdata = np.concatenate([self.flag_array.astype(np.int64)[:, :, :, :, np.newaxis],
+                                          self.input_flag_array.astype(np.int64)[:, :, :, :, np.newaxis]],
                                          axis=-1)
                 sechdr['CTYPE1'] = ('Narrays', 'Number of image arrays.')
                 sechdr['CUNIT1'] = ('Integer', 'Number of image arrays. Value.')
