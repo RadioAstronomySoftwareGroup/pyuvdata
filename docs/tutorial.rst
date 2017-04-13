@@ -142,103 +142,103 @@ c) Select a few antenna pairs to keep
   # print all the antenna pairs after the select
   print(set(zip(UV.ant_1_array, UV.ant_2_array)))
 
-  Example 5
-  ---------
-  Calibration files using UVCal.
+Example 5
+---------
+Calibration files using UVCal.
 
-  a) Reading a gain calibration file.
-  ****************
-  ::
+a) Reading a gain calibration file.
+****************
+::
 
-    from pyuvdata import UVCal
-    import numpy as np
-    import matplotlib.pyplot as plt
-    UV = UVCal()
-    filename = 'pyuvdata/data/zen.2457698.40355.xx.fitsA'
-    UV.read_calfits(filename)
-    print 'Cal Type = ', UV.cal_type  # should print out 'gains'
-    print 'Number of jones parameters = ', UV.Njones, UV.jones_array  # number of antenna polarizations and polarization type.
-    print 'Number of antennas with data = ', UV.Nants_data
-    print 'Number of frequencies = ', UV.Nfreqs
-    print 'Shape of the gain_array', UV.gain_array.shape  # (UV.Nants_data, UV.Nfreqs, UV.Ntimes, UV.Njones)
-    for ant in range(UV.Nants_data):
-        plt.plot(UV.freq_array.flatten(), np.abs(UV.gain_array[ant, :, 0, 0]))  # plot abs of all gains for first time and first jones polarization.
-    plt.xlabel('Frequency (GHz)')
-    plt.ylabel('Abs(gains)')
-    plt.show()
+  from pyuvdata import UVCal
+  import numpy as np
+  import matplotlib.pyplot as plt
+  UV = UVCal()
+  filename = 'pyuvdata/data/zen.2457698.40355.xx.fitsA'
+  UV.read_calfits(filename)
+  print 'Cal Type = ', UV.cal_type  # should print out 'gains'
+  print 'Number of jones parameters = ', UV.Njones, UV.jones_array  # number of antenna polarizations and polarization type.
+  print 'Number of antennas with data = ', UV.Nants_data
+  print 'Number of frequencies = ', UV.Nfreqs
+  print 'Shape of the gain_array', UV.gain_array.shape  # (UV.Nants_data, UV.Nfreqs, UV.Ntimes, UV.Njones)
+  for ant in range(UV.Nants_data):
+      plt.plot(UV.freq_array.flatten(), np.abs(UV.gain_array[ant, :, 0, 0]))  # plot abs of all gains for first time and first jones polarization.
+  plt.xlabel('Frequency (GHz)')
+  plt.ylabel('Abs(gains)')
+  plt.show()
 
 
-  b) Writing a gain calibration file.
-  ****************
-  ::
+b) Writing a gain calibration file.
+****************
+::
 
-    from pyuvdata import UVCal
-    import numpy as np
-    time_array = 2457698 + np.linspace(.2, .3, 16)  # time_array in JD
-    Ntimes = len(time_array)
-    freq_array = np.linspace(1e6, 2e6, 1024)  # frequency array in Hz
-    Nfreqs = len(freq_array)
-    jones_array = np.array([-5])  #  only 1 jones parameter (E-W).
-    Njones = len(jones_array)
-    antenna_numbers = np.arange(19)
-    Nants_data = len(antenna_numbers)
-    antenna_names = np.array(['ant{0}.format(ant)' for ant in antenna_numbers])
-    # Generate fake data to process into correct format. Gains formatted with gains[pol][ant].
-    gains = {}
-    flags = {}
-    chisq = {}
-    for pol in jones_array:
-        if not gains.has_key(pol):
-            gains[pol] = {}
-            flags[pol] = {}
-            chisq[pol] = {}
-        for ant in antenna_numbers:
-            gains[pol][ant] = np.random.randn(Ntimes, Nfreqs) + 1j*np.random.randn(Ntimes, Nfreqs)
-            flags[pol][ant] = np.ones_like(gains[pol][ant], dtype=np.bool)
-            chisq[pol][ant] = np.random.randn(Ntimes, Nfreqs)
+  from pyuvdata import UVCal
+  import numpy as np
+  time_array = 2457698 + np.linspace(.2, .3, 16)  # time_array in JD
+  Ntimes = len(time_array)
+  freq_array = np.linspace(1e6, 2e6, 1024)  # frequency array in Hz
+  Nfreqs = len(freq_array)
+  jones_array = np.array([-5])  #  only 1 jones parameter (E-W).
+  Njones = len(jones_array)
+  antenna_numbers = np.arange(19)
+  Nants_data = len(antenna_numbers)
+  antenna_names = np.array(['ant{0}.format(ant)' for ant in antenna_numbers])
+  # Generate fake data to process into correct format. Gains formatted with gains[pol][ant].
+  gains = {}
+  flags = {}
+  chisq = {}
+  for pol in jones_array:
+      if not gains.has_key(pol):
+          gains[pol] = {}
+          flags[pol] = {}
+          chisq[pol] = {}
+      for ant in antenna_numbers:
+          gains[pol][ant] = np.random.randn(Ntimes, Nfreqs) + 1j*np.random.randn(Ntimes, Nfreqs)
+          flags[pol][ant] = np.ones_like(gains[pol][ant], dtype=np.bool)
+          chisq[pol][ant] = np.random.randn(Ntimes, Nfreqs)
 
-    gainarray = []
-    flagarray = []
-    chisqarray = []
-    for pol in jones_array:
-        dd = []
-        fl = []
-        ch = []
-        for ant in antenna_numbers:
-            dd.append(gains[pol][ant])
-            fl.append(flags[pol][ant])
-            ch.append(chisq[pol][ant])
-        gainarray.append(dd)
-        flagarray.append(fl)
-        chisqarray.append(ch)
+  gainarray = []
+  flagarray = []
+  chisqarray = []
+  for pol in jones_array:
+      dd = []
+      fl = []
+      ch = []
+      for ant in antenna_numbers:
+          dd.append(gains[pol][ant])
+          fl.append(flags[pol][ant])
+          ch.append(chisq[pol][ant])
+      gainarray.append(dd)
+      flagarray.append(fl)
+      chisqarray.append(ch)
 
-    gainarray = np.array(gainarray).swapaxes(0,3).swapaxes(0,1) # get it into format so shape is correct.
-    flagarray = np.array(flagarray).swapaxes(0,3).swapaxes(0,1)
-    chisqarray = np.array(chisqarray).swapaxes(0,3).swapaxes(0,1)
+  gainarray = np.array(gainarray).swapaxes(0,3).swapaxes(0,1) # get it into format so shape is correct.
+  flagarray = np.array(flagarray).swapaxes(0,3).swapaxes(0,1)
+  chisqarray = np.array(chisqarray).swapaxes(0,3).swapaxes(0,1)
 
-    UV = UVCal()
-    UV.set_gain()
-    UV.Nfreqs = Nfreqs
-    UV.Njones = Njones
-    UV.Ntimes = Ntimes
-    UV.history = 'This is an example file generated from tutorial 5b of pyuvdata.'
-    UV.Nspws = 1
-    UV.freq_array = freq_array.reshape(UV.Nspws, -1)
-    UV.freq_range = [freq_array[0], freq_array[-1]]  # valid frequencies for solutions.
-    UV.channel_width = np.diff(freq_array)[0]
-    UV.jones_array = jones_array
-    UV.time_array = time_array
-    UV.integration_time = np.diff(freq_array)[0]
-    UV.gain_convention = 'divide'  # Use this operation to apply gain solution.
-    UV.x_orientation = 'east'  # orientation of 1st jones parameter.
-    UV.time_range = [time_array[0], time_array[-1]]
-    UV.telescope_name = 'Fake Telescope'
-    UV.Nants_data = Nants_data
-    UV.Nants_telescope = Nants_data  # have solutions for all antennas in array.
-    UV.antenna_names = antenna_names
-    UV.antenna_numbers = antenna_numbers
-    UV.flag_array = flagarray
-    UV.gain_array = gainarray
-    UV.quality_array = chisqarray
+  UV = UVCal()
+  UV.set_gain()
+  UV.Nfreqs = Nfreqs
+  UV.Njones = Njones
+  UV.Ntimes = Ntimes
+  UV.history = 'This is an example file generated from tutorial 5b of pyuvdata.'
+  UV.Nspws = 1
+  UV.freq_array = freq_array.reshape(UV.Nspws, -1)
+  UV.freq_range = [freq_array[0], freq_array[-1]]  # valid frequencies for solutions.
+  UV.channel_width = np.diff(freq_array)[0]
+  UV.jones_array = jones_array
+  UV.time_array = time_array
+  UV.integration_time = np.diff(freq_array)[0]
+  UV.gain_convention = 'divide'  # Use this operation to apply gain solution.
+  UV.x_orientation = 'east'  # orientation of 1st jones parameter.
+  UV.time_range = [time_array[0], time_array[-1]]
+  UV.telescope_name = 'Fake Telescope'
+  UV.Nants_data = Nants_data
+  UV.Nants_telescope = Nants_data  # have solutions for all antennas in array.
+  UV.antenna_names = antenna_names
+  UV.antenna_numbers = antenna_numbers
+  UV.flag_array = flagarray
+  UV.gain_array = gainarray
+  UV.quality_array = chisqarray
 
-    UV.write_calfits('tutorial5b.fits')
+  UV.write_calfits('tutorial5b.fits')
