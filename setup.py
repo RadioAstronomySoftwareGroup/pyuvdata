@@ -2,8 +2,12 @@ from setuptools import setup
 import glob
 import os.path as op
 from os import listdir
+from pyuvdata import version
+import json
 
-__version__ = '1.0.1'
+data = [version.git_origin, version.git_hash, version.git_description, version.git_branch]
+with open(op.join('pyuvdata', 'GIT_INFO'), 'w') as outfile:
+    json.dump(data, outfile)
 
 setup_args = {
     'name': 'pyuvdata',
@@ -14,8 +18,8 @@ setup_args = {
     'package_dir': {'pyuvdata': 'pyuvdata', 'uvdata': 'uvdata'},
     'packages': ['pyuvdata', 'uvdata'],
     'scripts': glob.glob('scripts/*'),
-    'version': __version__,
-    'package_data': {'pyuvdata': [f for f in listdir('./pyuvdata/data') if op.isfile(op.join('./pyuvdata/data', f))]},
+    'version': version.version,
+    'include_package_data': True,
     'install_requires': ['numpy>=1.10', 'scipy', 'astropy>=1.2', 'pyephem', 'aipy'],
     'classifiers': ['Development Status :: 5 - Production/Stable',
                     'Intended Audience :: Science/Research',

@@ -240,6 +240,11 @@ class CALFITS(UVCal):
         self.integration_time = hdr['INTTIME']
         self.telescope_name = hdr['TELESCOP']
         self.history = str(hdr.get('HISTORY', ''))
+        if self.pyuvdata_version_str not in self.history.replace('\n', ''):
+            if self.history.endswith('\n'):
+                self.history += self.pyuvdata_version_str
+            else:
+                self.history += '\n' + self.pyuvdata_version_str
         while 'HISTORY' in hdr.keys():
             hdr.remove('HISTORY')
         self.freq_range = map(float, hdr['FRQRANGE'].split(','))

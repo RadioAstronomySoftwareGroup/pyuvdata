@@ -57,7 +57,8 @@ class TestUVDataInit(object):
         self.other_properties = ['telescope_location_lat_lon_alt',
                                  'telescope_location_lat_lon_alt_degrees',
                                  'phase_center_ra_degrees', 'phase_center_dec_degrees',
-                                 'zenith_ra_degrees', 'zenith_dec_degrees']
+                                 'zenith_ra_degrees', 'zenith_dec_degrees',
+                                 'pyuvdata_version_str']
 
         self.uv_object = UVData()
 
