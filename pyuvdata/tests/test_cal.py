@@ -34,6 +34,8 @@ class TestUVCalInit(object):
         self.extra_properties = ['gain_array', 'delay_array',
                                  'input_flag_array']
 
+        self.other_properties = ['pyuvdata_version_str']
+
         self.uv_cal_object = UVCal()
 
     def teardown(self):
@@ -61,7 +63,7 @@ class TestUVCalInit(object):
     def test_unexpected_attributes(self):
         "Test for extra attributes."
         expected_attributes = self.required_properties + \
-            self.extra_properties
+            self.extra_properties + self.other_properties
         attributes = [i for i in self.uv_cal_object.__dict__.keys() if i[0] != '_']
         for a in attributes:
             nt.assert_true(a in expected_attributes,
