@@ -361,8 +361,8 @@ class Miriad(UVData):
             idx_sort = t_grid.argsort()
             vals, idx_start, count = np.unique(t_grid[idx_sort], return_counts=True, return_index=True)
             t_inds = dict(zip(vals, np.split(idx_sort, idx_start[1:])))
-            pol_ind = self._pol_to_ind(pol)
 
+            pol_ind = self._pol_to_ind(pol)
             for ind, d in enumerate(data):
                 t, ant_i, ant_j = d[1], d[2], d[3]
 
