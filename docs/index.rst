@@ -1,14 +1,14 @@
 .. pyuvdata documentation master file, created by
-   make_index.py on 2017-04-05
+   make_index.py on 2017-04-14
 
 pyuvdata
 ========
 
-.. image:: https://travis-ci.org/HERA-Team/pyuvdata.svg?branch=cal
+.. image:: https://travis-ci.org/HERA-Team/pyuvdata.svg?branch=master
     :target: https://travis-ci.org/HERA-Team/pyuvdata
 
-.. image:: https://coveralls.io/repos/github/HERA-Team/pyuvdata/badge.svg?branch=cal
-    :target: https://coveralls.io/github/HERA-Team/pyuvdata?branch=cal
+.. image:: https://coveralls.io/repos/github/HERA-Team/pyuvdata/badge.svg?branch=master
+    :target: https://coveralls.io/github/HERA-Team/pyuvdata?branch=master
 
 pyuvdata defines a pythonic interface to interferometric data sets.
 Currently pyuvdata supports reading and writing of miriad and uvfits
@@ -30,13 +30,22 @@ The three main goals are:
 Package Details
 ===============
 
-Tested File Paths
------------------
+Tested File Paths for interferometer data
+-----------------------------------------
 
 -  uvfits -> miriad (aipy)
 -  miriad (aipy) -> uvfits
 -  FHD -> uvfits
 -  FHD -> miriad (aipy)
+
+File formats for calibration data
+---------------------------------
+
+-  calfits (a new format defined in pyuvdata, detailed memo coming
+   soon). Note that this format was recently defined and may change in
+   coming versions, based on user needs. Consider it to be in a beta
+   version, but we will strive to make future versions backwards
+   compatible with the current format.
 
 File standards
 --------------
