@@ -1,7 +1,7 @@
 # pyuvdata
 
 [![Build Status](https://travis-ci.org/HERA-Team/pyuvdata.svg?branch=master)](https://travis-ci.org/HERA-Team/pyuvdata)
-[![Coverage Status](https://coveralls.io/repos/github/HERA-Team/pyuvdata/badge.svg?branch=master)](https://coveralls.io/github/HERA-Team/pyuvdata?branch=master)
+[![Coverage Status](https://coveralls.io/repos/github/HERA-Team/pyuvdata/badge.svg?branch=cal)](https://coveralls.io/github/HERA-Team/pyuvdata?branch=master)
 
 pyuvdata defines a pythonic interface to interferometric data sets. Currently pyuvdata supports reading and writing of miriad and uvfits files and reading of FHD ([Fast Holographic Deconvolution](https://github.com/EoRImaging/FHD)) visibility save files.   
 
@@ -14,11 +14,14 @@ The three main goals are:
 3. Provide precise data definition via both human readable code and high quality online documentation
 
 # Package Details
-## Tested File Paths
+## Tested File Paths for interferometer data
 * uvfits -> miriad (aipy)
 * miriad (aipy) -> uvfits
 * FHD -> uvfits
 * FHD -> miriad (aipy)
+
+## File formats for calibration data
+* calfits (a new format defined in pyuvdata, detailed memo coming soon). Note that this format was recently defined and may change in coming versions, based on user needs. Consider it to be in a beta version, but we will strive to make future versions backwards compatible with the current format.
 
 ## File standards
 * miriad is supported for aipy-style analysis, further testing is required for use in the miriad package
@@ -30,7 +33,7 @@ The three main goals are:
 * testing against miriad package
 * replacing AIPY and pyephem with astropy+NOVAS for time and phase calculations
 * support for direct reading and writing of Measurement Sets
-* support for calibration solutions: define a cal object with read/write support for FITS and other formats
+* expand support for calibration solutions: support other formats beyond FITS
 
 For details see the [issue log](https://github.com/HERA-Team/pyuvdata/issues).
 
@@ -78,5 +81,6 @@ From the source pyuvdata directory run ```nosetests pyuvdata```.
 # API
 The primary interface to data from python is via the UVData object. It provides
 import and export functionality to all supported file formats (UVFITS, Miriad, FHD)
-and can be interacted with directly. The attributes of the UVData object are
-described in the parameters description at https://pyuvdata.readthedocs.io or [here](https://github.com/HERA-Team/pyuvdata/blob/master/docs/parameters.rst).
+and can be interacted with directly. The primary calibration interface is via the
+UVCal object. The attributes of the UVData and UVCal objects are
+described in the uvdata_parameters and uvcal_parameters descriptions at https://pyuvdata.readthedocs.io or [here](https://github.com/HERA-Team/pyuvdata/blob/master/docs).

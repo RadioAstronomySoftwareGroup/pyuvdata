@@ -30,6 +30,9 @@ Classes
 .. autoclass:: fhd.FHD
   :members:
 
+.. autoclass:: calfits.CALFITS
+  :members:
+
 .. autoclass:: telescopes.Telescope
   :members:
 

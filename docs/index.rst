@@ -1,5 +1,5 @@
 .. pyuvdata documentation master file, created by
-   make_index.py on 2017-03-16
+   make_index.py on 2017-04-14
 
 pyuvdata
 ========
@@ -30,13 +30,22 @@ The three main goals are:
 Package Details
 ===============
 
-Tested File Paths
------------------
+Tested File Paths for interferometer data
+-----------------------------------------
 
 -  uvfits -> miriad (aipy)
 -  miriad (aipy) -> uvfits
 -  FHD -> uvfits
 -  FHD -> miriad (aipy)
+
+File formats for calibration data
+---------------------------------
+
+-  calfits (a new format defined in pyuvdata, detailed memo coming
+   soon). Note that this format was recently defined and may change in
+   coming versions, based on user needs. Consider it to be in a beta
+   version, but we will strive to make future versions backwards
+   compatible with the current format.
 
 File standards
 --------------
@@ -57,8 +66,8 @@ Known Issues and Planned Improvements
 -  replacing AIPY and pyephem with astropy+NOVAS for time and phase
    calculations
 -  support for direct reading and writing of Measurement Sets
--  support for calibration solutions: define a cal object with
-   read/write support for FITS and other formats
+-  expand support for calibration solutions: support other formats
+   beyond FITS
 
 For details see the `issue
 log <https://github.com/HERA-Team/pyuvdata/issues>`__.
@@ -131,8 +140,10 @@ API
 
 The primary interface to data from python is via the UVData object. It
 provides import and export functionality to all supported file formats
-(UVFITS, Miriad, FHD) and can be interacted with directly. The
-attributes of the UVData object are described in the parameters description.
+(UVFITS, Miriad, FHD) and can be interacted with directly. The primary
+calibration interface is via the UVCal object. The attributes of the
+UVData and UVCal objects are described in the uvdata\_parameters and
+uvcal\_parameters descriptions.
 
 Further Documentation
 ====================================
@@ -140,6 +151,8 @@ Further Documentation
    :maxdepth: 1
 
    tutorial
-   parameters
+   uvdata_parameters
    uvdata
+   uvcal_parameters
+   uvcal
    developer_docs

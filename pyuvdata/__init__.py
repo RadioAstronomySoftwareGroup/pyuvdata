@@ -7,3 +7,5 @@ from .telescopes import *
 from .uvfits import *
 from .fhd import *
 from .miriad import *
+from .uvcal import *
+from .calfits import *
