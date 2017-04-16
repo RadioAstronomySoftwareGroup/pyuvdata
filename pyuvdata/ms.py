@@ -4,7 +4,7 @@ import astropy.time as time
 import numpy as np
 import os
 import warnings
-from uvdata import UVData
+from pyuvdata import UVData
 import parameter as uvp
 import casacore.tables as tables
 import telescopes
