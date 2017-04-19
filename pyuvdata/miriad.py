@@ -295,12 +295,14 @@ class Miriad(UVData):
             self.Nblts = uv['nblts']
             if self.Nblts != len(t_grid):
                 warnings.warn('Nblts does not match the number of unique blts in the data')
+                self.Nblts = len(t_grid)
         except(KeyError):
             self.Nblts = len(t_grid)
         try:
             self.Ntimes = uv['ntimes']
             if self.Ntimes != len(times):
                 warnings.warn('Ntimes does not match the number of unique times in the data')
+                self.Ntimes = len(times)
         except(KeyError):
             self.Ntimes = len(times)
         self.time_array = t_grid
@@ -313,6 +315,7 @@ class Miriad(UVData):
             self.Nbls = uv['nbls']
             if self.Nbls != len(np.unique(self.baseline_array)):
                 warnings.warn('Nbls does not match the number of unique baselines in the data')
+                self.Nbls = len(np.unique(self.baseline_array))
         except(KeyError):
             self.Nbls = len(np.unique(self.baseline_array))
 
