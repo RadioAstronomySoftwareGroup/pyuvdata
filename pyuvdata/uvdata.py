@@ -642,7 +642,7 @@ class UVData(UVBase):
         self.set_phased()
 
     def select(self, antenna_nums=None, antenna_names=None, ant_pairs_nums=None,
-               frequencies=None,
+               frequencies=None, chans=None,
                times=None, polarizations=None, blt_inds=None, run_check=True,
                run_check_acceptability=True):
         """
@@ -664,6 +664,7 @@ class UVData(UVBase):
                 specifying baselines to keep in the object. Ordering of the
                 numbers within the tuple does not matter.
             frequencies: The frequencies to keep in the object.
+            chans: The frequency channel numbers to keep in the object.
             times: The times to keep in the object.
             polarizations: The polarizations to keep in the object.
             blt_inds: The baseline-time indices to keep in the object. This is
@@ -809,6 +810,15 @@ class UVData(UVBase):
             if self.phase_type == 'drift':
                 self.zenith_ra = self.zenith_ra[blt_inds]
                 self.zenith_dec = self.zenith_dec[blt_inds]
+
+        if chans is not None:
+            chans = uvutils.get_iterable(chans)
+            if frequencies is None:
+                frequencies = self.freq_array[0, chans]
+            else:
+                frequencies = uvutils.get_iterable(frequencies)
+                frequencies = np.sort(list(set(frequencies) |
+                                      set(self.freq_array[0, chans])))
 
         if frequencies is not None:
             frequencies = uvutils.get_iterable(frequencies)
