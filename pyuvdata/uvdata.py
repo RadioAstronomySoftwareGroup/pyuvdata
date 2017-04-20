@@ -570,6 +570,7 @@ class UVData(UVBase):
         epoch = self.juldate2ephem(time)
         self.phase(ra, dec, epoch)
 
+    @profile
     def phase(self, ra, dec, epoch):
         """
         Phase a drift scan dataset to a single ra/dec at a particular epoch.
@@ -614,6 +615,7 @@ class UVData(UVBase):
         # explicitly set epoch to J2000
         self.phase_center_epoch = 2000.0
 
+        c_s = const.c.to('m/s').value
         for ind, jd in enumerate(self.time_array):
             # calculate ra/dec of phase center in current epoch
             obs.date, obs.epoch = self.juldate2ephem(jd), self.juldate2ephem(jd)
@@ -631,7 +633,7 @@ class UVData(UVBase):
             self.uvw_array[ind, :] = uvw
 
             # calculate data and apply phasor
-            w_lambda = uvw[2] / const.c.to('m/s').value * self.freq_array
+            w_lambda = uvw[2] / c_s * self.freq_array
             phs = np.exp(-1j * 2 * np.pi * w_lambda)
             phs.shape += (1,)
             self.data_array[ind] *= phs
