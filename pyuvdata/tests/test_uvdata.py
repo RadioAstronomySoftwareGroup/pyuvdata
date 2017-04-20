@@ -431,6 +431,39 @@ def test_select_frequencies():
     nt.assert_raises(ValueError, uv_object2.write_miriad, write_file_miriad)
 
 
+def test_select_chans():
+    uv_object = UVData()
+    testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    uvtest.checkWarnings(uv_object.read_uvfits, [testfile],
+                         message='Telescope EVLA is not')
+    old_history = uv_object.history
+    chans_to_keep = np.arange(12, 22)
+
+    uv_object2 = copy.deepcopy(uv_object)
+    uv_object2.select(chans=chans_to_keep)
+
+    nt.assert_equal(len(chans_to_keep), uv_object2.Nfreqs)
+    for chan in chans_to_keep:
+        nt.assert_true(uv_object.freq_array[0, chan] in uv_object2.freq_array)
+    for f in np.unique(uv_object2.freq_array):
+        nt.assert_true(f in uv_object.freq_array[0, chans_to_keep])
+
+    nt.assert_equal(old_history + '  Downselected to specific frequencies '
+                    'using pyuvdata.', uv_object2.history)
+
+    # Test selecting both channels and frequencies
+    freqs_to_keep = uv_object.freq_array[0, np.arange(20, 30)]  # Overlaps with chans
+    all_chans_to_keep = np.arange(12, 30)
+
+    uv_object2 = copy.deepcopy(uv_object)
+    uv_object2.select(frequencies=freqs_to_keep, chans=chans_to_keep)
+
+    nt.assert_equal(len(all_chans_to_keep), uv_object2.Nfreqs)
+    for chan in all_chans_to_keep:
+        nt.assert_true(uv_object.freq_array[0, chan] in uv_object2.freq_array)
+    for f in np.unique(uv_object2.freq_array):
+        nt.assert_true(f in uv_object.freq_array[0, all_chans_to_keep])
+
 def test_select_polarizations():
     uv_object = UVData()
     testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
