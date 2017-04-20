@@ -313,8 +313,8 @@ class Miriad(UVData):
                 self.Ntimes = len(times)
         except(KeyError):
             self.Ntimes = len(times)
-        self.time_array = t_grid
 
+        self.time_array = t_grid
         self.ant_1_array = ant_i_grid.astype(int)
         self.ant_2_array = ant_j_grid.astype(int)
 
@@ -567,9 +567,9 @@ class Miriad(UVData):
         uv.add_var('dec', 'd')
 
         # write data
+        c_ns = const.c.to('m/ns').value
         for viscnt, blt in enumerate(self.data_array):
-            uvw = (self.uvw_array[viscnt] /
-                   const.c.to('m/ns').value).astype(np.double)  # NOTE issue 50 on conjugation
+            uvw = (self.uvw_array[viscnt] / c_ns ).astype(np.double)  # NOTE issue 50 on conjugation
             t = self.time_array[viscnt]
             i = self.ant_1_array[viscnt]
             j = self.ant_2_array[viscnt]
