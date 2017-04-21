@@ -299,7 +299,6 @@ class UVFITS(UVData):
         if run_check:
             self.check(run_check_acceptability=run_check_acceptability)
 
-    @profile
     def write_uvfits(self, filename, spoof_nonessential=False,
                      force_phase=False, run_check=True, run_check_acceptability=True):
         """

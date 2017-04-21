@@ -570,7 +570,6 @@ class UVData(UVBase):
         epoch = self.juldate2ephem(time)
         self.phase(ra, dec, epoch)
 
-    @profile
     def phase(self, ra, dec, epoch):
         """
         Phase a drift scan dataset to a single ra/dec at a particular epoch.
@@ -623,7 +622,7 @@ class UVData(UVBase):
             ra, dec = precess_pos.a_ra, precess_pos.a_dec
 
             # generate rotation matrices
-            m0 = a.coord.top2eq_m(self.lst_array[ind] - obs.sidereal_time(), latitude)
+            m0 = a.coord.top2eq_m(self.lst_array[ind] - obs.sidereal_time(), latitude)    ##TODO This is a bottleneck because top2eq_m involves a matrix inversion. 
             m1 = a.coord.eq2top_m(self.lst_array[ind] - ra, dec)
 
             # rotate and write uvws
