@@ -4,7 +4,6 @@ from astropy.time import Time
 import os
 import numpy as np
 import warnings
-import aipy as a
 import ephem
 from uvbase import UVBase
 import parameter as uvp
@@ -525,8 +524,8 @@ class UVData(UVBase):
             self.zenith_dec[ind] = zenith_dec
 
             # generate rotation matrices
-            m0 = a.coord.top2eq_m(0., phase_center_dec)
-            m1 = a.coord.eq2top_m(phase_center_ra - zenith_ra, zenith_dec)
+            m0 = uvutils.top2eq_m(0., phase_center_dec)
+            m1 = uvutils.eq2top_m(phase_center_ra - zenith_ra, zenith_dec)
 
             # rotate and write uvws
             uvw = self.uvw_array[ind, :]
@@ -622,8 +621,8 @@ class UVData(UVBase):
             ra, dec = precess_pos.a_ra, precess_pos.a_dec
 
             # generate rotation matrices
-            m0 = a.coord.top2eq_m(self.lst_array[ind] - obs.sidereal_time(), latitude)    ##This is a bottleneck because top2eq_m involves a matrix inversion. 
-            m1 = a.coord.eq2top_m(self.lst_array[ind] - ra, dec)
+            m0 = uvutils.top2eq_m(self.lst_array[ind] - obs.sidereal_time(), latitude)
+            m1 = uvutils.eq2top_m(self.lst_array[ind] - ra, dec)
 
             # rotate and write uvws
             uvw = self.uvw_array[ind, :]

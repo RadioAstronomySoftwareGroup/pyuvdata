@@ -66,3 +66,31 @@ def get_iterable(x):
         return x
     else:
         return (x,)
+
+
+def eq2top_m(ha, dec):
+    """Return the 3x3 matrix converting equatorial coordinates to topocentric
+    at the given hour angle (ha) and declination (dec).
+    Borrowed from aipy."""
+    sin_H, cos_H = np.sin(ha), np.cos(ha)
+    sin_d, cos_d = np.sin(dec), np.cos(dec)
+    mat = np.array([[sin_H, cos_H, np.zeros_like(ha)],
+                    [-sin_d * cos_H, sin_d * sin_H, cos_d],
+                    [cos_d * cos_H, -cos_d * sin_H, sin_d]])
+    if len(mat.shape) == 3:
+        mat = mat.transpose([2, 0, 1])
+    return mat
+
+
+def top2eq_m(ha, dec):
+    """Return the 3x3 matrix converting topocentric coordinates to equatorial
+    at the given hour angle (ha) and declination (dec).
+    Slightly changed from aipy to simply write the matrix instead of inverting."""
+    sin_H, cos_H = np.sin(ha), np.cos(ha)
+    sin_d, cos_d = np.sin(dec), np.cos(dec)
+    mat = np.array([[sin_H, -cos_H * sin_d, cos_d * cos_H],
+                    [cos_H, sin_d * sin_H, -cos_d * sin_H],
+                    [np.zeros_like(ha), cos_d, sin_d]])
+    if len(mat.shape) == 3:
+        mat = mat.transpose([2, 0, 1])
+    return mat
