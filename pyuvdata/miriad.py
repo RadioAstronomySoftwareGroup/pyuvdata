@@ -428,8 +428,8 @@ class Miriad(UVData):
             warnings.warn(str(ve))
 
         # check if object has all required uv_properties set
-#        if run_check:
-#            self.check(run_check_acceptability=run_check_acceptability)
+        if run_check:
+            self.check(run_check_acceptability=run_check_acceptability)
 
     def write_miriad(self, filepath, run_check=True, run_check_acceptability=True,
                      clobber=False, no_antnums=False):
