@@ -190,13 +190,19 @@ class Miriad(UVData):
         ant_i_unique = np.array(ant_i_unique)
         ant_j_unique = np.array(ant_j_unique)
 
+        # Determine maximum digits needed to distinguish different values
+        ndig_ant = np.ceil(np.log10(sorted_unique_ants[-1])).astype(int) + 1
+        # Be excessive in precision because we use the floating point values as dictionary keys later
+        prec_t = - 2 * np.floor(np.log10(self._time_array.tols[-1])).astype(int)
+        ndig_t = (np.ceil(np.log10(times[-1])).astype(int) + prec_t + 2)
         blts = []
         for d in data_accumulator.values():
             for k in d:
-                blt = [k[1], k[2], k[3]]
-                blt = "_".join(map(str, blt))
+                blt = ["{1:.{0}f}".format(prec_t, k[1]).zfill(ndig_t),
+                       str(k[2]).zfill(ndig_ant), str(k[3]).zfill(ndig_ant)]
+                blt = "_".join(blt)
                 blts.append(blt)
-        unique_blts = np.unique(np.array(blts))
+        unique_blts = np.sort(np.unique(np.array(blts)))
 
         self.Nants_data = len(sorted_unique_ants)
 
@@ -282,20 +288,8 @@ class Miriad(UVData):
 
         # form up a grid which indexes time and baselines along the 'long'
         # axis of the visdata array
-        t_grid = []
-        ant_i_grid = []
-        ant_j_grid = []
 
-        iterator = iter(["_".join(map(repr,[t, ant_i, ant_j]))
-                           for t in times for ant_i in ant_i_unique for ant_j in ant_j_unique  if ant_i <= ant_j])
-
-
-        ## Warning -- This will cut off antenna numbers if the total number of characters in this string exceeds 30.
-        tij_grid = np.fromiter(iterator, dtype='|S30')
-
-        ## TODO Efficiently verify that each item in tij_grid is also in unique_blts
-
-        tij_grid = np.array(map( lambda x: map(float, x.split("_")), tij_grid))
+        tij_grid = np.array(map(lambda x: map(float, x.split("_")), unique_blts))
         t_grid, ant_i_grid, ant_j_grid = tij_grid.T
 
         # set the data sizes
@@ -351,13 +345,13 @@ class Miriad(UVData):
         c_ns = const.c.to('m/ns').value
 
         for pol, data in data_accumulator.iteritems():
-            ## The following builds a dictionary of { baseline : [indices] }. The [indices] refer to positions in the data_array for that given baseline.
-            bls_comp = self.antnums_to_baseline(data[:,2], data[:,3])
+            # The following builds a dictionary of { baseline : [indices] }. The [indices] refer to positions in the data_array for that given baseline.
+            bls_comp = self.antnums_to_baseline(data[:, 2], data[:, 3])
             idx_sort = bls_comp.argsort()
             vals, idx_start, count = np.unique(bls_comp[idx_sort], return_counts=True, return_index=True)
             bl_inds = dict(zip(vals, np.split(idx_sort, idx_start[1:])))
-          
-            ## The following builds a dictionary of { times : [indices] }. The [indices] refer to positions in the data_array for that given time.
+
+            # The following builds a dictionary of { times : [indices] }. The [indices] refer to positions in the data_array for that given time.
             idx_sort = t_grid.argsort()
             vals, idx_start, count = np.unique(t_grid[idx_sort], return_counts=True, return_index=True)
             t_inds = dict(zip(vals, np.split(idx_sort, idx_start[1:])))
@@ -366,22 +360,22 @@ class Miriad(UVData):
             for ind, d in enumerate(data):
                 t, ant_i, ant_j = d[1], d[2], d[3]
 
-                bl = self.antnums_to_baseline(ant_i, ant_j) 
-                blt_index = np.intersect1d(t_inds[t], bl_inds[bl]).squeeze()   #This is a bottleneck, but it's a little faster than what was done before.
- 
+                bl = self.antnums_to_baseline(ant_i, ant_j)
+                blt_index = np.intersect1d(t_inds[t], bl_inds[bl]).squeeze()  # This is a bottleneck, but it's a little faster than what was done before.
+
                 self.data_array[blt_index, :, :, pol_ind] = d[4]
                 self.flag_array[blt_index, :, :, pol_ind] = d[5]
                 self.nsample_array[blt_index, :, :, pol_ind] = d[6]
 
                 # because there are uvws/ra/dec for each pol, and one pol may not
                 # have that visibility, we collapse along the polarization
-		# axis but avoid any missing visbilities
+                # axis but avoid any missing visbilities
                 uvw = d[0] * c_ns
                 uvw.shape = (1, 3)
                 uvw_pol_list[blt_index, :, pol_ind] = uvw
                 ra_pol_list[blt_index, pol_ind] = d[7]
                 dec_pol_list[blt_index, pol_ind] = d[8]
-        
+
         # Collapse pol axis for ra_list, dec_list, and uvw_list
         ra_list = np.zeros(self.Nblts)
         dec_list = np.zeros(self.Nblts)
@@ -569,7 +563,7 @@ class Miriad(UVData):
         # write data
         c_ns = const.c.to('m/ns').value
         for viscnt, blt in enumerate(self.data_array):
-            uvw = (self.uvw_array[viscnt] / c_ns ).astype(np.double)  # NOTE issue 50 on conjugation
+            uvw = (self.uvw_array[viscnt] / c_ns).astype(np.double)  # NOTE issue 50 on conjugation
             t = self.time_array[viscnt]
             i = self.ant_1_array[viscnt]
             j = self.ant_2_array[viscnt]
