@@ -462,7 +462,7 @@ class UVData(UVBase):
         self.lst_array = np.zeros(self.Nblts)
         latitude, longitude, altitude = self.telescope_location_lat_lon_alt_degrees
         for ind, jd in enumerate(np.unique(self.time_array)):
-            t = Time(jd, format='jd', location=(longitude,latitude))
+            t = Time(jd, format='jd', location=(longitude, latitude))
             self.lst_array[np.where(np.isclose(jd, self.time_array, atol=1e-6, rtol=1e-12))] = t.sidereal_time('apparent').radian
 
     def juldate2ephem(self, num):
@@ -505,33 +505,32 @@ class UVData(UVBase):
         self.zenith_ra = np.zeros_like(self.time_array)
         self.zenith_dec = np.zeros_like(self.time_array)
 
-        for ind, jd in enumerate(self.time_array):
+        # apply -w phasor
+        w_lambda = (self.uvw_array[:, 2].reshape(self.Nblts, 1) /
+                    const.c.to('m/s').value * self.freq_array.reshape(1, self.Nfreqs))
+        phs = np.exp(-1j * 2 * np.pi * (-1) * w_lambda[:, None, :, None])
+        self.data_array *= phs
 
-            # apply -w phasor
-            w_lambda = self.uvw_array[ind, 2] / const.c.to('m/s').value * self.freq_array
-            phs = np.exp(-1j * 2 * np.pi * (-1) * w_lambda)
-            phs.shape += (1,)
-            self.data_array[ind] *= phs
-
-            # calculate ra/dec of phase center in current epoch
+        unique_times = np.unique(self.time_array)
+        for jd in unique_times:
+            inds = np.where(self.time_array == jd)[0]
             obs.date, obs.epoch = self.juldate2ephem(jd), self.juldate2ephem(jd)
             phase_center.compute(obs)
             phase_center_ra, phase_center_dec = phase_center.a_ra, phase_center.a_dec
-
             zenith_ra = obs.sidereal_time()
             zenith_dec = latitude
-            self.zenith_ra[ind] = zenith_ra
-            self.zenith_dec[ind] = zenith_dec
+            self.zenith_ra[inds] = zenith_ra
+            self.zenith_dec[inds] = zenith_dec
 
             # generate rotation matrices
             m0 = uvutils.top2eq_m(0., phase_center_dec)
             m1 = uvutils.eq2top_m(phase_center_ra - zenith_ra, zenith_dec)
 
             # rotate and write uvws
-            uvw = self.uvw_array[ind, :]
-            uvw = np.dot(m0, uvw)
-            uvw = np.dot(m1, uvw)
-            self.uvw_array[ind, :] = uvw
+            uvw = self.uvw_array[inds, :]
+            uvw = np.dot(m0, uvw.T).T
+            uvw = np.dot(m1, uvw.T).T
+            self.uvw_array[inds, :] = uvw
 
         # remove phase center
         self.phase_center_ra = None
@@ -613,28 +612,30 @@ class UVData(UVBase):
         # explicitly set epoch to J2000
         self.phase_center_epoch = 2000.0
 
-        c_s = const.c.to('m/s').value
-        for ind, jd in enumerate(self.time_array):
+        unique_times, unique_inds = np.unique(self.time_array, return_index=True)
+        for ind, jd in enumerate(unique_times):
+            inds = np.where(self.time_array == jd)[0]
+            lst = self.lst_array[unique_inds[ind]]
             # calculate ra/dec of phase center in current epoch
             obs.date, obs.epoch = self.juldate2ephem(jd), self.juldate2ephem(jd)
             precess_pos.compute(obs)
             ra, dec = precess_pos.a_ra, precess_pos.a_dec
 
             # generate rotation matrices
-            m0 = uvutils.top2eq_m(self.lst_array[ind] - obs.sidereal_time(), latitude)
-            m1 = uvutils.eq2top_m(self.lst_array[ind] - ra, dec)
+            m0 = uvutils.top2eq_m(lst - obs.sidereal_time(), latitude)
+            m1 = uvutils.eq2top_m(lst - ra, dec)
 
             # rotate and write uvws
-            uvw = self.uvw_array[ind, :]
-            uvw = np.dot(m0, uvw)
-            uvw = np.dot(m1, uvw)
-            self.uvw_array[ind, :] = uvw
+            uvw = self.uvw_array[inds, :]
+            uvw = np.dot(m0, uvw.T).T
+            uvw = np.dot(m1, uvw.T).T
+            self.uvw_array[inds, :] = uvw
 
-            # calculate data and apply phasor
-            w_lambda = uvw[2] / c_s * self.freq_array
-            phs = np.exp(-1j * 2 * np.pi * w_lambda)
-            phs.shape += (1,)
-            self.data_array[ind] *= phs
+        # calculate data and apply phasor
+        w_lambda = (self.uvw_array[:, 2].reshape(self.Nblts, 1) /
+                    const.c.to('m/s').value * self.freq_array.reshape(1, self.Nfreqs))
+        phs = np.exp(-1j * 2 * np.pi * w_lambda[:, None, :, None])
+        self.data_array *= phs
 
         del(obs)
         self.set_phased()
