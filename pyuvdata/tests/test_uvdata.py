@@ -431,7 +431,7 @@ def test_select_frequencies():
     nt.assert_raises(ValueError, uv_object2.write_miriad, write_file_miriad)
 
 
-def test_select_chans():
+def test_select_freq_chans():
     uv_object = UVData()
     testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
     uvtest.checkWarnings(uv_object.read_uvfits, [testfile],
@@ -440,7 +440,7 @@ def test_select_chans():
     chans_to_keep = np.arange(12, 22)
 
     uv_object2 = copy.deepcopy(uv_object)
-    uv_object2.select(chans=chans_to_keep)
+    uv_object2.select(freq_chans=chans_to_keep)
 
     nt.assert_equal(len(chans_to_keep), uv_object2.Nfreqs)
     for chan in chans_to_keep:
@@ -456,7 +456,7 @@ def test_select_chans():
     all_chans_to_keep = np.arange(12, 30)
 
     uv_object2 = copy.deepcopy(uv_object)
-    uv_object2.select(frequencies=freqs_to_keep, chans=chans_to_keep)
+    uv_object2.select(frequencies=freqs_to_keep, freq_chans=chans_to_keep)
 
     nt.assert_equal(len(all_chans_to_keep), uv_object2.Nfreqs)
     for chan in all_chans_to_keep:
