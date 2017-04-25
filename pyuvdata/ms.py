@@ -19,14 +19,17 @@ class MS(UVData):
     Attributs:
       ms_required_extra: Names of optional MSParameters that are required for casa ms
     """
-    ms_required_extra=['data_column','antenna_positions']
-    def _ms_hist_to_string(self,history_table):
+    ms_required_extra=['data_column','antenna_positions','casa_history']
+    def _ms_hist_to_string(self,history_table,test_import_uvfits):
         '''
         converts a CASA history table into a string that can be stored as the uvdata history parameter.
-        Returns this string
+        Returns this string. 
+        Also stores messages column as a list for consitency with other uvdata types
         Args: history_table, a casa table object
-        Returns: casa history table converted to a string with \n denoting new lines and     denoting column breaks
+        test_import_uvfits, true if you are testing .ms file imported from uvfits file by casa. will ignore last five lines of history
+        Returns: list of strings in message column, casa history table converted to a string with \n denoting new lines and     denoting column breaks
         '''
+        message_str=''
         history_str='APP_PARAMS;CLI_COMMAND;APPLICATION;MESSAGE;OBJECT_ID;OBSERVATION_ID;ORIGIN;PRIORITY;TIME\n'
         app_params=history_table.getcol('APP_PARAMS')['array']
         cli_command=history_table.getcol('CLI_COMMAND')['array']
@@ -38,7 +41,11 @@ class MS(UVData):
         priority=history_table.getcol('PRIORITY')
         times=history_table.getcol('TIME')
         #Now loop through columns and generate history string
-        for tbrow in range(len(times)):
+        ntimes=len(times)
+        if test_import_uvfits:
+            ntimes-=5
+        for tbrow in range(ntimes):
+            message_str+=str(message[tbrow])+'\n'
             newline=str(app_params[tbrow]) \
             +';'+str(cli_command[tbrow]) \
             +';'+str(application[tbrow]) \
@@ -49,7 +56,7 @@ class MS(UVData):
             +';'+str(priority[tbrow]) \
             +';'+str(times[tbrow])+'\n'
             history_str+=newline
-        return history_str
+        return message_str,history_str
 
 
 
@@ -61,12 +68,17 @@ class MS(UVData):
 
 
 
-    def read_ms(self,filepath,run_check=True,run_sanity_check=True,data_column='DATA'):
+    def read_ms(self,filepath,run_check=True,run_check_acceptability=True,data_column='DATA',pol_order='AIPS',test_import_uvfits=False):
         '''
         read in a casa measurement set
         ARGS:
         filename: name of the measurement set folder
-        run_check:
+        run_check:specify whether you want to run check
+        run_check_acceptability: sanity check for data
+        data_column: specify which CASA measurement set data column to read from 
+        pol_order: use 'AIPS' or 'CASA' ordering of polarizations?
+        test_import_uvfits: test a .ms file that was created with CASA importuvfits method: 
+        ignores last five lines of history which contain information on importuvfits command. 
         '''
         if not os.path.exists(filepath):
             raise(IOError, filepath + ' not found')
@@ -199,7 +211,8 @@ class MS(UVData):
         #set the history parameter
         #as a string with \t indicating column breaks
         #\n indicating row breaks.
-        self.history=self._ms_hist_to_string(tables.table(filepath+'/HISTORY'))
+        self.history,self.casa_history=self._ms_hist_to_string(tables.table(filepath+'/HISTORY'),test_import_uvfits)
+
         #CASA weights column keeps track of number of data points averaged.
         self.nsample_array=tb.getcol('WEIGHT_SPECTRUM')
         if(len(self.nsample_array.shape)==3):
@@ -207,5 +220,7 @@ class MS(UVData):
         self.object_name=tbField.getcol('NAME')[0]
         tbField.close()
         tb.close()
+        #order polarizations
+        self.order_pols(pol_order)
         if run_check:
-            self.check(run_sanity_check=run_sanity_check)
+            self.check(run_check_acceptability=run_check_acceptability)
