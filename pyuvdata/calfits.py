@@ -40,6 +40,26 @@ class CALFITS(UVCal):
         if run_check:
             self.check(run_check_acceptability=run_check_acceptability)
 
+        if self.Nfreqs > 1:
+            freq_spacing = self.freq_array[0, 1:] - self.freq_array[0, :-1]
+            if not np.isclose(np.min(freq_spacing), np.max(freq_spacing),
+                              rtol=self._freq_array.tols[0], atol=self._freq_array.tols[1]):
+                raise ValueError('The frequencies are not evenly spaced (probably '
+                                 'because of a select operation). The calfits format '
+                                 'does not support unevenly spaced frequencies.')
+        else:
+            freq_spacing = self.channel_width  # or should this be the length of the frequency range?
+
+        if self.Ntimes > 1:
+            time_spacing = self.time_array[0, 1:] - self.time_array[0, :-1]
+            if not np.isclose(np.min(time_spacing), np.max(time_spacing),
+                              rtol=self._time_array.tols[0], atol=self._time_array.tols[1]):
+                raise ValueError('The times are not evenly spaced (probably '
+                                 'because of a select operation). The calfits format '
+                                 'does not support unevenly spaced times.')
+        else:
+            time_spacing = self.integration_time  # or should this be the length of the time range?
+
         if self.Njones > 1:
             jones_spacing = np.diff(self.jones_array)
             if np.min(jones_spacing) < np.max(jones_spacing):
@@ -96,7 +116,7 @@ class CALFITS(UVCal):
             prihdr['CTYPE4'] = ('FREQS', 'Frequency.')
             prihdr['CUNIT4'] = ('Hz', 'Units of frequecy.')
             prihdr['CRVAL4'] = self.freq_array[0][0]
-            prihdr['CDELT4'] = self.channel_width
+            prihdr['CDELT4'] = self.freq_spacing
 
             # Nspws axis: number of spectral windows
             prihdr['CTYPE5'] = ('NSPWS', 'Number of spectral windows.')
@@ -167,12 +187,12 @@ class CALFITS(UVCal):
             sechdr['CTYPE3'] = ('TIME', 'Time axis.')
             sechdr['CUNIT3'] = ('JD', 'Time in julian date format')
             sechdr['CRVAL3'] = self.time_array[0]
-            sechdr['CDELT3'] = self.integration_time
+            sechdr['CDELT3'] = time_spacing
 
             sechdr['CTYPE4'] = ('FREQS', 'Valid frequencies to apply delay.')
             sechdr['CUNIT4'] = ('Hz', 'Units of frequecy.')
             sechdr['CRVAL4'] = self.freq_array[0][0]
-            sechdr['CDELT4'] = self.channel_width
+            sechdr['CDELT4'] = self.freq_spacing
 
             # Nspws axis: number of spectral windows
             prihdr['CTYPE5'] = ('NSPWS', 'Number of spectral windows.')
@@ -211,7 +231,7 @@ class CALFITS(UVCal):
         prihdr['CTYPE3'] = ('TIME', 'Time axis.')
         prihdr['CUNIT3'] = ('JD', 'Time in julian date format')
         prihdr['CRVAL3'] = self.time_array[0]
-        prihdr['CDELT3'] = self.integration_time
+        prihdr['CDELT3'] = time_spacing
 
         prihdu = fits.PrimaryHDU(data=pridata, header=prihdr)
 
