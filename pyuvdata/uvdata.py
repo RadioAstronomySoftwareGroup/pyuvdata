@@ -38,7 +38,7 @@ class UVData(UVBase):
         self._Ntimes = uvp.UVParameter('Ntimes', description='Number of times',
                                        expected_type=int)
         self._Nbls = uvp.UVParameter('Nbls', description='Number of baselines',
-                                     expected_type=int)
+                                    expected_type=int)
         self._Nblts = uvp.UVParameter('Nblts', description='Number of baseline-times '
                                       '(i.e. number of spectra). Not necessarily '
                                       'equal to Nbls * Ntimes', expected_type=int)
@@ -1221,7 +1221,7 @@ class UVData(UVBase):
         del(uvfits_obj)
 
     def read_ms(self, filepath, run_check=True,
-                 run_sanity_check=True,data_column='DATA'):
+                 run_check_acceptability=True,data_column='DATA',pol_order='AIPS',test_import_uvfits=False):
         """
         Read in data from a measurement set
 
@@ -1232,11 +1232,13 @@ class UVData(UVBase):
             run_sanity_check: Option to sanity check the values of
                 required parameters after reading in the file. Default is True.
             data_column: name of CASA data column to read into data_array. 'DATA', 'MODEL', or 'CORRECTED_DATA'
+            pol_order: specify whether you want polarizations ordered by 'CASA' or 'AIPS' conventions. 
         """
         import ms
         ms_obj = ms.MS()
         ms_obj.read_ms(filepath, run_check=run_check,
-                         run_sanity_check=run_sanity_check, data_column=data_column)
+                         run_check_acceptability=run_check_acceptability,
+                       data_column=data_column,pol_order=pol_order,test_import_uvfits=test_import_uvfits)
         self._convert_from_filetype(ms_obj)
         del(ms_obj)
         
