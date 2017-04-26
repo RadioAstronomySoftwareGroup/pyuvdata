@@ -51,7 +51,7 @@ class CALFITS(UVCal):
             freq_spacing = self.channel_width  # or should this be the length of the frequency range?
 
         if self.Ntimes > 1:
-            time_spacing = self.time_array[0, 1:] - self.time_array[0, :-1]
+            time_spacing = np.diff(self.time_array)
             if not np.isclose(np.min(time_spacing), np.max(time_spacing),
                               rtol=self._time_array.tols[0], atol=self._time_array.tols[1]):
                 raise ValueError('The times are not evenly spaced (probably '
@@ -116,7 +116,7 @@ class CALFITS(UVCal):
             prihdr['CTYPE4'] = ('FREQS', 'Frequency.')
             prihdr['CUNIT4'] = ('Hz', 'Units of frequecy.')
             prihdr['CRVAL4'] = self.freq_array[0][0]
-            prihdr['CDELT4'] = self.freq_spacing
+            prihdr['CDELT4'] = freq_spacing[0]
 
             # Nspws axis: number of spectral windows
             prihdr['CTYPE5'] = ('NSPWS', 'Number of spectral windows.')
@@ -187,12 +187,12 @@ class CALFITS(UVCal):
             sechdr['CTYPE3'] = ('TIME', 'Time axis.')
             sechdr['CUNIT3'] = ('JD', 'Time in julian date format')
             sechdr['CRVAL3'] = self.time_array[0]
-            sechdr['CDELT3'] = time_spacing
+            sechdr['CDELT3'] = time_spacing[0]
 
             sechdr['CTYPE4'] = ('FREQS', 'Valid frequencies to apply delay.')
             sechdr['CUNIT4'] = ('Hz', 'Units of frequecy.')
             sechdr['CRVAL4'] = self.freq_array[0][0]
-            sechdr['CDELT4'] = self.freq_spacing
+            sechdr['CDELT4'] = freq_spacing[0]
 
             # Nspws axis: number of spectral windows
             prihdr['CTYPE5'] = ('NSPWS', 'Number of spectral windows.')
@@ -231,7 +231,7 @@ class CALFITS(UVCal):
         prihdr['CTYPE3'] = ('TIME', 'Time axis.')
         prihdr['CUNIT3'] = ('JD', 'Time in julian date format')
         prihdr['CRVAL3'] = self.time_array[0]
-        prihdr['CDELT3'] = time_spacing
+        prihdr['CDELT3'] = time_spacing[0]
 
         prihdu = fits.PrimaryHDU(data=pridata, header=prihdr)
 
