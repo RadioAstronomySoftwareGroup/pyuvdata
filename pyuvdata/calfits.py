@@ -93,12 +93,12 @@ class CALFITS(UVCal):
 
         if self.cal_type == 'gain':
             # Set header variable for gain.
-            # ANTAXIS axis number differs between delay and gain because there's no frequency axis in delay
             prihdr['CTYPE4'] = ('FREQS', 'Frequency.')
             prihdr['CUNIT4'] = ('Hz', 'Units of frequecy.')
             prihdr['CRVAL4'] = self.freq_array[0][0]
             prihdr['CDELT4'] = self.channel_width
 
+            # ANTAXIS axis number differs between delay and gain because there's no frequency axis in delay
             prihdr['CTYPE5'] = ('ANTAXIS', 'See ANTARR in ANTENNA extension for values.')
             prihdr['CUNIT5'] = 'Integer'
             prihdr['CRVAL5'] = 0
