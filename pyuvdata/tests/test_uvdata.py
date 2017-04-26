@@ -160,7 +160,6 @@ class TestUVDataBasicMethods(object):
                                                 self.uv_object.ant_2_array)[0])
         nt.assert_true(self.uv_object.check())
 
-
     def test_nants_data_telescope(self):
         self.uv_object.Nants_data = self.uv_object.Nants_telescope - 1
         nt.assert_true(self.uv_object.check)
@@ -228,6 +227,22 @@ def test_phase_unphaseHERA():
     nt.assert_equal(UV_raw, UV_phase)
     del(UV_phase)
     del(UV_raw)
+
+
+def test_set_phase_unknown():
+    uv_object = UVData()
+    testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    uvtest.checkWarnings(uv_object.read_uvfits, [testfile],
+                         message='Telescope EVLA is not')
+
+    uv_object.set_unknown_phase_type()
+    nt.assert_equal(uv_object.phase_type, 'unknown')
+    nt.assert_false(uv_object._zenith_ra.required)
+    nt.assert_false(uv_object._zenith_dec.required)
+    nt.assert_false(uv_object._phase_center_epoch.required)
+    nt.assert_false(uv_object._phase_center_ra.required)
+    nt.assert_false(uv_object._phase_center_dec.required)
+    nt.assert_true(uv_object.check())
 
 
 def test_select_blts():
@@ -463,6 +478,7 @@ def test_select_freq_chans():
         nt.assert_true(uv_object.freq_array[0, chan] in uv_object2.freq_array)
     for f in np.unique(uv_object2.freq_array):
         nt.assert_true(f in uv_object.freq_array[0, all_chans_to_keep])
+
 
 def test_select_polarizations():
     uv_object = UVData()
