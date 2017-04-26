@@ -93,6 +93,7 @@ class CALFITS(UVCal):
 
         if self.cal_type == 'gain':
             # Set header variable for gain.
+            # ANTAXIS axis number differs between delay and gain because there's no frequency axis in delay
             prihdr['CTYPE4'] = ('FREQS', 'Frequency.')
             prihdr['CUNIT4'] = ('Hz', 'Units of frequecy.')
             prihdr['CRVAL4'] = self.freq_array[0][0]
@@ -126,6 +127,7 @@ class CALFITS(UVCal):
         if self.cal_type == 'delay':
             # Set header variable for delay.
 
+            # ANTAXIS axis number differs between delay and gain because there's no frequency axis in delay
             prihdr['CTYPE4'] = ('ANTAXIS', 'See ANTARR in ANTENNA extension for values.')
             prihdr['CUNIT4'] = 'Integer'
             prihdr['CRVAL4'] = 0
@@ -203,7 +205,11 @@ class CALFITS(UVCal):
             col3 = fits.Column(name='ANTARR', format='D',
                                array=self.ant_array)
         else:
-            ant_array_use = np.append(self.ant_array, np.zeros(self.Nants_telescope - self.Nants_data, dtype=np.int) - 1)
+            # ant_array is shorter than the other columns.
+            # Pad the extra rows with -1s. Need to undo on read.
+            nants_add = self.Nants_telescope - self.Nants_data
+            ant_array_use = np.append(self.ant_array,
+                                      np.zeros(nants_add, dtype=np.int) - 1)
             col3 = fits.Column(name='ANTARR', format='D',
                                array=self.ant_array)
         cols = fits.ColDefs([col1, col2, col3])
@@ -236,6 +242,8 @@ class CALFITS(UVCal):
         self.antenna_numbers = map(int, antdata['ANTINDEX'])
         self.ant_array = map(int, antdata['ANTARR'])
         if np.min(self.ant_array) < 0:
+            # ant_array was shorter than the other columns, so it was padded with -1s.
+            # Remove the padded entries.
             self.ant_array = self.ant_array[np.where(self.ant_array >= 0)[0]]
 
         self.Nfreqs = hdr['NFREQS']
@@ -284,7 +292,7 @@ class CALFITS(UVCal):
             else:
                 self.quality_array = data[:, :, :, :, 3]
 
-            # generate frequency array.
+            # generate frequency array from primary data unit.
             self.freq_array = np.arange(self.Nfreqs).reshape(1, -1) * hdr['CDELT4'] + hdr['CRVAL4']
 
         if self.cal_type == 'delay':
@@ -300,10 +308,10 @@ class CALFITS(UVCal):
             else:
                 self.flag_array = flag_data[:, :, :, :, 0].astype('bool')
 
-            # generate frequency array.
+            # generate frequency array from flag data unit (no freq axis in primary).
             self.freq_array = np.arange(self.Nfreqs).reshape(1, -1) * flag_hdr['CDELT4'] + flag_hdr['CRVAL4']
 
-        # generate polarization, and time array.
+        # generate polarization and time array for either cal_type.
         self.jones_array = np.arange(self.Njones) * hdr['CDELT2'] + hdr['CRVAL2']
         self.time_array = np.arange(self.Ntimes) * hdr['CDELT3'] + hdr['CRVAL3']
 
