@@ -283,15 +283,15 @@ class UVCal(UVBase):
 
             ant_inds = np.zeros(0, dtype=np.int)
             for ant in antenna_nums:
-                if ant in self.:
-                    ant_inds = np.append(ant_inds, np.where(self. == ant)[0])
+                if ant in self.ant_array:
+                    ant_inds = np.append(ant_inds, np.where(self.ant_array == ant)[0])
                 else:
                     raise ValueError('Antenna number {a} is not present in the '
                                      ' array'.format(a=ant))
 
             ant_inds = list(sorted(set(list(ant_inds))))
             self.Nants_data = len(ant_inds)
-            self. = self.[ant_inds]
+            self.ant_array = self.ant_array[ant_inds]
             self.flag_array = self.flag_array[ant_inds, :, :, :]
             if self.cal_type == 'delay':
                 self.quality_array = self.quality_array[ant_inds, :, :]
