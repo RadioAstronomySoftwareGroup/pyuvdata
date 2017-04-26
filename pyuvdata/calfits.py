@@ -40,6 +40,13 @@ class CALFITS(UVCal):
         if run_check:
             self.check(run_check_acceptability=run_check_acceptability)
 
+        if self.Njones > 1:
+            jones_spacing = np.diff(self.jones_array)
+            if np.min(jones_spacing) < np.max(jones_spacing):
+                raise ValueError('The jones values are not evenly spaced.'
+                                 'The calibration fits file format does not'
+                                 ' support unevenly spaced polarizations.')
+
         today = datetime.date.today().strftime("Date: %d, %b %Y")
         prihdr = fits.Header()
         if self.cal_type != 'gain':
@@ -119,23 +126,11 @@ class CALFITS(UVCal):
             prihdr['CRVAL1'] = (2, 'Number of image arrays.')
             prihdr['CDELT1'] = 1
 
-            prihdr['CTYPE4'] = ('FREQS', 'Valid frequencies to apply delay.')
-            prihdr['CUNIT4'] = ('Hz', 'Units of frequecy.')
-            prihdr['CRVAL4'] = self.freq_array[0][0]
-            prihdr['CDELT4'] = self.channel_width
-
-            pridata = np.concatenate([self.delay_array[:, :, :, :, np.newaxis],
-                                      self.quality_array[:, :, :, :, np.newaxis]],
+            pridata = np.concatenate([self.delay_array[:, :, :, np.newaxis],
+                                      self.quality_array[:, :, :, np.newaxis]],
                                      axis=-1)
 
             # Set headers for the second hdu containing the flags. Only in cal_type=delay.
-            if self.Njones > 1:
-                jones_spacing = np.diff(self.jones_array)
-                if np.min(jones_spacing) < np.max(jones_spacing):
-                    raise ValueError('The jones values are not evenly spaced.'
-                                     'The calibration fits file format does not'
-                                     ' support unevenly spaced polarizations.')
-
             sechdr['CTYPE2'] = ('JONES', 'Jones matrix array')
             sechdr['CUNIT2'] = ('Integer', 'representative integer for polarization.')
             sechdr['CRVAL2'] = self.jones_array[0]  # always start with first jones.
@@ -154,7 +149,7 @@ class CALFITS(UVCal):
             sechdr['CRVAL4'] = self.freq_array[0][0]
             sechdr['CDELT4'] = self.channel_width
 
-            sechdr['CTYPE5'] = ('ANTAXIS', 'See antenna_numbers/names for values.')
+            sechdr['CTYPE5'] = ('ANTAXIS', 'See ANTARR in ANTENNA extension for values.')
 
             if self.input_flag_array is not None:
                 secdata = np.concatenate([self.flag_array.astype(np.int64)[:, :, :, :, np.newaxis],
@@ -174,12 +169,6 @@ class CALFITS(UVCal):
 
         # primary header ctypes for NAXIS [ for both gain and delay cal_type.]
         # Check polarizations.
-        if self.Njones > 1:
-            jones_spacing = np.diff(self.jones_array)
-            if np.min(jones_spacing) < np.max(jones_spacing):
-                raise ValueError('The jones values are not evenly spaced.'
-                                 'The calibration fits file format does not'
-                                 ' support unevenly spaced polarizations.')
         prihdr['CTYPE2'] = ('JONES', 'Jones matrix array')
         prihdr['CUNIT2'] = ('Integer', 'representative integer for polarization.')
         prihdr['CRVAL2'] = self.jones_array[0]  # always start with first jones.
@@ -193,10 +182,10 @@ class CALFITS(UVCal):
         prihdr['CRVAL3'] = self.time_array[0]
         prihdr['CDELT3'] = self.integration_time
 
-        prihdr['CTYPE5'] = ('ANTAXIS', 'See antenna_numbers/names for values.')
-        prihdr['CUNIT5'] = 'Integer'
-        prihdr['CRVAL5'] = 0
-        prihdr['CDELT5'] = -1
+        prihdr['CTYPE4'] = ('ANTAXIS', 'See ANTARR in ANTENNA extension for values.')
+        prihdr['CUNIT4'] = 'Integer'
+        prihdr['CRVAL4'] = 0
+        prihdr['CDELT4'] = -1
 
         prihdu = fits.PrimaryHDU(data=pridata, header=prihdr)
 
@@ -204,7 +193,14 @@ class CALFITS(UVCal):
                            array=self.antenna_names)
         col2 = fits.Column(name='ANTINDEX', format='D',
                            array=self.antenna_numbers)
-        cols = fits.ColDefs([col1, col2])
+        if self.Nants_data == self.Nants_telescope:
+            col3 = fits.Column(name='ANTARR', format='D',
+                               array=self.ant_array)
+        else:
+            ant_array_use = np.append(self.ant_array, np.zeros(self.Nants_telescope - self.Nants_data, dtype=np.int) - 1)
+            col3 = fits.Column(name='ANTARR', format='D',
+                               array=self.ant_array)
+        cols = fits.ColDefs([col1, col2, col3])
         ant_hdu = fits.BinTableHDU.from_columns(cols)
         ant_hdu.header['EXTNAME'] = 'ANTENNAS'
 
@@ -232,6 +228,9 @@ class CALFITS(UVCal):
         antdata = anthdu.data
         self.antenna_names = map(str, antdata['ANTNAME'])
         self.antenna_numbers = map(int, antdata['ANTINDEX'])
+        self.ant_array = map(int, antdata['ANTARR'])
+        if np.min(self.ant_array) < 0:
+            self.ant_array = self.ant_array[np.where(self.ant_array >= 0)[0]]
 
         self.Nfreqs = hdr['NFREQS']
         self.Njones = hdr['NJONES']
@@ -278,20 +277,27 @@ class CALFITS(UVCal):
                 self.quality_array = data[:, :, :, :, 4]
             else:
                 self.quality_array = data[:, :, :, :, 3]
+
+            # generate frequency array.
+            self.freq_array = np.arange(self.Nfreqs).reshape(1, -1) * hdr['CDELT4'] + hdr['CRVAL4']
+
         if self.cal_type == 'delay':
             self.set_delay()
-            self.delay_array = data[:, :, :, :, 0]
-            self.quality_array = data[:, :, :, :, 1]
+            self.delay_array = data[:, :, :, 0]
+            self.quality_array = data[:, :, :, 1]
             sechdu = F[hdunames['FLAGS']]
             flag_data = sechdu.data
+            flag_hdr = sechdu.header
             if sechdu.header['CTYPE1'] == 2:
-                self.flag_array = sechdu.data[:, :, :, :, 0].astype('bool')
-                self.input_flag_array = sechdu.data[:, :, :, :, 1]
+                self.flag_array = flag_data[:, :, :, :, 0].astype('bool')
+                self.input_flag_array = flag_data[:, :, :, :, 1]
             else:
-                self.flag_array = sechdu.data[:, :, :, :, 0].astype('bool')
+                self.flag_array = flag_data[:, :, :, :, 0].astype('bool')
 
-        # generate frequency, polarization, and time array.
-        self.freq_array = np.arange(self.Nfreqs).reshape(1, -1) * hdr['CDELT4'] + hdr['CRVAL4']
+            # generate frequency array.
+            self.freq_array = np.arange(self.Nfreqs).reshape(1, -1) * flag_hdr['CDELT4'] + flag_hdr['CRVAL4']
+
+        # generate polarization, and time array.
         self.jones_array = np.arange(self.Njones) * hdr['CDELT2'] + hdr['CRVAL2']
         self.time_array = np.arange(self.Ntimes) * hdr['CDELT3'] + hdr['CRVAL3']
 

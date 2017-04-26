@@ -47,8 +47,8 @@ class UVCal(UVBase):
                                                expected_type=str)
 
         desc = ('Number of antennas with data present (i.e. number of unique '
-                'entries in ant_1_array and ant_2_array). May be smaller ' +
-                'than the number of antennas in the array')
+                'entries in ant_array). May be smaller ' +
+                'than the number of antennas in the telescope')
         self._Nants_data = uvp.UVParameter('Nants_data', description=desc,
                                            expected_type=int)
 
@@ -58,20 +58,23 @@ class UVCal(UVBase):
                                                 description=desc,
                                                 expected_type=int)
 
+        desc = ('Array of antenna indices for data arrays, shape (Nants_data), '
+                'type = int, 0 indexed')
+        self._ant_array = uvp.UVParameter('ant_array', description=desc,
+                                          expected_type=int, form=('Nants_data',))
+
         desc = ('List of antenna names, shape (Nants_telescope), '
                 'with numbers given by antenna_numbers (which can be matched '
-                'to ant_1_array and ant_2_array). There must be one entry '
-                'here for each unique entry in ant_1_array and '
-                'ant_2_array, but there may be extras as well.')
+                'to ant_array). There must be one entry here for each unique '
+                'entry in ant_array, but there may be extras as well.')
         self._antenna_names = uvp.UVParameter('antenna_names',
                                               description=desc,
                                               form=('Nants_telescope',),
                                               expected_type=str)
 
         desc = ('List of integer antenna numbers corresponding to antenna_names,'
-                'shape (Nants_telescope). There must be one '
-                'entry here for each unique entry in ant_1_array and '
-                'ant_2_array, but there may be extras as well.')
+                'shape (Nants_telescope). There must be one entry here for each unique '
+                'entry in ant_array, but there may be extras as well.')
         self._antenna_numbers = uvp.UVParameter('antenna_numbers',
                                                 description=desc,
                                                 form=('Nants_telescope',),
@@ -128,9 +131,11 @@ class UVCal(UVBase):
                                                  'Ntimes', 'Njones'),
                                            expected_type=np.bool)
 
-        desc = ('Array of qualities of calibration solutions \
-                shape: (Nants_data, Nfreqs, Ntimes, '
-                'Njones), type = float.')
+        desc = ('Array of qualities of calibration solutions. \
+                shape depends on the cal_type, if cal_type is gain or unknown, '
+                'shape is: (Nants_data, Nfreqs, Ntimes, Njones), '
+                'if cal_type is delay, shape is (Nants_data, Ntimes, Njones), '
+                'type = float.')
         self._quality_array = uvp.UVParameter('quality_array', description=desc,
                                               form=('Nants_data', 'Nfreqs',
                                                     'Ntimes', 'Njones'),
