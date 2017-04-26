@@ -278,7 +278,7 @@ class CALFITS(UVCal):
             self.set_gain()
             self.gain_array = data[:, :, :, :, 0] + 1j * data[:, :, :, :, 1]
             self.flag_array = data[:, :, :, :, 2].astype('bool')
-            if hdr['CTYPE1'] == 5:
+            if hdr['CRVAL1'] == 5:
                 self.input_flag_array = data[:, :, :, :, 3].astype('bool')
                 self.quality_array = data[:, :, :, :, 4]
             else:
@@ -294,7 +294,7 @@ class CALFITS(UVCal):
             sechdu = F[hdunames['FLAGS']]
             flag_data = sechdu.data
             flag_hdr = sechdu.header
-            if sechdu.header['CTYPE1'] == 2:
+            if sechdu.header['CRVAL1'] == 2:
                 self.flag_array = flag_data[:, :, :, :, 0].astype('bool')
                 self.input_flag_array = flag_data[:, :, :, :, 1]
             else:
