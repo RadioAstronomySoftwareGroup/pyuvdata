@@ -370,42 +370,55 @@ class UVCal(UVBase):
             self.Nfreqs = len(freq_inds)
             self.freq_array = self.freq_array[:, freq_inds]
             freq_separation = self.freq_array[1:] - self.freq_array[:-1]
-            if np.min(freq_ind_separation) < np.max(freq_ind_separation):
+            if np.min(freq_separation) < np.max(freq_separation):
                 warnings.warn('Selected frequencies are not evenly spaced. This '
                               'will make it impossible to write this data out to '
                               'some file types')
 
-
-
-
-        if polarizations is not None:
-            polarizations = uvutils.get_iterable(polarizations)
-            if n_selects > 0:
-                history_update_string += ', polarizations'
+            self.flag_array = self.flag_array[:, freq_inds, :, :]
+            if self.cal_type == 'delay':
+                pass
             else:
-                history_update_string += 'polarizations'
+                self.quality_array = self.quality_array[:, freq_inds, :, :]
+                self.gain_array = self.gain_array[:, freq_inds, :, :]
+
+            if self.input_flag_array is not None:
+                self.input_flag_array = self.input_flag_array[:, freq_inds, :, :]
+
+        if jones is not None:
+            jones = uvutils.get_iterable(jones)
+            if n_selects > 0:
+                history_update_string += ', jones polarization terms'
+            else:
+                history_update_string += 'jones polarization terms'
             n_selects += 1
 
-            pol_inds = np.zeros(0, dtype=np.int)
-            for p in polarizations:
-                if p in self.polarization_array:
-                    pol_inds = np.append(pol_inds, np.where(self.polarization_array == p)[0])
+            jones_inds = np.zeros(0, dtype=np.int)
+            for j in jones:
+                if j in self.jones_array:
+                    pol_inds = np.append(jones_inds, np.where(self.jones_array == j)[0])
                 else:
-                    raise ValueError('Polarization {p} is not present in the polarization_array'.format(p=p))
+                    raise ValueError('Jones term {j} is not present in the jones_array'.format(p=p))
 
-            if len(pol_inds) > 2:
-                pol_ind_separation = pol_inds[1:] - pol_inds[:-1]
-                if np.min(pol_ind_separation) < np.max(pol_ind_separation):
-                    warnings.warn('Selected polarization values are not evenly spaced. This '
+            jones_inds = list(sorted(set(list(pol_inds))))
+            self.Njones = len(jones_inds)
+            self.jones_array = self.jones_array[jones_inds]
+            if len(jones_inds) > 2:
+                jones_separation = self.jones_array[1:] - self.jones_array[:-1]
+                if np.min(jones_separation) < np.max(jones_separation):
+                    warnings.warn('Selected jones polarization terms are not evenly spaced. This '
                                   'will make it impossible to write this data out to '
                                   'some file types')
+            self.flag_array = self.flag_array[:, :, :, jones_inds]
+            if self.cal_type == 'delay':
+                self.quality_array = self.quality_array[:, :, jones_inds]
+                self.delay_array = self.delay_array[:, :, jones_inds]
+            else:
+                self.quality_array = self.quality_array[:, :, :, jones_inds]
+                self.gain_array = self.gain_array[:, :, :, jones_inds]
 
-            pol_inds = list(sorted(set(list(pol_inds))))
-            self.Npols = len(pol_inds)
-            self.polarization_array = self.polarization_array[pol_inds]
-            self.data_array = self.data_array[:, :, :, pol_inds]
-            self.flag_array = self.flag_array[:, :, :, pol_inds]
-            self.nsample_array = self.nsample_array[:, :, :, pol_inds]
+            if self.input_flag_array is not None:
+                self.input_flag_array = self.input_flag_array[:, :, :, jones_inds]
 
         history_update_string += ' using pyuvdata.'
         self.history = self.history + history_update_string
