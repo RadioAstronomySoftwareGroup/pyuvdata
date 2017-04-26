@@ -117,6 +117,8 @@ class TestUVCalBasicMethods(object):
         self.uv_cal_object.set_gain()
         nt.assert_true(self.uv_cal_object._gain_array.required)
         nt.assert_false(self.uv_cal_object._delay_array.required)
+        nt.assert_equal(self.uv_cal_object._gain_array.form, self.uv_cal_object._flag_array.form)
+        nt.assert_equal(self.uv_cal_object._gain_array.form, self.uv_cal_object._quality_array.form)
 
     def test_set_delay(self):
         self.uv_cal_object.set_delay()
@@ -124,3 +126,10 @@ class TestUVCalBasicMethods(object):
         nt.assert_false(self.uv_cal_object._gain_array.required)
         nt.assert_equal(self.uv_cal_object._gain_array.form, self.uv_cal_object._flag_array.form)
         nt.assert_equal(self.uv_cal_object._delay_array.form, self.uv_cal_object._quality_array.form)
+
+    def test_set_unknown(self):
+        self.uv_cal_object.set_unknown_cal_type()
+        nt.assert_false(self.uv_cal_object._delay_array.required)
+        nt.assert_false(self.uv_cal_object._gain_array.required)
+        nt.assert_equal(self.uv_cal_object._gain_array.form, self.uv_cal_object._flag_array.form)
+        nt.assert_equal(self.uv_cal_object._gain_array.form, self.uv_cal_object._quality_array.form)
