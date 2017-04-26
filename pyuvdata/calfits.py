@@ -182,10 +182,10 @@ class CALFITS(UVCal):
         prihdr['CRVAL3'] = self.time_array[0]
         prihdr['CDELT3'] = self.integration_time
 
-        prihdr['CTYPE4'] = ('ANTAXIS', 'See ANTARR in ANTENNA extension for values.')
-        prihdr['CUNIT4'] = 'Integer'
-        prihdr['CRVAL4'] = 0
-        prihdr['CDELT4'] = -1
+        prihdr['CTYPE5'] = ('ANTAXIS', 'See ANTARR in ANTENNA extension for values.')
+        prihdr['CUNIT5'] = 'Integer'
+        prihdr['CRVAL5'] = 0
+        prihdr['CDELT5'] = -1
 
         prihdu = fits.PrimaryHDU(data=pridata, header=prihdr)
 
