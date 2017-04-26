@@ -98,6 +98,11 @@ class CALFITS(UVCal):
             prihdr['CRVAL4'] = self.freq_array[0][0]
             prihdr['CDELT4'] = self.channel_width
 
+            prihdr['CTYPE5'] = ('ANTAXIS', 'See ANTARR in ANTENNA extension for values.')
+            prihdr['CUNIT5'] = 'Integer'
+            prihdr['CRVAL5'] = 0
+            prihdr['CDELT5'] = -1
+
             # set the last axis for number of arrays.
             prihdr['CTYPE1'] = ('Narrays', 'Number of image arrays.')
             prihdr['CUNIT1'] = ('Integer', 'Number of image arrays. Increment.')
@@ -119,7 +124,13 @@ class CALFITS(UVCal):
                                          axis=-1)
 
         if self.cal_type == 'delay':
-            # Set header variable for gain.
+            # Set header variable for delay.
+
+            prihdr['CTYPE4'] = ('ANTAXIS', 'See ANTARR in ANTENNA extension for values.')
+            prihdr['CUNIT4'] = 'Integer'
+            prihdr['CRVAL4'] = 0
+            prihdr['CDELT4'] = -1
+
             # set the last axis for number of arrays.
             prihdr['CTYPE1'] = ('Narrays', 'Number of image arrays.')
             prihdr['CUNIT1'] = ('Integer', 'Number of image arrays. Value.')
@@ -181,11 +192,6 @@ class CALFITS(UVCal):
         prihdr['CUNIT3'] = ('JD', 'Time in julian date format')
         prihdr['CRVAL3'] = self.time_array[0]
         prihdr['CDELT3'] = self.integration_time
-
-        prihdr['CTYPE5'] = ('ANTAXIS', 'See ANTARR in ANTENNA extension for values.')
-        prihdr['CUNIT5'] = 'Integer'
-        prihdr['CRVAL5'] = 0
-        prihdr['CDELT5'] = -1
 
         prihdu = fits.PrimaryHDU(data=pridata, header=prihdr)
 
