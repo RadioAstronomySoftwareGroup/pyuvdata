@@ -211,7 +211,7 @@ class CALFITS(UVCal):
             ant_array_use = np.append(self.ant_array,
                                       np.zeros(nants_add, dtype=np.int) - 1)
             col3 = fits.Column(name='ANTARR', format='D',
-                               array=self.ant_array)
+                               array=ant_array_use)
         cols = fits.ColDefs([col1, col2, col3])
         ant_hdu = fits.BinTableHDU.from_columns(cols)
         ant_hdu.header['EXTNAME'] = 'ANTENNAS'
