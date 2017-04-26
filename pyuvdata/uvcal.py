@@ -229,7 +229,7 @@ class UVCal(UVBase):
         self.cal_type = 'unknown'
         self._gain_array.required = False
         self._delay_array.required = False
-        self._quality_array.form = self.gain_array.form
+        self._quality_array.form = self._gain_array.form
 
     def _convert_from_filetype(self, other):
         for p in other:
