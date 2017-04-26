@@ -82,6 +82,9 @@ class MS(UVData):
         '''
         if not os.path.exists(filepath):
             raise(IOError, filepath + ' not found')
+        
+        
+        
         #set visibility units
         if(data_column=='DATA'):
             self.vis_units="UNCALIB"
@@ -95,12 +98,18 @@ class MS(UVData):
         freqs=tb_spws.getcol('CHAN_FREQ')
         self.freq_array=freqs
         self.Nfreqs=int(freqs.shape[1])
-        self.channel_width=tb_spws.getcol('CHAN_WIDTH')[0,0]
+        self.channel_width=float(tb_spws.getcol('CHAN_WIDTH')[0,0])
         self.Nspws=int(freqs.shape[0])
         self.spw_array=np.arange(self.Nspws)
         tb_spws.close()
         #now get the data
         tb=tables.table(filepath)
+        #check for multiple subarrays. importuvfits does not appear to preserve subarray information!
+        subarray=np.unique(np.int32(tb.getcol('ARRAY_ID'))-1)
+        if len(set(subarray))>1:
+            raise ValueError('This file appears to have multiple subarray '
+                             'values; only files with one subarray are '
+                             'supported.')
         times_unique=time.Time(np.unique(tb.getcol('TIME')/(3600.*24.)),format='mjd').jd
         self.Ntimes=int(len(times_unique))
         data_array=tb.getcol(data_column)
@@ -133,7 +142,7 @@ class MS(UVData):
         #use first interval and assume rest are constant (though measurement set has all integration times for each Nblt )
         #self.integration_time=tb.getcol('INTERVAL')[0]
         #for some reason, interval ends up larger than the difference between times...
-        self.integration_time=(times_unique[1]-times_unique[0])*3600.*24.
+        self.integration_time=float(times_unique[1]-times_unique[0])*3600.*24.
 
         #open table with antenna location information
         tbAnt=tables.table(filepath+'/ANTENNA')
@@ -200,8 +209,8 @@ class MS(UVData):
         elif(tbField.getcol('PHASE_DIR').shape[1]==1):
             self.phase_type='phased'
             self.phase_center_epoch=float(tb.getcolkeyword('UVW','MEASINFO')['Ref'][1:])#MSv2.0 appears to assume J2000. Not sure how to specifiy otherwise
-            self.phase_center_ra=tbField.getcol('PHASE_DIR')[0][0][0]
-            self.phase_center_dec=tbField.getcol('PHASE_DIR')[0][0][1]
+            self.phase_center_ra=float(tbField.getcol('PHASE_DIR')[0][0][0])
+            self.phase_center_dec=float(tbField.getcol('PHASE_DIR')[0][0][1])
             self.set_phased()
         #else:
         #    self.phase_type='unknown'
