@@ -166,7 +166,7 @@ class UVCal(UVBase):
         desc = ('Array of delays. shape: (Nants_data, Ntimes, Njones), type = float')
         self._delay_array = uvp.UVParameter('delay_array', description=desc,
                                             required=False,
-                                            form=('Nants_data', 1, 'Ntimes', 'Njones'),
+                                            form=('Nants_data', 'Ntimes', 'Njones'),
                                             expected_type=np.float)
 
         # --- truly optional parameters ---
