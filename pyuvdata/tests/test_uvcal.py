@@ -87,58 +87,61 @@ class TestUVCalInit(object):
 class TestUVCalBasicMethods(object):
     def setUp(self):
         """Set up test"""
-        self.uv_cal_object = UVCal()
-        self.testfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.fitsA')
-        self.uv_cal_object.read_calfits(self.testfile)
-        self.uv_cal_object2 = copy.deepcopy(self.uv_cal_object)
+        self.gain_object = UVCal()
+        gainfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.fitsA')
+        self.gain_object.read_calfits(gainfile)
+        self.gain_object2 = copy.deepcopy(self.gain_object)
+        self.delay_object = UVCal()
+        delayfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.HH.uvc.fits')
+        self.delay_object.read_calfits(delayfile)
 
     def teardown(self):
         """Tear down test"""
-        del(self.uv_cal_object)
-        del(self.uv_cal_object2)
+        del(self.gain_object)
+        del(self.gain_object2)
 
     def test_equality(self):
         """Basic equality test"""
-        nt.assert_equal(self.uv_cal_object, self.uv_cal_object)
+        nt.assert_equal(self.gain_object, self.gain_object)
 
     def test_check(self):
         """Test that parameter checks run properly"""
-        nt.assert_true(self.uv_cal_object.check())
+        nt.assert_true(self.gain_object.check())
 
     def test_nants_data_telescope(self):
-        self.uv_cal_object.Nants_data = self.uv_cal_object.Nants_telescope - 1
-        nt.assert_true(self.uv_cal_object.check)
-        self.uv_cal_object.Nants_data = self.uv_cal_object.Nants_telescope + 1
-        nt.assert_raises(ValueError, self.uv_cal_object.check)
+        self.gain_object.Nants_data = self.gain_object.Nants_telescope - 1
+        nt.assert_true(self.gain_object.check)
+        self.gain_object.Nants_data = self.gain_object.Nants_telescope + 1
+        nt.assert_raises(ValueError, self.gain_object.check)
 
     def test_set_gain(self):
-        self.uv_cal_object.set_gain()
-        nt.assert_true(self.uv_cal_object._gain_array.required)
-        nt.assert_false(self.uv_cal_object._delay_array.required)
-        nt.assert_equal(self.uv_cal_object._gain_array.form, self.uv_cal_object._flag_array.form)
-        nt.assert_equal(self.uv_cal_object._gain_array.form, self.uv_cal_object._quality_array.form)
+        self.delay_object.set_gain()
+        nt.assert_true(self.delay_object._gain_array.required)
+        nt.assert_false(self.delay_object._delay_array.required)
+        nt.assert_equal(self.delay_object._gain_array.form, self.delay_object._flag_array.form)
+        nt.assert_equal(self.delay_object._gain_array.form, self.delay_object._quality_array.form)
 
     def test_set_delay(self):
-        self.uv_cal_object.set_delay()
-        nt.assert_true(self.uv_cal_object._delay_array.required)
-        nt.assert_false(self.uv_cal_object._gain_array.required)
-        nt.assert_equal(self.uv_cal_object._gain_array.form, self.uv_cal_object._flag_array.form)
-        nt.assert_equal(self.uv_cal_object._delay_array.form, self.uv_cal_object._quality_array.form)
+        self.gain_object.set_delay()
+        nt.assert_true(self.gain_object._delay_array.required)
+        nt.assert_false(self.gain_object._gain_array.required)
+        nt.assert_equal(self.gain_object._gain_array.form, self.gain_object._flag_array.form)
+        nt.assert_equal(self.gain_object._delay_array.form, self.gain_object._quality_array.form)
 
     def test_set_unknown(self):
-        self.uv_cal_object.set_unknown_cal_type()
-        nt.assert_false(self.uv_cal_object._delay_array.required)
-        nt.assert_false(self.uv_cal_object._gain_array.required)
-        nt.assert_equal(self.uv_cal_object._gain_array.form, self.uv_cal_object._flag_array.form)
-        nt.assert_equal(self.uv_cal_object._gain_array.form, self.uv_cal_object._quality_array.form)
+        self.gain_object.set_unknown_cal_type()
+        nt.assert_false(self.gain_object._delay_array.required)
+        nt.assert_false(self.gain_object._gain_array.required)
+        nt.assert_equal(self.gain_object._gain_array.form, self.gain_object._flag_array.form)
+        nt.assert_equal(self.gain_object._gain_array.form, self.gain_object._quality_array.form)
 
 
 class TestUVCalSelectGain(object):
     def setUp(self):
         """Set up test"""
         self.gain_object = UVCal()
-        self.gainfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.fitsA')
-        self.gain_object.read_calfits(self.gainfile)
+        gainfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.fitsA')
+        self.gain_object.read_calfits(gainfile)
         self.gain_object2 = copy.deepcopy(self.gain_object)
 
     def teardown(self):
@@ -367,12 +370,12 @@ class TestUVCalSelectDelay(object):
     def setUp(self):
         """Set up test"""
         self.delay_object = UVCal()
-        self.delayfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.HH.uvc.fits')
+        delayfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.HH.uvc.fits')
 
         # add an input flag array to the file to test for that.
         write_file = os.path.join(DATA_PATH, 'test/outtest_input_flags.fits')
         uv_in = UVCal()
-        uv_in.read_calfits(self.delayfile)
+        uv_in.read_calfits(delayfile)
         uv_in.input_flag_array = np.zeros(uv_in._input_flag_array.expected_shape(uv_in), dtype=bool)
         uv_in.write_calfits(write_file, clobber=True)
 
