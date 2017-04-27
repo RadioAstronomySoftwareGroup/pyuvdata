@@ -98,11 +98,17 @@ class CALFITS(UVCal):
             prihdr['CRVAL4'] = self.freq_array[0][0]
             prihdr['CDELT4'] = self.channel_width
 
-            # ANTAXIS axis number differs between delay and gain because there's no frequency axis in delay
-            prihdr['CTYPE5'] = ('ANTAXIS', 'See ANTARR in ANTENNA extension for values.')
-            prihdr['CUNIT5'] = 'Integer'
+            # Nspws axis: number of spectral windows
+            prihdr['CTYPE5'] = ('NSPWS', 'Number of spectral windows.')
+            prihdr['CUNIT5'] = ('Integer', 'Number of windows. Increment.')
             prihdr['CRVAL5'] = 0
-            prihdr['CDELT5'] = -1
+            prihdr['CDELT5'] = 1
+
+            # ANTAXIS axis number differs between delay and gain because there's no frequency axis in delay
+            prihdr['CTYPE6'] = ('ANTAXIS', 'See ANTARR in ANTENNA extension for values.')
+            prihdr['CUNIT6'] = 'Integer'
+            prihdr['CRVAL6'] = 0
+            prihdr['CDELT6'] = -1
 
             # set the last axis for number of arrays.
             prihdr['CTYPE1'] = ('Narrays', 'Number of image arrays.')
@@ -110,28 +116,34 @@ class CALFITS(UVCal):
             prihdr['CDELT1'] = 1
             if self.input_flag_array is not None:
                 prihdr['CRVAL1'] = (5, 'Number of image arrays.')
-                pridata = np.concatenate([self.gain_array.real[:, :, :, :, np.newaxis],
-                                          self.gain_array.imag[:, :, :, :, np.newaxis],
-                                          self.flag_array[:, :, :, :, np.newaxis],
-                                          self.input_flag_array[:, :, :, :, np.newaxis],
-                                          self.quality_array[:, :, :, :, np.newaxis]],
+                pridata = np.concatenate([self.gain_array.real[:, :, :, :, :, np.newaxis],
+                                          self.gain_array.imag[:, :, :, :, :, np.newaxis],
+                                          self.flag_array[:, :, :, :, :, np.newaxis],
+                                          self.input_flag_array[:, :, :, :, :, np.newaxis],
+                                          self.quality_array[:, :, :, :, :, np.newaxis]],
                                          axis=-1)
             else:
                 prihdr['CRVAL1'] = (4, 'Number of image arrays.')
-                pridata = np.concatenate([self.gain_array.real[:, :, :, :, np.newaxis],
-                                          self.gain_array.imag[:, :, :, :, np.newaxis],
-                                          self.flag_array[:, :, :, :, np.newaxis],
-                                          self.quality_array[:, :, :, :, np.newaxis]],
+                pridata = np.concatenate([self.gain_array.real[:, :, :, :, :, np.newaxis],
+                                          self.gain_array.imag[:, :, :, :, :, np.newaxis],
+                                          self.flag_array[:, :, :, :, :, np.newaxis],
+                                          self.quality_array[:, :, :, :, :, np.newaxis]],
                                          axis=-1)
 
         if self.cal_type == 'delay':
             # Set header variable for delay.
 
             # ANTAXIS axis number differs between delay and gain because there's no frequency axis in delay
-            prihdr['CTYPE4'] = ('ANTAXIS', 'See ANTARR in ANTENNA extension for values.')
-            prihdr['CUNIT4'] = 'Integer'
+            prihdr['CTYPE5'] = ('ANTAXIS', 'See ANTARR in ANTENNA extension for values.')
+            prihdr['CUNIT5'] = 'Integer'
+            prihdr['CRVAL5'] = 0
+            prihdr['CDELT5'] = -1
+
+            # Nspws axis: number of spectral windows
+            prihdr['CTYPE4'] = ('NSPWS', 'Number of spectral windows.')
+            prihdr['CUNIT4'] = ('Integer', 'Number of windows. Increment.')
             prihdr['CRVAL4'] = 0
-            prihdr['CDELT4'] = -1
+            prihdr['CDELT4'] = 1
 
             # set the last axis for number of arrays.
             prihdr['CTYPE1'] = ('Narrays', 'Number of image arrays.')
@@ -139,8 +151,8 @@ class CALFITS(UVCal):
             prihdr['CRVAL1'] = (2, 'Number of image arrays.')
             prihdr['CDELT1'] = 1
 
-            pridata = np.concatenate([self.delay_array[:, :, :, np.newaxis],
-                                      self.quality_array[:, :, :, np.newaxis]],
+            pridata = np.concatenate([self.delay_array[:, :, :, :, np.newaxis],
+                                      self.quality_array[:, :, :, :, np.newaxis]],
                                      axis=-1)
 
             # Set headers for the second hdu containing the flags. Only in cal_type=delay.
@@ -162,11 +174,17 @@ class CALFITS(UVCal):
             sechdr['CRVAL4'] = self.freq_array[0][0]
             sechdr['CDELT4'] = self.channel_width
 
-            sechdr['CTYPE5'] = ('ANTAXIS', 'See ANTARR in ANTENNA extension for values.')
+            # Nspws axis: number of spectral windows
+            prihdr['CTYPE5'] = ('NSPWS', 'Number of spectral windows.')
+            prihdr['CUNIT5'] = ('Integer', 'Number of windows. Increment.')
+            prihdr['CRVAL5'] = 0
+            prihdr['CDELT5'] = 1
+            
+            sechdr['CTYPE6'] = ('ANTAXIS', 'See ANTARR in ANTENNA extension for values.')
 
             if self.input_flag_array is not None:
-                secdata = np.concatenate([self.flag_array.astype(np.int64)[:, :, :, :, np.newaxis],
-                                          self.input_flag_array.astype(np.int64)[:, :, :, :, np.newaxis]],
+                secdata = np.concatenate([self.flag_array.astype(np.int64)[:, :, :, :, :, np.newaxis],
+                                          self.input_flag_array.astype(np.int64)[:, :, :, :, :, np.newaxis]],
                                          axis=-1)
                 sechdr['CTYPE1'] = ('Narrays', 'Number of image arrays.')
                 sechdr['CUNIT1'] = ('Integer', 'Number of image arrays. Value.')
@@ -284,29 +302,29 @@ class CALFITS(UVCal):
         # get data.
         if self.cal_type == 'gain':
             self.set_gain()
-            self.gain_array = data[:, :, :, :, 0] + 1j * data[:, :, :, :, 1]
-            self.flag_array = data[:, :, :, :, 2].astype('bool')
+            self.gain_array = data[:, :, :, :, :, 0] + 1j * data[:, :, :, :, :, 1]
+            self.flag_array = data[:, :, :, :, :, 2].astype('bool')
             if hdr['CRVAL1'] == 5:
-                self.input_flag_array = data[:, :, :, :, 3].astype('bool')
-                self.quality_array = data[:, :, :, :, 4]
+                self.input_flag_array = data[:, :, :, :, :, 3].astype('bool')
+                self.quality_array = data[:, :, :, :, :, 4]
             else:
-                self.quality_array = data[:, :, :, :, 3]
+                self.quality_array = data[:, :, :, :, :, 3]
 
             # generate frequency array from primary data unit.
             self.freq_array = np.arange(self.Nfreqs).reshape(1, -1) * hdr['CDELT4'] + hdr['CRVAL4']
 
         if self.cal_type == 'delay':
             self.set_delay()
-            self.delay_array = data[:, :, :, 0]
-            self.quality_array = data[:, :, :, 1]
+            self.delay_array = data[:, :, :, :, 0]
+            self.quality_array = data[:, :, :, :, 1]
             sechdu = F[hdunames['FLAGS']]
             flag_data = sechdu.data
             flag_hdr = sechdu.header
             if sechdu.header['CRVAL1'] == 2:
-                self.flag_array = flag_data[:, :, :, :, 0].astype('bool')
-                self.input_flag_array = flag_data[:, :, :, :, 1]
+                self.flag_array = flag_data[:, :, :, :, :, 0].astype('bool')
+                self.input_flag_array = flag_data[:, :, :, :, :, 1]
             else:
-                self.flag_array = flag_data[:, :, :, :, 0].astype('bool')
+                self.flag_array = flag_data[:, :, :, :, :, 0].astype('bool')
 
             # generate frequency array from flag data unit (no freq axis in primary).
             self.freq_array = np.arange(self.Nfreqs).reshape(1, -1) * flag_hdr['CDELT4'] + flag_hdr['CRVAL4']
