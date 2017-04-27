@@ -88,7 +88,7 @@ class MS(UVData):
         if data_column!='DATA' and data_column!='CORRECTED_DATA' and data_column!='MODEL':
             raise ValueError('Invalid data_column value supplied. Use \'Data\',\'MODEL\' or \'CORRECTED_DATA\'')
         if not os.path.exists(filepath):
-            raise(IOError, filepath + ' not found'
+            raise(IOError, filepath + ' not found')
         #set visibility units
         if(data_column=='DATA'):
             self.vis_units="UNCALIB"
