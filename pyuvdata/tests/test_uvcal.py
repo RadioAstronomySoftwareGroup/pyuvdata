@@ -184,6 +184,22 @@ class TestUVCalSelectGain(object):
         status = self.gain_object2.write_calfits(write_file_calfits, clobber=True)
 
     def test_select_times(self):
+        # add another time to allow for better testing of selections
+        new_time = np.max(self.gain_object.time_array) + self.gain_object.integration_time
+        self.gain_object.time_array = np.append(self.gain_object.time_array, new_time)
+        self.gain_object.Ntimes += 1
+        self.gain_object.flag_array = np.concatenate((self.gain_object.flag_array,
+                                                      self.gain_object.flag_array[:, :, [-1], :]),
+                                                     axis=2)
+        self.gain_object.gain_array = np.concatenate((self.gain_object.gain_array,
+                                                      self.gain_object.gain_array[:, :, [-1], :]),
+                                                     axis=2)
+        self.gain_object.quality_array = np.concatenate((self.gain_object.quality_array,
+                                                         self.gain_object.quality_array[:, :, [-1], :]),
+                                                        axis=2)
+        nt.assert_true(self.gain_object.check())
+        self.gain_object2 = copy.deepcopy(self.gain_object)
+
         old_history = self.gain_object.history
         times_to_keep = self.gain_object.time_array[[2, 0]]
 
@@ -203,13 +219,12 @@ class TestUVCalSelectGain(object):
                          times=[np.min(self.gain_object.time_array) - self.gain_object.integration_time])
 
         # check for warnings and errors associated with unevenly spaced times
-        # NOTE this test requires a file with more than 3 times.
-        # self.gain_object2 = copy.deepcopy(self.gain_object)
-        # status = uvtest.checkWarnings(self.gain_object2.select, [], {'times': self.gain_object2.time_array[0, [0, 2, 3]]},
-        #                               message='Selected times are not evenly spaced')
-        # nt.assert_true(status)
-        # write_file_calfits = os.path.join(DATA_PATH, 'test/select_test.calfits')
-        # nt.assert_raises(ValueError, self.gain_object2.write_calfits, write_file_calfits)
+        self.gain_object2 = copy.deepcopy(self.gain_object)
+        status = uvtest.checkWarnings(self.gain_object2.select, [], {'times': self.gain_object2.time_array[[0, 2, 3]]},
+                                      message='Selected times are not evenly spaced')
+        nt.assert_true(status)
+        write_file_calfits = os.path.join(DATA_PATH, 'test/select_test.calfits')
+        nt.assert_raises(ValueError, self.gain_object2.write_calfits, write_file_calfits)
 
     def test_select_frequencies(self):
         old_history = self.gain_object.history
@@ -265,34 +280,47 @@ class TestUVCalSelectGain(object):
         for f in np.unique(self.gain_object2.freq_array):
             nt.assert_true(f in self.gain_object.freq_array[0, all_chans_to_keep])
 
-    # NOTE this test requires a file with more than 1 pol. more than 3 pols are required to fully test.
-    # def test_select_polarizations(self):
-    #     old_history = self.gain_object.history
-    #     print(self.gain_object.Njones)
-    #     print(self.gain_object.jones_array)
-    #     # print(np.random.choice(np.arange(self.gain_object.Njones), 2, replace=False))
-    #     jones_to_keep = [-5, -6]
-    #
-    #     self.gain_object2.select(jones=jones_to_keep)
-    #
-    #     nt.assert_equal(len(jones_to_keep), self.gain_object2.Njones)
-    #     for j in jones_to_keep:
-    #         nt.assert_true(j in self.gain_object2.jones_array)
-    #     for j in np.unique(self.gain_object2.jones_array):
-    #         nt.assert_true(j in jones_to_keep)
-    #
-    #     nt.assert_equal(old_history + '  Downselected to specific jones polarization terms '
-    #                     'using pyuvdata.', self.gain_object2.history)
-    #
-    #     # check for errors associated with polarizations not included in data
-    #     nt.assert_raises(ValueError, self.gain_object2.select, jones=[-3, -4])
-    #
-    #     # check for warnings and errors associated with unevenly spaced polarizations
-    #     status = uvtest.checkWarnings(self.gain_object.select, [], {'jones': self.gain_object.polarization_array[[0, 1, 3]]},
-    #                                   message='Selected jones polarization terms are not evenly spaced')
-    #     nt.assert_true(status)
-    #     write_file_calfits = os.path.join(DATA_PATH, 'test/select_test.calfits')
-    #     nt.assert_raises(ValueError, self.gain_object.write_calfits, write_file_calfits)
+    def test_select_polarizations(self):
+        # add more jones terms to allow for better testing of selections
+        while self.gain_object.Njones < 4:
+            new_jones = np.min(self.gain_object.jones_array) - 1
+            self.gain_object.jones_array = np.append(self.gain_object.jones_array, new_jones)
+            self.gain_object.Njones += 1
+            self.gain_object.flag_array = np.concatenate((self.gain_object.flag_array,
+                                                          self.gain_object.flag_array[:, :, :, [-1]]),
+                                                         axis=3)
+            self.gain_object.gain_array = np.concatenate((self.gain_object.gain_array,
+                                                          self.gain_object.gain_array[:, :, :, [-1]]),
+                                                         axis=3)
+            self.gain_object.quality_array = np.concatenate((self.gain_object.quality_array,
+                                                             self.gain_object.quality_array[:, :, :, [-1]]),
+                                                            axis=3)
+        nt.assert_true(self.gain_object.check())
+        self.gain_object2 = copy.deepcopy(self.gain_object)
+
+        old_history = self.gain_object.history
+        jones_to_keep = [-5, -6]
+
+        self.gain_object2.select(jones=jones_to_keep)
+
+        nt.assert_equal(len(jones_to_keep), self.gain_object2.Njones)
+        for j in jones_to_keep:
+            nt.assert_true(j in self.gain_object2.jones_array)
+        for j in np.unique(self.gain_object2.jones_array):
+            nt.assert_true(j in jones_to_keep)
+
+        nt.assert_equal(old_history + '  Downselected to specific jones polarization terms '
+                        'using pyuvdata.', self.gain_object2.history)
+
+        # check for errors associated with polarizations not included in data
+        nt.assert_raises(ValueError, self.gain_object2.select, jones=[-3, -4])
+
+        # check for warnings and errors associated with unevenly spaced polarizations
+        status = uvtest.checkWarnings(self.gain_object.select, [], {'jones': self.gain_object.jones_array[[0, 1, 3]]},
+                                      message='Selected jones polarization terms are not evenly spaced')
+        nt.assert_true(status)
+        write_file_calfits = os.path.join(DATA_PATH, 'test/select_test.calfits')
+        nt.assert_raises(ValueError, self.gain_object.write_calfits, write_file_calfits)
 
     def test_select(self):
         # now test selecting along all axes at once
@@ -390,6 +418,22 @@ class TestUVCalSelectDelay(object):
                          antenna_nums=ants_to_keep, antenna_names=ant_names)
 
     def test_select_times(self):
+        # add another time to allow for better testing of selections
+        new_time = np.max(self.delay_object.time_array) + self.delay_object.integration_time
+        self.delay_object.time_array = np.append(self.delay_object.time_array, new_time)
+        self.delay_object.Ntimes += 1
+        self.delay_object.flag_array = np.concatenate((self.delay_object.flag_array,
+                                                       self.delay_object.flag_array[:, :, [-1], :]),
+                                                      axis=2)
+        self.delay_object.delay_array = np.concatenate((self.delay_object.delay_array,
+                                                        self.delay_object.delay_array[:, [-1], :]),
+                                                       axis=1)
+        self.delay_object.quality_array = np.concatenate((self.delay_object.quality_array,
+                                                          self.delay_object.quality_array[:, [-1], :]),
+                                                         axis=1)
+        nt.assert_true(self.delay_object.check())
+        self.delay_object2 = copy.deepcopy(self.delay_object)
+
         old_history = self.delay_object.history
         times_to_keep = self.delay_object.time_array[[2, 0]]
 
@@ -409,13 +453,12 @@ class TestUVCalSelectDelay(object):
                          times=[np.min(self.delay_object.time_array) - self.delay_object.integration_time])
 
         # check for warnings and errors associated with unevenly spaced times
-        # NOTE this test requires a file with more than 3 times.
-        # self.delay_object2 = copy.deepcopy(self.delay_object)
-        # status = uvtest.checkWarnings(self.delay_object2.select, [], {'times': self.delay_object2.time_array[0, [0, 2, 3]]},
-        #                               message='Selected times are not evenly spaced')
-        # nt.assert_true(status)
-        # write_file_calfits = os.path.join(DATA_PATH, 'test/select_test.calfits')
-        # nt.assert_raises(ValueError, self.delay_object2.write_calfits, write_file_calfits)
+        self.delay_object2 = copy.deepcopy(self.delay_object)
+        status = uvtest.checkWarnings(self.delay_object2.select, [], {'times': self.delay_object2.time_array[[0, 2, 3]]},
+                                      message='Selected times are not evenly spaced')
+        nt.assert_true(status)
+        write_file_calfits = os.path.join(DATA_PATH, 'test/select_test.calfits')
+        nt.assert_raises(ValueError, self.delay_object2.write_calfits, write_file_calfits)
 
     def test_select_frequencies(self):
         old_history = self.delay_object.history
@@ -471,34 +514,50 @@ class TestUVCalSelectDelay(object):
         for f in np.unique(self.delay_object2.freq_array):
             nt.assert_true(f in self.delay_object.freq_array[0, all_chans_to_keep])
 
-    # NOTE this test requires a file with more than 1 pol. more than 3 pols are required to fully test.
-    # def test_select_polarizations(self):
-    #     old_history = self.delay_object.history
-    #     print(self.delay_object.Njones)
-    #     print(self.delay_object.jones_array)
-    #     # print(np.random.choice(np.arange(self.delay_object.Njones), 2, replace=False))
-    #     jones_to_keep = [-5, -6]
-    #
-    #     self.delay_object2.select(jones=jones_to_keep)
-    #
-    #     nt.assert_equal(len(jones_to_keep), self.delay_object2.Njones)
-    #     for j in jones_to_keep:
-    #         nt.assert_true(j in self.delay_object2.jones_array)
-    #     for j in np.unique(self.delay_object2.jones_array):
-    #         nt.assert_true(j in jones_to_keep)
-    #
-    #     nt.assert_equal(old_history + '  Downselected to specific jones polarization terms '
-    #                     'using pyuvdata.', self.delay_object2.history)
-    #
-    #     # check for errors associated with polarizations not included in data
-    #     nt.assert_raises(ValueError, self.delay_object2.select, jones=[-3, -4])
-    #
-    #     # check for warnings and errors associated with unevenly spaced polarizations
-    #     status = uvtest.checkWarnings(self.delay_object.select, [], {'jones': self.delay_object.polarization_array[[0, 1, 3]]},
-    #                                   message='Selected jones polarization terms are not evenly spaced')
-    #     nt.assert_true(status)
-    #     write_file_calfits = os.path.join(DATA_PATH, 'test/select_test.calfits')
-    #     nt.assert_raises(ValueError, self.delay_object.write_calfits, write_file_calfits)
+    def test_select_polarizations(self):
+        # add more jones terms to allow for better testing of selections
+        while self.delay_object.Njones < 4:
+            new_jones = np.min(self.delay_object.jones_array) - 1
+            self.delay_object.jones_array = np.append(self.delay_object.jones_array, new_jones)
+            self.delay_object.Njones += 1
+            self.delay_object.flag_array = np.concatenate((self.delay_object.flag_array,
+                                                           self.delay_object.flag_array[:, :, :, [-1]]),
+                                                          axis=3)
+            self.delay_object.input_flag_array = np.concatenate((self.delay_object.input_flag_array,
+                                                                 self.delay_object.input_flag_array[:, :, :, [-1]]),
+                                                                axis=3)
+            self.delay_object.delay_array = np.concatenate((self.delay_object.delay_array,
+                                                            self.delay_object.delay_array[:, :, [-1]]),
+                                                           axis=2)
+            self.delay_object.quality_array = np.concatenate((self.delay_object.quality_array,
+                                                              self.delay_object.quality_array[:, :, [-1]]),
+                                                             axis=2)
+        nt.assert_true(self.delay_object.check())
+        self.delay_object2 = copy.deepcopy(self.delay_object)
+
+        old_history = self.delay_object.history
+        jones_to_keep = [-5, -6]
+
+        self.delay_object2.select(jones=jones_to_keep)
+
+        nt.assert_equal(len(jones_to_keep), self.delay_object2.Njones)
+        for j in jones_to_keep:
+            nt.assert_true(j in self.delay_object2.jones_array)
+        for j in np.unique(self.delay_object2.jones_array):
+            nt.assert_true(j in jones_to_keep)
+
+        nt.assert_equal(old_history + '  Downselected to specific jones polarization terms '
+                        'using pyuvdata.', self.delay_object2.history)
+
+        # check for errors associated with polarizations not included in data
+        nt.assert_raises(ValueError, self.delay_object2.select, jones=[-3, -4])
+
+        # check for warnings and errors associated with unevenly spaced polarizations
+        status = uvtest.checkWarnings(self.delay_object.select, [], {'jones': self.delay_object.jones_array[[0, 1, 3]]},
+                                      message='Selected jones polarization terms are not evenly spaced')
+        nt.assert_true(status)
+        write_file_calfits = os.path.join(DATA_PATH, 'test/select_test.calfits')
+        nt.assert_raises(ValueError, self.delay_object.write_calfits, write_file_calfits)
 
     def test_select(self):
         # now test selecting along all axes at once

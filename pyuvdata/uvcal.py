@@ -396,11 +396,11 @@ class UVCal(UVBase):
             jones_inds = np.zeros(0, dtype=np.int)
             for j in jones:
                 if j in self.jones_array:
-                    pol_inds = np.append(jones_inds, np.where(self.jones_array == j)[0])
+                    jones_inds = np.append(jones_inds, np.where(self.jones_array == j)[0])
                 else:
                     raise ValueError('Jones term {j} is not present in the jones_array'.format(j=j))
 
-            jones_inds = list(sorted(set(list(pol_inds))))
+            jones_inds = list(sorted(set(list(jones_inds))))
             self.Njones = len(jones_inds)
             self.jones_array = self.jones_array[jones_inds]
             if len(jones_inds) > 2:
