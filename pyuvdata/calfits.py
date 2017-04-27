@@ -278,7 +278,7 @@ class CALFITS(UVCal):
         antdata = anthdu.data
         self.antenna_names = map(str, antdata['ANTNAME'])
         self.antenna_numbers = map(int, antdata['ANTINDEX'])
-        self.ant_array = map(int, antdata['ANTARR'])
+        self.ant_array = np.array(map(int, antdata['ANTARR']))
         if np.min(self.ant_array) < 0:
             # ant_array was shorter than the other columns, so it was padded with -1s.
             # Remove the padded entries.

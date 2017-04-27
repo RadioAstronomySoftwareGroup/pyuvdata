@@ -1,6 +1,8 @@
 import numpy as np
+import warnings
 from uvbase import UVBase
 import parameter as uvp
+import utils as uvutils
 import version as uvversion
 
 
@@ -271,14 +273,12 @@ class UVCal(UVBase):
             for s in antenna_names:
                 if s not in self.antenna_names:
                     raise ValueError('Antenna name {a} is not present in the antenna_names array'.format(a=s))
-                antenna_nums.append(self.antenna_numbers[np.where(np.array(self.antenna_names) == s)[0]])
+                ind = np.where(np.array(self.antenna_names) == s)[0][0]
+                antenna_nums.append(self.antenna_numbers[ind])
 
         if antenna_nums is not None:
             antenna_nums = uvutils.get_iterable(antenna_nums)
-            if n_selects > 0:
-                history_update_string += ', antennas'
-            else:
-                history_update_string += 'antennas'
+            history_update_string += 'antennas'
             n_selects += 1
 
             ant_inds = np.zeros(0, dtype=np.int)
@@ -369,7 +369,7 @@ class UVCal(UVBase):
             freq_inds = list(sorted(set(list(freq_inds))))
             self.Nfreqs = len(freq_inds)
             self.freq_array = self.freq_array[:, freq_inds]
-            freq_separation = self.freq_array[1:] - self.freq_array[:-1]
+            freq_separation = self.freq_array[0, 1:] - self.freq_array[0, :-1]
             if np.min(freq_separation) < np.max(freq_separation):
                 warnings.warn('Selected frequencies are not evenly spaced. This '
                               'will make it impossible to write this data out to '
@@ -398,7 +398,7 @@ class UVCal(UVBase):
                 if j in self.jones_array:
                     pol_inds = np.append(jones_inds, np.where(self.jones_array == j)[0])
                 else:
-                    raise ValueError('Jones term {j} is not present in the jones_array'.format(p=p))
+                    raise ValueError('Jones term {j} is not present in the jones_array'.format(j=j))
 
             jones_inds = list(sorted(set(list(pol_inds))))
             self.Njones = len(jones_inds)
