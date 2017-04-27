@@ -179,6 +179,10 @@ class TestUVCalSelectGain(object):
         nt.assert_raises(ValueError, self.gain_object.select,
                          antenna_nums=ants_to_keep, antenna_names=ant_names)
 
+        # check that write_calfits works with Nants_data < Nants_telescope
+        write_file_calfits = os.path.join(DATA_PATH, 'test/select_test.calfits')
+        status = self.gain_object2.write_calfits(write_file_calfits, clobber=True)
+
     def test_select_times(self):
         old_history = self.gain_object.history
         times_to_keep = self.gain_object.time_array[[2, 0]]
@@ -336,7 +340,15 @@ class TestUVCalSelectDelay(object):
         """Set up test"""
         self.delay_object = UVCal()
         self.delayfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.HH.uvc.fits')
-        self.delay_object.read_calfits(self.delayfile)
+
+        # add an input flag array to the file to test for that.
+        write_file = os.path.join(DATA_PATH, 'test/outtest_input_flags.fits')
+        uv_in = UVCal()
+        uv_in.read_calfits(self.delayfile)
+        uv_in.input_flag_array = np.zeros(uv_in._input_flag_array.expected_shape(uv_in), dtype=bool)
+        uv_in.write_calfits(write_file, clobber=True)
+
+        self.delay_object.read_calfits(write_file)
         self.delay_object2 = copy.deepcopy(self.delay_object)
 
     def teardown(self):
@@ -498,7 +510,7 @@ class TestUVCalSelectDelay(object):
         jones_to_keep = [-5]
 
         self.delay_object2.select(antenna_nums=ants_to_keep, frequencies=freqs_to_keep,
-                                 times=times_to_keep, jones=jones_to_keep)
+                                  times=times_to_keep, jones=jones_to_keep)
 
         nt.assert_equal(len(ants_to_keep), self.delay_object2.Nants_data)
         for ant in ants_to_keep:
