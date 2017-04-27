@@ -18,8 +18,8 @@ def test_ReadMSWriteReadUVFits(msname):
     equality."""
     status=uvtests.checkWarnings(UV.read_ms,
                                 [testfile],
-                                message='Telescope EVLA is not'
-                                nwarnings=0)
+                                 message='Telescope EVLA is not',
+                                 nwarnings=0)
     nt.assert_true(status)
     nt.assert_equal(expected_extra_keywords.sort(),
                     UV.extra_keywords.keys().sort())
