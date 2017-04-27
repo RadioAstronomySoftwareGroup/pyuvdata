@@ -369,6 +369,8 @@ class UVCal(UVBase):
             freq_inds = list(sorted(set(list(freq_inds))))
             self.Nfreqs = len(freq_inds)
             self.freq_array = self.freq_array[:, freq_inds]
+            # should we adjust the freq_range parameter?
+
             freq_separation = self.freq_array[0, 1:] - self.freq_array[0, :-1]
             if np.min(freq_separation) < np.max(freq_separation):
                 warnings.warn('Selected frequencies are not evenly spaced. This '
