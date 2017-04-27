@@ -18,7 +18,8 @@ def test_ReadMSWriteReadUVFits(msname):
     equality."""
     status=uvtests.checkWarnings(UV.read_ms,
                                 [testfile],
-                                message='Telescope EVLA is not')
+                                message='Telescope EVLA is not'
+                                nwarnings=0)
     nt.assert_true(status)
     nt.assert_equal(expected_extra_keywords.sort(),
                     UV.extra_keywords.keys().sort())
@@ -88,7 +89,8 @@ def test_readMSWriteMiriad():
     ms_file=os.path.join(DATA_PATH,'day2_TDEM0003_10s_norx_1src_1spw.ms')
     testfile=os.path.join(DATA_PATH,'test/outtest_miriad')
     read_status=uvtests.checkWarnings(ms_uv.read_ms,[ms_file],
-                                      message='Telescope EVLA is not',nwarnings=0)
+                                      message='Telescope EVLA is not',
+                                      nwarnings=0)
     ms_uv.write_miriad(testfile,clobber=True)
     miriad_read_status=uvtests.checkWarnings(miriad_uv.read_miriad,[testfile],
                                             message='Telescope EVLA is not')

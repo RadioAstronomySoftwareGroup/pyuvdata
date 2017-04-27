@@ -1,4 +1,5 @@
 """Class for reading and writing casa measurement sets."""
+"""Requires casacore"""
 from astropy import constants as const
 import astropy.time as time
 import numpy as np
@@ -9,7 +10,11 @@ import parameter as uvp
 import casacore.tables as tables
 import telescopes
 
-
+"""
+This dictionary defines the mapping
+between CASA polarization numbers and 
+AIPS polarization numbers
+"""
 polDict={1:1,2:2,3:3,4:4,5:-1,6:-3,7:-4,8:-2,9:-5,10:-7,11:-8,12:-6}
 
 #convert from casa stokes integers to pyuvdata
@@ -23,14 +28,15 @@ class MS(UVData):
     def _ms_hist_to_string(self,history_table,test_import_uvfits):
         '''
         converts a CASA history table into a string that can be stored as the uvdata history parameter.
-        Returns this string. 
         Also stores messages column as a list for consitency with other uvdata types
         Args: history_table, a casa table object
         test_import_uvfits, true if you are testing .ms file imported from uvfits file by casa. will ignore last five lines of history
-        Returns: list of strings in message column, casa history table converted to a string with \n denoting new lines and     denoting column breaks
+        Returns: string containing only message column (consistent with other UVDATA history strings)
+                 string enconding complete casa history table converted with \n denoting rows and ';' denoting column breaks
         '''
-        message_str=''
+        message_str=''# string to store usual uvdata history
         history_str='APP_PARAMS;CLI_COMMAND;APPLICATION;MESSAGE;OBJECT_ID;OBSERVATION_ID;ORIGIN;PRIORITY;TIME\n'
+        #string to store special casa history
         app_params=history_table.getcol('APP_PARAMS')['array']
         cli_command=history_table.getcol('CLI_COMMAND')['array']
         application=history_table.getcol('APPLICATION')
@@ -59,32 +65,30 @@ class MS(UVData):
         return message_str,history_str
 
 
-
-
+    
+    #ms write functionality to be added later. 
     def write_ms(self):
         '''
         writing ms is not yet supported
         '''
-
-
-
+    
     def read_ms(self,filepath,run_check=True,run_check_acceptability=True,data_column='DATA',pol_order='AIPS',test_import_uvfits=False):
         '''
         read in a casa measurement set
         ARGS:
-        filename: name of the measurement set folder
+        filepath: name of the measurement set folder
         run_check:specify whether you want to run check
-        run_check_acceptability: sanity check for data
-        data_column: specify which CASA measurement set data column to read from 
+        run_check_acceptability: run sanity check for new UVData object
+        data_column: specify which CASA measurement set data column to read from (can be 'DATA','CORRECTED', or 'MODEL')
         pol_order: use 'AIPS' or 'CASA' ordering of polarizations?
         test_import_uvfits: test a .ms file that was created with CASA importuvfits method: 
         ignores last five lines of history which contain information on importuvfits command. 
         '''
+        #make sure user requests a valid data_column
+        if data_column!='DATA' and data_column!='CORRECTED_DATA' and data_column!='MODEL':
+            raise ValueError('Invalid data_column value supplied. Use \'Data\',\'MODEL\' or \'CORRECTED_DATA\'')
         if not os.path.exists(filepath):
-            raise(IOError, filepath + ' not found')
-        
-        
-        
+            raise(IOError, filepath + ' not found'
         #set visibility units
         if(data_column=='DATA'):
             self.vis_units="UNCALIB"
@@ -93,7 +97,7 @@ class MS(UVData):
         elif(data_column=='MODEL'):
             self.vis_units="JY"
         self.data_column=data_column
-        #get spectral window information
+        #get frequency information from spectral window table
         tb_spws=tables.table(filepath+'/SPECTRAL_WINDOW')
         freqs=tb_spws.getcol('CHAN_FREQ')
         self.freq_array=freqs
@@ -129,7 +133,7 @@ class MS(UVData):
         self.Nants_data=len(np.unique(np.concatenate((np.unique(self.ant_1_array),np.unique(self.ant_2_array)))))
         self.baseline_array=self.antnums_to_baseline(self.ant_1_array,self.ant_2_array)
         self.Nbls=len(np.unique(self.baseline_array))
-        #Get times. MS that I'm used to are modified Julian dates in seconds (thanks to Danny Jacobs for figuring out the proper conversion)
+        #Get times. MS from cotter are modified Julian dates in seconds (thanks to Danny Jacobs for figuring out the proper conversion)
         self.time_array=time.Time(tb.getcol('TIME')/(3600.*24.),format='mjd').jd
         #Polarization array
         tbPol=tables.table(filepath+'/POLARIZATION')
@@ -143,7 +147,6 @@ class MS(UVData):
         #self.integration_time=tb.getcol('INTERVAL')[0]
         #for some reason, interval ends up larger than the difference between times...
         self.integration_time=float(times_unique[1]-times_unique[0])*3600.*24.
-
         #open table with antenna location information
         tbAnt=tables.table(filepath+'/ANTENNA')
         tbObs=tables.table(filepath+'/OBSERVATION')
@@ -196,13 +199,8 @@ class MS(UVData):
             #If Telescope is unknown, use mean ITRF Positions of antennas
             self.telescope_location=np.array(np.mean(tbAnt.getcol('POSITION'),axis=0))
         '''
-        #self.telescope_location=np.array(np.mean(tbAnt.getcol('POSITION'),axis=0))
-        #Warning: the value one gets with set_telescope_params is different from the mean of antenna locations.
-        #        try:
-        #except:            
         tbAnt.close()
         tbField=tables.table(filepath+'/FIELD')
-        #print 'shape='+str(tbField.getcol('PHASE_DIR').shape[1])
         if(tbField.getcol('PHASE_DIR').shape[1]==2):
             self.phase_type='drift'
             self.set_drift()
@@ -212,8 +210,6 @@ class MS(UVData):
             self.phase_center_ra=float(tbField.getcol('PHASE_DIR')[0][0][0])
             self.phase_center_dec=float(tbField.getcol('PHASE_DIR')[0][0][1])
             self.set_phased()
-        #else:
-        #    self.phase_type='unknown'
         #set LST array from times and itrf
         self.set_lsts_from_time_array()
 
@@ -221,7 +217,6 @@ class MS(UVData):
         #as a string with \t indicating column breaks
         #\n indicating row breaks.
         self.history,self.casa_history=self._ms_hist_to_string(tables.table(filepath+'/HISTORY'),test_import_uvfits)
-
         #CASA weights column keeps track of number of data points averaged.
         self.nsample_array=tb.getcol('WEIGHT_SPECTRUM')
         if(len(self.nsample_array.shape)==3):
