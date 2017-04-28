@@ -2,7 +2,7 @@ language: python
 before_install:
   - sudo apt-get update
   - sudo apt-get install software-properties-common
-  - sudo add-apt-repository -s ppa:kernsuite/kern-2
+  - sudo add-apt-repository ppa:kernsuite/kern-2
   - sudo apt-add-repository multiverse
   - sudo apt-get update
   - sudo apt-get install casacore
