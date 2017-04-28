@@ -1,4 +1,11 @@
 language: python
+before_install
+  - sudo apt-get update
+  - sudo apt-get install software-properties-common
+  - sudo add-apt-repository -s ppa:kernsuite/kern-2
+  - sudo apt-add-repository multiverse
+  - sudo apt-get update
+  - sudo apt-get install casacore
 python:
   # We don't actually use the Travis Python, but this keeps it organized.
   - "2.7"
@@ -22,9 +29,9 @@ install:
   - conda info -a
 
   # create environment and install dependencies
+
   - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION numpy scipy astropy nose pip
-
-
+  - pip install python-casacore
   - source activate test-environment
   - conda install -c pkgw-forge aipy
   - pip install coveralls
@@ -33,4 +40,3 @@ script: nosetests pyuvdata --with-coverage --cover-package=pyuvdata
 
 after_success:
     - coveralls
-
