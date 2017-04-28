@@ -12,7 +12,7 @@ before_install:
   - mkdir build
   - cd build
   - cmake ..
-  - make 
+  - make -j 12
   - make install
   - cd ../../
 install:
