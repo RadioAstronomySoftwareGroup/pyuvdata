@@ -192,7 +192,7 @@ class CALFITS(UVCal):
                 sechdr['CDELT1'] = 1
 
             else:
-                secdata = self.flag_array.astype(np.int64)[:, :, :, :, np.newaxis]  # Can't be bool
+                secdata = self.flag_array.astype(np.int64)[:, :, :, :, :, np.newaxis]  # Can't be bool
                 sechdr['CTYPE1'] = ('Narrays', 'Number of image arrays.')
                 sechdr['CUNIT1'] = ('Integer', 'Number of image arrays. Value.')
                 sechdr['CRVAL1'] = (1, 'Number of image arrays.')
