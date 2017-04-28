@@ -35,11 +35,10 @@ install:
   - conda info -a
 
   # create environment and install dependencies
-
   - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION numpy scipy astropy nose pip
-  - pip install python-casacore
   - source activate test-environment
   - conda install -c pkgw-forge aipy
+  - pip install python-casacore	
   - pip install coveralls
   - python setup.py install
 script: nosetests pyuvdata --with-coverage --cover-package=pyuvdata
