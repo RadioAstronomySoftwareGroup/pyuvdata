@@ -13,7 +13,7 @@ before_install:
   - cd build
   - cmake ..
   - make -j 12
-  - make install
+  - sudo make install
   - cd ../../
 install:
   # ensure that we have the full tag information available for version.py
