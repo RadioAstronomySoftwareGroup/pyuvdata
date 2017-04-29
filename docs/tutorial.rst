@@ -3,7 +3,7 @@ Tutorial
 
 Example 1
 ---------
-Converting between tested data formats
+UVData: Converting between tested data formats
 
 a) miriad (aipy) -> uvfits
 **************************
@@ -55,7 +55,7 @@ d) FHD -> miriad (aipy)
 
 Example 2
 ---------
-Phasing/unphasing data::
+UVData: Phasing/unphasing data::
 
   from pyuvdata import UVData
   import ephem
@@ -70,7 +70,7 @@ Phasing/unphasing data::
 
 Example 3
 ---------
-Making a simple waterfall plot::
+UVData: Making a simple waterfall plot::
 
   from pyuvdata import UVData
   import numpy as np
@@ -88,8 +88,9 @@ Making a simple waterfall plot::
 
 Example 4
 ---------
-Selecting data: The select method lets you select specific antennas, frequencies,
-times or polarizations to keep in the object while removing others.
+Selecting data (UVData): The select method lets you select specific antennas (by number or name),
+antenna pairs, frequencies (in Hz or by channel number), times or polarizations
+to keep in the object while removing others.
 
 a) Select 3 antennas to keep using the antenna number.
 ****************
@@ -153,17 +154,17 @@ a) Reading a gain calibration file.
   from pyuvdata import UVCal
   import numpy as np
   import matplotlib.pyplot as plt
-  UV = UVCal()
+  cal = UVCal()
   filename = 'pyuvdata/data/zen.2457698.40355.xx.fitsA'
-  UV.read_calfits(filename)
-  print 'Cal Type = ', UV.cal_type  # should print out 'gains'
-  print 'Number of jones parameters = ', UV.Njones, UV.jones_array  # number of antenna polarizations and polarization type.
-  print 'Number of antennas with data = ', UV.Nants_data
-  print 'Number of frequencies = ', UV.Nfreqs
-  print 'Shape of the gain_array', UV.gain_array.shape  # (UV.Nants_data, UV.Nfreqs, UV.Ntimes, UV.Njones)
-  for ant in range(UV.Nants_data):
-      plt.plot(UV.freq_array.flatten(), np.abs(UV.gain_array[ant, :, 0, 0]))  # plot abs of all gains for first time and first jones polarization.
-  plt.xlabel('Frequency (GHz)')
+  cal.read_calfits(filename)
+  print 'Cal Type = ', cal.cal_type  # should print out 'gains'
+  print 'Number of jones parameters = ', cal.Njones, cal.jones_array  # number of antenna polarizations and polarization type.
+  print 'Number of antennas with data = ', cal.Nants_data
+  print 'Number of frequencies = ', cal.Nfreqs
+  print 'Shape of the gain_array', cal.gain_array.shape  # (cal.Nants_data, cal.Nfreqs, cal.Ntimes, cal.Njones)
+  for ant in range(cal.Nants_data):
+      plt.plot(cal.freq_array.flatten(), np.abs(cal.gain_array[ant, 0, :, 0, 0]))  # plot abs of all gains for first time and first jones polarization.
+  plt.xlabel('Frequency (Hz)')
   plt.ylabel('Abs(gains)')
   plt.show()
 
@@ -178,11 +179,12 @@ b) Writing a gain calibration file.
   Ntimes = len(time_array)
   freq_array = np.linspace(1e6, 2e6, 1024)  # frequency array in Hz
   Nfreqs = len(freq_array)
-  jones_array = np.array([-5])  #  only 1 jones parameter (E-W).
+  jones_array = np.array([-5, -6])  #  only 2 jones parameters.
   Njones = len(jones_array)
-  antenna_numbers = np.arange(19)
-  Nants_data = len(antenna_numbers)
-  antenna_names = np.array(['ant{0}.format(ant)' for ant in antenna_numbers])
+  ant_array = np.arange(19)
+  Nants_data = len(ant_array)
+  antenna_names = np.array(['ant{0}.format(ant)' for ant in ant_array])
+  Nspws = 1  # only 1 spw is supported
   # Generate fake data to process into correct format. Gains formatted with gains[pol][ant].
   gains = {}
   flags = {}
@@ -192,10 +194,10 @@ b) Writing a gain calibration file.
           gains[pol] = {}
           flags[pol] = {}
           chisq[pol] = {}
-      for ant in antenna_numbers:
-          gains[pol][ant] = np.random.randn(Ntimes, Nfreqs) + 1j*np.random.randn(Ntimes, Nfreqs)
+      for ant in ant_array:
+          gains[pol][ant] = np.random.randn(Ntimes, Nspws, Nfreqs) + 1j*np.random.randn(Ntimes, Nspws, Nfreqs)
           flags[pol][ant] = np.ones_like(gains[pol][ant], dtype=np.bool)
-          chisq[pol][ant] = np.random.randn(Ntimes, Nfreqs)
+          chisq[pol][ant] = np.random.randn(Ntimes, Nspws, Nfreqs)
 
   gainarray = []
   flagarray = []
@@ -204,7 +206,7 @@ b) Writing a gain calibration file.
       dd = []
       fl = []
       ch = []
-      for ant in antenna_numbers:
+      for ant in ant_array:
           dd.append(gains[pol][ant])
           fl.append(flags[pol][ant])
           ch.append(chisq[pol][ant])
@@ -212,33 +214,74 @@ b) Writing a gain calibration file.
       flagarray.append(fl)
       chisqarray.append(ch)
 
-  gainarray = np.array(gainarray).swapaxes(0,3).swapaxes(0,1) # get it into format so shape is correct.
-  flagarray = np.array(flagarray).swapaxes(0,3).swapaxes(0,1)
-  chisqarray = np.array(chisqarray).swapaxes(0,3).swapaxes(0,1)
+  gainarray = np.transpose(np.array(gainarray), [1, 3, 4, 2, 0]) # get it into format so shape is correct.
+  flagarray = np.transpose(np.array(flagarray), [1, 3, 4, 2, 0])
+  chisqarray = np.transpose(np.array(chisqarray), [1, 3, 4, 2, 0])
 
-  UV = UVCal()
-  UV.set_gain()
-  UV.Nfreqs = Nfreqs
-  UV.Njones = Njones
-  UV.Ntimes = Ntimes
-  UV.history = 'This is an example file generated from tutorial 5b of pyuvdata.'
-  UV.Nspws = 1
-  UV.freq_array = freq_array.reshape(UV.Nspws, -1)
-  UV.freq_range = [freq_array[0], freq_array[-1]]  # valid frequencies for solutions.
-  UV.channel_width = np.diff(freq_array)[0]
-  UV.jones_array = jones_array
-  UV.time_array = time_array
-  UV.integration_time = np.diff(freq_array)[0]
-  UV.gain_convention = 'divide'  # Use this operation to apply gain solution.
-  UV.x_orientation = 'east'  # orientation of 1st jones parameter.
-  UV.time_range = [time_array[0], time_array[-1]]
-  UV.telescope_name = 'Fake Telescope'
-  UV.Nants_data = Nants_data
-  UV.Nants_telescope = Nants_data  # have solutions for all antennas in array.
-  UV.antenna_names = antenna_names
-  UV.antenna_numbers = antenna_numbers
-  UV.flag_array = flagarray
-  UV.gain_array = gainarray
-  UV.quality_array = chisqarray
+  cal = UVCal()
+  cal.set_gain()
+  cal.Nfreqs = Nfreqs
+  cal.Njones = Njones
+  cal.Ntimes = Ntimes
+  cal.history = 'This is an example file generated from tutorial 5b of pycaldata.'
+  cal.Nspws = 1
+  cal.freq_array = freq_array.reshape(cal.Nspws, -1)
+  cal.freq_range = [freq_array[0], freq_array[-1]]  # valid frequencies for solutions.
+  cal.channel_width = np.diff(freq_array)[0]
+  cal.jones_array = jones_array
+  cal.time_array = time_array
+  cal.integration_time = np.diff(freq_array)[0]
+  cal.gain_convention = 'divide'  # Use this operation to apply gain solution.
+  cal.x_orientation = 'east'  # orientation of 1st jones parameter.
+  cal.time_range = [time_array[0], time_array[-1]]
+  cal.telescope_name = 'Fake Telescope'
+  cal.Nants_data = Nants_data
+  cal.Nants_telescope = Nants_data  # have solutions for all antennas in array.
+  cal.ant_array = ant_array
+  cal.antenna_names = antenna_names
+  cal.antenna_numbers = ant_array
+  cal.flag_array = flagarray
+  cal.gain_array = gainarray
+  cal.quality_array = chisqarray
 
-  UV.write_calfits('tutorial5b.fits')
+  cal.write_calfits('tutorial5b.fits')
+
+Example 6
+---------
+Selecting data (UVCal): The select method lets you select specific antennas (by number or name),
+frequencies (in Hz or by channel number), times or polarizations
+to keep in the object while removing others.
+
+a) Select 3 antennas to keep using the antenna number.
+****************
+::
+
+  from pyuvdata import UVCal
+  import numpy as np
+  cal = UVCal()
+  filename = 'pyuvdata/data/zen.2457698.40355.xx.fitsA'
+  cal.read_calfits(filename)
+  # print all the antennas numbers with data in the original file
+  print(cal.ant_array)
+  cal.select(antenna_nums=[9, 22, 64])
+  # print all the antennas numbers with data after the select
+  print(cal.ant_array)
+
+b) Select 3 antennas to keep using the antenna names, also select 5 frequencies to keep.
+****************
+::
+
+  from pyuvdata import UVCal
+  import numpy as np
+  cal = UVCal()
+  filename = 'pyuvdata/data/zen.2457698.40355.xx.fitsA'
+  cal.read_calfits(filename)
+  # print all the antenna names with data in the original file
+  print([cal.antenna_names[np.where(cal.antenna_numbers==a)[0][0]] for a in cal.ant_array])
+  # print all the frequencies in the original file
+  print(cal.freq_array)
+  cal.select(antenna_names=['ant31', 'ant81', 'ant104'], freq_chans=np.arange(0, 4))
+  # print all the antenna names with data after the select
+  print([cal.antenna_names[np.where(cal.antenna_numbers==a)[0][0]] for a in cal.ant_array])
+  # print all the frequencies after the select
+  print(cal.freq_array)
