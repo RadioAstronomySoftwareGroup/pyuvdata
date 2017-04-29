@@ -292,16 +292,16 @@ class UVCal(UVBase):
             ant_inds = list(sorted(set(list(ant_inds))))
             self.Nants_data = len(ant_inds)
             self.ant_array = self.ant_array[ant_inds]
-            self.flag_array = self.flag_array[ant_inds, :, :, :]
+            self.flag_array = self.flag_array[ant_inds, :, :, :, :]
             if self.cal_type == 'delay':
-                self.quality_array = self.quality_array[ant_inds, :, :]
-                self.delay_array = self.delay_array[ant_inds, :, :]
-            else:
                 self.quality_array = self.quality_array[ant_inds, :, :, :]
-                self.gain_array = self.gain_array[ant_inds, :, :, :]
+                self.delay_array = self.delay_array[ant_inds, :, :, :]
+            else:
+                self.quality_array = self.quality_array[ant_inds, :, :, :, :]
+                self.gain_array = self.gain_array[ant_inds, :, :, :, :]
 
             if self.input_flag_array is not None:
-                self.input_flag_array = self.input_flag_array[ant_inds, :, :, :]
+                self.input_flag_array = self.input_flag_array[ant_inds, :, :, :, :]
 
         if times is not None:
             times = uvutils.get_iterable(times)
@@ -329,16 +329,16 @@ class UVCal(UVBase):
                               'will make it impossible to write this data out to '
                               'some file types')
 
-            self.flag_array = self.flag_array[:, :, time_inds, :]
+            self.flag_array = self.flag_array[:, :, :, time_inds, :]
             if self.cal_type == 'delay':
-                self.quality_array = self.quality_array[:, time_inds, :]
-                self.delay_array = self.delay_array[:, time_inds, :]
-            else:
                 self.quality_array = self.quality_array[:, :, time_inds, :]
-                self.gain_array = self.gain_array[:, :, time_inds, :]
+                self.delay_array = self.delay_array[:, :, time_inds, :]
+            else:
+                self.quality_array = self.quality_array[:, :, :, time_inds, :]
+                self.gain_array = self.gain_array[:, :, :, time_inds, :]
 
             if self.input_flag_array is not None:
-                self.input_flag_array = self.input_flag_array[:, :, time_inds, :]
+                self.input_flag_array = self.input_flag_array[:, :, :, time_inds, :]
 
         if freq_chans is not None:
             freq_chans = uvutils.get_iterable(freq_chans)
@@ -377,15 +377,15 @@ class UVCal(UVBase):
                               'will make it impossible to write this data out to '
                               'some file types')
 
-            self.flag_array = self.flag_array[:, freq_inds, :, :]
+            self.flag_array = self.flag_array[:, :, freq_inds, :, :]
             if self.cal_type == 'delay':
                 pass
             else:
-                self.quality_array = self.quality_array[:, freq_inds, :, :]
-                self.gain_array = self.gain_array[:, freq_inds, :, :]
+                self.quality_array = self.quality_array[:, :, freq_inds, :, :]
+                self.gain_array = self.gain_array[:, :, freq_inds, :, :]
 
             if self.input_flag_array is not None:
-                self.input_flag_array = self.input_flag_array[:, freq_inds, :, :]
+                self.input_flag_array = self.input_flag_array[:, :, freq_inds, :, :]
 
         if jones is not None:
             jones = uvutils.get_iterable(jones)
@@ -411,16 +411,16 @@ class UVCal(UVBase):
                     warnings.warn('Selected jones polarization terms are not evenly spaced. This '
                                   'will make it impossible to write this data out to '
                                   'some file types')
-            self.flag_array = self.flag_array[:, :, :, jones_inds]
+            self.flag_array = self.flag_array[:, :, :, :, jones_inds]
             if self.cal_type == 'delay':
-                self.quality_array = self.quality_array[:, :, jones_inds]
-                self.delay_array = self.delay_array[:, :, jones_inds]
-            else:
                 self.quality_array = self.quality_array[:, :, :, jones_inds]
-                self.gain_array = self.gain_array[:, :, :, jones_inds]
+                self.delay_array = self.delay_array[:, :, :, jones_inds]
+            else:
+                self.quality_array = self.quality_array[:, :, :, :, jones_inds]
+                self.gain_array = self.gain_array[:, :, :, :, jones_inds]
 
             if self.input_flag_array is not None:
-                self.input_flag_array = self.input_flag_array[:, :, :, jones_inds]
+                self.input_flag_array = self.input_flag_array[:, :, :, :, jones_inds]
 
         history_update_string += ' using pyuvdata.'
         self.history = self.history + history_update_string

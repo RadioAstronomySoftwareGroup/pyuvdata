@@ -192,14 +192,14 @@ class TestUVCalSelectGain(object):
         self.gain_object.time_array = np.append(self.gain_object.time_array, new_time)
         self.gain_object.Ntimes += 1
         self.gain_object.flag_array = np.concatenate((self.gain_object.flag_array,
-                                                      self.gain_object.flag_array[:, :, [-1], :]),
-                                                     axis=2)
+                                                      self.gain_object.flag_array[:, :, :, [-1], :]),
+                                                     axis=3)
         self.gain_object.gain_array = np.concatenate((self.gain_object.gain_array,
-                                                      self.gain_object.gain_array[:, :, [-1], :]),
-                                                     axis=2)
+                                                      self.gain_object.gain_array[:, :, :, [-1], :]),
+                                                     axis=3)
         self.gain_object.quality_array = np.concatenate((self.gain_object.quality_array,
-                                                         self.gain_object.quality_array[:, :, [-1], :]),
-                                                        axis=2)
+                                                         self.gain_object.quality_array[:, :, :, [-1], :]),
+                                                        axis=3)
         nt.assert_true(self.gain_object.check())
         self.gain_object2 = copy.deepcopy(self.gain_object)
 
@@ -290,14 +290,14 @@ class TestUVCalSelectGain(object):
             self.gain_object.jones_array = np.append(self.gain_object.jones_array, new_jones)
             self.gain_object.Njones += 1
             self.gain_object.flag_array = np.concatenate((self.gain_object.flag_array,
-                                                          self.gain_object.flag_array[:, :, :, [-1]]),
-                                                         axis=3)
+                                                          self.gain_object.flag_array[:, :, :, :, [-1]]),
+                                                         axis=4)
             self.gain_object.gain_array = np.concatenate((self.gain_object.gain_array,
-                                                          self.gain_object.gain_array[:, :, :, [-1]]),
-                                                         axis=3)
+                                                          self.gain_object.gain_array[:, :, :, :, [-1]]),
+                                                         axis=4)
             self.gain_object.quality_array = np.concatenate((self.gain_object.quality_array,
-                                                             self.gain_object.quality_array[:, :, :, [-1]]),
-                                                            axis=3)
+                                                             self.gain_object.quality_array[:, :, :, :, [-1]]),
+                                                            axis=4)
         nt.assert_true(self.gain_object.check())
         self.gain_object2 = copy.deepcopy(self.gain_object)
 
@@ -426,14 +426,14 @@ class TestUVCalSelectDelay(object):
         self.delay_object.time_array = np.append(self.delay_object.time_array, new_time)
         self.delay_object.Ntimes += 1
         self.delay_object.flag_array = np.concatenate((self.delay_object.flag_array,
-                                                       self.delay_object.flag_array[:, :, [-1], :]),
-                                                      axis=2)
+                                                       self.delay_object.flag_array[:, :, :, [-1], :]),
+                                                      axis=3)
         self.delay_object.delay_array = np.concatenate((self.delay_object.delay_array,
-                                                        self.delay_object.delay_array[:, [-1], :]),
-                                                       axis=1)
+                                                        self.delay_object.delay_array[:, :, [-1], :]),
+                                                       axis=2)
         self.delay_object.quality_array = np.concatenate((self.delay_object.quality_array,
-                                                          self.delay_object.quality_array[:, [-1], :]),
-                                                         axis=1)
+                                                          self.delay_object.quality_array[:, :, [-1], :]),
+                                                         axis=2)
         nt.assert_true(self.delay_object.check())
         self.delay_object2 = copy.deepcopy(self.delay_object)
 
@@ -524,17 +524,17 @@ class TestUVCalSelectDelay(object):
             self.delay_object.jones_array = np.append(self.delay_object.jones_array, new_jones)
             self.delay_object.Njones += 1
             self.delay_object.flag_array = np.concatenate((self.delay_object.flag_array,
-                                                           self.delay_object.flag_array[:, :, :, [-1]]),
-                                                          axis=3)
+                                                           self.delay_object.flag_array[:, :, :, :, [-1]]),
+                                                          axis=4)
             self.delay_object.input_flag_array = np.concatenate((self.delay_object.input_flag_array,
-                                                                 self.delay_object.input_flag_array[:, :, :, [-1]]),
-                                                                axis=3)
+                                                                 self.delay_object.input_flag_array[:, :, :, :, [-1]]),
+                                                                axis=4)
             self.delay_object.delay_array = np.concatenate((self.delay_object.delay_array,
-                                                            self.delay_object.delay_array[:, :, [-1]]),
-                                                           axis=2)
+                                                            self.delay_object.delay_array[:, :, :, [-1]]),
+                                                           axis=3)
             self.delay_object.quality_array = np.concatenate((self.delay_object.quality_array,
-                                                              self.delay_object.quality_array[:, :, [-1]]),
-                                                             axis=2)
+                                                              self.delay_object.quality_array[:, :, :, [-1]]),
+                                                             axis=3)
         nt.assert_true(self.delay_object.check())
         self.delay_object2 = copy.deepcopy(self.delay_object)
 
