@@ -15,7 +15,7 @@ def construct_version_info():
         git_hash = subprocess.check_output(['git', '-C', pyuvdata_dir, 'rev-parse', 'HEAD'],
                                            stderr=subprocess.STDOUT).strip()
         git_description = subprocess.check_output(['git', '-C', pyuvdata_dir,
-                                                   'describe', '--dirty', '--tag']).strip()
+                                                   'describe', '--dirty', '--tag', '--always']).strip()
         git_branch = subprocess.check_output(['git', '-C', pyuvdata_dir, 'rev-parse',
                                               '--abbrev-ref', 'HEAD'],
                                              stderr=subprocess.STDOUT).strip()
