@@ -16,10 +16,10 @@ def test_construct_version_info():
                                          stderr=subprocess.STDOUT).strip()
     git_hash = subprocess.check_output(['git', 'rev-parse', 'HEAD'],
                                        stderr=subprocess.STDOUT).strip()
-    git_description = subprocess.check_output(['git', 'describe', '--dirty']).strip()
+    git_description = subprocess.check_output(['git', 'describe', '--dirty', '--tags']).strip()
     git_branch = subprocess.check_output(['git', 'rev-parse', '--abbrev-ref', 'HEAD'],
                                          stderr=subprocess.STDOUT).strip()
-    git_version = subprocess.check_output(['git', 'describe', '--abbrev=0']).strip()
+    git_version = subprocess.check_output(['git', 'describe', '--tags', '--abbrev=0']).strip()
 
     test_version_info = {'version': pyuvdata.__version__, 'git_origin': git_origin,
                          'git_hash': git_hash, 'git_description': git_description,
