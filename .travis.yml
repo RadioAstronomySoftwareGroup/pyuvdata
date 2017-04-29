@@ -33,13 +33,19 @@ install:
   - conda update -q conda
   # Useful for debugging any issues with conda
   - conda info -a
-
   # create environment and install dependencies
   - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION numpy scipy astropy nose pip
   - source activate test-environment
   - conda install -c pkgw-forge aipy
   - pip install python-casacore	
   - pip install coveralls
+  #install python-casacore
+  - git clone https://github.com/casacore/python-casacore.git 
+  - sudo apt-get install libcasacore2-dev python-numpy python-setuptools libboost-python-dev libcfitsio3-dev
+  - cd python-casacore/
+  - python setup.py build_ext --force -I/usr/local/include/casacore/ -I/usr/include/cfitsio -R/usr/local/lib
+  - cd ../
+  #install pyuvdata
   - python setup.py install
 script: nosetests pyuvdata --with-coverage --cover-package=pyuvdata
 
