@@ -1,0 +1,5 @@
+Type = Measurement Set
+SubType = UVFITS
+
+This is a MeasurementSet Table holding measurements from a Telescope
+This is a measurement set Table holding astronomical observations
