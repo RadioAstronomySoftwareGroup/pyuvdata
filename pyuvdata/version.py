@@ -15,12 +15,12 @@ def construct_version_info():
         git_hash = subprocess.check_output(['git', '-C', pyuvdata_dir, 'rev-parse', 'HEAD'],
                                            stderr=subprocess.STDOUT).strip()
         git_description = subprocess.check_output(['git', '-C', pyuvdata_dir,
-                                                   'describe', '--dirty']).strip()
+                                                   'describe', '--dirty', '--tag']).strip()
         git_branch = subprocess.check_output(['git', '-C', pyuvdata_dir, 'rev-parse',
                                               '--abbrev-ref', 'HEAD'],
                                              stderr=subprocess.STDOUT).strip()
         git_version = subprocess.check_output(['git', '-C', pyuvdata_dir, 'describe',
-                                               '--abbrev=0']).strip()
+                                               '--tags', '--abbrev=0']).strip()
     except:
         try:
             # Check if a GIT_INFO file was created when installing package
