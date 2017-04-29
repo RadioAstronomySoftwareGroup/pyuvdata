@@ -41,7 +41,7 @@ install:
   - pip install coveralls
   #install python-casacore
   - git clone https://github.com/casacore/python-casacore.git 
-  - sudo apt-get install libcasacore2-dev python-numpy python-setuptools libboost-python-dev libcfitsio3-dev
+  - sudo apt-get install python-numpy python-setuptools libboost-python-dev libcfitsio3-dev
   - cd python-casacore/
   - python setup.py build_ext --force -I/usr/local/include/casacore/ -I/usr/include/cfitsio -R/usr/local/lib
   - cd ../
