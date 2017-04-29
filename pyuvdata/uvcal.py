@@ -235,7 +235,7 @@ class UVCal(UVBase):
 
     def select(self, antenna_nums=None, antenna_names=None,
                frequencies=None, freq_chans=None,
-               times=None, jones=None, blt_inds=None, run_check=True,
+               times=None, jones=None, run_check=True,
                run_check_acceptability=True):
         """
         Select specific antennas, frequencies, times and
