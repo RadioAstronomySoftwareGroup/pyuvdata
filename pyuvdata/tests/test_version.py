@@ -16,7 +16,7 @@ def test_construct_version_info():
                                          stderr=subprocess.STDOUT).strip()
     git_hash = subprocess.check_output(['git', 'rev-parse', 'HEAD'],
                                        stderr=subprocess.STDOUT).strip()
-    git_description = subprocess.check_output(['git', 'describe', '--dirty', '--tags']).strip()
+    git_description = subprocess.check_output(['git', 'describe', '--dirty', '--tags', '--always']).strip()
     git_branch = subprocess.check_output(['git', 'rev-parse', '--abbrev-ref', 'HEAD'],
                                          stderr=subprocess.STDOUT).strip()
     git_version = subprocess.check_output(['git', 'describe', '--tags', '--abbrev=0']).strip()
