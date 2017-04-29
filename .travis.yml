@@ -3,6 +3,8 @@ python:
   # We don't actually use the Travis Python, but this keeps it organized.
   - "2.7"
 install:
+  # ensure that we have the full tag information available for version.py
+  - git fetch --unshallow --tags
   - sudo apt-get update
   # We do this conditionally because it saves us some downloading if the
   # version is the same.
