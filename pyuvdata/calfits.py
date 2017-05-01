@@ -199,7 +199,7 @@ class CALFITS(UVCal):
             prihdr['CUNIT5'] = ('Integer', 'Number of windows. Increment.')
             prihdr['CRVAL5'] = 0
             prihdr['CDELT5'] = 1
-            
+
             sechdr['CTYPE6'] = ('ANTAXIS', 'See ANTARR in ANTENNA extension for values.')
 
             if self.input_flag_array is not None:
