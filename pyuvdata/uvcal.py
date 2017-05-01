@@ -326,8 +326,7 @@ class UVCal(UVBase):
             time_separation = self.time_array[1:] - self.time_array[:-1]
             if np.min(time_separation) < np.max(time_separation):
                 warnings.warn('Selected times are not evenly spaced. This '
-                              'will make it impossible to write this data out to '
-                              'some file types')
+                              'is not supported by the calfits format.')
 
             self.flag_array = self.flag_array[:, :, :, time_inds, :]
             if self.cal_type == 'delay':
@@ -374,8 +373,7 @@ class UVCal(UVBase):
             freq_separation = self.freq_array[0, 1:] - self.freq_array[0, :-1]
             if np.min(freq_separation) < np.max(freq_separation):
                 warnings.warn('Selected frequencies are not evenly spaced. This '
-                              'will make it impossible to write this data out to '
-                              'some file types')
+                              'is not supported by the calfits format')
 
             self.flag_array = self.flag_array[:, :, freq_inds, :, :]
             if self.cal_type == 'delay':
@@ -409,8 +407,7 @@ class UVCal(UVBase):
                 jones_separation = self.jones_array[1:] - self.jones_array[:-1]
                 if np.min(jones_separation) < np.max(jones_separation):
                     warnings.warn('Selected jones polarization terms are not evenly spaced. This '
-                                  'will make it impossible to write this data out to '
-                                  'some file types')
+                                  'is not supported by the calfits format')
             self.flag_array = self.flag_array[:, :, :, :, jones_inds]
             if self.cal_type == 'delay':
                 self.quality_array = self.quality_array[:, :, :, jones_inds]
