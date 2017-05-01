@@ -321,7 +321,6 @@ class UVCal(UVBase):
             time_inds = list(sorted(set(list(time_inds))))
             self.Ntimes = len(time_inds)
             self.time_array = self.time_array[time_inds]
-            # should we adjust the time_range parameter?
 
             time_separation = self.time_array[1:] - self.time_array[:-1]
             if np.min(time_separation) < np.max(time_separation):
