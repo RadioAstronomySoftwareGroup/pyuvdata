@@ -51,7 +51,7 @@ class MS(UVData):
         if test_import_uvfits:
             ntimes-=5
         for tbrow in range(ntimes):
-            message_str+=str(message[tbrow])+'\n'
+            message_str+=str(message[tbrow])
             newline=str(app_params[tbrow]) \
             +';'+str(cli_command[tbrow]) \
             +';'+str(application[tbrow]) \
@@ -62,6 +62,8 @@ class MS(UVData):
             +';'+str(priority[tbrow]) \
             +';'+str(times[tbrow])+'\n'
             history_str+=newline
+            if tbrow<ntimes-1:
+                message_str+='\n'
         return message_str,history_str
 
 
@@ -218,6 +220,9 @@ class MS(UVData):
         #\n indicating row breaks.
         self.history,self.casa_history=self._ms_hist_to_string(tables.table(filepath+'/HISTORY'),test_import_uvfits)
         #CASA weights column keeps track of number of data points averaged.
+
+        if self.pyuvdata_version_str not in self.history.replace('\n', ''):
+            self.history += self.pyuvdata_version_str
         self.nsample_array=tb.getcol('WEIGHT_SPECTRUM')
         if(len(self.nsample_array.shape)==3):
             self.nsample_array=np.expand_dims(self.nsample_array,axis=1)
