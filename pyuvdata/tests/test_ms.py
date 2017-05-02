@@ -1,21 +1,18 @@
 """Tests for MS object."""
 import nose.tools as nt
 import os
-from uvdata import UVData
-import uvdata.tests as uvtest
+from pyuvdata import UVData
 import glob as glob
 from pyuvdata.data import DATA_PATH
 import pyuvdata.tests as uvtests
 import numpy as np
 
+def test_readNRAO():
+    """Test reading in a CASA tutorial ms file."""
+    UV = UVData()
+    testfile=os.path.join(DATA_PATH,'day2_TDEM0003_10s_norx_1src_1spw.ms')
+    expected_extra_keywords=['data_column','antenna_positions']
 
-
-def test_ReadMSWriteReadUVFits(msname):
-    """
-    MS to uvfits loopback test.
-
-    Read in MS files, write out as uvfits, read back in and check for object
-    equality."""
     status=uvtests.checkWarnings(UV.read_ms,
                                 [testfile],
                                  message='Telescope EVLA is not',
