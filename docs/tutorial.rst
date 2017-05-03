@@ -185,38 +185,11 @@ b) Writing a gain calibration file.
   Nants_data = len(ant_array)
   antenna_names = np.array(['ant{0}.format(ant)' for ant in ant_array])
   Nspws = 1  # only 1 spw is supported
-  # Generate fake data to process into correct format. Gains formatted with gains[pol][ant].
-  gains = {}
-  flags = {}
-  chisq = {}
-  for pol in jones_array:
-      if not gains.has_key(pol):
-          gains[pol] = {}
-          flags[pol] = {}
-          chisq[pol] = {}
-      for ant in ant_array:
-          gains[pol][ant] = np.random.randn(Ntimes, Nspws, Nfreqs) + 1j*np.random.randn(Ntimes, Nspws, Nfreqs)
-          flags[pol][ant] = np.ones_like(gains[pol][ant], dtype=np.bool)
-          chisq[pol][ant] = np.random.randn(Ntimes, Nspws, Nfreqs)
-
-  gainarray = []
-  flagarray = []
-  chisqarray = []
-  for pol in jones_array:
-      dd = []
-      fl = []
-      ch = []
-      for ant in ant_array:
-          dd.append(gains[pol][ant])
-          fl.append(flags[pol][ant])
-          ch.append(chisq[pol][ant])
-      gainarray.append(dd)
-      flagarray.append(fl)
-      chisqarray.append(ch)
-
-  gainarray = np.transpose(np.array(gainarray), [1, 3, 4, 2, 0]) # get it into format so shape is correct.
-  flagarray = np.transpose(np.array(flagarray), [1, 3, 4, 2, 0])
-  chisqarray = np.transpose(np.array(chisqarray), [1, 3, 4, 2, 0])
+  # Generate fake data
+  gains = (np.random.randn(Nants_data, Nspws, Nfreqs, Ntimes, Njones)
+           + 1j*np.random.randn(Nants_data, Nspws, Nfreqs, Ntimes, Njones))
+  flags = np.ones_like(gains, dtype=np.bool)
+  chisq = np.random.randn(Nants_data, Nspws, Nfreqs, Ntimes, Njones)
 
   cal = UVCal()
   cal.set_gain()
@@ -230,7 +203,7 @@ b) Writing a gain calibration file.
   cal.channel_width = np.diff(freq_array)[0]
   cal.jones_array = jones_array
   cal.time_array = time_array
-  cal.integration_time = np.diff(freq_array)[0]
+  cal.integration_time = np.diff(time_array)[0]
   cal.gain_convention = 'divide'  # Use this operation to apply gain solution.
   cal.x_orientation = 'east'  # orientation of 1st jones parameter.
   cal.time_range = [time_array[0], time_array[-1]]
@@ -240,9 +213,9 @@ b) Writing a gain calibration file.
   cal.ant_array = ant_array
   cal.antenna_names = antenna_names
   cal.antenna_numbers = ant_array
-  cal.flag_array = flagarray
-  cal.gain_array = gainarray
-  cal.quality_array = chisqarray
+  cal.flag_array = flags
+  cal.gain_array = gains
+  cal.quality_array = chisq
 
   cal.write_calfits('tutorial5b.fits')
 
