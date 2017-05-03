@@ -432,19 +432,35 @@ class UVCal(UVBase):
         if run_check:
             self.check(run_check_acceptability=run_check_acceptability)
 
-    def convert_to_gain(self):
+    def convert_to_gain(self, delay_convention='minus'):
+        """
+        Convert non-gain cal_types to gains.
+
+        For the delay cal_type the gain is calculated as:
+            gain = 1 * exp((+/-) * 2 * pi * j * delay * frequency)
+            where the (+/-) is dictated by the delay_convention
+
+        Args:
+            delay_convention: exponent sign to use in the conversion. Defaults to minus.
+        """
         if self.cal_type == 'gain':
             raise ValueError('The data is already a gain cal_type.')
         elif self.cal_type == 'delay':
+            if delay_convention == 'minus':
+                conv = -1
+            elif delay_convention == 'plus':
+                conv = 1
+            else:
+                raise ValueError('delay_convention can only be "minus" or "plus"')
+
             phase_array = np.zeros((self.Nants_data, self.Nspws, self.Nfreqs, self.Ntimes, self.Njones))
             for si in range(self.Nspws):
-                temp = -2 * np.pi * np.dot(self.delay_array[:, si, :, :, np.newaxis],
-                                           self.freq_array[si, np.newaxis, :])
+                temp = conv * 2 * np.pi * np.dot(self.delay_array[:, si, :, :, np.newaxis],
+                                                 self.freq_array[si, np.newaxis, :])
                 temp = np.transpose(temp, (0, 3, 1, 2))
                 phase_array[:, si, :, :, :] = temp
 
-            amplitude_array = np.ones_like(phase_array)
-            gain_array = amplitude_array * np.exp(1j * phase_array)
+            gain_array = np.exp(1j * phase_array)
             new_quality = np.repeat(self.quality_array[:, :, np.newaxis, :, :], self.Nfreqs, axis=2)
             self.set_gain()
             self.gain_array = gain_array
