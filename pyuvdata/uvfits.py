@@ -157,9 +157,7 @@ class UVFITS(UVData):
             self.integration_time = float(D.data.field('INTTIM')[0])
         except:
             if self.Ntimes > 1:
-                self.integration_time = \
-
-                    float(np.diff(np.sort(list(set(self.time_array))))[0]) * 86400
+                self.integration_time = float(np.diff(np.sort(list(set(self.time_array))))[0]) * 86400
 
 
             else:
