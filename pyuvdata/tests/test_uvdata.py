@@ -93,6 +93,14 @@ class TestUVDataInit(object):
             nt.assert_true(a in extra, msg='expected attribute ' + a +
                            ' not returned in extra iterator')
 
+    def test_unexpected_parameters(self):
+        "Test for extra parameters."
+        expected_parameters = self.required_parameters + self.extra_parameters
+        attributes = [i for i in self.uv_object.__dict__.keys() if i[0] == '_']
+        for a in attributes:
+            nt.assert_true(a in expected_parameters,
+                           msg='unexpected parameter ' + a + ' found in UVData')
+
     def test_unexpected_attributes(self):
         "Test for extra attributes."
         expected_attributes = self.required_properties + \

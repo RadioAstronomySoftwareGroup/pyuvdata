@@ -12,27 +12,39 @@ from pyuvdata.data import DATA_PATH
 class TestUVCalInit(object):
     def setUp(self):
         """Setup for basic parameter, property and iterator tests."""
-        self.required_parameters = ['_Nfreqs', '_Njones', '_Ntimes', '_history',
-                                    '_Nants_data', '_antenna_names', '_antenna_numbers',
-                                    '_Nants_telescope', '_freq_array',
-                                    '_jones_array', '_time_array',
+        self.required_parameters = ['_Nfreqs', '_Njones', '_Ntimes', '_Nspws',
+                                    '_Nants_data', '_Nants_telescope',
+                                    '_antenna_names', '_antenna_numbers',
+                                    '_ant_array',
+                                    '_telescope_name', '_freq_array',
+                                    '_channel_width',
+                                    '_jones_array', '_time_array', '_time_range',
+                                    '_integration_time',
                                     '_gain_convention', '_flag_array',
                                     '_quality_array', '_cal_type',
-                                    '_x_orientation']
+                                    '_x_orientation', '_history']
 
-        self.required_properties = ['Nfreqs', 'Njones', 'Ntimes', 'history',
-                                    'Nants_data', 'antenna_names', 'antenna_numbers',
-                                    'Nants_telescope', 'freq_array',
-                                    'jones_array', 'time_array',
+        self.required_properties = ['Nfreqs', 'Njones', 'Ntimes', 'Nspws',
+                                    'Nants_data', 'Nants_telescope',
+                                    'antenna_names', 'antenna_numbers',
+                                    'ant_array',
+                                    'telescope_name', 'freq_array',
+                                    'channel_width',
+                                    'jones_array', 'time_array', 'time_range',
+                                    'integration_time',
                                     'gain_convention', 'flag_array',
                                     'quality_array', 'cal_type',
-                                    'x_orientation']
+                                    'x_orientation', 'history']
 
         self.extra_parameters = ['_gain_array', '_delay_array',
-                                 '_input_flag_array']
+                                 '_input_flag_array', '_freq_range',
+                                 '_observer', '_git_origin_cal',
+                                 '_git_hash_cal']
 
         self.extra_properties = ['gain_array', 'delay_array',
-                                 'input_flag_array']
+                                 'input_flag_array', 'freq_range',
+                                 'observer', 'git_origin_cal',
+                                 'git_hash_cal']
 
         self.other_properties = ['pyuvdata_version_str']
 
@@ -60,6 +72,14 @@ class TestUVCalInit(object):
             nt.assert_true(a in required, msg='expected attribute ' + a +
                            ' not returned in required iterator')
 
+    def test_unexpected_parameters(self):
+        "Test for extra parameters."
+        expected_parameters = self.required_parameters + self.extra_parameters
+        attributes = [i for i in self.uv_cal_object.__dict__.keys() if i[0] == '_']
+        for a in attributes:
+            nt.assert_true(a in expected_parameters,
+                           msg='unexpected parameter ' + a + ' found in UVCal')
+
     def test_unexpected_attributes(self):
         "Test for extra attributes."
         expected_attributes = self.required_properties + \
@@ -67,7 +87,7 @@ class TestUVCalInit(object):
         attributes = [i for i in self.uv_cal_object.__dict__.keys() if i[0] != '_']
         for a in attributes:
             nt.assert_true(a in expected_attributes,
-                           msg='unexpected attribute ' + a + ' found in UVData')
+                           msg='unexpected attribute ' + a + ' found in UVCal')
 
     def test_properties(self):
         "Test that properties can be get and set properly."
