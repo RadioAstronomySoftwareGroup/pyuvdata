@@ -17,9 +17,8 @@ before_install:
   #- cd ../../
   - sudo apt-get install software-properties-common
   - sudo add-apt-repository -ys ppa:radio-astro/main
-  - sudo apt-add-repository multiverse
   - sudo apt-get update
-  - sudo apt-get install casacore
+  - sudo apt-get install casacore2
 install:
   # ensure that we have the full tag information available for version.py
   - git fetch --unshallow --tags
