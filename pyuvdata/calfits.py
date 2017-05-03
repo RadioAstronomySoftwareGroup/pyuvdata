@@ -47,7 +47,11 @@ class CALFITS(UVCal):
                 raise ValueError('The frequencies are not evenly spaced (probably '
                                  'because of a select operation). The calfits format '
                                  'does not support unevenly spaced frequencies.')
-            freq_spacing = freq_spacing[0]
+            if np.isclose(freq_spacing[0], self.channel_width):
+                freq_spacing = self.channel_width
+            else:
+                rounded_spacing = np.around(freq_spacing, int(np.ceil(np.log10(self._freq_array.tols[1]) * -1)))
+                freq_spacing = rounded_spacing[0]
         else:
             freq_spacing = self.channel_width
 
@@ -58,7 +62,11 @@ class CALFITS(UVCal):
                 raise ValueError('The times are not evenly spaced (probably '
                                  'because of a select operation). The calfits format '
                                  'does not support unevenly spaced times.')
-            time_spacing = time_spacing[0]
+            if np.isclose(time_spacing[0], self.integration_time):
+                time_spacing = self.integration_time
+            else:
+                rounded_spacing = np.around(time_spacing, int(np.ceil(np.log10(self._time_array.tols[1]) * -1)))
+                time_spacing = rounded_spacing[0]
         else:
             time_spacing = self.integration_time
 
