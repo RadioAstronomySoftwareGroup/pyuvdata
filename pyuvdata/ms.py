@@ -24,7 +24,7 @@ class MS(UVData):
     Attributs:
       ms_required_extra: Names of optional MSParameters that are required for casa ms
     """
-    ms_required_extra=['data_column','antenna_positions','casa_history']
+    ms_required_extra=['datacolumn','antenna_positions','casa_history']
     def _ms_hist_to_string(self,history_table,test_import_uvfits):
         '''
         converts a CASA history table into a string that can be stored as the uvdata history parameter.
