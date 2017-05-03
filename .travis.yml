@@ -18,7 +18,7 @@ before_install:
   - sudo apt-get install software-properties-common
   - sudo add-apt-repository -ys ppa:radio-astro/main
   - sudo apt-get update
-  - sudo apt-get install casacore2
+  - sudo apt-get install casacore2 libcasacore2-dev
 install:
   # ensure that we have the full tag information available for version.py
   - git fetch --unshallow --tags
@@ -45,12 +45,12 @@ install:
   - pip install coveralls
   #install python-casacore
   - sudo apt-get install python-numpy python-setuptools libboost-python-dev libcfitsio3-dev	
-  #- pip install python-casacore
-  - git clone https://github.com/casacore/python-casacore.git 
-  - cd python-casacore/
-  - python setup.py build_ext --force -I/usr/local/include/casacore/ -I/usr/include/cfitsio -R/usr/local/lib
-  - python setup.py install
-  - cd ../
+  - pip install python-casacore
+  #- git clone https://github.com/casacore/python-casacore.git 
+  #- cd python-casacore/
+  #- python setup.py build_ext --force -I/usr/local/include/casacore/ -I/usr/include/cfitsio -R/usr/local/lib
+  #- python setup.py install
+  #- cd ../
   #casacore build directory is causing warnings! Make sure to remove it!
   #- rm -rf ./casacore
   - rm -rf ./python-casacore
