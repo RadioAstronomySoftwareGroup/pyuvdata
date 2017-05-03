@@ -28,13 +28,6 @@ class UVCal(UVBase):
                                       'More than one spectral window is not '
                                       'currently supported.', expected_type=int)
 
-        desc = ('Frequency range that gain solutions are valid for.',
-                'list: (start_frequency, end_frequency) in Hz.')
-        self._freq_range = uvp.UVParameter('freq_range',
-                                           description=desc,
-                                           form=(2,),
-                                           expected_type=float)
-
         desc = ('Time range (in JD) that gain solutions are valid for.',
                 'list: (start_time, end_time) in JD.')
         self._time_range = uvp.UVParameter('time_range',
@@ -172,6 +165,12 @@ class UVCal(UVBase):
                                             form=('Nants_data', 'Nspws', 'Ntimes', 'Njones'),
                                             expected_type=np.float)
 
+        desc = ('Required if cal_type = "delay". Frequency range that solutions are valid for.',
+                'list: (start_frequency, end_frequency) in Hz.')
+        self._freq_range = uvp.UVParameter('freq_range',
+                                           description=desc, form=(2,),
+                                           expected_type=float, tols=1e-3)
+
         # --- truly optional parameters ---
         desc = ('Array of input flags, True is flagged. shape: (Nants_data, Nspws, '
                 'Nfreqs, Ntimes, Njones), type = bool.')
@@ -217,6 +216,7 @@ class UVCal(UVBase):
         self.cal_type = 'gain'
         self._gain_array.required = True
         self._delay_array.required = False
+        self._freq_range.required = False
         self._quality_array.form = self._gain_array.form
 
     def set_delay(self):
@@ -224,6 +224,7 @@ class UVCal(UVBase):
         self.cal_type = 'delay'
         self._gain_array.required = False
         self._delay_array.required = True
+        self._freq_range.required = True
         self._quality_array.form = self._delay_array.form
 
     def set_unknown_cal_type(self):
@@ -231,6 +232,7 @@ class UVCal(UVBase):
         self.cal_type = 'unknown'
         self._gain_array.required = False
         self._delay_array.required = False
+        self._freq_range.required = False
         self._quality_array.form = self._gain_array.form
 
     def select(self, antenna_nums=None, antenna_names=None,
