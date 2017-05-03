@@ -432,6 +432,28 @@ class UVCal(UVBase):
         if run_check:
             self.check(run_check_acceptability=run_check_acceptability)
 
+    def convert_to_gain(self):
+        if self.cal_type == 'gain':
+            raise ValueError('The data is already a gain cal_type.')
+        elif self.cal_type == 'delay':
+            phase_array = np.zeros((self.Nants_data, self.Nspws, self.Nfreqs, self.Ntimes, self.Njones))
+            for si in range(self.Nspws):
+                temp = -2 * np.pi * np.dot(self.delay_array[:, si, :, :, np.newaxis],
+                                           self.freq_array[si, np.newaxis, :])
+                temp = np.transpose(temp, (0, 3, 1, 2))
+                phase_array[:, si, :, :, :] = temp
+
+            amplitude_array = np.ones_like(phase_array)
+            gain_array = amplitude_array * np.exp(1j * phase_array)
+            new_quality = np.repeat(self.quality_array[:, :, np.newaxis, :, :], self.Nfreqs, axis=2)
+            self.set_gain()
+            self.gain_array = gain_array
+            self.quality_array = new_quality
+            self.delay_array = None
+            self.check()
+        else:
+            raise(ValueError, 'cal_type is unknown, cannot convert to gain')
+
     def _convert_from_filetype(self, other):
         for p in other:
             param = getattr(other, p)

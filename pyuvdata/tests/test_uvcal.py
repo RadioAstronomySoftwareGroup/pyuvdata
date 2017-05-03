@@ -155,6 +155,39 @@ class TestUVCalBasicMethods(object):
         nt.assert_equal(self.gain_object._gain_array.form, self.gain_object._flag_array.form)
         nt.assert_equal(self.gain_object._gain_array.form, self.gain_object._quality_array.form)
 
+    def test_convert_filetype(self):
+        # error testing
+        nt.assert_raises(ValueError, self.gain_object._convert_to_filetype, 'uvfits')
+
+    def test_convert_to_gain(self):
+        # temporary fix until test file has the correct units
+        self.delay_object.freq_array = self.delay_object.freq_array / 1e9
+        self.delay_object.channel_width = self.delay_object.channel_width / 1e9
+        self.new_object = copy.deepcopy(self.delay_object)
+
+        self.new_object.convert_to_gain()
+        nt.assert_true(np.isclose(np.max(np.absolute(self.new_object.gain_array)), 1.,
+                                  rtol=self.new_object._gain_array.tols[0],
+                                  atol=self.new_object._gain_array.tols[1]))
+        nt.assert_true(np.isclose(np.min(np.absolute(self.new_object.gain_array)), 1.,
+                                  rtol=self.new_object._gain_array.tols[0],
+                                  atol=self.new_object._gain_array.tols[1]))
+
+        nt.assert_true(np.allclose(np.angle(self.new_object.gain_array[:, :, 10, :, :]) % (2 * np.pi),
+                                   (-2 * np.pi * self.delay_object.delay_array *
+                                   self.delay_object.freq_array[0, 10]) % (2 * np.pi),
+                                   rtol=self.new_object._gain_array.tols[0],
+                                   atol=self.new_object._gain_array.tols[1]))
+        nt.assert_true(np.allclose(self.delay_object.quality_array,
+                                   self.new_object.quality_array[:, :, 10, :, :],
+                                   rtol=self.new_object._quality_array.tols[0],
+                                   atol=self.new_object._quality_array.tols[1]))
+
+        # error testing
+        nt.assert_raises(ValueError, self.gain_object.convert_to_gain)
+        self.gain_object.set_unknown_cal_type()
+        nt.assert_raises(ValueError, self.gain_object.convert_to_gain)
+
 
 class TestUVCalSelectGain(object):
     def setUp(self):
