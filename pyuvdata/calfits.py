@@ -98,7 +98,10 @@ class CALFITS(UVCal):
         prihdr['NANTSTEL'] = self.Nants_telescope
         prihdr['NSPWS'] = self.Nspws
         prihdr['XORIENT'] = self.x_orientation
-        prihdr['FRQRANGE'] = ','.join(map(str, self.freq_range))
+        if self.cal_type == 'delay':
+            prihdr['FRQRANGE'] = ','.join(map(str, self.freq_range))
+        elif self.freq_range is not None:
+            prihdr['FRQRANGE'] = ','.join(map(str, self.freq_range))
         prihdr['TMERANGE'] = ','.join(map(str, self.time_range))
         for line in self.history.splitlines():
             prihdr.add_history(line)
@@ -308,7 +311,6 @@ class CALFITS(UVCal):
                 self.history += '\n' + self.pyuvdata_version_str
         while 'HISTORY' in hdr.keys():
             hdr.remove('HISTORY')
-        self.freq_range = map(float, hdr['FRQRANGE'].split(','))
         self.time_range = map(float, hdr['TMERANGE'].split(','))
         self.Nspws = hdr['NSPWS']
         self.Nants_data = hdr['NANTSDAT']
@@ -316,6 +318,13 @@ class CALFITS(UVCal):
         self.gain_convention = hdr['GNCONVEN']
         self.x_orientation = hdr['XORIENT']
         self.cal_type = hdr['CALTYPE']
+        if self.cal_type == 'delay':
+            self.freq_range = map(float, hdr['FRQRANGE'].split(','))
+        else:
+            try:
+                self.freq_range = map(float, hdr['FRQRANGE'].split(','))
+            except:
+                pass
         try:
             self.observer = hdr['OBSERVER']
         except:

@@ -18,16 +18,16 @@ def test_readwriteread():
     uv_out = UVCal()
     testfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.fitsA')
     write_file = os.path.join(DATA_PATH, 'test/outtest_omnical.fits')
-    read_status = uvtest.checkWarnings(uv_in.read_calfits, [testfile],
-                                       nwarnings=0)
+    uv_in.read_calfits(testfile)
     uv_in.write_calfits(write_file, clobber=True)
-    write_status = uvtest.checkWarnings(uv_out.read_calfits, [write_file],
-                                        nwarnings=0)
-    nt.assert_true(read_status)
-    nt.assert_true(write_status)
+    uv_out.read_calfits(write_file)
     nt.assert_equal(uv_in, uv_out)
-    del(uv_in)
-    del(uv_out)
+
+    # test without freq_range parameter
+    uv_in.freq_range = None
+    uv_in.write_calfits(write_file, clobber=True)
+    uv_out.read_calfits(write_file)
+    nt.assert_equal(uv_in, uv_out)
 
 
 def test_read_delay_file():
