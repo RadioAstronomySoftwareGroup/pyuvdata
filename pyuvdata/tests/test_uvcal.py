@@ -160,9 +160,6 @@ class TestUVCalBasicMethods(object):
         nt.assert_raises(ValueError, self.gain_object._convert_to_filetype, 'uvfits')
 
     def test_convert_to_gain(self):
-        # temporary fix until test file has the correct units
-        self.delay_object.freq_array = self.delay_object.freq_array / 1e9
-        self.delay_object.channel_width = self.delay_object.channel_width / 1e9
         self.new_object = copy.deepcopy(self.delay_object)
 
         self.new_object.convert_to_gain()
