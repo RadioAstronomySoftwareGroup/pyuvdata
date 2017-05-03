@@ -5,16 +5,21 @@ python:
   # We don't actually use the Travis Python, but this keeps it organized.
   - "2.7"
 before_install:
-  - sudo apt-get install build-essential cmake gfortran g++ libncurses5-dev libreadline-dev flex bison libblas-dev liblapacke-dev libcfitsio3-dev wcslib-dev
-  - sudo apt-get install libhdf5-serial-dev libfftw3-dev python-numpy libboost-python-dev libpython3.4-dev libpython2.7-dev
-  - git clone https://github.com/casacore/casacore
-  - cd casacore
-  - mkdir build
-  - cd build
-  - cmake ..
-  - make -j 12
-  - sudo make install
-  - cd ../../
+  #- sudo apt-get install build-essential cmake gfortran g++ libncurses5-dev libreadline-dev flex bison libblas-dev liblapacke-dev libcfitsio3-dev wcslib-dev
+  #- sudo apt-get install libhdf5-serial-dev libfftw3-dev python-numpy libboost-python-dev libpython3.4-dev libpython2.7-dev
+  #- git clone https://github.com/casacore/casacore
+  #- cd casacore
+  #- mkdir build
+  #- cd build
+  #- cmake ..
+  #- make -j 12
+  #- sudo make install
+  #- cd ../../
+  - sudo apt-get install software-properties-common
+  - sudo add-apt-repository -s ppa:radio-astro/main
+  - sudo apt-add-repository multiverse
+  - sudo apt-get update
+  - sudo apt-get install casacore
 install:
   # ensure that we have the full tag information available for version.py
   - git fetch --unshallow --tags
@@ -40,15 +45,16 @@ install:
   - pip install python-casacore	
   - pip install coveralls
   #install python-casacore
-  - git clone https://github.com/casacore/python-casacore.git 
-  - sudo apt-get install python-numpy python-setuptools libboost-python-dev libcfitsio3-dev
-  - cd python-casacore/
-  - python setup.py build_ext --force -I/usr/local/include/casacore/ -I/usr/include/cfitsio -R/usr/local/lib
-  - python setup.py install
-  - cd ../
+  - pip install python-casacore
+  #- git clone https://github.com/casacore/python-casacore.git 
+  #- sudo apt-get install python-numpy python-setuptools libboost-python-dev libcfitsio3-dev
+  #- cd python-casacore/
+  #- python setup.py build_ext --force -I/usr/local/include/casacore/ -I/usr/include/cfitsio -R/usr/local/lib
+  #- python setup.py install
+  #- cd ../
   #casacore build directory is causing warnings! Make sure to remove it!
-  - rm -rf ./casacore
-  - rm -rf ./python-casacore
+  #- rm -rf ./casacore
+  #- rm -rf ./python-casacore
   #install pyuvdata
   - python setup.py install
 script: nosetests pyuvdata --with-coverage --cover-package=pyuvdata
