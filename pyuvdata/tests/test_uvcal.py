@@ -217,6 +217,13 @@ class TestUVCalSelectGain(object):
         nt.assert_equal(old_history + '  Downselected to specific times '
                         'using pyuvdata.', self.gain_object2.history)
 
+        write_file_calfits = os.path.join(DATA_PATH, 'test/select_test.calfits')
+        # test writing calfits with only one time
+        self.gain_object2 = copy.deepcopy(self.gain_object)
+        times_to_keep = self.gain_object.time_array[[1]]
+        self.gain_object2.select(times=times_to_keep)
+        self.gain_object2.write_calfits(write_file_calfits, clobber=True)
+
         # check for errors associated with times not included in data
         nt.assert_raises(ValueError, self.gain_object.select,
                          times=[np.min(self.gain_object.time_array) - self.gain_object.integration_time])
@@ -226,7 +233,6 @@ class TestUVCalSelectGain(object):
         status = uvtest.checkWarnings(self.gain_object2.select, [], {'times': self.gain_object2.time_array[[0, 2, 3]]},
                                       message='Selected times are not evenly spaced')
         nt.assert_true(status)
-        write_file_calfits = os.path.join(DATA_PATH, 'test/select_test.calfits')
         nt.assert_raises(ValueError, self.gain_object2.write_calfits, write_file_calfits)
 
     def test_select_frequencies(self):
@@ -244,6 +250,13 @@ class TestUVCalSelectGain(object):
         nt.assert_equal(old_history + '  Downselected to specific frequencies '
                         'using pyuvdata.', self.gain_object2.history)
 
+        write_file_calfits = os.path.join(DATA_PATH, 'test/select_test.calfits')
+        # test writing calfits with only one frequency
+        self.gain_object2 = copy.deepcopy(self.gain_object)
+        freqs_to_keep = self.gain_object.freq_array[0, 51]
+        self.gain_object2.select(frequencies=freqs_to_keep)
+        self.gain_object2.write_calfits(write_file_calfits, clobber=True)
+
         # check for errors associated with frequencies not included in data
         nt.assert_raises(ValueError, self.gain_object.select, frequencies=[np.max(self.gain_object.freq_array) + self.gain_object.channel_width])
 
@@ -252,7 +265,6 @@ class TestUVCalSelectGain(object):
         status = uvtest.checkWarnings(self.gain_object2.select, [], {'frequencies': self.gain_object2.freq_array[0, [0, 5, 6]]},
                                       message='Selected frequencies are not evenly spaced')
         nt.assert_true(status)
-        write_file_calfits = os.path.join(DATA_PATH, 'test/select_test.calfits')
         nt.assert_raises(ValueError, self.gain_object2.write_calfits, write_file_calfits)
 
     def test_select_freq_chans(self):

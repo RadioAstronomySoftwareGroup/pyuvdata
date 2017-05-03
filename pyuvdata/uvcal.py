@@ -322,10 +322,11 @@ class UVCal(UVBase):
             self.Ntimes = len(time_inds)
             self.time_array = self.time_array[time_inds]
 
-            time_separation = self.time_array[1:] - self.time_array[:-1]
-            if np.min(time_separation) < np.max(time_separation):
-                warnings.warn('Selected times are not evenly spaced. This '
-                              'is not supported by the calfits format.')
+            if self.Ntimes > 1:
+                time_separation = self.time_array[1:] - self.time_array[:-1]
+                if np.min(time_separation) < np.max(time_separation):
+                    warnings.warn('Selected times are not evenly spaced. This '
+                                  'is not supported by the calfits format.')
 
             self.flag_array = self.flag_array[:, :, :, time_inds, :]
             if self.cal_type == 'delay':
@@ -367,12 +368,12 @@ class UVCal(UVBase):
             freq_inds = list(sorted(set(list(freq_inds))))
             self.Nfreqs = len(freq_inds)
             self.freq_array = self.freq_array[:, freq_inds]
-            # should we adjust the freq_range parameter?
 
-            freq_separation = self.freq_array[0, 1:] - self.freq_array[0, :-1]
-            if np.min(freq_separation) < np.max(freq_separation):
-                warnings.warn('Selected frequencies are not evenly spaced. This '
-                              'is not supported by the calfits format')
+            if self.Nfreqs > 1:
+                freq_separation = self.freq_array[0, 1:] - self.freq_array[0, :-1]
+                if np.min(freq_separation) < np.max(freq_separation):
+                    warnings.warn('Selected frequencies are not evenly spaced. This '
+                                  'is not supported by the calfits format')
 
             self.flag_array = self.flag_array[:, :, freq_inds, :, :]
             if self.cal_type == 'delay':
