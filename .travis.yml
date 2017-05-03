@@ -16,7 +16,7 @@ before_install:
   #- sudo make install
   #- cd ../../
   - sudo apt-get install software-properties-common
-  - sudo add-apt-repository -s ppa:radio-astro/main
+  - sudo add-apt-repository -ys ppa:radio-astro/main
   - sudo apt-add-repository multiverse
   - sudo apt-get update
   - sudo apt-get install casacore
