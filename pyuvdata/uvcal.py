@@ -323,8 +323,10 @@ class UVCal(UVBase):
             self.time_array = self.time_array[time_inds]
 
             if self.Ntimes > 1:
-                time_separation = self.time_array[1:] - self.time_array[:-1]
-                if np.min(time_separation) < np.max(time_separation):
+                time_separation = np.diff(self.time_array)
+                if not np.isclose(np.min(time_separation), np.max(time_separation),
+                                  rtol=self._time_array.tols[0],
+                                  atol=self._time_array.tols[1]):
                     warnings.warn('Selected times are not evenly spaced. This '
                                   'is not supported by the calfits format.')
 
@@ -371,7 +373,9 @@ class UVCal(UVBase):
 
             if self.Nfreqs > 1:
                 freq_separation = self.freq_array[0, 1:] - self.freq_array[0, :-1]
-                if np.min(freq_separation) < np.max(freq_separation):
+                if not np.isclose(np.min(freq_separation), np.max(freq_separation),
+                                  rtol=self._freq_array.tols[0],
+                                  atol=self._freq_array.tols[1]):
                     warnings.warn('Selected frequencies are not evenly spaced. This '
                                   'is not supported by the calfits format')
 
