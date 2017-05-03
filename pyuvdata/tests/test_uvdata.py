@@ -146,6 +146,27 @@ class TestUVDataBasicMethods(object):
     def test_check(self):
         """Test simple check function."""
         nt.assert_true(self.uv_object.check())
+        # Check variety of special cases
+        self.uv_object.Nants_data += 1
+        nt.assert_raises(ValueError, self.uv_object.check)
+        self.uv_object.Nants_data -= 1
+        self.uv_object.Nbls += 1
+        nt.assert_raises(ValueError, self.uv_object.check)
+        self.uv_object.Nbls -= 1
+        self.uv_object.Ntimes += 1
+        nt.assert_raises(ValueError, self.uv_object.check)
+        self.uv_object.Ntimes -= 1
+
+        # Check case where all data is autocorrelations
+        # Currently only test files that have autos are fhd files
+        testdir = os.path.join(DATA_PATH, 'fhd_vis_data/')
+        self.uv_object.read_fhd([testdir + '1061316296_flags.sav',
+                                 testdir + '1061316296_vis_XX.sav',
+                                 testdir + '1061316296_params.sav',
+                                 testdir + '1061316296_settings.txt'])
+        self.uv_object.select(blt_inds=np.where(self.uv_object.ant_1_array ==
+                                                self.uv_object.ant_2_array)[0])
+        nt.assert_true(self.uv_object.check())
 
     def test_nants_data_telescope(self):
         self.uv_object.Nants_data = self.uv_object.Nants_telescope - 1
@@ -445,6 +466,7 @@ def test_select_frequencies():
     nt.assert_equal(old_history + '  Downselected to specific frequencies '
                     'using pyuvdata.', uv_object2.history)
 
+<<<<<<< bba4f4933f79c8ca17b0f6d6cc212ae72cddefd5
     # check that selecting one frequency works
     uv_object2 = copy.deepcopy(uv_object)
     uv_object2.select(frequencies=freqs_to_keep[0])
@@ -456,21 +478,35 @@ def test_select_frequencies():
     nt.assert_equal(old_history + '  Downselected to specific frequencies '
                     'using pyuvdata.', uv_object2.history)
 
+=======
+>>>>>>> fixed some deletions in test_uvdata.py from rebase using git checkout --
     # check for errors associated with frequencies not included in data
     nt.assert_raises(ValueError, uv_object.select, frequencies=[np.max(uv_object.freq_array) + uv_object.channel_width])
 
     # check for warnings and errors associated with unevenly spaced or non-contiguous frequencies
     uv_object2 = copy.deepcopy(uv_object)
+<<<<<<< bba4f4933f79c8ca17b0f6d6cc212ae72cddefd5
     uvtest.checkWarnings(uv_object2.select, [], {'frequencies': uv_object2.freq_array[0, [0, 5, 6]]},
                          message='Selected frequencies are not evenly spaced')
+=======
+    status = uvtest.checkWarnings(uv_object2.select, [], {'frequencies': uv_object2.freq_array[0, [0, 5, 6]]},
+                                  message='Selected frequencies are not evenly spaced')
+    nt.assert_true(status)
+>>>>>>> fixed some deletions in test_uvdata.py from rebase using git checkout --
     write_file_uvfits = os.path.join(DATA_PATH, 'test/select_test.uvfits')
     write_file_miriad = os.path.join(DATA_PATH, 'test/select_test.uv')
     nt.assert_raises(ValueError, uv_object2.write_uvfits, write_file_uvfits)
     nt.assert_raises(ValueError, uv_object2.write_miriad, write_file_miriad)
 
     uv_object2 = copy.deepcopy(uv_object)
+<<<<<<< bba4f4933f79c8ca17b0f6d6cc212ae72cddefd5
     uvtest.checkWarnings(uv_object2.select, [], {'frequencies': uv_object2.freq_array[0, [0, 2, 4]]},
                          message='Selected frequencies are not contiguous')
+=======
+    status = uvtest.checkWarnings(uv_object2.select, [], {'frequencies': uv_object2.freq_array[0, [0, 2, 4]]},
+                                  message='Selected frequencies are not contiguous')
+    nt.assert_true(status)
+>>>>>>> fixed some deletions in test_uvdata.py from rebase using git checkout --
     nt.assert_raises(ValueError, uv_object2.write_uvfits, write_file_uvfits)
     nt.assert_raises(ValueError, uv_object2.write_miriad, write_file_miriad)
 
@@ -533,8 +569,14 @@ def test_select_polarizations():
     nt.assert_raises(ValueError, uv_object2.select, polarizations=[-3, -4])
 
     # check for warnings and errors associated with unevenly spaced polarizations
+<<<<<<< bba4f4933f79c8ca17b0f6d6cc212ae72cddefd5
     uvtest.checkWarnings(uv_object.select, [], {'polarizations': uv_object.polarization_array[[0, 1, 3]]},
                          message='Selected polarization values are not evenly spaced')
+=======
+    status = uvtest.checkWarnings(uv_object.select, [], {'polarizations': uv_object.polarization_array[[0, 1, 3]]},
+                                  message='Selected polarization values are not evenly spaced')
+    nt.assert_true(status)
+>>>>>>> fixed some deletions in test_uvdata.py from rebase using git checkout --
     write_file_uvfits = os.path.join(DATA_PATH, 'test/select_test.uvfits')
     nt.assert_raises(ValueError, uv_object.write_uvfits, write_file_uvfits)
 
@@ -619,6 +661,7 @@ def test_select():
 
     # test that a ValueError is raised if the selection eliminates all blts
     nt.assert_raises(ValueError, uv_object.select, times=unique_times[0], antenna_nums=1)
+<<<<<<< bba4f4933f79c8ca17b0f6d6cc212ae72cddefd5
 
 
 def test_select_not_inplace():
@@ -840,3 +883,5 @@ def test_break_add():
     # Overlapping data
     uv2 = copy.deepcopy(uv_full)
     nt.assert_raises(ValueError, uv1.__iadd__, uv2)
+=======
+>>>>>>> fixed some deletions in test_uvdata.py from rebase using git checkout --
