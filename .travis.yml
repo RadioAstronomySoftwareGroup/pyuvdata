@@ -45,15 +45,15 @@ install:
   - pip install coveralls
   #install python-casacore
   - sudo apt-get install python-numpy python-setuptools libboost-python-dev libcfitsio3-dev	
-  - pip install python-casacore
-  #- git clone https://github.com/casacore/python-casacore.git 
-  #- cd python-casacore/
-  #- python setup.py build_ext --force -I/usr/local/include/casacore/ -I/usr/include/cfitsio -R/usr/local/lib
-  #- python setup.py install
-  #- cd ../
+  #- pip install python-casacore
+  - git clone https://github.com/casacore/python-casacore.git 
+  - cd python-casacore/
+  - python setup.py build_ext --force -I/usr/local/include/casacore/ -I/usr/include/cfitsio -R/usr/local/lib
+  - python setup.py install
+  - cd ../
   #casacore build directory is causing warnings! Make sure to remove it!
   #- rm -rf ./casacore
-  #- rm -rf ./python-casacore
+  - rm -rf ./python-casacore
   #install pyuvdata
   - python setup.py install
 script: nosetests pyuvdata --with-coverage --cover-package=pyuvdata
