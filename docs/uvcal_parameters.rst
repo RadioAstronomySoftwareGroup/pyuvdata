@@ -49,7 +49,7 @@ are required for most kinds of uv cal files.
      Array of frequencies, shape (Nspws, Nfreqs), units Hz
 
 **freq_range**
-     ('Frequency range that gain solutions are valid for.', 'list: (start_frequency, end_frequency) in Hz.')
+     ('Required if cal_type = "delay". Frequency range that solutions are valid for.', 'list: (start_frequency, end_frequency) in Hz.')
 
 **gain_convention**
      The convention for applying he calibration solutions to data.Indicates that to calibrate one should divide or multiply uncalibrated data by gains.
@@ -101,4 +101,4 @@ Some of them are required depending on the cal_type (as noted below).
 **observer**
      Name of observer who calculated solutions in this file.
 
-last updated: 2017-04-29
+last updated: 2017-05-03
