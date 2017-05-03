@@ -49,7 +49,7 @@ class CALFITS(UVCal):
                                  'does not support unevenly spaced frequencies.')
             freq_spacing = freq_spacing[0]
         else:
-            freq_spacing = self.channel_width  # or should this be the length of the frequency range?
+            freq_spacing = self.channel_width
 
         if self.Ntimes > 1:
             time_spacing = np.diff(self.time_array)
@@ -60,7 +60,7 @@ class CALFITS(UVCal):
                                  'does not support unevenly spaced times.')
             time_spacing = time_spacing[0]
         else:
-            time_spacing = self.integration_time  # or should this be the length of the time range?
+            time_spacing = self.integration_time
 
         if self.Njones > 1:
             jones_spacing = np.diff(self.jones_array)
