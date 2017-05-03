@@ -160,27 +160,34 @@ class TestUVCalBasicMethods(object):
         nt.assert_raises(ValueError, self.gain_object._convert_to_filetype, 'uvfits')
 
     def test_convert_to_gain(self):
-        self.new_object = copy.deepcopy(self.delay_object)
+        conventions = ['minus', 'plus']
+        for c in conventions:
+            self.new_object = copy.deepcopy(self.delay_object)
 
-        self.new_object.convert_to_gain()
-        nt.assert_true(np.isclose(np.max(np.absolute(self.new_object.gain_array)), 1.,
-                                  rtol=self.new_object._gain_array.tols[0],
-                                  atol=self.new_object._gain_array.tols[1]))
-        nt.assert_true(np.isclose(np.min(np.absolute(self.new_object.gain_array)), 1.,
-                                  rtol=self.new_object._gain_array.tols[0],
-                                  atol=self.new_object._gain_array.tols[1]))
+            self.new_object.convert_to_gain(delay_convention=c)
+            nt.assert_true(np.isclose(np.max(np.absolute(self.new_object.gain_array)), 1.,
+                                      rtol=self.new_object._gain_array.tols[0],
+                                      atol=self.new_object._gain_array.tols[1]))
+            nt.assert_true(np.isclose(np.min(np.absolute(self.new_object.gain_array)), 1.,
+                                      rtol=self.new_object._gain_array.tols[0],
+                                      atol=self.new_object._gain_array.tols[1]))
 
-        nt.assert_true(np.allclose(np.angle(self.new_object.gain_array[:, :, 10, :, :]) % (2 * np.pi),
-                                   (-2 * np.pi * self.delay_object.delay_array *
-                                   self.delay_object.freq_array[0, 10]) % (2 * np.pi),
-                                   rtol=self.new_object._gain_array.tols[0],
-                                   atol=self.new_object._gain_array.tols[1]))
-        nt.assert_true(np.allclose(self.delay_object.quality_array,
-                                   self.new_object.quality_array[:, :, 10, :, :],
-                                   rtol=self.new_object._quality_array.tols[0],
-                                   atol=self.new_object._quality_array.tols[1]))
+            if c == 'minus':
+                conv = -1
+            else:
+                conv = 1
+            nt.assert_true(np.allclose(np.angle(self.new_object.gain_array[:, :, 10, :, :]) % (2 * np.pi),
+                                       (conv * 2 * np.pi * self.delay_object.delay_array *
+                                       self.delay_object.freq_array[0, 10]) % (2 * np.pi),
+                                       rtol=self.new_object._gain_array.tols[0],
+                                       atol=self.new_object._gain_array.tols[1]))
+            nt.assert_true(np.allclose(self.delay_object.quality_array,
+                                       self.new_object.quality_array[:, :, 10, :, :],
+                                       rtol=self.new_object._quality_array.tols[0],
+                                       atol=self.new_object._quality_array.tols[1]))
 
         # error testing
+        nt.assert_raises(ValueError, self.delay_object.convert_to_gain, delay_convention='bogus')
         nt.assert_raises(ValueError, self.gain_object.convert_to_gain)
         self.gain_object.set_unknown_cal_type()
         nt.assert_raises(ValueError, self.gain_object.convert_to_gain)
