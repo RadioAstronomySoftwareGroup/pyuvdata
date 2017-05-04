@@ -5,16 +5,7 @@ python:
   # We don't actually use the Travis Python, but this keeps it organized.
   - "2.7"
 before_install:
-  #- sudo apt-get install build-essential cmake gfortran g++ libncurses5-dev libreadline-dev flex bison libblas-dev liblapacke-dev libcfitsio3-dev wcslib-dev
-  #- sudo apt-get install libhdf5-serial-dev libfftw3-dev python-numpy libboost-python-dev libpython3.4-dev libpython2.7-dev
-  #- git clone https://github.com/casacore/casacore
-  #- cd casacore
-  #- mkdir build
-  #- cd build
-  #- cmake ..
-  #- make -j 12
-  #- sudo make install
-  #- cd ../../
+  #Install casacore binaries for Ubuntu 14.04 trusty-tar
   - sudo apt-get install software-properties-common
   - sudo add-apt-repository -ys ppa:radio-astro/main
   - sudo apt-get update
@@ -37,6 +28,7 @@ install:
   - conda update -q conda
   # Useful for debugging any issues with conda
   - conda info -a
+  
   # create environment and install dependencies
   - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION numpy scipy astropy nose pip
   - source activate test-environment
@@ -46,15 +38,6 @@ install:
   #install python-casacore
   - sudo apt-get install python-numpy python-setuptools libboost-python-dev libcfitsio3-dev	
   - pip install python-casacore
-  #- git clone https://github.com/casacore/python-casacore.git 
-  #- cd python-casacore/
-  #- python setup.py build_ext --force -I/usr/local/include/casacore/ -I/usr/include/cfitsio -R/usr/local/lib
-  #- python setup.py install
-  #- cd ../
-  #casacore build directory is causing warnings! Make sure to remove it!
-  #- rm -rf ./casacore
-  #- rm -rf ./python-casacore
-  #install pyuvdata
   - python setup.py install
 script: nosetests pyuvdata --with-coverage --cover-package=pyuvdata
 
