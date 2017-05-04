@@ -298,9 +298,6 @@ class UVData(UVBase):
                                            'MIRIAD, and others. See ms.py for more info.',
                                            spoof_val='APP_PARAMS;CLI_COMMAND;APPLICATION;MESSAGE;OBJECT_ID;OBSERVATION_ID;ORIGIN;PRIORITY;TIME\n',form='str')
         
-
-
-
         # String to add to history of any files written with this version of pyuvdata
         self.pyuvdata_version_str = ('  Read/written with pyuvdata version: ' +
                                      uvversion.version + '.')
@@ -329,7 +326,6 @@ class UVData(UVBase):
         if np.all(self.ant_1_array == self.ant_2_array):
             # Special case of only containing auto correlations
             self._uvw_array.acceptable_range = (0.0, 0.0)
-
         super(UVData, self).check(run_check_acceptability=run_check_acceptability)
 
         # Check internal consistency of numbers which don't explicitly correspond
@@ -467,7 +463,6 @@ class UVData(UVBase):
                 warnings.warn(message)
 
         return np.int64(2048 * (ant2 + 1) + (ant1 + 1) + 2**16)
-    
     
     def order_pols(self,order='AIPS'):
         '''
