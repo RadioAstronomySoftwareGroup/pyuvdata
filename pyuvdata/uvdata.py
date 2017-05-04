@@ -285,11 +285,13 @@ class UVData(UVBase):
                                                        required=False,
                                                        description=desc,
                                                        spoof_val=0)
+        
         self._data_column = uvp.UVParameter('data_column',required=False,
                                          description='For measurement sets, specifies the CASA data column '
                                          ' that the data_array represents. Can be "DATA"'
                                          ', "MODEL", or "CORRECTED_DATA"',
                                          spoof_val='DATA',form='str')
+        
         self._casa_history=uvp.UVParameter('casa_history',required=False,
                                            description='For measurement sets, '
                                            'stores all of the extra information in the CASA HISTORY table whose message'
