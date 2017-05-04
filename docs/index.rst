@@ -8,7 +8,7 @@ pyuvdata
     :target: https://travis-ci.org/HERA-Team/pyuvdata
 
 .. image:: https://coveralls.io/repos/github/HERA-Team/pyuvdata/badge.svg?branch=master
-     :target: https://coveralls.io/github/HERA-Team/pyuvdata?branch=master
+    :target: https://coveralls.io/github/HERA-Team/pyuvdata?branch=master
 
 pyuvdata defines a pythonic interface to interferometric data sets.
 Currently pyuvdata supports reading and writing of miriad and uvfits
