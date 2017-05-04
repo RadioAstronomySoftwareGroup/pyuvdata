@@ -16,8 +16,6 @@ class Miriad(UVData):
     and write_miriad methods on the UVData class.
     """
 
-
-
     def _pol_to_ind(self, pol):
         if self.polarization_array is None:
             raise(ValueError, "Can't index polarization {p} because "
@@ -55,8 +53,6 @@ class Miriad(UVData):
                               # as the same
                               'telescope_name': 'telescop',
                               'instrument': 'telescop'
-
-
                               }
         for item in miriad_header_data:
             if isinstance(uv[miriad_header_data[item]], str):
@@ -65,10 +61,6 @@ class Miriad(UVData):
                 header_value = uv[miriad_header_data[item]]
             setattr(self, item, header_value)
 
-        try:
-            self.antenna_positions = uv['antpos']
-        except(KeyError):
-            self.antenna_positions = None
 
         latitude = uv['latitud']  # in units of radians
         longitude = uv['longitu']
@@ -464,7 +456,6 @@ class Miriad(UVData):
 
     def write_miriad(self, filepath, run_check=True, run_check_acceptability=True,
                      clobber=False, no_antnums=False):
-
         """
         Write the data to a miriad file.
 
