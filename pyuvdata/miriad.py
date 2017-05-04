@@ -61,7 +61,6 @@ class Miriad(UVData):
                 header_value = uv[miriad_header_data[item]]
             setattr(self, item, header_value)
 
-
         latitude = uv['latitud']  # in units of radians
         longitude = uv['longitu']
         try:
