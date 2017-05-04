@@ -468,6 +468,7 @@ class UVData(UVBase):
 
         return np.int64(2048 * (ant2 + 1) + (ant1 + 1) + 2**16)
     
+    
     def order_pols(self,order='AIPS'):
         '''
         Arranges polarizations in orders corresponding to either AIPS or CASA convention.
@@ -1226,7 +1227,6 @@ class UVData(UVBase):
                                 force_phase=force_phase, run_check=run_check,
                                 run_check_acceptability=run_check_acceptability)
         del(uvfits_obj)
-
     def read_ms(self, filepath, run_check=True,
                  run_check_acceptability=True,data_column='DATA',pol_order='AIPS',test_import_uvfits=False):
         """
@@ -1332,7 +1332,6 @@ class UVData(UVBase):
 
     def write_miriad(self, filepath, run_check=True, run_check_acceptability=True,
                      clobber=False, no_antnums=False):
-
         """
         Write the data to a miriad file.
 
@@ -1349,7 +1348,6 @@ class UVData(UVBase):
         miriad_obj.write_miriad(filepath, run_check=run_check,
                                 run_check_acceptability=run_check_acceptability,
                                 clobber=clobber, no_antnums=no_antnums)
-
         del(miriad_obj)
 
     def reorder_pols(self, order=None, run_check=True, run_check_acceptability=True):
