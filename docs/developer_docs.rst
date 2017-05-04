@@ -19,7 +19,6 @@ Classes
   :members:
 
 .. autoclass:: uvbase.UVBase
-
   :members:
 
 .. autoclass:: uvfits.UVFITS
