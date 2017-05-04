@@ -32,7 +32,6 @@ When reading FHD format, we need to point to several files.::
   from pyuvdata import UVData
   UV = UVData()
   fhd_prefix = 'pyuvdata/data/fhd_vis_data/1061316296_'
-
   # Construct the list of files
   fhd_files = [fhd_prefix + f for f in ['flags.sav', 'vis_XX.sav', 'params.sav',
                                         'vis_YY.sav', 'vis_model_XX.sav',
@@ -47,7 +46,6 @@ d) FHD -> miriad (aipy)
   from pyuvdata import UVData
   UV = UVData()
   fhd_prefix = 'pyuvdata/data/fhd_vis_data/1061316296_'
-
   # Construct the list of files
   fhd_files = [fhd_prefix + f for f in ['flags.sav', 'vis_XX.sav', 'params.sav',
                                         'vis_YY.sav', 'vis_model_XX.sav',
