@@ -23,7 +23,6 @@ The three main goals are:
 ## File formats for calibration data
 * calfits (a new format defined in pyuvdata, detailed memo coming soon). Note that this format was recently defined and may change in coming versions, based on user needs. Consider it to be in a beta version, but we will strive to make future versions backwards compatible with the current format.
 
-
 ## File standards
 * miriad is supported for aipy-style analysis, further testing is required for use in the miriad package
 * uvfits conforms to AIPS memo 117 (as of May 2015).  It is tested against FHD, CASA, and AIPS. However AIPS is limited to <80 antennas and CASA imaging does not seem to support >255 antennas.
@@ -35,7 +34,6 @@ The three main goals are:
 * replacing AIPY and pyephem with astropy+NOVAS for time and phase calculations
 * support for direct reading and writing of Measurement Sets
 * expand support for calibration solutions: support other formats beyond FITS
-
 
 For details see the [issue log](https://github.com/HERA-Team/pyuvdata/issues).
 
@@ -67,11 +65,9 @@ For anaconda users, we suggest using conda to install astropy, numpy and scipy a
 ## Install pyuvdata
 For simple installation, the latest stable version is available via pip using ```pip install pyuvdata```
 
-
 ### Optionally install the development version
 For the development version, clone the repository using
 ```git clone https://github.com/HERA-Team/pyuvdata.git```
-
 
 Navigate into the directory and run ```python setup.py install```.
 Note that this will automatically install any missing dependencies. If you use anaconda or another package manager you might prefer to first install the dependencies as described above.
@@ -90,5 +86,3 @@ import and export functionality to all supported file formats (UVFITS, Miriad, F
 and can be interacted with directly. The primary calibration interface is via the
 UVCal object. The attributes of the UVData and UVCal objects are
 described in the uvdata_parameters and uvcal_parameters descriptions at https://pyuvdata.readthedocs.io or [here](https://github.com/HERA-Team/pyuvdata/blob/master/docs).
-
-
