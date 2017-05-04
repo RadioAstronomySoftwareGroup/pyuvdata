@@ -38,8 +38,7 @@ class UVData(UVBase):
         self._Ntimes = uvp.UVParameter('Ntimes', description='Number of times',
                                        expected_type=int)
         self._Nbls = uvp.UVParameter('Nbls', description='Number of baselines',
-                                    expected_type=int)
-        
+                                     expected_type=int)
         self._Nblts = uvp.UVParameter('Nblts', description='Number of baseline-times '
                                       '(i.e. number of spectra). Not necessarily '
                                       'equal to Nbls * Ntimes', expected_type=int)
