@@ -1,14 +1,10 @@
 .. pyuvdata documentation master file, created by
    make_index.py on 2017-04-14
 
-
-
-
-
 pyuvdata
 ========
 
-.. image:: https://travis-ci.org/HERA-Team/pyuvdata.svg?branch=cal
+.. image:: https://travis-ci.org/HERA-Team/pyuvdata.svg?branch=master
     :target: https://travis-ci.org/HERA-Team/pyuvdata
 
 
@@ -50,7 +46,6 @@ File formats for calibration data
    version, but we will strive to make future versions backwards
    compatible with the current format.
 
-
 File standards
 --------------
 
@@ -72,7 +67,6 @@ Known Issues and Planned Improvements
 -  support for direct reading and writing of Measurement Sets
 -  expand support for calibration solutions: support other formats
    beyond FITS
-
 
 For details see the `issue
 log <https://github.com/HERA-Team/pyuvdata/issues>`__.
@@ -121,13 +115,11 @@ Install pyuvdata
 For simple installation, the latest stable version is available via pip
 using ``pip install pyuvdata``
 
-
 Optionally install the development version
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 For the development version, clone the repository using
 ``git clone https://github.com/HERA-Team/pyuvdata.git``
-
 
 Navigate into the directory and run ``python setup.py install``. Note
 that this will automatically install all dependencies. If you use
@@ -152,7 +144,6 @@ calibration interface is via the UVCal object. The attributes of the
 UVData and UVCal objects are described in the uvdata\_parameters and
 uvcal\_parameters descriptions.
 
-
 Further Documentation
 ====================================
 .. toctree::
@@ -162,8 +153,5 @@ Further Documentation
    uvdata_parameters
    uvdata
    uvcal_parameters
-
    uvcal
-
-
    developer_docs
