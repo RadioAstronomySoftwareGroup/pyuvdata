@@ -15,22 +15,18 @@ setup_args = {
     'url': 'https://github.com/HERA-Team/pyuvdata',
     'license': 'BSD',
     'description': 'an interface for astronomical interferometeric datasets in python',
-
     'package_dir': {'pyuvdata': 'pyuvdata', 'uvdata': 'uvdata'},
     'packages': ['pyuvdata', 'uvdata'],
     'scripts': glob.glob('scripts/*'),
     'version': version.version,
     'include_package_data': True,
     'install_requires': ['numpy>=1.10', 'scipy', 'astropy>=1.2', 'pyephem', 'aipy'],
-
-
     'classifiers': ['Development Status :: 5 - Production/Stable',
                     'Intended Audience :: Science/Research',
                     'License :: OSI Approved :: BSD License',
                     'Programming Language :: Python :: 2.7',
                     'Topic :: Scientific/Engineering :: Astronomy'],
     'keywords': 'radio astronomy interferometry'
-
 }
 
 if __name__ == '__main__':
