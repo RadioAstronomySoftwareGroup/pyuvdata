@@ -202,7 +202,10 @@ class Miriad(UVData):
                        str(k[2]).zfill(ndig_ant), str(k[3]).zfill(ndig_ant)]
                 blt = "_".join(blt)
                 blts.append(blt)
+        reverse_inds= np.argsort(np.unique(np.array(blts)))
         unique_blts = np.sort(np.unique(np.array(blts)))
+
+        reverse_inds = dict(zip(np.unique(np.array(blts)),reverse_inds))
 
         self.Nants_data = len(sorted_unique_ants)
 
@@ -291,7 +294,6 @@ class Miriad(UVData):
 
         tij_grid = np.array(map(lambda x: map(float, x.split("_")), unique_blts))
         t_grid, ant_i_grid, ant_j_grid = tij_grid.T
-
         # set the data sizes
         try:
             self.Nblts = uv['nblts']
@@ -345,23 +347,12 @@ class Miriad(UVData):
         c_ns = const.c.to('m/ns').value
 
         for pol, data in data_accumulator.iteritems():
-            # The following builds a dictionary of { baseline : [indices] }. The [indices] refer to positions in the data_array for that given baseline.
-            bls_comp = self.antnums_to_baseline(data[:, 2], data[:, 3])
-            idx_sort = bls_comp.argsort()
-            vals, idx_start, count = np.unique(bls_comp[idx_sort], return_counts=True, return_index=True)
-            bl_inds = dict(zip(vals, np.split(idx_sort, idx_start[1:])))
-
-            # The following builds a dictionary of { times : [indices] }. The [indices] refer to positions in the data_array for that given time.
-            idx_sort = t_grid.argsort()
-            vals, idx_start, count = np.unique(t_grid[idx_sort], return_counts=True, return_index=True)
-            t_inds = dict(zip(vals, np.split(idx_sort, idx_start[1:])))
-
             pol_ind = self._pol_to_ind(pol)
             for ind, d in enumerate(data):
-                t, ant_i, ant_j = d[1], d[2], d[3]
-
-                bl = self.antnums_to_baseline(ant_i, ant_j)
-                blt_index = np.intersect1d(t_inds[t], bl_inds[bl]).squeeze()  # This is a bottleneck, but it's a little faster than what was done before.
+                blt = ["{1:.{0}f}".format(prec_t, d[1]).zfill(ndig_t),
+                       str(d[2]).zfill(ndig_ant), str(d[3]).zfill(ndig_ant)]
+                blt = "_".join(blt)
+                blt_index = reverse_inds[blt]
 
                 self.data_array[blt_index, :, :, pol_ind] = d[4]
                 self.flag_array[blt_index, :, :, pol_ind] = d[5]
