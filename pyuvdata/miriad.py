@@ -202,11 +202,10 @@ class Miriad(UVData):
                        str(k[2]).zfill(ndig_ant), str(k[3]).zfill(ndig_ant)]
                 blt = "_".join(blt)
                 blts.append(blt)
-        reverse_inds= np.argsort(np.unique(np.array(blts)))
+        reverse_inds= np.argsort(np.unique(np.array(blts),return_index=True)[1])
         unique_blts = np.sort(np.unique(np.array(blts)))
 
         reverse_inds = dict(zip(np.unique(np.array(blts)),reverse_inds))
-
         self.Nants_data = len(sorted_unique_ants)
 
         # Miriad has no way to keep track of antenna numbers, so the antenna
@@ -345,7 +344,6 @@ class Miriad(UVData):
         dec_pol_list = np.zeros((self.Nblts, self.Npols))
         uvw_pol_list = np.zeros((self.Nblts, 3, self.Npols))
         c_ns = const.c.to('m/ns').value
-
         for pol, data in data_accumulator.iteritems():
             pol_ind = self._pol_to_ind(pol)
             for ind, d in enumerate(data):
