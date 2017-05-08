@@ -45,7 +45,7 @@ class TestUVDataInit(object):
                                  '_timesys', '_uvplane_reference_time',
                                  '_phase_center_ra', '_phase_center_dec',
                                  '_phase_center_epoch',
-                                 '_zenith_ra', '_zenith_dec','_data_column',
+                                 '_zenith_ra', '_zenith_dec',
                                  '_casa_history']
 
         self.extra_properties = ['extra_keywords', 'antenna_positions', 'gst0',
