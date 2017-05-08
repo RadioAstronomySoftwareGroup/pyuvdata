@@ -98,7 +98,7 @@ class MS(UVData):
             self.vis_units="JY"
         elif(data_column=='MODEL'):
             self.vis_units="JY"
-        self.data_column=data_column
+        self.extra_keywords['data_column']=data_column
         #get frequency information from spectral window table
         tb_spws=tables.table(filepath+'/SPECTRAL_WINDOW')
         freqs=tb_spws.getcol('CHAN_FREQ')
