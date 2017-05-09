@@ -160,7 +160,7 @@ class Miriad(UVData):
                 pol_list.append(uv['pol'])
                 # NB: flag types in miriad are usually ints
 
-        for pol,data in data_accumulator.iteritems():
+        for pol, data in data_accumulator.iteritems():
             data_accumulator[pol] = np.array(data)
 
         self.polarization_array = np.array(pol_list)
@@ -202,10 +202,9 @@ class Miriad(UVData):
                        str(k[2]).zfill(ndig_ant), str(k[3]).zfill(ndig_ant)]
                 blt = "_".join(blt)
                 blts.append(blt)
-        reverse_inds= np.argsort(np.unique(np.array(blts),return_index=True)[1])
-        unique_blts = np.sort(np.unique(np.array(blts)))
+        unique_blts = np.unique(np.array(blts))
 
-        reverse_inds = dict(zip(np.unique(np.array(blts)),reverse_inds))
+        reverse_inds = dict(zip(unique_blts, range(len(unique_blts))))
         self.Nants_data = len(sorted_unique_ants)
 
         # Miriad has no way to keep track of antenna numbers, so the antenna
