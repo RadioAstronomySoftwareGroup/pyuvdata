@@ -1,0 +1,1355 @@
+This file contains the line by line timing results as run on the Oscar cluster at Brown. The task involved reading a 3.1G MIRIAD file, writing it out to miriad, phasing, writing to uvfits, then reading in the uvfits file and unphasing it.
+
+
+Timer unit: 1e-06 s
+
+Total time: 286.273 s
+File: /users/alanman/optimize_pyuvdata/pyuvdata/pyuvdata/miriad.py
+Function: read_miriad at line 28
+
+Line #      Hits         Time  Per Hit   % Time  Line Contents
+==============================================================
+    28                                               @profile
+    29                                               def read_miriad(self, filepath, correct_lat_lon=True, run_check=True, run_check_acceptability=True):
+    30                                                   """
+    31                                                   Read in data from a miriad file.
+    32                                           
+    33                                                   Args:
+    34                                                       filepath: The miriad file directory to read from.
+    35                                                       correct_lat_lon: flag -- that only matters if altitude is missing --
+    36                                                           to update the latitude and longitude from the known_telescopes list
+    37                                                       run_check: Option to check for the existence and proper shapes of
+    38                                                           required parameters after reading in the file. Default is True.
+    39                                                       run_check_acceptability: Option to check acceptable range of the values of
+    40                                                           required parameters after reading in the file. Default is True.
+    41                                                   """
+    42         1        11715  11715.0      0.0          if not os.path.exists(filepath):
+    43                                                       raise(IOError, filepath + ' not found')
+    44         1        60578  60578.0      0.0          uv = a.miriad.UV(filepath)
+    45                                           
+    46         1            5      5.0      0.0          miriad_header_data = {'Nfreqs': 'nchan',
+    47         1            4      4.0      0.0                                'Npols': 'npol',
+    48         1            4      4.0      0.0                                'integration_time': 'inttime',
+    49         1            3      3.0      0.0                                'channel_width': 'sdf',  # in Ghz!
+    50         1            4      4.0      0.0                                'object_name': 'source',
+    51                                                                         # NB: telescope_name and instrument are treated
+    52                                                                         # as the same
+    53         1            4      4.0      0.0                                'telescope_name': 'telescop',
+    54         1            4      4.0      0.0                                'instrument': 'telescop'
+    55                                                                         }
+    56         8           32      4.0      0.0          for item in miriad_header_data:
+    57         7           48      6.9      0.0              if isinstance(uv[miriad_header_data[item]], str):
+    58         3           22      7.3      0.0                  header_value = uv[miriad_header_data[item]].replace('\x00', '')
+    59                                                       else:
+    60         4           24      6.0      0.0                  header_value = uv[miriad_header_data[item]]
+    61         7           45      6.4      0.0              setattr(self, item, header_value)
+    62                                           
+    63         1            6      6.0      0.0          latitude = uv['latitud']  # in units of radians
+    64         1            6      6.0      0.0          longitude = uv['longitu']
+    65         1            4      4.0      0.0          try:
+    66         1            5      5.0      0.0              altitude = uv['altitude']
+    67         1           58     58.0      0.0              self.telescope_location_lat_lon_alt = (latitude, longitude, altitude)
+    68                                                   except(KeyError):
+    69                                                       # get info from known telescopes. Check to make sure the lat/lon values match reasonably well
+    70                                                       telescope_obj = uvtel.get_telescope(self.telescope_name)
+    71                                                       if telescope_obj is not False:
+    72                                           
+    73                                                           tol = 2 * np.pi * 1e-3 / (60.0 * 60.0 * 24.0)  # 1mas in radians
+    74                                                           lat_close = np.isclose(telescope_obj.telescope_location_lat_lon_alt[0],
+    75                                                                                  latitude, rtol=0, atol=tol)
+    76                                                           lon_close = np.isclose(telescope_obj.telescope_location_lat_lon_alt[1],
+    77                                                                                  longitude, rtol=0, atol=tol)
+    78                                                           if correct_lat_lon:
+    79                                                               self.telescope_location_lat_lon_alt = telescope_obj.telescope_location_lat_lon_alt
+    80                                                           else:
+    81                                                               self.telescope_location_lat_lon_alt = (latitude, longitude, telescope_obj.telescope_location_lat_lon_alt[2])
+    82                                                           if lat_close and lon_close:
+    83                                                               if correct_lat_lon:
+    84                                                                   warnings.warn('Altitude is not present in Miriad file, '
+    85                                                                                 'using known location values for '
+    86                                                                                 '{telescope_name}.'.format(telescope_name=telescope_obj.telescope_name))
+    87                                                               else:
+    88                                                                   warnings.warn('Altitude is not present in Miriad file, '
+    89                                                                                 'using known location altitude value '
+    90                                                                                 'for {telescope_name} and lat/lon from '
+    91                                                                                 'file.'.format(telescope_name=telescope_obj.telescope_name))
+    92                                                           else:
+    93                                                               warn_string = ('Altitude is not present in file ')
+    94                                                               if not lat_close and not lon_close:
+    95                                                                   warn_string = warn_string + 'and latitude and longitude values do not match values '
+    96                                                               else:
+    97                                                                   if not lat_close:
+    98                                                                       warn_string = warn_string + 'and latitude value does not match value '
+    99                                                                   else:
+   100                                                                       warn_string = warn_string + 'and longitude value does not match value '
+   101                                                               if correct_lat_lon:
+   102                                                                   warn_string = (warn_string + 'for {telescope_name} in known '
+   103                                                                                  'telescopes. Using values from known '
+   104                                                                                  'telescopes.'.format(telescope_name=telescope_obj.telescope_name))
+   105                                                                   warnings.warn(warn_string)
+   106                                                               else:
+   107                                                                   warn_string = (warn_string + 'for {telescope_name} in known '
+   108                                                                                  'telescopes. Using altitude value from known '
+   109                                                                                  'telescopes and lat/lon from '
+   110                                                                                  'file.'.format(telescope_name=telescope_obj.telescope_name))
+   111                                                                   warnings.warn(warn_string)
+   112                                                       else:
+   113                                                           warnings.warn('Altitude is not present in Miriad file, and ' +
+   114                                                                         'telescope {telescope_name} is not in ' +
+   115                                                                         'known_telescopes. Telescope location not '
+   116                                                                         'set.'.format(telescope_name=self.telescope_name))
+   117                                           
+   118         1         1061   1061.0      0.0          self.history = uv['history']
+   119         1           10     10.0      0.0          if self.pyuvdata_version_str not in self.history.replace('\n', ''):
+   120         1            8      8.0      0.0              self.history += self.pyuvdata_version_str
+   121         1            7      7.0      0.0          self.channel_width *= 1e9  # change from GHz to Hz
+   122                                           
+   123                                                   # read through the file and get the data
+   124         1            8      8.0      0.0          _source = uv['source']  # check source of initial visibility
+   125         1            5      5.0      0.0          data_accumulator = {}
+   126         1            4      4.0      0.0          pol_list = []
+   127    924673     18606339     20.1      6.5          for (uvw, t, (i, j)), d, f in uv.all(raw=True):
+   128                                                       # control for the case of only a single spw not showing up in
+   129                                                       # the dimension
+   130                                                       # Note that the (i, j) tuple is calculated from a baseline number in
+   131                                                       # aipy (see miriad_wrap.h). The i, j values are also adjusted by aipy
+   132                                                       # to start at 0 rather than 1.
+   133    924672      4337237      4.7      1.5              if len(d.shape) == 1:
+   134    924672      5044929      5.5      1.8                  d.shape = (1,) + d.shape
+   135    924672      6079467      6.6      2.1                  self.Nspws = d.shape[0]
+   136    924672      8114680      8.8      2.8                  self.spw_array = np.arange(self.Nspws)
+   137                                                       else:
+   138                                                           raise(ValueError, """Sorry.  Files with more than one spectral
+   139                                                                 window (spw) are not yet supported. A great
+   140                                                                 project for the interested student!""")
+   141    924672      3594801      3.9      1.3              try:
+   142    924672      8281805      9.0      2.9                  cnt = uv['cnt']
+   143                                                       except(KeyError):
+   144                                                           cnt = np.ones(d.shape, dtype=np.float)
+   145    924672      5535689      6.0      1.9              ra = uv['ra']
+   146    924672      5230173      5.7      1.8              dec = uv['dec']
+   147    924672      5241237      5.7      1.8              lst = uv['lst']
+   148    924672      5383193      5.8      1.9              source = uv['source']
+   149    924672      3729196      4.0      1.3              if source != _source:
+   150                                                           raise(ValueError, 'This appears to be a multi source file, which is not supported.')
+   151                                                       else:
+   152    924672      3573790      3.9      1.2                  _source = source
+   153                                           
+   154    924672      3526011      3.8      1.2              try:
+   155    924672      5529045      6.0      1.9                  data_accumulator[uv['pol']].append([uvw, t, i, j, d, f, cnt,
+   156    924670      5690368      6.2      2.0                                                      ra, dec])
+   157         2           10      5.0      0.0              except(KeyError):
+   158         2            8      4.0      0.0                  data_accumulator[uv['pol']] = [[uvw, t, i, j, d, f, cnt,
+   159         2           25     12.5      0.0                                                  ra, dec]]
+   160         2           12      6.0      0.0                  pol_list.append(uv['pol'])
+   161                                                           # NB: flag types in miriad are usually ints
+   162                                           
+   163         3       116059  38686.3      0.0          for pol,data in data_accumulator.iteritems():
+   164         2       960005 480002.5      0.3              data_accumulator[pol] = np.array(data)
+   165                                           
+   166         1           44     44.0      0.0          self.polarization_array = np.array(pol_list)
+   167         1           11     11.0      0.0          if len(self.polarization_array) != self.Npols:
+   168                                                       warnings.warn('npols={npols} but found {l} pols in data file'.format(
+   169                                                           npols=self.Npols, l=len(self.polarization_array)))
+   170                                           
+   171                                                   # makes a data_array (and flag_array) of zeroes to be filled in by
+   172                                                   #   data values
+   173                                                   # any missing data will have zeros
+   174                                           
+   175                                                   # use set to get the unique list of all times ever listed in the file
+   176                                                   # iterate over polarizations and all spectra (bls and times) in two
+   177                                                   # nested loops, then flatten into a single vector, then set
+   178                                                   # then list again.
+   179                                           
+   180         1            4      4.0      0.0          times = list(set(
+   181    924675      3855604      4.2      1.3              np.concatenate([[k[1] for k in d] for d in data_accumulator.values()])))
+   182         1         4357   4357.0      0.0          times = np.sort(times)
+   183                                           
+   184         1            4      4.0      0.0          ant_i_unique = list(set(
+   185    924675      3710282      4.0      1.3              np.concatenate([[k[2] for k in d] for d in data_accumulator.values()])))
+   186         1            8      8.0      0.0          ant_j_unique = list(set(
+   187    924675      3692915      4.0      1.3              np.concatenate([[k[3] for k in d] for d in data_accumulator.values()])))
+   188                                           
+   189         1           40     40.0      0.0          sorted_unique_ants = sorted(list(set(ant_i_unique + ant_j_unique)))
+   190         1           29     29.0      0.0          ant_i_unique = np.array(ant_i_unique)
+   191         1           16     16.0      0.0          ant_j_unique = np.array(ant_j_unique)
+   192                                           
+   193                                                   # Determine maximum digits needed to distinguish different values
+   194         1           86     86.0      0.0          ndig_ant = np.ceil(np.log10(sorted_unique_ants[-1])).astype(int) + 1
+   195                                                   # Be excessive in precision because we use the floating point values as dictionary keys later
+   196         1           39     39.0      0.0          prec_t = - 2 * np.floor(np.log10(self._time_array.tols[-1])).astype(int)
+   197         1           15     15.0      0.0          ndig_t = (np.ceil(np.log10(times[-1])).astype(int) + prec_t + 2)
+   198         1            4      4.0      0.0          blts = []
+   199         3           16      5.3      0.0          for d in data_accumulator.values():
+   200    924674      3863501      4.2      1.3              for k in d:
+   201    924672      6986079      7.6      2.4                  blt = ["{1:.{0}f}".format(prec_t, k[1]).zfill(ndig_t),
+   202    924672      4985296      5.4      1.7                         str(k[2]).zfill(ndig_ant), str(k[3]).zfill(ndig_ant)]
+   203    924672      3945795      4.3      1.4                  blt = "_".join(blt)
+   204    924672      3696188      4.0      1.3                  blts.append(blt)
+   205         1       346633 346633.0      0.1          reverse_inds= np.argsort(np.unique(np.array(blts),return_index=True)[1])
+   206         1      1577533 1577533.0      0.6          unique_blts = np.sort(np.unique(np.array(blts)))
+   207                                           
+   208         1      1632683 1632683.0      0.6          reverse_inds = dict(zip(np.unique(np.array(blts)),reverse_inds))
+   209         1           29     29.0      0.0          self.Nants_data = len(sorted_unique_ants)
+   210                                           
+   211                                                   # Miriad has no way to keep track of antenna numbers, so the antenna
+   212                                                   # numbers are simply the index for each antenna in any array that
+   213                                                   # describes antenna attributes (e.g. antpos for the antenna_postions).
+   214                                                   # Therefore on write, nants (which gives the size of the antpos array)
+   215                                                   # needs to be increased to be the max value of antenna_numbers+1 and the
+   216                                                   # antpos array needs to be inflated with zeros at locations where we
+   217                                                   # don't have antenna information. These inflations need to be undone at
+   218                                                   # read. If the file was written by pyuvdata, then the variable antnums
+   219                                                   # will be present and we can use it, otherwise we need to test for zeros
+   220                                                   # in the antpos array and/or antennas with no visibilities.
+   221         1            5      5.0      0.0          try:
+   222                                                       # The antnums variable will only exist if the file was written with pyuvdata.
+   223                                                       # For some reason Miriad doesn't handle an array of integers properly,
+   224                                                       # so we convert to floats on write and back here
+   225         1           43     43.0      0.0              self.antenna_numbers = uv['antnums'].astype(int)
+   226         1           10     10.0      0.0              self.Nants_telescope = len(self.antenna_numbers)
+   227                                                   except(KeyError):
+   228                                                       self.antenna_numbers = None
+   229                                                       self.Nants_telescope = None
+   230                                           
+   231         1            7      7.0      0.0          nants = uv['nants']
+   232         1            4      4.0      0.0          try:
+   233         1           24     24.0      0.0              antpos = uv['antpos'].reshape(3, nants).T
+   234                                                       if self.Nants_telescope is not None:
+   235                                                           # in this case there is an antnums variable
+   236                                                           # (meaning that the file was written with pyuvdata), so we'll use it
+   237                                                           if nants == self.Nants_telescope:
+   238                                                               # no inflation, so just use the positions
+   239                                                               self.antenna_positions = antpos
+   240                                                           else:
+   241                                                               # there is some inflation, just use the ones that appear in antnums
+   242                                                               self.antenna_positions = np.zeros((self.Nants_telescope, 3), dtype=antpos.dtype)
+   243                                                               for ai, num in enumerate(self.antenna_numbers):
+   244                                                                   self.antenna_positions[ai, :] = antpos[num, :]
+   245                                                       else:
+   246                                                           # there is no antnums variable (meaning that this file was not
+   247                                                           # written by pyuvdata), so we test for antennas with non-zero
+   248                                                           # positions and/or that appear in the visibility data
+   249                                                           # (meaning that they have entries in ant_1_array or ant_2_array)
+   250                                                           antpos_length = np.sqrt(np.sum(np.abs(antpos)**2, axis=1))
+   251                                                           good_antpos = np.where(antpos_length > 0)[0]
+   252                                                           # take the union of the antennas with good positions (good_antpos)
+   253                                                           # and the antennas that have visisbilities (sorted_unique_ants)
+   254                                                           # if there are antennas with visibilities but zeroed positions we issue a warning below
+   255                                                           ants_use = set(good_antpos).union(sorted_unique_ants)
+   256                                                           # ants_use are the antennas we'll keep track of in the UVData
+   257                                                           # object, so they dictate Nants_telescope
+   258                                                           self.Nants_telescope = len(ants_use)
+   259                                                           self.antenna_numbers = np.array(list(ants_use))
+   260                                                           self.antenna_positions = np.zeros((self.Nants_telescope, 3), dtype=antpos.dtype)
+   261                                                           for ai, num in enumerate(self.antenna_numbers):
+   262                                                               self.antenna_positions[ai, :] = antpos[num, :]
+   263                                                               if antpos_length[num] == 0:
+   264                                                                   warnings.warn('antenna number {n} has visibilities '
+   265                                                                                 'associated with it, but it has a position'
+   266                                                                                 ' of (0,0,0)'.format(n=num))
+   267         1            4      4.0      0.0          except(KeyError):
+   268                                                       # there is no antpos variable
+   269         1            7      7.0      0.0              self.antenna_positions = None
+   270                                           
+   271         1            5      5.0      0.0          if self.antenna_numbers is None:
+   272                                                       # there are no antenna_numbers or antenna_positions, so just use
+   273                                                       # the antennas present in the visibilities
+   274                                                       # (Nants_data will therefore match Nants_telescope)
+   275                                                       self.antenna_numbers = np.array(sorted_unique_ants)
+   276                                                       self.Nants_telescope = len(self.antenna_numbers)
+   277                                           
+   278                                                   # antenna names is a foreign concept in miriad but required in other formats.
+   279         1            4      4.0      0.0          try:
+   280                                                       # Here we deal with the way pyuvdata tacks it on to keep the name information if we have it:
+   281                                                       # This is a horrible hack to save & recover antenna_names array. Miriad can't handle arrays
+   282                                                       # of strings or a long enough single string to put them all into one string
+   283                                                       # so we convert them into hex values and then into floats on write and convert
+   284                                                       # back to strings here
+   285         1            9      9.0      0.0              ant_name_flt = uv['antnames']
+   286       129         1309     10.1      0.0              ant_name_list = [('%x' % elem.astype(np.int64)).decode('hex') for elem in ant_name_flt]
+   287         1            8      8.0      0.0              self.antenna_names = ant_name_list
+   288                                                   except(KeyError):
+   289                                                       self.antenna_names = self.antenna_numbers.astype(str).tolist()
+   290                                           
+   291                                                   # form up a grid which indexes time and baselines along the 'long'
+   292                                                   # axis of the visdata array
+   293                                           
+   294         1      2008998 2008998.0      0.7          tij_grid = np.array(map(lambda x: map(float, x.split("_")), unique_blts))
+   295         1           39     39.0      0.0          t_grid, ant_i_grid, ant_j_grid = tij_grid.T
+   296                                                   # set the data sizes
+   297         1            4      4.0      0.0          try:
+   298         1           37     37.0      0.0              self.Nblts = uv['nblts']
+   299         1           10     10.0      0.0              if self.Nblts != len(t_grid):
+   300                                                           warnings.warn('Nblts does not match the number of unique blts in the data')
+   301                                                   except(KeyError):
+   302                                                       self.Nblts = len(t_grid)
+   303         1            4      4.0      0.0          try:
+   304         1           12     12.0      0.0              self.Ntimes = uv['ntimes']
+   305         1            6      6.0      0.0              if self.Ntimes != len(times):
+   306                                                           warnings.warn('Ntimes does not match the number of unique times in the data')
+   307                                                   except(KeyError):
+   308                                                       self.Ntimes = len(times)
+   309                                           
+   310         1            6      6.0      0.0          self.time_array = t_grid
+   311         1         1172   1172.0      0.0          self.ant_1_array = ant_i_grid.astype(int)
+   312         1         2441   2441.0      0.0          self.ant_2_array = ant_j_grid.astype(int)
+   313                                           
+   314         1         3470   3470.0      0.0          self.baseline_array = self.antnums_to_baseline(ant_i_grid.astype(int),
+   315         1        16148  16148.0      0.0                                                         ant_j_grid.astype(int))
+   316         1            5      5.0      0.0          try:
+   317         1           18     18.0      0.0              self.Nbls = uv['nbls']
+   318         1        21750  21750.0      0.0              if self.Nbls != len(np.unique(self.baseline_array)):
+   319                                                           warnings.warn('Nbls does not match the number of unique baselines in the data')
+   320                                                   except(KeyError):
+   321                                                       self.Nbls = len(np.unique(self.baseline_array))
+   322                                           
+   323                                                   # slot the data into a grid
+   324         1           12     12.0      0.0          self.data_array = np.zeros((self.Nblts, self.Nspws, self.Nfreqs,
+   325         1           31     31.0      0.0                                      self.Npols), dtype=np.complex64)
+   326         1       107702 107702.0      0.0          self.flag_array = np.ones(self.data_array.shape, dtype=np.bool)
+   327         1         1679   1679.0      0.0          self.uvw_array = np.zeros((self.Nblts, 3))
+   328                                                   # NOTE: Using our lst calculator, which uses astropy,
+   329                                                   # instead of aipy values which come from pyephem.
+   330                                                   # The differences are of order 5 seconds.
+   331         1      3212863 3212863.0      1.1          self.set_lsts_from_time_array()
+   332         1       660518 660518.0      0.2          self.nsample_array = np.ones(self.data_array.shape, dtype=np.float)
+   333         1           61     61.0      0.0          self.freq_array = (np.arange(self.Nfreqs) * self.channel_width +
+   334         1           31     31.0      0.0                             uv['sfreq'] * 1e9)
+   335                                                   # Tile freq_array to shape (Nspws, Nfreqs).
+   336                                                   # Currently does not actually support Nspws>1!
+   337         1           60     60.0      0.0          self.freq_array = np.tile(self.freq_array, (self.Nspws, 1))
+   338                                           
+   339                                                   # Temporary arrays to hold polarization axis, which will be collapsed
+   340         1         1289   1289.0      0.0          ra_pol_list = np.zeros((self.Nblts, self.Npols))
+   341         1          800    800.0      0.0          dec_pol_list = np.zeros((self.Nblts, self.Npols))
+   342         1          453    453.0      0.0          uvw_pol_list = np.zeros((self.Nblts, 3, self.Npols))
+   343         1         1562   1562.0      0.0          c_ns = const.c.to('m/ns').value
+   344         3       119371  39790.3      0.0          for pol, data in data_accumulator.iteritems():
+   345         2          217    108.5      0.0              pol_ind = self._pol_to_ind(pol)
+   346    924674      4384762      4.7      1.5              for ind, d in enumerate(data):
+   347    924672      9734240     10.5      3.4                  blt = ["{1:.{0}f}".format(prec_t, d[1]).zfill(ndig_t),
+   348    924672      5654097      6.1      2.0                         str(d[2]).zfill(ndig_ant), str(d[3]).zfill(ndig_ant)]
+   349    924672      4244202      4.6      1.5                  blt = "_".join(blt)
+   350    924672      4044832      4.4      1.4                  blt_index = reverse_inds[blt]
+   351                                           
+   352    924672     12337336     13.3      4.3                  self.data_array[blt_index, :, :, pol_ind] = d[4]
+   353    924672      9781916     10.6      3.4                  self.flag_array[blt_index, :, :, pol_ind] = d[5]
+   354    924672      9661016     10.4      3.4                  self.nsample_array[blt_index, :, :, pol_ind] = d[6]
+   355                                           
+   356                                                           # because there are uvws/ra/dec for each pol, and one pol may not
+   357                                                           # have that visibility, we collapse along the polarization
+   358                                                           # axis but avoid any missing visbilities
+   359    924672      8283971      9.0      2.9                  uvw = d[0] * c_ns
+   360    924672      5304313      5.7      1.9                  uvw.shape = (1, 3)
+   361    924672      7964836      8.6      2.8                  uvw_pol_list[blt_index, :, pol_ind] = uvw
+   362    924672      6968192      7.5      2.4                  ra_pol_list[blt_index, pol_ind] = d[7]
+   363    924672      6485602      7.0      2.3                  dec_pol_list[blt_index, pol_ind] = d[8]
+   364                                           
+   365                                                   # Collapse pol axis for ra_list, dec_list, and uvw_list
+   366         1          655    655.0      0.0          ra_list = np.zeros(self.Nblts)
+   367         1          648    648.0      0.0          dec_list = np.zeros(self.Nblts)
+   368    462337      1846826      4.0      0.6          for blt_index in xrange(self.Nblts):
+   369    462336     11539119     25.0      4.0              test = ~np.all(self.flag_array[blt_index, :, :, :], axis=(0, 1))
+   370    462336      2873731      6.2      1.0              good_pol = np.where(test)[0]
+   371    462336      2003156      4.3      0.7              if len(good_pol) == 1:
+   372                                                           # Only one good pol, use it
+   373                                                           self.uvw_array[blt_index, :] = uvw_pol_list[blt_index, :, good_pol]
+   374                                                           ra_list[blt_index] = ra_pol_list[blt_index, good_pol]
+   375                                                           dec_list[blt_index] = dec_pol_list[blt_index, good_pol]
+   376    462336      1887218      4.1      0.7              elif len(good_pol) > 1:
+   377                                                           # Multiple good pols, check for consistency. pyuvdata does not
+   378                                                           # support pol-dependent uvw, ra, or dec.
+   379    216991      6986427     32.2      2.4                  if np.any(np.diff(uvw_pol_list[blt_index, :, good_pol], axis=0)):
+   380                                                               raise ValueError('uvw values are different by polarization.')
+   381                                                           else:
+   382    216991      2026127      9.3      0.7                      self.uvw_array[blt_index, :] = uvw_pol_list[blt_index, :, good_pol[0]]
+   383    216991      6339086     29.2      2.2                  if np.any(np.diff(ra_pol_list[blt_index, good_pol])):
+   384                                                               raise ValueError('ra values are different by polarization.')
+   385                                                           else:
+   386    216991      1191884      5.5      0.4                      ra_list[blt_index] = ra_pol_list[blt_index, good_pol[0]]
+   387    216991      6089454     28.1      2.1                  if np.any(np.diff(dec_pol_list[blt_index, good_pol])):
+   388                                                               raise ValueError('dec values are different by polarization.')
+   389                                                           else:
+   390    216991      1162411      5.4      0.4                      dec_list[blt_index] = dec_pol_list[blt_index, good_pol[0]]
+   391                                                       else:
+   392                                                           # No good pols for this blt. Fill with first one.
+   393    245345      1995663      8.1      0.7                  self.uvw_array[blt_index, :] = uvw_pol_list[blt_index, :, 0]
+   394    245345      1160717      4.7      0.4                  ra_list[blt_index] = ra_pol_list[blt_index, 0]
+   395    245345      1047888      4.3      0.4                  dec_list[blt_index] = dec_pol_list[blt_index, 0]
+   396                                           
+   397                                                   # check if ra is constant throughout file; if it is,
+   398                                                   # file is tracking if not, file is drift scanning
+   399         1        34598  34598.0      0.0          blt_good = np.where(~np.all(self.flag_array, axis=(1, 2, 3)))
+   400         1         2293   2293.0      0.0          if np.isclose(np.mean(np.diff(ra_list[blt_good])), 0.):
+   401                                                       self.set_phased()
+   402                                                       self.phase_center_ra = ra_list[0]
+   403                                                       self.phase_center_dec = dec_list[0]
+   404                                                       self.phase_center_epoch = uv['epoch']
+   405                                                   else:
+   406         1           21     21.0      0.0              self.set_drift()
+   407         1            7      7.0      0.0              self.zenith_ra = ra_list
+   408         1            6      6.0      0.0              self.zenith_dec = dec_list
+   409         1            6      6.0      0.0          self.vis_units = 'UNCALIB'  # assume no calibration
+   410                                           
+   411         1            4      4.0      0.0          try:
+   412         1         1022   1022.0      0.0              self.set_telescope_params()
+   413                                                   except ValueError, ve:
+   414                                                       warnings.warn(str(ve))
+   415                                           
+   416                                                   # check if object has all required uv_properties set
+   417         1            4      4.0      0.0          if run_check:
+   418         1       127303 127303.0      0.0              self.check(run_check_acceptability=run_check_acceptability)
+
+Total time: 76.8959 s
+File: /users/alanman/optimize_pyuvdata/pyuvdata/pyuvdata/miriad.py
+Function: write_miriad at line 419
+
+Line #      Hits         Time  Per Hit   % Time  Line Contents
+==============================================================
+   419                                               @profile
+   420                                               def write_miriad(self, filepath, run_check=True, run_check_acceptability=True,
+   421                                                                clobber=False, no_antnums=False):
+   422                                                   """
+   423                                                   Write the data to a miriad file.
+   424                                           
+   425                                                   Args:
+   426                                                       filename: The miriad file directory to write to.
+   427                                                       run_check: Option to check for the existence and proper shapes of
+   428                                                           required parameters before writing the file. Default is True.
+   429                                                       run_check_acceptability: Option to check acceptable range of the values of
+   430                                                           required parameters before writing the file. Default is True.
+   431                                                       clobber: Option to overwrite the filename if the file already exists.
+   432                                                           Default is False.
+   433                                                       no_antnums: Option to not write the antnums variable to the file.
+   434                                                           Should only be used for testing purposes.
+   435                                                   """
+   436                                                   # check for multiple spws
+   437         1            8      8.0      0.0          if self.data_array.shape[1] > 1:
+   438                                                       raise ValueError('write_miriad currently only handles single spw files.')
+   439                                           
+   440         1           85     85.0      0.0          if os.path.exists(filepath):
+   441                                                       if clobber:
+   442                                                           print 'File exists: clobbering'
+   443                                                           shutil.rmtree(filepath)
+   444                                                       else:
+   445                                                           raise ValueError('File exists: skipping')
+   446                                           
+   447         1           16     16.0      0.0          freq_spacing = self.freq_array[0, 1:] - self.freq_array[0, :-1]
+   448         1           45     45.0      0.0          if not np.isclose(np.min(freq_spacing), np.max(freq_spacing),
+   449         1          114    114.0      0.0                            rtol=self._freq_array.tols[0], atol=self._freq_array.tols[1]):
+   450                                                       raise ValueError('The frequencies are not evenly spaced (probably '
+   451                                                                        'because of a select operation). The miriad format '
+   452                                                                        'does not support unevenly spaced frequencies.')
+   453         1           16     16.0      0.0          if not np.isclose(np.max(freq_spacing), self.channel_width,
+   454         1           81     81.0      0.0                            rtol=self._freq_array.tols[0], atol=self._freq_array.tols[1]):
+   455                                                       raise ValueError('The frequencies are separated by more than their '
+   456                                                                        'channel width (probably because of a select operation). '
+   457                                                                        'The miriad format does not support frequencies '
+   458                                                                        'that are spaced by more than their channel width.')
+   459                                           
+   460         1        20189  20189.0      0.0          uv = a.miriad.UV(filepath, status='new')
+   461                                           
+   462                                                   # initialize header variables
+   463         1           31     31.0      0.0          uv._wrhd('obstype', 'mixed-auto-cross')
+   464         1         1498   1498.0      0.0          uv._wrhd('history', self.history + '\n')
+   465                                           
+   466                                                   # recognized miriad variables
+   467         1            8      8.0      0.0          uv.add_var('nchan', 'i')
+   468         1           13     13.0      0.0          uv['nchan'] = self.Nfreqs
+   469         1            3      3.0      0.0          uv.add_var('npol', 'i')
+   470         1            6      6.0      0.0          uv['npol'] = self.Npols
+   471         1            2      2.0      0.0          uv.add_var('nspect', 'i')
+   472         1            6      6.0      0.0          uv['nspect'] = self.Nspws
+   473         1            3      3.0      0.0          uv.add_var('inttime', 'd')
+   474         1         1219   1219.0      0.0          uv['inttime'] = self.integration_time
+   475         1           17     17.0      0.0          uv.add_var('sdf', 'd')
+   476         1           11     11.0      0.0          uv['sdf'] = self.channel_width / 1e9  # in GHz
+   477         1            3      3.0      0.0          uv.add_var('source', 'a')
+   478         1            6      6.0      0.0          uv['source'] = self.object_name
+   479         1            3      3.0      0.0          uv.add_var('telescop', 'a')
+   480         1            6      6.0      0.0          uv['telescop'] = self.telescope_name
+   481         1            3      3.0      0.0          uv.add_var('latitud', 'd')
+   482         1           89     89.0      0.0          uv['latitud'] = self.telescope_location_lat_lon_alt[0]
+   483         1            3      3.0      0.0          uv.add_var('longitu', 'd')
+   484         1           71     71.0      0.0          uv['longitu'] = self.telescope_location_lat_lon_alt[1]
+   485         1            3      3.0      0.0          uv.add_var('nants', 'i')
+   486                                           
+   487                                                   # Miriad has no way to keep track of antenna numbers, so the antenna
+   488                                                   # numbers are simply the index for each antenna in any array that
+   489                                                   # describes antenna attributes (e.g. antpos for the antenna_postions).
+   490                                                   # Therefore on write, nants (which gives the size of the antpos array)
+   491                                                   # needs to be increased to be the max value of antenna_numbers+1 and the
+   492                                                   # antpos array needs to be inflated with zeros at locations where we
+   493                                                   # don't have antenna information. These inflations need to be undone at
+   494                                                   # read. If the file was written by pyuvdata, then the variable antnums
+   495                                                   # will be present and we can use it, otherwise we need to test for zeros
+   496                                                   # in the antpos array and/or antennas with no visibilities.
+   497         1           22     22.0      0.0          nants = np.max(self.antenna_numbers) + 1
+   498         1            6      6.0      0.0          uv['nants'] = nants
+   499         1            4      4.0      0.0          if self.antenna_positions is not None:
+   500                                                       antpos = np.zeros((nants, 3), dtype=self.antenna_positions.dtype)
+   501                                                       for ai, num in enumerate(self.antenna_numbers):
+   502                                                           antpos[num, :] = self.antenna_positions[ai, :]
+   503                                                       uv.add_var('antpos', 'd')
+   504                                                       uv['antpos'] = antpos.T.flatten()
+   505                                           
+   506         1            3      3.0      0.0          uv.add_var('sfreq', 'd')
+   507         1            7      7.0      0.0          uv['sfreq'] = self.freq_array[0, 0] / 1e9  # first spw; in GHz
+   508         1            3      3.0      0.0          if self.phase_type == 'phased':
+   509                                                       uv.add_var('epoch', 'r')
+   510                                                       uv['epoch'] = self.phase_center_epoch
+   511                                           
+   512                                                   # required pyuvdata variables that are not recognized miriad variables
+   513         1            3      3.0      0.0          uv.add_var('ntimes', 'i')
+   514         1            5      5.0      0.0          uv['ntimes'] = self.Ntimes
+   515         1            3      3.0      0.0          uv.add_var('nbls', 'i')
+   516         1            5      5.0      0.0          uv['nbls'] = self.Nbls
+   517         1            3      3.0      0.0          uv.add_var('nblts', 'i')
+   518         1            6      6.0      0.0          uv['nblts'] = self.Nblts
+   519         1            3      3.0      0.0          uv.add_var('visunits', 'a')
+   520         1            6      6.0      0.0          uv['visunits'] = self.vis_units
+   521         1            3      3.0      0.0          uv.add_var('instrume', 'a')
+   522         1            5      5.0      0.0          uv['instrume'] = self.instrument
+   523         1            3      3.0      0.0          uv.add_var('altitude', 'd')
+   524         1           70     70.0      0.0          uv['altitude'] = self.telescope_location_lat_lon_alt[2]
+   525                                           
+   526         1            2      2.0      0.0          if not no_antnums:
+   527                                                       # Add in the antenna_numbers so we have them if we read this file back in
+   528                                                       # for some reason Miriad doesn't handle an array of integers properly,
+   529                                                       # so convert to floats here and integers on read
+   530         1            3      3.0      0.0              uv.add_var('antnums', 'd')
+   531         1           12     12.0      0.0              uv['antnums'] = self.antenna_numbers.astype(np.float64)
+   532                                           
+   533                                                   # antenna names is a foreign concept in miriad but required in other formats.
+   534                                                   # This is a horrible hack to save antenna_names array. Miriad can't handle arrays
+   535                                                   # of strings or a long enough single string to put them all into one string
+   536                                                   # so we convert them into hex values and then into floats and convert
+   537                                                   # back to strings on read
+   538       129          622      4.8      0.0          ant_name_flt = np.array([int(elem.encode("hex"), 16) for elem in self.antenna_names]).astype(np.float64)
+   539         1            3      3.0      0.0          uv.add_var('antnames', 'd')
+   540         1            8      8.0      0.0          uv['antnames'] = ant_name_flt
+   541                                           
+   542                                                   # variables that can get updated with every visibility
+   543         1            3      3.0      0.0          uv.add_var('pol', 'i')
+   544         1            4      4.0      0.0          uv.add_var('lst', 'd')
+   545         1            3      3.0      0.0          uv.add_var('cnt', 'd')
+   546         1            2      2.0      0.0          uv.add_var('ra', 'd')
+   547         1            3      3.0      0.0          uv.add_var('dec', 'd')
+   548                                           
+   549                                                   # write data
+   550         1          858    858.0      0.0          c_ns = const.c.to('m/ns').value
+   551    462337      1317473      2.8      1.7          for viscnt, blt in enumerate(self.data_array):
+   552    462336      5310432     11.5      6.9              uvw = (self.uvw_array[viscnt] / c_ns).astype(np.double)  # NOTE issue 50 on conjugation
+   553    462336      1944312      4.2      2.5              t = self.time_array[viscnt]
+   554    462336      1568615      3.4      2.0              i = self.ant_1_array[viscnt]
+   555    462336      1490438      3.2      1.9              j = self.ant_2_array[viscnt]
+   556                                           
+   557    462336      2884012      6.2      3.8              uv['lst'] = self.lst_array[viscnt]
+   558    462336      1600097      3.5      2.1              if self.phase_type == 'phased':
+   559                                                           uv['ra'] = self.phase_center_ra
+   560                                                           uv['dec'] = self.phase_center_dec
+   561    462336      1443938      3.1      1.9              elif self.phase_type == 'drift':
+   562    462336      2515366      5.4      3.3                  uv['ra'] = self.zenith_ra[viscnt]
+   563    462336      2590451      5.6      3.4                  uv['dec'] = self.zenith_dec[viscnt]
+   564                                                       else:
+   565                                                           raise ValueError('The phasing type of the data is unknown. '
+   566                                                                            'Set the phase_type to "drift" or "phased" to '
+   567                                                                            'reflect the phasing status of the data')
+   568                                           
+   569                                                       # NOTE only writing spw 0, not supporting multiple spws for write
+   570   1387008      6176944      4.5      8.0              for polcnt, pol in enumerate(self.polarization_array):
+   571    924672      7376416      8.0      9.6                  uv['pol'] = pol.astype(np.int)
+   572    924672     11173991     12.1     14.5                  uv['cnt'] = self.nsample_array[viscnt, 0, :, polcnt].astype(np.double)
+   573                                           
+   574    924672      4099620      4.4      5.3                  data = self.data_array[viscnt, 0, :, polcnt]
+   575    924672      3612908      3.9      4.7                  flags = self.flag_array[viscnt, 0, :, polcnt]
+   576    924672      2280073      2.5      3.0                  if i > j:
+   577                                                               i, j, data = j, i, np.conjugate(data)
+   578    924672      2187587      2.4      2.8                  preamble = (uvw, t, (i, j))
+   579                                           
+   580    924672     17172875     18.6     22.3                  uv.write(preamble, data, flags)
+   581         1            2      2.0      0.0          if run_check:
+   582                                                       """Check for acceptable units."""
+   583         1       125145 125145.0      0.2              self.check(run_check_acceptability=run_check_acceptability)
+
+Total time: 3.82707 s
+File: /users/alanman/optimize_pyuvdata/pyuvdata/pyuvdata/uvdata.py
+Function: set_lsts_from_time_array at line 457
+
+Line #      Hits         Time  Per Hit   % Time  Line Contents
+==============================================================
+   457                                               @profile
+   458                                               def set_lsts_from_time_array(self):
+   459                                                   """Set the lst_array based from the time_array."""
+   460         2            3      1.5      0.0          lsts = []
+   461         2            9      4.5      0.0          curtime = self.time_array[0]
+   462         2         1093    546.5      0.0          self.lst_array = np.zeros(self.Nblts)
+   463         2          213    106.5      0.0          latitude, longitude, altitude = self.telescope_location_lat_lon_alt_degrees
+   464       114        18347    160.9      0.5          for ind, jd in enumerate(np.unique(self.time_array)):
+   465       112       151277   1350.7      4.0              t = Time(jd, format='jd', location=(longitude, latitude))
+   466       112      3656128  32644.0     95.5              self.lst_array[np.where(np.isclose(jd, self.time_array, atol=1e-6, rtol=1e-12))] = t.sidereal_time('apparent').radian
+
+Total time: 0.00046 s
+File: /users/alanman/optimize_pyuvdata/pyuvdata/pyuvdata/uvdata.py
+Function: juldate2ephem at line 468
+
+Line #      Hits         Time  Per Hit   % Time  Line Contents
+==============================================================
+   468                                               @profile
+   469                                               def juldate2ephem(self, num):
+   470                                                   """
+   471                                                   Convert Julian date to ephem date, measured from noon, Dec. 31, 1899.
+   472                                           
+   473                                                   Args:
+   474                                                       num: Julian date
+   475                                           
+   476                                                   Returns:
+   477                                                       ephem date, measured from noon, Dec. 31, 1899.
+   478                                                   """
+   479       227          460      2.0    100.0          return ephem.date(num - 2415020.)
+
+Total time: 16.0526 s
+File: /users/alanman/optimize_pyuvdata/pyuvdata/pyuvdata/uvdata.py
+Function: unphase_to_drift at line 481
+
+Line #      Hits         Time  Per Hit   % Time  Line Contents
+==============================================================
+   481                                               @profile
+   482                                               def unphase_to_drift(self):
+   483                                                   """Convert from a phased dataset to a drift dataset."""
+   484         1            4      4.0      0.0          if self.phase_type == 'phased':
+   485         1            2      2.0      0.0              pass
+   486                                                   elif self.phase_type == 'drift':
+   487                                                       raise ValueError('The data is already drift scanning; can only ' +
+   488                                                                        'unphase phased data.')
+   489                                                   else:
+   490                                                       raise ValueError('The phasing type of the data is unknown. '
+   491                                                                        'Set the phase_type to drift or phased to '
+   492                                                                        'reflect the phasing status of the data')
+   493                                           
+   494         1           69     69.0      0.0          latitude, longitude, altitude = self.telescope_location_lat_lon_alt
+   495                                           
+   496         1            5      5.0      0.0          obs = ephem.Observer()
+   497                                                   # obs inits with default values for parameters -- be sure to replace them
+   498         1            4      4.0      0.0          obs.lat = latitude
+   499         1            1      1.0      0.0          obs.lon = longitude
+   500                                           
+   501         1            3      3.0      0.0          phase_center = ephem.FixedBody()
+   502         1            5      5.0      0.0          epoch = (self.phase_center_epoch - 2000.) * 365.2422 + ephem.J2000  # convert years to ephemtime
+   503         1            2      2.0      0.0          phase_center._epoch = epoch
+   504         1            3      3.0      0.0          phase_center._ra = self.phase_center_ra
+   505         1            3      3.0      0.0          phase_center._dec = self.phase_center_dec
+   506                                           
+   507         1          190    190.0      0.0          self.zenith_ra = np.zeros_like(self.time_array)
+   508         1          332    332.0      0.0          self.zenith_dec = np.zeros_like(self.time_array)
+   509                                           
+   510                                                   # apply -w phasor
+   511                                                   w_lambda = (self.uvw_array[:, 2].reshape(self.Nblts, 1) /
+   512         1       570278 570278.0      3.6                      const.c.to('m/s').value * self.freq_array.reshape(1, self.Nfreqs))
+   513         1     11725581 11725581.0     73.0          phs = np.exp(-1j * 2 * np.pi * (-1) * w_lambda[:, None, :, None])
+   514         1      3695210 3695210.0     23.0          self.data_array *= phs
+   515                                           
+   516         1         8690   8690.0      0.1          unique_times = np.unique(self.time_array)
+   517        57          144      2.5      0.0          for jd in unique_times:
+   518        56        17743    316.8      0.1              inds = np.where(self.time_array == jd)[0]
+   519        56          829     14.8      0.0              obs.date, obs.epoch = self.juldate2ephem(jd), self.juldate2ephem(jd)
+   520        56          120      2.1      0.0              phase_center.compute(obs)
+   521        56         2698     48.2      0.0              phase_center_ra, phase_center_dec = phase_center.a_ra, phase_center.a_dec
+   522        56          106      1.9      0.0              zenith_ra = obs.sidereal_time()
+   523        56           79      1.4      0.0              zenith_dec = latitude
+   524        56         1388     24.8      0.0              self.zenith_ra[inds] = zenith_ra
+   525        56         1278     22.8      0.0              self.zenith_dec[inds] = zenith_dec
+   526                                           
+   527                                                       # generate rotation matrices
+   528        56         1780     31.8      0.0              m0 = uvutils.top2eq_m(0., phase_center_dec)
+   529        56         1357     24.2      0.0              m1 = uvutils.eq2top_m(phase_center_ra - zenith_ra, zenith_dec)
+   530                                           
+   531                                                       # rotate and write uvws
+   532        56         8072    144.1      0.1              uvw = self.uvw_array[inds, :]
+   533        56         4558     81.4      0.0              uvw = np.dot(m0, uvw.T).T
+   534        56         3378     60.3      0.0              uvw = np.dot(m1, uvw.T).T
+   535        56         8619    153.9      0.1              self.uvw_array[inds, :] = uvw
+   536                                           
+   537                                                   # remove phase center
+   538         1            6      6.0      0.0          self.phase_center_ra = None
+   539         1            4      4.0      0.0          self.phase_center_dec = None
+   540         1            3      3.0      0.0          self.phase_center_epoch = None
+   541         1            9      9.0      0.0          self.set_drift()
+
+Total time: 15.9646 s
+File: /users/alanman/optimize_pyuvdata/pyuvdata/pyuvdata/uvdata.py
+Function: phase_to_time at line 543
+
+Line #      Hits         Time  Per Hit   % Time  Line Contents
+==============================================================
+   543                                               @profile
+   544                                               def phase_to_time(self, time):
+   545                                                   """
+   546                                                   Phase a drift scan dataset to the ra/dec of zenith at a particular time.
+   547                                           
+   548                                                   Args:
+   549                                                       time: The time to phase to.
+   550                                                   """
+   551         1            2      2.0      0.0          if self.phase_type == 'drift':
+   552         1            1      1.0      0.0              pass
+   553                                                   elif self.phase_type == 'phased':
+   554                                                       raise ValueError('The data is already phased; can only phase ' +
+   555                                                                        'drift scanning data.')
+   556                                                   else:
+   557                                                       raise ValueError('The phasing type of the data is unknown. '
+   558                                                                        'Set the phase_type to drift or phased to '
+   559                                                                        'reflect the phasing status of the data')
+   560                                           
+   561         1           60     60.0      0.0          obs = ephem.Observer()
+   562                                                   # obs inits with default values for parameters -- be sure to replace them
+   563         1          119    119.0      0.0          latitude, longitude, altitude = self.telescope_location_lat_lon_alt
+   564         1            4      4.0      0.0          obs.lat = latitude
+   565         1            1      1.0      0.0          obs.lon = longitude
+   566                                           
+   567         1           35     35.0      0.0          obs.date, obs.epoch = self.juldate2ephem(time), self.juldate2ephem(time)
+   568                                           
+   569         1           85     85.0      0.0          ra = obs.sidereal_time()
+   570         1            1      1.0      0.0          dec = latitude
+   571         1            7      7.0      0.0          epoch = self.juldate2ephem(time)
+   572         1     15964312 15964312.0    100.0          self.phase(ra, dec, epoch)
+
+Total time: 15.9553 s
+File: /users/alanman/optimize_pyuvdata/pyuvdata/pyuvdata/uvdata.py
+Function: phase at line 574
+
+Line #      Hits         Time  Per Hit   % Time  Line Contents
+==============================================================
+   574                                               @profile
+   575                                               def phase(self, ra, dec, epoch):
+   576                                                   """
+   577                                                   Phase a drift scan dataset to a single ra/dec at a particular epoch.
+   578                                           
+   579                                                   Will not phase already phased data.
+   580                                           
+   581                                                   Args:
+   582                                                       ra: The ra to phase to in radians.
+   583                                                       dec: The dec to phase to in radians.
+   584                                                       epoch: The epoch to use for phasing. Should be an ephem date,
+   585                                                           measured from noon Dec. 31, 1899.
+   586                                                   """
+   587         1            3      3.0      0.0          if self.phase_type == 'drift':
+   588         1            2      2.0      0.0              pass
+   589                                                   elif self.phase_type == 'phased':
+   590                                                       raise ValueError('The data is already phased; can only phase '
+   591                                                                        'drift scan data. Use unphase_to_drift to '
+   592                                                                        'convert to a drift scan.')
+   593                                                   else:
+   594                                                       raise ValueError('The phasing type of the data is unknown. '
+   595                                                                        'Set the phase_type to "drift" or "phased" to '
+   596                                                                        'reflect the phasing status of the data')
+   597                                           
+   598         1            2      2.0      0.0          obs = ephem.Observer()
+   599                                                   # obs inits with default values for parameters -- be sure to replace them
+   600         1           68     68.0      0.0          latitude, longitude, altitude = self.telescope_location_lat_lon_alt
+   601         1            2      2.0      0.0          obs.lat = latitude
+   602         1            1      1.0      0.0          obs.lon = longitude
+   603                                           
+   604                                                   # create a pyephem object for the phasing position
+   605         1            2      2.0      0.0          precess_pos = ephem.FixedBody()
+   606         1            2      2.0      0.0          precess_pos._ra = ra
+   607         1            1      1.0      0.0          precess_pos._dec = dec
+   608         1            1      1.0      0.0          precess_pos._epoch = epoch
+   609                                           
+   610                                                   # calculate RA/DEC in J2000 and write to object
+   611         1            2      2.0      0.0          obs.date, obs.epoch = ephem.J2000, ephem.J2000
+   612         1            3      3.0      0.0          precess_pos.compute(obs)
+   613                                           
+   614         1          142    142.0      0.0          self.phase_center_ra = precess_pos.a_ra + 0.0  # force to be a float not ephem.Angle
+   615         1            5      5.0      0.0          self.phase_center_dec = precess_pos.a_dec + 0.0  # force to be a float not ephem.Angle
+   616                                                   # explicitly set epoch to J2000
+   617         1            4      4.0      0.0          self.phase_center_epoch = 2000.0
+   618                                           
+   619         1        11379  11379.0      0.1          unique_times, unique_inds = np.unique(self.time_array, return_index=True)
+   620        57          157      2.8      0.0          for ind, jd in enumerate(unique_times):
+   621        56        45881    819.3      0.3              inds = np.where(self.time_array == jd)[0]
+   622        56          308      5.5      0.0              lst = self.lst_array[unique_inds[ind]]
+   623                                                       # calculate ra/dec of phase center in current epoch
+   624        56          784     14.0      0.0              obs.date, obs.epoch = self.juldate2ephem(jd), self.juldate2ephem(jd)
+   625        56          117      2.1      0.0              precess_pos.compute(obs)
+   626        56         2746     49.0      0.0              ra, dec = precess_pos.a_ra, precess_pos.a_dec
+   627                                           
+   628                                                       # generate rotation matrices
+   629        56         1842     32.9      0.0              m0 = uvutils.top2eq_m(lst - obs.sidereal_time(), latitude)
+   630        56         1439     25.7      0.0              m1 = uvutils.eq2top_m(lst - ra, dec)
+   631                                           
+   632                                                       # rotate and write uvws
+   633        56        10616    189.6      0.1              uvw = self.uvw_array[inds, :]
+   634        56         3756     67.1      0.0              uvw = np.dot(m0, uvw.T).T
+   635        56         3291     58.8      0.0              uvw = np.dot(m1, uvw.T).T
+   636        56         8710    155.5      0.1              self.uvw_array[inds, :] = uvw
+   637                                           
+   638                                                   # calculate data and apply phasor
+   639                                                   w_lambda = (self.uvw_array[:, 2].reshape(self.Nblts, 1) /
+   640         1       491238 491238.0      3.1                      const.c.to('m/s').value * self.freq_array.reshape(1, self.Nfreqs))
+   641         1     11694982 11694982.0     73.3          phs = np.exp(-1j * 2 * np.pi * w_lambda[:, None, :, None])
+   642         1      3677817 3677817.0     23.1          self.data_array *= phs
+   643                                           
+   644         1            4      4.0      0.0          del(obs)
+   645         1           14     14.0      0.0          self.set_phased()
+
+Total time: 14.4262 s
+File: /users/alanman/optimize_pyuvdata/pyuvdata/pyuvdata/uvfits.py
+Function: read_uvfits at line 45
+
+Line #      Hits         Time  Per Hit   % Time  Line Contents
+==============================================================
+    45                                               @profile
+    46                                               def read_uvfits(self, filename, run_check=True, run_check_acceptability=True):
+    47                                                   """
+    48                                                   Read in data from a uvfits file.
+    49                                           
+    50                                                   Args:
+    51                                                       filename: The uvfits file to read from.
+    52                                                       run_check: Option to check for the existence and proper shapes of
+    53                                                           required parameters after reading in the file. Default is True.
+    54                                                       run_check_acceptability: Option to check acceptable range of the values of
+    55                                                           required parameters after reading in the file. Default is True.
+    56                                                   """
+    57         1        12587  12587.0      0.1          F = fits.open(filename)
+    58         1           10     10.0      0.0          D = F[0]  # assumes the visibilities are in the primary hdu
+    59         1         2860   2860.0      0.0          hdr = D.header.copy()
+    60         1          191    191.0      0.0          hdunames = self._indexhdus(F)  # find the rest of the tables
+    61                                           
+    62                                                   # astropy.io fits reader scales date according to relevant PZER0 (?)
+    63         1      3456621 3456621.0     24.0          time0_array = D.data['DATE']
+    64         1            4      4.0      0.0          try:
+    65                                                       # uvfits standard is to have 2 DATE parameters, both floats:
+    66                                                       # DATE (full day) and _DATE (fractional day)
+    67         1          165    165.0      0.0              time1_array = D.data['_DATE']
+    68                                                       self.time_array = (time0_array.astype(np.double) +
+    69                                                                          time1_array.astype(np.double))
+    70         1            4      4.0      0.0          except(KeyError):
+    71                                                       # cotter uvfits files have one DATE that is a double
+    72         1           11     11.0      0.0              self.time_array = time0_array
+    73         1           29     29.0      0.0              if np.finfo(time0_array[0]).precision < 5:
+    74                                                           raise ValueError('JDs in this file are not precise to '
+    75                                                                            'better than a second.')
+    76         1            7      7.0      0.0              if (np.finfo(time0_array[0]).precision > 5 and
+    77         1            7      7.0      0.0                      np.finfo(time0_array[0]).precision < 8):
+    78                                                           warnings.warn('The JDs in this file have sub-second '
+    79                                                                         'precision, but not sub-millisecond. '
+    80                                                                         'Use with caution.')
+    81                                           
+    82         1         9420   9420.0      0.1          self.Ntimes = len(np.unique(self.time_array))
+    83                                           
+    84                                                   # if antenna arrays are present, use them. otherwise use baseline array
+    85         1            3      3.0      0.0          try:
+    86                                                       # Note: uvfits antennas are 1 indexed,
+    87                                                       # need to subtract one to get to 0-indexed
+    88         1       127985 127985.0      0.9              self.ant_1_array = np.int32(D.data.field('ANTENNA1')) - 1
+    89         1        27542  27542.0      0.2              self.ant_2_array = np.int32(D.data.field('ANTENNA2')) - 1
+    90         1        26001  26001.0      0.2              subarray = np.int32(D.data.field('SUBARRAY')) - 1
+    91                                                       # error on files with multiple subarrays
+    92         1        40825  40825.0      0.3              if len(set(subarray)) > 1:
+    93                                                           raise ValueError('This file appears to have multiple subarray '
+    94                                                                            'values; only files with one subarray are '
+    95                                                                            'supported.')
+    96                                                   except(KeyError):
+    97                                                       # cannot set this to be the baseline array because it uses the
+    98                                                       # 256 convention, not our 2048 convention
+    99                                                       bl_input_array = np.int64(D.data.field('BASELINE'))
+   100                                           
+   101                                                       # get antenna arrays based on uvfits baseline array
+   102                                                       self.ant_1_array, self.ant_2_array = \
+   103                                                           self.baseline_to_antnums(bl_input_array)
+   104                                                   # check for multi source files
+   105         1            3      3.0      0.0          try:
+   106         1          170    170.0      0.0              source = D.data.field('SOURCE')
+   107                                                       if len(set(source)) > 1:
+   108                                                           raise ValueError('This file has multiple sources. Only single '
+   109                                                                            'source observations are supported.')
+   110         1            3      3.0      0.0          except:
+   111         1            2      2.0      0.0              pass
+   112                                           
+   113                                                   # get self.baseline_array using our convention
+   114                                                   self.baseline_array = \
+   115         1            9      9.0      0.0              self.antnums_to_baseline(self.ant_1_array,
+   116         1         3254   3254.0      0.0                                       self.ant_2_array)
+   117         1        23001  23001.0      0.2          self.Nbls = len(np.unique(self.baseline_array))
+   118                                           
+   119                                                   # initialize internal variables based on the antenna table
+   120         1        85620  85620.0      0.6          self.Nants_data = int(len(np.unique(self.ant_1_array.tolist() + self.ant_2_array.tolist())))
+   121                                           
+   122         1           16     16.0      0.0          self.set_phased()
+   123                                                   # check if we have an spw dimension
+   124         1          340    340.0      0.0          if hdr.pop('NAXIS') == 7:
+   125         1           64     64.0      0.0              if hdr['NAXIS5'] > 1:
+   126                                                           raise ValueError('Sorry.  Files with more than one spectral' +
+   127                                                                            'window (spw) are not yet supported. A ' +
+   128                                                                            'great project for the interested student!')
+   129         1          338    338.0      0.0              self.data_array = (D.data.field('DATA')[:, 0, 0, :, :, :, 0] +
+   130         1      8472373 8472373.0     58.7                                 1j * D.data.field('DATA')[:, 0, 0, :, :, :, 1])
+   131         1       546361 546361.0      3.8              self.flag_array = (D.data.field('DATA')[:, 0, 0, :, :, :, 2] <= 0)
+   132         1       781385 781385.0      5.4              self.nsample_array = np.abs(D.data.field('DATA')[:, 0, 0, :, :, :, 2])
+   133         1          345    345.0      0.0              self.Nspws = hdr.pop('NAXIS5')
+   134         1            9      9.0      0.0              assert(self.Nspws == self.data_array.shape[1])
+   135                                           
+   136                                                       # the axis number for phase center depends on if the spw exists
+   137                                                       # subtract 1 to be zero-indexed
+   138         1          614    614.0      0.0              self.spw_array = np.int32(self._gethduaxis(D, 5)) - 1
+   139                                           
+   140         1          294    294.0      0.0              self.phase_center_ra_degrees = np.float(hdr.pop('CRVAL6'))
+   141         1          282    282.0      0.0              self.phase_center_dec_degrees = np.float(hdr.pop('CRVAL7'))
+   142                                                   else:
+   143                                                       # in many uvfits files the spw axis is left out,
+   144                                                       # here we put it back in so the dimensionality stays the same
+   145                                                       self.data_array = (D.data.field('DATA')[:, 0, 0, :, :, 0] +
+   146                                                                          1j * D.data.field('DATA')[:, 0, 0, :, :, 1])
+   147                                                       self.data_array = self.data_array[:, np.newaxis, :, :]
+   148                                                       self.flag_array = (D.data.field('DATA')[:, 0, 0, :, :, 2] <= 0)
+   149                                                       self.flag_array = self.flag_array[:, np.newaxis, :, :]
+   150                                                       self.nsample_array = np.abs(D.data.field('DATA')[:, 0, 0, :, :, 2])
+   151                                                       self.nsample_array = (self.nsample_array[:, np.newaxis, :, :])
+   152                                           
+   153                                                       # the axis number for phase center depends on if the spw exists
+   154                                                       self.Nspws = 1
+   155                                                       self.spw_array = np.array([0])
+   156                                           
+   157                                                       self.phase_center_ra_degrees = np.float(hdr.pop('CRVAL5'))
+   158                                                       self.phase_center_dec_degrees = np.float(hdr.pop('CRVAL6'))
+   159                                           
+   160                                                   # get shapes
+   161         1          191    191.0      0.0          self.Nfreqs = hdr.pop('NAXIS4')
+   162         1            6      6.0      0.0          if self.data_array.shape[2] != self.Nfreqs:
+   163                                                       warnings.warn('Nfreqs does not match the number of frequencies in the data')
+   164         1          188    188.0      0.0          self.Npols = hdr.pop('NAXIS3')
+   165         1            6      6.0      0.0          if self.data_array.shape[3] != self.Npols:
+   166                                                       warnings.warn('npols={npols} but found {l} pols in data file'.format(
+   167                                                           npols=self.Npols, l=len(self.polarization_array)))
+   168         1          184    184.0      0.0          self.Nblts = hdr.pop('GCOUNT')
+   169         1            5      5.0      0.0          if self.data_array.shape[0] != self.Nblts:
+   170                                                       warnings.warn('Nblts does not match the number of unique blts in the data')
+   171                                           
+   172                                                   # read baseline vectors in units of seconds, return in meters
+   173         1          304    304.0      0.0          self.uvw_array = (np.array(np.stack((D.data.field('UU'),
+   174         1          235    235.0      0.0                                               D.data.field('VV'),
+   175         1        34285  34285.0      0.2                                               D.data.field('WW')))) *
+   176         1        10224  10224.0      0.1                            const.c.to('m/s').value).T
+   177                                           
+   178         1          618    618.0      0.0          self.freq_array = self._gethduaxis(D, 4)
+   179         1          292    292.0      0.0          self.channel_width = hdr.pop('CDELT4')
+   180                                           
+   181         1            3      3.0      0.0          try:
+   182         1          308    308.0      0.0              self.integration_time = float(D.data.field('INTTIM')[0])
+   183                                                   except:
+   184                                                       if self.Ntimes > 1:
+   185                                                           self.integration_time = \
+   186                                                               float(np.diff(np.sort(list(set(self.time_array))))[0]) * 86400
+   187                                                       else:
+   188                                                           raise ValueError('integration time not specified and only '
+   189                                                                            'one time present')
+   190                                           
+   191         1           11     11.0      0.0          self.freq_array.shape = (self.Nspws,) + self.freq_array.shape
+   192                                           
+   193         1          498    498.0      0.0          self.polarization_array = np.int32(self._gethduaxis(D, 3))
+   194                                           
+   195                                                   # other info -- not required but frequently used
+   196         1          270    270.0      0.0          self.object_name = hdr.pop('OBJECT', None)
+   197         1          256    256.0      0.0          self.telescope_name = hdr.pop('TELESCOP', None)
+   198         1          245    245.0      0.0          self.instrument = hdr.pop('INSTRUME', None)
+   199         1          261    261.0      0.0          latitude_degrees = hdr.pop('LAT', None)
+   200         1          258    258.0      0.0          longitude_degrees = hdr.pop('LON', None)
+   201         1          252    252.0      0.0          altitude = hdr.pop('ALT', None)
+   202         1          319    319.0      0.0          self.history = str(hdr.get('HISTORY', ''))
+   203         1            8      8.0      0.0          if self.pyuvdata_version_str not in self.history.replace('\n', ''):
+   204                                                       self.history += self.pyuvdata_version_str
+   205         6          525     87.5      0.0          while 'HISTORY' in hdr.keys():
+   206         5          473     94.6      0.0              hdr.remove('HISTORY')
+   207         1          245    245.0      0.0          self.vis_units = hdr.pop('BUNIT', 'UNCALIB')
+   208         1          254    254.0      0.0          self.phase_center_epoch = hdr.pop('EPOCH', None)
+   209                                           
+   210                                                   # remove standard FITS header items that are still around
+   211         1            3      3.0      0.0          std_fits_substrings = ['SIMPLE', 'BITPIX', 'EXTEND', 'BLOCKED',
+   212         1            3      3.0      0.0                                 'GROUPS', 'PCOUNT', 'BSCALE', 'BZERO', 'NAXIS',
+   213         1            3      3.0      0.0                                 'PTYPE', 'PSCAL', 'PZERO', 'CTYPE', 'CRVAL',
+   214         1            3      3.0      0.0                                 'CRPIX', 'CDELT', 'CROTA']
+   215        57          230      4.0      0.0          for key in hdr.keys():
+   216      1008         2689      2.7      0.0              for sub in std_fits_substrings:
+   217       952         2834      3.0      0.0                  if key.find(sub) > -1:
+   218        55         3645     66.3      0.0                      hdr.remove(key)
+   219                                           
+   220                                                   # find all the remaining header items and keep them as extra_keywords
+   221         2           10      5.0      0.0          for key in hdr:
+   222         1            3      3.0      0.0              if key == '':
+   223                                                           continue
+   224         1            3      3.0      0.0              if key == 'COMMENT':
+   225                                                           self.extra_keywords[key] = str(hdr.get(key))
+   226                                                       else:
+   227         1          147    147.0      0.0                  self.extra_keywords[key] = hdr.get(key)
+   228                                           
+   229                                                   # READ the antenna table
+   230         1           12     12.0      0.0          ant_hdu = F[hdunames['AIPS AN']]
+   231                                           
+   232                                                   # stuff in columns
+   233         1        15194  15194.0      0.1          ant_names = ant_hdu.data.field('ANNAME').tolist()
+   234         1            7      7.0      0.0          self.antenna_names = []
+   235       129          350      2.7      0.0          for name in ant_names:
+   236       128          509      4.0      0.0              self.antenna_names.append(name.replace('\x00!', ''))
+   237                                           
+   238                                                   # subtract one to get to 0-indexed values rather than 1-indexed values
+   239         1          278    278.0      0.0          self.antenna_numbers = ant_hdu.data.field('NOSTA') - 1
+   240                                           
+   241         1            7      7.0      0.0          self.Nants_telescope = len(self.antenna_numbers)
+   242                                           
+   243                                                   # stuff in the header
+   244         1            4      4.0      0.0          if self.telescope_name is None:
+   245                                                       self.telescope_name = ant_hdu.header['ARRNAM']
+   246                                           
+   247         1            3      3.0      0.0          try:
+   248         1           69     69.0      0.0              xyz_telescope_frame = ant_hdu.header['FRAME']
+   249                                                   except:
+   250                                                       warnings.warn('Required Antenna frame keyword not set, '
+   251                                                                     'setting to ????')
+   252                                                       xyz_telescope_frame = '????'
+   253                                           
+   254                                                   # VLA incorrectly sets ARRAYX/ARRAYY/ARRAYZ to 0, and puts array center
+   255                                                   # in the antenna positions themselves
+   256                                           
+   257         1          168    168.0      0.0          if (np.isclose(ant_hdu.header['ARRAYX'], 0) and
+   258                                                           np.isclose(ant_hdu.header['ARRAYY'], 0) and
+   259                                                           np.isclose(ant_hdu.header['ARRAYZ'], 0)):
+   260                                                       x_telescope = np.mean(ant_hdu.data['STABXYZ'][:, 0])
+   261                                                       y_telescope = np.mean(ant_hdu.data['STABXYZ'][:, 1])
+   262                                                       z_telescope = np.mean(ant_hdu.data['STABXYZ'][:, 2])
+   263                                                       self.antenna_positions = (ant_hdu.data.field('STABXYZ') -
+   264                                                                                 np.array([x_telescope,
+   265                                                                                           y_telescope,
+   266                                                                                           z_telescope]))
+   267                                           
+   268                                                   else:
+   269         1           61     61.0      0.0              x_telescope = ant_hdu.header['ARRAYX']
+   270         1           55     55.0      0.0              y_telescope = ant_hdu.header['ARRAYY']
+   271         1           53     53.0      0.0              z_telescope = ant_hdu.header['ARRAYZ']
+   272         1          248    248.0      0.0              self.antenna_positions = ant_hdu.data.field('STABXYZ')
+   273                                           
+   274         1            3      3.0      0.0          if xyz_telescope_frame == 'ITRF':
+   275         1           11     11.0      0.0              self.telescope_location = np.array([x_telescope, y_telescope, z_telescope])
+   276                                                   else:
+   277                                                       if latitude_degrees is not None and longitude_degrees is not None and altitude is not None:
+   278                                                           self.telescope_location_lat_lon_alt_degrees = (latitude_degrees, longitude_degrees, altitude)
+   279                                           
+   280         1           63     63.0      0.0          self.gst0 = ant_hdu.header['GSTIA0']
+   281         1           58     58.0      0.0          self.rdate = ant_hdu.header['RDATE']
+   282         1           56     56.0      0.0          self.earth_omega = ant_hdu.header['DEGPDY']
+   283         1           56     56.0      0.0          self.dut1 = ant_hdu.header['UT1UTC']
+   284         1            3      3.0      0.0          try:
+   285         1           24     24.0      0.0              self.timesys = ant_hdu.header['TIMESYS']
+   286         1            3      3.0      0.0          except(KeyError):
+   287                                                       # CASA misspells this one
+   288         1           58     58.0      0.0              self.timesys = ant_hdu.header['TIMSYS']
+   289                                           
+   290         1            3      3.0      0.0          del(D)
+   291                                           
+   292         1            3      3.0      0.0          try:
+   293         1          942    942.0      0.0              self.set_telescope_params()
+   294                                                   except ValueError, ve:
+   295                                                       warnings.warn(str(ve))
+   296                                           
+   297         1       614854 614854.0      4.3          self.set_lsts_from_time_array()
+   298                                           
+   299                                                   # check if object has all required UVParameters set
+   300         1            3      3.0      0.0          if run_check:
+   301         1       113947 113947.0      0.8              self.check(run_check_acceptability=run_check_acceptability)
+
+Total time: 32.6351 s
+File: /users/alanman/optimize_pyuvdata/pyuvdata/pyuvdata/uvfits.py
+Function: write_uvfits at line 303
+
+Line #      Hits         Time  Per Hit   % Time  Line Contents
+==============================================================
+   303                                               @profile
+   304                                               def write_uvfits(self, filename, spoof_nonessential=False,
+   305                                                                force_phase=False, run_check=True, run_check_acceptability=True):
+   306                                                   """
+   307                                                   Write the data to a uvfits file.
+   308                                           
+   309                                                   Args:
+   310                                                       filename: The uvfits file to write to.
+   311                                                       spoof_nonessential: Option to spoof the values of optional
+   312                                                           UVParameters that are not set but are required for uvfits files.
+   313                                                           Default is False.
+   314                                                       force_phase: Option to automatically phase drift scan data to
+   315                                                           zenith of the first timestamp. Default is False.
+   316                                                       run_check: Option to check for the existence and proper shapes of
+   317                                                           required parameters before writing the file. Default is True.
+   318                                                       run_check_acceptability: Option to check acceptable range of the values of
+   319                                                           required parameters before writing the file. Default is True.
+   320                                                   """
+   321         1            5      5.0      0.0          if run_check:
+   322         1       124998 124998.0      0.4              self.check(run_check_acceptability=run_check_acceptability)
+   323                                           
+   324         1           14     14.0      0.0          if self.phase_type == 'phased':
+   325                                                       pass
+   326         1            5      5.0      0.0          elif self.phase_type == 'drift':
+   327         1            3      3.0      0.0              if force_phase:
+   328         1           53     53.0      0.0                  print('The data are in drift mode and do not have a '
+   329                                                                 'defined phase center. Phasing to zenith of the first '
+   330                                                                 'timestamp.')
+   331         1     15964681 15964681.0     48.9                  self.phase_to_time(self.time_array[0])
+   332                                                       else:
+   333                                                           raise ValueError('The data are in drift mode. ' +
+   334                                                                            'Set force_phase to true to phase the data ' +
+   335                                                                            'to zenith of the first timestamp before ' +
+   336                                                                            'writing a uvfits file.')
+   337                                                   else:
+   338                                                       raise ValueError('The phasing type of the data is unknown. '
+   339                                                                        'Set the phase_type to drift or phased to '
+   340                                                                        'reflect the phasing status of the data')
+   341                                           
+   342         1           62     62.0      0.0          freq_spacing = self.freq_array[0, 1:] - self.freq_array[0, :-1]
+   343         1           64     64.0      0.0          if not np.isclose(np.min(freq_spacing), np.max(freq_spacing),
+   344         1          150    150.0      0.0                            rtol=self._freq_array.tols[0], atol=self._freq_array.tols[1]):
+   345                                                       raise ValueError('The frequencies are not evenly spaced (probably '
+   346                                                                        'because of a select operation). The uvfits format '
+   347                                                                        'does not support unevenly spaced frequencies.')
+   348         1           18     18.0      0.0          if not np.isclose(np.max(freq_spacing), self.channel_width,
+   349         1           83     83.0      0.0                            rtol=self._freq_array.tols[0], atol=self._freq_array.tols[1]):
+   350                                                       raise ValueError('The frequencies are separated by more than their '
+   351                                                                        'channel width (probably because of a select operation). '
+   352                                                                        'The uvfits format does not support frequencies '
+   353                                                                        'that are spaced by more than their channel width.')
+   354         1           12     12.0      0.0          if self.Npols > 2:
+   355                                                       pol_spacing = self.polarization_array[1:] - self.polarization_array[:-1]
+   356                                                       if np.min(pol_spacing) < np.max(pol_spacing):
+   357                                                           raise ValueError('The polarization values are not evenly spaced (probably '
+   358                                                                            'because of a select operation). The uvfits format '
+   359                                                                            'does not support unevenly spaced polarizations.')
+   360                                           
+   361        11         8640    785.5      0.0          for p in self.extra():
+   362        10           36      3.6      0.0              param = getattr(self, p)
+   363        10           40      4.0      0.0              if param.name in self.uvfits_required_extra:
+   364         6           23      3.8      0.0                  if param.value is None:
+   365         6           19      3.2      0.0                      if spoof_nonessential:
+   366                                                                   # spoof extra keywords required for uvfits
+   367         6           25      4.2      0.0                          if isinstance(param, uvp.AntPositionParameter):
+   368         1           19     19.0      0.0                              param.apply_spoof(self, 'Nants_telescope')
+   369                                                                   else:
+   370         5           28      5.6      0.0                              param.apply_spoof()
+   371         6           25      4.2      0.0                          setattr(self, p, param)
+   372                                                               else:
+   373                                                                   raise ValueError('Required attribute {attribute} '
+   374                                                                                    'for uvfits not defined. Define or '
+   375                                                                                    'set spoof_nonessential to True to '
+   376                                                                                    'spoof this attribute.'
+   377                                                                                    .format(attribute=p))
+   378                                           
+   379         1            5      5.0      0.0          weights_array = self.nsample_array * \
+   380         1      2142990 2142990.0      6.6              np.where(self.flag_array, -1, 1)
+   381         1           39     39.0      0.0          data_array = self.data_array[:, np.newaxis, np.newaxis, :, :, :, np.newaxis]
+   382         1            4      4.0      0.0          weights_array = weights_array[:, np.newaxis, np.newaxis, :, :, :,
+   383         1            5      5.0      0.0                                        np.newaxis]
+   384                                                   # uvfits_array_data shape will be  (Nblts,1,1,[Nspws],Nfreqs,Npols,3)
+   385         1            6      6.0      0.0          uvfits_array_data = np.concatenate([data_array.real,
+   386         1            4      4.0      0.0                                             data_array.imag,
+   387         1      4178199 4178199.0     12.8                                             weights_array], axis=6)
+   388                                           
+   389         1         5501   5501.0      0.0          uvw_array_sec = self.uvw_array / const.c.to('m/s').value
+   390                                                   # jd_midnight = np.floor(self.time_array[0] - 0.5) + 0.5
+   391         1           39     39.0      0.0          tzero = np.float32(self.time_array[0])
+   392                                           
+   393                                                   # uvfits convention is that time_array + relevant PZERO = actual JD
+   394                                                   # We are setting PZERO4 = float32(first time of observation)
+   395         1         1438   1438.0      0.0          time_array = np.float32(self.time_array - np.float64(tzero))
+   396                                           
+   397         1          198    198.0      0.0          int_time_array = (np.zeros_like((time_array), dtype=np.float) +
+   398         1          456    456.0      0.0                            self.integration_time)
+   399                                           
+   400         1           10     10.0      0.0          baselines_use = self.antnums_to_baseline(self.ant_1_array,
+   401         1            5      5.0      0.0                                                   self.ant_2_array,
+   402         1         3807   3807.0      0.0                                                   attempt256=True)
+   403                                                   # Set up dictionaries for populating hdu
+   404                                                   # Note that uvfits antenna arrays are 1-indexed so we add 1
+   405                                                   # to our 0-indexed arrays
+   406         1           12     12.0      0.0          group_parameter_dict = {'UU      ': uvw_array_sec[:, 0],
+   407         1            4      4.0      0.0                                  'VV      ': uvw_array_sec[:, 1],
+   408         1            4      4.0      0.0                                  'WW      ': uvw_array_sec[:, 2],
+   409         1            4      4.0      0.0                                  'DATE    ': time_array,
+   410         1            4      4.0      0.0                                  'BASELINE': baselines_use,
+   411         1          461    461.0      0.0                                  'ANTENNA1': self.ant_1_array + 1,
+   412         1          515    515.0      0.0                                  'ANTENNA2': self.ant_2_array + 1,
+   413         1          409    409.0      0.0                                  'SUBARRAY': np.ones_like(self.ant_1_array),
+   414         1            4      4.0      0.0                                  'INTTIM': int_time_array}
+   415         1            5      5.0      0.0          pscal_dict = {'UU      ': 1.0, 'VV      ': 1.0, 'WW      ': 1.0,
+   416         1            4      4.0      0.0                        'DATE    ': 1.0, 'BASELINE': 1.0, 'ANTENNA1': 1.0,
+   417         1            3      3.0      0.0                        'ANTENNA2': 1.0, 'SUBARRAY': 1.0, 'INTTIM': 1.0}
+   418         1            5      5.0      0.0          pzero_dict = {'UU      ': 0.0, 'VV      ': 0.0, 'WW      ': 0.0,
+   419         1            4      4.0      0.0                        'DATE    ': tzero, 'BASELINE': 0.0, 'ANTENNA1': 0.0,
+   420         1            4      4.0      0.0                        'ANTENNA2': 0.0, 'SUBARRAY': 0.0, 'INTTIM': 0.0}
+   421                                           
+   422                                                   # list contains arrays of [u,v,w,date,baseline];
+   423                                                   # each array has shape (Nblts)
+   424         1          515    515.0      0.0          if (np.max(self.ant_1_array) < 255 and
+   425         1          458    458.0      0.0                  np.max(self.ant_2_array) < 255):
+   426                                                       # if the number of antennas is less than 256 then include both the
+   427                                                       # baseline array and the antenna arrays in the group parameters.
+   428                                                       # Otherwise just use the antenna arrays
+   429         1            4      4.0      0.0              parnames_use = ['UU      ', 'VV      ', 'WW      ',
+   430         1            4      4.0      0.0                              'DATE    ', 'BASELINE', 'ANTENNA1',
+   431         1            5      5.0      0.0                              'ANTENNA2', 'SUBARRAY', 'INTTIM']
+   432                                                   else:
+   433                                                       parnames_use = ['UU      ', 'VV      ', 'WW      ', 'DATE    ',
+   434                                                                       'ANTENNA1', 'ANTENNA2', 'SUBARRAY', 'INTTIM']
+   435                                           
+   436         1            4      4.0      0.0          group_parameter_list = [group_parameter_dict[parname] for
+   437        10           42      4.2      0.0                                  parname in parnames_use]
+   438         1            5      5.0      0.0          hdu = fits.GroupData(uvfits_array_data, parnames=parnames_use,
+   439         1      1963159 1963159.0      6.0                               pardata=group_parameter_list, bitpix=-32)
+   440         1         9105   9105.0      0.0          hdu = fits.GroupsHDU(hdu)
+   441                                           
+   442        10           42      4.2      0.0          for i, key in enumerate(parnames_use):
+   443         9         1908    212.0      0.0              hdu.header['PSCAL' + str(i + 1) + '  '] = pscal_dict[key]
+   444         9         1969    218.8      0.0              hdu.header['PZERO' + str(i + 1) + '  '] = pzero_dict[key]
+   445                                           
+   446                                                   # ISO string of first time in self.time_array
+   447         1           13     13.0      0.0          hdu.header['DATE-OBS'] = Time(self.time_array[0], scale='utc',
+   448         1          759    759.0      0.0                                        format='jd').isot
+   449                                           
+   450         1          225    225.0      0.0          hdu.header['CTYPE2  '] = 'COMPLEX '
+   451         1          226    226.0      0.0          hdu.header['CRVAL2  '] = 1.0
+   452         1          224    224.0      0.0          hdu.header['CRPIX2  '] = 1.0
+   453         1          222    222.0      0.0          hdu.header['CDELT2  '] = 1.0
+   454                                           
+   455         1          221    221.0      0.0          hdu.header['CTYPE3  '] = 'STOKES  '
+   456         1          236    236.0      0.0          hdu.header['CRVAL3  '] = self.polarization_array[0]
+   457         1          228    228.0      0.0          hdu.header['CRPIX3  '] = 1.0
+   458         1            4      4.0      0.0          try:
+   459         1          252    252.0      0.0              hdu.header['CDELT3  '] = np.diff(self.polarization_array)[0]
+   460                                                   except(IndexError):
+   461                                                       hdu.header['CDELT3  '] = 1.0
+   462                                           
+   463         1          226    226.0      0.0          hdu.header['CTYPE4  '] = 'FREQ    '
+   464         1          247    247.0      0.0          hdu.header['CRVAL4  '] = self.freq_array[0, 0]
+   465         1          232    232.0      0.0          hdu.header['CRPIX4  '] = 1.0
+   466         1          262    262.0      0.0          hdu.header['CDELT4  '] = np.diff(self.freq_array[0])[0]
+   467                                           
+   468         1          230    230.0      0.0          hdu.header['CTYPE5  '] = 'IF      '
+   469         1          238    238.0      0.0          hdu.header['CRVAL5  '] = 1.0
+   470         1          234    234.0      0.0          hdu.header['CRPIX5  '] = 1.0
+   471         1          235    235.0      0.0          hdu.header['CDELT5  '] = 1.0
+   472                                           
+   473         1          232    232.0      0.0          hdu.header['CTYPE6  '] = 'RA'
+   474         1          250    250.0      0.0          hdu.header['CRVAL6  '] = self.phase_center_ra_degrees
+   475                                           
+   476         1          235    235.0      0.0          hdu.header['CTYPE7  '] = 'DEC'
+   477         1          243    243.0      0.0          hdu.header['CRVAL7  '] = self.phase_center_dec_degrees
+   478                                           
+   479         1          237    237.0      0.0          hdu.header['BUNIT   '] = self.vis_units
+   480         1          247    247.0      0.0          hdu.header['BSCALE  '] = 1.0
+   481         1          243    243.0      0.0          hdu.header['BZERO   '] = 0.0
+   482                                           
+   483         1          246    246.0      0.0          hdu.header['OBJECT  '] = self.object_name
+   484         1          241    241.0      0.0          hdu.header['TELESCOP'] = self.telescope_name
+   485         1          362    362.0      0.0          hdu.header['LAT     '] = self.telescope_location_lat_lon_alt_degrees[0]
+   486         1          329    329.0      0.0          hdu.header['LON     '] = self.telescope_location_lat_lon_alt_degrees[1]
+   487         1          329    329.0      0.0          hdu.header['ALT     '] = self.telescope_location_lat_lon_alt[2]
+   488         1          258    258.0      0.0          hdu.header['INSTRUME'] = self.instrument
+   489         1          255    255.0      0.0          hdu.header['EPOCH   '] = float(self.phase_center_epoch)
+   490                                           
+   491         3           16      5.3      0.0          for line in self.history.splitlines():
+   492         2         1092    546.0      0.0              hdu.header.add_history(line)
+   493                                           
+   494                                                   # end standard keywords; begin user-defined keywords
+   495         1            8      8.0      0.0          for key, value in self.extra_keywords.iteritems():
+   496                                                       # header keywords have to be 8 characters or less
+   497                                                       keyword = key[:8].upper()
+   498                                                       # print "keyword=-value-", keyword+'='+'-'+str(value)+'-'
+   499                                                       if keyword == 'COMMENT':
+   500                                                           for line in value.splitlines():
+   501                                                               hdu.header.add_comment(line)
+   502                                                       else:
+   503                                                           hdu.header[keyword] = value
+   504                                           
+   505                                                   # ADD the ANTENNA table
+   506         1           10     10.0      0.0          staxof = np.zeros(self.Nants_telescope)
+   507                                           
+   508                                                   # 0 specifies alt-az, 6 would specify a phased array
+   509         1            7      7.0      0.0          mntsta = np.zeros(self.Nants_telescope)
+   510                                           
+   511                                                   # beware, X can mean just about anything
+   512         1           53     53.0      0.0          poltya = np.full((self.Nants_telescope), 'X', dtype=np.object_)
+   513         1           25     25.0      0.0          polaa = [90.0] + np.zeros(self.Nants_telescope)
+   514         1           18     18.0      0.0          poltyb = np.full((self.Nants_telescope), 'Y', dtype=np.object_)
+   515         1           17     17.0      0.0          polab = [0.0] + np.zeros(self.Nants_telescope)
+   516                                           
+   517         1            4      4.0      0.0          col1 = fits.Column(name='ANNAME', format='8A',
+   518         1          492    492.0      0.0                             array=self.antenna_names)
+   519         1            4      4.0      0.0          col2 = fits.Column(name='STABXYZ', format='3D',
+   520         1          484    484.0      0.0                             array=self.antenna_positions)
+   521                                                   # convert to 1-indexed from 0-indexed indicies
+   522         1            5      5.0      0.0          col3 = fits.Column(name='NOSTA', format='1J',
+   523         1          422    422.0      0.0                             array=self.antenna_numbers + 1)
+   524         1          398    398.0      0.0          col4 = fits.Column(name='MNTSTA', format='1J', array=mntsta)
+   525         1          393    393.0      0.0          col5 = fits.Column(name='STAXOF', format='1E', array=staxof)
+   526         1          425    425.0      0.0          col6 = fits.Column(name='POLTYA', format='1A', array=poltya)
+   527         1          419    419.0      0.0          col7 = fits.Column(name='POLAA', format='1E', array=polaa)
+   528                                                   # col8 = fits.Column(name='POLCALA', format='3E', array=polcala)
+   529         1          393    393.0      0.0          col9 = fits.Column(name='POLTYB', format='1A', array=poltyb)
+   530         1          392    392.0      0.0          col10 = fits.Column(name='POLAB', format='1E', array=polab)
+   531                                                   # col11 = fits.Column(name='POLCALB', format='3E', array=polcalb)
+   532                                                   # note ORBPARM is technically required, but we didn't put it in
+   533                                           
+   534         1            4      4.0      0.0          cols = fits.ColDefs([col1, col2, col3, col4, col5, col6, col7, col9,
+   535         1         1626   1626.0      0.0                               col10])
+   536                                           
+   537         1        24300  24300.0      0.1          ant_hdu = fits.BinTableHDU.from_columns(cols)
+   538                                           
+   539         1          208    208.0      0.0          ant_hdu.header['EXTNAME'] = 'AIPS AN'
+   540         1          198    198.0      0.0          ant_hdu.header['EXTVER'] = 1
+   541                                           
+   542                                                   # write XYZ coordinates if not already defined
+   543         1          227    227.0      0.0          ant_hdu.header['ARRAYX'] = self.telescope_location[0]
+   544         1          218    218.0      0.0          ant_hdu.header['ARRAYY'] = self.telescope_location[1]
+   545         1          216    216.0      0.0          ant_hdu.header['ARRAYZ'] = self.telescope_location[2]
+   546         1          205    205.0      0.0          ant_hdu.header['FRAME'] = 'ITRF'
+   547         1          216    216.0      0.0          ant_hdu.header['GSTIA0'] = self.gst0
+   548         1          220    220.0      0.0          ant_hdu.header['FREQ'] = self.freq_array[0, 0]
+   549         1          205    205.0      0.0          ant_hdu.header['RDATE'] = self.rdate
+   550         1          214    214.0      0.0          ant_hdu.header['UT1UTC'] = self.dut1
+   551                                           
+   552         1          211    211.0      0.0          ant_hdu.header['TIMSYS'] = self.timesys
+   553         1            5      5.0      0.0          if self.timesys == 'IAT':
+   554                                                       warnings.warn('This file has an "IAT" time system. Files of '
+   555                                                                     'this type are not properly supported')
+   556         1          215    215.0      0.0          ant_hdu.header['ARRNAM'] = self.telescope_name
+   557         1          207    207.0      0.0          ant_hdu.header['NO_IF'] = self.Nspws
+   558         1          218    218.0      0.0          ant_hdu.header['DEGPDY'] = self.earth_omega
+   559                                                   # ant_hdu.header['IATUTC'] = 35.
+   560                                           
+   561                                                   # set mandatory parameters which are not supported by this object
+   562                                                   # (or that we just don't understand)
+   563         1          207    207.0      0.0          ant_hdu.header['NUMORB'] = 0
+   564                                           
+   565                                                   # note: Bart had this set to 3. We've set it 0 after aips 117. -jph
+   566         1          211    211.0      0.0          ant_hdu.header['NOPCAL'] = 0
+   567                                           
+   568         1          214    214.0      0.0          ant_hdu.header['POLTYPE'] = 'X-Y LIN'
+   569                                           
+   570                                                   # note: we do not support the concept of "frequency setups"
+   571                                                   # -- lists of spws given in a SU table.
+   572         1          209    209.0      0.0          ant_hdu.header['FREQID'] = -1
+   573                                           
+   574                                                   # if there are offsets in images, this could be the culprit
+   575         1          284    284.0      0.0          ant_hdu.header['POLARX'] = 0.0
+   576         1          228    228.0      0.0          ant_hdu.header['POLARY'] = 0.0
+   577                                           
+   578         1          216    216.0      0.0          ant_hdu.header['DATUTC'] = 0  # ONLY UTC SUPPORTED
+   579                                           
+   580                                                   # we always output right handed coordinates
+   581         1          219    219.0      0.0          ant_hdu.header['XYZHAND'] = 'RIGHT'
+   582                                           
+   583                                                   # ADD the FQ table
+   584                                                   # skipping for now and limiting to a single spw
+   585                                           
+   586                                                   # write the file
+   587         1           92     92.0      0.0          hdulist = fits.HDUList(hdus=[hdu, ant_hdu])
+   588         1            9      9.0      0.0          if float(astropy.__version__[0:3]) < 1.3:
+   589         1      8180674 8180674.0     25.1              hdulist.writeto(filename, clobber=True)
+   590                                                   else:
+   591                                                       hdulist.writeto(filename, overwrite=True)
+
