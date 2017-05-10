@@ -114,6 +114,7 @@ def test_ReadUVFitsWriteMiriad():
     del(miriad_uv)
 
 
+
 def test_multi_files():
     """
     Reading multiple files at once.
@@ -138,3 +139,28 @@ def test_multi_files():
                     ' pyuvdata.', uv1.history.replace('\n', ''))
     uv1.history = uv_full.history
     nt.assert_equal(uv1, uv_full)
+
+def test_readMSWriteUVFits_CASAHistory():
+    """
+    read in .ms file.
+    Write to a uvfits file, read back in and check for casa_history parameter
+    """
+    ms_uv=UVData()
+    uvfits_uv=UVData()
+    ms_file=os.path.join(DATA_PATH,'day2_TDEM0003_10s_norx_1src_1spw.ms')
+    testfile=os.path.join(DATA_PATH,'test/outtest_uvfits')
+    read_status=uvtest.checkWarnigs(ms_uv.read_ms,[ms_file],message='Telescope EVLA is not',
+                                    nwarnings=0)
+    ms_uv.write_uvfits(testfile,clobber=True)
+    uvfits_read_status=uvtest.checkWarnings(uvfits_uv.read_uvfits,[testfile],
+                                            message='Telescope EVLA is not')
+    nt.assert_true(read_status)
+    nt.assert_true(uvfits_read_status)
+    nt.assert_equal(ms_uv,uvfits_uv)
+    nt.assert_equal(ms_uv.casa_history,uvfits_uv.casa_history)
+    del(uvfits_uv)
+    del(ms_uv)
+
+
+    
+
