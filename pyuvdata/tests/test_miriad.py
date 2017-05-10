@@ -206,6 +206,28 @@ def test_readWriteReadMiriad():
     del(uv_in)
     del(uv_out)
 
+def test_readMSWriteMiriad_CASAHistory():
+    """                                                                                                                                                                                                          
+    read in .ms file.                                                                                                                                                                                            
+    Write to a miriad file, read back in and check for casa_history parameter                                                                                                                                    
+    """
+    ms_uv=UVData()
+    miriad_uv=UVData()
+    ms_file=os.path.join(DATA_PATH,'day2_TDEM0003_10s_norx_1src_1spw.ms')
+    testfile=os.path.join(DATA_PATH,'test/outtest_miriad')
+    read_status=uvtest.checkWarnigs(ms_uv.read_ms,[ms_file],message='Telescope EVLA is not',
+                                    nwarnings=0)
+    ms_uv.write_miriad(testfile,clobber=True)
+    miriad_read_status=uvtest.checkWarnings(miriad_uv.read_miriad,[testfile],
+                                            message='Telescope EVLA is not')
+    nt.assert_true(read_status)
+    nt.assert_true(miriad_read_status)
+    nt.assert_equal(ms_uv,miriad_uv)
+    nt.assert_equal(ms_uv.casa_history,miriad_uv.casa_history)
+    del(miriad_uv)
+    del(ms_uv)
+
+
 
 def test_rwrMiriad_antpos_issues():
     """
