@@ -178,6 +178,9 @@ class UVFITS(UVData):
             self.history += self.pyuvdata_version_str
         while 'HISTORY' in hdr.keys():
             hdr.remove('HISTORY')
+
+        if 'CASAHIST' in hdr.keys():
+            self.casa_history=hdr.pop('CASAHIST',None)
         self.vis_units = hdr.pop('BUNIT', 'UNCALIB')
         self.phase_center_epoch = hdr.pop('EPOCH', None)
 
@@ -469,6 +472,11 @@ class UVFITS(UVData):
         for line in self.history.splitlines():
             hdu.header.add_history(line)
 
+        #if we have casa_history, add it
+        if self.casa_history:
+            hdu.header['CASAHIST']=self.casa_history
+        
+
         # end standard keywords; begin user-defined keywords
         for key, value in self.extra_keywords.iteritems():
             # header keywords have to be 8 characters or less
@@ -567,3 +575,4 @@ class UVFITS(UVData):
             hdulist.writeto(filename, clobber=True)
         else:
             hdulist.writeto(filename, overwrite=True)
+            
