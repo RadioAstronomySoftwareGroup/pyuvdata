@@ -118,7 +118,7 @@ class Miriad(UVData):
 
         self.history = uv['history']
         #if casa history in keys, then also set that
-        if 'casahist' in uv.keys():
+        if 'casahist' in uv.vartable.keys():
             self.casa_history=uv['casahist']
         if self.pyuvdata_version_str not in self.history.replace('\n', ''):
             self.history += self.pyuvdata_version_str
@@ -525,6 +525,7 @@ class Miriad(UVData):
         uv.add_var('nants', 'i')
         #if the parameter _casa_history exists, then add that to the header as well
         if self.casa_history:
+            uv.add_var('casahist','s')
             uv['casahist']=self.casa_history
         # Miriad has no way to keep track of antenna numbers, so the antenna
         # numbers are simply the index for each antenna in any array that
