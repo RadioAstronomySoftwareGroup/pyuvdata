@@ -474,8 +474,12 @@ class UVFITS(UVData):
 
         #if we have casa_history, add it
         if self.casa_history:
+            #!--Lines added for testing!
+            print any(ord(c)>128 for c in self.casa_history)
+            print [ord(c) for c in self.casa_history]
+            #!--End testing!
             hdu.header['CASAHIST']=self.casa_history
-        
+            
 
         # end standard keywords; begin user-defined keywords
         for key, value in self.extra_keywords.iteritems():
