@@ -9,7 +9,7 @@ from pyuvdata import UVData
 import parameter as uvp
 import casacore.tables as tables
 import telescopes
-
+import re
 """
 This dictionary defines the mapping
 between CASA polarization numbers and 
@@ -64,6 +64,25 @@ class MS(UVData):
             history_str+=newline
             if tbrow<ntimes-1:
                 message_str+='\n'
+        def is_not_ascii(s):
+            return any(ord(c) >= 128 for c in s)
+        def find_not_ascii(s):
+            output=[]
+            for c in s:
+                if ord(c)>=128:
+                    output+=c
+            return output
+        #!--Lines Added for Testing!
+        #print('not ascii:')
+        #print len(find_not_ascii(history_str))
+        #print(find_not_ascii(history_str))
+        print 'decoded\n'
+        print history_str.decode('ascii')
+        print 'decoded\n'
+        _ascii_text_re = re.compile(r'[ -~]*\Z')
+        
+        print _ascii_text_re.match(history_str)
+        #!--End Testing!
         return message_str,history_str
 
 
