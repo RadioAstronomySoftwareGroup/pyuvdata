@@ -434,7 +434,7 @@ class UVFITS(UVData):
         group_parameter_list = [group_parameter_dict[parname] for
                                 parname in parnames_use]
         hdu = fits.GroupData(uvfits_array_data, parnames=parnames_use,
-                             pardata=group_parameter_list, bitpix=-32)
+                             pardata=group_parameter_list, bitpix=-64)
         hdu = fits.GroupsHDU(hdu)
 
         for i, key in enumerate(parnames_use):
