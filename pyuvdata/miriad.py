@@ -326,7 +326,7 @@ class Miriad(UVData):
         self.data_array = np.zeros((self.Nblts, self.Nspws, self.Nfreqs,
                                     self.Npols), dtype=np.complex64)
         self.flag_array = np.ones(self.data_array.shape, dtype=np.bool)
-        self.uvw_array = np.zeros((self.Nblts, 3))
+        self.uvw_array = np.zeros((self.Nblts, 3), dtype=np.float64)
         # NOTE: Using our lst calculator, which uses astropy,
         # instead of aipy values which come from pyephem.
         # The differences are of order 5 seconds.
@@ -341,7 +341,7 @@ class Miriad(UVData):
         # Temporary arrays to hold polarization axis, which will be collapsed
         ra_pol_list = np.zeros((self.Nblts, self.Npols))
         dec_pol_list = np.zeros((self.Nblts, self.Npols))
-        uvw_pol_list = np.zeros((self.Nblts, 3, self.Npols))
+        uvw_pol_list = np.zeros((self.Nblts, 3, self.Npols), dtype=np.float64)
         c_ns = const.c.to('m/ns').value
         for pol, data in data_accumulator.iteritems():
             pol_ind = self._pol_to_ind(pol)

@@ -171,7 +171,7 @@ class UVFITS(UVData):
         # read baseline vectors in units of seconds, return in meters
         self.uvw_array = (np.array(np.stack((D.data.field('UU'),
                                              D.data.field('VV'),
-                                             D.data.field('WW')))) *
+                                             D.data.field('WW'))), dtype=np.float64) *
                           const.c.to('m/s').value).T
 
         self.freq_array = self._gethduaxis(D, 4)

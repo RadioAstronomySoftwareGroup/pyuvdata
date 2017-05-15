@@ -129,7 +129,7 @@ class FHD(UVData):
             self.nsample_array[:, 0, :, pol_i] = np.abs(vis_weights_data[pol])
 
         # In FHD, uvws are in seconds not meters!
-        self.uvw_array = np.zeros((self.Nblts, 3))
+        self.uvw_array = np.zeros((self.Nblts, 3), dtype=np.float64)
         self.uvw_array[:, 0] = params['UU'][0] * const.c.to('m/s').value
         self.uvw_array[:, 1] = params['VV'][0] * const.c.to('m/s').value
         self.uvw_array[:, 2] = params['WW'][0] * const.c.to('m/s').value

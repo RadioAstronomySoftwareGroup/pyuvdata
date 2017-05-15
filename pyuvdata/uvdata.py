@@ -506,7 +506,7 @@ class UVData(UVBase):
         self.zenith_dec = np.zeros_like(self.time_array)
 
         # apply -w phasor
-        w_lambda = (self.uvw_array[:, 2].reshape(self.Nblts, 1).astype(np.float64) /
+        w_lambda = (self.uvw_array[:, 2].reshape(self.Nblts, 1) /
                     const.c.to('m/s').value * self.freq_array.reshape(1, self.Nfreqs))
         phs = np.exp(-1j * 2 * np.pi * (-1) * w_lambda[:, None, :, None])
         self.data_array *= phs
@@ -613,7 +613,6 @@ class UVData(UVBase):
         self.phase_center_epoch = 2000.0
 
         unique_times, unique_inds = np.unique(self.time_array, return_index=True)
-        uvws = np.zeros(self.uvw_array.shape, dtype=np.float64)
         for ind, jd in enumerate(unique_times):
             inds = np.where(self.time_array == jd)[0]
             lst = self.lst_array[unique_inds[ind]]
@@ -631,10 +630,9 @@ class UVData(UVBase):
             uvw = np.dot(m0, uvw.T).T
             uvw = np.dot(m1, uvw.T).T
             self.uvw_array[inds, :] = uvw
-            uvws[inds, :] = uvw
 
         # calculate data and apply phasor
-        w_lambda = (uvws[:, 2].reshape(self.Nblts, 1) /
+        w_lambda = (self.uvw_array[:, 2].reshape(self.Nblts, 1) /
                     const.c.to('m/s').value * self.freq_array.reshape(1, self.Nfreqs))
         phs = np.exp(-1j * 2 * np.pi * w_lambda[:, None, :, None])
         self.data_array *= phs
