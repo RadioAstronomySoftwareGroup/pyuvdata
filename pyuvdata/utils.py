@@ -11,51 +11,160 @@ e_prime_squared = 6.73949674228e-3
 
 def LatLonAlt_from_XYZ(xyz):
     """
-    Calculate lat/lon/alt from topocentric x,y,z.
+    Calculate lat/lon/alt from ECEF x,y,z.
 
     Args:
-        xyz: numpy array, shape (3,), with topocentric x,y,z coordinates
+        xyz: numpy array, shape (3, Npts), with ECEF x,y,z coordinates
 
     Returns:
-        tuple of latitude, longitude, altitude values in radians & meters
+        tuple of latitude, longitude, altitude numpy arrays (if Npts > 1) or values (if Npts = 1) in radians & meters
     """
+    # convert to a numpy array
+    xyz = np.array(xyz)
+    if xyz.shape[0] != 3:
+        raise ValueError('The first dimension of the ECEF xyz array must be length 3')
+    if len(xyz.shape) == 1:
+        Npts = 1
+        xyz = xyz[:, np.newaxis]
+    else:
+        Npts = xyz.shape[1]
+
     # checking for acceptable values
-    if np.linalg.norm(xyz) < 6.35e6 or np.linalg.norm(xyz) > 6.39e6:
-        raise ValueError('xyz values should be topocentric x, y, z coordinates in meters')
+    if np.any(np.linalg.norm(xyz, axis=0) < 6.35e6) or np.any(np.linalg.norm(xyz, axis=0) > 6.39e6):
+        raise ValueError('xyz values should be ECEF x, y, z coordinates in meters')
 
     # see wikipedia geodetic_datum and Datum transformations of
     # GPS positions PDF in docs/references folder
-    gps_p = np.sqrt(xyz[0]**2 + xyz[1]**2)
-    gps_theta = np.arctan2(xyz[2] * gps_a, gps_p * gps_b)
-    latitude = np.arctan2(xyz[2] + e_prime_squared * gps_b *
+    gps_p = np.sqrt(xyz[0, :]**2 + xyz[1, :]**2)
+    gps_theta = np.arctan2(xyz[2, :] * gps_a, gps_p * gps_b)
+    latitude = np.arctan2(xyz[2, :] + e_prime_squared * gps_b *
                           np.sin(gps_theta)**3, gps_p - e_squared * gps_a *
                           np.cos(gps_theta)**3)
 
-    longitude = np.arctan2(xyz[1], xyz[0])
+    longitude = np.arctan2(xyz[1, :], xyz[0, :])
     gps_N = gps_a / np.sqrt(1 - e_squared * np.sin(latitude)**2)
     altitude = ((gps_p / np.cos(latitude)) - gps_N)
+
+    if Npts == 1:
+        longitude = longitude[0]
+        latitude = latitude[0]
+        altitude = altitude[0]
     return latitude, longitude, altitude
 
 
 def XYZ_from_LatLonAlt(latitude, longitude, altitude):
     """
-    Calculate topocentric x,y,z from lat/lon/alt values.
+    Calculate ECEF x,y,z from lat/lon/alt values.
 
     Args:
-        latitude: latitude in radians
-        longitude: longitude in radians
-        altitude: altitude in meters
+        latitude: latitude in radians, can be a single value or a vector of length Npts
+        longitude: longitude in radians, can be a single value or a vector of length Npts
+        altitude: altitude in meters, can be a single value or a vector of length Npts
 
     Returns:
-        numpy array, shape (3,), with topocentric x,y,z coordinates
+        numpy array, shape (3, Npts) (if Npts > 1) or (3,) (if Npts = 1), with ECEF x,y,z coordinates
     """
+    latitude = np.array(latitude)
+    longitude = np.array(longitude)
+    altitude = np.array(altitude)
+    Npts = latitude.size
+    if longitude.size != Npts:
+        raise ValueError('latitude, longitude and altitude must all have the same length')
+    if altitude.size != Npts:
+        raise ValueError('latitude, longitude and altitude must all have the same length')
+
     # see wikipedia geodetic_datum and Datum transformations of
     # GPS positions PDF in docs/references folder
     gps_N = gps_a / np.sqrt(1 - e_squared * np.sin(latitude)**2)
-    xyz = np.zeros(3)
-    xyz[0] = ((gps_N + altitude) * np.cos(latitude) * np.cos(longitude))
-    xyz[1] = ((gps_N + altitude) * np.cos(latitude) * np.sin(longitude))
-    xyz[2] = ((gps_b**2 / gps_a**2 * gps_N + altitude) * np.sin(latitude))
+    xyz = np.zeros((3, Npts))
+    xyz[0, :] = ((gps_N + altitude) * np.cos(latitude) * np.cos(longitude))
+    xyz[1, :] = ((gps_N + altitude) * np.cos(latitude) * np.sin(longitude))
+    xyz[2, :] = ((gps_b**2 / gps_a**2 * gps_N + altitude) * np.sin(latitude))
+
+    xyz = np.squeeze(xyz)
+    return xyz
+
+
+def ENU_from_ECEF(xyz, latitude, longitude, altitude):
+    """
+    Calculate local ENU (east, north, up) coordinates from ECEF coordinates.
+
+    Args:
+        xyz: numpy array, shape (3, Npts), with ECEF x,y,z coordinates
+        latitude: latitude of center of ENU coordinates in radians
+        longitude: longitude of center of ENU coordinates in radians
+        altitude: altitude of center of ENU coordinates in radians
+
+    Returns:
+        numpy array, shape (3, Npts), with local ENU coordinates
+    """
+    if xyz.shape[0] != 3:
+        raise ValueError('The first dimension of the ECEF xyz array must be length 3')
+    if len(xyz.shape) == 1:
+        Npts = 1
+    else:
+        Npts = xyz.shape[1]
+
+    xyz_center = XYZ_from_LatLonAlt(latitude, longitude, altitude)
+
+    if Npts == 1:
+        xyz = xyz[:, np.newaxis]
+    xyz_use = np.zeros_like(xyz)
+    xyz_use[0, :] = xyz[0, :] - xyz_center[0]
+    xyz_use[1, :] = xyz[1, :] - xyz_center[1]
+    xyz_use[2, :] = xyz[2, :] - xyz_center[2]
+    xyz = np.squeeze(xyz)
+
+    enu = np.zeros((3, Npts))
+    enu[0, :] = (-np.sin(longitude) * xyz_use[0, :] + np.cos(longitude) * xyz_use[1, :])
+    enu[1, :] = (-np.sin(latitude) * np.cos(longitude) * xyz_use[0, :] -
+                 np.sin(latitude) * np.sin(longitude) * xyz_use[1, :] +
+                 np.cos(latitude) * xyz_use[2, :])
+    enu[2, :] = (np.cos(latitude) * np.cos(longitude) * xyz_use[0, :] +
+                 np.cos(latitude) * np.sin(longitude) * xyz_use[1, :] +
+                 np.sin(latitude) * xyz_use[2, :])
+    enu = np.squeeze(enu)
+
+    return enu
+
+
+def ECEF_from_ENU(enu, latitude, longitude, altitude):
+    """
+    Calculate ECEF coordinates from local ENU (east, north, up) coordinates.
+
+    Args:
+        enu: numpy array, shape (3, Npts), with local ENU coordinates
+        latitude: latitude of center of ENU coordinates in radians
+        longitude: longitude of center of ENU coordinates in radians
+
+    Returns:
+        numpy array, shape (3, Npts), with ECEF x,y,z coordinates
+    """
+    if enu.shape[0] != 3:
+        raise ValueError('The first dimension of the local ENU array must be length 3')
+    if len(enu.shape) == 1:
+        Npts = 1
+    else:
+        Npts = enu.shape[1]
+
+    xyz = np.zeros((3, Npts))
+    if Npts == 1:
+        enu = enu[:, np.newaxis]
+    xyz[0, :] = (-np.sin(latitude) * np.cos(longitude) * enu[1, :] -
+                 np.sin(longitude) * enu[0, :] +
+                 np.cos(latitude) * np.cos(longitude) * enu[2, :])
+    xyz[1, :] = (-np.sin(latitude) * np.sin(longitude) * enu[1, :] +
+                 np.cos(longitude) * enu[0, :] +
+                 np.cos(latitude) * np.sin(longitude) * enu[2, :])
+    xyz[2, :] = (np.cos(latitude) * enu[1, :] +
+                 np.sin(latitude) * enu[2, :])
+    enu = np.squeeze(enu)
+
+    xyz_center = XYZ_from_LatLonAlt(latitude, longitude, altitude)
+    xyz[0, :] = xyz[0, :] + xyz_center[0]
+    xyz[1, :] = xyz[1, :] + xyz_center[1]
+    xyz[2, :] = xyz[2, :] + xyz_center[2]
+    xyz = np.squeeze(xyz)
 
     return xyz
 
