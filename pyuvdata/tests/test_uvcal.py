@@ -287,9 +287,8 @@ class TestUVCalSelectGain(object):
 
         # check for warnings and errors associated with unevenly spaced times
         self.gain_object2 = copy.deepcopy(self.gain_object)
-        status = uvtest.checkWarnings(self.gain_object2.select, [], {'times': self.gain_object2.time_array[[0, 2, 3]]},
-                                      message='Selected times are not evenly spaced')
-        nt.assert_true(status)
+        uvtest.checkWarnings(self.gain_object2.select, [], {'times': self.gain_object2.time_array[[0, 2, 3]]},
+                             message='Selected times are not evenly spaced')
         nt.assert_raises(ValueError, self.gain_object2.write_calfits, write_file_calfits)
 
     def test_select_frequencies(self):
@@ -319,9 +318,8 @@ class TestUVCalSelectGain(object):
 
         # check for warnings and errors associated with unevenly spaced frequencies
         self.gain_object2 = copy.deepcopy(self.gain_object)
-        status = uvtest.checkWarnings(self.gain_object2.select, [], {'frequencies': self.gain_object2.freq_array[0, [0, 5, 6]]},
-                                      message='Selected frequencies are not evenly spaced')
-        nt.assert_true(status)
+        uvtest.checkWarnings(self.gain_object2.select, [], {'frequencies': self.gain_object2.freq_array[0, [0, 5, 6]]},
+                             message='Selected frequencies are not evenly spaced')
         nt.assert_raises(ValueError, self.gain_object2.write_calfits, write_file_calfits)
 
     def test_select_freq_chans(self):
@@ -388,9 +386,8 @@ class TestUVCalSelectGain(object):
         nt.assert_raises(ValueError, self.gain_object2.select, jones=[-3, -4])
 
         # check for warnings and errors associated with unevenly spaced polarizations
-        status = uvtest.checkWarnings(self.gain_object.select, [], {'jones': self.gain_object.jones_array[[0, 1, 3]]},
-                                      message='Selected jones polarization terms are not evenly spaced')
-        nt.assert_true(status)
+        uvtest.checkWarnings(self.gain_object.select, [], {'jones': self.gain_object.jones_array[[0, 1, 3]]},
+                             message='Selected jones polarization terms are not evenly spaced')
         write_file_calfits = os.path.join(DATA_PATH, 'test/select_test.calfits')
         nt.assert_raises(ValueError, self.gain_object.write_calfits, write_file_calfits)
 
@@ -526,9 +523,8 @@ class TestUVCalSelectDelay(object):
 
         # check for warnings and errors associated with unevenly spaced times
         self.delay_object2 = copy.deepcopy(self.delay_object)
-        status = uvtest.checkWarnings(self.delay_object2.select, [], {'times': self.delay_object2.time_array[[0, 2, 3]]},
-                                      message='Selected times are not evenly spaced')
-        nt.assert_true(status)
+        uvtest.checkWarnings(self.delay_object2.select, [], {'times': self.delay_object2.time_array[[0, 2, 3]]},
+                             message='Selected times are not evenly spaced')
         write_file_calfits = os.path.join(DATA_PATH, 'test/select_test.calfits')
         nt.assert_raises(ValueError, self.delay_object2.write_calfits, write_file_calfits)
 
@@ -552,9 +548,8 @@ class TestUVCalSelectDelay(object):
 
         # check for warnings and errors associated with unevenly spaced frequencies
         self.delay_object2 = copy.deepcopy(self.delay_object)
-        status = uvtest.checkWarnings(self.delay_object2.select, [], {'frequencies': self.delay_object2.freq_array[0, [0, 5, 6]]},
-                                      message='Selected frequencies are not evenly spaced')
-        nt.assert_true(status)
+        uvtest.checkWarnings(self.delay_object2.select, [], {'frequencies': self.delay_object2.freq_array[0, [0, 5, 6]]},
+                             message='Selected frequencies are not evenly spaced')
         write_file_calfits = os.path.join(DATA_PATH, 'test/select_test.calfits')
         nt.assert_raises(ValueError, self.delay_object2.write_calfits, write_file_calfits)
 
@@ -625,9 +620,8 @@ class TestUVCalSelectDelay(object):
         nt.assert_raises(ValueError, self.delay_object2.select, jones=[-3, -4])
 
         # check for warnings and errors associated with unevenly spaced polarizations
-        status = uvtest.checkWarnings(self.delay_object.select, [], {'jones': self.delay_object.jones_array[[0, 1, 3]]},
-                                      message='Selected jones polarization terms are not evenly spaced')
-        nt.assert_true(status)
+        uvtest.checkWarnings(self.delay_object.select, [], {'jones': self.delay_object.jones_array[[0, 1, 3]]},
+                             message='Selected jones polarization terms are not evenly spaced')
         write_file_calfits = os.path.join(DATA_PATH, 'test/select_test.calfits')
         nt.assert_raises(ValueError, self.delay_object.write_calfits, write_file_calfits)
 

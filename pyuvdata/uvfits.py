@@ -158,15 +158,8 @@ class UVFITS(UVData):
 
         # get shapes
         self.Nfreqs = hdr.pop('NAXIS4')
-        if self.data_array.shape[2] != self.Nfreqs:
-            warnings.warn('Nfreqs does not match the number of frequencies in the data')
         self.Npols = hdr.pop('NAXIS3')
-        if self.data_array.shape[3] != self.Npols:
-            warnings.warn('npols={npols} but found {l} pols in data file'.format(
-                npols=self.Npols, l=len(self.polarization_array)))
         self.Nblts = hdr.pop('GCOUNT')
-        if self.data_array.shape[0] != self.Nblts:
-            warnings.warn('Nblts does not match the number of unique blts in the data')
 
         # read baseline vectors in units of seconds, return in meters
         self.uvw_array = (np.array(np.stack((D.data.field('UU'),
@@ -337,18 +330,19 @@ class UVFITS(UVData):
                              'Set the phase_type to drift or phased to '
                              'reflect the phasing status of the data')
 
-        freq_spacing = self.freq_array[0, 1:] - self.freq_array[0, :-1]
-        if not np.isclose(np.min(freq_spacing), np.max(freq_spacing),
-                          rtol=self._freq_array.tols[0], atol=self._freq_array.tols[1]):
-            raise ValueError('The frequencies are not evenly spaced (probably '
-                             'because of a select operation). The uvfits format '
-                             'does not support unevenly spaced frequencies.')
-        if not np.isclose(np.max(freq_spacing), self.channel_width,
-                          rtol=self._freq_array.tols[0], atol=self._freq_array.tols[1]):
-            raise ValueError('The frequencies are separated by more than their '
-                             'channel width (probably because of a select operation). '
-                             'The uvfits format does not support frequencies '
-                             'that are spaced by more than their channel width.')
+        if self.Nfreqs > 1:
+            freq_spacing = self.freq_array[0, 1:] - self.freq_array[0, :-1]
+            if not np.isclose(np.min(freq_spacing), np.max(freq_spacing),
+                              rtol=self._freq_array.tols[0], atol=self._freq_array.tols[1]):
+                raise ValueError('The frequencies are not evenly spaced (probably '
+                                 'because of a select operation). The uvfits format '
+                                 'does not support unevenly spaced frequencies.')
+            if not np.isclose(np.max(freq_spacing), self.channel_width,
+                              rtol=self._freq_array.tols[0], atol=self._freq_array.tols[1]):
+                raise ValueError('The frequencies are separated by more than their '
+                                 'channel width (probably because of a select operation). '
+                                 'The uvfits format does not support frequencies '
+                                 'that are spaced by more than their channel width.')
         if self.Npols > 2:
             pol_spacing = self.polarization_array[1:] - self.polarization_array[:-1]
             if np.min(pol_spacing) < np.max(pol_spacing):
@@ -548,9 +542,9 @@ class UVFITS(UVData):
         ant_hdu.header['UT1UTC'] = self.dut1
 
         ant_hdu.header['TIMSYS'] = self.timesys
-        if self.timesys == 'IAT':
-            warnings.warn('This file has an "IAT" time system. Files of '
-                          'this type are not properly supported')
+        if self.timesys != 'UTC':
+            raise ValueError('This file has a time system {tsys}. '
+                             'Only "UTC" time system files are supported'.format(tsys=self.timesys))
         ant_hdu.header['ARRNAM'] = self.telescope_name
         ant_hdu.header['NO_IF'] = self.Nspws
         ant_hdu.header['DEGPDY'] = self.earth_omega

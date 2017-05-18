@@ -12,9 +12,7 @@ def test_ReadNRAO():
     testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
     expected_extra_keywords = ['OBSERVER', 'SORTORD', 'SPECSYS',
                                'RESTFREQ', 'ORIGIN']
-    status = uvtest.checkWarnings(UV.read_uvfits, [testfile],
-                                  message='Telescope EVLA is not')
-    nt.assert_true(status)
+    uvtest.checkWarnings(UV.read_uvfits, [testfile], message='Telescope EVLA is not')
     nt.assert_equal(expected_extra_keywords.sort(),
                     UV.extra_keywords.keys().sort())
     del(UV)
@@ -24,9 +22,7 @@ def test_noSPW():
     """Test reading in a PAPER uvfits file with no spw axis."""
     UV = UVData()
     testfile_no_spw = os.path.join(DATA_PATH, 'zen.2456865.60537.xy.uvcRREAAM.uvfits')
-    status = uvtest.checkWarnings(UV.read_uvfits, [testfile_no_spw],
-                                  known_warning='paper_uvfits')
-    nt.assert_true(status)
+    uvtest.checkWarnings(UV.read_uvfits, [testfile_no_spw], known_warning='paper_uvfits')
     del(UV)
 
 
@@ -39,10 +35,11 @@ def test_noSPW():
 #     nt.assert_true(test)
 
 def test_breakReadUVFits():
-    """Test errors on reading in a uvfits file with subarrays."""
+    """Test errors on reading in a uvfits file with subarrays and other problems."""
     UV = UVData()
     multi_subarray_file = os.path.join(DATA_PATH, 'multi_subarray.uvfits')
     nt.assert_raises(ValueError, UV.read_uvfits, multi_subarray_file)
+
     del(UV)
 
 
@@ -65,14 +62,17 @@ def test_readwriteread():
     uv_out = UVData()
     testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
     write_file = os.path.join(DATA_PATH, 'test/outtest_casa.uvfits')
-    read_status = uvtest.checkWarnings(uv_in.read_uvfits, [testfile],
-                                       message='Telescope EVLA is not')
+    uvtest.checkWarnings(uv_in.read_uvfits, [testfile], message='Telescope EVLA is not')
     uv_in.write_uvfits(write_file)
-    write_status = uvtest.checkWarnings(uv_out.read_uvfits, [write_file],
-                                        message='Telescope EVLA is not')
-    nt.assert_true(read_status)
-    nt.assert_true(write_status)
+    uvtest.checkWarnings(uv_out.read_uvfits, [write_file], message='Telescope EVLA is not')
     nt.assert_equal(uv_in, uv_out)
+
+    # check error if timesys is 'IAT'
+    testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    uvtest.checkWarnings(uv_in.read_uvfits, [testfile], message='Telescope EVLA is not')
+    uv_in.timesys = 'IAT'
+    nt.assert_raises(ValueError, uv_in.write_uvfits, write_file)
+
     del(uv_in)
     del(uv_out)
 
@@ -87,14 +87,26 @@ def test_ReadUVFitsWriteMiriad():
     miriad_uv = UVData()
     uvfits_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
     testfile = os.path.join(DATA_PATH, 'test/outtest_miriad')
-    read_status = uvtest.checkWarnings(uvfits_uv.read_uvfits, [uvfits_file],
-                                       message='Telescope EVLA is not')
+    uvtest.checkWarnings(uvfits_uv.read_uvfits, [uvfits_file], message='Telescope EVLA is not')
     uvfits_uv.write_miriad(testfile, clobber=True)
-    miriad_read_status = uvtest.checkWarnings(miriad_uv.read_miriad, [testfile],
-                                              message='Telescope EVLA is not')
-    nt.assert_true(read_status)
-    nt.assert_true(miriad_read_status)
+    uvtest.checkWarnings(miriad_uv.read_miriad, [testfile], message='Telescope EVLA is not')
 
     nt.assert_equal(miriad_uv, uvfits_uv)
+
+    # check that setting the phase_type keyword also works
+    uvtest.checkWarnings(miriad_uv.read_miriad, [testfile], {'phase_type': 'phased'},
+                         message='Telescope EVLA is not')
+
+    # check that setting the phase_type to drift raises an error
+    nt.assert_raises(ValueError, miriad_uv.read_miriad, testfile, phase_type='drift'),
+
+    # check that setting it works after selecting a single time
+    uvfits_uv.select(times=uvfits_uv.time_array[0])
+    uvfits_uv.write_miriad(testfile, clobber=True)
+    uvtest.checkWarnings(miriad_uv.read_miriad, [testfile],
+                         message='Telescope EVLA is not')
+
+    nt.assert_equal(miriad_uv, uvfits_uv)
+
     del(uvfits_uv)
     del(miriad_uv)
