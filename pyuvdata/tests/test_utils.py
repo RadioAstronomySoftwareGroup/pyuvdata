@@ -1,7 +1,9 @@
 """Tests for common utility functions."""
+import os
 import nose.tools as nt
 import pyuvdata
 import numpy as np
+from pyuvdata.data import DATA_PATH
 
 ref_latlonalt = (-26.7 * np.pi / 180.0, 116.7 * np.pi / 180.0, 377.8)
 ref_xyz = (-2562123.42683, 5094215.40141, -2848728.58869)
@@ -96,3 +98,47 @@ def test_ENU_tofrom_ECEF():
     nt.assert_raises(ValueError, pyuvdata.ENU_from_ECEF, xyz[0:1, :], center_lat, center_lon, center_alt)
     nt.assert_raises(ValueError, pyuvdata.ECEF_from_ENU, enu[0:1, :], center_lat, center_lon, center_alt)
     nt.assert_raises(ValueError, pyuvdata.ENU_from_ECEF, xyz / 2., center_lat, center_lon, center_alt)
+
+
+def test_mwa_ecef_conversion():
+    '''
+    Test based on comparing the antenna locations in a Cotter uvfits file to
+    the antenna locations in MWA_tools.
+
+    They only match to <1m, but given that we don't know the exact provenance
+    of these two location sources, that seems good enough.
+    '''
+
+    test_data_file = os.path.join(DATA_PATH, 'mwa128_ant_layouts.npz')
+    f = np.load(test_data_file)
+
+    # From the STABXYZ table in a cotter-generated uvfits file, obsid = 1066666832
+    xyz = f['stabxyz']
+    # From a text file antenna_locations.txt in MWA_Tools/scripts
+    txt_topo = f['txt_topo']
+
+    # From the unphased uvw coordinates of obsid 1066666832, positions relative to antenna 0
+    # these aren't used in the current test, but are interesting and might help with phasing diagnosis in the future
+    uvw_topo = f['uvw_topo']
+    # Sky coordinates are flipped for uvw derived values
+    uvw_topo = -uvw_topo
+    uvw_topo += txt_topo[0]
+
+    # transpose these arrays to get them into the right shape
+    txt_topo = txt_topo.T
+    uvw_topo = uvw_topo.T
+
+    # ARRAYX, ARRAYY, ARRAYZ in ECEF frame from Cotter file
+    arrcent = f['arrcent']
+    mwa = pyuvdata.get_telescope('mwa')
+    lat, lon, alt = mwa.telescope_location_lat_lon_alt
+
+    cosl, sinl = np.cos(lon), np.sin(lon)
+    rot_m = np.array([[cosl, -sinl, 0], [sinl, cosl, 0], [0, 0, 1]])
+    # The STABXYZ coordinates are defined with X through the local meridian, so rotate back to the prime meridian and add to arrcent to get ECEF
+    xyz = np.dot(rot_m, xyz)
+    xyz = (xyz.T + arrcent).T
+
+    enu = pyuvdata.ENU_from_ECEF(xyz, lat, lon, alt)
+
+    nt.assert_true(np.allclose(enu, txt_topo, atol=1.))
