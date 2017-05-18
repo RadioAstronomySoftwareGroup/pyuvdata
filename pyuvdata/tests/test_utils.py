@@ -95,3 +95,4 @@ def test_ENU_tofrom_ECEF():
     # error checking
     nt.assert_raises(ValueError, pyuvdata.ENU_from_ECEF, xyz[0:1, :], center_lat, center_lon, center_alt)
     nt.assert_raises(ValueError, pyuvdata.ECEF_from_ENU, enu[0:1, :], center_lat, center_lon, center_alt)
+    nt.assert_raises(ValueError, pyuvdata.ENU_from_ECEF, xyz / 2., center_lat, center_lon, center_alt)
