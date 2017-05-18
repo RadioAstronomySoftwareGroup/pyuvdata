@@ -41,9 +41,9 @@ def test_readwriteread_delays():
     uv_out = UVCal()
     testfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.HH.uvc.fits')
     write_file = os.path.join(DATA_PATH, 'test/outtest_firstcal.fits')
-    uvtest.checkWarnings(uv_in.read_calfits, [testfile], nwarnings=0)
+    uv_in.read_calfits(testfile)
     uv_in.write_calfits(write_file, clobber=True)
-    uvtest.checkWarnings(uv_out.read_calfits, [write_file], nwarnings=0)
+    uv_out.read_calfits(write_file)
     nt.assert_equal(uv_in, uv_out)
     del(uv_in)
     del(uv_out)
@@ -63,7 +63,7 @@ def test_input_flag_array():
     uv_in.read_calfits(testfile)
     uv_in.input_flag_array = np.zeros(uv_in._input_flag_array.expected_shape(uv_in), dtype=bool)
     uv_in.write_calfits(write_file, clobber=True)
-    uvtest.checkWarnings(uv_out.read_calfits, [write_file], nwarnings=0)
+    uv_out.read_calfits(write_file)
     nt.assert_equal(uv_in, uv_out)
 
     # Repeat for delay version
@@ -71,7 +71,7 @@ def test_input_flag_array():
     uv_in.read_calfits(testfile)
     uv_in.input_flag_array = np.zeros(uv_in._input_flag_array.expected_shape(uv_in), dtype=bool)
     uv_in.write_calfits(write_file, clobber=True)
-    uvtest.checkWarnings(uv_out.read_calfits, [write_file], nwarnings=0)
+    uv_out.read_calfits(write_file)
     nt.assert_equal(uv_in, uv_out)
     del(uv_in)
     del(uv_out)
@@ -98,7 +98,7 @@ def test_jones():
     uv_in.quality_array = np.zeros(uv_in._quality_array.expected_shape(uv_in))
 
     uv_in.write_calfits(write_file, clobber=True)
-    uvtest.checkWarnings(uv_out.read_calfits, [write_file], nwarnings=0)
+    uv_out.read_calfits(write_file)
     nt.assert_equal(uv_in, uv_out)
 
     # Repeat for delay version
@@ -113,7 +113,7 @@ def test_jones():
     uv_in.quality_array = np.zeros(uv_in._quality_array.expected_shape(uv_in))
 
     uv_in.write_calfits(write_file, clobber=True)
-    uvtest.checkWarnings(uv_out.read_calfits, [write_file], nwarnings=0)
+    uv_out.read_calfits(write_file)
     nt.assert_equal(uv_in, uv_out)
     del(uv_in)
     del(uv_out)
