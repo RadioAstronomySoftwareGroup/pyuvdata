@@ -105,6 +105,13 @@ def ENU_from_ECEF(xyz, latitude, longitude, altitude):
     else:
         Npts = xyz.shape[1]
 
+    # check that these are sensible ECEF values -- their magnitudes need to be
+    # on the order of Earth's radius
+    ecef_magnitudes = np.linalg.norm(xyz, axis=0)
+    sensible_radius_range = (6.35e6, 6.39e6)
+    if np.any(ecef_magnitudes <= sensible_radius_range[0]) or np.any(ecef_magnitudes >= sensible_radius_range[1]):
+        raise ValueError('ECEF vector magnitudes must be on the order of the radius of the earth')
+
     xyz_center = XYZ_from_LatLonAlt(latitude, longitude, altitude)
 
     if Npts == 1:
