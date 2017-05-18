@@ -174,6 +174,13 @@ class TestUVDataBasicMethods(object):
         self.uv_object.Nants_data = self.uv_object.Nants_telescope + 1
         nt.assert_raises(ValueError, self.uv_object.check)
 
+    def test_converttofiletype(self):
+        fhd_obj = self.uv_object._convert_to_filetype('fhd')
+        self.uv_object._convert_from_filetype(fhd_obj)
+        nt.assert_equal(self.uv_object, self.uv_object2)
+
+        nt.assert_raises(ValueError, self.uv_object._convert_to_filetype, 'foo')
+
 
 class TestBaselineAntnumMethods(object):
     """Setup for tests on antnum, baseline conversion."""
@@ -193,16 +200,27 @@ class TestBaselineAntnumMethods(object):
         nt.assert_equal(self.uv_object.baseline_to_antnums(67585), (0, 0))
         nt.assert_raises(StandardError, self.uv_object2.baseline_to_antnums, 67585)
 
+        ant_pairs = [(10, 20), (280, 310)]
+        for pair in ant_pairs:
+            if np.max(np.array(pair)) < 255:
+                bl = self.uv_object.antnums_to_baseline(pair[0], pair[1], attempt256=True)
+                ant_pair_out = self.uv_object.baseline_to_antnums(bl)
+                nt.assert_equal(pair, ant_pair_out)
+
+            bl = self.uv_object.antnums_to_baseline(pair[0], pair[1], attempt256=False)
+            ant_pair_out = self.uv_object.baseline_to_antnums(bl)
+            nt.assert_equal(pair, ant_pair_out)
+
     def test_antnums_to_baselines(self):
         """Test antums to baseline conversion for 256 & larger conventions."""
         nt.assert_equal(self.uv_object.antnums_to_baseline(0, 0), 67585)
-        nt.assert_equal(self.uv_object.antnums_to_baseline(257, 256), 592130)
+        nt.assert_equal(self.uv_object.antnums_to_baseline(257, 256), 594177)
+        nt.assert_equal(self.uv_object.baseline_to_antnums(594177), (257, 256))
         # Check attempt256
         nt.assert_equal(self.uv_object.antnums_to_baseline(0, 0, attempt256=True), 257)
-        nt.assert_equal(self.uv_object.antnums_to_baseline(257, 256), 592130)
-        nt.assert_true(uvtest.checkWarnings(self.uv_object.antnums_to_baseline,
-                                            [257, 256], {'attempt256': True},
-                                            message='found > 256 antennas'))
+        nt.assert_equal(self.uv_object.antnums_to_baseline(257, 256), 594177)
+        uvtest.checkWarnings(self.uv_object.antnums_to_baseline, [257, 256],
+                             {'attempt256': True}, message='found > 256 antennas')
         nt.assert_raises(StandardError, self.uv_object2.antnums_to_baseline, 0, 0)
 
 
@@ -223,16 +241,32 @@ def test_phase_unphaseHERA():
     # Note the RA/DEC values in the raw file were calculated from the lat/long
     # in the file, which don't agree with our known_telescopes.
     # So for this test we use the lat/lon in the file.
-    status = uvtest.checkWarnings(UV_raw.read_miriad, [testfile],
-                                  {'correct_lat_lon': False}, known_warning='miriad')
-
+    uvtest.checkWarnings(UV_raw.read_miriad, [testfile], {'correct_lat_lon': False},
+                         message='Altitude is not present in file and latitude and '
+                                 'longitude values do not match')
     UV_phase = UVData()
-    status = uvtest.checkWarnings(UV_phase.read_miriad, [testfile],
-                                  {'correct_lat_lon': False}, known_warning='miriad')
+    uvtest.checkWarnings(UV_phase.read_miriad, [testfile], {'correct_lat_lon': False},
+                         message='Altitude is not present in file and '
+                                 'latitude and longitude values do not match')
     UV_phase.phase(0., 0., ephem.J2000)
     UV_phase.unphase_to_drift()
 
     nt.assert_equal(UV_raw, UV_phase)
+
+    # check errors when trying to unphase drift or unknown data
+    nt.assert_raises(ValueError, UV_raw.unphase_to_drift)
+    UV_raw.set_unknown_phase_type()
+    nt.assert_raises(ValueError, UV_raw.unphase_to_drift)
+
+    # check errors when trying to phase phased or unknown data
+    UV_phase.phase(0., 0., ephem.J2000)
+    nt.assert_raises(ValueError, UV_phase.phase, 0., 0., ephem.J2000)
+    nt.assert_raises(ValueError, UV_phase.phase_to_time, UV_phase.time_array[0])
+
+    UV_phase.set_unknown_phase_type()
+    nt.assert_raises(ValueError, UV_phase.phase, 0., 0., ephem.J2000)
+    nt.assert_raises(ValueError, UV_phase.phase_to_time, UV_phase.time_array[0])
+
     del(UV_phase)
     del(UV_raw)
 
@@ -240,8 +274,7 @@ def test_phase_unphaseHERA():
 def test_set_phase_unknown():
     uv_object = UVData()
     testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-    uvtest.checkWarnings(uv_object.read_uvfits, [testfile],
-                         message='Telescope EVLA is not')
+    uvtest.checkWarnings(uv_object.read_uvfits, [testfile], message='Telescope EVLA is not')
 
     uv_object.set_unknown_phase_type()
     nt.assert_equal(uv_object.phase_type, 'unknown')
@@ -433,23 +466,32 @@ def test_select_frequencies():
     nt.assert_equal(old_history + '  Downselected to specific frequencies '
                     'using pyuvdata.', uv_object2.history)
 
+    # check that selecting one frequency works
+    uv_object2 = copy.deepcopy(uv_object)
+    uv_object2.select(frequencies=freqs_to_keep[0])
+    nt.assert_equal(1, uv_object2.Nfreqs)
+    nt.assert_true(freqs_to_keep[0] in uv_object2.freq_array)
+    for f in uv_object2.freq_array:
+        nt.assert_true(f in [freqs_to_keep[0]])
+
+    nt.assert_equal(old_history + '  Downselected to specific frequencies '
+                    'using pyuvdata.', uv_object2.history)
+
     # check for errors associated with frequencies not included in data
     nt.assert_raises(ValueError, uv_object.select, frequencies=[np.max(uv_object.freq_array) + uv_object.channel_width])
 
     # check for warnings and errors associated with unevenly spaced or non-contiguous frequencies
     uv_object2 = copy.deepcopy(uv_object)
-    status = uvtest.checkWarnings(uv_object2.select, [], {'frequencies': uv_object2.freq_array[0, [0, 5, 6]]},
-                                  message='Selected frequencies are not evenly spaced')
-    nt.assert_true(status)
+    uvtest.checkWarnings(uv_object2.select, [], {'frequencies': uv_object2.freq_array[0, [0, 5, 6]]},
+                         message='Selected frequencies are not evenly spaced')
     write_file_uvfits = os.path.join(DATA_PATH, 'test/select_test.uvfits')
     write_file_miriad = os.path.join(DATA_PATH, 'test/select_test.uv')
     nt.assert_raises(ValueError, uv_object2.write_uvfits, write_file_uvfits)
     nt.assert_raises(ValueError, uv_object2.write_miriad, write_file_miriad)
 
     uv_object2 = copy.deepcopy(uv_object)
-    status = uvtest.checkWarnings(uv_object2.select, [], {'frequencies': uv_object2.freq_array[0, [0, 2, 4]]},
-                                  message='Selected frequencies are not contiguous')
-    nt.assert_true(status)
+    uvtest.checkWarnings(uv_object2.select, [], {'frequencies': uv_object2.freq_array[0, [0, 2, 4]]},
+                         message='Selected frequencies are not contiguous')
     nt.assert_raises(ValueError, uv_object2.write_uvfits, write_file_uvfits)
     nt.assert_raises(ValueError, uv_object2.write_miriad, write_file_miriad)
 
@@ -512,9 +554,8 @@ def test_select_polarizations():
     nt.assert_raises(ValueError, uv_object2.select, polarizations=[-3, -4])
 
     # check for warnings and errors associated with unevenly spaced polarizations
-    status = uvtest.checkWarnings(uv_object.select, [], {'polarizations': uv_object.polarization_array[[0, 1, 3]]},
-                                  message='Selected polarization values are not evenly spaced')
-    nt.assert_true(status)
+    uvtest.checkWarnings(uv_object.select, [], {'polarizations': uv_object.polarization_array[[0, 1, 3]]},
+                         message='Selected polarization values are not evenly spaced')
     write_file_uvfits = os.path.join(DATA_PATH, 'test/select_test.uvfits')
     nt.assert_raises(ValueError, uv_object.write_uvfits, write_file_uvfits)
 

@@ -55,12 +55,13 @@ def checkWarnings(func, func_args=[], func_kwargs={},
             print('wrong number of warnings')
             for idx, wi in enumerate(w):
                 print('warning {i} is: {w}'.format(i=idx, w=wi))
-            return False
+            assert(False)
         else:
             for i, w_i in enumerate(w):
                 if w_i.category is not category[i]:
-                    status = False
+                    assert(False)
                 if message[i] is not None:
                     if message[i] not in str(w_i.message):
-                        return False
-    return True
+                        print('expected message ' + str(i) + ' was: ', message[i])
+                        print('message ' + str(i) + ' was: ', str(w_i.message))
+                        assert(False)

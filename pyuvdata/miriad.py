@@ -26,7 +26,8 @@ class Miriad(UVData):
                   "polarization_array".format(pol=pol))
         return pol_ind
 
-    def read_miriad(self, filepath, correct_lat_lon=True, run_check=True, run_check_acceptability=True):
+    def read_miriad(self, filepath, correct_lat_lon=True, run_check=True,
+                    run_check_acceptability=True, phase_type=None):
         """
         Read in data from a miriad file.
 
@@ -330,7 +331,8 @@ class Miriad(UVData):
         # NOTE: Using our lst calculator, which uses astropy,
         # instead of aipy values which come from pyephem.
         # The differences are of order 5 seconds.
-        self.set_lsts_from_time_array()
+        if self.telescope_location is not None:
+            self.set_lsts_from_time_array()
         self.nsample_array = np.ones(self.data_array.shape, dtype=np.float)
         self.freq_array = (np.arange(self.Nfreqs) * self.channel_width +
                            uv['sfreq'] * 1e9)
@@ -396,18 +398,50 @@ class Miriad(UVData):
                 ra_list[blt_index] = ra_pol_list[blt_index, 0]
                 dec_list[blt_index] = dec_pol_list[blt_index, 0]
 
-        # check if ra is constant throughout file; if it is,
-        # file is tracking if not, file is drift scanning
-        blt_good = np.where(~np.all(self.flag_array, axis=(1, 2, 3)))
-        if np.isclose(np.mean(np.diff(ra_list[blt_good])), 0.):
-            self.set_phased()
+        # first check to see if the phase_type was specified.
+        if phase_type is not None:
+            if phase_type is 'phased':
+                self.set_phased()
+            elif phase_type is 'drift':
+                self.set_drift()
+            else:
+                raise ValueError('The phase_type was not recognized. '
+                                 'Set the phase_type to "drift" or "phased" to '
+                                 'reflect the phasing status of the data')
+        else:
+            # check if ra is constant throughout file; if it is,
+            # file is tracking if not, file is drift scanning
+            if self.Ntimes > 1:
+                blt_good = np.where(~np.all(self.flag_array, axis=(1, 2, 3)))
+                if np.isclose(np.mean(np.diff(ra_list[blt_good])), 0.):
+                    self.set_phased()
+                else:
+                    self.set_drift()
+            else:
+                # if there's only one time, checking for consistent RAs doesn't work.
+                # instead check for the presence of an epoch variable, which isn't
+                # really a good option, but at least it prevents crashes.
+                if 'epoch' in uv.vartable.keys():
+                    self.set_phased()
+                else:
+                    self.set_drift()
+
+        if self.phase_type == 'phased':
+            # check that the RA values do not vary
+            blt_good = np.where(~np.all(self.flag_array, axis=(1, 2, 3)))
+            if not np.isclose(np.mean(np.diff(ra_list[blt_good])), 0.):
+                raise(ValueError, 'phase_type is "phased" but the RA values are varying.')
             self.phase_center_ra = ra_list[0]
             self.phase_center_dec = dec_list[0]
             self.phase_center_epoch = uv['epoch']
         else:
-            self.set_drift()
+            # check that the RA values are not constant (if more than one time present)
+            blt_good = np.where(~np.all(self.flag_array, axis=(1, 2, 3)))
+            if np.isclose(np.mean(np.diff(ra_list[blt_good])), 0.) and self.Ntimes > 1:
+                raise(ValueError, 'phase_type is "drift" but the RA values are constant.')
             self.zenith_ra = ra_list
             self.zenith_dec = dec_list
+
         self.vis_units = 'UNCALIB'  # assume no calibration
 
         try:
@@ -446,18 +480,19 @@ class Miriad(UVData):
             else:
                 raise ValueError('File exists: skipping')
 
-        freq_spacing = self.freq_array[0, 1:] - self.freq_array[0, :-1]
-        if not np.isclose(np.min(freq_spacing), np.max(freq_spacing),
-                          rtol=self._freq_array.tols[0], atol=self._freq_array.tols[1]):
-            raise ValueError('The frequencies are not evenly spaced (probably '
-                             'because of a select operation). The miriad format '
-                             'does not support unevenly spaced frequencies.')
-        if not np.isclose(np.max(freq_spacing), self.channel_width,
-                          rtol=self._freq_array.tols[0], atol=self._freq_array.tols[1]):
-            raise ValueError('The frequencies are separated by more than their '
-                             'channel width (probably because of a select operation). '
-                             'The miriad format does not support frequencies '
-                             'that are spaced by more than their channel width.')
+        if self.Nfreqs > 1:
+            freq_spacing = self.freq_array[0, 1:] - self.freq_array[0, :-1]
+            if not np.isclose(np.min(freq_spacing), np.max(freq_spacing),
+                              rtol=self._freq_array.tols[0], atol=self._freq_array.tols[1]):
+                raise ValueError('The frequencies are not evenly spaced (probably '
+                                 'because of a select operation). The miriad format '
+                                 'does not support unevenly spaced frequencies.')
+            if not np.isclose(np.max(freq_spacing), self.channel_width,
+                              rtol=self._freq_array.tols[0], atol=self._freq_array.tols[1]):
+                raise ValueError('The frequencies are separated by more than their '
+                                 'channel width (probably because of a select operation). '
+                                 'The miriad format does not support frequencies '
+                                 'that are spaced by more than their channel width.')
 
         uv = a.miriad.UV(filepath, status='new')
 
@@ -526,9 +561,9 @@ class Miriad(UVData):
         uv['altitude'] = self.telescope_location_lat_lon_alt[2]
 
         if not no_antnums:
-            # Add in the antenna_numbers so we have them if we read this file back in
-            # for some reason Miriad doesn't handle an array of integers properly,
-            # so convert to floats here and integers on read
+            # Add in the antenna_numbers so we have them if we read this file back in.
+            # For some reason Miriad doesn't handle an array of integers properly,
+            # so convert to floats here and integers on read.
             uv.add_var('antnums', 'd')
             uv['antnums'] = self.antenna_numbers.astype(np.float64)
 

@@ -389,14 +389,9 @@ class UVData(UVBase):
                     params_set.append(self_param.name)
                     prop_name = self_param.name
                     setattr(self, prop_name, getattr(telescope_obj, prop_name))
-            if len(params_set) == 1:
-                params_set_str = params_set[0]
-                warnings.warn('{param} is not set. Using known values '
-                              'for {telescope_name}.'.format(param=params_set_str,
-                                                             telescope_name=telescope_obj.telescope_name))
-            elif len(params_set) > 1:
+            if len(params_set) > 0:
                 params_set_str = ', '.join(params_set)
-                warnings.warn('{params} are not set. Using known values '
+                warnings.warn('{params} is not set. Using known values '
                               'for {telescope_name}.'.format(params=params_set_str,
                                                              telescope_name=telescope_obj.telescope_name))
         else:
@@ -453,7 +448,7 @@ class UVData(UVBase):
                           'with CASA etc'
                 warnings.warn(message)
 
-        return np.int64(2048 * (ant2 + 1) + (ant1 + 1) + 2**16)
+        return np.int64(2048 * (ant1 + 1) + (ant2 + 1) + 2**16)
 
     def set_lsts_from_time_array(self):
         """Set the lst_array based from the time_array."""
@@ -838,15 +833,16 @@ class UVData(UVBase):
                 else:
                     raise ValueError('Frequency {f} is not present in the freq_array'.format(f=f))
 
-            freq_ind_separation = freq_inds[1:] - freq_inds[:-1]
-            if np.min(freq_ind_separation) < np.max(freq_ind_separation):
-                warnings.warn('Selected frequencies are not evenly spaced. This '
-                              'will make it impossible to write this data out to '
-                              'some file types')
-            elif np.max(freq_ind_separation) > 1:
-                warnings.warn('Selected frequencies are not contiguous. This '
-                              'will make it impossible to write this data out to '
-                              'some file types.')
+            if len(frequencies) > 1:
+                freq_ind_separation = freq_inds[1:] - freq_inds[:-1]
+                if np.min(freq_ind_separation) < np.max(freq_ind_separation):
+                    warnings.warn('Selected frequencies are not evenly spaced. This '
+                                  'will make it impossible to write this data out to '
+                                  'some file types')
+                elif np.max(freq_ind_separation) > 1:
+                    warnings.warn('Selected frequencies are not contiguous. This '
+                                  'will make it impossible to write this data out to '
+                                  'some file types.')
 
             freq_inds = list(sorted(set(list(freq_inds))))
             self.Nfreqs = len(freq_inds)
@@ -976,7 +972,8 @@ class UVData(UVBase):
         self._convert_from_filetype(fhd_obj)
         del(fhd_obj)
 
-    def read_miriad(self, filepath, correct_lat_lon=True, run_check=True, run_check_acceptability=True):
+    def read_miriad(self, filepath, correct_lat_lon=True, run_check=True,
+                    run_check_acceptability=True, phase_type=None):
         """
         Read in data from a miriad file.
 
@@ -990,7 +987,9 @@ class UVData(UVBase):
         import miriad
         miriad_obj = miriad.Miriad()
         miriad_obj.read_miriad(filepath, correct_lat_lon=correct_lat_lon,
-                               run_check=run_check, run_check_acceptability=run_check_acceptability)
+                               run_check=run_check,
+                               run_check_acceptability=run_check_acceptability,
+                               phase_type=phase_type)
         self._convert_from_filetype(miriad_obj)
         del(miriad_obj)
 
