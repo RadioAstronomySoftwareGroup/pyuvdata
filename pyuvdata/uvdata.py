@@ -637,6 +637,33 @@ class UVData(UVBase):
         del(obs)
         self.set_phased()
 
+    def __add__(self, other, run_check=True, run_check_acceptability=True):
+        """
+        Combine two UVData objects. Objects can be added along frequency,
+        polarization, and/or baseline-time axis.
+
+        Args:
+            other: Another UVData object which will be added to self.
+            run_check: Option to check for the existence and proper shapes of
+                required parameters after combining objects. Default is True.
+            run_check_acceptability: Option to check acceptable range of the values of
+                required parameters after combining objects. Default is True.
+        """
+        # Check that both objects are UVData and valid
+        self.check(run_check_acceptability=False)
+        if not isinstance(other, self.__class__):
+            raise(ValueError('Only UVData objects can be added to a UVData object'))
+        other.check(run_check_acceptability=False)
+
+        # TODO Determine axes to combine
+        # TODO Check objects are compatible
+        # TODO Combine data
+        # TODO Update N parameters (e.g. Npol)
+        # TODO Check specific requirements (channel width vs spacing, uniform tint, etc)
+        # Check final object is self-consistent
+        if run_check:
+            self.check(run_check_acceptability=run_check_acceptability)
+
     def select(self, antenna_nums=None, antenna_names=None, ant_pairs_nums=None,
                frequencies=None, freq_chans=None,
                times=None, polarizations=None, blt_inds=None, run_check=True,
