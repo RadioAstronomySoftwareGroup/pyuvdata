@@ -114,6 +114,8 @@ def test_mwa_ecef_conversion():
 
     # From the STABXYZ table in a cotter-generated uvfits file, obsid = 1066666832
     xyz = f['stabxyz']
+    # From the East/North/Height columns in a cotter-generated metafits file, obsid = 1066666832
+    enh = f['ENH']
     # From a text file antenna_locations.txt in MWA_Tools/scripts
     txt_topo = f['txt_topo']
 
@@ -127,6 +129,7 @@ def test_mwa_ecef_conversion():
     # transpose these arrays to get them into the right shape
     txt_topo = txt_topo.T
     uvw_topo = uvw_topo.T
+    enh      = enh.T
 
     # ARRAYX, ARRAYY, ARRAYZ in ECEF frame from Cotter file
     arrcent = f['arrcent']
@@ -141,4 +144,4 @@ def test_mwa_ecef_conversion():
 
     enu = pyuvdata.ENU_from_ECEF(xyz, lat, lon, alt)
 
-    nt.assert_true(np.allclose(enu, txt_topo, atol=1.))
+    nt.assert_true(np.allclose(enu, enh, atol=1.))
