@@ -661,3 +661,16 @@ def test_reorder_pols():
     uvtest.checkWarnings(uv1.read_uvfits, [testfile], message='Telescope EVLA is not')
     uv2.reorder_pols()
     nt.assert_equal(uv1, uv2)
+
+
+def test_add():
+    uv_full = UVData()
+    testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    uvtest.checkWarnings(uv_full.read_uvfits, [testfile],
+                         message='Telescope EVLA is not')
+    uv1 = copy.deepcopy(uv_full)
+    uv2 = copy.deepcopy(uv_full)
+    uv1.select(freq_chans=np.arange(0, 32))
+    uv2.select(freq_chans=np.arange(32, 64))
+    uv1 += uv2
+    nt.assert_equal(uv1, uv_full)

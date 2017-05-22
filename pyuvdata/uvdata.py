@@ -10,6 +10,7 @@ import parameter as uvp
 import telescopes as uvtel
 import utils as uvutils
 import version as uvversion
+import copy
 
 
 class UVData(UVBase):
@@ -637,7 +638,7 @@ class UVData(UVBase):
         del(obs)
         self.set_phased()
 
-    def __add__(self, other, run_check=True, run_check_acceptability=True):
+    def __add__(self, other, run_check=True, run_check_acceptability=True, in_place=False):
         """
         Combine two UVData objects. Objects can be added along frequency,
         polarization, and/or baseline-time axis.
@@ -648,21 +649,157 @@ class UVData(UVBase):
                 required parameters after combining objects. Default is True.
             run_check_acceptability: Option to check acceptable range of the values of
                 required parameters after combining objects. Default is True.
+            in_place: Overwrite self as we go, otherwise create a third object
+                as the sum of the two (default).
         """
+        if in_place:
+            this = self
+        else:
+            this = copy.deepcopy(self)
         # Check that both objects are UVData and valid
-        self.check(run_check_acceptability=False)
-        if not isinstance(other, self.__class__):
+        this.check(run_check_acceptability=False)
+        if not isinstance(other, this.__class__):
             raise(ValueError('Only UVData objects can be added to a UVData object'))
         other.check(run_check_acceptability=False)
 
-        # TODO Determine axes to combine
-        # TODO Check objects are compatible
-        # TODO Combine data
-        # TODO Update N parameters (e.g. Npol)
-        # TODO Check specific requirements (channel width vs spacing, uniform tint, etc)
+        # Check objects are compatible
+        # Note zenith_ra will not necessarily be the same if times are different.
+        # But phase_center should be the same, even if in drift (empty parameters)
+        compatibility_params = ['_vis_units', '_integration_time', '_channel_width',
+                                '_object_name', '_telescope_name', '_instrument',
+                                '_telescope_location', '_phase_type',
+                                '_Nants_telescope', '_antenna_names',
+                                '_antenna_numbers', '_antenna_positions',
+                                '_phase_center_ra', '_phase_center_dec',
+                                '_phase_center_epoch']
+        for a in compatibility_params:
+            if getattr(this, a) != getattr(other, a):
+                msg = 'UVParameter ' + a[1:] + ' does not match. Cannot combine objects.'
+                raise(ValueError(msg))
+
+        # Create blt arrays for convenience
+        prec_t = - 2 * np.floor(np.log10(this._time_array.tols[-1])).astype(int)
+        prec_b = 8
+        this_blts = ["_".join(["{1:.{0}f}".format(prec_t, blt[0]),
+                               str(blt[1]).zfill(prec_b)]) for blt in
+                     zip(this.time_array, this.baseline_array)]
+        other_blts = ["_".join(["{1:.{0}f}".format(prec_t, blt[0]),
+                                str(blt[1]).zfill(prec_b)]) for blt in
+                      zip(this.time_array, this.baseline_array)]
+        # Check we don't have overlapping data
+        both_pol = np.intersect1d(this.polarization_array, other.polarization_array)
+        both_freq = np.intersect1d(this.freq_array[0, :], other.freq_array[0, :])
+        both_blts = np.intersect1d(this_blts, other_blts)
+        if len(both_pol) > 0:
+            if len(both_freq) > 0:
+                if len(both_blts) > 0:
+                    raise(ValueError('These objects have overlapping data and'
+                                     ' cannot be combined.'))
+
+        temp = np.array([[i, b] for (i, b) in enumerate(other_blts)
+                                        if b not in this_blts]).T
+        if len(temp) > 0:
+            bnew_inds = temp[0].astype(int)
+            new_blts = temp[1]
+        else:
+            bnew_inds, new_blts = ([], [])
+        temp = np.array([[i, f] for (i, f) in enumerate(other.freq_array[0, :])
+                         if f not in this.freq_array]).T
+        if len(temp) > 0:
+            fnew_inds = temp[0].astype(int)
+            new_freqs = temp[1]
+        else:
+            fnew_inds, new_freqs = ([], [])
+        temp = np.array([[i, p] for (i, p) in enumerate(other.polarization_array)
+                         if p not in this.polarization_array]).T
+        if len(temp) > 0:
+            pnew_inds = temp[0].astype(int)
+            new_pols = temp[1]
+        else:
+            pnew_inds, new_pols = ([], [])
+        # Pad out self to accommodate new data
+        if len(bnew_inds) > 0:
+            this_blts = np.concatenate(this_blts, new_blts)
+            order = np.argsort(this_blts)
+            this_blts = this_blts[order]
+            zero_pad = np.zeros((len(bnew_inds), this.Nspws, this.Nfreqs, this.Npols))
+            this.data_array = np.concatenate([this.data_array, zero_pad], axis=0)[order, :, :, :]
+            this.nsample_array = np.concatenate([this.nsample_array, zero_pad], axis=0)[order, :, :, :]
+            this.flag_array = np.concatenate([this.flag_array,
+                                              1 - zero_pad], axis=0).astype(np.bool)[order, :, :, :]
+            this.uvw_array = np.concatenate([this.uvw_array,
+                                             other.uvw_array[bnew_inds, :]], axis=0)[order, :]
+            this.time_array = np.concatenate([this.time_array,
+                                              other.time_array[bnew_inds]])[order]
+            this.lst_array = np.concatenate([this.lst_array, other.lst_array[bnew_inds]])[order]
+            this.ant_1_array = np.concatenate([this.ant_1_array,
+                                               other.ant_1_array[bnew_inds]])[order]
+            this.ant_2_array = np.concatenate([this.ant_2_array,
+                                               other.ant_2_array[bnew_inds]])[order]
+            this.baseline_array = np.concatenate([this.baseline_array,
+                                                  other.baseline_array[bnew_inds]])[order]
+        if len(fnew_inds) > 0:
+            zero_pad = np.zeros((this.data_array.shape[0], this.Nspws, len(fnew_inds),
+                                 this.Npols))
+            this.freq_array = np.concatenate([this.freq_array,
+                                              other.freq_array[:, fnew_inds]], axis=1)
+            order = np.argsort(this.freq_array[0, :])
+            this.freq_array = this.freq_array[:, order]
+            this.data_array = np.concatenate([this.data_array, zero_pad], axis=2)[:, :, order, :]
+            this.nsample_array = np.concatenate([this.nsample_array, zero_pad], axis=2)[:, :, order, :]
+            this.flag_array = np.concatenate([this.flag_array, 1 - zero_pad],
+                                             axis=2).astype(np.bool)[:, :, order, :]
+        if len(pnew_inds) > 0:
+            zero_pad = np.zeros((this.data_array.shape[0], this.Nspws,
+                                 this.data_array.shape[2], len(pnew_inds)))
+            this.polarization_array = np.concatenate([this.polarization_array,
+                                                      other.polarization_array[pnew_inds]])
+            order = np.argsort(this.polarization_array)
+            this.polarization_array = this.polarization_array[order]
+            this.data_array = np.concatenate([this.data_array, zero_pad], axis=3)[:, :, :, order]
+            this.nsample_array = np.concatenate([this.nsample_array, zero_pad], axis=3)[:, :, :, order]
+            this.flag_array = np.concatenate([this.flag_array, 1 - zero_pad],
+                                             axis=3).astype(np.bool)[:, :, :, order]
+
+        # Now populate the data
+        pol_s2o = np.nonzero(np.in1d(this.polarization_array, other.polarization_array))[0]
+        freq_s2o = np.nonzero(np.in1d(this.freq_array[0, :], other.freq_array[0, :]))[0]
+        blt_s2o = np.nonzero(np.in1d(this_blts, other_blts))[0]
+        this.data_array[np.ix_(blt_s2o, [0], freq_s2o, pol_s2o)] = other.data_array
+        this.nsample_array[np.ix_(blt_s2o, [0], freq_s2o, pol_s2o)] = other.nsample_array
+        this.flag_array[np.ix_(blt_s2o, [0], freq_s2o, pol_s2o)] = other.flag_array
+
+        # Update N parameters (e.g. Npol)
+        this.Ntimes = len(np.unique(this.time_array))
+        this.Nbls = len(np.unique(this.baseline_array))
+        this.Nblts = this.uvw_array.shape[0]
+        this.Nfreqs = this.freq_array.shape[1]
+        this.Npol = this.polarization_array.shape[0]
+        this.Nants_data = len(np.unique(this.ant_1_array.tolist() + this.ant_2_array.tolist()))
+
+        # TODO update history
+        # Check specific requirements
+        if this.Nfreqs > 1:
+            freq_separation = np.diff(this.freq_array[0, :])
+            if not np.isclose(np.min(freq_separation), np.max(freq_separation),
+                              rtol=this._freq_array.tols[0], atol=this._freq_array.tols[1]):
+                warnings.warn('Combined frequencies are not evenly spaced. This will '
+                              'make it impossible to write this data out to some file types.')
+            elif np.max(freq_separation) > this.channel_width:
+                warnings.warn('Combined frequencies are not contiguous. This will make '
+                              'it impossible to write this data out to some file types.')
+
+        if this.Npols > 2:
+            pol_separation = np.diff(this.polarization_array)
+            if np.min(pol_separation) < np.max(pol_separation):
+                warnings.warn('Combined polarizations are not evenly spaced. This will '
+                              'make it impossible to write this data out to some file types.')
+
         # Check final object is self-consistent
         if run_check:
-            self.check(run_check_acceptability=run_check_acceptability)
+            this.check(run_check_acceptability=run_check_acceptability)
+
+        return this
 
     def select(self, antenna_nums=None, antenna_names=None, ant_pairs_nums=None,
                frequencies=None, freq_chans=None,
