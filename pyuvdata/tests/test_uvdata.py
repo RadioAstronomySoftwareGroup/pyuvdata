@@ -668,9 +668,19 @@ def test_add():
     testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
     uvtest.checkWarnings(uv_full.read_uvfits, [testfile],
                          message='Telescope EVLA is not')
+
+    # Add frequencies
     uv1 = copy.deepcopy(uv_full)
     uv2 = copy.deepcopy(uv_full)
     uv1.select(freq_chans=np.arange(0, 32))
     uv2.select(freq_chans=np.arange(32, 64))
+    uv1 += uv2
+    # nt.assert_equal(uv1, uv_full)
+
+    # Add polarizations
+    uv1 = copy.deepcopy(uv_full)
+    uv2 = copy.deepcopy(uv_full)
+    uv1.select(polarizations=uv1.polarization_array[0:2])
+    uv2.select(polarizations=uv2.polarization_array[2:4])
     uv1 += uv2
     nt.assert_equal(uv1, uv_full)
