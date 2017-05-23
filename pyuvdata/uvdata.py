@@ -697,7 +697,7 @@ class UVData(UVBase):
                                      ' cannot be combined.'))
 
         temp = np.array([[i, b] for (i, b) in enumerate(other_blts)
-                                        if b not in this_blts]).T
+                         if b not in this_blts]).T
         if len(temp) > 0:
             bnew_inds = temp[0].astype(int)
             new_blts = temp[1]
@@ -754,7 +754,7 @@ class UVData(UVBase):
                                  this.data_array.shape[2], len(pnew_inds)))
             this.polarization_array = np.concatenate([this.polarization_array,
                                                       other.polarization_array[pnew_inds]])
-            order = np.argsort(this.polarization_array)
+            order = np.argsort(np.abs(this.polarization_array))
             this.polarization_array = this.polarization_array[order]
             this.data_array = np.concatenate([this.data_array, zero_pad], axis=3)[:, :, :, order]
             this.nsample_array = np.concatenate([this.nsample_array, zero_pad], axis=3)[:, :, :, order]
@@ -769,12 +769,12 @@ class UVData(UVBase):
         this.nsample_array[np.ix_(blt_s2o, [0], freq_s2o, pol_s2o)] = other.nsample_array
         this.flag_array[np.ix_(blt_s2o, [0], freq_s2o, pol_s2o)] = other.flag_array
 
-        # Update N parameters (e.g. Npol)
+        # Update N parameters (e.g. Npols)
         this.Ntimes = len(np.unique(this.time_array))
         this.Nbls = len(np.unique(this.baseline_array))
         this.Nblts = this.uvw_array.shape[0]
         this.Nfreqs = this.freq_array.shape[1]
-        this.Npol = this.polarization_array.shape[0]
+        this.Npols = this.polarization_array.shape[0]
         this.Nants_data = len(np.unique(this.ant_1_array.tolist() + this.ant_2_array.tolist()))
 
         # TODO update history
