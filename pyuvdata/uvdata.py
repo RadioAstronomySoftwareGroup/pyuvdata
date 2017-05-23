@@ -1012,3 +1012,26 @@ class UVData(UVBase):
                                 run_check_acceptability=run_check_acceptability,
                                 clobber=clobber, no_antnums=no_antnums)
         del(miriad_obj)
+
+    def reorder_pols(self, order=None, run_check=True, run_check_acceptability=True):
+        """
+        Rearrange polarizations in the event they are not uvfits compatible.
+
+        Args:
+            order: Provide the order which to shuffle the data. Default will
+                sort by absolute value of pol values.
+            run_check: Option to check for the existence and proper shapes of
+                required parameters before writing the file. Default is True.
+            run_check_acceptability: Option to check acceptable range of the values of
+                required parameters before writing the file. Default is True.
+        """
+        if order is None:
+            order = np.argsort(np.abs(self.polarization_array))
+        self.polarization_array = self.polarization_array[order]
+        self.data_array = self.data_array[:, :, :, order]
+        self.nsample_array = self.nsample_array[:, :, :, order]
+        self.flag_array = self.flag_array[:, :, :, order]
+
+        # check if object is self-consistent
+        if run_check:
+            self.check(run_check_acceptability=run_check_acceptability)

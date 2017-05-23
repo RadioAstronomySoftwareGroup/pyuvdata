@@ -640,3 +640,24 @@ def test_select():
 
     # test that a ValueError is raised if the selection eliminates all blts
     nt.assert_raises(ValueError, uv_object.select, times=unique_times[0], antenna_nums=1)
+
+
+def test_reorder_pols():
+    # Test function to fix polarization order
+    uv1 = UVData()
+    testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    uvtest.checkWarnings(uv1.read_uvfits, [testfile], message='Telescope EVLA is not')
+    uv2 = copy.deepcopy(uv1)
+    # reorder uv2 manually
+    order = [1, 3, 2, 0]
+    uv2.polarization_array = uv2.polarization_array[order]
+    uv2.data_array = uv2.data_array[:, :, :, order]
+    uv2.nsample_array = uv2.nsample_array[:, :, :, order]
+    uv2.flag_array = uv2.flag_array[:, :, :, order]
+    uv1.reorder_pols(order=order)
+    nt.assert_equal(uv1, uv2)
+
+    # Restore original order
+    uvtest.checkWarnings(uv1.read_uvfits, [testfile], message='Telescope EVLA is not')
+    uv2.reorder_pols()
+    nt.assert_equal(uv1, uv2)
