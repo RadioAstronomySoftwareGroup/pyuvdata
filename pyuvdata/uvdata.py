@@ -696,25 +696,23 @@ class UVData(UVBase):
                     raise(ValueError('These objects have overlapping data and'
                                      ' cannot be combined.'))
 
-        temp = np.array([[i, b] for (i, b) in enumerate(other_blts)
-                         if b not in this_blts]).T
+        temp = np.nonzero(~np.in1d(other_blts, this_blts))[0]
         if len(temp) > 0:
-            bnew_inds = temp[0].astype(int)
-            new_blts = temp[1]
+            bnew_inds = temp
+            new_blts = other_blts[temp]
         else:
             bnew_inds, new_blts = ([], [])
-        temp = np.array([[i, f] for (i, f) in enumerate(other.freq_array[0, :])
-                         if f not in this.freq_array]).T
+        temp = np.nonzero(~np.in1d(other.freq_array[0, :], this.freq_array[0, :]))[0]
         if len(temp) > 0:
-            fnew_inds = temp[0].astype(int)
-            new_freqs = temp[1]
+            fnew_inds = temp
+            new_freqs = other.freq_array[0, temp]
         else:
             fnew_inds, new_freqs = ([], [])
-        temp = np.array([[i, p] for (i, p) in enumerate(other.polarization_array)
-                         if p not in this.polarization_array]).T
+        temp = np.nonzero(~np.in1d(other.polarization_array,
+                                   this.polarization_array))[0]
         if len(temp) > 0:
-            pnew_inds = temp[0].astype(int)
-            new_pols = temp[1]
+            pnew_inds = temp
+            new_pols = other.polarization_array[temp]
         else:
             pnew_inds, new_pols = ([], [])
         # Pad out self to accommodate new data
@@ -762,12 +760,12 @@ class UVData(UVBase):
                                              axis=3).astype(np.bool)[:, :, :, order]
 
         # Now populate the data
-        pol_s2o = np.nonzero(np.in1d(this.polarization_array, other.polarization_array))[0]
-        freq_s2o = np.nonzero(np.in1d(this.freq_array[0, :], other.freq_array[0, :]))[0]
-        blt_s2o = np.nonzero(np.in1d(this_blts, other_blts))[0]
-        this.data_array[np.ix_(blt_s2o, [0], freq_s2o, pol_s2o)] = other.data_array
-        this.nsample_array[np.ix_(blt_s2o, [0], freq_s2o, pol_s2o)] = other.nsample_array
-        this.flag_array[np.ix_(blt_s2o, [0], freq_s2o, pol_s2o)] = other.flag_array
+        pol_t2o = np.nonzero(np.in1d(this.polarization_array, other.polarization_array))[0]
+        freq_t2o = np.nonzero(np.in1d(this.freq_array[0, :], other.freq_array[0, :]))[0]
+        blt_t2o = np.nonzero(np.in1d(this_blts, other_blts))[0]
+        this.data_array[np.ix_(blt_t2o, [0], freq_t2o, pol_t2o)] = other.data_array
+        this.nsample_array[np.ix_(blt_t2o, [0], freq_t2o, pol_t2o)] = other.nsample_array
+        this.flag_array[np.ix_(blt_t2o, [0], freq_t2o, pol_t2o)] = other.flag_array
 
         # Update N parameters (e.g. Npols)
         this.Ntimes = len(np.unique(this.time_array))
