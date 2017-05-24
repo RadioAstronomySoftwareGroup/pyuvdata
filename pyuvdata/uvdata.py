@@ -638,7 +638,7 @@ class UVData(UVBase):
         del(obs)
         self.set_phased()
 
-    def __add__(self, other, run_check=True, run_check_acceptability=True, in_place=False):
+    def __add__(self, other, run_check=True, run_check_acceptability=True, inplace=False):
         """
         Combine two UVData objects. Objects can be added along frequency,
         polarization, and/or baseline-time axis.
@@ -649,10 +649,10 @@ class UVData(UVBase):
                 required parameters after combining objects. Default is True.
             run_check_acceptability: Option to check acceptable range of the values of
                 required parameters after combining objects. Default is True.
-            in_place: Overwrite self as we go, otherwise create a third object
+            inplace: Overwrite self as we go, otherwise create a third object
                 as the sum of the two (default).
         """
-        if in_place:
+        if inplace:
             this = self
         else:
             this = copy.deepcopy(self)
@@ -818,7 +818,18 @@ class UVData(UVBase):
         if run_check:
             this.check(run_check_acceptability=run_check_acceptability)
 
-        return this
+        if not inplace:
+            return this
+
+    def __iadd__(self, other):
+        """
+        In place add.
+
+        Args:
+            other: Another UVData object which will be added to self.
+        """
+        self.__add__(other, inplace=True)
+        return self
 
     def select(self, antenna_nums=None, antenna_names=None, ant_pairs_nums=None,
                frequencies=None, freq_chans=None,
