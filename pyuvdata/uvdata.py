@@ -1108,18 +1108,29 @@ class UVData(UVBase):
         Read in data from a uvfits file.
 
         Args:
-            filename: The uvfits file to read from.
+            filename: The uvfits file or list of files to read from.
             run_check: Option to check for the existence and proper shapes of
                 required parameters after reading in the file. Default is True.
             run_check_acceptability: Option to check acceptable range of the values of
                 required parameters after reading in the file. Default is True.
         """
         import uvfits
-        uvfits_obj = uvfits.UVFITS()
-        uvfits_obj.read_uvfits(filename, run_check=run_check,
-                               run_check_acceptability=run_check_acceptability)
-        self._convert_from_filetype(uvfits_obj)
-        del(uvfits_obj)
+        if isinstance(filename, (list, tuple)):
+            self.read_uvfits(filename[0], run_check=run_check,
+                             run_check_acceptability=run_check_acceptability)
+            if len(filename) > 1:
+                for f in filename[1:]:
+                    uv2 = UVData()
+                    uv2.read_uvfits(f, run_check=run_check,
+                                    run_check_acceptability=run_check_acceptability)
+                    self += uv2
+                del(uv2)
+        else:
+            uvfits_obj = uvfits.UVFITS()
+            uvfits_obj.read_uvfits(filename, run_check=run_check,
+                                   run_check_acceptability=run_check_acceptability)
+            self._convert_from_filetype(uvfits_obj)
+            del(uvfits_obj)
 
     def write_uvfits(self, filename, spoof_nonessential=False,
                      force_phase=False, run_check=True, run_check_acceptability=True):
@@ -1152,6 +1163,7 @@ class UVData(UVBase):
         Args:
             filelist: The list of FHD save files to read from. Must include at
                 least one polarization file, a params file and a flag file.
+                Can also be a list of lists to read multiple data sets.
             use_model: Option to read in the model visibilities rather than the
                 dirty visibilities. Default is False.
             run_check: Option to check for the existence and proper shapes of
@@ -1160,11 +1172,22 @@ class UVData(UVBase):
                 required parameters after reading in the file. Default is True.
         """
         import fhd
-        fhd_obj = fhd.FHD()
-        fhd_obj.read_fhd(filelist, use_model=use_model, run_check=run_check,
-                         run_check_acceptability=run_check_acceptability)
-        self._convert_from_filetype(fhd_obj)
-        del(fhd_obj)
+        if isinstance(filelist[0], (list, tuple)):
+            self.read_fhd(filelist[0], use_model=use_model, run_check=run_check,
+                          run_check_acceptability=run_check_acceptability)
+            if len(filelist) > 1:
+                for f in filelist[1:]:
+                    uv2 = UVData()
+                    uv2.read_fhd(f, use_model=use_model, run_check=run_check,
+                                 run_check_acceptability=run_check_acceptability)
+                    self += uv2
+                del(uv2)
+        else:
+            fhd_obj = fhd.FHD()
+            fhd_obj.read_fhd(filelist, use_model=use_model, run_check=run_check,
+                             run_check_acceptability=run_check_acceptability)
+            self._convert_from_filetype(fhd_obj)
+            del(fhd_obj)
 
     def read_miriad(self, filepath, correct_lat_lon=True, run_check=True,
                     run_check_acceptability=True, phase_type=None):
@@ -1172,20 +1195,35 @@ class UVData(UVBase):
         Read in data from a miriad file.
 
         Args:
-            filepath: The miriad file directory to read from.
+            filepath: The miriad file directory or list of directories to read from.
             run_check: Option to check for the existence and proper shapes of
                 required parameters after reading in the file. Default is True.
             run_check_acceptability: Option to check acceptable range of the values of
                 required parameters after reading in the file. Default is True.
         """
         import miriad
-        miriad_obj = miriad.Miriad()
-        miriad_obj.read_miriad(filepath, correct_lat_lon=correct_lat_lon,
-                               run_check=run_check,
-                               run_check_acceptability=run_check_acceptability,
-                               phase_type=phase_type)
-        self._convert_from_filetype(miriad_obj)
-        del(miriad_obj)
+        if isinstance(filepath, (list, tuple)):
+            self.read_miriad(filepath[0], correct_lat_lon=correct_lat_lon,
+                             run_check=run_check,
+                             run_check_acceptability=run_check_acceptability,
+                             phase_type=phase_type)
+            if len(filepath) > 1:
+                for f in filepath[1:]:
+                    uv2 = UVData()
+                    uv2.read_miriad(f, correct_lat_lon=correct_lat_lon,
+                                    run_check=run_check,
+                                    run_check_acceptability=run_check_acceptability,
+                                    phase_type=phase_type)
+                    self += uv2
+                del(uv2)
+        else:
+            miriad_obj = miriad.Miriad()
+            miriad_obj.read_miriad(filepath, correct_lat_lon=correct_lat_lon,
+                                   run_check=run_check,
+                                   run_check_acceptability=run_check_acceptability,
+                                   phase_type=phase_type)
+            self._convert_from_filetype(miriad_obj)
+            del(miriad_obj)
 
     def write_miriad(self, filepath, run_check=True, run_check_acceptability=True,
                      clobber=False, no_antnums=False):

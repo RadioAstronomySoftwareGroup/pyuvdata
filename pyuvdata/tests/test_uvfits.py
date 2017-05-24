@@ -4,6 +4,8 @@ import os
 from pyuvdata import UVData
 import pyuvdata.tests as uvtest
 from pyuvdata.data import DATA_PATH
+import copy
+import numpy as np
 
 
 def test_ReadNRAO():
@@ -110,3 +112,29 @@ def test_ReadUVFitsWriteMiriad():
 
     del(uvfits_uv)
     del(miriad_uv)
+
+
+def test_multi_files():
+    """
+    Reading multiple files at once.
+    """
+    uv_full = UVData()
+    uvfits_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    testfile1 = os.path.join(DATA_PATH, 'test/uv1.uvfits')
+    testfile2 = os.path.join(DATA_PATH, 'test/uv2.uvfits')
+    uvtest.checkWarnings(uv_full.read_uvfits, [uvfits_file], message='Telescope EVLA is not')
+    uv1 = copy.deepcopy(uv_full)
+    uv2 = copy.deepcopy(uv_full)
+    uv1.select(freq_chans=np.arange(0, 32))
+    uv2.select(freq_chans=np.arange(32, 64))
+    uv1.write_uvfits(testfile1)
+    uv2.write_uvfits(testfile2)
+    uvtest.checkWarnings(uv1.read_uvfits, [[testfile1, testfile2]], nwarnings=2,
+                         category=[UserWarning, UserWarning],
+                         message=['Telescope EVLA is not', 'Telescope EVLA is not'])
+    # Check history is correct, before replacing and doing a full object check
+    nt.assert_equal(uv_full.history + '  Downselected to specific frequencies'
+                    ' using pyuvdata. Combined data along frequency axis using'
+                    ' pyuvdata.', uv1.history.replace('\n', ''))
+    uv1.history = uv_full.history
+    nt.assert_equal(uv1, uv_full)
