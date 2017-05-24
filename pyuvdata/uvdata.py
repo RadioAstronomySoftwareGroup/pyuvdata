@@ -292,7 +292,7 @@ class UVData(UVBase):
             self.pyuvdata_version_str += ('  Git origin: ' + uvversion.git_origin +
                                           '.  Git hash: ' + uvversion.git_hash +
                                           '.  Git branch: ' + uvversion.git_branch +
-                                          '.  Git description: ' + uvversion.git_description)
+                                          '.  Git description: ' + uvversion.git_description + '.')
 
         super(UVData, self).__init__()
 
@@ -677,15 +677,19 @@ class UVData(UVBase):
                 msg = 'UVParameter ' + a[1:] + ' does not match. Cannot combine objects.'
                 raise(ValueError(msg))
 
+        # Build up history string
+        history_update_string = ' Combined data along '
+        n_axes = 0
+
         # Create blt arrays for convenience
         prec_t = - 2 * np.floor(np.log10(this._time_array.tols[-1])).astype(int)
         prec_b = 8
-        this_blts = ["_".join(["{1:.{0}f}".format(prec_t, blt[0]),
-                               str(blt[1]).zfill(prec_b)]) for blt in
-                     zip(this.time_array, this.baseline_array)]
-        other_blts = ["_".join(["{1:.{0}f}".format(prec_t, blt[0]),
-                                str(blt[1]).zfill(prec_b)]) for blt in
-                      zip(this.time_array, this.baseline_array)]
+        this_blts = np.array(["_".join(["{1:.{0}f}".format(prec_t, blt[0]),
+                                        str(blt[1]).zfill(prec_b)]) for blt in
+                              zip(this.time_array, this.baseline_array)])
+        other_blts = np.array(["_".join(["{1:.{0}f}".format(prec_t, blt[0]),
+                                         str(blt[1]).zfill(prec_b)]) for blt in
+                               zip(other.time_array, other.baseline_array)])
         # Check we don't have overlapping data
         both_pol = np.intersect1d(this.polarization_array, other.polarization_array)
         both_freq = np.intersect1d(this.freq_array[0, :], other.freq_array[0, :])
@@ -700,24 +704,38 @@ class UVData(UVBase):
         if len(temp) > 0:
             bnew_inds = temp
             new_blts = other_blts[temp]
+            history_update_string += 'baseline-time'
+            n_axes += 1
         else:
             bnew_inds, new_blts = ([], [])
+
         temp = np.nonzero(~np.in1d(other.freq_array[0, :], this.freq_array[0, :]))[0]
         if len(temp) > 0:
             fnew_inds = temp
             new_freqs = other.freq_array[0, temp]
+            if n_axes > 0:
+                history_update_string += ', frequency'
+            else:
+                history_update_string += 'frequency'
+            n_axes += 1
         else:
             fnew_inds, new_freqs = ([], [])
+
         temp = np.nonzero(~np.in1d(other.polarization_array,
                                    this.polarization_array))[0]
         if len(temp) > 0:
             pnew_inds = temp
             new_pols = other.polarization_array[temp]
+            if n_axes > 0:
+                history_update_string += ', polarization'
+            else:
+                history_update_string += 'polarization'
+            n_axes += 1
         else:
             pnew_inds, new_pols = ([], [])
         # Pad out self to accommodate new data
         if len(bnew_inds) > 0:
-            this_blts = np.concatenate(this_blts, new_blts)
+            this_blts = np.concatenate((this_blts, new_blts))
             order = np.argsort(this_blts)
             this_blts = this_blts[order]
             zero_pad = np.zeros((len(bnew_inds), this.Nspws, this.Nfreqs, this.Npols))
@@ -775,7 +793,6 @@ class UVData(UVBase):
         this.Npols = this.polarization_array.shape[0]
         this.Nants_data = len(np.unique(this.ant_1_array.tolist() + this.ant_2_array.tolist()))
 
-        # TODO update history
         # Check specific requirements
         if this.Nfreqs > 1:
             freq_separation = np.diff(this.freq_array[0, :])
@@ -792,6 +809,10 @@ class UVData(UVBase):
             if np.min(pol_separation) < np.max(pol_separation):
                 warnings.warn('Combined polarizations are not evenly spaced. This will '
                               'make it impossible to write this data out to some file types.')
+
+        if n_axes > 0:
+            history_update_string += ' axis using pyuvdata.'
+            this.history += history_update_string
 
         # Check final object is self-consistent
         if run_check:
