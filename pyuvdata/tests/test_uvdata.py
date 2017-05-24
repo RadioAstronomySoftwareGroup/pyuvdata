@@ -757,13 +757,13 @@ def test_add():
     uv1.history = uv_full.history
     nt.assert_equal(uv1, uv_ref)
 
-    # Add in place
+    # Add without inplace
     uv1 = copy.deepcopy(uv_full)
     uv2 = copy.deepcopy(uv_full)
     times = np.unique(uv_full.time_array)
     uv1.select(times=times[0:len(times) / 2])
     uv2.select(times=times[len(times) / 2:])
-    uv1.__add__(uv2, in_place=True)
+    uv1 = uv1 + uv2
     nt.assert_equal(uv_full.history + '  Downselected to specific times'
                     ' using pyuvdata. Combined data along baseline-time axis using'
                     ' pyuvdata.', uv1.history)
@@ -782,14 +782,14 @@ def test_add():
     uv2 = copy.deepcopy(uv_full)
     uv1.select(freq_chans=[0])
     uv2.select(freq_chans=[3])
-    uvtest.checkWarnings(uv1.__add__, [uv2],
+    uvtest.checkWarnings(uv1.__iadd__, [uv2],
                          message='Combined frequencies are not contiguous')
 
     uv1 = copy.deepcopy(uv_full)
     uv2 = copy.deepcopy(uv_full)
     uv1.select(polarizations=uv1.polarization_array[0:2])
     uv2.select(polarizations=uv2.polarization_array[3])
-    uvtest.checkWarnings(uv1.__add__, [uv2],
+    uvtest.checkWarnings(uv1.__iadd__, [uv2],
                          message='Combined polarizations are not evenly spaced')
 
 
@@ -802,18 +802,18 @@ def test_break_add():
 
     # Wrong class
     uv1 = copy.deepcopy(uv_full)
-    nt.assert_raises(ValueError, uv1.__add__, np.zeros(5))
+    nt.assert_raises(ValueError, uv1.__iadd__, np.zeros(5))
 
     # One phased, one not
     uv2 = copy.deepcopy(uv_full)
     uv2.unphase_to_drift()
-    nt.assert_raises(ValueError, uv1.__add__, uv2)
+    nt.assert_raises(ValueError, uv1.__iadd__, uv2)
 
     # Different units
     uv2 = copy.deepcopy(uv_full)
     uv2.vis_units = "Jy"
-    nt.assert_raises(ValueError, uv1.__add__, uv2)
+    nt.assert_raises(ValueError, uv1.__iadd__, uv2)
 
     # Overlapping data
     uv2 = copy.deepcopy(uv_full)
-    nt.assert_raises(ValueError, uv1.__add__, uv2)
+    nt.assert_raises(ValueError, uv1.__iadd__, uv2)
