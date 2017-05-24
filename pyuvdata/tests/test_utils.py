@@ -129,7 +129,7 @@ def test_mwa_ecef_conversion():
     # transpose these arrays to get them into the right shape
     txt_topo = txt_topo.T
     uvw_topo = uvw_topo.T
-    enh      = enh.T
+    enh = enh.T
 
     # ARRAYX, ARRAYY, ARRAYZ in ECEF frame from Cotter file
     arrcent = f['arrcent']
