@@ -4,6 +4,7 @@ import os
 from pyuvdata import UVData
 import pyuvdata.tests as uvtest
 from pyuvdata.data import DATA_PATH
+import numpy as np
 
 # set up FHD file list
 testdir = os.path.join(DATA_PATH, 'fhd_vis_data/')
@@ -63,3 +64,20 @@ def test_ReadFHD_model():
     nt.assert_equal(fhd_uv, uvfits_uv)
     del(fhd_uv)
     del(uvfits_uv)
+
+
+def test_multi_files():
+    """
+    Reading multiple files at once.
+    """
+    fhd_uv1 = UVData()
+    fhd_uv2 = UVData()
+    test1 = list(np.array(testfiles)[[0, 1, 2, 4, 6]])
+    test2 = list(np.array(testfiles)[[0, 2, 3, 5, 6]])
+    fhd_uv1.read_fhd([test1, test2])
+    fhd_uv2.read_fhd(testfiles)
+
+    nt.assert_equal(fhd_uv2.history + ' Combined data along polarization axis using'
+                    ' pyuvdata.', fhd_uv1.history)
+    fhd_uv1.history = fhd_uv2.history
+    nt.assert_equal(fhd_uv1, fhd_uv2)
