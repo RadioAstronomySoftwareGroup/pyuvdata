@@ -286,13 +286,13 @@ class UVData(UVBase):
                                                        description=desc,
                                                        spoof_val=0)
         
-        self._casa_history=uvp.UVParameter('casa_history',required=False,
-                                           description='For measurement sets, '
-                                           'stores all of the extra information in the CASA HISTORY table whose message'
-                                           'column usually corresponds to the '
-                                           'history represented in UVFITS'
-                                           'MIRIAD, and others. See ms.py for more info.',
-                                           spoof_val='APP_PARAMS;CLI_COMMAND;APPLICATION;MESSAGE;OBJECT_ID;OBSERVATION_ID;ORIGIN;PRIORITY;TIME\n',form='str')
+        #self._casa_history=uvp.UVParameter('casa_history',required=False,
+        #                                   description='For measurement sets, '
+        #                                   'stores all of the extra information in the CASA HISTORY table whose message'
+        #                                   'column usually corresponds to the '
+        #                                   'history represented in UVFITS'
+        #                                   'MIRIAD, and others. See ms.py for more info.',
+        #                                   spoof_val='APP_PARAMS;CLI_COMMAND;APPLICATION;MESSAGE;OBJECT_ID;OBSERVATION_ID;ORIGIN;PRIORITY;TIME\n',form='str')
         
         # String to add to history of any files written with this version of pyuvdata
         self.pyuvdata_version_str = ('  Read/written with pyuvdata version: ' +

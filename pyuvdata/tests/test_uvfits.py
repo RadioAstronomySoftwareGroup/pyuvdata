@@ -157,10 +157,8 @@ def test_readMSWriteUVFits_CASAHistory():
     nt.assert_true(read_status)
     nt.assert_true(uvfits_read_status)
     nt.assert_equal(ms_uv,uvfits_uv)
-    nt.assert_equal(ms_uv.casa_history,uvfits_uv.casa_history)
+    nt.assert_equal(ms_uv.history,uvfits_uv.history)
     del(uvfits_uv)
     del(ms_uv)
-
-
     
 

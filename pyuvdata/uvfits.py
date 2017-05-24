@@ -24,6 +24,29 @@ class UVFITS(UVData):
     uvfits_required_extra = ['antenna_positions', 'gst0', 'rdate',
                              'earth_omega', 'dut1', 'timesys']
 
+
+    def _fixhistory(self):
+        """
+        each line of a uvfits history has a maximum of 72 characters
+        which is not a limitation for other formats (miriad, ms, etc...)
+        this function goes through history and merges any lines with 72 chars
+        with the line that follows it. If there is actually a history line that
+        should be 72 chars, this will break...
+        """
+        LINEMAX=72
+        history_lines=self.history.splitlines()
+        new_lines=[]
+        line_index=0
+        while line_index<len(history_lines):
+            newline=history_lines[line_index]
+            if len(history_lines[line_index])==72:
+                while len(history_lines[line_index])==72:
+                    line_index+=1
+                    newline+=history_lines[line_index]
+            line_index+=1
+            new_lines.append(newline)
+        self.history="\n".join(new_lines)
+
     def read_uvfits(self, filename, run_check=True, run_check_acceptability=True):
         """
         Read in data from a uvfits file.
@@ -174,13 +197,19 @@ class UVFITS(UVData):
         longitude_degrees = hdr.pop('LON', None)
         altitude = hdr.pop('ALT', None)
         self.history = str(hdr.get('HISTORY', ''))
+        #FITS files split history into strings
+        #with maximum length of 72 characters
+        #I have added a function to merge any
+        #72 character lines with lines <72 characters
+        #that follow.
+        self._fixhistory()
         if self.pyuvdata_version_str not in self.history.replace('\n', ''):
             self.history += self.pyuvdata_version_str
         while 'HISTORY' in hdr.keys():
             hdr.remove('HISTORY')
 
-        if 'CASAHIST' in hdr.keys():
-            self.casa_history=hdr.pop('CASAHIST',None)
+        #if 'CASAHIST' in hdr.keys():
+        #    self.casa_history=hdr.pop('CASAHIST',None)
         self.vis_units = hdr.pop('BUNIT', 'UNCALIB')
         self.phase_center_epoch = hdr.pop('EPOCH', None)
 
@@ -473,12 +502,12 @@ class UVFITS(UVData):
             hdu.header.add_history(line)
 
         #if we have casa_history, add it
-        if self.casa_history:
+        #if self.casa_history:
             #!--Lines added for testing!
-            print any(ord(c)>128 for c in self.casa_history)
-            print [ord(c) for c in self.casa_history]
+        #    print any(ord(c)>128 for c in self.casa_history)
+        #    print [ord(c) for c in self.casa_history]
             #!--End testing!
-            hdu.header['CASAHIST']=self.casa_history
+        #    hdu.header['CASAHIST']=self.casa_history
             
 
         # end standard keywords; begin user-defined keywords
