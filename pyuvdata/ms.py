@@ -24,7 +24,7 @@ class MS(UVData):
     Attributs:
       ms_required_extra: Names of optional MSParameters that are required for casa ms
     """
-    ms_required_extra=['datacolumn','antenna_positions','casa_history']
+    ms_required_extra=['datacolumn','antenna_positions']#,'casa_history']
     def _ms_hist_to_string(self,history_table,test_import_uvfits):
         '''
         converts a CASA history table into a string that can be stored as the uvdata history parameter.
@@ -76,12 +76,12 @@ class MS(UVData):
         #print('not ascii:')
         #print len(find_not_ascii(history_str))
         #print(find_not_ascii(history_str))
-        print 'decoded\n'
-        print history_str.decode('ascii')
-        print 'decoded\n'
-        _ascii_text_re = re.compile(r'[ -~]*\Z')
+        #print 'decoded\n'
+        #print history_str.decode('ascii')
+        #print 'decoded\n'
+        #_ascii_text_re = re.compile(r'[ -~]*\Z')
         
-        print _ascii_text_re.match(history_str)
+        #print _ascii_text_re.match(history_str)
         #!--End Testing!
         return message_str,history_str
 
@@ -237,7 +237,8 @@ class MS(UVData):
         #set the history parameter
         #as a string with \t indicating column breaks
         #\n indicating row breaks.
-        self.history,self.casa_history=self._ms_hist_to_string(tables.table(filepath+'/HISTORY'),test_import_uvfits)
+        #self.history,self.casa_history=self._ms_hist_to_string(tables.table(filepath+'/HISTORY'),test_import_uvfits)
+        _,self.history=self._ms_hist_to_string(tables.table(filepath+'/HISTORY'),test_import_uvfits)      
         #CASA weights column keeps track of number of data points averaged.
 
         if self.pyuvdata_version_str not in self.history.replace('\n', ''):

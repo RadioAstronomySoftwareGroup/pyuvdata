@@ -118,8 +118,8 @@ class Miriad(UVData):
 
         self.history = uv['history']
         #if casa history in keys, then also set that
-        if 'casahist' in uv.vartable.keys():
-            self.casa_history=uv['casahist']
+        #if 'casahist' in uv.vartable.keys():
+        #    self.casa_history=uv['casahist']
 
         if self.pyuvdata_version_str not in self.history.replace('\n', ''):
             self.history += self.pyuvdata_version_str
@@ -502,7 +502,10 @@ class Miriad(UVData):
 
         # initialize header variables
         uv._wrhd('obstype', 'mixed-auto-cross')
-        uv._wrhd('history', self.history + '\n')
+        #avoid inserting extra \n.
+        if not self.history[-1]=='\n':
+            self.history+='\n'
+        uv._wrhd('history',self.history)
 
         # recognized miriad variables
         uv.add_var('nchan', 'i')
@@ -526,13 +529,14 @@ class Miriad(UVData):
         uv.add_var('nants', 'i')
         #!---TESTING!
         #if the parameter _casa_history exists, then add that to the header as well
-        if self.casa_history:
-            uv.add_var('casahist','a')
-            print('<'+self.casa_history[240:263]+'>')
-            self.casa_history=list(self.casa_history)
-            self.casa_history[260]='a'
-            self.casa_history="".join(self.casa_history)
-            uv['casahist']=self.casa_history[:263]
+        #if self.casa_history:
+        #    uv._wrhd('casahist', self.casa_history + '\n')
+            #uv.add_var('casahist','a')
+            #print('<'+self.casa_history[240:263]+'>')
+            #self.casa_history=list(self.casa_history)
+            #self.casa_history[260]='a'
+            #self.casa_history="".join(self.casa_history)
+            #uv['casahist']=self.casa_history[:263]
             # uv._wrvr('casahist','a',self.casa_history[:260])
             #uv['casahist']=self.casa_history
         #!---END TESTING!

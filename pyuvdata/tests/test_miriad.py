@@ -209,7 +209,7 @@ def test_readWriteReadMiriad():
 def test_readMSWriteMiriad_CASAHistory():
     """                                                                                                                                                                                                          
     read in .ms file.                                                                                                                                                                                            
-    Write to a miriad file, read back in and check for casa_history parameter                                                                                                                                    
+    Write to a miriad file, read back in and check for history parameter                                                                                                                                    
     """
     ms_uv=UVData()
     miriad_uv=UVData()
@@ -224,7 +224,9 @@ def test_readMSWriteMiriad_CASAHistory():
     nt.assert_true(read_status)
     nt.assert_true(miriad_read_status)
     nt.assert_equal(miriad_uv,ms_uv)
-    nt.assert_equal(ms_uv.casa_history,miriad_uv.casa_history)
+    nt.assert_equal(ms_uv.history,miriad_uv.history)
+    print ms_uv.history
+    print miriad_uv.history
     del(miriad_uv)
     del(ms_uv)
 
@@ -315,3 +317,4 @@ def test_multi_files():
                     ' pyuvdata.', uv1.history.replace('\n', ''))
     uv1.history = uv_full.history
     nt.assert_equal(uv1, uv_full)
+
