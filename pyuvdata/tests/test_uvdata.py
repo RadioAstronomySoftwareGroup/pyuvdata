@@ -792,6 +792,19 @@ def test_add():
     uvtest.checkWarnings(uv1.__iadd__, [uv2],
                          message='Combined polarizations are not evenly spaced')
 
+    # Combining histories
+    uv1 = copy.deepcopy(uv_full)
+    uv2 = copy.deepcopy(uv_full)
+    uv1.select(polarizations=uv1.polarization_array[0:2])
+    uv2.select(polarizations=uv2.polarization_array[2:4])
+    uv2.history += ' testing the history. AIPS WTSCAL = 1.0'
+    uv1 += uv2
+    nt.assert_equal(uv_full.history + '  Downselected to specific polarizations'
+                    ' using pyuvdata. Combined data along polarization axis using'
+                    ' pyuvdata. testing the history.', uv1.history)
+    uv1.history = uv_full.history
+    nt.assert_equal(uv1, uv_full)
+
 
 def test_break_add():
     # Test failure modes of add function
