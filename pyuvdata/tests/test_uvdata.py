@@ -707,6 +707,21 @@ def test_add():
     uv1.history = uv_full.history
     nt.assert_equal(uv1, uv_full)
 
+    # Add baselines
+    uv1 = copy.deepcopy(uv_full)
+    uv2 = copy.deepcopy(uv_full)
+    ant_list = range(15)  # Roughly half the antennas in the data
+    ind1 = [i for i in range(uv1.Nblts) if uv1.ant_1_array[i] in ant_list]  # All blts where ant_1 is in list
+    ind2 = [i for i in range(uv1.Nblts) if uv1.ant_1_array[i] not in ant_list]
+    uv1.select(blt_inds=ind1)
+    uv2.select(blt_inds=ind2)
+    uv1 += uv2
+    nt.assert_equal(uv_full.history + '  Downselected to specific baseline-times'
+                    ' using pyuvdata. Combined data along baseline-time axis using'
+                    ' pyuvdata.', uv1.history)
+    uv1.history = uv_full.history
+    nt.assert_equal(uv1, uv_full)
+
     # Add multiple axes
     uv1 = copy.deepcopy(uv_full)
     uv2 = copy.deepcopy(uv_full)
