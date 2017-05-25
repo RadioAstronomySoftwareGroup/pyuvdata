@@ -145,6 +145,67 @@ c) Select a few antenna pairs to keep
 
 Example 5
 ---------
+Adding data (UVData): The __add__ method lets you combine UVData objects along
+the baseline-time, frequency, and/or polarization axis.
+
+a) Add frequencies.
+****************
+::
+
+  from pyuvdata import UVData
+  import numpy as np
+  import copy
+  uv1 = UVData()
+  filename = 'pyuvdata/data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
+  uv1.read_uvfits(filename)
+  uv2 = copy.deepcopy(uv1)
+  # Downselect frequencies to recombine
+  uv1.select(freq_chans=np.arange(0, 32))
+  uv2.select(freq_chans=np.arange(32, 64))
+  uv3 = uv1 + uv2
+  print(uv1.Nfreqs, uv2.Nfreqs, uv3.Nfreqs)
+
+b) Add times.
+****************
+::
+
+  from pyuvdata import UVData
+  import numpy as np
+  import copy
+  uv1 = UVData()
+  filename = 'pyuvdata/data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
+  uv1.read_uvfits(filename)
+  uv2 = copy.deepcopy(uv1)
+  # Downselect times to recombine
+  times = np.unique(uv1.time_array)
+  uv1.select(times=times[0:len(times) / 2])
+  uv2.select(times=times[len(times) / 2:])
+  uv3 = uv1 + uv2
+  print(uv1.Ntimes, uv2.Ntimes, uv3.Ntimes)
+  print(uv1.Nblts, uv2.Nblts, uv3.Nblts)
+
+c) Adding in place. The following two commands are equivalent, and act on uv1
+directly without creating a third uvdata object.
+****************
+::
+
+  uv1.__add__(uv2, inplace=True)
+  uv1 += uv2
+
+d) Reading multiple files. If any of the read methods are given a list of files
+(or list of lists in the case of read_fhd), each file will be read in succession
+and added to the previous.
+****************
+::
+
+  from pyuvdata import UVData
+  uv = UVData()
+  filenames = ['file1.uvfits', 'file2.uvfits', 'file3.uvfits']
+  uv.read_uvfits(filenames)
+
+
+Example 6
+---------
 Calibration files using UVCal.
 
 a) Reading a gain calibration file.
@@ -219,7 +280,7 @@ b) Writing a gain calibration file.
 
   cal.write_calfits('tutorial5b.fits')
 
-Example 6
+Example 7
 ---------
 Selecting data (UVCal): The select method lets you select specific antennas (by number or name),
 frequencies (in Hz or by channel number), times or polarizations
