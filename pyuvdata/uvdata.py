@@ -850,7 +850,7 @@ class UVData(UVBase):
     def select(self, antenna_nums=None, antenna_names=None, ant_pairs_nums=None,
                frequencies=None, freq_chans=None,
                times=None, polarizations=None, blt_inds=None, run_check=True,
-               run_check_acceptability=True):
+               run_check_acceptability=True, inplace=True):
         """
         Select specific antennas, antenna pairs, frequencies, times and
         polarizations to keep in the object while discarding others.
@@ -879,7 +879,13 @@ class UVData(UVBase):
                 required parameters after downselecting data on this object. Default is True.
             run_check_acceptability: Option to check acceptable range of the values of
                 required parameters after  downselecting data on this object. Default is True.
+            inplace: Option to perform the select directly on self (True, default) or return
+                a new UVData object, which is a subselection of self (False)
         """
+        if inplace:
+            uv_object = self
+        else:
+            uv_object = copy.deepcopy(self)
         # build up history string as we go
         history_update_string = '  Downselected to specific '
         n_selects = 0
@@ -900,9 +906,9 @@ class UVData(UVBase):
             antenna_names = uvutils.get_iterable(antenna_names)
             antenna_nums = []
             for s in antenna_names:
-                if s not in self.antenna_names:
+                if s not in uv_object.antenna_names:
                     raise ValueError('Antenna name {a} is not present in the antenna_names array'.format(a=s))
-                antenna_nums.append(self.antenna_numbers[np.where(np.array(self.antenna_names) == s)[0]])
+                antenna_nums.append(uv_object.antenna_numbers[np.where(np.array(uv_object.antenna_names) == s)[0]])
 
         if antenna_nums is not None:
             antenna_nums = uvutils.get_iterable(antenna_nums)
@@ -914,9 +920,9 @@ class UVData(UVBase):
             inds1 = np.zeros(0, dtype=np.int)
             inds2 = np.zeros(0, dtype=np.int)
             for ant in antenna_nums:
-                if ant in self.ant_1_array or ant in self.ant_2_array:
-                    wh1 = np.where(self.ant_1_array == ant)[0]
-                    wh2 = np.where(self.ant_2_array == ant)[0]
+                if ant in uv_object.ant_1_array or ant in uv_object.ant_2_array:
+                    wh1 = np.where(uv_object.ant_1_array == ant)[0]
+                    wh2 = np.where(uv_object.ant_2_array == ant)[0]
                     if len(wh1) > 0:
                         inds1 = np.append(inds1, list(wh1))
                     if len(wh2) > 0:
@@ -946,14 +952,14 @@ class UVData(UVBase):
             n_selects += 1
             ant_pair_blt_inds = np.zeros(0, dtype=np.int)
             for pair in ant_pairs_nums:
-                if not (pair[0] in self.ant_1_array or pair[0] in self.ant_2_array):
+                if not (pair[0] in uv_object.ant_1_array or pair[0] in uv_object.ant_2_array):
                     raise ValueError('Antenna number {a} is not present in the '
                                      'ant_1_array or ant_2_array'.format(a=pair[0]))
-                if not (pair[1] in self.ant_1_array or pair[1] in self.ant_2_array):
+                if not (pair[1] in uv_object.ant_1_array or pair[1] in uv_object.ant_2_array):
                     raise ValueError('Antenna number {a} is not present in the '
                                      'ant_1_array or ant_2_array'.format(a=pair[1]))
-                wh1 = np.where(np.logical_and(self.ant_1_array == pair[0], self.ant_2_array == pair[1]))[0]
-                wh2 = np.where(np.logical_and(self.ant_1_array == pair[1], self.ant_2_array == pair[0]))[0]
+                wh1 = np.where(np.logical_and(uv_object.ant_1_array == pair[0], uv_object.ant_2_array == pair[1]))[0]
+                wh2 = np.where(np.logical_and(uv_object.ant_1_array == pair[1], uv_object.ant_2_array == pair[0]))[0]
                 if len(wh1) > 0:
                     ant_pair_blt_inds = np.append(ant_pair_blt_inds, list(wh1))
                 if len(wh2) > 0:
@@ -977,8 +983,8 @@ class UVData(UVBase):
 
             time_blt_inds = np.zeros(0, dtype=np.int)
             for jd in times:
-                if jd in self.time_array:
-                    time_blt_inds = np.append(time_blt_inds, np.where(self.time_array == jd)[0])
+                if jd in uv_object.time_array:
+                    time_blt_inds = np.append(time_blt_inds, np.where(uv_object.time_array == jd)[0])
                 else:
                     raise ValueError('Time {t} is not present in the time_array'.format(t=jd))
 
@@ -991,40 +997,40 @@ class UVData(UVBase):
 
             if len(blt_inds) == 0:
                 raise ValueError('No baseline-times were found that match criteria')
-            if max(blt_inds) >= self.Nblts:
+            if max(blt_inds) >= uv_object.Nblts:
                 raise ValueError('blt_inds contains indices that are too large')
             if min(blt_inds) < 0:
                 raise ValueError('blt_inds contains indices that are negative')
 
             blt_inds = list(sorted(set(list(blt_inds))))
-            self.Nblts = len(blt_inds)
-            self.baseline_array = self.baseline_array[blt_inds]
-            self.Nbls = len(np.unique(self.baseline_array))
-            self.time_array = self.time_array[blt_inds]
-            self.lst_array = self.lst_array[blt_inds]
-            self.data_array = self.data_array[blt_inds, :, :, :]
-            self.flag_array = self.flag_array[blt_inds, :, :, :]
-            self.nsample_array = self.nsample_array[blt_inds, :, :, :]
-            self.uvw_array = self.uvw_array[blt_inds, :]
+            uv_object.Nblts = len(blt_inds)
+            uv_object.baseline_array = uv_object.baseline_array[blt_inds]
+            uv_object.Nbls = len(np.unique(uv_object.baseline_array))
+            uv_object.time_array = uv_object.time_array[blt_inds]
+            uv_object.lst_array = uv_object.lst_array[blt_inds]
+            uv_object.data_array = uv_object.data_array[blt_inds, :, :, :]
+            uv_object.flag_array = uv_object.flag_array[blt_inds, :, :, :]
+            uv_object.nsample_array = uv_object.nsample_array[blt_inds, :, :, :]
+            uv_object.uvw_array = uv_object.uvw_array[blt_inds, :]
 
-            self.ant_1_array = self.ant_1_array[blt_inds]
-            self.ant_2_array = self.ant_2_array[blt_inds]
-            self.Nants_data = int(len(set(self.ant_1_array.tolist() + self.ant_2_array.tolist())))
+            uv_object.ant_1_array = uv_object.ant_1_array[blt_inds]
+            uv_object.ant_2_array = uv_object.ant_2_array[blt_inds]
+            uv_object.Nants_data = int(len(set(uv_object.ant_1_array.tolist() + uv_object.ant_2_array.tolist())))
 
-            self.Ntimes = len(np.unique(self.time_array))
+            uv_object.Ntimes = len(np.unique(uv_object.time_array))
 
-            if self.phase_type == 'drift':
-                self.zenith_ra = self.zenith_ra[blt_inds]
-                self.zenith_dec = self.zenith_dec[blt_inds]
+            if uv_object.phase_type == 'drift':
+                uv_object.zenith_ra = uv_object.zenith_ra[blt_inds]
+                uv_object.zenith_dec = uv_object.zenith_dec[blt_inds]
 
         if freq_chans is not None:
             freq_chans = uvutils.get_iterable(freq_chans)
             if frequencies is None:
-                frequencies = self.freq_array[0, freq_chans]
+                frequencies = uv_object.freq_array[0, freq_chans]
             else:
                 frequencies = uvutils.get_iterable(frequencies)
                 frequencies = np.sort(list(set(frequencies) |
-                                      set(self.freq_array[0, freq_chans])))
+                                      set(uv_object.freq_array[0, freq_chans])))
 
         if frequencies is not None:
             frequencies = uvutils.get_iterable(frequencies)
@@ -1036,7 +1042,7 @@ class UVData(UVBase):
 
             freq_inds = np.zeros(0, dtype=np.int)
             # this works because we only allow one SPW. This will have to be reworked when we support more.
-            freq_arr_use = self.freq_array[0, :]
+            freq_arr_use = uv_object.freq_array[0, :]
             for f in frequencies:
                 if f in freq_arr_use:
                     freq_inds = np.append(freq_inds, np.where(freq_arr_use == f)[0])
@@ -1055,11 +1061,11 @@ class UVData(UVBase):
                                   'some file types.')
 
             freq_inds = list(sorted(set(list(freq_inds))))
-            self.Nfreqs = len(freq_inds)
-            self.freq_array = self.freq_array[:, freq_inds]
-            self.data_array = self.data_array[:, :, freq_inds, :]
-            self.flag_array = self.flag_array[:, :, freq_inds, :]
-            self.nsample_array = self.nsample_array[:, :, freq_inds, :]
+            uv_object.Nfreqs = len(freq_inds)
+            uv_object.freq_array = uv_object.freq_array[:, freq_inds]
+            uv_object.data_array = uv_object.data_array[:, :, freq_inds, :]
+            uv_object.flag_array = uv_object.flag_array[:, :, freq_inds, :]
+            uv_object.nsample_array = uv_object.nsample_array[:, :, freq_inds, :]
 
         if polarizations is not None:
             polarizations = uvutils.get_iterable(polarizations)
@@ -1071,8 +1077,8 @@ class UVData(UVBase):
 
             pol_inds = np.zeros(0, dtype=np.int)
             for p in polarizations:
-                if p in self.polarization_array:
-                    pol_inds = np.append(pol_inds, np.where(self.polarization_array == p)[0])
+                if p in uv_object.polarization_array:
+                    pol_inds = np.append(pol_inds, np.where(uv_object.polarization_array == p)[0])
                 else:
                     raise ValueError('Polarization {p} is not present in the polarization_array'.format(p=p))
 
@@ -1084,18 +1090,21 @@ class UVData(UVBase):
                                   'some file types')
 
             pol_inds = list(sorted(set(list(pol_inds))))
-            self.Npols = len(pol_inds)
-            self.polarization_array = self.polarization_array[pol_inds]
-            self.data_array = self.data_array[:, :, :, pol_inds]
-            self.flag_array = self.flag_array[:, :, :, pol_inds]
-            self.nsample_array = self.nsample_array[:, :, :, pol_inds]
+            uv_object.Npols = len(pol_inds)
+            uv_object.polarization_array = uv_object.polarization_array[pol_inds]
+            uv_object.data_array = uv_object.data_array[:, :, :, pol_inds]
+            uv_object.flag_array = uv_object.flag_array[:, :, :, pol_inds]
+            uv_object.nsample_array = uv_object.nsample_array[:, :, :, pol_inds]
 
         history_update_string += ' using pyuvdata.'
-        self.history = self.history + history_update_string
+        uv_object.history = uv_object.history + history_update_string
 
-        # check if object is self-consistent
+        # check if object is uv_object-consistent
         if run_check:
-            self.check(run_check_acceptability=run_check_acceptability)
+            uv_object.check(run_check_acceptability=run_check_acceptability)
+
+        if not inplace:
+            return uv_object
 
     def _convert_from_filetype(self, other):
         for p in other:
