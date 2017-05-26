@@ -13,11 +13,10 @@ def test_readNRAO():
     testfile=os.path.join(DATA_PATH,'day2_TDEM0003_10s_norx_1src_1spw.ms')
     expected_extra_keywords=['data_column','antenna_positions']
 
-    status=uvtest.checkWarnings(UV.read_ms,
-                                [testfile],
-                                 message='Telescope EVLA is not',
-                                 nwarnings=0)
-    nt.assert_true(status)
+    uvtest.checkWarnings(UV.read_ms,
+                         [testfile],
+                         message='Telescope EVLA is not',
+                         nwarnings=0)
     nt.assert_equal(expected_extra_keywords.sort(),
                     UV.extra_keywords.keys().sort())
     del(UV)
@@ -27,9 +26,8 @@ def test_noSPW():
     """Test reading in a PAPER ms convertes by CASA from a uvfits with no spw axis."""
     UV=UVData()
     testfile_no_spw=os.path.join(DATA_PATH,'zen.2456865.60537.xy.uvcRREAAM.ms')
-    status=uvtest.checkWarnings(UV.read_ms,[testfile_no_spw],
-                                 nwarnings=1)
-    nt.assert_true(status)
+    uvtest.checkWarnings(UV.read_ms,[testfile_no_spw],
+                         nwarnings=1)
     del(UV)
 
 #!!!This test does not seem to work because importuvfits did not appear to preserve
@@ -62,15 +60,12 @@ def test_readMSWriteUVFITS():
     uvfits_uv=UVData()
     ms_file=os.path.join(DATA_PATH,'day2_TDEM0003_10s_norx_1src_1spw.ms')
     testfile=os.path.join(DATA_PATH,'test/outtest_uvfits')
-    read_status=uvtest.checkWarnings(ms_uv.read_ms,[ms_file],
-                                      message='Telescope EVLA is not',
-                                      nwarnings=0)
+    uvtest.checkWarnings(ms_uv.read_ms,[ms_file],
+                         message='Telescope EVLA is not',
+                         nwarnings=0)
     ms_uv.write_uvfits(testfile,spoof_nonessential=True)
-    uvfits_read_status=uvtest.checkWarnings(uvfits_uv.read_uvfits,[testfile],
-                                             message='Telescope EVLA is not')
-                                             
-    nt.assert_true(read_status)
-    nt.assert_true(uvfits_read_status)
+    uvtest.checkWarnings(uvfits_uv.read_uvfits,[testfile],
+                         message='Telescope EVLA is not')                                             
     nt.assert_equal(uvfits_uv,ms_uv)
     del(ms_uv)
     del(uvfits_uv)
@@ -85,14 +80,12 @@ def test_readMSWriteMiriad():
     miriad_uv=UVData()
     ms_file=os.path.join(DATA_PATH,'day2_TDEM0003_10s_norx_1src_1spw.ms')
     testfile=os.path.join(DATA_PATH,'test/outtest_miriad')
-    read_status=uvtest.checkWarnings(ms_uv.read_ms,[ms_file],
-                                      message='Telescope EVLA is not',
-                                      nwarnings=0)
+    uvtest.checkWarnings(ms_uv.read_ms,[ms_file],
+                         message='Telescope EVLA is not',
+                         nwarnings=0)
     ms_uv.write_miriad(testfile,clobber=True)
-    miriad_read_status=uvtest.checkWarnings(miriad_uv.read_miriad,[testfile],
-                                            message='Telescope EVLA is not')
-    nt.assert_true(read_status)
-    nt.assert_true(miriad_read_status)
+    uvtest.checkWarnings(miriad_uv.read_miriad,[testfile],
+                         message='Telescope EVLA is not')
     nt.assert_equal(miriad_uv,ms_uv)
     del(ms_uv)
     del(miriad_uv)

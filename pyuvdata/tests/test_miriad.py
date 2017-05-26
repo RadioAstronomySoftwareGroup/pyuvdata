@@ -215,14 +215,12 @@ def test_readMSWriteMiriad_CASAHistory():
     miriad_uv=UVData()
     ms_file=os.path.join(DATA_PATH,'day2_TDEM0003_10s_norx_1src_1spw.ms')
     testfile=os.path.join(DATA_PATH,'test/outtest_miriad')
-    read_status=uvtest.checkWarnings(ms_uv.read_ms,[ms_file],
-                                     message='Telescope EVLA is not',
-                                     nwarnings=0)
+    uvtest.checkWarnings(ms_uv.read_ms,[ms_file],
+                         message='Telescope EVLA is not',
+                         nwarnings=0)
     ms_uv.write_miriad(testfile,clobber=True)
-    miriad_read_status=uvtest.checkWarnings(miriad_uv.read_miriad,[testfile],
-                                            message='Telescope EVLA is not')
-    nt.assert_true(read_status)
-    nt.assert_true(miriad_read_status)
+    uvtest.checkWarnings(miriad_uv.read_miriad,[testfile],
+                         message='Telescope EVLA is not')
     nt.assert_equal(miriad_uv,ms_uv)
     nt.assert_equal(ms_uv.history,miriad_uv.history)
     del(miriad_uv)

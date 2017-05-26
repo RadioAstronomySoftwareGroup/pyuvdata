@@ -40,7 +40,7 @@ class UVFITS(UVData):
         while line_index<len(history_lines):
             newline=history_lines[line_index]
             if len(history_lines[line_index])==72:
-                while len(history_lines[line_index])==72:
+                while len(history_lines[line_index])==72 and line_index<len(history_lines)-1:
                     line_index+=1
                     newline+=history_lines[line_index]
             line_index+=1
