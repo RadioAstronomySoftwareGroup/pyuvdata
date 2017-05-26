@@ -149,13 +149,11 @@ def test_readMSWriteUVFits_CASAHistory():
     uvfits_uv=UVData()
     ms_file=os.path.join(DATA_PATH,'day2_TDEM0003_10s_norx_1src_1spw.ms')
     testfile=os.path.join(DATA_PATH,'test/outtest_uvfits')
-    read_status=uvtest.checkWarnings(ms_uv.read_ms,[ms_file],message='Telescope EVLA is not',
-                                    nwarnings=0)
+    uvtest.checkWarnings(ms_uv.read_ms,[ms_file],message='Telescope EVLA is not',
+                         nwarnings=0)
     ms_uv.write_uvfits(testfile,spoof_nonessential=True)
-    uvfits_read_status=uvtest.checkWarnings(uvfits_uv.read_uvfits,[testfile],
-                                            message='Telescope EVLA is not')
-    nt.assert_true(read_status)
-    nt.assert_true(uvfits_read_status)
+    uvtest.checkWarnings(uvfits_uv.read_uvfits,[testfile],
+                         message='Telescope EVLA is not')
     nt.assert_equal(ms_uv,uvfits_uv)
     nt.assert_equal(ms_uv.history,uvfits_uv.history)
     del(uvfits_uv)
