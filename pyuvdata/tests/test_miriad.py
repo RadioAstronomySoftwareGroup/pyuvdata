@@ -225,8 +225,6 @@ def test_readMSWriteMiriad_CASAHistory():
     nt.assert_true(miriad_read_status)
     nt.assert_equal(miriad_uv,ms_uv)
     nt.assert_equal(ms_uv.history,miriad_uv.history)
-    print ms_uv.history
-    print miriad_uv.history
     del(miriad_uv)
     del(ms_uv)
 
