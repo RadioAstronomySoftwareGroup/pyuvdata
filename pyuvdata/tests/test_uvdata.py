@@ -466,7 +466,6 @@ def test_select_frequencies():
     nt.assert_equal(old_history + '  Downselected to specific frequencies '
                     'using pyuvdata.', uv_object2.history)
 
-
     # check that selecting one frequency works
     uv_object2 = copy.deepcopy(uv_object)
     uv_object2.select(frequencies=freqs_to_keep[0])
@@ -492,9 +491,6 @@ def test_select_frequencies():
     nt.assert_raises(ValueError, uv_object2.write_miriad, write_file_miriad)
 
     uv_object2 = copy.deepcopy(uv_object)
-    uvtest.checkWarnings(uv_object2.select, [], {'frequencies': uv_object2.freq_array[0, [0, 2, 4]]},
-                         message='Selected frequencies are not contiguous')
-
     uvtest.checkWarnings(uv_object2.select, [], {'frequencies': uv_object2.freq_array[0, [0, 2, 4]]},
                          message='Selected frequencies are not contiguous')
     nt.assert_raises(ValueError, uv_object2.write_uvfits, write_file_uvfits)
@@ -559,12 +555,19 @@ def test_select_polarizations():
     nt.assert_raises(ValueError, uv_object2.select, polarizations=[-3, -4])
 
     # check for warnings and errors associated with unevenly spaced polarizations
+<<<<<<< HEAD
     uvtest.checkWarnings(uv_object.select, [], {'polarizations': uv_object.polarization_array[[0, 1, 3]]},
                          message='Selected polarization values are not evenly spaced')
 
     uvtest.checkWarnings(uv_object.select, [], {'polarizations': uv_object.polarization_array[[0, 1, 3]]},
                          message='Selected polarization values are not evenly spaced')
 
+=======
+
+    uvtest.checkWarnings(uv_object.select, [], {'polarizations': uv_object.polarization_array[[0, 1, 3]]},
+                         message='Selected polarization values are not evenly spaced')
+
+>>>>>>> fixed test_uvdata.py rebase
     write_file_uvfits = os.path.join(DATA_PATH, 'test/select_test.uvfits')
     nt.assert_raises(ValueError, uv_object.write_uvfits, write_file_uvfits)
 
@@ -650,6 +653,7 @@ def test_select():
     # test that a ValueError is raised if the selection eliminates all blts
     nt.assert_raises(ValueError, uv_object.select, times=unique_times[0], antenna_nums=1)
 
+<<<<<<< HEAD
 
 
 def test_select_not_inplace():
@@ -666,6 +670,8 @@ def test_select_not_inplace():
                     uv1.history)
     uv1.history = old_history
     nt.assert_equal(uv1, uv_object)
+=======
+>>>>>>> fixed test_uvdata.py rebase
 
 
 def test_reorder_pols():
@@ -871,4 +877,7 @@ def test_break_add():
     # Overlapping data
     uv2 = copy.deepcopy(uv_full)
     nt.assert_raises(ValueError, uv1.__iadd__, uv2)
+<<<<<<< HEAD
 
+=======
+>>>>>>> fixed test_uvdata.py rebase
