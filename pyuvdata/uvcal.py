@@ -200,6 +200,17 @@ class UVCal(UVBase):
                                          expected_type=str,
                                          required=False)
 
+        desc = ('Array of qualities of calibration for entire arrays. '
+                'shape depends on the cal_type, if cal_type is gain or unknown, '
+                'shape is: (Nspws, Nfreqs, Ntimes, Njones), '
+                'if cal_type is delay, shape is (Nspws, Ntimes, Njones), '
+                'type = float.')
+        self._total_quality_array = uvp.UVParameter('total_quality_array', description=desc,
+                                                    form=('Nspws', 'Nfreqs',
+                                                          'NTimes', 'Njones'),
+                                                    expected_type=np.float,
+                                                    required=False)
+
         # String to add to history of any files written with this version of pyuvdata
         self.pyuvdata_version_str = ('  Read/written with pyuvdata version: ' +
                                      uvversion.version + '.')
