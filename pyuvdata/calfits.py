@@ -82,6 +82,9 @@ class CALFITS(UVCal):
         if self.cal_type != 'gain':
             sechdr = fits.Header()
             sechdr['EXTNAME'] = 'FLAGS'
+        elif self.total_quality_array is not None:
+            sechdr = fits.Header()
+            sechdr['EXTNAME'] = 'TOTQLTY'
         # Conforming to fits format
         prihdr['SIMPLE'] = True
         prihdr['BITPIX'] = 32
@@ -162,6 +165,13 @@ class CALFITS(UVCal):
                                           self.flag_array[:, :, :, :, :, np.newaxis],
                                           self.quality_array[:, :, :, :, :, np.newaxis]],
                                          axis=-1)
+
+            if self.total_quality_array is not None:
+                sechdr['CTYPE1'] = ('Narrays', 'Number of total quality arrays.')
+                sechdr['CUNIT1'] = ('Integar', 'Number of total quality arrays. Increment.')
+                sechdr['CDELT1'] = 1
+                sechdr['CRVAL1'] = (1, 'Number of image arrays.')
+                secdata = self.total_quality_array[:,:,:,:,np.newaxis]
 
         if self.cal_type == 'delay':
             # Set header variable for delay.
@@ -273,8 +283,13 @@ class CALFITS(UVCal):
             hdulist = fits.HDUList([prihdu, ant_hdu, sechdu])
 
         else:
-            prihdu = fits.PrimaryHDU(data=pridata, header=prihdr)
-            hdulist = fits.HDUList([prihdu, ant_hdu])
+            if self.total_quality_array is not None:
+                prihdu = fits.PrimaryHDU(data=pridata, header=prihdr)
+                sechdu = fits.ImageHDU(data=secdata, header=sechdr)
+                hdulist = fits.HDUList([prihdu, ant_hdu, sechdu])
+            else:
+                prihdu = fits.PrimaryHDU(data=pridata, header=prihdr)
+                hdulist = fits.HDUList([prihdu, ant_hdu])
 
         if float(astropy.__version__[0:3]) < 1.3:
             hdulist.writeto(filename, clobber=clobber)
@@ -351,6 +366,10 @@ class CALFITS(UVCal):
 
             # generate frequency array from primary data unit.
             self.freq_array = np.arange(self.Nfreqs).reshape(1, -1) * hdr['CDELT4'] + hdr['CRVAL4']
+
+            sechdu = F[hdunames['TOTQLTY']]
+            tqa_data = sechdu.data
+            self.total_quality_array = tqa_data[:, :, :, :, 0]
 
         if self.cal_type == 'delay':
             self.set_delay()
