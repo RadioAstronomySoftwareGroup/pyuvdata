@@ -367,9 +367,12 @@ class CALFITS(UVCal):
             # generate frequency array from primary data unit.
             self.freq_array = np.arange(self.Nfreqs).reshape(1, -1) * hdr['CDELT4'] + hdr['CRVAL4']
 
-            sechdu = F[hdunames['TOTQLTY']]
-            tqa_data = sechdu.data
-            self.total_quality_array = tqa_data[:, :, :, :, 0]
+            try:
+                sechdu = F[hdunames['TOTQLTY']]
+                tqa_data = sechdu.data
+                self.total_quality_array = tqa_data[:, :, :, :, 0]
+            except KeyError:
+                pass
 
         if self.cal_type == 'delay':
             self.set_delay()
