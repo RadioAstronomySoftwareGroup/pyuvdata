@@ -122,6 +122,8 @@ class CALFITS(UVCal):
             prihdr['ORIGCAL'] = self.git_origin_cal
         if self.git_hash_cal:
             prihdr['HASHCAL'] = self.git_hash_cal
+        if self.calfile:
+            prihdr['CALFILE'] = self.calfile
 
         if self.cal_type == 'unknown':
             raise ValueError("unknown calibration type. Do not know how to"
@@ -350,6 +352,10 @@ class CALFITS(UVCal):
             pass
         try:
             self.git_hash_cal = hdr['HASHCAL']
+        except:
+            pass
+        try:
+            self.calfile = hdr['CALFILE']
         except:
             pass
 

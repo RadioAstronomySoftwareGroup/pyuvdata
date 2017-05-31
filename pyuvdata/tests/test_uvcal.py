@@ -39,12 +39,14 @@ class TestUVCalInit(object):
         self.extra_parameters = ['_gain_array', '_delay_array',
                                  '_input_flag_array', '_freq_range',
                                  '_observer', '_git_origin_cal',
-                                 '_git_hash_cal', '_total_quality_array']
+                                 '_git_hash_cal', '_calfile',
+                                 '_total_quality_array']
 
         self.extra_properties = ['gain_array', 'delay_array',
                                  'input_flag_array', 'freq_range',
                                  'observer', 'git_origin_cal',
-                                 'git_hash_cal', 'total_quality_array']
+                                 'git_hash_cal', 'calfile',
+                                 'total_quality_array']
 
         self.other_properties = ['pyuvdata_version_str']
 
