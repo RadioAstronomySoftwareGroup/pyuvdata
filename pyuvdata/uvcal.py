@@ -213,7 +213,7 @@ class UVCal(UVBase):
                 'type = float.')
         self._total_quality_array = uvp.UVParameter('total_quality_array', description=desc,
                                                     form=('Nspws', 'Nfreqs',
-                                                          'NTimes', 'Njones'),
+                                                          'Ntimes', 'Njones'),
                                                     expected_type=np.float,
                                                     required=False)
 
