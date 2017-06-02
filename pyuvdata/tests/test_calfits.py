@@ -125,8 +125,6 @@ def test_readwriteread_total_quality_array():
 
     Currently we have no such file, so we will artificially create one and
     check for internal consistency.
-
-    We will also test the calfile property.
     """
     uv_in = UVCal()
     uv_out = UVCal()
@@ -136,9 +134,6 @@ def test_readwriteread_total_quality_array():
 
     # Create filler total quality array
     uv_in.total_quality_array = np.zeros(uv_in._total_quality_array.expected_shape(uv_in))
-
-    # Also add calfile
-    uv_in.calfile = "hsa7458_v000"
 
     uv_in.write_calfits(write_file, clobber=True)
     uv_out.read_calfits(write_file)
