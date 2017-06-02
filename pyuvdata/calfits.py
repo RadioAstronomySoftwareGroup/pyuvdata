@@ -368,10 +368,6 @@ class CALFITS(UVCal):
             self.git_hash_cal = hdr['HASHCAL']
         except:
             pass
-        try:
-            self.calfile = hdr['CALFILE']
-        except:
-            pass
 
         # get data.
         if self.cal_type == 'gain':
