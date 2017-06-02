@@ -200,12 +200,6 @@ class UVCal(UVBase):
                                          expected_type=str,
                                          required=False)
 
-        desc = ('Calfile version used in this file.')
-        self._calfile = uvp.UVParameter('calfile', form='str',
-                                        description=desc,
-                                        expected_type=str,
-                                        required=False)
-
         desc = ('Array of qualities of calibration for entire arrays. '
                 'shape depends on the cal_type, if cal_type is gain or unknown, '
                 'shape is: (Nspws, Nfreqs, Ntimes, Njones), '

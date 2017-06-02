@@ -82,6 +82,9 @@ class CALFITS(UVCal):
         if self.cal_type != 'gain':
             sechdr = fits.Header()
             sechdr['EXTNAME'] = 'FLAGS'
+            if self.total_quality_array is not None:
+                terhdr = fits.Header()
+                terhdr['EXTNAME'] = 'TOTQLTY'
         elif self.total_quality_array is not None:
             sechdr = fits.Header()
             sechdr['EXTNAME'] = 'TOTQLTY'
@@ -122,8 +125,6 @@ class CALFITS(UVCal):
             prihdr['ORIGCAL'] = self.git_origin_cal
         if self.git_hash_cal:
             prihdr['HASHCAL'] = self.git_hash_cal
-        if self.calfile:
-            prihdr['CALFILE'] = self.calfile
 
         if self.cal_type == 'unknown':
             raise ValueError("unknown calibration type. Do not know how to"
@@ -243,6 +244,13 @@ class CALFITS(UVCal):
                 sechdr['CRVAL1'] = (1, 'Number of image arrays.')
                 sechdr['CDELT1'] = 1
 
+            if self.total_quality_array is not None:
+                terhdr['CTYPE1'] = ('Narrays', 'Number of total quality arrays.')
+                terhdr['CUNIT1'] = ('Integar', 'Number of total quality arrays. Increment.')
+                terhdr['CDELT1'] = 1
+                terhdr['CRVAL1'] = (1, 'Number of image arrays.')
+                terdata = self.total_quality_array[:,:,:,:,np.newaxis]
+
         # primary header ctypes for NAXIS [ for both gain and delay cal_type.]
         # Check polarizations.
         prihdr['CTYPE2'] = ('JONES', 'Jones matrix array')
@@ -280,9 +288,15 @@ class CALFITS(UVCal):
         ant_hdu.header['EXTNAME'] = 'ANTENNAS'
 
         if self.cal_type != 'gain':
-            prihdu = fits.PrimaryHDU(data=pridata, header=prihdr)
-            sechdu = fits.ImageHDU(data=secdata, header=sechdr)
-            hdulist = fits.HDUList([prihdu, ant_hdu, sechdu])
+            if self.total_quality_array is not None:
+                prihdu = fits.PrimaryHDU(data=pridata, header=prihdr)
+                sechdu = fits.ImageHDU(data=secdata, header=sechdr)
+                terhdu = fits.ImageHDU(data=terdata, header=terhdr)
+                hdulist = fits.HDUList([prihdu, ant_hdu, sechdu, terhdu])
+            else:
+                prihdu = fits.PrimaryHDU(data=pridata, header=prihdr)
+                sechdu = fits.ImageHDU(data=secdata, header=sechdr)
+                hdulist = fits.HDUList([prihdu, ant_hdu, sechdu])
 
         else:
             if self.total_quality_array is not None:
@@ -395,6 +409,13 @@ class CALFITS(UVCal):
 
             # generate frequency array from flag data unit (no freq axis in primary).
             self.freq_array = np.arange(self.Nfreqs).reshape(1, -1) * flag_hdr['CDELT4'] + flag_hdr['CRVAL4']
+
+            try:
+                terhdu = F[hdunames['TOTQLTY']]
+                tqa_data = terhdu.data
+                self.total_quality_array = tqa_data[:, :, :, :, 0]
+            except KeyError:
+                pass
 
         # generate polarization and time array for either cal_type.
         self.jones_array = np.arange(self.Njones) * hdr['CDELT2'] + hdr['CRVAL2']
