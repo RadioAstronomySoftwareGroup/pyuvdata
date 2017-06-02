@@ -140,3 +140,18 @@ def test_readwriteread_total_quality_array():
     nt.assert_equal(uv_in, uv_out)
     del(uv_in)
     del(uv_out)
+
+    # also test delay-type calibrations
+    uv_in = UVCal()
+    uv_out = UVCal()
+    testfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.HH.uvc.fits')
+    write_file = os.path.join(DATA_PATH, 'test/outtest_total_quality_array_delays.fits')
+    uv_in.read_calfits(testfile)
+
+    uv_in.total_quality_array = np.zeros(uv_in._total_quality_array.expected_shape(uv_in))
+
+    uv_in.write_calfits(write_file, clobber=True)
+    uv_out.read_calfits(write_file)
+    nt.assert_equal(uv_in, uv_out)
+    del(uv_in)
+    del(uv_out)
