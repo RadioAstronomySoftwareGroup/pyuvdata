@@ -143,6 +143,21 @@ c) Select a few antenna pairs to keep
   # print all the antenna pairs after the select
   print(set(zip(UV.ant_1_array, UV.ant_2_array)))
 
+d) Select data and return new object (leaving original in tact).
+****************
+::
+
+  from pyuvdata import UVData
+  import numpy as np
+  UV = UVData()
+  filename = 'pyuvdata/data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
+  UV.read_uvfits(filename)
+  UV2 = UV.select(antenna_nums=[0, 11, 20], inplace=False)
+  # print all the antennas numbers with data in the original file
+  print(np.unique(UV.ant_1_array.tolist() + UV.ant_2_array.tolist()))
+  # print all the antennas numbers with data after the select
+  print(np.unique(UV2.ant_1_array.tolist() + UV2.ant_2_array.tolist()))
+
 Example 5
 ---------
 Adding data (UVData): The __add__ method lets you combine UVData objects along

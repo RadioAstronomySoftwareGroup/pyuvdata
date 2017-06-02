@@ -642,6 +642,22 @@ def test_select():
     nt.assert_raises(ValueError, uv_object.select, times=unique_times[0], antenna_nums=1)
 
 
+def test_select_not_inplace():
+    # Test non-inplace select
+    uv_object = UVData()
+    testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    uvtest.checkWarnings(uv_object.read_uvfits, [testfile],
+                         message='Telescope EVLA is not')
+    old_history = uv_object.history
+    uv1 = uv_object.select(freq_chans=np.arange(32), inplace=False)
+    uv1 += uv_object.select(freq_chans=np.arange(32, 64), inplace=False)
+    nt.assert_equal(old_history + '  Downselected to specific frequencies using' +
+                    ' pyuvdata. Combined data along frequency axis using pyuvdata.',
+                    uv1.history)
+    uv1.history = old_history
+    nt.assert_equal(uv1, uv_object)
+
+
 def test_reorder_pols():
     # Test function to fix polarization order
     uv1 = UVData()
