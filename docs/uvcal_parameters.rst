@@ -101,4 +101,7 @@ Some of them are required depending on the cal_type (as noted below).
 **observer**
      Name of observer who calculated solutions in this file.
 
-last updated: 2017-05-03
+**total_quality_array**
+     Array of qualities of calibration for entire arrays. shape depends on the cal_type, if cal_type is gain or unknown, shape is: (Nspws, Nfreqs, Ntimes, Njones), if cal_type is delay, shape is (Nspws, Ntimes, Njones), type = float.
+
+last updated: 2017-06-02
