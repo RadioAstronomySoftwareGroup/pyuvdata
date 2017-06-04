@@ -22,6 +22,7 @@ I18NSPHINXOPTS  = $(PAPEROPT_$(PAPER)) $(SPHINXOPTS) .
 .PHONY: help
 help:
 	@echo "Please use \`make <target>' where <target> is one of"
+	@echo "  params-index to make params and index files"
 	@echo "  html       to make standalone HTML files"
 	@echo "  dirhtml    to make HTML files named index.html in directories"
 	@echo "  singlehtml to make a single large HTML file"
@@ -53,8 +54,17 @@ help:
 clean:
 	rm -rf $(BUILDDIR)/*
 
-.PHONY: html
-html:
+params-index:
+	python make_index.py
+	python make_parameters.py
+	python make_cal_parameters.py
+
+html: params-index html-after-params-index
+	# build full docs including params & index
+
+.PHONY: html-after-params-index
+html-after-params-index:
+	# standard build after params-index is built
 	$(SPHINXBUILD) -b html $(ALLSPHINXOPTS) $(BUILDDIR)/html
 	@echo
 	@echo "Build finished. The HTML pages are in $(BUILDDIR)/html."
