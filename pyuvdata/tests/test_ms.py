@@ -1,6 +1,7 @@
 """Tests for MS object."""
 import nose.tools as nt
 import os
+import copy
 from pyuvdata import UVData
 import glob as glob
 from pyuvdata.data import DATA_PATH
@@ -108,3 +109,30 @@ def test_readMSWriteMiriad():
 #    nt.assert_equal(ms_uv,uvfits_uv)
 #    del(ms_uv)
 #    del(uvfits_uv)
+
+# to fix this test we need split measurement sets to test with.
+# def test_multi_files():
+#     """
+#     Reading multiple files at once.
+#     """
+#     uv_full = UVData()
+#     uvfits_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+#     testfile1 = os.path.join(DATA_PATH, 'test/uv1')
+#     testfile2 = os.path.join(DATA_PATH, 'test/uv2')
+#     uvtest.checkWarnings(uv_full.read_uvfits, [uvfits_file], message='Telescope EVLA is not')
+#     uv_full.unphase_to_drift()
+#     uv1 = copy.deepcopy(uv_full)
+#     uv2 = copy.deepcopy(uv_full)
+#     uv1.select(freq_chans=np.arange(0, 32))
+#     uv2.select(freq_chans=np.arange(32, 64))
+#     uv1.write_ms(testfile1, clobber=True)
+#     uv2.write_ms(testfile2, clobber=True)
+#     uvtest.checkWarnings(uv1.read_ms, [[testfile1, testfile2]], nwarnings=2,
+#                          category=[UserWarning, UserWarning],
+#                          message=['Telescope EVLA is not', 'Telescope EVLA is not'])
+#     # Check history is correct, before replacing and doing a full object check
+#     nt.assert_equal(uv_full.history + '  Downselected to specific frequencies'
+#                     ' using pyuvdata. Combined data along frequency axis using'
+#                     ' pyuvdata.', uv1.history.replace('\n', ''))
+#     uv1.history = uv_full.history
+#     nt.assert_equal(uv1, uv_full)
