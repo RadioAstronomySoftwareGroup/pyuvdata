@@ -29,7 +29,7 @@ regex_cover = re.compile(cover_str)
 loc_cover_start = re.search(regex_cover, readme_md).start()
 loc_cover_end = re.search(regex_cover, readme_md).end()
 
-readme_text = pypandoc.convert_file('../readme.md', 'rst')
+readme_text = pypandoc.convert_file(readme_md, 'rst')
 
 rst_status_badge = '.. image:: ' + travis_str + branch_str + '\n    :target: https://travis-ci.org/HERA-Team/pyuvdata'
 status_badge_text = '|Build Status|'
