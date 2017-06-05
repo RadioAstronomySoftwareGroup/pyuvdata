@@ -6,4 +6,4 @@ dependencies:
   - scipy
   - astropy
   - pkgw::aipy
-  - pypandoc
+  - conda-forge::pypandoc
