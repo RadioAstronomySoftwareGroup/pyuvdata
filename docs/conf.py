@@ -297,3 +297,14 @@ texinfo_documents = [
 
 # If true, do not generate a @detailmenu in the "Top" node's menu.
 # texinfo_no_detailmenu = False
+
+
+def build_custom_docs(app, docname):
+    sys.path.append(os.getcwd())
+    import make_index
+    import make_parameters
+    import make_cal_parameters
+
+
+def setup(app):
+    app.connect('build-finished', build_custom_docs)
