@@ -69,7 +69,7 @@ For anaconda users, we suggest using conda to install astropy, numpy and scipy a
 ## Install pyuvdata
 For simple installation, the latest stable version is available via pip using ```pip install pyuvdata```
 
-###Optionally install python-casacore
+### Optionally install python-casacore
 python-casacore requires the casacore c++ libraries. In conda run
 
 ```conda config --add channels conda-forge```
