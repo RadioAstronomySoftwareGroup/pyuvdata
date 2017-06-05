@@ -1,9 +1,9 @@
 Tutorial
 ========
 
-Example 1
+UVData: File conversion
 ---------
-UVData: Converting between tested data formats
+Converting between tested data formats
 
 a) miriad (aipy) -> uvfits
 **************************
@@ -53,9 +53,9 @@ d) FHD -> miriad (aipy)
   UV.read_fhd(fhd_files)
   UV.write_uvfits('1061316296.uvfits')
 
-Example 2
+UVData: Phasing
 ---------
-UVData: Phasing/unphasing data::
+Phasing/unphasing data::
 
   from pyuvdata import UVData
   import ephem
@@ -68,9 +68,9 @@ UVData: Phasing/unphasing data::
   UV.unphase_to_drift()  # Undo phasing to try another phase center
   UV.phase(5.23368, 0.710940, ephem.J2000)  # Phase to a specific ra/dec/epoch (in radians)
 
-Example 3
+UVData: Plotting
 ---------
-UVData: Making a simple waterfall plot::
+Making a simple waterfall plot::
 
   from pyuvdata import UVData
   import numpy as np
@@ -86,9 +86,9 @@ UVData: Making a simple waterfall plot::
   plt.imshow(np.abs(UV.data_array[bl_ind, 0, :, 0]))  # Amplitude waterfall for 0th spectral window and 0th polarization
   plt.show()
 
-Example 4
+UVData: Selecting data
 ---------
-Selecting data (UVData): The select method lets you select specific antennas (by number or name),
+The select method lets you select specific antennas (by number or name),
 antenna pairs, frequencies (in Hz or by channel number), times or polarizations
 to keep in the object while removing others.
 
@@ -158,9 +158,9 @@ d) Select data and return new object (leaving original in tact).
   # print all the antennas numbers with data after the select
   print(np.unique(UV2.ant_1_array.tolist() + UV2.ant_2_array.tolist()))
 
-Example 5
+UVData: Adding data
 ---------
-Adding data (UVData): The __add__ method lets you combine UVData objects along
+The __add__ method lets you combine UVData objects along
 the baseline-time, frequency, and/or polarization axis.
 
 a) Add frequencies.
@@ -199,18 +199,20 @@ b) Add times.
   print(uv1.Ntimes, uv2.Ntimes, uv3.Ntimes)
   print(uv1.Nblts, uv2.Nblts, uv3.Nblts)
 
-c) Adding in place. The following two commands are equivalent, and act on uv1
-directly without creating a third uvdata object.
+c) Adding in place.
 ****************
+The following two commands are equivalent, and act on uv1
+directly without creating a third uvdata object.
 ::
 
   uv1.__add__(uv2, inplace=True)
   uv1 += uv2
 
-d) Reading multiple files. If any of the read methods are given a list of files
+d) Reading multiple files.
+****************
+If any of the read methods are given a list of files
 (or list of lists in the case of read_fhd), each file will be read in succession
 and added to the previous.
-****************
 ::
 
   from pyuvdata import UVData
@@ -219,7 +221,7 @@ and added to the previous.
   uv.read_uvfits(filenames)
 
 
-Example 6
+UVCal: Reading/writing
 ---------
 Calibration files using UVCal.
 
@@ -295,9 +297,9 @@ b) Writing a gain calibration file.
 
   cal.write_calfits('tutorial5b.fits')
 
-Example 7
+UVCal: Selecting data
 ---------
-Selecting data (UVCal): The select method lets you select specific antennas (by number or name),
+The select method lets you select specific antennas (by number or name),
 frequencies (in Hz or by channel number), times or polarizations
 to keep in the object while removing others.
 
