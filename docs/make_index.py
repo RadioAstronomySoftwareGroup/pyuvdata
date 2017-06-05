@@ -1,6 +1,8 @@
 """
 Format the readme.md file into the sphinx index.rst file.
 """
+import os
+import sys
 import re
 import pypandoc
 from astropy.time import Time
@@ -10,7 +12,8 @@ t.out_subfmt = 'date'
 out = ('.. pyuvdata documentation master file, created by\n'
        '   make_index.py on {date}\n\n').format(date=t.iso)
 
-readme_md = pypandoc.convert_file('../readme.md', 'md')
+readme_path = os.path.join(os.path.dirname(os.getcwd()), 'readme.md')
+readme_md = pypandoc.convert_file(readme_path, 'md')
 travis_str = 'https://travis-ci.org/HERA-Team/pyuvdata.svg'
 regex_travis = re.compile(travis_str)
 loc_travis_start = re.search(regex_travis, readme_md).start()
