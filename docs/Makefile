@@ -54,17 +54,8 @@ help:
 clean:
 	rm -rf $(BUILDDIR)/*
 
-params-index:
-	python make_index.py
-	python make_parameters.py
-	python make_cal_parameters.py
-
-html: params-index html-after-params-index
-	# build full docs including params & index
-
-.PHONY: html-after-params-index
-html-after-params-index:
-	# standard build after params-index is built
+.PHONY: html
+html:
 	$(SPHINXBUILD) -b html $(ALLSPHINXOPTS) $(BUILDDIR)/html
 	@echo
 	@echo "Build finished. The HTML pages are in $(BUILDDIR)/html."
