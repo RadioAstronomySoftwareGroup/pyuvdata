@@ -70,15 +70,14 @@ For anaconda users, we suggest using conda to install astropy, numpy and scipy a
 ## Install pyuvdata
 For simple installation, the latest stable version is available via pip using ```pip install pyuvdata```
 
-### Optionally install python-casacore
-python-casacore requires the casacore c++ libraries. In conda run
+### For measurement set functionality, install python-casacore
+python-casacore is required in order to use the measurement set capabilities of pyuvdata. python-casacore requires the casacore c++ libraries. To install via conda,  run
 
 ```conda config --add channels conda-forge```
-```conda install casacore```
-which will install the casacore c++ libraries. To install the python wrappers, run
-```conda install python-casacore```
 
-If you don't want to use conda, the casacore c++ libraries are available for ubuntu through the [kern suite](http://kernsuite.info/). On OSX, casacore is available through the [ska-sa brew tap](https://github.com/ska-sa/homebrew-tap). The python-casacore library (and manual install instructions) is available at https://github.com/casacore/python-casacore 
+```conda install python-casacore``` (This will install both python-casacore and the casacore c++ libraries as a requirement)
+
+If you don't want to use conda, the casacore c++ libraries are available for ubuntu through the [kern suite](http://kernsuite.info/). On OSX, casacore is available through the [ska-sa brew tap](https://github.com/ska-sa/homebrew-tap). The python-casacore library (with manual install instructions) is available at https://github.com/casacore/python-casacore
 
 
 ### Optionally install the development version
