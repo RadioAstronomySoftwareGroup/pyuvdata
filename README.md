@@ -30,6 +30,7 @@ The three main goals are:
 * miriad is supported for aipy-style analysis, further testing is required for use in the miriad package
 * uvfits conforms to AIPS memo 117 (as of May 2015).  It is tested against FHD, CASA, and AIPS. However AIPS is limited to <80 antennas and CASA imaging does not seem to support >255 antennas.
 * FHD (read-only support, tested against MWA and PAPER data)
+* CASA measurement sets (read-only support) 
 
 ## Known Issues and Planned Improvements
 * different multiple spectral windows or multiple sources are not currently supported
