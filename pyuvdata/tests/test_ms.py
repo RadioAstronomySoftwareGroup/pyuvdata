@@ -50,7 +50,34 @@ def test_spwnotsupported():
     nt.assert_raises(ValueError,UV.read_ms,testfile)
     del(UV)
 
+def test_readMSreadUVFITS():
+    """
+    this test tests that a uvdata object instantiated 
+    from an ms file
+    created with CASA's importuvfits 
+    is equal to a uvdata object instantiated from the original
+    uvfits file (tests equivalence with importuvfits in uvdata). 
+    Since the histories are different, this test sets both uvdata
+    histories to identical empty strings before comparing them. 
+    """
+    ms_uv=UVData()
+    uvfits_uv=UVData()
+    ms_file=os.path.join(DATA_PATH,'day2_TDEM0003_10s_norx_1src_1spw.ms')
+    uvfits_file=os.path.join(DATA_PATH,'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    uvtest.checkWarnings(uvfits_uv.read_uvfits,[uvfits_file],
+                         message='Telescope EVLA is not')
+    uvtest.checkWarnings(ms_uv.read_ms,[ms_file],
+                         message='Telescope EVLA is not',
+                         nwarnings=0)
+    #set histories to identical blank strings since we do not expect
+    #them to be the same anyways.
+    ms_uv.history=""
+    uvfits_uv.history=""
+    nt.assert_equal(uvfits_uv,ms_uv)
+    del(ms_uv)
+    del(uvfits_uv)
 
+    
 def test_readMSWriteUVFITS():
     """
     read ms, write uvfits test.
