@@ -13,8 +13,7 @@ t.out_subfmt = 'date'
 out = ('.. pyuvdata documentation master file, created by\n'
        '   make_index.py on {date}\n\n').format(date=t.iso)
 
-readme_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(inspect.stack()[0][1]))), 'readme.md')
-print(os.path.abspath(inspect.stack()[0][1]))
+readme_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(inspect.stack()[0][1]))), 'README.md')
 readme_md = pypandoc.convert_file(readme_path, 'md')
 travis_str = 'https://travis-ci.org/HERA-Team/pyuvdata.svg'
 regex_travis = re.compile(travis_str)
