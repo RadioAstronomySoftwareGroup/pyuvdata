@@ -14,6 +14,7 @@
 
 import sys
 import os
+from recommonmark.parser import CommonMarkParser
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
@@ -43,7 +44,11 @@ templates_path = ['_templates']
 # The suffix(es) of source filenames.
 # You can specify multiple suffix as a list of string:
 # source_suffix = ['.rst', '.md']
-source_suffix = '.rst'
+# source_suffix = '.rst'
+source_parsers = {
+    '.md': CommonMarkParser,
+}
+source_suffix = ['.rst', '.md']
 
 # The encoding of source files.
 # source_encoding = 'utf-8-sig'
@@ -301,7 +306,6 @@ texinfo_documents = [
 
 def build_custom_docs(app, docname):
     sys.path.append(os.getcwd())
-    import make_index
     import make_parameters
     import make_cal_parameters
 
