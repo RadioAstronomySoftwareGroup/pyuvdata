@@ -6,3 +6,4 @@ dependencies:
   - scipy
   - astropy
   - pkgw::aipy
+  - pypandoc
