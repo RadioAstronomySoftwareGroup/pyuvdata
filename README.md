@@ -19,6 +19,9 @@ The three main goals are:
 * miriad (aipy) -> uvfits
 * FHD -> uvfits
 * FHD -> miriad (aipy)
+* CASA measurement sets -> miriad
+* CASA measurement sets -> FHD
+* CASA measurement sets -> uvfits
 
 ## File formats for calibration data
 * calfits (a new format defined in pyuvdata, detailed memo coming soon). Note that this format was recently defined and may change in coming versions, based on user needs. Consider it to be in a beta version, but we will strive to make future versions backwards compatible with the current format.
@@ -32,8 +35,8 @@ The three main goals are:
 * different multiple spectral windows or multiple sources are not currently supported
 * testing against miriad package
 * replacing AIPY and pyephem with astropy+NOVAS for time and phase calculations
-* support for direct reading and writing of Measurement Sets
 * expand support for calibration solutions: support other formats beyond FITS
+* add support for writing CASA measurement sets
 
 For details see the [issue log](https://github.com/HERA-Team/pyuvdata/issues).
 
@@ -61,9 +64,21 @@ For anaconda users, we suggest using conda to install astropy, numpy and scipy a
 * astropy >= 1.2
 * pyephem
 * aipy
+* casacore-python (for CASA measurement set reading functionality)
 
 ## Install pyuvdata
 For simple installation, the latest stable version is available via pip using ```pip install pyuvdata```
+
+###Optionally install python-casacore
+python-casacore requires the casacore c++ libraries. In conda run
+
+```conda config --add channels conda-forge```
+```conda install casacore```
+which will install the casacore c++ libraries. To install the python wrappers, run
+```conda install python-casacore```
+
+If you don't want to use conda, the casacore c++ libraries are available for ubuntu through the kern suite at ```http://kernsuite.info/```. On OSX, casacore is available through the ska-sa brew tap (see ```https://github.com/ska-sa/homebrew-tap``` for instructions). The python-casacore library (and manual install instructions) is available at ```https://github.com/casacore/python-casacore```.
+
 
 ### Optionally install the development version
 For the development version, clone the repository using
