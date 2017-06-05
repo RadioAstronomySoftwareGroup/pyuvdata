@@ -77,7 +77,7 @@ python-casacore requires the casacore c++ libraries. In conda run
 which will install the casacore c++ libraries. To install the python wrappers, run
 ```conda install python-casacore```
 
-If you don't want to use conda, the casacore c++ libraries are available for ubuntu through the kern suite at ```http://kernsuite.info/```. On OSX, casacore is available through the ska-sa brew tap (see ```https://github.com/ska-sa/homebrew-tap``` for instructions). The python-casacore library (and manual install instructions) is available at ```https://github.com/casacore/python-casacore```.
+If you don't want to use conda, the casacore c++ libraries are available for ubuntu through the [kern suite](http://kernsuite.info/). On OSX, casacore is available through the [ska-sa brew tap](https://github.com/ska-sa/homebrew-tap). The python-casacore library (and manual install instructions) is available at https://github.com/casacore/python-casacore 
 
 
 ### Optionally install the development version
