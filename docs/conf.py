@@ -19,6 +19,7 @@ import os
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 sys.path.insert(0, os.path.abspath('../pyuvdata/'))
+readme_file = os.path.join(os.path.abspath('../'), 'README.md')
 
 # -- General configuration ------------------------------------------------
 
@@ -304,6 +305,7 @@ def build_custom_docs(app, docname):
     import make_parameters
     import make_cal_parameters
     import make_index
+    make_index.write_index_rst(readme_file=readme_file)
 
 
 def setup(app):
