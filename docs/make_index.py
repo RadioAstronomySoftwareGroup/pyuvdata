@@ -9,7 +9,7 @@ import pypandoc
 from astropy.time import Time
 
 
-def write_index_rst(readme_file=None):
+def write_index_rst(readme_file=None, write_file=None):
     t = Time.now()
     t.out_subfmt = 'date'
     out = ('.. pyuvdata documentation master file, created by\n'
@@ -61,7 +61,11 @@ def write_index_rst(readme_file=None):
             '   uvcal_parameters\n'
             '   uvcal\n'
             '   developer_docs\n')
-    F = open('index.rst', 'w')
+
+    if write_file is None:
+        write_path = os.path.dirname(os.path.abspath(inspect.stack()[0][1]))
+        write_file = os.path.join(write_path, 'index.rst')
+    F = open(write_file, 'w')
     F.write(out)
     print("wrote index.rst")
 
