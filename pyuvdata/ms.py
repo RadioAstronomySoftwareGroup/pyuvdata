@@ -99,7 +99,7 @@ class MS(UVData):
         ARGS:
         filepath: name of the measurement set folder
         run_check:specify whether you want to run check
-        run_check_acceptability: run sanity check for new UVData object
+        run_check_acceptability: run acceptability check for new UVData object
         data_column: specify which CASA measurement set data column to read from (can be 'DATA','CORRECTED', or 'MODEL')
         pol_order: use 'AIPS' or 'CASA' ordering of polarizations?
         test_import_uvfits: test a .ms file that was created with CASA importuvfits method: 
