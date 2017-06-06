@@ -20,6 +20,7 @@ import os
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 sys.path.insert(0, os.path.abspath('../pyuvdata/'))
 readme_file = os.path.join(os.path.abspath('../'), 'README.md')
+index_file = os.path.join(os.path.abspath('../docs'), 'index.rst')
 
 # -- General configuration ------------------------------------------------
 
@@ -300,13 +301,13 @@ texinfo_documents = [
 # texinfo_no_detailmenu = False
 
 
-def build_custom_docs(app, docname):
+def build_custom_docs(app):
     sys.path.append(os.getcwd())
     import make_parameters
     import make_cal_parameters
     import make_index
-    make_index.write_index_rst(readme_file=readme_file)
+    make_index.write_index_rst(readme_file=readme_file, write_file=index_file)
 
 
 def setup(app):
-    app.connect('build-finished', build_custom_docs)
+    app.connect('builder-inited', build_custom_docs)
