@@ -67,7 +67,7 @@ def write_index_rst(readme_file=None, write_file=None):
         write_file = os.path.join(write_path, 'index.rst')
     F = open(write_file, 'w')
     F.write(out)
-    print("wrote index.rst")
+    print("wrote " + write_file)
 
 
 if __name__ == '__main__':
