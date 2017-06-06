@@ -21,6 +21,8 @@ import os
 sys.path.insert(0, os.path.abspath('../pyuvdata/'))
 readme_file = os.path.join(os.path.abspath('../'), 'README.md')
 index_file = os.path.join(os.path.abspath('../docs'), 'index.rst')
+dataparams_file = os.path.join(os.path.abspath('../docs'), 'uvdata_parameters.rst')
+calparams_file = os.path.join(os.path.abspath('../docs'), 'uvcal_parameters.rst')
 
 # -- General configuration ------------------------------------------------
 
@@ -303,10 +305,12 @@ texinfo_documents = [
 
 def build_custom_docs(app):
     sys.path.append(os.getcwd())
+    import make_index
     import make_parameters
     import make_cal_parameters
-    import make_index
     make_index.write_index_rst(readme_file=readme_file, write_file=index_file)
+    make_parameters.write_dataparams_rst(write_file=dataparams_file)
+    make_cal_parameters.write_calparams_rst(write_file=calparams_file)
 
 
 def setup(app):
