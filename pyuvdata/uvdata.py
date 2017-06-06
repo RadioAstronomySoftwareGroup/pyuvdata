@@ -1228,7 +1228,7 @@ class UVData(UVBase):
             filepath: The measurement set file directory or list of directories to read from.
             run_check: Option to check for the existence and proper shapes of
                 required parameters after reading in the file. Default is True.
-            run_check_acceptability: Option to sanity check the values of
+            run_check_acceptability: Option to check the values of
                 required parameters after reading in the file. Default is True.
             data_column: name of CASA data column to read into data_array.
                 'DATA', 'MODEL', or 'CORRECTED_DATA'
