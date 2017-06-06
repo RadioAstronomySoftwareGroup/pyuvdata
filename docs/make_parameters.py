@@ -1,6 +1,8 @@
 """
 Format the UVData object parameters into a sphinx rst file.
 """
+import os
+import inspect
 from pyuvdata import UVData
 import numpy as np
 from astropy.time import Time
@@ -47,6 +49,3 @@ def write_dataparams_rst(write_file=None):
     F = open(write_file, 'w')
     F.write(out)
     print("wrote " + write_file)
-
-if __name__ == '__main__':
-    write_dataparams_rst()

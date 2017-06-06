@@ -1,6 +1,8 @@
 """
 Format the UVCal object parameters into a sphinx rst file.
 """
+import os
+import inspect
 from pyuvdata import UVCal
 import numpy as np
 from astropy.time import Time
@@ -40,6 +42,3 @@ def write_calparams_rst(write_file=None):
     F = open(write_file, 'w')
     F.write(out)
     print("wrote " + write_file)
-
-if __name__ == '__main__':
-    write_calparams_rst()
