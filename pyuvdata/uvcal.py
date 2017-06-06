@@ -7,7 +7,16 @@ import version as uvversion
 
 
 class UVCal(UVBase):
-    """ A class defining a calibration """
+    """ A class defining calibration solutions
+
+        Currently supported file types: calfits
+
+        Attributes:
+            UVParameter objects: For full list see UVCal Parameters
+                (http://pyuvdata.readthedocs.io/en/latest/uvcal.html).
+                Some are always required, some are required for certain cal_types
+                and others are always optional.
+    """
     def __init__(self):
         radian_tol = 10 * 2 * np.pi * 1e-3 / (60.0 * 60.0 * 360.0)
         self._Nfreqs = uvp.UVParameter('Nfreqs',
