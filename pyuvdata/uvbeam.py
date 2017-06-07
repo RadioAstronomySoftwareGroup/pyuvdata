@@ -77,14 +77,16 @@ class UVBeam(UVBase):
         self._basis_vector_array = uvp.UVParameter('basis_vector_array',
                                                    description=desc,
                                                    expected_type=np.float,
+                                                   form=('Naxes', 'Npixels'),
                                                    acceptable_range=(0, 1),
                                                    tols=1e-3)
 
         desc = ('Complex E-field values for beam model, units V/m. '
-                'shape = (Nfeeds, Naxes, Npixels, Nfreq)')
+                'shape = (Nfeeds, Naxes, Npixels, Nspws, Nfreq)')
         self._efield_array = uvp.UVParameter('efield_array',
                                              description=desc,
                                              expected_type=np.complex,
+                                             form=('Nfeeds', 'Naxes', 'Npixels', 'Nspws', 'Nfreq'),
                                              acceptable_range=(0, 1),
                                              tols=1e-3)
 
@@ -160,11 +162,11 @@ class UVBeam(UVBase):
 
         desc = ('Required if antenna_type = "phased_array". Matrix of complex '
                 'element couplings, units: dB, '
-                'shape: (Nelements, Nelements, Nfeed, Nfeed, Nfreq)')
+                'shape: (Nelements, Nelements, Nfeed, Nfeed, Nspws, Nfreq)')
         self._coupling_matrix = uvp.UVParameter('coupling_matrix', required=False,
                                                 description=desc,
                                                 form=('Nelements', 'Nelements',
-                                                      'Nfeed', 'Nfeed', 'Nfreq'),
+                                                      'Nfeed', 'Nfeed', 'Nspws', 'Nfreq'),
                                                 expected_type=np.complex)
 
         # -------- extra, non-required parameters ----------

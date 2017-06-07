@@ -64,7 +64,7 @@ class BeamFITS(UVBeam):
         #
         # pixel_location_array: (Naxes, Npixels)
         # basis_vector_array: (Naxes, Npixels)
-        # efield_array: (Nfeeds, Naxes, Npixels, Nfreq)
+        # efield_array: (Nfeeds, Naxes, Npixels, Nspws, Nfreq)
 
         # end standard keywords; begin user-defined keywords
         for key, value in self.extra_keywords.iteritems():
