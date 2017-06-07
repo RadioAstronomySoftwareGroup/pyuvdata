@@ -520,15 +520,12 @@ class UVCal(UVBase):
         self._convert_from_filetype(uvfits_obj)
         del(uvfits_obj)
 
-    def write_calfits(self, filename, spoof_nonessential=False,
-                      run_check=True, run_check_acceptability=True, clobber=False):
+    def write_calfits(self, filename,  run_check=True, run_check_acceptability=True,
+                      clobber=False):
         """Write data to a calfits file.
 
         Args:
             filename: The calfits filename to write to.
-            spoof_nonessential: Option to spoof the values of optional
-                UVParameters that are not set but are required for uvfits files.
-                Default is False.
             run_check: Option to check for the existence and proper shapes of
                 required parameters before writing the file. Default is True.
             run_check_acceptability: Option to check acceptability of the values of
@@ -537,7 +534,6 @@ class UVCal(UVBase):
         """
         calfits_obj = self._convert_to_filetype('calfits')
         calfits_obj.write_calfits(filename,
-                                  spoof_nonessential=spoof_nonessential,
                                   run_check=run_check,
                                   run_check_acceptability=run_check_acceptability,
                                   clobber=clobber)
