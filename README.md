@@ -54,7 +54,7 @@ pyuvdata was originally developed in the low frequency 21cm community to support
 ## Dependencies
 First install dependencies. The numpy and astropy versions are important, so be sure to make sure these are up to date before you install.
 
-For anaconda users, we suggest using conda to install astropy, numpy and scipy and to install Peter William's aipy conda package using ```conda install -c pkgw aipy```.
+For anaconda users, we suggest using conda to install astropy, numpy and scipy and to install Peter William's aipy conda package using ```conda install -c pkgw-forge aipy```.
 
 * numpy >= 1.10
 * scipy

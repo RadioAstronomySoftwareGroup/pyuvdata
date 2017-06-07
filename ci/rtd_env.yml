@@ -5,5 +5,5 @@ dependencies:
   - numpy
   - scipy
   - astropy
-  - pkgw::aipy
+  - pkgw-forge::aipy
   - conda-forge::pypandoc
