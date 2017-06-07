@@ -56,6 +56,7 @@ docs/_build/
 docs/index.rst
 docs/uvdata_parameters.rst
 docs/uvcal_parameters.rst
+docs/uvbeam_parameters.rst
 
 # PyBuilder
 target/
