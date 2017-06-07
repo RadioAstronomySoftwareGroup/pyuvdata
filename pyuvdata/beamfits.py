@@ -12,13 +12,29 @@ class BeamFITS(UVBeam):
 
     """
 
+    def read_beamfits(self, filename, run_check=True,
+                      run_check_acceptability=True):
+        """
+        Read the data from a beamfits file.
+
+        Args:
+            filename: The beamfits file to write to.
+            run_check: Option to check for the existence and proper shapes of
+                required parameters before writing the file. Default is True.
+            run_check_acceptability: Option to check acceptability of the values of
+                required parameters before writing the file. Default is True.
+
+        """
+        if run_check:
+            self.check(run_check_acceptability=run_check_acceptability)
+
     def write_beamfits(self, filename, run_check=True,
                        run_check_acceptability=True, clobber=False):
         """
-        Write the data to a calfits file.
+        Write the data to a beamfits file.
 
         Args:
-            filename: The calfits file to write to.
+            filename: The beamfits file to write to.
             run_check: Option to check for the existence and proper shapes of
                 required parameters before writing the file. Default is True.
             run_check_acceptability: Option to check acceptability of the values of
@@ -57,14 +73,49 @@ class BeamFITS(UVBeam):
         primary_header['NSPWS'] = self.Nspws
 
         primary_header['COORDSYS'] = self.coordinate_system
+        primary_header['FEEDLIST'] = '[' + ', '.join(self.feed_array) + ']'
 
-        # feed_array: Nfeeds
-        # freq_array: Nfreq
-        # spw_array: Nspws
-        #
-        # pixel_location_array: (Naxes, Npixels)
-        # basis_vector_array: (Naxes, Npixels)
-        # efield_array: (Nfeeds, Naxes, Npixels, Nspws, Nfreq)
+        # set up complex axis
+        primary_header['CTYPE1'] = ('COMPLEX', 'real, imaginary')
+        primary_header['CUNIT1'] = 'Integer'
+        primary_header['CRVAL1'] = 1
+        primary_header['CRPIX1'] = 1
+        primary_header['CDELT1'] = 1
+
+        # set up feed axis
+        primary_header['CTYPE2'] = ('FEEDIND', 'Feed: index into "FEEDLIST".')
+        primary_header['CUNIT2'] = 'Integer'
+        primary_header['CRVAL2'] = 1
+        primary_header['CRPIX2'] = 1
+        primary_header['CDELT2'] = 1
+
+        # set up basis vector axis
+        primary_header['CTYPE3'] = ('VECIND', 'Basis vector: index into basis_vector_array.')
+        primary_header['CUNIT3'] = 'Integer'
+        primary_header['CRVAL3'] = 1
+        primary_header['CRPIX3'] = 1
+        primary_header['CDELT3'] = 1
+
+        # set up pixel axis
+        primary_header['CTYPE4'] = ('PIXIND', 'pixel: index into pixel_location_array.')
+        primary_header['CUNIT4'] = 'Integer'
+        primary_header['CRVAL4'] = 1
+        primary_header['CRPIX4'] = 1
+        primary_header['CDELT4'] = 1
+
+        # set up spw axis
+        primary_header['CTYPE5'] = ('IF', 'Spectral window axis')
+        primary_header['CUNIT5'] = 'Integer'
+        primary_header['CRVAL5'] = 1.0
+        primary_header['CRPIX5'] = 1.0
+        primary_header['CDELT5'] = 1.0
+
+        # set up frequency axis
+        primary_header['CTYPE6'] = 'FREQ'
+        primary_header['CUNIT6'] = ('Hz')
+        primary_header['CRVAL6'] = self.freq_array[0, 0]
+        primary_header['CRPIX6'] = 1.0
+        primary_header['CDELT6'] = freq_spacing
 
         # end standard keywords; begin user-defined keywords
         for key, value in self.extra_keywords.iteritems():
@@ -79,3 +130,46 @@ class BeamFITS(UVBeam):
 
         for line in self.history.splitlines():
             primary_header.add_history(line)
+
+        primary_data = np.concatenate([self.efield_array.real[:, :, :, :, :, np.newaxis],
+                                       self.efield_array.imag[:, :, :, :, :, np.newaxis]],
+                                      axis=-1)
+
+        primary_hdu = fits.PrimaryHDU(data=primary_data, header=primary_header)
+
+        second_header = fits.Header()
+        second_header['EXTNAME'] = 'COORDS'
+        second_header['COORLIST'] = '[' + ', '.self.coordinate_system_dict[self.coordinate_system]['naxes'] + ']'
+
+        # set up dummy array axis
+        second_header['CTYPE1'] = ('ARRAYNUM', 'array order is pixel locations, basis vectors')
+        second_header['CUNIT1'] = 'Integer'
+        second_header['CRVAL1'] = 1
+        second_header['CRPIX1'] = 1
+        second_header['CDELT1'] = 1
+
+        # set up coordinate system axis
+        second_header['CTYPE2'] = ('COORDIND', 'Coordinates: index into COORLIST.')
+        second_header['CUNIT2'] = 'Integer'
+        second_header['CRVAL2'] = 1
+        second_header['CRPIX2'] = 1
+        second_header['CDELT2'] = 1
+
+        # set up pixel axis
+        second_header['CTYPE3'] = ('PIXIND', 'pixel index')
+        second_header['CUNIT3'] = 'Integer'
+        second_header['CRVAL3'] = 1
+        second_header['CRPIX3'] = 1
+        second_header['CDELT3'] = 1
+
+        second_data = np.concatenate([self.pixel_location_array[:, :, np.newaxis],
+                                      self.basis_vector_array[:, :, np.newaxis]],
+                                     axis=-1)
+        second_hdu = fits.ImageHDU(data=second_data, header=second_header)
+
+        hdulist = fits.HDUList([primary_hdu, second_hdu])
+
+        if float(astropy.__version__[0:3]) < 1.3:
+            hdulist.writeto(filename, clobber=clobber)
+        else:
+            hdulist.writeto(filename, overwrite=clobber)
