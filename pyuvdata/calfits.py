@@ -2,12 +2,10 @@ import astropy
 from astropy.io import fits
 import numpy as np
 from uvcal import UVCal
-import datetime
-
 
 class CALFITS(UVCal):
     """
-    Defines a calfits-specific class for reading and writing uvfits files.
+    Defines a calfits-specific class for reading and writing calfits files.
     """
 
     def _indexhdus(self, hdulist):
@@ -21,16 +19,13 @@ class CALFITS(UVCal):
                 continue
         return tablenames
 
-    def write_calfits(self, filename, spoof_nonessential=False,
-                      run_check=True, run_check_acceptability=True, clobber=False):
+    def write_calfits(self, filename, run_check=True,
+                      run_check_acceptability=True, clobber=False):
         """
-        Write the data to a uvfits file.
+        Write the data to a calfits file.
 
         Args:
-            filename: The uvfits file to write to.
-            spoof_nonessential: Option to spoof the values of optional
-                UVParameters that are not set but are required for uvfits files.
-                Default is False.
+            filename: The calfits file to write to.
             run_check: Option to check for the existence and proper shapes of
                 required parameters before writing the file. Default is True.
             run_check_acceptability: Option to check acceptability of the values of
@@ -77,7 +72,6 @@ class CALFITS(UVCal):
                                  'The calibration fits file format does not'
                                  ' support unevenly spaced polarizations.')
 
-        today = datetime.date.today().strftime("Date: %d, %b %Y")
         prihdr = fits.Header()
         if self.cal_type != 'gain':
             sechdr = fits.Header()
@@ -174,7 +168,7 @@ class CALFITS(UVCal):
                 sechdr['CUNIT1'] = ('Integar', 'Number of total quality arrays. Increment.')
                 sechdr['CDELT1'] = 1
                 sechdr['CRVAL1'] = (1, 'Number of image arrays.')
-                secdata = self.total_quality_array[:,:,:,:,np.newaxis]
+                secdata = self.total_quality_array[:, :, :, :, np.newaxis]
 
         if self.cal_type == 'delay':
             # Set header variable for delay.
@@ -249,7 +243,7 @@ class CALFITS(UVCal):
                 terhdr['CUNIT1'] = ('Integar', 'Number of total quality arrays. Increment.')
                 terhdr['CDELT1'] = 1
                 terhdr['CRVAL1'] = (1, 'Number of image arrays.')
-                terdata = self.total_quality_array[:,:,:,:,np.newaxis]
+                terdata = self.total_quality_array[:, :, :, :, np.newaxis]
 
         # primary header ctypes for NAXIS [ for both gain and delay cal_type.]
         # Check polarizations.
