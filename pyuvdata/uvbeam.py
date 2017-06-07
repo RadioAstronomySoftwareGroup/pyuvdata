@@ -28,7 +28,7 @@ class UVBeam(UVBase):
                                         expected_type=int)
 
         self._Nfeeds = uvp.UVParameter('Nfeeds', description='Number of feeds',
-                                       expected_type=int)
+                                       expected_type=int, acceptable_vals=[1, 2])
 
         self._Naxes = uvp.UVParameter('Naxes', description='Number of directions '
                                       'in coordinate system, options are 2 or 3',
@@ -39,12 +39,13 @@ class UVBeam(UVBase):
                                       'More than one spectral window is not '
                                       'currently supported.', expected_type=int)
 
-        coordinate_system_naxes = {'az_el': 2, 'spherical': 3}
-        desc = 'Pixel coordinate system, options are: ' + ', '.join(coordinate_system_naxes.keys())
+        coordinate_system_dict = {'az_el': {'naxes': 2, 'axis_list': ['az', 'el']},
+                                  'spherical': {'naxes': 3, 'axis_list': ['x', 'y', 'z']}}
+        desc = 'Pixel coordinate system, options are: ' + ', '.join(coordinate_system_dict.keys())
         self._coordinate_system = uvp.UVParameter('coordinate_system',
                                                   description=desc, form='str',
                                                   expected_type=str,
-                                                  acceptable_vals=coordinate_system_naxes.keys())
+                                                  acceptable_vals=coordinate_system_dict.keys())
 
         desc = 'Array of pixel locations, shape: (Naxes, Npixels)'
         self._pixel_location_array = uvp.UVParameter('pixel_location_array',
@@ -229,7 +230,7 @@ class UVBeam(UVBase):
         super(UVBeam, self).check(run_check_acceptability=run_check_acceptability)
 
         # Check consistency of coordinate_system and Naxes
-        if self.Naxes != self.coordinate_system_naxes[self.coordinate_system]:
+        if self.Naxes != self.coordinate_system_dict[self.coordinate_system]['naxes']:
             raise ValueError('Number of coordinate axes is not consistent with coordinate_system.')
 
         return True
