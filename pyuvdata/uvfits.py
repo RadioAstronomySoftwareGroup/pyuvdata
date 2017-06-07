@@ -29,7 +29,7 @@ class UVFITS(UVData):
         X0 = D.header['CRVAL' + ax]
         dX = D.header['CDELT' + ax]
         Xi0 = D.header['CRPIX' + ax] - 1
-        return np.arange(X0 - dX * Xi0, X0 - dX * Xi0 + N * dX, dX)
+        return dX * (np.arange(N) - Xi0) + X0
 
     def _indexhdus(self, hdulist):
         # input a list of hdus
