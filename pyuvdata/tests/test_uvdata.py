@@ -142,9 +142,8 @@ class TestUVDataInit(object):
             this_param = getattr(self.uv_object, v)
             try:
                 nt.assert_equal(rand_num, this_param.value)
-            except:
-                print('setting {prop_name} to a random number failed'.format(
-                    prop_name=k))
+            except(AssertionError):
+                print('setting {prop_name} to a random number failed'.format(prop_name=k))
                 raise(AssertionError)
 
 
