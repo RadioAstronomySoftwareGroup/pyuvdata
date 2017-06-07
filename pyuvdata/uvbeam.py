@@ -241,3 +241,19 @@ class UVBeam(UVBase):
         self._delay_array.required = True
         self._gain_array.required = True
         self._coupling_matrix.required = True
+
+    def _convert_from_filetype(self, other):
+        for p in other:
+            param = getattr(other, p)
+            setattr(self, p, param)
+
+    def _convert_to_filetype(self, filetype):
+        if filetype is 'beamfits':
+            import beamfits
+            other_obj = beamfits.BeamFITS()
+        else:
+            raise ValueError('filetype must be beamfits')
+        for p in self:
+            param = getattr(self, p)
+            setattr(other_obj, p, param)
+        return other_obj
