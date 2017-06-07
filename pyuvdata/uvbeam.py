@@ -1,3 +1,4 @@
+"""Primary container for radio telescope antenna beams."""
 import numpy as np
 from uvbase import UVBase
 import parameter as uvp

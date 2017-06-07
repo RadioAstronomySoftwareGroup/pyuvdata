@@ -185,14 +185,6 @@ def ECEF_from_ENU(enu, latitude, longitude, altitude):
     return xyz
 
 
-def get_iterable(x):
-    """Helper function to ensure iterability."""
-    if isinstance(x, collections.Iterable):
-        return x
-    else:
-        return (x,)
-
-
 def eq2top_m(ha, dec):
     """Return the 3x3 matrix converting equatorial coordinates to topocentric
     at the given hour angle (ha) and declination (dec).
