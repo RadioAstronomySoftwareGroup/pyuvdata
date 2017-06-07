@@ -210,3 +210,49 @@ def top2eq_m(ha, dec):
     if len(mat.shape) == 3:
         mat = mat.transpose([2, 0, 1])
     return mat
+
+def get_iterable(x):
+    """Helper function to ensure iterability."""
+    if isinstance(x, collections.Iterable):
+        return x
+    else:
+        return (x,)
+
+
+def fits_gethduaxis(HDU, axis):
+    """
+    Helper function for making axis arrays for fits files.
+
+    Args:
+        HDU: a fits HDU
+        axis: the axis number of interest
+
+    Returns:
+        numpy array of values for that axis
+    """
+
+    ax = str(axis)
+    N = HDU.header['NAXIS' + ax]
+    X0 = HDU.header['CRVAL' + ax]
+    dX = HDU.header['CDELT' + ax]
+    Xi0 = HDU.header['CRPIX' + ax] - 1
+    return dX * (np.arange(N) - Xi0) + X0
+
+
+def fits_indexhdus(hdulist):
+    """
+    Helper function for fits I/O.
+
+    Args:
+        hdulist: a list of hdus
+
+    Returns:
+        dictionary of table names
+    """
+    tablenames = {}
+    for i in range(len(hdulist)):
+        try:
+            tablenames[hdulist[i].header['EXTNAME']] = i
+        except(KeyError):
+            continue
+    return tablenames

@@ -7,6 +7,7 @@ import numpy as np
 import warnings
 from uvdata import UVData
 import parameter as uvp
+import utils as uvutils
 
 
 class UVFITS(UVData):
@@ -23,25 +24,6 @@ class UVFITS(UVData):
     uvfits_required_extra = ['antenna_positions', 'gst0', 'rdate',
                              'earth_omega', 'dut1', 'timesys']
 
-    def _gethduaxis(self, D, axis):
-        ax = str(axis)
-        N = D.header['NAXIS' + ax]
-        X0 = D.header['CRVAL' + ax]
-        dX = D.header['CDELT' + ax]
-        Xi0 = D.header['CRPIX' + ax] - 1
-        return dX * (np.arange(N) - Xi0) + X0
-
-    def _indexhdus(self, hdulist):
-        # input a list of hdus
-        # return a dictionary of table names
-        tablenames = {}
-        for i in range(len(hdulist)):
-            try:
-                tablenames[hdulist[i].header['EXTNAME']] = i
-            except(KeyError):
-                continue
-        return tablenames
-
     def read_uvfits(self, filename, run_check=True, run_check_acceptability=True):
         """
         Read in data from a uvfits file.
@@ -56,7 +38,7 @@ class UVFITS(UVData):
         F = fits.open(filename)
         D = F[0]  # assumes the visibilities are in the primary hdu
         hdr = D.header.copy()
-        hdunames = self._indexhdus(F)  # find the rest of the tables
+        hdunames = uvutils.fits_indexhdus(F)  # find the rest of the tables
 
         # astropy.io fits reader scales date according to relevant PZER0 (?)
         time0_array = D.data['DATE']
@@ -134,7 +116,7 @@ class UVFITS(UVData):
 
             # the axis number for phase center depends on if the spw exists
             # subtract 1 to be zero-indexed
-            self.spw_array = np.int32(self._gethduaxis(D, 5)) - 1
+            self.spw_array = np.int32(uvutils.fits_gethduaxis(D, 5)) - 1
 
             self.phase_center_ra_degrees = np.float(hdr.pop('CRVAL6'))
             self.phase_center_dec_degrees = np.float(hdr.pop('CRVAL7'))
@@ -167,7 +149,7 @@ class UVFITS(UVData):
                                              D.data.field('WW')))) *
                           const.c.to('m/s').value).T
 
-        self.freq_array = self._gethduaxis(D, 4)
+        self.freq_array = uvutils.fits_gethduaxis(D, 4)
         self.channel_width = hdr.pop('CDELT4')
 
         try:
@@ -182,7 +164,7 @@ class UVFITS(UVData):
 
         self.freq_array.shape = (self.Nspws,) + self.freq_array.shape
 
-        self.polarization_array = np.int32(self._gethduaxis(D, 3))
+        self.polarization_array = np.int32(uvutils.fits_gethduaxis(D, 3))
 
         # other info -- not required but frequently used
         self.object_name = hdr.pop('OBJECT', None)
@@ -337,18 +319,25 @@ class UVFITS(UVData):
                 raise ValueError('The frequencies are not evenly spaced (probably '
                                  'because of a select operation). The uvfits format '
                                  'does not support unevenly spaced frequencies.')
-            if not np.isclose(np.max(freq_spacing), self.channel_width,
+            if not np.isclose(freq_spacing[0], self.channel_width,
                               rtol=self._freq_array.tols[0], atol=self._freq_array.tols[1]):
                 raise ValueError('The frequencies are separated by more than their '
                                  'channel width (probably because of a select operation). '
                                  'The uvfits format does not support frequencies '
                                  'that are spaced by more than their channel width.')
-        if self.Npols > 2:
-            pol_spacing = self.polarization_array[1:] - self.polarization_array[:-1]
+            freq_spacing = freq_spacing[0]
+        else:
+            freq_spacing = 1
+
+        if self.Npols > 1:
+            pol_spacing = np.diff(self.polarization_array)
             if np.min(pol_spacing) < np.max(pol_spacing):
                 raise ValueError('The polarization values are not evenly spaced (probably '
                                  'because of a select operation). The uvfits format '
                                  'does not support unevenly spaced polarizations.')
+            pol_spacing = pol_spacing[0]
+        else:
+            pol_spacing = 1
 
         for p in self.extra():
             param = getattr(self, p)
@@ -447,15 +436,12 @@ class UVFITS(UVData):
         hdu.header['CTYPE3  '] = 'STOKES  '
         hdu.header['CRVAL3  '] = self.polarization_array[0]
         hdu.header['CRPIX3  '] = 1.0
-        try:
-            hdu.header['CDELT3  '] = np.diff(self.polarization_array)[0]
-        except(IndexError):
-            hdu.header['CDELT3  '] = 1.0
+        hdu.header['CDELT3  '] = pol_spacing
 
         hdu.header['CTYPE4  '] = 'FREQ    '
         hdu.header['CRVAL4  '] = self.freq_array[0, 0]
         hdu.header['CRPIX4  '] = 1.0
-        hdu.header['CDELT4  '] = np.diff(self.freq_array[0])[0]
+        hdu.header['CDELT4  '] = freq_spacing
 
         hdu.header['CTYPE5  '] = 'IF      '
         hdu.header['CRVAL5  '] = 1.0
