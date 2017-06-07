@@ -33,6 +33,9 @@ Classes
 .. autoclass:: calfits.CALFITS
   :members:
 
+.. autoclass:: beamfits.BeamFITS
+  :members:
+
 .. autoclass:: telescopes.Telescope
   :members:
 
