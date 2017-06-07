@@ -60,6 +60,8 @@ def write_index_rst(readme_file=None, write_file=None):
             '   uvdata\n'
             '   uvcal_parameters\n'
             '   uvcal\n'
+            '   uvbeam_parameters\n'
+            '   uvbeam\n'
             '   developer_docs\n')
 
     if write_file is None:

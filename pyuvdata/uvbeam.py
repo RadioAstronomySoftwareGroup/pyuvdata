@@ -1,3 +1,4 @@
+import numpy as np
 from uvbase import UVBase
 import parameter as uvp
 
@@ -28,8 +29,8 @@ class UVBeam(UVBase):
                                        expected_type=int)
 
         self._Naxes = uvp.UVParameter('Naxes', description='Number of directions '
-                                     'in coordinate system, options are 2 or 3',
-                                     expected_type=int, acceptable_vals=[2, 3])
+                                      'in coordinate system, options are 2 or 3',
+                                      expected_type=int, acceptable_vals=[2, 3])
 
         self._Nspws = uvp.UVParameter('Nspws', description='Number of spectral windows '
                                       '(ie non-contiguous spectral chunks). '
@@ -52,7 +53,7 @@ class UVBeam(UVBase):
         desc = ('Array of feed orientations. shape (Nfeeds). '
                 'options are: N/E or x/y or R/L')
         self._feed_array = uvp.UVParameter('feed_array', description=desc,
-                                           expected_type=str, form=('Nfeeds',)
+                                           expected_type=str, form=('Nfeeds',),
                                            acceptable_vals=['N', 'E', 'x', 'y',
                                                             'R', 'L'])
 
@@ -196,7 +197,7 @@ class UVBeam(UVBase):
                                              expected_type=np.float,
                                              tols=1e-3)
 
-        super(UVData, self).__init__()
+        super(UVBeam, self).__init__()
 
     def check(self, run_check_acceptability=True):
         """
@@ -212,7 +213,7 @@ class UVBeam(UVBase):
                 are acceptable. Default is True.
         """
         # first run the basic check from UVBase
-        super(UVData, self).check(run_check_acceptability=run_check_acceptability)
+        super(UVBeam, self).check(run_check_acceptability=run_check_acceptability)
 
         # Check consistency of coordinate_system and Naxes
         if self.Naxes != self.coordinate_system_naxes[self.coordinate_system]:
