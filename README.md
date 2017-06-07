@@ -54,10 +54,11 @@ pyuvdata was originally developed in the low frequency 21cm community to support
 ## Dependencies
 First install dependencies. The numpy and astropy versions are important, so be sure to make sure these are up to date before you install.
 
+For anaconda users, we suggest using conda to install astropy, numpy and scipy and to install Peter William's aipy conda package using ```conda install -c pkgw aipy```.
+
 * numpy >= 1.10
 * scipy
 * astropy >= 1.2
-* pyephem
 * aipy
 
 ## Install pyuvdata
@@ -68,10 +69,10 @@ For the development version, clone the repository using
 ```git clone https://github.com/HERA-Team/pyuvdata.git```
 
 Navigate into the directory and run ```python setup.py install```.
-Note that this will automatically install all dependencies. If you use anaconda or another package manager you might prefer not to do this.
+Note that this will automatically install any missing dependencies. If you use anaconda or another package manager you might prefer to first install the dependencies as described above.
 
 To install without dependencies, run
-```python setup.py install --no-dependencies```
+```python setup.py develop --no-deps``` or ```pip install --no-deps```
 
 ## Tests
 Requires installation of `nose` package.
