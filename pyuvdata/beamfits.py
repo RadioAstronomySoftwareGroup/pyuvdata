@@ -20,11 +20,31 @@ class BeamFITS(UVBeam):
         Args:
             filename: The beamfits file to write to.
             run_check: Option to check for the existence and proper shapes of
-                required parameters before writing the file. Default is True.
+                required parameters after reading in the file. Default is True.
             run_check_acceptability: Option to check acceptability of the values of
-                required parameters before writing the file. Default is True.
-
+                required parameters after reading in the file. Default is True.
         """
+        F = fits.open(filename)
+        primary_hdu = F[0]
+        primary_header = primary_hdu.header.copy()
+        hdunames = uvutils.fits_indexhdus(F)  # find the rest of the tables
+
+        self.telescope_name = primary_header.pop['TELESCOP']
+        self.feed_name = primary_header.pop['FEED']
+        self.feed_version = primary_header.pop['FEEDVER']
+        self.model_name = primary_header.pop['MODEL']
+        self.model_version = primary_header.pop['MODELVER']
+
+        # shapes
+        self.Nfreqs = primary_header.pop['NAXIS2']
+        self.Nspws = primary_header.pop['NAXIS3']
+        self.Npixels = primary_header.pop['NAXIS4']
+        self.Naxes = primary_header.pop['NAXIS5']
+        self.Nfeeds = primary_header.pop['NAXIS6']
+
+        self.coordinate_system = primary_header.pop['COORDSYS']
+        self.feed_array = primary_header.pop['FEEDLIST']
+
         if run_check:
             self.check(run_check_acceptability=run_check_acceptability)
 
@@ -55,6 +75,7 @@ class BeamFITS(UVBeam):
             freq_spacing = 1
 
         primary_header = fits.Header()
+
         # Conforming to fits format
         primary_header['SIMPLE'] = True
         primary_header['BITPIX'] = 32
@@ -66,12 +87,6 @@ class BeamFITS(UVBeam):
         primary_header['MODEL'] = self.model_name
         primary_header['MODELVER'] = self.model_version
 
-        # shapes
-        primary_header['NFREQS'] = self.Nfreqs
-        primary_header['NFEEDS'] = self.Nfeeds
-        primary_header['NAXES'] = self.Naxes
-        primary_header['NSPWS'] = self.Nspws
-
         primary_header['COORDSYS'] = self.coordinate_system
         primary_header['FEEDLIST'] = '[' + ', '.join(self.feed_array) + ']'
 
@@ -82,19 +97,19 @@ class BeamFITS(UVBeam):
         primary_header['CRPIX1'] = 1
         primary_header['CDELT1'] = 1
 
-        # set up feed axis
-        primary_header['CTYPE2'] = ('FEEDIND', 'Feed: index into "FEEDLIST".')
-        primary_header['CUNIT2'] = 'Integer'
-        primary_header['CRVAL2'] = 1
-        primary_header['CRPIX2'] = 1
-        primary_header['CDELT2'] = 1
+        # set up frequency axis
+        primary_header['CTYPE2'] = 'FREQ'
+        primary_header['CUNIT2'] = ('Hz')
+        primary_header['CRVAL2'] = self.freq_array[0, 0]
+        primary_header['CRPIX2'] = 1.0
+        primary_header['CDELT2'] = freq_spacing
 
-        # set up basis vector axis
-        primary_header['CTYPE3'] = ('VECIND', 'Basis vector: index into basis_vector_array.')
+        # set up spw axis
+        primary_header['CTYPE3'] = ('IF', 'Spectral window axis')
         primary_header['CUNIT3'] = 'Integer'
-        primary_header['CRVAL3'] = 1
-        primary_header['CRPIX3'] = 1
-        primary_header['CDELT3'] = 1
+        primary_header['CRVAL3'] = 1.0
+        primary_header['CRPIX3'] = 1.0
+        primary_header['CDELT3'] = 1.0
 
         # set up pixel axis
         primary_header['CTYPE4'] = ('PIXIND', 'pixel: index into pixel_location_array.')
@@ -103,19 +118,19 @@ class BeamFITS(UVBeam):
         primary_header['CRPIX4'] = 1
         primary_header['CDELT4'] = 1
 
-        # set up spw axis
-        primary_header['CTYPE5'] = ('IF', 'Spectral window axis')
+        # set up basis vector axis
+        primary_header['CTYPE5'] = ('VECIND', 'Basis vector: index into basis_vector_array.')
         primary_header['CUNIT5'] = 'Integer'
-        primary_header['CRVAL5'] = 1.0
-        primary_header['CRPIX5'] = 1.0
-        primary_header['CDELT5'] = 1.0
+        primary_header['CRVAL5'] = 1
+        primary_header['CRPIX5'] = 1
+        primary_header['CDELT5'] = 1
 
-        # set up frequency axis
-        primary_header['CTYPE6'] = 'FREQ'
-        primary_header['CUNIT6'] = ('Hz')
-        primary_header['CRVAL6'] = self.freq_array[0, 0]
-        primary_header['CRPIX6'] = 1.0
-        primary_header['CDELT6'] = freq_spacing
+        # set up feed axis
+        primary_header['CTYPE6'] = ('FEEDIND', 'Feed: index into "FEEDLIST".')
+        primary_header['CUNIT6'] = 'Integer'
+        primary_header['CRVAL6'] = 1
+        primary_header['CRPIX6'] = 1
+        primary_header['CDELT6'] = 1
 
         # end standard keywords; begin user-defined keywords
         for key, value in self.extra_keywords.iteritems():
@@ -148,15 +163,15 @@ class BeamFITS(UVBeam):
         second_header['CRPIX1'] = 1
         second_header['CDELT1'] = 1
 
-        # set up coordinate system axis
-        second_header['CTYPE2'] = ('COORDIND', 'Coordinates: index into COORLIST.')
+        # set up pixel axis
+        second_header['CTYPE2'] = ('PIXIND', 'pixel index')
         second_header['CUNIT2'] = 'Integer'
         second_header['CRVAL2'] = 1
         second_header['CRPIX2'] = 1
         second_header['CDELT2'] = 1
 
-        # set up pixel axis
-        second_header['CTYPE3'] = ('PIXIND', 'pixel index')
+        # set up coordinate system axis
+        second_header['CTYPE3'] = ('COORDIND', 'Coordinates: index into COORLIST.')
         second_header['CUNIT3'] = 'Integer'
         second_header['CRVAL3'] = 1
         second_header['CRPIX3'] = 1
