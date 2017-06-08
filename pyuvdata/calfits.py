@@ -64,15 +64,12 @@ class CALFITS(UVCal):
                                  ' support unevenly spaced polarizations.')
 
         prihdr = fits.Header()
+        if self.total_quality_array is not None:
+            totqualhdr = fits.Header()
+            totqualhdr['EXTNAME'] = 'TOTQLTY'
         if self.cal_type != 'gain':
             sechdr = fits.Header()
             sechdr['EXTNAME'] = 'FLAGS'
-            if self.total_quality_array is not None:
-                terhdr = fits.Header()
-                terhdr['EXTNAME'] = 'TOTQLTY'
-        elif self.total_quality_array is not None:
-            sechdr = fits.Header()
-            sechdr['EXTNAME'] = 'TOTQLTY'
         # Conforming to fits format
         prihdr['SIMPLE'] = True
         prihdr['BITPIX'] = 32
@@ -125,7 +122,7 @@ class CALFITS(UVCal):
 
             # Nspws axis: number of spectral windows
             prihdr['CTYPE5'] = ('NSPWS', 'Number of spectral windows.')
-            prihdr['CUNIT5'] = ('Integer', 'Number of windows. Increment.')
+            prihdr['CUNIT5'] = 'Integer'
             prihdr['CRPIX5'] = 1
             prihdr['CRVAL5'] = 1
             prihdr['CDELT5'] = 1
@@ -139,7 +136,7 @@ class CALFITS(UVCal):
 
             # set the last axis for number of arrays.
             prihdr['CTYPE1'] = ('Narrays', 'Number of image arrays.')
-            prihdr['CUNIT1'] = ('Integer', 'Number of image arrays. Increment.')
+            prihdr['CUNIT1'] = 'Integer'
             prihdr['CDELT1'] = 1
             prihdr['CRPIX1'] = 1
             prihdr['CRVAL1'] = 1
@@ -157,13 +154,36 @@ class CALFITS(UVCal):
                                           self.quality_array[:, :, :, :, :, np.newaxis]],
                                          axis=-1)
 
-            if self.total_quality_array is not None:
-                sechdr['CTYPE1'] = ('Narrays', 'Number of total quality arrays.')
-                sechdr['CUNIT1'] = ('Integar', 'Number of total quality arrays. Increment.')
-                sechdr['CDELT1'] = 1
-                sechdr['CRPIX1'] = 1
-                sechdr['CRVAL1'] = 1
-                secdata = self.total_quality_array[:, :, :, :, np.newaxis]
+        if self.total_quality_array is not None:
+            # Set headers for the hdu containing the total_quality_array
+            totqualhdr['CTYPE1'] = ('JONES', 'Jones matrix array')
+            totqualhdr['CUNIT1'] = ('Integer', 'representative integer for polarization.')
+            totqualhdr['CRPIX1'] = 1
+            totqualhdr['CRVAL1'] = self.jones_array[0]  # always start with first jones.
+            if self.Njones > 1:
+                totqualhdr['CDELT1'] = jones_spacing[0]
+            else:
+                totqualhdr['CDELT1'] = -1
+
+            totqualhdr['CTYPE2'] = ('TIME', 'Time axis.')
+            totqualhdr['CUNIT2'] = ('JD', 'Time in julian date format')
+            totqualhdr['CRPIX2'] = 1
+            totqualhdr['CRVAL2'] = self.time_array[0]
+            totqualhdr['CDELT2'] = time_spacing
+
+            totqualhdr['CTYPE3'] = ('FREQS', 'Valid frequencies to apply delay.')
+            totqualhdr['CUNIT3'] = 'Hz'
+            totqualhdr['CRPIX3'] = 1
+            totqualhdr['CRVAL3'] = self.freq_array[0][0]
+            totqualhdr['CDELT3'] = freq_spacing
+
+            # Nspws axis: number of spectral windows
+            totqualhdr['CTYPE4'] = ('NSPWS', 'Number of spectral windows.')
+            totqualhdr['CUNIT4'] = 'Integer'
+            totqualhdr['CRPIX4'] = 1
+            totqualhdr['CRVAL4'] = 1
+            totqualhdr['CDELT4'] = 1
+            totqualdata = self.total_quality_array
 
         if self.cal_type == 'delay':
             # Set header variable for delay.
@@ -177,7 +197,7 @@ class CALFITS(UVCal):
 
             # Nspws axis: number of spectral windows
             prihdr['CTYPE4'] = ('NSPWS', 'Number of spectral windows.')
-            prihdr['CUNIT4'] = ('Integer', 'Number of windows. Increment.')
+            prihdr['CUNIT4'] = 'Integer'
             prihdr['CRPIX4'] = 1
             prihdr['CRVAL4'] = 1
             prihdr['CDELT4'] = 1
@@ -217,7 +237,7 @@ class CALFITS(UVCal):
 
             # Nspws axis: number of spectral windows
             sechdr['CTYPE5'] = ('NSPWS', 'Number of spectral windows.')
-            sechdr['CUNIT5'] = ('Integer', 'Number of windows. Increment.')
+            sechdr['CUNIT5'] = 'Integer'
             sechdr['CRPIX5'] = 1
             sechdr['CRVAL5'] = 1
             sechdr['CDELT5'] = 1
@@ -241,14 +261,6 @@ class CALFITS(UVCal):
                 sechdr['CRPIX1'] = 1
                 sechdr['CRVAL1'] = 1
                 sechdr['CDELT1'] = 1
-
-            if self.total_quality_array is not None:
-                terhdr['CTYPE1'] = ('Narrays', 'Number of total quality arrays.')
-                terhdr['CUNIT1'] = ('Integar', 'Number of total quality arrays. Increment.')
-                terhdr['CDELT1'] = 1
-                terhdr['CRPIX1'] = 1
-                terhdr['CRVAL1'] = 1
-                terdata = self.total_quality_array[:, :, :, :, np.newaxis]
 
         # primary header ctypes for NAXIS [ for both gain and delay cal_type.]
         # Check polarizations.
@@ -288,25 +300,16 @@ class CALFITS(UVCal):
         ant_hdu = fits.BinTableHDU.from_columns(cols)
         ant_hdu.header['EXTNAME'] = 'ANTENNAS'
 
-        if self.cal_type != 'gain':
-            if self.total_quality_array is not None:
-                prihdu = fits.PrimaryHDU(data=pridata, header=prihdr)
-                sechdu = fits.ImageHDU(data=secdata, header=sechdr)
-                terhdu = fits.ImageHDU(data=terdata, header=terhdr)
-                hdulist = fits.HDUList([prihdu, ant_hdu, sechdu, terhdu])
-            else:
-                prihdu = fits.PrimaryHDU(data=pridata, header=prihdr)
-                sechdu = fits.ImageHDU(data=secdata, header=sechdr)
-                hdulist = fits.HDUList([prihdu, ant_hdu, sechdu])
+        prihdu = fits.PrimaryHDU(data=pridata, header=prihdr)
+        hdulist = fits.HDUList([prihdu, ant_hdu])
 
-        else:
-            if self.total_quality_array is not None:
-                prihdu = fits.PrimaryHDU(data=pridata, header=prihdr)
-                sechdu = fits.ImageHDU(data=secdata, header=sechdr)
-                hdulist = fits.HDUList([prihdu, ant_hdu, sechdu])
-            else:
-                prihdu = fits.PrimaryHDU(data=pridata, header=prihdr)
-                hdulist = fits.HDUList([prihdu, ant_hdu])
+        if self.cal_type != 'gain':
+            sechdu = fits.ImageHDU(data=secdata, header=sechdr)
+            hdulist.append(sechdu)
+
+        if self.total_quality_array is not None:
+            totqualhdu = fits.ImageHDU(data=totqualdata, header=totqualhdr)
+            hdulist.append(totqualhdu)
 
         if float(astropy.__version__[0:3]) < 1.3:
             hdulist.writeto(filename, clobber=clobber)
@@ -370,6 +373,10 @@ class CALFITS(UVCal):
         except:
             pass
 
+        # generate polarization and time array for either cal_type.
+        self.jones_array = uvutils.fits_gethduaxis(F[0], 2)
+        self.time_array = uvutils.fits_gethduaxis(F[0], 3)
+
         # get data.
         if self.cal_type == 'gain':
             self.set_gain()
@@ -381,16 +388,11 @@ class CALFITS(UVCal):
             else:
                 self.quality_array = data[:, :, :, :, :, 3]
 
+            self.spw_array = uvutils.fits_gethduaxis(F[0], 5)
+
             # generate frequency array from primary data unit.
             self.freq_array = uvutils.fits_gethduaxis(F[0], 4)
             self.freq_array.shape = (self.Nspws,) + self.freq_array.shape
-
-            try:
-                sechdu = F[hdunames['TOTQLTY']]
-                tqa_data = sechdu.data
-                self.total_quality_array = tqa_data[:, :, :, :, 0]
-            except KeyError:
-                pass
 
         if self.cal_type == 'delay':
             self.set_delay()
@@ -405,20 +407,58 @@ class CALFITS(UVCal):
             else:
                 self.flag_array = flag_data[:, :, :, :, :, 0].astype('bool')
 
+            self.spw_array = uvutils.fits_gethduaxis(F[0], 4)
+
             # generate frequency array from flag data unit (no freq axis in primary).
             self.freq_array = uvutils.fits_gethduaxis(sechdu, 4)
             self.freq_array.shape = (self.Nspws,) + self.freq_array.shape
 
-            try:
-                terhdu = F[hdunames['TOTQLTY']]
-                tqa_data = terhdu.data
-                self.total_quality_array = tqa_data[:, :, :, :, 0]
-            except KeyError:
-                pass
+            spw_array = uvutils.fits_gethduaxis(sechdu, 5)
+            if not np.allclose(spw_array, self.spw_array):
+                raise ValueError('Spectral window values are different in FLAGS HDU than in primary HDU')
 
-        # generate polarization and time array for either cal_type.
-        self.jones_array = uvutils.fits_gethduaxis(F[0], 2)
-        self.time_array = uvutils.fits_gethduaxis(F[0], 3)
+            time_array = uvutils.fits_gethduaxis(sechdu, 3)
+            if not np.allclose(time_array, self.time_array,
+                               rtol=self._time_array.tols[0],
+                               atol=self._time_array.tols[0]):
+                raise ValueError('Time values are different in FLAGS HDU than in primary HDU')
+
+            jones_array = uvutils.fits_gethduaxis(sechdu, 2)
+            if not np.allclose(jones_array, self.jones_array,
+                               rtol=self._jones_array.tols[0],
+                               atol=self._jones_array.tols[0]):
+                raise ValueError('Jones values are different in FLAGS HDU than in primary HDU')
+
+        # get total quality array if present
+        try:
+            totqualhdu = F[hdunames['TOTQLTY']]
+            self.total_quality_array = totqualhdu.data
+
+            spw_array = uvutils.fits_gethduaxis(totqualhdu, 4)
+            if not np.allclose(spw_array, self.spw_array):
+                raise ValueError('Spectral window values are different in TOTQLTY HDU than in primary HDU')
+
+            freq_array = uvutils.fits_gethduaxis(totqualhdu, 3)
+            freq_array.shape = (self.Nspws,) + freq_array.shape
+            if not np.allclose(freq_array, self.freq_array,
+                               rtol=self._freq_array.tols[0],
+                               atol=self._freq_array.tols[0]):
+                raise ValueError('Frequency values are different in TOTQLTY HDU than in primary HDU')
+
+            time_array = uvutils.fits_gethduaxis(totqualhdu, 2)
+            if not np.allclose(time_array, self.time_array,
+                               rtol=self._time_array.tols[0],
+                               atol=self._time_array.tols[0]):
+                raise ValueError('Time values are different in TOTQLTY HDU than in primary HDU')
+
+            jones_array = uvutils.fits_gethduaxis(totqualhdu, 1)
+            if not np.allclose(jones_array, self.jones_array,
+                               rtol=self._jones_array.tols[0],
+                               atol=self._jones_array.tols[0]):
+                raise ValueError('Jones values are different in TOTQLTY HDU than in primary HDU')
+
+        except KeyError:
+            self.total_quality_array = None
 
         if run_check:
             self.check(run_check_acceptability=run_check_acceptability)
