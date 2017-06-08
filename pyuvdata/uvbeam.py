@@ -270,3 +270,48 @@ class UVBeam(UVBase):
             param = getattr(self, p)
             setattr(other_obj, p, param)
         return other_obj
+
+    def read_beamfits(self, filename, run_check=True, run_check_acceptability=True):
+        """
+        Read in data from a beamfits file.
+
+        Args:
+            filename: The beamfits file or list of files to read from.
+            run_check: Option to check for the existence and proper shapes of
+                required parameters after reading in the file. Default is True.
+            run_check_acceptability: Option to check acceptable range of the values of
+                required parameters after reading in the file. Default is True.
+        """
+        import beamfits
+        if isinstance(filename, (list, tuple)):
+            self.read_beamfits(filename[0], run_check=run_check,
+                               run_check_acceptability=run_check_acceptability)
+            if len(filename) > 1:
+                for f in filename[1:]:
+                    beam2 = UVBeam()
+                    beam2.read_beamfits(f, run_check=run_check,
+                                        run_check_acceptability=run_check_acceptability)
+                    self += beam2
+                del(uv2)
+        else:
+            beamfits_obj = beamfits.BeamFITS()
+            beamfits_obj.read_beamfits(filename, run_check=run_check,
+                                       run_check_acceptability=run_check_acceptability)
+            self._convert_from_filetype(beamfits_obj)
+            del(beamfits_obj)
+
+    def write_beamfits(self, filename, run_check=True, run_check_acceptability=True):
+        """
+        Write the data to a beamfits file.
+
+        Args:
+            filename: The beamfits file to write to.
+            run_check: Option to check for the existence and proper shapes of
+                required parameters before writing the file. Default is True.
+            run_check_acceptability: Option to check acceptable range of the values of
+                required parameters before writing the file. Default is True.
+        """
+        beamfits_obj = self._convert_to_filetype('beamfits')
+        beamfits_obj.write_beamfits(filename, run_check=run_check,
+                                    run_check_acceptability=run_check_acceptability)
+        del(beamfits_obj)
