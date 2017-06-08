@@ -2,6 +2,7 @@
 import numpy as np
 from astropy.io import fits
 from uvbeam import UVBeam
+import utils as uvutils
 
 
 class BeamFITS(UVBeam):
@@ -29,6 +30,9 @@ class BeamFITS(UVBeam):
         primary_header = primary_hdu.header.copy()
         hdunames = uvutils.fits_indexhdus(F)  # find the rest of the tables
 
+        data = primary_hdu.data
+        self.efield_array = data[:, :, :, :, :, 0] + 1j * data[:, :, :, :, :, 1]
+
         self.telescope_name = primary_header.pop['TELESCOP']
         self.feed_name = primary_header.pop['FEED']
         self.feed_version = primary_header.pop['FEEDVER']
@@ -43,7 +47,59 @@ class BeamFITS(UVBeam):
         self.Nfeeds = primary_header.pop['NAXIS6']
 
         self.coordinate_system = primary_header.pop['COORDSYS']
+        if self.Naxes != self.coordinate_system_dict[self.coordinate_system]['naxes']:
+            raise ValueError('Naxes does not match coordinate system')
+
         self.feed_array = primary_header.pop['FEEDLIST']
+
+        self.freq_array = uvutils.fits_gethduaxis(primary_hdu, 2)
+        self.freq_array.shape = (self.Nspws,) + self.freq_array.shape
+        self.spw_array = uvutils.fits_gethduaxis(primary_hdu, 3)
+
+        self.history = str(hdr.get('HISTORY', ''))
+        if self.pyuvdata_version_str not in self.history.replace('\n', ''):
+            self.history += self.pyuvdata_version_str
+        while 'HISTORY' in hdr.keys():
+            hdr.remove('HISTORY')
+
+        # remove standard FITS header items that are still around
+        std_fits_substrings = ['SIMPLE', 'BITPIX', 'EXTEND', 'BLOCKED',
+                               'GROUPS', 'PCOUNT', 'BSCALE', 'BZERO', 'NAXIS',
+                               'PTYPE', 'PSCAL', 'PZERO', 'CTYPE', 'CRVAL',
+                               'CRPIX', 'CDELT', 'CROTA']
+        for key in hdr.keys():
+            for sub in std_fits_substrings:
+                if key.find(sub) > -1:
+                    hdr.remove(key)
+
+        # find all the remaining header items and keep them as extra_keywords
+        for key in hdr:
+            if key == '':
+                continue
+            if key == 'COMMENT':
+                self.extra_keywords[key] = str(hdr.get(key))
+            else:
+                self.extra_keywords[key] = hdr.get(key)
+
+        # read COORDS HDU
+        coords_hdu = F[hdunames['COORDS']]
+        coords_data = coords_hdu.data
+
+        self.pixel_location_array = coords_data[:, :, 0]
+        self.basis_vector_array = coords_data[:, :, 1]
+
+        coord_list = coords_hdu.header['COORLIST']
+        coords_Npixels = coords_hdu.header['NAXIS2']
+        coords_Naxes = coords_hdu.header['NAXIS2']
+
+        if coords_Naxes != self.Naxes:
+            raise ValueError('Number of coordinate axes in COORDS HDU does not match primary HDU')
+
+        if coords_Npixels != self.Npixels:
+            raise ValueError('Number of pixels in COORDS HDU does not match primary HDU')
+
+        if coord_list != self.coordinate_system_dict[self.coordinate_system]['axis_list']:
+            raise ValueError('Coordinate axis list does not match coordinate system')
 
         if run_check:
             self.check(run_check_acceptability=run_check_acceptability)
@@ -152,37 +208,37 @@ class BeamFITS(UVBeam):
 
         primary_hdu = fits.PrimaryHDU(data=primary_data, header=primary_header)
 
-        second_header = fits.Header()
-        second_header['EXTNAME'] = 'COORDS'
-        second_header['COORLIST'] = '[' + ', '.self.coordinate_system_dict[self.coordinate_system]['naxes'] + ']'
+        coords_header = fits.Header()
+        coords_header['EXTNAME'] = 'COORDS'
+        coords_header['COORLIST'] = '[' + ', '.join(self.coordinate_system_dict[self.coordinate_system]['axis_list']) + ']'
 
         # set up dummy array axis
-        second_header['CTYPE1'] = ('ARRAYNUM', 'array order is pixel locations, basis vectors')
-        second_header['CUNIT1'] = 'Integer'
-        second_header['CRVAL1'] = 1
-        second_header['CRPIX1'] = 1
-        second_header['CDELT1'] = 1
+        coords_header['CTYPE1'] = ('ARRAYNUM', 'array order is pixel locations, basis vectors')
+        coords_header['CUNIT1'] = 'Integer'
+        coords_header['CRVAL1'] = 1
+        coords_header['CRPIX1'] = 1
+        coords_header['CDELT1'] = 1
 
         # set up pixel axis
-        second_header['CTYPE2'] = ('PIXIND', 'pixel index')
-        second_header['CUNIT2'] = 'Integer'
-        second_header['CRVAL2'] = 1
-        second_header['CRPIX2'] = 1
-        second_header['CDELT2'] = 1
+        coords_header['CTYPE2'] = ('PIXIND', 'pixel index')
+        coords_header['CUNIT2'] = 'Integer'
+        coords_header['CRVAL2'] = 1
+        coords_header['CRPIX2'] = 1
+        coords_header['CDELT2'] = 1
 
         # set up coordinate system axis
-        second_header['CTYPE3'] = ('COORDIND', 'Coordinates: index into COORLIST.')
-        second_header['CUNIT3'] = 'Integer'
-        second_header['CRVAL3'] = 1
-        second_header['CRPIX3'] = 1
-        second_header['CDELT3'] = 1
+        coords_header['CTYPE3'] = ('COORDIND', 'Coordinates: index into COORLIST.')
+        coords_header['CUNIT3'] = 'Integer'
+        coords_header['CRVAL3'] = 1
+        coords_header['CRPIX3'] = 1
+        coords_header['CDELT3'] = 1
 
-        second_data = np.concatenate([self.pixel_location_array[:, :, np.newaxis],
+        coords_data = np.concatenate([self.pixel_location_array[:, :, np.newaxis],
                                       self.basis_vector_array[:, :, np.newaxis]],
                                      axis=-1)
-        second_hdu = fits.ImageHDU(data=second_data, header=second_header)
+        coords_hdu = fits.ImageHDU(data=coords_data, header=coords_header)
 
-        hdulist = fits.HDUList([primary_hdu, second_hdu])
+        hdulist = fits.HDUList([primary_hdu, coords_hdu])
 
         if float(astropy.__version__[0:3]) < 1.3:
             hdulist.writeto(filename, clobber=clobber)
