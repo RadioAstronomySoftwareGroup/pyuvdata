@@ -84,6 +84,11 @@ class UVCal(UVBase):
                                                 form=('Nants_telescope',),
                                                 expected_type=int)
 
+        self._spw_array = uvp.UVParameter('spw_array',
+                                          description='Array of spectral window '
+                                          'Numbers, shape (Nspws)', form=('Nspws',),
+                                          expected_type=int)
+
         desc = 'Array of frequencies, shape (Nspws, Nfreqs), units Hz'
         self._freq_array = uvp.UVParameter('freq_array', description=desc,
                                            form=('Nspws', 'Nfreqs'),
