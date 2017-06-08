@@ -73,18 +73,11 @@ class CALFITS(UVCal):
         # Conforming to fits format
         prihdr['SIMPLE'] = True
         prihdr['BITPIX'] = 32
-        prihdr['NAXIS'] = 5
         prihdr['TELESCOP'] = self.telescope_name
         prihdr['GNCONVEN'] = self.gain_convention
-        prihdr['NTIMES'] = self.Ntimes
-        prihdr['NFREQS'] = self.Nfreqs
-        prihdr['NANTSDAT'] = self.Nants_data
-        prihdr['NJONES'] = self.Njones
         prihdr['CALTYPE'] = self.cal_type
         prihdr['INTTIME'] = self.integration_time
         prihdr['CHWIDTH'] = self.channel_width
-        prihdr['NANTSTEL'] = self.Nants_telescope
-        prihdr['NSPWS'] = self.Nspws
         prihdr['XORIENT'] = self.x_orientation
         if self.cal_type == 'delay':
             prihdr['FRQRANGE'] = ','.join(map(str, self.freq_range))
@@ -323,6 +316,7 @@ class CALFITS(UVCal):
         hdunames = uvutils.fits_indexhdus(F)
 
         anthdu = F[hdunames['ANTENNAS']]
+        self.Nants_telescope = anthdu.header['NAXIS2']
         antdata = anthdu.data
         self.antenna_names = map(str, antdata['ANTNAME'])
         self.antenna_numbers = map(int, antdata['ANTINDEX'])
@@ -332,9 +326,6 @@ class CALFITS(UVCal):
             # Remove the padded entries.
             self.ant_array = self.ant_array[np.where(self.ant_array >= 0)[0]]
 
-        self.Nfreqs = hdr['NFREQS']
-        self.Njones = hdr['NJONES']
-        self.Ntimes = hdr['NTIMES']
         self.channel_width = hdr['CHWIDTH']
         self.integration_time = hdr['INTTIME']
         self.telescope_name = hdr['TELESCOP']
@@ -347,9 +338,6 @@ class CALFITS(UVCal):
         while 'HISTORY' in hdr.keys():
             hdr.remove('HISTORY')
         self.time_range = map(float, hdr['TMERANGE'].split(','))
-        self.Nspws = hdr['NSPWS']
-        self.Nants_data = hdr['NANTSDAT']
-        self.Nants_telescope = hdr['NANTSTEL']
         self.gain_convention = hdr['GNCONVEN']
         self.x_orientation = hdr['XORIENT']
         self.cal_type = hdr['CALTYPE']
@@ -374,7 +362,9 @@ class CALFITS(UVCal):
             pass
 
         # generate polarization and time array for either cal_type.
+        self.Njones = hdr['NAXIS2']
         self.jones_array = uvutils.fits_gethduaxis(F[0], 2)
+        self.Ntimes = hdr['NAXIS3']
         self.time_array = uvutils.fits_gethduaxis(F[0], 3)
 
         # get data.
@@ -388,9 +378,13 @@ class CALFITS(UVCal):
             else:
                 self.quality_array = data[:, :, :, :, :, 3]
 
+            self.Nants_data = hdr['NAXIS6']
+
+            self.Nspws = hdr['NAXIS5']
             self.spw_array = uvutils.fits_gethduaxis(F[0], 5)
 
             # generate frequency array from primary data unit.
+            self.Nfreqs = hdr['NAXIS4']
             self.freq_array = uvutils.fits_gethduaxis(F[0], 4)
             self.freq_array.shape = (self.Nspws,) + self.freq_array.shape
 
@@ -407,9 +401,13 @@ class CALFITS(UVCal):
             else:
                 self.flag_array = flag_data[:, :, :, :, :, 0].astype('bool')
 
+            self.Nants_data = hdr['NAXIS5']
+
+            self.Nspws = hdr['NAXIS4']
             self.spw_array = uvutils.fits_gethduaxis(F[0], 4)
 
             # generate frequency array from flag data unit (no freq axis in primary).
+            self.Nfreqs = sechdu.header['NAXIS4']
             self.freq_array = uvutils.fits_gethduaxis(sechdu, 4)
             self.freq_array.shape = (self.Nspws,) + self.freq_array.shape
 
