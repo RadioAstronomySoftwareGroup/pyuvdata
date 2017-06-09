@@ -511,7 +511,8 @@ class UVCal(UVBase):
             setattr(other_obj, p, param)
         return other_obj
 
-    def read_calfits(self, filename, run_check=True, run_check_acceptability=True):
+    def read_calfits(self, filename, run_check=True, run_check_acceptability=True,
+                     strict_fits=False):
         """
         Read in data from a calfits file.
 
@@ -521,7 +522,8 @@ class UVCal(UVBase):
         import calfits
         uvfits_obj = calfits.CALFITS()
         uvfits_obj.read_calfits(filename, run_check=run_check,
-                                run_check_acceptability=run_check_acceptability)
+                                run_check_acceptability=run_check_acceptability,
+                                strict_fits=strict_fits)
         self._convert_from_filetype(uvfits_obj)
         del(uvfits_obj)
 
