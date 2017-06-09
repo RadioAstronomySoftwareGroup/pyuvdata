@@ -473,6 +473,7 @@ class CALFITS(UVCal):
             totqualhdu = F[hdunames['TOTQLTY']]
             self.total_quality_array = totqualhdu.data
 
+            # add this for backwards compatibility when the spw CRVAL wasn't recorded
             try:
                 spw_array = uvutils.fits_gethduaxis(totqualhdu, 4, strict_fits=strict_fits)
             except(KeyError):
