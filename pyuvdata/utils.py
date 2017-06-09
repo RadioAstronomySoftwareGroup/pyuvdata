@@ -220,7 +220,7 @@ def get_iterable(x):
         return (x,)
 
 
-def fits_gethduaxis(HDU, axis):
+def fits_gethduaxis(HDU, axis, strict_fits=True):
     """
     Helper function for making axis arrays for fits files.
 
@@ -236,10 +236,20 @@ def fits_gethduaxis(HDU, axis):
     N = HDU.header['NAXIS' + ax]
     X0 = HDU.header['CRVAL' + ax]
     dX = HDU.header['CDELT' + ax]
+    # add this for calfits backwards compatibility when the CRPIX values were often assumed to be 0
     try:
         Xi0 = HDU.header['CRPIX' + ax] - 1
     except(KeyError):
-        Xi0 = 0
+        if not strict_fits:
+            warnings.warn('This file appears to be an old calfits format '
+                          'which does not fully conform to the FITS standard. '
+                          'Setting default values now, set strict_fits=True '
+                          'to error rather than warn on this problem, '
+                          'rewrite this file with write_calfits to ensure '
+                          'FITS compliance.'.format(file=filename))
+            Xi0 = 0
+        else:
+            raise
     return dX * (np.arange(N) - Xi0) + X0
 
 
