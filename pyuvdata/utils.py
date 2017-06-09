@@ -211,6 +211,7 @@ def top2eq_m(ha, dec):
         mat = mat.transpose([2, 0, 1])
     return mat
 
+
 def get_iterable(x):
     """Helper function to ensure iterability."""
     if isinstance(x, collections.Iterable):
@@ -235,7 +236,10 @@ def fits_gethduaxis(HDU, axis):
     N = HDU.header['NAXIS' + ax]
     X0 = HDU.header['CRVAL' + ax]
     dX = HDU.header['CDELT' + ax]
-    Xi0 = HDU.header['CRPIX' + ax] - 1
+    try:
+        Xi0 = HDU.header['CRPIX' + ax] - 1
+    except(KeyError):
+        Xi0 = 0
     return dX * (np.arange(N) - Xi0) + X0
 
 
