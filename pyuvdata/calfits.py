@@ -309,7 +309,8 @@ class CALFITS(UVCal):
         else:
             hdulist.writeto(filename, overwrite=clobber)
 
-    def read_calfits(self, filename, run_check=True, run_check_acceptability=True):
+    def read_calfits(self, filename, run_check=True, run_check_acceptability=True,
+                     strict_fits=False):
         F = fits.open(filename)
         data = F[0].data
         hdr = F[0].header.copy()
@@ -346,26 +347,26 @@ class CALFITS(UVCal):
         else:
             try:
                 self.freq_range = map(float, hdr['FRQRANGE'].split(','))
-            except:
+            except(KeyError):
                 pass
         try:
             self.observer = hdr['OBSERVER']
-        except:
+        except(KeyError):
             pass
         try:
             self.git_origin_cal = hdr['ORIGCAL']
-        except:
+        except(KeyError):
             pass
         try:
             self.git_hash_cal = hdr['HASHCAL']
-        except:
+        except(KeyError):
             pass
 
         # generate polarization and time array for either cal_type.
         self.Njones = hdr['NAXIS2']
-        self.jones_array = uvutils.fits_gethduaxis(F[0], 2)
+        self.jones_array = uvutils.fits_gethduaxis(F[0], 2, strict_fits=strict_fits)
         self.Ntimes = hdr['NAXIS3']
-        self.time_array = uvutils.fits_gethduaxis(F[0], 3)
+        self.time_array = uvutils.fits_gethduaxis(F[0], 3, strict_fits=strict_fits)
 
         # get data.
         if self.cal_type == 'gain':
@@ -381,11 +382,24 @@ class CALFITS(UVCal):
             self.Nants_data = hdr['NAXIS6']
 
             self.Nspws = hdr['NAXIS5']
-            self.spw_array = uvutils.fits_gethduaxis(F[0], 5)
+            # add this for backwards compatibility when the spw CRVAL wasn't recorded
+            try:
+                self.spw_array = uvutils.fits_gethduaxis(F[0], 5, strict_fits=strict_fits)
+            except(KeyError):
+                if not strict_fits:
+                    warnings.warn('{file} appears to be an old calfits format '
+                                  'which does not fully conform to the FITS standard. '
+                                  'Setting default values now, set strict_fits=True '
+                                  'to error rather than warn on this problem, '
+                                  'rewrite this file with write_calfits to ensure '
+                                  'FITS compliance.'.format(file=filename))
+                    self.spw_array = np.array([0])
+                else:
+                    raise
 
             # generate frequency array from primary data unit.
             self.Nfreqs = hdr['NAXIS4']
-            self.freq_array = uvutils.fits_gethduaxis(F[0], 4)
+            self.freq_array = uvutils.fits_gethduaxis(F[0], 4, strict_fits=strict_fits)
             self.freq_array.shape = (self.Nspws,) + self.freq_array.shape
 
         if self.cal_type == 'delay':
@@ -404,24 +418,37 @@ class CALFITS(UVCal):
             self.Nants_data = hdr['NAXIS5']
 
             self.Nspws = hdr['NAXIS4']
-            self.spw_array = uvutils.fits_gethduaxis(F[0], 4)
+            # add this for backwards compatibility when the spw CRVAL wasn't recorded
+            try:
+                self.spw_array = uvutils.fits_gethduaxis(F[0], 4, strict_fits=strict_fits)
+            except(KeyError):
+                if not strict_fits:
+                    warnings.warn('{file} appears to be an old calfits format '
+                                  'which does not fully conform to the FITS standard. '
+                                  'Setting default values now, set strict_fits=True '
+                                  'to error rather than warn on this problem, '
+                                  'rewrite this file with write_calfits to ensure '
+                                  'FITS compliance.'.format(file=filename))
+                    self.spw_array = np.array([0])
+                else:
+                    raise
 
             # generate frequency array from flag data unit (no freq axis in primary).
             self.Nfreqs = sechdu.header['NAXIS4']
-            self.freq_array = uvutils.fits_gethduaxis(sechdu, 4)
+            self.freq_array = uvutils.fits_gethduaxis(sechdu, 4, strict_fits=strict_fits)
             self.freq_array.shape = (self.Nspws,) + self.freq_array.shape
 
-            spw_array = uvutils.fits_gethduaxis(sechdu, 5)
+            spw_array = uvutils.fits_gethduaxis(sechdu, 5, strict_fits=strict_fits)
             if not np.allclose(spw_array, self.spw_array):
                 raise ValueError('Spectral window values are different in FLAGS HDU than in primary HDU')
 
-            time_array = uvutils.fits_gethduaxis(sechdu, 3)
+            time_array = uvutils.fits_gethduaxis(sechdu, 3, strict_fits=strict_fits)
             if not np.allclose(time_array, self.time_array,
                                rtol=self._time_array.tols[0],
                                atol=self._time_array.tols[0]):
                 raise ValueError('Time values are different in FLAGS HDU than in primary HDU')
 
-            jones_array = uvutils.fits_gethduaxis(sechdu, 2)
+            jones_array = uvutils.fits_gethduaxis(sechdu, 2, strict_fits=strict_fits)
             if not np.allclose(jones_array, self.jones_array,
                                rtol=self._jones_array.tols[0],
                                atol=self._jones_array.tols[0]):
@@ -432,24 +459,24 @@ class CALFITS(UVCal):
             totqualhdu = F[hdunames['TOTQLTY']]
             self.total_quality_array = totqualhdu.data
 
-            spw_array = uvutils.fits_gethduaxis(totqualhdu, 4)
+            spw_array = uvutils.fits_gethduaxis(totqualhdu, 4, strict_fits=strict_fits)
             if not np.allclose(spw_array, self.spw_array):
                 raise ValueError('Spectral window values are different in TOTQLTY HDU than in primary HDU')
 
-            freq_array = uvutils.fits_gethduaxis(totqualhdu, 3)
+            freq_array = uvutils.fits_gethduaxis(totqualhdu, 3, strict_fits=strict_fits)
             freq_array.shape = (self.Nspws,) + freq_array.shape
             if not np.allclose(freq_array, self.freq_array,
                                rtol=self._freq_array.tols[0],
                                atol=self._freq_array.tols[0]):
                 raise ValueError('Frequency values are different in TOTQLTY HDU than in primary HDU')
 
-            time_array = uvutils.fits_gethduaxis(totqualhdu, 2)
+            time_array = uvutils.fits_gethduaxis(totqualhdu, 2, strict_fits=strict_fits)
             if not np.allclose(time_array, self.time_array,
                                rtol=self._time_array.tols[0],
                                atol=self._time_array.tols[0]):
                 raise ValueError('Time values are different in TOTQLTY HDU than in primary HDU')
 
-            jones_array = uvutils.fits_gethduaxis(totqualhdu, 1)
+            jones_array = uvutils.fits_gethduaxis(totqualhdu, 1, strict_fits=strict_fits)
             if not np.allclose(jones_array, self.jones_array,
                                rtol=self._jones_array.tols[0],
                                atol=self._jones_array.tols[0]):
