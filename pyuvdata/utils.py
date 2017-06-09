@@ -247,7 +247,7 @@ def fits_gethduaxis(HDU, axis, strict_fits=True):
                           'Setting default values now, set strict_fits=True '
                           'to error rather than warn on this problem, '
                           'rewrite this file with write_calfits to ensure '
-                          'FITS compliance.'.format(file=filename))
+                          'FITS compliance.')
             Xi0 = 0
         else:
             raise
