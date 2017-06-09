@@ -439,7 +439,20 @@ class CALFITS(UVCal):
             self.freq_array = uvutils.fits_gethduaxis(sechdu, 4, strict_fits=strict_fits)
             self.freq_array.shape = (self.Nspws,) + self.freq_array.shape
 
-            spw_array = uvutils.fits_gethduaxis(sechdu, 5, strict_fits=strict_fits)
+            # add this for backwards compatibility when the spw CRVAL wasn't recorded
+            try:
+                spw_array = uvutils.fits_gethduaxis(sechdu, 5, strict_fits=strict_fits)
+            except(KeyError):
+                if not strict_fits:
+                    warnings.warn('{file} appears to be an old calfits format '
+                                  'which does not fully conform to the FITS standard. '
+                                  'Setting default values now, set strict_fits=True '
+                                  'to error rather than warn on this problem, '
+                                  'rewrite this file with write_calfits to ensure '
+                                  'FITS compliance.'.format(file=filename))
+                    spw_array = np.array([0])
+                else:
+                    raise
             if not np.allclose(spw_array, self.spw_array):
                 raise ValueError('Spectral window values are different in FLAGS HDU than in primary HDU')
 
@@ -460,7 +473,19 @@ class CALFITS(UVCal):
             totqualhdu = F[hdunames['TOTQLTY']]
             self.total_quality_array = totqualhdu.data
 
-            spw_array = uvutils.fits_gethduaxis(totqualhdu, 4, strict_fits=strict_fits)
+            try:
+                spw_array = uvutils.fits_gethduaxis(totqualhdu, 4, strict_fits=strict_fits)
+            except(KeyError):
+                if not strict_fits:
+                    warnings.warn('{file} appears to be an old calfits format '
+                                  'which does not fully conform to the FITS standard. '
+                                  'Setting default values now, set strict_fits=True '
+                                  'to error rather than warn on this problem, '
+                                  'rewrite this file with write_calfits to ensure '
+                                  'FITS compliance.'.format(file=filename))
+                    spw_array = np.array([0])
+                else:
+                    raise
             if not np.allclose(spw_array, self.spw_array):
                 raise ValueError('Spectral window values are different in TOTQLTY HDU than in primary HDU')
 
