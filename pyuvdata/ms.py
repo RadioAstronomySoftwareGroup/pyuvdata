@@ -125,6 +125,11 @@ class MS(UVData):
         self.Nfreqs=int(freqs.shape[1])
         self.channel_width=float(tb_spws.getcol('CHAN_WIDTH')[0,0])
         self.Nspws=int(freqs.shape[0])
+        if self.Nspws>1:
+            raise ValueError('Sorry.  Files with more than one spectral' +
+                             'window (spw) are not yet supported. A ' +
+                             'great project for the interested student!')
+
         self.spw_array=np.arange(self.Nspws)
         tb_spws.close()
         #now get the data
@@ -141,7 +146,6 @@ class MS(UVData):
         self.Nblts=int(data_array.shape[0])
         flag_array=tb.getcol('FLAG')
         #CASA stores data in complex array with dimension NbltsxNfreqsxNpols
-        #-!-What about multiple spws?-!-
         if(len(data_array.shape)==3):
             data_array=np.expand_dims(data_array,axis=1)
             flag_array=np.expand_dims(flag_array,axis=1)
@@ -183,7 +187,7 @@ class MS(UVData):
             antFlags[antnum]=np.all(self.antenna_positions[antnum,:]==0)
         try:
             self.set_telescope_params()
-        except:
+        except ValueError:#If telescope location is not know, set location manually
             if(xyz_telescope_frame=='ITRF'):
                 self.telescope_location=np.array(np.mean(self.antenna_positions[np.invert(antFlags),:],axis=0))
                 #antenna names
@@ -197,7 +201,7 @@ class MS(UVData):
         if(not(names_same)):
             self.antenna_names=ant_names#cotter measurement sets store antenna names in the NAMES column. 
         else:
-            self.antenna_names=tbAnt.getcol('NAME')#importuvfits measurement sets store antenna namesin the STATION column.
+            self.antenna_names=tbAnt.getcol('NAME')#importuvfits measurement sets store antenna names in the STATION column.
         self.antenna_numbers=np.arange(len(self.antenna_names)).astype(int)
         nAntOrig=len(self.antenna_names)
         ant_names=[]
@@ -207,19 +211,6 @@ class MS(UVData):
         self.antenna_names=ant_names
         self.antenna_numbers=self.antenna_numbers[np.invert(antFlags)]
         self.antenna_positions=self.antenna_positions[np.invert(antFlags),:]
-        '''
-        #remove blank names
-        for axnum in range(self.antenna_positions.shape[1]):
-            self.antenna_positions[:,axnum]-=np.mean(self.antenna_positions[:,axnum])
-        try:
-            thisTelescope=telescopes.get_telescope(self.instrument)
-            self.telescope_location_lat_lon_alt_degrees=(np.degrees(thisTelescope['latitude']),np.degrees(thisTelescope['longitude']),thisTelescope['altitude'])
-            #self.telescope_location=np.array(np.mean(tbAnt.getcol('POSITION'),axis=0))
-            print 'Telescope %s is known. Using stored values.'%(self.instrument)
-        except:
-            #If Telescope is unknown, use mean ITRF Positions of antennas
-            self.telescope_location=np.array(np.mean(tbAnt.getcol('POSITION'),axis=0))
-        '''
         tbAnt.close()
         tbField=tables.table(filepath+'/FIELD')
         if(tbField.getcol('PHASE_DIR').shape[1]==2):
@@ -233,11 +224,7 @@ class MS(UVData):
             self.set_phased()
         #set LST array from times and itrf
         self.set_lsts_from_time_array()
-
         #set the history parameter
-        #as a string with \t indicating column breaks
-        #\n indicating row breaks.
-        #self.history,self.casa_history=self._ms_hist_to_string(tables.table(filepath+'/HISTORY'),test_import_uvfits)
         _,self.history=self._ms_hist_to_string(tables.table(filepath+'/HISTORY'),test_import_uvfits)      
         #CASA weights column keeps track of number of data points averaged.
 

@@ -30,8 +30,8 @@ class UVFITS(UVData):
         each line of a uvfits history has a maximum of 72 characters
         which is not a limitation for other formats (miriad, ms, etc...)
         this function goes through history and merges any lines with 72 chars
-        with the line that follows it. If there is actually a history line that
-        should be 72 chars, this will break...
+        with the line that follows it. If there is a history line that
+        is precisely 72 chars long, this function will break. 
         """
         LINEMAX=72
         history_lines=self.history.splitlines()
@@ -500,15 +500,6 @@ class UVFITS(UVData):
 
         for line in self.history.splitlines():
             hdu.header.add_history(line)
-
-        #if we have casa_history, add it
-        #if self.casa_history:
-            #!--Lines added for testing!
-        #    print any(ord(c)>128 for c in self.casa_history)
-        #    print [ord(c) for c in self.casa_history]
-            #!--End testing!
-        #    hdu.header['CASAHIST']=self.casa_history
-            
 
         # end standard keywords; begin user-defined keywords
         for key, value in self.extra_keywords.iteritems():

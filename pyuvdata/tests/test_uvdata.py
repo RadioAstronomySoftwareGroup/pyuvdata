@@ -66,6 +66,27 @@ class TestUVDataInit(object):
         """Test teardown: delete object."""
         del(self.uv_object)
 
+
+    def test_order_pols(self):
+        test_uv1=UVData()
+        testfile=os.path.join(DATA_PATH,'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+        uvtest.checkWarnings(test_uv1.read_uvfits,[testfile],
+                             message='Telescope EVLA is not')
+        test_uv1.order_pols(order='AIPS')
+        #check that we have aips ordering
+        aips_pols=np.array([-1,-2,-3,-4]).astype(int)
+        nt.assert_true(np.all(test_uv1.polarization_array==aips_pols))
+        test_uv2=copy.deepcopy(test_uv1)
+        test_uv2.order_pols(order='CASA')
+        casa_pols=np.array([-1,-3,-4,-2]).astype(int)
+        nt.assert_true(np.all(test_uv2.polarization_array==casa_pols))
+        #check that we have casa ordering
+        test_uv2.order_pols(order='AIPS')
+        #check that we have aips ordering again
+        nt.assert_equal(test_uv1,test_uv2)
+        del(test_uv1);del(test_uv2)
+
+        
     def test_parameter_iter(self):
         "Test expected parameters."
         all = []
