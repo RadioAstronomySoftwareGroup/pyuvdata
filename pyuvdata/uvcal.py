@@ -216,12 +216,12 @@ class UVCal(UVBase):
 
         desc = ('Array of qualities of calibration for entire arrays. '
                 'shape depends on the cal_type, if cal_type is gain or unknown, '
-                'shape is: (Nspws, Nfreqs, Ntimes, Njones), '
-                'if cal_type is delay, shape is (Nspws, Ntimes, Njones), '
+                'shape is: (Nspws, Nfreqs, Ntimes), '
+                'if cal_type is delay, shape is (Nspws, Ntimes), '
                 'type = float.')
         self._total_quality_array = uvp.UVParameter('total_quality_array', description=desc,
                                                     form=('Nspws', 'Nfreqs',
-                                                          'Ntimes', 'Njones'),
+                                                          'Ntimes'),
                                                     expected_type=np.float,
                                                     required=False)
 
