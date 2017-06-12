@@ -1235,10 +1235,12 @@ class UVData(UVBase):
         try:
             import casacore
         except(ImportError):
-            print('casacore not detected. casacore'
-                  ' must be installed for measurement set functionality')
-            exit()
-
+            #only import skip if importerror raised
+            #this way, nose import errors aren't raised
+            #unless this errors is already encountered.
+            import nose.plugins.skip.Skip
+            raise Skip('casacore not detected. casacore'
+                       ' must be installed for measurement set functionality')
         import ms
 
         if isinstance(filepath, (list, tuple)):
