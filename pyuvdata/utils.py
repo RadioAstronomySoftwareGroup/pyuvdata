@@ -247,7 +247,7 @@ def fits_gethduaxis(HDU, axis, strict_fits=True):
     except(KeyError):
         if not strict_fits:
             import calfits
-            calfits._warn_oldcalfits()
+            calfits._warn_oldcalfits('This file')
             Xi0 = 0
         else:
             raise
