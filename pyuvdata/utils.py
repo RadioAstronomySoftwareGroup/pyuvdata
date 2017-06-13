@@ -228,7 +228,11 @@ def fits_gethduaxis(HDU, axis, strict_fits=True):
     Args:
         HDU: a fits HDU
         axis: the axis number of interest
-
+        strict_fits: boolean
+            If True, require that the axis has cooresponding NAXIS, CRVAL,
+            CDELT and CRPIX keywords. If False, allow CRPIX to be missing and
+            set it equal to zero (as a way of supporting old calfits files).
+            Default is False.
     Returns:
         numpy array of values for that axis
     """
@@ -242,12 +246,8 @@ def fits_gethduaxis(HDU, axis, strict_fits=True):
         Xi0 = HDU.header['CRPIX' + ax] - 1
     except(KeyError):
         if not strict_fits:
-            warnings.warn('This file appears to be an old calfits format '
-                          'which does not fully conform to the FITS standard. '
-                          'Setting default values now, set strict_fits=True '
-                          'to error rather than warn on this problem, '
-                          'rewrite this file with write_calfits to ensure '
-                          'FITS compliance.')
+            import calfits
+            calfits._warn_oldcalfits()
             Xi0 = 0
         else:
             raise

@@ -517,7 +517,18 @@ class UVCal(UVBase):
         Read in data from a calfits file.
 
         Args:
-            filename: The uvfits file to read from.
+            filename: The calfits file to read to.
+            run_check: Option to check for the existence and proper shapes of
+                required parameters after reading the file. Default is True.
+            run_check_acceptability: Option to check acceptability of the values of
+                required parameters after reading the file. Default is True.
+            strict_fits: boolean
+                If True, require that the data axes have cooresponding NAXIS, CRVAL,
+                CDELT and CRPIX keywords. If False, allow CRPIX to be missing and
+                set it equal to zero and allow the CRVAL for the spw directions to
+                be missing and set it to zero. This keyword exists to support old
+                calfits files that were missing many CRPIX and CRVAL keywords.
+                Default is False.
         """
         import calfits
         uvfits_obj = calfits.CALFITS()
@@ -527,7 +538,7 @@ class UVCal(UVBase):
         self._convert_from_filetype(uvfits_obj)
         del(uvfits_obj)
 
-    def write_calfits(self, filename,  run_check=True, run_check_acceptability=True,
+    def write_calfits(self, filename, run_check=True, run_check_acceptability=True,
                       clobber=False):
         """Write data to a calfits file.
 

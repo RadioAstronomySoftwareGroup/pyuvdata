@@ -49,6 +49,21 @@ def test_readwriteread_delays():
     del(uv_out)
 
 
+def test_errors():
+    """
+    Test for various errors.
+
+    """
+    uv_in = UVCal()
+    uv_out = UVCal()
+    testfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.HH.uvc.fits')
+    write_file = os.path.join(DATA_PATH, 'test/outtest_firstcal.fits')
+    uv_in.read_calfits(testfile)
+
+    uv_in.set_unknown_cal_type()
+    nt.assert_raises(ValueError, uv_in.write_calfits, write_file, clobber=True)
+
+
 def test_input_flag_array():
     """
     Test when data file has input flag array.
