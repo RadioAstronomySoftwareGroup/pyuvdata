@@ -7,8 +7,6 @@ import utils as uvutils
 
 
 def _warn_oldcalfits(filename):
-    if filename is None:
-        filename = 'This file'
     warnings.warn('{file} appears to be an old calfits format '
                   'which does not fully conform to the FITS standard. '
                   'Setting default values now, set strict_fits=True '
@@ -114,7 +112,7 @@ class CALFITS(UVCal):
             prihdr['HASHCAL'] = self.git_hash_cal
 
         if self.cal_type == 'unknown':
-            raise ValueError("unknown calibration type. Do not know how to"
+            raise ValueError("unknown calibration type. Do not know how to "
                              "store parameters")
 
         if self.cal_type == 'gain':
@@ -400,7 +398,7 @@ class CALFITS(UVCal):
             except(KeyError):
                 if not strict_fits:
                     _warn_oldcalfits(filename)
-                    self.spw_array = np.array([0])
+                    self.spw_array = np.array([1])
                 else:
                     raise
 
@@ -431,7 +429,7 @@ class CALFITS(UVCal):
             except(KeyError):
                 if not strict_fits:
                     _warn_oldcalfits(filename)
-                    self.spw_array = np.array([0])
+                    self.spw_array = np.array([1])
                 else:
                     raise
 
@@ -446,7 +444,7 @@ class CALFITS(UVCal):
             except(KeyError):
                 if not strict_fits:
                     _warn_oldcalfits(filename)
-                    spw_array = np.array([0])
+                    spw_array = np.array([1])
                 else:
                     raise
             if not np.allclose(spw_array, self.spw_array):
@@ -475,7 +473,7 @@ class CALFITS(UVCal):
             except(KeyError):
                 if not strict_fits:
                     _warn_oldcalfits(filename)
-                    spw_array = np.array([0])
+                    spw_array = np.array([1])
                 else:
                     raise
             if not np.allclose(spw_array, self.spw_array):
