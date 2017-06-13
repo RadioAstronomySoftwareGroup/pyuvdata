@@ -6,6 +6,17 @@ from uvcal import UVCal
 import utils as uvutils
 
 
+def _warn_oldcalfits(filename):
+    if filename is None:
+        filename = 'This file'
+    warnings.warn('{file} appears to be an old calfits format '
+                  'which does not fully conform to the FITS standard. '
+                  'Setting default values now, set strict_fits=True '
+                  'to error rather than warn on this problem, '
+                  'rewrite this file with write_calfits to ensure '
+                  'FITS compliance.'.format(file=filename))
+
+
 class CALFITS(UVCal):
     """
     Defines a calfits-specific class for reading and writing calfits files.
@@ -22,7 +33,6 @@ class CALFITS(UVCal):
                 required parameters before writing the file. Default is True.
             run_check_acceptability: Option to check acceptability of the values of
                 required parameters before writing the file. Default is True.
-
         """
         if run_check:
             self.check(run_check_acceptability=run_check_acceptability)
@@ -63,6 +73,9 @@ class CALFITS(UVCal):
                 raise ValueError('The jones values are not evenly spaced.'
                                  'The calibration fits file format does not'
                                  ' support unevenly spaced polarizations.')
+            jones_spacing = jones_spacing[0]
+        else:
+            jones_spacing = -1
 
         prihdr = fits.Header()
         if self.total_quality_array is not None:
@@ -92,8 +105,6 @@ class CALFITS(UVCal):
             ep = getattr(self, p)
             if ep.form is 'str':
                 prihdr['{0}'.format(p.upper().replace('_', '')[:8])] = ep.value
-            else:
-                continue
 
         if self.observer:
             prihdr['OBSERVER'] = self.observer
@@ -154,10 +165,7 @@ class CALFITS(UVCal):
             totqualhdr['CUNIT1'] = ('Integer', 'representative integer for polarization.')
             totqualhdr['CRPIX1'] = 1
             totqualhdr['CRVAL1'] = self.jones_array[0]  # always start with first jones.
-            if self.Njones > 1:
-                totqualhdr['CDELT1'] = jones_spacing[0]
-            else:
-                totqualhdr['CDELT1'] = -1
+            totqualhdr['CDELT1'] = jones_spacing
 
             totqualhdr['CTYPE2'] = ('TIME', 'Time axis.')
             totqualhdr['CUNIT2'] = ('JD', 'Time in julian date format')
@@ -212,10 +220,7 @@ class CALFITS(UVCal):
             sechdr['CUNIT2'] = ('Integer', 'representative integer for polarization.')
             sechdr['CRPIX2'] = 1
             sechdr['CRVAL2'] = self.jones_array[0]  # always start with first jones.
-            if self.Njones > 1:
-                sechdr['CDELT2'] = jones_spacing[0]
-            else:
-                sechdr['CDELT2'] = -1
+            sechdr['CDELT2'] = jones_spacing
 
             sechdr['CTYPE3'] = ('TIME', 'Time axis.')
             sechdr['CUNIT3'] = ('JD', 'Time in julian date format')
@@ -262,10 +267,7 @@ class CALFITS(UVCal):
         prihdr['CUNIT2'] = ('Integer', 'representative integer for polarization.')
         prihdr['CRPIX2'] = 1
         prihdr['CRVAL2'] = self.jones_array[0]  # always start with first jones.
-        if self.Njones > 1:
-            prihdr['CDELT2'] = jones_spacing[0]
-        else:
-            prihdr['CDELT2'] = -1
+        prihdr['CDELT2'] = jones_spacing
 
         prihdr['CTYPE3'] = ('TIME', 'Time axis.')
         prihdr['CUNIT3'] = ('JD', 'Time in julian date format')
@@ -312,6 +314,23 @@ class CALFITS(UVCal):
 
     def read_calfits(self, filename, run_check=True, run_check_acceptability=True,
                      strict_fits=False):
+        """
+        Read data from a calfits file.
+
+        Args:
+            filename: The calfits file to read to.
+            run_check: Option to check for the existence and proper shapes of
+                required parameters after reading the file. Default is True.
+            run_check_acceptability: Option to check acceptability of the values of
+                required parameters after reading the file. Default is True.
+        strict_fits: boolean
+            If True, require that the data axes have cooresponding NAXIS, CRVAL,
+            CDELT and CRPIX keywords. If False, allow CRPIX to be missing and
+            set it equal to zero and allow the CRVAL for the spw directions to
+            be missing and set it to zero. This keyword exists to support old
+            calfits files that were missing many CRPIX and CRVAL keywords.
+            Default is False.
+        """
         F = fits.open(filename)
         data = F[0].data
         hdr = F[0].header.copy()
@@ -346,22 +365,14 @@ class CALFITS(UVCal):
         if self.cal_type == 'delay':
             self.freq_range = map(float, hdr['FRQRANGE'].split(','))
         else:
-            try:
+            if 'FRQRANGE' in hdr:
                 self.freq_range = map(float, hdr['FRQRANGE'].split(','))
-            except(KeyError):
-                pass
-        try:
+        if 'OBSERVER' in hdr:
             self.observer = hdr['OBSERVER']
-        except(KeyError):
-            pass
-        try:
+        if 'ORIGCAL' in hdr:
             self.git_origin_cal = hdr['ORIGCAL']
-        except(KeyError):
-            pass
-        try:
+        if 'HASHCAL' in hdr:
             self.git_hash_cal = hdr['HASHCAL']
-        except(KeyError):
-            pass
 
         # generate polarization and time array for either cal_type.
         self.Njones = hdr['NAXIS2']
@@ -388,12 +399,7 @@ class CALFITS(UVCal):
                 self.spw_array = uvutils.fits_gethduaxis(F[0], 5, strict_fits=strict_fits)
             except(KeyError):
                 if not strict_fits:
-                    warnings.warn('{file} appears to be an old calfits format '
-                                  'which does not fully conform to the FITS standard. '
-                                  'Setting default values now, set strict_fits=True '
-                                  'to error rather than warn on this problem, '
-                                  'rewrite this file with write_calfits to ensure '
-                                  'FITS compliance.'.format(file=filename))
+                    _warn_oldcalfits(filename)
                     self.spw_array = np.array([0])
                 else:
                     raise
@@ -424,12 +430,7 @@ class CALFITS(UVCal):
                 self.spw_array = uvutils.fits_gethduaxis(F[0], 4, strict_fits=strict_fits)
             except(KeyError):
                 if not strict_fits:
-                    warnings.warn('{file} appears to be an old calfits format '
-                                  'which does not fully conform to the FITS standard. '
-                                  'Setting default values now, set strict_fits=True '
-                                  'to error rather than warn on this problem, '
-                                  'rewrite this file with write_calfits to ensure '
-                                  'FITS compliance.'.format(file=filename))
+                    _warn_oldcalfits(filename)
                     self.spw_array = np.array([0])
                 else:
                     raise
@@ -444,12 +445,7 @@ class CALFITS(UVCal):
                 spw_array = uvutils.fits_gethduaxis(sechdu, 5, strict_fits=strict_fits)
             except(KeyError):
                 if not strict_fits:
-                    warnings.warn('{file} appears to be an old calfits format '
-                                  'which does not fully conform to the FITS standard. '
-                                  'Setting default values now, set strict_fits=True '
-                                  'to error rather than warn on this problem, '
-                                  'rewrite this file with write_calfits to ensure '
-                                  'FITS compliance.'.format(file=filename))
+                    _warn_oldcalfits(filename)
                     spw_array = np.array([0])
                 else:
                     raise
@@ -478,12 +474,7 @@ class CALFITS(UVCal):
                 spw_array = uvutils.fits_gethduaxis(totqualhdu, 4, strict_fits=strict_fits)
             except(KeyError):
                 if not strict_fits:
-                    warnings.warn('{file} appears to be an old calfits format '
-                                  'which does not fully conform to the FITS standard. '
-                                  'Setting default values now, set strict_fits=True '
-                                  'to error rather than warn on this problem, '
-                                  'rewrite this file with write_calfits to ensure '
-                                  'FITS compliance.'.format(file=filename))
+                    _warn_oldcalfits(filename)
                     spw_array = np.array([0])
                 else:
                     raise
