@@ -23,7 +23,7 @@ b) uvfits -> miriad (aipy)
   UV = UVData()
   uvfits_file = 'pyuvdata/data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
   UV.read_uvfits(uvfits_file)
-  UV.write_uvfits('day2_TDEM0003_10s_norx_1src_1spw.uv')  # write out the miriad file
+  UV.write_miriad('day2_TDEM0003_10s_norx_1src_1spw.uv')  # write out the miriad file
 
 c) FHD -> uvfits
 ****************
