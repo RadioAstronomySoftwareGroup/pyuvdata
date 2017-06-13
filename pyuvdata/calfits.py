@@ -149,24 +149,33 @@ class CALFITS(UVCal):
 
         if self.total_quality_array is not None:
             # Set headers for the hdu containing the total_quality_array
-            totqualhdr['CTYPE1'] = ('TIME', 'Time axis.')
-            totqualhdr['CUNIT1'] = ('JD', 'Time in julian date format')
+            totqualhdr['CTYPE1'] = ('JONES', 'Jones matrix array')
+            totqualhdr['CUNIT1'] = ('Integer', 'representative integer for polarization.')
             totqualhdr['CRPIX1'] = 1
-            totqualhdr['CRVAL1'] = self.time_array[0]
-            totqualhdr['CDELT1'] = time_spacing
+            totqualhdr['CRVAL1'] = self.jones_array[0]  # always start with first jones.
+            if self.Njones > 1:
+                totqualhdr['CDELT1'] = jones_spacing[0]
+            else:
+                totqualhdr['CDELT1'] = -1
 
-            totqualhdr['CTYPE2'] = ('FREQS', 'Valid frequencies to apply delay.')
-            totqualhdr['CUNIT2'] = 'Hz'
+            totqualhdr['CTYPE2'] = ('TIME', 'Time axis.')
+            totqualhdr['CUNIT2'] = ('JD', 'Time in julian date format')
             totqualhdr['CRPIX2'] = 1
-            totqualhdr['CRVAL2'] = self.freq_array[0][0]
-            totqualhdr['CDELT2'] = freq_spacing
+            totqualhdr['CRVAL2'] = self.time_array[0]
+            totqualhdr['CDELT2'] = time_spacing
+
+            totqualhdr['CTYPE3'] = ('FREQS', 'Valid frequencies to apply delay.')
+            totqualhdr['CUNIT3'] = 'Hz'
+            totqualhdr['CRPIX3'] = 1
+            totqualhdr['CRVAL3'] = self.freq_array[0][0]
+            totqualhdr['CDELT3'] = freq_spacing
 
             # Nspws axis: number of spectral windows
-            totqualhdr['CTYPE3'] = ('NSPWS', 'Number of spectral windows.')
-            totqualhdr['CUNIT3'] = 'Integer'
-            totqualhdr['CRPIX3'] = 1
-            totqualhdr['CRVAL3'] = 1
-            totqualhdr['CDELT3'] = 1
+            totqualhdr['CTYPE4'] = ('NSPWS', 'Number of spectral windows.')
+            totqualhdr['CUNIT4'] = 'Integer'
+            totqualhdr['CRPIX4'] = 1
+            totqualhdr['CRVAL4'] = 1
+            totqualhdr['CDELT4'] = 1
             totqualdata = self.total_quality_array
 
         if self.cal_type == 'delay':
@@ -423,24 +432,30 @@ class CALFITS(UVCal):
             totqualhdu = F[hdunames['TOTQLTY']]
             self.total_quality_array = totqualhdu.data
 
-            spw_array = uvutils.fits_gethduaxis(totqualhdu, 3)
+            spw_array = uvutils.fits_gethduaxis(totqualhdu, 4)
             if not np.allclose(spw_array, self.spw_array):
                 raise ValueError('Spectral window values are different in TOTQLTY HDU than in primary HDU')
 
             if self.cal_type != 'delay':
                 # delay-type files won't have a freq_array
-                freq_array = uvutils.fits_gethduaxis(totqualhdu, 2)
+                freq_array = uvutils.fits_gethduaxis(totqualhdu, 3)
                 freq_array.shape = (self.Nspws,) + freq_array.shape
                 if not np.allclose(freq_array, self.freq_array,
                                    rtol=self._freq_array.tols[0],
                                    atol=self._freq_array.tols[0]):
                     raise ValueError('Frequency values are different in TOTQLTY HDU than in primary HDU')
 
-            time_array = uvutils.fits_gethduaxis(totqualhdu, 1)
+            time_array = uvutils.fits_gethduaxis(totqualhdu, 2)
             if not np.allclose(time_array, self.time_array,
                                rtol=self._time_array.tols[0],
                                atol=self._time_array.tols[0]):
                 raise ValueError('Time values are different in TOTQLTY HDU than in primary HDU')
+
+            jones_array = uvutils.fits_gethduaxis(totqualhdu, 1)
+            if not np.allclose(jones_array, self.jones_array,
+                               rtol=self._jones_array.tols[0],
+                               atol=self._jones_array.tols[0]):
+                raise ValueError('Jones values are different in TOTQLTY HDU than in primary HDU')
 
         except KeyError:
             self.total_quality_array = None
