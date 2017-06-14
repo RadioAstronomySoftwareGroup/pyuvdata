@@ -463,7 +463,7 @@ class CALFITS(UVCal):
                 raise ValueError('Jones values are different in FLAGS HDU than in primary HDU')
 
         # get total quality array if present
-        try:
+        if 'TOTQLTY' in hdunames:
             totqualhdu = F[hdunames['TOTQLTY']]
             self.total_quality_array = totqualhdu.data
 
@@ -498,7 +498,7 @@ class CALFITS(UVCal):
                                atol=self._jones_array.tols[0]):
                 raise ValueError('Jones values are different in TOTQLTY HDU than in primary HDU')
 
-        except KeyError:
+        else:
             self.total_quality_array = None
 
         if run_check:
