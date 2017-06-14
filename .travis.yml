@@ -37,10 +37,8 @@ install:
   #install python-casacore
   - sudo apt-get install python-numpy python-setuptools libboost-python-dev libcfitsio3-dev	
   - python setup.py install
+  - pip install python-casacore	
   #perform test with no casa to make sure skips are raised successfully 
-script: nosetests pyuvdata --with-coverage --cover-package=pyuvdata
-install:
-  - pip install python-casacore
 script: nosetests pyuvdata --with-coverage --cover-package=pyuvdata
 after_success:
     - coveralls
