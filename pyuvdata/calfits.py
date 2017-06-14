@@ -479,12 +479,14 @@ class CALFITS(UVCal):
             if not np.allclose(spw_array, self.spw_array):
                 raise ValueError('Spectral window values are different in TOTQLTY HDU than in primary HDU')
 
-            freq_array = uvutils.fits_gethduaxis(totqualhdu, 3, strict_fits=strict_fits)
-            freq_array.shape = (self.Nspws,) + freq_array.shape
-            if not np.allclose(freq_array, self.freq_array,
-                               rtol=self._freq_array.tols[0],
-                               atol=self._freq_array.tols[0]):
-                raise ValueError('Frequency values are different in TOTQLTY HDU than in primary HDU')
+            if self.cal_type != 'delay':
+                # delay-type files won't have a freq_array
+                freq_array = uvutils.fits_gethduaxis(totqualhdu, 3, strict_fits=strict_fits)
+                freq_array.shape = (self.Nspws,) + freq_array.shape
+                if not np.allclose(freq_array, self.freq_array,
+                                   rtol=self._freq_array.tols[0],
+                                   atol=self._freq_array.tols[0]):
+                    raise ValueError('Frequency values are different in TOTQLTY HDU than in primary HDU')
 
             time_array = uvutils.fits_gethduaxis(totqualhdu, 2, strict_fits=strict_fits)
             if not np.allclose(time_array, self.time_array,
