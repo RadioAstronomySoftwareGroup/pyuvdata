@@ -1,6 +1,7 @@
 """Commonly used utility functions."""
 import numpy as np
 import collections
+import warnings
 
 # parameters for transforming between xyz & lat/lon/alt
 gps_b = 6356752.31424518
@@ -211,6 +212,7 @@ def top2eq_m(ha, dec):
         mat = mat.transpose([2, 0, 1])
     return mat
 
+
 def get_iterable(x):
     """Helper function to ensure iterability."""
     if isinstance(x, collections.Iterable):
@@ -219,14 +221,18 @@ def get_iterable(x):
         return (x,)
 
 
-def fits_gethduaxis(HDU, axis):
+def fits_gethduaxis(HDU, axis, strict_fits=True):
     """
     Helper function for making axis arrays for fits files.
 
     Args:
         HDU: a fits HDU
         axis: the axis number of interest
-
+        strict_fits: boolean
+            If True, require that the axis has cooresponding NAXIS, CRVAL,
+            CDELT and CRPIX keywords. If False, allow CRPIX to be missing and
+            set it equal to zero (as a way of supporting old calfits files).
+            Default is False.
     Returns:
         numpy array of values for that axis
     """
@@ -235,7 +241,16 @@ def fits_gethduaxis(HDU, axis):
     N = HDU.header['NAXIS' + ax]
     X0 = HDU.header['CRVAL' + ax]
     dX = HDU.header['CDELT' + ax]
-    Xi0 = HDU.header['CRPIX' + ax] - 1
+    # add this for calfits backwards compatibility when the CRPIX values were often assumed to be 0
+    try:
+        Xi0 = HDU.header['CRPIX' + ax] - 1
+    except(KeyError):
+        if not strict_fits:
+            import calfits
+            calfits._warn_oldcalfits('This file')
+            Xi0 = 0
+        else:
+            raise
     return dX * (np.arange(N) - Xi0) + X0
 
 

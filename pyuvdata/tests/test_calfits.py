@@ -1,9 +1,12 @@
 """Tests for calfits object"""
 import nose.tools as nt
 import os
+import astropy
+from astropy.io import fits
 from pyuvdata.uvcal import UVCal
 import pyuvdata.tests as uvtest
 from pyuvdata.data import DATA_PATH
+import pyuvdata.utils as uvutils
 import numpy as np
 
 
@@ -47,6 +50,184 @@ def test_readwriteread_delays():
     nt.assert_equal(uv_in, uv_out)
     del(uv_in)
     del(uv_out)
+
+
+def test_errors():
+    """
+    Test for various errors.
+
+    """
+    uv_in = UVCal()
+    uv_out = UVCal()
+    testfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.HH.uvc.fits')
+    write_file = os.path.join(DATA_PATH, 'test/outtest_firstcal.fits')
+    uv_in.read_calfits(testfile)
+
+    uv_in.set_unknown_cal_type()
+    nt.assert_raises(ValueError, uv_in.write_calfits, write_file, run_check=False, clobber=True)
+
+    # change values for various axes in flag and total quality hdus to not match primary hdu
+    uv_in.read_calfits(testfile)
+
+    # Create filler jones info
+    uv_in.jones_array = np.array([-5, -6, -7, -8])
+    uv_in.Njones = 4
+    uv_in.flag_array = np.zeros(uv_in._flag_array.expected_shape(uv_in), dtype=bool)
+    uv_in.delay_array = np.ones(uv_in._delay_array.expected_shape(uv_in), dtype=np.float64)
+    uv_in.quality_array = np.zeros(uv_in._quality_array.expected_shape(uv_in))
+
+    # add total_quality_array so that can be tested as well
+    uv_in.total_quality_array = np.zeros(uv_in._total_quality_array.expected_shape(uv_in))
+
+    header_vals_to_double = [{'flag': 'CDELT2'}, {'flag': 'CDELT3'},
+                             {'flag': 'CRVAL5'}, {'totqual': 'CDELT1'},
+                             {'totqual': 'CDELT2'}, {'totqual': 'CDELT3'},
+                             {'totqual': 'CRVAL4'}]
+    for i, hdr_dict in enumerate(header_vals_to_double):
+        uv_in.write_calfits(write_file, clobber=True)
+
+        unit = hdr_dict.keys()[0]
+        keyword = hdr_dict[unit]
+
+        F = fits.open(write_file)
+        data = F[0].data
+        primary_hdr = F[0].header
+        hdunames = uvutils.fits_indexhdus(F)
+        ant_hdu = F[hdunames['ANTENNAS']]
+        flag_hdu = F[hdunames['FLAGS']]
+        flag_hdr = flag_hdu.header
+        totqualhdu = F[hdunames['TOTQLTY']]
+        totqualhdr = totqualhdu.header
+
+        if unit == 'flag':
+            flag_hdr[keyword] *= 2
+        elif unit == 'totqual':
+            totqualhdr[keyword] *= 2
+
+        prihdu = fits.PrimaryHDU(data=data, header=primary_hdr)
+        hdulist = fits.HDUList([prihdu, ant_hdu])
+        flag_hdu = fits.ImageHDU(data=flag_hdu.data, header=flag_hdr)
+        hdulist.append(flag_hdu)
+        totqualhdu = fits.ImageHDU(data=totqualhdu.data, header=totqualhdr)
+        hdulist.append(totqualhdu)
+
+        if float(astropy.__version__[0:3]) < 1.3:
+            hdulist.writeto(write_file, clobber=True)
+        else:
+            hdulist.writeto(write_file, overwrite=True)
+
+        nt.assert_raises(ValueError, uv_out.read_calfits, write_file, strict_fits=True)
+
+
+def test_read_oldcalfits():
+    """
+    Test for proper behavior with old calfits files.
+    """
+    # start with gain type files
+    uv_in = UVCal()
+    uv_out = UVCal()
+    testfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.fitsA')
+    write_file = os.path.join(DATA_PATH, 'test/outtest_omnical.fits')
+    uv_in.read_calfits(testfile)
+
+    # add total_quality_array so that can be tested as well
+    uv_in.total_quality_array = np.zeros(uv_in._total_quality_array.expected_shape(uv_in))
+
+    # now read in the file and remove various CRPIX and CRVAL keywords to
+    # emulate old calfits files
+    header_vals_to_remove = [{'primary': 'CRVAL5'}, {'primary': 'CRPIX4'},
+                             {'totqual': 'CRVAL4'}]
+    messages = [write_file, 'This file', write_file]
+    messages = [m + ' appears to be an old calfits format' for m in messages]
+    for i, hdr_dict in enumerate(header_vals_to_remove):
+        uv_in.write_calfits(write_file, clobber=True)
+
+        unit = hdr_dict.keys()[0]
+        keyword = hdr_dict[unit]
+
+        F = fits.open(write_file)
+        data = F[0].data
+        primary_hdr = F[0].header
+        hdunames = uvutils.fits_indexhdus(F)
+        ant_hdu = F[hdunames['ANTENNAS']]
+        totqualhdu = F[hdunames['TOTQLTY']]
+        totqualhdr = totqualhdu.header
+
+        if unit == 'primary':
+            primary_hdr.pop(keyword)
+        elif unit == 'totqual':
+            totqualhdr.pop(keyword)
+
+        prihdu = fits.PrimaryHDU(data=data, header=primary_hdr)
+        hdulist = fits.HDUList([prihdu, ant_hdu])
+        totqualhdu = fits.ImageHDU(data=totqualhdu.data, header=totqualhdr)
+        hdulist.append(totqualhdu)
+
+        if float(astropy.__version__[0:3]) < 1.3:
+            hdulist.writeto(write_file, clobber=True)
+        else:
+            hdulist.writeto(write_file, overwrite=True)
+
+        uvtest.checkWarnings(uv_out.read_calfits, [write_file], nwarnings=1,
+                             message=messages[i], category=[UserWarning])
+        nt.assert_equal(uv_in, uv_out)
+        nt.assert_raises(KeyError, uv_out.read_calfits, write_file, strict_fits=True)
+
+    # now with delay type files
+    uv_in = UVCal()
+    uv_out = UVCal()
+    testfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.HH.uvc.fits')
+    write_file = os.path.join(DATA_PATH, 'test/outtest_firstcal.fits')
+    uv_in.read_calfits(testfile)
+
+    # add total_quality_array so that can be tested as well
+    uv_in.total_quality_array = np.zeros(uv_in._total_quality_array.expected_shape(uv_in))
+
+    # now read in the file and remove various CRPIX and CRVAL keywords to
+    # emulate old calfits files
+    header_vals_to_remove = [{'primary': 'CRVAL4'}, {'flag': 'CRVAL5'},
+                             {'flag': 'CRPIX4'}, {'totqual': 'CRVAL4'}]
+    messages = [write_file, 'This file', 'This file', write_file]
+    messages = [m + ' appears to be an old calfits format' for m in messages]
+    for i, hdr_dict in enumerate(header_vals_to_remove):
+        uv_in.write_calfits(write_file, clobber=True)
+
+        unit = hdr_dict.keys()[0]
+        keyword = hdr_dict[unit]
+
+        F = fits.open(write_file)
+        data = F[0].data
+        primary_hdr = F[0].header
+        hdunames = uvutils.fits_indexhdus(F)
+        ant_hdu = F[hdunames['ANTENNAS']]
+        flag_hdu = F[hdunames['FLAGS']]
+        flag_hdr = flag_hdu.header
+        totqualhdu = F[hdunames['TOTQLTY']]
+        totqualhdr = totqualhdu.header
+
+        if unit == 'primary':
+            primary_hdr.pop(keyword)
+        elif unit == 'flag':
+            flag_hdr.pop(keyword)
+        elif unit == 'totqual':
+            totqualhdr.pop(keyword)
+
+        prihdu = fits.PrimaryHDU(data=data, header=primary_hdr)
+        hdulist = fits.HDUList([prihdu, ant_hdu])
+        flag_hdu = fits.ImageHDU(data=flag_hdu.data, header=flag_hdr)
+        hdulist.append(flag_hdu)
+        totqualhdu = fits.ImageHDU(data=totqualhdu.data, header=totqualhdr)
+        hdulist.append(totqualhdu)
+
+        if float(astropy.__version__[0:3]) < 1.3:
+            hdulist.writeto(write_file, clobber=True)
+        else:
+            hdulist.writeto(write_file, overwrite=True)
+
+        uvtest.checkWarnings(uv_out.read_calfits, [write_file], nwarnings=1,
+                             message=messages[i], category=[UserWarning])
+        nt.assert_equal(uv_in, uv_out)
+        nt.assert_raises(KeyError, uv_out.read_calfits, write_file, strict_fits=True)
 
 
 def test_input_flag_array():
