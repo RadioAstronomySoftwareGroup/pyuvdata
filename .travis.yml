@@ -33,7 +33,6 @@ install:
   - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION numpy scipy astropy nose pip
   - source activate test-environment
   - conda install -c pkgw-forge aipy
-  - pip install python-casacore	
   - pip install coveralls
   #install python-casacore
   - sudo apt-get install python-numpy python-setuptools libboost-python-dev libcfitsio3-dev	
