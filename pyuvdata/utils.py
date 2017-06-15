@@ -221,6 +221,28 @@ def get_iterable(x):
         return (x,)
 
 
+def fits_fixhistory(history_string):
+    """
+    each line of a uvfits history has a maximum of 72 characters
+    which is not a limitation for other formats (miriad, ms, etc...)
+    this function goes through history and merges any lines with 72 chars
+    with the line that follows it. If there is a history line that
+    is precisely 72 chars long, this function will break. 
+    """
+    LINEMAX=72
+    history_lines=history_string.splitlines()
+    new_lines=[]
+    line_index=0
+    while line_index<len(history_lines):
+        newline=history_lines[line_index]
+        if len(history_lines[line_index])==72:
+            while len(history_lines[line_index])==72 and line_index<len(history_lines)-1:
+                line_index+=1
+                newline+=history_lines[line_index]
+        line_index+=1
+        new_lines.append(newline)
+    return "\n".join(new_lines)
+
 def fits_gethduaxis(HDU, axis, strict_fits=True):
     """
     Helper function for making axis arrays for fits files.
