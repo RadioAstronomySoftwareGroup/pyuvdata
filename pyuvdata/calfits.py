@@ -394,11 +394,12 @@ class CALFITS(UVCal):
             self.Nspws = hdr['NAXIS5']
             # add this for backwards compatibility when the spw CRVAL wasn't recorded
             try:
-                self.spw_array = uvutils.fits_gethduaxis(F[0], 5, strict_fits=strict_fits)
+                # subtract 1 to be zero-indexed
+                self.spw_array = uvutils.fits_gethduaxis(F[0], 5, strict_fits=strict_fits) - 1
             except(KeyError):
                 if not strict_fits:
                     _warn_oldcalfits(filename)
-                    self.spw_array = np.array([1])
+                    self.spw_array = np.array([0])
                 else:
                     raise
 
@@ -425,11 +426,12 @@ class CALFITS(UVCal):
             self.Nspws = hdr['NAXIS4']
             # add this for backwards compatibility when the spw CRVAL wasn't recorded
             try:
-                self.spw_array = uvutils.fits_gethduaxis(F[0], 4, strict_fits=strict_fits)
+                # subtract 1 to be zero-indexed
+                self.spw_array = uvutils.fits_gethduaxis(F[0], 4, strict_fits=strict_fits) - 1
             except(KeyError):
                 if not strict_fits:
                     _warn_oldcalfits(filename)
-                    self.spw_array = np.array([1])
+                    self.spw_array = np.array([0])
                 else:
                     raise
 
@@ -440,11 +442,11 @@ class CALFITS(UVCal):
 
             # add this for backwards compatibility when the spw CRVAL wasn't recorded
             try:
-                spw_array = uvutils.fits_gethduaxis(sechdu, 5, strict_fits=strict_fits)
+                spw_array = uvutils.fits_gethduaxis(sechdu, 5, strict_fits=strict_fits) - 1
             except(KeyError):
                 if not strict_fits:
                     _warn_oldcalfits(filename)
-                    spw_array = np.array([1])
+                    spw_array = np.array([0])
                 else:
                     raise
             if not np.allclose(spw_array, self.spw_array):
@@ -469,11 +471,11 @@ class CALFITS(UVCal):
 
             # add this for backwards compatibility when the spw CRVAL wasn't recorded
             try:
-                spw_array = uvutils.fits_gethduaxis(totqualhdu, 4, strict_fits=strict_fits)
+                spw_array = uvutils.fits_gethduaxis(totqualhdu, 4, strict_fits=strict_fits) - 1
             except(KeyError):
                 if not strict_fits:
                     _warn_oldcalfits(filename)
-                    spw_array = np.array([1])
+                    spw_array = np.array([0])
                 else:
                     raise
             if not np.allclose(spw_array, self.spw_array):
