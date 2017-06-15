@@ -7,21 +7,23 @@ from pyuvdata import UVBeam
 class TestUVBeamInit(object):
     def setUp(self):
         """Setup for basic parameter, property and iterator tests."""
-        self.required_parameters = ['_Nfreqs', '_Npixels',
-                                    '_Nfeeds', '_Naxes', '_Nspws',
-                                    '_coordinate_system', '_pixel_location_array',
+        self.required_parameters = ['_Nfreqs', '_Npixels', '_Nfeeds',
+                                    '_Naxes_pix', '_Naxes_vec', '_Nspws',
+                                    '_pixel_coordinate_system', '_pixel_location_array',
                                     '_feed_array', '_freq_array', '_spw_array',
-                                    '_basis_vector_array', '_efield_array',
+                                    '_basis_vector_array', '_efield_units',
+                                    '_efield_array',
                                     '_telescope_name', '_feed_name',
                                     '_feed_version', '_model_name',
                                     '_model_version', '_history',
                                     '_antenna_type']
 
-        self.required_properties = ['Nfreqs', 'Npixels',
-                                    'Nfeeds', 'Naxes', 'Nspws',
-                                    'coordinate_system', 'pixel_location_array',
+        self.required_properties = ['Nfreqs', 'Npixels', 'Nfeeds',
+                                    'Naxes_pix', 'Naxes_vec', 'Nspws',
+                                    'pixel_coordinate_system', 'pixel_location_array',
                                     'feed_array', 'freq_array', 'spw_array',
-                                    'basis_vector_array', 'efield_array',
+                                    'basis_vector_array', 'efield_units',
+                                    'efield_array',
                                     'telescope_name', 'feed_name',
                                     'feed_version', 'model_name',
                                     'model_version', 'history',
