@@ -81,8 +81,7 @@ def test_errors():
 
     header_vals_to_double = [{'flag': 'CDELT2'}, {'flag': 'CDELT3'},
                              {'flag': 'CRVAL5'}, {'totqual': 'CDELT1'},
-                             {'totqual': 'CDELT2'}, {'totqual': 'CDELT3'},
-                             {'totqual': 'CRVAL4'}]
+                             {'totqual': 'CDELT2'}, {'totqual': 'CRVAL4'}]
     for i, hdr_dict in enumerate(header_vals_to_double):
         uv_in.write_calfits(write_file, clobber=True)
 
@@ -108,6 +107,54 @@ def test_errors():
         hdulist = fits.HDUList([prihdu, ant_hdu])
         flag_hdu = fits.ImageHDU(data=flag_hdu.data, header=flag_hdr)
         hdulist.append(flag_hdu)
+        totqualhdu = fits.ImageHDU(data=totqualhdu.data, header=totqualhdr)
+        hdulist.append(totqualhdu)
+
+        if float(astropy.__version__[0:3]) < 1.3:
+            hdulist.writeto(write_file, clobber=True)
+        else:
+            hdulist.writeto(write_file, overwrite=True)
+
+        print(unit, keyword)
+        nt.assert_raises(ValueError, uv_out.read_calfits, write_file, strict_fits=True)
+
+    # repeat for gain type file
+    testfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.fitsA')
+    write_file = os.path.join(DATA_PATH, 'test/outtest_omnical.fits')
+    uv_in.read_calfits(testfile)
+
+    # Create filler jones info
+    uv_in.jones_array = np.array([-5, -6, -7, -8])
+    uv_in.Njones = 4
+    uv_in.flag_array = np.zeros(uv_in._flag_array.expected_shape(uv_in), dtype=bool)
+    uv_in.gain_array = np.ones(uv_in._gain_array.expected_shape(uv_in), dtype=np.complex64)
+    uv_in.quality_array = np.zeros(uv_in._quality_array.expected_shape(uv_in))
+
+    # add total_quality_array so that can be tested as well
+    uv_in.total_quality_array = np.zeros(uv_in._total_quality_array.expected_shape(uv_in))
+
+    header_vals_to_double = [{'totqual': 'CDELT1'}, {'totqual': 'CDELT2'},
+                             {'totqual': 'CDELT3'}, {'totqual': 'CRVAL4'}]
+
+    for i, hdr_dict in enumerate(header_vals_to_double):
+        uv_in.write_calfits(write_file, clobber=True)
+
+        unit = hdr_dict.keys()[0]
+        keyword = hdr_dict[unit]
+
+        F = fits.open(write_file)
+        data = F[0].data
+        primary_hdr = F[0].header
+        hdunames = uvutils.fits_indexhdus(F)
+        ant_hdu = F[hdunames['ANTENNAS']]
+        totqualhdu = F[hdunames['TOTQLTY']]
+        totqualhdr = totqualhdu.header
+
+        if unit == 'totqual':
+            totqualhdr[keyword] *= 2
+
+        prihdu = fits.PrimaryHDU(data=data, header=primary_hdr)
+        hdulist = fits.HDUList([prihdu, ant_hdu])
         totqualhdu = fits.ImageHDU(data=totqualhdu.data, header=totqualhdr)
         hdulist.append(totqualhdu)
 
