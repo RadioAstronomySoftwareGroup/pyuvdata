@@ -182,9 +182,12 @@ class UVFITS(UVData):
         # I have added a function to merge any
         # 72 character lines with lines <72 characters
         # that follow.
+        # this needs to be checked out in more detail -- it's not clear it's needed
         self.history = uvutils.fits_fixhistory(self.history)
-        if self.pyuvdata_version_str not in self.history.replace('\n', ''):
+        if (self.pyuvdata_version_str.replace(' ', '') not in
+                self.history.replace('\n', '').replace(' ', '')):
             self.history += self.pyuvdata_version_str
+
         while 'HISTORY' in hdr.keys():
             hdr.remove('HISTORY')
 
