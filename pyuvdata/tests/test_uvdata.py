@@ -576,19 +576,8 @@ def test_select_polarizations():
     nt.assert_raises(ValueError, uv_object2.select, polarizations=[-3, -4])
 
     # check for warnings and errors associated with unevenly spaced polarizations
-<<<<<<< HEAD
     uvtest.checkWarnings(uv_object.select, [], {'polarizations': uv_object.polarization_array[[0, 1, 3]]},
                          message='Selected polarization values are not evenly spaced')
-
-    uvtest.checkWarnings(uv_object.select, [], {'polarizations': uv_object.polarization_array[[0, 1, 3]]},
-                         message='Selected polarization values are not evenly spaced')
-
-=======
-
-    uvtest.checkWarnings(uv_object.select, [], {'polarizations': uv_object.polarization_array[[0, 1, 3]]},
-                         message='Selected polarization values are not evenly spaced')
-
->>>>>>> fixed test_uvdata.py rebase
     write_file_uvfits = os.path.join(DATA_PATH, 'test/select_test.uvfits')
     nt.assert_raises(ValueError, uv_object.write_uvfits, write_file_uvfits)
 
@@ -674,7 +663,6 @@ def test_select():
     # test that a ValueError is raised if the selection eliminates all blts
     nt.assert_raises(ValueError, uv_object.select, times=unique_times[0], antenna_nums=1)
 
-<<<<<<< HEAD
 
 
 def test_select_not_inplace():
@@ -691,8 +679,6 @@ def test_select_not_inplace():
                     uv1.history)
     uv1.history = old_history
     nt.assert_equal(uv1, uv_object)
-=======
->>>>>>> fixed test_uvdata.py rebase
 
 
 def test_reorder_pols():
@@ -898,7 +884,4 @@ def test_break_add():
     # Overlapping data
     uv2 = copy.deepcopy(uv_full)
     nt.assert_raises(ValueError, uv1.__iadd__, uv2)
-<<<<<<< HEAD
 
-=======
->>>>>>> fixed test_uvdata.py rebase

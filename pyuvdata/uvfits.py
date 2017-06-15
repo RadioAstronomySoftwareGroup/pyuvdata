@@ -25,28 +25,6 @@ class UVFITS(UVData):
                              'earth_omega', 'dut1', 'timesys']
 
 
-    def _fixhistory(self):
-        """
-        each line of a uvfits history has a maximum of 72 characters
-        which is not a limitation for other formats (miriad, ms, etc...)
-        this function goes through history and merges any lines with 72 chars
-        with the line that follows it. If there is a history line that
-        is precisely 72 chars long, this function will break. 
-        """
-        LINEMAX=72
-        history_lines=self.history.splitlines()
-        new_lines=[]
-        line_index=0
-        while line_index<len(history_lines):
-            newline=history_lines[line_index]
-            if len(history_lines[line_index])==72:
-                while len(history_lines[line_index])==72 and line_index<len(history_lines)-1:
-                    line_index+=1
-                    newline+=history_lines[line_index]
-            line_index+=1
-            new_lines.append(newline)
-        self.history="\n".join(new_lines)
-
     def read_uvfits(self, filename, run_check=True, run_check_acceptability=True):
         """
         Read in data from a uvfits file.
@@ -202,7 +180,7 @@ class UVFITS(UVData):
         #I have added a function to merge any
         #72 character lines with lines <72 characters
         #that follow.
-        self._fixhistory()
+        self.history=uvutils.fits_fixhistory(self.history)
         if self.pyuvdata_version_str not in self.history.replace('\n', ''):
             self.history += self.pyuvdata_version_str
         while 'HISTORY' in hdr.keys():
