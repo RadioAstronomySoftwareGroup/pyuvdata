@@ -1,5 +1,6 @@
 """Class for reading and writing beamfits files."""
 import numpy as np
+import astropy
 from astropy.io import fits
 from uvbeam import UVBeam
 import utils as uvutils
@@ -33,72 +34,77 @@ class BeamFITS(UVBeam):
         data = primary_hdu.data
         self.efield_array = data[:, :, :, :, :, 0] + 1j * data[:, :, :, :, :, 1]
 
-        self.telescope_name = primary_header.pop['TELESCOP']
-        self.feed_name = primary_header.pop['FEED']
-        self.feed_version = primary_header.pop['FEEDVER']
-        self.model_name = primary_header.pop['MODEL']
-        self.model_version = primary_header.pop['MODELVER']
+        self.efield_units = primary_header.pop('BUNIT', None)
+        self.telescope_name = primary_header.pop('TELESCOP')
+        self.feed_name = primary_header.pop('FEED')
+        self.feed_version = primary_header.pop('FEEDVER')
+        self.model_name = primary_header.pop('MODEL')
+        self.model_version = primary_header.pop('MODELVER')
 
         # shapes
-        self.Nfreqs = primary_header.pop['NAXIS2']
-        self.Nspws = primary_header.pop['NAXIS3']
-        self.Npixels = primary_header.pop['NAXIS4']
-        self.Naxes = primary_header.pop['NAXIS5']
-        self.Nfeeds = primary_header.pop['NAXIS6']
+        self.Nfreqs = primary_header.pop('NAXIS2')
+        self.Nspws = primary_header.pop('NAXIS3')
+        self.Npixels = primary_header.pop('NAXIS4')
+        self.Naxes_vec = primary_header.pop('NAXIS5')
+        self.Nfeeds = primary_header.pop('NAXIS6')
 
-        self.coordinate_system = primary_header.pop['COORDSYS']
-        if self.Naxes != self.coordinate_system_dict[self.coordinate_system]['naxes']:
-            raise ValueError('Naxes does not match coordinate system')
-
-        self.feed_array = primary_header.pop['FEEDLIST']
+        self.feed_array = primary_header.pop('FEEDLIST')[1:-1].split(', ')
 
         self.freq_array = uvutils.fits_gethduaxis(primary_hdu, 2)
         self.freq_array.shape = (self.Nspws,) + self.freq_array.shape
         self.spw_array = uvutils.fits_gethduaxis(primary_hdu, 3)
 
-        self.history = str(hdr.get('HISTORY', ''))
+        self.history = str(primary_header.get('HISTORY', ''))
         if self.pyuvdata_version_str not in self.history.replace('\n', ''):
             self.history += self.pyuvdata_version_str
-        while 'HISTORY' in hdr.keys():
-            hdr.remove('HISTORY')
+        while 'HISTORY' in primary_header.keys():
+            primary_header.remove('HISTORY')
 
         # remove standard FITS header items that are still around
         std_fits_substrings = ['SIMPLE', 'BITPIX', 'EXTEND', 'BLOCKED',
                                'GROUPS', 'PCOUNT', 'BSCALE', 'BZERO', 'NAXIS',
                                'PTYPE', 'PSCAL', 'PZERO', 'CTYPE', 'CRVAL',
                                'CRPIX', 'CDELT', 'CROTA']
-        for key in hdr.keys():
+        for key in primary_header.keys():
             for sub in std_fits_substrings:
                 if key.find(sub) > -1:
-                    hdr.remove(key)
+                    primary_header.remove(key)
 
         # find all the remaining header items and keep them as extra_keywords
-        for key in hdr:
+        for key in primary_header:
             if key == '':
                 continue
             if key == 'COMMENT':
-                self.extra_keywords[key] = str(hdr.get(key))
+                self.extra_keywords[key] = str(primary_header.get(key))
             else:
-                self.extra_keywords[key] = hdr.get(key)
+                self.extra_keywords[key] = primary_header.get(key)
 
         # read COORDS HDU
         coords_hdu = F[hdunames['COORDS']]
         coords_data = coords_hdu.data
+        coords_header = coords_hdu.header
 
-        self.pixel_location_array = coords_data[:, :, 0]
-        self.basis_vector_array = coords_data[:, :, 1]
+        # pixel_location_array had a shallow dimension added to make it fit
+        # with the basis_vector_array
+        self.pixel_location_array = coords_data[0, :, :, 0]
+        self.basis_vector_array = coords_data[:, :, :, 1]
 
-        coord_list = coords_hdu.header['COORLIST']
-        coords_Npixels = coords_hdu.header['NAXIS2']
-        coords_Naxes = coords_hdu.header['NAXIS2']
+        coord_list = coords_header['COORLIST'][1:-1].split(', ')
+        coords_Npixels = coords_header['NAXIS2']
+        self.Naxes_pix = coords_header['NAXIS3']
+        coords_Naxes_vec = coords_header['NAXIS4']
 
-        if coords_Naxes != self.Naxes:
-            raise ValueError('Number of coordinate axes in COORDS HDU does not match primary HDU')
+        self.pixel_coordinate_system = coords_header['COORDSYS']
+        if self.Naxes_pix != self.coordinate_system_dict[self.pixel_coordinate_system]['naxes']:
+            raise ValueError('Naxes_pix does not match pixel_coordinate_system')
+
+        if coords_Naxes_vec != self.Naxes_vec:
+            raise ValueError('Number of vector coordinate axes in COORDS HDU does not match primary HDU')
 
         if coords_Npixels != self.Npixels:
             raise ValueError('Number of pixels in COORDS HDU does not match primary HDU')
 
-        if coord_list != self.coordinate_system_dict[self.coordinate_system]['axis_list']:
+        if coord_list != self.coordinate_system_dict[self.pixel_coordinate_system]['axis_list']:
             raise ValueError('Coordinate axis list does not match coordinate system')
 
         if run_check:
@@ -127,6 +133,7 @@ class BeamFITS(UVBeam):
                 raise ValueError('The frequencies are not evenly spaced (probably '
                                  'because of a select operation). The beamfits format '
                                  'does not support unevenly spaced frequencies.')
+            freq_spacing = freq_spacing[0]
         else:
             freq_spacing = 1
 
@@ -143,7 +150,10 @@ class BeamFITS(UVBeam):
         primary_header['MODEL'] = self.model_name
         primary_header['MODELVER'] = self.model_version
 
-        primary_header['COORDSYS'] = self.coordinate_system
+        primary_header['BUNIT'] = self.efield_units
+        primary_header['BSCALE'] = 1.0
+        primary_header['BZERO'] = 0.0
+
         primary_header['FEEDLIST'] = '[' + ', '.join(self.feed_array) + ']'
 
         # set up complex axis
@@ -163,9 +173,9 @@ class BeamFITS(UVBeam):
         # set up spw axis
         primary_header['CTYPE3'] = ('IF', 'Spectral window axis')
         primary_header['CUNIT3'] = 'Integer'
-        primary_header['CRVAL3'] = 1.0
-        primary_header['CRPIX3'] = 1.0
-        primary_header['CDELT3'] = 1.0
+        primary_header['CRVAL3'] = 1
+        primary_header['CRPIX3'] = 1
+        primary_header['CDELT3'] = 1
 
         # set up pixel axis
         primary_header['CTYPE4'] = ('PIXIND', 'pixel: index into pixel_location_array.')
@@ -210,7 +220,8 @@ class BeamFITS(UVBeam):
 
         coords_header = fits.Header()
         coords_header['EXTNAME'] = 'COORDS'
-        coords_header['COORLIST'] = '[' + ', '.join(self.coordinate_system_dict[self.coordinate_system]['axis_list']) + ']'
+        coords_header['COORDSYS'] = self.pixel_coordinate_system
+        coords_header['COORLIST'] = '[' + ', '.join(self.coordinate_system_dict[self.pixel_coordinate_system]['axis_list']) + ']'
 
         # set up dummy array axis
         coords_header['CTYPE1'] = ('ARRAYNUM', 'array order is pixel locations, basis vectors')
@@ -226,15 +237,26 @@ class BeamFITS(UVBeam):
         coords_header['CRPIX2'] = 1
         coords_header['CDELT2'] = 1
 
-        # set up coordinate system axis
-        coords_header['CTYPE3'] = ('COORDIND', 'Coordinates: index into COORLIST.')
+        # set up pixel coordinate system axis (length Naxis_pix)
+        coords_header['CTYPE3'] = ('PIXCOORD', 'Coordinates: index into PIXCOORD.')
         coords_header['CUNIT3'] = 'Integer'
         coords_header['CRVAL3'] = 1
         coords_header['CRPIX3'] = 1
         coords_header['CDELT3'] = 1
 
-        coords_data = np.concatenate([self.pixel_location_array[:, :, np.newaxis],
-                                      self.basis_vector_array[:, :, np.newaxis]],
+        # set up vector coordinate system axis (length Naxis_vec)
+        coords_header['CTYPE4'] = ('VECCOORD', 'Coordinates: index into VECCOORD.')
+        coords_header['CUNIT4'] = 'Integer'
+        coords_header['CRVAL4'] = 1
+        coords_header['CRPIX4'] = 1
+        coords_header['CDELT4'] = 1
+
+        # concatenate the pixel_location_array and basis_vector_array,
+        # expanding the pixel_location_array to fit
+        expanded_locs = np.stack([self.pixel_location_array for _ in range(self.Naxes_vec)], axis=0)
+
+        coords_data = np.concatenate([expanded_locs[:, :, :, np.newaxis],
+                                      self.basis_vector_array[:, :, :, np.newaxis]],
                                      axis=-1)
         coords_hdu = fits.ImageHDU(data=coords_data, header=coords_header)
 

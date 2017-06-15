@@ -16,6 +16,9 @@ class UVBeam(UVBase):
             and others are always optional.
     """
 
+    coordinate_system_dict = {'az_el': {'naxes': 2, 'axis_list': ['az', 'el']},
+                              'spherical': {'naxes': 3, 'axis_list': ['x', 'y', 'z']}}
+
     def __init__(self):
         """Create a new UVBeam object."""
         # add the UVParameters to the class
@@ -30,28 +33,41 @@ class UVBeam(UVBase):
         self._Nfeeds = uvp.UVParameter('Nfeeds', description='Number of feeds',
                                        expected_type=int, acceptable_vals=[1, 2])
 
-        self._Naxes = uvp.UVParameter('Naxes', description='Number of directions '
-                                      'in coordinate system, options are 2 or 3',
-                                      expected_type=int, acceptable_vals=[2, 3])
+        self._Naxes_pix = uvp.UVParameter('Naxes_pix', description='Number of directions '
+                                          'in pixel_coordinate_system, options are 2 or 3',
+                                          expected_type=int, acceptable_vals=[2, 3])
+
+        self._Naxes_vec = uvp.UVParameter('Naxes_vec', description='Number of directions '
+                                          'in vector_coordinate_system, options are 2 or 3',
+                                          expected_type=int, acceptable_vals=[2, 3])
 
         self._Nspws = uvp.UVParameter('Nspws', description='Number of spectral windows '
                                       '(ie non-contiguous spectral chunks). '
                                       'More than one spectral window is not '
                                       'currently supported.', expected_type=int)
 
-        coordinate_system_dict = {'az_el': {'naxes': 2, 'axis_list': ['az', 'el']},
-                                  'spherical': {'naxes': 3, 'axis_list': ['x', 'y', 'z']}}
-        desc = 'Pixel coordinate system, options are: ' + ', '.join(coordinate_system_dict.keys())
-        self._coordinate_system = uvp.UVParameter('coordinate_system',
-                                                  description=desc, form='str',
-                                                  expected_type=str,
-                                                  acceptable_vals=coordinate_system_dict.keys())
+        desc = 'Pixel coordinate system, options are: ' + ', '.join(self.coordinate_system_dict.keys())
+        self._pixel_coordinate_system = uvp.UVParameter('pixel_coordinate_system',
+                                                        description=desc, form='str',
+                                                        expected_type=str,
+                                                        acceptable_vals=self.coordinate_system_dict.keys())
 
-        desc = 'Array of pixel locations, shape: (Naxes, Npixels)'
+        desc = 'Array of pixel locations, shape: (Naxes_pix, Npixels)'
         self._pixel_location_array = uvp.UVParameter('pixel_location_array',
                                                      description=desc,
-                                                     form=('Naxes', 'Npixels'),
+                                                     form=('Naxes_pix', 'Npixels'),
                                                      expected_type=np.float)
+
+        desc = ('Beam basis vector components -- directions for which the '
+                'electric field values are recorded in the pixel coordinate system. '
+                'If the components are aligned with the pixel coordinate system '
+                'all the values will be 1 or 0. shape: (Naxes_vec, Naxes_pix, Npixels).')
+        self._basis_vector_array = uvp.UVParameter('basis_vector_array',
+                                                   description=desc,
+                                                   expected_type=np.float,
+                                                   form=('Naxes_vec', 'Naxes_pix', 'Npixels'),
+                                                   acceptable_range=(0, 1),
+                                                   tols=1e-3)
 
         desc = ('Array of feed orientations. shape (Nfeeds). '
                 'options are: N/E or x/y or R/L')
@@ -71,23 +87,18 @@ class UVBeam(UVBase):
                                           'Numbers, shape (Nspws)', form=('Nspws',),
                                           expected_type=int)
 
-        desc = ('Beam basis vector components -- directions for which the '
-                'electric field values are recorded in the pixel coordinate system. '
-                'If the components are aligned with the pixel coordinate system '
-                'all the values will be 1 or 0. shape: (Naxes, Npixels).')
-        self._basis_vector_array = uvp.UVParameter('basis_vector_array',
-                                                   description=desc,
-                                                   expected_type=np.float,
-                                                   form=('Naxes', 'Npixels'),
-                                                   acceptable_range=(0, 1),
-                                                   tols=1e-3)
+        desc = 'Efield units, options are: "peak", "solid_angle"'
+        self._efield_units = uvp.UVParameter('efield_units', description=desc,
+                                             form='str', expected_type=str,
+                                             acceptable_vals=["peak", "solid_angle"])
 
-        desc = ('Complex E-field values for beam model, units V/m. '
-                'shape = (Nfeeds, Naxes, Npixels, Nspws, Nfreq)')
+        desc = ('Complex E-field values for beam model. units are linear '
+                'normalized to either peak or solid angle as given by efield_units. '
+                'shape = (Nfeeds, Naxes_vec, Npixels, Nspws, Nfreqs)')
         self._efield_array = uvp.UVParameter('efield_array',
                                              description=desc,
                                              expected_type=np.complex,
-                                             form=('Nfeeds', 'Naxes', 'Npixels', 'Nspws', 'Nfreq'),
+                                             form=('Nfeeds', 'Naxes_vec', 'Npixels', 'Nspws', 'Nfreqs'),
                                              acceptable_range=(0, 1),
                                              tols=1e-3)
 
@@ -163,11 +174,11 @@ class UVBeam(UVBase):
 
         desc = ('Required if antenna_type = "phased_array". Matrix of complex '
                 'element couplings, units: dB, '
-                'shape: (Nelements, Nelements, Nfeed, Nfeed, Nspws, Nfreq)')
+                'shape: (Nelements, Nelements, Nfeed, Nfeed, Nspws, Nfreqs)')
         self._coupling_matrix = uvp.UVParameter('coupling_matrix', required=False,
                                                 description=desc,
                                                 form=('Nelements', 'Nelements',
-                                                      'Nfeed', 'Nfeed', 'Nspws', 'Nfreq'),
+                                                      'Nfeed', 'Nfeed', 'Nspws', 'Nfreqs'),
                                                 expected_type=np.complex)
 
         # -------- extra, non-required parameters ----------
@@ -229,8 +240,8 @@ class UVBeam(UVBase):
         # first run the basic check from UVBase
         super(UVBeam, self).check(run_check_acceptability=run_check_acceptability)
 
-        # Check consistency of coordinate_system and Naxes
-        if self.Naxes != self.coordinate_system_dict[self.coordinate_system]['naxes']:
+        # Check consistency of coordinate_system and Naxes_pix
+        if self.Naxes_pix != self.coordinate_system_dict[self.pixel_coordinate_system]['naxes']:
             raise ValueError('Number of coordinate axes is not consistent with coordinate_system.')
 
         return True
@@ -289,7 +300,8 @@ class UVBeam(UVBase):
         self._convert_from_filetype(beamfits_obj)
         del(beamfits_obj)
 
-    def write_beamfits(self, filename, run_check=True, run_check_acceptability=True):
+    def write_beamfits(self, filename, run_check=True,
+                       run_check_acceptability=True, clobber=False):
         """
         Write the data to a beamfits file.
 
@@ -299,8 +311,11 @@ class UVBeam(UVBase):
                 required parameters before writing the file. Default is True.
             run_check_acceptability: Option to check acceptable range of the values of
                 required parameters before writing the file. Default is True.
+            clobber: Option to overwrite the filename if the file already exists.
+                Default is False.
         """
         beamfits_obj = self._convert_to_filetype('beamfits')
         beamfits_obj.write_beamfits(filename, run_check=run_check,
-                                    run_check_acceptability=run_check_acceptability)
+                                    run_check_acceptability=run_check_acceptability,
+                                    clobber=clobber)
         del(beamfits_obj)
