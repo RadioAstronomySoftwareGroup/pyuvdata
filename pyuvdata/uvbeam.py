@@ -16,8 +16,8 @@ class UVBeam(UVBase):
             and others are always optional.
     """
 
-    coordinate_system_dict = {'az_el': {'naxes': 2, 'axis_list': ['az', 'el']},
-                              'spherical': {'naxes': 3, 'axis_list': ['x', 'y', 'z']}}
+    coordinate_system_dict = {'az_za': {'naxes': 2, 'axis_list': ['az', 'za']},
+                              'ecef': {'naxes': 3, 'axis_list': ['x', 'y', 'z']}}
 
     def __init__(self):
         """Create a new UVBeam object."""

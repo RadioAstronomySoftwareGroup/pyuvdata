@@ -24,8 +24,8 @@ def fill_dummy_beam(beam_obj):
                                  '.  Git description: ' + uvversion.git_description + '.')
     beam_obj.history += pyuvdata_version_str
 
-    beam_obj.pixel_coordinate_system = 'az_el'
-    xy_vals = np.meshgrid(np.arange(-180.0, 180.0, 5.0), np.arange(0.0, 90.0, 5.0))
+    beam_obj.pixel_coordinate_system = 'az_za'
+    xy_vals = np.meshgrid(np.arange(-180.0, 180.0, 5.0), np.arange(-90.0, 90.0, 5.0), indexing='ij')
     beam_obj.pixel_location_array = np.vstack([xy_vals[0].flatten(), xy_vals[1].flatten()])
     beam_obj.Naxes_pix, beam_obj.Npixels = beam_obj.pixel_location_array.shape
     beam_obj.feed_array = ['x', 'y']
