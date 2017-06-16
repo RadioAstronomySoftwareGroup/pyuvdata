@@ -23,7 +23,8 @@ def LatLonAlt_from_XYZ(xyz):
     # convert to a numpy array
     xyz = np.array(xyz)
     if xyz.shape[0] != 3:
-        raise ValueError('The first dimension of the ECEF xyz array must be length 3')
+        raise ValueError(
+            'The first dimension of the ECEF xyz array must be length 3')
     if len(xyz.shape) == 1:
         Npts = 1
         xyz = xyz[:, np.newaxis]
@@ -32,7 +33,8 @@ def LatLonAlt_from_XYZ(xyz):
 
     # checking for acceptable values
     if np.any(np.linalg.norm(xyz, axis=0) < 6.35e6) or np.any(np.linalg.norm(xyz, axis=0) > 6.39e6):
-        raise ValueError('xyz values should be ECEF x, y, z coordinates in meters')
+        raise ValueError(
+            'xyz values should be ECEF x, y, z coordinates in meters')
 
     # see wikipedia geodetic_datum and Datum transformations of
     # GPS positions PDF in docs/references folder
@@ -70,9 +72,11 @@ def XYZ_from_LatLonAlt(latitude, longitude, altitude):
     altitude = np.array(altitude)
     Npts = latitude.size
     if longitude.size != Npts:
-        raise ValueError('latitude, longitude and altitude must all have the same length')
+        raise ValueError(
+            'latitude, longitude and altitude must all have the same length')
     if altitude.size != Npts:
-        raise ValueError('latitude, longitude and altitude must all have the same length')
+        raise ValueError(
+            'latitude, longitude and altitude must all have the same length')
 
     # see wikipedia geodetic_datum and Datum transformations of
     # GPS positions PDF in docs/references folder
@@ -100,7 +104,8 @@ def ENU_from_ECEF(xyz, latitude, longitude, altitude):
         numpy array, shape (3, Npts), with local ENU coordinates
     """
     if xyz.shape[0] != 3:
-        raise ValueError('The first dimension of the ECEF xyz array must be length 3')
+        raise ValueError(
+            'The first dimension of the ECEF xyz array must be length 3')
     if len(xyz.shape) == 1:
         Npts = 1
     else:
@@ -111,7 +116,8 @@ def ENU_from_ECEF(xyz, latitude, longitude, altitude):
     ecef_magnitudes = np.linalg.norm(xyz, axis=0)
     sensible_radius_range = (6.35e6, 6.39e6)
     if np.any(ecef_magnitudes <= sensible_radius_range[0]) or np.any(ecef_magnitudes >= sensible_radius_range[1]):
-        raise ValueError('ECEF vector magnitudes must be on the order of the radius of the earth')
+        raise ValueError(
+            'ECEF vector magnitudes must be on the order of the radius of the earth')
 
     xyz_center = XYZ_from_LatLonAlt(latitude, longitude, altitude)
 
@@ -124,7 +130,8 @@ def ENU_from_ECEF(xyz, latitude, longitude, altitude):
     xyz = np.squeeze(xyz)
 
     enu = np.zeros((3, Npts))
-    enu[0, :] = (-np.sin(longitude) * xyz_use[0, :] + np.cos(longitude) * xyz_use[1, :])
+    enu[0, :] = (-np.sin(longitude) * xyz_use[0, :] +
+                 np.cos(longitude) * xyz_use[1, :])
     enu[1, :] = (-np.sin(latitude) * np.cos(longitude) * xyz_use[0, :] -
                  np.sin(latitude) * np.sin(longitude) * xyz_use[1, :] +
                  np.cos(latitude) * xyz_use[2, :])
@@ -149,7 +156,8 @@ def ECEF_from_ENU(enu, latitude, longitude, altitude):
         numpy array, shape (3, Npts), with ECEF x,y,z coordinates
     """
     if enu.shape[0] != 3:
-        raise ValueError('The first dimension of the local ENU array must be length 3')
+        raise ValueError(
+            'The first dimension of the local ENU array must be length 3')
     if len(enu.shape) == 1:
         Npts = 1
     else:
@@ -229,19 +237,20 @@ def fits_fixhistory(history_string):
     with the line that follows it. If there is a history line that
     is precisely 72 chars long, this function will break. 
     """
-    LINEMAX=72
-    history_lines=history_string.splitlines()
-    new_lines=[]
-    line_index=0
-    while line_index<len(history_lines):
-        newline=history_lines[line_index]
-        if len(history_lines[line_index])==72:
-            while len(history_lines[line_index])==72 and line_index<len(history_lines)-1:
-                line_index+=1
-                newline+=history_lines[line_index]
-        line_index+=1
+    LINEMAX = 72
+    history_lines = history_string.splitlines()
+    new_lines = []
+    line_index = 0
+    while line_index < len(history_lines):
+        newline = history_lines[line_index]
+        if len(history_lines[line_index]) == 72:
+            while len(history_lines[line_index]) == 72 and line_index < len(history_lines) - 1:
+                line_index += 1
+                newline += history_lines[line_index]
+        line_index += 1
         new_lines.append(newline)
     return "\n".join(new_lines)
+
 
 def fits_gethduaxis(HDU, axis, strict_fits=True):
     """

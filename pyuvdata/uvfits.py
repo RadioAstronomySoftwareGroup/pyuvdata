@@ -24,7 +24,6 @@ class UVFITS(UVData):
     uvfits_required_extra = ['antenna_positions', 'gst0', 'rdate',
                              'earth_omega', 'dut1', 'timesys']
 
-
     def read_uvfits(self, filename, run_check=True, run_check_acceptability=True):
         """
         Read in data from a uvfits file.
@@ -99,7 +98,8 @@ class UVFITS(UVData):
         self.Nbls = len(np.unique(self.baseline_array))
 
         # initialize internal variables based on the antenna table
-        self.Nants_data = int(len(np.unique(self.ant_1_array.tolist() + self.ant_2_array.tolist())))
+        self.Nants_data = int(
+            len(np.unique(self.ant_1_array.tolist() + self.ant_2_array.tolist())))
 
         self.set_phased()
         # check if we have an spw dimension
@@ -111,7 +111,8 @@ class UVFITS(UVData):
             self.data_array = (D.data.field('DATA')[:, 0, 0, :, :, :, 0] +
                                1j * D.data.field('DATA')[:, 0, 0, :, :, :, 1])
             self.flag_array = (D.data.field('DATA')[:, 0, 0, :, :, :, 2] <= 0)
-            self.nsample_array = np.abs(D.data.field('DATA')[:, 0, 0, :, :, :, 2])
+            self.nsample_array = np.abs(
+                D.data.field('DATA')[:, 0, 0, :, :, :, 2])
             self.Nspws = hdr.pop('NAXIS5')
             assert(self.Nspws == self.data_array.shape[1])
 
@@ -158,7 +159,8 @@ class UVFITS(UVData):
         except:
             if self.Ntimes > 1:
                 self.integration_time = \
-                    float(np.diff(np.sort(list(set(self.time_array))))[0]) * 86400
+                    float(np.diff(np.sort(list(set(self.time_array))))
+                          [0]) * 86400
             else:
                 raise ValueError('integration time not specified and only '
                                  'one time present')
@@ -175,18 +177,18 @@ class UVFITS(UVData):
         longitude_degrees = hdr.pop('LON', None)
         altitude = hdr.pop('ALT', None)
         self.history = str(hdr.get('HISTORY', ''))
-        #FITS files split history into strings
-        #with maximum length of 72 characters
-        #I have added a function to merge any
-        #72 character lines with lines <72 characters
-        #that follow.
-        self.history=uvutils.fits_fixhistory(self.history)
+        # FITS files split history into strings
+        # with maximum length of 72 characters
+        # I have added a function to merge any
+        # 72 character lines with lines <72 characters
+        # that follow.
+        self.history = uvutils.fits_fixhistory(self.history)
         if self.pyuvdata_version_str not in self.history.replace('\n', ''):
             self.history += self.pyuvdata_version_str
         while 'HISTORY' in hdr.keys():
             hdr.remove('HISTORY')
 
-        #if 'CASAHIST' in hdr.keys():
+        # if 'CASAHIST' in hdr.keys():
         #    self.casa_history=hdr.pop('CASAHIST',None)
         self.vis_units = hdr.pop('BUNIT', 'UNCALIB')
         self.phase_center_epoch = hdr.pop('EPOCH', None)
@@ -256,10 +258,12 @@ class UVFITS(UVData):
             self.antenna_positions = ant_hdu.data.field('STABXYZ')
 
         if xyz_telescope_frame == 'ITRF':
-            self.telescope_location = np.array([x_telescope, y_telescope, z_telescope])
+            self.telescope_location = np.array(
+                [x_telescope, y_telescope, z_telescope])
         else:
             if latitude_degrees is not None and longitude_degrees is not None and altitude is not None:
-                self.telescope_location_lat_lon_alt_degrees = (latitude_degrees, longitude_degrees, altitude)
+                self.telescope_location_lat_lon_alt_degrees = (
+                    latitude_degrees, longitude_degrees, altitude)
 
         self.gst0 = ant_hdu.header['GSTIA0']
         self.rdate = ant_hdu.header['RDATE']
@@ -369,13 +373,14 @@ class UVFITS(UVData):
 
         weights_array = self.nsample_array * \
             np.where(self.flag_array, -1, 1)
-        data_array = self.data_array[:, np.newaxis, np.newaxis, :, :, :, np.newaxis]
+        data_array = self.data_array[:, np.newaxis,
+                                     np.newaxis, :, :, :, np.newaxis]
         weights_array = weights_array[:, np.newaxis, np.newaxis, :, :, :,
                                       np.newaxis]
         # uvfits_array_data shape will be  (Nblts,1,1,[Nspws],Nfreqs,Npols,3)
         uvfits_array_data = np.concatenate([data_array.real,
-                                           data_array.imag,
-                                           weights_array], axis=6)
+                                            data_array.imag,
+                                            weights_array], axis=6)
 
         uvw_array_sec = self.uvw_array / const.c.to('m/s').value
         # jd_midnight = np.floor(self.time_array[0] - 0.5) + 0.5
@@ -577,4 +582,3 @@ class UVFITS(UVData):
             hdulist.writeto(filename, clobber=True)
         else:
             hdulist.writeto(filename, overwrite=True)
-            
