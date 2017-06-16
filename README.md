@@ -20,7 +20,7 @@ The three main goals are:
 * FHD -> uvfits
 * FHD -> miriad (aipy)
 * CASA measurement sets -> miriad
-* CASA measurement sets -> FHD
+* CASA measurement sets -> FHD (untested)
 * CASA measurement sets -> uvfits
 
 ## File formats for calibration data
