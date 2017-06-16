@@ -177,13 +177,6 @@ class UVFITS(UVData):
         longitude_degrees = hdr.pop('LON', None)
         altitude = hdr.pop('ALT', None)
         self.history = str(hdr.get('HISTORY', ''))
-        # FITS files split history into strings
-        # with maximum length of 72 characters
-        # I have added a function to merge any
-        # 72 character lines with lines <72 characters
-        # that follow.
-        # this needs to be checked out in more detail -- it's not clear it's needed
-        self.history = uvutils.fits_fixhistory(self.history)
         if (self.pyuvdata_version_str.replace(' ', '') not in
                 self.history.replace('\n', '').replace(' ', '')):
             self.history += self.pyuvdata_version_str
