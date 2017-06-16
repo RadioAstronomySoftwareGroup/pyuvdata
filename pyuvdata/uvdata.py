@@ -50,7 +50,8 @@ class UVData(UVBase):
         desc = ('Array of the visibility data, shape: (Nblts, Nspws, Nfreqs, '
                 'Npols), type = complex float, in units of self.vis_units')
         self._data_array = uvp.UVParameter('data_array', description=desc,
-                                           form=('Nblts', 'Nspws', 'Nfreqs', 'Npols'),
+                                           form=('Nblts', 'Nspws',
+                                                 'Nfreqs', 'Npols'),
                                            expected_type=np.complex)
 
         desc = 'Visibility units, options are: "uncalib", "Jy" or "K str"'
@@ -61,12 +62,14 @@ class UVData(UVBase):
         desc = ('Number of data points averaged into each data element, '
                 'NOT required to be an integer. type = float, same shape as data_array')
         self._nsample_array = uvp.UVParameter('nsample_array', description=desc,
-                                              form=('Nblts', 'Nspws', 'Nfreqs', 'Npols'),
+                                              form=('Nblts', 'Nspws',
+                                                    'Nfreqs', 'Npols'),
                                               expected_type=(np.float))
 
         desc = 'Boolean flag, True is flagged, same shape as data_array.'
         self._flag_array = uvp.UVParameter('flag_array', description=desc,
-                                           form=('Nblts', 'Nspws', 'Nfreqs', 'Npols'),
+                                           form=('Nblts', 'Nspws',
+                                                 'Nfreqs', 'Npols'),
                                            expected_type=np.bool)
 
         self._Nspws = uvp.UVParameter('Nspws', description='Number of spectral windows '
@@ -129,7 +132,8 @@ class UVData(UVBase):
         self._polarization_array = uvp.UVParameter('polarization_array',
                                                    description=desc,
                                                    expected_type=int,
-                                                   acceptable_vals=list(np.arange(-8, 0)) + list(np.arange(1, 5)),
+                                                   acceptable_vals=list(
+                                                       np.arange(-8, 0)) + list(np.arange(1, 5)),
                                                    form=('Npols',))
 
         self._integration_time = uvp.UVParameter('integration_time',
@@ -158,7 +162,8 @@ class UVData(UVBase):
                 'telescope_location_lat_lon_alt_degrees properties')
         self._telescope_location = uvp.LocationParameter('telescope_location',
                                                          description=desc,
-                                                         acceptable_range=(6.35e6, 6.39e6),
+                                                         acceptable_range=(
+                                                             6.35e6, 6.39e6),
                                                          tols=1e-3)
 
         self._history = uvp.UVParameter('history', description='String of history, units English',
@@ -251,7 +256,8 @@ class UVData(UVBase):
         self._antenna_positions = uvp.AntPositionParameter('antenna_positions',
                                                            required=False,
                                                            description=desc,
-                                                           form=('Nants_telescope', 3),
+                                                           form=(
+                                                               'Nants_telescope', 3),
                                                            expected_type=np.float,
                                                            tols=1e-3)  # 1 mm
 
@@ -313,7 +319,8 @@ class UVData(UVBase):
         if np.all(self.ant_1_array == self.ant_2_array):
             # Special case of only containing auto correlations
             self._uvw_array.acceptable_range = (0.0, 0.0)
-        super(UVData, self).check(run_check_acceptability=run_check_acceptability)
+        super(UVData, self).check(
+            run_check_acceptability=run_check_acceptability)
 
         # Check internal consistency of numbers which don't explicitly correspond
         # to the shape of another array.
@@ -443,15 +450,16 @@ class UVData(UVBase):
             if (np.max(ant1) < 255 and np.max(ant2) < 255):
                 return 256 * (ant1 + 1) + (ant2 + 1)
             else:
-                print('Max antnums are {} and {}'.format(np.max(ant1), np.max(ant2)))
+                print('Max antnums are {} and {}'.format(
+                    np.max(ant1), np.max(ant2)))
                 message = 'antnums_to_baseline: found > 256 antennas, using ' \
                           '2048 baseline indexing. Beware compatibility ' \
                           'with CASA etc'
                 warnings.warn(message)
 
         return np.int64(2048 * (ant1 + 1) + (ant2 + 1) + 2**16)
-    
-    def order_pols(self,order='AIPS'):
+
+    def order_pols(self, order='AIPS'):
         '''
         Arranges polarizations in orders corresponding to either AIPS or CASA convention.
         CASA stokes types are ordered with cross-pols in between (e.g. XX,XY,YX,YY) while
@@ -459,27 +467,25 @@ class UVData(UVBase):
         Args:
         order: string, either 'CASA' or 'AIPS'. Default='AIPS'
         '''
-        if(order=='AIPS'):
-            pol_array_sorted=np.sort(self.polarization_array)
-            pol_array_sorted=pol_array_sorted[::-1]
-        elif(order=='CASA'):#sandwich 
-            casa_order=np.array([1,2,3,4,-1,-3,-4,-2,-5,-7,-8,-6])
-            polInds=[]
+        if(order == 'AIPS'):
+            pol_array_sorted = np.sort(self.polarization_array)
+            pol_array_sorted = pol_array_sorted[::-1]
+        elif(order == 'CASA'):  # sandwich
+            casa_order = np.array([1, 2, 3, 4, -1, -3, -4, -2, -5, -7, -8, -6])
+            polInds = []
             for pol in self.polarization_array:
-                polInds.append(np.where(casa_order==pol)[0][0])
-            polInds=np.sort(np.array(polInds))
-            pol_array_sorted=casa_order[polInds]
+                polInds.append(np.where(casa_order == pol)[0][0])
+            polInds = np.sort(np.array(polInds))
+            pol_array_sorted = casa_order[polInds]
         else:
             print('Invalid order supplied. No sorting performed')
-            pol_array_sorted=self.polarization_array
-        #Generate a map from original indices to new indices
-        polMap=[]
+            pol_array_sorted = self.polarization_array
+        # Generate a map from original indices to new indices
+        polMap = []
         for pol in pol_array_sorted:
-            polMap.append(np.where(self.polarization_array==pol)[0][0])
-        self.polarization_array=pol_array_sorted
-        self.data_array=self.data_array[:,:,:,polMap]
-        
-    
+            polMap.append(np.where(self.polarization_array == pol)[0][0])
+        self.polarization_array = pol_array_sorted
+        self.data_array = self.data_array[:, :, :, polMap]
 
     def set_lsts_from_time_array(self):
         """Set the lst_array based from the time_array."""
@@ -489,7 +495,8 @@ class UVData(UVBase):
         latitude, longitude, altitude = self.telescope_location_lat_lon_alt_degrees
         for ind, jd in enumerate(np.unique(self.time_array)):
             t = Time(jd, format='jd', location=(longitude, latitude))
-            self.lst_array[np.where(np.isclose(jd, self.time_array, atol=1e-6, rtol=1e-12))] = t.sidereal_time('apparent').radian
+            self.lst_array[np.where(np.isclose(
+                jd, self.time_array, atol=1e-6, rtol=1e-12))] = t.sidereal_time('apparent').radian
 
     def juldate2ephem(self, num):
         """
@@ -523,7 +530,8 @@ class UVData(UVBase):
         obs.lon = longitude
 
         phase_center = ephem.FixedBody()
-        epoch = (self.phase_center_epoch - 2000.) * 365.2422 + ephem.J2000  # convert years to ephemtime
+        epoch = (self.phase_center_epoch - 2000.) * 365.2422 + \
+            ephem.J2000  # convert years to ephemtime
         phase_center._epoch = epoch
         phase_center._ra = self.phase_center_ra
         phase_center._dec = self.phase_center_dec
@@ -540,7 +548,8 @@ class UVData(UVBase):
         unique_times = np.unique(self.time_array)
         for jd in unique_times:
             inds = np.where(self.time_array == jd)[0]
-            obs.date, obs.epoch = self.juldate2ephem(jd), self.juldate2ephem(jd)
+            obs.date, obs.epoch = self.juldate2ephem(
+                jd), self.juldate2ephem(jd)
             phase_center.compute(obs)
             phase_center_ra, phase_center_dec = phase_center.a_ra, phase_center.a_dec
             zenith_ra = obs.sidereal_time()
@@ -587,7 +596,8 @@ class UVData(UVBase):
         obs.lat = latitude
         obs.lon = longitude
 
-        obs.date, obs.epoch = self.juldate2ephem(time), self.juldate2ephem(time)
+        obs.date, obs.epoch = self.juldate2ephem(
+            time), self.juldate2ephem(time)
 
         ra = obs.sidereal_time()
         dec = latitude
@@ -633,18 +643,22 @@ class UVData(UVBase):
         obs.date, obs.epoch = ephem.J2000, ephem.J2000
         precess_pos.compute(obs)
 
-        self.phase_center_ra = precess_pos.a_ra + 0.0  # force to be a float not ephem.Angle
-        self.phase_center_dec = precess_pos.a_dec + 0.0  # force to be a float not ephem.Angle
+        self.phase_center_ra = precess_pos.a_ra + \
+            0.0  # force to be a float not ephem.Angle
+        self.phase_center_dec = precess_pos.a_dec + \
+            0.0  # force to be a float not ephem.Angle
         # explicitly set epoch to J2000
         self.phase_center_epoch = 2000.0
 
-        unique_times, unique_inds = np.unique(self.time_array, return_index=True)
+        unique_times, unique_inds = np.unique(
+            self.time_array, return_index=True)
         uvws = np.zeros(self.uvw_array.shape, dtype=np.float64)
         for ind, jd in enumerate(unique_times):
             inds = np.where(self.time_array == jd)[0]
             lst = self.lst_array[unique_inds[ind]]
             # calculate ra/dec of phase center in current epoch
-            obs.date, obs.epoch = self.juldate2ephem(jd), self.juldate2ephem(jd)
+            obs.date, obs.epoch = self.juldate2ephem(
+                jd), self.juldate2ephem(jd)
             precess_pos.compute(obs)
             ra, dec = precess_pos.a_ra, precess_pos.a_dec
 
@@ -704,7 +718,8 @@ class UVData(UVBase):
                                 '_phase_center_epoch']
         for a in compatibility_params:
             if getattr(this, a) != getattr(other, a):
-                msg = 'UVParameter ' + a[1:] + ' does not match. Cannot combine objects.'
+                msg = 'UVParameter ' + \
+                    a[1:] + ' does not match. Cannot combine objects.'
                 raise(ValueError(msg))
 
         # Build up history string
@@ -712,7 +727,8 @@ class UVData(UVBase):
         n_axes = 0
 
         # Create blt arrays for convenience
-        prec_t = - 2 * np.floor(np.log10(this._time_array.tols[-1])).astype(int)
+        prec_t = - 2 * \
+            np.floor(np.log10(this._time_array.tols[-1])).astype(int)
         prec_b = 8
         this_blts = np.array(["_".join(["{1:.{0}f}".format(prec_t, blt[0]),
                                         str(blt[1]).zfill(prec_b)]) for blt in
@@ -721,8 +737,10 @@ class UVData(UVBase):
                                          str(blt[1]).zfill(prec_b)]) for blt in
                                zip(other.time_array, other.baseline_array)])
         # Check we don't have overlapping data
-        both_pol = np.intersect1d(this.polarization_array, other.polarization_array)
-        both_freq = np.intersect1d(this.freq_array[0, :], other.freq_array[0, :])
+        both_pol = np.intersect1d(
+            this.polarization_array, other.polarization_array)
+        both_freq = np.intersect1d(
+            this.freq_array[0, :], other.freq_array[0, :])
         both_blts = np.intersect1d(this_blts, other_blts)
         if len(both_pol) > 0:
             if len(both_freq) > 0:
@@ -739,7 +757,8 @@ class UVData(UVBase):
         else:
             bnew_inds, new_blts = ([], [])
 
-        temp = np.nonzero(~np.in1d(other.freq_array[0, :], this.freq_array[0, :]))[0]
+        temp = np.nonzero(
+            ~np.in1d(other.freq_array[0, :], this.freq_array[0, :]))[0]
         if len(temp) > 0:
             fnew_inds = temp
             new_freqs = other.freq_array[0, temp]
@@ -768,16 +787,20 @@ class UVData(UVBase):
             this_blts = np.concatenate((this_blts, new_blts))
             order = np.argsort(this_blts)
             this_blts = this_blts[order]
-            zero_pad = np.zeros((len(bnew_inds), this.Nspws, this.Nfreqs, this.Npols))
-            this.data_array = np.concatenate([this.data_array, zero_pad], axis=0)[order, :, :, :]
-            this.nsample_array = np.concatenate([this.nsample_array, zero_pad], axis=0)[order, :, :, :]
+            zero_pad = np.zeros(
+                (len(bnew_inds), this.Nspws, this.Nfreqs, this.Npols))
+            this.data_array = np.concatenate([this.data_array, zero_pad], axis=0)[
+                order, :, :, :]
+            this.nsample_array = np.concatenate(
+                [this.nsample_array, zero_pad], axis=0)[order, :, :, :]
             this.flag_array = np.concatenate([this.flag_array,
                                               1 - zero_pad], axis=0).astype(np.bool)[order, :, :, :]
             this.uvw_array = np.concatenate([this.uvw_array,
                                              other.uvw_array[bnew_inds, :]], axis=0)[order, :]
             this.time_array = np.concatenate([this.time_array,
                                               other.time_array[bnew_inds]])[order]
-            this.lst_array = np.concatenate([this.lst_array, other.lst_array[bnew_inds]])[order]
+            this.lst_array = np.concatenate(
+                [this.lst_array, other.lst_array[bnew_inds]])[order]
             this.ant_1_array = np.concatenate([this.ant_1_array,
                                                other.ant_1_array[bnew_inds]])[order]
             this.ant_2_array = np.concatenate([this.ant_2_array,
@@ -791,8 +814,10 @@ class UVData(UVBase):
                                               other.freq_array[:, fnew_inds]], axis=1)
             order = np.argsort(this.freq_array[0, :])
             this.freq_array = this.freq_array[:, order]
-            this.data_array = np.concatenate([this.data_array, zero_pad], axis=2)[:, :, order, :]
-            this.nsample_array = np.concatenate([this.nsample_array, zero_pad], axis=2)[:, :, order, :]
+            this.data_array = np.concatenate([this.data_array, zero_pad], axis=2)[
+                :, :, order, :]
+            this.nsample_array = np.concatenate(
+                [this.nsample_array, zero_pad], axis=2)[:, :, order, :]
             this.flag_array = np.concatenate([this.flag_array, 1 - zero_pad],
                                              axis=2).astype(np.bool)[:, :, order, :]
         if len(pnew_inds) > 0:
@@ -802,18 +827,25 @@ class UVData(UVBase):
                                                       other.polarization_array[pnew_inds]])
             order = np.argsort(np.abs(this.polarization_array))
             this.polarization_array = this.polarization_array[order]
-            this.data_array = np.concatenate([this.data_array, zero_pad], axis=3)[:, :, :, order]
-            this.nsample_array = np.concatenate([this.nsample_array, zero_pad], axis=3)[:, :, :, order]
+            this.data_array = np.concatenate([this.data_array, zero_pad], axis=3)[
+                :, :, :, order]
+            this.nsample_array = np.concatenate(
+                [this.nsample_array, zero_pad], axis=3)[:, :, :, order]
             this.flag_array = np.concatenate([this.flag_array, 1 - zero_pad],
                                              axis=3).astype(np.bool)[:, :, :, order]
 
         # Now populate the data
-        pol_t2o = np.nonzero(np.in1d(this.polarization_array, other.polarization_array))[0]
-        freq_t2o = np.nonzero(np.in1d(this.freq_array[0, :], other.freq_array[0, :]))[0]
+        pol_t2o = np.nonzero(
+            np.in1d(this.polarization_array, other.polarization_array))[0]
+        freq_t2o = np.nonzero(
+            np.in1d(this.freq_array[0, :], other.freq_array[0, :]))[0]
         blt_t2o = np.nonzero(np.in1d(this_blts, other_blts))[0]
-        this.data_array[np.ix_(blt_t2o, [0], freq_t2o, pol_t2o)] = other.data_array
-        this.nsample_array[np.ix_(blt_t2o, [0], freq_t2o, pol_t2o)] = other.nsample_array
-        this.flag_array[np.ix_(blt_t2o, [0], freq_t2o, pol_t2o)] = other.flag_array
+        this.data_array[np.ix_(blt_t2o, [0], freq_t2o,
+                               pol_t2o)] = other.data_array
+        this.nsample_array[np.ix_(
+            blt_t2o, [0], freq_t2o, pol_t2o)] = other.nsample_array
+        this.flag_array[np.ix_(blt_t2o, [0], freq_t2o,
+                               pol_t2o)] = other.flag_array
 
         # Update N parameters (e.g. Npols)
         this.Ntimes = len(np.unique(this.time_array))
@@ -821,7 +853,8 @@ class UVData(UVBase):
         this.Nblts = this.uvw_array.shape[0]
         this.Nfreqs = this.freq_array.shape[1]
         this.Npols = this.polarization_array.shape[0]
-        this.Nants_data = len(np.unique(this.ant_1_array.tolist() + this.ant_2_array.tolist()))
+        this.Nants_data = len(
+            np.unique(this.ant_1_array.tolist() + this.ant_2_array.tolist()))
 
         # Check specific requirements
         if this.Nfreqs > 1:
@@ -852,7 +885,7 @@ class UVData(UVBase):
                 keep_going = (i + 1 < len(other_hist_words))
                 while keep_going:
                     if ((other_hist_words[i + 1] is ' ') or
-                        (other_hist_words[i + 1] not in this.history)):
+                            (other_hist_words[i + 1] not in this.history)):
                         add_hist += ' ' + other_hist_words[i + 1]
                         del(other_hist_words[i + 1])
                         keep_going = (i + 1 < len(other_hist_words))
@@ -931,14 +964,17 @@ class UVData(UVBase):
 
         if antenna_names is not None:
             if antenna_nums is not None:
-                raise ValueError('Only one of antenna_nums and antenna_names can be provided.')
+                raise ValueError(
+                    'Only one of antenna_nums and antenna_names can be provided.')
 
             antenna_names = uvutils.get_iterable(antenna_names)
             antenna_nums = []
             for s in antenna_names:
                 if s not in uv_object.antenna_names:
-                    raise ValueError('Antenna name {a} is not present in the antenna_names array'.format(a=s))
-                antenna_nums.append(uv_object.antenna_numbers[np.where(np.array(uv_object.antenna_names) == s)[0]])
+                    raise ValueError(
+                        'Antenna name {a} is not present in the antenna_names array'.format(a=s))
+                antenna_nums.append(uv_object.antenna_numbers[np.where(
+                    np.array(uv_object.antenna_names) == s)[0]])
 
         if antenna_nums is not None:
             antenna_nums = uvutils.get_iterable(antenna_nums)
@@ -961,9 +997,11 @@ class UVData(UVBase):
                     raise ValueError('Antenna number {a} is not present in the '
                                      'ant_1_array or ant_2_array'.format(a=ant))
 
-            ant_blt_inds = np.array(list(set(inds1).intersection(inds2)), dtype=np.int)
+            ant_blt_inds = np.array(
+                list(set(inds1).intersection(inds2)), dtype=np.int)
             if blt_inds is not None:
-                blt_inds = np.array(list(set(blt_inds).intersection(ant_blt_inds)), dtype=np.int)
+                blt_inds = np.array(
+                    list(set(blt_inds).intersection(ant_blt_inds)), dtype=np.int)
             else:
                 blt_inds = ant_blt_inds
 
@@ -971,10 +1009,12 @@ class UVData(UVBase):
             if isinstance(ant_pairs_nums, tuple) and len(ant_pairs_nums) == 2:
                 ant_pairs_nums = [ant_pairs_nums]
             if not all(isinstance(item, tuple) for item in ant_pairs_nums):
-                raise ValueError('ant_pairs_nums must be a list of tuples of antenna numbers.')
+                raise ValueError(
+                    'ant_pairs_nums must be a list of tuples of antenna numbers.')
             if not all([isinstance(item[0], (int, long)) for item in ant_pairs_nums] +
                        [isinstance(item[1], (int, long)) for item in ant_pairs_nums]):
-                raise ValueError('ant_pairs_nums must be a list of tuples of antenna numbers.')
+                raise ValueError(
+                    'ant_pairs_nums must be a list of tuples of antenna numbers.')
             if n_selects > 0:
                 history_update_string += ', antenna pairs'
             else:
@@ -988,8 +1028,10 @@ class UVData(UVBase):
                 if not (pair[1] in uv_object.ant_1_array or pair[1] in uv_object.ant_2_array):
                     raise ValueError('Antenna number {a} is not present in the '
                                      'ant_1_array or ant_2_array'.format(a=pair[1]))
-                wh1 = np.where(np.logical_and(uv_object.ant_1_array == pair[0], uv_object.ant_2_array == pair[1]))[0]
-                wh2 = np.where(np.logical_and(uv_object.ant_1_array == pair[1], uv_object.ant_2_array == pair[0]))[0]
+                wh1 = np.where(np.logical_and(
+                    uv_object.ant_1_array == pair[0], uv_object.ant_2_array == pair[1]))[0]
+                wh2 = np.where(np.logical_and(
+                    uv_object.ant_1_array == pair[1], uv_object.ant_2_array == pair[0]))[0]
                 if len(wh1) > 0:
                     ant_pair_blt_inds = np.append(ant_pair_blt_inds, list(wh1))
                 if len(wh2) > 0:
@@ -999,7 +1041,8 @@ class UVData(UVBase):
                                      'associated with it.'.format(p=pair))
 
             if blt_inds is not None:
-                blt_inds = np.array(list(set(blt_inds).intersection(ant_pair_blt_inds)), dtype=np.int)
+                blt_inds = np.array(
+                    list(set(blt_inds).intersection(ant_pair_blt_inds)), dtype=np.int)
             else:
                 blt_inds = ant_pair_blt_inds
 
@@ -1014,21 +1057,26 @@ class UVData(UVBase):
             time_blt_inds = np.zeros(0, dtype=np.int)
             for jd in times:
                 if jd in uv_object.time_array:
-                    time_blt_inds = np.append(time_blt_inds, np.where(uv_object.time_array == jd)[0])
+                    time_blt_inds = np.append(
+                        time_blt_inds, np.where(uv_object.time_array == jd)[0])
                 else:
-                    raise ValueError('Time {t} is not present in the time_array'.format(t=jd))
+                    raise ValueError(
+                        'Time {t} is not present in the time_array'.format(t=jd))
 
             if blt_inds is not None:
-                blt_inds = np.array(list(set(blt_inds).intersection(time_blt_inds)), dtype=np.int)
+                blt_inds = np.array(
+                    list(set(blt_inds).intersection(time_blt_inds)), dtype=np.int)
             else:
                 blt_inds = time_blt_inds
 
         if blt_inds is not None:
 
             if len(blt_inds) == 0:
-                raise ValueError('No baseline-times were found that match criteria')
+                raise ValueError(
+                    'No baseline-times were found that match criteria')
             if max(blt_inds) >= uv_object.Nblts:
-                raise ValueError('blt_inds contains indices that are too large')
+                raise ValueError(
+                    'blt_inds contains indices that are too large')
             if min(blt_inds) < 0:
                 raise ValueError('blt_inds contains indices that are negative')
 
@@ -1045,7 +1093,8 @@ class UVData(UVBase):
 
             uv_object.ant_1_array = uv_object.ant_1_array[blt_inds]
             uv_object.ant_2_array = uv_object.ant_2_array[blt_inds]
-            uv_object.Nants_data = int(len(set(uv_object.ant_1_array.tolist() + uv_object.ant_2_array.tolist())))
+            uv_object.Nants_data = int(
+                len(set(uv_object.ant_1_array.tolist() + uv_object.ant_2_array.tolist())))
 
             uv_object.Ntimes = len(np.unique(uv_object.time_array))
 
@@ -1060,7 +1109,7 @@ class UVData(UVBase):
             else:
                 frequencies = uvutils.get_iterable(frequencies)
                 frequencies = np.sort(list(set(frequencies) |
-                                      set(uv_object.freq_array[0, freq_chans])))
+                                           set(uv_object.freq_array[0, freq_chans])))
 
         if frequencies is not None:
             frequencies = uvutils.get_iterable(frequencies)
@@ -1075,9 +1124,11 @@ class UVData(UVBase):
             freq_arr_use = uv_object.freq_array[0, :]
             for f in frequencies:
                 if f in freq_arr_use:
-                    freq_inds = np.append(freq_inds, np.where(freq_arr_use == f)[0])
+                    freq_inds = np.append(
+                        freq_inds, np.where(freq_arr_use == f)[0])
                 else:
-                    raise ValueError('Frequency {f} is not present in the freq_array'.format(f=f))
+                    raise ValueError(
+                        'Frequency {f} is not present in the freq_array'.format(f=f))
 
             if len(frequencies) > 1:
                 freq_ind_separation = freq_inds[1:] - freq_inds[:-1]
@@ -1095,7 +1146,8 @@ class UVData(UVBase):
             uv_object.freq_array = uv_object.freq_array[:, freq_inds]
             uv_object.data_array = uv_object.data_array[:, :, freq_inds, :]
             uv_object.flag_array = uv_object.flag_array[:, :, freq_inds, :]
-            uv_object.nsample_array = uv_object.nsample_array[:, :, freq_inds, :]
+            uv_object.nsample_array = uv_object.nsample_array[:,
+                                                              :, freq_inds, :]
 
         if polarizations is not None:
             polarizations = uvutils.get_iterable(polarizations)
@@ -1108,9 +1160,11 @@ class UVData(UVBase):
             pol_inds = np.zeros(0, dtype=np.int)
             for p in polarizations:
                 if p in uv_object.polarization_array:
-                    pol_inds = np.append(pol_inds, np.where(uv_object.polarization_array == p)[0])
+                    pol_inds = np.append(pol_inds, np.where(
+                        uv_object.polarization_array == p)[0])
                 else:
-                    raise ValueError('Polarization {p} is not present in the polarization_array'.format(p=p))
+                    raise ValueError(
+                        'Polarization {p} is not present in the polarization_array'.format(p=p))
 
             if len(pol_inds) > 2:
                 pol_ind_separation = pol_inds[1:] - pol_inds[:-1]
@@ -1124,7 +1178,8 @@ class UVData(UVBase):
             uv_object.polarization_array = uv_object.polarization_array[pol_inds]
             uv_object.data_array = uv_object.data_array[:, :, :, pol_inds]
             uv_object.flag_array = uv_object.flag_array[:, :, :, pol_inds]
-            uv_object.nsample_array = uv_object.nsample_array[:, :, :, pol_inds]
+            uv_object.nsample_array = uv_object.nsample_array[:,
+                                                              :, :, pol_inds]
 
         history_update_string += ' using pyuvdata.'
         uv_object.history = uv_object.history + history_update_string
@@ -1235,9 +1290,9 @@ class UVData(UVBase):
         try:
             import casacore
         except(ImportError):
-            #only import skip if importerror raised
-            #this way, nose import errors aren't raised
-            #unless this errors is already encountered.
+            # only import skip if importerror raised
+            # this way, nose import errors aren't raised
+            # unless this errors is already encountered.
             from nose.plugins.skip import SkipTest
             raise SkipTest('casacore not detected. casacore'
                            ' must be installed for measurement set functionality')
