@@ -117,10 +117,6 @@ class Miriad(UVData):
                               'set.'.format(telescope_name=self.telescope_name))
 
         self.history = uv['history']
-        #if casa history in keys, then also set that
-        #if 'casahist' in uv.vartable.keys():
-        #    self.casa_history=uv['casahist']
-
         if self.pyuvdata_version_str not in self.history.replace('\n', ''):
             self.history += self.pyuvdata_version_str
         self.channel_width *= 1e9  # change from GHz to Hz
@@ -527,6 +523,7 @@ class Miriad(UVData):
         uv.add_var('longitu', 'd')
         uv['longitu'] = self.telescope_location_lat_lon_alt[1]
         uv.add_var('nants', 'i')
+        
         # Miriad has no way to keep track of antenna numbers, so the antenna
         # numbers are simply the index for each antenna in any array that
         # describes antenna attributes (e.g. antpos for the antenna_postions).
