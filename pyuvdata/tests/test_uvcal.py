@@ -177,7 +177,7 @@ class TestUVCalBasicMethods(object):
             else:
                 conv = 1
             nt.assert_true(np.allclose(np.angle(self.new_object.gain_array[:, :, 10, :, :]) % (2 * np.pi),
-                                       (conv * 2 * np.pi * self.delay_object.delay_array *
+                                       (conv * 2 * np.pi * self.delay_object.delay_array[:, :, 0, :, :] *
                                        self.delay_object.freq_array[0, 10]) % (2 * np.pi),
                                        rtol=self.new_object._gain_array.tols[0],
                                        atol=self.new_object._gain_array.tols[1]))
@@ -495,11 +495,11 @@ class TestUVCalSelectDelay(object):
                                                        self.delay_object.flag_array[:, :, :, [-1], :]),
                                                       axis=3)
         self.delay_object.delay_array = np.concatenate((self.delay_object.delay_array,
-                                                        self.delay_object.delay_array[:, :, [-1], :]),
-                                                       axis=2)
+                                                        self.delay_object.delay_array[:, :, :, [-1], :]),
+                                                       axis=3)
         self.delay_object.quality_array = np.concatenate((self.delay_object.quality_array,
-                                                          self.delay_object.quality_array[:, :, [-1], :]),
-                                                         axis=2)
+                                                          self.delay_object.quality_array[:, :, :, [-1], :]),
+                                                         axis=3)
         nt.assert_true(self.delay_object.check())
         self.delay_object2 = copy.deepcopy(self.delay_object)
 
@@ -594,11 +594,11 @@ class TestUVCalSelectDelay(object):
                                                                  self.delay_object.input_flag_array[:, :, :, :, [-1]]),
                                                                 axis=4)
             self.delay_object.delay_array = np.concatenate((self.delay_object.delay_array,
-                                                            self.delay_object.delay_array[:, :, :, [-1]]),
-                                                           axis=3)
+                                                            self.delay_object.delay_array[:, :, :, :, [-1]]),
+                                                           axis=4)
             self.delay_object.quality_array = np.concatenate((self.delay_object.quality_array,
-                                                              self.delay_object.quality_array[:, :, :, [-1]]),
-                                                             axis=3)
+                                                              self.delay_object.quality_array[:, :, :, :, [-1]]),
+                                                             axis=4)
         nt.assert_true(self.delay_object.check())
         self.delay_object2 = copy.deepcopy(self.delay_object)
 

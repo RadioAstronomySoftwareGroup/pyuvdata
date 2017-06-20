@@ -232,7 +232,7 @@ def test_read_oldcalfits():
 
     # now read in the file and remove various CRPIX and CRVAL keywords to
     # emulate old calfits files
-    header_vals_to_remove = [{'primary': 'CRVAL4'}, {'flag': 'CRVAL5'},
+    header_vals_to_remove = [{'primary': 'CRVAL5'}, {'flag': 'CRVAL5'},
                              {'flag': 'CRPIX4'}, {'totqual': 'CRVAL4'}]
     messages = [write_file, 'This file', 'This file', write_file]
     messages = [m + ' appears to be an old calfits format' for m in messages]
