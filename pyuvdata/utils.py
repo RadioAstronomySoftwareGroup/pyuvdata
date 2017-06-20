@@ -271,3 +271,23 @@ def fits_indexhdus(hdulist):
         except(KeyError):
             continue
     return tablenames
+
+
+def polstr2ind(pol):
+    """
+    Convert polarization str to index according to AIPS Memo 117.
+
+    Args:
+        pol: polarization string
+
+    Returns:
+        Index corresponding to string
+    """
+    poldict = {'I': 1, 'Q': 2, 'U': 3, 'V': 4,
+               'RR': -1, 'LL': -2, 'RL': -3, 'LR': -4,
+               'XX': -5, 'YY': -6, 'XY': -7, 'YX': -8}
+    if isinstance(pol, collections.Iterable):
+            out = [poldict[key] for key in pol]
+    else:
+        out = poldict[pol]
+    return out
