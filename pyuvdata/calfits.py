@@ -183,7 +183,6 @@ class CALFITS(UVCal):
                                          axis=-1)
 
         elif self.cal_type == 'delay':
-            # we add an extra axis in the middle for frequencies
             pridata = np.concatenate([self.delay_array[:, :, :, :, :, np.newaxis],
                                       self.quality_array[:, :, :, :, :, np.newaxis]],
                                      axis=-1)
