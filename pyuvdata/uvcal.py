@@ -143,7 +143,7 @@ class UVCal(UVBase):
         desc = ('Array of qualities of calibration solutions. '
                 'shape depends on the cal_type, if cal_type is gain or unknown, '
                 'shape is: (Nants_data, Nspws, Nfreqs, Ntimes, Njones), '
-                'if cal_type is delay, shape is (Nants_data, Nspws, Ntimes, Njones), '
+                'if cal_type is delay, shape is (Nants_data, Nspws, 1, Ntimes, Njones), '
                 'type = float.')
         self._quality_array = uvp.UVParameter('quality_array', description=desc,
                                               form=('Nants_data', 'Nspws', 'Nfreqs',
@@ -173,10 +173,10 @@ class UVCal(UVBase):
                                            expected_type=np.complex)
 
         desc = ('Required if cal_type = "delay". Array of delays with units of seconds.'
-                'shape: (Nants_data, Nspws, Ntimes, Njones), type = float')
+                'shape: (Nants_data, Nspws, 1, Ntimes, Njones), type = float')
         self._delay_array = uvp.UVParameter('delay_array', description=desc,
                                             required=False,
-                                            form=('Nants_data', 'Nspws', 'Ntimes', 'Njones'),
+                                            form=('Nants_data', 'Nspws', 1, 'Ntimes', 'Njones'),
                                             expected_type=np.float)
 
         desc = ('Required if cal_type = "delay". Frequency range that solutions are valid for.',
@@ -217,7 +217,7 @@ class UVCal(UVBase):
         desc = ('Array of qualities of calibration for entire arrays. '
                 'shape depends on the cal_type, if cal_type is gain or unknown, '
                 'shape is: (Nspws, Nfreqs, Ntimes, Njones), '
-                'if cal_type is delay, shape is (Nspws, Ntimes, Njones), '
+                'if cal_type is delay, shape is (Nspws, 1, Ntimes, Njones), '
                 'type = float.')
         self._total_quality_array = uvp.UVParameter('total_quality_array', description=desc,
                                                     form=('Nspws', 'Nfreqs',
@@ -320,11 +320,10 @@ class UVCal(UVBase):
             self.Nants_data = len(ant_inds)
             self.ant_array = self.ant_array[ant_inds]
             self.flag_array = self.flag_array[ant_inds, :, :, :, :]
+            self.quality_array = self.quality_array[ant_inds, :, :, :, :]
             if self.cal_type == 'delay':
-                self.quality_array = self.quality_array[ant_inds, :, :, :]
-                self.delay_array = self.delay_array[ant_inds, :, :, :]
+                self.delay_array = self.delay_array[ant_inds, :, :, :, :]
             else:
-                self.quality_array = self.quality_array[ant_inds, :, :, :, :]
                 self.gain_array = self.gain_array[ant_inds, :, :, :, :]
 
             if self.input_flag_array is not None:
@@ -358,11 +357,10 @@ class UVCal(UVBase):
                                   'is not supported by the calfits format.')
 
             self.flag_array = self.flag_array[:, :, :, time_inds, :]
+            self.quality_array = self.quality_array[:, :, :, time_inds, :]
             if self.cal_type == 'delay':
-                self.quality_array = self.quality_array[:, :, time_inds, :]
-                self.delay_array = self.delay_array[:, :, time_inds, :]
+                self.delay_array = self.delay_array[:, :, :, time_inds, :]
             else:
-                self.quality_array = self.quality_array[:, :, :, time_inds, :]
                 self.gain_array = self.gain_array[:, :, :, time_inds, :]
 
             if self.input_flag_array is not None:
@@ -440,11 +438,10 @@ class UVCal(UVBase):
                     warnings.warn('Selected jones polarization terms are not evenly spaced. This '
                                   'is not supported by the calfits format')
             self.flag_array = self.flag_array[:, :, :, :, jones_inds]
+            self.quality_array = self.quality_array[:, :, :, :, jones_inds]
             if self.cal_type == 'delay':
-                self.quality_array = self.quality_array[:, :, :, jones_inds]
-                self.delay_array = self.delay_array[:, :, :, jones_inds]
+                self.delay_array = self.delay_array[:, :, :, :, jones_inds]
             else:
-                self.quality_array = self.quality_array[:, :, :, :, jones_inds]
                 self.gain_array = self.gain_array[:, :, :, :, jones_inds]
 
             if self.input_flag_array is not None:
@@ -480,13 +477,13 @@ class UVCal(UVBase):
 
             phase_array = np.zeros((self.Nants_data, self.Nspws, self.Nfreqs, self.Ntimes, self.Njones))
             for si in range(self.Nspws):
-                temp = conv * 2 * np.pi * np.dot(self.delay_array[:, si, :, :, np.newaxis],
+                temp = conv * 2 * np.pi * np.dot(self.delay_array[:, si, 0, :, :, np.newaxis],
                                                  self.freq_array[si, np.newaxis, :])
                 temp = np.transpose(temp, (0, 3, 1, 2))
                 phase_array[:, si, :, :, :] = temp
 
             gain_array = np.exp(1j * phase_array)
-            new_quality = np.repeat(self.quality_array[:, :, np.newaxis, :, :], self.Nfreqs, axis=2)
+            new_quality = np.repeat(self.quality_array[:, :, :, :, :], self.Nfreqs, axis=2)
             self.set_gain()
             self.gain_array = gain_array
             self.quality_array = new_quality
