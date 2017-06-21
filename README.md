@@ -14,7 +14,12 @@ The three main goals are:
 3. Provide precise data definition via both human readable code and high quality online documentation
 
 # Package Details
-## Tested File Paths for interferometer data
+pyuvdata has three major user classes:
+* UVData: supports interferometric data (visibilities) and associated metadata
+* UVCal: supports interferometric calibration solutions (antenna-based) and associated metadata
+* UVBeam: supports primary beams (E-field or power) and associated metadata
+
+## UVData Tested File Paths
 * uvfits -> miriad (aipy)
 * miriad (aipy) -> uvfits
 * FHD -> uvfits
@@ -22,14 +27,17 @@ The three main goals are:
 * CASA measurement sets -> miriad (aipy)
 * CASA measurement sets -> uvfits
 
-## File formats for calibration data
-* calfits (a new format defined in pyuvdata, detailed memo coming soon). Note that this format was recently defined and may change in coming versions, based on user needs. Consider it to be in a beta version, but we will strive to make future versions backwards compatible with the current format.
-
-## File standards
+## UVData File standard notes
 * miriad is supported for aipy-style analysis, further testing is required for use in the miriad package
 * uvfits conforms to AIPS memo 117 (as of May 2015).  It is tested against FHD, CASA, and AIPS. However AIPS is limited to <80 antennas and CASA imaging does not seem to support >255 antennas.
 * FHD (read-only support, tested against MWA and PAPER data)
 * CASA measurement sets (read-only support)
+
+## UVCal file formats
+* calfits (a new format defined in pyuvdata, detailed memo coming soon). Note that this format was recently defined and may change in coming versions, based on user needs. Consider it to be in a beta version, but we will strive to make future versions backwards compatible with the current format.
+
+## UVBeam file formats
+* regularly gridded fits
 
 ## Known Issues and Planned Improvements
 * different multiple spectral windows or multiple sources are not currently supported
