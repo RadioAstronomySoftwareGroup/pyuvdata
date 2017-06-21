@@ -213,6 +213,14 @@ def top2eq_m(ha, dec):
     return mat
 
 
+def get_iterable(x):
+    """Helper function to ensure iterability."""
+    if isinstance(x, collections.Iterable):
+        return x
+    else:
+        return (x,)
+
+
 def fits_gethduaxis(HDU, axis, strict_fits=True):
     """
     Helper function for making axis arrays for fits files.
