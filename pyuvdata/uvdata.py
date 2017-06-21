@@ -9,7 +9,6 @@ from uvbase import UVBase
 import parameter as uvp
 import telescopes as uvtel
 import utils as uvutils
-import version as uvversion
 import copy
 import collections
 
@@ -292,14 +291,6 @@ class UVData(UVBase):
                                                        required=False,
                                                        description=desc,
                                                        spoof_val=0)
-
-        self.pyuvdata_version_str = ('  Read/written with pyuvdata version: ' +
-                                     uvversion.version + '.')
-        if uvversion.git_hash is not '':
-            self.pyuvdata_version_str += ('  Git origin: ' + uvversion.git_origin +
-                                          '.  Git hash: ' + uvversion.git_hash +
-                                          '.  Git branch: ' + uvversion.git_branch +
-                                          '.  Git description: ' + uvversion.git_description + '.')
 
         super(UVData, self).__init__()
 

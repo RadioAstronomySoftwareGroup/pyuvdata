@@ -4,9 +4,9 @@ Base class for objects with UVParameter attributes.
 Subclassed by UVData and Telescope.
 """
 import numpy as np
-import parameter as uvp
 import warnings
-
+import parameter as uvp
+import version as uvversion
 
 def _warning(msg, *a):
     """Improve the printing of user warnings."""
@@ -51,6 +51,15 @@ class UVBase(object):
                 setattr(self.__class__, attr_name + '_lat_lon_alt_degrees',
                         property(self.lat_lon_alt_degrees_prop_fget(p),
                                  self.lat_lon_alt_degrees_prop_fset(p)))
+
+        # String to add to history of any files written with this version of pyuvdata
+        self.pyuvdata_version_str = ('  Read/written with pyuvdata version: ' +
+                                     uvversion.version + '.')
+        if uvversion.git_hash is not '':
+            self.pyuvdata_version_str += ('  Git origin: ' + uvversion.git_origin +
+                                          '.  Git hash: ' + uvversion.git_hash +
+                                          '.  Git branch: ' + uvversion.git_branch +
+                                          '.  Git description: ' + uvversion.git_description + '.')
 
     def prop_fget(self, param_name):
         """Getter method for UVParameter properties."""
