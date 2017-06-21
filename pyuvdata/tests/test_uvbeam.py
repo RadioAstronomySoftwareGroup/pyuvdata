@@ -7,29 +7,31 @@ from pyuvdata import UVBeam
 class TestUVBeamInit(object):
     def setUp(self):
         """Setup for basic parameter, property and iterator tests."""
-        self.required_parameters = ['_Nfreqs', '_Npixels', '_Nfeeds',
-                                    '_Naxes_pix', '_Naxes_vec', '_Nspws',
-                                    '_pixel_coordinate_system', '_pixel_location_array',
-                                    '_feed_array', '_freq_array', '_spw_array',
-                                    '_basis_vector_array', '_efield_units',
-                                    '_efield_array',
+        self.required_parameters = ['_beam_type', '_Nfreqs', '_Naxes_vec', '_Nspws',
+                                    '_pixel_coordinate_system',
+                                    '_freq_array', '_spw_array',
+                                    '_data_normalization',
+                                    '_data_array',
                                     '_telescope_name', '_feed_name',
                                     '_feed_version', '_model_name',
                                     '_model_version', '_history',
                                     '_antenna_type']
 
-        self.required_properties = ['Nfreqs', 'Npixels', 'Nfeeds',
-                                    'Naxes_pix', 'Naxes_vec', 'Nspws',
-                                    'pixel_coordinate_system', 'pixel_location_array',
-                                    'feed_array', 'freq_array', 'spw_array',
-                                    'basis_vector_array', 'efield_units',
-                                    'efield_array',
+        self.required_properties = ['beam_type', 'Nfreqs', 'Naxes_vec', 'Nspws',
+                                    'pixel_coordinate_system',
+                                    'freq_array', 'spw_array',
+                                    'data_normalization',
+                                    'data_array',
                                     'telescope_name', 'feed_name',
                                     'feed_version', 'model_name',
                                     'model_version', 'history',
                                     'antenna_type']
 
-        self.extra_parameters = ['_extra_keywords', '_Nelements',
+        self.extra_parameters = ['_Naxes1', '_Naxes2', '_Npixels', '_Nfeeds', '_Npols',
+                                 '_axis1_array', '_axis2_array', '_nside', '_ordering',
+                                 '_pixel_array', '_feed_array', '_polarization_array',
+                                 '_basis_vector_array',
+                                 '_extra_keywords', '_Nelements',
                                  '_element_coordinate_system',
                                  '_element_location_array', '_delay_array',
                                  '_gain_array', '_coupling_matrix',
@@ -37,7 +39,10 @@ class TestUVBeamInit(object):
                                  '_loss_array', '_mismatch_array',
                                  '_s_parameters']
 
-        self.extra_properties = ['extra_keywords', 'Nelements',
+        self.extra_properties = ['Naxes1', 'Naxes2', 'Npixels', 'Nfeeds', 'Npols',
+                                 'axis1_array', 'axis2_array', 'nside', 'ordering',
+                                 'pixel_array', 'feed_array', 'polarization_array',
+                                 'basis_vector_array', 'extra_keywords', 'Nelements',
                                  'element_coordinate_system',
                                  'element_location_array', 'delay_array',
                                  'gain_array', 'coupling_matrix',
