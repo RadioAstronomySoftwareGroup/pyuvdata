@@ -286,8 +286,10 @@ def polstr2ind(pol):
     poldict = {'I': 1, 'Q': 2, 'U': 3, 'V': 4,
                'RR': -1, 'LL': -2, 'RL': -3, 'LR': -4,
                'XX': -5, 'YY': -6, 'XY': -7, 'YX': -8}
-    if isinstance(pol, collections.Iterable):
+    if isinstance(pol, str):
+        out = poldict[pol]
+    elif isinstance(pol, collections.Iterable):
             out = [poldict[key] for key in pol]
     else:
-        out = poldict[pol]
+        raise ValueError('Polarization cannot be converted to index.')
     return out
