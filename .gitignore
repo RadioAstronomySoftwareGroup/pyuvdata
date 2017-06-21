@@ -65,4 +65,4 @@ target/
 pyuvdata/data/
 pyuvdata/data/test/
 pyuvdata/GIT_INFO
-docs/references/uvcal.aux
+docs/references/calfits_memo.aux
