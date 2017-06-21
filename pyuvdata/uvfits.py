@@ -180,8 +180,7 @@ class UVFITS(UVData):
         longitude_degrees = hdr.pop('LON', None)
         altitude = hdr.pop('ALT', None)
         self.history = str(hdr.get('HISTORY', ''))
-        if (self.pyuvdata_version_str.replace(' ', '') not in
-                self.history.replace('\n', '').replace(' ', '')):
+        if not uvutils.test_history_version(self.history, self.pyuvdata_version_str):
             self.history += self.pyuvdata_version_str
 
         while 'HISTORY' in hdr.keys():
