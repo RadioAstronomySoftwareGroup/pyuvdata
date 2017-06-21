@@ -190,7 +190,7 @@ class UVBeam(UVBase):
         desc = ('String indicating antenna type. Allowed values are "simple", and '
                 '"phased_array"')
         self._antenna_type = uvp.UVParameter('antenna_type', form='str', expected_type=str,
-                                             description=desc, value='simple',
+                                             description=desc,
                                              acceptable_vals=['simple', 'phased_array'])
 
         desc = ('Required if antenna_type = "phased_array". Number of elements '

@@ -8,6 +8,7 @@ import pyuvdata.version as uvversion
 
 
 def fill_dummy_beam(beam_obj, beam_type):
+    beam_obj.set_simple()
     beam_obj.telescope_name = 'testscope'
     beam_obj.feed_name = 'testfeed'
     beam_obj.feed_version = '0.1'
@@ -59,6 +60,8 @@ def fill_dummy_beam(beam_obj, beam_type):
         beam_obj.data_array = (np.random.normal(0.0, 0.2, size=data_size_tuple) +
                                1j * np.random.normal(0.0, 0.2, size=data_size_tuple))
 
+    beam_obj.extra_keywords = {'KEY1': 'test_keyword'}
+
     return beam_obj
 
 
@@ -78,9 +81,16 @@ def test_writeread():
     # redo for power beam
     beam_in = fill_dummy_beam(beam_in, 'power')
 
-    write_file = os.path.join(DATA_PATH, 'test/outtest_beam.fits')
-
     beam_in.write_beamfits(write_file, clobber=True)
     beam_out.read_beamfits(write_file)
 
     nt.assert_equal(beam_in, beam_out)
+
+
+def test_errors():
+    beam_obj = UVBeam()
+    beam_obj = fill_dummy_beam(beam_obj, 'efield')
+    beam_obj.beam_type = 'foo'
+
+    write_file = os.path.join(DATA_PATH, 'test/outtest_beam.fits')
+    nt.assert_raises(ValueError, beam_obj.write_beamfits, write_file, clobber=True)

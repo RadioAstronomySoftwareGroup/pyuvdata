@@ -57,6 +57,9 @@ class BeamFITS(UVBeam):
 
         data = primary_hdu.data
 
+        # only support simple antenna_types for now. Phased arrays should be supported as well
+        self.set_simple()
+
         self.beam_type = primary_header.pop('BUNIT', None)
         if self.beam_type == 'power':
             self.set_power()
