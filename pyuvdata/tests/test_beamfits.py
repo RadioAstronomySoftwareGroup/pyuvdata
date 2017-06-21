@@ -89,9 +89,34 @@ def test_writeread():
 
 
 def test_errors():
-    beam_obj = UVBeam()
-    beam_obj = fill_dummy_beam(beam_obj, 'efield')
-    beam_obj.beam_type = 'foo'
+    beam_in = UVBeam()
+    beam_in = fill_dummy_beam(beam_in, 'efield')
+    beam_in.beam_type = 'foo'
 
     write_file = os.path.join(DATA_PATH, 'test/outtest_beam.fits')
-    nt.assert_raises(ValueError, beam_obj.write_beamfits, write_file, clobber=True)
+    nt.assert_raises(ValueError, beam_in.write_beamfits, write_file, clobber=True)
+
+
+def test_casa_beam():
+    # test reading in CASA power beam. Some header items are missing...
+    beam_in = UVBeam()
+    beam_out = UVBeam()
+    casa_file = os.path.join(DATA_PATH, 'HERABEAM.FITS')
+    write_file = os.path.join(DATA_PATH, 'test/outtest_beam.fits')
+    beam_in.read_beamfits(casa_file, run_check=False)
+
+    # fill in missing parameters
+    beam_in.data_normalization = 'peak'
+    beam_in.feed_name = 'casa_ideal'
+    beam_in.feed_version = 'v0'
+    beam_in.model_name = 'casa_airy'
+    beam_in.model_version = 'v0'
+
+    # this file is actually in sine projection RA/DEC at zenith at a particular time.
+    # For now pretend it's in sin_zenith
+    beam_in.pixel_coordinate_system = 'sin_zenith'
+
+    beam_in.write_beamfits(write_file, clobber=True)
+    beam_out.read_beamfits(write_file)
+
+    nt.assert_equal(beam_in, beam_out)
