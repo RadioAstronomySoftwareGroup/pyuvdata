@@ -52,16 +52,16 @@ class TestUVBeamInit(object):
 
         self.other_properties = ['pyuvdata_version_str']
 
-        self.uv_object = UVBeam()
+        self.beam_obj = UVBeam()
 
     def teardown(self):
         """Test teardown: delete object."""
-        del(self.uv_object)
+        del(self.beam_obj)
 
     def test_parameter_iter(self):
         "Test expected parameters."
         all = []
-        for prop in self.uv_object:
+        for prop in self.beam_obj:
             all.append(prop)
         for a in self.required_parameters + self.extra_parameters:
             nt.assert_true(a in all, msg='expected attribute ' + a +
@@ -70,7 +70,7 @@ class TestUVBeamInit(object):
     def test_required_parameter_iter(self):
         "Test expected required parameters."
         required = []
-        for prop in self.uv_object.required():
+        for prop in self.beam_obj.required():
             required.append(prop)
         for a in self.required_parameters:
             nt.assert_true(a in required, msg='expected attribute ' + a +
@@ -79,7 +79,7 @@ class TestUVBeamInit(object):
     def test_extra_parameter_iter(self):
         "Test expected optional parameters."
         extra = []
-        for prop in self.uv_object.extra():
+        for prop in self.beam_obj.extra():
             extra.append(prop)
         for a in self.extra_parameters:
             nt.assert_true(a in extra, msg='expected attribute ' + a +
@@ -88,7 +88,7 @@ class TestUVBeamInit(object):
     def test_unexpected_parameters(self):
         "Test for extra parameters."
         expected_parameters = self.required_parameters + self.extra_parameters
-        attributes = [i for i in self.uv_object.__dict__.keys() if i[0] == '_']
+        attributes = [i for i in self.beam_obj.__dict__.keys() if i[0] == '_']
         for a in attributes:
             nt.assert_true(a in expected_parameters,
                            msg='unexpected parameter ' + a + ' found in UVData')
@@ -97,7 +97,7 @@ class TestUVBeamInit(object):
         "Test for extra attributes."
         expected_attributes = self.required_properties + \
             self.extra_properties + self.other_properties
-        attributes = [i for i in self.uv_object.__dict__.keys() if i[0] != '_']
+        attributes = [i for i in self.beam_obj.__dict__.keys() if i[0] != '_']
         for a in attributes:
             nt.assert_true(a in expected_attributes,
                            msg='unexpected attribute ' + a + ' found in UVData')
@@ -108,10 +108,15 @@ class TestUVBeamInit(object):
                              self.required_parameters + self.extra_parameters))
         for k, v in prop_dict.iteritems():
             rand_num = np.random.rand()
-            setattr(self.uv_object, k, rand_num)
-            this_param = getattr(self.uv_object, v)
+            setattr(self.beam_obj, k, rand_num)
+            this_param = getattr(self.beam_obj, v)
             try:
                 nt.assert_equal(rand_num, this_param.value)
             except(AssertionError):
                 print('setting {prop_name} to a random number failed'.format(prop_name=k))
                 raise(AssertionError)
+
+
+def test_errors():
+    beam_obj = UVBeam()
+    nt.assert_raises(ValueError, beam_obj._convert_to_filetype, 'foo')
