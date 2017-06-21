@@ -63,6 +63,10 @@ class BeamFITS(UVBeam):
         self.beam_type = primary_header.pop('BTYPE', None)
         if self.beam_type is not None:
             self.beam_type = self.beam_type.lower()
+        else:
+            bunit = primary_header.pop('BUNIT', None)
+            if bunit is not None and bunit.lower().strip() == 'jy/beam':
+                self.beam_type = 'power'
 
         if self.beam_type == 'intensity':
             self.beam_type = 'power'
@@ -75,24 +79,23 @@ class BeamFITS(UVBeam):
             self.data_array = data
             if primary_header.pop('CTYPE4').lower().strip() == 'stokes':
                 self.Npols = primary_header.pop('NAXIS4')
-            self.polarization_array = uvutils.fits_gethduaxis(primary_hdu, 4)
+            self.polarization_array = np.int32(uvutils.fits_gethduaxis(primary_hdu, 4))
         elif self.beam_type == 'efield':
             self.set_efield()
             self.data_array = data[0, :, :, :, :, :, :] + 1j * data[1, :, :, :, :, :, :]
             if primary_header.pop('CTYPE4').lower().strip() == 'feedind':
                 self.Nfeeds = primary_header.pop('NAXIS4')
-            self.feed_array = primary_header.pop('FEEDLIST')[1:-1].split(', ')
+            feedlist = primary_header.pop('FEEDLIST', None)
+            if feedlist is not None:
+                self.feed_array = feedlist[1:-1].split(', ')
         else:
             raise ValueError('Unknown beam_type: {type}, beam_type should be '
                              '"efield" or "power".'.format(type=self.beam_type))
 
         self.data_normalization = primary_header.pop('NORMSTD', None)
-        if self.data_normalization is None:
-            self.data_normalization = 'peak'
 
         self.pixel_coordinate_system = primary_header.pop('COORDSYS', None)
         coord_list = ctypes[0:2]
-
         if self.pixel_coordinate_system is None:
             for cs, coords in self.coordinate_system_dict.iteritems():
                 if coords == coord_list:
@@ -255,7 +258,8 @@ class BeamFITS(UVBeam):
         primary_header['MODEL'] = self.model_name
         primary_header['MODELVER'] = self.model_version
 
-        primary_header['FEEDLIST'] = '[' + ', '.join(self.feed_array) + ']'
+        if self.beam_type == 'efield':
+            primary_header['FEEDLIST'] = '[' + ', '.join(self.feed_array) + ']'
 
         # set up first image axis
         primary_header['CTYPE1'] = (self.coordinate_system_dict[self.pixel_coordinate_system][0])
@@ -330,7 +334,6 @@ class BeamFITS(UVBeam):
         for key, value in self.extra_keywords.iteritems():
             # header keywords have to be 8 characters or less
             keyword = key[:8].upper()
-            # print "keyword=-value-", keyword+'='+'-'+str(value)+'-'
             if keyword == 'COMMENT':
                 for line in value.splitlines():
                     primary_header.add_comment(line)
