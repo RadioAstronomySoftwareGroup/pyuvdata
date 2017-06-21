@@ -1483,13 +1483,13 @@ class UVData(UVBase):
             key = key[0]  # For simplicity
             if type(key) is str:
                 # Single string given, assume it is polarization
-                pol_ind = np.where(self.polarization == uvutils.polstr2ind(key))[0]
+                pol_ind = np.where(self.polarization_array == uvutils.polstr2ind(key))[0]
                 if len(pol_ind) == 0:
                     raise KeyError('Polarization {pol} not found in data.'.format(pol=key))
                 out = self.data_array[:, :, :, pol_ind]
             elif key < 5:
                 # Small number, assume it is a polarization number a la AIPS memo
-                pol_ind = np.where(self.polarization == key)[0]
+                pol_ind = np.where(self.polarization_array == key)[0]
                 if len(pol_ind) == 0:
                     raise KeyError('Polarization {pol} not found in data.'.format(pol=key))
                 out = self.data_array[:, :, :, pol_ind]
@@ -1506,8 +1506,8 @@ class UVData(UVBase):
             ind2 = self.antpair2ind(key[1], key[0])
             if len(ind1) + len(ind2) == 0:
                 raise KeyError('Antenna pair {pair} not found in data'.format(pair=key))
-            out = np.append(self.data_array[ind1[0], :, :, :],
-                            np.conj(self.data_array[ind2[0], :, :, :]), axis=0)
+            out = np.append(self.data_array[ind1, :, :, :],
+                            np.conj(self.data_array[ind2, :, :, :]), axis=0)
         if len(key) == 3:
             # Key is an antenna pair + pol
             ind1 = self.antpair2ind(key[0], key[1])
@@ -1515,15 +1515,15 @@ class UVData(UVBase):
             if len(ind1) + len(ind2) == 0:
                 raise KeyError('Antenna pair {pair} not found in '
                                'data'.format(pair=(key[0], key[1])))
-            if type(key[3]) is str:
+            if type(key[2]) is str:
                 # pol is str
-                pol_ind = np.where(self.polarization == uvutils.polstr2ind(key[3]))[0]
+                pol_ind = np.where(self.polarization_array == uvutils.polstr2ind(key[2]))[0]
             else:
                 # polarization number a la AIPS memo
-                pol_ind = np.where(self.polarization == key[3])[0]
+                pol_ind = np.where(self.polarization_array == key[2])[0]
             if len(pol_ind) == 0:
-                raise KeyError('Polarization {pol} not found in data.'.format(pol=key))
-            out = np.append(self.data_array[ind1[0], :, :, pol_ind],
-                            np.conj(self.data_array[ind2[0], :, :, pol_ind]), axis=0)
+                raise KeyError('Polarization {pol} not found in data.'.format(pol=key[2]))
+            out = np.append(self.data_array[ind1, :, :, pol_ind],
+                            np.conj(self.data_array[ind2, :, :, pol_ind]), axis=0)
 
         return out
