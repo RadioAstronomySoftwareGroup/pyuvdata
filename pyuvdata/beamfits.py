@@ -96,7 +96,7 @@ class BeamFITS(UVBeam):
         self.spw_array = uvutils.fits_gethduaxis(primary_hdu, 5)
 
         self.history = str(primary_header.get('HISTORY', ''))
-        if not uvutils.test_history_version(self.history, self.pyuvdata_version_str):
+        if not uvutils.check_history_version(self.history, self.pyuvdata_version_str):
             self.history += self.pyuvdata_version_str
         while 'HISTORY' in primary_header.keys():
             primary_header.remove('HISTORY')
