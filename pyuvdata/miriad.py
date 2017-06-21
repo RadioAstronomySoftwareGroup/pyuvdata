@@ -7,6 +7,7 @@ import warnings
 import aipy as a
 from uvdata import UVData
 import telescopes as uvtel
+import utils as uvutils
 
 
 class Miriad(UVData):
@@ -116,8 +117,7 @@ class Miriad(UVData):
                               'set.'.format(telescope_name=self.telescope_name))
 
         self.history = uv['history']
-        if (self.pyuvdata_version_str.replace(' ', '') not in
-                self.history.replace('\n', '').replace(' ', '')):
+        if not uvutils.test_history_version(self.history, self.pyuvdata_version_str):
             self.history += self.pyuvdata_version_str
         self.channel_width *= 1e9  # change from GHz to Hz
 

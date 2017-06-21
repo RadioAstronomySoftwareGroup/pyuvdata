@@ -5,6 +5,7 @@ from itertools import islice
 import numpy as np
 import warnings
 from uvdata import UVData
+import utils as uvutils
 
 
 class FHD(UVData):
@@ -232,8 +233,7 @@ class FHD(UVData):
             self.history = '    '.join(history_list)
         else:
             self.history = ''
-        if (self.pyuvdata_version_str.replace(' ', '') not in
-                self.history.replace('\n', '').replace(' ', '')):
+        if not uvutils.test_history_version(self.history, self.pyuvdata_version_str):
             self.history += self.pyuvdata_version_str
 
         self.phase_center_epoch = astrometry['EQUINOX'][0]

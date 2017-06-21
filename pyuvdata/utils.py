@@ -305,3 +305,10 @@ def polnum2str(num):
     else:
         raise ValueError('Polarization cannot be converted to string.')
     return out
+
+
+def test_history_version(history, version_string):
+    if (version_string.replace(' ', '') in history.replace('\n', '').replace(' ', '')):
+        return True
+    else:
+        return False

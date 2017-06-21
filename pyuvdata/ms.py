@@ -1,7 +1,8 @@
 """
 Class for reading and writing casa measurement sets.
-Requires casacore
+Requires casacore.
 """
+
 from astropy import constants as const
 import astropy.time as time
 import numpy as np
@@ -12,6 +13,7 @@ import parameter as uvp
 import casacore.tables as tables
 import telescopes
 import re
+import utils as uvutils
 
 """
 This dictionary defines the mapping between CASA polarization numbers and
@@ -91,7 +93,7 @@ class MS(UVData):
         '''
         read in a casa measurement set
 
-        args:
+        Args:
             filepath: name of the measurement set folder
             run_check: Option to check for the existence and proper shapes of
                 parameters after reading in the file. Default is True.
@@ -243,7 +245,7 @@ class MS(UVData):
         _, self.history = self._ms_hist_to_string(tables.table(filepath + '/HISTORY'))
         # CASA weights column keeps track of number of data points averaged.
 
-        if self.pyuvdata_version_str not in self.history.replace('\n', ''):
+        if not uvutils.test_history_version(self.history, self.pyuvdata_version_str):
             self.history += self.pyuvdata_version_str
         self.nsample_array = tb.getcol('WEIGHT_SPECTRUM')
         if(len(self.nsample_array.shape) == 3):
