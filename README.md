@@ -15,6 +15,7 @@ The three main goals are:
 
 # Package Details
 pyuvdata has three major user classes:
+
 * UVData: supports interferometric data (visibilities) and associated metadata
 * UVCal: supports interferometric calibration solutions (antenna-based) and associated metadata
 * UVBeam: supports primary beams (E-field or power) and associated metadata
