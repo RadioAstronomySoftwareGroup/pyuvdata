@@ -6,7 +6,8 @@ import pyuvdata
 required_parameters = ['_telescope_name', '_telescope_location']
 required_properties = ['telescope_name', 'telescope_location']
 other_attributes = ['citation', 'telescope_location_lat_lon_alt',
-                    'telescope_location_lat_lon_alt_degrees']
+                    'telescope_location_lat_lon_alt_degrees',
+                    'pyuvdata_version_str']
 expected_known_telescopes = ['PAPER', 'HERA', 'MWA']
 
 

@@ -4,7 +4,6 @@ import copy
 from uvbase import UVBase
 import parameter as uvp
 import utils as uvutils
-import version as uvversion
 
 
 class UVCal(UVBase):
@@ -225,15 +224,6 @@ class UVCal(UVBase):
                                                           'Ntimes', 'Njones'),
                                                     expected_type=np.float,
                                                     required=False)
-
-        # String to add to history of any files written with this version of pyuvdata
-        self.pyuvdata_version_str = ('  Read/written with pyuvdata version: ' +
-                                     uvversion.version + '.')
-        if uvversion.git_hash is not '':
-            self.pyuvdata_version_str += ('  Git origin: ' + uvversion.git_origin +
-                                          '.  Git hash: ' + uvversion.git_hash +
-                                          '.  Git branch: ' + uvversion.git_branch +
-                                          '.  Git description: ' + uvversion.git_description)
 
         super(UVCal, self).__init__()
 
