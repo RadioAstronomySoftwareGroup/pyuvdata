@@ -1477,6 +1477,8 @@ class UVData(UVBase):
 
         Returns:
             Numpy array of data corresponding to key, defined above.
+            If data exists conjugate to requested antenna pair, it will be conjugated
+            before returning.
         """
         key = uvutils.get_iterable(key)
         if len(key) == 1:
