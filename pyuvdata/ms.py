@@ -245,7 +245,7 @@ class MS(UVData):
         _, self.history = self._ms_hist_to_string(tables.table(filepath + '/HISTORY'))
         # CASA weights column keeps track of number of data points averaged.
 
-        if not uvutils.test_history_version(self.history, self.pyuvdata_version_str):
+        if not uvutils.check_history_version(self.history, self.pyuvdata_version_str):
             self.history += self.pyuvdata_version_str
         self.nsample_array = tb.getcol('WEIGHT_SPECTRUM')
         if(len(self.nsample_array.shape) == 3):

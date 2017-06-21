@@ -307,7 +307,7 @@ def polnum2str(num):
     return out
 
 
-def test_history_version(history, version_string):
+def check_history_version(history, version_string):
     if (version_string.replace(' ', '') in history.replace('\n', '').replace(' ', '')):
         return True
     else:
