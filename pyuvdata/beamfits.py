@@ -60,40 +60,81 @@ class BeamFITS(UVBeam):
         # only support simple antenna_types for now. Phased arrays should be supported as well
         self.set_simple()
 
-        self.beam_type = primary_header.pop('BUNIT', None)
+        self.beam_type = primary_header.pop('BTYPE', None)
+        if self.beam_type is not None:
+            self.beam_type = self.beam_type.lower()
+
+        if self.beam_type == 'intensity':
+            self.beam_type = 'power'
+
+        n_dimensions = primary_header.pop('NAXIS')
+        ctypes = [primary_header[ctype] for ctype in (key for key in primary_header if 'ctype' in key.lower())]
+
         if self.beam_type == 'power':
             self.set_power()
             self.data_array = data
-            self.Npols = primary_header.pop('NAXIS4')
+            if primary_header.pop('CTYPE4').lower().strip() == 'stokes':
+                self.Npols = primary_header.pop('NAXIS4')
             self.polarization_array = uvutils.fits_gethduaxis(primary_hdu, 4)
         elif self.beam_type == 'efield':
             self.set_efield()
             self.data_array = data[0, :, :, :, :, :, :] + 1j * data[1, :, :, :, :, :, :]
-            self.Nfeeds = primary_header.pop('NAXIS4')
+            if primary_header.pop('CTYPE4').lower().strip() == 'feedind':
+                self.Nfeeds = primary_header.pop('NAXIS4')
             self.feed_array = primary_header.pop('FEEDLIST')[1:-1].split(', ')
         else:
             raise ValueError('Unknown beam_type: {type}, beam_type should be '
                              '"efield" or "power".'.format(type=self.beam_type))
 
-        self.data_normalization = primary_header.pop('NORMSTD')
+        self.data_normalization = primary_header.pop('NORMSTD', None)
+        if self.data_normalization is None:
+            self.data_normalization = 'peak'
+
+        self.pixel_coordinate_system = primary_header.pop('COORDSYS', None)
+        coord_list = ctypes[0:2]
+
+        if self.pixel_coordinate_system is None:
+            for cs, coords in self.coordinate_system_dict.iteritems():
+                if coords == coord_list:
+                    self.pixel_coordinate_system = cs
+        else:
+            if coord_list != self.coordinate_system_dict[self.pixel_coordinate_system]:
+                raise ValueError('Coordinate axis list does not match coordinate system')
+
         self.telescope_name = primary_header.pop('TELESCOP')
-        self.feed_name = primary_header.pop('FEED')
-        self.feed_version = primary_header.pop('FEEDVER')
-        self.model_name = primary_header.pop('MODEL')
-        self.model_version = primary_header.pop('MODELVER')
+        self.feed_name = primary_header.pop('FEED', None)
+        self.feed_version = primary_header.pop('FEEDVER', None)
+        self.model_name = primary_header.pop('MODEL', None)
+        self.model_version = primary_header.pop('MODELVER', None)
 
         # shapes
         self.Naxes1 = primary_header.pop('NAXIS1')
         self.Naxes2 = primary_header.pop('NAXIS2')
-        self.Nfreqs = primary_header.pop('NAXIS3')
-        self.Nspws = primary_header.pop('NAXIS5')
-        self.Naxes_vec = primary_header.pop('NAXIS6')
+        if primary_header.pop('CTYPE3').lower().strip() == 'freq':
+            self.Nfreqs = primary_header.pop('NAXIS3')
+
+        if n_dimensions > 4:
+            if primary_header.pop('CTYPE5').lower().strip() == 'if':
+                self.Nspws = primary_header.pop('NAXIS5', None)
+                # subtract 1 to be zero-indexed
+                self.spw_array = uvutils.fits_gethduaxis(primary_hdu, 5) - 1
+
+            if primary_header.pop('CTYPE6').lower().strip() == 'vecind':
+                self.Naxes_vec = primary_header.pop('NAXIS6', None)
+
+        elif self.beam_type == 'power':
+            self.Nspws = 1
+            self.spw_array = np.array([0])
+            self.Naxes_vec = 1
+            # add extra empty dimensions to data_array
+            self.data_array = self.data_array[np.newaxis, np.newaxis, :, :, :, :]
+        else:
+            raise (ValueError, 'beam_type is efield and data dimensionality is too low')
 
         self.axis1_array = uvutils.fits_gethduaxis(primary_hdu, 1)
         self.axis2_array = uvutils.fits_gethduaxis(primary_hdu, 2)
         self.freq_array = uvutils.fits_gethduaxis(primary_hdu, 3)
         self.freq_array.shape = (self.Nspws,) + self.freq_array.shape
-        self.spw_array = uvutils.fits_gethduaxis(primary_hdu, 5)
 
         self.history = str(primary_header.get('HISTORY', ''))
         if not uvutils.check_history_version(self.history, self.pyuvdata_version_str):
@@ -120,28 +161,32 @@ class BeamFITS(UVBeam):
             else:
                 self.extra_keywords[key] = primary_header.get(key)
 
-        # read BASISVEC HDU
-        basisvec_hdu = F[hdunames['BASISVEC']]
-        self.basis_vector_array = basisvec_hdu.data
-        basisvec_header = basisvec_hdu.header
+        if self.beam_type == 'efield':
+            # read BASISVEC HDU
+            basisvec_hdu = F[hdunames['BASISVEC']]
+            self.basis_vector_array = basisvec_hdu.data
+            basisvec_header = basisvec_hdu.header
 
-        coord_list = [basisvec_header['CTYPE1'], basisvec_header['CTYPE2']]
-        basisvec_Naxes1 = basisvec_header['NAXIS1']
-        basisvec_Naxes2 = basisvec_header['NAXIS2']
-        basisvec_Naxes_vec = basisvec_header['NAXIS4']
+            basisvec_coord_list = [basisvec_header['CTYPE1'], basisvec_header['CTYPE2']]
+            basisvec_Naxes1 = basisvec_header['NAXIS1']
+            basisvec_Naxes2 = basisvec_header['NAXIS2']
+            basisvec_Naxes_vec = basisvec_header['NAXIS4']
 
-        self.pixel_coordinate_system = basisvec_header['COORDSYS']
-        if basisvec_Naxes_vec != self.Naxes_vec:
-            raise ValueError('Number of vector coordinate axes in BASISVEC HDU does not match primary HDU')
+            basisvec_cs = basisvec_header['COORDSYS']
+            if basisvec_cs != self.pixel_coordinate_system:
+                raise ValueError('Pixel coordinate system in BASISVEC HDU does not match primary HDU')
 
-        if basisvec_Naxes1 != self.Naxes1:
-            raise ValueError('Number of elements in first image axis in BASISVEC HDU does not match primary HDU')
+            if basisvec_coord_list != coord_list:
+                raise ValueError('Pixel coordinate list in BASISVEC HDU does not match primary HDU')
 
-        if basisvec_Naxes2 != self.Naxes2:
-            raise ValueError('Number of elements in second image axis in BASISVEC HDU does not match primary HDU')
+            if basisvec_Naxes_vec != self.Naxes_vec:
+                raise ValueError('Number of vector coordinate axes in BASISVEC HDU does not match primary HDU')
 
-        if coord_list != self.coordinate_system_dict[self.pixel_coordinate_system]:
-            raise ValueError('Coordinate axis list does not match coordinate system')
+            if basisvec_Naxes1 != self.Naxes1:
+                raise ValueError('Number of elements in first image axis in BASISVEC HDU does not match primary HDU')
+
+            if basisvec_Naxes2 != self.Naxes2:
+                raise ValueError('Number of elements in second image axis in BASISVEC HDU does not match primary HDU')
 
         if run_check:
             self.check(run_check_acceptability=run_check_acceptability)
@@ -199,8 +244,9 @@ class BeamFITS(UVBeam):
         primary_header['SIMPLE'] = True
         primary_header['BITPIX'] = 32
 
-        primary_header['BUNIT'] = self.beam_type
+        primary_header['BTYPE'] = self.beam_type
         primary_header['NORMSTD'] = self.data_normalization
+        primary_header['COORDSYS'] = self.pixel_coordinate_system
 
         # metadata
         primary_header['TELESCOP'] = self.telescope_name
