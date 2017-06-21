@@ -34,15 +34,15 @@ def fill_dummy_beam(beam_obj, beam_type):
     beam_obj.freq_array = np.arange(150e6, 160e6, 1e6)
     beam_obj.freq_array = beam_obj.freq_array[np.newaxis, :]
     beam_obj.Nfreqs = beam_obj.freq_array.shape[1]
-    beam_obj.spw_array = np.array([1])
+    beam_obj.spw_array = np.array([0])
     beam_obj.Nspws = len(beam_obj.spw_array)
-    beam_obj.Naxes_vec = 2
     beam_obj.data_normalization = 'peak'
 
     if beam_type == 'power':
         beam_obj.set_power()
         beam_obj.polarization_array = np.array([-5, -6, -7, -8])
         beam_obj.Npols = len(beam_obj.polarization_array)
+        beam_obj.Naxes_vec = 1
 
         data_size_tuple = (beam_obj.Naxes_vec, beam_obj.Nspws, beam_obj.Npols,
                            beam_obj.Nfreqs, beam_obj.Naxes2, beam_obj.Naxes1)
@@ -51,6 +51,7 @@ def fill_dummy_beam(beam_obj, beam_type):
         beam_obj.set_efield()
         beam_obj.feed_array = ['x', 'y']
         beam_obj.Nfeeds = len(beam_obj.feed_array)
+        beam_obj.Naxes_vec = 2
         beam_obj.basis_vector_array = np.zeros((beam_obj.Naxes_vec, 2, beam_obj.Naxes2, beam_obj.Naxes1))
         beam_obj.basis_vector_array[0, 0, :, :] = 1.0
         beam_obj.basis_vector_array[1, 1, :, :] = 1.0
