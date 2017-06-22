@@ -106,8 +106,8 @@ def test_errors():
                 new_arrays = np.split(data, primary_hdr[keyword], axis=ax_use)
                 data = new_arrays[0]
             else:
-                data = np.split(data, primary_hdr['NAXIS1'],
-                                axis=len(data.shape) - 1)[0]
+                data = np.squeeze(np.split(data, primary_hdr['NAXIS1'],
+                                  axis=len(data.shape) - 1)[0])
         else:
             primary_hdr[keyword] = new_val
 
