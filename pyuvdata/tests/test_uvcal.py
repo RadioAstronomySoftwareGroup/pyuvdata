@@ -113,7 +113,9 @@ class TestUVCalBasicMethods(object):
         self.gain_object2 = copy.deepcopy(self.gain_object)
         self.delay_object = UVCal()
         delayfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.HH.uvc.fits')
-        self.delay_object.read_calfits(delayfile)
+        message = delayfile + ' appears to be an old calfits format'
+        uvtest.checkWarnings(self.delay_object.read_calfits, [delayfile], nwarnings=1,
+                             message=message, category=[UserWarning])
 
     def teardown(self):
         """Tear down test"""
@@ -441,7 +443,9 @@ class TestUVCalSelectDelay(object):
         # add an input flag array to the file to test for that.
         write_file = os.path.join(DATA_PATH, 'test/outtest_input_flags.fits')
         uv_in = UVCal()
-        uv_in.read_calfits(delayfile)
+        message = delayfile + ' appears to be an old calfits format'
+        uvtest.checkWarnings(uv_in.read_calfits, [delayfile], nwarnings=1,
+                             message=message, category=[UserWarning])
         uv_in.input_flag_array = np.zeros(uv_in._input_flag_array.expected_shape(uv_in), dtype=bool)
         uv_in.write_calfits(write_file, clobber=True)
 
