@@ -122,17 +122,22 @@ class BeamFITS(UVBeam):
                 # subtract 1 to be zero-indexed
                 self.spw_array = uvutils.fits_gethduaxis(primary_hdu, 5) - 1
 
+        if n_dimensions > 5:
             if primary_header.pop('CTYPE6').lower().strip() == 'vecind':
                 self.Naxes_vec = primary_header.pop('NAXIS6', None)
-
-        elif self.beam_type == 'power':
-            self.Nspws = 1
-            self.spw_array = np.array([0])
-            self.Naxes_vec = 1
-            # add extra empty dimensions to data_array
-            self.data_array = self.data_array[np.newaxis, np.newaxis, :, :, :, :]
-        else:
+        elif self.beam_type == 'efield':
             raise (ValueError, 'beam_type is efield and data dimensionality is too low')
+
+        if (self.Nspws is None or self.Naxes_vec is None) and self.beam_type == 'power':
+            if self.Nspws is None:
+                self.Nspws = 1
+                self.spw_array = np.array([0])
+            if self.Naxes_vec is None:
+                self.Naxes_vec = 1
+
+            # add extra empty dimensions to data_array as appropriate
+            while len(self.data_array.shape) < 6:
+                self.data_array = np.expand_dims(self.data_array, axis=0)
 
         self.axis1_array = uvutils.fits_gethduaxis(primary_hdu, 1)
         self.axis2_array = uvutils.fits_gethduaxis(primary_hdu, 2)
