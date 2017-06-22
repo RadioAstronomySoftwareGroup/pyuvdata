@@ -1,5 +1,6 @@
 import numpy as np
 import warnings
+import copy
 from uvbase import UVBase
 import parameter as uvp
 import utils as uvutils
@@ -263,7 +264,7 @@ class UVCal(UVBase):
     def select(self, antenna_nums=None, antenna_names=None,
                frequencies=None, freq_chans=None,
                times=None, jones=None, run_check=True,
-               run_check_acceptability=True):
+               run_check_acceptability=True, inplace=True):
         """
         Select specific antennas, frequencies, times and
         jones polarization terms to keep in the object while discarding others.
@@ -286,7 +287,14 @@ class UVCal(UVBase):
                 required parameters after downselecting data on this object. Default is True.
             run_check_acceptability: Option to check acceptable range of the values of
                 required parameters after  downselecting data on this object. Default is True.
+            inplace: Option to perform the select directly on self (True, default) or return
+                a new UVCal object, which is a subselection of self (False)
         """
+        if inplace:
+            cal_object = self
+        else:
+            cal_object = copy.deepcopy(self)
+
         # build up history string as we go
         history_update_string = '  Downselected to specific '
         n_selects = 0
@@ -298,10 +306,10 @@ class UVCal(UVBase):
             antenna_names = uvutils.get_iterable(antenna_names)
             antenna_nums = []
             for s in antenna_names:
-                if s not in self.antenna_names:
+                if s not in cal_object.antenna_names:
                     raise ValueError('Antenna name {a} is not present in the antenna_names array'.format(a=s))
-                ind = np.where(np.array(self.antenna_names) == s)[0][0]
-                antenna_nums.append(self.antenna_numbers[ind])
+                ind = np.where(np.array(cal_object.antenna_names) == s)[0][0]
+                antenna_nums.append(cal_object.antenna_numbers[ind])
 
         if antenna_nums is not None:
             antenna_nums = uvutils.get_iterable(antenna_nums)
@@ -310,24 +318,24 @@ class UVCal(UVBase):
 
             ant_inds = np.zeros(0, dtype=np.int)
             for ant in antenna_nums:
-                if ant in self.ant_array:
-                    ant_inds = np.append(ant_inds, np.where(self.ant_array == ant)[0])
+                if ant in cal_object.ant_array:
+                    ant_inds = np.append(ant_inds, np.where(cal_object.ant_array == ant)[0])
                 else:
                     raise ValueError('Antenna number {a} is not present in the '
                                      ' array'.format(a=ant))
 
             ant_inds = list(sorted(set(list(ant_inds))))
-            self.Nants_data = len(ant_inds)
-            self.ant_array = self.ant_array[ant_inds]
-            self.flag_array = self.flag_array[ant_inds, :, :, :, :]
-            self.quality_array = self.quality_array[ant_inds, :, :, :, :]
-            if self.cal_type == 'delay':
-                self.delay_array = self.delay_array[ant_inds, :, :, :, :]
+            cal_object.Nants_data = len(ant_inds)
+            cal_object.ant_array = cal_object.ant_array[ant_inds]
+            cal_object.flag_array = cal_object.flag_array[ant_inds, :, :, :, :]
+            cal_object.quality_array = cal_object.quality_array[ant_inds, :, :, :, :]
+            if cal_object.cal_type == 'delay':
+                cal_object.delay_array = cal_object.delay_array[ant_inds, :, :, :, :]
             else:
-                self.gain_array = self.gain_array[ant_inds, :, :, :, :]
+                cal_object.gain_array = cal_object.gain_array[ant_inds, :, :, :, :]
 
-            if self.input_flag_array is not None:
-                self.input_flag_array = self.input_flag_array[ant_inds, :, :, :, :]
+            if cal_object.input_flag_array is not None:
+                cal_object.input_flag_array = cal_object.input_flag_array[ant_inds, :, :, :, :]
 
         if times is not None:
             times = uvutils.get_iterable(times)
@@ -339,41 +347,41 @@ class UVCal(UVBase):
 
             time_inds = np.zeros(0, dtype=np.int)
             for jd in times:
-                if jd in self.time_array:
-                    time_inds = np.append(time_inds, np.where(self.time_array == jd)[0])
+                if jd in cal_object.time_array:
+                    time_inds = np.append(time_inds, np.where(cal_object.time_array == jd)[0])
                 else:
                     raise ValueError('Time {t} is not present in the time_array'.format(t=jd))
 
             time_inds = list(sorted(set(list(time_inds))))
-            self.Ntimes = len(time_inds)
-            self.time_array = self.time_array[time_inds]
+            cal_object.Ntimes = len(time_inds)
+            cal_object.time_array = cal_object.time_array[time_inds]
 
-            if self.Ntimes > 1:
-                time_separation = np.diff(self.time_array)
+            if cal_object.Ntimes > 1:
+                time_separation = np.diff(cal_object.time_array)
                 if not np.isclose(np.min(time_separation), np.max(time_separation),
-                                  rtol=self._time_array.tols[0],
-                                  atol=self._time_array.tols[1]):
+                                  rtol=cal_object._time_array.tols[0],
+                                  atol=cal_object._time_array.tols[1]):
                     warnings.warn('Selected times are not evenly spaced. This '
                                   'is not supported by the calfits format.')
 
-            self.flag_array = self.flag_array[:, :, :, time_inds, :]
-            self.quality_array = self.quality_array[:, :, :, time_inds, :]
-            if self.cal_type == 'delay':
-                self.delay_array = self.delay_array[:, :, :, time_inds, :]
+            cal_object.flag_array = cal_object.flag_array[:, :, :, time_inds, :]
+            cal_object.quality_array = cal_object.quality_array[:, :, :, time_inds, :]
+            if cal_object.cal_type == 'delay':
+                cal_object.delay_array = cal_object.delay_array[:, :, :, time_inds, :]
             else:
-                self.gain_array = self.gain_array[:, :, :, time_inds, :]
+                cal_object.gain_array = cal_object.gain_array[:, :, :, time_inds, :]
 
-            if self.input_flag_array is not None:
-                self.input_flag_array = self.input_flag_array[:, :, :, time_inds, :]
+            if cal_object.input_flag_array is not None:
+                cal_object.input_flag_array = cal_object.input_flag_array[:, :, :, time_inds, :]
 
         if freq_chans is not None:
             freq_chans = uvutils.get_iterable(freq_chans)
             if frequencies is None:
-                frequencies = self.freq_array[0, freq_chans]
+                frequencies = cal_object.freq_array[0, freq_chans]
             else:
                 frequencies = uvutils.get_iterable(frequencies)
                 frequencies = np.sort(list(set(frequencies) |
-                                      set(self.freq_array[0, freq_chans])))
+                                      set(cal_object.freq_array[0, freq_chans])))
 
         if frequencies is not None:
             frequencies = uvutils.get_iterable(frequencies)
@@ -385,7 +393,7 @@ class UVCal(UVBase):
 
             freq_inds = np.zeros(0, dtype=np.int)
             # this works because we only allow one SPW. This will have to be reworked when we support more.
-            freq_arr_use = self.freq_array[0, :]
+            freq_arr_use = cal_object.freq_array[0, :]
             for f in frequencies:
                 if f in freq_arr_use:
                     freq_inds = np.append(freq_inds, np.where(freq_arr_use == f)[0])
@@ -393,26 +401,26 @@ class UVCal(UVBase):
                     raise ValueError('Frequency {f} is not present in the freq_array'.format(f=f))
 
             freq_inds = list(sorted(set(list(freq_inds))))
-            self.Nfreqs = len(freq_inds)
-            self.freq_array = self.freq_array[:, freq_inds]
+            cal_object.Nfreqs = len(freq_inds)
+            cal_object.freq_array = cal_object.freq_array[:, freq_inds]
 
-            if self.Nfreqs > 1:
-                freq_separation = self.freq_array[0, 1:] - self.freq_array[0, :-1]
+            if cal_object.Nfreqs > 1:
+                freq_separation = cal_object.freq_array[0, 1:] - cal_object.freq_array[0, :-1]
                 if not np.isclose(np.min(freq_separation), np.max(freq_separation),
-                                  rtol=self._freq_array.tols[0],
-                                  atol=self._freq_array.tols[1]):
+                                  rtol=cal_object._freq_array.tols[0],
+                                  atol=cal_object._freq_array.tols[1]):
                     warnings.warn('Selected frequencies are not evenly spaced. This '
                                   'is not supported by the calfits format')
 
-            self.flag_array = self.flag_array[:, :, freq_inds, :, :]
-            if self.cal_type == 'delay':
+            cal_object.flag_array = cal_object.flag_array[:, :, freq_inds, :, :]
+            if cal_object.cal_type == 'delay':
                 pass
             else:
-                self.quality_array = self.quality_array[:, :, freq_inds, :, :]
-                self.gain_array = self.gain_array[:, :, freq_inds, :, :]
+                cal_object.quality_array = cal_object.quality_array[:, :, freq_inds, :, :]
+                cal_object.gain_array = cal_object.gain_array[:, :, freq_inds, :, :]
 
-            if self.input_flag_array is not None:
-                self.input_flag_array = self.input_flag_array[:, :, freq_inds, :, :]
+            if cal_object.input_flag_array is not None:
+                cal_object.input_flag_array = cal_object.input_flag_array[:, :, freq_inds, :, :]
 
         if jones is not None:
             jones = uvutils.get_iterable(jones)
@@ -424,35 +432,39 @@ class UVCal(UVBase):
 
             jones_inds = np.zeros(0, dtype=np.int)
             for j in jones:
-                if j in self.jones_array:
-                    jones_inds = np.append(jones_inds, np.where(self.jones_array == j)[0])
+                if j in cal_object.jones_array:
+                    jones_inds = np.append(jones_inds, np.where(cal_object.jones_array == j)[0])
                 else:
                     raise ValueError('Jones term {j} is not present in the jones_array'.format(j=j))
 
             jones_inds = list(sorted(set(list(jones_inds))))
-            self.Njones = len(jones_inds)
-            self.jones_array = self.jones_array[jones_inds]
+            cal_object.Njones = len(jones_inds)
+            cal_object.jones_array = cal_object.jones_array[jones_inds]
             if len(jones_inds) > 2:
-                jones_separation = self.jones_array[1:] - self.jones_array[:-1]
+                jones_separation = cal_object.jones_array[1:] - cal_object.jones_array[:-1]
                 if np.min(jones_separation) < np.max(jones_separation):
                     warnings.warn('Selected jones polarization terms are not evenly spaced. This '
                                   'is not supported by the calfits format')
-            self.flag_array = self.flag_array[:, :, :, :, jones_inds]
-            self.quality_array = self.quality_array[:, :, :, :, jones_inds]
-            if self.cal_type == 'delay':
-                self.delay_array = self.delay_array[:, :, :, :, jones_inds]
-            else:
-                self.gain_array = self.gain_array[:, :, :, :, jones_inds]
 
-            if self.input_flag_array is not None:
-                self.input_flag_array = self.input_flag_array[:, :, :, :, jones_inds]
+            cal_object.flag_array = cal_object.flag_array[:, :, :, :, jones_inds]
+            cal_object.quality_array = cal_object.quality_array[:, :, :, :, jones_inds]
+            if cal_object.cal_type == 'delay':
+                cal_object.delay_array = cal_object.delay_array[:, :, :, :, jones_inds]
+            else:
+                cal_object.gain_array = cal_object.gain_array[:, :, :, :, jones_inds]
+
+            if cal_object.input_flag_array is not None:
+                cal_object.input_flag_array = cal_object.input_flag_array[:, :, :, :, jones_inds]
 
         history_update_string += ' using pyuvdata.'
-        self.history = self.history + history_update_string
+        cal_object.history = cal_object.history + history_update_string
 
         # check if object is self-consistent
         if run_check:
-            self.check(run_check_acceptability=run_check_acceptability)
+            cal_object.check(run_check_acceptability=run_check_acceptability)
+
+        if not inplace:
+            return cal_object
 
     def convert_to_gain(self, delay_convention='minus'):
         """
