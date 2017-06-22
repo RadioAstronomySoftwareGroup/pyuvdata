@@ -221,14 +221,13 @@ class TestUVCalSelectGain(object):
                         'using pyuvdata.', self.gain_object2.history)
 
         # now test using antenna_names to specify antennas to keep
-        self.gain_object3 = copy.deepcopy(self.gain_object)
         ants_to_keep = np.array(sorted(list(ants_to_keep)))
         ant_names = []
         for a in ants_to_keep:
-            ind = np.where(self.gain_object3.antenna_numbers == a)[0][0]
-            ant_names.append(self.gain_object3.antenna_names[ind])
+            ind = np.where(self.gain_object.antenna_numbers == a)[0][0]
+            ant_names.append(self.gain_object.antenna_names[ind])
 
-        self.gain_object3.select(antenna_names=ant_names)
+        self.gain_object3 = self.gain_object.select(antenna_names=ant_names, inplace=False)
 
         nt.assert_equal(self.gain_object2, self.gain_object3)
 
