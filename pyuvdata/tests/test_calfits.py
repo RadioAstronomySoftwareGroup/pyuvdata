@@ -120,7 +120,6 @@ def test_errors():
         else:
             hdulist.writeto(write_file, overwrite=True)
 
-        print(unit, keyword)
         nt.assert_raises(ValueError, uv_out.read_calfits, write_file, strict_fits=True)
 
     # repeat for gain type file

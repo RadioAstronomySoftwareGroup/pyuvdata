@@ -171,8 +171,8 @@ class BeamFITS(UVBeam):
             basisvec_header = basisvec_hdu.header
 
             basisvec_coord_list = [basisvec_header['CTYPE1'], basisvec_header['CTYPE2']]
-            basisvec_Naxes1 = basisvec_header['NAXIS1']
-            basisvec_Naxes2 = basisvec_header['NAXIS2']
+            basisvec_axis1_array = uvutils.fits_gethduaxis(basisvec_hdu, 1)
+            basisvec_axis2_array = uvutils.fits_gethduaxis(basisvec_hdu, 2)
             basisvec_Naxes_vec = basisvec_header['NAXIS4']
 
             basisvec_cs = basisvec_header['COORDSYS']
@@ -185,11 +185,11 @@ class BeamFITS(UVBeam):
             if basisvec_Naxes_vec != self.Naxes_vec:
                 raise ValueError('Number of vector coordinate axes in BASISVEC HDU does not match primary HDU')
 
-            if basisvec_Naxes1 != self.Naxes1:
-                raise ValueError('Number of elements in first image axis in BASISVEC HDU does not match primary HDU')
+            if not np.all(basisvec_axis1_array == self.axis1_array):
+                raise ValueError('First image axis in BASISVEC HDU does not match primary HDU')
 
-            if basisvec_Naxes2 != self.Naxes2:
-                raise ValueError('Number of elements in second image axis in BASISVEC HDU does not match primary HDU')
+            if not np.all(basisvec_axis2_array == self.axis2_array):
+                raise ValueError('Second image axis in BASISVEC HDU does not match primary HDU')
 
         if run_check:
             self.check(run_check_acceptability=run_check_acceptability)
