@@ -82,6 +82,8 @@ class BeamFITS(UVBeam):
             self.polarization_array = np.int32(uvutils.fits_gethduaxis(primary_hdu, 4))
         elif self.beam_type == 'efield':
             self.set_efield()
+            if n_dimensions < 7:
+                raise (ValueError, 'beam_type is efield and data dimensionality is too low')
             self.data_array = data[0, :, :, :, :, :, :] + 1j * data[1, :, :, :, :, :, :]
             if primary_header.pop('CTYPE4').lower().strip() == 'feedind':
                 self.Nfeeds = primary_header.pop('NAXIS4')
@@ -125,8 +127,6 @@ class BeamFITS(UVBeam):
         if n_dimensions > 5:
             if primary_header.pop('CTYPE6').lower().strip() == 'vecind':
                 self.Naxes_vec = primary_header.pop('NAXIS6', None)
-        elif self.beam_type == 'efield':
-            raise (ValueError, 'beam_type is efield and data dimensionality is too low')
 
         if (self.Nspws is None or self.Naxes_vec is None) and self.beam_type == 'power':
             if self.Nspws is None:
