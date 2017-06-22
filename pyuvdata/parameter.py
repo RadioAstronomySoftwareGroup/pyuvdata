@@ -82,7 +82,7 @@ class UVParameter(object):
                                                            lclass=self.value.__class__,
                                                            rclass=other.value.__class__))
                 return False
-            if isinstance(self.value, np.ndarray):
+            if isinstance(self.value, np.ndarray) and not isinstance(self.value[0], (str, unicode)):
                 if self.value.shape != other.value.shape:
                     print('{name} parameter value is array, shapes are '
                           'different'.format(name=self.name))
@@ -96,7 +96,7 @@ class UVParameter(object):
                 str_type = False
                 if isinstance(self.value, (str, unicode)):
                     str_type = True
-                if isinstance(self.value, list):
+                if isinstance(self.value, (list, np.ndarray)):
                     if isinstance(self.value[0], str):
                         str_type = True
 
@@ -115,7 +115,7 @@ class UVParameter(object):
                             return False
 
                 else:
-                    if isinstance(self.value, list):
+                    if isinstance(self.value, (list, np.ndarray)):
                         if [s.strip() for s in self.value] != [s.strip() for s in other.value]:
                             print('{name} parameter value is a list of strings, '
                                   'values are different'.format(name=self.name))

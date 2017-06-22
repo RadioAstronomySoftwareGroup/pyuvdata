@@ -87,7 +87,7 @@ class BeamFITS(UVBeam):
                 self.Nfeeds = primary_header.pop('NAXIS4')
             feedlist = primary_header.pop('FEEDLIST', None)
             if feedlist is not None:
-                self.feed_array = feedlist[1:-1].split(', ')
+                self.feed_array = np.array(feedlist[1:-1].split(', '))
         else:
             raise ValueError('Unknown beam_type: {type}, beam_type should be '
                              '"efield" or "power".'.format(type=self.beam_type))

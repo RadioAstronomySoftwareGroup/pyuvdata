@@ -1,7 +1,10 @@
 """Primary container for radio telescope antenna beams."""
 import numpy as np
+import warnings
+import copy
 from uvbase import UVBase
 import parameter as uvp
+import pyuvdata.utils as uvutils
 
 
 class UVBeam(UVBase):
@@ -373,6 +376,251 @@ class UVBeam(UVBase):
         self._delay_array.required = True
         self._gain_array.required = True
         self._coupling_matrix.required = True
+
+    def select(self, axis1_inds=None, axis2_inds=None, pixels=None,
+               frequencies=None, freq_chans=None,
+               feeds=None, polarizations=None, run_check=True,
+               run_check_acceptability=True, inplace=True):
+        """
+        Select specific image axis indices or pixels (if healpix), frequencies and
+        feeds or polarizations (if power) to keep in the object while discarding others.
+
+        The history attribute on the object will be updated to identify the
+        operations performed.
+
+        Args:
+            axis1_inds: The indices along the first image axis to keep in the object.
+                Cannot be set if pixel_coordinate_system is "healpix".
+            axis2_inds: The indices along the second image axis to keep in the object.
+                Cannot be set if pixel_coordinate_system is "healpix".
+            pixels: The healpix pixels to keep in the object.
+                Cannot be set if pixel_coordinate_system is not "healpix".
+            frequencies: The frequencies to keep in the object.
+            freq_chans: The frequency channel numbers to keep in the object.
+            feeds: The feeds to keep in the object. Cannot be set if the beam_type is "power".
+            polarizations: The polarizations to keep in the object.
+                Cannot be set if the beam_type is "efield".
+            run_check: Option to check for the existence and proper shapes of
+                required parameters after downselecting data on this object. Default is True.
+            run_check_acceptability: Option to check acceptable range of the values of
+                required parameters after  downselecting data on this object. Default is True.
+            inplace: Option to perform the select directly on self (True, default) or return
+                a new UVBeam object, which is a subselection of self (False)
+        """
+        if inplace:
+            beam_object = self
+        else:
+            beam_object = copy.deepcopy(self)
+
+        # build up history string as we go
+        history_update_string = '  Downselected to specific '
+        n_selects = 0
+
+        if axis1_inds is not None:
+            if beam_object.pixel_coordinate_system == 'healpix':
+                raise ValueError('axis1_inds cannot be used with healpix coordinate system')
+
+            history_update_string += 'parts of first image axis'
+            n_selects += 1
+
+            axis1_inds = list(sorted(set(list(axis1_inds))))
+            if min(axis1_inds) < 0 or max(axis1_inds) > beam_object.Naxes1 - 1:
+                raise ValueError('axis1_inds must be > 0 and < Naxes1')
+            beam_object.Naxes1 = len(axis1_inds)
+            beam_object.axis1_array = beam_object.axis1_array[axis1_inds]
+
+            if beam_object.Naxes1 > 1:
+                axis1_spacing = np.diff(beam_object.axis1_array)
+                if not np.isclose(np.min(axis1_spacing), np.max(axis1_spacing),
+                                  rtol=beam_object._axis1_array.tols[0],
+                                  atol=beam_object._axis1_array.tols[1]):
+                    warnings.warn('Selected values along first image axis are '
+                                  'not evenly spaced. This is not supported by '
+                                  'the regularly gridded beam fits format')
+
+            beam_object.data_array = beam_object.data_array[:, :, :, :, :, axis1_inds]
+            if beam_object.beam_type == 'efield':
+                beam_object.basis_vector_array = beam_object.basis_vector_array[:, :, :, axis1_inds]
+
+        if axis2_inds is not None:
+            if beam_object.pixel_coordinate_system == 'healpix':
+                raise ValueError('axis2_inds cannot be used with healpix coordinate system')
+
+            if n_selects > 0:
+                history_update_string += ', parts of second image axis'
+            else:
+                history_update_string += 'parts of second image axis'
+            n_selects += 1
+
+            axis2_inds = list(sorted(set(list(axis2_inds))))
+            if min(axis2_inds) < 0 or max(axis2_inds) > beam_object.Naxes2 - 1:
+                raise ValueError('axis2_inds must be > 0 and < Naxes2')
+            beam_object.Naxes2 = len(axis2_inds)
+            beam_object.axis2_array = beam_object.axis2_array[axis2_inds]
+
+            if beam_object.Naxes2 > 1:
+                axis2_spacing = np.diff(beam_object.axis2_array)
+                if not np.isclose(np.min(axis2_spacing), np.max(axis2_spacing),
+                                  rtol=beam_object._axis2_array.tols[0],
+                                  atol=beam_object._axis2_array.tols[1]):
+                    warnings.warn('Selected values along second image axis are '
+                                  'not evenly spaced. This is not supported by '
+                                  'the regularly gridded beam fits format')
+
+            beam_object.data_array = beam_object.data_array[:, :, :, :, axis2_inds, :]
+            if beam_object.beam_type == 'efield':
+                beam_object.basis_vector_array = beam_object.basis_vector_array[:, :, axis2_inds, :]
+
+        if pixels is not None:
+            if beam_object.pixel_coordinate_system != 'healpix':
+                raise ValueError('pixels can only be used with healpix coordinate system')
+
+            history_update_string += 'healpix pixels'
+            n_selects += 1
+
+            pix_inds = np.zeros(0, dtype=np.int)
+            for p in pixels:
+                if p in beam_object.pixel_array:
+                    pix_inds = np.append(pix_inds, np.where(beam_object.pixel_array == p)[0])
+                else:
+                    raise ValueError('Pixel {p} is not present in the pixel_array'.format(p=p))
+
+            pix_inds = list(sorted(set(list(pix_inds))))
+            beam_object.Npixels = len(pix_inds)
+            beam_object.pixel_array = beam_object.pixel_array[pix_inds]
+
+            beam_object.data_array = beam_object.data_array[:, :, :, :, pix_inds]
+            if beam_object.beam_type == 'efield':
+                beam_object.basis_vector_array = beam_object.basis_vector_array[:, :, pix_inds]
+
+        if freq_chans is not None:
+            freq_chans = uvutils.get_iterable(freq_chans)
+            if frequencies is None:
+                frequencies = beam_object.freq_array[0, freq_chans]
+            else:
+                frequencies = uvutils.get_iterable(frequencies)
+                frequencies = np.sort(list(set(frequencies) |
+                                      set(beam_object.freq_array[0, freq_chans])))
+
+        if frequencies is not None:
+            frequencies = uvutils.get_iterable(frequencies)
+            if n_selects > 0:
+                history_update_string += ', frequencies'
+            else:
+                history_update_string += 'frequencies'
+            n_selects += 1
+
+            freq_inds = np.zeros(0, dtype=np.int)
+            # this works because we only allow one SPW. This will have to be reworked when we support more.
+            freq_arr_use = beam_object.freq_array[0, :]
+            for f in frequencies:
+                if f in freq_arr_use:
+                    freq_inds = np.append(freq_inds, np.where(freq_arr_use == f)[0])
+                else:
+                    raise ValueError('Frequency {f} is not present in the freq_array'.format(f=f))
+
+            freq_inds = list(sorted(set(list(freq_inds))))
+            beam_object.Nfreqs = len(freq_inds)
+            beam_object.freq_array = beam_object.freq_array[:, freq_inds]
+
+            if beam_object.Nfreqs > 1:
+                freq_separation = beam_object.freq_array[0, 1:] - beam_object.freq_array[0, :-1]
+                if not np.isclose(np.min(freq_separation), np.max(freq_separation),
+                                  rtol=beam_object._freq_array.tols[0],
+                                  atol=beam_object._freq_array.tols[1]):
+                    warnings.warn('Selected frequencies are not evenly spaced. This '
+                                  'is not supported by the regularly gridded beam fits format')
+
+            if beam_object.pixel_coordinate_system == 'healpix':
+                beam_object.data_array = beam_object.data_array[:, :, :, freq_inds, :]
+            else:
+                beam_object.data_array = beam_object.data_array[:, :, :, freq_inds, :, :]
+
+            if beam_object.antenna_type == 'phased_array':
+                beam_object.coupling_matrix = beam_object.coupling_matrix[:, :, :, :, :, freq_inds]
+
+            if beam_object.system_temperature_array is not None:
+                beam_object.system_temperature_array = beam_object.system_temperature_array[:, freq_inds]
+
+            if beam_object.loss_array is not None:
+                beam_object.loss_array = beam_object.loss_array[:, freq_inds]
+
+            if beam_object.mismatch_array is not None:
+                beam_object.mismatch_array = beam_object.mismatch_array[:, freq_inds]
+
+            if beam_object.s_parameters is not None:
+                beam_object.s_parameters = beam_object.s_parameters[:, freq_inds]
+
+        if feeds is not None:
+            if beam_object.beam_type == 'power':
+                raise ValueError('feeds cannot be used with power beams')
+
+            feeds = uvutils.get_iterable(feeds)
+            if n_selects > 0:
+                history_update_string += ', feeds'
+            else:
+                history_update_string += 'feeds'
+            n_selects += 1
+
+            feed_inds = np.zeros(0, dtype=np.int)
+            for f in feeds:
+                if f in beam_object.feed_array:
+                    feed_inds = np.append(feed_inds, np.where(beam_object.feed_array == f)[0])
+                else:
+                    raise ValueError('Feed {f} is not present in the feed_array'.format(f=f))
+
+            feed_inds = list(sorted(set(list(feed_inds))))
+            beam_object.Nfeeds = len(feed_inds)
+            beam_object.feed_array = beam_object.feed_array[feed_inds]
+
+            if beam_object.pixel_coordinate_system == 'healpix':
+                beam_object.data_array = beam_object.data_array[:, :, feed_inds, :, :]
+            else:
+                beam_object.data_array = beam_object.data_array[:, :, feed_inds, :, :, :]
+
+        if polarizations is not None:
+            if beam_object.beam_type == 'efield':
+                raise ValueError('feeds cannot be used with efield beams')
+
+            polarizations = uvutils.get_iterable(polarizations)
+            if n_selects > 0:
+                history_update_string += ', polarizations'
+            else:
+                history_update_string += 'polarizations'
+            n_selects += 1
+
+            pol_inds = np.zeros(0, dtype=np.int)
+            for p in polarizations:
+                if p in beam_object.polarization_array:
+                    pol_inds = np.append(pol_inds, np.where(beam_object.polarization_array == p)[0])
+                else:
+                    raise ValueError('polarization {p} is not present in the polarization_array'.format(p=p))
+
+            pol_inds = list(sorted(set(list(pol_inds))))
+            beam_object.Npols = len(pol_inds)
+            beam_object.polarization_array = beam_object.polarization_array[pol_inds]
+
+            if len(pol_inds) > 2:
+                pol_separation = (beam_object.polarization_array[1:] -
+                                  beam_object.polarization_array[:-1])
+                if np.min(pol_separation) < np.max(pol_separation):
+                    warnings.warn('Selected polarizations are not evenly spaced. This '
+                                  'is not supported by the regularly gridded beam fits format')
+
+            if beam_object.pixel_coordinate_system == 'healpix':
+                beam_object.data_array = beam_object.data_array[:, :, pol_inds, :, :]
+            else:
+                beam_object.data_array = beam_object.data_array[:, :, pol_inds, :, :, :]
+
+        history_update_string += ' using pyuvdata.'
+        beam_object.history = beam_object.history + history_update_string
+
+        # check if object is self-consistent
+        if run_check:
+            beam_object.check(run_check_acceptability=run_check_acceptability)
+
+        if not inplace:
+            return beam_object
 
     def _convert_from_filetype(self, other):
         for p in other:
