@@ -9,7 +9,7 @@ import pyuvdata.version as uvversion
 from pyuvdata.data import DATA_PATH
 
 
-def fill_dummy_beam(beam_obj, beam_type):
+def fill_dummy_beam(beam_obj, beam_type, pixel_coordinate_system):
     beam_obj.set_simple()
     beam_obj.telescope_name = 'testscope'
     beam_obj.feed_name = 'testfeed'
@@ -27,11 +27,17 @@ def fill_dummy_beam(beam_obj, beam_type):
                                  '.  Git description: ' + uvversion.git_description + '.')
     beam_obj.history += pyuvdata_version_str
 
-    beam_obj.pixel_coordinate_system = 'az_za'
-    beam_obj.axis1_array = np.arange(-180.0, 180.0, 5.0)
-    beam_obj.Naxes1 = len(beam_obj.axis1_array)
-    beam_obj.axis2_array = np.arange(-90.0, 90.0, 5.0)
-    beam_obj.Naxes2 = len(beam_obj.axis2_array)
+    beam_obj.pixel_coordinate_system = pixel_coordinate_system
+    if pixel_coordinate_system == 'healpix':
+        beam_obj.nside = 512
+        beam_obj.ordering = 'ring'
+        beam_obj.pixel_array = np.arange(0, 256)
+        beam_obj.Npixels = len(beam_obj.pixel_array)
+    elif pixel_coordinate_system == 'az_za':
+        beam_obj.axis1_array = np.arange(-180.0, 180.0, 5.0)
+        beam_obj.Naxes1 = len(beam_obj.axis1_array)
+        beam_obj.axis2_array = np.arange(-90.0, 90.0, 5.0)
+        beam_obj.Naxes2 = len(beam_obj.axis2_array)
 
     beam_obj.freq_array = np.arange(150e6, 160e6, 1e5)
     beam_obj.freq_array = beam_obj.freq_array[np.newaxis, :]
@@ -46,20 +52,37 @@ def fill_dummy_beam(beam_obj, beam_type):
         beam_obj.Npols = len(beam_obj.polarization_array)
         beam_obj.Naxes_vec = 1
 
-        data_size_tuple = (beam_obj.Naxes_vec, beam_obj.Nspws, beam_obj.Npols,
-                           beam_obj.Nfreqs, beam_obj.Naxes2, beam_obj.Naxes1)
+        if pixel_coordinate_system == 'healpix':
+            data_size_tuple = (beam_obj.Naxes_vec, beam_obj.Nspws, beam_obj.Npols,
+                               beam_obj.Nfreqs, beam_obj.Npixels)
+        else:
+            data_size_tuple = (beam_obj.Naxes_vec, beam_obj.Nspws, beam_obj.Npols,
+                               beam_obj.Nfreqs, beam_obj.Naxes2, beam_obj.Naxes1)
+
         beam_obj.data_array = np.square(np.random.normal(0.0, 0.2, size=data_size_tuple))
     else:
         beam_obj.set_efield()
         beam_obj.feed_array = np.array(['x', 'y'])
         beam_obj.Nfeeds = len(beam_obj.feed_array)
         beam_obj.Naxes_vec = 2
-        beam_obj.basis_vector_array = np.zeros((beam_obj.Naxes_vec, 2, beam_obj.Naxes2, beam_obj.Naxes1))
-        beam_obj.basis_vector_array[0, 0, :, :] = 1.0
-        beam_obj.basis_vector_array[1, 1, :, :] = 1.0
 
-        data_size_tuple = (beam_obj.Naxes_vec, beam_obj.Nspws, beam_obj.Nfeeds,
-                           beam_obj.Nfreqs, beam_obj.Naxes2, beam_obj.Naxes1)
+        if pixel_coordinate_system == 'healpix':
+            beam_obj.basis_vector_array = np.zeros((beam_obj.Naxes_vec, 2,
+                                                    beam_obj.Npixels))
+            beam_obj.basis_vector_array[0, 0, :] = 1.0
+            beam_obj.basis_vector_array[1, 1, :] = 1.0
+
+            data_size_tuple = (beam_obj.Naxes_vec, beam_obj.Nspws, beam_obj.Nfeeds,
+                               beam_obj.Nfreqs, beam_obj.Npixels)
+        else:
+            beam_obj.basis_vector_array = np.zeros((beam_obj.Naxes_vec, 2,
+                                                    beam_obj.Naxes2, beam_obj.Naxes1))
+            beam_obj.basis_vector_array[0, 0, :, :] = 1.0
+            beam_obj.basis_vector_array[1, 1, :, :] = 1.0
+
+            data_size_tuple = (beam_obj.Naxes_vec, beam_obj.Nspws, beam_obj.Nfeeds,
+                               beam_obj.Nfreqs, beam_obj.Naxes2, beam_obj.Naxes1)
+
         beam_obj.data_array = (np.random.normal(0.0, 0.2, size=data_size_tuple) +
                                1j * np.random.normal(0.0, 0.2, size=data_size_tuple))
 
@@ -195,10 +218,10 @@ class TestUVBeamSelect(object):
     def setUp(self):
         """Set up test"""
         self.power_beam = UVBeam()
-        self.power_beam = fill_dummy_beam(self.power_beam, 'power')
+        self.power_beam = fill_dummy_beam(self.power_beam, 'power', 'az_za')
 
         self.efield_beam = UVBeam()
-        self.efield_beam = fill_dummy_beam(self.efield_beam, 'efield')
+        self.efield_beam = fill_dummy_beam(self.efield_beam, 'efield', 'az_za')
 
     def teardown(self):
         """Tear down test"""

@@ -14,7 +14,7 @@ def test_writeread():
     beam_in = UVBeam()
     beam_out = UVBeam()
     # fill UVBeam object with dummy data for now for testing purposes
-    beam_in = fill_dummy_beam(beam_in, 'efield')
+    beam_in = fill_dummy_beam(beam_in, 'efield', 'az_za')
 
     write_file = os.path.join(DATA_PATH, 'test/outtest_beam.fits')
 
@@ -24,7 +24,7 @@ def test_writeread():
     nt.assert_equal(beam_in, beam_out)
 
     # redo for power beam
-    beam_in = fill_dummy_beam(beam_in, 'power')
+    beam_in = fill_dummy_beam(beam_in, 'power', 'az_za')
 
     beam_in.write_beamfits(write_file, clobber=True)
     beam_out.read_beamfits(write_file)
@@ -70,10 +70,32 @@ def test_writeread():
     nt.assert_equal(beam_in, beam_out)
 
 
+def test_writeread_healpix():
+    beam_in = UVBeam()
+    beam_out = UVBeam()
+    # fill UVBeam object with dummy data for now for testing purposes
+    beam_in = fill_dummy_beam(beam_in, 'efield', 'healpix')
+
+    write_file = os.path.join(DATA_PATH, 'test/outtest_beam.fits')
+
+    beam_in.write_beamfits(write_file, clobber=True)
+    beam_out.read_beamfits(write_file)
+
+    nt.assert_equal(beam_in, beam_out)
+
+    # redo for power beam
+    beam_in = fill_dummy_beam(beam_in, 'power', 'healpix')
+
+    beam_in.write_beamfits(write_file, clobber=True)
+    beam_out.read_beamfits(write_file)
+
+    nt.assert_equal(beam_in, beam_out)
+
+
 def test_errors():
     beam_in = UVBeam()
     beam_out = UVBeam()
-    beam_in = fill_dummy_beam(beam_in, 'efield')
+    beam_in = fill_dummy_beam(beam_in, 'efield', 'az_za')
     beam_in.beam_type = 'foo'
 
     write_file = os.path.join(DATA_PATH, 'test/outtest_beam.fits')
@@ -82,7 +104,7 @@ def test_errors():
                      clobber=True, run_check=False)
 
     # now change values for various items in primary hdu to test errors
-    beam_in = fill_dummy_beam(beam_in, 'efield')
+    beam_in = fill_dummy_beam(beam_in, 'efield', 'az_za')
 
     header_vals_to_change = [{'BTYPE': 'foo'}, {'COORDSYS': 'sin_zenith'},
                              {'NAXIS': ''}]
@@ -122,7 +144,7 @@ def test_errors():
         nt.assert_raises(ValueError, beam_out.read_beamfits, write_file)
 
     # now change values for various items in basisvec hdu to not match primary hdu
-    beam_in = fill_dummy_beam(beam_in, 'efield')
+    beam_in = fill_dummy_beam(beam_in, 'efield', 'az_za')
 
     header_vals_to_change = [{'COORDSYS': 'foo'}, {'CTYPE1': 'foo'},
                              {'CTYPE2': 'foo'},
