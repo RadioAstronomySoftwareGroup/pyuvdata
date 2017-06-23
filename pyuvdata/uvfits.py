@@ -195,7 +195,7 @@ class UVFITS(UVData):
         std_fits_substrings = ['SIMPLE', 'BITPIX', 'EXTEND', 'BLOCKED',
                                'GROUPS', 'PCOUNT', 'BSCALE', 'BZERO', 'NAXIS',
                                'PTYPE', 'PSCAL', 'PZERO', 'CTYPE', 'CRVAL',
-                               'CRPIX', 'CDELT', 'CROTA', 'DATE-OBS']
+                               'CRPIX', 'CDELT', 'CROTA', 'CUNIT', 'DATE-OBS']
         for key in hdr.keys():
             for sub in std_fits_substrings:
                 if key.find(sub) > -1:

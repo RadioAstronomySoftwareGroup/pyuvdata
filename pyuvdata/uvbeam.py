@@ -264,7 +264,8 @@ class UVBeam(UVBase):
                                                expected_type=np.float,
                                                tols=1e-3)
 
-        desc = 'S parameters of receiving chain, shape (Nspws, Nfreqs), units ?'
+        desc = ('S parameters of receiving chain, shape (4, Nspws, Nfreqs), '
+                'ordering: s11, s12, s21, s22. units ?')
         self._s_parameters = uvp.UVParameter('s_parameters', required=False,
                                              description=desc,
                                              form=(4, 'Nspws', 'Nfreqs'),
@@ -883,7 +884,7 @@ class UVBeam(UVBase):
                 beam_object.mismatch_array = beam_object.mismatch_array[:, freq_inds]
 
             if beam_object.s_parameters is not None:
-                beam_object.s_parameters = beam_object.s_parameters[:, freq_inds]
+                beam_object.s_parameters = beam_object.s_parameters[:, :, freq_inds]
 
         if feeds is not None:
             if beam_object.beam_type == 'power':

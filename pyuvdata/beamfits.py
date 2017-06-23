@@ -45,7 +45,8 @@ class BeamFITS(UVBeam):
 
         data = primary_hdu.data
 
-        # only support simple antenna_types for now. Phased arrays should be supported as well
+        # only support simple antenna_types for now.
+        # support for phased arrays should be added
         self.set_simple()
 
         self.beam_type = primary_header.pop('BTYPE', None)
@@ -173,7 +174,7 @@ class BeamFITS(UVBeam):
         std_fits_substrings = ['SIMPLE', 'BITPIX', 'EXTEND', 'BLOCKED',
                                'GROUPS', 'PCOUNT', 'BSCALE', 'BZERO', 'NAXIS',
                                'PTYPE', 'PSCAL', 'PZERO', 'CTYPE', 'CRVAL',
-                               'CRPIX', 'CDELT', 'CROTA']
+                               'CRPIX', 'CDELT', 'CROTA', 'CUNIT']
         for key in primary_header.keys():
             for sub in std_fits_substrings:
                 if key.find(sub) > -1:
@@ -233,6 +234,31 @@ class BeamFITS(UVBeam):
                 raise ValueError('Number of vector coordinate axes in BASISVEC '
                                  'HDU does not match primary HDU')
 
+        # check to see if FREQPARM HDU exists and read it out if it does
+        if 'FREQPARM' in hdunames:
+            freq_hdu = F[hdunames['FREQPARM']]
+            freq_data = freq_hdu.data
+            columns = [c.name for c in freq_data.columns]
+            if 'sys_temp' in columns:
+                self.system_temperature_array = freq_data['sys_temp']
+                self.system_temperature_array = self.system_temperature_array[np.newaxis, :]
+            if 'loss' in columns:
+                self.loss_array = freq_data['loss']
+                self.loss_array = self.loss_array[np.newaxis, :]
+            if 'mismatch' in columns:
+                self.mismatch_array = freq_data['mismatch']
+                self.mismatch_array = self.mismatch_array[np.newaxis, :]
+            if 's11' in columns:
+                s11 = freq_data['s11']
+                s12 = freq_data['s12']
+                s21 = freq_data['s21']
+                s22 = freq_data['s22']
+                self.s_parameters = np.zeros((4, 1, len(s11)))
+                self.s_parameters[0, 0, :] = s11
+                self.s_parameters[1, 0, :] = s12
+                self.s_parameters[2, 0, :] = s21
+                self.s_parameters[3, 0, :] = s22
+
         if run_check:
             self.check(run_check_acceptability=run_check_acceptability)
 
@@ -251,6 +277,10 @@ class BeamFITS(UVBeam):
         """
         if run_check:
             self.check(run_check_acceptability=run_check_acceptability)
+
+        if self.antenna_type != 'simple':
+            raise ValueError('This beam fits writer currently only supports '
+                             'simple (rather than phased array) antenna beams')
 
         if self.Nfreqs > 1:
             freq_spacing = self.freq_array[0, 1:] - self.freq_array[0, :-1]
@@ -473,6 +503,39 @@ class BeamFITS(UVBeam):
             hpx_hdu = fits.BinTableHDU.from_columns(coldefs)
             hpx_hdu.header['EXTNAME'] = 'HPX_INDS'
             hdulist.append(hpx_hdu)
+
+        # check for frequency-specific optional arrays. If they're not None,
+        # make a binary table HDU to hold them
+        if (self.system_temperature_array is not None or self.loss_array is not None or
+                self.mismatch_array is not None or self.s_parameters is not None):
+            col_list = []
+            if self.system_temperature_array is not None:
+                sys_temp_col = fits.Column(name='sys_temp', format='D',
+                                           array=self.system_temperature_array[0, :])
+                col_list.append(sys_temp_col)
+            if self.loss_array is not None:
+                loss_col = fits.Column(name='loss', format='D',
+                                       array=self.loss_array[0, :])
+                col_list.append(loss_col)
+            if self.mismatch_array is not None:
+                mismatch_col = fits.Column(name='mismatch', format='D',
+                                           array=self.mismatch_array[0, :])
+                col_list.append(mismatch_col)
+            if self.s_parameters is not None:
+                s11_col = fits.Column(name='s11', format='D',
+                                      array=self.s_parameters[0, 0, :])
+                s12_col = fits.Column(name='s12', format='D',
+                                      array=self.s_parameters[1, 0, :])
+                s21_col = fits.Column(name='s21', format='D',
+                                      array=self.s_parameters[2, 0, :])
+                s22_col = fits.Column(name='s22', format='D',
+                                      array=self.s_parameters[3, 0, :])
+                col_list += [s11_col, s12_col, s21_col, s22_col]
+
+            coldefs = fits.ColDefs(col_list)
+            freq_hdu = fits.BinTableHDU.from_columns(coldefs)
+            freq_hdu.header['EXTNAME'] = 'FREQPARM'
+            hdulist.append(freq_hdu)
 
         if float(astropy.__version__[0:3]) < 1.3:
             hdulist.writeto(filename, clobber=clobber)

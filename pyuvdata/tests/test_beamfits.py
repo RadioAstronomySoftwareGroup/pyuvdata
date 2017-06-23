@@ -21,15 +21,16 @@ def test_writeread():
     beam_in.write_beamfits(write_file, clobber=True)
     beam_out.read_beamfits(write_file)
 
-    nt.assert_equal(beam_in, beam_out)
+    nt.assert_true(beam_in.__eq__(beam_out, check_extra=True))
 
     # redo for power beam
+    del(beam_in)
+    beam_in = UVBeam()
     beam_in = fill_dummy_beam(beam_in, 'power', 'az_za')
 
     beam_in.write_beamfits(write_file, clobber=True)
     beam_out.read_beamfits(write_file)
-
-    nt.assert_equal(beam_in, beam_out)
+    nt.assert_true(beam_in.__eq__(beam_out, check_extra=True))
 
     # now replace 'power' with 'intensity' for btype
     F = fits.open(write_file)
@@ -81,15 +82,17 @@ def test_writeread_healpix():
     beam_in.write_beamfits(write_file, clobber=True)
     beam_out.read_beamfits(write_file)
 
-    nt.assert_equal(beam_in, beam_out)
+    nt.assert_true(beam_in.__eq__(beam_out, check_extra=True))
 
     # redo for power beam
+    del(beam_in)
+    beam_in = UVBeam()
     beam_in = fill_dummy_beam(beam_in, 'power', 'healpix')
 
     beam_in.write_beamfits(write_file, clobber=True)
     beam_out.read_beamfits(write_file)
 
-    nt.assert_equal(beam_in, beam_out)
+    nt.assert_true(beam_in.__eq__(beam_out, check_extra=True))
 
     # now remove coordsys but leave ctype 1
     F = fits.open(write_file)
