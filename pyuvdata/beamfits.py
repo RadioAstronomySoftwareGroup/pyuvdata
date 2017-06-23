@@ -65,21 +65,36 @@ class BeamFITS(UVBeam):
 
         self.pixel_coordinate_system = primary_header.pop('COORDSYS', None)
         if self.pixel_coordinate_system is None:
-            for cs, coords in self.coordinate_system_dict.iteritems():
-                if coords == ctypes[0:len(coords)]:
-                    coord_list = ctypes[0:len(coords)]
-                    self.pixel_coordinate_system = cs
+            if ctypes[0] == 'Pix_Ind':
+                self.pixel_coordinate_system = 'healpix'
+            else:
+                for cs, coords in self.coordinate_system_dict.iteritems():
+                    if coords == ctypes[0:2]:
+                        coord_list = ctypes[0:2]
+                        self.pixel_coordinate_system = cs
         else:
-            coord_list = ctypes[0:len(self.coordinate_system_dict[self.pixel_coordinate_system])]
-            if coord_list != self.coordinate_system_dict[self.pixel_coordinate_system]:
-                raise ValueError('Coordinate axis list does not match coordinate system')
+            if self.pixel_coordinate_system == 'healpix':
+                if ctypes[0] != 'Pix_Ind':
+                    raise ValueError('First axis must be "Pix_Ind" for healpix beams')
+            else:
+                coord_list = ctypes[0:2]
+                if coord_list != self.coordinate_system_dict[self.pixel_coordinate_system]:
+                    raise ValueError('Coordinate axis list does not match coordinate system')
 
         if self.pixel_coordinate_system == 'healpix':
+            # get pixel values out of HPX_IND extension
+            hpx_hdu = F[hdunames['HPX_INDS']]
+            self.Npixels = hpx_hdu.header['NAXIS2']
+            hpx_data = hpx_hdu.data
+            self.pixel_array = hpx_data['hpx_inds']
+
             ax_nums = hpx_primary_ax_nums
             self.nside = primary_header.pop('NSIDE', None)
             self.ordering = primary_header.pop('ORDERING', None)
-            self.Npixels = primary_header.pop('NAXIS' + str(ax_nums['pixel']))
-            self.pixel_array = uvutils.fits_gethduaxis(primary_hdu, ax_nums['pixel'])
+            data_Npixels = primary_header.pop('NAXIS' + str(ax_nums['pixel']))
+            if data_Npixels != self.Npixels:
+                raise ValueError('Number of pixels in HPX_IND extension does '
+                                 'not match number of pixels in data array')
         else:
             ax_nums = reg_primary_ax_nums
             self.Naxes1 = primary_header.pop('NAXIS' + str(ax_nums['img_ax1']))
@@ -181,11 +196,13 @@ class BeamFITS(UVBeam):
 
             if self.pixel_coordinate_system == 'healpix':
                 basisvec_ax_nums = hxp_basisvec_ax_nums
-                basisvec_coord_list = [basisvec_header['CTYPE' + str(basisvec_ax_nums['pixel'])]]
-                basisvec_pixel_array = uvutils.fits_gethduaxis(basisvec_hdu,
-                                                               basisvec_ax_nums['pixel'])
-                if not np.all(basisvec_pixel_array == self.pixel_array):
-                    raise ValueError('healpix pixels in BASISVEC HDU does not match '
+                if basisvec_header['CTYPE' + str(basisvec_ax_nums['pixel'])] != 'Pix_Ind':
+                    raise ValueError('First axis in BASISVEC HDU must be "Pix_Ind" for healpix beams')
+
+                basisvec_Npixels = basisvec_header.pop('NAXIS' + str(basisvec_ax_nums['pixel']))
+
+                if basisvec_Npixels != self.Npixels:
+                    raise ValueError('Number of pixels in BASISVEC HDU does not match '
                                      'primary HDU')
             else:
                 basisvec_ax_nums = reg_basisvec_ax_nums
@@ -195,13 +212,14 @@ class BeamFITS(UVBeam):
                                                                basisvec_ax_nums['img_ax1'])
                 basisvec_axis2_array = uvutils.fits_gethduaxis(basisvec_hdu,
                                                                basisvec_ax_nums['img_ax2'])
-
                 if not np.all(basisvec_axis1_array == self.axis1_array):
                     raise ValueError('First image axis in BASISVEC HDU does not match '
                                      'primary HDU')
-
                 if not np.all(basisvec_axis2_array == self.axis2_array):
                     raise ValueError('Second image axis in BASISVEC HDU does not '
+                                     'match primary HDU')
+                if basisvec_coord_list != coord_list:
+                    raise ValueError('Pixel coordinate list in BASISVEC HDU does not '
                                      'match primary HDU')
 
             basisvec_Naxes_vec = basisvec_header['NAXIS' + str(basisvec_ax_nums['basisvec'])]
@@ -210,10 +228,6 @@ class BeamFITS(UVBeam):
             if basisvec_cs != self.pixel_coordinate_system:
                 raise ValueError('Pixel coordinate system in BASISVEC HDU does '
                                  'not match primary HDU')
-
-            if basisvec_coord_list != coord_list:
-                raise ValueError('Pixel coordinate list in BASISVEC HDU does not '
-                                 'match primary HDU')
 
             if basisvec_Naxes_vec != self.Naxes_vec:
                 raise ValueError('Number of vector coordinate axes in BASISVEC '
@@ -252,18 +266,6 @@ class BeamFITS(UVBeam):
 
         if self.pixel_coordinate_system == 'healpix':
             ax_nums = hpx_primary_ax_nums
-            if self.Npixels > 1:
-                pixel_spacing = np.diff(self.pixel_array)
-                if not np.isclose(np.min(pixel_spacing), np.max(pixel_spacing),
-                                  rtol=self._pixel_array.tols[0],
-                                  atol=self._pixel_array.tols[1]):
-                    raise ValueError('The healpix pixels are not evenly spaced. '
-                                     'The beam fits format does not support '
-                                     'unevenly spaced pixels.')
-                pixel_spacing = pixel_spacing[0]
-            else:
-                pixel_spacing = 1
-
         else:
             ax_nums = reg_primary_ax_nums
             if self.Naxes1 > 1:
@@ -316,10 +318,10 @@ class BeamFITS(UVBeam):
 
             # set up pixel axis
             primary_header['CTYPE' + str(ax_nums['pixel'])] = \
-                (self.coordinate_system_dict[self.pixel_coordinate_system][0])
-            primary_header['CRVAL' + str(ax_nums['pixel'])] = self.pixel_array[0]
+                ('Pix_Ind', 'Index into pixel array in HPX_INDS extension.')
+            primary_header['CRVAL' + str(ax_nums['pixel'])] = 1
             primary_header['CRPIX' + str(ax_nums['pixel'])] = 1
-            primary_header['CDELT' + str(ax_nums['pixel'])] = pixel_spacing
+            primary_header['CDELT' + str(ax_nums['pixel'])] = 1
 
         else:
             # set up first image axis
@@ -422,10 +424,10 @@ class BeamFITS(UVBeam):
 
             # set up pixel axis
             basisvec_header['CTYPE' + str(basisvec_ax_nums['pixel'])] = \
-                (self.coordinate_system_dict[self.pixel_coordinate_system][0])
-            basisvec_header['CRVAL' + str(basisvec_ax_nums['pixel'])] = self.pixel_array[0]
+                ('Pix_Ind', 'Index into pixel array in HPX_INDS extension.')
+            basisvec_header['CRVAL' + str(basisvec_ax_nums['pixel'])] = 1
             basisvec_header['CRPIX' + str(basisvec_ax_nums['pixel'])] = 1
-            basisvec_header['CDELT' + str(basisvec_ax_nums['pixel'])] = pixel_spacing
+            basisvec_header['CDELT' + str(basisvec_ax_nums['pixel'])] = 1
 
         else:
             basisvec_ax_nums = reg_basisvec_ax_nums
@@ -463,6 +465,14 @@ class BeamFITS(UVBeam):
         basisvec_hdu = fits.ImageHDU(data=basisvec_data, header=basisvec_header)
 
         hdulist = fits.HDUList([primary_hdu, basisvec_hdu])
+
+        if self.pixel_coordinate_system == 'healpix':
+            # make healpix pixel number column. 'K' format indicates 64-bit integer
+            c1 = fits.Column(name='hpx_inds', format='K', array=self.pixel_array)
+            coldefs = fits.ColDefs([c1])
+            hpx_hdu = fits.BinTableHDU.from_columns(coldefs)
+            hpx_hdu.header['EXTNAME'] = 'HPX_INDS'
+            hdulist.append(hpx_hdu)
 
         if float(astropy.__version__[0:3]) < 1.3:
             hdulist.writeto(filename, clobber=clobber)

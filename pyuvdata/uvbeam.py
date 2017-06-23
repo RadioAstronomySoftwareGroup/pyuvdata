@@ -23,7 +23,8 @@ class UVBeam(UVBase):
         'az_za': ['az', 'za'],
         # sine projection at zenith. y points North, x point East
         'sin_zenith': ['sin_x', 'sin_y'],
-        # HEALPix map with zenith at north pole.
+        # HEALPix map with zenith at north pole and
+        # az, za coordinate axes (for efield) where az runs from East to North.
         'healpix': ['hpx_inds']}
 
     def __init__(self):
