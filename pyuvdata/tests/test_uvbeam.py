@@ -214,384 +214,554 @@ def test_errors():
     nt.assert_raises(ValueError, beam_obj._convert_to_filetype, 'foo')
 
 
-class TestUVBeamSelect(object):
-    def setUp(self):
-        """Set up test"""
-        self.power_beam = UVBeam()
-        self.power_beam = fill_dummy_beam(self.power_beam, 'power', 'az_za')
+def test_select_pixels():
+    power_beam = UVBeam()
+    power_beam = fill_dummy_beam(power_beam, 'power', 'healpix')
 
-        self.efield_beam = UVBeam()
-        self.efield_beam = fill_dummy_beam(self.efield_beam, 'efield', 'az_za')
+    old_history = power_beam.history
+    pixels_to_keep = np.arange(31, 184)
 
-    def teardown(self):
-        """Tear down test"""
-        del(self.power_beam)
-        del(self.efield_beam)
+    power_beam2 = power_beam.select(pixels=pixels_to_keep, inplace=False)
 
-    def test_select_pixels(self):
-        self.power_beam = fill_dummy_beam(self.power_beam, 'power', 'healpix')
+    nt.assert_equal(len(pixels_to_keep), power_beam2.Npixels)
+    for pi in pixels_to_keep:
+        nt.assert_true(pi in power_beam2.pixel_array)
+    for pi in np.unique(power_beam2.pixel_array):
+        nt.assert_true(pi in pixels_to_keep)
 
-        old_history = self.power_beam.history
-        pixels_to_keep = np.arange(31, 184)
+    nt.assert_equal(old_history + '  Downselected to specific healpix pixels '
+                    'using pyuvdata.', power_beam2.history)
 
-        power_beam2 = self.power_beam.select(pixels=pixels_to_keep, inplace=False)
+    write_file_beamfits = os.path.join(DATA_PATH, 'test/select_beam.fits')
 
-        nt.assert_equal(len(pixels_to_keep), power_beam2.Npixels)
-        for pi in pixels_to_keep:
-            nt.assert_true(pi in power_beam2.pixel_array)
-        for pi in np.unique(power_beam2.pixel_array):
-            nt.assert_true(pi in pixels_to_keep)
+    # test writing beamfits with only one pixel
+    pixels_to_keep = [43]
+    power_beam2 = power_beam.select(pixels=pixels_to_keep, inplace=False)
+    power_beam2.write_beamfits(write_file_beamfits, clobber=True)
 
-        nt.assert_equal(old_history + '  Downselected to specific healpix pixels '
-                        'using pyuvdata.', power_beam2.history)
+    # check for errors associated with pixels not included in data
+    nt.assert_raises(ValueError, power_beam.select,
+                     pixels=[6 * power_beam.nside ^ 2 + 10])
 
-        write_file_beamfits = os.path.join(DATA_PATH, 'test/select_beam.fits')
+    # test writing beamfits with non-contiguous pixels
+    pixels_to_keep = np.arange(2, 150, 4)
 
-        # test writing beamfits with only one pixel
-        pixels_to_keep = [43]
-        power_beam2 = self.power_beam.select(pixels=pixels_to_keep, inplace=False)
-        power_beam2.write_beamfits(write_file_beamfits, clobber=True)
+    power_beam2 = power_beam.select(pixels=pixels_to_keep, inplace=False)
+    power_beam2.write_beamfits(write_file_beamfits, clobber=True)
 
-        # check for errors associated with pixels not included in data
-        nt.assert_raises(ValueError, self.power_beam.select,
-                         pixels=[6 * self.power_beam.nside ^ 2 + 10])
+    # check for errors selecting pixels on non-healpix beams
+    power_beam = fill_dummy_beam(power_beam, 'power', 'az_za')
+    nt.assert_raises(ValueError, power_beam.select, pixels=pixels_to_keep)
 
-        # test writing beamfits with non-contiguous pixels
-        pixels_to_keep = np.arange(2, 150, 4)
 
-        power_beam2 = self.power_beam.select(pixels=pixels_to_keep, inplace=False)
-        power_beam2.write_beamfits(write_file_beamfits, clobber=True)
+def test_select_axis1():
+    power_beam = UVBeam()
+    power_beam = fill_dummy_beam(power_beam, 'power', 'az_za')
 
-        # check for errors selecting pixels on non-healpix beams
-        self.power_beam = fill_dummy_beam(self.power_beam, 'power', 'az_za')
-        nt.assert_raises(ValueError, self.power_beam.select, pixels=pixels_to_keep)
+    old_history = power_beam.history
+    inds1_to_keep = np.arange(14, 63)
 
-    def test_select_axis1(self):
-        old_history = self.power_beam.history
-        inds1_to_keep = np.arange(14, 63)
+    power_beam2 = power_beam.select(axis1_inds=inds1_to_keep, inplace=False)
 
-        power_beam2 = self.power_beam.select(axis1_inds=inds1_to_keep, inplace=False)
+    nt.assert_equal(len(inds1_to_keep), power_beam2.Naxes1)
+    for i in inds1_to_keep:
+        nt.assert_true(power_beam.axis1_array[i] in power_beam2.axis1_array)
+    for i in np.unique(power_beam2.axis1_array):
+        nt.assert_true(i in power_beam.axis1_array)
 
-        nt.assert_equal(len(inds1_to_keep), power_beam2.Naxes1)
-        for i in inds1_to_keep:
-            nt.assert_true(self.power_beam.axis1_array[i] in power_beam2.axis1_array)
-        for i in np.unique(power_beam2.axis1_array):
-            nt.assert_true(i in self.power_beam.axis1_array)
+    nt.assert_equal(old_history + '  Downselected to specific parts of '
+                    'first image axis using pyuvdata.', power_beam2.history)
 
-        nt.assert_equal(old_history + '  Downselected to specific parts of '
-                        'first image axis using pyuvdata.', power_beam2.history)
+    write_file_beamfits = os.path.join(DATA_PATH, 'test/select_beam.fits')
 
-        write_file_beamfits = os.path.join(DATA_PATH, 'test/select_beam.fits')
+    # test writing beamfits with only one element in axis1
+    inds_to_keep = [len(inds1_to_keep) + 1]
+    power_beam2 = power_beam.select(axis1_inds=inds_to_keep, inplace=False)
+    power_beam2.write_beamfits(write_file_beamfits, clobber=True)
 
-        # test writing beamfits with only one element in axis1
-        inds_to_keep = [len(inds1_to_keep) + 1]
-        power_beam2 = self.power_beam.select(axis1_inds=inds_to_keep, inplace=False)
-        power_beam2.write_beamfits(write_file_beamfits, clobber=True)
+    # check for errors associated with indices not included in data
+    nt.assert_raises(ValueError, power_beam2.select, axis1_inds=[power_beam.Naxes1 - 1])
 
-        # check for errors associated with indices not included in data
-        nt.assert_raises(ValueError, power_beam2.select, axis1_inds=[self.power_beam.Naxes1 - 1])
+    # check for warnings and errors associated with unevenly spaced image pixels
+    power_beam2 = copy.deepcopy(power_beam)
+    uvtest.checkWarnings(power_beam2.select, [], {'axis1_inds': [0, 5, 6]},
+                         message='Selected values along first image axis are not evenly spaced')
+    nt.assert_raises(ValueError, power_beam2.write_beamfits, write_file_beamfits)
 
-        # check for warnings and errors associated with unevenly spaced image pixels
-        power_beam2 = copy.deepcopy(self.power_beam)
-        uvtest.checkWarnings(power_beam2.select, [], {'axis1_inds': [0, 5, 6]},
-                             message='Selected values along first image axis are not evenly spaced')
-        nt.assert_raises(ValueError, power_beam2.write_beamfits, write_file_beamfits)
+    # check for errors selecting axis1_inds on healpix beams
+    power_beam = fill_dummy_beam(power_beam, 'power', 'healpix')
+    nt.assert_raises(ValueError, power_beam.select, axis1_inds=inds1_to_keep)
 
-        # check for errors selecting axis1_inds on healpix beams
-        self.power_beam = fill_dummy_beam(self.power_beam, 'power', 'healpix')
-        nt.assert_raises(ValueError, self.power_beam.select, axis1_inds=inds1_to_keep)
 
-    def test_select_axis2(self):
-        old_history = self.power_beam.history
-        inds2_to_keep = np.arange(5, 22)
+def test_select_axis2():
+    power_beam = UVBeam()
+    power_beam = fill_dummy_beam(power_beam, 'power', 'az_za')
 
-        power_beam2 = self.power_beam.select(axis2_inds=inds2_to_keep, inplace=False)
+    old_history = power_beam.history
+    inds2_to_keep = np.arange(5, 22)
 
-        nt.assert_equal(len(inds2_to_keep), power_beam2.Naxes2)
-        for i in inds2_to_keep:
-            nt.assert_true(self.power_beam.axis2_array[i] in power_beam2.axis2_array)
-        for i in np.unique(power_beam2.axis2_array):
-            nt.assert_true(i in self.power_beam.axis2_array)
+    power_beam2 = power_beam.select(axis2_inds=inds2_to_keep, inplace=False)
 
-        nt.assert_equal(old_history + '  Downselected to specific parts of '
-                        'second image axis using pyuvdata.', power_beam2.history)
+    nt.assert_equal(len(inds2_to_keep), power_beam2.Naxes2)
+    for i in inds2_to_keep:
+        nt.assert_true(power_beam.axis2_array[i] in power_beam2.axis2_array)
+    for i in np.unique(power_beam2.axis2_array):
+        nt.assert_true(i in power_beam.axis2_array)
 
-        write_file_beamfits = os.path.join(DATA_PATH, 'test/select_beam.fits')
+    nt.assert_equal(old_history + '  Downselected to specific parts of '
+                    'second image axis using pyuvdata.', power_beam2.history)
 
-        # test writing beamfits with only one element in axis2
-        inds_to_keep = [len(inds2_to_keep) + 1]
-        power_beam2 = self.power_beam.select(axis2_inds=inds_to_keep, inplace=False)
-        power_beam2.write_beamfits(write_file_beamfits, clobber=True)
+    write_file_beamfits = os.path.join(DATA_PATH, 'test/select_beam.fits')
 
-        # check for errors associated with indices not included in data
-        nt.assert_raises(ValueError, power_beam2.select, axis2_inds=[self.power_beam.Naxes2 - 1])
+    # test writing beamfits with only one element in axis2
+    inds_to_keep = [len(inds2_to_keep) + 1]
+    power_beam2 = power_beam.select(axis2_inds=inds_to_keep, inplace=False)
+    power_beam2.write_beamfits(write_file_beamfits, clobber=True)
 
-        # check for warnings and errors associated with unevenly spaced image pixels
-        power_beam2 = copy.deepcopy(self.power_beam)
-        uvtest.checkWarnings(power_beam2.select, [], {'axis2_inds': [0, 5, 6]},
-                             message='Selected values along second image axis are not evenly spaced')
-        nt.assert_raises(ValueError, power_beam2.write_beamfits, write_file_beamfits)
+    # check for errors associated with indices not included in data
+    nt.assert_raises(ValueError, power_beam2.select, axis2_inds=[power_beam.Naxes2 - 1])
 
-        # check for errors selecting axis2_inds on healpix beams
-        self.power_beam = fill_dummy_beam(self.power_beam, 'power', 'healpix')
-        nt.assert_raises(ValueError, self.power_beam.select, axis2_inds=inds2_to_keep)
+    # check for warnings and errors associated with unevenly spaced image pixels
+    power_beam2 = copy.deepcopy(power_beam)
+    uvtest.checkWarnings(power_beam2.select, [], {'axis2_inds': [0, 5, 6]},
+                         message='Selected values along second image axis are not evenly spaced')
+    nt.assert_raises(ValueError, power_beam2.write_beamfits, write_file_beamfits)
 
-    def test_select_frequencies(self):
-        old_history = self.power_beam.history
-        freqs_to_keep = self.power_beam.freq_array[0, np.arange(7, 94)]
+    # check for errors selecting axis2_inds on healpix beams
+    power_beam = fill_dummy_beam(power_beam, 'power', 'healpix')
+    nt.assert_raises(ValueError, power_beam.select, axis2_inds=inds2_to_keep)
 
-        power_beam2 = self.power_beam.select(frequencies=freqs_to_keep, inplace=False)
 
-        nt.assert_equal(len(freqs_to_keep), power_beam2.Nfreqs)
-        for f in freqs_to_keep:
-            nt.assert_true(f in power_beam2.freq_array)
-        for f in np.unique(power_beam2.freq_array):
-            nt.assert_true(f in freqs_to_keep)
+def test_select_frequencies():
+    power_beam = UVBeam()
+    power_beam = fill_dummy_beam(power_beam, 'power', 'az_za')
 
-        nt.assert_equal(old_history + '  Downselected to specific frequencies '
-                        'using pyuvdata.', power_beam2.history)
+    old_history = power_beam.history
+    freqs_to_keep = power_beam.freq_array[0, np.arange(7, 94)]
 
-        write_file_beamfits = os.path.join(DATA_PATH, 'test/select_beam.fits')
-        # test writing beamfits with only one frequency
+    power_beam2 = power_beam.select(frequencies=freqs_to_keep, inplace=False)
 
-        freqs_to_keep = self.power_beam.freq_array[0, 51]
-        power_beam2 = self.power_beam.select(frequencies=freqs_to_keep, inplace=False)
-        power_beam2.write_beamfits(write_file_beamfits, clobber=True)
+    nt.assert_equal(len(freqs_to_keep), power_beam2.Nfreqs)
+    for f in freqs_to_keep:
+        nt.assert_true(f in power_beam2.freq_array)
+    for f in np.unique(power_beam2.freq_array):
+        nt.assert_true(f in freqs_to_keep)
 
-        # check for errors associated with frequencies not included in data
-        nt.assert_raises(ValueError, self.power_beam.select, frequencies=[np.max(self.power_beam.freq_array) + 10])
+    nt.assert_equal(old_history + '  Downselected to specific frequencies '
+                    'using pyuvdata.', power_beam2.history)
 
-        # check for warnings and errors associated with unevenly spaced frequencies
-        power_beam2 = copy.deepcopy(self.power_beam)
-        uvtest.checkWarnings(power_beam2.select, [], {'frequencies': power_beam2.freq_array[0, [0, 5, 6]]},
-                             message='Selected frequencies are not evenly spaced')
-        nt.assert_raises(ValueError, power_beam2.write_beamfits, write_file_beamfits)
+    write_file_beamfits = os.path.join(DATA_PATH, 'test/select_beam.fits')
+    # test writing beamfits with only one frequency
 
-    def test_select_freq_chans(self):
-        old_history = self.power_beam.history
-        chans_to_keep = np.arange(7, 94)
+    freqs_to_keep = power_beam.freq_array[0, 51]
+    power_beam2 = power_beam.select(frequencies=freqs_to_keep, inplace=False)
+    power_beam2.write_beamfits(write_file_beamfits, clobber=True)
 
-        power_beam2 = self.power_beam.select(freq_chans=chans_to_keep, inplace=False)
+    # check for errors associated with frequencies not included in data
+    nt.assert_raises(ValueError, power_beam.select, frequencies=[np.max(power_beam.freq_array) + 10])
 
-        nt.assert_equal(len(chans_to_keep), power_beam2.Nfreqs)
-        for chan in chans_to_keep:
-            nt.assert_true(self.power_beam.freq_array[0, chan] in power_beam2.freq_array)
-        for f in np.unique(power_beam2.freq_array):
-            nt.assert_true(f in self.power_beam.freq_array[0, chans_to_keep])
+    # check for warnings and errors associated with unevenly spaced frequencies
+    power_beam2 = copy.deepcopy(power_beam)
+    uvtest.checkWarnings(power_beam2.select, [],
+                         {'frequencies': power_beam2.freq_array[0, [0, 5, 6]]},
+                         message='Selected frequencies are not evenly spaced')
+    nt.assert_raises(ValueError, power_beam2.write_beamfits, write_file_beamfits)
 
-        nt.assert_equal(old_history + '  Downselected to specific frequencies '
-                        'using pyuvdata.', power_beam2.history)
 
-        # Test selecting both channels and frequencies
-        freqs_to_keep = self.power_beam.freq_array[0, np.arange(93, 100)]  # Overlaps with chans
-        all_chans_to_keep = np.arange(7, 100)
-
-        power_beam2 = self.power_beam.select(frequencies=freqs_to_keep,
-                                             freq_chans=chans_to_keep,
-                                             inplace=False)
-
-        nt.assert_equal(len(all_chans_to_keep), power_beam2.Nfreqs)
-        for chan in all_chans_to_keep:
-            nt.assert_true(self.power_beam.freq_array[0, chan] in power_beam2.freq_array)
-        for f in np.unique(power_beam2.freq_array):
-            nt.assert_true(f in self.power_beam.freq_array[0, all_chans_to_keep])
-
-    def test_select_feeds(self):
-
-        old_history = self.efield_beam.history
-        feeds_to_keep = ['x']
-
-        efield_beam2 = self.efield_beam.select(feeds=feeds_to_keep, inplace=False)
-
-        nt.assert_equal(len(feeds_to_keep), efield_beam2.Nfeeds)
-        for f in feeds_to_keep:
-            nt.assert_true(f in efield_beam2.feed_array)
-        for f in np.unique(efield_beam2.feed_array):
-            nt.assert_true(f in feeds_to_keep)
-
-        nt.assert_equal(old_history + '  Downselected to specific feeds '
-                        'using pyuvdata.', efield_beam2.history)
-
-        # check for errors associated with feeds not included in data
-        nt.assert_raises(ValueError, efield_beam2.select, feeds=['N'])
-
-        # check for error with feeds on power beams
-        nt.assert_raises(ValueError, self.power_beam.select, feeds=['x'])
-
-    def test_select_polarizations(self):
-
-        old_history = self.power_beam.history
-        pols_to_keep = [-5, -6]
-
-        power_beam2 = self.power_beam.select(polarizations=pols_to_keep,
-                                             inplace=False)
-
-        nt.assert_equal(len(pols_to_keep), power_beam2.Npols)
-        for p in pols_to_keep:
-            nt.assert_true(p in power_beam2.polarization_array)
-        for p in np.unique(power_beam2.polarization_array):
-            nt.assert_true(p in pols_to_keep)
-
-        nt.assert_equal(old_history + '  Downselected to specific polarizations '
-                        'using pyuvdata.', power_beam2.history)
-
-        # check for errors associated with polarizations not included in data
-        nt.assert_raises(ValueError, power_beam2.select, polarizations=[-3, -4])
-
-        # check for warnings and errors associated with unevenly spaced polarizations
-        uvtest.checkWarnings(self.power_beam.select, [], {'polarizations': self.power_beam.polarization_array[[0, 1, 3]]},
-                             message='Selected polarizations are not evenly spaced')
-        write_file_beamfits = os.path.join(DATA_PATH, 'test/select_beam.fits')
-        nt.assert_raises(ValueError, self.power_beam.write_beamfits, write_file_beamfits)
-
-        # check for error with polarizations on efield beams
-        nt.assert_raises(ValueError, self.efield_beam.select, polarizations=[-5, -6])
-
-    def test_select(self):
-        # now test selecting along all axes at once
-        old_history = self.power_beam.history
-
-        inds1_to_keep = np.arange(14, 63)
-        inds2_to_keep = np.arange(5, 22)
-        freqs_to_keep = self.power_beam.freq_array[0, np.arange(31, 56)]
-        pols_to_keep = [-5]
-
-        power_beam2 = self.power_beam.select(axis1_inds=inds1_to_keep,
-                                             axis2_inds=inds2_to_keep,
-                                             frequencies=freqs_to_keep,
-                                             polarizations=pols_to_keep,
-                                             inplace=False)
-
-        nt.assert_equal(len(inds1_to_keep), power_beam2.Naxes1)
-        for i in inds1_to_keep:
-            nt.assert_true(self.power_beam.axis1_array[i] in power_beam2.axis1_array)
-        for i in np.unique(power_beam2.axis1_array):
-            nt.assert_true(i in self.power_beam.axis1_array)
-
-        nt.assert_equal(len(inds2_to_keep), power_beam2.Naxes2)
-        for i in inds2_to_keep:
-            nt.assert_true(self.power_beam.axis2_array[i] in power_beam2.axis2_array)
-        for i in np.unique(power_beam2.axis2_array):
-            nt.assert_true(i in self.power_beam.axis2_array)
-
-        nt.assert_equal(len(freqs_to_keep), power_beam2.Nfreqs)
-        for f in freqs_to_keep:
-            nt.assert_true(f in power_beam2.freq_array)
-        for f in np.unique(power_beam2.freq_array):
-            nt.assert_true(f in freqs_to_keep)
-
-        nt.assert_equal(len(pols_to_keep), power_beam2.Npols)
-        for p in pols_to_keep:
-            nt.assert_true(p in power_beam2.polarization_array)
-        for p in np.unique(power_beam2.polarization_array):
-            nt.assert_true(p in pols_to_keep)
-
-        nt.assert_equal(old_history + '  Downselected to specific parts of '
-                        'first image axis, parts of second image axis, '
-                        'frequencies, polarizations using pyuvdata.',
-                        power_beam2.history)
-
-        # repeat for efield beam
-        feeds_to_keep = ['x']
-
-        efield_beam2 = self.efield_beam.select(axis1_inds=inds1_to_keep,
-                                               axis2_inds=inds2_to_keep,
-                                               frequencies=freqs_to_keep,
-                                               feeds=feeds_to_keep,
-                                               inplace=False)
-
-        nt.assert_equal(len(inds1_to_keep), efield_beam2.Naxes1)
-        for i in inds1_to_keep:
-            nt.assert_true(self.efield_beam.axis1_array[i] in efield_beam2.axis1_array)
-        for i in np.unique(efield_beam2.axis1_array):
-            nt.assert_true(i in self.efield_beam.axis1_array)
-
-        nt.assert_equal(len(inds2_to_keep), efield_beam2.Naxes2)
-        for i in inds2_to_keep:
-            nt.assert_true(self.efield_beam.axis2_array[i] in efield_beam2.axis2_array)
-        for i in np.unique(efield_beam2.axis2_array):
-            nt.assert_true(i in self.efield_beam.axis2_array)
-
-        nt.assert_equal(len(freqs_to_keep), efield_beam2.Nfreqs)
-        for f in freqs_to_keep:
-            nt.assert_true(f in efield_beam2.freq_array)
-        for f in np.unique(efield_beam2.freq_array):
-            nt.assert_true(f in freqs_to_keep)
-
-        nt.assert_equal(len(feeds_to_keep), efield_beam2.Nfeeds)
-        for f in feeds_to_keep:
-            nt.assert_true(f in efield_beam2.feed_array)
-        for f in np.unique(efield_beam2.feed_array):
-            nt.assert_true(f in feeds_to_keep)
-
-        nt.assert_equal(old_history + '  Downselected to specific parts of '
-                        'first image axis, parts of second image axis, '
-                        'frequencies, feeds using pyuvdata.',
-                        efield_beam2.history)
-
-    def test_select_healpix(self):
-        # now test selecting along all axes at once for healpix beams
-        self.power_beam = fill_dummy_beam(self.power_beam, 'power', 'healpix')
-        old_history = self.power_beam.history
-
-        pixels_to_keep = np.arange(31, 184)
-        freqs_to_keep = self.power_beam.freq_array[0, np.arange(31, 56)]
-        pols_to_keep = [-5]
-
-        power_beam2 = self.power_beam.select(pixels=pixels_to_keep,
-                                             frequencies=freqs_to_keep,
-                                             polarizations=pols_to_keep,
-                                             inplace=False)
-
-        nt.assert_equal(len(pixels_to_keep), power_beam2.Npixels)
-        for pi in pixels_to_keep:
-            nt.assert_true(pi in power_beam2.pixel_array)
-        for pi in np.unique(power_beam2.pixel_array):
-            nt.assert_true(pi in pixels_to_keep)
-
-        nt.assert_equal(len(freqs_to_keep), power_beam2.Nfreqs)
-        for f in freqs_to_keep:
-            nt.assert_true(f in power_beam2.freq_array)
-        for f in np.unique(power_beam2.freq_array):
-            nt.assert_true(f in freqs_to_keep)
-
-        nt.assert_equal(len(pols_to_keep), power_beam2.Npols)
-        for p in pols_to_keep:
-            nt.assert_true(p in power_beam2.polarization_array)
-        for p in np.unique(power_beam2.polarization_array):
-            nt.assert_true(p in pols_to_keep)
-
-        nt.assert_equal(old_history + '  Downselected to specific healpix pixels, '
-                        'frequencies, polarizations using pyuvdata.',
-                        power_beam2.history)
-
-        # repeat for efield beam
-        feeds_to_keep = ['x']
-        self.efield_beam = fill_dummy_beam(self.efield_beam, 'efield', 'healpix')
-
-        efield_beam2 = self.efield_beam.select(pixels=pixels_to_keep,
-                                               frequencies=freqs_to_keep,
-                                               feeds=feeds_to_keep,
-                                               inplace=False)
-
-        nt.assert_equal(len(pixels_to_keep), power_beam2.Npixels)
-        for pi in pixels_to_keep:
-            nt.assert_true(pi in power_beam2.pixel_array)
-        for pi in np.unique(power_beam2.pixel_array):
-            nt.assert_true(pi in pixels_to_keep)
-
-        nt.assert_equal(len(freqs_to_keep), efield_beam2.Nfreqs)
-        for f in freqs_to_keep:
-            nt.assert_true(f in efield_beam2.freq_array)
-        for f in np.unique(efield_beam2.freq_array):
-            nt.assert_true(f in freqs_to_keep)
-
-        nt.assert_equal(len(feeds_to_keep), efield_beam2.Nfeeds)
-        for f in feeds_to_keep:
-            nt.assert_true(f in efield_beam2.feed_array)
-        for f in np.unique(efield_beam2.feed_array):
-            nt.assert_true(f in feeds_to_keep)
-
-        nt.assert_equal(old_history + '  Downselected to specific healpix pixels, '
-                        'frequencies, feeds using pyuvdata.',
-                        efield_beam2.history)
+def test_select_freq_chans():
+    power_beam = UVBeam()
+    power_beam = fill_dummy_beam(power_beam, 'power', 'az_za')
+
+    old_history = power_beam.history
+    chans_to_keep = np.arange(7, 94)
+
+    power_beam2 = power_beam.select(freq_chans=chans_to_keep, inplace=False)
+
+    nt.assert_equal(len(chans_to_keep), power_beam2.Nfreqs)
+    for chan in chans_to_keep:
+        nt.assert_true(power_beam.freq_array[0, chan] in power_beam2.freq_array)
+    for f in np.unique(power_beam2.freq_array):
+        nt.assert_true(f in power_beam.freq_array[0, chans_to_keep])
+
+    nt.assert_equal(old_history + '  Downselected to specific frequencies '
+                    'using pyuvdata.', power_beam2.history)
+
+    # Test selecting both channels and frequencies
+    freqs_to_keep = power_beam.freq_array[0, np.arange(93, 100)]  # Overlaps with chans
+    all_chans_to_keep = np.arange(7, 100)
+
+    power_beam2 = power_beam.select(frequencies=freqs_to_keep,
+                                    freq_chans=chans_to_keep,
+                                    inplace=False)
+
+    nt.assert_equal(len(all_chans_to_keep), power_beam2.Nfreqs)
+    for chan in all_chans_to_keep:
+        nt.assert_true(power_beam.freq_array[0, chan] in power_beam2.freq_array)
+    for f in np.unique(power_beam2.freq_array):
+        nt.assert_true(f in power_beam.freq_array[0, all_chans_to_keep])
+
+
+def test_select_feeds():
+    efield_beam = UVBeam()
+    efield_beam = fill_dummy_beam(efield_beam, 'efield', 'az_za')
+
+    old_history = efield_beam.history
+    feeds_to_keep = ['x']
+
+    efield_beam2 = efield_beam.select(feeds=feeds_to_keep, inplace=False)
+
+    nt.assert_equal(len(feeds_to_keep), efield_beam2.Nfeeds)
+    for f in feeds_to_keep:
+        nt.assert_true(f in efield_beam2.feed_array)
+    for f in np.unique(efield_beam2.feed_array):
+        nt.assert_true(f in feeds_to_keep)
+
+    nt.assert_equal(old_history + '  Downselected to specific feeds '
+                    'using pyuvdata.', efield_beam2.history)
+
+    # check for errors associated with feeds not included in data
+    nt.assert_raises(ValueError, efield_beam.select, feeds=['N'])
+
+    # check for error with feeds on power beams
+    power_beam = UVBeam()
+    power_beam = fill_dummy_beam(power_beam, 'power', 'az_za')
+    nt.assert_raises(ValueError, power_beam.select, feeds=['x'])
+
+
+def test_select_polarizations():
+    power_beam = UVBeam()
+    power_beam = fill_dummy_beam(power_beam, 'power', 'az_za')
+
+    old_history = power_beam.history
+    pols_to_keep = [-5, -6]
+
+    power_beam2 = power_beam.select(polarizations=pols_to_keep,
+                                    inplace=False)
+
+    nt.assert_equal(len(pols_to_keep), power_beam2.Npols)
+    for p in pols_to_keep:
+        nt.assert_true(p in power_beam2.polarization_array)
+    for p in np.unique(power_beam2.polarization_array):
+        nt.assert_true(p in pols_to_keep)
+
+    nt.assert_equal(old_history + '  Downselected to specific polarizations '
+                    'using pyuvdata.', power_beam2.history)
+
+    # check for errors associated with polarizations not included in data
+    nt.assert_raises(ValueError, power_beam.select, polarizations=[-3, -4])
+
+    # check for warnings and errors associated with unevenly spaced polarizations
+    uvtest.checkWarnings(power_beam.select, [], {'polarizations': power_beam.polarization_array[[0, 1, 3]]},
+                         message='Selected polarizations are not evenly spaced')
+    write_file_beamfits = os.path.join(DATA_PATH, 'test/select_beam.fits')
+    nt.assert_raises(ValueError, power_beam.write_beamfits, write_file_beamfits)
+
+    # check for error with polarizations on efield beams
+    efield_beam = UVBeam()
+    efield_beam = fill_dummy_beam(efield_beam, 'efield', 'az_za')
+    nt.assert_raises(ValueError, efield_beam.select, polarizations=[-5, -6])
+
+
+def test_select():
+    power_beam = UVBeam()
+    power_beam = fill_dummy_beam(power_beam, 'power', 'az_za')
+
+    # now test selecting along all axes at once
+    old_history = power_beam.history
+
+    inds1_to_keep = np.arange(14, 63)
+    inds2_to_keep = np.arange(5, 22)
+    freqs_to_keep = power_beam.freq_array[0, np.arange(31, 56)]
+    pols_to_keep = [-5]
+
+    power_beam2 = power_beam.select(axis1_inds=inds1_to_keep,
+                                    axis2_inds=inds2_to_keep,
+                                    frequencies=freqs_to_keep,
+                                    polarizations=pols_to_keep,
+                                    inplace=False)
+
+    nt.assert_equal(len(inds1_to_keep), power_beam2.Naxes1)
+    for i in inds1_to_keep:
+        nt.assert_true(power_beam.axis1_array[i] in power_beam2.axis1_array)
+    for i in np.unique(power_beam2.axis1_array):
+        nt.assert_true(i in power_beam.axis1_array)
+
+    nt.assert_equal(len(inds2_to_keep), power_beam2.Naxes2)
+    for i in inds2_to_keep:
+        nt.assert_true(power_beam.axis2_array[i] in power_beam2.axis2_array)
+    for i in np.unique(power_beam2.axis2_array):
+        nt.assert_true(i in power_beam.axis2_array)
+
+    nt.assert_equal(len(freqs_to_keep), power_beam2.Nfreqs)
+    for f in freqs_to_keep:
+        nt.assert_true(f in power_beam2.freq_array)
+    for f in np.unique(power_beam2.freq_array):
+        nt.assert_true(f in freqs_to_keep)
+
+    nt.assert_equal(len(pols_to_keep), power_beam2.Npols)
+    for p in pols_to_keep:
+        nt.assert_true(p in power_beam2.polarization_array)
+    for p in np.unique(power_beam2.polarization_array):
+        nt.assert_true(p in pols_to_keep)
+
+    nt.assert_equal(old_history + '  Downselected to specific parts of '
+                    'first image axis, parts of second image axis, '
+                    'frequencies, polarizations using pyuvdata.',
+                    power_beam2.history)
+
+    # repeat for efield beam
+    efield_beam = UVBeam()
+    efield_beam = fill_dummy_beam(efield_beam, 'efield', 'az_za')
+    feeds_to_keep = ['x']
+
+    efield_beam2 = efield_beam.select(axis1_inds=inds1_to_keep,
+                                      axis2_inds=inds2_to_keep,
+                                      frequencies=freqs_to_keep,
+                                      feeds=feeds_to_keep,
+                                      inplace=False)
+
+    nt.assert_equal(len(inds1_to_keep), efield_beam2.Naxes1)
+    for i in inds1_to_keep:
+        nt.assert_true(efield_beam.axis1_array[i] in efield_beam2.axis1_array)
+    for i in np.unique(efield_beam2.axis1_array):
+        nt.assert_true(i in efield_beam.axis1_array)
+
+    nt.assert_equal(len(inds2_to_keep), efield_beam2.Naxes2)
+    for i in inds2_to_keep:
+        nt.assert_true(efield_beam.axis2_array[i] in efield_beam2.axis2_array)
+    for i in np.unique(efield_beam2.axis2_array):
+        nt.assert_true(i in efield_beam.axis2_array)
+
+    nt.assert_equal(len(freqs_to_keep), efield_beam2.Nfreqs)
+    for f in freqs_to_keep:
+        nt.assert_true(f in efield_beam2.freq_array)
+    for f in np.unique(efield_beam2.freq_array):
+        nt.assert_true(f in freqs_to_keep)
+
+    nt.assert_equal(len(feeds_to_keep), efield_beam2.Nfeeds)
+    for f in feeds_to_keep:
+        nt.assert_true(f in efield_beam2.feed_array)
+    for f in np.unique(efield_beam2.feed_array):
+        nt.assert_true(f in feeds_to_keep)
+
+    nt.assert_equal(old_history + '  Downselected to specific parts of '
+                    'first image axis, parts of second image axis, '
+                    'frequencies, feeds using pyuvdata.',
+                    efield_beam2.history)
+
+
+def test_select_healpix():
+    # test selecting along all axes at once for healpix beams
+    power_beam = UVBeam()
+    power_beam = fill_dummy_beam(power_beam, 'power', 'healpix')
+    old_history = power_beam.history
+
+    pixels_to_keep = np.arange(31, 184)
+    freqs_to_keep = power_beam.freq_array[0, np.arange(31, 56)]
+    pols_to_keep = [-5]
+
+    power_beam2 = power_beam.select(pixels=pixels_to_keep,
+                                    frequencies=freqs_to_keep,
+                                    polarizations=pols_to_keep,
+                                    inplace=False)
+
+    nt.assert_equal(len(pixels_to_keep), power_beam2.Npixels)
+    for pi in pixels_to_keep:
+        nt.assert_true(pi in power_beam2.pixel_array)
+    for pi in np.unique(power_beam2.pixel_array):
+        nt.assert_true(pi in pixels_to_keep)
+
+    nt.assert_equal(len(freqs_to_keep), power_beam2.Nfreqs)
+    for f in freqs_to_keep:
+        nt.assert_true(f in power_beam2.freq_array)
+    for f in np.unique(power_beam2.freq_array):
+        nt.assert_true(f in freqs_to_keep)
+
+    nt.assert_equal(len(pols_to_keep), power_beam2.Npols)
+    for p in pols_to_keep:
+        nt.assert_true(p in power_beam2.polarization_array)
+    for p in np.unique(power_beam2.polarization_array):
+        nt.assert_true(p in pols_to_keep)
+
+    nt.assert_equal(old_history + '  Downselected to specific healpix pixels, '
+                    'frequencies, polarizations using pyuvdata.',
+                    power_beam2.history)
+
+    # repeat for efield beam
+    efield_beam = UVBeam()
+    efield_beam = fill_dummy_beam(efield_beam, 'efield', 'healpix')
+
+    feeds_to_keep = ['x']
+
+    efield_beam2 = efield_beam.select(pixels=pixels_to_keep,
+                                      frequencies=freqs_to_keep,
+                                      feeds=feeds_to_keep,
+                                      inplace=False)
+
+    nt.assert_equal(len(pixels_to_keep), power_beam2.Npixels)
+    for pi in pixels_to_keep:
+        nt.assert_true(pi in power_beam2.pixel_array)
+    for pi in np.unique(power_beam2.pixel_array):
+        nt.assert_true(pi in pixels_to_keep)
+
+    nt.assert_equal(len(freqs_to_keep), efield_beam2.Nfreqs)
+    for f in freqs_to_keep:
+        nt.assert_true(f in efield_beam2.freq_array)
+    for f in np.unique(efield_beam2.freq_array):
+        nt.assert_true(f in freqs_to_keep)
+
+    nt.assert_equal(len(feeds_to_keep), efield_beam2.Nfeeds)
+    for f in feeds_to_keep:
+        nt.assert_true(f in efield_beam2.feed_array)
+    for f in np.unique(efield_beam2.feed_array):
+        nt.assert_true(f in feeds_to_keep)
+
+    nt.assert_equal(old_history + '  Downselected to specific healpix pixels, '
+                    'frequencies, feeds using pyuvdata.',
+                    efield_beam2.history)
+
+
+def test_add():
+    power_beam_full = UVBeam()
+    power_beam_full = fill_dummy_beam(power_beam_full, 'power', 'az_za')
+
+    # Add along first image axis
+    beam1 = power_beam_full.select(axis1_inds=np.arange(0, 36), inplace=False)
+    beam2 = power_beam_full.select(axis1_inds=np.arange(36, 72), inplace=False)
+    beam1 += beam2
+    # Check history is correct, before replacing and doing a full object check
+    nt.assert_equal(power_beam_full.history + '  Downselected to specific parts of '
+                    'first image axis using pyuvdata. Combined data along '
+                    'first image axis using pyuvdata.', beam1.history)
+    beam1.history = power_beam_full.history
+    nt.assert_equal(beam1, power_beam_full)
+
+    # Add along second image axis
+    beam1 = power_beam_full.select(axis2_inds=np.arange(0, 18), inplace=False)
+    beam2 = power_beam_full.select(axis2_inds=np.arange(18, 36), inplace=False)
+    beam1 += beam2
+    # Check history is correct, before replacing and doing a full object check
+    nt.assert_equal(power_beam_full.history + '  Downselected to specific parts of '
+                    'second image axis using pyuvdata. Combined data along '
+                    'second image axis using pyuvdata.', beam1.history)
+    beam1.history = power_beam_full.history
+    nt.assert_equal(beam1, power_beam_full)
+
+    # Add frequencies
+    beam1 = power_beam_full.select(freq_chans=np.arange(0, 50), inplace=False)
+    beam2 = power_beam_full.select(freq_chans=np.arange(50, 100), inplace=False)
+    beam1 += beam2
+    # Check history is correct, before replacing and doing a full object check
+    nt.assert_equal(power_beam_full.history + '  Downselected to specific frequencies'
+                    ' using pyuvdata. Combined data along frequency axis using'
+                    ' pyuvdata.', beam1.history)
+    beam1.history = power_beam_full.history
+    nt.assert_equal(beam1, power_beam_full)
+
+    # Add polarizations
+    beam1 = power_beam_full.select(polarizations=power_beam_full.polarization_array[0:2], inplace=False)
+    beam2 = power_beam_full.select(polarizations=power_beam_full.polarization_array[2:4], inplace=False)
+    beam1 += beam2
+    nt.assert_equal(power_beam_full.history + '  Downselected to specific polarizations'
+                    ' using pyuvdata. Combined data along polarization axis using'
+                    ' pyuvdata.', beam1.history)
+    beam1.history = power_beam_full.history
+    nt.assert_equal(beam1, power_beam_full)
+
+    # Add feeds
+    efield_beam_full = UVBeam()
+    efield_beam_full = fill_dummy_beam(efield_beam_full, 'efield', 'az_za')
+    beam1 = efield_beam_full.select(feeds=efield_beam_full.feed_array[0], inplace=False)
+    beam2 = efield_beam_full.select(feeds=efield_beam_full.feed_array[1], inplace=False)
+    beam1 += beam2
+    nt.assert_equal(power_beam_full.history + '  Downselected to specific feeds'
+                    ' using pyuvdata. Combined data along feed axis using'
+                    ' pyuvdata.', beam1.history)
+    beam1.history = efield_beam_full.history
+    nt.assert_equal(beam1, efield_beam_full)
+
+    # Add multiple axes
+    beam_ref = copy.deepcopy(power_beam_full)
+    beam1 = power_beam_full.select(freq_chans=np.arange(0, 50),
+                                   polarizations=power_beam_full.polarization_array[0:2],
+                                   inplace=False)
+    beam2 = power_beam_full.select(freq_chans=np.arange(50, 100),
+                                   polarizations=power_beam_full.polarization_array[2:4],
+                                   inplace=False)
+    beam1 += beam2
+    nt.assert_equal(power_beam_full.history + '  Downselected to specific frequencies, polarizations'
+                    ' using pyuvdata. Combined data along frequency, polarization'
+                    ' axis using pyuvdata.', beam1.history)
+    # Zero out missing data in reference object
+    beam_ref.data_array[:, :, 2:, :50, :, :] = 0.0
+    beam_ref.data_array[:, :, :2, 50:, :, :] = 0.0
+    beam1.history = power_beam_full.history
+    nt.assert_equal(beam1, beam_ref)
+
+    # Another combo with efield
+    efield_beam_full = fill_dummy_beam(efield_beam_full, 'efield', 'az_za')
+
+    beam_ref = copy.deepcopy(efield_beam_full)
+    beam1 = efield_beam_full.select(axis1_inds=np.arange(0, efield_beam_full.Naxes1 / 2),
+                                    axis2_inds=np.arange(0, efield_beam_full.Naxes2 / 2),
+                                    inplace=False)
+    beam2 = efield_beam_full.select(axis1_inds=np.arange(efield_beam_full.Naxes1 / 2,
+                                                         efield_beam_full.Naxes1),
+                                    axis2_inds=np.arange(efield_beam_full.Naxes2 / 2,
+                                                         efield_beam_full.Naxes2),
+                                    inplace=False)
+    beam1 += beam2
+    nt.assert_equal(efield_beam_full.history + '  Downselected to specific parts of '
+                    'first image axis, parts of second image axis using pyuvdata. '
+                    'Combined data along first image, second image axis using pyuvdata.',
+                    beam1.history)
+    # Zero out missing data in reference object
+    beam_ref.data_array[:, :, :, :, :efield_beam_full.Naxes2 / 2,
+                        efield_beam_full.Naxes1 / 2:] = 0.0
+    beam_ref.data_array[:, :, :, :, efield_beam_full.Naxes2 / 2:,
+                        :efield_beam_full.Naxes1 / 2] = 0.0
+
+    beam_ref.basis_vector_array[:, :, :efield_beam_full.Naxes2 / 2,
+                                efield_beam_full.Naxes1 / 2:] = 0.0
+    beam_ref.basis_vector_array[:, :, efield_beam_full.Naxes2 / 2:,
+                                :efield_beam_full.Naxes1 / 2] = 0.0
+    beam1.history = efield_beam_full.history
+    nt.assert_equal(beam1, beam_ref)
+
+    # Add without inplace
+    efield_beam_full = fill_dummy_beam(efield_beam_full, 'efield', 'healpix')
+    beam1 = efield_beam_full.select(pixels=efield_beam_full.pixel_array[0:efield_beam_full.Npixels / 2],
+                                    inplace=False)
+    beam2 = efield_beam_full.select(pixels=efield_beam_full.pixel_array[efield_beam_full.Npixels / 2:],
+                                    inplace=False)
+    beam1 = beam1 + beam2
+    nt.assert_equal(efield_beam_full.history + '  Downselected to specific healpix pixels'
+                    ' using pyuvdata. Combined data along healpix pixel axis using'
+                    ' pyuvdata.', beam1.history)
+    beam1.history = efield_beam_full.history
+    nt.assert_equal(beam1, efield_beam_full)
+
+    # Check warnings
+    power_beam_full = fill_dummy_beam(power_beam_full, 'power', 'healpix')
+    beam1 = power_beam_full.select(freq_chans=np.arange(0, 32), inplace=False)
+    beam2 = power_beam_full.select(freq_chans=np.arange(33, 64), inplace=False)
+    uvtest.checkWarnings(beam1.__add__, [beam2],
+                         message='Combined frequencies are not evenly spaced')
+
+    beam1 = power_beam_full.select(polarizations=power_beam_full.polarization_array[0:2],
+                                   inplace=False)
+    beam2 = power_beam_full.select(polarizations=power_beam_full.polarization_array[3],
+                                   inplace=False)
+    uvtest.checkWarnings(beam1.__iadd__, [beam2],
+                         message='Combined polarizations are not evenly spaced')
+
+    # Combining histories
+    beam1 = power_beam_full.select(polarizations=power_beam_full.polarization_array[0:2], inplace=False)
+    beam2 = power_beam_full.select(polarizations=power_beam_full.polarization_array[2:4], inplace=False)
+    beam2.history += ' testing the history. random data for test'
+    beam1 += beam2
+    nt.assert_equal(power_beam_full.history + '  Downselected to specific polarizations'
+                    ' using pyuvdata. Combined data along polarization axis using'
+                    ' pyuvdata. testing the history.', beam1.history)
+    beam1.history = power_beam_full.history
+    nt.assert_equal(beam1, power_beam_full)

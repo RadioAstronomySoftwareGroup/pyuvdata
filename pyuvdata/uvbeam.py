@@ -378,6 +378,345 @@ class UVBeam(UVBase):
         self._gain_array.required = True
         self._coupling_matrix.required = True
 
+    def __add__(self, other, run_check=True, run_check_acceptability=True, inplace=False):
+        """
+        Combine two UVBeam objects. Objects can be added along frequency,
+        feed or polarization (for efield or power beams), and/or pixel axes.
+
+        Args:
+            other: Another UVBeam object which will be added to self.
+            run_check: Option to check for the existence and proper shapes of
+                required parameters after combining objects. Default is True.
+            run_check_acceptability: Option to check acceptable range of the values of
+                required parameters after combining objects. Default is True.
+            inplace: Overwrite self as we go, otherwise create a third object
+                as the sum of the two (default).
+        """
+        if inplace:
+            this = self
+        else:
+            this = copy.deepcopy(self)
+        # Check that both objects are UVData and valid
+        this.check(run_check_acceptability=False)
+        if not isinstance(other, this.__class__):
+            raise(ValueError('Only UVBeam objects can be added to a UVBeam object'))
+        other.check(run_check_acceptability=False)
+
+        # Check objects are compatible
+        compatibility_params = ['_beam_type', '_data_normalization', '_telescope_name',
+                                '_feed_name', '_feed_version', '_model_name',
+                                '_model_version', '_pixel_coordinate_system',
+                                '_Naxes_vec', '_nside', '_ordering']
+        for a in compatibility_params:
+            if getattr(this, a) != getattr(other, a):
+                msg = 'UVParameter ' + \
+                    a[1:] + ' does not match. Cannot combine objects.'
+                raise(ValueError(msg))
+
+        # Build up history string
+        history_update_string = ' Combined data along '
+        n_axes = 0
+
+        # Check we don't have overlapping data
+        if this.beam_type == 'power':
+            both_pol = np.intersect1d(this.polarization_array,
+                                      other.polarization_array)
+        else:
+            both_pol = np.intersect1d(this.feed_array, other.feed_array)
+
+        both_freq = np.intersect1d(this.freq_array[0, :], other.freq_array[0, :])
+
+        if this.pixel_coordinate_system == 'healpix':
+            both_pixels = np.intersect1d(this.pixel_array, other.pixel_array)
+        else:
+            both_axis1 = np.intersect1d(this.axis1_array, other.axis1_array)
+            both_axis2 = np.intersect1d(this.axis2_array, other.axis2_array)
+
+        if len(both_pol) > 0:
+            if len(both_freq) > 0:
+                if self.pixel_coordinate_system == 'healpix':
+                    if len(both_pixels) > 0:
+                        raise(ValueError('These objects have overlapping data and'
+                                         ' cannot be combined.'))
+                else:
+                    if len(both_axis1) > 0:
+                        if len(both_axis2) > 0:
+                            raise(ValueError('These objects have overlapping data and'
+                                             ' cannot be combined.'))
+
+        if this.pixel_coordinate_system == 'healpix':
+            temp = np.nonzero(~np.in1d(other.pixel_array, this.pixel_array))[0]
+            if len(temp) > 0:
+                pix_new_inds = temp
+                new_pixels = other.pixel_array[temp]
+                if n_axes > 0:
+                    history_update_string += ', healpix pixel'
+                else:
+                    history_update_string += 'healpix pixel'
+                n_axes += 1
+            else:
+                pix_new_inds, new_pixels = ([], [])
+        else:
+            temp = np.nonzero(~np.in1d(other.axis1_array, this.axis1_array))[0]
+            if len(temp) > 0:
+                ax1_new_inds = temp
+                new_ax1 = other.axis1_array[temp]
+                if n_axes > 0:
+                    history_update_string += ', first image'
+                else:
+                    history_update_string += 'first image'
+                n_axes += 1
+            else:
+                ax1_new_inds, new_ax1 = ([], [])
+
+            temp = np.nonzero(~np.in1d(other.axis2_array, this.axis2_array))[0]
+            if len(temp) > 0:
+                ax2_new_inds = temp
+                new_ax2 = other.axis2_array[temp]
+                if n_axes > 0:
+                    history_update_string += ', second image'
+                else:
+                    history_update_string += 'second image'
+                n_axes += 1
+            else:
+                ax2_new_inds, new_ax2 = ([], [])
+
+        temp = np.nonzero(~np.in1d(other.freq_array[0, :],
+                                   this.freq_array[0, :]))[0]
+        if len(temp) > 0:
+            fnew_inds = temp
+            new_freqs = other.freq_array[0, temp]
+            if n_axes > 0:
+                history_update_string += ', frequency'
+            else:
+                history_update_string += 'frequency'
+            n_axes += 1
+        else:
+            fnew_inds, new_freqs = ([], [])
+
+        if this.beam_type == 'power':
+            temp = np.nonzero(~np.in1d(other.polarization_array,
+                                       this.polarization_array))[0]
+            if len(temp) > 0:
+                pnew_inds = temp
+                new_pols = other.polarization_array[temp]
+                if n_axes > 0:
+                    history_update_string += ', polarization'
+                else:
+                    history_update_string += 'polarization'
+                n_axes += 1
+            else:
+                pnew_inds, new_pols = ([], [])
+        else:
+            temp = np.nonzero(~np.in1d(other.feed_array,
+                                       this.feed_array))[0]
+            if len(temp) > 0:
+                pnew_inds = temp
+                new_pols = other.feed_array[temp]
+                if n_axes > 0:
+                    history_update_string += ', feed'
+                else:
+                    history_update_string += 'feed'
+                n_axes += 1
+            else:
+                pnew_inds, new_pols = ([], [])
+
+        # Pad out self to accommodate new data
+        if this.pixel_coordinate_system == 'healpix':
+            if len(pix_new_inds) > 0:
+                data_pix_axis = 4
+                data_pad_dims = tuple(list(this.data_array.shape[0:data_pix_axis]) +
+                                      [len(pix_new_inds)] +
+                                      list(this.data_array.shape[data_pix_axis + 1:]))
+                data_zero_pad = np.zeros(data_pad_dims)
+
+                this.pixel_array = np.concatenate([this.pixel_array,
+                                                  other.pixel_array[pix_new_inds]])
+                order = np.argsort(this.pixel_array)
+                this.pixel_array = this.pixel_array[order]
+
+                this.data_array = np.concatenate([this.data_array, data_zero_pad],
+                                                 axis=data_pix_axis)[:, :, :, :, order]
+
+                if this.beam_type == 'efield':
+                    basisvec_pix_axis = 2
+                    basisvec_pad_dims = tuple(list(this.basis_vector_array.shape[0:basisvec_pix_axis]) +
+                                              [len(pix_new_inds)] +
+                                              list(this.basis_vector_array.shape[basisvec_pix_axis + 1:]))
+                    basisvec_zero_pad = np.zeros(basisvec_pad_dims)
+
+                    this.basis_vector_array = np.concatenate([this.basis_vector_array,
+                                                             basisvec_zero_pad],
+                                                             axis=basisvec_pix_axis)[:, :, order]
+        else:
+            if len(ax1_new_inds) > 0:
+                data_ax1_axis = 5
+                data_pad_dims = tuple(list(this.data_array.shape[0:data_ax1_axis]) +
+                                      [len(ax1_new_inds)] +
+                                      list(this.data_array.shape[data_ax1_axis + 1:]))
+                data_zero_pad = np.zeros(data_pad_dims)
+
+                this.axis1_array = np.concatenate([this.axis1_array,
+                                                   other.axis1_array[ax1_new_inds]])
+                order = np.argsort(this.axis1_array)
+                this.axis1_array = this.axis1_array[order]
+                this.data_array = np.concatenate([this.data_array, data_zero_pad],
+                                                 axis=data_ax1_axis)[:, :, :, :, :, order]
+
+                if this.beam_type == 'efield':
+                    basisvec_ax1_axis = 3
+                    basisvec_pad_dims = tuple(list(this.basis_vector_array.shape[0:basisvec_ax1_axis]) +
+                                              [len(ax1_new_inds)] +
+                                              list(this.basis_vector_array.shape[basisvec_ax1_axis + 1:]))
+                    basisvec_zero_pad = np.zeros(basisvec_pad_dims)
+
+                    this.basis_vector_array = np.concatenate([this.basis_vector_array, basisvec_zero_pad],
+                                                             axis=basisvec_ax1_axis)[:, :, :, order]
+
+            if len(ax2_new_inds) > 0:
+                data_ax2_axis = 4
+                data_pad_dims = tuple(list(this.data_array.shape[0:data_ax2_axis]) +
+                                      [len(ax2_new_inds)] +
+                                      list(this.data_array.shape[data_ax2_axis + 1:]))
+                data_zero_pad = np.zeros(data_pad_dims)
+
+                this.axis2_array = np.concatenate([this.axis2_array,
+                                                   other.axis2_array[ax2_new_inds]])
+                order = np.argsort(this.axis2_array)
+                this.axis2_array = this.axis2_array[order]
+
+                this.data_array = np.concatenate([this.data_array, data_zero_pad],
+                                                 axis=data_ax2_axis)[:, :, :, :, order, ...]
+
+                if this.beam_type == 'efield':
+                    basisvec_ax2_axis = 2
+                    basisvec_pad_dims = tuple(list(this.basis_vector_array.shape[0:basisvec_ax2_axis]) +
+                                              [len(ax2_new_inds)] +
+                                              list(this.basis_vector_array.shape[basisvec_ax2_axis + 1:]))
+                    basisvec_zero_pad = np.zeros(basisvec_pad_dims)
+
+                    this.basis_vector_array = np.concatenate([this.basis_vector_array, basisvec_zero_pad],
+                                                             axis=basisvec_ax2_axis)[:, :, order, ...]
+
+        if len(fnew_inds) > 0:
+            faxis = 3
+            data_pad_dims = tuple(list(this.data_array.shape[0:faxis]) +
+                                  [len(fnew_inds)] +
+                                  list(this.data_array.shape[faxis + 1:]))
+            data_zero_pad = np.zeros(data_pad_dims)
+
+            this.freq_array = np.concatenate([this.freq_array,
+                                              other.freq_array[:, fnew_inds]], axis=1)
+            order = np.argsort(this.freq_array[0, :])
+            this.freq_array = this.freq_array[:, order]
+            this.data_array = np.concatenate([this.data_array, data_zero_pad],
+                                             axis=faxis)[:, :, :, order, ...]
+
+        if len(pnew_inds) > 0:
+            paxis = 2
+            data_pad_dims = tuple(list(this.data_array.shape[0:paxis]) +
+                                  [len(pnew_inds)] +
+                                  list(this.data_array.shape[paxis + 1:]))
+            data_zero_pad = np.zeros(data_pad_dims)
+
+            if this.beam_type == 'power':
+                this.polarization_array = np.concatenate([this.polarization_array,
+                                                          other.polarization_array[pnew_inds]])
+                order = np.argsort(np.abs(this.polarization_array))
+                this.polarization_array = this.polarization_array[order]
+            else:
+                this.feed_array = np.concatenate([this.feed_array,
+                                                  other.feed_array[pnew_inds]])
+                order = np.argsort(this.feed_array)
+                this.polarization_array = this.feed_array[order]
+
+            this.data_array = np.concatenate([this.data_array, data_zero_pad], axis=paxis)[
+                :, :, order, ...]
+
+        # Now populate the data
+        if this.beam_type == 'power':
+            this.Npols = this.polarization_array.shape[0]
+            pol_t2o = np.nonzero(np.in1d(this.polarization_array,
+                                 other.polarization_array))[0]
+        else:
+            this.Nfeeds = this.feed_array.shape[0]
+            pol_t2o = np.nonzero(np.in1d(this.feed_array, other.feed_array))[0]
+
+        freq_t2o = np.nonzero(np.in1d(this.freq_array[0, :],
+                              other.freq_array[0, :]))[0]
+
+        if this.pixel_coordinate_system == 'healpix':
+            this.Npixels = this.pixel_array.shape[0]
+            pix_t2o = np.nonzero(np.in1d(this.pixel_array, other.pixel_array))[0]
+            this.data_array[np.ix_(np.arange(this.Naxes_vec), [0], pol_t2o, freq_t2o,
+                                   pix_t2o)] = other.data_array
+            if this.beam_type == 'efield':
+                this.basis_vector_array[np.ix_(np.arange(this.Naxes_vec), np.arange(2),
+                                               pix_t2o)] = other.basis_vector_array
+        else:
+            this.Naxes1 = this.axis1_array.shape[0]
+            this.Naxes2 = this.axis2_array.shape[0]
+            ax1_t2o = np.nonzero(np.in1d(this.axis1_array, other.axis1_array))[0]
+            ax2_t2o = np.nonzero(np.in1d(this.axis2_array, other.axis2_array))[0]
+            this.data_array[np.ix_(np.arange(this.Naxes_vec), [0], pol_t2o, freq_t2o,
+                                   ax2_t2o, ax1_t2o)] = other.data_array
+            if this.beam_type == 'efield':
+                this.basis_vector_array[np.ix_(np.arange(this.Naxes_vec), np.arange(2),
+                                               ax2_t2o, ax1_t2o)] = other.basis_vector_array
+
+        this.Nfreqs = this.freq_array.shape[1]
+
+        # Check specific requirements
+        if this.Nfreqs > 1:
+            freq_separation = np.diff(this.freq_array[0, :])
+            if not np.isclose(np.min(freq_separation), np.max(freq_separation),
+                              rtol=this._freq_array.tols[0], atol=this._freq_array.tols[1]):
+                warnings.warn('Combined frequencies are not evenly spaced. This will '
+                              'make it impossible to write this data out to some file types.')
+
+        if self.beam_type == 'power' and this.Npols > 2:
+            pol_separation = np.diff(this.polarization_array)
+            if np.min(pol_separation) < np.max(pol_separation):
+                warnings.warn('Combined polarizations are not evenly spaced. This will '
+                              'make it impossible to write this data out to some file types.')
+
+        if n_axes > 0:
+            history_update_string += ' axis using pyuvdata.'
+            this.history += history_update_string
+
+        other_hist_words = other.history.split(' ')
+        add_hist = ''
+        for i, word in enumerate(other_hist_words):
+            if word not in this.history:
+                add_hist += ' ' + word
+                keep_going = (i + 1 < len(other_hist_words))
+                while keep_going:
+                    if ((other_hist_words[i + 1] is ' ') or
+                            (other_hist_words[i + 1] not in this.history)):
+                        add_hist += ' ' + other_hist_words[i + 1]
+                        del(other_hist_words[i + 1])
+                        keep_going = (i + 1 < len(other_hist_words))
+                    else:
+                        keep_going = False
+        this.history += add_hist
+
+        # Check final object is self-consistent
+        if run_check:
+            this.check(run_check_acceptability=run_check_acceptability)
+
+        if not inplace:
+            return this
+
+    def __iadd__(self, other):
+        """
+        In place add.
+
+        Args:
+            other: Another UVData object which will be added to self.
+        """
+        self.__add__(other, inplace=True)
+        return self
+
     def select(self, axis1_inds=None, axis2_inds=None, pixels=None,
                frequencies=None, freq_chans=None,
                feeds=None, polarizations=None, run_check=True,
@@ -581,7 +920,7 @@ class UVBeam(UVBase):
 
         if polarizations is not None:
             if beam_object.beam_type == 'efield':
-                raise ValueError('feeds cannot be used with efield beams')
+                raise ValueError('polarizations cannot be used with efield beams')
 
             polarizations = uvutils.get_iterable(polarizations)
             if n_selects > 0:
