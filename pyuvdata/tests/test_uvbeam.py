@@ -262,6 +262,10 @@ class TestUVBeamSelect(object):
         power_beam2 = self.power_beam.select(pixels=pixels_to_keep, inplace=False)
         power_beam2.write_beamfits(write_file_beamfits, clobber=True)
 
+        # check for errors selecting pixels on non-healpix beams
+        self.power_beam = fill_dummy_beam(self.power_beam, 'power', 'az_za')
+        nt.assert_raises(ValueError, self.power_beam.select, pixels=pixels_to_keep)
+
     def test_select_axis1(self):
         old_history = self.power_beam.history
         inds1_to_keep = np.arange(14, 63)
@@ -293,6 +297,10 @@ class TestUVBeamSelect(object):
                              message='Selected values along first image axis are not evenly spaced')
         nt.assert_raises(ValueError, power_beam2.write_beamfits, write_file_beamfits)
 
+        # check for errors selecting axis1_inds on healpix beams
+        self.power_beam = fill_dummy_beam(self.power_beam, 'power', 'healpix')
+        nt.assert_raises(ValueError, self.power_beam.select, axis1_inds=inds1_to_keep)
+
     def test_select_axis2(self):
         old_history = self.power_beam.history
         inds2_to_keep = np.arange(5, 22)
@@ -323,6 +331,10 @@ class TestUVBeamSelect(object):
         uvtest.checkWarnings(power_beam2.select, [], {'axis2_inds': [0, 5, 6]},
                              message='Selected values along second image axis are not evenly spaced')
         nt.assert_raises(ValueError, power_beam2.write_beamfits, write_file_beamfits)
+
+        # check for errors selecting axis2_inds on healpix beams
+        self.power_beam = fill_dummy_beam(self.power_beam, 'power', 'healpix')
+        nt.assert_raises(ValueError, self.power_beam.select, axis2_inds=inds2_to_keep)
 
     def test_select_frequencies(self):
         old_history = self.power_beam.history
@@ -514,5 +526,72 @@ class TestUVBeamSelect(object):
 
         nt.assert_equal(old_history + '  Downselected to specific parts of '
                         'first image axis, parts of second image axis, '
+                        'frequencies, feeds using pyuvdata.',
+                        efield_beam2.history)
+
+    def test_select_healpix(self):
+        # now test selecting along all axes at once for healpix beams
+        self.power_beam = fill_dummy_beam(self.power_beam, 'power', 'healpix')
+        old_history = self.power_beam.history
+
+        pixels_to_keep = np.arange(31, 184)
+        freqs_to_keep = self.power_beam.freq_array[0, np.arange(31, 56)]
+        pols_to_keep = [-5]
+
+        power_beam2 = self.power_beam.select(pixels=pixels_to_keep,
+                                             frequencies=freqs_to_keep,
+                                             polarizations=pols_to_keep,
+                                             inplace=False)
+
+        nt.assert_equal(len(pixels_to_keep), power_beam2.Npixels)
+        for pi in pixels_to_keep:
+            nt.assert_true(pi in power_beam2.pixel_array)
+        for pi in np.unique(power_beam2.pixel_array):
+            nt.assert_true(pi in pixels_to_keep)
+
+        nt.assert_equal(len(freqs_to_keep), power_beam2.Nfreqs)
+        for f in freqs_to_keep:
+            nt.assert_true(f in power_beam2.freq_array)
+        for f in np.unique(power_beam2.freq_array):
+            nt.assert_true(f in freqs_to_keep)
+
+        nt.assert_equal(len(pols_to_keep), power_beam2.Npols)
+        for p in pols_to_keep:
+            nt.assert_true(p in power_beam2.polarization_array)
+        for p in np.unique(power_beam2.polarization_array):
+            nt.assert_true(p in pols_to_keep)
+
+        nt.assert_equal(old_history + '  Downselected to specific healpix pixels, '
+                        'frequencies, polarizations using pyuvdata.',
+                        power_beam2.history)
+
+        # repeat for efield beam
+        feeds_to_keep = ['x']
+        self.efield_beam = fill_dummy_beam(self.efield_beam, 'efield', 'healpix')
+
+        efield_beam2 = self.efield_beam.select(pixels=pixels_to_keep,
+                                               frequencies=freqs_to_keep,
+                                               feeds=feeds_to_keep,
+                                               inplace=False)
+
+        nt.assert_equal(len(pixels_to_keep), power_beam2.Npixels)
+        for pi in pixels_to_keep:
+            nt.assert_true(pi in power_beam2.pixel_array)
+        for pi in np.unique(power_beam2.pixel_array):
+            nt.assert_true(pi in pixels_to_keep)
+
+        nt.assert_equal(len(freqs_to_keep), efield_beam2.Nfreqs)
+        for f in freqs_to_keep:
+            nt.assert_true(f in efield_beam2.freq_array)
+        for f in np.unique(efield_beam2.freq_array):
+            nt.assert_true(f in freqs_to_keep)
+
+        nt.assert_equal(len(feeds_to_keep), efield_beam2.Nfeeds)
+        for f in feeds_to_keep:
+            nt.assert_true(f in efield_beam2.feed_array)
+        for f in np.unique(efield_beam2.feed_array):
+            nt.assert_true(f in feeds_to_keep)
+
+        nt.assert_equal(old_history + '  Downselected to specific healpix pixels, '
                         'frequencies, feeds using pyuvdata.',
                         efield_beam2.history)
