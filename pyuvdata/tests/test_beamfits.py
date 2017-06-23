@@ -91,6 +91,26 @@ def test_writeread_healpix():
 
     nt.assert_equal(beam_in, beam_out)
 
+    # now remove coordsys but leave ctype 1
+    F = fits.open(write_file)
+    data = F[0].data
+    primary_hdr = F[0].header
+    primary_hdr.pop('COORDSYS')
+    hdunames = uvutils.fits_indexhdus(F)
+    basisvec_hdu = F[hdunames['BASISVEC']]
+    hpx_hdu = F[hdunames['HPX_INDS']]
+
+    prihdu = fits.PrimaryHDU(data=data, header=primary_hdr)
+    hdulist = fits.HDUList([prihdu, basisvec_hdu, hpx_hdu])
+
+    if float(astropy.__version__[0:3]) < 1.3:
+        hdulist.writeto(write_file, clobber=True)
+    else:
+        hdulist.writeto(write_file, overwrite=True)
+
+    beam_out.read_beamfits(write_file)
+    nt.assert_equal(beam_in, beam_out)
+
 
 def test_errors():
     beam_in = UVBeam()
@@ -124,7 +144,7 @@ def test_errors():
             ax_num = keyword.split('NAXIS')[1]
             if ax_num != '':
                 ax_num = int(ax_num)
-                ax_use = len(basisvec_data.shape) - ax_num
+                ax_use = len(data.shape) - ax_num
                 new_arrays = np.split(data, primary_hdr[keyword], axis=ax_use)
                 data = new_arrays[0]
             else:
@@ -151,6 +171,99 @@ def test_errors():
                              {'CDELT1': np.diff(beam_in.axis1_array)[0] * 2},
                              {'CDELT2': np.diff(beam_in.axis2_array)[0] * 2},
                              {'NAXIS4': ''}]
+
+    for i, hdr_dict in enumerate(header_vals_to_change):
+        beam_in.write_beamfits(write_file, clobber=True)
+
+        keyword = hdr_dict.keys()[0]
+        new_val = hdr_dict[keyword]
+        F = fits.open(write_file)
+        data = F[0].data
+        primary_hdr = F[0].header
+        hdunames = uvutils.fits_indexhdus(F)
+        basisvec_hdu = F[hdunames['BASISVEC']]
+        basisvec_hdr = basisvec_hdu.header
+        basisvec_data = basisvec_hdu.data
+
+        if 'NAXIS' in keyword:
+            ax_num = keyword.split('NAXIS')[1]
+            if ax_num != '':
+                ax_num = int(ax_num)
+                ax_use = len(basisvec_data.shape) - ax_num
+                new_arrays = np.split(basisvec_data, basisvec_hdr[keyword], axis=ax_use)
+                basisvec_data = new_arrays[0]
+            else:
+                basisvec_data = np.split(basisvec_data, basisvec_hdr['NAXIS1'],
+                                         axis=len(basisvec_data.shape) - 1)[0]
+        else:
+            basisvec_hdr[keyword] = new_val
+
+        prihdu = fits.PrimaryHDU(data=data, header=primary_hdr)
+        basisvec_hdu = fits.ImageHDU(data=basisvec_data, header=basisvec_hdr)
+        hdulist = fits.HDUList([prihdu, basisvec_hdu])
+
+        if float(astropy.__version__[0:3]) < 1.3:
+            hdulist.writeto(write_file, clobber=True)
+        else:
+            hdulist.writeto(write_file, overwrite=True)
+
+        nt.assert_raises(ValueError, beam_out.read_beamfits, write_file)
+
+
+def test_healpix_errors():
+    beam_in = UVBeam()
+    beam_out = UVBeam()
+    beam_in = fill_dummy_beam(beam_in, 'efield', 'healpix')
+    beam_in.beam_type = 'foo'
+
+    write_file = os.path.join(DATA_PATH, 'test/outtest_beam.fits')
+    nt.assert_raises(ValueError, beam_in.write_beamfits, write_file, clobber=True)
+    nt.assert_raises(ValueError, beam_in.write_beamfits, write_file,
+                     clobber=True, run_check=False)
+
+    # now change values for various items in primary hdu to test errors
+    beam_in = fill_dummy_beam(beam_in, 'efield', 'az_za')
+
+    header_vals_to_change = [{'CTYPE1': 'foo'}, {'NAXIS1': ''}]
+
+    for i, hdr_dict in enumerate(header_vals_to_change):
+        beam_in.write_beamfits(write_file, clobber=True)
+
+        keyword = hdr_dict.keys()[0]
+        new_val = hdr_dict[keyword]
+        F = fits.open(write_file)
+        data = F[0].data
+        primary_hdr = F[0].header
+        hdunames = uvutils.fits_indexhdus(F)
+        basisvec_hdu = F[hdunames['BASISVEC']]
+
+        if 'NAXIS' in keyword:
+            ax_num = keyword.split('NAXIS')[1]
+            if ax_num != '':
+                ax_num = int(ax_num)
+                ax_use = len(data.shape) - ax_num
+                new_arrays = np.split(data, primary_hdr[keyword], axis=ax_use)
+                data = new_arrays[0]
+            else:
+                data = np.squeeze(np.split(data, primary_hdr['NAXIS1'],
+                                  axis=len(data.shape) - 1)[0])
+        else:
+            primary_hdr[keyword] = new_val
+
+        prihdu = fits.PrimaryHDU(data=data, header=primary_hdr)
+        hdulist = fits.HDUList([prihdu, basisvec_hdu])
+
+        if float(astropy.__version__[0:3]) < 1.3:
+            hdulist.writeto(write_file, clobber=True)
+        else:
+            hdulist.writeto(write_file, overwrite=True)
+
+        nt.assert_raises(ValueError, beam_out.read_beamfits, write_file)
+
+    # now change values for various items in basisvec hdu to not match primary hdu
+    beam_in = fill_dummy_beam(beam_in, 'efield', 'az_za')
+
+    header_vals_to_change = [{'CTYPE1': 'foo'}, {'NAXIS1': ''}]
 
     for i, hdr_dict in enumerate(header_vals_to_change):
         beam_in.write_beamfits(write_file, clobber=True)
