@@ -4,12 +4,6 @@ language: python
 python:
   # We don't actually use the Travis Python, but this keeps it organized.
   - "2.7"
-before_install:
-  #Install casacore binaries for Ubuntu 14.04 trusty-tar
-  - sudo apt-get install software-properties-common
-  - sudo add-apt-repository -ys ppa:radio-astro/main
-  - sudo apt-get update
-  - sudo apt-get install casacore2 libcasacore2-dev
 install:
   # ensure that we have the full tag information available for version.py
   - git fetch --unshallow --tags
