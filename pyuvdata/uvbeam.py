@@ -449,10 +449,7 @@ class UVBeam(UVBase):
             if len(temp) > 0:
                 pix_new_inds = temp
                 new_pixels = other.pixel_array[temp]
-                if n_axes > 0:
-                    history_update_string += ', healpix pixel'
-                else:
-                    history_update_string += 'healpix pixel'
+                history_update_string += 'healpix pixel'
                 n_axes += 1
             else:
                 pix_new_inds, new_pixels = ([], [])
@@ -461,10 +458,7 @@ class UVBeam(UVBase):
             if len(temp) > 0:
                 ax1_new_inds = temp
                 new_ax1 = other.axis1_array[temp]
-                if n_axes > 0:
-                    history_update_string += ', first image'
-                else:
-                    history_update_string += 'first image'
+                history_update_string += 'first image'
                 n_axes += 1
             else:
                 ax1_new_inds, new_ax1 = ([], [])
