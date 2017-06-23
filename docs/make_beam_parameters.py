@@ -26,7 +26,7 @@ def write_beamparams_rst(write_file=None):
     out += 'Optional\n----------------\n'
     out += ('These parameters are defined by one or more file standard but are not '
             'always required.\nSome of them are required depending on the '
-            'antenna_type (as noted below).')
+            'beam_type, antenna_type and pixel_coordinate_systems (as noted below).')
     out += "\n\n"
     for thing in beam.extra():
         obj = getattr(beam, thing)
