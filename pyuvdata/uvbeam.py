@@ -77,8 +77,8 @@ class UVBeam(UVBase):
 
         desc = ('Healpix ordering parameter, allowed values are "ring" and "nested". '
                 'Only required if pixel_coordinate_system is "healpix".')
-        self._ordering = uvp.UVParameter('ordering', description=desc, expected_type=int,
-                                         required=False)
+        self._ordering = uvp.UVParameter('ordering', description=desc, expected_type=str,
+                                         required=False, acceptable_vals=['ring', 'nested'])
 
         desc = ('Number of healpix pixels. Only required if pixel_coordinate_system is "healpix".')
         self._Npixels = uvp.UVParameter('Npixels', description=desc, expected_type=int,
