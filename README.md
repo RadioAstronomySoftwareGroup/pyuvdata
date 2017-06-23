@@ -38,14 +38,17 @@ pyuvdata has three major user classes:
 * calfits (a new format defined in pyuvdata, detailed memo coming soon). Note that this format was recently defined and may change in coming versions, based on user needs. Consider it to be in a beta version, but we will strive to make future versions backwards compatible with the current format.
 
 ## UVBeam file formats
-* regularly gridded fits
+* regularly gridded fits for both E-field and power beams
+* non-standard HEALPix fits for both E-field and power beams (in an ImageHDU rather than a binary table to support frequency, polarization and E-field vector axes)
 
 ## Known Issues and Planned Improvements
-* different multiple spectral windows or multiple sources are not currently supported
-* testing against miriad package
-* replacing AIPY and pyephem with astropy+NOVAS for time and phase calculations
-* expand support for calibration solutions: support other formats beyond FITS
-* add support for writing CASA measurement sets
+* UVData: different multiple spectral windows or multiple sources are not currently supported
+* UVData: testing against miriad package
+* UVData: replacing AIPY and pyephem with astropy+NOVAS for time and phase calculations
+* UVData: radd support for writing CASA measurement sets
+* UVCal: expand support for calibration solutions: support other formats beyond FITS
+* UVBeam: support reading in native beam model file formats (e.g. CST, HFSS)
+* UVBeam: support reading/writing/combining standard HEALPix FITs files (individual files per frequency, polarization and E-field vector)
 
 For details see the [issue log](https://github.com/HERA-Team/pyuvdata/issues).
 
