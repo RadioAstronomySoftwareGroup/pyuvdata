@@ -273,23 +273,43 @@ def fits_indexhdus(hdulist):
     return tablenames
 
 
-def polstr2ind(pol):
+def polstr2num(pol):
     """
-    Convert polarization str to index according to AIPS Memo 117.
+    Convert polarization str to number according to AIPS Memo 117.
 
     Args:
         pol: polarization string
 
     Returns:
-        Index corresponding to string
+        Number corresponding to string
     """
     poldict = {'I': 1, 'Q': 2, 'U': 3, 'V': 4,
                'RR': -1, 'LL': -2, 'RL': -3, 'LR': -4,
                'XX': -5, 'YY': -6, 'XY': -7, 'YX': -8}
     if isinstance(pol, str):
-        out = poldict[pol]
+        out = poldict[pol.upper()]
     elif isinstance(pol, collections.Iterable):
-            out = [poldict[key] for key in pol]
+            out = [poldict[key.upper()] for key in pol]
     else:
         raise ValueError('Polarization cannot be converted to index.')
+    return out
+
+
+def polnum2str(num):
+    """
+    Convert polarization number to str according to AIPS Memo 117.
+
+    Args:
+        num: polarization number
+
+    Returns:
+        String corresponding to string
+    """
+    str_list = ['YX', 'XY', 'YY', 'XX', 'LR', 'RL', 'LL', 'RR', '', 'I', 'Q', 'U', 'V']
+    if isinstance(num, (int, long, np.int32, np.int64)):
+        out = str_list[num + 8]
+    elif isinstance(num, collections.Iterable):
+            out = [str_list[i + 8] for i in num]
+    else:
+        raise ValueError('Polarization cannot be converted to string.')
     return out

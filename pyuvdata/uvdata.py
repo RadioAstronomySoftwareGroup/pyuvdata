@@ -1446,9 +1446,9 @@ class UVData(UVBase):
         """
         return np.unique(self.baseline_array)
 
-    def get_bls(self):
+    def get_antpairs(self):
         """
-        Returns list of unique baseline tuples (ant1, ant2) in data.
+        Returns list of unique antpair tuples (ant1, ant2) in data.
         """
         return [self.baseline_to_antnums(bl) for bl in self.get_baseline_nums()]
 
@@ -1481,28 +1481,28 @@ class UVData(UVBase):
             before returning.
         """
         key = uvutils.get_iterable(key)
-        if len(key) == 1:
+        if type(key) is str:
+            # Single string given, assume it is polarization
+            pol_ind = np.where(self.polarization_array == uvutils.polstr2num(key))[0]
+            if len(pol_ind) == 0:
+                raise KeyError('Polarization {pol} not found in data.'.format(pol=key))
+            out = self.data_array[:, :, :, pol_ind[0]]
+        elif len(key) == 1:
             key = key[0]  # For simplicity
-            if type(key) is str:
-                # Single string given, assume it is polarization
-                pol_ind = np.where(self.polarization_array == uvutils.polstr2ind(key))[0]
-                if len(pol_ind) == 0:
-                    raise KeyError('Polarization {pol} not found in data.'.format(pol=key))
-                out = self.data_array[:, :, :, pol_ind]
-            elif key < 5:
+            if key < 5:
                 # Small number, assume it is a polarization number a la AIPS memo
                 pol_ind = np.where(self.polarization_array == key)[0]
                 if len(pol_ind) == 0:
                     raise KeyError('Polarization {pol} not found in data.'.format(pol=key))
-                out = self.data_array[:, :, :, pol_ind]
+                out = self.data_array[:, :, :, pol_ind[0]]
             else:
                 # Larger number, assume it is a baseline number
-                if key[0] in self.baseline_array:
-                    blt_ind = np.where(self.baseline_array == key[0])
+                if key in self.baseline_array:
+                    blt_ind = np.where(self.baseline_array == key)[0]
                 else:
-                    raise KeyError('Baseline {bl} not found in data.'.format(bl=key[0]))
+                    raise KeyError('Baseline {bl} not found in data.'.format(bl=key))
                 out = self.data_array[blt_ind, :, :, :]
-        if len(key) == 2:
+        elif len(key) == 2:
             # Key is an antenna pair
             ind1 = self.antpair2ind(key[0], key[1])
             ind2 = self.antpair2ind(key[1], key[0])
@@ -1510,7 +1510,7 @@ class UVData(UVBase):
                 raise KeyError('Antenna pair {pair} not found in data'.format(pair=key))
             out = np.append(self.data_array[ind1, :, :, :],
                             np.conj(self.data_array[ind2, :, :, :]), axis=0)
-        if len(key) == 3:
+        elif len(key) == 3:
             # Key is an antenna pair + pol
             ind1 = self.antpair2ind(key[0], key[1])
             ind2 = self.antpair2ind(key[1], key[0])
@@ -1519,7 +1519,7 @@ class UVData(UVBase):
                                'data'.format(pair=(key[0], key[1])))
             if type(key[2]) is str:
                 # pol is str
-                pol_ind = np.where(self.polarization_array == uvutils.polstr2ind(key[2]))[0]
+                pol_ind = np.where(self.polarization_array == uvutils.polstr2num(key[2]))[0]
             else:
                 # polarization number a la AIPS memo
                 pol_ind = np.where(self.polarization_array == key[2])[0]
@@ -1529,3 +1529,22 @@ class UVData(UVBase):
                             np.conj(self.data_array[ind2, :, :, pol_ind]), axis=0)
 
         return out
+
+    def antpair_pol_gen(self):
+        """
+        Generates numpy arrays of data for each antpair, pol combination.
+
+        Returns (for each iteration):
+            key: tuple with antenna1, antenna2, and polarization string
+            data: Numpy array with data which is the result of self[key]
+        """
+        bli = 0
+        pols = uvutils.polnum2str(self.polarization_array)
+        bls = self.get_antpairs()
+        while bli < len(bls):
+            poli = 0
+            while poli < self.Npols:
+                key = bls[bli] + (pols[poli],)
+                yield (key, self[key])
+                poli += 1
+            bli += 1
