@@ -4,6 +4,7 @@ import nose.tools as nt
 import pyuvdata
 import numpy as np
 from pyuvdata.data import DATA_PATH
+import pyuvdata.utils as uvutils
 
 ref_latlonalt = (-26.7 * np.pi / 180.0, 116.7 * np.pi / 180.0, 377.8)
 ref_xyz = (-2562123.42683, 5094215.40141, -2848728.58869)
@@ -145,3 +146,19 @@ def test_mwa_ecef_conversion():
     enu = pyuvdata.ENU_from_ECEF(xyz, lat, lon, alt)
 
     nt.assert_true(np.allclose(enu, enh, atol=1.))
+
+
+def test_pol_funcs():
+    """ Test utility functions to convert between polarization strings and numbers """
+
+    pol_nums = [-8, -7, -6, -5, -4, -3, -2, -1, 1, 2, 3, 4]
+    pol_str = ['YX', 'XY', 'YY', 'XX', 'LR', 'RL', 'LL', 'RR', 'I', 'Q', 'U', 'V']
+    nt.assert_equal(pol_nums, uvutils.polstr2num(pol_str))
+    nt.assert_equal(pol_str, uvutils.polnum2str(pol_nums))
+    # Check individuals
+    nt.assert_equal(-6, uvutils.polstr2num('YY'))
+    nt.assert_equal('V', uvutils.polnum2str(4))
+    # Check erros
+    nt.assert_raises(KeyError, uvutils.polstr2num, 'foo')
+    nt.assert_raises(ValueError, uvutils.polstr2num, 1)
+    nt.assert_raises(ValueError, uvutils.polnum2str, 7.3)

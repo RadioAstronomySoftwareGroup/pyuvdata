@@ -7,6 +7,7 @@ import ephem
 from pyuvdata import UVData
 import pyuvdata.tests as uvtest
 from pyuvdata.data import DATA_PATH
+import pyuvdata.utils as uvutils
 
 
 class TestUVDataInit(object):
@@ -926,3 +927,96 @@ def test_break_add():
     # Overlapping data
     uv2 = copy.deepcopy(uv_full)
     nt.assert_raises(ValueError, uv1.__iadd__, uv2)
+
+
+def test_getitem():
+    # Test getitem function for easy access to data
+    uv = UVData()
+    testfile = os.path.join(
+        DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    uvtest.checkWarnings(uv.read_uvfits, [testfile],
+                         message='Telescope EVLA is not')
+
+    # Get an antpair/pol combo
+    ant1 = uv.ant_1_array[0]
+    ant2 = uv.ant_2_array[0]
+    pol = uv.polarization_array[0]
+    bltind = np.where((uv.ant_1_array == ant1) & (uv.ant_2_array == ant2))[0]
+    dcheck = uv.data_array[bltind, :, :, 0]
+    d = uv[(ant1, ant2, pol)]
+    nt.assert_true(np.all(dcheck == d))
+
+    # Combo with pol as string
+    d = uv[(ant1, ant2, uvutils.polnum2str(pol))]
+    nt.assert_true(np.all(dcheck == d))
+
+    # Check conjugation
+    d = uv[(ant2, ant1, pol)]
+    nt.assert_true(np.all(dcheck == np.conj(d)))
+
+    # Antpair only
+    dcheck = uv.data_array[bltind, :, :, :]
+    d = uv[(ant1, ant2)]
+    nt.assert_true(np.all(dcheck == d))
+
+    # Baseline number only
+    d = uv[uv.antnums_to_baseline(ant1, ant2)]
+    nt.assert_true(np.all(dcheck == d))
+
+    # Pol number only
+    dcheck = uv.data_array[:, :, :, 0]
+    d = uv[pol]
+    nt.assert_true(np.all(dcheck == d))
+
+    # Pol string only
+    dcheck = uv.data_array[:, :, :, 1]
+    d = uv['LL']
+    nt.assert_true(np.all(dcheck == d))
+
+    # Test invalid keys
+    nt.assert_raises(KeyError, uv.__getitem__, 'I')  # pol str not in data
+    nt.assert_raises(KeyError, uv.__getitem__, -8)  # pol num not in data
+    nt.assert_raises(KeyError, uv.__getitem__, 6)  # bl num not in data
+    nt.assert_raises(KeyError, uv.__getitem__, (1, 1))  # ant pair not in data
+    nt.assert_raises(KeyError, uv.__getitem__, (1, 1, 'rr'))  # ant pair not in data
+    nt.assert_raises(KeyError, uv.__getitem__, (0, 1, 'xx'))  # pol not in data
+
+
+def test_antpair_pol_gen():
+    # Test generator
+    uv = UVData()
+    testfile = os.path.join(
+        DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    uvtest.checkWarnings(uv.read_uvfits, [testfile],
+                         message='Telescope EVLA is not')
+
+    pol_dict = {uvutils.polnum2str(uv.polarization_array[i]): i for i in range(uv.Npols)}
+    keys = []
+    pols = set()
+    bls = set()
+    for key, d in uv.antpair_pol_gen():
+        keys += key
+        bl = uv.antnums_to_baseline(key[0], key[1])
+        blind = np.where(uv.baseline_array == bl)[0]
+        bls.add(bl)
+        pols.add(key[2])
+        dcheck = uv.data_array[blind, :, :, pol_dict[key[2]]]
+        nt.assert_true(np.all(dcheck == d))
+    nt.assert_equal(len(bls), len(uv.get_baseline_nums()))
+    nt.assert_equal(len(pols), uv.Npols)
+
+
+def test_get_ants():
+    # Test function to get unique antennas in data
+    uv = UVData()
+    testfile = os.path.join(
+        DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    uvtest.checkWarnings(uv.read_uvfits, [testfile],
+                         message='Telescope EVLA is not')
+    ants = uv.get_ants()
+    for ant in ants:
+        nt.assert_true((ant in uv.ant_1_array) or (ant in uv.ant_2_array))
+    for ant in uv.ant_1_array:
+        nt.assert_true(ant in ants)
+    for ant in uv.ant_2_array:
+        nt.assert_true(ant in ants)
