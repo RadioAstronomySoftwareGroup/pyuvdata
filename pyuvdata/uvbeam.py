@@ -985,11 +985,22 @@ class UVBeam(UVBase):
                 required parameters after reading in the file. Default is True.
         """
         import beamfits
-        beamfits_obj = beamfits.BeamFITS()
-        beamfits_obj.read_beamfits(filename, run_check=run_check,
-                                   run_check_acceptability=run_check_acceptability)
-        self._convert_from_filetype(beamfits_obj)
-        del(beamfits_obj)
+        if isinstance(filename, (list, tuple)):
+            self.read_beamfits(filename[0], run_check=run_check,
+                               run_check_acceptability=run_check_acceptability)
+            if len(filename) > 1:
+                for f in filename[1:]:
+                    beam2 = UVBeam()
+                    beam2.read_beamfits(f, run_check=run_check,
+                                        run_check_acceptability=run_check_acceptability)
+                    self += beam2
+                del(beam2)
+        else:
+            beamfits_obj = beamfits.BeamFITS()
+            beamfits_obj.read_beamfits(filename, run_check=run_check,
+                                       run_check_acceptability=run_check_acceptability)
+            self._convert_from_filetype(beamfits_obj)
+            del(beamfits_obj)
 
     def write_beamfits(self, filename, run_check=True,
                        run_check_acceptability=True, clobber=False):

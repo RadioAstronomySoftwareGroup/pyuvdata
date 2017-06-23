@@ -325,3 +325,27 @@ def test_casa_beam():
     beam_out.read_beamfits(write_file)
 
     nt.assert_equal(beam_in, beam_out)
+
+
+def test_multi_files():
+    """
+    Reading multiple files at once.
+    """
+    beam_full = UVBeam()
+    # fill UVBeam object with dummy data for now for testing purposes
+    beam_full = fill_dummy_beam(beam_full, 'efield', 'az_za')
+
+    testfile1 = os.path.join(DATA_PATH, 'test/outtest_beam1.fits')
+    testfile2 = os.path.join(DATA_PATH, 'test/outtest_beam2.fits')
+
+    beam1 = beam_full.select(freq_chans=np.arange(0, 50), inplace=False)
+    beam2 = beam_full.select(freq_chans=np.arange(50, 100), inplace=False)
+    beam1.write_beamfits(testfile1, clobber=True)
+    beam2.write_beamfits(testfile2, clobber=True)
+    beam1.read_beamfits([testfile1, testfile2])
+    # Check history is correct, before replacing and doing a full object check
+    nt.assert_equal(beam_full.history + '  Downselected to specific frequencies'
+                    ' using pyuvdata. Combined data along frequency axis using'
+                    ' pyuvdata.', beam1.history.replace('\n', ''))
+    beam1.history = beam_full.history
+    nt.assert_equal(beam1, beam_full)
