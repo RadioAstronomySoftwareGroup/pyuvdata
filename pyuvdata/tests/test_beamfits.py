@@ -76,7 +76,7 @@ def test_writeread_healpix():
     # fill UVBeam object with dummy data for now for testing purposes
     beam_in = fill_dummy_beam(beam_in, 'efield', 'healpix')
 
-    write_file = os.path.join(DATA_PATH, 'test/outtest_beam.fits')
+    write_file = os.path.join(DATA_PATH, 'test/outtest_beam_hpx.fits')
 
     beam_in.write_beamfits(write_file, clobber=True)
     beam_out.read_beamfits(write_file)
@@ -213,16 +213,10 @@ def test_errors():
 def test_healpix_errors():
     beam_in = UVBeam()
     beam_out = UVBeam()
-    beam_in = fill_dummy_beam(beam_in, 'efield', 'healpix')
-    beam_in.beam_type = 'foo'
-
-    write_file = os.path.join(DATA_PATH, 'test/outtest_beam.fits')
-    nt.assert_raises(ValueError, beam_in.write_beamfits, write_file, clobber=True)
-    nt.assert_raises(ValueError, beam_in.write_beamfits, write_file,
-                     clobber=True, run_check=False)
+    write_file = os.path.join(DATA_PATH, 'test/outtest_beam_hpx.fits')
 
     # now change values for various items in primary hdu to test errors
-    beam_in = fill_dummy_beam(beam_in, 'efield', 'az_za')
+    beam_in = fill_dummy_beam(beam_in, 'efield', 'healpix')
 
     header_vals_to_change = [{'CTYPE1': 'foo'}, {'NAXIS1': ''}]
 
@@ -236,6 +230,7 @@ def test_healpix_errors():
         primary_hdr = F[0].header
         hdunames = uvutils.fits_indexhdus(F)
         basisvec_hdu = F[hdunames['BASISVEC']]
+        hpx_hdu = F[hdunames['HPX_INDS']]
 
         if 'NAXIS' in keyword:
             ax_num = keyword.split('NAXIS')[1]
@@ -251,7 +246,7 @@ def test_healpix_errors():
             primary_hdr[keyword] = new_val
 
         prihdu = fits.PrimaryHDU(data=data, header=primary_hdr)
-        hdulist = fits.HDUList([prihdu, basisvec_hdu])
+        hdulist = fits.HDUList([prihdu, basisvec_hdu, hpx_hdu])
 
         if float(astropy.__version__[0:3]) < 1.3:
             hdulist.writeto(write_file, clobber=True)
@@ -261,7 +256,7 @@ def test_healpix_errors():
         nt.assert_raises(ValueError, beam_out.read_beamfits, write_file)
 
     # now change values for various items in basisvec hdu to not match primary hdu
-    beam_in = fill_dummy_beam(beam_in, 'efield', 'az_za')
+    beam_in = fill_dummy_beam(beam_in, 'efield', 'healpix')
 
     header_vals_to_change = [{'CTYPE1': 'foo'}, {'NAXIS1': ''}]
 
@@ -277,6 +272,7 @@ def test_healpix_errors():
         basisvec_hdu = F[hdunames['BASISVEC']]
         basisvec_hdr = basisvec_hdu.header
         basisvec_data = basisvec_hdu.data
+        hpx_hdu = F[hdunames['HPX_INDS']]
 
         if 'NAXIS' in keyword:
             ax_num = keyword.split('NAXIS')[1]
@@ -293,7 +289,7 @@ def test_healpix_errors():
 
         prihdu = fits.PrimaryHDU(data=data, header=primary_hdr)
         basisvec_hdu = fits.ImageHDU(data=basisvec_data, header=basisvec_hdr)
-        hdulist = fits.HDUList([prihdu, basisvec_hdu])
+        hdulist = fits.HDUList([prihdu, basisvec_hdu, hpx_hdu])
 
         if float(astropy.__version__[0:3]) < 1.3:
             hdulist.writeto(write_file, clobber=True)
