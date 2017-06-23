@@ -14,8 +14,8 @@ class UVBeam(UVBase):
     Attributes:
         UVParameter objects: For full list see UVBeam Parameters
             (http://pyuvdata.readthedocs.io/en/latest/uvbeam_parameters.html).
-            Some are always required, some are required for certain phase_types
-            and others are always optional.
+            Some are always required, some are required for certain beam_types,
+            antenna_types and pixel_coordinate_systems and others are always optional.
     """
 
     coordinate_system_dict = {
@@ -124,7 +124,7 @@ class UVBeam(UVBase):
 
         desc = ('Array of polarization integers, shape (Npols). '
                 'AIPS Memo 117 says: stokes 1:4 (I,Q,U,V);  '
-                'circular -1:-4 (RR,LL,RL,LR); linear -5:-8 (XX,YY,XY,YX)'
+                'circular -1:-4 (RR,LL,RL,LR); linear -5:-8 (XX,YY,XY,YX). '
                 'Only required if beam_type is "power".')
         self._polarization_array = uvp.UVParameter('polarization_array',
                                                    description=desc, required=False,
