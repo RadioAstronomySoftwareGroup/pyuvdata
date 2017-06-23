@@ -682,21 +682,59 @@ def test_add():
 
     # Add multiple axes
     beam_ref = copy.deepcopy(power_beam_full)
-    beam1 = power_beam_full.select(freq_chans=np.arange(0, 50),
+    beam1 = power_beam_full.select(axis1_inds=np.arange(0, power_beam_full.Naxes1 / 2),
                                    polarizations=power_beam_full.polarization_array[0:2],
                                    inplace=False)
-    beam2 = power_beam_full.select(freq_chans=np.arange(50, 100),
+    beam2 = power_beam_full.select(axis1_inds=np.arange(power_beam_full.Naxes1 / 2,
+                                                        power_beam_full.Naxes1),
                                    polarizations=power_beam_full.polarization_array[2:4],
                                    inplace=False)
     beam1 += beam2
-    nt.assert_equal(power_beam_full.history + '  Downselected to specific frequencies, polarizations'
-                    ' using pyuvdata. Combined data along frequency, polarization'
-                    ' axis using pyuvdata.', beam1.history)
+    nt.assert_equal(power_beam_full.history + '  Downselected to specific parts '
+                    'of first image axis, polarizations using pyuvdata. Combined '
+                    'data along first image, polarization axis using pyuvdata.', beam1.history)
     # Zero out missing data in reference object
-    beam_ref.data_array[:, :, 2:, :50, :, :] = 0.0
-    beam_ref.data_array[:, :, :2, 50:, :, :] = 0.0
+    beam_ref.data_array[:, :, :2, :, :, power_beam_full.Naxes1 / 2:] = 0.0
+    beam_ref.data_array[:, :, 2:, :, :, :power_beam_full.Naxes1 / 2] = 0.0
     beam1.history = power_beam_full.history
     nt.assert_equal(beam1, beam_ref)
+
+    # Another combo with healpix
+    power_beam_full = fill_dummy_beam(power_beam_full, 'power', 'healpix')
+    beam_ref = copy.deepcopy(power_beam_full)
+    beam1 = power_beam_full.select(pixels=power_beam_full.pixel_array[0:power_beam_full.Npixels / 2],
+                                   freq_chans=np.arange(0, 50),
+                                   inplace=False)
+    beam2 = power_beam_full.select(pixels=power_beam_full.pixel_array[power_beam_full.Npixels / 2:],
+                                   freq_chans=np.arange(50, 100),
+                                   inplace=False)
+    beam1 += beam2
+    nt.assert_equal(power_beam_full.history + '  Downselected to specific healpix '
+                    'pixels, frequencies using pyuvdata. Combined '
+                    'data along healpix pixel, frequency axis using pyuvdata.', beam1.history)
+    # Zero out missing data in reference object
+    beam_ref.data_array[:, :, :, :50, power_beam_full.Npixels / 2:] = 0.0
+    beam_ref.data_array[:, :, :, 50:, :power_beam_full.Npixels / 2] = 0.0
+    beam1.history = power_beam_full.history
+    nt.assert_equal(beam1, beam_ref)
+
+    # Another combo with efield
+    efield_beam_full = fill_dummy_beam(efield_beam_full, 'efield', 'az_za')
+
+    beam_ref = copy.deepcopy(efield_beam_full)
+    beam1 = efield_beam_full.select(axis1_inds=np.arange(0, efield_beam_full.Naxes1 / 2),
+                                    axis2_inds=np.arange(0, efield_beam_full.Naxes2 / 2),
+                                    inplace=False)
+    beam2 = efield_beam_full.select(axis1_inds=np.arange(efield_beam_full.Naxes1 / 2,
+                                                         efield_beam_full.Naxes1),
+                                    axis2_inds=np.arange(efield_beam_full.Naxes2 / 2,
+                                                         efield_beam_full.Naxes2),
+                                    inplace=False)
+    beam1 += beam2
+    nt.assert_equal(efield_beam_full.history + '  Downselected to specific parts of '
+                    'first image axis, parts of second image axis using pyuvdata. '
+                    'Combined data along first image, second image axis using pyuvdata.',
+                    beam1.history)
 
     # Another combo with efield
     efield_beam_full = fill_dummy_beam(efield_beam_full, 'efield', 'az_za')
@@ -725,6 +763,27 @@ def test_add():
                                 efield_beam_full.Naxes1 / 2:] = 0.0
     beam_ref.basis_vector_array[:, :, efield_beam_full.Naxes2 / 2:,
                                 :efield_beam_full.Naxes1 / 2] = 0.0
+    beam1.history = efield_beam_full.history
+    nt.assert_equal(beam1, beam_ref)
+
+    # Another combo with healpix efield
+    efield_beam_full = fill_dummy_beam(efield_beam_full, 'efield', 'healpix')
+
+    beam_ref = copy.deepcopy(efield_beam_full)
+    beam1 = efield_beam_full.select(freq_chans=np.arange(0, 50),
+                                    feeds=efield_beam_full.feed_array[0],
+                                    inplace=False)
+    beam2 = efield_beam_full.select(freq_chans=np.arange(50, 100),
+                                    feeds=efield_beam_full.feed_array[1],
+                                    inplace=False)
+    beam1 += beam2
+    nt.assert_equal(efield_beam_full.history + '  Downselected to specific '
+                    'frequencies, feeds using pyuvdata. Combined data along '
+                    'frequency, feed axis using pyuvdata.',
+                    beam1.history)
+    # Zero out missing data in reference object
+    beam_ref.data_array[:, :, 1, :50, :] = 0.0
+    beam_ref.data_array[:, :, 0, 50:, :] = 0.0
     beam1.history = efield_beam_full.history
     nt.assert_equal(beam1, beam_ref)
 
@@ -765,3 +824,35 @@ def test_add():
                     ' pyuvdata. testing the history.', beam1.history)
     beam1.history = power_beam_full.history
     nt.assert_equal(beam1, power_beam_full)
+
+
+def test_break_add():
+    # Test failure modes of add function
+    power_beam_full = UVBeam()
+    power_beam_full = fill_dummy_beam(power_beam_full, 'power', 'healpix')
+
+    # Wrong class
+    beam1 = copy.deepcopy(power_beam_full)
+    nt.assert_raises(ValueError, beam1.__iadd__, np.zeros(5))
+
+    params_to_change = {'beam_type': 'efield', 'data_normalization': 'solid_angle',
+                        'telescope_name': 'foo', 'feed_name': 'foo',
+                        'feed_version': 'v12', 'model_name': 'foo',
+                        'model_version': 'v12', 'pixel_coordinate_system': 'sin_zenith',
+                        'Naxes_vec': 3, 'nside': 16, 'ordering': 'nested'}
+
+    beam1 = power_beam_full.select(freq_chans=np.arange(0, 50), inplace=False)
+    for param, value in params_to_change.iteritems():
+        beam2 = power_beam_full.select(freq_chans=np.arange(50, 100), inplace=False)
+        setattr(beam2, param, value)
+        nt.assert_raises(ValueError, beam1.__iadd__, beam2)
+
+    # Overlapping data
+    beam2 = copy.deepcopy(power_beam_full)
+    nt.assert_raises(ValueError, beam1.__iadd__, beam2)
+
+    # Overlapping data with non-healpix
+    power_beam_full = fill_dummy_beam(power_beam_full, 'power', 'az_za')
+    beam1 = copy.deepcopy(power_beam_full)
+    beam2 = copy.deepcopy(power_beam_full)
+    nt.assert_raises(ValueError, beam1.__iadd__, beam2)
