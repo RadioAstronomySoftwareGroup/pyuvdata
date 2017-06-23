@@ -91,7 +91,7 @@ def fill_dummy_beam(beam_obj, beam_type, pixel_coordinate_system):
     beam_obj.system_temperature_array = np.random.normal(50.0, 5, size=(beam_obj.Nspws, beam_obj.Nfreqs))
     beam_obj.loss_array = np.random.normal(50.0, 5, size=(beam_obj.Nspws, beam_obj.Nfreqs))
     beam_obj.mismatch_array = np.random.normal(0.0, 1.0, size=(beam_obj.Nspws, beam_obj.Nfreqs))
-    beam_obj.s_parameters = np.random.normal(0.0, 0.3, size=(beam_obj.Nspws, beam_obj.Nfreqs))
+    beam_obj.s_parameters = np.random.normal(0.0, 0.3, size=(4, beam_obj.Nspws, beam_obj.Nfreqs))
 
     return beam_obj
 
