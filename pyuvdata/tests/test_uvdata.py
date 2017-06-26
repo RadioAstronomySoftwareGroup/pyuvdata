@@ -942,7 +942,7 @@ def test_getitem():
     ant2 = uv.ant_2_array[0]
     pol = uv.polarization_array[0]
     bltind = np.where((uv.ant_1_array == ant1) & (uv.ant_2_array == ant2))[0]
-    dcheck = uv.data_array[bltind, :, :, 0]
+    dcheck = np.squeeze(uv.data_array[bltind, :, :, 0])
     d = uv[(ant1, ant2, pol)]
     nt.assert_true(np.all(dcheck == d))
 
@@ -955,7 +955,7 @@ def test_getitem():
     nt.assert_true(np.all(dcheck == np.conj(d)))
 
     # Antpair only
-    dcheck = uv.data_array[bltind, :, :, :]
+    dcheck = np.squeeze(uv.data_array[bltind, :, :, :])
     d = uv[(ant1, ant2)]
     nt.assert_true(np.all(dcheck == d))
 
@@ -964,12 +964,12 @@ def test_getitem():
     nt.assert_true(np.all(dcheck == d))
 
     # Pol number only
-    dcheck = uv.data_array[:, :, :, 0]
+    dcheck = np.squeeze(uv.data_array[:, :, :, 0])
     d = uv[pol]
     nt.assert_true(np.all(dcheck == d))
 
     # Pol string only
-    dcheck = uv.data_array[:, :, :, 1]
+    dcheck = np.squeeze(uv.data_array[:, :, :, 1])
     d = uv['LL']
     nt.assert_true(np.all(dcheck == d))
 
@@ -1000,7 +1000,7 @@ def test_antpair_pol_gen():
         blind = np.where(uv.baseline_array == bl)[0]
         bls.add(bl)
         pols.add(key[2])
-        dcheck = uv.data_array[blind, :, :, pol_dict[key[2]]]
+        dcheck = np.squeeze(uv.data_array[blind, :, :, pol_dict[key[2]]])
         nt.assert_true(np.all(dcheck == d))
     nt.assert_equal(len(bls), len(uv.get_baseline_nums()))
     nt.assert_equal(len(pols), uv.Npols)

@@ -1458,7 +1458,7 @@ class UVData(UVBase):
         """
         return np.where((self.ant_1_array == ant1) & (self.ant_2_array == ant2))[0]
 
-    def __getitem__(self, key):
+    def __getitem__(self, key, squeeze=True):
         """
         Function for quick access to numpy array with data corresponding to
         a baseline and/or polarization.
@@ -1474,6 +1474,7 @@ class UVData(UVBase):
                     times and pols for that baseline.
                 if len(key) == 3: interpreted as antenna pair and pol (ant1, ant2, pol).
                     Return all times for that baseline, pol. pol may be a string.
+            squeeze: If true (default) remove single dimensional entries from output array.
 
         Returns:
             Numpy array of data corresponding to key, defined above.
@@ -1528,11 +1529,16 @@ class UVData(UVBase):
             out = np.append(self.data_array[ind1, :, :, pol_ind],
                             np.conj(self.data_array[ind2, :, :, pol_ind]), axis=0)
 
+        if squeeze:
+            out = np.squeeze(out)
         return out
 
-    def antpair_pol_gen(self):
+    def antpair_pol_gen(self, squeeze=True):
         """
         Generates numpy arrays of data for each antpair, pol combination.
+
+        Args:
+            squeeze: Option to squeeze data array (default is True)
 
         Returns (for each iteration):
             key: tuple with antenna1, antenna2, and polarization string
@@ -1545,6 +1551,6 @@ class UVData(UVBase):
             poli = 0
             while poli < self.Npols:
                 key = bls[bli] + (pols[poli],)
-                yield (key, self[key])
+                yield (key, self.__getitem__(key, squeeze=squeeze))
                 poli += 1
             bli += 1
