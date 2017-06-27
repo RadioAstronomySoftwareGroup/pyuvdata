@@ -1148,7 +1148,7 @@ def test_getitem():
     nt.assert_true(np.all(dcheck == d))
 
 
-def test_antpair_pol_gen():
+def test_antpairpol_iter():
     # Test generator
     uv = UVData()
     testfile = os.path.join(
@@ -1160,7 +1160,7 @@ def test_antpair_pol_gen():
     keys = []
     pols = set()
     bls = set()
-    for key, d in uv.antpair_pol_gen():
+    for key, d in uv.antpairpol_iter():
         keys += key
         bl = uv.antnums_to_baseline(key[0], key[1])
         blind = np.where(uv.baseline_array == bl)[0]

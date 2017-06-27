@@ -1628,7 +1628,7 @@ class UVData(UVBase):
         return np.append(self.time_array[ind1], self.time_array[ind2])
 
 
-    def antpair_pol_gen(self, squeeze=True):
+    def antpairpol_iter(self, squeeze=True):
         """
         Generates numpy arrays of data for each antpair, pol combination.
 
