@@ -96,6 +96,8 @@ def test_ReadUVFitsWriteMiriad():
     # the objects will not be equal because extra_keywords are not writen to
     # or read from miriad files
     nt.assert_false(miriad_uv == uvfits_uv)
+    # they are equal if only required parameters are checked:
+    nt.assert_true(miriad_uv.__eq__(uvfits_uv, check_extra=False))
 
     # remove the extra_keywords to check that the rest of the objects are equal
     uvfits_uv.extra_keywords = {}

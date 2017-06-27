@@ -67,6 +67,8 @@ def test_readMSreadUVFITS():
 
     # the objects won't be equal because uvfits adds some optional parameters
     nt.assert_false(uvfits_uv == ms_uv)
+    # they are equal if only required parameters are checked:
+    nt.assert_true(uvfits_uv.__eq__(ms_uv, check_extra=False))
 
     # set those parameters to none to check that the rest of the objects match
     for p in uvfits_uv.extra():
@@ -126,6 +128,8 @@ def test_readMSWriteMiriad():
     # the objects will not be equal because extra_keywords are not writen to
     # or read from miriad files
     nt.assert_false(miriad_uv == ms_uv)
+    # they are equal if only required parameters are checked:
+    nt.assert_true(miriad_uv.__eq__(ms_uv, check_extra=False))
 
     # remove the extra_keywords to check that the rest of the objects are equal
     ms_uv.extra_keywords = {}
@@ -154,6 +158,8 @@ def test_readUVFITS_readMS():
 
     # the objects won't be equal because uvfits adds some optional parameters
     nt.assert_false(uvfits_uv == ms_uv)
+    # they are equal if only required parameters are checked:
+    nt.assert_true(uvfits_uv.__eq__(ms_uv, check_extra=False))
 
     # set those parameters to none to check that the rest of the objects match
     for p in uvfits_uv.extra():
@@ -190,6 +196,8 @@ def test_multi_files():
 
     # the objects won't be equal because uvfits adds some optional parameters
     nt.assert_false(uv_multi == uv_full)
+    # they are equal if only required parameters are checked:
+    nt.assert_true(uv_multi.__eq__(uv_full, check_extra=False))
 
     # set those parameters to none to check that the rest of the objects match
     for p in uv_full.extra():
