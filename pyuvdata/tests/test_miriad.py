@@ -229,7 +229,15 @@ def test_readMSWriteMiriad_CASAHistory():
     ms_uv.write_miriad(testfile, clobber=True)
     uvtest.checkWarnings(miriad_uv.read_miriad, [testfile],
                          message='Telescope EVLA is not')
+
+    # the objects will not be equal because extra_keywords are not writen to
+    # or read from miriad files
+    nt.assert_false(miriad_uv == ms_uv)
+
+    # remove the extra_keywords to check that the rest of the objects are equal
+    ms_uv.extra_keywords = {}
     nt.assert_equal(miriad_uv, ms_uv)
+
     nt.assert_equal(ms_uv.history, miriad_uv.history)
     del(miriad_uv)
     del(ms_uv)
