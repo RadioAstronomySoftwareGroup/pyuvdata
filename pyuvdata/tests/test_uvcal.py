@@ -497,6 +497,9 @@ class TestUVCalSelectDelay(object):
         self.delay_object.flag_array = np.concatenate((self.delay_object.flag_array,
                                                        self.delay_object.flag_array[:, :, :, [-1], :]),
                                                       axis=3)
+        self.delay_object.input_flag_array = np.concatenate((self.delay_object.input_flag_array,
+                                                             self.delay_object.input_flag_array[:, :, :, [-1], :]),
+                                                            axis=3)
         self.delay_object.delay_array = np.concatenate((self.delay_object.delay_array,
                                                         self.delay_object.delay_array[:, :, :, [-1], :]),
                                                        axis=3)

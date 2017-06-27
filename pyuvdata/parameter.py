@@ -49,7 +49,7 @@ class UVParameter(object):
     """
 
     def __init__(self, name, required=True, value=None, spoof_val=None,
-                 form=(), description='', expected_type=None, acceptable_vals=None,
+                 form=(), description='', expected_type=int, acceptable_vals=None,
                  acceptable_range=None, tols=(1e-05, 1e-08)):
         """Init UVParameter object."""
         self.name = name

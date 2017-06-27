@@ -268,19 +268,19 @@ class UVData(UVBase):
         self._gst0 = uvp.UVParameter('gst0', required=False,
                                      description='Greenwich sidereal time at '
                                                  'midnight on reference date',
-                                     spoof_val=0.0)
+                                     spoof_val=0.0, expected_type=np.float)
         self._rdate = uvp.UVParameter('rdate', required=False,
                                       description='Date for which the GST0 or '
                                                   'whatever... applies',
-                                      spoof_val='')
+                                      spoof_val='', form='str')
         self._earth_omega = uvp.UVParameter('earth_omega', required=False,
                                             description='Earth\'s rotation rate '
                                                         'in degrees per day',
-                                            spoof_val=360.985)
+                                            spoof_val=360.985, expected_type=np.float)
         self._dut1 = uvp.UVParameter('dut1', required=False,
                                      description='DUT1 (google it) AIPS 117 '
                                                  'calls it UT1UTC',
-                                     spoof_val=0.0)
+                                     spoof_val=0.0, expected_type=np.float)
         self._timesys = uvp.UVParameter('timesys', required=False,
                                         description='We only support UTC',
                                         spoof_val='UTC', form='str')

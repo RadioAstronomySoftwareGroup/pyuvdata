@@ -24,6 +24,13 @@ def test_ReadMiriadWriteUVFits():
                          known_warning='miriad')
     miriad_uv.write_uvfits(testfile, spoof_nonessential=True, force_phase=True)
     uvfits_uv.read_uvfits(testfile)
+    # these are not equal because miriad_uv still retains zenith_dec and
+    # zenith_ra, which are not present in uvfits_uv
+    nt.assert_false(miriad_uv == uvfits_uv)
+
+    # remove zenith_ra and zenith_dec to test that the rest of the objects are equal
+    miriad_uv.zenith_ra = None
+    miriad_uv.zenith_dec = None
     nt.assert_equal(miriad_uv, uvfits_uv)
 
     # check error if phase_type is wrong and force_phase not set
@@ -206,26 +213,26 @@ def test_readWriteReadMiriad():
     del(uv_in)
     del(uv_out)
 
+
 def test_readMSWriteMiriad_CASAHistory():
-    """                                                                                                                                                                                                          
-    read in .ms file.                                                                                                                                                                                            
-    Write to a miriad file, read back in and check for history parameter                                                                                                                                    
     """
-    ms_uv=UVData()
-    miriad_uv=UVData()
-    ms_file=os.path.join(DATA_PATH,'day2_TDEM0003_10s_norx_1src_1spw.ms')
-    testfile=os.path.join(DATA_PATH,'test/outtest_miriad')
-    uvtest.checkWarnings(ms_uv.read_ms,[ms_file],
+    read in .ms file.
+    Write to a miriad file, read back in and check for history parameter
+    """
+    ms_uv = UVData()
+    miriad_uv = UVData()
+    ms_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.ms')
+    testfile = os.path.join(DATA_PATH, 'test/outtest_miriad')
+    uvtest.checkWarnings(ms_uv.read_ms, [ms_file],
                          message='Telescope EVLA is not',
                          nwarnings=0)
-    ms_uv.write_miriad(testfile,clobber=True)
-    uvtest.checkWarnings(miriad_uv.read_miriad,[testfile],
+    ms_uv.write_miriad(testfile, clobber=True)
+    uvtest.checkWarnings(miriad_uv.read_miriad, [testfile],
                          message='Telescope EVLA is not')
-    nt.assert_equal(miriad_uv,ms_uv)
-    nt.assert_equal(ms_uv.history,miriad_uv.history)
+    nt.assert_equal(miriad_uv, ms_uv)
+    nt.assert_equal(ms_uv.history, miriad_uv.history)
     del(miriad_uv)
     del(ms_uv)
-
 
 
 def test_rwrMiriad_antpos_issues():
@@ -312,5 +319,11 @@ def test_multi_files():
                     ' using pyuvdata. Combined data along frequency axis using'
                     ' pyuvdata.', uv1.history.replace('\n', ''))
     uv1.history = uv_full.history
-    nt.assert_equal(uv1, uv_full)
 
+    # the objects will not be equal because extra_keywords are not writen to
+    # or read from miriad files
+    nt.assert_false(uv1 == uv_full)
+
+    # remove the extra_keywords to check that the rest of the objects are equal
+    uv_full.extra_keywords = {}
+    nt.assert_equal(uv1, uv_full)
