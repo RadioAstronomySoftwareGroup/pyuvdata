@@ -150,8 +150,13 @@ class UVBase(object):
         for a in extra_list:
             yield a
 
-    def __eq__(self, other):
-        """Equal if classes match and required parameters are equal."""
+    def __eq__(self, other, check_extra=True):
+        """
+        Equal if classes match and parameters are equal.
+
+        If check_extra is True, include all parameters, otherwise only include
+        required parameters.
+        """
         if isinstance(other, self.__class__):
             # only check that required parameters are identical
             self_required = []
@@ -166,8 +171,25 @@ class UVBase(object):
                                                 rset=other_required))
                 return False
 
+            if check_extra:
+                self_extra = []
+                other_extra = []
+                for p in self.extra():
+                    self_extra.append(p)
+                for p in other.extra():
+                    other_extra.append(p)
+                if set(self_extra) != set(other_extra):
+                    print('Sets of extra parameters do not match. Left is {lset},'
+                          ' right is {rset}'.format(lset=self_extra,
+                                                    rset=other_extra))
+                    return False
+
+                p_check = self_required + self_extra
+            else:
+                p_check = self_required
+
             p_equal = True
-            for p in self.required():
+            for p in p_check:
                 self_param = getattr(self, p)
                 other_param = getattr(other, p)
                 if self_param != other_param:
@@ -181,69 +203,75 @@ class UVBase(object):
         """Not equal."""
         return not self.__eq__(other)
 
-    def check(self, run_check_acceptability=True):
+    def check(self, check_extra=True, run_check_acceptability=True):
         """
-        Check that all required parameters are set reasonably.
-
-        Check that required parameters exist and have appropriate shapes.
-        Optionally check if the values are acceptable.
+        Check that required parameters exist. Check that parameters have
+        appropriate shapes and optionally that the values are acceptable.
 
         Args:
+            check_extra: If true, check shapes and values on all parameters,
+                otherwise only check required parameters.
             run_check_acceptability: Option to check if values in required parameters
                 are acceptable. Default is True.
         """
-        for p in self.required():
+        if check_extra:
+            p_check = [p for p in self.required()] + [p for p in self.extra()]
+        else:
+            p_check = [p for p in self.required()]
+
+        for p in p_check:
             param = getattr(self, p)
             # Check required parameter exists
             if param.value is None:
-                raise ValueError('Required UVParameter ' + p +
-                                 ' has not been set.')
-
-            # Check required parameter shape
-            eshape = param.expected_shape(self)
-            if eshape is None:
-                raise ValueError('Required UVParameter ' + p +
-                                 ' expected shape is not defined.')
-            elif eshape == 'str':
-                # Check that it's a string
-                if not isinstance(param.value, str):
-                    raise ValueError('UVParameter ' + p + 'expected to be '
-                                     'string, but is not')
+                if param.required is True:
+                    raise ValueError('Required UVParameter ' + p +
+                                     ' has not been set.')
             else:
-                # Check the shape of the parameter value. Note that np.shape
-                # returns an empty tuple for single numbers. eshape should do the same.
-                if not np.shape(param.value) == eshape:
-                    raise ValueError('UVParameter {param} is not expected shape. '
-                                     'Parameter shape is {pshape}, expected shape is '
-                                     '{eshape}.'.format(param=p, pshape=np.shape(param.value),
-                                                        eshape=eshape))
-                if eshape == ():
-                    # Single element
-                    if not isinstance(param.value, param.expected_type):
-                        raise ValueError('UVParameter ' + p + ' is not the appropriate'
-                                         ' type. Is: ' + str(type(param.value)) +
-                                         '. Should be: ' + str(param.expected_type))
+                # Check parameter shape
+                eshape = param.expected_shape(self)
+                if eshape is None:
+                    raise ValueError('Required UVParameter ' + p +
+                                     ' expected shape is not defined.')
+                elif eshape == 'str':
+                    # Check that it's a string
+                    if not isinstance(param.value, str):
+                        raise ValueError('UVParameter ' + p + 'expected to be '
+                                         'string, but is not')
                 else:
-                    if isinstance(param.value, list):
-                        # List needs to be handled differently than array
-                        # list values may be different types, so they all need to be checked
-                        for item in param.value:
-                            if not isinstance(item, param.expected_type):
-                                raise ValueError('UVParameter ' + p + ' is not the'
-                                                 ' appropriate type. Is: ' +
-                                                 str(type(param.value[0])) + '. Should'
-                                                 ' be: ' + str(param.expected_type))
-                    else:
-                        # Array
-                        if not isinstance(param.value.item(0), param.expected_type):
+                    # Check the shape of the parameter value. Note that np.shape
+                    # returns an empty tuple for single numbers. eshape should do the same.
+                    if not np.shape(param.value) == eshape:
+                        raise ValueError('UVParameter {param} is not expected shape. '
+                                         'Parameter shape is {pshape}, expected shape is '
+                                         '{eshape}.'.format(param=p, pshape=np.shape(param.value),
+                                                            eshape=eshape))
+                    if eshape == ():
+                        # Single element
+                        if not isinstance(param.value, param.expected_type):
                             raise ValueError('UVParameter ' + p + ' is not the appropriate'
-                                             ' type. Is: ' + str(param.value.dtype) +
+                                             ' type. Is: ' + str(type(param.value)) +
                                              '. Should be: ' + str(param.expected_type))
+                    else:
+                        if isinstance(param.value, list):
+                            # List needs to be handled differently than array
+                            # list values may be different types, so they all need to be checked
+                            for item in param.value:
+                                if not isinstance(item, param.expected_type):
+                                    raise ValueError('UVParameter ' + p + ' is not the'
+                                                     ' appropriate type. Is: ' +
+                                                     str(type(param.value[0])) + '. Should'
+                                                     ' be: ' + str(param.expected_type))
+                        else:
+                            # Array
+                            if not isinstance(param.value.item(0), param.expected_type):
+                                raise ValueError('UVParameter ' + p + ' is not the appropriate'
+                                                 ' type. Is: ' + str(param.value.dtype) +
+                                                 '. Should be: ' + str(param.expected_type))
 
-            if run_check_acceptability:
-                accept, message = param.check_acceptability()
-                if not accept:
-                    raise ValueError('UVParameter ' + p + ' has unacceptable values. ' +
-                                     message)
+                if run_check_acceptability:
+                    accept, message = param.check_acceptability()
+                    if not accept:
+                        raise ValueError('UVParameter ' + p + ' has unacceptable values. ' +
+                                         message)
 
         return True

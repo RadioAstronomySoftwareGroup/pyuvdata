@@ -424,7 +424,7 @@ class CALFITS(UVCal):
             flag_hdr = sechdu.header
             if sechdu.header['NAXIS1'] == 2:
                 self.flag_array = flag_data[:, :, :, :, :, 0].astype('bool')
-                self.input_flag_array = flag_data[:, :, :, :, :, 1]
+                self.input_flag_array = flag_data[:, :, :, :, :, 1].astype('bool')
             else:
                 self.flag_array = flag_data[:, :, :, :, :, 0].astype('bool')
 

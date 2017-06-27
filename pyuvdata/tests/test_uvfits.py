@@ -93,6 +93,12 @@ def test_ReadUVFitsWriteMiriad():
     uvfits_uv.write_miriad(testfile, clobber=True)
     uvtest.checkWarnings(miriad_uv.read_miriad, [testfile], message='Telescope EVLA is not')
 
+    # the objects will not be equal because extra_keywords are not writen to
+    # or read from miriad files
+    nt.assert_false(miriad_uv == uvfits_uv)
+
+    # remove the extra_keywords to check that the rest of the objects are equal
+    uvfits_uv.extra_keywords = {}
     nt.assert_equal(miriad_uv, uvfits_uv)
 
     # check that setting the phase_type keyword also works
