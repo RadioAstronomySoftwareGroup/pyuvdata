@@ -929,6 +929,193 @@ def test_break_add():
     nt.assert_raises(ValueError, uv1.__iadd__, uv2)
 
 
+def test_key2inds():
+    # Test function to interpret key as antpair, pol
+    uv = UVData()
+    testfile = os.path.join(
+        DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    uvtest.checkWarnings(uv.read_uvfits, [testfile],
+                         message='Telescope EVLA is not')
+
+    # Get an antpair/pol combo
+    ant1 = uv.ant_1_array[0]
+    ant2 = uv.ant_2_array[0]
+    pol = uv.polarization_array[0]
+    bltind = np.where((uv.ant_1_array == ant1) & (uv.ant_2_array == ant2))[0]
+    ind1, ind2, indp = uv._key2inds((ant1, ant2, pol))
+    nt.assert_true(np.array_equal(bltind, ind1))
+    nt.assert_true(np.array_equal(np.array([]), ind2))
+    nt.assert_true(np.array_equal([0], indp))
+
+    # Combo with pol as string
+    ind1, ind2, indp = uv._key2inds((ant1, ant2, uvutils.polnum2str(pol)))
+    nt.assert_true(np.array_equal([0], indp))
+
+    # Check conjugation
+    ind1, ind2, indp = uv._key2inds((ant2, ant1, pol))
+    nt.assert_true(np.array_equal(bltind, ind2))
+    nt.assert_true(np.array_equal(np.array([]), ind1))
+    nt.assert_true(np.array_equal([0], indp))
+
+    # Antpair only
+    ind1, ind2, indp = uv._key2inds((ant1, ant2))
+    nt.assert_true(np.array_equal(bltind, ind1))
+    nt.assert_true(np.array_equal(np.array([]), ind2))
+    nt.assert_true(np.array_equal(np.arange(uv.Npols), indp))
+
+    # Baseline number only
+    ind1, ind2, indp = uv._key2inds(uv.antnums_to_baseline(ant1, ant2))
+    nt.assert_true(np.array_equal(bltind, ind1))
+    nt.assert_true(np.array_equal(np.array([]), ind2))
+    nt.assert_true(np.array_equal(np.arange(uv.Npols), indp))
+
+    # Pol number only
+    ind1, ind2, indp = uv._key2inds(pol)
+    nt.assert_true(np.array_equal(np.arange(uv.Nblts), ind1))
+    nt.assert_true(np.array_equal(np.array([]), ind2))
+    nt.assert_true(np.array_equal(np.array([0]), indp))
+
+    # Pol string only
+    ind1, ind2, indp = uv._key2inds('LL')
+    nt.assert_true(np.array_equal(np.arange(uv.Nblts), ind1))
+    nt.assert_true(np.array_equal(np.array([]), ind2))
+    nt.assert_true(np.array_equal(np.array([1]), indp))
+
+    # Test invalid keys
+    nt.assert_raises(KeyError, uv._key2inds, 'I')  # pol str not in data
+    nt.assert_raises(KeyError, uv._key2inds, -8)  # pol num not in data
+    nt.assert_raises(KeyError, uv._key2inds, 6)  # bl num not in data
+    nt.assert_raises(KeyError, uv._key2inds, (1, 1))  # ant pair not in data
+    nt.assert_raises(KeyError, uv._key2inds, (1, 1, 'rr'))  # ant pair not in data
+    nt.assert_raises(KeyError, uv._key2inds, (0, 1, 'xx'))  # pol not in data
+
+
+def test_get_data():
+    # Test get_data function for easy access to data
+    uv = UVData()
+    testfile = os.path.join(
+        DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    uvtest.checkWarnings(uv.read_uvfits, [testfile],
+                         message='Telescope EVLA is not')
+
+    # Get an antpair/pol combo
+    ant1 = uv.ant_1_array[0]
+    ant2 = uv.ant_2_array[0]
+    pol = uv.polarization_array[0]
+    bltind = np.where((uv.ant_1_array == ant1) & (uv.ant_2_array == ant2))[0]
+    dcheck = np.squeeze(uv.data_array[bltind, :, :, 0])
+    d = uv.get_data((ant1, ant2, pol))
+    nt.assert_true(np.all(dcheck == d))
+
+    # Check conjugation
+    d = uv.get_data((ant2, ant1, pol))
+    nt.assert_true(np.all(dcheck == np.conj(d)))
+
+    # Antpair only
+    dcheck = np.squeeze(uv.data_array[bltind, :, :, :])
+    d = uv.get_data((ant1, ant2))
+    nt.assert_true(np.all(dcheck == d))
+
+    # Pol number only
+    dcheck = np.squeeze(uv.data_array[:, :, :, 0])
+    d = uv.get_data(pol)
+    nt.assert_true(np.all(dcheck == d))
+
+
+def test_get_flags():
+    # Test function for easy access to flags
+    uv = UVData()
+    testfile = os.path.join(
+        DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    uvtest.checkWarnings(uv.read_uvfits, [testfile],
+                         message='Telescope EVLA is not')
+
+    # Get an antpair/pol combo
+    ant1 = uv.ant_1_array[0]
+    ant2 = uv.ant_2_array[0]
+    pol = uv.polarization_array[0]
+    bltind = np.where((uv.ant_1_array == ant1) & (uv.ant_2_array == ant2))[0]
+    dcheck = np.squeeze(uv.flag_array[bltind, :, :, 0])
+    d = uv.get_flags((ant1, ant2, pol))
+    nt.assert_true(np.all(dcheck == d))
+
+    # Check conjugation
+    d = uv.get_flags((ant2, ant1, pol))
+    nt.assert_true(np.all(dcheck == d))
+
+    # Antpair only
+    dcheck = np.squeeze(uv.flag_array[bltind, :, :, :])
+    d = uv.get_flags((ant1, ant2))
+    nt.assert_true(np.all(dcheck == d))
+
+    # Pol number only
+    dcheck = np.squeeze(uv.flag_array[:, :, :, 0])
+    d = uv.get_flags(pol)
+    nt.assert_true(np.all(dcheck == d))
+
+
+def test_get_nsamples():
+    # Test function for easy access to nsample array
+    uv = UVData()
+    testfile = os.path.join(
+        DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    uvtest.checkWarnings(uv.read_uvfits, [testfile],
+                         message='Telescope EVLA is not')
+
+    # Get an antpair/pol combo
+    ant1 = uv.ant_1_array[0]
+    ant2 = uv.ant_2_array[0]
+    pol = uv.polarization_array[0]
+    bltind = np.where((uv.ant_1_array == ant1) & (uv.ant_2_array == ant2))[0]
+    dcheck = np.squeeze(uv.nsample_array[bltind, :, :, 0])
+    d = uv.get_nsamples((ant1, ant2, pol))
+    nt.assert_true(np.all(dcheck == d))
+
+    # Check conjugation
+    d = uv.get_nsamples((ant2, ant1, pol))
+    nt.assert_true(np.all(dcheck == d))
+
+    # Antpair only
+    dcheck = np.squeeze(uv.nsample_array[bltind, :, :, :])
+    d = uv.get_nsamples((ant1, ant2))
+    nt.assert_true(np.all(dcheck == d))
+
+    # Pol number only
+    dcheck = np.squeeze(uv.nsample_array[:, :, :, 0])
+    d = uv.get_nsamples(pol)
+    nt.assert_true(np.all(dcheck == d))
+
+
+def test_get_times():
+    # Test function for easy access to times, to work in conjunction with get_data
+    uv = UVData()
+    testfile = os.path.join(
+        DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    uvtest.checkWarnings(uv.read_uvfits, [testfile],
+                         message='Telescope EVLA is not')
+
+    # Get an antpair/pol combo (pol shouldn't actually effect result)
+    ant1 = uv.ant_1_array[0]
+    ant2 = uv.ant_2_array[0]
+    pol = uv.polarization_array[0]
+    bltind = np.where((uv.ant_1_array == ant1) & (uv.ant_2_array == ant2))[0]
+    dcheck = uv.time_array[bltind]
+    d = uv.get_times((ant1, ant2, pol))
+    nt.assert_true(np.all(dcheck == d))
+
+    # Check conjugation
+    d = uv.get_times((ant2, ant1, pol))
+    nt.assert_true(np.all(dcheck == d))
+
+    # Antpair only
+    d = uv.get_times((ant1, ant2))
+    nt.assert_true(np.all(dcheck == d))
+
+    # Pol number only
+    d = uv.get_times(pol)
+    nt.assert_true(np.all(d == uv.time_array))
+
+
 def test_getitem():
     # Test getitem function for easy access to data
     uv = UVData()
@@ -946,10 +1133,6 @@ def test_getitem():
     d = uv[(ant1, ant2, pol)]
     nt.assert_true(np.all(dcheck == d))
 
-    # Combo with pol as string
-    d = uv[(ant1, ant2, uvutils.polnum2str(pol))]
-    nt.assert_true(np.all(dcheck == d))
-
     # Check conjugation
     d = uv[(ant2, ant1, pol)]
     nt.assert_true(np.all(dcheck == np.conj(d)))
@@ -959,27 +1142,10 @@ def test_getitem():
     d = uv[(ant1, ant2)]
     nt.assert_true(np.all(dcheck == d))
 
-    # Baseline number only
-    d = uv[uv.antnums_to_baseline(ant1, ant2)]
-    nt.assert_true(np.all(dcheck == d))
-
     # Pol number only
     dcheck = np.squeeze(uv.data_array[:, :, :, 0])
     d = uv[pol]
     nt.assert_true(np.all(dcheck == d))
-
-    # Pol string only
-    dcheck = np.squeeze(uv.data_array[:, :, :, 1])
-    d = uv['LL']
-    nt.assert_true(np.all(dcheck == d))
-
-    # Test invalid keys
-    nt.assert_raises(KeyError, uv.__getitem__, 'I')  # pol str not in data
-    nt.assert_raises(KeyError, uv.__getitem__, -8)  # pol num not in data
-    nt.assert_raises(KeyError, uv.__getitem__, 6)  # bl num not in data
-    nt.assert_raises(KeyError, uv.__getitem__, (1, 1))  # ant pair not in data
-    nt.assert_raises(KeyError, uv.__getitem__, (1, 1, 'rr'))  # ant pair not in data
-    nt.assert_raises(KeyError, uv.__getitem__, (0, 1, 'xx'))  # pol not in data
 
 
 def test_antpair_pol_gen():
