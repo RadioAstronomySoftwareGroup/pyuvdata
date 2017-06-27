@@ -27,6 +27,8 @@ def test_ReadMiriadWriteUVFits():
     # these are not equal because miriad_uv still retains zenith_dec and
     # zenith_ra, which are not present in uvfits_uv
     nt.assert_false(miriad_uv == uvfits_uv)
+    # they are equal if only required parameters are checked:
+    nt.assert_true(miriad_uv.__eq__(uvfits_uv, check_extra=False))
 
     # remove zenith_ra and zenith_dec to test that the rest of the objects are equal
     miriad_uv.zenith_ra = None
@@ -233,6 +235,8 @@ def test_readMSWriteMiriad_CASAHistory():
     # the objects will not be equal because extra_keywords are not writen to
     # or read from miriad files
     nt.assert_false(miriad_uv == ms_uv)
+    # they are equal if only required parameters are checked:
+    nt.assert_true(miriad_uv.__eq__(ms_uv, check_extra=False))
 
     # remove the extra_keywords to check that the rest of the objects are equal
     ms_uv.extra_keywords = {}
@@ -331,6 +335,8 @@ def test_multi_files():
     # the objects will not be equal because extra_keywords are not writen to
     # or read from miriad files
     nt.assert_false(uv1 == uv_full)
+    # they are equal if only required parameters are checked:
+    nt.assert_true(uv1.__eq__(uv_full, check_extra=False))
 
     # remove the extra_keywords to check that the rest of the objects are equal
     uv_full.extra_keywords = {}
