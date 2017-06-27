@@ -1452,16 +1452,24 @@ class UVData(UVBase):
         """
         return [self.baseline_to_antnums(bl) for bl in self.get_baseline_nums()]
 
+    def get_antpairpols(self):
+        """
+        Returns list of unique antpair + pol tuples (ant1, ant2, pol) in data.
+        """
+        bli = 0
+        pols = uvutils.polnum2str(self.polarization_array)
+        bls = self.get_antpairs()
+        return [(bl) + (pol,) for bl in bls for pol in pols]
+
     def antpair2ind(self, ant1, ant2):
         """
         Get blt indices for given (ordered) antenna pair.
         """
         return np.where((self.ant_1_array == ant1) & (self.ant_2_array == ant2))[0]
 
-    def __getitem__(self, key, squeeze=True):
+    def _key2inds(self, key):
         """
-        Function for quick access to numpy array with data corresponding to
-        a baseline and/or polarization.
+        Interpret user specified key as a combination of antenna pair and/or polarization.
 
         Args:
             key: Identifier of data. Key can be 1, 2, or 3 numbers:
@@ -1474,12 +1482,11 @@ class UVData(UVBase):
                     times and pols for that baseline.
                 if len(key) == 3: interpreted as antenna pair and pol (ant1, ant2, pol).
                     Return all times for that baseline, pol. pol may be a string.
-            squeeze: If true (default) remove single dimensional entries from output array.
 
         Returns:
-            Numpy array of data corresponding to key, defined above.
-            If data exists conjugate to requested antenna pair, it will be conjugated
-            before returning.
+            blt_ind1: numpy array with blt indices for antenna pair.
+            blt_ind2: numpy array with blt indices for conjugate antenna pair.
+            pol_ind: numpy array with polarization indices
         """
         key = uvutils.get_iterable(key)
         if type(key) is str:
@@ -1487,7 +1494,8 @@ class UVData(UVBase):
             pol_ind = np.where(self.polarization_array == uvutils.polstr2num(key))[0]
             if len(pol_ind) == 0:
                 raise KeyError('Polarization {pol} not found in data.'.format(pol=key))
-            out = self.data_array[:, :, :, pol_ind[0]]
+            blt_ind1 = np.arange(self.Nblts)
+            blt_ind2 = np.array([], dtype=np.int64)
         elif len(key) == 1:
             key = key[0]  # For simplicity
             if key < 5:
@@ -1495,27 +1503,29 @@ class UVData(UVBase):
                 pol_ind = np.where(self.polarization_array == key)[0]
                 if len(pol_ind) == 0:
                     raise KeyError('Polarization {pol} not found in data.'.format(pol=key))
-                out = self.data_array[:, :, :, pol_ind[0]]
+                blt_ind1 = np.arange(self.Nblts)
+                blt_ind2 = np.array([], dtype=np.int64)
             else:
                 # Larger number, assume it is a baseline number
-                if key in self.baseline_array:
-                    blt_ind = np.where(self.baseline_array == key)[0]
-                else:
+                inv_bl = self.antnums_to_baseline(self.baseline_to_antnums(key)[1],
+                                                  self.baseline_to_antnums(key)[0])
+                blt_ind1 = np.where(self.baseline_array == key)[0]
+                blt_ind2 = np.where(self.baseline_array == inv_bl)[0]
+                if len(blt_ind1) + len(blt_ind2) == 0:
                     raise KeyError('Baseline {bl} not found in data.'.format(bl=key))
-                out = self.data_array[blt_ind, :, :, :]
+                pol_ind = np.arange(self.Npols)
         elif len(key) == 2:
             # Key is an antenna pair
-            ind1 = self.antpair2ind(key[0], key[1])
-            ind2 = self.antpair2ind(key[1], key[0])
-            if len(ind1) + len(ind2) == 0:
+            blt_ind1 = self.antpair2ind(key[0], key[1])
+            blt_ind2 = self.antpair2ind(key[1], key[0])
+            if len(blt_ind1) + len(blt_ind2) == 0:
                 raise KeyError('Antenna pair {pair} not found in data'.format(pair=key))
-            out = np.append(self.data_array[ind1, :, :, :],
-                            np.conj(self.data_array[ind2, :, :, :]), axis=0)
+            pol_ind = np.arange(self.Npols)
         elif len(key) == 3:
             # Key is an antenna pair + pol
-            ind1 = self.antpair2ind(key[0], key[1])
-            ind2 = self.antpair2ind(key[1], key[0])
-            if len(ind1) + len(ind2) == 0:
+            blt_ind1 = self.antpair2ind(key[0], key[1])
+            blt_ind2 = self.antpair2ind(key[1], key[0])
+            if len(blt_ind1) + len(blt_ind2) == 0:
                 raise KeyError('Antenna pair {pair} not found in '
                                'data'.format(pair=(key[0], key[1])))
             if type(key[2]) is str:
@@ -1526,12 +1536,97 @@ class UVData(UVBase):
                 pol_ind = np.where(self.polarization_array == key[2])[0]
             if len(pol_ind) == 0:
                 raise KeyError('Polarization {pol} not found in data.'.format(pol=key[2]))
-            out = np.append(self.data_array[ind1, :, :, pol_ind],
-                            np.conj(self.data_array[ind2, :, :, pol_ind]), axis=0)
+        return (blt_ind1, blt_ind2, pol_ind)
 
+    def get_data(self, key, squeeze=True):
+        """
+        Function for quick access to numpy array with data corresponding to
+        a baseline and/or polarization.
+
+        Args:
+            key: Identifier of data. See _key2inds for formatting.
+            squeeze: If true (default) remove single dimensional entries from output array.
+
+        Returns:
+            Numpy array of data corresponding to key.
+            If data exists conjugate to requested antenna pair, it will be conjugated
+            before returning.
+        """
+        ind1, ind2, indp = self._key2inds(key)
+        out = self.data_array[:, :, :, indp]
+        out = np.append(out[ind1, :, :, :], np.conj(out[ind2, :, :, :]), axis=0)
         if squeeze:
             out = np.squeeze(out)
         return out
+
+    def get_flags(self, key, squeeze=True):
+        """
+        Function for quick access to numpy array with flags corresponding to
+        a baseline and/or polarization.
+
+        Args:
+            key: Identifier of data. See _key2inds for formatting.
+            squeeze: If true (default) remove single dimensional entries from output array.
+
+        Returns:
+            Numpy array of flags corresponding to key.
+        """
+        ind1, ind2, indp = self._key2inds(key)
+        out = self.flag_array[:, :, :, indp]
+        out = np.append(out[ind1, :, :, :], np.conj(out[ind2, :, :, :]), axis=0)
+        if squeeze:
+            out = np.squeeze(out)
+        return out
+
+    def get_nsamples(self, key, squeeze=True):
+        """
+        Function for quick access to numpy array with nsamples corresponding to
+        a baseline and/or polarization.
+
+        Args:
+            key: Identifier of data. See _key2inds for formatting.
+            squeeze: If true (default) remove single dimensional entries from output array.
+
+        Returns:
+            Numpy array of nsamples corresponding to key.
+        """
+        ind1, ind2, indp = self._key2inds(key)
+        out = self.nsample_array[:, :, :, indp]
+        out = np.append(out[ind1, :, :, :], np.conj(out[ind2, :, :, :]), axis=0)
+        if squeeze:
+            out = np.squeeze(out)
+        return out
+
+    def __getitem__(self, key):
+        """
+        A wrapper for the get_data function to act like a dictionary-type object.
+
+        Args:
+            key: Identifier of data. See _key2inds for formatting.
+
+        Returns:
+            Numpy array of data corresponding to key.
+            If data exists conjugate to requested antenna pair, it will be conjugated
+            before returning.
+        """
+        return self.get_data(key, squeeze=True)
+
+    def get_times(self, key):
+        """
+        Find the time_array entries for a given antpair or baseline number.
+        Meant to be used in conjunction with get_data function.
+
+        Args:
+            key: Identifier of data. See _key2inds for formatting. Polarization
+                 can be supplied to conform with get_data function, but will
+                 not effect output.
+
+        Returns:
+            Numpy array of times corresonding to key.
+        """
+        ind1, ind2, indp = self._key2inds(key)
+        return np.append(self.time_array[ind1], self.time_array[ind2])
+
 
     def antpair_pol_gen(self, squeeze=True):
         """
@@ -1544,13 +1639,6 @@ class UVData(UVBase):
             key: tuple with antenna1, antenna2, and polarization string
             data: Numpy array with data which is the result of self[key]
         """
-        bli = 0
-        pols = uvutils.polnum2str(self.polarization_array)
-        bls = self.get_antpairs()
-        while bli < len(bls):
-            poli = 0
-            while poli < self.Npols:
-                key = bls[bli] + (pols[poli],)
-                yield (key, self.__getitem__(key, squeeze=squeeze))
-                poli += 1
-            bli += 1
+        antpairpols = self.get_antpairpols()
+        for key in antpairpols:
+            yield (key, self.get_data(key, squeeze=squeeze))
