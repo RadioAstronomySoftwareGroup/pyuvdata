@@ -43,7 +43,7 @@ class UVBeam(UVBase):
         self._Naxes_vec = uvp.UVParameter('Naxes_vec', description=desc,
                                           expected_type=int, acceptable_vals=[2, 3])
 
-        desc = ('Pixel coordinate system, options are: '
+        desc = ('Pixel coordinate system, options are: ' +
                 ', '.join(self.coordinate_system_dict.keys()))
         self._pixel_coordinate_system = uvp.UVParameter('pixel_coordinate_system',
                                                         description=desc, form='str',
@@ -276,8 +276,6 @@ class UVBeam(UVBase):
 
     def check(self, run_check_acceptability=True):
         """
-        Add some extra checks on top of checks on UVBase class.
-
         Check that all required parameters are set reasonably.
 
         Check that required parameters exist and have appropriate shapes.
@@ -397,7 +395,7 @@ class UVBeam(UVBase):
             this = self
         else:
             this = copy.deepcopy(self)
-        # Check that both objects are UVData and valid
+        # Check that both objects are UVBeam and valid
         this.check(run_check_acceptability=False)
         if not isinstance(other, this.__class__):
             raise(ValueError('Only UVBeam objects can be added to a UVBeam object'))
@@ -707,7 +705,7 @@ class UVBeam(UVBase):
         In place add.
 
         Args:
-            other: Another UVData object which will be added to self.
+            other: Another UVBeam object which will be added to self.
         """
         self.__add__(other, inplace=True)
         return self
