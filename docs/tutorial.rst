@@ -53,6 +53,7 @@ d) FHD -> miriad (aipy)
   UV.read_fhd(fhd_files)
   UV.write_uvfits('1061316296.uvfits')
 
+
 e) CASA -> uvfits
 ******************
 ::
@@ -61,6 +62,7 @@ e) CASA -> uvfits
    ms_file = 'pyuvdata/data/day2_TDEM0003_10s_norx_1scan.ms'
    UV.read_ms(ms_file)
    UV.write_uvfits('new.uvfits')#write out uvfits file
+
 
 f) CASA -> miriad (aipy)
 ******************
