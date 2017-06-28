@@ -1116,38 +1116,6 @@ def test_get_times():
     nt.assert_true(np.all(d == uv.time_array))
 
 
-def test_getitem():
-    # Test getitem function for easy access to data
-    uv = UVData()
-    testfile = os.path.join(
-        DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-    uvtest.checkWarnings(uv.read_uvfits, [testfile],
-                         message='Telescope EVLA is not')
-
-    # Get an antpair/pol combo
-    ant1 = uv.ant_1_array[0]
-    ant2 = uv.ant_2_array[0]
-    pol = uv.polarization_array[0]
-    bltind = np.where((uv.ant_1_array == ant1) & (uv.ant_2_array == ant2))[0]
-    dcheck = np.squeeze(uv.data_array[bltind, :, :, 0])
-    d = uv[(ant1, ant2, pol)]
-    nt.assert_true(np.all(dcheck == d))
-
-    # Check conjugation
-    d = uv[(ant2, ant1, pol)]
-    nt.assert_true(np.all(dcheck == np.conj(d)))
-
-    # Antpair only
-    dcheck = np.squeeze(uv.data_array[bltind, :, :, :])
-    d = uv[(ant1, ant2)]
-    nt.assert_true(np.all(dcheck == d))
-
-    # Pol number only
-    dcheck = np.squeeze(uv.data_array[:, :, :, 0])
-    d = uv[pol]
-    nt.assert_true(np.all(dcheck == d))
-
-
 def test_antpairpol_iter():
     # Test generator
     uv = UVData()

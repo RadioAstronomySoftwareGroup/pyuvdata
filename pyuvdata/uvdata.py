@@ -1597,20 +1597,6 @@ class UVData(UVBase):
             out = np.squeeze(out)
         return out
 
-    def __getitem__(self, key):
-        """
-        A wrapper for the get_data function to act like a dictionary-type object.
-
-        Args:
-            key: Identifier of data. See _key2inds for formatting.
-
-        Returns:
-            Numpy array of data corresponding to key.
-            If data exists conjugate to requested antenna pair, it will be conjugated
-            before returning.
-        """
-        return self.get_data(key, squeeze=True)
-
     def get_times(self, key):
         """
         Find the time_array entries for a given antpair or baseline number.
@@ -1626,7 +1612,6 @@ class UVData(UVBase):
         """
         ind1, ind2, indp = self._key2inds(key)
         return np.append(self.time_array[ind1], self.time_array[ind2])
-
 
     def antpairpol_iter(self, squeeze=True):
         """
