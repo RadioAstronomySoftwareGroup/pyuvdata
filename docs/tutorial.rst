@@ -127,17 +127,20 @@ a) Data for single antenna pair / polarization combination.
   UV = UVData()
   filename = 'pyuvdata/data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
   UV.read_uvfits(filename)
-  data = UV.get_data((1, 2, 'rr'))  # data for ant1=1, ant2=2, pol='rr'
-  times = UV.get_times((1, 2))  # times corresponding to 0th axis in data
+  data = UV.get_data(1, 2, 'rr')  # data for ant1=1, ant2=2, pol='rr'
+  times = UV.get_times(1, 2)  # times corresponding to 0th axis in data
   print(data.shape)
   print(times.shape)
+  # One can equivalently make any of these calls with the input wrapped in a tuple.
+  data = UV.get_data((1, 2, 'rr'))
+  times = UV.get_times((1, 2))
 
 b) Flags and nsamples for above data.
 ***************
 ::
 
-  flags = UV.get_flags((1, 2, 'rr'))
-  nsamples = UV.get_nsamples((1, 2, 'rr'))
+  flags = UV.get_flags(1, 2, 'rr')
+  nsamples = UV.get_nsamples(1, 2, 'rr')
   print(flags.shape)
   print(nsamples.shape)
 
@@ -145,7 +148,7 @@ c) Data for single antenna pair, all polarizations.
 ***************
 ::
 
-  data = UV.get_data((1, 2))
+  data = UV.get_data(1, 2)
   print(data.shape)
   data2 = UV.get_data(UV.antnums_to_baseline(1, 2))  # Can also give baseline number
   print(np.all(data == data2))

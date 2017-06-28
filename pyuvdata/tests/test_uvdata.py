@@ -946,9 +946,16 @@ def test_key2inds():
     nt.assert_true(np.array_equal(bltind, ind1))
     nt.assert_true(np.array_equal(np.array([]), ind2))
     nt.assert_true(np.array_equal([0], indp))
+    # Any of these inputs can also be a tuple of a tuple, so need to be checked twice.
+    ind1, ind2, indp = uv._key2inds(((ant1, ant2, pol)))
+    nt.assert_true(np.array_equal(bltind, ind1))
+    nt.assert_true(np.array_equal(np.array([]), ind2))
+    nt.assert_true(np.array_equal([0], indp))
 
     # Combo with pol as string
     ind1, ind2, indp = uv._key2inds((ant1, ant2, uvutils.polnum2str(pol)))
+    nt.assert_true(np.array_equal([0], indp))
+    ind1, ind2, indp = uv._key2inds(((ant1, ant2, uvutils.polnum2str(pol))))
     nt.assert_true(np.array_equal([0], indp))
 
     # Check conjugation
@@ -962,9 +969,17 @@ def test_key2inds():
     nt.assert_true(np.array_equal(bltind, ind1))
     nt.assert_true(np.array_equal(np.array([]), ind2))
     nt.assert_true(np.array_equal(np.arange(uv.Npols), indp))
+    ind1, ind2, indp = uv._key2inds(((ant1, ant2)))
+    nt.assert_true(np.array_equal(bltind, ind1))
+    nt.assert_true(np.array_equal(np.array([]), ind2))
+    nt.assert_true(np.array_equal(np.arange(uv.Npols), indp))
 
     # Baseline number only
     ind1, ind2, indp = uv._key2inds(uv.antnums_to_baseline(ant1, ant2))
+    nt.assert_true(np.array_equal(bltind, ind1))
+    nt.assert_true(np.array_equal(np.array([]), ind2))
+    nt.assert_true(np.array_equal(np.arange(uv.Npols), indp))
+    ind1, ind2, indp = uv._key2inds((uv.antnums_to_baseline(ant1, ant2)))
     nt.assert_true(np.array_equal(bltind, ind1))
     nt.assert_true(np.array_equal(np.array([]), ind2))
     nt.assert_true(np.array_equal(np.arange(uv.Npols), indp))
@@ -974,9 +989,17 @@ def test_key2inds():
     nt.assert_true(np.array_equal(np.arange(uv.Nblts), ind1))
     nt.assert_true(np.array_equal(np.array([]), ind2))
     nt.assert_true(np.array_equal(np.array([0]), indp))
+    ind1, ind2, indp = uv._key2inds((pol))
+    nt.assert_true(np.array_equal(np.arange(uv.Nblts), ind1))
+    nt.assert_true(np.array_equal(np.array([]), ind2))
+    nt.assert_true(np.array_equal(np.array([0]), indp))
 
     # Pol string only
     ind1, ind2, indp = uv._key2inds('LL')
+    nt.assert_true(np.array_equal(np.arange(uv.Nblts), ind1))
+    nt.assert_true(np.array_equal(np.array([]), ind2))
+    nt.assert_true(np.array_equal(np.array([1]), indp))
+    ind1, ind2, indp = uv._key2inds(('LL'))
     nt.assert_true(np.array_equal(np.arange(uv.Nblts), ind1))
     nt.assert_true(np.array_equal(np.array([]), ind2))
     nt.assert_true(np.array_equal(np.array([1]), indp))
@@ -1004,16 +1027,16 @@ def test_get_data():
     pol = uv.polarization_array[0]
     bltind = np.where((uv.ant_1_array == ant1) & (uv.ant_2_array == ant2))[0]
     dcheck = np.squeeze(uv.data_array[bltind, :, :, 0])
-    d = uv.get_data((ant1, ant2, pol))
+    d = uv.get_data(ant1, ant2, pol)
     nt.assert_true(np.all(dcheck == d))
 
     # Check conjugation
-    d = uv.get_data((ant2, ant1, pol))
+    d = uv.get_data(ant2, ant1, pol)
     nt.assert_true(np.all(dcheck == np.conj(d)))
 
     # Antpair only
     dcheck = np.squeeze(uv.data_array[bltind, :, :, :])
-    d = uv.get_data((ant1, ant2))
+    d = uv.get_data(ant1, ant2)
     nt.assert_true(np.all(dcheck == d))
 
     # Pol number only
@@ -1036,16 +1059,16 @@ def test_get_flags():
     pol = uv.polarization_array[0]
     bltind = np.where((uv.ant_1_array == ant1) & (uv.ant_2_array == ant2))[0]
     dcheck = np.squeeze(uv.flag_array[bltind, :, :, 0])
-    d = uv.get_flags((ant1, ant2, pol))
+    d = uv.get_flags(ant1, ant2, pol)
     nt.assert_true(np.all(dcheck == d))
 
     # Check conjugation
-    d = uv.get_flags((ant2, ant1, pol))
+    d = uv.get_flags(ant2, ant1, pol)
     nt.assert_true(np.all(dcheck == d))
 
     # Antpair only
     dcheck = np.squeeze(uv.flag_array[bltind, :, :, :])
-    d = uv.get_flags((ant1, ant2))
+    d = uv.get_flags(ant1, ant2)
     nt.assert_true(np.all(dcheck == d))
 
     # Pol number only
@@ -1068,16 +1091,16 @@ def test_get_nsamples():
     pol = uv.polarization_array[0]
     bltind = np.where((uv.ant_1_array == ant1) & (uv.ant_2_array == ant2))[0]
     dcheck = np.squeeze(uv.nsample_array[bltind, :, :, 0])
-    d = uv.get_nsamples((ant1, ant2, pol))
+    d = uv.get_nsamples(ant1, ant2, pol)
     nt.assert_true(np.all(dcheck == d))
 
     # Check conjugation
-    d = uv.get_nsamples((ant2, ant1, pol))
+    d = uv.get_nsamples(ant2, ant1, pol)
     nt.assert_true(np.all(dcheck == d))
 
     # Antpair only
     dcheck = np.squeeze(uv.nsample_array[bltind, :, :, :])
-    d = uv.get_nsamples((ant1, ant2))
+    d = uv.get_nsamples(ant1, ant2)
     nt.assert_true(np.all(dcheck == d))
 
     # Pol number only
@@ -1100,15 +1123,15 @@ def test_get_times():
     pol = uv.polarization_array[0]
     bltind = np.where((uv.ant_1_array == ant1) & (uv.ant_2_array == ant2))[0]
     dcheck = uv.time_array[bltind]
-    d = uv.get_times((ant1, ant2, pol))
+    d = uv.get_times(ant1, ant2, pol)
     nt.assert_true(np.all(dcheck == d))
 
     # Check conjugation
-    d = uv.get_times((ant2, ant1, pol))
+    d = uv.get_times(ant2, ant1, pol)
     nt.assert_true(np.all(dcheck == d))
 
     # Antpair only
-    d = uv.get_times((ant1, ant2))
+    d = uv.get_times(ant1, ant2)
     nt.assert_true(np.all(dcheck == d))
 
     # Pol number only

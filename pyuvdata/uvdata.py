@@ -11,6 +11,7 @@ import telescopes as uvtel
 import utils as uvutils
 import version as uvversion
 import copy
+import collections
 
 
 class UVData(UVBase):
@@ -1514,7 +1515,11 @@ class UVData(UVBase):
             blt_ind2 = np.array([], dtype=np.int64)
         elif len(key) == 1:
             key = key[0]  # For simplicity
-            if key < 5:
+            print(key)
+            if isinstance(key, collections.Iterable):
+                # Nested tuple. Call function again.
+                blt_ind1, blt_ind2, pol_ind = self._key2inds(key)
+            elif key < 5:
                 # Small number, assume it is a polarization number a la AIPS memo
                 pol_ind = np.where(self.polarization_array == key)[0]
                 if len(pol_ind) == 0:
@@ -1554,79 +1559,87 @@ class UVData(UVBase):
                 raise KeyError('Polarization {pol} not found in data.'.format(pol=key[2]))
         return (blt_ind1, blt_ind2, pol_ind)
 
-    def get_data(self, key, squeeze=True):
+    def get_data(self, *args, **kwargs):
         """
         Function for quick access to numpy array with data corresponding to
         a baseline and/or polarization.
 
         Args:
-            key: Identifier of data. See _key2inds for formatting.
-            squeeze: If true (default) remove single dimensional entries from output array.
+            *args: parameters or tuple of parameters defining the key to identify
+                   desired data. See _key2inds for formatting.
+            **kwargs: Keyword arguments:
+                squeeze: If true (default) remove single dimensional entries
+                         from output array.
 
         Returns:
             Numpy array of data corresponding to key.
             If data exists conjugate to requested antenna pair, it will be conjugated
             before returning.
         """
-        ind1, ind2, indp = self._key2inds(key)
+        ind1, ind2, indp = self._key2inds(args)
         out = self.data_array[:, :, :, indp]
         out = np.append(out[ind1, :, :, :], np.conj(out[ind2, :, :, :]), axis=0)
-        if squeeze:
+        if kwargs.pop('squeeze', True):
             out = np.squeeze(out)
         return out
 
-    def get_flags(self, key, squeeze=True):
+    def get_flags(self, *args, **kwargs):
         """
         Function for quick access to numpy array with flags corresponding to
         a baseline and/or polarization.
 
         Args:
-            key: Identifier of data. See _key2inds for formatting.
-            squeeze: If true (default) remove single dimensional entries from output array.
+            *args: parameters or tuple of parameters defining the key to identify
+                   desired data. See _key2inds for formatting.
+            **kwargs: Keyword arguments:
+                squeeze: If true (default) remove single dimensional entries
+                         from output array.
 
         Returns:
             Numpy array of flags corresponding to key.
         """
-        ind1, ind2, indp = self._key2inds(key)
+        ind1, ind2, indp = self._key2inds(args)
         out = self.flag_array[:, :, :, indp]
         out = np.append(out[ind1, :, :, :], np.conj(out[ind2, :, :, :]), axis=0)
-        if squeeze:
+        if kwargs.pop('squeeze', True):
             out = np.squeeze(out)
         return out
 
-    def get_nsamples(self, key, squeeze=True):
+    def get_nsamples(self, *args, **kwargs):
         """
         Function for quick access to numpy array with nsamples corresponding to
         a baseline and/or polarization.
 
         Args:
-            key: Identifier of data. See _key2inds for formatting.
-            squeeze: If true (default) remove single dimensional entries from output array.
+            *args: parameters or tuple of parameters defining the key to identify
+                   desired data. See _key2inds for formatting.
+            **kwargs: Keyword arguments:
+                squeeze: If true (default) remove single dimensional entries
+                         from output array.
 
         Returns:
             Numpy array of nsamples corresponding to key.
         """
-        ind1, ind2, indp = self._key2inds(key)
+        ind1, ind2, indp = self._key2inds(args)
         out = self.nsample_array[:, :, :, indp]
         out = np.append(out[ind1, :, :, :], np.conj(out[ind2, :, :, :]), axis=0)
-        if squeeze:
+        if kwargs.pop('squeeze', True):
             out = np.squeeze(out)
         return out
 
-    def get_times(self, key):
+    def get_times(self, *args):
         """
         Find the time_array entries for a given antpair or baseline number.
         Meant to be used in conjunction with get_data function.
 
         Args:
-            key: Identifier of data. See _key2inds for formatting. Polarization
-                 can be supplied to conform with get_data function, but will
-                 not effect output.
+            *args: parameters or tuple of parameters defining the key to identify
+                   desired data. See _key2inds for formatting.
 
         Returns:
             Numpy array of times corresonding to key.
         """
-        ind1, ind2, indp = self._key2inds(key)
+        ind1, ind2, indp = self._key2inds(args)
         return np.append(self.time_array[ind1], self.time_array[ind2])
 
     def antpairpol_iter(self, squeeze=True):
