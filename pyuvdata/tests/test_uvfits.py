@@ -93,7 +93,7 @@ def test_ReadUVFitsWriteMiriad():
     uvfits_uv.write_miriad(testfile, clobber=True)
     uvtest.checkWarnings(miriad_uv.read_miriad, [testfile], message='Telescope EVLA is not')
 
-    # the objects will not be equal because extra_keywords are not writen to
+    # the objects will not be equal because extra_keywords are not written to
     # or read from miriad files
     nt.assert_false(miriad_uv == uvfits_uv)
     # they are equal if only required parameters are checked:
