@@ -14,18 +14,20 @@ def _warn_oldcalfits(filename):
                   'rewrite this file with write_calfits to ensure '
                   'FITS compliance.'.format(file=filename))
 
+
 def _warn_olddelay(filename):
     warnings.warn('{file} appears to be an old calfits format '
                   'for delay files which has been depricated. '
                   'Rewrite this file with write_calfits to ensure '
                   'future compatibility.'.format(file=filename))
 
+
 class CALFITS(UVCal):
     """
     Defines a calfits-specific class for reading and writing calfits files.
     """
 
-    def write_calfits(self, filename, run_check=True,
+    def write_calfits(self, filename, run_check=True, check_extra=True,
                       run_check_acceptability=True, clobber=False):
         """
         Write the data to a calfits file.
@@ -33,12 +35,17 @@ class CALFITS(UVCal):
         Args:
             filename: The calfits file to write to.
             run_check: Option to check for the existence and proper shapes of
-                required parameters before writing the file. Default is True.
-            run_check_acceptability: Option to check acceptability of the values of
-                required parameters before writing the file. Default is True.
+                parameters before writing the file. Default is True.
+            check_extra: Option to check optional parameters as well as required
+                ones. Default is True.
+            run_check_acceptability: Option to check acceptable range of the values of
+                parameters before writing the file. Default is True.
+            clobber: Option to overwrite the filename if the file already exists.
+                Default is False.
         """
         if run_check:
-            self.check(run_check_acceptability=run_check_acceptability)
+            self.check(check_extra=check_extra,
+                       run_check_acceptability=run_check_acceptability)
 
         if self.Nfreqs > 1:
             freq_spacing = self.freq_array[0, 1:] - self.freq_array[0, :-1]
@@ -297,17 +304,19 @@ class CALFITS(UVCal):
         else:
             hdulist.writeto(filename, overwrite=clobber)
 
-    def read_calfits(self, filename, run_check=True, run_check_acceptability=True,
-                     strict_fits=False):
+    def read_calfits(self, filename, run_check=True, check_extra=True,
+                     run_check_acceptability=True, strict_fits=False):
         """
         Read data from a calfits file.
 
         Args:
             filename: The calfits file to read to.
             run_check: Option to check for the existence and proper shapes of
-                required parameters after reading the file. Default is True.
-            run_check_acceptability: Option to check acceptability of the values of
-                required parameters after reading the file. Default is True.
+                parameters after reading in the file. Default is True.
+            check_extra: Option to check optional parameters as well as required
+                ones. Default is True.
+            run_check_acceptability: Option to check acceptable range of the values of
+                parameters after reading in the file. Default is True.
         strict_fits: boolean
             If True, require that the data axes have cooresponding NAXIS, CRVAL,
             CDELT and CRPIX keywords. If False, allow CRPIX to be missing and
@@ -510,4 +519,5 @@ class CALFITS(UVCal):
             self.total_quality_array = None
 
         if run_check:
-            self.check(run_check_acceptability=run_check_acceptability)
+            self.check(check_extra=check_extra,
+                       run_check_acceptability=run_check_acceptability)

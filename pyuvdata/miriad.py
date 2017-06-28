@@ -27,7 +27,7 @@ class Miriad(UVData):
         return pol_ind
 
     def read_miriad(self, filepath, correct_lat_lon=True, run_check=True,
-                    run_check_acceptability=True, phase_type=None):
+                    check_extra=True, run_check_acceptability=True, phase_type=None):
         """
         Read in data from a miriad file.
 
@@ -36,9 +36,11 @@ class Miriad(UVData):
             correct_lat_lon: flag -- that only matters if altitude is missing --
                 to update the latitude and longitude from the known_telescopes list
             run_check: Option to check for the existence and proper shapes of
-                required parameters after reading in the file. Default is True.
+                parameters after reading in the file. Default is True.
+            check_extra: Option to check optional parameters as well as required
+                ones. Default is True.
             run_check_acceptability: Option to check acceptable range of the values of
-                required parameters after reading in the file. Default is True.
+                parameters after reading in the file. Default is True.
         """
         if not os.path.exists(filepath):
             raise(IOError, filepath + ' not found')
@@ -468,9 +470,11 @@ class Miriad(UVData):
 
         # check if object has all required uv_properties set
         if run_check:
-            self.check(run_check_acceptability=run_check_acceptability)
+            self.check(check_extra=check_extra,
+                       run_check_acceptability=run_check_acceptability)
 
-    def write_miriad(self, filepath, run_check=True, run_check_acceptability=True,
+    def write_miriad(self, filepath, run_check=True, check_extra=True,
+                     run_check_acceptability=True,
                      clobber=False, no_antnums=False):
         """
         Write the data to a miriad file.
@@ -478,14 +482,20 @@ class Miriad(UVData):
         Args:
             filename: The miriad file directory to write to.
             run_check: Option to check for the existence and proper shapes of
-                required parameters before writing the file. Default is True.
+                parameters before writing the file. Default is True.
+            check_extra: Option to check optional parameters as well as required
+                ones. Default is True.
             run_check_acceptability: Option to check acceptable range of the values of
-                required parameters before writing the file. Default is True.
+                parameters before writing the file. Default is True.
             clobber: Option to overwrite the filename if the file already exists.
                 Default is False.
             no_antnums: Option to not write the antnums variable to the file.
                 Should only be used for testing purposes.
         """
+        if run_check:
+            self.check(check_extra=check_extra,
+                       run_check_acceptability=run_check_acceptability)
+
         # check for multiple spws
         if self.data_array.shape[1] > 1:
             raise ValueError('write_miriad currently only handles single spw files.')
@@ -652,6 +662,3 @@ class Miriad(UVData):
                 preamble = (uvw, t, (i, j))
 
                 uv.write(preamble, data, flags)
-        if run_check:
-            """Check for acceptable units."""
-            self.check(run_check_acceptability=run_check_acceptability)
