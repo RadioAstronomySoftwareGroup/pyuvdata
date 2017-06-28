@@ -1452,14 +1452,30 @@ class UVData(UVBase):
         """
         return [self.baseline_to_antnums(bl) for bl in self.get_baseline_nums()]
 
+    def get_pols(self):
+        """
+        Returns list of pols in string format.
+        """
+        return uvutils.polnum2str(self.polarization_array)
+
     def get_antpairpols(self):
         """
         Returns list of unique antpair + pol tuples (ant1, ant2, pol) in data.
         """
         bli = 0
-        pols = uvutils.polnum2str(self.polarization_array)
+        pols = self.get_pols()
         bls = self.get_antpairs()
         return [(bl) + (pol,) for bl in bls for pol in pols]
+
+    def get_feedpols(self):
+        """
+        Returns list of unique antenna feed polarizations (e.g. ['X', 'Y']) in data.
+        NOTE: Will return ValueError if any stokes visibilities are present.
+        """
+        if np.any(self.polarization_array > 0):
+            raise ValueError('Stokes visibilities cannot be interpreted as feed polarizations')
+        else:
+            return list(set(''.join(self.get_pols())))
 
     def antpair2ind(self, ant1, ant2):
         """
