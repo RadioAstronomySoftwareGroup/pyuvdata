@@ -70,9 +70,9 @@ f) CASA -> miriad (aipy)
    ms_file = 'pyuvdata/data/day2_TDEM0003_10s_norx_1scan.ms'
    UV.read_ms(ms_file)
    UV.write_miriad('new.uvfits')#write out miriad file
- 
 
-  
+
+
 UVData: Phasing
 ---------
 Phasing/unphasing data::
@@ -105,6 +105,75 @@ Making a simple waterfall plot::
   bl_ind = np.where(UV.baseline_array == bl)[0]  # Indices corresponding to baseline
   plt.imshow(np.abs(UV.data_array[bl_ind, 0, :, 0]))  # Amplitude waterfall for 0th spectral window and 0th polarization
   plt.show()
+
+Update: With new UI features, making waterfalls is easier than ever!::
+
+  plt.imshow(np.abs(UV.get_data((1, 2, UV.polarization_array[0]))))
+  plt.show()
+
+UVData: Quick data access
+---------
+A small suite of functions are available to quickly access numpy arrays of data,
+flags, and nsamples.
+
+a) Data for single antenna pair / polarization combination.
+***************
+::
+
+  from pyuvdata import UVData
+  import numpy as np
+  UV = UVData()
+  filename = 'pyuvdata/data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
+  UV.read_uvfits(filename)
+  data = UV.get_data((1, 2, 'rr'))  # data for ant1=1, ant2=2, pol='rr'
+  times = UV.get_times((1, 2))  # times corresponding to 0th axis in data
+  print(data.shape)
+  print(times.shape)
+
+b) Flags and nsamples for above data.
+***************
+::
+
+  flags = UV.get_flags((1, 2, 'rr'))
+  nsamples = UV.get_nsamples((1, 2, 'rr'))
+  print(flags.shape)
+  print(nsamples.shape)
+
+c) Data for single antenna pair, all polarizations.
+***************
+::
+
+  data = UV.get_data((1, 2))
+  print(data.shape)
+  data2 = UV.get_data(UV.antnums_to_baseline(1, 2))  # Can also give baseline number
+  print(np.all(data == data2))
+
+d) Data for single polarization, all baselines.
+***************
+::
+
+  data = UV.get_data('rr')
+  print(data.shape)
+
+e) Iterate over all antenna pair / polarizations.
+***************
+::
+
+  for key, data in UV.antpairpol_iter():
+    print(key)
+    flags = UV.get_flags(key)
+    nsamples = UV.get_nsamples(key)
+    # Do something with the data, flags, nsamples
+
+f) Convenience functions to ask what antennas, baselines, and pols are in the data.
+***************
+::
+
+  print(UV.get_ants())  # All unique antennas in data
+  print(UV.get_baseline_nums())  # All baseline nums in data
+  print(UV.get_antpairs())  # All (ordered) antenna pairs in data (same info as baseline_nums)
+  print(UV.get_antpairpols)  # All antenna pairs and polariations.
+                             # ie, keys produced in UV.antpairpol_iter().
 
 UVData: Selecting data
 ---------
