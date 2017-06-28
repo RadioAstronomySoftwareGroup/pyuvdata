@@ -1515,7 +1515,6 @@ class UVData(UVBase):
             blt_ind2 = np.array([], dtype=np.int64)
         elif len(key) == 1:
             key = key[0]  # For simplicity
-            print(key)
             if isinstance(key, collections.Iterable):
                 # Nested tuple. Call function again.
                 blt_ind1, blt_ind2, pol_ind = self._key2inds(key)
