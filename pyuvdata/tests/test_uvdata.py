@@ -1154,3 +1154,31 @@ def test_get_ants():
         nt.assert_true(ant in ants)
     for ant in uv.ant_2_array:
         nt.assert_true(ant in ants)
+
+
+def test_get_pols():
+    # Test function to get unique polarizations in string format
+    uv = UVData()
+    testfile = os.path.join(
+        DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    uvtest.checkWarnings(uv.read_uvfits, [testfile],
+                         message='Telescope EVLA is not')
+    pols = uv.get_pols()
+    pols_data = ['RR', 'LL', 'LR', 'RL']
+    nt.assert_items_equal(pols, pols_data)
+
+
+def test_get_feedpols():
+    # Test function to get unique antenna feed polarizations in data. String format.
+    uv = UVData()
+    testfile = os.path.join(
+        DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    uvtest.checkWarnings(uv.read_uvfits, [testfile],
+                         message='Telescope EVLA is not')
+    pols = uv.get_feedpols()
+    pols_data = ['R', 'L']
+    nt.assert_items_equal(pols, pols_data)
+
+    # Test break when stokes visibilities are present
+    uv.polarization_array[0] = 1  # Stokes I
+    nt.assert_raises(ValueError, uv.get_feedpols)
