@@ -85,15 +85,20 @@ class MS(UVData):
         writing ms is not yet supported
         '''
 
-    def read_ms(self, filepath, run_check=True, run_check_acceptability=True,
+    def read_ms(self, filepath, run_check=True, check_extra=True,
+                run_check_acceptability=True,
                 data_column='DATA', pol_order='AIPS'):
         '''
         read in a casa measurement set
 
         args:
             filepath: name of the measurement set folder
-            run_check: specify whether you want to run check
-            run_check_acceptability: run acceptability check for new UVData object
+            run_check: Option to check for the existence and proper shapes of
+                parameters after reading in the file. Default is True.
+            check_extra: Option to check optional parameters as well as required
+                ones. Default is True.
+            run_check_acceptability: Option to check the values of parameters
+                after reading in the file. Default is True.
             data_column: specify which CASA measurement set data column to read from (can be 'DATA','CORRECTED', or 'MODEL')
             pol_order: use 'AIPS' or 'CASA' ordering of polarizations?
         '''
@@ -249,4 +254,4 @@ class MS(UVData):
         # order polarizations
         self.order_pols(pol_order)
         if run_check:
-            self.check(run_check_acceptability=run_check_acceptability)
+            self.check(check_extra=check_extra, run_check_acceptability=run_check_acceptability)

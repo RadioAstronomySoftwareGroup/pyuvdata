@@ -263,7 +263,7 @@ class UVCal(UVBase):
 
     def select(self, antenna_nums=None, antenna_names=None,
                frequencies=None, freq_chans=None,
-               times=None, jones=None, run_check=True,
+               times=None, jones=None, run_check=True, check_extra=True,
                run_check_acceptability=True, inplace=True):
         """
         Select specific antennas, frequencies, times and
@@ -285,6 +285,8 @@ class UVCal(UVBase):
             jones: The jones polarization terms to keep in the object.
             run_check: Option to check for the existence and proper shapes of
                 required parameters after downselecting data on this object. Default is True.
+            check_extra: Option to check shapes and types of optional parameters
+                as well as required ones. Default is True.
             run_check_acceptability: Option to check acceptable range of the values of
                 required parameters after  downselecting data on this object. Default is True.
             inplace: Option to perform the select directly on self (True, default) or return
@@ -461,12 +463,14 @@ class UVCal(UVBase):
 
         # check if object is self-consistent
         if run_check:
-            cal_object.check(run_check_acceptability=run_check_acceptability)
+            cal_object.check(check_extra=check_extra,
+                             run_check_acceptability=run_check_acceptability)
 
         if not inplace:
             return cal_object
 
-    def convert_to_gain(self, delay_convention='minus'):
+    def convert_to_gain(self, delay_convention='minus', run_check=True, check_extra=True,
+                        run_check_acceptability=True):
         """
         Convert non-gain cal_types to gains.
 
@@ -476,6 +480,12 @@ class UVCal(UVBase):
 
         Args:
             delay_convention: exponent sign to use in the conversion. Defaults to minus.
+            run_check: Option to check for the existence and proper shapes of
+                parameters after converting this object. Default is True.
+            check_extra: Option to check shapes and types of optional parameters
+                as well as required ones. Default is True.
+            run_check_acceptability: Option to check acceptable range of the values of
+                parameters after converting this object. Default is True.
         """
         if self.cal_type == 'gain':
             raise ValueError('The data is already a gain cal_type.')
@@ -500,7 +510,11 @@ class UVCal(UVBase):
             self.gain_array = gain_array
             self.quality_array = new_quality
             self.delay_array = None
-            self.check()
+
+            # check if object is self-consistent
+            if run_check:
+                self.check(check_extra=check_extra,
+                           run_check_acceptability=run_check_acceptability)
         else:
             raise(ValueError, 'cal_type is unknown, cannot convert to gain')
 
@@ -520,17 +534,19 @@ class UVCal(UVBase):
             setattr(other_obj, p, param)
         return other_obj
 
-    def read_calfits(self, filename, run_check=True, run_check_acceptability=True,
-                     strict_fits=False):
+    def read_calfits(self, filename, run_check=True, check_extra=True,
+                     run_check_acceptability=True, strict_fits=False):
         """
         Read in data from a calfits file.
 
         Args:
             filename: The calfits file to read to.
             run_check: Option to check for the existence and proper shapes of
-                required parameters after reading the file. Default is True.
-            run_check_acceptability: Option to check acceptability of the values of
-                required parameters after reading the file. Default is True.
+                parameters after reading in the file. Default is True.
+            check_extra: Option to check optional parameters as well as required
+                ones. Default is True.
+            run_check_acceptability: Option to check acceptable range of the values of
+                parameters after reading in the file. Default is True.
             strict_fits: boolean
                 If True, require that the data axes have cooresponding NAXIS, CRVAL,
                 CDELT and CRPIX keywords. If False, allow CRPIX to be missing and
@@ -541,27 +557,30 @@ class UVCal(UVBase):
         """
         import calfits
         uvfits_obj = calfits.CALFITS()
-        uvfits_obj.read_calfits(filename, run_check=run_check,
+        uvfits_obj.read_calfits(filename, run_check=run_check, check_extra=check_extra,
                                 run_check_acceptability=run_check_acceptability,
                                 strict_fits=strict_fits)
         self._convert_from_filetype(uvfits_obj)
         del(uvfits_obj)
 
-    def write_calfits(self, filename, run_check=True, run_check_acceptability=True,
-                      clobber=False):
+    def write_calfits(self, filename, run_check=True, check_extra=True,
+                      run_check_acceptability=True, clobber=False):
         """Write data to a calfits file.
 
         Args:
             filename: The calfits filename to write to.
             run_check: Option to check for the existence and proper shapes of
-                required parameters before writing the file. Default is True.
-            run_check_acceptability: Option to check acceptability of the values of
-                required parameters before writing the file. Default is True.
-            clobber: Overwrite file.
+                parameters before writing the file. Default is True.
+            check_extra: Option to check optional parameters as well as required
+                ones. Default is True.
+            run_check_acceptability: Option to check acceptable range of the values of
+                parameters before writing the file. Default is True.
+            clobber: Option to overwrite the filename if the file already exists.
+                Default is False.
         """
         calfits_obj = self._convert_to_filetype('calfits')
         calfits_obj.write_calfits(filename,
-                                  run_check=run_check,
+                                  run_check=run_check, check_extra=check_extra,
                                   run_check_acceptability=run_check_acceptability,
                                   clobber=clobber)
         del(calfits_obj)

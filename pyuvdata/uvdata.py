@@ -303,25 +303,26 @@ class UVData(UVBase):
 
         super(UVData, self).__init__()
 
-    def check(self, run_check_acceptability=True):
+    def check(self, check_extra=True, run_check_acceptability=True):
         """
         Add some extra checks on top of checks on UVBase class.
 
-        Check that all required parameters are set reasonably.
-
-        Check that required parameters exist and have appropriate shapes.
-        Optionally check if the values are acceptable.
+        Check that required parameters exist. Check that parameters have
+        appropriate shapes and optionally that the values are acceptable.
 
         Args:
-            run_check_acceptability: Option to check if values in required parameters
+            check_extra: If true, check all parameters, otherwise only check
+                required parameters.
+            run_check_acceptability: Option to check if values in parameters
                 are acceptable. Default is True.
         """
         # first run the basic check from UVBase
         if np.all(self.ant_1_array == self.ant_2_array):
-            # Special case of only containing auto correlations
+            # Special case of only containing auto correlations, adjust uvw acceptable_range
             self._uvw_array.acceptable_range = (0.0, 0.0)
-        super(UVData, self).check(
-            run_check_acceptability=run_check_acceptability)
+
+        super(UVData, self).check(check_extra=check_extra,
+                                  run_check_acceptability=run_check_acceptability)
 
         # Check internal consistency of numbers which don't explicitly correspond
         # to the shape of another array.
@@ -683,7 +684,8 @@ class UVData(UVBase):
         del(obs)
         self.set_phased()
 
-    def __add__(self, other, run_check=True, run_check_acceptability=True, inplace=False):
+    def __add__(self, other, run_check=True, check_extra=True,
+                run_check_acceptability=True, inplace=False):
         """
         Combine two UVData objects. Objects can be added along frequency,
         polarization, and/or baseline-time axis.
@@ -691,9 +693,11 @@ class UVData(UVBase):
         Args:
             other: Another UVData object which will be added to self.
             run_check: Option to check for the existence and proper shapes of
-                required parameters after combining objects. Default is True.
+                parameters after combining objects. Default is True.
+            check_extra: Option to check optional parameters as well as
+                required ones. Default is True.
             run_check_acceptability: Option to check acceptable range of the values of
-                required parameters after combining objects. Default is True.
+                parameters after combining objects. Default is True.
             inplace: Overwrite self as we go, otherwise create a third object
                 as the sum of the two (default).
         """
@@ -702,10 +706,10 @@ class UVData(UVBase):
         else:
             this = copy.deepcopy(self)
         # Check that both objects are UVData and valid
-        this.check(run_check_acceptability=False)
+        this.check(check_extra=check_extra, run_check_acceptability=run_check_acceptability)
         if not isinstance(other, this.__class__):
             raise(ValueError('Only UVData objects can be added to a UVData object'))
-        other.check(run_check_acceptability=False)
+        other.check(check_extra=check_extra, run_check_acceptability=run_check_acceptability)
 
         # Check objects are compatible
         # Note zenith_ra will not necessarily be the same if times are different.
@@ -896,7 +900,8 @@ class UVData(UVBase):
 
         # Check final object is self-consistent
         if run_check:
-            this.check(run_check_acceptability=run_check_acceptability)
+            this.check(check_extra=check_extra,
+                       run_check_acceptability=run_check_acceptability)
 
         if not inplace:
             return this
@@ -914,7 +919,7 @@ class UVData(UVBase):
     def select(self, antenna_nums=None, antenna_names=None, ant_pairs_nums=None,
                frequencies=None, freq_chans=None,
                times=None, polarizations=None, blt_inds=None, run_check=True,
-               run_check_acceptability=True, inplace=True):
+               check_extra=True, run_check_acceptability=True, inplace=True):
         """
         Select specific antennas, antenna pairs, frequencies, times and
         polarizations to keep in the object while discarding others.
@@ -940,9 +945,11 @@ class UVData(UVBase):
             blt_inds: The baseline-time indices to keep in the object. This is
                 not commonly used.
             run_check: Option to check for the existence and proper shapes of
-                required parameters after downselecting data on this object. Default is True.
+                parameters after downselecting data on this object. Default is True.
+            check_extra: Option to check optional parameters as well as required
+                ones. Default is True.
             run_check_acceptability: Option to check acceptable range of the values of
-                required parameters after  downselecting data on this object. Default is True.
+                parameters after downselecting data on this object. Default is True.
             inplace: Option to perform the select directly on self (True, default) or return
                 a new UVData object, which is a subselection of self (False)
         """
@@ -1187,7 +1194,8 @@ class UVData(UVBase):
 
         # check if object is uv_object-consistent
         if run_check:
-            uv_object.check(run_check_acceptability=run_check_acceptability)
+            uv_object.check(check_extra=check_extra,
+                            run_check_acceptability=run_check_acceptability)
 
         if not inplace:
             return uv_object
@@ -1214,37 +1222,41 @@ class UVData(UVBase):
             setattr(other_obj, p, param)
         return other_obj
 
-    def read_uvfits(self, filename, run_check=True, run_check_acceptability=True):
+    def read_uvfits(self, filename, run_check=True, check_extra=True,
+                    run_check_acceptability=True):
         """
         Read in data from a uvfits file.
 
         Args:
             filename: The uvfits file or list of files to read from.
             run_check: Option to check for the existence and proper shapes of
-                required parameters after reading in the file. Default is True.
+                parameters after reading in the file. Default is True.
+            check_extra: Option to check optional parameters as well as required
+                ones. Default is True.
             run_check_acceptability: Option to check acceptable range of the values of
-                required parameters after reading in the file. Default is True.
+                parameters after reading in the file. Default is True.
         """
         import uvfits
         if isinstance(filename, (list, tuple)):
-            self.read_uvfits(filename[0], run_check=run_check,
+            self.read_uvfits(filename[0], run_check=run_check, check_extra=check_extra,
                              run_check_acceptability=run_check_acceptability)
             if len(filename) > 1:
                 for f in filename[1:]:
                     uv2 = UVData()
-                    uv2.read_uvfits(f, run_check=run_check,
+                    uv2.read_uvfits(f, run_check=run_check, check_extra=check_extra,
                                     run_check_acceptability=run_check_acceptability)
                     self += uv2
                 del(uv2)
         else:
             uvfits_obj = uvfits.UVFITS()
-            uvfits_obj.read_uvfits(filename, run_check=run_check,
+            uvfits_obj.read_uvfits(filename, run_check=run_check, check_extra=check_extra,
                                    run_check_acceptability=run_check_acceptability)
             self._convert_from_filetype(uvfits_obj)
             del(uvfits_obj)
 
     def write_uvfits(self, filename, spoof_nonessential=False,
-                     force_phase=False, run_check=True, run_check_acceptability=True):
+                     force_phase=False, run_check=True, check_extra=True,
+                     run_check_acceptability=True):
         """
         Write the data to a uvfits file.
 
@@ -1256,27 +1268,32 @@ class UVData(UVBase):
             force_phase: Option to automatically phase drift scan data to
                 zenith of the first timestamp. Default is False.
             run_check: Option to check for the existence and proper shapes of
-                required parameters before writing the file. Default is True.
+                parameters before writing the file. Default is True.
+            check_extra: Option to check optional parameters as well as required
+                ones. Default is True.
             run_check_acceptability: Option to check acceptable range of the values of
-                required parameters before writing the file. Default is True.
+                parameters before writing the file. Default is True.
         """
         uvfits_obj = self._convert_to_filetype('uvfits')
         uvfits_obj.write_uvfits(filename, spoof_nonessential=spoof_nonessential,
                                 force_phase=force_phase, run_check=run_check,
+                                check_extra=check_extra,
                                 run_check_acceptability=run_check_acceptability)
         del(uvfits_obj)
 
-    def read_ms(self, filepath, run_check=True, run_check_acceptability=True,
-                data_column='DATA', pol_order='AIPS'):
+    def read_ms(self, filepath, run_check=True, check_extra=True,
+                run_check_acceptability=True, data_column='DATA', pol_order='AIPS'):
         """
         Read in data from a measurement set
 
         Args:
             filepath: The measurement set file directory or list of directories to read from.
             run_check: Option to check for the existence and proper shapes of
-                required parameters after reading in the file. Default is True.
-            run_check_acceptability: Option to check the values of
-                required parameters after reading in the file. Default is True.
+                parameters after reading in the file. Default is True.
+            check_extra: Option to check optional parameters as well as required
+                ones. Default is True.
+            run_check_acceptability: Option to check the values of parameters
+                after reading in the file. Default is True.
             data_column: name of CASA data column to read into data_array.
                 'DATA', 'MODEL', or 'CORRECTED_DATA'
             pol_order: specify whether you want polarizations ordered by
@@ -1296,26 +1313,26 @@ class UVData(UVBase):
         import ms
 
         if isinstance(filepath, (list, tuple)):
-            self.read_ms(filepath[0], run_check=run_check,
+            self.read_ms(filepath[0], run_check=run_check, check_extra=check_extra,
                          run_check_acceptability=run_check_acceptability,
                          data_column=data_column, pol_order=pol_order)
             if len(filepath) > 1:
                 for f in filepath[1:]:
                     uv2 = UVData()
-                    uv2.read_ms(f, run_check=run_check,
+                    uv2.read_ms(f, run_check=run_check, check_extra=check_extra,
                                 run_check_acceptability=run_check_acceptability,
                                 data_column=data_column, pol_order=pol_order)
                     self += uv2
                 del(uv2)
         else:
             ms_obj = ms.MS()
-            ms_obj.read_ms(filepath, run_check=run_check,
+            ms_obj.read_ms(filepath, run_check=run_check, check_extra=check_extra,
                            run_check_acceptability=run_check_acceptability,
                            data_column=data_column, pol_order=pol_order)
             self._convert_from_filetype(ms_obj)
             del(ms_obj)
 
-    def read_fhd(self, filelist, use_model=False, run_check=True,
+    def read_fhd(self, filelist, use_model=False, run_check=True, check_extra=True,
                  run_check_acceptability=True):
         """
         Read in data from a list of FHD files.
@@ -1327,29 +1344,35 @@ class UVData(UVBase):
             use_model: Option to read in the model visibilities rather than the
                 dirty visibilities. Default is False.
             run_check: Option to check for the existence and proper shapes of
-                required parameters after reading in the file. Default is True.
+                parameters after reading in the file. Default is True.
+            check_extra: Option to check optional parameters as well as required
+                ones. Default is True.
             run_check_acceptability: Option to check acceptable range of the values of
-                required parameters after reading in the file. Default is True.
+                parameters after reading in the file. Default is True.
         """
         import fhd
         if isinstance(filelist[0], (list, tuple)):
             self.read_fhd(filelist[0], use_model=use_model, run_check=run_check,
+                          check_extra=check_extra,
                           run_check_acceptability=run_check_acceptability)
             if len(filelist) > 1:
                 for f in filelist[1:]:
                     uv2 = UVData()
                     uv2.read_fhd(f, use_model=use_model, run_check=run_check,
+                                 check_extra=check_extra,
                                  run_check_acceptability=run_check_acceptability)
                     self += uv2
                 del(uv2)
         else:
             fhd_obj = fhd.FHD()
             fhd_obj.read_fhd(filelist, use_model=use_model, run_check=run_check,
+                             check_extra=check_extra,
                              run_check_acceptability=run_check_acceptability)
             self._convert_from_filetype(fhd_obj)
             del(fhd_obj)
 
     def read_miriad(self, filepath, correct_lat_lon=True, run_check=True,
+                    check_extra=True,
                     run_check_acceptability=True, phase_type=None):
         """
         Read in data from a miriad file.
@@ -1357,21 +1380,23 @@ class UVData(UVBase):
         Args:
             filepath: The miriad file directory or list of directories to read from.
             run_check: Option to check for the existence and proper shapes of
-                required parameters after reading in the file. Default is True.
+                parameters after reading in the file. Default is True.
+            check_extra: Option to check optional parameters as well as required
+                ones. Default is True.
             run_check_acceptability: Option to check acceptable range of the values of
-                required parameters after reading in the file. Default is True.
+                parameters after reading in the file. Default is True.
         """
         import miriad
         if isinstance(filepath, (list, tuple)):
             self.read_miriad(filepath[0], correct_lat_lon=correct_lat_lon,
-                             run_check=run_check,
+                             run_check=run_check, check_extra=check_extra,
                              run_check_acceptability=run_check_acceptability,
                              phase_type=phase_type)
             if len(filepath) > 1:
                 for f in filepath[1:]:
                     uv2 = UVData()
                     uv2.read_miriad(f, correct_lat_lon=correct_lat_lon,
-                                    run_check=run_check,
+                                    run_check=run_check, check_extra=check_extra,
                                     run_check_acceptability=run_check_acceptability,
                                     phase_type=phase_type)
                     self += uv2
@@ -1379,33 +1404,38 @@ class UVData(UVBase):
         else:
             miriad_obj = miriad.Miriad()
             miriad_obj.read_miriad(filepath, correct_lat_lon=correct_lat_lon,
-                                   run_check=run_check,
+                                   run_check=run_check, check_extra=check_extra,
                                    run_check_acceptability=run_check_acceptability,
                                    phase_type=phase_type)
             self._convert_from_filetype(miriad_obj)
             del(miriad_obj)
 
-    def write_miriad(self, filepath, run_check=True, run_check_acceptability=True,
-                     clobber=False, no_antnums=False):
+    def write_miriad(self, filepath, run_check=True, check_extra=True,
+                     run_check_acceptability=True, clobber=False, no_antnums=False):
         """
         Write the data to a miriad file.
 
         Args:
             filename: The miriad file directory to write to.
             run_check: Option to check for the existence and proper shapes of
-                required parameters before writing the file. Default is True.
+                parameters before writing the file. Default is True.
+            check_extra: Option to check optional parameters as well as required
+                ones. Default is True.
             run_check_acceptability: Option to check acceptable range of the values of
-                required parameters before writing the file. Default is True.
+                parameters before writing the file. Default is True.
             clobber: Option to overwrite the filename if the file already exists.
                 Default is False.
+            no_antnums: Option to not write the antnums variable to the file.
+                Should only be used for testing purposes.
         """
         miriad_obj = self._convert_to_filetype('miriad')
-        miriad_obj.write_miriad(filepath, run_check=run_check,
+        miriad_obj.write_miriad(filepath, run_check=run_check, check_extra=check_extra,
                                 run_check_acceptability=run_check_acceptability,
                                 clobber=clobber, no_antnums=no_antnums)
         del(miriad_obj)
 
-    def reorder_pols(self, order=None, run_check=True, run_check_acceptability=True):
+    def reorder_pols(self, order=None, run_check=True, check_extra=True,
+                     run_check_acceptability=True):
         """
         Rearrange polarizations in the event they are not uvfits compatible.
 
@@ -1413,9 +1443,11 @@ class UVData(UVBase):
             order: Provide the order which to shuffle the data. Default will
                 sort by absolute value of pol values.
             run_check: Option to check for the existence and proper shapes of
-                required parameters before writing the file. Default is True.
+                parameters after reordering. Default is True.
+            check_extra: Option to check optional parameters as well as required
+                ones. Default is True.
             run_check_acceptability: Option to check acceptable range of the values of
-                required parameters before writing the file. Default is True.
+                parameters after reordering. Default is True.
         """
         if order is None:
             order = np.argsort(np.abs(self.polarization_array))
@@ -1425,8 +1457,8 @@ class UVData(UVBase):
         self.flag_array = self.flag_array[:, :, :, order]
 
         # check if object is self-consistent
-        if run_check:
-            self.check(run_check_acceptability=run_check_acceptability)
+        self.check(check_extra=check_extra,
+                   run_check_acceptability=run_check_acceptability)
 
     def get_ants(self):
         """

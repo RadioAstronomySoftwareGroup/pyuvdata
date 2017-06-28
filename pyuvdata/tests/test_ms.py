@@ -150,7 +150,7 @@ def test_readUVFITS_readMS():
         DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
     uvtest.checkWarnings(uvfits_uv.read_uvfits, [uvfits_file],
                          message='Telescope EVLA is not')
-    uvtest.checkWarnings(ms_uv.read_ms, [ms_file, True, True, 'DATA', 'AIPS'],
+    uvtest.checkWarnings(ms_uv.read_ms, [ms_file],
                          message='Telescope EVLA is not',
                          nwarnings=0)
     # Casa scrambles the history parameter. Replace for now.

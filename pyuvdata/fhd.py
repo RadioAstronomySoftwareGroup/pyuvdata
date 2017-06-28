@@ -14,7 +14,8 @@ class FHD(UVData):
     method on the UVData class.
     """
 
-    def read_fhd(self, filelist, use_model=False, run_check=True, run_check_acceptability=True):
+    def read_fhd(self, filelist, use_model=False, run_check=True, check_extra=True,
+                 run_check_acceptability=True):
         """
         Read in data from a list of FHD files.
 
@@ -24,9 +25,11 @@ class FHD(UVData):
             use_model: Option to read in the model visibilities rather than the
                 dirty visibilities. Default is False.
             run_check: Option to check for the existence and proper shapes of
-                required parameters after reading in the file. Default is True.
+                parameters after reading in the file. Default is True.
+            check_extra: Option to check optional parameters as well as required
+                ones. Default is True.
             run_check_acceptability: Option to check acceptable range of the values of
-                required parameters after reading in the file. Default is True.
+                parameters after reading in the file. Default is True.
         """
         datafiles = {}
         params_file = None
@@ -256,4 +259,5 @@ class FHD(UVData):
 
         # check if object has all required uv_properties set
         if run_check:
-            self.check(run_check_acceptability=run_check_acceptability)
+            self.check(check_extra=check_extra,
+                       run_check_acceptability=run_check_acceptability)
