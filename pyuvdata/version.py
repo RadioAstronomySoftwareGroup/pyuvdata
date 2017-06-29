@@ -21,7 +21,7 @@ def construct_version_info():
                                              stderr=subprocess.STDOUT).strip()
         git_version = subprocess.check_output(['git', '-C', pyuvdata_dir, 'describe',
                                                '--tags', '--abbrev=0']).strip()
-    except:    # pragma: no cover
+    except:
         try:
             # Check if a GIT_INFO file was created when installing package
             git_file = os.path.join(pyuvdata_dir, 'GIT_INFO')
