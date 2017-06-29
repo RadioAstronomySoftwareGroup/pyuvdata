@@ -412,6 +412,19 @@ class UVBeam(UVBase):
                     a[1:] + ' does not match. Cannot combine objects.'
                 raise(ValueError(msg))
 
+        # check for presence of optional parameters with a frequency axis in both objects
+        optional_freq_params = ['_system_temperature_array', '_loss_array',
+                                '_mismatch_array', '_s_parameters']
+        for a in optional_freq_params:
+            this_a = getattr(this, a)
+            other_a = getattr(other, a)
+            if (this_a is None or other_a is None) and this_a != other_a:
+                warnings.warn('Only one of the UVBeam objects being combined '
+                              'has optional parameter {a}. After the sum the '
+                              'final object will not have {a}'.format(a=a))
+                if this_a is not None:
+                    setattr(this, a, None)
+
         # Build up history string
         history_update_string = ' Combined data along '
         n_axes = 0
@@ -604,6 +617,22 @@ class UVBeam(UVBase):
             this.freq_array = this.freq_array[:, order]
             this.data_array = np.concatenate([this.data_array, data_zero_pad],
                                              axis=faxis)[:, :, :, order, ...]
+            if this.system_temperature_array is not None:
+                this.system_temperature_array = np.concatenate([this.system_temperature_array,
+                                                                np.zeros((1, len(fnew_inds)))],
+                                                               axis=1)[:, order]
+            if this.loss_array is not None:
+                this.loss_array = np.concatenate([this.loss_array,
+                                                  np.zeros((1, len(fnew_inds)))],
+                                                 axis=1)[:, order]
+            if this.mismatch_array is not None:
+                this.mismatch_array = np.concatenate([this.mismatch_array,
+                                                      np.zeros((1, len(fnew_inds)))],
+                                                     axis=1)[:, order]
+            if this.s_parameters is not None:
+                this.s_parameters = np.concatenate([this.s_parameters,
+                                                    np.zeros((4, 1, len(fnew_inds)))],
+                                                   axis=2)[:, :, order]
 
         if len(pnew_inds) > 0:
             paxis = 2
@@ -621,7 +650,7 @@ class UVBeam(UVBase):
                 this.feed_array = np.concatenate([this.feed_array,
                                                   other.feed_array[pnew_inds]])
                 order = np.argsort(this.feed_array)
-                this.polarization_array = this.feed_array[order]
+                this.feed_array = this.feed_array[order]
 
             this.data_array = np.concatenate([this.data_array, data_zero_pad], axis=paxis)[
                 :, :, order, ...]
@@ -656,6 +685,15 @@ class UVBeam(UVBase):
             if this.beam_type == 'efield':
                 this.basis_vector_array[np.ix_(np.arange(this.Naxes_vec), np.arange(2),
                                                ax2_t2o, ax1_t2o)] = other.basis_vector_array
+
+        if this.system_temperature_array is not None:
+            this.system_temperature_array[np.ix_([0], freq_t2o)] = other.system_temperature_array
+        if this.loss_array is not None:
+            this.loss_array[np.ix_([0], freq_t2o)] = other.loss_array
+        if this.mismatch_array is not None:
+            this.mismatch_array[np.ix_([0], freq_t2o)] = other.mismatch_array
+        if this.s_parameters is not None:
+            this.s_parameters[np.ix_(np.arange(4), [0], freq_t2o)] = other.s_parameters
 
         this.Nfreqs = this.freq_array.shape[1]
 
