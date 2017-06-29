@@ -229,10 +229,9 @@ class UVBase(object):
             else:
                 # Check parameter shape
                 eshape = param.expected_shape(self)
-                if eshape is None:
-                    raise ValueError('Required UVParameter ' + p +
-                                     ' expected shape is not defined.')
-                elif eshape == 'str':
+                # default value of eshape is ()
+
+                if eshape == 'str':
                     # Check that it's a string
                     if not isinstance(param.value, str):
                         raise ValueError('UVParameter ' + p + 'expected to be '
