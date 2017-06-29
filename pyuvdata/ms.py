@@ -221,9 +221,9 @@ class MS(UVData):
         self.antenna_numbers = self.antenna_numbers[np.invert(antFlags)]
 
         relative_positions = np.zeros_like(full_antenna_positions)
-        for ind in range(3):
-            relative_positions[:, ind] = full_antenna_positions[:, ind] - self.telescope_location[ind]
+        relative_positions = full_antenna_positions - self.telescope_location.reshape(1, 3)
         self.antenna_positions = relative_positions[np.invert(antFlags), :]
+
         tbAnt.close()
         tbField = tables.table(filepath + '/FIELD')
         if(tbField.getcol('PHASE_DIR').shape[1] == 2):
