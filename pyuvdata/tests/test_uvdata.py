@@ -415,8 +415,8 @@ def test_select_ant_pairs():
     uvtest.checkWarnings(uv_object.read_uvfits, [testfile],
                          message='Telescope EVLA is not')
     old_history = uv_object.history
-    first_ants = map(np.int32, [6, 2, 7, 2, 21, 27, 8])
-    second_ants = map(np.int32, [0, 20, 8, 1, 2, 3, 22])
+    first_ants = [6, 2, 7, 2, 21, 27, 8]
+    second_ants = [0, 20, 8, 1, 2, 3, 22]
     new_unique_ants = np.unique(first_ants + second_ants)
     ant_pairs_to_keep = zip(first_ants, second_ants)
     sorted_pairs_to_keep = [tuple(sorted(p)) for p in ant_pairs_to_keep]
@@ -430,6 +430,30 @@ def test_select_ant_pairs():
 
     uv_object2 = copy.deepcopy(uv_object)
     uv_object2.select(ant_pairs_nums=ant_pairs_to_keep)
+    sorted_pairs_object2 = [tuple(sorted(p)) for p in zip(
+        uv_object2.ant_1_array, uv_object2.ant_2_array)]
+
+    nt.assert_equal(len(new_unique_ants), uv_object2.Nants_data)
+    nt.assert_equal(Nblts_selected, uv_object2.Nblts)
+    for ant in new_unique_ants:
+        nt.assert_true(
+            ant in uv_object2.ant_1_array or ant in uv_object2.ant_2_array)
+    for ant in np.unique(uv_object2.ant_1_array.tolist() + uv_object2.ant_2_array.tolist()):
+        nt.assert_true(ant in new_unique_ants)
+    for pair in sorted_pairs_to_keep:
+        nt.assert_true(pair in sorted_pairs_object2)
+    for pair in sorted_pairs_object2:
+        nt.assert_true(pair in sorted_pairs_to_keep)
+
+    nt.assert_equal(old_history + '  Downselected to specific antenna pairs '
+                    'using pyuvdata.', uv_object2.history)
+
+    # check that you can use numpy integers with out errors:
+    first_ants = map(np.int32, [6, 2, 7, 2, 21, 27, 8])
+    second_ants = map(np.int32, [0, 20, 8, 1, 2, 3, 22])
+    ant_pairs_to_keep = zip(first_ants, second_ants)
+
+    uv_object2 = uv_object.select(ant_pairs_nums=ant_pairs_to_keep, inplace=False)
     sorted_pairs_object2 = [tuple(sorted(p)) for p in zip(
         uv_object2.ant_1_array, uv_object2.ant_2_array)]
 
