@@ -415,8 +415,8 @@ def test_select_ant_pairs():
     uvtest.checkWarnings(uv_object.read_uvfits, [testfile],
                          message='Telescope EVLA is not')
     old_history = uv_object.history
-    first_ants = [6, 2, 7, 2, 21, 27, 8]
-    second_ants = [0, 20, 8, 1, 2, 3, 22]
+    first_ants = map(np.int32, [6, 2, 7, 2, 21, 27, 8])
+    second_ants = map(np.int32, [0, 20, 8, 1, 2, 3, 22])
     new_unique_ants = np.unique(first_ants + second_ants)
     ant_pairs_to_keep = zip(first_ants, second_ants)
     sorted_pairs_to_keep = [tuple(sorted(p)) for p in ant_pairs_to_keep]
