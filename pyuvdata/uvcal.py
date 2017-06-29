@@ -221,8 +221,6 @@ class UVCal(UVBase):
                 'if cal_type is delay, shape is (Nspws, 1, Ntimes, Njones), '
                 'type = float.')
         self._total_quality_array = uvp.UVParameter('total_quality_array', description=desc,
-                                                    form=('Nspws', 'Nfreqs',
-                                                          'Ntimes', 'Njones'),
                                                     expected_type=np.float,
                                                     required=False)
 
@@ -244,6 +242,7 @@ class UVCal(UVBase):
         self._delay_array.required = False
         self._freq_range.required = False
         self._quality_array.form = self._gain_array.form
+        self._total_quality_array.form = self._gain_array.form[1:]
 
     def set_delay(self):
         """Set cal_type to 'delay' and adjust required parameters."""
@@ -252,6 +251,7 @@ class UVCal(UVBase):
         self._delay_array.required = True
         self._freq_range.required = True
         self._quality_array.form = self._delay_array.form
+        self._total_quality_array.form = self._delay_array.form[1:]
 
     def set_unknown_cal_type(self):
         """Set cal_type to 'unknown' and adjust required parameters."""
@@ -260,6 +260,7 @@ class UVCal(UVBase):
         self._delay_array.required = False
         self._freq_range.required = False
         self._quality_array.form = self._gain_array.form
+        self._total_quality_array.form = self._gain_array.form[1:]
 
     def select(self, antenna_nums=None, antenna_names=None,
                frequencies=None, freq_chans=None,
