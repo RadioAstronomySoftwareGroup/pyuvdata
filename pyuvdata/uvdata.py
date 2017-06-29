@@ -1019,8 +1019,8 @@ class UVData(UVBase):
             if not all(isinstance(item, tuple) for item in ant_pairs_nums):
                 raise ValueError(
                     'ant_pairs_nums must be a list of tuples of antenna numbers.')
-            if not all([isinstance(item[0], (int, long)) for item in ant_pairs_nums] +
-                       [isinstance(item[1], (int, long)) for item in ant_pairs_nums]):
+            if not all([isinstance(item[0], (int, long, np.integer)) for item in ant_pairs_nums] +
+                       [isinstance(item[1], (int, long, np.integer)) for item in ant_pairs_nums]):
                 raise ValueError(
                     'ant_pairs_nums must be a list of tuples of antenna numbers.')
             if n_selects > 0:
