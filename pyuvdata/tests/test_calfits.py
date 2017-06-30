@@ -396,3 +396,34 @@ def test_readwriteread_total_quality_array():
     nt.assert_equal(uv_in, uv_out)
     del(uv_in)
     del(uv_out)
+
+
+def test_total_quality_array_size():
+    """
+    Test that total quality array defaults to the proper size
+    """
+
+    uv_in = UVCal()
+    uv_out = UVCal()
+    testfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.fitsA')
+    uv_in.read_calfits(testfile)
+
+    # Create filler total quality array
+    uv_in.total_quality_array = np.zeros(uv_in._total_quality_array.expected_shape(uv_in))
+
+    proper_shape = (uv_in.Nspws, uv_in.Nfreqs, uv_in.Ntimes, uv_in.Njones)
+    nt.assert_equal(uv_in.total_quality_array.shape, proper_shape)
+    del(uv_in)
+
+    # also test delay-type calibrations
+    uv_in = UVCal()
+    testfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.HH.uvc.fits')
+    message = testfile + ' appears to be an old calfits format'
+    uvtest.checkWarnings(uv_in.read_calfits, [testfile], nwarnings=1,
+                         message=message, category=[UserWarning])
+
+    uv_in.total_quality_array = np.zeros(uv_in._total_quality_array.expected_shape(uv_in))
+
+    proper_shape = (uv_in.Nspws, 1, uv_in.Ntimes, uv_in.Njones)
+    nt.assert_equal(uv_in.total_quality_array.shape, proper_shape)
+    del(uv_in)
