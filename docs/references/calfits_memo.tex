@@ -74,7 +74,8 @@ is a list of the required parameters and their descriptions.
     (Njones). linear pols -5:-8 (jxx, jyy, jxy, jyx).circular pols -1:-4 (jrr,
     jll. jrl, jlr).}
 \item{\textbf{quality\_array}: Array of qualities of calibration solutions. The
-    shape is: (Nants\_data, Nspws, Nfreqs, Ntimes, Njones), type = float.}
+    shape is: (Nants\_data, Nspws, Nfreqs, Ntimes, Njones), type = float. Note
+    that for delay-type solutions, Nfreqs = 1.}
 \item{\textbf{telescope\_name}: Name of telescope. e.g. HERA. String.}
 \item{\textbf{time\_array}: Array of times, center of integration, shape
     (Ntimes), units Julian Date}
@@ -91,7 +92,7 @@ There are also some optionally required parameters that depend on the
 calibration type. These parameters include.
 \begin{itemize}
 \item{\textbf{delay\_array}: Array of delays. Required only if the cal\_type =
-    `delay'. shape: (Nants\_data, Nspws, Nfreqs, Ntimes, Njones), type = float}
+    `delay'. shape: (Nants\_data, Nspws, 1, Ntimes, Njones), type = float}
 \item{\textbf{gain\_array}: Array of gains. Required only if the cal\_type =
     `gain'.  shape: (Nants\_data, Nspws, Nfreqs, Ntimes, Njones), type = complex
     float.}
@@ -115,7 +116,7 @@ parameters that may be passed in. These include:
     file.}
 \item{\textbf{total\_quality\_array}: Array of qualities of the calibration
     solution for the entire array. shape: (Nspws, Nfreqs, Ntimes, Njones), type
-    = float.}
+    = float. Note that for delay-type solutions, Nfreqs = 1.}
 \end{itemize}
 
 Once these parameters are set in the UVCal object, a \textit{calfits} file may
