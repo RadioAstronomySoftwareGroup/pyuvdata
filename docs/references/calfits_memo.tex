@@ -135,27 +135,41 @@ the parameters from the the fits file.
 
 \subsection{The FITS file}
 Depending on the calibration type (gain vs delay), the \textit{calfits} file
-format can consists of up to 3 HDUs. The primary header in either case is the
+format can consists of up to 4 HDUs. The primary header in either case is the
 same and consists of relevant meta information for a UVCal object to be
-instantiated. Also, the last HDU is the same in either case and is the ANTENNAS
+instantiated. Also, the second HDU is the same in either case and is the ANTENNAS
 HDU. This HDU is a BinaryTable and consists of ANTNAME, ANTINDEX, and ANTARR,
 corresponding to antenna\_names, antenna\_numbers, and ant\_array in the above
 list, respectively.
 
-When the calibration type is ``gain'', there are only 2 HDU's. In this case, the
-image data in the primary hdu consists is a 5 dimensional array, where each
-dimension corresponds to Nants, Nfreqs, Ntimes, Njones, Number of arrays in
-image array, respectively. If there is an input\_flag\_array the image array
-consists of [ real(gain\_array), imag(gain\_array), flag\_array,
-input\_flag\_array, quality\_array], which is concatenated along the last axis
-and so the last dimension is equal to 5. However, if no input\_flag\_array is
-given, the input\_flag\_array is left out of the above array and a the last
-dimension is equal to 4.
+When the calibration type is ``gain'', the essential data contains only these 2
+HDUs. In this case, the image data in the primary HDU consists is a 6
+dimensional array, where each dimension corresponds to (Nants, Nspws, Nfreqs,
+Ntimes, Njones, Number of arrays in image array), respectively. In other words,
+the primary data HDU contains the 5 axes of the data given in the list above,
+and then a sixth axis corresponding to the individual quantities being
+saved. For instance, if there is an input\_flag\_array the image array consists
+of [ real(gain\_array), imag(gain\_array), flag\_array, input\_flag\_array,
+quality\_array], which is concatenated along the last axis and so the last
+dimension is equal to 5. However, if no input\_flag\_array is given, the
+input\_flag\_array is left out of the above array and a the last dimension is
+equal to 4.
 
-When the calibration type is ``delay'', there are 3 HDU's. The image data in the
-primary hdu is now a 4 dimensional array (dimensions are Nants, Ntimes, Njones,
-number of arrays in image array (2)). In this case the image data is
+When the calibration type is ``delay'', there are 3 data HDUs. The image data in
+the primary HDU is still a 5 dimensional array as before (dimensions are Nants,
+Nfreqs, Ntimes, Njones, number of arrays in image array), but with Nfreqs = 1 as
+a placeholder axis. This axis is added to keep the data arrays the same size
+between the delay-type and gains-type formats. In this case the image data is
 [delay\_array, quality\_array], concatenated along the last axis. The flag
-arrays are stored in the second hdu (ImageHDU) which has the flag\_array and may
+arrays are stored in the third HDU (ImageHDU) which has the flag\_array and may
 have an input\_flag\_array.
+
+For both delay-types, there is also an optional total\_quality\_array HDU, which
+contains information about the overall $\chi^2$ value of the whole array. The
+size of the array is (Nspws, Nfreqs, Ntimes, Njones). For delay-type
+calibrations, Nfreqs = 1 as above. If present, there will be 3 total HDUs for
+gain-type files, and 4 total HDUs for delay-type. Note that self-consistency
+checks are run when reading and writing calfits files to ensure that arrays have
+the proper size across different HDUs.
+
 \end{document}  
