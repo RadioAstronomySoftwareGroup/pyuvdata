@@ -221,6 +221,8 @@ class UVCal(UVBase):
                 'if cal_type is delay, shape is (Nspws, 1, Ntimes, Njones), '
                 'type = float.')
         self._total_quality_array = uvp.UVParameter('total_quality_array', description=desc,
+                                                    form=('Nspws', 'Nfreqs',
+                                                          'Ntimes', 'Njones'),
                                                     expected_type=np.float,
                                                     required=False)
 
