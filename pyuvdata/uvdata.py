@@ -803,6 +803,11 @@ class UVData(UVBase):
                                                other.ant_2_array[bnew_inds]])[order]
             this.baseline_array = np.concatenate([this.baseline_array,
                                                   other.baseline_array[bnew_inds]])[order]
+            if this.phase_type == 'drift':
+                this.zenith_ra = np.concatenate([this.zenith_ra,
+                                                 other.zenith_ra[bnew_inds]])[order]
+                this.zenith_dec = np.concatenate([this.zenith_dec,
+                                                 other.zenith_dec[bnew_inds]])[order]
         if len(fnew_inds) > 0:
             zero_pad = np.zeros((this.data_array.shape[0], this.Nspws, len(fnew_inds),
                                  this.Npols))
