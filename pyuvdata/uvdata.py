@@ -1596,13 +1596,15 @@ class UVData(UVBase):
                     out = data[ind1[0]:ind1[-1] + 1:ind1[1] - ind1[0], :, :, indp[0]]
                 else:
                     out = data[ind1[0]:ind1[-1] + 1:ind1[1] - ind1[0], :, :, :]
-                    out = out[:, :, :, indp]
+                    if not np.array_equal(indp, range(self.Npols)):
+                        out = out[:, :, :, indp]
             else:
                 if len(indp) == 1:
                     out = data[ind1, :, :, indp[0]]
                 else:
                     out = data[ind1, :, :, :]
-                    out = out[:, :, :, indp]
+                    if not np.array_equal(indp, range(self.Npols)):
+                        out = out[:, :, :, indp]
         elif len(ind1) == 0:
             # only conjugated baselines
             isRegularlySpaced = len(set(np.ediff1d(ind2))) <= 1
@@ -1611,17 +1613,20 @@ class UVData(UVBase):
                     out = np.conj(data[ind2[0]:ind2[-1] + 1:ind2[1] - ind2[0], :, :, indp[0]])
                 else:
                     out = data[ind2[0]:ind2[-1] + 1:ind2[1] - ind2[0], :, :, :]
-                    out = np.conj(out[:, :, :, indp])
+                    if not np.array_equal(indp, range(self.Npols)):
+                        out = np.conj(out[:, :, :, indp])
             else:
                 if len(indp) == 1:
                     out = np.conj(data[ind2, :, :, indp[0]])
                 else:
                     out = data[ind2, :, :, :]
-                    out = np.conj(out[:, :, :, indp])
+                    if not np.array_equal(indp, range(self.Npols)):
+                        out = np.conj(out[:, :, :, indp])
         else:
             # both conjugated and unconjugated baselines
             out = np.append(data[ind1, :, :, :], np.conj(data[ind2, :, :, :]), axis=0)
-            out = out[:, :, :, indp]
+            if not np.array_equal(indp, range(self.Npols)):
+                out = out[:, :, :, indp]
         return out
 
     def get_data(self, *args, **kwargs):
