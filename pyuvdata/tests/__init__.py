@@ -52,7 +52,8 @@ def checkWarnings(func, func_args=[], func_kwargs={},
         func(*func_args, **func_kwargs)  # Run function
         # Verify
         if len(w) != nwarnings:
-            print('wrong number of warnings')
+            print('wrong number of warnings. Expected number was {nexp}, '
+                  'actual number was {nact}.'.format(nexp=nwarnings, nact=len(w)))
             for idx, wi in enumerate(w):
                 print('warning {i} is: {w}'.format(i=idx, w=wi))
             assert(False)
