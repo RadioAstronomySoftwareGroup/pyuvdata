@@ -21,7 +21,7 @@ def test_writeread():
     beam_in.write_beamfits(write_file, clobber=True)
     beam_out.read_beamfits(write_file)
 
-    nt.assert_true(beam_in.__eq__(beam_out, check_extra=True))
+    nt.assert_equal(beam_in, beam_out)
 
     # redo for power beam
     del(beam_in)
@@ -30,7 +30,7 @@ def test_writeread():
 
     beam_in.write_beamfits(write_file, clobber=True)
     beam_out.read_beamfits(write_file)
-    nt.assert_true(beam_in.__eq__(beam_out, check_extra=True))
+    nt.assert_equal(beam_in, beam_out)
 
     # now replace 'power' with 'intensity' for btype
     F = fits.open(write_file)
@@ -84,7 +84,7 @@ def test_writeread_healpix():
     beam_in.write_beamfits(write_file, clobber=True)
     beam_out.read_beamfits(write_file)
 
-    nt.assert_true(beam_in.__eq__(beam_out, check_extra=True))
+    nt.assert_equal(beam_in, beam_out)
 
     # redo for power beam
     del(beam_in)
@@ -94,7 +94,7 @@ def test_writeread_healpix():
     beam_in.write_beamfits(write_file, clobber=True)
     beam_out.read_beamfits(write_file)
 
-    nt.assert_true(beam_in.__eq__(beam_out, check_extra=True))
+    nt.assert_equal(beam_in, beam_out)
 
     # now remove coordsys but leave ctype 1
     F = fits.open(write_file)
@@ -128,6 +128,11 @@ def test_errors():
     nt.assert_raises(ValueError, beam_in.write_beamfits, write_file, clobber=True)
     nt.assert_raises(ValueError, beam_in.write_beamfits, write_file,
                      clobber=True, run_check=False)
+
+    beam_in.beam_type = 'efield'
+    beam_in.antenna_type = 'phased_array'
+    write_file = os.path.join(DATA_PATH, 'test/outtest_beam.fits')
+    nt.assert_raises(ValueError, beam_in.write_beamfits, write_file, clobber=True)
 
     # now change values for various items in primary hdu to test errors
     beam_in = fill_dummy_beam(beam_in, 'efield', 'az_za')
