@@ -1575,7 +1575,7 @@ class UVData(UVBase):
                 raise KeyError('Polarization {pol} not found in data.'.format(pol=key[2]))
         return (blt_ind1, blt_ind2, pol_ind)
 
-    def _smart_slicing(self, data, ind1, ind2, indp):
+    def _smart_slicing(self, data, ind1, ind2, indp, return_copy=False):
         """
         Method for quickly picking out the relevant section of data for get_data or get_flags
 
@@ -1584,10 +1584,12 @@ class UVData(UVBase):
             ind1: list with blt indices for antenna pair (e.g. from self._key2inds)
             ind2: list with blt indices for conjugate antenna pair. (e.g. from self._key2inds)
             indp: list with polarization indices (e.g. from self._key2inds)
+            return_copy: Option to force returned array to be a copy. Default is False.
 
         Returns:
             out: copy (or if possible, view) of relevant section of data as an numpy array
         """
+        is_copy = False
         if len(ind2) == 0:
             # only unconjugated baselines
             isRegularlySpaced = len(set(np.ediff1d(ind1))) <= 1
@@ -1598,7 +1600,9 @@ class UVData(UVBase):
                     out = data[ind1[0]:ind1[-1] + 1:ind1[1] - ind1[0], :, :, :]
                     if not np.array_equal(indp, range(self.Npols)):
                         out = out[:, :, :, indp]
+                        is_copy = True
             else:
+                is_copy = True
                 if len(indp) == 1:
                     out = data[ind1, :, :, indp[0]]
                 else:
@@ -1615,7 +1619,9 @@ class UVData(UVBase):
                     out = data[ind2[0]:ind2[-1] + 1:ind2[1] - ind2[0], :, :, :]
                     if not np.array_equal(indp, range(self.Npols)):
                         out = np.conj(out[:, :, :, indp])
+                        is_copy = True
             else:
+                is_copy = True
                 if len(indp) == 1:
                     out = np.conj(data[ind2, :, :, indp[0]])
                 else:
@@ -1624,9 +1630,15 @@ class UVData(UVBase):
                         out = np.conj(out[:, :, :, indp])
         else:
             # both conjugated and unconjugated baselines
+            is_copy = True
             out = np.append(data[ind1, :, :, :], np.conj(data[ind2, :, :, :]), axis=0)
             if not np.array_equal(indp, range(self.Npols)):
                 out = out[:, :, :, indp]
+
+        if return_copy and not is_copy:
+            out = copy.copy(out)
+        if is_copy and not return_copy:
+            warnings.warn('A copy of the data was required.')
         return out
 
     def get_data(self, *args, **kwargs):
@@ -1640,6 +1652,8 @@ class UVData(UVBase):
             **kwargs: Keyword arguments:
                 squeeze: If true (default) remove single dimensional entries
                          from output array.
+                return_copy: Option to explicitly make a copy of the data.
+                             Default is False.
 
         Returns:
             Numpy array of data corresponding to key.
@@ -1647,7 +1661,8 @@ class UVData(UVBase):
             before returning.
         """
         ind1, ind2, indp = self._key2inds(args)
-        out = self._smart_slicing(self.data_array, ind1, ind2, indp)
+        out = self._smart_slicing(self.data_array, ind1, ind2, indp,
+                                  return_copy=kwargs.pop('return_copy', False))
         if kwargs.pop('squeeze', True):
             out = np.squeeze(out)
         return out
@@ -1663,12 +1678,15 @@ class UVData(UVBase):
             **kwargs: Keyword arguments:
                 squeeze: If true (default) remove single dimensional entries
                          from output array.
+                return_copy: Option to explicitly make a copy of the data.
+                             Default is False.
 
         Returns:
             Numpy array of flags corresponding to key.
         """
         ind1, ind2, indp = self._key2inds(args)
-        out = self._smart_slicing(self.flag_array, ind1, ind2, indp)
+        out = self._smart_slicing(self.flag_array, ind1, ind2, indp,
+                                  return_copy=kwargs.pop('return_copy', False))
         if kwargs.pop('squeeze', True):
             out = np.squeeze(out)
         return out
@@ -1684,12 +1702,15 @@ class UVData(UVBase):
             **kwargs: Keyword arguments:
                 squeeze: If true (default) remove single dimensional entries
                          from output array.
+                return_copy: Option to explicitly make a copy of the data.
+                             Default is False.
 
         Returns:
             Numpy array of nsamples corresponding to key.
         """
         ind1, ind2, indp = self._key2inds(args)
-        out = self._smart_slicing(self.nsample_array, ind1, ind2, indp)
+        out = self._smart_slicing(self.nsample_array, ind1, ind2, indp,
+                                  return_copy=kwargs.pop('return_copy', False))
         if kwargs.pop('squeeze', True):
             out = np.squeeze(out)
         return out
