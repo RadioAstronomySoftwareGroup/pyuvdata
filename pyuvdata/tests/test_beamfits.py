@@ -39,10 +39,10 @@ def test_writeread():
     primary_hdr['BTYPE'] = 'Intensity'
     hdunames = uvutils.fits_indexhdus(F)
     basisvec_hdu = F[hdunames['BASISVEC']]
-    freq_hdu = F[hdunames['FREQPARM']]
+    bandpass_hdu = F[hdunames['BANDPARM']]
 
     prihdu = fits.PrimaryHDU(data=data, header=primary_hdr)
-    hdulist = fits.HDUList([prihdu, basisvec_hdu, freq_hdu])
+    hdulist = fits.HDUList([prihdu, basisvec_hdu, bandpass_hdu])
 
     if float(astropy.__version__[0:3]) < 1.3:
         hdulist.writeto(write_file, clobber=True)
@@ -59,10 +59,10 @@ def test_writeread():
     primary_hdr.pop('COORDSYS')
     hdunames = uvutils.fits_indexhdus(F)
     basisvec_hdu = F[hdunames['BASISVEC']]
-    freq_hdu = F[hdunames['FREQPARM']]
+    bandpass_hdu = F[hdunames['BANDPARM']]
 
     prihdu = fits.PrimaryHDU(data=data, header=primary_hdr)
-    hdulist = fits.HDUList([prihdu, basisvec_hdu, freq_hdu])
+    hdulist = fits.HDUList([prihdu, basisvec_hdu, bandpass_hdu])
 
     if float(astropy.__version__[0:3]) < 1.3:
         hdulist.writeto(write_file, clobber=True)
@@ -104,10 +104,10 @@ def test_writeread_healpix():
     hdunames = uvutils.fits_indexhdus(F)
     basisvec_hdu = F[hdunames['BASISVEC']]
     hpx_hdu = F[hdunames['HPX_INDS']]
-    freq_hdu = F[hdunames['FREQPARM']]
+    bandpass_hdu = F[hdunames['BANDPARM']]
 
     prihdu = fits.PrimaryHDU(data=data, header=primary_hdr)
-    hdulist = fits.HDUList([prihdu, basisvec_hdu, hpx_hdu, freq_hdu])
+    hdulist = fits.HDUList([prihdu, basisvec_hdu, hpx_hdu, bandpass_hdu])
 
     if float(astropy.__version__[0:3]) < 1.3:
         hdulist.writeto(write_file, clobber=True)
@@ -150,7 +150,7 @@ def test_errors():
         primary_hdr = F[0].header
         hdunames = uvutils.fits_indexhdus(F)
         basisvec_hdu = F[hdunames['BASISVEC']]
-        freq_hdu = F[hdunames['FREQPARM']]
+        bandpass_hdu = F[hdunames['BANDPARM']]
 
         if 'NAXIS' in keyword:
             ax_num = keyword.split('NAXIS')[1]
@@ -166,7 +166,7 @@ def test_errors():
             primary_hdr[keyword] = new_val
 
         prihdu = fits.PrimaryHDU(data=data, header=primary_hdr)
-        hdulist = fits.HDUList([prihdu, basisvec_hdu, freq_hdu])
+        hdulist = fits.HDUList([prihdu, basisvec_hdu, bandpass_hdu])
 
         if float(astropy.__version__[0:3]) < 1.3:
             hdulist.writeto(write_file, clobber=True)
@@ -196,7 +196,7 @@ def test_errors():
         basisvec_hdu = F[hdunames['BASISVEC']]
         basisvec_hdr = basisvec_hdu.header
         basisvec_data = basisvec_hdu.data
-        freq_hdu = F[hdunames['FREQPARM']]
+        bandpass_hdu = F[hdunames['BANDPARM']]
 
         if 'NAXIS' in keyword:
             ax_num = keyword.split('NAXIS')[1]
@@ -213,7 +213,7 @@ def test_errors():
 
         prihdu = fits.PrimaryHDU(data=data, header=primary_hdr)
         basisvec_hdu = fits.ImageHDU(data=basisvec_data, header=basisvec_hdr)
-        hdulist = fits.HDUList([prihdu, basisvec_hdu, freq_hdu])
+        hdulist = fits.HDUList([prihdu, basisvec_hdu, bandpass_hdu])
 
         if float(astropy.__version__[0:3]) < 1.3:
             hdulist.writeto(write_file, clobber=True)
@@ -244,7 +244,7 @@ def test_healpix_errors():
         hdunames = uvutils.fits_indexhdus(F)
         basisvec_hdu = F[hdunames['BASISVEC']]
         hpx_hdu = F[hdunames['HPX_INDS']]
-        freq_hdu = F[hdunames['FREQPARM']]
+        bandpass_hdu = F[hdunames['BANDPARM']]
 
         if 'NAXIS' in keyword:
             ax_num = keyword.split('NAXIS')[1]
@@ -260,7 +260,7 @@ def test_healpix_errors():
             primary_hdr[keyword] = new_val
 
         prihdu = fits.PrimaryHDU(data=data, header=primary_hdr)
-        hdulist = fits.HDUList([prihdu, basisvec_hdu, hpx_hdu, freq_hdu])
+        hdulist = fits.HDUList([prihdu, basisvec_hdu, hpx_hdu, bandpass_hdu])
 
         if float(astropy.__version__[0:3]) < 1.3:
             hdulist.writeto(write_file, clobber=True)
@@ -287,7 +287,7 @@ def test_healpix_errors():
         basisvec_hdr = basisvec_hdu.header
         basisvec_data = basisvec_hdu.data
         hpx_hdu = F[hdunames['HPX_INDS']]
-        freq_hdu = F[hdunames['FREQPARM']]
+        bandpass_hdu = F[hdunames['BANDPARM']]
 
         if 'NAXIS' in keyword:
             ax_num = keyword.split('NAXIS')[1]
@@ -304,7 +304,7 @@ def test_healpix_errors():
 
         prihdu = fits.PrimaryHDU(data=data, header=primary_hdr)
         basisvec_hdu = fits.ImageHDU(data=basisvec_data, header=basisvec_hdr)
-        hdulist = fits.HDUList([prihdu, basisvec_hdu, hpx_hdu, freq_hdu])
+        hdulist = fits.HDUList([prihdu, basisvec_hdu, hpx_hdu, bandpass_hdu])
 
         if float(astropy.__version__[0:3]) < 1.3:
             hdulist.writeto(write_file, clobber=True)

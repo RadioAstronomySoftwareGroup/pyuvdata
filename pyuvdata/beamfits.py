@@ -234,10 +234,10 @@ class BeamFITS(UVBeam):
                 raise ValueError('Number of vector coordinate axes in BASISVEC '
                                  'HDU does not match primary HDU')
 
-        # check to see if FREQPARM HDU exists and read it out if it does
-        if 'FREQPARM' in hdunames:
-            freq_hdu = F[hdunames['FREQPARM']]
-            freq_data = freq_hdu.data
+        # check to see if BANDPARM HDU exists and read it out if it does
+        if 'BANDPARM' in hdunames:
+            bandpass_hdu = F[hdunames['BANDPARM']]
+            freq_data = bandpass_hdu.data
             columns = [c.name for c in freq_data.columns]
             if 'sys_temp' in columns:
                 self.system_temperature_array = freq_data['sys_temp']
@@ -533,9 +533,9 @@ class BeamFITS(UVBeam):
                 col_list += [s11_col, s12_col, s21_col, s22_col]
 
             coldefs = fits.ColDefs(col_list)
-            freq_hdu = fits.BinTableHDU.from_columns(coldefs)
-            freq_hdu.header['EXTNAME'] = 'FREQPARM'
-            hdulist.append(freq_hdu)
+            bandpass_hdu = fits.BinTableHDU.from_columns(coldefs)
+            bandpass_hdu.header['EXTNAME'] = 'BANDPARM'
+            hdulist.append(bandpass_hdu)
 
         if float(astropy.__version__[0:3]) < 1.3:
             hdulist.writeto(filename, clobber=clobber)
