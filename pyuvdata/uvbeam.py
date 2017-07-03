@@ -146,7 +146,7 @@ class UVBeam(UVBase):
                 '"peak" and "solid_angle". Peak normalized means each frequency '
                 'is separately normalized such that the peak is 1 and the beam '
                 'is dimensionless. Solid angle normalized means the peak '
-                'normalized beam is divided by the integral of the of the beam '
+                'normalized beam is divided by the integral of the beam '
                 'over the sphere, giving the beam dimensions of 1/stradian.')
         self._data_normalization = uvp.UVParameter('data_normalization', description=desc,
                                                    form='str', expected_type=str,
