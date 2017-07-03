@@ -1575,6 +1575,57 @@ class UVData(UVBase):
                 raise KeyError('Polarization {pol} not found in data.'.format(pol=key[2]))
         return (blt_ind1, blt_ind2, pol_ind)
 
+
+    def _smart_slicing(self, data, ind1, ind2, indp):
+        """
+        Method for quickly picking out the relevant section of data for get_data or get_flags
+
+        Args:
+            data: 4-dimensional array in the format of self.data_array
+            ind1: list with blt indices for antenna pair (e.g. from self._key2inds)
+            ind2: list with blt indices for conjugate antenna pair. (e.g. from self._key2inds)
+            indp: list with polarization indices (e.g. from self._key2inds)
+
+        Returns:
+            out: copy (or if possible, view) of relevant section of data as an numpy array
+        """
+        if len(ind2)==0:
+            #only unconjugated baselines
+            isRegularlySpaced = len(set(np.ediff1d(ind1))) <= 1
+            if isRegularlySpaced:
+                if len(indp)==1:
+                    out = data[ind1[0]:ind1[-1]+1:ind1[1]-ind1[0], :, :, indp[0]]
+                else: 
+                    out = data[ind1[0]:ind1[-1]+1:ind1[1]-ind1[0], :, :, :]
+                    out = out[:,:,:,indp]
+            else:
+                if len(indp)==1:
+                    out = data[ind1, :, :, indp[0]]
+                else: 
+                    out = data[ind1, :, :, :]
+                    out = out[:,:,:,indp]
+        elif len(ind1)==0:
+            #only conjugated baselines
+            isRegularlySpaced = len(set(np.ediff1d(ind2))) <= 1
+            if isRegularlySpaced:
+                if len(indp)==1:
+                    out = np.conj(data[ind2[0]:ind2[-1]+1:ind2[1]-ind2[0], :, :, indp[0]])
+                else: 
+                    out = data[ind2[0]:ind2[-1]+1:ind2[1]-ind2[0], :, :, :]
+                    out = np.conj(out[:,:,:,indp])
+            else:
+                if len(indp)==1:
+                    out = np.conj(data[ind2, :, :, indp[0]])
+                else: 
+                    out = data[ind2, :, :, :]
+                    out = np.conj(out[:,:,:,indp])
+        else:
+            #both conjugated and unconjugated baselines
+            out = np.append(data[ind1, :, :, :], np.conj(data[ind2, :, :, :]), axis=0)
+            out = out[:, :, :, indp]
+        return out
+
+
     def get_data(self, *args, **kwargs):
         """
         Function for quick access to numpy array with data corresponding to
@@ -1593,8 +1644,7 @@ class UVData(UVBase):
             before returning.
         """
         ind1, ind2, indp = self._key2inds(args)
-        out = self.data_array[:, :, :, indp]
-        out = np.append(out[ind1, :, :, :], np.conj(out[ind2, :, :, :]), axis=0)
+        out = self._smart_slicing(self.data_array, ind1, ind2, indp)
         if kwargs.pop('squeeze', True):
             out = np.squeeze(out)
         return out
@@ -1615,8 +1665,7 @@ class UVData(UVBase):
             Numpy array of flags corresponding to key.
         """
         ind1, ind2, indp = self._key2inds(args)
-        out = self.flag_array[:, :, :, indp]
-        out = np.append(out[ind1, :, :, :], np.conj(out[ind2, :, :, :]), axis=0)
+        out = self._smart_slicing(self.flag_array, ind1, ind2, indp)
         if kwargs.pop('squeeze', True):
             out = np.squeeze(out)
         return out
@@ -1637,8 +1686,7 @@ class UVData(UVBase):
             Numpy array of nsamples corresponding to key.
         """
         ind1, ind2, indp = self._key2inds(args)
-        out = self.nsample_array[:, :, :, indp]
-        out = np.append(out[ind1, :, :, :], np.conj(out[ind2, :, :, :]), axis=0)
+        out = self._smart_slicing(self.nsample_array, ind1, ind2, indp)
         if kwargs.pop('squeeze', True):
             out = np.squeeze(out)
         return out
