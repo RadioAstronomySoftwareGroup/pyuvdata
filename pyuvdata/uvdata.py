@@ -1575,7 +1575,6 @@ class UVData(UVBase):
                 raise KeyError('Polarization {pol} not found in data.'.format(pol=key[2]))
         return (blt_ind1, blt_ind2, pol_ind)
 
-
     def _smart_slicing(self, data, ind1, ind2, indp):
         """
         Method for quickly picking out the relevant section of data for get_data or get_flags
@@ -1589,42 +1588,41 @@ class UVData(UVBase):
         Returns:
             out: copy (or if possible, view) of relevant section of data as an numpy array
         """
-        if len(ind2)==0:
-            #only unconjugated baselines
+        if len(ind2) == 0:
+            # only unconjugated baselines
             isRegularlySpaced = len(set(np.ediff1d(ind1))) <= 1
             if isRegularlySpaced:
-                if len(indp)==1:
-                    out = data[ind1[0]:ind1[-1]+1:ind1[1]-ind1[0], :, :, indp[0]]
-                else: 
-                    out = data[ind1[0]:ind1[-1]+1:ind1[1]-ind1[0], :, :, :]
-                    out = out[:,:,:,indp]
+                if len(indp) == 1:
+                    out = data[ind1[0]:ind1[-1] + 1:ind1[1] - ind1[0], :, :, indp[0]]
+                else:
+                    out = data[ind1[0]:ind1[-1] + 1:ind1[1] - ind1[0], :, :, :]
+                    out = out[:, :, :, indp]
             else:
-                if len(indp)==1:
+                if len(indp) == 1:
                     out = data[ind1, :, :, indp[0]]
-                else: 
+                else:
                     out = data[ind1, :, :, :]
-                    out = out[:,:,:,indp]
-        elif len(ind1)==0:
-            #only conjugated baselines
+                    out = out[:, :, :, indp]
+        elif len(ind1) == 0:
+            # only conjugated baselines
             isRegularlySpaced = len(set(np.ediff1d(ind2))) <= 1
             if isRegularlySpaced:
-                if len(indp)==1:
-                    out = np.conj(data[ind2[0]:ind2[-1]+1:ind2[1]-ind2[0], :, :, indp[0]])
-                else: 
-                    out = data[ind2[0]:ind2[-1]+1:ind2[1]-ind2[0], :, :, :]
-                    out = np.conj(out[:,:,:,indp])
+                if len(indp) == 1:
+                    out = np.conj(data[ind2[0]:ind2[-1] + 1:ind2[1] - ind2[0], :, :, indp[0]])
+                else:
+                    out = data[ind2[0]:ind2[-1] + 1:ind2[1] - ind2[0], :, :, :]
+                    out = np.conj(out[:, :, :, indp])
             else:
-                if len(indp)==1:
+                if len(indp) == 1:
                     out = np.conj(data[ind2, :, :, indp[0]])
-                else: 
+                else:
                     out = data[ind2, :, :, :]
-                    out = np.conj(out[:,:,:,indp])
+                    out = np.conj(out[:, :, :, indp])
         else:
-            #both conjugated and unconjugated baselines
+            # both conjugated and unconjugated baselines
             out = np.append(data[ind1, :, :, :], np.conj(data[ind2, :, :, :]), axis=0)
             out = out[:, :, :, indp]
         return out
-
 
     def get_data(self, *args, **kwargs):
         """
