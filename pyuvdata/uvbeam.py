@@ -420,15 +420,16 @@ class UVBeam(UVBase):
         # check for presence of optional parameters with a frequency axis in both objects
         optional_freq_params = ['_system_temperature_array', '_loss_array',
                                 '_mismatch_array', '_s_parameters']
-        for a in optional_freq_params:
-            this_a = getattr(this, a)
-            other_a = getattr(other, a)
-            if (this_a is None or other_a is None) and this_a != other_a:
+        for attr in optional_freq_params:
+            this_attr = getattr(this, attr)
+            other_attr = getattr(other, attr)
+            if (this_attr.value is None or other_attr.value is None) and this_attr != other_attr:
                 warnings.warn('Only one of the UVBeam objects being combined '
-                              'has optional parameter {a}. After the sum the '
-                              'final object will not have {a}'.format(a=a))
-                if this_a is not None:
-                    setattr(this, a, None)
+                              'has optional parameter {attr}. After the sum the '
+                              'final object will not have {attr}'.format(attr=attr))
+                if this_attr.value is not None:
+                    this_attr.value = None
+                    setattr(this, attr, this_attr)
 
         # Build up history string
         history_update_string = ' Combined data along '

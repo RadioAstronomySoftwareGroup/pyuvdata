@@ -814,6 +814,17 @@ def test_add():
     uvtest.checkWarnings(beam1.__iadd__, [beam2],
                          message='Combined polarizations are not evenly spaced')
 
+    beam1 = power_beam_full.select(polarizations=power_beam_full.polarization_array[0:2],
+                                   inplace=False)
+    beam2 = power_beam_full.select(polarizations=power_beam_full.polarization_array[2:3],
+                                   inplace=False)
+    beam2.system_temperature_array = None
+    nt.assert_false(beam1.system_temperature_array is None)
+    uvtest.checkWarnings(beam1.__iadd__, [beam2],
+                         message=['Only one of the UVBeam objects being combined '
+                                  'has optional parameter'])
+    nt.assert_true(beam1.system_temperature_array is None)
+
     # Combining histories
     beam1 = power_beam_full.select(polarizations=power_beam_full.polarization_array[0:2], inplace=False)
     beam2 = power_beam_full.select(polarizations=power_beam_full.polarization_array[2:4], inplace=False)
