@@ -7,6 +7,11 @@
 							
 \usepackage{amssymb}
 
+\usepackage{hyperref} 
+\hypersetup{
+    colorlinks = true
+}
+
 \title{Memo : pyuvdata.uvcal}
 \author{Zaki Ali, Bryna Hazelton, Adam Beardsley and the pyvdata team}
 %\date{}							% Activate to display a given date or no date
@@ -16,12 +21,12 @@
 \section{Introduction}
 This memo introduces the new \textit{calfits} file format for storing
 calibration solutions using
-pyuvdata\footnote{https://github.com/HERA-Team/pyuvdata}, a python package that
+pyuvdata\footnote{\url{https://github.com/HERA-Team/pyuvdata}}, a python package that
 provides an interface to interferometric data. We are defining a file format
 with the code interface. Here, we describe the required and optional parameters
 of the \textit{calfits} format and interface to reading and writing, in addition
 to the structure of the underlying fits file. For examples please see the
-tutorial in pyuvdata.
+pyuvdata \href{http://pyuvdata.readthedocs.io/en/latest/tutorial.html}{tutorial}.
 
 \section{Basics}
 
