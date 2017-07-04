@@ -1587,7 +1587,7 @@ class UVData(UVBase):
             force_copy: Option to force returned array to be a copy. Default is False.
 
         Returns:
-            out: copy (or if possible, view) of relevant section of data as an numpy array
+            out: numpy array copy (or if possible, a read-only view) of relevant section of data 
         """
         if len(ind2) == 0:
             # only unconjugated baselines
@@ -1628,7 +1628,10 @@ class UVData(UVBase):
             out = np.append(data[ind1, :, :, :], np.conj(data[ind2, :, :, :]), axis=0)
             if not np.array_equal(indp, range(self.Npols)):
                 out = out[:, :, :, indp]
-
+        
+        if out.base is not None:
+            #if out is a view rather than a copy, make it read-only
+            out.flags.writeable = False
         if force_copy:
             return np.array(out)
         else:
@@ -1637,8 +1640,7 @@ class UVData(UVBase):
     def get_data(self, *args, **kwargs):
         """
         Function for quick access to numpy array with data corresponding to
-        a baseline and/or polarization. Returns a view if possible, otherwise a copy, 
-        so it is inadvisable to try to use this function to edit the data_array.
+        a baseline and/or polarization. Returns a read-only view if possible, otherwise a copy. 
 
         Args:
             *args: parameters or tuple of parameters defining the key to identify
@@ -1664,8 +1666,7 @@ class UVData(UVBase):
     def get_flags(self, *args, **kwargs):
         """
         Function for quick access to numpy array with flags corresponding to
-        a baseline and/or polarization. Returns a view if possible, otherwise a copy, 
-        so it is inadvisable to try to use this function to edit the flag_array.
+        a baseline and/or polarization. Returns a read-only view if possible, otherwise a copy. 
 
         Args:
             *args: parameters or tuple of parameters defining the key to identify
@@ -1689,8 +1690,7 @@ class UVData(UVBase):
     def get_nsamples(self, *args, **kwargs):
         """
         Function for quick access to numpy array with nsamples corresponding to
-        a baseline and/or polarization. Returns a view if possible, otherwise a copy, 
-        so it is inadvisable to try to use this function to edit the nsample_array.
+        a baseline and/or polarization. Returns a read-only view if possible, otherwise a copy. 
 
         Args:
             *args: parameters or tuple of parameters defining the key to identify
