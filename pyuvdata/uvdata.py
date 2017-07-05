@@ -1662,6 +1662,9 @@ class UVData(UVBase):
             if out.shape[1] is 1:
                 # one spw dimension
                 out = np.squeeze(out, axis=1)
+        elif squeeze is not 'none':
+            raise ValueError('"'+ str(squeeze) + '" is not a valid option for squeeze.'
+                             'Only "default", "none", or "full" are allowed.')
 
         if force_copy:
             out = np.array(out)
