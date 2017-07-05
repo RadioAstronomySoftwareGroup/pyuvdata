@@ -1587,50 +1587,67 @@ class UVData(UVBase):
             force_copy: Option to force returned array to be a copy. Default is False.
 
         Returns:
-            out: numpy array copy (or if possible, a read-only view) of relevant section of data 
+            out: numpy array copy (or if possible, a read-only view) of relevant section of data
         """
+        if len(set(np.ediff1d(indp))) <= 1:
+            p_reg_spaced = True
+            p_start = indp[0]
+            p_stop = indp[-1] + 1
+            if len(indp) == 1:
+                dp = 1
+            else:
+                dp = indp[1] - indp[0]
+        else:
+            p_reg_spaced = False
+
         if len(ind2) == 0:
             # only unconjugated baselines
-            isRegularlySpaced = len(set(np.ediff1d(ind1))) <= 1
-            if isRegularlySpaced:
-                if len(indp) == 1:
-                    out = data[ind1[0]:ind1[-1] + 1:ind1[1] - ind1[0], :, :, indp[0]]
+            if len(set(np.ediff1d(ind1))) <= 1:
+                blt_start = ind1[0]
+                blt_stop = ind1[-1] + 1
+                if len(ind1) == 1:
+                    dblt = 1
                 else:
-                    out = data[ind1[0]:ind1[-1] + 1:ind1[1] - ind1[0], :, :, :]
-                    if not np.array_equal(indp, range(self.Npols)):
-                        out = out[:, :, :, indp]
+                    dblt = ind1[1] - ind1[0]
+                if p_reg_spaced:
+                    out = data[blt_start:blt_stop:dblt, :, :, p_start:p_stop:dp]
+                else:
+                    out = data[blt_start:blt_stop:dblt, :, :, indp]
             else:
-                if len(indp) == 1:
-                    out = data[ind1, :, :, indp[0]]
+                out = data[ind1, :, :, :]
+                if p_reg_spaced:
+                    out = out[:, :, :, p_start:p_stop:dp]
                 else:
-                    out = data[ind1, :, :, :]
-                    if not np.array_equal(indp, range(self.Npols)):
-                        out = out[:, :, :, indp]
+                    out = out[:, :, :, indp]
         elif len(ind1) == 0:
             # only conjugated baselines
-            isRegularlySpaced = len(set(np.ediff1d(ind2))) <= 1
-            if isRegularlySpaced:
-                if len(indp) == 1:
-                    out = np.conj(data[ind2[0]:ind2[-1] + 1:ind2[1] - ind2[0], :, :, indp[0]])
+            if len(set(np.ediff1d(ind2))) <= 1:
+                blt_start = ind2[0]
+                blt_stop = ind2[-1] + 1
+                if len(ind2) == 1:
+                    dblt = 1
                 else:
-                    out = data[ind2[0]:ind2[-1] + 1:ind2[1] - ind2[0], :, :, :]
-                    if not np.array_equal(indp, range(self.Npols)):
-                        out = np.conj(out[:, :, :, indp])
+                    dblt = ind2[1] - ind2[0]
+                if p_reg_spaced:
+                    out = np.conj(data[blt_start:blt_stop:dblt, :, :, p_start:p_stop:dp])
+                else:
+                    out = np.conj(data[blt_start:blt_stop:dblt, :, :, indp])
             else:
-                if len(indp) == 1:
-                    out = np.conj(data[ind2, :, :, indp[0]])
+                out = data[ind2, :, :, :]
+                if p_reg_spaced:
+                    out = np.conj(out[:, :, :, p_start:p_stop:dp])
                 else:
-                    out = data[ind2, :, :, :]
-                    if not np.array_equal(indp, range(self.Npols)):
-                        out = np.conj(out[:, :, :, indp])
+                    out = np.conj(out[:, :, :, indp])
         else:
             # both conjugated and unconjugated baselines
             out = np.append(data[ind1, :, :, :], np.conj(data[ind2, :, :, :]), axis=0)
-            if not np.array_equal(indp, range(self.Npols)):
+            if p_reg_spaced:
+                out = out[:, :, :, p_start:p_stop:dp]
+            else:
                 out = out[:, :, :, indp]
-        
+
         if out.base is not None:
-            #if out is a view rather than a copy, make it read-only
+            # if out is a view rather than a copy, make it read-only
             out.flags.writeable = False
         if force_copy:
             return np.array(out)
@@ -1640,7 +1657,7 @@ class UVData(UVBase):
     def get_data(self, *args, **kwargs):
         """
         Function for quick access to numpy array with data corresponding to
-        a baseline and/or polarization. Returns a read-only view if possible, otherwise a copy. 
+        a baseline and/or polarization. Returns a read-only view if possible, otherwise a copy.
 
         Args:
             *args: parameters or tuple of parameters defining the key to identify
@@ -1666,7 +1683,7 @@ class UVData(UVBase):
     def get_flags(self, *args, **kwargs):
         """
         Function for quick access to numpy array with flags corresponding to
-        a baseline and/or polarization. Returns a read-only view if possible, otherwise a copy. 
+        a baseline and/or polarization. Returns a read-only view if possible, otherwise a copy.
 
         Args:
             *args: parameters or tuple of parameters defining the key to identify
@@ -1690,7 +1707,7 @@ class UVData(UVBase):
     def get_nsamples(self, *args, **kwargs):
         """
         Function for quick access to numpy array with nsamples corresponding to
-        a baseline and/or polarization. Returns a read-only view if possible, otherwise a copy. 
+        a baseline and/or polarization. Returns a read-only view if possible, otherwise a copy.
 
         Args:
             *args: parameters or tuple of parameters defining the key to identify
