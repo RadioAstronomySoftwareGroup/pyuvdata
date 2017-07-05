@@ -1657,10 +1657,10 @@ class UVData(UVBase):
             out = np.squeeze(out)
         elif squeeze is 'default':
             if out.shape[3] is 1:
-                #one polarization dimension
+                # one polarization dimension
                 out = np.squeeze(out, axis=3)
             if out.shape[1] is 1:
-                #one spw dimension
+                # one spw dimension
                 out = np.squeeze(out, axis=1)
 
         if force_copy:
