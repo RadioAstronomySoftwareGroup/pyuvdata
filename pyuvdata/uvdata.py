@@ -1575,7 +1575,7 @@ class UVData(UVBase):
                 raise KeyError('Polarization {pol} not found in data.'.format(pol=key[2]))
         return (blt_ind1, blt_ind2, pol_ind)
 
-    def _smart_slicing(self, data, ind1, ind2, indp, force_copy=False):
+    def _smart_slicing(self, data, ind1, ind2, indp, **kwargs):
         """
         Method for quickly picking out the relevant section of data for get_data or get_flags
 
@@ -1584,11 +1584,18 @@ class UVData(UVBase):
             ind1: list with blt indices for antenna pair (e.g. from self._key2inds)
             ind2: list with blt indices for conjugate antenna pair. (e.g. from self._key2inds)
             indp: list with polarization indices (e.g. from self._key2inds)
-            force_copy: Option to force returned array to be a copy. Default is False.
+        kwargs:
+            squeeze: 'default': squeeze pol and spw dimensions if possible (default)
+                     'none': no squeezing of resulting numpy array
+                     'full': squeeze all length 1 dimensions
+            force_copy: Option to explicitly make a copy of the data. Default is False.
 
         Returns:
             out: numpy array copy (or if possible, a read-only view) of relevant section of data
         """
+        force_copy = kwargs.pop('force_copy', False)
+        squeeze = kwargs.pop('squeeze', 'default')
+
         if len(set(np.ediff1d(indp))) <= 1:
             p_reg_spaced = True
             p_start = indp[0]
@@ -1646,13 +1653,23 @@ class UVData(UVBase):
             else:
                 out = out[:, :, :, indp]
 
-        if out.base is not None:
+        if squeeze is 'full':
+            out = np.squeeze(out)
+        elif squeeze is 'default':
+            if out.shape[3] is 1:
+                #one polarization dimension
+                out = np.squeeze(out, axis=3)
+            if out.shape[1] is 1:
+                #one spw dimension
+                out = np.squeeze(out, axis=1)
+
+        if force_copy:
+            out = np.array(out)
+        elif out.base is not None:
             # if out is a view rather than a copy, make it read-only
             out.flags.writeable = False
-        if force_copy:
-            return np.array(out)
-        else:
-            return out
+
+        return out
 
     def get_data(self, *args, **kwargs):
         """
@@ -1663,8 +1680,9 @@ class UVData(UVBase):
             *args: parameters or tuple of parameters defining the key to identify
                    desired data. See _key2inds for formatting.
             **kwargs: Keyword arguments:
-                squeeze: If true (default) remove single dimensional entries
-                         from output array.
+                squeeze: 'default': squeeze pol and spw dimensions if possible
+                         'none': no squeezing of resulting numpy array
+                         'full': squeeze all length 1 dimensions
                 force_copy: Option to explicitly make a copy of the data.
                              Default is False.
 
@@ -1674,10 +1692,7 @@ class UVData(UVBase):
             before returning.
         """
         ind1, ind2, indp = self._key2inds(args)
-        out = self._smart_slicing(self.data_array, ind1, ind2, indp,
-                                  force_copy=kwargs.pop('force_copy', False))
-        if kwargs.pop('squeeze', True):
-            out = np.squeeze(out)
+        out = self._smart_slicing(self.data_array, ind1, ind2, indp, **kwargs)
         return out
 
     def get_flags(self, *args, **kwargs):
@@ -1689,8 +1704,9 @@ class UVData(UVBase):
             *args: parameters or tuple of parameters defining the key to identify
                    desired data. See _key2inds for formatting.
             **kwargs: Keyword arguments:
-                squeeze: If true (default) remove single dimensional entries
-                         from output array.
+                squeeze: 'default': squeeze pol and spw dimensions if possible
+                         'none': no squeezing of resulting numpy array
+                         'full': squeeze all length 1 dimensions
                 force_copy: Option to explicitly make a copy of the data.
                              Default is False.
 
@@ -1698,10 +1714,7 @@ class UVData(UVBase):
             Numpy array of flags corresponding to key.
         """
         ind1, ind2, indp = self._key2inds(args)
-        out = self._smart_slicing(self.flag_array, ind1, ind2, indp,
-                                  force_copy=kwargs.pop('force_copy', False))
-        if kwargs.pop('squeeze', True):
-            out = np.squeeze(out)
+        out = self._smart_slicing(self.flag_array, ind1, ind2, indp, **kwargs)
         return out
 
     def get_nsamples(self, *args, **kwargs):
@@ -1713,8 +1726,9 @@ class UVData(UVBase):
             *args: parameters or tuple of parameters defining the key to identify
                    desired data. See _key2inds for formatting.
             **kwargs: Keyword arguments:
-                squeeze: If true (default) remove single dimensional entries
-                         from output array.
+                squeeze: 'default': squeeze pol and spw dimensions if possible
+                         'none': no squeezing of resulting numpy array
+                         'full': squeeze all length 1 dimensions
                 force_copy: Option to explicitly make a copy of the data.
                              Default is False.
 
@@ -1722,10 +1736,7 @@ class UVData(UVBase):
             Numpy array of nsamples corresponding to key.
         """
         ind1, ind2, indp = self._key2inds(args)
-        out = self._smart_slicing(self.nsample_array, ind1, ind2, indp,
-                                  force_copy=kwargs.pop('force_copy', False))
-        if kwargs.pop('squeeze', True):
-            out = np.squeeze(out)
+        out = self._smart_slicing(self.nsample_array, ind1, ind2, indp, **kwargs)
         return out
 
     def get_times(self, *args):
@@ -1743,12 +1754,14 @@ class UVData(UVBase):
         ind1, ind2, indp = self._key2inds(args)
         return np.append(self.time_array[ind1], self.time_array[ind2])
 
-    def antpairpol_iter(self, squeeze=True):
+    def antpairpol_iter(self, squeeze='default'):
         """
         Generates numpy arrays of data for each antpair, pol combination.
 
         Args:
-            squeeze: Option to squeeze data array (default is True)
+            squeeze: 'default': squeeze pol and spw dimensions if possible
+                     'none': no squeezing of resulting numpy array
+                     'full': squeeze all length 1 dimensions
 
         Returns (for each iteration):
             key: tuple with antenna1, antenna2, and polarization string
