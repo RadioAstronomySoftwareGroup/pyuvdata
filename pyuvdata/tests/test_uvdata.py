@@ -1203,6 +1203,150 @@ def test_key2inds():
     nt.assert_raises(KeyError, uv._key2inds, (0, 1, 'xx'))  # pol not in data
 
 
+def test_smart_slicing():
+    # Test function to slice data
+    uv = UVData()
+    testfile = os.path.join(
+        DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    uvtest.checkWarnings(uv.read_uvfits, [testfile],
+                         message='Telescope EVLA is not')
+
+    # ind1 reg, ind2 empty, pol reg
+    ind1 = 10 * np.arange(9)
+    ind2 = []
+    indp = [0, 1]
+    d = uv._smart_slicing(uv.data_array, ind1, ind2, indp)
+    dcheck = uv.data_array[ind1, :, :, :]
+    dcheck = dcheck[:, :, :, indp]
+    nt.assert_true(np.all(d == dcheck))
+    nt.assert_false(d.flags.writeable)
+    # Ensure a view was returned
+    uv.data_array[ind1[1], 0, 0, indp[0]] = 5.43
+    nt.assert_equal(d[1, 0, 0, 0], uv.data_array[ind1[1], 0, 0, indp[0]])
+
+    # force copy
+    d = uv._smart_slicing(uv.data_array, ind1, ind2, indp, force_copy=True)
+    dcheck = uv.data_array[ind1, :, :, :]
+    dcheck = dcheck[:, :, :, indp]
+    nt.assert_true(np.all(d == dcheck))
+    nt.assert_true(d.flags.writeable)
+    # Ensure a copy was returned
+    uv.data_array[ind1[1], 0, 0, indp[0]] = 4.3
+    nt.assert_not_equal(d[1, 0, 0, 0], uv.data_array[ind1[1], 0, 0, indp[0]])
+
+    # ind1 reg, ind2 empty, pol not reg
+    ind1 = 10 * np.arange(9)
+    ind2 = []
+    indp = [0, 1, 3]
+    d = uv._smart_slicing(uv.data_array, ind1, ind2, indp)
+    dcheck = uv.data_array[ind1, :, :, :]
+    dcheck = dcheck[:, :, :, indp]
+    nt.assert_true(np.all(d == dcheck))
+    nt.assert_false(d.flags.writeable)
+    # Ensure a copy was returned
+    uv.data_array[ind1[1], 0, 0, indp[0]] = 1.2
+    nt.assert_not_equal(d[1, 0, 0, 0], uv.data_array[ind1[1], 0, 0, indp[0]])
+
+    # ind1 not reg, ind2 empty, pol reg
+    ind1 = [0, 4, 5]
+    ind2 = []
+    indp = [0, 1]
+    d = uv._smart_slicing(uv.data_array, ind1, ind2, indp)
+    dcheck = uv.data_array[ind1, :, :, :]
+    dcheck = dcheck[:, :, :, indp]
+    nt.assert_true(np.all(d == dcheck))
+    nt.assert_false(d.flags.writeable)
+    # Ensure a copy was returned
+    uv.data_array[ind1[1], 0, 0, indp[0]] = 8.2
+    nt.assert_not_equal(d[1, 0, 0, 0], uv.data_array[ind1[1], 0, 0, indp[0]])
+
+    # ind1 not reg, ind2 empty, pol not reg
+    ind1 = [0, 4, 5]
+    ind2 = []
+    indp = [0, 1, 3]
+    d = uv._smart_slicing(uv.data_array, ind1, ind2, indp)
+    dcheck = uv.data_array[ind1, :, :, :]
+    dcheck = dcheck[:, :, :, indp]
+    nt.assert_true(np.all(d == dcheck))
+    nt.assert_false(d.flags.writeable)
+    # Ensure a copy was returned
+    uv.data_array[ind1[1], 0, 0, indp[0]] = 3.4
+    nt.assert_not_equal(d[1, 0, 0, 0], uv.data_array[ind1[1], 0, 0, indp[0]])
+
+    # ind1 empty, ind2 reg, pol reg
+    # Note conjugation test ensures the result is a copy, not a view.
+    ind1 = []
+    ind2 = 10 * np.arange(9)
+    indp = [0, 1]
+    d = uv._smart_slicing(uv.data_array, ind1, ind2, indp)
+    dcheck = uv.data_array[ind2, :, :, :]
+    dcheck = np.conj(dcheck[:, :, :, indp])
+    nt.assert_true(np.all(d == dcheck))
+
+    # ind1 empty, ind2 reg, pol not reg
+    ind1 = []
+    ind2 = 10 * np.arange(9)
+    indp = [0, 1, 3]
+    d = uv._smart_slicing(uv.data_array, ind1, ind2, indp)
+    dcheck = uv.data_array[ind2, :, :, :]
+    dcheck = np.conj(dcheck[:, :, :, indp])
+    nt.assert_true(np.all(d == dcheck))
+
+    # ind1 empty, ind2 not reg, pol reg
+    ind1 = []
+    ind2 = [1, 4, 5, 10]
+    indp = [0, 1]
+    d = uv._smart_slicing(uv.data_array, ind1, ind2, indp)
+    dcheck = uv.data_array[ind2, :, :, :]
+    dcheck = np.conj(dcheck[:, :, :, indp])
+    nt.assert_true(np.all(d == dcheck))
+
+    # ind1 empty, ind2 not reg, pol not reg
+    ind1 = []
+    ind2 = [1, 4, 5, 10]
+    indp = [0, 1, 3]
+    d = uv._smart_slicing(uv.data_array, ind1, ind2, indp)
+    dcheck = uv.data_array[ind2, :, :, :]
+    dcheck = np.conj(dcheck[:, :, :, indp])
+    nt.assert_true(np.all(d == dcheck))
+
+    # ind1, ind2 not empty, pol reg
+    ind1 = np.arange(20)
+    ind2 = np.arange(30, 40)
+    indp = [0, 1]
+    d = uv._smart_slicing(uv.data_array, ind1, ind2, indp)
+    dcheck = np.append(uv.data_array[ind1, :, :, :],
+                       np.conj(uv.data_array[ind2, :, :, :]), axis=0)
+    dcheck = dcheck[:, :, :, indp]
+    nt.assert_true(np.all(d == dcheck))
+
+    # ind1, ind2 not empty, pol not reg
+    ind1 = np.arange(20)
+    ind2 = np.arange(30, 40)
+    indp = [0, 1, 3]
+    d = uv._smart_slicing(uv.data_array, ind1, ind2, indp)
+    dcheck = np.append(uv.data_array[ind1, :, :, :],
+                       np.conj(uv.data_array[ind2, :, :, :]), axis=0)
+    dcheck = dcheck[:, :, :, indp]
+    nt.assert_true(np.all(d == dcheck))
+
+    # test single element
+    ind1 = [45]
+    ind2 = []
+    indp = [0, 1]
+    d = uv._smart_slicing(uv.data_array, ind1, ind2, indp)
+    dcheck = uv.data_array[ind1, :, :, :]
+    dcheck = dcheck[:, :, :, indp]
+    nt.assert_true(np.all(d == dcheck))
+
+    # test single element
+    ind1 = []
+    ind2 = [45]
+    indp = [0, 1]
+    d = uv._smart_slicing(uv.data_array, ind1, ind2, indp)
+    nt.assert_true(np.all(d == np.conj(dcheck)))
+
+
 def test_get_data():
     # Test get_data function for easy access to data
     uv = UVData()
