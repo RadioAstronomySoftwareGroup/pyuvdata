@@ -45,7 +45,8 @@ pyuvdata has three major user classes:
 * UVData: different multiple spectral windows or multiple sources are not currently supported
 * UVData: testing against miriad package
 * UVData: replacing AIPY and pyephem with astropy+NOVAS for time and phase calculations
-* UVData: radd support for writing CASA measurement sets
+* UVData: add support for writing CASA measurement sets
+* UVData: phasing is tested to a part in 10^3, and assumes planar array. Improvements are tracked on Issue \#148.
 * UVCal: expand support for calibration solutions: support other formats beyond FITS
 * UVBeam: support reading in native beam model file formats (e.g. CST, HFSS)
 * UVBeam: support reading/writing/combining standard HEALPix FITs files (individual files per frequency, polarization and E-field vector)
