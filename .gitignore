@@ -65,4 +65,3 @@ target/
 pyuvdata/data/
 pyuvdata/data/test/
 pyuvdata/GIT_INFO
-uvdata/data/test/*
