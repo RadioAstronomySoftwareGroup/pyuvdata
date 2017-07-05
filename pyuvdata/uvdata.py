@@ -461,24 +461,20 @@ class UVData(UVBase):
         order: string, either 'CASA' or 'AIPS'. Default='AIPS'
         '''
         if(order == 'AIPS'):
-            pol_array_sorted = np.sort(self.polarization_array)
-            pol_array_sorted = pol_array_sorted[::-1]
+            pol_inds = np.argsort(self.polarization_array)
+            pol_inds = pol_inds[::-1]
         elif(order == 'CASA'):  # sandwich
             casa_order = np.array([1, 2, 3, 4, -1, -3, -4, -2, -5, -7, -8, -6])
-            polInds = []
+            pol_inds = []
             for pol in self.polarization_array:
-                polInds.append(np.where(casa_order == pol)[0][0])
-            polInds = np.sort(np.array(polInds))
-            pol_array_sorted = casa_order[polInds]
+                pol_inds.append(np.where(casa_order == pol)[0][0])
+            pol_inds = np.argsort(pol_inds)
         else:
-            print('Invalid order supplied. No sorting performed')
-            pol_array_sorted = self.polarization_array
+            warnings.warn('Invalid order supplied. No sorting performed.')
+            pol_inds = range(self.Npols)
         # Generate a map from original indices to new indices
-        polMap = []
-        for pol in pol_array_sorted:
-            polMap.append(np.where(self.polarization_array == pol)[0][0])
-        self.polarization_array = pol_array_sorted
-        self.data_array = self.data_array[:, :, :, polMap]
+        if not np.array_equal(pol_inds, self.Npols):
+            self.reorder_pols(order=pol_inds)
 
     def set_lsts_from_time_array(self):
         """Set the lst_array based from the time_array."""

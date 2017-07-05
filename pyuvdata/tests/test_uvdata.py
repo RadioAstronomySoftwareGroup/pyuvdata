@@ -81,10 +81,14 @@ class TestUVDataInit(object):
         test_uv2.order_pols(order='CASA')
         casa_pols = np.array([-1, -3, -4, -2]).astype(int)
         nt.assert_true(np.all(test_uv2.polarization_array == casa_pols))
+        order = np.array([0, 2, 3, 1])
+        nt.assert_true(np.all(test_uv2.data_array == test_uv1.data_array[:, :, :, order]))
+        nt.assert_true(np.all(test_uv2.flag_array == test_uv1.flag_array[:, :, :, order]))
         # check that we have casa ordering
         test_uv2.order_pols(order='AIPS')
         # check that we have aips ordering again
         nt.assert_equal(test_uv1, test_uv2)
+        uvtest.checkWarnings(test_uv2.order_pols, ['unknown'], message='Invalid order supplied')
         del(test_uv1)
         del(test_uv2)
 
