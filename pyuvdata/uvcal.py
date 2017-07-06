@@ -23,11 +23,14 @@ class UVCal(UVBase):
                                        description='Number of frequency channels',
                                        expected_type=int)
         self._Njones = uvp.UVParameter('Njones',
-                                       description='Number of polarizations calibration'
-                                       'parameters (Number of jones matrix elements.).',
+                                       description='Number of Jones calibration'
+                                       'parameters (Number of Jones matrix elements '
+                                       'calculated in calibration).',
                                        expected_type=int)
-        self._Ntimes = uvp.UVParameter('Ntimes',
-                                       description='Number of times',
+        desc = ('Number of times with different calibrations calculated '
+                '(if a calibration is calculated over a range of integrations, '
+                'this gives the number of separate calibrations along the time axis).')
+        self._Ntimes = uvp.UVParameter('Ntimes', description=desc,
                                        expected_type=int)
         self._history = uvp.UVParameter('history',
                                         description='String of history, units English',
@@ -111,8 +114,8 @@ class UVCal(UVBase):
                                             acceptable_vals=list(np.arange(-8, 0)),
                                             form=('Njones',))
 
-        desc = ('Array of times, center of integration, shape (Ntimes), ' +
-                'units Julian Date')
+        desc = ('Array of calibration solution times, center of integration, '
+                'shape (Ntimes), units Julian Date')
         self._time_array = uvp.UVParameter('time_array', description=desc,
                                            form=('Ntimes',),
                                            expected_type=np.float,
