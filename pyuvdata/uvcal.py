@@ -157,12 +157,11 @@ class UVCal(UVBase):
                                               expected_type=np.float)
 
         desc = ('Orientation of the physical dipole corresponding to what is '
-                'labelled as the x polarization. Values are east '
-                '(east/west orientation),  north (north/south orientation) or '
-                'unknown.')
+                'labelled as the x polarization. Examples include "east" '
+                '(indicating east/west orientation) and "north" (indicating '
+                'north/south orientation)')
         self._x_orientation = uvp.UVParameter('x_orientation', description=desc,
-                                              expected_type=str,
-                                              acceptable_vals=['east', 'north', 'unknown'])
+                                              expected_type=str)
         # --- cal_type parameters ---
         desc = ('cal type parameter. Values are delay, gain or unknown.')
         self._cal_type = uvp.UVParameter('cal_type', form='str',

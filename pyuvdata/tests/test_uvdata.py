@@ -42,13 +42,15 @@ class TestUVDataInit(object):
                                     'antenna_numbers', 'phase_type']
 
         self.extra_parameters = ['_extra_keywords', '_antenna_positions',
+                                 '_x_orientation',
                                  '_gst0', '_rdate', '_earth_omega', '_dut1',
                                  '_timesys', '_uvplane_reference_time',
                                  '_phase_center_ra', '_phase_center_dec',
                                  '_phase_center_epoch',
                                  '_zenith_ra', '_zenith_dec']
 
-        self.extra_properties = ['extra_keywords', 'antenna_positions', 'gst0',
+        self.extra_properties = ['extra_keywords', 'antenna_positions',
+                                 'x_orientation', 'gst0',
                                  'rdate', 'earth_omega', 'dut1', 'timesys',
                                  'uvplane_reference_time',
                                  'phase_center_ra', 'phase_center_dec',
