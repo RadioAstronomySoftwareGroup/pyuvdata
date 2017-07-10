@@ -69,6 +69,12 @@ def test_readwriteread():
     uvtest.checkWarnings(uv_out.read_uvfits, [write_file], message='Telescope EVLA is not')
     nt.assert_equal(uv_in, uv_out)
 
+    # check that if x_orientation is set, it's read back out properly
+    uv_in.x_orientation = 'east'
+    uv_in.write_uvfits(write_file)
+    uvtest.checkWarnings(uv_out.read_uvfits, [write_file], message='Telescope EVLA is not')
+    nt.assert_equal(uv_in, uv_out)
+
     # check error if timesys is 'IAT'
     testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
     uvtest.checkWarnings(uv_in.read_uvfits, [testfile], message='Telescope EVLA is not')
@@ -120,7 +126,6 @@ def test_ReadUVFitsWriteMiriad():
 
     del(uvfits_uv)
     del(miriad_uv)
-
 
 
 def test_multi_files():

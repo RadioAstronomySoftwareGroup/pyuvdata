@@ -208,6 +208,12 @@ def test_readWriteReadMiriad():
     # check that trying to overwrite without clobber raises an error
     nt.assert_raises(ValueError, uv_in.write_miriad, write_file)
 
+    # check that if x_orientation is set, it's read back out properly
+    uv_in.x_orientation = 'east'
+    uv_in.write_miriad(write_file, clobber=True)
+    uv_out.read_miriad(write_file)
+    nt.assert_equal(uv_in, uv_out)
+
     # check that trying to write a file with unknown phasing raises an error
     uv_in.set_unknown_phase_type()
     nt.assert_raises(ValueError, uv_in.write_miriad, write_file, clobber=True)

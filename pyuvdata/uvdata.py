@@ -246,6 +246,13 @@ class UVData(UVBase):
                                                 expected_type=int)
 
         # -------- extra, non-required parameters ----------
+        desc = ('Orientation of the physical dipole corresponding to what is '
+                'labelled as the x polarization. Examples include "east" '
+                '(indicating east/west orientation) and "north" (indicating '
+                'north/south orientation)')
+        self._x_orientation = uvp.UVParameter('x_orientation', description=desc,
+                                              required=False, expected_type=str)
+
         desc = ('Any user supplied extra keywords, type=dict')
         self._extra_keywords = uvp.UVParameter('extra_keywords', required=False,
                                                description=desc, value={},

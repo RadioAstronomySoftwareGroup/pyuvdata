@@ -179,6 +179,7 @@ class UVFITS(UVData):
         latitude_degrees = hdr.pop('LAT', None)
         longitude_degrees = hdr.pop('LON', None)
         altitude = hdr.pop('ALT', None)
+        self.x_orientation = hdr.pop('XORIENT', None)
         self.history = str(hdr.get('HISTORY', ''))
         if not uvutils.check_history_version(self.history, self.pyuvdata_version_str):
             self.history += self.pyuvdata_version_str
@@ -483,6 +484,8 @@ class UVFITS(UVData):
         hdu.header['ALT     '] = self.telescope_location_lat_lon_alt[2]
         hdu.header['INSTRUME'] = self.instrument
         hdu.header['EPOCH   '] = float(self.phase_center_epoch)
+        if self.x_orientation is not None:
+            hdu.header['XORIENT'] = self.x_orientation
 
         for line in self.history.splitlines():
             hdu.header.add_history(line)

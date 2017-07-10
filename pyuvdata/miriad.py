@@ -141,6 +141,8 @@ class Miriad(UVData):
             self.rdate = uv['rdate'].replace('\x00', '')
         if 'timesys' in uv.vartable.keys():
             self.timesys = uv['timesys'].replace('\x00', '')
+        if 'xorient' in uv.vartable.keys():
+            self.x_orientation = uv['xorient'].replace('\x00', '')
 
         # read through the file and get the data
         _source = uv['source']  # check source of initial visibility
@@ -550,6 +552,9 @@ class Miriad(UVData):
         uv.add_var('longitu', 'd')
         uv['longitu'] = self.telescope_location_lat_lon_alt[1]
         uv.add_var('nants', 'i')
+        if self.x_orientation is not None:
+            uv.add_var('xorient', 'a')
+            uv['xorient'] = self.x_orientation
 
         # Miriad has no way to keep track of antenna numbers, so the antenna
         # numbers are simply the index for each antenna in any array that
