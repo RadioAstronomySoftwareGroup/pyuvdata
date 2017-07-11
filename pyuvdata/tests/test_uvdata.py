@@ -42,7 +42,7 @@ class TestUVDataInit(object):
                                     'antenna_numbers', 'phase_type']
 
         self.extra_parameters = ['_extra_keywords', '_antenna_positions',
-                                 '_x_orientation',
+                                 '_x_orientation', '_antenna_diameters',
                                  '_gst0', '_rdate', '_earth_omega', '_dut1',
                                  '_timesys', '_uvplane_reference_time',
                                  '_phase_center_ra', '_phase_center_dec',
@@ -50,7 +50,7 @@ class TestUVDataInit(object):
                                  '_zenith_ra', '_zenith_dec']
 
         self.extra_properties = ['extra_keywords', 'antenna_positions',
-                                 'x_orientation', 'gst0',
+                                 'x_orientation', 'antenna_diameters', 'gst0',
                                  'rdate', 'earth_omega', 'dut1', 'timesys',
                                  'uvplane_reference_time',
                                  'phase_center_ra', 'phase_center_dec',
@@ -266,6 +266,22 @@ def test_known_telescopes():
     known_telescopes = ['PAPER', 'HERA', 'MWA']
     nt.assert_equal(known_telescopes.sort(),
                     uv_object.known_telescopes().sort())
+
+
+def test_HERA_diameters():
+    miriad_file = os.path.join(DATA_PATH, 'zen.2456865.60537.xy.uvcRREAA')
+    uv_in = UVData()
+    uvtest.checkWarnings(uv_in.read_miriad, [miriad_file],
+                         known_warning='miriad')
+
+    uv_in.telescope_name = 'HERA'
+    uvtest.checkWarnings(uv_in.set_telescope_params, message='antenna_diameters '
+                         'is not set. Using known values for HERA.')
+
+    nt.assert_equal(uv_in.telescope_name, 'HERA')
+    nt.assert_true(uv_in.antenna_diameters is not None)
+
+    uv_in.check()
 
 
 def test_phase_unphaseHERA():

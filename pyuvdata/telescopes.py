@@ -15,6 +15,7 @@ telescopes = {'PAPER': {'center_xyz': None,
                        'latitude': Angle('-30d43m17.5s').radian,
                        'longitude': Angle('21d25m41.9s').radian,
                        'altitude': 1073.,
+                       'diameters': 14.0,
                        'citation': 'value taken from capo/cals/hsa7458_v000.py, '
                                    'comment reads KAT/SA  (GPS), altitude from elevationmap.net'},
               'MWA': {'center_xyz': None,
@@ -50,6 +51,12 @@ class Telescope(uvbase.UVBase):
                                                          description=desc,
                                                          acceptable_range=(6.35e6, 6.39e6),
                                                          tols=1e-3)
+        desc = ('Antenna diameters in meters. Used by CASA to '
+                'construct a default beam if no beam is supplied.')
+        self._antenna_diameters = uvp.UVParameter('antenna_diameters',
+                                                  required=False, description=desc,
+                                                  expected_type=np.float,
+                                                  tols=1e-3)  # 1 mm
         # possibly add in future versions:
         # Antenna positions (but what about reconfigurable/growing telescopes?)
 
@@ -91,6 +98,8 @@ def get_telescope(telescope_name):
                                                   telescope_dict['altitude'])
 
             obj.check(run_check_acceptability=True)
+        if 'diameters' in telescope_dict.keys():
+            obj.antenna_diameters = telescope_dict['diameters']
     else:
         # no telescope matching this name
         return False

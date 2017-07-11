@@ -5,6 +5,8 @@ import pyuvdata
 
 required_parameters = ['_telescope_name', '_telescope_location']
 required_properties = ['telescope_name', 'telescope_location']
+extra_parameters = ['_antenna_diameters']
+extra_properties = ['antenna_diameters']
 other_attributes = ['citation', 'telescope_location_lat_lon_alt',
                     'telescope_location_lat_lon_alt_degrees',
                     'pyuvdata_version_str']
@@ -34,13 +36,25 @@ def test_required_parameter_iter():
                        ' not returned in required iterator')
 
 
-def test_parameters_exist():
+def test_extra_parameter_iter():
     "Test expected optional parameters."
     telescope_obj = pyuvdata.Telescope()
-    expected_parameters = required_parameters
-    for a in expected_parameters:
-        nt.assert_true(hasattr(telescope_obj, a),
-                       msg='expected parameter ' + a + ' does not exist')
+    extra = []
+    for prop in telescope_obj.extra():
+        extra.append(prop)
+    for a in extra_parameters:
+        nt.assert_true(a in extra, msg='expected attribute ' + a +
+                       ' not returned in extra iterator')
+
+
+def test_unexpected_parameters():
+    "Test for extra parameters."
+    telescope_obj = pyuvdata.Telescope()
+    expected_parameters = required_parameters + extra_parameters
+    attributes = [i for i in telescope_obj.__dict__.keys() if i[0] == '_']
+    for a in attributes:
+        nt.assert_true(a in expected_parameters,
+                       msg='unexpected parameter ' + a + ' found in Telescope')
 
 
 def test_unexpected_attributes():
@@ -63,9 +77,9 @@ def test_properties():
         this_param = getattr(telescope_obj, v)
         try:
             nt.assert_equal(rand_num, this_param.value)
-        except:
+        except(AssertionError):
             print('setting {prop_name} to a random number failed'.format(prop_name=k))
-            raise(AssertionError)
+            raise
 
 
 def test_known_telescopes():

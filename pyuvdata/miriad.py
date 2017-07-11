@@ -311,6 +311,12 @@ class Miriad(UVData):
         except(KeyError):
             self.antenna_names = self.antenna_numbers.astype(str).tolist()
 
+        # check for antenna diameters
+        try:
+            self.antenna_diameters = uv['diameter']
+        except(KeyError):
+            pass
+
         # form up a grid which indexes time and baselines along the 'long'
         # axis of the visdata array
 
@@ -611,6 +617,10 @@ class Miriad(UVData):
         if self.timesys is not None:
             uv.add_var('timesys', 'a')
             uv['timesys'] = self.timesys
+
+        if self.antenna_diameters is not None:
+            uv.add_var('diameter', 'd')
+            uv['diameter'] = self.antenna_diameters
 
         if not no_antnums:
             # Add in the antenna_numbers so we have them if we read this file back in.
