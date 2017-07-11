@@ -75,6 +75,13 @@ def test_readwriteread():
     uvtest.checkWarnings(uv_out.read_uvfits, [write_file], message='Telescope EVLA is not')
     nt.assert_equal(uv_in, uv_out)
 
+    # check that if antenna_diameters is set, it's read back out properly
+    uvtest.checkWarnings(uv_in.read_uvfits, [testfile], message='Telescope EVLA is not')
+    uv_in.antenna_diameters = np.zeros((uv_in.Nants_telescope,), dtype=np.float) + 14.0
+    uv_in.write_uvfits(write_file)
+    uvtest.checkWarnings(uv_out.read_uvfits, [write_file], message='Telescope EVLA is not')
+    nt.assert_equal(uv_in, uv_out)
+
     # check error if timesys is 'IAT'
     testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
     uvtest.checkWarnings(uv_in.read_uvfits, [testfile], message='Telescope EVLA is not')

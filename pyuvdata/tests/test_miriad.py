@@ -214,6 +214,13 @@ def test_readWriteReadMiriad():
     uv_out.read_miriad(write_file)
     nt.assert_equal(uv_in, uv_out)
 
+    # check that if antenna_diameters is set, it's read back out properly
+    uvtest.checkWarnings(uv_in.read_miriad, [testfile], known_warning='miriad')
+    uv_in.antenna_diameters = np.zeros((uv_in.Nants_telescope,), dtype=np.float) + 14.0
+    uv_in.write_miriad(write_file, clobber=True)
+    uv_out.read_miriad(write_file)
+    nt.assert_equal(uv_in, uv_out)
+
     # check that trying to write a file with unknown phasing raises an error
     uv_in.set_unknown_phase_type()
     nt.assert_raises(ValueError, uv_in.write_miriad, write_file, clobber=True)

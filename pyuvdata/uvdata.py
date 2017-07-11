@@ -268,6 +268,15 @@ class UVData(UVBase):
                                                            expected_type=np.float,
                                                            tols=1e-3)  # 1 mm
 
+        desc = ('Array of antenna diameters in meters. Used by CASA to '
+                'construct a default beam if no beam is supplied.')
+        self._antenna_diameters = uvp.UVParameter('antenna_diameters',
+                                                  required=False,
+                                                  description=desc,
+                                                  form=('Nants_telescope',),
+                                                  expected_type=np.float,
+                                                  tols=1e-3)  # 1 mm
+
         # --- other stuff ---
         # the below are copied from AIPS memo 117, but could be revised to
         # merge with other sources of data.
@@ -392,11 +401,30 @@ class UVData(UVBase):
         if telescope_obj is not False:
             params_set = []
             for p in telescope_obj:
+                telescope_param = getattr(telescope_obj, p)
                 self_param = getattr(self, p)
-                if overwrite is True or self_param.value is None:
-                    params_set.append(self_param.name)
-                    prop_name = self_param.name
-                    setattr(self, prop_name, getattr(telescope_obj, prop_name))
+                if telescope_param.value is not None and (overwrite is True or
+                                                          self_param.value is None):
+                    telescope_shape = telescope_param.expected_shape(telescope_obj)
+                    self_shape = self_param.expected_shape(self)
+                    if telescope_shape == self_shape:
+                        params_set.append(self_param.name)
+                        prop_name = self_param.name
+                        setattr(self, prop_name, getattr(telescope_obj, prop_name))
+                    else:
+                        # expected shapes aren't equal. This can happen e.g. with diameters,
+                        # which is a single value on the telescope object but is
+                        # an array of length Nants_telescope on the UVData object
+                        if telescope_shape == () and self_shape != 'str':
+                            array_val = np.zeros(self_shape,
+                                                 dtype=telescope_param.expected_type) + telescope_param.value
+                            params_set.append(self_param.name)
+                            prop_name = self_param.name
+                            setattr(self, prop_name, array_val)
+                        else:
+                            raise ValueError('parameter {p} on the telescope '
+                                             'object does not have a compatible '
+                                             'expected shape.')
             if len(params_set) > 0:
                 params_set_str = ', '.join(params_set)
                 warnings.warn('{params} is not set. Using known values '

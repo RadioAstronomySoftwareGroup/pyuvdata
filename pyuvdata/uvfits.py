@@ -100,7 +100,7 @@ class UVFITS(UVData):
                                      self.ant_2_array)
         self.Nbls = len(np.unique(self.baseline_array))
 
-        # initialize internal variables based on the antenna table
+        # initialize internal variables based on the antenna lists
         self.Nants_data = int(
             len(np.unique(self.ant_1_array.tolist() + self.ant_2_array.tolist())))
 
@@ -214,31 +214,30 @@ class UVFITS(UVData):
         # READ the antenna table
         ant_hdu = F[hdunames['AIPS AN']]
 
-        # stuff in columns
-        ant_names = ant_hdu.data.field('ANNAME').tolist()
-        self.antenna_names = []
-        for name in ant_names:
-            self.antenna_names.append(name.replace('\x00!', ''))
-
-        # subtract one to get to 0-indexed values rather than 1-indexed values
-        self.antenna_numbers = ant_hdu.data.field('NOSTA') - 1
-
-        self.Nants_telescope = len(self.antenna_numbers)
-
         # stuff in the header
         if self.telescope_name is None:
             self.telescope_name = ant_hdu.header['ARRNAM']
 
+        self.gst0 = ant_hdu.header['GSTIA0']
+        self.rdate = ant_hdu.header['RDATE']
+        self.earth_omega = ant_hdu.header['DEGPDY']
+        self.dut1 = ant_hdu.header['UT1UTC']
+        try:
+            self.timesys = ant_hdu.header['TIMESYS']
+        except(KeyError):
+            # CASA misspells this one
+            self.timesys = ant_hdu.header['TIMSYS']
+
         try:
             xyz_telescope_frame = ant_hdu.header['FRAME']
-        except:
+        except(KeyError):
             warnings.warn('Required Antenna frame keyword not set, '
                           'setting to ????')
             xyz_telescope_frame = '????'
 
+        # get telescope location and antenna positions.
         # VLA incorrectly sets ARRAYX/ARRAYY/ARRAYZ to 0, and puts array center
         # in the antenna positions themselves
-
         if (np.isclose(ant_hdu.header['ARRAYX'], 0) and
                 np.isclose(ant_hdu.header['ARRAYY'], 0) and
                 np.isclose(ant_hdu.header['ARRAYZ'], 0)):
@@ -264,15 +263,21 @@ class UVFITS(UVData):
                 self.telescope_location_lat_lon_alt_degrees = (
                     latitude_degrees, longitude_degrees, altitude)
 
-        self.gst0 = ant_hdu.header['GSTIA0']
-        self.rdate = ant_hdu.header['RDATE']
-        self.earth_omega = ant_hdu.header['DEGPDY']
-        self.dut1 = ant_hdu.header['UT1UTC']
+        # stuff in columns
+        ant_names = ant_hdu.data.field('ANNAME').tolist()
+        self.antenna_names = []
+        for name in ant_names:
+            self.antenna_names.append(name.replace('\x00!', ''))
+
+        # subtract one to get to 0-indexed values rather than 1-indexed values
+        self.antenna_numbers = ant_hdu.data.field('NOSTA') - 1
+
+        self.Nants_telescope = len(self.antenna_numbers)
+
         try:
-            self.timesys = ant_hdu.header['TIMESYS']
+            self.antenna_diameters = ant_hdu.data.field('DIAMETER')
         except(KeyError):
-            # CASA misspells this one
-            self.timesys = ant_hdu.header['TIMSYS']
+            pass
 
         del(D)
 
@@ -529,9 +534,13 @@ class UVFITS(UVData):
         col10 = fits.Column(name='POLAB', format='1E', array=polab)
         # col11 = fits.Column(name='POLCALB', format='3E', array=polcalb)
         # note ORBPARM is technically required, but we didn't put it in
+        col_list = [col1, col2, col3, col4, col5, col6, col7, col9, col10]
 
-        cols = fits.ColDefs([col1, col2, col3, col4, col5, col6, col7, col9,
-                             col10])
+        if self.antenna_diameters is not None:
+            col12 = fits.Column(name='DIAMETER', format='1E', array=self.antenna_diameters)
+            col_list.append(col12)
+
+        cols = fits.ColDefs(col_list)
 
         ant_hdu = fits.BinTableHDU.from_columns(cols)
 
