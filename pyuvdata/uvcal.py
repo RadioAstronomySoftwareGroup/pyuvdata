@@ -585,7 +585,7 @@ class UVCal(UVBase):
         del(calfits_obj)
 
     def __add__(self, other, run_check=True, check_extra=True,
-                run_check_acceptability=True, inplace=False)
+                run_check_acceptability=True, inplace=False):
         """
         Combine two UVCal objects. Objects can be added along antenna, frequency,
         time, and/or Jones axis.
@@ -625,10 +625,6 @@ class UVCal(UVBase):
                     a[1:] + ' does not match. Cannot combine objects.'
                 raise(ValueError(msg))
 
-        # Error out on unknown-type calfiles
-        if this.cal_type == 'unknown':
-            raise(ValueError('UVCal objects of unknown type cannot be combined'))
-
         # Build up history string
         history_update_string = ' Combined data along '
         n_axes = 0
@@ -638,7 +634,7 @@ class UVCal(UVBase):
             this.jones_array, other.jones_array)
         both_times = np.intersect1d(
             this.time_array, other.time_array)
-        if this.cal_type == 'gain':
+        if this.cal_type != 'delay':
             both_freq = np.intersect1d(
                 this.freq_array[0, :], other.freq_array[0, :])
         else:
@@ -703,95 +699,120 @@ class UVCal(UVBase):
 
         # Pad out self to accommodate new data
         # Account for delay-type calfile having a shallow frequency axis
-        if this.delay_type == 'delay':
+        if this.cal_type == 'delay':
             Nfreqs = 1
-            data_array = this.delay_array
-            other_data_array = other.delay_array
         else:
             Nfreqs = this.Nfreqs
-            data_array = this.gains_array
-            other_data_array = other.gains_array
+        # Initialize variable telling us if we can combine total_quality_array
+        # If we add antennas, we cannot
+        can_combine_tqa = True
         if len(anew_inds) > 0:
-            this.ant_array = np.concatenate([this.ant_array,
-                                             this.ant_array[fnew_inds]], axis=1)
+            this.ant_array = np.concatenate([this.ant_array, other.ant_array[anew_inds]])
             order = np.argsort(this.ant_array)
             this.ant_array = this.ant_array[order]
             zero_pad = np.zeros(
-                (len(anew_inds), this.Nspws, Nfreqs, this.time, this.Njones))
-            data_array = np.concatenate([data_array, zero_pad], axis=0)[
-                order, :, :, :, :]
+                (len(anew_inds), this.Nspws, Nfreqs, this.Ntimes, this.Njones))
+            if this.cal_type == 'delay':
+                this.delay_array = np.concatenate([this.delay_array, zero_pad], axis=0)[
+                    order, :, :, :, :]
+            else:
+                this.gain_array = np.concatenate([this.gain_array, zero_pad], axis=0)[
+                    order, :, :, :, :]
             this.flag_array = np.concatenate([this.flag_array,
-                                              1 - zero_pad], axis=0).astype(np.bool)[order, :, :, :]
+                                              1 - zero_pad], axis=0).astype(np.bool)[
+                                                  order, :, :, :]
             this.quality_array = np.concatenate([this.quality_array, zero_pad], axis=0)[
                 order, :, :, :, :]
             # If total_quality_array exists, we set it to None and warn the user
-            if this.total_qualtiy_array is not None or other.total_quality_array is not None:
+            if this.total_quality_array is not None or other.total_quality_array is not None:
                 warnings.warn("Total quality array detected in at least one file; the "
                               "array in the new object will be set to 'None' because "
                               "whole-array values cannot be combined when adding antennas")
                 this.total_quality_array = None
+                can_combine_tqa = False
         if len(fnew_inds) > 0:
-            zero_pad = np.zeros((data_array.shape[0], this.Nspws, len(fnew_inds),
+            # exploit the fact that quality array has the same dimensions as the main data
+            zero_pad = np.zeros((this.quality_array.shape[0], this.Nspws, len(fnew_inds),
                                  this.Ntimes, this.Njones))
             this.freq_array = np.concatenate([this.freq_array,
                                               other.freq_array[:, fnew_inds]], axis=1)
             order = np.argsort(this.freq_array[0, :])
             this.freq_array = this.freq_array[:, order]
-            data_array = np.concatenate([data_array, zero_pad], axis=2)[:, :, order, :, :]
+            if this.cal_type == 'delay':
+                this.delay_array = np.concatenate([this.delay_array, zero_pad], axis=2)[
+                    :, :, order, :, :]
+            else:
+                this.gain_array = np.concatenate([this.gain_array, zero_pad], axis=2)[
+                    :, :, order, :, :]
             this.flag_array = np.concatenate([this.flag_array,
                                               1 - zero_pad], axis=2).astype(np.bool)[
                                                   :, :, order, :, :]
             this.quality_array = np.concatenate([this.quality_array, zero_pad], axis=2)[
                 :, :, order, :, :]
-            if this.total_quality_array is not None:
+            if this.total_quality_array is not None and can_combine_tqa:
                 zero_pad = np.zeros((this.Nspws, len(fnew_inds), this.Ntimes, this.Njones))
                 this.total_quality_array = np.concatenate([this.total_quality_array, zero_pad],
                                                           axis=1)[:, order, :, :]
-            elif other.total_quality_array is not None:
+            elif other.total_quality_array is not None and can_combine_tqa:
                 zero_pad = np.zeros((this.Nspws, len(fnew_inds), this.Ntimes, this.Njones))
                 this.total_quality_array = np.zeros((this.Nspws, Nfreqs, this.Ntimes, this.Njones))
                 this.total_quality_array = np.concatenate([this.total_quality_array, zero_pad],
                                                           axis=1)[:, order, :, :]
         if len(tnew_inds) > 0:
-            zero_pad = np.zeros((data_array.shape[0], this.Nspws,
-                                 data_array.shape[2], len(tnew_inds), this.Njones))
+            # exploit the fact that quality array has the same dimensions as the main data
+            zero_pad = np.zeros((this.quality_array.shape[0], this.Nspws,
+                                 this.quality_array.shape[2], len(tnew_inds), this.Njones))
             this.time_array = np.concatenate([this.time_array, other.time_array[tnew_inds]])
             order = np.argsort(this.time_array)
             this.time_array = this.time_array[order]
-            data_array = np.concatenate([data_array, zero_pad], axis=3)[:, :, :, order, :]
+            if this.cal_type == 'delay':
+                this.delay_array = np.concatenate([this.delay_array, zero_pad], axis=3)[
+                    :, :, :, order, :]
+            else:
+                this.gain_array = np.concatenate([this.gain_array, zero_pad], axis=3)[
+                    :, :, :, order, :]
             this.flag_array = np.concatenate([this.flag_array,
                                               1 - zero_pad], axis=3).astype(np.bool)[
                                                   :, :, :, order, :]
             this.qualtiy_array = np.concatenate([this.qualtiy_array, zero_pad], axis=3)[
                 :, :, :, order, :]
-            if this.total_quality_array is not None:
-                zero_pad = np.zeros((this.Nspws, data_array.shape[2], len(tnew_inds), this.Njones))
+            if this.total_quality_array is not None and can_combine_tqa:
+                zero_pad = np.zeros((this.Nspws, this.quality_array.shape[2], len(tnew_inds),
+                                     this.Njones))
                 this.total_quality_array = np.concatenate([this.total_quality_array, zero_pad],
                                                           axis=2)[:, :, order, :]
-            elif other.total_quality_array is not None:
-                zero_pad = np.zeros((this.Nspws, data_array.shape[2], len(tnew_inds), this.Njones))
+            elif other.total_quality_array is not None and can_comnine_tqa:
+                zero_pad = np.zeros((this.Nspws, this.quality_array.shape[2], len(tnew_inds),
+                                     this.Njones))
                 this.total_quality_array = np.zeros((this.Nspws, Nfreqs, this.Ntimes, this.Njones))
                 this.total_qualtiy_array = np.concatenate([this.total_quality_array, zero_pad],
                                                           axis=2)[:, :, order, :]
         if len(jnew_inds) > 0:
-            zero_pad = np.zeros((data_array.shape[0], this.Nspws,
-                                 data_array.shape[2], data_array.shape[3], len(jnew_inds)))
+            # exploit the fact that quality array has the same dimensions as the main data
+            zero_pad = np.zeros((this.quality_array.shape[0], this.Nspws,
+                                 this.quality_array.shape[2], this.quality_array.shape[3],
+                                 len(jnew_inds)))
             this.jones_array = np.concatenate([this.jones_array, other.jones_array[jnew_inds]])
             order = np.argsort(np.abs(this.jones_array))
-            data_array = np.concatenate([data_array, zero_pad], axis=4)[:, :, :, :, order]
+            if this.cal_type == 'delay':
+                this.delay_array = np.concatenate([this.delay_array, zero_pad], axis=4)[
+                    :, :, :, :, order]
+            else:
+                this.gain_array = np.concatenate([this.gain_array, zero_pad], axis=4)[
+                    :, :, :, :, order]
             this.flag_array = np.concatenate([this.flag_array,
                                               1 - zero_pad], axis=4).astype(np.bool)[
                                                   :, :, :, :, order]
             this.quality_array = np.concatenate([this.quality_array, zero_pad], axis=4)[
                 :, :, :, :, order]
-            if this.total_quality_array is not None:
-                zero_pad = np.zeros((this.Nspws, data_array.shape[2], data_array.shape[3],
-                                     len(jnew_inds)))
+            if this.total_quality_array is not None and can_combine_tqa:
+                zero_pad = np.zeros((this.Nspws, this.quality_array.shape[2],
+                                     this.quality_array.shape[3], len(jnew_inds)))
                 this.total_quality_array = np.concatenate([this.total_quality_array, zero_pad],
                                                           axis=3)[:, :, :, order]
-            elif other.total_quality_array is not None:
-                zero_pad = np.zeros((this.Nspws, data_array.shape[2], data_array.shape[3],
-                                     len(jnew_inds)))
+            elif other.total_quality_array is not None and can_combine_tqa:
+                zero_pad = np.zeros((this.Nspws, this.quality_array.shape[2],
+                                     this.quality_array.shape[3], len(jnew_inds)))
                 this.total_quality_array = np.zeros((this.Nspws, Nfreqs, this.Ntimes, this.Njones))
                 this.total_quality_array = np.concatenate([this.total_quality_array, zero_pad],
                                                           axis=3)[:, :, :, order]
@@ -800,16 +821,20 @@ class UVCal(UVBase):
         jones_t2o = np.nonzero(
             np.in1d(this.jones_array, other.jones_array))[0]
         times_t2o = np.nonzero(
-            np.in1d(this.times_array, other.times_array))[0]
+            np.in1d(this.time_array, other.time_array))[0]
         freqs_t2o = np.nonzero(
             np.in1d(this.freq_array[0, :], other.freq_array[0, :]))[0]
-        ants_t20 = np.nonzero(
+        ants_t2o = np.nonzero(
             np.in1d(this.ant_array, other.ant_array))[0]
-        data_array[np.ix_(ants_t2o, [0], freqs_t2o, times_t2o,
-                          jones_t2o)] = other_data_array
+        if this.cal_type == 'delay':
+            this.delay_array[np.ix_(ants_t2o, [0], freqs_t2o, times_t2o,
+                                    jones_t2o)] = other.delay_array
+        else:
+            this.gain_array[np.ix_(ants_t2o, [0], freqs_t2o, times_t2o,
+                                   jones_t2o)] = other.gain_array
         this.flag_array[np.ix_(ants_t2o, [0], freqs_t2o, times_t2o,
                                jones_t2o)] = other.flag_array
-        this.quality_array[np.ix_(ants_t2p, [0], freqs_t2o, times_t2o,
+        this.quality_array[np.ix_(ants_t2o, [0], freqs_t2o, times_t2o,
                                   jones_t2o)] = other.quality_array
         if this.total_quality_array is not None:
             if other.total_quality_array is not None:
@@ -819,13 +844,13 @@ class UVCal(UVBase):
         # Update N parameters (e.g. Npols)
         this.Njones = this.jones_array.shape[0]
         this.Ntimes = this.time_array.shape[0]
-        if this.cal_type == 'gains':
+        if this.cal_type == 'gain':
             this.Nfreqs = this.freq_array.shape[1]
         this.Nants_data = len(
-            np.unique(this.ant_1_array.tolist() + this.ant_2_array.tolist()))
+            np.unique(this.ant_array.tolist() + other.ant_array.tolist()))
 
         # Check specific requirements
-        if this.cal_type == 'gains' and this.Nfreqs > 1:
+        if this.cal_type == 'gain' and this.Nfreqs > 1:
             freq_separation = np.diff(this.freq_array[0, :])
             if not np.isclose(np.min(freq_separation), np.max(freq_separation),
                               rtol=this._freq_array.tols[0], atol=this._freq_array.tols[1]):
@@ -874,7 +899,7 @@ class UVCal(UVBase):
         In place add.
 
         Args:
-            other: Another UVData object which will be added to self.
+            other: Another UVCal object which will be added to self.
         """
         self.__add__(other, inplace=True)
         return self
