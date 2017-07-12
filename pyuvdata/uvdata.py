@@ -1833,3 +1833,147 @@ class UVData(UVBase):
         antpairpols = self.get_antpairpols()
         for key in antpairpols:
             yield (key, self.get_data(key, squeeze=squeeze))
+
+
+    def parse_ants(self,ant_str):
+        """
+        Generates two lists of antenna pair tuples and polarization indices based on
+        parsing of the string ant_str.  If no valid polarizations or antenna numbers
+        are found in ant_str (Stokes params, or combinations of [lr] or [xy]),
+        ant_pairs_nums and polarizations are returned as None.
+
+        Args:
+            ant_str: String containing antenna information to pass to select function.
+                Can be all, auto, cross, or combinations of antenna numers and polarization
+                indicators l and r or x and y.
+
+        Output:
+            ant_pairs_nums: List of tuples containing the parsed pairs of antennae numbers.
+                If 'all' is passed as ant_str, returned as None.
+            polarizations: List of desired polarizations.  If no polarizations found in ant_str
+                then returned as None.
+        """
+
+        ant_re = r'(\(((-?\d+[lrxy]?,?)+)\)|-?\d+[lrxy]?)'
+        bl_re = '(^(%s_%s|%s),?)' % (ant_re, ant_re, ant_re)
+        str_pos = 0
+        ant_pairs_nums = []
+        polarizations = []
+        ant_nums = self.get_ants()
+
+        while str_pos < len(ant_str):
+            m = re.search(bl_re, ant_str[str_pos:])
+            if m is None:
+                if ant_str[str_pos:].startswith('all'):
+                    pass
+                elif ant_str[str_pos:].startswith('auto'):
+                    for ant in ant_nums:
+                        ant_tuple = tuple((ant,ant))
+                        ant_pairs_nums.append(ant_tuple)
+                elif ant_str[str_pos:].startswith('cross'):
+                    for ant1 in ant_nums:
+                        for ant2 in ant_nums:
+                            if not ant1 == ant2:
+                                if ant1 < ant2:
+                                    ant_tuple = tuple((ant1,ant2))
+                                else:
+                                    ant_tuple = tuple((ant2,ant1))
+                                if not ant_tuple in ant_pairs_nums:
+                                    ant_pairs_nums.append(ant_tuple)
+                elif ant_str[str_pos:].upper().startswith('I'):
+                    polarizations.append(1)
+                elif ant_str[str_pos:].upper().startswith('Q'):
+                    polarizations.append(2)
+                elif ant_str[str_pos:].upper().startswith('U'):
+                    polarizations.append(3)
+                elif ant_str[str_pos:].upper().startswith('V'):
+                    polarizations.append(4)
+                else:
+                    raise ValueError('Unparsible ant argument "%s"' % ant_str)
+
+                comma_cnt = ant_str[str_pos:].find(',')
+                if comma_cnt >= 0:
+                    str_pos += comma_cnt + 1
+                else:
+                    str_pos = len(ant_str)
+            else:
+                m = m.groups()
+                str_pos += len(m[0])
+                if m[2] is None:
+                    ant_i_list = [m[8]]
+                    ant_j_list = list(self.get_ants())
+                else:
+                    if m[3] is None:
+                        ant_i_list = [m[2]]
+                    else:
+                        ant_i_list = m[3].split(',')
+
+                    if m[6] is None:
+                        ant_j_list = [m[5]]
+                    else:
+                        ant_j_list = m[6].split(',')
+
+                for ant_i in ant_i_list:
+                    for ant_j in ant_j_list:
+                        include = None
+                        if type(ant_i) == str and ant_i.startswith('-'):
+                             ant_i = ant_i[1:] #nibble the - off the string
+                             include = 0
+                        if type(ant_j) == str and ant_j.startswith('-'):
+                            ant_j = ant_j[1:]
+                            include = 0
+                        elif include == 0:
+                            pass
+                        else:
+                            include = 1
+
+                        pols = None
+                        ant_i,ant_j = str(ant_i),str(ant_j)
+                        if not ant_i.isdigit():
+                            ai = re.search(r'(\d+)([x,y,l,r])',ant_i).groups()
+
+                        if not ant_j.isdigit():
+                            aj = re.search(r'(\d+)([x,y,l,r])',ant_j).groups()
+
+                        if ant_i.isdigit() and ant_j.isdigit():
+                            ai = [ant_i,'']
+                            aj = [ant_j,'']
+                        elif ant_i.isdigit() and not ant_j.isdigit():
+                            if ('x' in ant_j or 'y' in ant_j):
+                                pols = ['x'+aj[1],'y'+aj[1]]
+                            else:
+                                pols = ['l'+aj[1],'r'+aj[1]]
+                            ai = [ant_i,'']
+                        elif not ant_i.isdigit() and ant_j.isdigit():
+                            if ('x' in ant_i or 'y' in ant_i):
+                                pols = [ai[1]+'x',ai[1]+'y']
+                            else:
+                                pols = [ai[1]+'l',ai[1]+'r']
+                            aj = [ant_j,'']
+                        elif not ant_i.isdigit() and not ant_j.isdigit():
+                            pols = [ai[1]+aj[1]]
+
+                        ant_tuple = tuple((abs(int(ai[0])),abs(int(aj[0]))))
+                        if ant_tuple[1] < ant_tuple[0]:
+                            ant_tuple = ant_tuple[::-1]
+
+                        if include:
+                            if not (ant_tuple in ant_pairs_nums or
+                                tuple((ant_tuple[1],ant_tuple[0])) in ant_pairs_nums):
+                                ant_pairs_nums.append(ant_tuple)
+                            if not pols is None:
+                                for pol in pols:
+                                    if not uvutils.polstr2num(pol) in polarizations:
+                                            polarizations.append(uvutils.polstr2num(pol))
+
+        # If ant_str == 'all', i.e. keep all antenna pairs
+        if len(ant_pairs_nums) == 0:
+            ant_pairs_nums = None
+
+        # If no polarizations found from ant_str, return None for polarizations
+        if len(polarizations) == 0:
+            polarizations = None
+        else:
+            polarizations.sort(reverse=True)
+
+        return ant_pairs_nums,polarizations
