@@ -582,3 +582,299 @@ class UVCal(UVBase):
                                   run_check_acceptability=run_check_acceptability,
                                   clobber=clobber)
         del(calfits_obj)
+
+    def __add__(self, other, run_check=True, check_extra=True,
+                run_check_acceptability=True, inplace=False)
+        """
+        Combine two UVCal objects. Objects can be added along antenna, frequency,
+        time, and/or Jones axis.
+
+        Args:
+            other: Another UVCal object which will be added to self.
+            run_check: Option to check for the existence and proper shapes of
+                parameters after combining objects. Default is True.
+            check_extra: Option to check optional parameters as well as
+                required ones. Default is True.
+            run_check_acceptability: Option to check acceptable range of the values of
+                parameters after combining objects. Default is True.
+            inplace: Overwrite self as we go, otherwise create a third object
+                as the sum of the two (default).
+        """
+        if inplace:
+            this = self
+        else:
+            this = copy.deepcopy(self)
+        # Check that both objects are UVCal and valid
+        this.check(check_extra=check_extra, run_check_acceptability=run_check_acceptability)
+        if not isinstance(other, this.__class__):
+            raise(ValueError('Only UVCal objects can be added to a UVCal object'))
+        other.check(check_extra=check_extra, run_check_acceptability=run_check_acceptability)
+
+        # Check objects are compatible
+        # Note zenith_ra will not necessarily be the same if times are different.
+        # But phase_center should be the same, even if in drift (empty parameters)
+        compatibility_params = ['_cal_type', '_integration_time', '_channel_width',
+                                '_telescope_name', '_gain_convention', '_x_orientation']
+        if this.cal_type == 'delay':
+            compatibility_params.append('_freq_range')
+
+        for a in compatibility_params:
+            if getattr(this, a) != getattr(other, a):
+                msg = 'UVParameter ' + \
+                    a[1:] + ' does not match. Cannot combine objects.'
+                raise(ValueError(msg))
+
+        # Error out on unknown-type calfiles
+        if this.cal_type == 'unknown':
+            raise(ValueError('UVCal objects of unknown type cannot be combined'))
+
+        # Build up history string
+        history_update_string = ' Combined data along '
+        n_axes = 0
+
+        # Check we don't have overlapping data
+        both_jones = np.intersect1d(
+            this.jones_array, other.jones_array)
+        both_times = np.intersect1d(
+            this.time_array, other.time_array)
+        if this.cal_type == 'gain':
+            both_freq = np.intersect1d(
+                this.freq_array[0, :], other.freq_array[0, :])
+        else:
+            both_freq = []
+        both_ants = np.intersect1d(
+            this.ant_array, other.ant_array)
+        if len(both_jones) > 0:
+            if len(both_times) > 0:
+                if len(both_freq) > 0:
+                    if len(both_ants) > 0:
+                        raise(ValueError('These objects have overlapping data and'
+                                         ' cannot be combined.'))
+
+        temp = np.nonzero(~np.in1d(other.ant_array, this.ant_array))[0]
+        if len(temp) > 0:
+            anew_inds = temp
+            new_ants = other.ant_array[temp]
+            history_update_string += 'antenna'
+            n_axes += 1
+        else:
+            anew_inds, new_ants = ([], [])
+
+        temp = np.nonzero(~np.in1d(other.time_array, this.time_array))[0]
+        if len(temp) > 0:
+            tnew_inds = temp
+            new_times = other.time_array[temp]
+            if n_axes > 0:
+                history_update_string += ', time'
+            else:
+                history_update_string += 'time'
+        else:
+            tnew_inds, new_times = ([], [])
+
+        if this.cal_type == 'gain':
+            temp = np.nonzero(
+                ~np.in1d(other.freq_array[0, :], this.freq_array[0, :]))[0]
+            if len(temp) > 0:
+                fnew_inds = temp
+                new_freqs = other.freq_array[0, temp]
+                if n_axes > 0:
+                    history_update_string += ', frequency'
+                else:
+                    history_update_string += 'frequency'
+                n_axes += 1
+            else:
+                fnew_inds, new_freqs = ([], [])
+        else:
+            fnew_inds, new_freqs = ([], [])
+
+        temp = np.nonzero(~np.in1d(other.jones_array,
+                                   this.jones_array))[0]
+        if len(temp) > 0:
+            jnew_inds = temp
+            new_jones = other.jones_array[temp]
+            if n_axes > 0:
+                history_update_string += ', jones'
+            else:
+                history_update_string += 'jones'
+            n_axes += 1
+        else:
+            jnew_inds, new_jones = ([], [])
+
+        # Pad out self to accommodate new data
+        # Account for delay-type calfile having a shallow frequency axis
+        if this.delay_type == 'delay':
+            Nfreqs = 1
+            data_array = this.delay_array
+            other_data_array = other.delay_array
+        else:
+            Nfreqs = this.Nfreqs
+            data_array = this.gains_array
+            other_data_array = other.gains_array
+        if len(anew_inds) > 0:
+            this.ant_array = np.concatenate([this.ant_array,
+                                             this.ant_array[fnew_inds]], axis=1)
+            order = np.argsort(this.ant_array)
+            this.ant_array = this.ant_array[order]
+            zero_pad = np.zeros(
+                (len(anew_inds), this.Nspws, Nfreqs, this.time, this.Njones))
+            data_array = np.concatenate([data_array, zero_pad], axis=0)[
+                order, :, :, :, :]
+            this.flag_array = np.concatenate([this.flag_array,
+                                              1 - zero_pad], axis=0).astype(np.bool)[order, :, :, :]
+            this.quality_array = np.concatenate([this.quality_array, zero_pad], axis=0)[
+                order, :, :, :, :]
+            # If total_quality_array exists, we set it to None and warn the user
+            if this.total_qualtiy_array is not None or other.total_quality_array is not None:
+                warnings.warn("Total quality array detected in at least one file; the "
+                              "array in the new object will be set to 'None' because "
+                              "whole-array values cannot be combined when adding antennas")
+                this.total_quality_array = None
+        if len(fnew_inds) > 0:
+            zero_pad = np.zeros((data_array.shape[0], this.Nspws, len(fnew_inds),
+                                 this.Ntimes, this.Njones))
+            this.freq_array = np.concatenate([this.freq_array,
+                                              other.freq_array[:, fnew_inds]], axis=1)
+            order = np.argsort(this.freq_array[0, :])
+            this.freq_array = this.freq_array[:, order]
+            data_array = np.concatenate([data_array, zero_pad], axis=2)[:, :, order, :, :]
+            this.flag_array = np.concatenate([this.flag_array,
+                                              1 - zero_pad], axis=2).astype(np.bool)[
+                                                  :, :, order, :, :]
+            this.quality_array = np.concatenate([this.quality_array, zero_pad], axis=2)[
+                :, :, order, :, :]
+            if this.total_quality_array is not None:
+                zero_pad = np.zeros((this.Nspws, len(fnew_inds), this.Ntimes, this.Njones))
+                this.total_quality_array = np.concatenate([this.total_quality_array, zero_pad],
+                                                          axis=1)[:, order, :, :]
+            elif other.total_quality_array is not None:
+                zero_pad = np.zeros((this.Nspws, len(fnew_inds), this.Ntimes, this.Njones))
+                this.total_quality_array = np.zeros((this.Nspws, Nfreqs, this.Ntimes, this.Njones))
+                this.total_quality_array = np.concatenate([this.total_quality_array, zero_pad],
+                                                          axis=1)[:, order, :, :]
+        if len(tnew_inds) > 0:
+            zero_pad = np.zeros((data_array.shape[0], this.Nspws,
+                                 data_array.shape[2], len(tnew_inds), this.Njones))
+            this.time_array = np.concatenate([this.time_array, other.time_array[tnew_inds]])
+            order = np.argsort(this.time_array)
+            this.time_array = this.time_array[order]
+            data_array = np.concatenate([data_array, zero_pad], axis=3)[:, :, :, order, :]
+            this.flag_array = np.concatenate([this.flag_array,
+                                              1 - zero_pad], axis=3).astype(np.bool)[
+                                                  :, :, :, order, :]
+            this.qualtiy_array = np.concatenate([this.qualtiy_array, zero_pad], axis=3)[
+                :, :, :, order, :]
+            if this.total_quality_array is not None:
+                zero_pad = np.zeros((this.Nspws, data_array.shape[2], len(tnew_inds), this.Njones))
+                this.total_quality_array = np.concatenate([this.total_quality_array, zero_pad],
+                                                          axis=2)[:, :, order, :]
+            elif other.total_quality_array is not None:
+                zero_pad = np.zeros((this.Nspws, data_array.shape[2], len(tnew_inds), this.Njones))
+                this.total_quality_array = np.zeros((this.Nspws, Nfreqs, this.Ntimes, this.Njones))
+                this.total_qualtiy_array = np.concatenate([this.total_quality_array, zero_pad],
+                                                          axis=2)[:, :, order, :]
+        if len(jnew_inds) > 0:
+            zero_pad = np.zeros((data_array.shape[0], this.Nspws,
+                                 data_array.shape[2], data_array.shape[3], len(jnew_inds)))
+            this.jones_array = np.concatenate([this.jones_array, other.jones_array[jnew_inds]])
+            order = np.argsort(np.abs(this.jones_array))
+            data_array = np.concatenate([data_array, zero_pad], axis=4)[:, :, :, :, order]
+            this.flag_array = np.concatenate([this.flag_array,
+                                              1 - zero_pad], axis=4).astype(np.bool)[
+                                                  :, :, :, :, order]
+            this.quality_array = np.concatenate([this.quality_array, zero_pad], axis=4)[
+                :, :, :, :, order]
+            if this.total_quality_array is not None:
+                zero_pad = np.zeros((this.Nspws, data_array.shape[2], data_array.shape[3],
+                                     len(jnew_inds)))
+                this.total_quality_array = np.concatenate([this.total_quality_array, zero_pad],
+                                                          axis=3)[:, :, :, order]
+            elif other.total_quality_array is not None:
+                zero_pad = np.zeros((this.Nspws, data_array.shape[2], data_array.shape[3],
+                                     len(jnew_inds)))
+                this.total_quality_array = np.zeros((this.Nspws, Nfreqs, this.Ntimes, this.Njones))
+                this.total_quality_array = np.concatenate([this.total_quality_array, zero_pad],
+                                                          axis=3)[:, :, :, order]
+
+        # Now populate the data
+        jones_t2o = np.nonzero(
+            np.in1d(this.jones_array, other.jones_array))[0]
+        times_t2o = np.nonzero(
+            np.in1d(this.times_array, other.times_array))[0]
+        freqs_t2o = np.nonzero(
+            np.in1d(this.freq_array[0, :], other.freq_array[0, :]))[0]
+        ants_t20 = np.nonzero(
+            np.in1d(this.ant_array, other.ant_array))[0]
+        data_array[np.ix_(ants_t2o, [0], freqs_t2o, times_t2o,
+                          jones_t2o)] = other_data_array
+        this.flag_array[np.ix_(ants_t2o, [0], freqs_t2o, times_t2o,
+                               jones_t2o)] = other.flag_array
+        this.quality_array[np.ix_(ants_t2p, [0], freqs_t2o, times_t2o,
+                                  jones_t2o)] = other.quality_array
+        if this.total_quality_array is not None:
+            if other.total_quality_array is not None:
+                this.total_quality_array[np.ix_([0], freqs_t2o, times_t2o,
+                                                jones_t2o)] = other.total_quality_array
+
+        # Update N parameters (e.g. Npols)
+        this.Njones = this.jones_array.shape[0]
+        this.Ntimes = this.time_array.shape[0]
+        if this.cal_type == 'gains':
+            this.Nfreqs = this.freq_array.shape[1]
+        this.Nants_data = len(
+            np.unique(this.ant_1_array.tolist() + this.ant_2_array.tolist()))
+
+        # Check specific requirements
+        if this.cal_type == 'gains' and this.Nfreqs > 1:
+            freq_separation = np.diff(this.freq_array[0, :])
+            if not np.isclose(np.min(freq_separation), np.max(freq_separation),
+                              rtol=this._freq_array.tols[0], atol=this._freq_array.tols[1]):
+                warnings.warn('Combined frequencies are not evenly spaced. This will '
+                              'make it impossible to write this data out to some file types.')
+            elif np.max(freq_separation) > this.channel_width:
+                warnings.warn('Combined frequencies are not contiguous. This will make '
+                              'it impossible to write this data out to some file types.')
+
+        if this.Njones > 2:
+            pol_separation = np.diff(this.polarization_array)
+            if np.min(pol_separation) < np.max(pol_separation):
+                warnings.warn('Combined polarizations are not evenly spaced. This will '
+                              'make it impossible to write this data out to some file types.')
+
+        if n_axes > 0:
+            history_update_string += ' axis using pyuvdata.'
+            this.history += history_update_string
+
+        other_hist_words = other.history.split(' ')
+        add_hist = ''
+        for i, word in enumerate(other_hist_words):
+            if word not in this.history:
+                add_hist += ' ' + word
+                keep_going = (i + 1 < len(other_hist_words))
+                while keep_going:
+                    if ((other_hist_words[i + 1] is ' ') or
+                            (other_hist_words[i + 1] not in this.history)):
+                        add_hist += ' ' + other_hist_words[i + 1]
+                        del(other_hist_words[i + 1])
+                        keep_going = (i + 1 < len(other_hist_words))
+                    else:
+                        keep_going = False
+        this.history += add_hist
+
+        # Check final object is self-consistent
+        if run_check:
+            this.check(check_extra=check_extra,
+                       run_check_acceptability=run_check_acceptability)
+
+        if not inplace:
+            return this
+
+    def __iadd__(self, other):
+        """
+        In place add.
+
+        Args:
+            other: Another UVData object which will be added to self.
+        """
+        self.__add__(other, inplace=True)
+        return self
+
