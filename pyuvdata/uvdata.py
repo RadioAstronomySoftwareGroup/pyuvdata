@@ -11,6 +11,7 @@ import telescopes as uvtel
 import utils as uvutils
 import copy
 import collections
+import re
 
 
 class UVData(UVBase):
