@@ -1449,8 +1449,9 @@ class UVData(UVBase):
         self.flag_array = self.flag_array[:, :, :, order]
 
         # check if object is self-consistent
-        self.check(check_extra=check_extra,
-                   run_check_acceptability=run_check_acceptability)
+        if run_check:
+            self.check(check_extra=check_extra,
+                       run_check_acceptability=run_check_acceptability)
 
     def get_ants(self):
         """
@@ -1663,7 +1664,7 @@ class UVData(UVBase):
                 # one spw dimension
                 out = np.squeeze(out, axis=1)
         elif squeeze is not 'none':
-            raise ValueError('"'+ str(squeeze) + '" is not a valid option for squeeze.'
+            raise ValueError('"' + str(squeeze) + '" is not a valid option for squeeze.'
                              'Only "default", "none", or "full" are allowed.')
 
         if force_copy:
