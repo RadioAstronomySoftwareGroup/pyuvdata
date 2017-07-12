@@ -670,3 +670,31 @@ class TestUVCalSelectDelay(object):
         nt.assert_equal(old_history + '  Downselected to specific antennas, '
                         'times, frequencies, jones polarization terms using pyuvdata.',
                         self.delay_object2.history)
+
+class TestUVCalAddGain(object):
+    def setUp(self):
+        """Set up test"""
+        self.gain_object = UVCal()
+        gainfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.fitsA')
+        self.gain_object.read_calfits(gainfile)
+        self.gain_object2 = copy.deepcopy(self.gain_object)
+
+    def teardown(self):
+        """Tear down test"""
+        del(self.gain_object)
+        del(self.gain_object2)
+
+    def test_add_antennas(self):
+        """Test adding antennas between two UVCal objects"""
+        gain_object_full = copy.deepcopy(self.gain_object)
+        ants1 = np.array([9, 10, 20, 22, 31, 43, 53, 64, 65, 72])
+        ants2 = np.array([80, 81, 88, 89, 96, 97, 104, 105, 112])
+        self.gain_object.select(antenna_nums=ants1)
+        self.gain_object2.select(antenna_nums=ants2)
+        self.gain_object += self.gain_object2
+        # Check history is correct, before replacing and doing a full object check
+        nt.assert_equal(gain_object_full.history + '  Downselected to specific '
+                        'antennas using pyuvdata. Combined data along antenna '
+                        'axis using pyuvdata.', self.gain_object.history)
+        self.gain_object.history = gain_object_full.history
+        nt.assert_equal(self.gain_object, gain_object_full)
