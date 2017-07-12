@@ -201,6 +201,12 @@ class MS(UVData):
                     np.mean(full_antenna_positions[np.invert(antFlags), :], axis=0))
                 # antenna names
         ant_names = tbAnt.getcol('STATION')
+        ant_diams = tbAnt.getcol('DISH_DIAMETER')
+        
+        self.antenna_diameters=ant_diams
+            
+                                 
+        
         self.Nants_telescope = len(antFlags[np.invert(antFlags)])
         test_name = ant_names[0]
         names_same = True
