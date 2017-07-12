@@ -203,7 +203,7 @@ class MS(UVData):
         ant_names = tbAnt.getcol('STATION')
         ant_diams = tbAnt.getcol('DISH_DIAMETER')
         
-        self.antenna_diameters=ant_diams
+        self.antenna_diameters=ant_diams[ant_diams>0]
             
                                  
         
