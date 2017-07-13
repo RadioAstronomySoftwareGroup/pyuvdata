@@ -884,30 +884,40 @@ class TestUVCalAddGain(object):
 
     def test_add(self):
         """Test miscellaneous aspects of add method"""
-        # test addition of two identical objects
-        nt.assert_raises(ValueError, self.gain_object.__add__, [self.gain_object2])
-
         # test not-in-place addition
-        gain_object_full = copy.deepcopy(self.gain_object)
+        gain_object = copy.deepcopy(self.gain_object)
         ants1 = np.array([9, 10, 20, 22, 31, 43, 53, 64, 65, 72])
         ants2 = np.array([80, 81, 88, 89, 96, 97, 104, 105, 112])
         self.gain_object.select(antenna_nums=ants1)
         self.gain_object2.select(antenna_nums=ants2)
         gain_object_add = self.gain_object + self.gain_object2
         # Check history is correct, before replacing and doing a full object check
-        nt.assert_equal(gain_object_full.history + '  Downselected to specific '
+        nt.assert_equal(gain_object.history + '  Downselected to specific '
                         'antennas using pyuvdata. Combined data along antenna '
                         'axis using pyuvdata.', gain_object_add.history)
-        gain_object_add.history = gain_object_full.history
-        nt.assert_equal(gain_object_add, gain_object_full)
+        gain_object_add.history = gain_object.history
+        nt.assert_equal(gain_object_add, gain_object)
 
         # test history concatenation
-        self.gain_object.history = gain_object_full.history
+        self.gain_object.history = gain_object.history
         self.gain_object2.history = 'Some random history string'
         self.gain_object += self.gain_object2
-        nt.assert_equal(gain_object_full.history + ' Combined data along '
+        nt.assert_equal(gain_object.history + ' Combined data along '
                         'antenna axis using pyuvdata. Some random history string',
                         self.gain_object.history)
+
+    def test_add_errors(self):
+        """Test behavior that will raise errors"""
+        # test addition of two identical objects
+        nt.assert_raises(ValueError, self.gain_object.__add__, self.gain_object2)
+
+        # test addition of UVCal and non-UVCal object (empty list)
+        nt.assert_raises(ValueError, self.gain_object.__add__, [])
+
+        # test compatibility param mismatch
+        telescope_name = self.gain_object2.telescope_name
+        self.gain_object2.telescope_name = "PAPER"
+        nt.assert_raises(ValueError, self.gain_object.__add__, self.gain_object2)
 
 class TestUVCalAddDelay(object):
     def setUp(self):
