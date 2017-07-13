@@ -928,6 +928,30 @@ class TestUVCalAddDelay(object):
                              message='Total quality array detected')
         nt.assert_equal(self.delay_object.total_quality_array, None)
 
+        # test for when input_flag_array is present in first file but not second
+        self.delay_object.select(antenna_nums=ants1)
+        ifa = np.zeros(
+            self.delay_object._input_flag_array.expected_shape(self.delay_object)).astype(np.bool)
+        ifa2 = np.ones(
+            self.delay_object2._input_flag_array.expected_shape(self.delay_object2)).astype(np.bool)
+        tot_ifa = np.concatenate([ifa, ifa2], axis=0)
+        self.delay_object.input_flag_array = ifa
+        self.delay_object2.input_flag_array = None
+        self.delay_object += self.delay_object2
+        nt.assert_true(np.allclose(self.delay_object.input_flag_array, tot_ifa))
+
+        # test for when input_flag_array is present in second file but not first
+        self.delay_object.select(antenna_nums=ants1)
+        ifa = np.ones(
+            self.delay_object._input_flag_array.expected_shape(self.delay_object)).astype(np.bool)
+        ifa2 = np.zeros(
+            self.delay_object2._input_flag_array.expected_shape(self.delay_object2)).astype(np.bool)
+        tot_ifa = np.concatenate([ifa, ifa2], axis=0)
+        self.delay_object.input_flag_array = None
+        self.delay_object2.input_flag_array = ifa2
+        self.delay_object += self.delay_object2
+        nt.assert_true(np.allclose(self.delay_object.input_flag_array, tot_ifa))
+
     def test_add_times(self):
         """Test adding times between two UVCal objects"""
         delay_object_full = copy.deepcopy(self.delay_object)
@@ -990,6 +1014,34 @@ class TestUVCalAddDelay(object):
                                    rtol=self.delay_object._total_quality_array.tols[0],
                                    atol=self.delay_object._total_quality_array.tols[1]))
 
+        # test for when input_flag_array is present in first file but not second
+        ### XXX: See above
+        self.delay_object.total_quality_array = None
+        self.delay_object.select(times=times1)
+        ifa = np.zeros(
+            self.delay_object._input_flag_array.expected_shape(self.delay_object)).astype(np.bool)
+        ifa2 = np.ones(
+            self.delay_object2._input_flag_array.expected_shape(self.delay_object2)).astype(np.bool)
+        tot_ifa = np.concatenate([ifa, ifa2], axis=3)
+        self.delay_object.input_flag_array = ifa
+        self.delay_object2.input_flag_array = None
+        self.delay_object += self.delay_object2
+        nt.assert_true(np.allclose(self.delay_object.input_flag_array, tot_ifa))
+
+        # test for when input_flag_array is present in second file but not first
+        ### XXX: See above
+        self.delay_object.total_quality_array = None
+        self.delay_object.select(times=times1)
+        ifa = np.ones(
+            self.delay_object._input_flag_array.expected_shape(self.delay_object)).astype(np.bool)
+        ifa2 = np.zeros(
+            self.delay_object2._input_flag_array.expected_shape(self.delay_object2)).astype(np.bool)
+        tot_ifa = np.concatenate([ifa, ifa2], axis=3)
+        self.delay_object.input_flag_array = None
+        self.delay_object2.input_flag_array = ifa2
+        self.delay_object += self.delay_object2
+        nt.assert_true(np.allclose(self.delay_object.input_flag_array, tot_ifa))
+
     def test_add_jones(self):
         """Test adding Jones axes between two UVCal objects"""
         delay_object_original = copy.deepcopy(self.delay_object)
@@ -1041,3 +1093,27 @@ class TestUVCalAddDelay(object):
         nt.assert_true(np.allclose(self.delay_object.total_quality_array, tot_tqa,
                                    rtol=self.delay_object._total_quality_array.tols[0],
                                    atol=self.delay_object._total_quality_array.tols[1]))
+
+        # test for when input_flag_array is present in first file but not second
+        self.delay_object = copy.deepcopy(delay_object_original)
+        ifa = np.zeros(
+            self.delay_object._input_flag_array.expected_shape(self.delay_object)).astype(np.bool)
+        ifa2 = np.ones(
+            self.delay_object2._input_flag_array.expected_shape(self.delay_object2)).astype(np.bool)
+        tot_ifa = np.concatenate([ifa, ifa2], axis=4)
+        self.delay_object.input_flag_array = ifa
+        self.delay_object2.input_flag_array = None
+        self.delay_object += self.delay_object2
+        nt.assert_true(np.allclose(self.delay_object.input_flag_array, tot_ifa))
+
+        # test for when input_flag_array is present in second file but not first
+        self.delay_object = copy.deepcopy(delay_object_original)
+        ifa = np.ones(
+            self.delay_object._input_flag_array.expected_shape(self.delay_object)).astype(np.bool)
+        ifa2 = np.zeros(
+            self.delay_object2._input_flag_array.expected_shape(self.delay_object2)).astype(np.bool)
+        tot_ifa = np.concatenate([ifa, ifa2], axis=4)
+        self.delay_object.input_flag_array = None
+        self.delay_object2.input_flag_array = ifa2
+        self.delay_object += self.delay_object2
+        nt.assert_true(np.allclose(self.delay_object.input_flag_array, tot_ifa))
