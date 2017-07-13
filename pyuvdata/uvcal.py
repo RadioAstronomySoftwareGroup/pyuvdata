@@ -668,6 +668,7 @@ class UVCal(UVBase):
         else:
             tnew_inds, new_times = ([], [])
 
+        # adding along frequency axis is not supported for delay-type cal files
         if this.cal_type == 'gain':
             temp = np.nonzero(
                 ~np.in1d(other.freq_array[0, :], this.freq_array[0, :]))[0]
@@ -760,12 +761,8 @@ class UVCal(UVBase):
                                               other.freq_array[:, fnew_inds]], axis=1)
             order = np.argsort(this.freq_array[0, :])
             this.freq_array = this.freq_array[:, order]
-            if this.cal_type == 'delay':
-                this.delay_array = np.concatenate([this.delay_array, zero_pad], axis=2)[
-                    :, :, order, :, :]
-            else:
-                this.gain_array = np.concatenate([this.gain_array, zero_pad], axis=2)[
-                    :, :, order, :, :]
+            this.gain_array = np.concatenate([this.gain_array, zero_pad], axis=2)[
+                :, :, order, :, :]
             this.flag_array = np.concatenate([this.flag_array,
                                               1 - zero_pad], axis=2).astype(np.bool)[
                                                   :, :, order, :, :]
