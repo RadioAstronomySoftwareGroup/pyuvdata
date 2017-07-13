@@ -900,11 +900,37 @@ class TestUVCalAddGain(object):
 
         # test history concatenation
         self.gain_object.history = gain_object.history
-        self.gain_object2.history = 'Some random history string'
+        self.gain_object2.history = 'Some random history string OMNI_RUN'
         self.gain_object += self.gain_object2
         nt.assert_equal(gain_object.history + ' Combined data along '
                         'antenna axis using pyuvdata. Some random history string',
                         self.gain_object.history)
+
+    def test_add_multiple_axes(self):
+        """Test addition along multiple axes"""
+        ants1 = np.array([9, 10, 20, 22, 31, 43, 53, 64, 65, 72])
+        ants2 = np.array([80, 81, 88, 89, 96, 97, 104, 105, 112])
+        freqs1 = self.gain_object.freq_array[0, np.arange(0, 512)]
+        freqs2 = self.gain_object2.freq_array[0, np.arange(512, 1024)]
+        Nt2 = self.gain_object.Ntimes // 2
+        times1 = self.gain_object.time_array[:Nt2]
+        times2 = self.gain_object.time_array[Nt2:]
+        # artificially change the Jones value to permit addition
+        self.gain_object2.jones_array[0] = -6
+
+        # perform select
+        self.gain_object.select(antenna_nums=ants1, frequencies=freqs1,
+                                times=times1)
+        self.gain_object2.select(antenna_nums=ants2, frequencies=freqs2,
+                                 times=times2)
+
+        self.gain_object += self.gain_object2
+
+        # check resulting dimensionality
+        nt.assert_equal(len(self.gain_object.ant_array), 19)
+        nt.assert_equal(len(self.gain_object.freq_array[0, :]), 1024)
+        nt.assert_equal(len(self.gain_object.time_array), Nt2 * 2)
+        nt.assert_equal(len(self.gain_object.jones_array), 2)
 
     def test_add_errors(self):
         """Test behavior that will raise errors"""
@@ -918,6 +944,46 @@ class TestUVCalAddGain(object):
         telescope_name = self.gain_object2.telescope_name
         self.gain_object2.telescope_name = "PAPER"
         nt.assert_raises(ValueError, self.gain_object.__add__, self.gain_object2)
+
+    def test_jones_warning(self):
+        """Test having non-contiguous Jones elements"""
+        self.gain_object2.jones_array[0] = -6
+        self.gain_object += self.gain_object2
+        self.gain_object2.jones_array[0] = -8
+        uvtest.checkWarnings(self.gain_object.__iadd__, [self.gain_object2],
+                             message='Combined Jones elements')
+        nt.assert_equal(sorted(self.gain_object.jones_array), [-8, -6, -5])
+
+    def test_frequency_warnings(self):
+        """Test having uneven or non-contiguous frequencies"""
+        # test having unevenly spaced frequency separations
+        go1 = copy.deepcopy(self.gain_object)
+        go2 = copy.deepcopy(self.gain_object2)
+        freqs1 = self.gain_object.freq_array[0, np.arange(0, 512)]
+        freqs2 = self.gain_object2.freq_array[0, np.arange(512, 1024)]
+        self.gain_object.select(frequencies=freqs1)
+        self.gain_object2.select(frequencies=freqs2)
+
+        # change the last frequency bin to be smaller than the others
+        df = self.gain_object2.freq_array[0, -1] - self.gain_object2.freq_array[0, -2]
+        self.gain_object2.freq_array[0, -1] = self.gain_object2.freq_array[0, -2] + df / 2
+        uvtest.checkWarnings(self.gain_object.__iadd__, [self.gain_object2],
+                             message='Combined frequencies are not evenly spaced')
+        nt.assert_equal(len(self.gain_object.freq_array[0,:]), self.gain_object.Nfreqs)
+
+        # now check having non-contiguous frequencies
+        self.gain_object = copy.deepcopy(go1)
+        self.gain_object2 = copy.deepcopy(go2)
+        freqs1 = self.gain_object.freq_array[0, np.arange(0, 512)]
+        freqs2 = self.gain_object2.freq_array[0, np.arange(1000, 1024)]
+        self.gain_object.select(frequencies=freqs1)
+        self.gain_object2.select(frequencies=freqs2)
+        uvtest.checkWarnings(self.gain_object.__iadd__, [self.gain_object2],
+                             message='Combined frequencies are not contiguous')
+        freqs = np.concatenate([freqs1, freqs2])
+        nt.assert_true(np.allclose(self.gain_object.freq_array[0, :], freqs,
+                                    rtol=self.gain_object._freq_array.tols[0],
+                                    atol=self.gain_object._freq_array.tols[1]))
 
 class TestUVCalAddDelay(object):
     def setUp(self):

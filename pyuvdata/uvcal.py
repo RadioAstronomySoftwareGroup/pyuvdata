@@ -947,9 +947,9 @@ class UVCal(UVBase):
                               'it impossible to write this data out to some file types.')
 
         if this.Njones > 2:
-            pol_separation = np.diff(this.polarization_array)
-            if np.min(pol_separation) < np.max(pol_separation):
-                warnings.warn('Combined polarizations are not evenly spaced. This will '
+            jones_separation = np.diff(this.jones_array)
+            if np.min(jones_separation) < np.max(jones_separation):
+                warnings.warn('Combined Jones elements are not evenly spaced. This will '
                               'make it impossible to write this data out to some file types.')
 
         if n_axes > 0:
