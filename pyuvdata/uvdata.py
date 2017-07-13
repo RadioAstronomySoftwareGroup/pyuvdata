@@ -1835,24 +1835,28 @@ class UVData(UVBase):
         for key in antpairpols:
             yield (key, self.get_data(key, squeeze=squeeze))
 
-
     def parse_ants(self,ant_str):
         """
         Generates two lists of antenna pair tuples and polarization indices based on
-        parsing of the string ant_str.  If no valid polarizations or antenna numbers
-        are found in ant_str (Stokes params, or combinations of [lr] or [xy]),
+        parsing of the string ant_str.  If no valid polarizations (Stokes params, or
+        combinations of [lr] or [xy]) or antenna numbers are found in ant_str,
         ant_pairs_nums and polarizations are returned as None.
 
         Args:
             ant_str: String containing antenna information to pass to select function.
-                Can be all, auto, cross, or combinations of antenna numers and polarization
-                indicators l and r or x and y.
+                Can be 'all', 'auto', cross, or combinations of antenna numbers and
+                polarization indicators l and r or x and y.  Minus signs can also be used
+                in front of an antenna number or baseline to exclude it from being
+                output in ant_pairs_nums. If the antenna number attached with a
+                minus sign is present in the outputted list ant_pairs_nums, it will be
+                removed from the list.  See pyuvdata/docs/tutorial.rst for examples of
+                valid strings and their behavior.
 
         Output:
-            ant_pairs_nums: List of tuples containing the parsed pairs of antennae numbers.
-                If 'all' is passed as ant_str, returned as None.
-            polarizations: List of desired polarizations.  If no polarizations found in ant_str
-                then returned as None.
+            ant_pairs_nums: List of tuples containing the parsed pairs of antennae
+                numbers. If 'all' is passed as ant_str, returned as None.
+            polarizations: List of desired polarizations.  If no polarizations found in
+                ant_str then returned as None.
         """
 
         ant_re = r'(\(((-?\d+[lrxy]?,?)+)\)|-?\d+[lrxy]?)'
@@ -1861,6 +1865,7 @@ class UVData(UVBase):
         ant_pairs_nums = []
         polarizations = []
         ant_nums = self.get_ants()
+        ant_pairs_data = self.get_antpairs()
 
         while str_pos < len(ant_str):
             m = re.search(bl_re, ant_str[str_pos:])
@@ -1868,27 +1873,23 @@ class UVData(UVBase):
                 if ant_str[str_pos:].startswith('all'):
                     pass
                 elif ant_str[str_pos:].startswith('auto'):
-                    for ant in ant_nums:
-                        ant_tuple = tuple((ant,ant))
-                        ant_pairs_nums.append(ant_tuple)
+                    for ant_pair in ant_pairs_data:
+                        if (ant_pair[0] == ant_pair[1] and
+                            not ant_pair in ant_pairs_nums):
+                            ant_pairs_nums.append(ant_pair)
                 elif ant_str[str_pos:].startswith('cross'):
-                    for ant1 in ant_nums:
-                        for ant2 in ant_nums:
-                            if not ant1 == ant2:
-                                if ant1 < ant2:
-                                    ant_tuple = tuple((ant1,ant2))
-                                else:
-                                    ant_tuple = tuple((ant2,ant1))
-                                if not ant_tuple in ant_pairs_nums:
-                                    ant_pairs_nums.append(ant_tuple)
+                    for ant_pair in ant_pairs_data:
+                        if not (ant_pair[0] == ant_pair[1] or
+                            ant_pair in ant_pairs_nums):
+                            ant_pairs_nums.append(ant_pair)
                 elif ant_str[str_pos:].upper().startswith('I'):
-                    polarizations.append(1)
+                    polarizations.append(uvutils.polstr2num('I'))
                 elif ant_str[str_pos:].upper().startswith('Q'):
-                    polarizations.append(2)
+                    polarizations.append(uvutils.polstr2num('Q'))
                 elif ant_str[str_pos:].upper().startswith('U'):
-                    polarizations.append(3)
+                    polarizations.append(uvutils.polstr2num('U'))
                 elif ant_str[str_pos:].upper().startswith('V'):
-                    polarizations.append(4)
+                    polarizations.append(uvutils.polstr2num('V'))
                 else:
                     raise ValueError('Unparsible ant argument "%s"' % ant_str)
 
@@ -1915,8 +1916,8 @@ class UVData(UVBase):
                         ant_j_list = m[6].split(',')
 
                 for ant_i in ant_i_list:
+                    include = None
                     for ant_j in ant_j_list:
-                        include = None
                         if type(ant_i) == str and ant_i.startswith('-'):
                              ant_i = ant_i[1:] #nibble the - off the string
                              include = 0
@@ -1959,13 +1960,18 @@ class UVData(UVBase):
                             ant_tuple = ant_tuple[::-1]
 
                         if include:
-                            if not (ant_tuple in ant_pairs_nums or
-                                tuple((ant_tuple[1],ant_tuple[0])) in ant_pairs_nums):
-                                ant_pairs_nums.append(ant_tuple)
-                            if not pols is None:
-                                for pol in pols:
-                                    if not uvutils.polstr2num(pol) in polarizations:
-                                            polarizations.append(uvutils.polstr2num(pol))
+                            # Check if antenna pair present in object
+                            if (ant_tuple in ant_pairs_data or
+                                (ant_tuple[1],ant_tuple[0]) in ant_pairs_data):
+                                if not (ant_tuple in ant_pairs_nums or
+                                    tuple((ant_tuple[1],ant_tuple[0])) in ant_pairs_nums):
+                                    ant_pairs_nums.append(ant_tuple)
+                                if not pols is None:
+                                    for pol in pols:
+                                        if not uvutils.polstr2num(pol) in polarizations:
+                                                polarizations.append(uvutils.polstr2num(pol))
+                        elif ant_tuple in ant_pairs_nums:
+                            ant_pairs_nums.remove(ant_tuple)
 
         # If ant_str == 'all', i.e. keep all antenna pairs
         if len(ant_pairs_nums) == 0:
