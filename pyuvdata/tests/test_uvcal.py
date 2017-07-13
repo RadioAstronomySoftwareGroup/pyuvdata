@@ -698,3 +698,346 @@ class TestUVCalAddGain(object):
                         'axis using pyuvdata.', self.gain_object.history)
         self.gain_object.history = gain_object_full.history
         nt.assert_equal(self.gain_object, gain_object_full)
+
+        # test for when total_quality_array is present
+        self.gain_object.select(antenna_nums=ants1)
+        self.gain_object.total_quality_array = np.zeros(
+            self.gain_object._total_quality_array.expected_shape(self.gain_object))
+        uvtest.checkWarnings(self.gain_object.__iadd__, [self.gain_object2],
+                             message='Total quality array detected')
+        nt.assert_equal(self.gain_object.total_quality_array, None)
+
+    def test_add_frequencies(self):
+        """Test adding frequencies between two UVCal objects"""
+        gain_object_full = copy.deepcopy(self.gain_object)
+        freqs1 = self.gain_object.freq_array[0, np.arange(0, 512)]
+        freqs2 = self.gain_object2.freq_array[0, np.arange(512, 1024)]
+        self.gain_object.select(frequencies=freqs1)
+        self.gain_object2.select(frequencies=freqs2)
+        self.gain_object += self.gain_object2
+        # Check history is correct, before replacing and doing a full object check
+        nt.assert_equal(gain_object_full.history + '  Downselected to specific '
+                        'frequencies using pyuvdata. Combined data along frequency '
+                        'axis using pyuvdata.', self.gain_object.history)
+        self.gain_object.history = gain_object_full.history
+        nt.assert_equal(self.gain_object, gain_object_full)
+
+        # test for when total_quality_array is present in first file but not second
+        self.gain_object.select(frequencies=freqs1)
+        tqa = np.ones(
+            self.gain_object._total_quality_array.expected_shape(self.gain_object))
+        tqa2 = np.zeros(
+            self.gain_object2._total_quality_array.expected_shape(self.gain_object2))
+        tot_tqa = np.concatenate([tqa, tqa2], axis=1)
+        self.gain_object.total_quality_array = tqa
+        self.gain_object += self.gain_object2
+        nt.assert_true(np.allclose(self.gain_object.total_quality_array, tot_tqa,
+                                   rtol=self.gain_object._total_quality_array.tols[0],
+                                   atol=self.gain_object._total_quality_array.tols[1]))
+
+        # test for when total_quality_array is present in second file but not first
+        ### XXX: Select function does not properly down-select total_quality_array.
+        ### XXX: The next line is not needed once this is fixed
+        self.gain_object.total_quality_array = None
+        self.gain_object.select(frequencies=freqs1)
+        tqa = np.zeros(
+            self.gain_object._total_quality_array.expected_shape(self.gain_object))
+        tqa2 = np.ones(
+            self.gain_object2._total_quality_array.expected_shape(self.gain_object2))
+        tot_tqa = np.concatenate([tqa, tqa2], axis=1)
+        self.gain_object2.total_quality_array = tqa2
+        self.gain_object += self.gain_object2
+        nt.assert_true(np.allclose(self.gain_object.total_quality_array, tot_tqa,
+                                   rtol=self.gain_object._total_quality_array.tols[0],
+                                   atol=self.gain_object._total_quality_array.tols[1]))
+
+        # test for when total_quality_array is present in both
+        ### XXX: See above
+        self.gain_object.total_quality_array = None
+        self.gain_object.select(frequencies=freqs1)
+        tqa = np.ones(
+            self.gain_object._total_quality_array.expected_shape(self.gain_object))
+        tqa2 = np.ones(
+            self.gain_object2._total_quality_array.expected_shape(self.gain_object2))
+        tqa *= 2
+        tot_tqa = np.concatenate([tqa, tqa2], axis=1)
+        self.gain_object.total_quality_array = tqa
+        self.gain_object2.total_quality_array = tqa2
+        self.gain_object += self.gain_object2
+        nt.assert_true(np.allclose(self.gain_object.total_quality_array, tot_tqa,
+                                   rtol=self.gain_object._total_quality_array.tols[0],
+                                   atol=self.gain_object._total_quality_array.tols[1]))
+
+    def test_add_times(self):
+        """Test adding times between two UVCal objects"""
+        gain_object_full = copy.deepcopy(self.gain_object)
+        Nt2 = self.gain_object.Ntimes / 2
+        times1 = self.gain_object.time_array[:Nt2]
+        times2 = self.gain_object.time_array[Nt2:]
+        self.gain_object.select(times=times1)
+        self.gain_object2.select(times=times2)
+        self.gain_object += self.gain_object2
+        # Check history is correct, before replacing and doing a full object check
+        nt.assert_equal(gain_object_full.history + '  Downselected to specific '
+                        'times using pyuvdata. Combined data along time '
+                        'axis using pyuvdata.', self.gain_object.history)
+        self.gain_object.history = gain_object_full.history
+        nt.assert_equal(self.gain_object, gain_object_full)
+
+        # test for when total_quality_array is present in first file but not second
+        self.gain_object.select(times=times1)
+        tqa = np.ones(
+            self.gain_object._total_quality_array.expected_shape(self.gain_object))
+        tqa2 = np.zeros(
+            self.gain_object2._total_quality_array.expected_shape(self.gain_object2))
+        tot_tqa = np.concatenate([tqa, tqa2], axis=2)
+        self.gain_object.total_quality_array = tqa
+        self.gain_object += self.gain_object2
+        nt.assert_true(np.allclose(self.gain_object.total_quality_array, tot_tqa,
+                                   rtol=self.gain_object._total_quality_array.tols[0],
+                                   atol=self.gain_object._total_quality_array.tols[1]))
+
+        # test for when total_quality_array is present in second file but not first
+        ### XXX: Select function does not properly down-select total_quality_array.
+        ### XXX: The next line is not needed once this is fixed
+        self.gain_object.total_quality_array = None
+        self.gain_object.select(times=times1)
+        tqa = np.zeros(
+            self.gain_object._total_quality_array.expected_shape(self.gain_object))
+        tqa2 = np.ones(
+            self.gain_object2._total_quality_array.expected_shape(self.gain_object2))
+        tot_tqa = np.concatenate([tqa, tqa2], axis=2)
+        self.gain_object2.total_quality_array = tqa2
+        self.gain_object += self.gain_object2
+        nt.assert_true(np.allclose(self.gain_object.total_quality_array, tot_tqa,
+                                   rtol=self.gain_object._total_quality_array.tols[0],
+                                   atol=self.gain_object._total_quality_array.tols[1]))
+
+        # test for when total_quality_array is present in both
+        ### XXX: See above
+        self.gain_object.total_quality_array = None
+        self.gain_object.select(times=times1)
+        tqa = np.ones(
+            self.gain_object._total_quality_array.expected_shape(self.gain_object))
+        tqa2 = np.ones(
+            self.gain_object2._total_quality_array.expected_shape(self.gain_object2))
+        tqa *= 2
+        tot_tqa = np.concatenate([tqa, tqa2], axis=2)
+        self.gain_object.total_quality_array = tqa
+        self.gain_object2.total_quality_array = tqa2
+        self.gain_object += self.gain_object2
+        nt.assert_true(np.allclose(self.gain_object.total_quality_array, tot_tqa,
+                                   rtol=self.gain_object._total_quality_array.tols[0],
+                                   atol=self.gain_object._total_quality_array.tols[1]))
+
+    def test_add_jones(self):
+        """Test adding Jones axes between two UVCal objects"""
+        gain_object_original = copy.deepcopy(self.gain_object)
+        # artificially change the Jones value to permit addition
+        self.gain_object2.jones_array[0] = -6
+        self.gain_object += self.gain_object2
+
+        # check dimensionality of resulting object
+        nt.assert_equal(self.gain_object.gain_array.shape[-1], 2)
+        nt.assert_equal(sorted(self.gain_object.jones_array), [-6, -5])
+
+        # test for when total_quality_array is present in first file but not second
+        self.gain_object = copy.deepcopy(gain_object_original)
+        tqa = np.ones(
+            self.gain_object._total_quality_array.expected_shape(self.gain_object))
+        tqa2 = np.zeros(
+            self.gain_object2._total_quality_array.expected_shape(self.gain_object2))
+        tot_tqa = np.concatenate([tqa, tqa2], axis=3)
+        self.gain_object.total_quality_array = tqa
+        self.gain_object += self.gain_object2
+        nt.assert_true(np.allclose(self.gain_object.total_quality_array, tot_tqa,
+                                   rtol=self.gain_object._total_quality_array.tols[0],
+                                   atol=self.gain_object._total_quality_array.tols[1]))
+
+        # test for when total_quality_array is present in second file but not first
+        self.gain_object = copy.deepcopy(gain_object_original)
+        tqa = np.zeros(
+            self.gain_object._total_quality_array.expected_shape(self.gain_object))
+        tqa2 = np.ones(
+            self.gain_object2._total_quality_array.expected_shape(self.gain_object2))
+        tot_tqa = np.concatenate([tqa, tqa2], axis=3)
+        self.gain_object2.total_quality_array = tqa2
+        self.gain_object += self.gain_object2
+        nt.assert_true(np.allclose(self.gain_object.total_quality_array, tot_tqa,
+                                   rtol=self.gain_object._total_quality_array.tols[0],
+                                   atol=self.gain_object._total_quality_array.tols[1]))
+
+        # test for when total_quality_array is present in both
+        self.gain_object = copy.deepcopy(gain_object_original)
+        tqa = np.ones(
+            self.gain_object._total_quality_array.expected_shape(self.gain_object))
+        tqa2 = np.ones(
+            self.gain_object2._total_quality_array.expected_shape(self.gain_object2))
+        tqa *= 2
+        tot_tqa = np.concatenate([tqa, tqa2], axis=3)
+        self.gain_object.total_quality_array = tqa
+        self.gain_object2.total_quality_array = tqa2
+        self.gain_object += self.gain_object2
+        nt.assert_true(np.allclose(self.gain_object.total_quality_array, tot_tqa,
+                                   rtol=self.gain_object._total_quality_array.tols[0],
+                                   atol=self.gain_object._total_quality_array.tols[1]))
+
+class TestUVCalAddDelay(object):
+    def setUp(self):
+        """Set up test"""
+        self.delay_object = UVCal()
+        delayfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.HH.uvc.fits')
+
+        # add an input flag array to the file to test for that.
+        write_file = os.path.join(DATA_PATH, 'test/outtest_input_flags.fits')
+        uv_in = UVCal()
+        message = delayfile + ' appears to be an old calfits format'
+        uvtest.checkWarnings(uv_in.read_calfits, [delayfile], nwarnings=1,
+                             message=message, category=[UserWarning])
+        uv_in.input_flag_array = np.zeros(uv_in._input_flag_array.expected_shape(uv_in), dtype=bool)
+        uv_in.write_calfits(write_file, clobber=True)
+
+        self.delay_object.read_calfits(write_file)
+        self.delay_object2 = copy.deepcopy(self.delay_object)
+
+    def teardown(self):
+        """Tear down test"""
+        del(self.delay_object)
+        del(self.delay_object2)
+
+    def test_add_antennas(self):
+        """Test adding antennas between two UVCal objects"""
+        delay_object_full = copy.deepcopy(self.delay_object)
+        ants1 = np.array([9, 10, 20, 22, 31, 43, 53, 64, 65, 72])
+        ants2 = np.array([80, 81, 88, 89, 96, 97, 104, 105, 112])
+        self.delay_object.select(antenna_nums=ants1)
+        self.delay_object2.select(antenna_nums=ants2)
+        self.delay_object += self.delay_object2
+        # Check history is correct, before replacing and doing a full object check
+        nt.assert_equal(delay_object_full.history + '  Downselected to specific '
+                        'antennas using pyuvdata. Combined data along antenna '
+                        'axis using pyuvdata.', self.delay_object.history)
+        self.delay_object.history = delay_object_full.history
+        nt.assert_equal(self.delay_object, delay_object_full)
+
+        # test for when total_quality_array is present
+        self.delay_object.select(antenna_nums=ants1)
+        self.delay_object.total_quality_array = np.zeros(
+            self.delay_object._total_quality_array.expected_shape(self.delay_object))
+        uvtest.checkWarnings(self.delay_object.__iadd__, [self.delay_object2],
+                             message='Total quality array detected')
+        nt.assert_equal(self.delay_object.total_quality_array, None)
+
+    def test_add_times(self):
+        """Test adding times between two UVCal objects"""
+        delay_object_full = copy.deepcopy(self.delay_object)
+        Nt2 = self.delay_object.Ntimes / 2
+        times1 = self.delay_object.time_array[:Nt2]
+        times2 = self.delay_object.time_array[Nt2:]
+        self.delay_object.select(times=times1)
+        self.delay_object2.select(times=times2)
+        self.delay_object += self.delay_object2
+        # Check history is correct, before replacing and doing a full object check
+        nt.assert_equal(delay_object_full.history + '  Downselected to specific '
+                        'times using pyuvdata. Combined data along time '
+                        'axis using pyuvdata.', self.delay_object.history)
+        self.delay_object.history = delay_object_full.history
+        nt.assert_equal(self.delay_object, delay_object_full)
+
+        # test for when total_quality_array is present in first file but not second
+        self.delay_object.select(times=times1)
+        tqa = np.ones(
+            self.delay_object._total_quality_array.expected_shape(self.delay_object))
+        tqa2 = np.zeros(
+            self.delay_object2._total_quality_array.expected_shape(self.delay_object2))
+        tot_tqa = np.concatenate([tqa, tqa2], axis=2)
+        self.delay_object.total_quality_array = tqa
+        self.delay_object += self.delay_object2
+        nt.assert_true(np.allclose(self.delay_object.total_quality_array, tot_tqa,
+                                   rtol=self.delay_object._total_quality_array.tols[0],
+                                   atol=self.delay_object._total_quality_array.tols[1]))
+
+        # test for when total_quality_array is present in second file but not first
+        ### XXX: Select function does not properly down-select total_quality_array.
+        ### XXX: The next line is not needed once this is fixed
+        self.delay_object.total_quality_array = None
+        self.delay_object.select(times=times1)
+        tqa = np.zeros(
+            self.delay_object._total_quality_array.expected_shape(self.delay_object))
+        tqa2 = np.ones(
+            self.delay_object2._total_quality_array.expected_shape(self.delay_object2))
+        tot_tqa = np.concatenate([tqa, tqa2], axis=2)
+        self.delay_object2.total_quality_array = tqa2
+        self.delay_object += self.delay_object2
+        nt.assert_true(np.allclose(self.delay_object.total_quality_array, tot_tqa,
+                                   rtol=self.delay_object._total_quality_array.tols[0],
+                                   atol=self.delay_object._total_quality_array.tols[1]))
+
+        # test for when total_quality_array is present in both
+        ### XXX: See above
+        self.delay_object.total_quality_array = None
+        self.delay_object.select(times=times1)
+        tqa = np.ones(
+            self.delay_object._total_quality_array.expected_shape(self.delay_object))
+        tqa2 = np.ones(
+            self.delay_object2._total_quality_array.expected_shape(self.delay_object2))
+        tqa *= 2
+        tot_tqa = np.concatenate([tqa, tqa2], axis=2)
+        self.delay_object.total_quality_array = tqa
+        self.delay_object2.total_quality_array = tqa2
+        self.delay_object += self.delay_object2
+        nt.assert_true(np.allclose(self.delay_object.total_quality_array, tot_tqa,
+                                   rtol=self.delay_object._total_quality_array.tols[0],
+                                   atol=self.delay_object._total_quality_array.tols[1]))
+
+    def test_add_jones(self):
+        """Test adding Jones axes between two UVCal objects"""
+        delay_object_original = copy.deepcopy(self.delay_object)
+        # artificially change the Jones value to permit addition
+        self.delay_object2.jones_array[0] = -6
+        self.delay_object += self.delay_object2
+
+        # check dimensionality of resulting object
+        nt.assert_equal(self.delay_object.delay_array.shape[-1], 2)
+        nt.assert_equal(sorted(self.delay_object.jones_array), [-6, -5])
+
+        # test for when total_quality_array is present in first file but not second
+        self.delay_object = copy.deepcopy(delay_object_original)
+        tqa = np.ones(
+            self.delay_object._total_quality_array.expected_shape(self.delay_object))
+        tqa2 = np.zeros(
+            self.delay_object2._total_quality_array.expected_shape(self.delay_object2))
+        tot_tqa = np.concatenate([tqa, tqa2], axis=3)
+        self.delay_object.total_quality_array = tqa
+        self.delay_object += self.delay_object2
+        nt.assert_true(np.allclose(self.delay_object.total_quality_array, tot_tqa,
+                                   rtol=self.delay_object._total_quality_array.tols[0],
+                                   atol=self.delay_object._total_quality_array.tols[1]))
+
+        # test for when total_quality_array is present in second file but not first
+        self.delay_object = copy.deepcopy(delay_object_original)
+        tqa = np.zeros(
+            self.delay_object._total_quality_array.expected_shape(self.delay_object))
+        tqa2 = np.ones(
+            self.delay_object2._total_quality_array.expected_shape(self.delay_object2))
+        tot_tqa = np.concatenate([tqa, tqa2], axis=3)
+        self.delay_object2.total_quality_array = tqa2
+        self.delay_object += self.delay_object2
+        nt.assert_true(np.allclose(self.delay_object.total_quality_array, tot_tqa,
+                                   rtol=self.delay_object._total_quality_array.tols[0],
+                                   atol=self.delay_object._total_quality_array.tols[1]))
+
+        # test for when total_quality_array is present in both
+        self.delay_object = copy.deepcopy(delay_object_original)
+        tqa = np.ones(
+            self.delay_object._total_quality_array.expected_shape(self.delay_object))
+        tqa2 = np.ones(
+            self.delay_object2._total_quality_array.expected_shape(self.delay_object2))
+        tqa *= 2
+        tot_tqa = np.concatenate([tqa, tqa2], axis=3)
+        self.delay_object.total_quality_array = tqa
+        self.delay_object2.total_quality_array = tqa2
+        self.delay_object += self.delay_object2
+        nt.assert_true(np.allclose(self.delay_object.total_quality_array, tot_tqa,
+                                   rtol=self.delay_object._total_quality_array.tols[0],
+                                   atol=self.delay_object._total_quality_array.tols[1]))
