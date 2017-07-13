@@ -971,15 +971,21 @@ class TestUVCalAddGain(object):
                              message='Combined frequencies are not evenly spaced')
         nt.assert_equal(len(self.gain_object.freq_array[0,:]), self.gain_object.Nfreqs)
 
-        # now check having non-contiguous frequencies
+        # now check having "non-contiguous" frequencies
         self.gain_object = copy.deepcopy(go1)
         self.gain_object2 = copy.deepcopy(go2)
         freqs1 = self.gain_object.freq_array[0, np.arange(0, 512)]
-        freqs2 = self.gain_object2.freq_array[0, np.arange(1000, 1024)]
+        freqs2 = self.gain_object2.freq_array[0, np.arange(512, 1024)]
         self.gain_object.select(frequencies=freqs1)
         self.gain_object2.select(frequencies=freqs2)
+
+        # artificially space out frequencies
+        self.gain_object.freq_array[0, :] *= 10
+        self.gain_object2.freq_array[0, :] *= 10
         uvtest.checkWarnings(self.gain_object.__iadd__, [self.gain_object2],
                              message='Combined frequencies are not contiguous')
+        freqs1 *= 10
+        freqs2 *= 10
         freqs = np.concatenate([freqs1, freqs2])
         nt.assert_true(np.allclose(self.gain_object.freq_array[0, :], freqs,
                                     rtol=self.gain_object._freq_array.tols[0],
