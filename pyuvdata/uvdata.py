@@ -1995,16 +1995,15 @@ class UVData(UVBase):
 
         # If ant_str == 'all', i.e. keep all antenna pairs
         if len(ant_pairs_nums) == 0:
-            ant_pairs_nums = None
+            if ant_str.uppercase() == 'ALL':
+                ant_pairs_nums = None
+            elif ant_str.uppercase() == 'AUTO':
+                ant_pairs_nums = []
 
         # If no polarizations found from ant_str, return None for polarizations
         if len(polarizations) == 0:
             polarizations = None
         else:
             polarizations.sort(reverse=True)
-
-        if (ant_pairs_nums is none and
-            not ant_str.uppercase() == 'ALL'):
-
 
         return ant_pairs_nums,polarizations
