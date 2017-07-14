@@ -965,10 +965,10 @@ class UVData(UVBase):
         self.__add__(other, inplace=True)
         return self
 
-    def select(self, antenna_nums=None, antenna_names=None, ant_pairs_nums=None,
-               frequencies=None, freq_chans=None,
-               times=None, polarizations=None, blt_inds=None, run_check=True,
-               check_extra=True, run_check_acceptability=True, inplace=True):
+    def select(self, antenna_nums=None, antenna_names=None, ant_str=None,
+                   ant_pairs_nums=None, frequencies=None, freq_chans=None,
+                   times=None, polarizations=None, blt_inds=None, run_check=True,
+                   check_extra=True, run_check_acceptability=True, inplace=True):
         """
         Select specific antennas, antenna pairs, frequencies, times and
         polarizations to keep in the object while discarding others.
@@ -984,6 +984,11 @@ class UVData(UVBase):
             antenna_names: The antennas names to keep in the object (antenna
                 positions and names for the removed antennas will be retained).
                 This cannot be provided if antenna_nums is also provided.
+            ant_str: A string containing information about what antenna numbers
+                and polarizations to keep in the object.  Can be 'auto', 'cross', 'all',
+                or combinations of antenna numbers and polarizations (e.g. '1',
+                '1_2', '1x_2y').  See tutorial for more examples of valid strings and
+                the behavior of different forms for ant_str.
             ant_pairs_nums: A list of antenna number tuples (e.g. [(0,1), (3,2)])
                 specifying baselines to keep in the object. Ordering of the
                 numbers within the tuple does not matter.
@@ -1061,6 +1066,22 @@ class UVData(UVBase):
                     list(set(blt_inds).intersection(ant_blt_inds)), dtype=np.int)
             else:
                 blt_inds = ant_blt_inds
+
+        if ant_str is not None:
+            ant_pairs,pols = self.parse_ants(ant_str)
+            if not ant_pairs_nums is None:
+                for ant_pair in ant_pairs:
+                    if not ant_pair in ant_pairs_nums:
+                        ant_pairs_nums.append(ant_pair)
+            else:
+                ant_pairs_nums = ant_pairs
+
+            if not polarizations is None:
+                for pol in pols:
+                    if not pol in polarizations:
+                        polarizations.append(pol)
+            else:
+                polarizations = pols
 
         if ant_pairs_nums is not None:
             if isinstance(ant_pairs_nums, tuple) and len(ant_pairs_nums) == 2:
@@ -1864,20 +1885,19 @@ class UVData(UVBase):
         str_pos = 0
         ant_pairs_nums = []
         polarizations = []
-        ant_nums = self.get_ants()
         ant_pairs_data = self.get_antpairs()
 
         while str_pos < len(ant_str):
             m = re.search(bl_re, ant_str[str_pos:])
             if m is None:
-                if ant_str[str_pos:].startswith('all'):
+                if ant_str[str_pos:].uppercase().startswith('ALL'):
                     pass
-                elif ant_str[str_pos:].startswith('auto'):
+                elif ant_str[str_pos:].uppercase().startswith('AUTO'):
                     for ant_pair in ant_pairs_data:
                         if (ant_pair[0] == ant_pair[1] and
                             not ant_pair in ant_pairs_nums):
                             ant_pairs_nums.append(ant_pair)
-                elif ant_str[str_pos:].startswith('cross'):
+                elif ant_str[str_pos:].uppercase().startswith('CROSS'):
                     for ant_pair in ant_pairs_data:
                         if not (ant_pair[0] == ant_pair[1] or
                             ant_pair in ant_pairs_nums):
@@ -1982,5 +2002,9 @@ class UVData(UVBase):
             polarizations = None
         else:
             polarizations.sort(reverse=True)
+
+        if (ant_pairs_nums is none and
+            not ant_str.uppercase() == 'ALL'):
+
 
         return ant_pairs_nums,polarizations
