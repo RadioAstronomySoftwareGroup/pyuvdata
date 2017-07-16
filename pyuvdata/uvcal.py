@@ -611,18 +611,22 @@ class UVCal(UVBase):
         other.check(check_extra=check_extra, run_check_acceptability=run_check_acceptability)
 
         # Check objects are compatible
-        # Note zenith_ra will not necessarily be the same if times are different.
-        # But phase_center should be the same, even if in drift (empty parameters)
         compatibility_params = ['_cal_type', '_integration_time', '_channel_width',
                                 '_telescope_name', '_gain_convention', '_x_orientation']
         if this.cal_type == 'delay':
             compatibility_params.append('_freq_range')
+        warning_params = ['_observer', '_git_hash_cal']
 
         for a in compatibility_params:
             if getattr(this, a) != getattr(other, a):
                 msg = 'UVParameter ' + \
                     a[1:] + ' does not match. Cannot combine objects.'
                 raise(ValueError(msg))
+        for a in warning_params:
+            if getattr(this, a) != getattr(other, a):
+                msg = 'UVParameter ' + \
+                    a[1:] + ' does not match. Combining anyway.'
+                warnings.warn(msg)
 
         # Build up history string
         history_update_string = ' Combined data along '
@@ -637,7 +641,8 @@ class UVCal(UVBase):
             both_freq = np.intersect1d(
                 this.freq_array[0, :], other.freq_array[0, :])
         else:
-            both_freq = []
+            # Make a non-empty array so we raise an error if other data is duplicated
+            both_freq = [0]
         both_ants = np.intersect1d(
             this.ant_array, other.ant_array)
         if len(both_jones) > 0:
