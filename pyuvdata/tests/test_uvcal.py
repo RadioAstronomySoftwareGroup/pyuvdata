@@ -991,6 +991,21 @@ class TestUVCalAddGain(object):
                                     rtol=self.gain_object._freq_array.tols[0],
                                     atol=self.gain_object._freq_array.tols[1]))
 
+    def test_parameter_warnings(self):
+        """Test changing a parameter that will raise a warning"""
+        # change observer and select frequencies
+        self.gain_object2.observer = 'mystery_person'
+        freqs1 = self.gain_object.freq_array[0, np.arange(0, 512)]
+        freqs2 = self.gain_object2.freq_array[0, np.arange(512, 1024)]
+        self.gain_object.select(frequencies=freqs1)
+        self.gain_object2.select(frequencies=freqs2)
+        uvtest.checkWarnings(self.gain_object.__iadd__, [self.gain_object2],
+                             message='UVParameter observer does not match')
+        freqs = np.concatenate([freqs1, freqs2])
+        nt.assert_true(np.allclose(self.gain_object.freq_array, freqs,
+                                   rtol=self.gain_object._freq_array.tols[0],
+                                   atol=self.gain_object._freq_array.tols[1]))
+
 class TestUVCalAddDelay(object):
     def setUp(self):
         """Set up test"""
@@ -1226,3 +1241,8 @@ class TestUVCalAddDelay(object):
         self.delay_object2.input_flag_array = ifa2
         self.delay_object += self.delay_object2
         nt.assert_true(np.allclose(self.delay_object.input_flag_array, tot_ifa))
+
+    def test_add_errors(self):
+        """Test behavior that will raise errors"""
+        # test addition of two identical objects
+        nt.assert_raises(ValueError, self.delay_object.__add__, self.delay_object2)
