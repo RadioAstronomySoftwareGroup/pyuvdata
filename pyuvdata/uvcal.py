@@ -337,6 +337,11 @@ class UVCal(UVBase):
             if cal_object.input_flag_array is not None:
                 cal_object.input_flag_array = cal_object.input_flag_array[ant_inds, :, :, :, :]
 
+            if cal_object.total_quality_array is not None:
+                warnings.warn('Cannot preserve total_quality_array when changing '
+                              'number of antennas; discarding')
+                cal_object.total_quality_array = None
+
         if times is not None:
             times = uvutils.get_iterable(times)
             if n_selects > 0:
@@ -373,6 +378,9 @@ class UVCal(UVBase):
 
             if cal_object.input_flag_array is not None:
                 cal_object.input_flag_array = cal_object.input_flag_array[:, :, :, time_inds, :]
+
+            if cal_object.total_quality_array is not None:
+                cal_object.total_quality_array = cal_object.total_quality_array[:, :, time_inds, :]
 
         if freq_chans is not None:
             freq_chans = uvutils.get_iterable(freq_chans)
@@ -422,6 +430,12 @@ class UVCal(UVBase):
             if cal_object.input_flag_array is not None:
                 cal_object.input_flag_array = cal_object.input_flag_array[:, :, freq_inds, :, :]
 
+            if cal_object.cal_type == 'delay':
+                pass
+            else:
+                if cal_object.total_quality_array is not None:
+                    cal_object.total_quality_array = cal_object.total_quality_array[:, freq_inds, :, :]
+
         if jones is not None:
             jones = uvutils.get_iterable(jones)
             if n_selects > 0:
@@ -455,6 +469,9 @@ class UVCal(UVBase):
 
             if cal_object.input_flag_array is not None:
                 cal_object.input_flag_array = cal_object.input_flag_array[:, :, :, :, jones_inds]
+
+            if cal_object.total_quality_array is not None:
+                cal_object.total_quality_array = cal_object.total_quality_array[:, :, :, jones_inds]
 
         history_update_string += ' using pyuvdata.'
         cal_object.history = cal_object.history + history_update_string
