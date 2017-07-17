@@ -1890,14 +1890,14 @@ class UVData(UVBase):
         while str_pos < len(ant_str):
             m = re.search(bl_re, ant_str[str_pos:])
             if m is None:
-                if ant_str[str_pos:].uppercase().startswith('ALL'):
+                if ant_str[str_pos:].upper().startswith('ALL'):
                     pass
-                elif ant_str[str_pos:].uppercase().startswith('AUTO'):
+                elif ant_str[str_pos:].upper().startswith('AUTO'):
                     for ant_pair in ant_pairs_data:
                         if (ant_pair[0] == ant_pair[1] and
                             not ant_pair in ant_pairs_nums):
                             ant_pairs_nums.append(ant_pair)
-                elif ant_str[str_pos:].uppercase().startswith('CROSS'):
+                elif ant_str[str_pos:].upper().startswith('CROSS'):
                     for ant_pair in ant_pairs_data:
                         if not (ant_pair[0] == ant_pair[1] or
                             ant_pair in ant_pairs_nums):
@@ -1936,18 +1936,16 @@ class UVData(UVBase):
                         ant_j_list = m[6].split(',')
 
                 for ant_i in ant_i_list:
-                    include = None
+                    include_i = True
+                    if type(ant_i) == str and ant_i.startswith('-'):
+                         ant_i = ant_i[1:] #nibble the - off the string
+                         include_i = False
+
                     for ant_j in ant_j_list:
-                        if type(ant_i) == str and ant_i.startswith('-'):
-                             ant_i = ant_i[1:] #nibble the - off the string
-                             include = 0
+                        include_j = True
                         if type(ant_j) == str and ant_j.startswith('-'):
                             ant_j = ant_j[1:]
-                            include = 0
-                        elif include == 0:
-                            pass
-                        else:
-                            include = 1
+                            include_j = False
 
                         pols = None
                         ant_i,ant_j = str(ant_i),str(ant_j)
@@ -1976,15 +1974,13 @@ class UVData(UVBase):
                             pols = [ai[1]+aj[1]]
 
                         ant_tuple = tuple((abs(int(ai[0])),abs(int(aj[0]))))
-                        if ant_tuple[1] < ant_tuple[0]:
-                            ant_tuple = ant_tuple[::-1]
 
-                        if include:
+                        if include_i and include_j:
                             # Check if antenna pair present in object
                             if (ant_tuple in ant_pairs_data or
-                                (ant_tuple[1],ant_tuple[0]) in ant_pairs_data):
+                                ant_tuple[::-1] in ant_pairs_data):
                                 if not (ant_tuple in ant_pairs_nums or
-                                    tuple((ant_tuple[1],ant_tuple[0])) in ant_pairs_nums):
+                                    ant_tuple[::-1] in ant_pairs_nums):
                                     ant_pairs_nums.append(ant_tuple)
                                 if not pols is None:
                                     for pol in pols:
@@ -1992,12 +1988,15 @@ class UVData(UVBase):
                                                 polarizations.append(uvutils.polstr2num(pol))
                         elif ant_tuple in ant_pairs_nums:
                             ant_pairs_nums.remove(ant_tuple)
+                        elif ant_tuple[::-1] in ant_pairs_nums:
+                            ant_pairs_nums.remove(ant_tuple[::-1])
 
         # If ant_str == 'all', i.e. keep all antenna pairs
         if len(ant_pairs_nums) == 0:
-            if ant_str.uppercase() == 'ALL':
+            if ant_str.upper() == 'ALL':
                 ant_pairs_nums = None
-            elif ant_str.uppercase() == 'AUTO':
+            elif ant_str.upper() == 'AUTO':
+                # Need to thrown an error in select
                 ant_pairs_nums = []
 
         # If no polarizations found from ant_str, return None for polarizations
