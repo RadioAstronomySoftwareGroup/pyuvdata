@@ -1071,7 +1071,8 @@ class UVData(UVBase):
             ant_pairs,pols = self.parse_ants(ant_str)
             if not ant_pairs_nums is None:
                 for ant_pair in ant_pairs:
-                    if not ant_pair in ant_pairs_nums:
+                    if not (ant_pair in ant_pairs_nums or
+                        ant_pair[::-1] in ant_pairs_nums):
                         ant_pairs_nums.append(ant_pair)
             else:
                 ant_pairs_nums = ant_pairs
