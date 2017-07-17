@@ -785,15 +785,13 @@ class TestUVCalAddGain(object):
                                    atol=self.gain_object._total_quality_array.tols[1]))
 
         # test for when total_quality_array is present in second file but not first
-        ### XXX: Select function does not properly down-select total_quality_array.
-        ### XXX: The next line is not needed once this is fixed
-        self.gain_object.total_quality_array = None
         self.gain_object.select(frequencies=freqs1)
         tqa = np.zeros(
             self.gain_object._total_quality_array.expected_shape(self.gain_object))
         tqa2 = np.ones(
             self.gain_object2._total_quality_array.expected_shape(self.gain_object2))
         tot_tqa = np.concatenate([tqa, tqa2], axis=1)
+        self.gain_object.total_quality_array = None
         self.gain_object2.total_quality_array = tqa2
         self.gain_object += self.gain_object2
         nt.assert_true(np.allclose(self.gain_object.total_quality_array, tot_tqa,
@@ -801,8 +799,6 @@ class TestUVCalAddGain(object):
                                    atol=self.gain_object._total_quality_array.tols[1]))
 
         # test for when total_quality_array is present in both
-        ### XXX: See above
-        self.gain_object.total_quality_array = None
         self.gain_object.select(frequencies=freqs1)
         tqa = np.ones(
             self.gain_object._total_quality_array.expected_shape(self.gain_object))
@@ -847,15 +843,13 @@ class TestUVCalAddGain(object):
                                    atol=self.gain_object._total_quality_array.tols[1]))
 
         # test for when total_quality_array is present in second file but not first
-        ### XXX: Select function does not properly down-select total_quality_array.
-        ### XXX: The next line is not needed once this is fixed
-        self.gain_object.total_quality_array = None
         self.gain_object.select(times=times1)
         tqa = np.zeros(
             self.gain_object._total_quality_array.expected_shape(self.gain_object))
         tqa2 = np.ones(
             self.gain_object2._total_quality_array.expected_shape(self.gain_object2))
         tot_tqa = np.concatenate([tqa, tqa2], axis=2)
+        self.gain_object.total_quality_array = None
         self.gain_object2.total_quality_array = tqa2
         self.gain_object += self.gain_object2
         nt.assert_true(np.allclose(self.gain_object.total_quality_array, tot_tqa,
@@ -863,8 +857,6 @@ class TestUVCalAddGain(object):
                                    atol=self.gain_object._total_quality_array.tols[1]))
 
         # test for when total_quality_array is present in both
-        ### XXX: See above
-        self.gain_object.total_quality_array = None
         self.gain_object.select(times=times1)
         tqa = np.ones(
             self.gain_object._total_quality_array.expected_shape(self.gain_object))
@@ -1155,15 +1147,13 @@ class TestUVCalAddDelay(object):
                                    atol=self.delay_object._total_quality_array.tols[1]))
 
         # test for when total_quality_array is present in second file but not first
-        ### XXX: Select function does not properly down-select total_quality_array.
-        ### XXX: The next line is not needed once this is fixed
-        self.delay_object.total_quality_array = None
         self.delay_object.select(times=times1)
         tqa = np.zeros(
             self.delay_object._total_quality_array.expected_shape(self.delay_object))
         tqa2 = np.ones(
             self.delay_object2._total_quality_array.expected_shape(self.delay_object2))
         tot_tqa = np.concatenate([tqa, tqa2], axis=2)
+        self.delay_object.total_quality_array = None
         self.delay_object2.total_quality_array = tqa2
         self.delay_object += self.delay_object2
         nt.assert_true(np.allclose(self.delay_object.total_quality_array, tot_tqa,
@@ -1171,8 +1161,6 @@ class TestUVCalAddDelay(object):
                                    atol=self.delay_object._total_quality_array.tols[1]))
 
         # test for when total_quality_array is present in both
-        ### XXX: See above
-        self.delay_object.total_quality_array = None
         self.delay_object.select(times=times1)
         tqa = np.ones(
             self.delay_object._total_quality_array.expected_shape(self.delay_object))
@@ -1188,8 +1176,6 @@ class TestUVCalAddDelay(object):
                                    atol=self.delay_object._total_quality_array.tols[1]))
 
         # test for when input_flag_array is present in first file but not second
-        ### XXX: See above
-        self.delay_object.total_quality_array = None
         self.delay_object.select(times=times1)
         ifa = np.zeros(
             self.delay_object._input_flag_array.expected_shape(self.delay_object)).astype(np.bool)
@@ -1202,8 +1188,6 @@ class TestUVCalAddDelay(object):
         nt.assert_true(np.allclose(self.delay_object.input_flag_array, tot_ifa))
 
         # test for when input_flag_array is present in second file but not first
-        ### XXX: See above
-        self.delay_object.total_quality_array = None
         self.delay_object.select(times=times1)
         ifa = np.ones(
             self.delay_object._input_flag_array.expected_shape(self.delay_object)).astype(np.bool)
