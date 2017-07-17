@@ -244,6 +244,13 @@ class TestUVCalSelectGain(object):
         write_file_calfits = os.path.join(DATA_PATH, 'test/select_test.calfits')
         status = self.gain_object2.write_calfits(write_file_calfits, clobber=True)
 
+        # check that total_quality_array is handled properly when present
+        self.gain_object.total_quality_array = np.zeros(
+            self.gain_object._total_quality_array.expected_shape(self.gain_object))
+        uvtest.checkWarnings(self.gain_object.select, [], {'antenna_names': ant_names, 'inplace':True},
+                             message='Cannot preserve total_quality_array')
+        nt.assert_equal(self.gain_object.total_quality_array, None)
+
     def test_select_times(self):
         # add another time to allow for better testing of selections
         new_time = np.max(self.gain_object.time_array) + self.gain_object.integration_time
@@ -258,6 +265,8 @@ class TestUVCalSelectGain(object):
         self.gain_object.quality_array = np.concatenate((self.gain_object.quality_array,
                                                          self.gain_object.quality_array[:, :, :, [-1], :]),
                                                         axis=3)
+        self.gain_object.total_quality_array = np.zeros(
+            self.gain_object._total_quality_array.expected_shape(self.gain_object))
         nt.assert_true(self.gain_object.check())
         self.gain_object2 = copy.deepcopy(self.gain_object)
 
@@ -296,6 +305,12 @@ class TestUVCalSelectGain(object):
         old_history = self.gain_object.history
         freqs_to_keep = self.gain_object.freq_array[0, np.arange(73, 944)]
 
+        # add dummy total_quality_array
+        self.gain_object.total_quality_array = np.zeros(
+            self.gain_object._total_quality_array.expected_shape(self.gain_object))
+        self.gain_object2.total_quality_array = np.zeros(
+            self.gain_object2._total_quality_array.expected_shape(self.gain_object2))
+
         self.gain_object2.select(frequencies=freqs_to_keep)
 
         nt.assert_equal(len(freqs_to_keep), self.gain_object2.Nfreqs)
@@ -326,6 +341,12 @@ class TestUVCalSelectGain(object):
     def test_select_freq_chans(self):
         old_history = self.gain_object.history
         chans_to_keep = np.arange(73, 944)
+
+        # add dummy total_quality_array
+        self.gain_object.total_quality_array = np.zeros(
+            self.gain_object._total_quality_array.expected_shape(self.gain_object))
+        self.gain_object2.total_quality_array = np.zeros(
+            self.gain_object2._total_quality_array.expected_shape(self.gain_object2))
 
         self.gain_object2.select(freq_chans=chans_to_keep)
 
@@ -366,6 +387,10 @@ class TestUVCalSelectGain(object):
             self.gain_object.quality_array = np.concatenate((self.gain_object.quality_array,
                                                              self.gain_object.quality_array[:, :, :, :, [-1]]),
                                                             axis=4)
+        # add dummy total_quality_array
+        self.gain_object.total_quality_array = np.zeros(
+            self.gain_object._total_quality_array.expected_shape(self.gain_object))
+
         nt.assert_true(self.gain_object.check())
         self.gain_object2 = copy.deepcopy(self.gain_object)
 
@@ -489,6 +514,13 @@ class TestUVCalSelectDelay(object):
         nt.assert_raises(ValueError, self.delay_object.select,
                          antenna_nums=ants_to_keep, antenna_names=ant_names)
 
+        # check that total_quality_array is handled properly when present
+        self.delay_object.total_quality_array = np.zeros(
+            self.delay_object._total_quality_array.expected_shape(self.delay_object))
+        uvtest.checkWarnings(self.delay_object.select, [], {'antenna_names': ant_names, 'inplace':True},
+                             message='Cannot preserve total_quality_array')
+        nt.assert_equal(self.delay_object.total_quality_array, None)
+
     def test_select_times(self):
         # add another time to allow for better testing of selections
         new_time = np.max(self.delay_object.time_array) + self.delay_object.integration_time
@@ -506,6 +538,8 @@ class TestUVCalSelectDelay(object):
         self.delay_object.quality_array = np.concatenate((self.delay_object.quality_array,
                                                           self.delay_object.quality_array[:, :, :, [-1], :]),
                                                          axis=3)
+        self.delay_object.total_quality_array = np.zeros(
+            self.delay_object._total_quality_array.expected_shape(self.delay_object))
         nt.assert_true(self.delay_object.check())
         self.delay_object2 = copy.deepcopy(self.delay_object)
 
@@ -538,6 +572,12 @@ class TestUVCalSelectDelay(object):
         old_history = self.delay_object.history
         freqs_to_keep = self.delay_object.freq_array[0, np.arange(73, 944)]
 
+        # add dummy total_quality_array
+        self.delay_object.total_quality_array = np.zeros(
+            self.delay_object._total_quality_array.expected_shape(self.delay_object))
+        self.delay_object2.total_quality_array = np.zeros(
+            self.delay_object2._total_quality_array.expected_shape(self.delay_object2))
+
         self.delay_object2.select(frequencies=freqs_to_keep)
 
         nt.assert_equal(len(freqs_to_keep), self.delay_object2.Nfreqs)
@@ -562,6 +602,12 @@ class TestUVCalSelectDelay(object):
     def test_select_freq_chans(self):
         old_history = self.delay_object.history
         chans_to_keep = np.arange(73, 944)
+
+        # add dummy total_quality_array
+        self.delay_object.total_quality_array = np.zeros(
+            self.delay_object._total_quality_array.expected_shape(self.delay_object))
+        self.delay_object2.total_quality_array = np.zeros(
+            self.delay_object2._total_quality_array.expected_shape(self.delay_object2))
 
         self.delay_object2.select(freq_chans=chans_to_keep)
 
@@ -605,6 +651,9 @@ class TestUVCalSelectDelay(object):
             self.delay_object.quality_array = np.concatenate((self.delay_object.quality_array,
                                                               self.delay_object.quality_array[:, :, :, :, [-1]]),
                                                              axis=4)
+        # add dummy total_quality_array
+        self.delay_object.total_quality_array = np.zeros(
+            self.delay_object._total_quality_array.expected_shape(self.delay_object))
         nt.assert_true(self.delay_object.check())
         self.delay_object2 = copy.deepcopy(self.delay_object)
 
