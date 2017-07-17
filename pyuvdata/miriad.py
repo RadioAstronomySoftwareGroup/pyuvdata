@@ -47,6 +47,31 @@ class Miriad(UVData):
             raise(IOError, filepath + ' not found')
         uv = a.miriad.UV(filepath)
 
+        # list of miriad variables always read
+        # NB: this includes variables in try/except (i.e. not all variables are
+        # necessarily present in the miriad file)
+        default_miriad_variables = ['nchan', 'npol', 'inttime', 'sdf',
+                                    'source', 'telescop', 'latitud', 'longitu',
+                                    'altitude', 'history', 'visunits',
+                                    'instrume', 'dut1', 'gst0', 'rdate',
+                                    'timesys', 'xorient', 'cnt', 'ra', 'dec',
+                                    'lst', 'pol', 'nants', 'antnames', 'nblts',
+                                    'ntimes', 'nbls', 'sfreq', 'epoch', 
+                                    'antpos',
+                                    ]
+        # list of miriad variables not read, but also not interesting
+        # NB: nspect (I think) is number of spectral windows, will want one day
+        other_miriad_variables = ['obsdec', 'vsource', 'ischan',
+                                  'restfreq', 'nschan', 'corr', 'freq', 
+                                  'tscale', 'coord', 'veldop', 'time', 'obsra',
+                                  ]
+
+        extra_miriad_variables = []
+        for variable in uv.vars():
+            if (variable not in default_miriad_variables and 
+                    variable not in other_miriad_variables):
+                extra_miriad_variables.append(variable)
+
         miriad_header_data = {'Nfreqs': 'nchan',
                               'Npols': 'npol',
                               'integration_time': 'inttime',
@@ -144,8 +169,14 @@ class Miriad(UVData):
         if 'xorient' in uv.vartable.keys():
             self.x_orientation = uv['xorient'].replace('\x00', '')
 
+
         # read through the file and get the data
         _source = uv['source']  # check source of initial visibility
+        # dict of extra variables to see if they change
+        check_variables = {}
+        for extra_variable in extra_miriad_variables:
+            check_variables[extra_variable] = uv[extra_variable]
+
         data_accumulator = {}
         pol_list = []
         for (uvw, t, (i, j)), d, f in uv.all(raw=True):
@@ -175,6 +206,11 @@ class Miriad(UVData):
             else:
                 _source = source
 
+            # check extra variables for changes compared with initial value
+            for extra_variable in check_variables.keys():
+                if uv[extra_variable] != check_variables[extra_variable]:
+                    check_variables.pop(extra_variable)
+
             try:
                 data_accumulator[uv['pol']].append([uvw, t, i, j, d, f, cnt,
                                                     ra, dec])
@@ -183,6 +219,14 @@ class Miriad(UVData):
                                                 ra, dec]]
                 pol_list.append(uv['pol'])
                 # NB: flag types in miriad are usually ints
+
+        # keep all single valued extra_variables as extra_keywords
+        for key in check_variables.keys():
+            if type(check_variables[key]) == str:
+                self.extra_keywords[key] = check_variables[key].replace('\x00',
+                                                                        '')
+            else:
+                self.extra_keywords[key] = check_variables[key]
 
         for pol, data in data_accumulator.iteritems():
             data_accumulator[pol] = np.array(data)
