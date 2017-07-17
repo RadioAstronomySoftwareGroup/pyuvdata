@@ -347,32 +347,32 @@ d) Select antenna pairs and polarizations using ant_str argument
 
 Basic options are 'auto', 'cross', or 'all'.  The ant_str can also contain:
 
-    1. __Individual antenna number(s)__:
-        - 1: returns all antenna pairs containing antenna number 1 (including the auto correlation)
-        - 1,2: returns all antenna pairs containing antennas 1 and 2
-    2. __Individual baseline(s)__:
-        - 1_2: returns only the antenna pair (1,2)
-        - 1_2,1_3,1_10: returns antenna pairs (1,2),(1,3),(1,10)
-        - (1,2)_3: returns antenna pairs (1,3),(2,3)
-        - 1_(2,3): returns antenna pairs (1,2),(1,3)
-    3. __Antenna number(s) and polarization(s)__: when polarization information is passed with antenna numbers,
-        all antenna pairs kept in the object will retain data for each specified polarization
-        - 1x: returns all antenna pairs containing antenna number 1 and polarizations xx and xy
-        - 2x_3y: returns the antenna pair (2,3) and polarization xy
-        - 1r_2l,1l_3l,1r_4r: returns antenna pairs (1,2), (1,3), (1,4) and polarizations rr, ll, and rl.
-          This yields a complete list of baselines with polarizations of 1r_2l, 1l_2l, 1r_2r, 1r_3l, 1l_3l, 1r_3r, 1r_11l, 1l_11l, and 1r_11r.
-        - (1x,2y)_(3x,4y): returns antenna pairs (1,3),(1,4),(2,3),(2,4) and polarizations xx, yy, xy, and yx
-        - 2l_3: returns antenna pair (2,3) and polarizations ll and lr
-        - 2r_3: returns antenna pair (2,3) and polarizations rr and rl
-        - 1l_3,2x_3: returns antenna pairs (1,3), (2,3) and polarizations ll, lr, xx, and xy
-        - 1_3l,2_3x: returns antenna pairs (1,3), (2,3) and polarizations ll, rl, xx, and yx
-    4. __Stokes parameter(s)__: Can be passed lower/uppercase
-        - i,I: keeps only Stokes I
-        - q,V: keeps both Stokes Q and V
-    5. __Minus sign(s)__: if a minus sign is present in front of an antenna number, it will not be kept in the data
-        - 1,-3: returns all antenna pairs containing antenna 1, but removes any containing antenna 3
-        - 1,-1_3: returns all antenna pairs containing antenna 1, except the antenna pair (1,3)
-        - 1x_(-3y,10x): returns antenna pair (1,10) and polarization xx
+1. __Individual antenna number(s)__:
+    - 1: returns all antenna pairs containing antenna number 1 (including the auto correlation)
+    - 1,2: returns all antenna pairs containing antennas 1 and 2
+2. __Individual baseline(s)__:
+    - 1_2: returns only the antenna pair (1,2)
+    - 1_2,1_3,1_10: returns antenna pairs (1,2),(1,3),(1,10)
+    - (1,2)_3: returns antenna pairs (1,3),(2,3)
+    - 1_(2,3): returns antenna pairs (1,2),(1,3)
+3. __Antenna number(s) and polarization(s)__: when polarization information is passed with antenna numbers,
+    all antenna pairs kept in the object will retain data for each specified polarization
+    - 1x: returns all antenna pairs containing antenna number 1 and polarizations xx and xy
+    - 2x_3y: returns the antenna pair (2,3) and polarization xy
+    - 1r_2l,1l_3l,1r_4r: returns antenna pairs (1,2), (1,3), (1,4) and polarizations rr, ll, and rl.
+      This yields a complete list of baselines with polarizations of 1r_2l, 1l_2l, 1r_2r, 1r_3l, 1l_3l, 1r_3r, 1r_11l, 1l_11l, and 1r_11r.
+    - (1x,2y)_(3x,4y): returns antenna pairs (1,3),(1,4),(2,3),(2,4) and polarizations xx, yy, xy, and yx
+    - 2l_3: returns antenna pair (2,3) and polarizations ll and lr
+    - 2r_3: returns antenna pair (2,3) and polarizations rr and rl
+    - 1l_3,2x_3: returns antenna pairs (1,3), (2,3) and polarizations ll, lr, xx, and xy
+    - 1_3l,2_3x: returns antenna pairs (1,3), (2,3) and polarizations ll, rl, xx, and yx
+4. __Stokes parameter(s)__: Can be passed lower/uppercase
+    - i,I: keeps only Stokes I
+    - q,V: keeps both Stokes Q and V
+5. __Minus sign(s)__: if a minus sign is present in front of an antenna number, it will not be kept in the data
+    - 1,-3: returns all antenna pairs containing antenna 1, but removes any containing antenna 3
+    - 1,-1_3: returns all antenna pairs containing antenna 1, except the antenna pair (1,3)
+    - 1x_(-3y,10x): returns antenna pair (1,10) and polarization xx
 
 ::
 
