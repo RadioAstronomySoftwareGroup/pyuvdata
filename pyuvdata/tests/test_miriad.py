@@ -17,7 +17,7 @@ def test_ReadNRAOWriteMiriadReadMiriad():
                                'RESTFREQ', 'ORIGIN']
     uvtest.checkWarnings(uvfits_uv.read_uvfits, [testfile], message='Telescope EVLA is not')
     uvfits_uv.write_miriad(testfile+'.uv', clobber=True)
-    miriad_uv.read_miriad(testfile+'.uv')
+    uvtest.checkWarnings(miriad_uv.read_miriad, [testfile+'.uv'], message='Telescope EVLA is not')
     print uvfits_uv.extra_keywords
     print miriad_uv.extra_keywords
     nt.assert_equal(uvfits_uv, miriad_uv)
@@ -363,13 +363,5 @@ def test_multi_files():
                     ' using pyuvdata. Combined data along frequency axis using'
                     ' pyuvdata.', uv1.history.replace('\n', ''))
     uv1.history = uv_full.history
+    nt.assert_equal(uv1,uv_full)
 
-    # the objects will not be equal because extra_keywords are not written to
-    # or read from miriad files
-    nt.assert_false(uv1 == uv_full)
-    # they are equal if only required parameters are checked:
-    nt.assert_true(uv1.__eq__(uv_full, check_extra=False))
-
-    # remove the extra_keywords to check that the rest of the objects are equal
-    uv_full.extra_keywords = {}
-    nt.assert_equal(uv1, uv_full)

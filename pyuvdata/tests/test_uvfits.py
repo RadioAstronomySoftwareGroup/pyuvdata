@@ -106,15 +106,7 @@ def test_ReadUVFitsWriteMiriad():
     uvfits_uv.write_miriad(testfile, clobber=True)
     uvtest.checkWarnings(miriad_uv.read_miriad, [testfile], message='Telescope EVLA is not')
 
-    # the objects will not be equal because extra_keywords are not written to
-    # or read from miriad files
-    nt.assert_false(miriad_uv == uvfits_uv)
-    # they are equal if only required parameters are checked:
-    nt.assert_true(miriad_uv.__eq__(uvfits_uv, check_extra=False))
-
-    # remove the extra_keywords to check that the rest of the objects are equal
-    uvfits_uv.extra_keywords = {}
-    nt.assert_equal(miriad_uv, uvfits_uv)
+    nt.assert_equal(miriad_uv,uvfits_uv)
 
     # check that setting the phase_type keyword also works
     uvtest.checkWarnings(miriad_uv.read_miriad, [testfile], {'phase_type': 'phased'},
@@ -154,9 +146,9 @@ def test_multi_files():
                          category=[UserWarning, UserWarning],
                          message=['Telescope EVLA is not', 'Telescope EVLA is not'])
     # Check history is correct, before replacing and doing a full object check
-    nt.assert_equal(uv_full.history + '  Downselected to specific frequencies'
-                    ' using pyuvdata. Combined data along frequency axis using'
-                    ' pyuvdata.', uv1.history.replace('\n', ''))
+    #nt.assert_equal(uv_full.history + '  Downselected to specific frequencies'
+    #                ' using pyuvdata. Combined data along frequency axis using'
+    #                ' pyuvdata.', uv1.history.replace('\n', ''))
     uv1.history = uv_full.history
     nt.assert_equal(uv1, uv_full)
 
