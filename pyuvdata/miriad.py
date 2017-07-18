@@ -56,19 +56,20 @@ class Miriad(UVData):
                                     'instrume', 'dut1', 'gst0', 'rdate',
                                     'timesys', 'xorient', 'cnt', 'ra', 'dec',
                                     'lst', 'pol', 'nants', 'antnames', 'nblts',
-                                    'ntimes', 'nbls', 'sfreq', 'epoch', 
-                                    'antpos',
+                                    'ntimes', 'nbls', 'sfreq', 'epoch',
+                                    'antpos', 'antnums', 'degpdy',
                                     ]
         # list of miriad variables not read, but also not interesting
         # NB: nspect (I think) is number of spectral windows, will want one day
-        other_miriad_variables = ['obsdec', 'vsource', 'ischan',
-                                  'restfreq', 'nschan', 'corr', 'freq', 
+        other_miriad_variables = ['nspect', 'obsdec', 'vsource', 'ischan',
+                                  'restfreq', 'nschan', 'corr', 'freq',
                                   'tscale', 'coord', 'veldop', 'time', 'obsra',
+                                  'operator', 'version',
                                   ]
 
         extra_miriad_variables = []
         for variable in uv.vars():
-            if (variable not in default_miriad_variables and 
+            if (variable not in default_miriad_variables and
                     variable not in other_miriad_variables):
                 extra_miriad_variables.append(variable)
 
@@ -208,8 +209,13 @@ class Miriad(UVData):
 
             # check extra variables for changes compared with initial value
             for extra_variable in check_variables.keys():
-                if uv[extra_variable] != check_variables[extra_variable]:
-                    check_variables.pop(extra_variable)
+                if type(check_variables[extra_variable]) == str:
+                    if uv[extra_variable] != check_variables[extra_variable]:
+                        check_variables.pop(extra_variable)
+                else:
+                    if not np.allclose(uv[extra_variable],
+                                       check_variables[extra_variable]):
+                        check_variables.pop(extra_variable)
 
             try:
                 data_accumulator[uv['pol']].append([uvw, t, i, j, d, f, cnt,
@@ -504,8 +510,8 @@ class Miriad(UVData):
             blt_good = np.where(~np.all(self.flag_array, axis=(1, 2, 3)))
             if not np.isclose(np.mean(np.diff(ra_list[blt_good])), 0.):
                 raise(ValueError, 'phase_type is "phased" but the RA values are varying.')
-            self.phase_center_ra = ra_list[0]
-            self.phase_center_dec = dec_list[0]
+            self.phase_center_ra = float(ra_list[0])
+            self.phase_center_dec = float(dec_list[0])
             self.phase_center_epoch = uv['epoch']
         else:
             # check that the RA values are not constant (if more than one time present)
@@ -665,6 +671,43 @@ class Miriad(UVData):
         if self.antenna_diameters is not None:
             uv.add_var('diameter', 'd')
             uv['diameter'] = self.antenna_diameters
+
+        # other extra keywords
+        # set up a dictionary to map common python types to miriad types
+        # NB: arrays/lists/dicts could potentially be written as strings or 1D
+        # vectors.  This is not supported at present!
+        types = {str: 'a',
+                 int: 'i',
+                 float: 'd',
+                 complex: 'c',
+                 bool: 'j', #NB: bool will be stored as short int
+                 np.int8: 'j',
+                 np.int16: 'j',
+                 np.int32: 'i',
+                 np.int64: 'i', #NB: miriad supports longs, but not in visdata
+                 np.uint8: 'j',
+                 np.uint16: 'j',
+                 np.uint32: 'i',
+                 np.uint64: 'i', #NB: miriad supports longs, but not in visdata
+                 np.float16: 'r',
+                 np.float32: 'r',
+                 np.float64: 'd',
+                 np.float128: 'd', #NB: miriad supports only up to 64 bit
+                 np.complex64: 'c',
+                 np.complex128: 'c', #NB: miriad supports only up to 64-bit
+                 }
+        for key in self.extra_keywords.keys():
+            uvkeyname = str(key)[:8] # name must be string, max 8 letters
+            if type(self.extra_keywords[key]) not in types.keys():
+                raise TypeError('Extra keyword {keyword} is of {keytype}. '
+                                'Only strings and numbers are '
+                                'supported.'.format(keyword=key,
+                                keytype=type(self.extra_keywords[key])))
+            if type(self.extra_keywords[key]) == bool:
+                self.extra_keywords[key] = np.int8(self.extra_keywords[key])
+            typestring = types[type(self.extra_keywords[key])]
+            uv.add_var(uvkeyname, typestring)
+            uv[uvkeyname] = self.extra_keywords[key]
 
         if not no_antnums:
             # Add in the antenna_numbers so we have them if we read this file back in.

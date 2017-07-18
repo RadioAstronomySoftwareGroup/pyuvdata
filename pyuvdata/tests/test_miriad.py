@@ -8,6 +8,25 @@ import pyuvdata.tests as uvtest
 from pyuvdata.data import DATA_PATH
 import copy
 
+def test_ReadNRAOWriteMiriadReadMiriad():
+    """Test reading in a CASA tutorial uvfits file, writing and reading as miriad"""
+    uvfits_uv = UVData()
+    miriad_uv = UVData()
+    testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    expected_extra_keywords = ['OBSERVER', 'SORTORD', 'SPECSYS',
+                               'RESTFREQ', 'ORIGIN']
+    uvtest.checkWarnings(uvfits_uv.read_uvfits, [testfile], message='Telescope EVLA is not')
+    uvfits_uv.write_miriad(testfile+'.uv', clobber=True)
+    miriad_uv.read_miriad(testfile+'.uv')
+    print uvfits_uv.extra_keywords
+    print miriad_uv.extra_keywords
+    nt.assert_equal(uvfits_uv, miriad_uv)
+    nt.assert_equal(uvfits_uv.extra_keywords.keys().sort(),
+                    miriad_uv.extra_keywords.keys().sort())
+    nt.assert_equal(uvfits_uv.extra_keywords.values().sort(),
+                    miriad_uv.extra_keywords.values().sort())
+    del(uvfits_uv)
+    del(miriad_uv)
 
 def test_ReadMiriadWriteUVFits():
     """
