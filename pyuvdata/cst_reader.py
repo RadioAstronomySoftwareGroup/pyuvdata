@@ -49,6 +49,8 @@ class CSTPowerReader(UVBeam):
         if data_normalization not in ['peak', 'solid_angle']:
             raise ValueError('data_normalization must be specified as either "peak" or "solid_angle"')
 
+        self.set_power()
+        
         self.Naxes_vec = 1
         self.Nfreqs = len(filelist)
         self.Nspws = 1
@@ -80,7 +82,7 @@ class CSTPowerReader(UVBeam):
                                     self.Nspws,
                                     self.Npols,
                                     self.Nfreqs,
-                                    self.Npixels),dtype=np.complex)
+                                    self.Npixels),dtype=np.float)
 
         for i,fname in enumerate(filelist):
             self.freq_array.append(self.name2freq(fname))
