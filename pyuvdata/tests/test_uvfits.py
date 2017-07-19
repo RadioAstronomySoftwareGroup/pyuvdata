@@ -146,9 +146,9 @@ def test_multi_files():
                          category=[UserWarning, UserWarning],
                          message=['Telescope EVLA is not', 'Telescope EVLA is not'])
     # Check history is correct, before replacing and doing a full object check
-    #nt.assert_equal(uv_full.history + '  Downselected to specific frequencies'
-    #                ' using pyuvdata. Combined data along frequency axis using'
-    #                ' pyuvdata.', uv1.history.replace('\n', ''))
+    nt.assert_equal(uv_full.history + '  Downselected to specific frequencies'
+                    ' using pyuvdata. Combined data along frequency axis using'
+                    ' pyuvdata.', uv1.history.replace('\n', ''))
     uv1.history = uv_full.history
     nt.assert_equal(uv1, uv_full)
 
