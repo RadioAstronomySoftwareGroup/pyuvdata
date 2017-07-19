@@ -41,7 +41,7 @@ class UVBeam(UVBase):
         desc = ('Number of directions in vector_coordinate_system, options '
                 'are 2 or 3 (or 1 if beam_type is "power")')
         self._Naxes_vec = uvp.UVParameter('Naxes_vec', description=desc,
-                                          expected_type=int, acceptable_vals=[2, 3])
+                                          expected_type=int, acceptable_vals=[1, 2, 3])
 
         desc = ('Pixel coordinate system, options are: ' +
                 ', '.join(self.coordinate_system_dict.keys()))
@@ -1099,3 +1099,14 @@ class UVBeam(UVBase):
                                     run_check_acceptability=run_check_acceptability,
                                     clobber=clobber)
         del(beamfits_obj)
+
+    def read_cst_power(self, filenames, data_normalization):
+        import cst_reader
+
+        if not isinstance(filenames, (list, tuple)):
+            filenames = [filenames]
+
+        power_reader = cst_reader.CSTPowerReader()
+        power_reader.read_cst_files(filenames, data_normalization)
+        self += power_reader
+        # self._convert_from_filetype(power_reader)
