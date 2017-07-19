@@ -371,6 +371,9 @@ def test_select_blts():
     uv_object2.select(blt_inds=blt_inds)
     nt.assert_equal(len(blt_inds), uv_object2.Nblts)
 
+    # verify that histories are different
+    nt.assert_false(uvutils.check_histories(old_history, uv_object2.history))
+
     nt.assert_true(uvutils.check_histories(old_history + '  Downselected to '
                                            'specific baseline-times using pyuvdata.',
                                            uv_object2.history))

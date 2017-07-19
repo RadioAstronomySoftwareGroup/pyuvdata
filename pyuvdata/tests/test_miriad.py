@@ -167,6 +167,38 @@ def test_poltoind():
     nt.assert_raises(ValueError, miriad._pol_to_ind, pol_arr[0])
 
 
+def test_miriad_extra_keywords():
+    uv_in = UVData()
+    uv_out = UVData()
+    miriad_file = os.path.join(DATA_PATH, 'zen.2456865.60537.xy.uvcRREAA')
+    testfile = os.path.join(DATA_PATH, 'test/outtest_miriad.uv')
+
+    # check for errors with extra_keywords that are dicts, lists or arrays
+    uvtest.checkWarnings(uv_in.read_miriad, [miriad_file],
+                         known_warning='miriad')
+    uv_in.extra_keywords['test_dict'] = {'testkey': 23}
+    nt.assert_raises(TypeError, uv_in.write_miriad, testfile, clobber=True)
+
+    uvtest.checkWarnings(uv_in.read_miriad, [miriad_file],
+                         known_warning='miriad')
+    uv_in.extra_keywords['test_list'] = [12, 14, 90]
+    nt.assert_raises(TypeError, uv_in.write_miriad, testfile, clobber=True)
+
+    uvtest.checkWarnings(uv_in.read_miriad, [miriad_file],
+                         known_warning='miriad')
+    uv_in.extra_keywords['test_array'] = np.array([12, 14, 90])
+    nt.assert_raises(TypeError, uv_in.write_miriad, testfile, clobber=True)
+
+    # check handling of boolean keywords
+    uvtest.checkWarnings(uv_in.read_miriad, [miriad_file],
+                         known_warning='miriad')
+    uv_in.extra_keywords['test_bool'] = True
+    uv_in.write_miriad(testfile, clobber=True)
+    uv_out.read_miriad(testfile)
+
+    nt.assert_equal(uv_in, uv_out)
+
+
 def test_breakReadMiriad():
     """Test Miriad file checking."""
     uv_in = UVData()
