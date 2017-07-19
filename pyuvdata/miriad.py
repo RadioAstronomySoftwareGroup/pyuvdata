@@ -170,7 +170,6 @@ class Miriad(UVData):
         if 'xorient' in uv.vartable.keys():
             self.x_orientation = uv['xorient'].replace('\x00', '')
 
-
         # read through the file and get the data
         _source = uv['source']  # check source of initial visibility
         # dict of extra variables to see if they change
@@ -680,29 +679,29 @@ class Miriad(UVData):
                  int: 'i',
                  float: 'd',
                  complex: 'c',
-                 bool: 'j', #NB: bool will be stored as short int
+                 bool: 'j',  # NB: bool will be stored as short int
                  np.int8: 'j',
                  np.int16: 'j',
                  np.int32: 'i',
-                 np.int64: 'i', #NB: miriad supports longs, but not in visdata
+                 np.int64: 'i',  # NB: miriad supports longs, but not in visdata
                  np.uint8: 'j',
                  np.uint16: 'j',
                  np.uint32: 'i',
-                 np.uint64: 'i', #NB: miriad supports longs, but not in visdata
+                 np.uint64: 'i',  # NB: miriad supports longs, but not in visdata
                  np.float16: 'r',
                  np.float32: 'r',
                  np.float64: 'd',
-                 np.float128: 'd', #NB: miriad supports only up to 64 bit
+                 np.float128: 'd',  # NB: miriad supports only up to 64 bit
                  np.complex64: 'c',
-                 np.complex128: 'c', #NB: miriad supports only up to 64-bit
+                 np.complex128: 'c',  # NB: miriad supports only up to 64-bit
                  }
         for key in self.extra_keywords.keys():
-            uvkeyname = str(key)[:8] # name must be string, max 8 letters
+            uvkeyname = str(key)[:8]  # name must be string, max 8 letters
             if type(self.extra_keywords[key]) not in types.keys():
                 raise TypeError('Extra keyword {keyword} is of {keytype}. '
                                 'Only strings and numbers are '
                                 'supported.'.format(keyword=key,
-                                keytype=type(self.extra_keywords[key])))
+                                                    keytype=type(self.extra_keywords[key])))
             if type(self.extra_keywords[key]) == bool:
                 self.extra_keywords[key] = np.int8(self.extra_keywords[key])
             typestring = types[type(self.extra_keywords[key])]
