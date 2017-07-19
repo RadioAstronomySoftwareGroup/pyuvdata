@@ -1,12 +1,14 @@
 """Tests for Miriad object."""
-import nose.tools as nt
 import os
+import copy
 import numpy as np
 import ephem
+import nose.tools as nt
 from pyuvdata import UVData
+import pyuvdata.utils as uvutils
 import pyuvdata.tests as uvtest
 from pyuvdata.data import DATA_PATH
-import copy
+
 
 def test_ReadNRAOWriteMiriadReadMiriad():
     """Test reading in a CASA tutorial uvfits file, writing and reading as miriad"""
@@ -16,11 +18,12 @@ def test_ReadNRAOWriteMiriadReadMiriad():
     expected_extra_keywords = ['OBSERVER', 'SORTORD', 'SPECSYS',
                                'RESTFREQ', 'ORIGIN']
     uvtest.checkWarnings(uvfits_uv.read_uvfits, [testfile], message='Telescope EVLA is not')
-    uvfits_uv.write_miriad(testfile+'.uv', clobber=True)
-    uvtest.checkWarnings(miriad_uv.read_miriad, [testfile+'.uv'], message='Telescope EVLA is not')
+    uvfits_uv.write_miriad(testfile + '.uv', clobber=True)
+    uvtest.checkWarnings(miriad_uv.read_miriad, [testfile + '.uv'], message='Telescope EVLA is not')
     nt.assert_equal(uvfits_uv, miriad_uv)
     del(uvfits_uv)
     del(miriad_uv)
+
 
 def test_ReadMiriadWriteUVFits():
     """
@@ -305,6 +308,7 @@ def test_rwrMiriad_antpos_issues():
 
     nt.assert_equal(uv_in, uv_out)
 
+
 '''
 This test is commented out since we no longer believe AIPY phases correctly
 to the astrometric ra/dec.  Hopefully we can reinstitute it one day.
@@ -341,9 +345,9 @@ def test_multi_files():
                          category=[UserWarning, UserWarning],
                          message=['Telescope EVLA is not', 'Telescope EVLA is not'])
     # Check history is correct, before replacing and doing a full object check
-    nt.assert_equal(uv_full.history + '  Downselected to specific frequencies'
-                    ' using pyuvdata. Combined data along frequency axis using'
-                    ' pyuvdata.', uv1.history.replace('\n', ''))
+    nt.assert_true(uvutils.check_histories(uv_full.history + '  Downselected to '
+                                           'specific frequencies using pyuvdata. '
+                                           'Combined data along frequency axis using'
+                                           ' pyuvdata.', uv1.history))
     uv1.history = uv_full.history
-    nt.assert_equal(uv1,uv_full)
-
+    nt.assert_equal(uv1, uv_full)
