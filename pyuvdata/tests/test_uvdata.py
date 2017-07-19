@@ -1656,6 +1656,180 @@ def test_parse_ants():
     testfile = os.path.join(
         DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
     uvtest.checkWarnings(uv.read_uvfits, [testfile], message='Telescope EVLA is not')
+
+    # All baselines
+    ant_str = 'all'
+    ant_pairs_nums, polarizations = uv.parse_ants(ant_str)
+    nt.assert_is_instance(ant_pairs_nums, type(None))
+    nt.assert_is_instance(polarizations, type(None))
+
+    # Auto correlations
+    ant_str = 'auto'
+    ant_pairs_nums, polarizations = uv.parse_ants(ant_str)
+    nt.assert_items_equal(ant_pairs_nums, [])
+    nt.assert_is_instance(polarizations, type(None))
+
+    # Cross correlations
+    ant_str = 'cross'
+    ant_pairs_nums, polarizations = uv.parse_ants(ant_str)
+    nt.assert_items_equal(uv.get_antpairs(), ant_pairs_nums)
+    nt.assert_is_instance(polarizations, type(None))
+
+    # Stokes params
+    ant_str = 'I,q,U,v'
+    ant_pairs_nums, polarizations = uv.parse_ants(ant_str)
+    pols_expected = [4, 3, 2, 1]
+    nt.assert_items_equal(ant_pairs_nums, [])
+    nt.assert_items_equal(polarizations, pols_expected)
+
+    # Unparsible string
+    ant_str = 'none'
+    nt.assert_raises(ValueError, uv.parse_ants, ant_str)
+
+    # Single antenna number
+    ant_str = '0'
+    ant_pairs_nums, polarizations = uv.parse_ants(ant_str)
+    ant_pairs_expected = [(0, 1), (0, 2), (0, 3), (0, 6), (0, 7), (0, 8),
+                                     (0, 11), (0, 14), (0, 18), (0, 19), (0, 20),
+                                     (0, 21), (0, 22), (0, 23), (0, 24), (0, 26),
+                                     (0, 27)]
+    nt.assert_items_equal(ant_pairs_nums, ant_pairs_expected)
+    nt.assert_is_instance(polarizations, type(None))
+
+    # Single antenna number not in the data
+    ant_str = '10'
+    print "Testing ant_str = \'10\'"
+    ant_pairs_nums, polarizations = uv.parse_ants(ant_str)
+    nt.assert_items_equal(ant_pairs_nums, [])
+    nt.assert_is_instance(polarizations, type(None))
+
+    # Multiple antenna numbers as list
+    ant_str = '22,26'
+    ant_pairs_nums, polarizations = uv.parse_ants(ant_str)
+    ant_pairs_expected = [(0, 22), (0, 26), (1, 22), (1, 26), (2, 22), (2, 26),
+                                     (3, 22), (3, 26), (6, 22), (6, 26), (7, 22),
+                                     (7, 26), (8, 22), (8, 26), (11, 22), (11, 26),
+                                     (14, 22), (14, 26), (18, 22), (18, 26),
+                                     (19, 22), (19, 26), (20, 22), (20, 26),
+                                     (21, 22), (21, 26), (22, 23), (22, 24),
+                                     (22, 26), (22, 27), (23, 26), (24, 26),
+                                     (26, 27)]
+    nt.assert_items_equal(ant_pairs_nums, ant_pairs_expected)
+    nt.assert_is_instance(polarizations, type(None))
+
+    # Single baseline
+    ant_str = '1_3'
+    ant_pairs_nums, polarizations = uv.parse_ants(ant_str)
+    ant_pairs_expected = [(1, 3)]
+    nt.assert_items_equal(ant_pairs_nums, ant_pairs_expected)
+    nt.assert_is_instance(polarizations, type(None))
+
+    # Single baseline with polarization
+    ant_str = '1l_3r'
+    ant_pairs_nums, polarizations = uv.parse_ants(ant_str)
+    ant_pairs_expected = [(1, 3)]
+    pols_expected = [-4]
+    nt.assert_items_equal(ant_pairs_nums, ant_pairs_expected)
+    nt.assert_items_equal(polarizations, pols_expected)
+
+    # Single baseline with single polarization in first entry
+    ant_str = '1l_3,2x_3'
+    ant_pairs_nums, polarizations = uv.parse_ants(ant_str)
+    ant_pairs_expected = [(1, 3), (2, 3)]
+    pols_expected = [-2, -4, -5, -7]
+    nt.assert_items_equal(ant_pairs_nums, ant_pairs_expected)
+    nt.assert_items_equal(polarizations, pols_expected)
+
+    # Single baseline with single polarization in last entry
+    ant_str = '1_3l,2_3x'
+    ant_pairs_nums, polarizations = uv.parse_ants(ant_str)
+    ant_pairs_expected = [(1, 3), (2, 3)]
+    pols_expected = [-2, -3, -5, -8]
+    nt.assert_items_equal(ant_pairs_nums, ant_pairs_expected)
+    nt.assert_items_equal(polarizations, pols_expected)
+
+    # Multiple baselines as list
+    ant_str = '1_2,1_3,1_11'
+    ant_pairs_nums, polarizations = uv.parse_ants(ant_str)
+    ant_pairs_expected = [(1, 2), (1, 3), (1, 11)]
+    nt.assert_items_equal(ant_pairs_nums, ant_pairs_expected)
+    nt.assert_is_instance(polarizations, type(None))
+
+    # Multiples baselines with polarizations as list
+    ant_str = '1r_2l,1l_3l,1r_11r'
+    ant_pairs_nums, polarizations = uv.parse_ants(ant_str)
+    ant_pairs_expected = [(1, 2), (1, 3), (1, 11)]
+    pols_expected = [-1, -2, -3]
+    nt.assert_items_equal(ant_pairs_nums, ant_pairs_expected)
+    nt.assert_items_equal(polarizations, pols_expected)
+
+    # Specific baselines with parenthesis
+    ant_str = '(1,3)_11'
+    ant_pairs_nums, polarizations = uv.parse_ants(ant_str)
+    ant_pairs_expected = [(1, 11),(3, 11)]
+    nt.assert_items_equal(ant_pairs_nums, ant_pairs_expected)
+    nt.assert_is_instance(polarizations, type(None))
+
+    # Specific baselines with parenthesis
+    ant_str = '1_(3,11)'
+    ant_pairs_nums, polarizations = uv.parse_ants(ant_str)
+    ant_pairs_expected = [(1, 3), (1, 11)]
+    nt.assert_items_equal(ant_pairs_nums, ant_pairs_expected)
+    nt.assert_is_instance(polarizations, type(None))
+
+    # Antenna numbers with polarizations
+    ant_str = '(1l,2r)_(3l,6r)'
+    ant_pairs_nums, polarizations = uv.parse_ants(ant_str)
+    ant_pairs_expected = [(1, 3), (1, 6), (2, 3), (2, 6)]
+    pols_expected = [-1, -2, -3, -4]
+    nt.assert_items_equal(ant_pairs_nums, ant_pairs_expected)
+    nt.assert_items_equal(polarizations, pols_expected)
+
+    # Antenna numbers with - for avoidance
+    ant_str = '1_(-3,11)'
+    ant_pairs_nums, polarizations = uv.parse_ants(ant_str)
+    ant_pairs_expected = [(1, 11)]
+    nt.assert_items_equal(ant_pairs_nums, ant_pairs_expected)
+    nt.assert_is_instance(polarizations, type(None))
+
+    # Remove specific antenna number
+    ant_str = '1,-3'
+    ant_pairs_nums, polarizations = uv.parse_ants(ant_str)
+    ant_pairs_expected = [(0, 1), (1, 2), (1, 6), (1, 7), (1, 8), (1, 11),
+                                      (1, 14), (1, 18), (1, 19), (1, 20), (1, 21),
+                                      (1, 22), (1, 23), (1, 24), (1, 26), (1, 27)]
+    nt.assert_items_equal(ant_pairs_nums, ant_pairs_expected)
+    nt.assert_is_instance(polarizations, type(None))
+
+    # Remove specific baseline (same expected antenna pairs as above example)
+    ant_str = '1,-1_3'
+    ant_pairs_nums, polarizations = uv.parse_ants(ant_str)
+    nt.assert_items_equal(ant_pairs_nums, ant_pairs_expected)
+    nt.assert_is_instance(polarizations, type(None))
+
+    # Antenna numbers with polarizations and - for avoidance
+    ant_str = '1l_(-3r,11l)'
+    ant_pairs_nums, polarizations = uv.parse_ants(ant_str)
+    ant_pairs_expected = [(1, 11)]
+    pols_expected = [-2]
+    nt.assert_items_equal(ant_pairs_nums, ant_pairs_expected)
+    nt.assert_items_equal(polarizations, pols_expected)
+
+    # Antenna numbers and Stokes parameters
+    ant_str = '(1l,2r)_(3l,6r),I,q'
+    ant_pairs_nums, polarizations = uv.parse_ants(ant_str)
+    ant_pairs_expected = [(1, 3), (1, 6), (2, 3), (2, 6)]
+    pols_expected = [2, 1, -1, -2, -3, -4]
+    nt.assert_items_equal(ant_pairs_nums, ant_pairs_expected)
+    nt.assert_items_equal(polarizations, pols_expected)
+
+
+def test_select_with_ant_str():
+    # Test select function with ant_str argument
+    uv = UVData()
+    testfile = os.path.join(
+        DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    uvtest.checkWarnings(uv.read_uvfits, [testfile], message='Telescope EVLA is not')
     inplace = False
 
     # All baselines
@@ -1692,6 +1866,11 @@ def test_parse_ants():
     uv2 = uv.select(ant_str=ant_str, inplace=inplace)
     nt.assert_items_equal(uv2.get_antpairs(), ant_pairs)
     nt.assert_items_equal(uv2.get_pols(), uv.get_pols())
+
+    # Single antenna number not present in data
+    ant_str = '10'
+    print "Testing select with ant_str=\'10\'"
+    nt.assert_raises(ValueError, uv.select, ant_str=ant_str, inplace=inplace)
 
     # Multiple antenna numbers as list
     ant_str = '22,26'
