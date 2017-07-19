@@ -1,11 +1,12 @@
 """Tests for UVFITS object."""
-import nose.tools as nt
+import numpy as np
+import copy
 import os
+import nose.tools as nt
 from pyuvdata import UVData
+import pyuvdata.utils as uvutils
 import pyuvdata.tests as uvtest
 from pyuvdata.data import DATA_PATH
-import copy
-import numpy as np
 
 
 def test_ReadNRAO():
@@ -146,9 +147,11 @@ def test_multi_files():
                          category=[UserWarning, UserWarning],
                          message=['Telescope EVLA is not', 'Telescope EVLA is not'])
     # Check history is correct, before replacing and doing a full object check
-    nt.assert_equal(uv_full.history + '  Downselected to specific frequencies'
-                    ' using pyuvdata. Combined data along frequency axis using'
-                    ' pyuvdata.', uv1.history.replace('\n', ''))
+    nt.assert_true(uvutils.check_histories(uv_full.history + '  Downselected to '
+                                           'specific frequencies using pyuvdata. '
+                                           'Combined data along frequency axis '
+                                           'using pyuvdata.', uv1.history))
+
     uv1.history = uv_full.history
     nt.assert_equal(uv1, uv_full)
 

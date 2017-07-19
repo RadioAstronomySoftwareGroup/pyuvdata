@@ -5,6 +5,7 @@ import numpy as np
 import copy
 import ephem
 from pyuvdata.uvcal import UVCal
+import pyuvdata.utils as uvutils
 import pyuvdata.tests as uvtest
 from pyuvdata.data import DATA_PATH
 
@@ -219,8 +220,9 @@ class TestUVCalSelectGain(object):
         for ant in self.gain_object2.ant_array:
             nt.assert_true(ant in ants_to_keep)
 
-        nt.assert_equal(old_history + '  Downselected to specific antennas '
-                        'using pyuvdata.', self.gain_object2.history)
+        nt.assert_true(uvutils.check_histories(old_history + '  Downselected to '
+                                               'specific antennas using pyuvdata.',
+                                               self.gain_object2.history))
 
         # now test using antenna_names to specify antennas to keep
         ants_to_keep = np.array(sorted(list(ants_to_keep)))
@@ -281,8 +283,9 @@ class TestUVCalSelectGain(object):
         for t in np.unique(self.gain_object2.time_array):
             nt.assert_true(t in times_to_keep)
 
-        nt.assert_equal(old_history + '  Downselected to specific times '
-                        'using pyuvdata.', self.gain_object2.history)
+        nt.assert_true(uvutils.check_histories(old_history + '  Downselected to '
+                                               'specific times using pyuvdata.',
+                                               self.gain_object2.history))
 
         write_file_calfits = os.path.join(DATA_PATH, 'test/select_test.calfits')
         # test writing calfits with only one time
@@ -319,8 +322,9 @@ class TestUVCalSelectGain(object):
         for f in np.unique(self.gain_object2.freq_array):
             nt.assert_true(f in freqs_to_keep)
 
-        nt.assert_equal(old_history + '  Downselected to specific frequencies '
-                        'using pyuvdata.', self.gain_object2.history)
+        nt.assert_true(uvutils.check_histories(old_history + '  Downselected to '
+                                               'specific frequencies using pyuvdata.',
+                                               self.gain_object2.history))
 
         write_file_calfits = os.path.join(DATA_PATH, 'test/select_test.calfits')
         # test writing calfits with only one frequency
@@ -356,8 +360,9 @@ class TestUVCalSelectGain(object):
         for f in np.unique(self.gain_object2.freq_array):
             nt.assert_true(f in self.gain_object.freq_array[0, chans_to_keep])
 
-        nt.assert_equal(old_history + '  Downselected to specific frequencies '
-                        'using pyuvdata.', self.gain_object2.history)
+        nt.assert_true(uvutils.check_histories(old_history + '  Downselected to '
+                                               'specific frequencies using pyuvdata.',
+                                               self.gain_object2.history))
 
         # Test selecting both channels and frequencies
         freqs_to_keep = self.gain_object.freq_array[0, np.arange(930, 1000)]  # Overlaps with chans
@@ -405,8 +410,10 @@ class TestUVCalSelectGain(object):
         for j in np.unique(self.gain_object2.jones_array):
             nt.assert_true(j in jones_to_keep)
 
-        nt.assert_equal(old_history + '  Downselected to specific jones polarization terms '
-                        'using pyuvdata.', self.gain_object2.history)
+        nt.assert_true(uvutils.check_histories(old_history + '  Downselected to '
+                                               'specific jones polarization terms '
+                                               'using pyuvdata.',
+                                               self.gain_object2.history))
 
         # check for errors associated with polarizations not included in data
         nt.assert_raises(ValueError, self.gain_object2.select, jones=[-3, -4])
@@ -453,9 +460,11 @@ class TestUVCalSelectGain(object):
         for j in np.unique(self.gain_object2.jones_array):
             nt.assert_true(j in jones_to_keep)
 
-        nt.assert_equal(old_history + '  Downselected to specific antennas, '
-                        'times, frequencies, jones polarization terms using pyuvdata.',
-                        self.gain_object2.history)
+        nt.assert_true(uvutils.check_histories(old_history + '  Downselected to '
+                                               'specific antennas, times, '
+                                               'frequencies, jones polarization terms '
+                                               'using pyuvdata.',
+                                               self.gain_object2.history))
 
 
 class TestUVCalSelectDelay(object):
@@ -492,8 +501,9 @@ class TestUVCalSelectDelay(object):
         for ant in self.delay_object2.ant_array:
             nt.assert_true(ant in ants_to_keep)
 
-        nt.assert_equal(old_history + '  Downselected to specific antennas '
-                        'using pyuvdata.', self.delay_object2.history)
+        nt.assert_true(uvutils.check_histories(old_history + '  Downselected to '
+                                               'specific antennas using pyuvdata.',
+                                               self.delay_object2.history))
 
         # now test using antenna_names to specify antennas to keep
         self.delay_object3 = copy.deepcopy(self.delay_object)
@@ -554,8 +564,9 @@ class TestUVCalSelectDelay(object):
         for t in np.unique(self.delay_object2.time_array):
             nt.assert_true(t in times_to_keep)
 
-        nt.assert_equal(old_history + '  Downselected to specific times '
-                        'using pyuvdata.', self.delay_object2.history)
+        nt.assert_true(uvutils.check_histories(old_history + '  Downselected to '
+                                               'specific times using pyuvdata.',
+                                               self.delay_object2.history))
 
         # check for errors associated with times not included in data
         nt.assert_raises(ValueError, self.delay_object.select,
@@ -586,8 +597,9 @@ class TestUVCalSelectDelay(object):
         for f in np.unique(self.delay_object2.freq_array):
             nt.assert_true(f in freqs_to_keep)
 
-        nt.assert_equal(old_history + '  Downselected to specific frequencies '
-                        'using pyuvdata.', self.delay_object2.history)
+        nt.assert_true(uvutils.check_histories(old_history + '  Downselected to '
+                                               'specific frequencies using pyuvdata.',
+                                               self.delay_object2.history))
 
         # check for errors associated with frequencies not included in data
         nt.assert_raises(ValueError, self.delay_object.select, frequencies=[np.max(self.delay_object.freq_array) + self.delay_object.channel_width])
@@ -617,8 +629,9 @@ class TestUVCalSelectDelay(object):
         for f in np.unique(self.delay_object2.freq_array):
             nt.assert_true(f in self.delay_object.freq_array[0, chans_to_keep])
 
-        nt.assert_equal(old_history + '  Downselected to specific frequencies '
-                        'using pyuvdata.', self.delay_object2.history)
+        nt.assert_true(uvutils.check_histories(old_history + '  Downselected to '
+                                               'specific frequencies using pyuvdata.',
+                                               self.delay_object2.history))
 
         # Test selecting both channels and frequencies
         freqs_to_keep = self.delay_object.freq_array[0, np.arange(930, 1000)]  # Overlaps with chans
@@ -668,8 +681,10 @@ class TestUVCalSelectDelay(object):
         for j in np.unique(self.delay_object2.jones_array):
             nt.assert_true(j in jones_to_keep)
 
-        nt.assert_equal(old_history + '  Downselected to specific jones polarization terms '
-                        'using pyuvdata.', self.delay_object2.history)
+        nt.assert_true(uvutils.check_histories(old_history + '  Downselected to '
+                                               'specific jones polarization terms '
+                                               'using pyuvdata.',
+                                               self.delay_object2.history))
 
         # check for errors associated with polarizations not included in data
         nt.assert_raises(ValueError, self.delay_object2.select, jones=[-3, -4])
@@ -716,9 +731,12 @@ class TestUVCalSelectDelay(object):
         for j in np.unique(self.delay_object2.jones_array):
             nt.assert_true(j in jones_to_keep)
 
-        nt.assert_equal(old_history + '  Downselected to specific antennas, '
-                        'times, frequencies, jones polarization terms using pyuvdata.',
-                        self.delay_object2.history)
+        nt.assert_true(uvutils.check_histories(old_history + '  Downselected to '
+                                               'specific antennas, times, '
+                                               'frequencies, jones polarization terms '
+                                               'using pyuvdata.',
+                                               self.delay_object2.history))
+
 
 class TestUVCalAddGain(object):
     def setUp(self):
@@ -742,9 +760,11 @@ class TestUVCalAddGain(object):
         self.gain_object2.select(antenna_nums=ants2)
         self.gain_object += self.gain_object2
         # Check history is correct, before replacing and doing a full object check
-        nt.assert_equal(gain_object_full.history + '  Downselected to specific '
-                        'antennas using pyuvdata. Combined data along antenna '
-                        'axis using pyuvdata.', self.gain_object.history)
+        nt.assert_true(uvutils.check_histories(gain_object_full.history +
+                                               '  Downselected to specific '
+                                               'antennas using pyuvdata. Combined '
+                                               'data along antenna axis using pyuvdata.',
+                                               self.gain_object.history))
         self.gain_object.history = gain_object_full.history
         nt.assert_equal(self.gain_object, gain_object_full)
 
@@ -765,9 +785,11 @@ class TestUVCalAddGain(object):
         self.gain_object2.select(frequencies=freqs2)
         self.gain_object += self.gain_object2
         # Check history is correct, before replacing and doing a full object check
-        nt.assert_equal(gain_object_full.history + '  Downselected to specific '
-                        'frequencies using pyuvdata. Combined data along frequency '
-                        'axis using pyuvdata.', self.gain_object.history)
+        nt.assert_true(uvutils.check_histories(gain_object_full.history +
+                                               '  Downselected to specific '
+                                               'frequencies using pyuvdata. Combined '
+                                               'data along frequency axis using pyuvdata.',
+                                               self.gain_object.history))
         self.gain_object.history = gain_object_full.history
         nt.assert_equal(self.gain_object, gain_object_full)
 
@@ -823,9 +845,11 @@ class TestUVCalAddGain(object):
         self.gain_object2.select(times=times2)
         self.gain_object += self.gain_object2
         # Check history is correct, before replacing and doing a full object check
-        nt.assert_equal(gain_object_full.history + '  Downselected to specific '
-                        'times using pyuvdata. Combined data along time '
-                        'axis using pyuvdata.', self.gain_object.history)
+        nt.assert_true(uvutils.check_histories(gain_object_full.history +
+                                               '  Downselected to specific '
+                                               'times using pyuvdata. Combined '
+                                               'data along time axis using pyuvdata.',
+                                               self.gain_object.history))
         self.gain_object.history = gain_object_full.history
         nt.assert_equal(self.gain_object, gain_object_full)
 
@@ -933,9 +957,11 @@ class TestUVCalAddGain(object):
         self.gain_object2.select(antenna_nums=ants2)
         gain_object_add = self.gain_object + self.gain_object2
         # Check history is correct, before replacing and doing a full object check
-        nt.assert_equal(gain_object.history + '  Downselected to specific '
-                        'antennas using pyuvdata. Combined data along antenna '
-                        'axis using pyuvdata.', gain_object_add.history)
+        nt.assert_true(uvutils.check_histories(gain_object.history +
+                                               '  Downselected to specific '
+                                               'antennas using pyuvdata. Combined '
+                                               'data along antenna axis using pyuvdata.',
+                                               gain_object_add.history))
         gain_object_add.history = gain_object.history
         nt.assert_equal(gain_object_add, gain_object)
 
@@ -943,9 +969,11 @@ class TestUVCalAddGain(object):
         self.gain_object.history = gain_object.history
         self.gain_object2.history = 'Some random history string OMNI_RUN'
         self.gain_object += self.gain_object2
-        nt.assert_equal(gain_object.history + ' Combined data along '
-                        'antenna axis using pyuvdata. Some random history string',
-                        self.gain_object.history)
+        nt.assert_true(uvutils.check_histories(gain_object.history +
+                                               ' Combined data along antenna axis '
+                                               'using pyuvdata. Some random '
+                                               'history string',
+                                               self.gain_object.history))
 
     def test_add_multiple_axes(self):
         """Test addition along multiple axes"""
@@ -1079,9 +1107,11 @@ class TestUVCalAddDelay(object):
         self.delay_object2.select(antenna_nums=ants2)
         self.delay_object += self.delay_object2
         # Check history is correct, before replacing and doing a full object check
-        nt.assert_equal(delay_object_full.history + '  Downselected to specific '
-                        'antennas using pyuvdata. Combined data along antenna '
-                        'axis using pyuvdata.', self.delay_object.history)
+        nt.assert_true(uvutils.check_histories(delay_object_full.history +
+                                               '  Downselected to specific '
+                                               'antennas using pyuvdata. Combined '
+                                               'data along antenna axis using pyuvdata.',
+                                               self.delay_object.history))
         self.delay_object.history = delay_object_full.history
         nt.assert_equal(self.delay_object, delay_object_full)
 
@@ -1127,9 +1157,11 @@ class TestUVCalAddDelay(object):
         self.delay_object2.select(times=times2)
         self.delay_object += self.delay_object2
         # Check history is correct, before replacing and doing a full object check
-        nt.assert_equal(delay_object_full.history + '  Downselected to specific '
-                        'times using pyuvdata. Combined data along time '
-                        'axis using pyuvdata.', self.delay_object.history)
+        nt.assert_true(uvutils.check_histories(delay_object_full.history +
+                                               '  Downselected to specific '
+                                               'times using pyuvdata. Combined '
+                                               'data along time axis using pyuvdata.',
+                                               self.delay_object.history))
         self.delay_object.history = delay_object_full.history
         nt.assert_equal(self.delay_object, delay_object_full)
 

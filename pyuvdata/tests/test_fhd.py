@@ -2,6 +2,7 @@
 import nose.tools as nt
 import os
 from pyuvdata import UVData
+import pyuvdata.utils as uvutils
 import pyuvdata.tests as uvtest
 from pyuvdata.data import DATA_PATH
 import numpy as np
@@ -77,7 +78,9 @@ def test_multi_files():
     fhd_uv1.read_fhd([test1, test2])
     fhd_uv2.read_fhd(testfiles)
 
-    nt.assert_equal(fhd_uv2.history + ' Combined data along polarization axis using'
-                    ' pyuvdata.', fhd_uv1.history)
+    nt.assert_true(uvutils.check_histories(fhd_uv2.history + ' Combined data '
+                                           'along polarization axis using pyuvdata.',
+                                           fhd_uv1.history))
+
     fhd_uv1.history = fhd_uv2.history
     nt.assert_equal(fhd_uv1, fhd_uv2)

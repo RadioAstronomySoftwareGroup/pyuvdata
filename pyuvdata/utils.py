@@ -320,3 +320,10 @@ def check_history_version(history, version_string):
         return True
     else:
         return False
+
+
+def check_histories(history1, history2):
+    if (history1.replace('\n', '').replace(' ', '') == history2.replace('\n', '').replace(' ', '')):
+        return True
+    else:
+        return False

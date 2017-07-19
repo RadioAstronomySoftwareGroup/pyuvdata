@@ -356,8 +356,10 @@ def test_multi_files():
     beam2.write_beamfits(testfile2, clobber=True)
     beam1.read_beamfits([testfile1, testfile2])
     # Check history is correct, before replacing and doing a full object check
-    nt.assert_equal(beam_full.history + '  Downselected to specific frequencies'
-                    ' using pyuvdata. Combined data along frequency axis using'
-                    ' pyuvdata.', beam1.history.replace('\n', ''))
+    nt.assert_true(uvutils.check_histories(beam_full.history + '  Downselected '
+                                           'to specific frequencies using pyuvdata. '
+                                           'Combined data along frequency axis using'
+                                           ' pyuvdata.', beam1.history))
+
     beam1.history = beam_full.history
     nt.assert_equal(beam1, beam_full)
