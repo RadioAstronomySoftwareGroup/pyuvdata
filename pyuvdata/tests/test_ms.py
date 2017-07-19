@@ -128,18 +128,8 @@ def test_readMSWriteMiriad():
     ms_uv.write_miriad(testfile, clobber=True)
     uvtest.checkWarnings(miriad_uv.read_miriad, [testfile],
                          message='Telescope EVLA is not')
-    # the objects will not be equal because extra_keywords are not written to
-    # or read from miriad files
-    nt.assert_false(miriad_uv == ms_uv)
-    # they are equal if only required parameters are checked:
-    nt.assert_true(miriad_uv.__eq__(ms_uv, check_extra=False))
 
-    # remove the extra_keywords to check that the rest of the objects are equal
-    ms_uv.extra_keywords = {}
     nt.assert_equal(miriad_uv, ms_uv)
-
-    del(ms_uv)
-    del(miriad_uv)
 
 
 def test_multi_files():
