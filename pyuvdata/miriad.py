@@ -672,38 +672,47 @@ class Miriad(UVData):
             uv['diameter'] = self.antenna_diameters
 
         # other extra keywords
-        # set up a dictionary to map common python types to miriad types
+        # set up dictionaries to map common python types to miriad types
         # NB: arrays/lists/dicts could potentially be written as strings or 1D
         # vectors.  This is not supported at present!
+        numpy_types = {np.int8: int,
+                       np.int16: int,
+                       np.int32: int,
+                       np.int64: int,
+                       np.uint8: int,
+                       np.uint16: int,
+                       np.uint32: int,
+                       np.uint64: int,
+                       np.float16: float,
+                       np.float32: float,
+                       np.float64: float,
+                       np.float128: float, 
+                       np.complex64: complex,
+                       np.complex128: complex,  
+                       }
         types = {str: 'a',
                  int: 'i',
                  float: 'd',
                  complex: 'c',
-                 bool: 'j',  # NB: bool will be stored as short int
-                 np.int8: 'j',
-                 np.int16: 'j',
-                 np.int32: 'i',
-                 np.int64: 'i',  # NB: miriad supports longs, but not in visdata
-                 np.uint8: 'j',
-                 np.uint16: 'j',
-                 np.uint32: 'i',
-                 np.uint64: 'i',  # NB: miriad supports longs, but not in visdata
-                 np.float16: 'r',
-                 np.float32: 'r',
-                 np.float64: 'd',
-                 np.float128: 'd',  # NB: miriad supports only up to 64 bit
-                 np.complex64: 'c',
-                 np.complex128: 'c',  # NB: miriad supports only up to 64-bit
+                 bool: 'j',  # NB: bool will be stored as int
                  }
         for key in self.extra_keywords.keys():
-            uvkeyname = str(key)[:8]  # name must be string, max 8 letters
-            if type(self.extra_keywords[key]) not in types.keys():
+            if type(self.extra_keywords[key]) in numpy_types.keys():
+                if numpy_types[type(self.extra_keywords[key])] == int:
+                    self.extra_keywords[key] = int(self.extra_keywords[key])
+                elif numpy_types[type(self.extra_keywords[key])] == float:
+                    self.extra_keywords[key] = float(self.extra_keywords[key])
+                elif numpy_types[type(self.extra_keywords[key])] == complex:
+                    self.extra_keywords[key] = complex(self.extra_keywords[key])
+            elif type(self.extra_keywords[key]) == bool:
+                self.extra_keywords[key] = int(self.extra_keywords[key])
+            elif type(self.extra_keywords[key]) not in types.keys():
                 raise TypeError('Extra keyword {keyword} is of {keytype}. '
                                 'Only strings and numbers are '
                                 'supported.'.format(keyword=key,
                                                     keytype=type(self.extra_keywords[key])))
-            if type(self.extra_keywords[key]) == bool:
-                self.extra_keywords[key] = np.int8(self.extra_keywords[key])
+
+            uvkeyname = str(key)[:8]  # name must be string, max 8 letters
             typestring = types[type(self.extra_keywords[key])]
             uv.add_var(uvkeyname, typestring)
             uv[uvkeyname] = self.extra_keywords[key]
