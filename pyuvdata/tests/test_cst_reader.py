@@ -1,6 +1,6 @@
 import nose.tools as nt
 import os, sys
-import numpy as np, healpy as hp
+import numpy as np
 from pyuvdata.data import DATA_PATH
 from pyuvdata import UVBeam
 
