@@ -18,13 +18,7 @@ def test_ReadNRAOWriteMiriadReadMiriad():
     uvtest.checkWarnings(uvfits_uv.read_uvfits, [testfile], message='Telescope EVLA is not')
     uvfits_uv.write_miriad(testfile+'.uv', clobber=True)
     uvtest.checkWarnings(miriad_uv.read_miriad, [testfile+'.uv'], message='Telescope EVLA is not')
-    print uvfits_uv.extra_keywords
-    print miriad_uv.extra_keywords
     nt.assert_equal(uvfits_uv, miriad_uv)
-    nt.assert_equal(uvfits_uv.extra_keywords.keys().sort(),
-                    miriad_uv.extra_keywords.keys().sort())
-    nt.assert_equal(uvfits_uv.extra_keywords.values().sort(),
-                    miriad_uv.extra_keywords.values().sort())
     del(uvfits_uv)
     del(miriad_uv)
 
