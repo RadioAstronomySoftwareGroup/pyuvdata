@@ -3,6 +3,7 @@ from astropy import constants as const
 import os
 import shutil
 import numpy as np
+import copy
 import warnings
 import aipy as a
 from uvdata import UVData
@@ -228,8 +229,13 @@ class Miriad(UVData):
         # keep all single valued extra_variables as extra_keywords
         for key in check_variables.keys():
             if type(check_variables[key]) == str:
-                self.extra_keywords[key] = check_variables[key].replace('\x00',
-                                                                        '')
+                value = check_variables[key].replace('\x00', '')
+                # check for booleans encoded as strings
+                if value == 'True':
+                    value = True
+                elif value == 'False':
+                    value = False
+                self.extra_keywords[key] = value
             else:
                 self.extra_keywords[key] = check_variables[key]
 
@@ -686,9 +692,9 @@ class Miriad(UVData):
                        np.float16: float,
                        np.float32: float,
                        np.float64: float,
-                       np.float128: float, 
+                       np.float128: float,
                        np.complex64: complex,
-                       np.complex128: complex,  
+                       np.complex128: complex,
                        }
         types = {str: 'a',
                  int: 'i',
@@ -696,26 +702,34 @@ class Miriad(UVData):
                  complex: 'c',
                  bool: 'j',  # NB: bool will be stored as int
                  }
-        for key in self.extra_keywords.keys():
-            if type(self.extra_keywords[key]) in numpy_types.keys():
-                if numpy_types[type(self.extra_keywords[key])] == int:
-                    self.extra_keywords[key] = int(self.extra_keywords[key])
-                elif numpy_types[type(self.extra_keywords[key])] == float:
-                    self.extra_keywords[key] = float(self.extra_keywords[key])
-                elif numpy_types[type(self.extra_keywords[key])] == complex:
-                    self.extra_keywords[key] = complex(self.extra_keywords[key])
-            elif type(self.extra_keywords[key]) == bool:
-                self.extra_keywords[key] = int(self.extra_keywords[key])
-            elif type(self.extra_keywords[key]) not in types.keys():
+        # make a copy of the extra_keywords dict so that the changes required
+        # to write to miriad don't change the object
+        extra_keywords_use = copy.deepcopy(self.extra_keywords)
+        for key in extra_keywords_use.keys():
+            if type(extra_keywords_use[key]) in numpy_types.keys():
+                if numpy_types[type(extra_keywords_use[key])] == int:
+                    extra_keywords_use[key] = int(extra_keywords_use[key])
+                elif numpy_types[type(extra_keywords_use[key])] == float:
+                    extra_keywords_use[key] = float(extra_keywords_use[key])
+                elif numpy_types[type(extra_keywords_use[key])] == complex:
+                    extra_keywords_use[key] = complex(extra_keywords_use[key])
+            elif type(extra_keywords_use[key]) == bool:
+                extra_keywords_use[key] = str(extra_keywords_use[key])
+            elif type(extra_keywords_use[key]) not in types.keys():
                 raise TypeError('Extra keyword {keyword} is of {keytype}. '
                                 'Only strings and numbers are '
                                 'supported.'.format(keyword=key,
-                                                    keytype=type(self.extra_keywords[key])))
+                                                    keytype=type(extra_keywords_use[key])))
+
+            if len(str(key)) > 8:
+                warnings.warn('key {key} in extra_keywords is longer than 8 '
+                              'characters. It will be truncated to 8 as required '
+                              'by the miriad file format.'.format(key=key))
 
             uvkeyname = str(key)[:8]  # name must be string, max 8 letters
-            typestring = types[type(self.extra_keywords[key])]
+            typestring = types[type(extra_keywords_use[key])]
             uv.add_var(uvkeyname, typestring)
-            uv[uvkeyname] = self.extra_keywords[key]
+            uv[uvkeyname] = extra_keywords_use[key]
 
         if not no_antnums:
             # Add in the antenna_numbers so we have them if we read this file back in.
