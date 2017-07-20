@@ -700,7 +700,7 @@ class Miriad(UVData):
                  int: 'i',
                  float: 'd',
                  complex: 'c',
-                 bool: 'j',  # NB: bool will be stored as int
+                 bool: 'a',  # booleans are stored as strings and changed back on read
                  }
         # make a copy of the extra_keywords dict so that the changes required
         # to write to miriad don't change the object
