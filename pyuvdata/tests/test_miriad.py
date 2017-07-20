@@ -217,6 +217,25 @@ def test_miriad_extra_keywords():
 
     nt.assert_equal(uv_in, uv_out)
 
+    # check handling of int-like keywords
+    uvtest.checkWarnings(uv_in.read_miriad, [miriad_file],
+                         known_warning='miriad')
+    uv_in.extra_keywords['int1'] = np.int(5)
+    uv_in.extra_keywords['int2'] = 7
+    uv_in.write_miriad(testfile, clobber=True)
+    uv_out.read_miriad(testfile)
+
+    nt.assert_equal(uv_in, uv_out)
+
+    # check handling of float-like keywords
+    uvtest.checkWarnings(uv_in.read_miriad, [miriad_file],
+                         known_warning='miriad')
+    uv_in.extra_keywords['float1'] = np.int64(5.3)
+    uv_in.extra_keywords['float2'] = 6.9
+    uv_in.write_miriad(testfile, clobber=True)
+    uv_out.read_miriad(testfile)
+
+    nt.assert_equal(uv_in, uv_out)
 
 def test_breakReadMiriad():
     """Test Miriad file checking."""
