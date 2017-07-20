@@ -702,24 +702,21 @@ class Miriad(UVData):
                  complex: 'c',
                  bool: 'a',  # booleans are stored as strings and changed back on read
                  }
-        # make a copy of the extra_keywords dict so that the changes required
-        # to write to miriad don't change the object
-        extra_keywords_use = copy.deepcopy(self.extra_keywords)
-        for key in extra_keywords_use.keys():
-            if type(extra_keywords_use[key]) in numpy_types.keys():
-                if numpy_types[type(extra_keywords_use[key])] == int:
-                    extra_keywords_use[key] = int(extra_keywords_use[key])
-                elif numpy_types[type(extra_keywords_use[key])] == float:
-                    extra_keywords_use[key] = float(extra_keywords_use[key])
-                elif numpy_types[type(extra_keywords_use[key])] == complex:
-                    extra_keywords_use[key] = complex(extra_keywords_use[key])
-            elif type(extra_keywords_use[key]) == bool:
-                extra_keywords_use[key] = str(extra_keywords_use[key])
-            elif type(extra_keywords_use[key]) not in types.keys():
+        for key, value in self.extra_keywords.iteritems():
+            if type(value) in numpy_types.keys():
+                if numpy_types[type(value)] == int:
+                    value = int(value)
+                elif numpy_types[type(value)] == float:
+                    value = float(value)
+                elif numpy_types[type(value)] == complex:
+                    value = complex(value)
+            elif type(value) == bool:
+                value = str(value)
+            elif type(value) not in types.keys():
                 raise TypeError('Extra keyword {keyword} is of {keytype}. '
                                 'Only strings and numbers are '
                                 'supported.'.format(keyword=key,
-                                                    keytype=type(extra_keywords_use[key])))
+                                                    keytype=type(value)))
 
             if len(str(key)) > 8:
                 warnings.warn('key {key} in extra_keywords is longer than 8 '
@@ -727,9 +724,9 @@ class Miriad(UVData):
                               'by the miriad file format.'.format(key=key))
 
             uvkeyname = str(key)[:8]  # name must be string, max 8 letters
-            typestring = types[type(extra_keywords_use[key])]
+            typestring = types[type(value)]
             uv.add_var(uvkeyname, typestring)
-            uv[uvkeyname] = extra_keywords_use[key]
+            uv[uvkeyname] = value
 
         if not no_antnums:
             # Add in the antenna_numbers so we have them if we read this file back in.

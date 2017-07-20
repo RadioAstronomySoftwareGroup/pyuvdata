@@ -347,7 +347,7 @@ class UVData(UVBase):
             raise ValueError('Ntimes must be equal to the number of unique '
                              'times in the time_array')
 
-        # issue warning if extra_keywords keys aren't longer than 8 characters
+        # issue warning if extra_keywords keys are longer than 8 characters
         for key in self.extra_keywords.keys():
             if len(key) > 8:
                 warnings.warn('key {key} in extra_keywords is longer than 8 '
