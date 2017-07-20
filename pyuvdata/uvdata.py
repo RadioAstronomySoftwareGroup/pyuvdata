@@ -347,6 +347,20 @@ class UVData(UVBase):
             raise ValueError('Ntimes must be equal to the number of unique '
                              'times in the time_array')
 
+        # issue warning if extra_keywords keys aren't longer than 8 characters
+        for key in self.extra_keywords.keys():
+            if len(key) > 8:
+                warnings.warn('key {key} in extra_keywords is longer than 8 '
+                              'characters. It will be truncated to 8 if written '
+                              'to uvfits or miriad file formats.'.format(key=key))
+
+        # issue warning if extra_keywords values are lists, arrays or dicts
+        for key, value in self.extra_keywords.iteritems():
+            if isinstance(value, (list, dict, np.ndarray)):
+                warnings.warn('{key} in extra_keywords is a list, array or dict, '
+                              'which will raise an error when writing uvfits or '
+                              'miriad file types'.format(key=key))
+
         return True
 
     def set_drift(self):

@@ -173,26 +173,45 @@ def test_miriad_extra_keywords():
     miriad_file = os.path.join(DATA_PATH, 'zen.2456865.60537.xy.uvcRREAA')
     testfile = os.path.join(DATA_PATH, 'test/outtest_miriad.uv')
 
-    # check for errors with extra_keywords that are dicts, lists or arrays
+    # check for warnings & errors with extra_keywords that are dicts, lists or arrays
     uvtest.checkWarnings(uv_in.read_miriad, [miriad_file],
                          known_warning='miriad')
-    uv_in.extra_keywords['test_dict'] = {'testkey': 23}
-    nt.assert_raises(TypeError, uv_in.write_miriad, testfile, clobber=True)
+    uv_in.extra_keywords['testdict'] = {'testkey': 23}
+    uvtest.checkWarnings(uv_in.check, message=['testdict in extra_keywords is a '
+                                               'list, array or dict'])
+    nt.assert_raises(TypeError, uv_in.write_miriad, testfile, clobber=True,
+                     run_check=False)
 
     uvtest.checkWarnings(uv_in.read_miriad, [miriad_file],
                          known_warning='miriad')
-    uv_in.extra_keywords['test_list'] = [12, 14, 90]
-    nt.assert_raises(TypeError, uv_in.write_miriad, testfile, clobber=True)
+    uv_in.extra_keywords['testlist'] = [12, 14, 90]
+    uvtest.checkWarnings(uv_in.check, message=['testlist in extra_keywords is a '
+                                               'list, array or dict'])
+    nt.assert_raises(TypeError, uv_in.write_miriad, testfile, clobber=True,
+                     run_check=False)
 
     uvtest.checkWarnings(uv_in.read_miriad, [miriad_file],
                          known_warning='miriad')
-    uv_in.extra_keywords['test_array'] = np.array([12, 14, 90])
-    nt.assert_raises(TypeError, uv_in.write_miriad, testfile, clobber=True)
+    uv_in.extra_keywords['testarr'] = np.array([12, 14, 90])
+    uvtest.checkWarnings(uv_in.check, message=['testarr in extra_keywords is a '
+                                               'list, array or dict'])
+    nt.assert_raises(TypeError, uv_in.write_miriad, testfile, clobber=True,
+                     run_check=False)
+
+    # check for warnings with extra_keywords keys that are too long
+    uvtest.checkWarnings(uv_in.read_miriad, [miriad_file],
+                         known_warning='miriad')
+    uv_in.extra_keywords['test_long_key'] = True
+    uvtest.checkWarnings(uv_in.check, message=['key test_long_key in extra_keywords '
+                                               'is longer than 8 characters'])
+    uvtest.checkWarnings(uv_in.write_miriad, [testfile], {'clobber': True, 'run_check': False},
+                         message=['key test_long_key in extra_keywords is longer than 8 characters'])
 
     # check handling of boolean keywords
     uvtest.checkWarnings(uv_in.read_miriad, [miriad_file],
                          known_warning='miriad')
-    uv_in.extra_keywords['test_bool'] = True
+    uv_in.extra_keywords['bool'] = True
+    uv_in.extra_keywords['bool2'] = False
     uv_in.write_miriad(testfile, clobber=True)
     uv_out.read_miriad(testfile)
 
