@@ -102,13 +102,13 @@ class UVParameter(object):
 
                 if not str_type:
                     try:
-                        if not np.isclose(np.array(self.value),
-                                          np.array(other.value),
-                                          rtol=self.tols[0], atol=self.tols[1]):
-                            print('{name} parameter value is not a string, '
-                                  'values are not close'.format(name=self.name))
+                        if not np.allclose(np.array(self.value),
+                                           np.array(other.value),
+                                           rtol=self.tols[0], atol=self.tols[1]):
+                            print('{name} parameter value is not a string. '
+                                  'The values are not close'.format(name=self.name))
                             return False
-                    except:
+                    except(TypeError):
                         if self.value != other.value:
                             print('{name} parameter value is not a string, cannot '
                                   'be cast as numpy array, is not equal.'.format(name=self.name))
