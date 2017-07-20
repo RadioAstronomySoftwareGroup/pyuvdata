@@ -110,8 +110,21 @@ class UVParameter(object):
                             return False
                     except(TypeError):
                         if self.value != other.value:
-                            print('{name} parameter value is not a string, cannot '
-                                  'be cast as numpy array, is not equal.'.format(name=self.name))
+                            if isinstance(self.value, dict):
+                                message_str = '{name} parameter is a dict'.format(name=self.name)
+                                if set(self.value.keys()) != set(other.value.keys()):
+                                    message_str += ', keys are not the same.'
+                                else:
+                                    for key in self.value.keys():
+                                        if self.value[key] != other.value[key]:
+                                            message_str += (', key {key} is not '
+                                                            'equal'.format(key=key))
+                                print(message_str)
+                            else:
+                                print('{name} parameter value is not a string '
+                                      'or a dict and cannot be cast as a numpy '
+                                      'array. The values are not equal.'.format(name=self.name))
+
                             return False
 
                 else:
