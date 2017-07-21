@@ -143,11 +143,16 @@ class UVBeam(UVBase):
                                           expected_type=int)
 
         desc = ('Normalization standard of data_array, options are: '
-                '"peak" and "solid_angle". Peak normalized means each frequency '
-                'is separately normalized such that the peak is 1 and the beam '
-                'is dimensionless. Solid angle normalized means the peak '
-                'normalized beam is divided by the integral of the beam '
-                'over the sphere, giving the beam dimensions of 1/stradian.')
+                '"physical", "peak" or "solid_angle". Physical normalization '
+                'means that the frequency dependence of the antenna sensitivity '
+                'is included in the data_array while the frequency dependence '
+                'of the receiving chain is included in the bandpass_array. '
+                'Peak normalized means that for each frequency the data_array'
+                'is separately normalized such that the peak is 1 (so the beam '
+                'is dimensionless) and all frequency dependence is moved to the '
+                'bandpass_array. Solid angle normalized means the peak normalized '
+                'beam is divided by the integral of the beam over the sphere, '
+                'so the beam has dimensions of 1/stradian.')
         self._data_normalization = uvp.UVParameter('data_normalization', description=desc,
                                                    form='str', expected_type=str,
                                                    acceptable_vals=["peak", "solid_angle"])
@@ -164,6 +169,15 @@ class UVBeam(UVBase):
                                                  'Nfreqs', 'Naxes2', 'Naxes1'),
                                            acceptable_range=(0, 1),
                                            tols=1e-3)
+
+        desc = ('Frequency dependence of the beam. Depending on the data_normalization, '
+                'this may contain only the frequency dependence of the receiving '
+                'chain ("physical" normalization) or all the frequency dependence '
+                '("peak" normalization).')
+        self._bandpass_array = uvp.UVParameter('bandpass_array', description=desc,
+                                               expected_type=np.float,
+                                               form=('Nspws', 'Nfreqs'),
+                                               tols=1e-3)
 
         # --------- metadata -------------
         self._telescope_name = uvp.UVParameter('telescope_name',
@@ -250,9 +264,19 @@ class UVBeam(UVBase):
                                                description=desc, value={},
                                                spoof_val={}, expected_type=dict)
 
-        desc = 'Array of system temperatures, shape (Nspws, Nfreqs), units K'
-        self._system_temperature_array = \
-            uvp.UVParameter('system_temperature_array', required=False,
+        desc = 'Input impedence of receiving chain, units: Ohms'
+        self._input_impedence = uvp.UVParameter('input_impedence', required=False,
+                                                description=desc,
+                                                expected_type=np.float, tols=1e-3)
+
+        desc = 'Output impedence of receiving chain, units: Ohms'
+        self._output_impedence = uvp.UVParameter('output_impedence', required=False,
+                                                 description=desc,
+                                                 expected_type=np.float, tols=1e-3)
+
+        desc = 'Array of receiver temperatures, shape (Nspws, Nfreqs), units K'
+        self._receiver_temperature_array = \
+            uvp.UVParameter('receiver_temperature_array', required=False,
                             description=desc, form=('Nspws', 'Nfreqs'),
                             expected_type=np.float, tols=1e-3)
 
@@ -418,7 +442,7 @@ class UVBeam(UVBase):
                 raise(ValueError(msg))
 
         # check for presence of optional parameters with a frequency axis in both objects
-        optional_freq_params = ['_system_temperature_array', '_loss_array',
+        optional_freq_params = ['_receiver_temperature_array', '_loss_array',
                                 '_mismatch_array', '_s_parameters']
         for attr in optional_freq_params:
             this_attr = getattr(this, attr)
@@ -621,12 +645,17 @@ class UVBeam(UVBase):
                                               other.freq_array[:, fnew_inds]], axis=1)
             order = np.argsort(this.freq_array[0, :])
             this.freq_array = this.freq_array[:, order]
+
+            this.bandpass_array = np.concatenate([this.bandpass_array,
+                                                  np.zeros((1, len(fnew_inds)))],
+                                                 axis=1)[:, order]
+
             this.data_array = np.concatenate([this.data_array, data_zero_pad],
                                              axis=faxis)[:, :, :, order, ...]
-            if this.system_temperature_array is not None:
-                this.system_temperature_array = np.concatenate([this.system_temperature_array,
-                                                                np.zeros((1, len(fnew_inds)))],
-                                                               axis=1)[:, order]
+            if this.receiver_temperature_array is not None:
+                this.receiver_temperature_array = np.concatenate([this.receiver_temperature_array,
+                                                                  np.zeros((1, len(fnew_inds)))],
+                                                                 axis=1)[:, order]
             if this.loss_array is not None:
                 this.loss_array = np.concatenate([this.loss_array,
                                                   np.zeros((1, len(fnew_inds)))],
@@ -692,8 +721,10 @@ class UVBeam(UVBase):
                 this.basis_vector_array[np.ix_(np.arange(this.Naxes_vec), np.arange(2),
                                                ax2_t2o, ax1_t2o)] = other.basis_vector_array
 
-        if this.system_temperature_array is not None:
-            this.system_temperature_array[np.ix_([0], freq_t2o)] = other.system_temperature_array
+        this.bandpass_array[np.ix_([0], freq_t2o)] = other.bandpass_array
+
+        if this.receiver_temperature_array is not None:
+            this.receiver_temperature_array[np.ix_([0], freq_t2o)] = other.receiver_temperature_array
         if this.loss_array is not None:
             this.loss_array[np.ix_([0], freq_t2o)] = other.loss_array
         if this.mismatch_array is not None:
@@ -899,6 +930,7 @@ class UVBeam(UVBase):
             freq_inds = list(sorted(set(list(freq_inds))))
             beam_object.Nfreqs = len(freq_inds)
             beam_object.freq_array = beam_object.freq_array[:, freq_inds]
+            beam_object.bandpass_array = beam_object.bandpass_array[:, freq_inds]
 
             if beam_object.Nfreqs > 1:
                 freq_separation = beam_object.freq_array[0, 1:] - beam_object.freq_array[0, :-1]
@@ -916,8 +948,8 @@ class UVBeam(UVBase):
             if beam_object.antenna_type == 'phased_array':
                 beam_object.coupling_matrix = beam_object.coupling_matrix[:, :, :, :, :, freq_inds]
 
-            if beam_object.system_temperature_array is not None:
-                beam_object.system_temperature_array = beam_object.system_temperature_array[:, freq_inds]
+            if beam_object.receiver_temperature_array is not None:
+                beam_object.receiver_temperature_array = beam_object.receiver_temperature_array[:, freq_inds]
 
             if beam_object.loss_array is not None:
                 beam_object.loss_array = beam_object.loss_array[:, freq_inds]

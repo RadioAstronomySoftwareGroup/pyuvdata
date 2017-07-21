@@ -46,6 +46,7 @@ def fill_dummy_beam(beam_obj, beam_type, pixel_coordinate_system):
     beam_obj.spw_array = np.array([0])
     beam_obj.Nspws = len(beam_obj.spw_array)
     beam_obj.data_normalization = 'peak'
+    beam_obj.bandpass_array = np.zeros((beam_obj.Nspws, beam_obj.Nfreqs)) + 1.
 
     if beam_type == 'power':
         beam_obj.set_power()
@@ -89,7 +90,9 @@ def fill_dummy_beam(beam_obj, beam_type, pixel_coordinate_system):
 
     # add optional parameters for testing purposes
     beam_obj.extra_keywords = {'KEY1': 'test_keyword'}
-    beam_obj.system_temperature_array = np.random.normal(50.0, 5, size=(beam_obj.Nspws, beam_obj.Nfreqs))
+    beam_obj.input_impedence = 340.
+    beam_obj.output_impedence = 50.
+    beam_obj.receiver_temperature_array = np.random.normal(50.0, 5, size=(beam_obj.Nspws, beam_obj.Nfreqs))
     beam_obj.loss_array = np.random.normal(50.0, 5, size=(beam_obj.Nspws, beam_obj.Nfreqs))
     beam_obj.mismatch_array = np.random.normal(0.0, 1.0, size=(beam_obj.Nspws, beam_obj.Nfreqs))
     beam_obj.s_parameters = np.random.normal(0.0, 0.3, size=(4, beam_obj.Nspws, beam_obj.Nfreqs))
@@ -104,7 +107,7 @@ class TestUVBeamInit(object):
                                     '_pixel_coordinate_system',
                                     '_freq_array', '_spw_array',
                                     '_data_normalization',
-                                    '_data_array',
+                                    '_data_array', '_bandpass_array',
                                     '_telescope_name', '_feed_name',
                                     '_feed_version', '_model_name',
                                     '_model_version', '_history',
@@ -114,7 +117,7 @@ class TestUVBeamInit(object):
                                     'pixel_coordinate_system',
                                     'freq_array', 'spw_array',
                                     'data_normalization',
-                                    'data_array',
+                                    'data_array', 'bandpass_array',
                                     'telescope_name', 'feed_name',
                                     'feed_version', 'model_name',
                                     'model_version', 'history',
@@ -128,7 +131,8 @@ class TestUVBeamInit(object):
                                  '_element_coordinate_system',
                                  '_element_location_array', '_delay_array',
                                  '_gain_array', '_coupling_matrix',
-                                 '_system_temperature_array',
+                                 '_input_impedence', '_output_impedence',
+                                 '_receiver_temperature_array',
                                  '_loss_array', '_mismatch_array',
                                  '_s_parameters']
 
@@ -139,7 +143,8 @@ class TestUVBeamInit(object):
                                  'element_coordinate_system',
                                  'element_location_array', 'delay_array',
                                  'gain_array', 'coupling_matrix',
-                                 'system_temperature_array',
+                                 'input_impedence', 'output_impedence',
+                                 'receiver_temperature_array',
                                  'loss_array', 'mismatch_array',
                                  's_parameters']
 
@@ -835,12 +840,12 @@ def test_add():
                                    inplace=False)
     beam2 = power_beam_full.select(polarizations=power_beam_full.polarization_array[2:3],
                                    inplace=False)
-    beam2.system_temperature_array = None
-    nt.assert_false(beam1.system_temperature_array is None)
+    beam2.receiver_temperature_array = None
+    nt.assert_false(beam1.receiver_temperature_array is None)
     uvtest.checkWarnings(beam1.__iadd__, [beam2],
                          message=['Only one of the UVBeam objects being combined '
                                   'has optional parameter'])
-    nt.assert_true(beam1.system_temperature_array is None)
+    nt.assert_true(beam1.receiver_temperature_array is None)
 
     # Combining histories
     beam1 = power_beam_full.select(polarizations=power_beam_full.polarization_array[0:2], inplace=False)
