@@ -49,7 +49,7 @@ def checkWarnings(func, func_args=[], func_kwargs={},
     clearWarnings()
     with warnings.catch_warnings(record=True) as w:
         warnings.simplefilter("always")  # All warnings triggered
-        func(*func_args, **func_kwargs)  # Run function
+        retval = func(*func_args, **func_kwargs)  # Run function
         # Verify
         if len(w) != nwarnings:
             print('wrong number of warnings. Expected number was {nexp}, '
@@ -66,3 +66,4 @@ def checkWarnings(func, func_args=[], func_kwargs={},
                         print('expected message ' + str(i) + ' was: ', message[i])
                         print('message ' + str(i) + ' was: ', str(w_i.message))
                         assert(False)
+        return retval
