@@ -237,11 +237,18 @@ class BeamFITS(UVBeam):
         # check to see if BANDPARM HDU exists and read it out if it does
         if 'BANDPARM' in hdunames:
             bandpass_hdu = F[hdunames['BANDPARM']]
+            bandpass_header = bandpass_hdu.header.copy()
+            self.input_impedence = bandpass_header.pop('inimped', None)
+            self.output_impedence = bandpass_header.pop('outimped', None)
+
             freq_data = bandpass_hdu.data
             columns = [c.name for c in freq_data.columns]
+            self.bandpass_array = freq_data['bandpass']
+            self.bandpass_array = self.bandpass_array[np.newaxis, :]
+
             if 'sys_temp' in columns:
-                self.system_temperature_array = freq_data['sys_temp']
-                self.system_temperature_array = self.system_temperature_array[np.newaxis, :]
+                self.receiver_temperature_array = freq_data['sys_temp']
+                self.receiver_temperature_array = self.receiver_temperature_array[np.newaxis, :]
             if 'loss' in columns:
                 self.loss_array = freq_data['loss']
                 self.loss_array = self.loss_array[np.newaxis, :]
@@ -258,6 +265,9 @@ class BeamFITS(UVBeam):
                 self.s_parameters[1, 0, :] = s12
                 self.s_parameters[2, 0, :] = s21
                 self.s_parameters[3, 0, :] = s22
+        else:
+            # no bandpass information, set it to an array of ones
+            self.bandpass_array = np.zeros((self.Nspws, self.Nfreqs)) + 1.
 
         if run_check:
             self.check(run_check_acceptability=run_check_acceptability)
@@ -506,36 +516,41 @@ class BeamFITS(UVBeam):
 
         # check for frequency-specific optional arrays. If they're not None,
         # make a binary table HDU to hold them
-        if (self.system_temperature_array is not None or self.loss_array is not None or
-                self.mismatch_array is not None or self.s_parameters is not None):
-            col_list = []
-            if self.system_temperature_array is not None:
-                sys_temp_col = fits.Column(name='sys_temp', format='D',
-                                           array=self.system_temperature_array[0, :])
-                col_list.append(sys_temp_col)
-            if self.loss_array is not None:
-                loss_col = fits.Column(name='loss', format='D',
-                                       array=self.loss_array[0, :])
-                col_list.append(loss_col)
-            if self.mismatch_array is not None:
-                mismatch_col = fits.Column(name='mismatch', format='D',
-                                           array=self.mismatch_array[0, :])
-                col_list.append(mismatch_col)
-            if self.s_parameters is not None:
-                s11_col = fits.Column(name='s11', format='D',
-                                      array=self.s_parameters[0, 0, :])
-                s12_col = fits.Column(name='s12', format='D',
-                                      array=self.s_parameters[1, 0, :])
-                s21_col = fits.Column(name='s21', format='D',
-                                      array=self.s_parameters[2, 0, :])
-                s22_col = fits.Column(name='s22', format='D',
-                                      array=self.s_parameters[3, 0, :])
-                col_list += [s11_col, s12_col, s21_col, s22_col]
+        bandpass_col = fits.Column(name='bandpass', format='D',
+                                   array=self.bandpass_array[0, :])
+        col_list = [bandpass_col]
 
-            coldefs = fits.ColDefs(col_list)
-            bandpass_hdu = fits.BinTableHDU.from_columns(coldefs)
-            bandpass_hdu.header['EXTNAME'] = 'BANDPARM'
-            hdulist.append(bandpass_hdu)
+        if self.receiver_temperature_array is not None:
+            sys_temp_col = fits.Column(name='sys_temp', format='D',
+                                       array=self.receiver_temperature_array[0, :])
+            col_list.append(sys_temp_col)
+        if self.loss_array is not None:
+            loss_col = fits.Column(name='loss', format='D',
+                                   array=self.loss_array[0, :])
+            col_list.append(loss_col)
+        if self.mismatch_array is not None:
+            mismatch_col = fits.Column(name='mismatch', format='D',
+                                       array=self.mismatch_array[0, :])
+            col_list.append(mismatch_col)
+        if self.s_parameters is not None:
+            s11_col = fits.Column(name='s11', format='D',
+                                  array=self.s_parameters[0, 0, :])
+            s12_col = fits.Column(name='s12', format='D',
+                                  array=self.s_parameters[1, 0, :])
+            s21_col = fits.Column(name='s21', format='D',
+                                  array=self.s_parameters[2, 0, :])
+            s22_col = fits.Column(name='s22', format='D',
+                                  array=self.s_parameters[3, 0, :])
+            col_list += [s11_col, s12_col, s21_col, s22_col]
+
+        coldefs = fits.ColDefs(col_list)
+        bandpass_hdu = fits.BinTableHDU.from_columns(coldefs)
+        bandpass_hdu.header['EXTNAME'] = 'BANDPARM'
+        if self.input_impedence is not None:
+            bandpass_hdu.header['inimped'] = self.input_impedence
+        if self.output_impedence is not None:
+            bandpass_hdu.header['outimped'] = self.output_impedence
+        hdulist.append(bandpass_hdu)
 
         if float(astropy.__version__[0:3]) < 1.3:
             hdulist.writeto(filename, clobber=clobber)
