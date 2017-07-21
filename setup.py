@@ -16,7 +16,7 @@ setup_args = {
     'license': 'BSD',
     'description': 'an interface for astronomical interferometeric datasets in python',
     'package_dir': {'pyuvdata': 'pyuvdata'},
-    'packages': ['pyuvdata'],
+    'packages': ['pyuvdata', 'pyuvdata.tests'],
     'scripts': glob.glob('scripts/*'),
     'version': version.version,
     'include_package_data': True,
