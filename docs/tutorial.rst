@@ -1,4 +1,4 @@
-polarizationsTutorial
+Tutorial
 ========
 
 UVData: File conversion
