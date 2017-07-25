@@ -58,7 +58,7 @@ class Miriad(UVData):
                                     'timesys', 'xorient', 'cnt', 'ra', 'dec',
                                     'lst', 'pol', 'nants', 'antnames', 'nblts',
                                     'ntimes', 'nbls', 'sfreq', 'epoch',
-                                    'antpos', 'antnums', 'degpdy',
+                                    'antpos', 'antnums', 'degpdy', 'diameter'
                                     ]
         # list of miriad variables not read, but also not interesting
         # NB: nspect (I think) is number of spectral windows, will want one day
