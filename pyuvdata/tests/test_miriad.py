@@ -238,20 +238,18 @@ def test_miriad_extra_keywords():
     uv_in.extra_keywords.pop('float2')
 
     # check handling of complex-like keywords
+    # currently they are NOT supported
     uvtest.checkWarnings(uv_in.read_miriad, [miriad_file],
                          known_warning='miriad')
     uv_in.extra_keywords['complex1'] = np.complex64(5.3 + 1.2j)
     uv_in.extra_keywords['complex2'] = 6.9 + 4.6j
-    uv_in.write_miriad(testfile, clobber=True)
-    uv_out.read_miriad(testfile)
+    nt.assert_raises(TypeError, uv_in.write_miriad, testfile, clobber=True)
+    #uv_out.read_miriad(testfile)
 
-    print('input value', uv_in.extra_keywords['complex1'])
-    print('output value', uv_out.extra_keywords['complex1'])
-    print('input value', uv_in.extra_keywords['complex2'])
-    print('output value', uv_out.extra_keywords['complex2'])
-
-    nt.assert_equal(uv_in, uv_out)
-
+    #print('input value', uv_in.extra_keywords['complex1'])
+    #print('output value', uv_out.extra_keywords['complex1'])
+    #print('input value', uv_in.extra_keywords['complex2'])
+    #print('output value', uv_out.extra_keywords['complex2'])
 
 def test_breakReadMiriad():
     """Test Miriad file checking."""

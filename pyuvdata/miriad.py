@@ -681,6 +681,8 @@ class Miriad(UVData):
         # set up dictionaries to map common python types to miriad types
         # NB: arrays/lists/dicts could potentially be written as strings or 1D
         # vectors.  This is not supported at present!
+        # NB: complex numbers *should* be supportable, but are not currently
+        # supported due to unexplained errors
         numpy_types = {np.int8: int,
                        np.int16: int,
                        np.int32: int,
@@ -693,13 +695,10 @@ class Miriad(UVData):
                        np.float32: float,
                        np.float64: float,
                        np.float128: float,
-                       np.complex64: complex,
-                       np.complex128: complex,
                        }
         types = {str: 'a',
                  int: 'i',
                  float: 'd',
-                 complex: 'c',
                  bool: 'a',  # booleans are stored as strings and changed back on read
                  }
         for key, value in self.extra_keywords.iteritems():
@@ -708,13 +707,11 @@ class Miriad(UVData):
                     value = int(value)
                 elif numpy_types[type(value)] == float:
                     value = float(value)
-                elif numpy_types[type(value)] == complex:
-                    value = complex(value)
             elif type(value) == bool:
                 value = str(value)
             elif type(value) not in types.keys():
                 raise TypeError('Extra keyword {keyword} is of {keytype}. '
-                                'Only strings and numbers are '
+                                'Only strings and real numbers are '
                                 'supported.'.format(keyword=key,
                                                     keytype=type(value)))
 
