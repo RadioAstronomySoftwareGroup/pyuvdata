@@ -712,8 +712,8 @@ class Miriad(UVData):
             elif type(value) not in types.keys():
                 raise TypeError('Extra keyword {keyword} is of {keytype}. '
                                 'Only strings and real numbers are '
-                                'supported.'.format(keyword=key,
-                                                    keytype=type(value)))
+                                'supported in miriad.'.format(keyword=key,
+                                                              keytype=type(value)))
 
             if len(str(key)) > 8:
                 warnings.warn('key {key} in extra_keywords is longer than 8 '
