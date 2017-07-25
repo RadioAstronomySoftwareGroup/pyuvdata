@@ -93,6 +93,79 @@ def test_readwriteread():
     del(uv_out)
 
 
+def test_extra_keywords():
+    uv_in = UVData()
+    uv_out = UVData()
+    uvfits_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    testfile = os.path.join(DATA_PATH, 'test/outtest_casa.uvfits')
+    uvtest.checkWarnings(uv_in.read_uvfits, [uvfits_file], message='Telescope EVLA is not')
+
+    # check for warnings & errors with extra_keywords that are dicts, lists or arrays
+    uv_in.extra_keywords['testdict'] = {'testkey': 23}
+    uvtest.checkWarnings(uv_in.check, message=['testdict in extra_keywords is a '
+                                               'list, array or dict'])
+    nt.assert_raises(TypeError, uv_in.write_uvfits, testfile, run_check=False)
+    uv_in.extra_keywords.pop('testdict')
+
+    uv_in.extra_keywords['testlist'] = [12, 14, 90]
+    uvtest.checkWarnings(uv_in.check, message=['testlist in extra_keywords is a '
+                                               'list, array or dict'])
+    nt.assert_raises(TypeError, uv_in.write_uvfits, testfile, run_check=False)
+    uv_in.extra_keywords.pop('testlist')
+
+    uv_in.extra_keywords['testarr'] = np.array([12, 14, 90])
+    uvtest.checkWarnings(uv_in.check, message=['testarr in extra_keywords is a '
+                                               'list, array or dict'])
+    nt.assert_raises(TypeError, uv_in.write_uvfits, testfile, run_check=False)
+    uv_in.extra_keywords.pop('testarr')
+
+    # check for warnings with extra_keywords keys that are too long
+    uv_in.extra_keywords['test_long_key'] = True
+    uvtest.checkWarnings(uv_in.check, message=['key test_long_key in extra_keywords '
+                                               'is longer than 8 characters'])
+    uvtest.checkWarnings(uv_in.write_uvfits, [testfile], {'run_check': False},
+                         message=['key test_long_key in extra_keywords is longer than 8 characters'])
+    uv_in.extra_keywords.pop('test_long_key')
+
+    # check handling of boolean keywords
+    uv_in.extra_keywords['bool'] = True
+    uv_in.extra_keywords['bool2'] = False
+    uv_in.write_uvfits(testfile)
+    uvtest.checkWarnings(uv_out.read_uvfits, [testfile], message='Telescope EVLA is not')
+
+    nt.assert_equal(uv_in, uv_out)
+    uv_in.extra_keywords.pop('bool')
+    uv_in.extra_keywords.pop('bool2')
+
+    # check handling of int-like keywords
+    uv_in.extra_keywords['int1'] = np.int(5)
+    uv_in.extra_keywords['int2'] = 7
+    uv_in.write_uvfits(testfile)
+    uvtest.checkWarnings(uv_out.read_uvfits, [testfile], message='Telescope EVLA is not')
+
+    nt.assert_equal(uv_in, uv_out)
+    uv_in.extra_keywords.pop('int1')
+    uv_in.extra_keywords.pop('int2')
+
+    # check handling of float-like keywords
+    uv_in.extra_keywords['float1'] = np.int64(5.3)
+    uv_in.extra_keywords['float2'] = 6.9
+    uv_in.write_uvfits(testfile)
+    uvtest.checkWarnings(uv_out.read_uvfits, [testfile], message='Telescope EVLA is not')
+
+    nt.assert_equal(uv_in, uv_out)
+    uv_in.extra_keywords.pop('float1')
+    uv_in.extra_keywords.pop('float2')
+
+    # check handling of complex-like keywords
+    uv_in.extra_keywords['complex1'] = np.complex64(5.3 + 1.2j)
+    uv_in.extra_keywords['complex2'] = 6.9 + 4.6j
+    uv_in.write_uvfits(testfile)
+    uvtest.checkWarnings(uv_out.read_uvfits, [testfile], message='Telescope EVLA is not')
+
+    nt.assert_equal(uv_in, uv_out)
+
+
 def test_ReadUVFitsWriteMiriad():
     """
     read uvfits, write miriad test.

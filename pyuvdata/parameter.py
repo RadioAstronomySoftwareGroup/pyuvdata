@@ -111,15 +111,35 @@ class UVParameter(object):
                     except(TypeError):
                         if self.value != other.value:
                             if isinstance(self.value, dict):
-                                message_str = '{name} parameter is a dict'.format(name=self.name)
-                                if set(self.value.keys()) != set(other.value.keys()):
-                                    message_str += ', keys are not the same.'
+                                # check to see if they are equal other than upper/lower case keys
+                                self_lower = {k.lower(): v for k, v in self.value.items()}
+                                other_lower = {k.lower(): v for k, v in other.value.items()}
+                                if self_lower != other_lower:
+                                    message_str = '{name} parameter is a dict'.format(name=self.name)
+                                    if set(self_lower.keys()) != set(other_lower.keys()):
+                                        message_str += ', keys are not the same.'
+                                    else:
+                                        # need to check if values are close, not just equal
+                                        values_close = True
+                                        for key in self_lower.keys():
+                                            try:
+                                                if not np.isclose(self_lower[key], other_lower[key]):
+                                                    message_str += (', key {key} is not '
+                                                                    'equal'.format(key=key))
+                                                    values_close = False
+                                            except(TypeError):
+                                                # this isn't a type that can be handled by np.isclose, test for equality
+                                                if self_lower[key] != other_lower[key]:
+                                                    message_str += (', key {key} is not '
+                                                                    'equal'.format(key=key))
+                                                    values_close = False
+                                        if values_close is False:
+                                            print(message_str)
+                                            return False
+                                        else:
+                                            return True
                                 else:
-                                    for key in self.value.keys():
-                                        if self.value[key] != other.value[key]:
-                                            message_str += (', key {key} is not '
-                                                            'equal'.format(key=key))
-                                print(message_str)
+                                    return True
                             else:
                                 print('{name} parameter value is not a string '
                                       'or a dict and cannot be cast as a numpy '
