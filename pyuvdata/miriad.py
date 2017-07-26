@@ -682,7 +682,7 @@ class Miriad(UVData):
         # NB: arrays/lists/dicts could potentially be written as strings or 1D
         # vectors.  This is not supported at present!
         # NB: complex numbers *should* be supportable, but are not currently
-        # supported due to unexplained errors
+        # supported due to unexplained errors in aipy.miriad and/or its underlying libraries
         numpy_types = {np.int8: int,
                        np.int16: int,
                        np.int32: int,
