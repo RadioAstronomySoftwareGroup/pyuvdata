@@ -438,8 +438,12 @@ class CALFITS(UVCal):
 
             # add this for backwards compatibility when the spw CRVAL wasn't recorded
             try:
-                # subtract 1 to be zero-indexed
-                self.spw_array = uvutils.fits_gethduaxis(F[0], ax_spw, strict_fits=strict_fits) - 1
+                spw_array = uvutils.fits_gethduaxis(F[0], ax_spw, strict_fits=strict_fits)
+                if spw_array[0] == 0:
+                    self.spw_array = spw_array
+                else:
+                    # subtract 1 to be zero-indexed
+                    self.spw_array = spw_array - 1
             except(KeyError):
                 if not strict_fits:
                     _warn_oldcalfits(filename)
