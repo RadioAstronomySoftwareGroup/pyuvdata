@@ -1079,14 +1079,17 @@ class TestUVCalAddGain(object):
         """Test read function when multiple files are included"""
         gain_object_full = copy.deepcopy(self.gain_object)
         Nt2 = self.gain_object.Ntimes / 2
+        # Break up delay object into two objects, divided in time
         times1 = self.gain_object.time_array[:Nt2]
         times2 = self.gain_object.time_array[Nt2:]
         self.gain_object.select(times=times1)
         self.gain_object2.select(times=times2)
+        # Write those objects to files
         f1 = os.path.join(DATA_PATH, 'test/read_multi1.calfits')
         f2 = os.path.join(DATA_PATH, 'test/read_multi2.calfits')
         self.gain_object.write_calfits(f1, clobber=True)
         self.gain_object2.write_calfits(f2, clobber=True)
+        # Read both files together
         self.gain_object.read_calfits([f1, f2])
         nt.assert_true(uvutils.check_histories(gain_object_full.history +
                                                '  Downselected to specific times'
@@ -1338,14 +1341,17 @@ class TestUVCalAddDelay(object):
         """Test read function when multiple files are included"""
         delay_object_full = copy.deepcopy(self.delay_object)
         Nt2 = self.delay_object.Ntimes / 2
+        # Break up delay object into two objects, divided in time
         times1 = self.delay_object.time_array[:Nt2]
         times2 = self.delay_object.time_array[Nt2:]
         self.delay_object.select(times=times1)
         self.delay_object2.select(times=times2)
+        # Write those objects to files
         f1 = os.path.join(DATA_PATH, 'test/read_multi1.calfits')
         f2 = os.path.join(DATA_PATH, 'test/read_multi2.calfits')
         self.delay_object.write_calfits(f1, clobber=True)
         self.delay_object2.write_calfits(f2, clobber=True)
+        # Read both files together
         self.delay_object.read_calfits([f1, f2])
         nt.assert_true(uvutils.check_histories(delay_object_full.history +
                                                '  Downselected to specific times'
