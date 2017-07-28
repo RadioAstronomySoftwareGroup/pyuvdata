@@ -556,6 +556,7 @@ class UVCal(UVBase):
 
         Args:
             filename: The calfits file or list of files to read from.
+                      string path, or list or tuple of string paths.
             run_check: Option to check for the existence and proper shapes of
                 parameters after reading in the file. Default is True.
             check_extra: Option to check optional parameters as well as required
@@ -572,20 +573,23 @@ class UVCal(UVBase):
         """
         import calfits
         if isinstance(filename, (list, tuple)):
-            self.read_calfits(filename[0], run_check=run_check, check_extra=check_extra,
+            self.read_calfits(filename[0], run_check=run_check,
+                              check_extra=check_extra,
                               run_check_acceptability=run_check_acceptability,
                               strict_fits=strict_fits)
             if len(filename) > 1:
                 for f in filename[1:]:
                     uvcal2 = UVCal()
-                    uvcal2.read_calfits(f, run_check=run_check, check_extra=check_extra,
+                    uvcal2.read_calfits(f, run_check=run_check,
+                                        check_extra=check_extra,
                                         run_check_acceptability=run_check_acceptability,
                                         strict_fits=strict_fits)
                     self += uvcal2
                 del(uvcal2)
         else:
             uvfits_obj = calfits.CALFITS()
-            uvfits_obj.read_calfits(filename, run_check=run_check, check_extra=check_extra,
+            uvfits_obj.read_calfits(filename, run_check=run_check,
+                                    check_extra=check_extra,
                                     run_check_acceptability=run_check_acceptability,
                                     strict_fits=strict_fits)
             self._convert_from_filetype(uvfits_obj)
