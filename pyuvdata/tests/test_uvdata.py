@@ -1261,6 +1261,12 @@ def test_key2inds():
     nt.assert_raises(KeyError, uv._key2inds, (1, 1, 'rr'))  # ant pair not in data
     nt.assert_raises(KeyError, uv._key2inds, (0, 1, 'xx'))  # pol not in data
 
+    # Test autos are handled correctly
+    uv.ant_2_array[0] = uv.ant_1_array[0]
+    ind1, ind2, indp = uv._key2inds((ant1, ant1, pol))
+    nt.assert_true(np.array_equal(ind1, [0]))
+    nt.assert_true(np.array_equal(ind2, []))
+
 
 def test_smart_slicing():
     # Test function to slice data
