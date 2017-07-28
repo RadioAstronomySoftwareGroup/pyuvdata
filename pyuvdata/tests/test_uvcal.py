@@ -1075,6 +1075,28 @@ class TestUVCalAddGain(object):
                                    rtol=self.gain_object._freq_array.tols[0],
                                    atol=self.gain_object._freq_array.tols[1]))
 
+    def test_multi_files(self):
+        """Test read function when multiple files are included"""
+        gain_object_full = copy.deepcopy(self.gain_object)
+        Nt2 = self.gain_object.Ntimes / 2
+        times1 = self.gain_object.time_array[:Nt2]
+        times2 = self.gain_object.time_array[Nt2:]
+        self.gain_object.select(times=times1)
+        self.gain_object2.select(times=times2)
+        f1 = os.path.join(DATA_PATH, 'test/read_multi1.calfits')
+        f2 = os.path.join(DATA_PATH, 'test/read_multi2.calfits')
+        self.gain_object.write_calfits(f1, clobber=True)
+        self.gain_object2.write_calfits(f2, clobber=True)
+        self.gain_object.read_calfits([f1, f2])
+        nt.assert_true(uvutils.check_histories(gain_object_full.history +
+                                               '  Downselected to specific times'
+                                               ' using pyuvdata. Combined data '
+                                               'along time axis using pyuvdata.',
+                                               self.gain_object.history))
+        self.gain_object.history = gain_object_full.history
+        nt.assert_equal(self.gain_object, gain_object_full)
+
+
 class TestUVCalAddDelay(object):
     def setUp(self):
         """Set up test"""
@@ -1311,3 +1333,24 @@ class TestUVCalAddDelay(object):
         """Test behavior that will raise errors"""
         # test addition of two identical objects
         nt.assert_raises(ValueError, self.delay_object.__add__, self.delay_object2)
+
+    def test_multi_files(self):
+        """Test read function when multiple files are included"""
+        delay_object_full = copy.deepcopy(self.delay_object)
+        Nt2 = self.delay_object.Ntimes / 2
+        times1 = self.delay_object.time_array[:Nt2]
+        times2 = self.delay_object.time_array[Nt2:]
+        self.delay_object.select(times=times1)
+        self.delay_object2.select(times=times2)
+        f1 = os.path.join(DATA_PATH, 'test/read_multi1.calfits')
+        f2 = os.path.join(DATA_PATH, 'test/read_multi2.calfits')
+        self.delay_object.write_calfits(f1, clobber=True)
+        self.delay_object2.write_calfits(f2, clobber=True)
+        self.delay_object.read_calfits([f1, f2])
+        nt.assert_true(uvutils.check_histories(delay_object_full.history +
+                                               '  Downselected to specific times'
+                                               ' using pyuvdata. Combined data '
+                                               'along time axis using pyuvdata.',
+                                               self.delay_object.history))
+        self.delay_object.history = delay_object_full.history
+        nt.assert_equal(self.delay_object, delay_object_full)
