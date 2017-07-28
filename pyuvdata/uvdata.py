@@ -1623,6 +1623,9 @@ class UVData(UVBase):
                 pol_ind = np.where(self.polarization_array == key[2])[0]
             if len(pol_ind) == 0:
                 raise KeyError('Polarization {pol} not found in data.'.format(pol=key[2]))
+        # Catch autos
+        if np.array_equal(blt_ind1, blt_ind2):
+            blt_ind2 = np.array([])
         return (blt_ind1, blt_ind2, pol_ind)
 
     def _smart_slicing(self, data, ind1, ind2, indp, **kwargs):
