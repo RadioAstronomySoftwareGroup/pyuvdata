@@ -555,7 +555,7 @@ class UVCal(UVBase):
         Read in data from a calfits file.
 
         Args:
-            filename: The calfits file to read to.
+            filename: The calfits file or list of files to read from.
             run_check: Option to check for the existence and proper shapes of
                 parameters after reading in the file. Default is True.
             check_extra: Option to check optional parameters as well as required
@@ -571,12 +571,25 @@ class UVCal(UVBase):
                 Default is False.
         """
         import calfits
-        uvfits_obj = calfits.CALFITS()
-        uvfits_obj.read_calfits(filename, run_check=run_check, check_extra=check_extra,
-                                run_check_acceptability=run_check_acceptability,
-                                strict_fits=strict_fits)
-        self._convert_from_filetype(uvfits_obj)
-        del(uvfits_obj)
+        if isinstance(filename, (list, tuple)):
+            self.read_calfits(filename[0], run_check=run_check, check_extra=check_extra,
+                              run_check_acceptability=run_check_acceptability,
+                              strict_fits=strict_fits)
+            if len(filename) > 1:
+                for f in filename[1:]:
+                    uvcal2 = UVCal()
+                    uvcal2.read_calfits(f, run_check=run_check, check_extra=check_extra,
+                                        run_check_acceptability=run_check_acceptability,
+                                        strict_fits=strict_fits)
+                    self += uvcal2
+                del(uvcal2)
+        else:
+            uvfits_obj = calfits.CALFITS()
+            uvfits_obj.read_calfits(filename, run_check=run_check, check_extra=check_extra,
+                                    run_check_acceptability=run_check_acceptability,
+                                    strict_fits=strict_fits)
+            self._convert_from_filetype(uvfits_obj)
+            del(uvfits_obj)
 
     def write_calfits(self, filename, run_check=True, check_extra=True,
                       run_check_acceptability=True, clobber=False):
@@ -1007,4 +1020,3 @@ class UVCal(UVBase):
         """
         self.__add__(other, inplace=True)
         return self
-
