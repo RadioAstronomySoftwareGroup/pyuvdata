@@ -105,9 +105,6 @@ def test_mwa_ecef_conversion():
     '''
     Test based on comparing the antenna locations in a Cotter uvfits file to
     the antenna locations in MWA_tools.
-
-    They only match to <1m, but given that we don't know the exact provenance
-    of these two location sources, that seems good enough.
     '''
 
     test_data_file = os.path.join(DATA_PATH, 'mwa128_ant_layouts.npz')
@@ -134,18 +131,17 @@ def test_mwa_ecef_conversion():
 
     # ARRAYX, ARRAYY, ARRAYZ in ECEF frame from Cotter file
     arrcent = f['arrcent']
-    mwa = pyuvdata.get_telescope('mwa')
-    lat, lon, alt = mwa.telescope_location_lat_lon_alt
+    lat, lon, alt = uvutils.LatLonAlt_from_XYZ(arrcent)
 
-    cosl, sinl = np.cos(lon), np.sin(lon)
-    rot_m = np.array([[cosl, -sinl, 0], [sinl, cosl, 0], [0, 0, 1]])
-    # The STABXYZ coordinates are defined with X through the local meridian, so rotate back to the prime meridian and add to arrcent to get ECEF
-    xyz = np.dot(rot_m, xyz)
-    xyz = (xyz.T + arrcent).T
+    # The STABXYZ coordinates are defined with X through the local meridian,
+    # so rotate back to the prime meridian
+    ecef_xyz = uvutils.ECEF_from_rotECEF(xyz, lon)
+    # add in array center to get real ECEF
+    ecef_xyz = (ecef_xyz.T + arrcent).T
 
-    enu = pyuvdata.ENU_from_ECEF(xyz, lat, lon, alt)
+    enu = uvutils.ENU_from_ECEF(ecef_xyz, lat, lon, alt)
 
-    nt.assert_true(np.allclose(enu, enh, atol=1.))
+    nt.assert_true(np.allclose(enu, enh))
 
 
 def test_pol_funcs():
