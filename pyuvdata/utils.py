@@ -90,6 +90,45 @@ def XYZ_from_LatLonAlt(latitude, longitude, altitude):
     return xyz
 
 
+def rotECEF_from_ECEF(xyz, longitude):
+    """
+    Calculate a rotated ECEF from ECEF such that the x-axis goes through the
+    specified longitude.
+
+    Miriad (and maybe uvfits) expect antenna positions in this frame
+    (with longitude of the array center/telescope location)
+
+    Args:
+        xyz: numpy array, shape (3, Npts), with ECEF x,y,z coordinates
+        longitude: longitude in radians to rotate coordinates to (usually the array center/telescope location)
+    Returns:
+        numpy array, shape (3, Npts), with rotated ECEF coordinates
+    """
+    angle = -1 * longitude
+    rot_matrix = np.array([[np.cos(angle), -1 * np.sin(angle), 0],
+                           [np.sin(angle), np.cos(angle), 0],
+                           [0, 0, 1]])
+    return rot_matrix.dot(xyz.T).T
+
+
+def ECEF_from_rotECEF(xyz, longitude):
+    """
+    Calculate ECEF from a rotated ECEF such that the x-axis goes through the
+    specified longitude. (Inverse of rotECEF_from_ECEF)
+
+    Args:
+        xyz: numpy array, shape (3, Npts), with rotated ECEF x,y,z coordinates
+        longitude: longitude in radians to rotate coordinates to (usually the array center/telescope location)
+    Returns:
+        numpy array, shape (3, Npts), with ECEF coordinates
+    """
+    angle = longitude
+    rot_matrix = np.array([[np.cos(angle), -1 * np.sin(angle), 0],
+                           [np.sin(angle), np.cos(angle), 0],
+                           [0, 0, 1]])
+    return rot_matrix.dot(xyz)
+
+
 def ENU_from_ECEF(xyz, latitude, longitude, altitude):
     """
     Calculate local ENU (east, north, up) coordinates from ECEF coordinates.
