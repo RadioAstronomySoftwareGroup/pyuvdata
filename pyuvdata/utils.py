@@ -108,7 +108,7 @@ def rotECEF_from_ECEF(xyz, longitude):
     rot_matrix = np.array([[np.cos(angle), -1 * np.sin(angle), 0],
                            [np.sin(angle), np.cos(angle), 0],
                            [0, 0, 1]])
-    return rot_matrix.dot(xyz.T).T
+    return rot_matrix.dot(xyz)
 
 
 def ECEF_from_rotECEF(xyz, longitude):
