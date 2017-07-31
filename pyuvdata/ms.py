@@ -193,20 +193,22 @@ class MS(UVData):
         antFlags[:] = False
         for antnum in range(len(antFlags)):
             antFlags[antnum] = np.all(full_antenna_positions[antnum, :] == 0)
-        try:
-            self.set_telescope_params()
-        except ValueError:  # If telescope location is not known, set location manually
-            if(xyz_telescope_frame == 'ITRF'):
-                self.telescope_location = np.array(
-                    np.mean(full_antenna_positions[np.invert(antFlags), :], axis=0))
-                # antenna names
+        if(xyz_telescope_frame == 'ITRF'):
+            self.telescope_location = np.array(
+                np.mean(full_antenna_positions[np.invert(antFlags), :], axis=0))
+        if self.telescope_location is None:
+            try:
+                self.set_telescope_params()
+            except ValueError:
+                warnings.warn('Telescope frame is not ITRF and telescope is not '
+                              'in known_telescopes, so telescope_location is not set.')
+
+        # antenna names
         ant_names = tbAnt.getcol('STATION')
         ant_diams = tbAnt.getcol('DISH_DIAMETER')
-        
-        self.antenna_diameters=ant_diams[ant_diams>0]
-            
-                                 
-        
+
+        self.antenna_diameters = ant_diams[ant_diams > 0]
+
         self.Nants_telescope = len(antFlags[np.invert(antFlags)])
         test_name = ant_names[0]
         names_same = True

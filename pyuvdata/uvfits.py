@@ -253,7 +253,14 @@ class UVFITS(UVData):
             x_telescope = ant_hdu.header['ARRAYX']
             y_telescope = ant_hdu.header['ARRAYY']
             z_telescope = ant_hdu.header['ARRAYZ']
-            self.antenna_positions = ant_hdu.data.field('STABXYZ')
+            # AIPS memo #117 says that antenna_positions should be relative to
+            # the array center, but in a rotated ECEF frame so that the x-axis
+            # goes through the local meridian.
+            rot_ecef_positions = ant_hdu.data.field('STABXYZ')
+            latitude, longitude, altitude = \
+                uvutils.LatLonAlt_from_XYZ(np.array([x_telescope, y_telescope, z_telescope]))
+            self.antenna_positions = uvutils.ECEF_from_rotECEF(rot_ecef_positions,
+                                                               longitude)
 
         if xyz_telescope_frame == 'ITRF':
             self.telescope_location = np.array(
@@ -530,8 +537,14 @@ class UVFITS(UVData):
 
         col1 = fits.Column(name='ANNAME', format='8A',
                            array=self.antenna_names)
+        # AIPS memo #117 says that antenna_positions should be relative to
+        # the array center, but in a rotated ECEF frame so that the x-axis
+        # goes through the local meridian.
+        longitude = self.telescope_location_lat_lon_alt[1]
+        rot_ecef_positions = uvutils.rotECEF_from_ECEF(self.antenna_positions,
+                                                       longitude)
         col2 = fits.Column(name='STABXYZ', format='3D',
-                           array=self.antenna_positions)
+                           array=rot_ecef_positions)
         # convert to 1-indexed from 0-indexed indicies
         col3 = fits.Column(name='NOSTA', format='1J',
                            array=self.antenna_numbers + 1)

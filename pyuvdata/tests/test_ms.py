@@ -29,8 +29,7 @@ def test_noSPW():
     UV = UVData()
     testfile_no_spw = os.path.join(
         DATA_PATH, 'zen.2456865.60537.xy.uvcRREAAM.ms')
-    uvtest.checkWarnings(UV.read_ms, [testfile_no_spw],
-                         nwarnings=1)
+    UV.read_ms(testfile_no_spw)
     del(UV)
 
 
