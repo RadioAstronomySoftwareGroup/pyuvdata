@@ -309,17 +309,42 @@ class Miriad(UVData):
         nants = uv['nants']
         try:
             antpos = uv['antpos'].reshape(3, nants).T
+            # Miriad stores antpos values in a rotated ECEF coordinate system
+            # where the x-axis goes through the local meridan. Need to convert
+            # these positions back to standard ECEF and subtract off the
+            # telescope position to make them relative to the array center.
+            ecef_antpos = uvutils.ECEF_from_rotECEF(antpos, longitude)
+
+            if self.telescope_location is not None:
+                rel_ecef_antpos = ecef_antpos - self.telescope_location
+            else:
+                self.telescope_location = np.mean(ecef_antpos, axis=0)
+                # check to see if this could be a valid telescope_location
+                if self._telescope_location.check_acceptability()[0]:
+                    # if this looks like a valid telescope_location, leave
+                    # telescope_location set and subtract it off of the antenna
+                    # positions
+                    warnings.warn('Telescope location is not set, but antenna '
+                                  'positions are present. Using the mean of the '
+                                  'antenna positions as the telescope location')
+                    rel_ecef_antpos = ecef_antpos - self.telescope_location
+                else:
+                    # This does not give a valid telescope_location. Set it back
+                    # to None and don't adjust the antenna_positions
+                    self.telescope_location = None
+                    rel_ecef_antpos = ecef_antpos
+
             if self.Nants_telescope is not None:
                 # in this case there is an antnums variable
                 # (meaning that the file was written with pyuvdata), so we'll use it
                 if nants == self.Nants_telescope:
                     # no inflation, so just use the positions
-                    self.antenna_positions = antpos
+                    self.antenna_positions = rel_ecef_antpos
                 else:
                     # there is some inflation, just use the ones that appear in antnums
                     self.antenna_positions = np.zeros((self.Nants_telescope, 3), dtype=antpos.dtype)
                     for ai, num in enumerate(self.antenna_numbers):
-                        self.antenna_positions[ai, :] = antpos[num, :]
+                        self.antenna_positions[ai, :] = rel_ecef_antpos[num, :]
             else:
                 # there is no antnums variable (meaning that this file was not
                 # written by pyuvdata), so we test for antennas with non-zero
@@ -335,13 +360,16 @@ class Miriad(UVData):
                 # object, so they dictate Nants_telescope
                 self.Nants_telescope = len(ants_use)
                 self.antenna_numbers = np.array(list(ants_use))
-                self.antenna_positions = np.zeros((self.Nants_telescope, 3), dtype=antpos.dtype)
+                self.antenna_positions = np.zeros((self.Nants_telescope, 3), dtype=rel_ecef_antpos.dtype)
                 for ai, num in enumerate(self.antenna_numbers):
-                    self.antenna_positions[ai, :] = antpos[num, :]
                     if antpos_length[num] == 0:
                         warnings.warn('antenna number {n} has visibilities '
                                       'associated with it, but it has a position'
                                       ' of (0,0,0)'.format(n=num))
+                    else:
+                        # leave bad locations as zeros to make them obvious
+                        self.antenna_positions[ai, :] = rel_ecef_antpos[num, :]
+
         except(KeyError):
             # there is no antpos variable
             self.antenna_positions = None
@@ -630,9 +658,23 @@ class Miriad(UVData):
         nants = np.max(self.antenna_numbers) + 1
         uv['nants'] = nants
         if self.antenna_positions is not None:
-            antpos = np.zeros((nants, 3), dtype=self.antenna_positions.dtype)
+            # Miriad wants antenna_positions to be in absolute coordinates
+            # (not relative to array center) in a rotated ECEF frame where the
+            # x-axis goes through the local meridian.
+            rel_ecef_antpos = np.zeros((nants, 3), dtype=self.antenna_positions.dtype)
             for ai, num in enumerate(self.antenna_numbers):
-                antpos[num, :] = self.antenna_positions[ai, :]
+                rel_ecef_antpos[num, :] = self.antenna_positions[ai, :]
+
+            # find zeros so antpos can be zeroed there too
+            antpos_length = np.sqrt(np.sum(np.abs(rel_ecef_antpos)**2, axis=1))
+
+            ecef_antpos = rel_ecef_antpos + self.telescope_location
+            longitude = self.telescope_location_lat_lon_alt[1]
+            antpos = uvutils.rotECEF_from_ECEF(ecef_antpos, longitude)
+
+            # zero out bad locations (these are checked on read)
+            antpos[np.where(antpos_length == 0), :] = [0, 0, 0]
+
             uv.add_var('antpos', 'd')
             uv['antpos'] = antpos.T.flatten()
 

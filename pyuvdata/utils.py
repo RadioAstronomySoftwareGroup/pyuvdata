@@ -99,16 +99,16 @@ def rotECEF_from_ECEF(xyz, longitude):
     (with longitude of the array center/telescope location)
 
     Args:
-        xyz: numpy array, shape (3, Npts), with ECEF x,y,z coordinates
+        xyz: numpy array, shape (Npts, 3), with ECEF x,y,z coordinates
         longitude: longitude in radians to rotate coordinates to (usually the array center/telescope location)
     Returns:
-        numpy array, shape (3, Npts), with rotated ECEF coordinates
+        numpy array, shape (Npts, 3), with rotated ECEF coordinates
     """
     angle = -1 * longitude
     rot_matrix = np.array([[np.cos(angle), -1 * np.sin(angle), 0],
                            [np.sin(angle), np.cos(angle), 0],
                            [0, 0, 1]])
-    return rot_matrix.dot(xyz)
+    return rot_matrix.dot(xyz.T).T
 
 
 def ECEF_from_rotECEF(xyz, longitude):
@@ -117,16 +117,16 @@ def ECEF_from_rotECEF(xyz, longitude):
     specified longitude. (Inverse of rotECEF_from_ECEF)
 
     Args:
-        xyz: numpy array, shape (3, Npts), with rotated ECEF x,y,z coordinates
+        xyz: numpy array, shape (Npts, 3), with rotated ECEF x,y,z coordinates
         longitude: longitude in radians to rotate coordinates to (usually the array center/telescope location)
     Returns:
-        numpy array, shape (3, Npts), with ECEF coordinates
+        numpy array, shape (Npts, 3), with ECEF coordinates
     """
     angle = longitude
     rot_matrix = np.array([[np.cos(angle), -1 * np.sin(angle), 0],
                            [np.sin(angle), np.cos(angle), 0],
                            [0, 0, 1]])
-    return rot_matrix.dot(xyz)
+    return rot_matrix.dot(xyz.T).T
 
 
 def ENU_from_ECEF(xyz, latitude, longitude, altitude):

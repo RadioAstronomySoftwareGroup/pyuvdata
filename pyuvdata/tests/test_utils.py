@@ -135,17 +135,17 @@ def test_mwa_ecef_conversion():
 
     # The STABXYZ coordinates are defined with X through the local meridian,
     # so rotate back to the prime meridian
-    new_xyz = uvutils.ECEF_from_rotECEF(xyz, lon)
+    new_xyz = uvutils.ECEF_from_rotECEF(xyz.T, lon)
     # add in array center to get real ECEF
-    ecef_xyz = (new_xyz.T + arrcent).T
+    ecef_xyz = new_xyz + arrcent
 
-    enu = uvutils.ENU_from_ECEF(ecef_xyz, lat, lon, alt)
+    enu = uvutils.ENU_from_ECEF(ecef_xyz.T, lat, lon, alt)
 
     nt.assert_true(np.allclose(enu, enh))
 
     # test other direction of ECEF rotation
     rot_xyz = uvutils.rotECEF_from_ECEF(new_xyz, lon)
-    nt.assert_true(np.allclose(rot_xyz, xyz))
+    nt.assert_true(np.allclose(rot_xyz.T, xyz))
 
 
 def test_pol_funcs():
