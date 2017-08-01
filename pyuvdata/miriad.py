@@ -332,6 +332,10 @@ class Miriad(UVData):
                     # This does not give a valid telescope_location. Set it back
                     # to None and don't adjust the antenna_positions
                     self.telescope_location = None
+                    warnings.warn('Telescope location is not set. Antenna '
+                                  'positions are present, but the mean of the '
+                                  'antenna positions does not give a sensible '
+                                  'telescope_location')
                     rel_ecef_antpos = ecef_antpos
 
             if self.Nants_telescope is not None:
@@ -372,6 +376,7 @@ class Miriad(UVData):
 
         except(KeyError):
             # there is no antpos variable
+            warnings.warn('Antenna positions are not present in the file.')
             self.antenna_positions = None
 
         if self.antenna_numbers is None:
