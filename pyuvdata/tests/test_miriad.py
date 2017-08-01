@@ -126,8 +126,9 @@ def test_wronglatlon():
     uvtest.checkWarnings(uv_in.read_miriad, [lonfile],
                          message=['Altitude is not present in file and longitude value does not match'])
     uvtest.checkWarnings(uv_in.read_miriad, [telescopefile], {'run_check': False},
-                         nwarnings=2, category=[UserWarning, UserWarning],
+                         nwarnings=3, category=[UserWarning, UserWarning, UserWarning],
                          message=['Altitude is not present in Miriad file, and telescope',
+                                  'Telescope location is not set. Antenna positions are present, but the mean',
                                   'Telescope foo is not in known_telescopes.'])
 
 
@@ -353,7 +354,8 @@ def test_rwrMiriad_antpos_issues():
     uvtest.checkWarnings(uv_in.read_miriad, [testfile], known_warning='miriad')
     uv_in.antenna_positions = None
     uv_in.write_miriad(write_file, clobber=True)
-    uv_out.read_miriad(write_file)
+    uvtest.checkWarnings(uv_out.read_miriad, [write_file],
+                         message=['Antenna positions are not present in the file.'])
 
     nt.assert_equal(uv_in, uv_out)
 
@@ -379,7 +381,8 @@ def test_rwrMiriad_antpos_issues():
     uv_in.antenna_names = new_names
     uv_in.Nants_telescope = len(uv_in.antenna_numbers)
     uv_in.write_miriad(write_file, clobber=True, no_antnums=True)
-    uv_out.read_miriad(write_file)
+    uvtest.checkWarnings(uv_out.read_miriad, [write_file],
+                         message=['Antenna positions are not present in the file.'])
 
     nt.assert_equal(uv_in, uv_out)
 
