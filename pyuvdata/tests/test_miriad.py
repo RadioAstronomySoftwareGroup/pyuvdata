@@ -12,6 +12,18 @@ import aipy.miriad as amiriad
 from astropy import constants as const
 
 
+def test_ReadATCA():
+    miriad_uv = UVData()
+    atca_file = os.path.join(DATA_PATH, 'bptest')
+    uvtest.checkWarnings(miriad_uv.read_miriad, [atca_file], {'run_check': False},
+                         nwarnings=3, category=[UserWarning, UserWarning, UserWarning],
+                         message=['Altitude is not present in Miriad file, and telescope',
+                                  'Telescope location is not set. Antenna positions are present, but the mean',
+                                  'Telescope ATCA is not in known_telescopes.'])
+
+    nt.assert_false(miriad_uv.telescope_location is None)
+
+
 def test_ReadNRAOWriteMiriadReadMiriad():
     """Test reading in a CASA tutorial uvfits file, writing and reading as miriad"""
     uvfits_uv = UVData()
