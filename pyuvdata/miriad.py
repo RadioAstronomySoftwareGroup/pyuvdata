@@ -327,11 +327,18 @@ class Miriad(UVData):
         try:
             # Miriad stores antpos values in units of ns, pyuvdata uses meters.
             antpos = uv['antpos'].reshape(3, nants).T * const.c.to('m/ns').value
+            print(antpos)
+            print(np.mean(antpos, axis=0))
+            print(np.mean(np.linalg.norm(antpos, axis=1)))
             # Miriad stores antpos values in a rotated ECEF coordinate system
             # where the x-axis goes through the local meridan. Need to convert
             # these positions back to standard ECEF and subtract off the
             # telescope position to make them relative to the array center.
+            print(longitude)
             ecef_antpos = uvutils.ECEF_from_rotECEF(antpos, longitude)
+            print(ecef_antpos)
+            print(np.mean(ecef_antpos, axis=0))
+            print(np.mean(np.linalg.norm(ecef_antpos, axis=1)))
 
             if self.telescope_location is not None:
                 rel_ecef_antpos = ecef_antpos - self.telescope_location
