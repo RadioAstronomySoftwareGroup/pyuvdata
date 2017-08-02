@@ -1,0 +1,195 @@
+ATLOD: Miriad atlod: Revision 1.47, 2014/01/15 04:28:11 UTC
+ATLOD: Executed on: 2015-03-01T10:21:35.0
+ATLOD: Command line inputs follow:
+ATLOD:   in=2015-02-27_????.CX317
+ATLOD:   out=cx317
+ATLOD:   options=birdie,rfiflag,noauto
+ATLOD:    Processing file 2015-02-27_0346.CX317
+ATLOD:     03:46:25 CAOBS> track 2
+ATLOD:    CABB data detected
+ATLOD:     04:01:36 CAOBS> stop
+ATLOD:     04:01:47 CAOBS> set file cx317_obs
+ATLOD:     04:01:56 CAOBS> start 1/100
+ATLOD:    RPFITS file version is 2.12
+ATLOD:    Total number of spectra selected: 145200
+ATLOD:    Summary of spectra flagged
+ATLOD:    Flagging Reason            Fraction
+ATLOD:    ---------------            --------
+ATLOD:    Antenna off-source/off-line  8.35%
+ATLOD:    ---------------------------------------
+ATLOD:    Processing file 2015-02-27_0720.CX317
+ATLOD:    CABB data detected
+ATLOD:    RPFITS file version is 2.12
+ATLOD:    Total number of spectra selected: 145200
+ATLOD:    Summary of spectra flagged
+ATLOD:    Flagging Reason            Fraction
+ATLOD:    ---------------            --------
+ATLOD:    Antenna off-source/off-line  10.5%
+ATLOD:    ---------------------------------------
+ATLOD:    Processing file 2015-02-27_1053.CX317
+ATLOD:    CABB data detected
+ATLOD:     13:13:30 CAOBS> next
+ATLOD:     13:19:59 CAOBS> next
+ATLOD:     13:57:02 CAOBS> next
+ATLOD:     14:00:06 CAOBS> stop
+ATLOD:     14:00:09 CAOBS> corr closefile
+ATLOD:    RPFITS file version is 2.12
+ATLOD:    Total number of spectra selected: 126000
+ATLOD:    Summary of spectra flagged
+ATLOD:    Flagging Reason            Fraction
+ATLOD:    ---------------            --------
+ATLOD:    Antenna off-source/off-line  5.05%
+ATLOD:    ---------------------------------------
+ATLOD:    Processing file 2015-02-27_1406.CX317
+ATLOD:     14:04:11 CAOBS> start 1/100
+ATLOD:     14:04:42 CAOBS> next
+ATLOD:     14:05:01 CAOBS> next
+ATLOD:     14:05:06 CAOBS> next
+ATLOD:     14:05:31 CAOBS> next
+ATLOD:     14:05:39 CAOBS> start 5/100
+ATLOD:     14:05:58 CAOBS> stop
+ATLOD:     14:06:05 CAOBS> start 5/100
+ATLOD:     14:06:35 CAOBS> stop
+ATLOD:     14:06:39 CAOBS> start 6/100
+ATLOD:    CABB data detected
+ATLOD:    RPFITS file version is 2.12
+ATLOD:    Total number of spectra selected: 27720
+ATLOD:    There was no flagged data
+ATLOD:    ---------------------------------------
+ATLOD:
+ATLOD:    No CACAL data was detected
+UVSPLIT: Miriad uvsplit: Revision 1.15, 2013/08/30 01:49:21 UTC
+UVSPLIT: Executed on: 2015-03-01T10:28:57.0
+UVSPLIT: Command line inputs follow:
+UVSPLIT:   vis=cx317
+UVFLAG: Executed on: 2015-03-01T18:39:31.0
+UVFLAG: Command line inputs follow:
+UVFLAG:   vis=1934-638.2100.1
+UVFLAG:   line=channel,14,282,1,1
+UVFLAG:   flagval=flag
+UVFLAG: Overview of flagging on visibility file 1934-638.2100.1
+UVFLAG: Changed flags set to FALSE (data flagged as bad)
+UVFLAG: Total number of records selected: 5340; out of 5340 records
+UVFLAG: Antennas used: 1-6
+UVFLAG: Counts of correlations within selected channels
+UVFLAG: channel   Originally    Currently
+UVFLAG: Good:           74760.           0.    Changed to bad:       74760.
+UVFLAG: Bad:                0.       74760.
+UVFLAG: Executed on: 2015-03-01T18:39:31.0
+UVFLAG: Command line inputs follow:
+UVFLAG:   vis=1934-638.2100.1
+UVFLAG:   line=channel,15,730,1,1
+UVFLAG:   flagval=flag
+UVFLAG: Overview of flagging on visibility file 1934-638.2100.1
+UVFLAG: Changed flags set to FALSE (data flagged as bad)
+UVFLAG: Total number of records selected: 5340; out of 5340 records
+UVFLAG: Antennas used: 1-6
+UVFLAG: Counts of correlations within selected channels
+UVFLAG: channel   Originally    Currently
+UVFLAG: Good:           80100.           0.    Changed to bad:       80100.
+UVFLAG: Bad:                0.       80100.
+UVFLAG: Executed on: 2015-03-01T18:39:32.0
+UVFLAG: Command line inputs follow:
+UVFLAG:   vis=1934-638.2100.1
+UVFLAG:   line=channel,21,960,1,1
+UVFLAG:   flagval=flag
+UVFLAG: Overview of flagging on visibility file 1934-638.2100.1
+UVFLAG: Changed flags set to FALSE (data flagged as bad)
+UVFLAG: Total number of records selected: 5340; out of 5340 records
+UVFLAG: Antennas used: 1-6
+UVFLAG: Counts of correlations within selected channels
+UVFLAG: channel   Originally    Currently
+UVFLAG: Good:          112140.           0.    Changed to bad:      112140.
+UVFLAG: Bad:                0.      112140.
+UVFLAG: Executed on: 2015-03-01T18:39:32.0
+UVFLAG: Command line inputs follow:
+UVFLAG:   vis=1934-638.2100.1
+UVFLAG:   line=channel,18,1212,1,1
+UVFLAG:   flagval=flag
+UVFLAG: Overview of flagging on visibility file 1934-638.2100.1
+UVFLAG: Changed flags set to FALSE (data flagged as bad)
+UVFLAG: Total number of records selected: 5340; out of 5340 records
+UVFLAG: Antennas used: 1-6
+UVFLAG: Counts of correlations within selected channels
+UVFLAG: channel   Originally    Currently
+UVFLAG: Good:           96120.           0.    Changed to bad:       96120.
+UVFLAG: Bad:                0.       96120.
+UVFLAG: Executed on: 2015-03-01T18:39:32.0
+UVFLAG: Command line inputs follow:
+UVFLAG:   vis=1934-638.2100.1
+UVFLAG:   line=channel,14,1306,1,1
+UVFLAG:   flagval=flag
+UVFLAG: Overview of flagging on visibility file 1934-638.2100.1
+UVFLAG: Changed flags set to FALSE (data flagged as bad)
+UVFLAG: Total number of records selected: 5340; out of 5340 records
+UVFLAG: Antennas used: 1-6
+UVFLAG: Counts of correlations within selected channels
+UVFLAG: channel   Originally    Currently
+UVFLAG: Good:           74760.           0.    Changed to bad:       74760.
+UVFLAG: Bad:                0.       74760.
+UVFLAG: Executed on: 2015-03-01T18:39:32.0
+UVFLAG: Command line inputs follow:
+UVFLAG:   vis=1934-638.2100.1
+UVFLAG:   line=channel,1,1433,1,1
+UVFLAG:   flagval=flag
+UVFLAG: Overview of flagging on visibility file 1934-638.2100.1
+UVFLAG: Changed flags set to FALSE (data flagged as bad)
+UVFLAG: Total number of records selected: 5340; out of 5340 records
+UVFLAG: Antennas used: 1-6
+UVFLAG: Counts of correlations within selected channels
+UVFLAG: channel   Originally    Currently
+UVFLAG: Good:            5340.           0.    Changed to bad:        5340.
+UVFLAG: Bad:                0.        5340.
+UVFLAG: Executed on: 2015-03-01T18:39:32.0
+UVFLAG: Command line inputs follow:
+UVFLAG:   vis=1934-638.2100.1
+UVFLAG:   line=channel,216,1834,1,1
+UVFLAG:   flagval=flag
+UVFLAG: Overview of flagging on visibility file 1934-638.2100.1
+UVFLAG: Changed flags set to FALSE (data flagged as bad)
+UVFLAG: Total number of records selected: 5340; out of 5340 records
+UVFLAG: Antennas used: 1-6
+UVFLAG: Counts of correlations within selected channels
+UVFLAG: channel   Originally    Currently
+UVFLAG: Good:          336420.           0.    Changed to bad:      336420.
+UVFLAG: Bad:           817020.     1153440.
+MFCAL: MfCal: $Revision: 1.16 $, $Date: 2014/04/29 00:50:17 $
+MFCAL: Executed on: 2015-03-01T18:39:48.0
+MFCAL: Command line inputs follow:
+MFCAL:   vis=1934-638.2100.1
+MFCAL:   refant=3
+MFCAL:   interval=20
+GPCAL: gpcal: Revision 1.19, 2014/04/28 01:00:33 UTC
+GPCAL: Executed on: 2015-03-01T18:39:50.0
+GPCAL: Command line inputs follow:
+GPCAL:   vis=1934-638.2100.1
+GPCAL:   refant=3
+GPCAL:   interval=20
+GPCAL:   options=xyvary
+GPCAL: I flux density:  12.3696
+GPCAL: Leakage terms:
+GPCAL:  Ant 1:Dx,Dy = ( 0.01372, 0.00059),(-0.01522, 0.00115)
+GPCAL:  Ant 2:Dx,Dy = ( 0.01476,-0.00607),(-0.01641,-0.00581)
+GPCAL:  Ant 3:Dx,Dy = (-0.01986, 0.00391),( 0.01435, 0.00248)
+GPCAL:  Ant 4:Dx,Dy = (-0.00383,-0.00122),( 0.00206,-0.00082)
+GPCAL:  Ant 5:Dx,Dy = (-0.00733, 0.00409),( 0.00559, 0.00529)
+GPCAL:  Ant 6:Dx,Dy = (-0.00500,-0.00264),( 0.00209,-0.00096)
+MFBOOT: Miriad mfboot: Revision 1.13, 2014/04/27 23:34:53 UTC
+MFBOOT: Executed on: 2015-03-01T18:39:50.0
+MFBOOT: Command line inputs follow:
+MFBOOT:   vis=1934-638.2100.1
+MFBOOT:   select=source(1934-638)
+MFBOOT: Adjusting spectral slope by -0.025
+UVAVER: Miriad UvAver: version 1.0 17-Nov-08
+UVAVER: Executed on: 2017-02-22T07:17:02.0
+UVAVER: Command line inputs follow:
+UVAVER:   vis=1934-638.2100.1
+UVAVER:   select=time(04:00,04:01)
+UVAVER:   interval=60
+UVAVER:   options=nocal,nopol,nopass
+UVAVER:   out=bptest
+GPCOPY: Miriad gpcopy: Revision 1.13, 2015/10/29 01:31:39 UTC
+GPCOPY: Executed on: 2017-02-22T07:17:53.0
+GPCOPY: Command line inputs follow:
+GPCOPY:   vis=1934-638.2100.1
+GPCOPY:   out=bptest
