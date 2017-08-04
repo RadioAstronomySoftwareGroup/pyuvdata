@@ -960,7 +960,7 @@ class UVCal(UVBase):
         if this.input_flag_array is not None:
             if other.input_flag_array is not None:
                 this.input_flag_array[np.ix_(ants_t2o, [0], freqs_t2o, times_t2o,
-                                              jones_t2o)] = other.input_flag_array
+                                             jones_t2o)] = other.input_flag_array
 
         # Update N parameters (e.g. Npols)
         this.Njones = this.jones_array.shape[0]

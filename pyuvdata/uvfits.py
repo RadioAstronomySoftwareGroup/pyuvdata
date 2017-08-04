@@ -91,7 +91,7 @@ class UVFITS(UVData):
             if len(set(source)) > 1:
                 raise ValueError('This file has multiple sources. Only single '
                                  'source observations are supported.')
-        except:
+        except(KeyError):
             pass
 
         # get self.baseline_array using our convention
@@ -159,7 +159,7 @@ class UVFITS(UVData):
 
         try:
             self.integration_time = float(D.data.field('INTTIM')[0])
-        except:
+        except(KeyError):
             if self.Ntimes > 1:
                 self.integration_time = \
                     float(np.diff(np.sort(list(set(self.time_array))))
