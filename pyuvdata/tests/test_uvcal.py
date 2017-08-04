@@ -115,8 +115,8 @@ class TestUVCalBasicMethods(object):
         self.delay_object = UVCal()
         delayfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.HH.uvc.fits')
         message = delayfile + ' appears to be an old calfits format'
-        uvtest.checkWarnings(self.delay_object.read_calfits, [delayfile], nwarnings=1,
-                             message=message, category=[UserWarning])
+        uvtest.checkWarnings(self.delay_object.read_calfits, [delayfile],
+                             message=message)
 
     def teardown(self):
         """Tear down test"""
@@ -249,7 +249,8 @@ class TestUVCalSelectGain(object):
         # check that total_quality_array is handled properly when present
         self.gain_object.total_quality_array = np.zeros(
             self.gain_object._total_quality_array.expected_shape(self.gain_object))
-        uvtest.checkWarnings(self.gain_object.select, [], {'antenna_names': ant_names, 'inplace':True},
+        uvtest.checkWarnings(self.gain_object.select, [], {'antenna_names': ant_names,
+                                                           'inplace': True},
                              message='Cannot preserve total_quality_array')
         nt.assert_equal(self.gain_object.total_quality_array, None)
 
@@ -477,8 +478,7 @@ class TestUVCalSelectDelay(object):
         write_file = os.path.join(DATA_PATH, 'test/outtest_input_flags.fits')
         uv_in = UVCal()
         message = delayfile + ' appears to be an old calfits format'
-        uvtest.checkWarnings(uv_in.read_calfits, [delayfile], nwarnings=1,
-                             message=message, category=[UserWarning])
+        uvtest.checkWarnings(uv_in.read_calfits, [delayfile], message=message)
         uv_in.input_flag_array = np.zeros(uv_in._input_flag_array.expected_shape(uv_in), dtype=bool)
         uv_in.write_calfits(write_file, clobber=True)
 
@@ -1110,8 +1110,7 @@ class TestUVCalAddDelay(object):
         write_file = os.path.join(DATA_PATH, 'test/outtest_input_flags.fits')
         uv_in = UVCal()
         message = delayfile + ' appears to be an old calfits format'
-        uvtest.checkWarnings(uv_in.read_calfits, [delayfile], nwarnings=1,
-                             message=message, category=[UserWarning])
+        uvtest.checkWarnings(uv_in.read_calfits, [delayfile], message=message)
         uv_in.input_flag_array = np.zeros(uv_in._input_flag_array.expected_shape(uv_in), dtype=bool)
         uv_in.write_calfits(write_file, clobber=True)
 

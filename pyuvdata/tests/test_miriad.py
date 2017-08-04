@@ -420,7 +420,6 @@ def test_multi_files():
     uv1.write_miriad(testfile1, clobber=True)
     uv2.write_miriad(testfile2, clobber=True)
     uvtest.checkWarnings(uv1.read_miriad, [[testfile1, testfile2]], nwarnings=2,
-                         category=[UserWarning, UserWarning],
                          message=['Telescope EVLA is not', 'Telescope EVLA is not'])
     # Check history is correct, before replacing and doing a full object check
     nt.assert_true(uvutils.check_histories(uv_full.history + '  Downselected to '

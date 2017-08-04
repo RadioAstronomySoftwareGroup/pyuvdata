@@ -217,7 +217,6 @@ def test_multi_files():
     uv1.write_uvfits(testfile1)
     uv2.write_uvfits(testfile2)
     uvtest.checkWarnings(uv1.read_uvfits, [[testfile1, testfile2]], nwarnings=2,
-                         category=[UserWarning, UserWarning],
                          message=['Telescope EVLA is not', 'Telescope EVLA is not'])
     # Check history is correct, before replacing and doing a full object check
     nt.assert_true(uvutils.check_histories(uv_full.history + '  Downselected to '
@@ -238,8 +237,7 @@ def test_readMSWriteUVFits_CASAHistory():
     uvfits_uv = UVData()
     ms_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.ms')
     testfile = os.path.join(DATA_PATH, 'test/outtest_uvfits')
-    uvtest.checkWarnings(ms_uv.read_ms, [ms_file], message='Telescope EVLA is not',
-                         nwarnings=0)
+    ms_uv.read_ms(ms_file)
     ms_uv.write_uvfits(testfile, spoof_nonessential=True)
     uvtest.checkWarnings(uvfits_uv.read_uvfits, [testfile],
                          message='Telescope EVLA is not')
