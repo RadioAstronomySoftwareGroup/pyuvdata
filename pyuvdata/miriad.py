@@ -5,7 +5,7 @@ import shutil
 import numpy as np
 import copy
 import warnings
-import aipy as a
+import aipy
 from uvdata import UVData
 import telescopes as uvtel
 import utils as uvutils
@@ -46,7 +46,7 @@ class Miriad(UVData):
         """
         if not os.path.exists(filepath):
             raise(IOError, filepath + ' not found')
-        uv = a.miriad.UV(filepath)
+        uv = aipy.miriad.UV(filepath)
 
         # list of miriad variables always read
         # NB: this includes variables in try/except (i.e. not all variables are
@@ -617,7 +617,7 @@ class Miriad(UVData):
                                  'The miriad format does not support frequencies '
                                  'that are spaced by more than their channel width.')
 
-        uv = a.miriad.UV(filepath, status='new')
+        uv = aipy.miriad.UV(filepath, status='new')
 
         # initialize header variables
         uv._wrhd('obstype', 'mixed-auto-cross')
