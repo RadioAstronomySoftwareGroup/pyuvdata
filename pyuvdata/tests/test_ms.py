@@ -15,10 +15,7 @@ def test_readNRAO():
     testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.ms')
     expected_extra_keywords = ['data_column', 'antenna_positions']
 
-    uvtest.checkWarnings(UV.read_ms,
-                         [testfile],
-                         message='Telescope EVLA is not',
-                         nwarnings=0)
+    UV.read_ms(testfile)
     nt.assert_equal(expected_extra_keywords.sort(),
                     UV.extra_keywords.keys().sort())
     del(UV)
@@ -56,9 +53,7 @@ def test_readMSreadUVFITS():
         DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
     uvtest.checkWarnings(uvfits_uv.read_uvfits, [uvfits_file],
                          message='Telescope EVLA is not')
-    uvtest.checkWarnings(ms_uv.read_ms, [ms_file],
-                         message='Telescope EVLA is not',
-                         nwarnings=0)
+    ms_uv.read_ms(ms_file)
     # set histories to identical blank strings since we do not expect
     # them to be the same anyways.
     ms_uv.history = ""
@@ -99,9 +94,7 @@ def test_readMSWriteUVFITS():
     uvfits_uv = UVData()
     ms_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.ms')
     testfile = os.path.join(DATA_PATH, 'test/outtest_uvfits')
-    uvtest.checkWarnings(ms_uv.read_ms, [ms_file],
-                         message='Telescope EVLA is not',
-                         nwarnings=0)
+    ms_uv.read_ms(ms_file)
     ms_uv.write_uvfits(testfile, spoof_nonessential=True)
     uvtest.checkWarnings(uvfits_uv.read_uvfits, [testfile],
                          message='Telescope EVLA is not')
@@ -121,9 +114,7 @@ def test_readMSWriteMiriad():
     miriad_uv = UVData()
     ms_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.ms')
     testfile = os.path.join(DATA_PATH, 'test/outtest_miriad')
-    uvtest.checkWarnings(ms_uv.read_ms, [ms_file],
-                         message='Telescope EVLA is not',
-                         nwarnings=0)
+    ms_uv.read_ms(ms_file)
     ms_uv.write_miriad(testfile, clobber=True)
     uvtest.checkWarnings(miriad_uv.read_miriad, [testfile],
                          message='Telescope EVLA is not')

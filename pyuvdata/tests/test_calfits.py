@@ -45,8 +45,7 @@ def test_readwriteread_delays():
     testfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.HH.uvc.fits')
     write_file = os.path.join(DATA_PATH, 'test/outtest_firstcal.fits')
     message = testfile + ' appears to be an old calfits format'
-    uvtest.checkWarnings(uv_in.read_calfits, [testfile], nwarnings=1,
-                         message=message, category=[UserWarning])
+    uvtest.checkWarnings(uv_in.read_calfits, [testfile], message=message)
     uv_in.write_calfits(write_file, clobber=True)
     uv_out.read_calfits(write_file)
     nt.assert_equal(uv_in, uv_out)
@@ -64,15 +63,13 @@ def test_errors():
     testfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.HH.uvc.fits')
     write_file = os.path.join(DATA_PATH, 'test/outtest_firstcal.fits')
     message = testfile + ' appears to be an old calfits format'
-    uvtest.checkWarnings(uv_in.read_calfits, [testfile], nwarnings=1,
-                         message=message, category=[UserWarning])
+    uvtest.checkWarnings(uv_in.read_calfits, [testfile], message=message)
 
     uv_in.set_unknown_cal_type()
     nt.assert_raises(ValueError, uv_in.write_calfits, write_file, run_check=False, clobber=True)
 
     # change values for various axes in flag and total quality hdus to not match primary hdu
-    uvtest.checkWarnings(uv_in.read_calfits, [testfile], nwarnings=1,
-                         message=message, category=[UserWarning])
+    uvtest.checkWarnings(uv_in.read_calfits, [testfile], message=message)
 
     # Create filler jones info
     uv_in.jones_array = np.array([-5, -6, -7, -8])
@@ -219,8 +216,7 @@ def test_read_oldcalfits():
         else:
             hdulist.writeto(write_file, overwrite=True)
 
-        uvtest.checkWarnings(uv_out.read_calfits, [write_file], nwarnings=1,
-                             message=messages[i], category=[UserWarning])
+        uvtest.checkWarnings(uv_out.read_calfits, [write_file], message=messages[i])
         nt.assert_equal(uv_in, uv_out)
         nt.assert_raises(KeyError, uv_out.read_calfits, write_file, strict_fits=True)
 
@@ -230,8 +226,7 @@ def test_read_oldcalfits():
     testfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.HH.uvc.fits')
     write_file = os.path.join(DATA_PATH, 'test/outtest_firstcal.fits')
     message = testfile + ' appears to be an old calfits format'
-    uvtest.checkWarnings(uv_in.read_calfits, [testfile], nwarnings=1,
-                         message=message, category=[UserWarning])
+    uvtest.checkWarnings(uv_in.read_calfits, [testfile], message=message)
 
     # add total_quality_array so that can be tested as well
     uv_in.total_quality_array = np.zeros(uv_in._total_quality_array.expected_shape(uv_in))
@@ -277,8 +272,7 @@ def test_read_oldcalfits():
         else:
             hdulist.writeto(write_file, overwrite=True)
 
-        uvtest.checkWarnings(uv_out.read_calfits, [write_file], nwarnings=1,
-                             message=messages[i], category=[UserWarning])
+        uvtest.checkWarnings(uv_out.read_calfits, [write_file], message=messages[i])
         nt.assert_equal(uv_in, uv_out)
         nt.assert_raises(KeyError, uv_out.read_calfits, write_file, strict_fits=True)
 
@@ -303,8 +297,7 @@ def test_input_flag_array():
     # Repeat for delay version
     testfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.HH.uvc.fits')
     message = testfile + ' appears to be an old calfits format'
-    uvtest.checkWarnings(uv_in.read_calfits, [testfile], nwarnings=1,
-                         message=message, category=[UserWarning])
+    uvtest.checkWarnings(uv_in.read_calfits, [testfile], message=message)
     uv_in.input_flag_array = np.zeros(uv_in._input_flag_array.expected_shape(uv_in), dtype=bool)
     uv_in.write_calfits(write_file, clobber=True)
     uv_out.read_calfits(write_file)
@@ -340,8 +333,7 @@ def test_jones():
     # Repeat for delay version
     testfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.HH.uvc.fits')
     message = testfile + ' appears to be an old calfits format'
-    uvtest.checkWarnings(uv_in.read_calfits, [testfile], nwarnings=1,
-                         message=message, category=[UserWarning])
+    uvtest.checkWarnings(uv_in.read_calfits, [testfile], message=message)
 
     # Create filler jones info
     uv_in.jones_array = np.array([-5, -6, -7, -8])
@@ -385,8 +377,7 @@ def test_readwriteread_total_quality_array():
     testfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.HH.uvc.fits')
     write_file = os.path.join(DATA_PATH, 'test/outtest_total_quality_array_delays.fits')
     message = testfile + ' appears to be an old calfits format'
-    uvtest.checkWarnings(uv_in.read_calfits, [testfile], nwarnings=1,
-                         message=message, category=[UserWarning])
+    uvtest.checkWarnings(uv_in.read_calfits, [testfile], message=message)
 
     uv_in.total_quality_array = np.zeros(uv_in._total_quality_array.expected_shape(uv_in))
 
@@ -418,8 +409,7 @@ def test_total_quality_array_size():
     uv_in = UVCal()
     testfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.HH.uvc.fits')
     message = testfile + ' appears to be an old calfits format'
-    uvtest.checkWarnings(uv_in.read_calfits, [testfile], nwarnings=1,
-                         message=message, category=[UserWarning])
+    uvtest.checkWarnings(uv_in.read_calfits, [testfile], message=message)
 
     uv_in.total_quality_array = np.zeros(uv_in._total_quality_array.expected_shape(uv_in))
 
