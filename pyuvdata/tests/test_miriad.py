@@ -121,14 +121,20 @@ def test_wronglatlon():
     lonfile = os.path.join(DATA_PATH, 'zen.2456865.60537_wronglon.xy.uvcRREAA')
     telescopefile = os.path.join(DATA_PATH, 'zen.2456865.60537_wrongtelecope.xy.uvcRREAA')
 
-    uvtest.checkWarnings(uv_in.read_miriad, [latfile],
-                         message=['Altitude is not present in file and latitude value does not match'])
-    uvtest.checkWarnings(uv_in.read_miriad, [lonfile],
-                         message=['Altitude is not present in file and longitude value does not match'])
+    uvtest.checkWarnings(uv_in.read_miriad, [latfile], nwarnings=2,
+                         message=['Altitude is not present in file and latitude value does not match',
+                                  '/Users/bryna/Projects/Physics/HERA/pyuvdata/pyuvdata/data/zen.2456865.60537_wronglat.xy.uvcRREAA '
+                                  'was written with an old version of pyuvdata'])
+    uvtest.checkWarnings(uv_in.read_miriad, [lonfile], nwarnings=2,
+                         message=['Altitude is not present in file and longitude value does not match',
+                                  '/Users/bryna/Projects/Physics/HERA/pyuvdata/pyuvdata/data/zen.2456865.60537_wronglon.xy.uvcRREAA '
+                                  'was written with an old version of pyuvdata'])
     uvtest.checkWarnings(uv_in.read_miriad, [telescopefile], {'run_check': False},
-                         nwarnings=3, category=[UserWarning, UserWarning, UserWarning],
+                         nwarnings=4,
                          message=['Altitude is not present in Miriad file, and telescope',
                                   'Telescope location is not set. Antenna positions are present, but the mean',
+                                  '/Users/bryna/Projects/Physics/HERA/pyuvdata/pyuvdata/data/zen.2456865.60537_wrongtelecope.xy.uvcRREAA '
+                                  'was written with an old version of pyuvdata',
                                   'Telescope foo is not in known_telescopes.'])
 
 

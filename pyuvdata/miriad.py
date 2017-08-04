@@ -388,14 +388,29 @@ class Miriad(UVData):
 
         # antenna names is a foreign concept in miriad but required in other formats.
         try:
-            # Here we deal with the way pyuvdata tacks it on to keep the name information if we have it:
-            # This is a horrible hack to save & recover antenna_names array. Miriad can't handle arrays
-            # of strings or a long enough single string to put them all into one string
-            # so we convert them into hex values and then into floats on write and convert
-            # back to strings here
-            ant_name_flt = uv['antnames']
-            ant_name_list = [('%x' % elem.astype(np.int64)).decode('hex') for elem in ant_name_flt]
-            self.antenna_names = ant_name_list
+            # Here we deal with the way pyuvdata tacks it on to keep the
+            # name information if we have it:
+            # make it into one long comma-separated string
+            ant_name_var = uv['antnames']
+            if isinstance(ant_name_var, str):
+                ant_name_str = ant_name_var.replace('\x00', '')
+                ant_name_list = ant_name_str[1:-1].split(', ')
+                self.antenna_names = ant_name_list
+            else:
+                # Backwards compatibility for old way of storing antenna_names.
+                # This is a horrible hack to save & recover antenna_names array.
+                # Miriad can't handle arrays of strings and AIPY use to not handle
+                # long enough single strings to put them all into one string
+                # so we convert them into hex values and then into floats on
+                # write and convert back to strings here
+                warnings.warn('{file} was written with an old version of '
+                              'pyuvdata, which has been deprecated. Rewrite this '
+                              'file with write_miriad to ensure future '
+                              'compatibility'.format(file=filepath))
+                ant_name_flt = uv['antnames']
+                ant_name_list = [('%x' % elem.astype(np.int64)).decode('hex') for elem in ant_name_flt]
+                self.antenna_names = ant_name_list
+
         except(KeyError):
             self.antenna_names = self.antenna_numbers.astype(str).tolist()
 
@@ -780,13 +795,11 @@ class Miriad(UVData):
             uv['antnums'] = self.antenna_numbers.astype(np.float64)
 
         # antenna names is a foreign concept in miriad but required in other formats.
-        # This is a horrible hack to save antenna_names array. Miriad can't handle arrays
-        # of strings or a long enough single string to put them all into one string
-        # so we convert them into hex values and then into floats and convert
-        # back to strings on read
-        ant_name_flt = np.array([int(elem.encode("hex"), 16) for elem in self.antenna_names]).astype(np.float64)
-        uv.add_var('antnames', 'd')
-        uv['antnames'] = ant_name_flt
+        # Miriad can't handle arrays of strings, so we make it into one long
+        # comma-separated string and convert back on read.
+        ant_name_str = '[' + ', '.join(self.antenna_names) + ']'
+        uv.add_var('antnames', 'a')
+        uv['antnames'] = ant_name_str
 
         # variables that can get updated with every visibility
         uv.add_var('pol', 'i')
