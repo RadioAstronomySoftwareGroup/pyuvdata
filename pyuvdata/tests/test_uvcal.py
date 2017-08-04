@@ -100,7 +100,7 @@ class TestUVCalInit(object):
             this_param = getattr(self.uv_cal_object, v)
             try:
                 nt.assert_equal(rand_num, this_param.value)
-            except:
+            except(AssertionError):
                 print('setting {prop_name} to a random number failed'.format(prop_name=k))
                 raise(AssertionError)
 
@@ -527,7 +527,8 @@ class TestUVCalSelectDelay(object):
         # check that total_quality_array is handled properly when present
         self.delay_object.total_quality_array = np.zeros(
             self.delay_object._total_quality_array.expected_shape(self.delay_object))
-        uvtest.checkWarnings(self.delay_object.select, [], {'antenna_names': ant_names, 'inplace':True},
+        uvtest.checkWarnings(self.delay_object.select, [],
+                             {'antenna_names': ant_names, 'inplace': True},
                              message='Cannot preserve total_quality_array')
         nt.assert_equal(self.delay_object.total_quality_array, None)
 
@@ -1038,7 +1039,7 @@ class TestUVCalAddGain(object):
         self.gain_object2.freq_array[0, -1] = self.gain_object2.freq_array[0, -2] + df / 2
         uvtest.checkWarnings(self.gain_object.__iadd__, [self.gain_object2],
                              message='Combined frequencies are not evenly spaced')
-        nt.assert_equal(len(self.gain_object.freq_array[0,:]), self.gain_object.Nfreqs)
+        nt.assert_equal(len(self.gain_object.freq_array[0, :]), self.gain_object.Nfreqs)
 
         # now check having "non-contiguous" frequencies
         self.gain_object = copy.deepcopy(go1)
@@ -1057,8 +1058,8 @@ class TestUVCalAddGain(object):
         freqs2 *= 10
         freqs = np.concatenate([freqs1, freqs2])
         nt.assert_true(np.allclose(self.gain_object.freq_array[0, :], freqs,
-                                    rtol=self.gain_object._freq_array.tols[0],
-                                    atol=self.gain_object._freq_array.tols[1]))
+                                   rtol=self.gain_object._freq_array.tols[0],
+                                   atol=self.gain_object._freq_array.tols[1]))
 
     def test_parameter_warnings(self):
         """Test changing a parameter that will raise a warning"""

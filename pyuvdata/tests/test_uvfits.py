@@ -180,7 +180,7 @@ def test_ReadUVFitsWriteMiriad():
     uvfits_uv.write_miriad(testfile, clobber=True)
     uvtest.checkWarnings(miriad_uv.read_miriad, [testfile], message='Telescope EVLA is not')
 
-    nt.assert_equal(miriad_uv,uvfits_uv)
+    nt.assert_equal(miriad_uv, uvfits_uv)
 
     # check that setting the phase_type keyword also works
     uvtest.checkWarnings(miriad_uv.read_miriad, [testfile], {'phase_type': 'phased'},
