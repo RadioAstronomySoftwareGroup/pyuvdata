@@ -217,7 +217,7 @@ def test_multi_files():
     uv1.write_uvfits(testfile1)
     uv2.write_uvfits(testfile2)
     uvtest.checkWarnings(uv1.read_uvfits, [[testfile1, testfile2]], nwarnings=2,
-                         message=['Telescope EVLA is not', 'Telescope EVLA is not'])
+                         message=['Telescope EVLA is not'])
     # Check history is correct, before replacing and doing a full object check
     nt.assert_true(uvutils.check_histories(uv_full.history + '  Downselected to '
                                            'specific frequencies using pyuvdata. '
