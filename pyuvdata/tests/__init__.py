@@ -32,10 +32,16 @@ def checkWarnings(func, func_args=[], func_kwargs={},
     """Function to check expected warnings."""
 
     if (not isinstance(category, list) or len(category) == 1) and nwarnings > 1:
-        category = [category] * nwarnings
+        if isinstance(category, list):
+            category = category * nwarnings
+        else:
+            category = [category] * nwarnings
 
     if (not isinstance(message, list) or len(message) == 1) and nwarnings > 1:
-        message = [message] * nwarnings
+        if isinstance(message, list):
+            message = message * nwarnings
+        else:
+            message = [message] * nwarnings
 
     if known_warning == 'miriad':
         # The default warnings for known telescopes when reading miriad files
