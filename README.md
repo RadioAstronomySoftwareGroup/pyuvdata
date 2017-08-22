@@ -77,7 +77,7 @@ for aipy (```conda install -c conda-forge aipy```).
 * scipy
 * astropy >= 1.2
 * pyephem
-* aipy
+* aipy >= 2.1.5
 * casacore-python (for CASA measurement set reading functionality)
 
 ## Install pyuvdata
