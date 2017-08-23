@@ -12,3 +12,14 @@ def test_read():
     beams.read_cst_power(file_paths, 'peak')
 
     nt.assert_true(beams.check())
+
+    del beams
+
+    beams = UVBeam()
+
+    # test the bit about checking if the input is a list/tuple or not
+    fuse = file_paths[0]
+
+    beams.read_cst_power(fuse, 'peak')
+
+    nt.assert_true(beams.check())
