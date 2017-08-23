@@ -149,9 +149,9 @@ class UVBeam(UVBase):
                 'of the receiving chain is included in the bandpass_array. '
                 'Peak normalized means that for each frequency the data_array'
                 'is separately normalized such that the peak is 1 (so the beam '
-                'is dimensionless) and all frequency dependence is moved to the '
-                'bandpass_array (if the beam_type is "efield", then peak normalized '
-                'means that the absolute value of the peak is 1). '
+                'is dimensionless) and all direction-independent frequency '
+                'dependence is moved to the bandpass_array (if the beam_type is "efield", '
+                'then peak normalized means that the absolute value of the peak is 1). '
                 'Solid angle normalized means the peak normalized '
                 'beam is divided by the integral of the beam over the sphere, '
                 'so the beam has dimensions of 1/stradian.')
