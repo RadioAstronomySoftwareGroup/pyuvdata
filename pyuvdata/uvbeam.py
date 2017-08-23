@@ -266,15 +266,17 @@ class UVBeam(UVBase):
                                                description=desc, value={},
                                                spoof_val={}, expected_type=dict)
 
-        desc = 'Input impedence of receiving chain, units: Ohms'
-        self._input_impedence = uvp.UVParameter('input_impedence', required=False,
-                                                description=desc,
-                                                expected_type=np.float, tols=1e-3)
+        desc = ('Reference input impedance of receiving chain (sets the reference '
+                'for the S parameters), units: Ohms')
+        self._reference_input_impedance = uvp.UVParameter('reference_input_impedance', required=False,
+                                                          description=desc,
+                                                          expected_type=np.float, tols=1e-3)
 
-        desc = 'Output impedence of receiving chain, units: Ohms'
-        self._output_impedence = uvp.UVParameter('output_impedence', required=False,
-                                                 description=desc,
-                                                 expected_type=np.float, tols=1e-3)
+        desc = ('Reference output impedance of receiving chain (sets the reference '
+                'for the S parameters), units: Ohms')
+        self._reference_output_impedance = uvp.UVParameter('reference_output_impedance', required=False,
+                                                           description=desc,
+                                                           expected_type=np.float, tols=1e-3)
 
         desc = 'Array of receiver temperatures, shape (Nspws, Nfreqs), units K'
         self._receiver_temperature_array = \

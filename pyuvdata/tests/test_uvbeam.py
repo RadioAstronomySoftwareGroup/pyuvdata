@@ -90,8 +90,8 @@ def fill_dummy_beam(beam_obj, beam_type, pixel_coordinate_system):
 
     # add optional parameters for testing purposes
     beam_obj.extra_keywords = {'KEY1': 'test_keyword'}
-    beam_obj.input_impedence = 340.
-    beam_obj.output_impedence = 50.
+    beam_obj.reference_input_impedance = 340.
+    beam_obj.reference_output_impedance = 50.
     beam_obj.receiver_temperature_array = np.random.normal(50.0, 5, size=(beam_obj.Nspws, beam_obj.Nfreqs))
     beam_obj.loss_array = np.random.normal(50.0, 5, size=(beam_obj.Nspws, beam_obj.Nfreqs))
     beam_obj.mismatch_array = np.random.normal(0.0, 1.0, size=(beam_obj.Nspws, beam_obj.Nfreqs))
@@ -131,7 +131,7 @@ class TestUVBeamInit(object):
                                  '_element_coordinate_system',
                                  '_element_location_array', '_delay_array',
                                  '_gain_array', '_coupling_matrix',
-                                 '_input_impedence', '_output_impedence',
+                                 '_reference_input_impedance', '_reference_output_impedance',
                                  '_receiver_temperature_array',
                                  '_loss_array', '_mismatch_array',
                                  '_s_parameters']
@@ -143,7 +143,7 @@ class TestUVBeamInit(object):
                                  'element_coordinate_system',
                                  'element_location_array', 'delay_array',
                                  'gain_array', 'coupling_matrix',
-                                 'input_impedence', 'output_impedence',
+                                 'reference_input_impedance', 'reference_output_impedance',
                                  'receiver_temperature_array',
                                  'loss_array', 'mismatch_array',
                                  's_parameters']
