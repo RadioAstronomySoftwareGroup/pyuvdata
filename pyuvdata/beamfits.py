@@ -238,8 +238,8 @@ class BeamFITS(UVBeam):
         if 'BANDPARM' in hdunames:
             bandpass_hdu = F[hdunames['BANDPARM']]
             bandpass_header = bandpass_hdu.header.copy()
-            self.input_impedence = bandpass_header.pop('inimped', None)
-            self.output_impedence = bandpass_header.pop('outimped', None)
+            self.reference_input_impedance = bandpass_header.pop('refzin', None)
+            self.reference_output_impedance = bandpass_header.pop('refzout', None)
 
             freq_data = bandpass_hdu.data
             columns = [c.name for c in freq_data.columns]
@@ -546,10 +546,10 @@ class BeamFITS(UVBeam):
         coldefs = fits.ColDefs(col_list)
         bandpass_hdu = fits.BinTableHDU.from_columns(coldefs)
         bandpass_hdu.header['EXTNAME'] = 'BANDPARM'
-        if self.input_impedence is not None:
-            bandpass_hdu.header['inimped'] = self.input_impedence
-        if self.output_impedence is not None:
-            bandpass_hdu.header['outimped'] = self.output_impedence
+        if self.reference_input_impedance is not None:
+            bandpass_hdu.header['refzin'] = self.reference_input_impedance
+        if self.reference_output_impedance is not None:
+            bandpass_hdu.header['refzout'] = self.reference_output_impedance
         hdulist.append(bandpass_hdu)
 
         if float(astropy.__version__[0:3]) < 1.3:
