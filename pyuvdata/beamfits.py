@@ -246,8 +246,8 @@ class BeamFITS(UVBeam):
             self.bandpass_array = freq_data['bandpass']
             self.bandpass_array = self.bandpass_array[np.newaxis, :]
 
-            if 'sys_temp' in columns:
-                self.receiver_temperature_array = freq_data['sys_temp']
+            if 'rx_temp' in columns:
+                self.receiver_temperature_array = freq_data['rx_temp']
                 self.receiver_temperature_array = self.receiver_temperature_array[np.newaxis, :]
             if 'loss' in columns:
                 self.loss_array = freq_data['loss']
@@ -521,9 +521,9 @@ class BeamFITS(UVBeam):
         col_list = [bandpass_col]
 
         if self.receiver_temperature_array is not None:
-            sys_temp_col = fits.Column(name='sys_temp', format='D',
-                                       array=self.receiver_temperature_array[0, :])
-            col_list.append(sys_temp_col)
+            rx_temp_col = fits.Column(name='rx_temp', format='D',
+                                      array=self.receiver_temperature_array[0, :])
+            col_list.append(rx_temp_col)
         if self.loss_array is not None:
             loss_col = fits.Column(name='loss', format='D',
                                    array=self.loss_array[0, :])
