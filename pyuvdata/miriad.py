@@ -417,9 +417,14 @@ class Miriad(UVData):
 
                     warn_string += ('position does not give a '
                                     'telescope_location on the surface of the '
-                                    'earth. Antenna positions will be treated '
-                                    'as relative.')
-                    rel_ecef_antpos = ecef_antpos
+                                    'earth.')
+                    if absolute_positions:
+                        rel_ecef_antpos = ecef_antpos - self.telescope_location
+                    else:
+                        warn_string += (' Antenna positions do not appear to be '
+                                        'on the surface of the earth and will be treated '
+                                        'as relative.')
+                        rel_ecef_antpos = ecef_antpos
 
                     warnings.warn(warn_string)
 
