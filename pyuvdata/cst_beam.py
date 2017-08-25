@@ -122,7 +122,7 @@ class CSTBeam(UVBeam):
         """
         Method to extract the frequency from the file name, assuming the file name
         contains a substring with the frequency channel in MHz that the data represents.
-        e.g. "HERA_Sim_120.87MHz.txt" should yield 120.87
+        e.g. "HERA_Sim_120.87MHz.txt" should yield 120.87e6
 
         Args:
             fname: filename (string)
