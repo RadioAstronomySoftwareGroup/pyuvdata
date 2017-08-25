@@ -35,9 +35,9 @@ def fill_dummy_beam(beam_obj, beam_type, pixel_coordinate_system):
         beam_obj.pixel_array = np.arange(0, 6 * (beam_obj.nside) ^ 2)
         beam_obj.Npixels = len(beam_obj.pixel_array)
     elif pixel_coordinate_system == 'az_za':
-        beam_obj.axis1_array = np.arange(-180.0, 180.0, 5.0)
+        beam_obj.axis1_array = np.radians(np.arange(-180.0, 180.0, 5.0))
         beam_obj.Naxes1 = len(beam_obj.axis1_array)
-        beam_obj.axis2_array = np.arange(-90.0, 90.0, 5.0)
+        beam_obj.axis2_array = np.radians(np.arange(0, 90.0, 5.0))
         beam_obj.Naxes2 = len(beam_obj.axis2_array)
 
     beam_obj.freq_array = np.arange(150e6, 160e6, 1e5)
@@ -220,6 +220,15 @@ def test_errors():
     nt.assert_raises(ValueError, beam_obj._convert_to_filetype, 'foo')
 
 
+def test_az_za_to_healpix():
+    power_beam = UVBeam()
+    power_beam = fill_dummy_beam(power_beam, 'power', 'az_za')
+    n_max_pix = power_beam.Naxes1 * power_beam.Naxes2
+
+    power_beam.az_za_to_healpix()
+    nt.assert_true(power_beam.Npixels <= n_max_pix)
+
+
 def test_select_pixels():
     power_beam = UVBeam()
     power_beam = fill_dummy_beam(power_beam, 'power', 'healpix')
@@ -306,7 +315,7 @@ def test_select_axis2():
     power_beam = fill_dummy_beam(power_beam, 'power', 'az_za')
 
     old_history = power_beam.history
-    inds2_to_keep = np.arange(5, 22)
+    inds2_to_keep = np.arange(5, 14)
 
     power_beam2 = power_beam.select(axis2_inds=inds2_to_keep, inplace=False)
 
@@ -483,7 +492,7 @@ def test_select():
     old_history = power_beam.history
 
     inds1_to_keep = np.arange(14, 63)
-    inds2_to_keep = np.arange(5, 22)
+    inds2_to_keep = np.arange(5, 14)
     freqs_to_keep = power_beam.freq_array[0, np.arange(31, 56)]
     pols_to_keep = [-5]
 
@@ -656,8 +665,8 @@ def test_add():
     nt.assert_equal(beam1, power_beam_full)
 
     # Add along second image axis
-    beam1 = power_beam_full.select(axis2_inds=np.arange(0, 18), inplace=False)
-    beam2 = power_beam_full.select(axis2_inds=np.arange(18, 36), inplace=False)
+    beam1 = power_beam_full.select(axis2_inds=np.arange(0, 9), inplace=False)
+    beam2 = power_beam_full.select(axis2_inds=np.arange(9, 18), inplace=False)
     beam1 += beam2
     # Check history is correct, before replacing and doing a full object check
     nt.assert_true(uvutils.check_histories(power_beam_full.history +

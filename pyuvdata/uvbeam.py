@@ -19,7 +19,7 @@ class UVBeam(UVBase):
     """
 
     coordinate_system_dict = {
-        # uniformly gridded az/za coordinate system, az runs from East to North
+        # uniformly gridded az/za coordinate system, az runs from East to North in radians
         'az_za': ['az', 'za'],
         # sine projection at zenith. y points North, x point East
         'sin_zenith': ['sin_x', 'sin_y'],
@@ -157,7 +157,7 @@ class UVBeam(UVBase):
                 'so the beam has dimensions of 1/stradian.')
         self._data_normalization = uvp.UVParameter('data_normalization', description=desc,
                                                    form='str', expected_type=str,
-                                                   acceptable_vals=["peak", "solid_angle"])
+                                                   acceptable_vals=["physical", "peak", "solid_angle"])
 
         desc = ('Depending on beam type, either complex E-field values ("efield" beam type) '
                 'or power values ("power" beam type) for beam model. units are linear '
@@ -169,7 +169,6 @@ class UVBeam(UVBase):
                                            expected_type=np.complex,
                                            form=('Naxes_vec', 'Nspws', 'Nfeeds',
                                                  'Nfreqs', 'Naxes2', 'Naxes1'),
-                                           acceptable_range=(0, 1),
                                            tols=1e-3)
 
         desc = ('Frequency dependence of the beam. Depending on the data_normalization, '
@@ -352,6 +351,9 @@ class UVBeam(UVBase):
             self._axis1_array.required = True
             self._Naxes2.required = True
             self._axis2_array.required = True
+            if self.pixel_coordinate_system == 'az_za':
+                self._axis1_array.acceptable_range = [0, 2. * np.pi]
+                self._axis2_array.acceptable_range = [0, np.pi]
             self._nside.required = False
             self._ordering.required = False
             self._Npixels.required = False
@@ -409,6 +411,64 @@ class UVBeam(UVBase):
         self._delay_array.required = True
         self._gain_array.required = True
         self._coupling_matrix.required = True
+
+    def az_za_to_healpix(self):
+        """
+        Convert beam in az_za coordinates to healpix coordinates. Pixelization is done
+        using healpy's ang2pix method which is presumably a nearest neighbor approach.
+
+        """
+        import healpy as hp
+        if self.pixel_coordinate_system != 'az_za':
+            raise ValueError('pixel_coordinate_system must be "az_za"')
+
+        phi_vals, theta_vals = np.meshgrid(self.axis1_array, self.axis2_array)
+
+        min_res = np.min(np.array([np.diff(self.axis1_array)[0], np.diff(self.axis2_array)[0]]))
+        nside_min_res = np.sqrt(3 / np.pi) * np.radians(60.) / min_res
+        nside = int(2**np.floor(np.log2(nside_min_res)))
+        assert(hp.pixelfunc.nside2resol(nside) > min_res)
+
+        npix = hp.nside2npix(nside)
+        hpxidx = np.arange(npix)
+
+        az_za_data_shape = self.data_array.shape
+        new_shape = list(az_za_data_shape[0:4])
+        new_shape.append(self.Naxes1 * self.Naxes2)
+        new_shape = tuple(new_shape)
+        az_za_data = copy.deepcopy(self.data_array).reshape(new_shape)
+        phi_vals = phi_vals.flatten()
+        theta_vals = theta_vals.flatten()
+
+        self.pixel_coordinate_system = 'healpix'
+        self.nside = nside
+        self.Npixels = npix
+        self.ordering = 'ring'
+        self.set_cs_params()
+
+        healpix_data = np.zeros(self._data_array.expected_shape(self), dtype=np.float)
+        data_pixels = hp.ang2pix(nside, theta_vals, phi_vals)
+        pixels = np.arange(npix)
+        hits = np.zeros(self._data_array.expected_shape(self))
+
+        for index in range(self.Naxes1 * self.Naxes2):
+            healpix_data[:, :, :, :, data_pixels[index]] += az_za_data[:, :, :, :, index]
+            hits[:, :, :, :, data_pixels[index]] += 1
+
+        good_data = np.where(hits[0, 0, 0, 0, :] > 0)[0]
+        assert(good_data.size <= (self.Naxes1 * self.Naxes2))
+
+        healpix_data = healpix_data[:, :, :, :, good_data]
+        pixels = pixels[good_data]
+        hits = hits[:, :, :, :, good_data]
+
+        healpix_data = healpix_data / hits
+
+        self.pixel_array = pixels
+        self.Npixels = self.pixel_array.size
+        self.data_array = healpix_data
+
+        self.check()
 
     def __add__(self, other, run_check=True, run_check_acceptability=True, inplace=False):
         """
@@ -1100,12 +1160,20 @@ class UVBeam(UVBase):
                                     clobber=clobber)
         del(beamfits_obj)
 
-    def read_cst_power(self, filenames, data_normalization):
-        import cst_reader
+    def read_cst_power(self, filenames, frequencies=None, telescope_name=None,
+                       feed_name=None, feed_version=None, model_name=None,
+                       model_version=None, history=''):
+        import cst_beam
 
         if not isinstance(filenames, (list, tuple)):
             filenames = [filenames]
 
-        power_reader = cst_reader.CSTPowerReader()
-        power_reader.read_cst_files(filenames, data_normalization)
-        self._convert_from_filetype(power_reader)
+        cst_power_beam = cst_beam.CSTBeam()
+        cst_power_beam.read_cst_power(filenames, frequencies=frequencies,
+                                      telescope_name=telescope_name,
+                                      feed_name=feed_name,
+                                      feed_version=feed_version,
+                                      model_name=model_name,
+                                      model_version=model_version,
+                                      history=history)
+        self._convert_from_filetype(cst_power_beam)
