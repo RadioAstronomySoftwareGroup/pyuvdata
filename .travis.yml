@@ -26,7 +26,9 @@ install:
   - conda info -a
 
   # create environment and install dependencies
-  - conda install numpy scipy astropy nose pip
+  - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION numpy scipy astropy nose pip
+  - source activate test-environment
+  - conda install -c conda-forge healpy
   - conda install -c conda-forge aipy
   - conda install -c conda-forge python-casacore
   - pip install coveralls
