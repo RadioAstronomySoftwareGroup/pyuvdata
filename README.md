@@ -92,6 +92,9 @@ python-casacore is required in order to use the measurement set capabilities of 
 
 If you don't want to use conda, the casacore c++ libraries are available for ubuntu through the [kern suite](http://kernsuite.info/). On OSX, casacore is available through the [ska-sa brew tap](https://github.com/ska-sa/homebrew-tap). The python-casacore library (with manual install instructions) is available at https://github.com/casacore/python-casacore
 
+### For working with beams in HEALPix formats, install healpy
+To install via conda,  run
+```conda install -c conda-forge healpy```
 
 ### Optionally install the development version
 For the development version, clone the repository using
