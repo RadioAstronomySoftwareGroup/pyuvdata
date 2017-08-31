@@ -308,7 +308,8 @@ class Miriad(UVData):
 
         nants = uv['nants']
         try:
-            antpos = uv['antpos'].reshape(3, nants).T
+            # Miriad stores antpos values in units of ns, pyuvdata uses meters.
+            antpos = uv['antpos'].reshape(3, nants).T * const.c.to('m/ns').value
             # Miriad stores antpos values in a rotated ECEF coordinate system
             # where the x-axis goes through the local meridan. Need to convert
             # these positions back to standard ECEF and subtract off the
@@ -696,7 +697,8 @@ class Miriad(UVData):
             antpos[np.where(antpos_length == 0), :] = [0, 0, 0]
 
             uv.add_var('antpos', 'd')
-            uv['antpos'] = antpos.T.flatten()
+            # Miriad stores antpos values in units of ns, pyuvdata uses meters.
+            uv['antpos'] = antpos.T.flatten() / const.c.to('m/ns').value
 
         uv.add_var('sfreq', 'd')
         uv['sfreq'] = self.freq_array[0, 0] / 1e9  # first spw; in GHz
