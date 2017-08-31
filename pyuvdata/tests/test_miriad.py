@@ -8,6 +8,8 @@ from pyuvdata import UVData
 import pyuvdata.utils as uvutils
 import pyuvdata.tests as uvtest
 from pyuvdata.data import DATA_PATH
+import aipy.miriad as amiriad
+from astropy import constants as const
 
 
 def test_ReadNRAOWriteMiriadReadMiriad():
@@ -431,3 +433,20 @@ def test_multi_files():
                                            ' pyuvdata.', uv1.history))
     uv1.history = uv_full.history
     nt.assert_equal(uv1, uv_full)
+
+
+def test_antpos_units():
+    """
+    Read uvfits, write miriad. Check written antpos are in ns.
+    """
+    uv = UVData()
+    uvfits_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    testfile = os.path.join(DATA_PATH, 'test/uv_antpos_units')
+    uvtest.checkWarnings(uv.read_uvfits, [uvfits_file], message='Telescope EVLA is not')
+    uv.write_miriad(testfile, clobber=True)
+    auv = amiriad.UV(testfile)
+    aantpos = auv['antpos'].reshape(3, -1).T * const.c.to('m/ns').value
+    aantpos = aantpos[uv.antenna_numbers, :]
+    aantpos = (uvutils.ECEF_from_rotECEF(aantpos, uv.telescope_location_lat_lon_alt[1]) -
+               uv.telescope_location)
+    nt.assert_true(np.allclose(aantpos, uv.antenna_positions))
