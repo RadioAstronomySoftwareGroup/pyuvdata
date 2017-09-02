@@ -239,6 +239,25 @@ class Miriad(UVData):
             else:
                 self.extra_keywords[key] = check_variables[key]
 
+        # Check for items in itemtable to put into extra_keywords
+        # These will end up as variables in written files, but is internally consistent.
+        aipy.miriad.itemtable['stopt'] = 'd'  # These two lines will be removed when conda-forge points to newly merged aipy
+        aipy.miriad.itemtable['duration'] = 'd'
+        for key in uv.items():
+            # A few items that are not needed, we read elsewhere, or is not supported
+            # when downselecting, so we don't read here.
+            if key not in ['vartable', 'history', 'obstype']:
+                if type(uv[key]) == str:
+                    value = uv[key].replace('\x00', '')
+                    value = uv[key].replace('\x01', '')
+                    if value == 'True':
+                        value = True
+                    elif value == 'False':
+                        value = False
+                    self.extra_keywords[key] = value
+                else:
+                    self.extra_keywords[key] = uv[key]
+
         for pol, data in data_accumulator.iteritems():
             data_accumulator[pol] = np.array(data)
 
