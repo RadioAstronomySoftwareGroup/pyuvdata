@@ -241,8 +241,6 @@ class Miriad(UVData):
 
         # Check for items in itemtable to put into extra_keywords
         # These will end up as variables in written files, but is internally consistent.
-        aipy.miriad.itemtable['stopt'] = 'd'  # These two lines will be removed when conda-forge points to newly merged aipy
-        aipy.miriad.itemtable['duration'] = 'd'
         for key in uv.items():
             # A few items that are not needed, we read elsewhere, or is not supported
             # when downselecting, so we don't read here.
