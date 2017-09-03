@@ -58,7 +58,7 @@ class Miriad(UVData):
                                     'timesys', 'xorient', 'cnt', 'ra', 'dec',
                                     'lst', 'pol', 'nants', 'antnames', 'nblts',
                                     'ntimes', 'nbls', 'sfreq', 'epoch',
-                                    'antpos', 'antnums', 'degpdy', 'diameter'
+                                    'antpos', 'antnums', 'degpdy', 'antdiam'
                                     ]
         # list of miriad variables not read, but also not interesting
         # NB: nspect (I think) is number of spectral windows, will want one day
@@ -417,7 +417,7 @@ class Miriad(UVData):
 
         # check for antenna diameters
         try:
-            self.antenna_diameters = uv['diameter']
+            self.antenna_diameters = uv['antdiam']
         except(KeyError):
             pass
 
@@ -738,8 +738,8 @@ class Miriad(UVData):
             uv['timesys'] = self.timesys
 
         if self.antenna_diameters is not None:
-            uv.add_var('diameter', 'd')
-            uv['diameter'] = self.antenna_diameters
+            uv.add_var('antdiam', 'd')
+            uv['antdiam'] = self.antenna_diameters
 
         # other extra keywords
         # set up dictionaries to map common python types to miriad types
