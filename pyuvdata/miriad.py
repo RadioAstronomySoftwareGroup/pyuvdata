@@ -419,7 +419,11 @@ class Miriad(UVData):
         try:
             self.antenna_diameters = uv['antdiam']
         except(KeyError):
-            pass
+            # backwards compatibility for when keyword was 'diameter'
+            try:
+                self.antenna_diameters = uv['diameter']
+            except(KeyError):
+                pass
 
         # form up a grid which indexes time and baselines along the 'long'
         # axis of the visdata array
@@ -665,6 +669,9 @@ class Miriad(UVData):
         if self.x_orientation is not None:
             uv.add_var('xorient', 'a')
             uv['xorient'] = self.x_orientation
+        if self.antenna_diameters is not None:
+            uv.add_var('antdiam', 'd')
+            uv['antdiam'] = self.antenna_diameters
 
         # Miriad has no way to keep track of antenna numbers, so the antenna
         # numbers are simply the index for each antenna in any array that
@@ -736,10 +743,6 @@ class Miriad(UVData):
         if self.timesys is not None:
             uv.add_var('timesys', 'a')
             uv['timesys'] = self.timesys
-
-        if self.antenna_diameters is not None:
-            uv.add_var('antdiam', 'd')
-            uv['antdiam'] = self.antenna_diameters
 
         # other extra keywords
         # set up dictionaries to map common python types to miriad types
