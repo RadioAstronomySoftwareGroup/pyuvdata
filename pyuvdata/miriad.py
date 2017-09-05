@@ -426,6 +426,9 @@ class Miriad(UVData):
                 self.extra_keywords.pop('diameter')
             except(KeyError):
                 pass
+        if self.antenna_diameters is not None:
+            self.antenna_diameters = (self.antenna_diameters *
+                                      np.ones(self.Nants_telescope, dtype=np.float))
 
         # form up a grid which indexes time and baselines along the 'long'
         # axis of the visdata array
@@ -672,8 +675,12 @@ class Miriad(UVData):
             uv.add_var('xorient', 'a')
             uv['xorient'] = self.x_orientation
         if self.antenna_diameters is not None:
-            uv.add_var('antdiam', 'd')
-            uv['antdiam'] = self.antenna_diameters
+            if not np.allclose(self.antenna_diameters, self.antenna_diameters[0]):
+                warnings.warn('Antenna diameters are not uniform, but miriad only'
+                              'supports a single diameter. Skipping.')
+            else:
+                uv.add_var('antdiam', 'd')
+                uv['antdiam'] = self.antenna_diameters[0]
 
         # Miriad has no way to keep track of antenna numbers, so the antenna
         # numbers are simply the index for each antenna in any array that
