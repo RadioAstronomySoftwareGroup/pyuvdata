@@ -422,6 +422,8 @@ class Miriad(UVData):
             # backwards compatibility for when keyword was 'diameter'
             try:
                 self.antenna_diameters = uv['diameter']
+                # if we find it, we need to remove it from extra_keywords to keep from writing it out
+                self.extra_keywords.pop('diameter')
             except(KeyError):
                 pass
 

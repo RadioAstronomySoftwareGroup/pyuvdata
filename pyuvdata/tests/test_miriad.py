@@ -322,6 +322,13 @@ def test_readWriteReadMiriad():
     uv_in.set_unknown_phase_type()
     nt.assert_raises(ValueError, uv_in.write_miriad, write_file, clobber=True)
 
+    # check for backwards compatibility with old keyword 'diameter' for antenna diameters
+    testfile_diameters = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.HH.uvcA')
+    uv_in.read_miriad(testfile_diameters)
+    uv_in.write_miriad(write_file, clobber=True)
+    uv_out.read_miriad(write_file)
+    nt.assert_equal(uv_in, uv_out)
+
     del(uv_in)
     del(uv_out)
 
