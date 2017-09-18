@@ -354,6 +354,49 @@ def polnum2str(num):
     return out
 
 
+def jstr2num(jstr):
+    """
+    Convert jones polarization str to number according to calfits memo.
+
+    Args:
+        jones: antenna polarization string
+
+    Returns:
+        Number corresponding to string
+    """
+    jdict = {'jxx': -5, 'jyy': -6, 'jxy': -7, 'jyx': -8,
+             'xx': -5, 'x': -5, 'yy': -6, 'y': -6, 'xy': -7, 'yx': -8,  # Allow shorthand
+             'jrr': -1, 'jll': -2, 'jrl': -3, 'jlr': -4,
+             'rr': -1, 'r': -1, 'll': -2, 'l': -2, 'rl': -3, 'lr': -4}
+    if isinstance(jstr, str):
+        out = jdict[jstr.lower()]
+    elif isinstance(jstr, collections.Iterable):
+            out = [jdict[key.lower()] for key in jstr]
+    else:
+        raise ValueError('Jones polarization cannot be converted to index.')
+    return out
+
+
+def jnum2str(jnum):
+    """
+    Convert jones polarization number to str according to calfits memo.
+
+    Args:
+        num: polarization number
+
+    Returns:
+        String corresponding to string
+    """
+    str_list = ['jyx', 'jxy', 'jyy', 'jxx', 'jlr', 'jrl', 'jll', 'jrr']
+    if isinstance(jnum, (int, long, np.int32, np.int64)):
+        out = str_list[jnum + 8]
+    elif isinstance(jnum, collections.Iterable):
+            out = [str_list[i + 8] for i in jnum]
+    else:
+        raise ValueError('Polarization cannot be converted to string.')
+    return out
+
+
 def check_history_version(history, version_string):
     if (version_string.replace(' ', '') in history.replace('\n', '').replace(' ', '')):
         return True
