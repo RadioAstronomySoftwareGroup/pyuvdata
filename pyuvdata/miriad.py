@@ -58,14 +58,14 @@ class Miriad(UVData):
                                     'timesys', 'xorient', 'cnt', 'ra', 'dec',
                                     'lst', 'pol', 'nants', 'antnames', 'nblts',
                                     'ntimes', 'nbls', 'sfreq', 'epoch',
-                                    'antpos', 'antnums', 'degpdy', 'antdiam'
+                                    'antpos', 'antnums', 'degpdy', 'antdiam',
+                                    'ischan', 'nschan',
                                     ]
         # list of miriad variables not read, but also not interesting
         # NB: nspect (I think) is number of spectral windows, will want one day
-        other_miriad_variables = ['nspect', 'obsdec', 'vsource', 'ischan',
-                                  'restfreq', 'nschan', 'corr', 'freq',
-                                  'tscale', 'coord', 'veldop', 'time', 'obsra',
-                                  'operator', 'version',
+        other_miriad_variables = ['nspect', 'obsdec', 'vsource', 'restfreq',
+                                  'corr', 'freq', 'tscale', 'coord', 'veldop',
+                                  'time', 'obsra', 'operator', 'version',
                                   ]
 
         extra_miriad_variables = []
