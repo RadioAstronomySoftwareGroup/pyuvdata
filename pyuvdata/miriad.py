@@ -170,6 +170,10 @@ class Miriad(UVData):
             self.timesys = uv['timesys'].replace('\x00', '')
         if 'xorient' in uv.vartable.keys():
             self.x_orientation = uv['xorient'].replace('\x00', '')
+        if 'nschan' in uv.vartable.keys():
+            self.nschan = uv['nschan']
+        if 'ischan' in uv.vartable.keys():
+            self.ischan = uv['ischan']
 
         # read through the file and get the data
         _source = uv['source']  # check source of initial visibility
@@ -698,6 +702,12 @@ class Miriad(UVData):
             else:
                 uv.add_var('antdiam', 'd')
                 uv['antdiam'] = self.antenna_diameters[0]
+        if self.nschan is not None:
+            uv.add_var('nschan', 'i')
+            uv['nschan'] = self.nschan
+        if self.ischan is not None:
+            uv.add_var('ischan', 'i')
+            uv['ischan'] = self.ischan
 
         # Miriad has no way to keep track of antenna numbers, so the antenna
         # numbers are simply the index for each antenna in any array that
