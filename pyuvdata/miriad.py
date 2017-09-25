@@ -59,13 +59,13 @@ class Miriad(UVData):
                                     'lst', 'pol', 'nants', 'antnames', 'nblts',
                                     'ntimes', 'nbls', 'sfreq', 'epoch',
                                     'antpos', 'antnums', 'degpdy', 'antdiam',
-                                    'ischan', 'nschan',
                                     ]
         # list of miriad variables not read, but also not interesting
         # NB: nspect (I think) is number of spectral windows, will want one day
         other_miriad_variables = ['nspect', 'obsdec', 'vsource', 'restfreq',
                                   'corr', 'freq', 'tscale', 'coord', 'veldop',
-                                  'time', 'obsra', 'operator', 'version',
+                                  'time', 'obsra', 'operator', 'version', 'ischan',
+                                  'nschan',
                                   ]
 
         extra_miriad_variables = []
@@ -170,10 +170,6 @@ class Miriad(UVData):
             self.timesys = uv['timesys'].replace('\x00', '')
         if 'xorient' in uv.vartable.keys():
             self.x_orientation = uv['xorient'].replace('\x00', '')
-        if 'nschan' in uv.vartable.keys():
-            self.nschan = uv['nschan']
-        if 'ischan' in uv.vartable.keys():
-            self.ischan = uv['ischan']
 
         # read through the file and get the data
         _source = uv['source']  # check source of initial visibility
@@ -702,12 +698,16 @@ class Miriad(UVData):
             else:
                 uv.add_var('antdiam', 'd')
                 uv['antdiam'] = self.antenna_diameters[0]
-        if self.nschan is not None:
-            uv.add_var('nschan', 'i')
-            uv['nschan'] = self.nschan
-        if self.ischan is not None:
-            uv.add_var('ischan', 'i')
-            uv['ischan'] = self.ischan
+
+        # These are added to make files written by pyuvdata more "miriad correct", and
+        # should be changed when support for more than one spectral window is added.
+        # 'nschan' is the number of channels per spectral window, and 'ischan' is the
+        # starting channel for each spectral window. Both should be arrays of size Nspws.
+        # Also note that indexing in Miriad is 1-based
+        uv.add_var('nschan', 'i')
+        uv['nschan'] = self.Nfreqs
+        uv.add_var('ischan', 'i')
+        uv['ischan'] = 1
 
         # Miriad has no way to keep track of antenna numbers, so the antenna
         # numbers are simply the index for each antenna in any array that
