@@ -329,8 +329,19 @@ def test_readWriteReadMiriad():
     uv_out.read_miriad(write_file)
     nt.assert_equal(uv_in, uv_out)
 
+    # check that variables 'ischan' and 'nschan' were written to new file
+    # need to use aipy, since pyuvdata is not currently capturing these variables
+    uv_in.read_miriad(write_file)
+    uv_aipy = amiriad.UV(write_file)
+    nfreqs = uv_in.Nfreqs
+    nschan = uv_aipy['nschan']
+    ischan = uv_aipy['ischan']
+    nt.assert_equal(nschan, nfreqs)
+    nt.assert_equal(ischan, 1)
+
     del(uv_in)
     del(uv_out)
+    del(uv_aipy)
 
 
 def test_readMSWriteMiriad_CASAHistory():
