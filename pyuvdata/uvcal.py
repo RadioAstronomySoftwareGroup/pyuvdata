@@ -525,6 +525,9 @@ class UVCal(UVBase):
             self.gain_array = gain_array
             self.quality_array = new_quality
             self.delay_array = None
+            if self.total_quality_array is not None:
+                new_total_quality = np.repeat(self.total_quality_array[:, :, :, :], self.Nfreqs, axis=1)
+                self.total_quality_array = new_total_quality_array
 
             # check if object is self-consistent
             if run_check:
