@@ -19,6 +19,8 @@ install:
   - export PATH="$HOME/miniconda/bin:$PATH"
   - hash -r
   - conda config --set always_yes yes --set changeps1 no
+  - conda install -y 'libgfortran =3.0.0'
+  - conda config --remove channels defaults && conda config --add channels conda-forge
   - conda update -q conda
   # Useful for debugging any issues with conda
   - conda info -a
@@ -26,7 +28,6 @@ install:
   # create environment and install dependencies
   - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION numpy scipy astropy nose pip
   - source activate test-environment
-  - conda uninstall libedit
   - conda install -c conda-forge aipy
   - conda install -c conda-forge python-casacore
   - pip install coveralls
