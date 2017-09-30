@@ -5,7 +5,7 @@ from pyuvdata import UVData, UVFITS, UVBeam, UVCal
 import os
 
 # setup argparse
-a = argparse.ArgumentParser(description="Inspect attributes of pyuvdata objects.\nExample: pyuvdata_inspect.py ant_array.shape,Ntimes zen.xx.HH.omni.calfits zen.yy.HH.uvc",
+a = argparse.ArgumentParser(description="Inspect attributes of pyuvdata objects.\nExample: pyuvdata_inspect.py -a=ant_array.shape,Ntimes zen.xx.HH.omni.calfits zen.yy.HH.uvc",
                             formatter_class=argparse.RawDescriptionHelpFormatter)
 
 a.add_argument("-a", "--attrs", dest="attrs", type=str, default='',
