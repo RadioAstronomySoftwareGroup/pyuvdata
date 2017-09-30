@@ -11,6 +11,7 @@ a = argparse.ArgumentParser(description="Inspect attributes of pyuvdata objects.
 a.add_argument("-a", "--attrs", dest="attrs", type=str, default='',
                help="attribute(s) of object to print. Ex: ant_array.shape,Ntimes")
 a.add_argument("-v", "--verbose", action='store_true', default=False, help="Send feedback to stdout.")
+a.add_argument("-i", "--interactive", action='store_true', default=False, help="Exit into a python interpretor with objects in memory as 'uv'.")
 a.add_argument("files", metavar="files", type=str, nargs='*', default=[],
                help="pyuvdata object files to run on")
 
@@ -18,7 +19,7 @@ a.add_argument("files", metavar="files", type=str, nargs='*', default=[],
 args = a.parse_args()
 
 # check for empty attributes
-if len(args.attrs) == 0:
+if len(args.attrs) == 0 and args.interactive is False:
     raise Exception("no attributes fed...")
 if len(args.files) == 0:
     raise Exception("no files fed...")
@@ -33,6 +34,7 @@ ob_reads = [['read_miriad', 'read_fhd', 'read_ms', 'read_uvfits'],
 
 # iterate through files
 Nfiles = len(args.files)
+uv = []
 for i, f in enumerate(args.files):
     # check file exists
     if os.path.exists(f) is False:
@@ -49,9 +51,10 @@ for i, f in enumerate(args.files):
         for k, r in enumerate(ob_reads[j]):
             try:
                 # instantiate data class and try to read file
-                uv = ob()
-                getattr(uv, r)(f)
+                UV = ob()
+                getattr(UV, r)(f)
                 opened = True
+                uv.append(UV)
                 filetype = r.split('_')[-1]
                 if args.verbose is True:
                     print("opened {0} as a {1} file with the {2} pyuvdata object".format(f, filetype, ob_names[j]))
@@ -74,7 +77,7 @@ for i, f in enumerate(args.files):
         # try to get attribute
         try:
             Nnest = len(attr)
-            this_attr = getattr(uv, attr[0])
+            this_attr = getattr(UV, attr[0])
             for k in range(Nnest-1):
                 this_attr = getattr(this_attr, attr[k+1])
             # print to stdout
@@ -84,7 +87,18 @@ for i, f in enumerate(args.files):
             print("Couldn't access '{0}' from {1}".format('.'.join(attr), f))
             exit_clean = False
 
-if exit_clean is True:
-    exit(0)
+if args.interactive:
+    if len(uv) == 1:
+        uv = uv[0]
+    try:
+        from IPython import embed
+        embed()
+    except:
+	import code
+	code.interact(local=dict(globals(), **locals()))
+
 else:
-    exit(1)
+    if exit_clean is True:
+        exit(0)
+    else:
+        exit(1)
