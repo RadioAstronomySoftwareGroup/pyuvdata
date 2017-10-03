@@ -697,7 +697,7 @@ class Miriad(UVData):
                               'supports a single diameter. Skipping.')
             else:
                 uv.add_var('antdiam', 'd')
-                uv['antdiam'] = self.antenna_diameters[0]
+                uv['antdiam'] = float(self.antenna_diameters[0])
 
         # These are added to make files written by pyuvdata more "miriad correct", and
         # should be changed when support for more than one spectral window is added.
