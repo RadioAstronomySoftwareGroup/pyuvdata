@@ -35,6 +35,7 @@ ob_reads = [['read_miriad', 'read_fhd', 'read_ms', 'read_uvfits'],
 # iterate through files
 Nfiles = len(args.files)
 uv = []
+exit_clean = True
 for i, f in enumerate(args.files):
     # check file exists
     if os.path.exists(f) is False:
