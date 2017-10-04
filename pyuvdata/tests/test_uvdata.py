@@ -1679,7 +1679,7 @@ def test_parse_ants():
     ant_str = 'I,q,U,v'
     ant_pairs_nums, polarizations = uv.parse_ants(ant_str)
     pols_expected = [4, 3, 2, 1]
-    nt.assert_items_equal(ant_pairs_nums, [])
+    nt.assert_is_instance(ant_pairs_nums, type(None))
     nt.assert_items_equal(polarizations, pols_expected)
 
     # Unparsible string
@@ -1698,7 +1698,6 @@ def test_parse_ants():
 
     # Single antenna number not in the data
     ant_str = '10'
-    print "Testing ant_str = \'10\'"
     ant_pairs_nums, polarizations = uv.parse_ants(ant_str)
     nt.assert_items_equal(ant_pairs_nums, [])
     nt.assert_is_instance(polarizations, type(None))
@@ -1734,17 +1733,23 @@ def test_parse_ants():
 
     # Single baseline with single polarization in first entry
     ant_str = '1l_3,2x_3'
+    uvtest.checkWarnings(uv.parse_ants, [ant_str], {},
+                                    nwarnings=2, category=[UserWarning]*2,
+                                    message=['Warning: Polarization']*2)
     ant_pairs_nums, polarizations = uv.parse_ants(ant_str)
     ant_pairs_expected = [(1, 3), (2, 3)]
-    pols_expected = [-2, -4, -5, -7]
+    pols_expected = [-2, -4]
     nt.assert_items_equal(ant_pairs_nums, ant_pairs_expected)
     nt.assert_items_equal(polarizations, pols_expected)
 
     # Single baseline with single polarization in last entry
     ant_str = '1_3l,2_3x'
+    uvtest.checkWarnings(uv.parse_ants, [ant_str], {},
+                                    nwarnings=2, category=[UserWarning]*2,
+                                    message=['Warning: Polarization']*2)
     ant_pairs_nums, polarizations = uv.parse_ants(ant_str)
     ant_pairs_expected = [(1, 3), (2, 3)]
-    pols_expected = [-2, -3, -5, -8]
+    pols_expected = [-2, -3]
     nt.assert_items_equal(ant_pairs_nums, ant_pairs_expected)
     nt.assert_items_equal(polarizations, pols_expected)
 
@@ -1766,7 +1771,7 @@ def test_parse_ants():
     # Specific baselines with parenthesis
     ant_str = '(1,3)_11'
     ant_pairs_nums, polarizations = uv.parse_ants(ant_str)
-    ant_pairs_expected = [(1, 11),(3, 11)]
+    ant_pairs_expected = [(1, 11), (3, 11)]
     nt.assert_items_equal(ant_pairs_nums, ant_pairs_expected)
     nt.assert_is_instance(polarizations, type(None))
 
@@ -1823,6 +1828,38 @@ def test_parse_ants():
     nt.assert_items_equal(ant_pairs_nums, ant_pairs_expected)
     nt.assert_items_equal(polarizations, pols_expected)
 
+    # Test ant_str='auto' on file with auto correlations
+    uv = UVData()
+    testfile = os.path.join(DATA_PATH, 'hera_testfile')
+    uv.read_miriad(testfile)
+
+    ant_str = 'auto'
+    ant_pairs_nums, polarizations = uv.parse_ants(ant_str)
+    ant_pairs_expected = [(9, 9), (10, 10), (20, 20)]
+    nt.assert_items_equal(ant_pairs_nums, ant_pairs_expected)
+    nt.assert_is_instance(polarizations, type(None))
+
+    # Test cross correlation extraction on data with auto + cross
+    ant_str = 'cross'
+    ant_pairs_nums, polarizations = uv.parse_ants(ant_str)
+    ant_pairs_expected = [(9, 10), (9, 20), (10, 20)]
+    nt.assert_items_equal(ant_pairs_nums, ant_pairs_expected)
+    nt.assert_is_instance(polarizations, type(None))
+
+    # Remove only polarization of single baseline
+    ant_str = 'all,-9x_10x'
+    ant_pairs_nums, polarizations = uv.parse_ants(ant_str)
+    ant_pairs_expected = [(9, 9), (9, 20), (10, 10), (10, 20), (20, 20)]
+    nt.assert_items_equal(ant_pairs_nums, ant_pairs_expected)
+    nt.assert_is_instance(polarizations, type(None))
+
+    # Test appending all to beginning of strings that start with -
+    ant_str = '-9'
+    ant_pairs_nums, polarizations = uv.parse_ants(ant_str)
+    ant_pairs_expected = [(10, 10), (10, 20), (20, 20)]
+    nt.assert_items_equal(ant_pairs_nums, ant_pairs_expected)
+    nt.assert_is_instance(polarizations, type(None))
+
 
 def test_select_with_ant_str():
     # Test select function with ant_str argument
@@ -1832,11 +1869,30 @@ def test_select_with_ant_str():
     uvtest.checkWarnings(uv.read_uvfits, [testfile], message='Telescope EVLA is not')
     inplace = False
 
+    # Check error thrown if ant_str passed with antenna_nums,
+    # antenna_names, ant_pairs_nums, or polarizations
+    nt.assert_raises(ValueError, uv.select,
+                            ant_str='',
+                            antenna_nums = [],
+                            inplace=inplace)
+    nt.assert_raises(ValueError, uv.select,
+                            ant_str='',
+                            antenna_names = [],
+                            inplace=inplace)
+    nt.assert_raises(ValueError, uv.select,
+                            ant_str='',
+                            ant_pairs_nums = [],
+                            inplace=inplace)
+    nt.assert_raises(ValueError, uv.select,
+                            ant_str='',
+                            polarizations = [],
+                            inplace=inplace)
+
     # All baselines
     ant_str = 'all'
     uv2 = uv.select(ant_str=ant_str, inplace=inplace)
     nt.assert_items_equal(uv2.get_antpairs(), uv.get_antpairs())
-    nt.assert_items_equal(uv2.get_pols(),uv.get_pols())
+    nt.assert_items_equal(uv2.get_pols(), uv.get_pols())
 
     # Auto correlations
     ant_str = 'auto'
@@ -1869,18 +1925,17 @@ def test_select_with_ant_str():
 
     # Single antenna number not present in data
     ant_str = '10'
-    print "Testing select with ant_str=\'10\'"
     nt.assert_raises(ValueError, uv.select, ant_str=ant_str, inplace=inplace)
 
     # Multiple antenna numbers as list
     ant_str = '22,26'
     ant_pairs = [(0, 22), (0, 26), (1, 22), (1, 26), (2, 22), (2, 26),
-                               (3, 22), (3, 26), (6, 22), (6, 26), (7, 22),
-                               (7, 26), (8, 22), (8, 26), (11, 22), (11, 26),
-                               (14, 22), (14, 26), (18, 22), (18, 26), (19, 22),
-                               (19, 26), (20, 22), (20, 26), (21, 22), (21, 26),
-                               (22, 23), (22, 24), (22, 26), (22, 27), (23, 26),
-                               (24, 26), (26, 27)]
+                       (3, 22), (3, 26), (6, 22), (6, 26), (7, 22),
+                       (7, 26), (8, 22), (8, 26), (11, 22), (11, 26),
+                       (14, 22), (14, 26), (18, 22), (18, 26), (19, 22),
+                       (19, 26), (20, 22), (20, 26), (21, 22), (21, 26),
+                       (22, 23), (22, 24), (22, 26), (22, 27), (23, 26),
+                       (24, 26), (26, 27)]
     uv2 = uv.select(ant_str=ant_str, inplace=inplace)
     nt.assert_items_equal(uv2.get_antpairs(), ant_pairs)
     nt.assert_items_equal(uv2.get_pols(), uv.get_pols())
@@ -1903,8 +1958,10 @@ def test_select_with_ant_str():
     # Single baseline with single polarization in first entry
     ant_str = '1l_3,2x_3'
     # x,y pols not present in data
-    nt.assert_raises(ValueError, uv.select, ant_str=ant_str, inplace=inplace)
-
+    uvtest.checkWarnings(uv.select, [], {'ant_str': ant_str, 'inplace': inplace},
+                                    nwarnings=2, category=[UserWarning]*2,
+                                    message=['Warning: Polarization']*2)
+    # with polarizations in data
     ant_str = '1l_3,2_3'
     ant_pairs = [(1, 3), (2, 3)]
     pols = ['LL', 'LR']
@@ -1915,8 +1972,11 @@ def test_select_with_ant_str():
     # Single baseline with single polarization in last entry
     ant_str = '1_3l,2_3x'
     # x,y pols not present in data
-    nt.assert_raises(ValueError, uv.select, ant_str=ant_str, inplace=inplace)
-
+    uvtest.checkWarnings(uv.select, [], {'ant_str': ant_str, 'inplace': inplace},
+                                    nwarnings=2, category=[UserWarning]*2,
+                                    message=['Warning: Polarization']*2)
+    # nt.assert_raises(ValueError, uv.select, ant_str=ant_str, inplace=inplace)
+    # with polarizations in data
     ant_str = '1_3l,2_3'
     ant_pairs = [(1, 3), (2, 3)]
     pols = ['LL', 'RL']
@@ -1927,6 +1987,9 @@ def test_select_with_ant_str():
     # Multiple baselines as list
     ant_str = '1_2,1_3,1_10'
     # Antenna number 10 not in data
+    uvtest.checkWarnings(uv.select, [], {'ant_str': ant_str, 'inplace': inplace},
+                                    nwarnings=1, category=[UserWarning],
+                                    message=['Warning: Antenna'])
     ant_pairs = [(1, 2), (1, 3)]
     uv2 = uv.select(ant_str=ant_str, inplace=inplace)
     nt.assert_items_equal(uv2.get_antpairs(), ant_pairs)
@@ -2001,13 +2064,42 @@ def test_select_with_ant_str():
     nt.assert_items_equal(uv2.get_antpairs(), ant_pairs)
     nt.assert_items_equal(uv2.get_pols(), pols)
 
-    # Pass ant_str with ant_pairs_nums and polarizations to select
-    ant_str = '1l_3r'
-    ant_pairs_nums = [(1, 11)]
-    ant_pairs = [(1, 3), (1, 11)]
-    polarizations = [-1] # RR
-    pols = ['RR', 'LR']
-    uv2 = uv.select(ant_str=ant_str, ant_pairs_nums=ant_pairs_nums,
-                            polarizations=polarizations, inplace=inplace)
-    nt.assert_items_equal(uv2.get_antpairs(), ant_pairs)
+    # Test stokes params with select
+    ant_str = 'i,Q'
+    pols = ['Q', 'I']
+    uv.polarization_array = np.array([4, 3, 2, 1])
+    uv2 = uv.select(ant_str=ant_str, inplace=inplace)
+    nt.assert_items_equal(uv2.get_antpairs(), uv.get_antpairs())
     nt.assert_items_equal(uv2.get_pols(), pols)
+
+    # Test ant_str = 'auto' on file with auto correlations
+    uv = UVData()
+    testfile = os.path.join(DATA_PATH, 'hera_testfile')
+    uv.read_miriad(testfile)
+
+    ant_str = 'auto'
+    ant_pairs = [(9, 9), (10, 10), (20, 20)]
+    uv2 = uv.select(ant_str=ant_str, inplace=inplace)
+    nt.assert_items_equal(uv2.get_antpairs(), ant_pairs)
+    nt.assert_items_equal(uv2.get_pols(), uv.get_pols())
+
+    # Test cross correlation extraction on data with auto + cross
+    ant_str = 'cross'
+    ant_pairs = [(9, 10), (9, 20), (10, 20)]
+    uv2 = uv.select(ant_str=ant_str, inplace=inplace)
+    nt.assert_items_equal(uv2.get_antpairs(), ant_pairs)
+    nt.assert_items_equal(uv2.get_pols(), uv.get_pols())
+
+    # Remove only polarization of single baseline
+    ant_str = 'all,-9x_10x'
+    ant_pairs = [(9, 9), (9, 20), (10, 10), (10, 20), (20, 20)]
+    uv2 = uv.select(ant_str=ant_str, inplace=inplace)
+    nt.assert_items_equal(uv2.get_antpairs(), ant_pairs)
+    nt.assert_items_equal(uv2.get_pols(), uv.get_pols())
+
+    # Test appending all to beginning of strings that start with -
+    ant_str = '-9'
+    ant_pairs = [(10, 10), (10, 20), (20, 20)]
+    uv2 = uv.select(ant_str=ant_str, inplace=inplace)
+    nt.assert_items_equal(uv2.get_antpairs(), ant_pairs)
+    nt.assert_items_equal(uv2.get_pols(), uv.get_pols())
