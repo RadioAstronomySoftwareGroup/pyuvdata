@@ -12,6 +12,7 @@ import utils as uvutils
 import copy
 import collections
 import re
+import warnings
 
 
 class UVData(UVBase):
@@ -984,14 +985,19 @@ class UVData(UVBase):
             antenna_names: The antennas names to keep in the object (antenna
                 positions and names for the removed antennas will be retained).
                 This cannot be provided if antenna_nums is also provided.
+            ant_pairs_nums: A list of antenna number tuples (e.g. [(0,1), (3,2)])
+                specifying baselines to keep in the object. Ordering of the
+                numbers within the tuple does not matter.
             ant_str: A string containing information about what antenna numbers
                 and polarizations to keep in the object.  Can be 'auto', 'cross', 'all',
                 or combinations of antenna numbers and polarizations (e.g. '1',
                 '1_2', '1x_2y').  See tutorial for more examples of valid strings and
                 the behavior of different forms for ant_str.
-            ant_pairs_nums: A list of antenna number tuples (e.g. [(0,1), (3,2)])
-                specifying baselines to keep in the object. Ordering of the
-                numbers within the tuple does not matter.
+                If '1x_2y,2y_3y' is passed, both polarizations 'xy' and 'yy' will
+                be kept for both baselines (1,2) and (2,3) to return a valid
+                pyuvdata object.
+                An ant_str cannot be passed in addition to any of the above antenna
+                args.  If this occurs, select raises a ValueError.
             frequencies: The frequencies to keep in the object.
             freq_chans: The frequency channel numbers to keep in the object.
             times: The times to keep in the object.
@@ -1023,6 +1029,15 @@ class UVData(UVBase):
             blt_inds = uvutils.get_iterable(blt_inds)
             history_update_string += 'baseline-times'
             n_selects += 1
+
+        if ant_str is not None:
+            if not (antenna_nums is None and antenna_names is None
+                and ant_pairs_nums is None and polarizations is None):
+                raise ValueError(
+                    'Cannot provide ant_str with antenna_nums, antenna_names, '
+                    'ant_pairs_nums, or polarizations.')
+            else:
+                ant_pairs_nums, polarizations = self.parse_ants(ant_str)
 
         if antenna_names is not None:
             if antenna_nums is not None:
@@ -1066,23 +1081,6 @@ class UVData(UVBase):
                     list(set(blt_inds).intersection(ant_blt_inds)), dtype=np.int)
             else:
                 blt_inds = ant_blt_inds
-
-        if ant_str is not None:
-            ant_pairs,pols = self.parse_ants(ant_str)
-            if not ant_pairs_nums is None:
-                for ant_pair in ant_pairs:
-                    if not (ant_pair in ant_pairs_nums or
-                        ant_pair[::-1] in ant_pairs_nums):
-                        ant_pairs_nums.append(ant_pair)
-            else:
-                ant_pairs_nums = ant_pairs
-
-            if not polarizations is None:
-                for pol in pols:
-                    if not pol in polarizations:
-                        polarizations.append(pol)
-            else:
-                polarizations = pols
 
         if ant_pairs_nums is not None:
             if isinstance(ant_pairs_nums, tuple) and len(ant_pairs_nums) == 2:
@@ -1857,7 +1855,7 @@ class UVData(UVBase):
         for key in antpairpols:
             yield (key, self.get_data(key, squeeze=squeeze))
 
-    def parse_ants(self, ant_str, print_toggle=False):
+    def parse_ants(self, ant_str, print_toggle=False, for_select=True):
         """
         Generates two lists of antenna pair tuples and polarization indices based
         on parsing of the string ant_str.  If no valid polarizations (Stokes
@@ -1871,16 +1869,33 @@ class UVData(UVBase):
                 signs can also be used in front of an antenna number or baseline
                 to exclude it from being output in ant_pairs_nums. If the antenna
                 number attached with a minus sign is present in the outputted list
-                ant_pairs_nums, it will be removed from the list.  See the
+                ant_pairs_nums, it will be removed from the list.  If ant_str
+                passed with a minus sign as the first character, 'all,' will be
+                appended to the beginning of the string.  See the
                 tutorial for examples of valid strings and their behavior.
             print_toggle: Boolean for printing parsed baselines for a visual user
                 check.
+            for_select: Boolean for formatting output.  If true, output can be
+                used directly with select.  If false, output is formatted as a
+                list containing antenna number tuples and polarizations.
+                Primarily used for plotting as only the requested antenna pairs
+                and polarizations are kept.  See the tutorial for an explicit
+                example of how select behaves when multiple antenna
+                pairs and polarizations are passed with ant_str.
 
         Output:
-            ant_pairs_nums: List of tuples containing the parsed pairs of antennae
-                numbers. If 'all' is passed as ant_str, returned as None.
-            polarizations: List of desired polarizations. If no polarizations
-                found in ant_str then returned as None.
+            if for_select == True:
+                ant_pairs_nums: List of tuples containing the parsed pairs of
+                    antenna numbers. If 'all' or Stokes parameters are passed as
+                    ant_str, returned as None.
+                polarizations: List of desired polarizations. If no polarizations
+                    found in ant_str then returned as None.
+            else:
+                ant_pair_pols: Array containing the parsed pairs of antenna
+                    numbers as tuples with the corresponding parsed polarization.
+                    This cannot be passed directly to select as it would not, in
+                    general, result in a valid pyuvdata object.  If no antenna
+                    pairs and/or polarizations are found then returned as None.
         """
 
         ant_re = r'(\(((-?\d+[lrxy]?,?)+)\)|-?\d+[lrxy]?)'
@@ -1888,23 +1903,48 @@ class UVData(UVBase):
         str_pos = 0
         ant_pairs_nums = []
         polarizations = []
+        ant_pair_pols = []
+        ants_data = self.get_ants()
         ant_pairs_data = self.get_antpairs()
+        pols_data = self.get_pols()
+        warned_ants = []
+        warned_pols = []
+        warnings.simplefilter('always')
+
+        if ant_str.startswith('-'):
+            ant_str = 'all,' + ant_str
 
         while str_pos < len(ant_str):
             m = re.search(bl_re, ant_str[str_pos:])
             if m is None:
                 if ant_str[str_pos:].upper().startswith('ALL'):
-                    pass
+                    if len(ant_str[str_pos:].split(',')) > 1:
+                        if for_select:
+                            ant_pairs_nums = self.get_antpairs()
+                        else:
+                            for pair in ant_pairs_data:
+                                for pol in uvutils.polstr2num(pols_data):
+                                    ant_pair_pols.append([pair, pol])
                 elif ant_str[str_pos:].upper().startswith('AUTO'):
-                    for ant_pair in ant_pairs_data:
-                        if (ant_pair[0] == ant_pair[1] and
-                            not ant_pair in ant_pairs_nums):
-                            ant_pairs_nums.append(ant_pair)
+                    for pair in ant_pairs_data:
+                        if for_select:
+                            if (pair[0] == pair[1] and
+                                not pair in ant_pairs_nums):
+                                ant_pairs_nums.append(pair)
+                        elif pair[0] == pair[1]:
+                            for pol in uvutils.polstr2num(pols_data):
+                                if not [pair, pol] in ant_pair_pols:
+                                    ant_pair_pols.append([pair, pol])
                 elif ant_str[str_pos:].upper().startswith('CROSS'):
-                    for ant_pair in ant_pairs_data:
-                        if not (ant_pair[0] == ant_pair[1] or
-                            ant_pair in ant_pairs_nums):
-                            ant_pairs_nums.append(ant_pair)
+                    for pair in ant_pairs_data:
+                        if for_select:
+                            if not (pair[0] == pair[1] or
+                                pair in ant_pairs_nums):
+                                ant_pairs_nums.append(pair)
+                        elif not pair[0] == pair[1]:
+                            for pol in uvutils.polstr2num(pols_data):
+                                if not [pair, pol] in ant_pair_pols:
+                                    ant_pair_pols.append([pair, pol])
                 elif ant_str[str_pos:].upper().startswith('I'):
                     polarizations.append(uvutils.polstr2num('I'))
                 elif ant_str[str_pos:].upper().startswith('Q'):
@@ -1914,7 +1954,8 @@ class UVData(UVBase):
                 elif ant_str[str_pos:].upper().startswith('V'):
                     polarizations.append(uvutils.polstr2num('V'))
                 else:
-                    raise ValueError('Unparsible ant argument "%s"' % ant_str)
+                    raise ValueError('Unparsible argument {s}'.format(
+                                            s=ant_str))
 
                 comma_cnt = ant_str[str_pos:].find(',')
                 if comma_cnt >= 0:
@@ -1984,44 +2025,144 @@ class UVData(UVBase):
                         elif ant_tuple[::-1] in ant_pairs_data:
                             ant_tuple = ant_tuple[::-1]
                         else:
-                            continue
-
-                        if include_i and include_j:
-                            if not ant_tuple in ant_pairs_nums:
-                                ant_pairs_nums.append(ant_tuple)
+                            if not (ant_tuple[0] in ants_data or
+                                ant_tuple[0] in warned_ants):
+                                warnings.warn('Warning: '
+                                    'Antenna number {a} passed, but not present '
+                                    'in the ant_1_array or ant_2_array'.format(
+                                    a=ant_tuple[0]))
+                                warned_ants.append(ant_tuple[0])
+                            if not (ant_tuple[1] in ants_data or
+                                ant_tuple[1] in warned_ants):
+                                warnings.warn('Warning: '
+                                    'Antenna number {a} passed, but not present '
+                                    'in the ant_1_array or ant_2_array'.format(
+                                    a=ant_tuple[1]))
+                                warned_ants.append(ant_tuple[1])
                             if not pols is None:
                                 for pol in pols:
-                                    if not uvutils.polstr2num(pol) in polarizations:
-                                        polarizations.append(uvutils.polstr2num(pol))
-                        elif ant_tuple in ant_pairs_nums:
-                            ant_pairs_nums.remove(ant_tuple)
-                        elif ant_tuple[::-1] in ant_pairs_nums:
-                            ant_pairs_nums.remove(ant_tuple[::-1])
+                                    if not (pol.upper() in pols_data
+                                        or pol in warned_pols):
+                                        warnings.warn('Warning: '
+                                            'Polarization {p} is not present in '
+                                            'the polarization_array'.format(
+                                            p=pol.upper()))
+                                        warned_pols.append(pol)
+                            continue
 
-        # If ant_str == 'all', i.e. keep all antenna pairs
-        if len(ant_pairs_nums) == 0:
+                        if for_select:
+                            # Format output for passing to self.select
+                            if include_i and include_j:
+                                if not ant_tuple in ant_pairs_nums:
+                                    ant_pairs_nums.append(ant_tuple)
+                                if not pols is None:
+                                    for pol in pols:
+                                        if (pol.upper() in pols_data and
+                                            not uvutils.polstr2num(pol) in polarizations):
+                                            polarizations.append(uvutils.polstr2num(pol))
+                                        elif not (pol.upper() in pols_data
+                                            or pol in warned_pols):
+                                            warnings.warn('Warning: '
+                                                'Polarization {p} is not present in '
+                                                'the polarization_array'.format(
+                                                p=pol.upper()))
+                                            warned_pols.append(pol)
+                            else:
+                                if not pols is None:
+                                    for pol in pols:
+                                        if pol.upper() in pols_data:
+                                            if (self.Npols == 1 and
+                                                [pol.upper()] == pols_data):
+                                                ant_pairs_nums.remove(ant_tuple)
+                                            if uvutils.polstr2num(pol) in polarizations:
+                                                polarizations.remove(uvutils.polstr2num(pol))
+
+                                        elif not (pol.upper() in pols_data
+                                            or pol in warned_pols):
+                                            warnings.warn('Warning: '
+                                                'Polarization {p} is not present in '
+                                                'the polarization_array'.format(
+                                                p=pol.upper()))
+                                            warned_pols.append(pol)
+                                elif ant_tuple in ant_pairs_nums:
+                                    ant_pairs_nums.remove(ant_tuple)
+                        else:
+                            # Format output for plotting only the explicitly
+                            # requested baseline polarization combinations
+                            if include_i and include_j:
+                                if pols is None:
+                                    for pol in uvutils.polstr2num(pols_data):
+                                        if not [ant_tuple, pol] in ant_pair_pols:
+                                            ant_pair_pols.append(
+                                                [ant_tuple, pol])
+                                else:
+                                    for pol in pols:
+                                        if not (pol.upper() in pols_data
+                                            or pol in warned_pols):
+                                            warnings.warn('Warning: '
+                                                'Polarization {p} is not present in '
+                                                'polarization_array'.format(
+                                                p=pol.upper()))
+                                            warned_pols.append(pol)
+                                        elif (pol.upper() in pols_data and not
+                                            [ant_tuple, uvutils.polstr2num(pol)]
+                                            in ant_pair_pols):
+                                            ant_pair_pols.append(
+                                                [ant_tuple, uvutils.polstr2num(pol)])
+                            else:
+                                if pols is None:
+                                    for pol in uvutils.polstr2num(pols_data):
+                                        if [ant_tuple, pol] in ant_pair_pols:
+                                            ant_pair_pols.remove(
+                                                [ant_tuple, pol])
+                                else:
+                                    for pol in pols:
+                                        if not (pol.upper() in pols_data
+                                            or pol in warned_pols):
+                                            warnings.warn('Warning: '
+                                                'Polarization {p} is not present in '
+                                                'polarization_array'.format(
+                                                p=pol.upper()))
+                                            warned_pols.append(pol)
+                                        elif (pol.upper() in pols_data and
+                                            [ant_tuple, uvutils.polstr2num(pol)]
+                                            in ant_pair_pols):
+                                            ant_pair_pols.remove(
+                                                [ant_tuple, uvutils.polstr2num(pol)])
+
+        if for_select:
             if ant_str.upper() == 'ALL':
                 ant_pairs_nums = None
+            elif len(ant_pairs_nums) == 0:
+                if (not ant_str.upper() in ['AUTO', 'CROSS']
+                and not ([True]*len(ant_str.split(',')) ==
+                [x.isdigit() for x in ant_str.split(',')])):
+                    print ant_str + ' contains at least one non-digit that\'s not auto or cross'
+                    ant_pairs_nums = None
+
+            if len(polarizations) == 0:
+                polarizations = None
             else:
-                # Need to thrown an error in select
-                # No baselines for the given ant_str
-                ant_pairs_nums = []
+                polarizations.sort(reverse=True)
 
-        # If no polarizations found from ant_str, return None for polarizations
-        if len(polarizations) == 0:
-            polarizations = None
+            if print_toggle:
+                print '\nParsed antenna pairs:'
+                if not ant_pairs_nums is None:
+                    for pair in ant_pairs_nums:
+                        print pair
+
+                print '\nParsed polarizations:'
+                if not polarizations is None:
+                    for pol in polarizations:
+                        print uvutils.polnum2str(pol)
+
+            return ant_pairs_nums, polarizations
         else:
-            polarizations.sort(reverse=True)
-
-        if print_toggle:
-            print '\nParsed antenna pairs:'
-            if not ant_pairs_nums is None:
-                for pair in ant_pairs_nums:
-                    print pair
-
-            print '\nParsed polarizations:'
-            if not polarizations is None:
-                for pol in polarizations:
-                    print uvutils.polnum2str(pol)
-
-        return ant_pairs_nums, polarizations
+            if len(ant_pair_pols) == 0:
+                ant_pair_pols = None
+            else:
+                for i in range(len(ant_pair_pols)):
+                    ant_pair_pols[i] = (ant_pair_pols[i][0][0],
+                                                ant_pair_pols[i][0][1],
+                                                ant_pair_pols[i][1])
+            return ant_pair_pols
