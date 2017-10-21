@@ -828,59 +828,53 @@ class UVData(UVBase):
         # Pad out self to accommodate new data
         if len(bnew_inds) > 0:
             this_blts = np.concatenate((this_blts, new_blts))
-            order = np.argsort(this_blts)
-            this_blts = this_blts[order]
+            blt_order = np.argsort(this_blts)
+            this_blts = this_blts[blt_order]
             zero_pad = np.zeros(
                 (len(bnew_inds), this.Nspws, this.Nfreqs, this.Npols))
-            this.data_array = np.concatenate([this.data_array, zero_pad], axis=0)[
-                order, :, :, :]
-            this.nsample_array = np.concatenate(
-                [this.nsample_array, zero_pad], axis=0)[order, :, :, :]
+            this.data_array = np.concatenate([this.data_array, zero_pad], axis=0)
+            this.nsample_array = np.concatenate([this.nsample_array, zero_pad], axis=0)
             this.flag_array = np.concatenate([this.flag_array,
-                                              1 - zero_pad], axis=0).astype(np.bool)[order, :, :, :]
+                                              1 - zero_pad], axis=0).astype(np.bool)
             this.uvw_array = np.concatenate([this.uvw_array,
-                                             other.uvw_array[bnew_inds, :]], axis=0)[order, :]
+                                             other.uvw_array[bnew_inds, :]], axis=0)[blt_order, :]
             this.time_array = np.concatenate([this.time_array,
-                                              other.time_array[bnew_inds]])[order]
+                                              other.time_array[bnew_inds]])[blt_order]
             this.lst_array = np.concatenate(
-                [this.lst_array, other.lst_array[bnew_inds]])[order]
+                [this.lst_array, other.lst_array[bnew_inds]])[blt_order]
             this.ant_1_array = np.concatenate([this.ant_1_array,
-                                               other.ant_1_array[bnew_inds]])[order]
+                                               other.ant_1_array[bnew_inds]])[blt_order]
             this.ant_2_array = np.concatenate([this.ant_2_array,
-                                               other.ant_2_array[bnew_inds]])[order]
+                                               other.ant_2_array[bnew_inds]])[blt_order]
             this.baseline_array = np.concatenate([this.baseline_array,
-                                                  other.baseline_array[bnew_inds]])[order]
+                                                  other.baseline_array[bnew_inds]])[blt_order]
             if this.phase_type == 'drift':
                 this.zenith_ra = np.concatenate([this.zenith_ra,
-                                                 other.zenith_ra[bnew_inds]])[order]
+                                                 other.zenith_ra[bnew_inds]])[blt_order]
                 this.zenith_dec = np.concatenate([this.zenith_dec,
-                                                 other.zenith_dec[bnew_inds]])[order]
+                                                 other.zenith_dec[bnew_inds]])[blt_order]
         if len(fnew_inds) > 0:
             zero_pad = np.zeros((this.data_array.shape[0], this.Nspws, len(fnew_inds),
                                  this.Npols))
             this.freq_array = np.concatenate([this.freq_array,
                                               other.freq_array[:, fnew_inds]], axis=1)
-            order = np.argsort(this.freq_array[0, :])
-            this.freq_array = this.freq_array[:, order]
-            this.data_array = np.concatenate([this.data_array, zero_pad], axis=2)[
-                :, :, order, :]
-            this.nsample_array = np.concatenate(
-                [this.nsample_array, zero_pad], axis=2)[:, :, order, :]
+            f_order = np.argsort(this.freq_array[0, :])
+            this.freq_array = this.freq_array[:, f_order]
+            this.data_array = np.concatenate([this.data_array, zero_pad], axis=2)
+            this.nsample_array = np.concatenate([this.nsample_array, zero_pad], axis=2)
             this.flag_array = np.concatenate([this.flag_array, 1 - zero_pad],
-                                             axis=2).astype(np.bool)[:, :, order, :]
+                                             axis=2).astype(np.bool)
         if len(pnew_inds) > 0:
             zero_pad = np.zeros((this.data_array.shape[0], this.Nspws,
                                  this.data_array.shape[2], len(pnew_inds)))
             this.polarization_array = np.concatenate([this.polarization_array,
                                                       other.polarization_array[pnew_inds]])
-            order = np.argsort(np.abs(this.polarization_array))
-            this.polarization_array = this.polarization_array[order]
-            this.data_array = np.concatenate([this.data_array, zero_pad], axis=3)[
-                :, :, :, order]
-            this.nsample_array = np.concatenate(
-                [this.nsample_array, zero_pad], axis=3)[:, :, :, order]
+            p_order = np.argsort(np.abs(this.polarization_array))
+            this.polarization_array = this.polarization_array[p_order]
+            this.data_array = np.concatenate([this.data_array, zero_pad], axis=3)
+            this.nsample_array = np.concatenate([this.nsample_array, zero_pad], axis=3)
             this.flag_array = np.concatenate([this.flag_array, 1 - zero_pad],
-                                             axis=3).astype(np.bool)[:, :, :, order]
+                                             axis=3).astype(np.bool)
 
         # Now populate the data
         pol_t2o = np.nonzero(
@@ -894,6 +888,18 @@ class UVData(UVBase):
             blt_t2o, [0], freq_t2o, pol_t2o)] = other.nsample_array
         this.flag_array[np.ix_(blt_t2o, [0], freq_t2o,
                                pol_t2o)] = other.flag_array
+        if len(bnew_inds) > 0:
+            this.data_array = this.data_array[blt_order, :, :, :]
+            this.nsample_array = this.nsample_array[blt_order, :, :, :]
+            this.flag_array = this.flag_array[blt_order, :, :, :]
+        if len(fnew_inds) > 0:
+            this.data_array = this.data_array[:, :, f_order, :]
+            this.nsample_array = this.nsample_array[:, :, f_order, :]
+            this.flag_array = this.flag_array[:, :, f_order, :]
+        if len(pnew_inds) > 0:
+            this.data_array = this.data_array[:, :, :, p_order]
+            this.nsample_array = this.nsample_array[:, :, :, p_order]
+            this.flag_array = this.flag_array[:, :, :, p_order]
 
         # Update N parameters (e.g. Npols)
         this.Ntimes = len(np.unique(this.time_array))
