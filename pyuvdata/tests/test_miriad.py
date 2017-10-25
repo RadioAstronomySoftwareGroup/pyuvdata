@@ -193,7 +193,7 @@ def test_miriad_location_handling():
 
     # zero out bad locations (these are checked on read)
     antpos[np.where(antpos_length == 0), :] = [0, 0, 0]
-    antpos = antpos.T.flatten()
+    antpos = antpos.T.flatten() / const.c.to('m/ns').value
 
     # make new file
     aipy_uv2 = aipy.miriad.UV(testfile, status='new')
