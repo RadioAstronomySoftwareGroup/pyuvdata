@@ -66,6 +66,7 @@ class Miriad(UVData):
         #     a calibration object some day
         # NB: systemp, xtsys & ytsys are "System temperatures of the antenna/X/Y feed"
         #     which we may want in a calibration object some day
+        # NB: freqs, leakage and bandpass may be part of a calibration object some day
         other_miriad_variables = ['nspect', 'obsdec', 'vsource', 'ischan',
                                   'restfreq', 'nschan', 'corr', 'freq',
                                   'freqs', 'leakage', 'bandpass',
