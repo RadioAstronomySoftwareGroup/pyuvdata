@@ -309,7 +309,7 @@ def test_miriad_location_handling():
     modified_antpos[rot_ants, :] = rot_antpos
     # zero out bad locations (these are checked on read)
     modified_antpos[np.where(antpos_length == 0), :] = [0, 0, 0]
-    modified_antpos = modified_antpos.T.flatten()
+    modified_antpos = modified_antpos.T.flatten() / const.c.to('m/ns').value
 
     # make new file
     if os.path.exists(testfile):
