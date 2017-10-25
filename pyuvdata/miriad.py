@@ -68,6 +68,7 @@ class Miriad(UVData):
         #     which we may want in a calibration object some day
         other_miriad_variables = ['nspect', 'obsdec', 'vsource', 'ischan',
                                   'restfreq', 'nschan', 'corr', 'freq',
+                                  'freqs', 'leakage', 'bandpass',
                                   'tscale', 'coord', 'veldop', 'time', 'obsra',
                                   'operator', 'version', 'axismax', 'axisrms',
                                   'xyphase', 'xyamp', 'systemp', 'xtsys', 'ytsys'
@@ -250,7 +251,7 @@ class Miriad(UVData):
         for key in uv.items():
             # A few items that are not needed, we read elsewhere, or is not supported
             # when downselecting, so we don't read here.
-            if key not in ['vartable', 'history', 'obstype']:
+            if key not in ['vartable', 'history', 'obstype'] and key not in other_miriad_variables:
                 if type(uv[key]) == str:
                     value = uv[key].replace('\x00', '')
                     value = uv[key].replace('\x01', '')
@@ -353,6 +354,8 @@ class Miriad(UVData):
             if self.telescope_location is not None:
                 if absolute_positions:
                     rel_ecef_antpos = ecef_antpos - self.telescope_location
+                    # maintain zeros because they mark missing data
+                    rel_ecef_antpos[np.where(antpos_length == 0)[0]] = ecef_antpos[np.where(antpos_length == 0)[0]]
                 else:
                     rel_ecef_antpos = ecef_antpos
             else:
