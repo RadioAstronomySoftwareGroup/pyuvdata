@@ -442,73 +442,73 @@ b) Select 3 antennas to keep using the antenna names, also select 5 frequencies 
   # print all the frequencies after the select
   print(cal.freq_array)
 
-  UVBeam: Reading/writing
-  ---------
-  Beam files using UVBeam.
+UVBeam: Reading/writing
+---------
+Beam files using UVBeam.
 
-  a) Reading a CST power beam file
-  ****************
-  ::
+a) Reading a CST power beam file
+****************
+::
 
-    from pyuvdata import UVBeam
-    import numpy as np
-    import matplotlib.pyplot as plt
-    beam = UVBeam()
-    # you can pass several filenames and the objects from each file will be
-    # combined across the appropriate axis -- in this case frequency
-    filenames = ['pyuvdata/data/HERA_NicCST_150MHz.txt', 'pyuvdata/data/HERA_NicCST_123MHz.txt']
-    # have to specify the telescope_name, feed_name, feed_version, model_name
-    # and model_version because they are not included in the file
-    beam.read_cst_power(filenames, telescope_name='HERA', feed_name='PAPER_dipole',
-                         feed_version='0.1', model_name='E-field pattern - Rigging height 4.9m',
-                         model_version='1.0')
+  from pyuvdata import UVBeam
+  import numpy as np
+  import matplotlib.pyplot as plt
+  beam = UVBeam()
+  # you can pass several filenames and the objects from each file will be
+  # combined across the appropriate axis -- in this case frequency
+  filenames = ['pyuvdata/data/HERA_NicCST_150MHz.txt', 'pyuvdata/data/HERA_NicCST_123MHz.txt']
+  # have to specify the telescope_name, feed_name, feed_version, model_name
+  # and model_version because they are not included in the file
+  beam.read_cst_power(filenames, telescope_name='HERA', feed_name='PAPER_dipole',
+                       feed_version='0.1', model_name='E-field pattern - Rigging height 4.9m',
+                       model_version='1.0')
 
-    print('Beam Type = ', beam.beam_type)  # should print out 'power'
-    print('Pixel Coordinate System = ', beam.pixel_coordinate_system)  # should print out 'az_za'
-    print('Normalization Type = ', beam.data_normalization)  # should print out 'physical'
-    print('Number of polarizations = ', beam.Npols, beam.polarization_array)  # number of beam polarizations and polarization type.
-    print('Number of frequencies = ', beam.Nfreqs)
-    print('Shape of the data_array', beam.data_array.shape)  # (beam.Naxes_vec, beam.Nspws, beam.Npols, beam.Nfreqs, beam.Naxes2, beam.Naxes1)
-    plt.plot(beam.axis2_array, beam.data_array[0, 0, 0, 0, :, 0])  # plot zenith angle cut through beam
-    plt.xscale('log')
-    plt.xlabel('Zenith Angle (deg)')
-    plt.ylabel('Power')
-    plt.show()
+  print('Beam Type = ', beam.beam_type)  # should print out 'power'
+  print('Pixel Coordinate System = ', beam.pixel_coordinate_system)  # should print out 'az_za'
+  print('Normalization Type = ', beam.data_normalization)  # should print out 'physical'
+  print('Number of polarizations = ', beam.Npols, beam.polarization_array)  # number of beam polarizations and polarization type.
+  print('Number of frequencies = ', beam.Nfreqs)
+  print('Shape of the data_array', beam.data_array.shape)  # (beam.Naxes_vec, beam.Nspws, beam.Npols, beam.Nfreqs, beam.Naxes2, beam.Naxes1)
+  plt.plot(beam.axis2_array, beam.data_array[0, 0, 0, 0, :, 0])  # plot zenith angle cut through beam
+  plt.xscale('log')
+  plt.xlabel('Zenith Angle (deg)')
+  plt.ylabel('Power')
+  plt.show()
 
-  b) Writing a regularly gridded beam FITS file
-  ****************
-  ::
+b) Writing a regularly gridded beam FITS file
+****************
+::
 
-    from pyuvdata import UVBeam
-    import numpy as np
-    import matplotlib.pyplot as plt
-    beam = UVBeam()
-    filenames = ['pyuvdata/data/HERA_NicCST_150MHz.txt', 'pyuvdata/data/HERA_NicCST_123MHz.txt']
-    # have to specify the telescope_name, feed_name, feed_version, model_name
-    # and model_version because they are not included in the file
-    beam.read_cst_power(filenames, telescope_name='HERA', feed_name='PAPER_dipole',
-                         feed_version='0.1', model_name='E-field pattern - Rigging height 4.9m',
-                         model_version='1.0')
+  from pyuvdata import UVBeam
+  import numpy as np
+  import matplotlib.pyplot as plt
+  beam = UVBeam()
+  filenames = ['pyuvdata/data/HERA_NicCST_150MHz.txt', 'pyuvdata/data/HERA_NicCST_123MHz.txt']
+  # have to specify the telescope_name, feed_name, feed_version, model_name
+  # and model_version because they are not included in the file
+  beam.read_cst_power(filenames, telescope_name='HERA', feed_name='PAPER_dipole',
+                       feed_version='0.1', model_name='E-field pattern - Rigging height 4.9m',
+                       model_version='1.0')
 
-    beam.write_beamfits('tutorial_beam_reggrid.fits', clobber=True)
+  beam.write_beamfits('tutorial_beam_reggrid.fits', clobber=True)
 
-    b) Writing a HEALPix beam FITS file
-    ****************
-    ::
+c) Writing a HEALPix beam FITS file
+****************
+::
 
-      from pyuvdata import UVBeam
-      import numpy as np
-      import matplotlib.pyplot as plt
-      beam = UVBeam()
-      filenames = ['pyuvdata/data/HERA_NicCST_150MHz.txt', 'pyuvdata/data/HERA_NicCST_123MHz.txt']
-      # have to specify the telescope_name, feed_name, feed_version, model_name
-      # and model_version because they are not included in the file
-      beam.read_cst_power(filenames, telescope_name='HERA', feed_name='PAPER_dipole',
-                           feed_version='0.1', model_name='E-field pattern - Rigging height 4.9m',
-                           model_version='1.0')
+  from pyuvdata import UVBeam
+  import numpy as np
+  import matplotlib.pyplot as plt
+  beam = UVBeam()
+  filenames = ['pyuvdata/data/HERA_NicCST_150MHz.txt', 'pyuvdata/data/HERA_NicCST_123MHz.txt']
+  # have to specify the telescope_name, feed_name, feed_version, model_name
+  # and model_version because they are not included in the file
+  beam.read_cst_power(filenames, telescope_name='HERA', feed_name='PAPER_dipole',
+                       feed_version='0.1', model_name='E-field pattern - Rigging height 4.9m',
+                       model_version='1.0')
 
-      beam.az_za_to_healpix()
-      beam.write_beamfits('tutorial_beam_healpix.fits', clobber=True)
+  beam.az_za_to_healpix()
+  beam.write_beamfits('tutorial_beam_healpix.fits', clobber=True)
 
 UVBeam: Selecting data
 ---------
@@ -516,7 +516,7 @@ The select method lets you select specific image axis indices (or pixels if
 pixel_coordinate_system is HEALPix), frequencies and feeds (or polarizations if
 beam_type is power) to keep in the object while removing others.
 
-b) Selecting a range of Zenith Angles
+a) Selecting a range of Zenith Angles
 ****************
 ::
 
