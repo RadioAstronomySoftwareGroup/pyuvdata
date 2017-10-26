@@ -40,6 +40,7 @@ pyuvdata has three major user classes:
 ## UVBeam file formats
 * regularly gridded fits for both E-field and power beams
 * non-standard HEALPix fits for both E-field and power beams (in an ImageHDU rather than a binary table to support frequency, polarization and E-field vector axes)
+* read support for CST power beam text files
 
 ## Known Issues and Planned Improvements
 * UVData: different multiple spectral windows or multiple sources are not currently supported
