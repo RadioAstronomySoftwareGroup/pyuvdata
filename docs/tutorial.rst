@@ -532,7 +532,7 @@ a) Selecting a range of Zenith Angles
                        model_version='1.0')
 
   new_beam = beam.select(axis2_inds=np.arange(0, 20), inplace=False)
-   # plot zenith angle cut through beams
+  # plot zenith angle cut through beams
   plt.plot(beam.axis2_array, beam.data_array[0, 0, 0, 0, :, 0],
            new_beam.axis2_array, new_beam.data_array[0, 0, 0, 0, :, 0], 'r')
   plt.xscale('log')
