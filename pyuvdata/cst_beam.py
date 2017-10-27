@@ -20,6 +20,24 @@ class CSTBeam(UVBeam):
                        feed_name=None, feed_version=None, model_name=None, model_version=None,
                        history='', run_check=True, run_check_acceptability=True):
 
+        """
+        Read in data from a cst file.
+
+        Args:
+            filename: The cst file or list of files to read from.
+            frequencies: the frequency or list of frequencies corresponding to the filename(s).
+                If not passed, the code attempts to parse it from the filenames.
+            telescope_name: the name of the telescope corresponding to the filename(s).
+            feed_name: the name of the feed corresponding to the filename(s).
+            feed_version: the version of the feed corresponding to the filename(s).
+            model_name: the name of the model corresponding to the filename(s).
+            model_version: the version of the model corresponding to the filename(s).
+            history: A string detailing the history of the filename(s).
+            run_check: Option to check for the existence and proper shapes of
+                required parameters after reading in the file. Default is True.
+            run_check_acceptability: Option to check acceptable range of the values of
+                required parameters after reading in the file. Default is True.
+        """
         self.telescope_name = telescope_name
         self.feed_name = feed_name
         self.feed_version = feed_version
