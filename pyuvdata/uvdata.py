@@ -260,18 +260,8 @@ class UVData(UVBase):
 
         desc = ('Array giving coordinates of antennas relative to '
                 'telescope_location (ITRF frame), shape (Nants_telescope, 3), '
-                'units meters.\n'
-                'A quick way to convert this to meters in topocentric x-y-z is:\n'
-                """
-                ```
-                from pyuvdata import uvutils, UVData
-                uvd = UVData()
-                uvd.read_miriad(<filename>)
-                antpos = uvd.antenna_positions + uvd.telescope_location
-                antpos = uvutils.ENU_from_ECEF(antpos.T, *uvd.telescope_location_lat_lon_alt).T
-                ```
-                """
-                )
+                'units meters. See the tutorial page in the documentation '
+                'for an example of how to convert this to topocentric frame.')
         self._antenna_positions = uvp.AntPositionParameter('antenna_positions',
                                                            required=False,
                                                            description=desc,
