@@ -158,7 +158,27 @@ def test_pol_funcs():
     # Check individuals
     nt.assert_equal(-6, uvutils.polstr2num('YY'))
     nt.assert_equal('V', uvutils.polnum2str(4))
-    # Check erros
+    # Check errors
     nt.assert_raises(KeyError, uvutils.polstr2num, 'foo')
     nt.assert_raises(ValueError, uvutils.polstr2num, 1)
     nt.assert_raises(ValueError, uvutils.polnum2str, 7.3)
+
+
+def test_jones_num_funcs():
+    """ Test utility functions to convert between jones polarization strings and numbers """
+
+    jnums = [-8, -7, -6, -5, -4, -3, -2, -1]
+    jstr = ['jyx', 'jxy', 'jyy', 'jxx', 'jlr', 'jrl', 'jll', 'jrr']
+    nt.assert_equal(jnums, uvutils.jstr2num(jstr))
+    nt.assert_equal(jstr, uvutils.jnum2str(jnums))
+    # Check shorthands
+    jstr = ['yx', 'xy', 'yy', 'y', 'xx', 'x', 'lr', 'rl', 'll', 'l', 'rr', 'r']
+    jnums = [-8, -7, -6, -6, -5, -5, -4, -3, -2, -2, -1, -1]
+    nt.assert_equal(jnums, uvutils.jstr2num(jstr))
+    # Check individuals
+    nt.assert_equal(-6, uvutils.jstr2num('jyy'))
+    nt.assert_equal('jxy', uvutils.jnum2str(-7))
+    # Check errors
+    nt.assert_raises(KeyError, uvutils.jstr2num, 'foo')
+    nt.assert_raises(ValueError, uvutils.jstr2num, 1)
+    nt.assert_raises(ValueError, uvutils.jnum2str, 7.3)
