@@ -1,15 +1,39 @@
 """Tests for Miriad object."""
 import os
+import shutil
 import copy
 import numpy as np
 import ephem
 import nose.tools as nt
+import aipy
 from pyuvdata import UVData
 import pyuvdata.utils as uvutils
 import pyuvdata.tests as uvtest
 from pyuvdata.data import DATA_PATH
 import aipy.miriad as amiriad
 from astropy import constants as const
+import warnings
+
+
+def test_ReadWriteReadATCA():
+    uv_in = UVData()
+    uv_out = UVData()
+    atca_file = os.path.join(DATA_PATH, 'atca_miriad')
+    testfile = os.path.join(DATA_PATH, 'test/outtest_atca_miriad.uv')
+    uvtest.checkWarnings(uv_in.read_miriad, [atca_file],
+                         nwarnings=3, category=[UserWarning, UserWarning, UserWarning],
+                         message=['Altitude is not present in Miriad file, and '
+                                  'telescope ATCA is not in known_telescopes. '
+                                  'Telescope location',
+                                  'Telescope location is set at sealevel at the '
+                                  'file lat/lon coordinates. Antenna positions '
+                                  'are present, but the mean antenna position',
+                                  'Telescope ATCA is not in known_telescopes.'])
+
+    uv_in.write_miriad(testfile, clobber=True)
+    uvtest.checkWarnings(uv_out.read_miriad, [testfile],
+                         message='Telescope ATCA is not in known_telescopes.')
+    nt.assert_equal(uv_in, uv_out)
 
 
 def test_ReadNRAOWriteMiriadReadMiriad():
@@ -132,8 +156,184 @@ def test_wronglatlon():
     uvtest.checkWarnings(uv_in.read_miriad, [telescopefile], {'run_check': False},
                          nwarnings=4,
                          message=['Altitude is not present in Miriad file, and telescope',
-                                  'Telescope location is not set. Antenna positions are present, but the mean',
+                                  'Telescope location is set at sealevel at the '
+                                  'file lat/lon coordinates. Antenna positions '
+                                  'are present, but the mean antenna position',
                                   telescopefile + ' was written with an old version of pyuvdata',
+                                  'Telescope foo is not in known_telescopes.'])
+
+
+def test_miriad_location_handling():
+    uv_in = UVData()
+    uv_out = UVData()
+    miriad_file = os.path.join(DATA_PATH, 'zen.2456865.60537.xy.uvcRREAA')
+    testdir = os.path.join(DATA_PATH, 'test/')
+    testfile = os.path.join(DATA_PATH, 'test/outtest_miriad.uv')
+    aipy_uv = aipy.miriad.UV(miriad_file)
+
+    if os.path.exists(testfile):
+        shutil.rmtree(testfile)
+
+    # Test for using antenna positions to get telescope position
+    uvtest.checkWarnings(uv_in.read_miriad, [miriad_file],
+                         message=['Altitude is not present in Miriad file, using known '
+                                  'location values for PAPER.'])
+    # extract antenna positions and rotate them for miriad
+    nants = aipy_uv['nants']
+    rel_ecef_antpos = np.zeros((nants, 3), dtype=uv_in.antenna_positions.dtype)
+    for ai, num in enumerate(uv_in.antenna_numbers):
+        rel_ecef_antpos[num, :] = uv_in.antenna_positions[ai, :]
+
+    # find zeros so antpos can be zeroed there too
+    antpos_length = np.sqrt(np.sum(np.abs(rel_ecef_antpos)**2, axis=1))
+
+    ecef_antpos = rel_ecef_antpos + uv_in.telescope_location
+    longitude = uv_in.telescope_location_lat_lon_alt[1]
+    antpos = uvutils.rotECEF_from_ECEF(ecef_antpos, longitude)
+
+    # zero out bad locations (these are checked on read)
+    antpos[np.where(antpos_length == 0), :] = [0, 0, 0]
+    antpos = antpos.T.flatten() / const.c.to('m/ns').value
+
+    # make new file
+    aipy_uv2 = aipy.miriad.UV(testfile, status='new')
+    # initialize headers from old file
+    # change telescope name (so the position isn't set from known_telescopes)
+    # and use absolute antenna positions
+    aipy_uv2.init_from_uv(aipy_uv, override={'telescop': 'foo', 'antpos': antpos})
+    # copy data from old file
+    aipy_uv2.pipe(aipy_uv)
+    # close file properly
+    del(aipy_uv2)
+
+    uvtest.checkWarnings(uv_out.read_miriad, [testfile], nwarnings=3,
+                         message=['Altitude is not present in Miriad file, and '
+                                  'telescope foo is not in known_telescopes. '
+                                  'Telescope location will be set using antenna positions.',
+                                  'Telescope location is not set, but antenna '
+                                  'positions are present. Mean antenna latitude '
+                                  'and longitude values match file values, so '
+                                  'telescope_position will be set using the mean '
+                                  'of the antenna altitudes',
+                                  'Telescope foo is not in known_telescopes.'])
+
+    # Test for handling when antenna positions have a different mean latitude than the file latitude
+    # make new file
+    if os.path.exists(testfile):
+        shutil.rmtree(testfile)
+    aipy_uv = aipy.miriad.UV(miriad_file)
+    aipy_uv2 = aipy.miriad.UV(testfile, status='new')
+    # initialize headers from old file
+    # change telescope name (so the position isn't set from known_telescopes)
+    # and use absolute antenna positions, change file latitude
+    new_lat = aipy_uv['latitud'] * 1.5
+    aipy_uv2.init_from_uv(aipy_uv, override={'telescop': 'foo', 'antpos': antpos,
+                                             'latitud': new_lat})
+    # copy data from old file
+    aipy_uv2.pipe(aipy_uv)
+    # close file properly
+    del(aipy_uv2)
+
+    uvtest.checkWarnings(uv_out.read_miriad, [testfile], nwarnings=3,
+                         message=['Altitude is not present in Miriad file, and '
+                                  'telescope foo is not in known_telescopes. '
+                                  'Telescope location will be set using antenna positions.',
+                                  'Telescope location is set at sealevel at the '
+                                  'file lat/lon coordinates. Antenna positions '
+                                  'are present, but the mean antenna latitude '
+                                  'value does not match',
+                                  'Telescope foo is not in known_telescopes.'])
+
+    # Test for handling when antenna positions have a different mean longitude than the file longitude
+    # this is harder because of the rotation that's done on the antenna positions
+    # make new file
+    if os.path.exists(testfile):
+        shutil.rmtree(testfile)
+    aipy_uv = aipy.miriad.UV(miriad_file)
+    aipy_uv2 = aipy.miriad.UV(testfile, status='new')
+    # initialize headers from old file
+    # change telescope name (so the position isn't set from known_telescopes)
+    # and use absolute antenna positions, change file longitude
+    new_lon = aipy_uv['longitu'] + np.pi
+    aipy_uv2.init_from_uv(aipy_uv, override={'telescop': 'foo', 'antpos': antpos,
+                                             'longitu': new_lon})
+    # copy data from old file
+    aipy_uv2.pipe(aipy_uv)
+    # close file properly
+    del(aipy_uv2)
+
+    uvtest.checkWarnings(uv_out.read_miriad, [testfile], nwarnings=3,
+                         message=['Altitude is not present in Miriad file, and '
+                                  'telescope foo is not in known_telescopes. '
+                                  'Telescope location will be set using antenna positions.',
+                                  'Telescope location is set at sealevel at the '
+                                  'file lat/lon coordinates. Antenna positions '
+                                  'are present, but the mean antenna longitude '
+                                  'value does not match',
+                                  'Telescope foo is not in known_telescopes.'])
+
+    # Test for handling when antenna positions have a different mean longitude &
+    # latitude than the file longitude
+    # make new file
+    if os.path.exists(testfile):
+        shutil.rmtree(testfile)
+    aipy_uv = aipy.miriad.UV(miriad_file)
+    aipy_uv2 = aipy.miriad.UV(testfile, status='new')
+    # initialize headers from old file
+    # change telescope name (so the position isn't set from known_telescopes)
+    # and use absolute antenna positions, change file latitude and longitude
+    aipy_uv2.init_from_uv(aipy_uv, override={'telescop': 'foo', 'antpos': antpos,
+                                             'latitud': new_lat, 'longitu': new_lon})
+    # copy data from old file
+    aipy_uv2.pipe(aipy_uv)
+    # close file properly
+    del(aipy_uv2)
+
+    uvtest.checkWarnings(uv_out.read_miriad, [testfile], nwarnings=3,
+                         message=['Altitude is not present in Miriad file, and '
+                                  'telescope foo is not in known_telescopes. '
+                                  'Telescope location will be set using antenna positions.',
+                                  'Telescope location is set at sealevel at the '
+                                  'file lat/lon coordinates. Antenna positions '
+                                  'are present, but the mean antenna latitude and '
+                                  'longitude values do not match',
+                                  'Telescope foo is not in known_telescopes.'])
+
+    # Test for handling when antenna positions are far enough apart to make the
+    # mean position inside the earth
+
+    good_antpos = np.where(antpos_length > 0)[0]
+    rot_ants = good_antpos[:len(good_antpos) / 2]
+    rot_antpos = uvutils.rotECEF_from_ECEF(ecef_antpos[rot_ants, :], longitude + np.pi)
+    modified_antpos = uvutils.rotECEF_from_ECEF(ecef_antpos, longitude)
+    modified_antpos[rot_ants, :] = rot_antpos
+    # zero out bad locations (these are checked on read)
+    modified_antpos[np.where(antpos_length == 0), :] = [0, 0, 0]
+    modified_antpos = modified_antpos.T.flatten() / const.c.to('m/ns').value
+
+    # make new file
+    if os.path.exists(testfile):
+        shutil.rmtree(testfile)
+    aipy_uv = aipy.miriad.UV(miriad_file)
+    aipy_uv2 = aipy.miriad.UV(testfile, status='new')
+    # initialize headers from old file
+    # change telescope name (so the position isn't set from known_telescopes)
+    # and use modified absolute antenna positions
+    aipy_uv2.init_from_uv(aipy_uv, override={'telescop': 'foo', 'antpos': modified_antpos})
+    # copy data from old file
+    aipy_uv2.pipe(aipy_uv)
+    # close file properly
+    del(aipy_uv2)
+
+    uvtest.checkWarnings(uv_out.read_miriad, [testfile], nwarnings=3,
+                         message=['Altitude is not present in Miriad file, and '
+                                  'telescope foo is not in known_telescopes. '
+                                  'Telescope location will be set using antenna positions.',
+                                  'Telescope location is set at sealevel at the '
+                                  'file lat/lon coordinates. Antenna positions '
+                                  'are present, but the mean antenna position '
+                                  'does not give a telescope_location on the '
+                                  'surface of the earth.',
                                   'Telescope foo is not in known_telescopes.'])
 
 

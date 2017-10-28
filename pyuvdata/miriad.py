@@ -62,10 +62,17 @@ class Miriad(UVData):
                                     ]
         # list of miriad variables not read, but also not interesting
         # NB: nspect (I think) is number of spectral windows, will want one day
-        other_miriad_variables = ['nspect', 'obsdec', 'vsource', 'restfreq',
-                                  'corr', 'freq', 'tscale', 'coord', 'veldop',
-                                  'time', 'obsra', 'operator', 'version', 'ischan',
-                                  'nschan',
+        # NB: xyphase & xyamp are "On-line X Y phase/amplitude measurements" which we may want in
+        #     a calibration object some day
+        # NB: systemp, xtsys & ytsys are "System temperatures of the antenna/X/Y feed"
+        #     which we may want in a calibration object some day
+        # NB: freqs, leakage and bandpass may be part of a calibration object some day
+        other_miriad_variables = ['nspect', 'obsdec', 'vsource', 'ischan',
+                                  'restfreq', 'nschan', 'corr', 'freq',
+                                  'freqs', 'leakage', 'bandpass',
+                                  'tscale', 'coord', 'veldop', 'time', 'obsra',
+                                  'operator', 'version', 'axismax', 'axisrms',
+                                  'xyphase', 'xyamp', 'systemp', 'xtsys', 'ytsys'
                                   ]
 
         extra_miriad_variables = []
@@ -138,10 +145,11 @@ class Miriad(UVData):
                                        'file.'.format(telescope_name=telescope_obj.telescope_name))
                         warnings.warn(warn_string)
             else:
-                warnings.warn('Altitude is not present in Miriad file, and ' +
-                              'telescope {telescope_name} is not in ' +
-                              'known_telescopes. Telescope location not '
-                              'set.'.format(telescope_name=self.telescope_name))
+                warnings.warn('Altitude is not present in Miriad file, and '
+                              'telescope {telescope_name} is not in '
+                              'known_telescopes. Telescope location will be '
+                              'set using antenna positions.'
+                              .format(telescope_name=self.telescope_name))
 
         self.history = uv['history']
         if not uvutils.check_history_version(self.history, self.pyuvdata_version_str):
@@ -244,7 +252,7 @@ class Miriad(UVData):
         for key in uv.items():
             # A few items that are not needed, we read elsewhere, or is not supported
             # when downselecting, so we don't read here.
-            if key not in ['vartable', 'history', 'obstype']:
+            if key not in ['vartable', 'history', 'obstype'] and key not in other_miriad_variables:
                 if type(uv[key]) == str:
                     value = uv[key].replace('\x00', '')
                     value = uv[key].replace('\x01', '')
@@ -327,34 +335,102 @@ class Miriad(UVData):
         try:
             # Miriad stores antpos values in units of ns, pyuvdata uses meters.
             antpos = uv['antpos'].reshape(3, nants).T * const.c.to('m/ns').value
+
+            # first figure out what are good antenna positions so we can only
+            # use the non-zero ones to evaluate position information
+            antpos_length = np.sqrt(np.sum(np.abs(antpos)**2, axis=1))
+            good_antpos = np.where(antpos_length > 0)[0]
+            mean_antpos_length = np.mean(antpos_length[good_antpos])
+            if mean_antpos_length > 6.35e6 and mean_antpos_length < 6.39e6:
+                absolute_positions = True
+            else:
+                absolute_positions = False
+
             # Miriad stores antpos values in a rotated ECEF coordinate system
             # where the x-axis goes through the local meridan. Need to convert
-            # these positions back to standard ECEF and subtract off the
-            # telescope position to make them relative to the array center.
+            # these positions back to standard ECEF and if they are absolute positions,
+            # subtract off the telescope position to make them relative to the array center.
             ecef_antpos = uvutils.ECEF_from_rotECEF(antpos, longitude)
 
             if self.telescope_location is not None:
-                rel_ecef_antpos = ecef_antpos - self.telescope_location
-            else:
-                self.telescope_location = np.mean(ecef_antpos, axis=0)
-                # check to see if this could be a valid telescope_location
-                if self._telescope_location.check_acceptability()[0]:
-                    # if this looks like a valid telescope_location, leave
-                    # telescope_location set and subtract it off of the antenna
-                    # positions
-                    warnings.warn('Telescope location is not set, but antenna '
-                                  'positions are present. Using the mean of the '
-                                  'antenna positions as the telescope location')
+                if absolute_positions:
                     rel_ecef_antpos = ecef_antpos - self.telescope_location
+                    # maintain zeros because they mark missing data
+                    rel_ecef_antpos[np.where(antpos_length == 0)[0]] = ecef_antpos[np.where(antpos_length == 0)[0]]
                 else:
-                    # This does not give a valid telescope_location. Set it back
-                    # to None and don't adjust the antenna_positions
-                    self.telescope_location = None
-                    warnings.warn('Telescope location is not set. Antenna '
-                                  'positions are present, but the mean of the '
-                                  'antenna positions does not give a sensible '
-                                  'telescope_location')
                     rel_ecef_antpos = ecef_antpos
+            else:
+                self.telescope_location = np.mean(ecef_antpos[good_antpos, :], axis=0)
+                valid_location = self._telescope_location.check_acceptability()[0]
+
+                # check to see if this could be a valid telescope_location
+                if valid_location:
+                    mean_lat, mean_lon, mean_alt = self.telescope_location_lat_lon_alt
+                    tol = 2 * np.pi / (60.0 * 60.0 * 24.0)  # 1 arcsecond in radians
+                    mean_lat_close = np.isclose(mean_lat, latitude, rtol=0, atol=tol)
+                    mean_lon_close = np.isclose(mean_lon, longitude, rtol=0, atol=tol)
+
+                    if mean_lat_close and mean_lon_close:
+                        # this looks like a valid telescope_location, and the
+                        # mean antenna lat & lon values are close. Set the
+                        # telescope_location using the file lat/lons and the mean alt.
+                        # Then subtract it off of the antenna positions
+                        warnings.warn('Telescope location is not set, but antenna '
+                                      'positions are present. Mean antenna latitude and '
+                                      'longitude values match file values, so '
+                                      'telescope_position will be set using the '
+                                      'mean of the antenna altitudes')
+                        self.telescope_location_lat_lon_alt = (latitude, longitude, mean_alt)
+                        rel_ecef_antpos = ecef_antpos - self.telescope_location
+
+                    else:
+                        # this looks like a valid telescope_location, but the
+                        # mean antenna lat & lon values are not close. Set the
+                        # telescope_location using the file lat/lons at sea level.
+                        # Then subtract it off of the antenna positions
+                        self.telescope_location_lat_lon_alt = (latitude, longitude, 0)
+                        warn_string = ('Telescope location is set at sealevel at '
+                                       'the file lat/lon coordinates. Antenna '
+                                       'positions are present, but the mean '
+                                       'antenna ')
+                        rel_ecef_antpos = ecef_antpos - self.telescope_location
+
+                        if not mean_lat_close and not mean_lon_close:
+                            warn_string += ('latitude and longitude values do not '
+                                            'match file values so they are not used '
+                                            'for altiude.')
+                        elif not mean_lat_close:
+                            warn_string += ('latitude value does not '
+                                            'match file values so they are not used '
+                                            'for altiude.')
+                        else:
+                            warn_string += ('longitude value does not '
+                                            'match file values so they are not used '
+                                            'for altiude.')
+
+                        warnings.warn(warn_string)
+
+                else:
+                    # This does not give a valid telescope_location. Instead
+                    # calculate it from the file lat/lon and sea level for altiude
+                    self.telescope_location_lat_lon_alt = (latitude, longitude, 0)
+                    warn_string = ('Telescope location is set at sealevel at '
+                                   'the file lat/lon coordinates. Antenna '
+                                   'positions are present, but the mean '
+                                   'antenna ')
+
+                    warn_string += ('position does not give a '
+                                    'telescope_location on the surface of the '
+                                    'earth.')
+                    if absolute_positions:
+                        rel_ecef_antpos = ecef_antpos - self.telescope_location
+                    else:
+                        warn_string += (' Antenna positions do not appear to be '
+                                        'on the surface of the earth and will be treated '
+                                        'as relative.')
+                        rel_ecef_antpos = ecef_antpos
+
+                    warnings.warn(warn_string)
 
             if self.Nants_telescope is not None:
                 # in this case there is an antnums variable
