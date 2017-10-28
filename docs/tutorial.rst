@@ -180,6 +180,17 @@ f) Convenience functions to ask what antennas, baselines, and pols are in the da
   print(UV.get_antpairpols)  # All antenna pairs and polariations.
                              # ie, keys produced in UV.antpairpol_iter().
 
+g) Quick access to file attributes of a UV* object (UVData, UVCal, UVFITS, etc)
+***************
+::
+  ## in bash ##
+  pyuvdata_inspect.py --attr=data_array.shape <uv*_file> # will print data_array.shape to stdout
+
+  pyuvdata_inspect.py --attr=Ntimes,Nfreqs,Nbls <uv*_file> # will print Ntimes,Nfreqs,Nbls to stdout
+
+  pyuvdata_inspect.py -i <uv*_file> # will load object to instance name "uv" and will remain in interpreter 
+
+
 UVData: Selecting data
 ---------
 The select method lets you select specific antennas (by number or name),
