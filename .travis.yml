@@ -32,7 +32,9 @@ install:
   - conda install -c conda-forge python-casacore
   - pip install coveralls
   - conda list
-script: nosetests pyuvdata --with-coverage --cover-package=pyuvdata
+script:
+  - nosetests pyuvdata --with-coverage --cover-package=pyuvdata
+  - python -m doctest docs/tutorial.rst
 
 after_success:
     - coveralls
