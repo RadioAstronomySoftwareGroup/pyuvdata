@@ -660,7 +660,7 @@ b) Writing a regularly gridded beam FITS file
   >>> import numpy as np
   >>> beam = UVBeam()
   >>> filenames = ['pyuvdata/data/HERA_NicCST_150MHz.txt', 'pyuvdata/data/HERA_NicCST_123MHz.txt']
-  >>> beam.read_cst_beam(filenames, beam_type='power', telescope_name='HERA',
+  >>> beam.read_cst_power(filenames, beam_type='power', telescope_name='HERA',
   ...                    feed_name='PAPER_dipole', feed_version='0.1',
   ...                    model_name='E-field pattern - Rigging height 4.9m',
   ...                    model_version='1.0')
@@ -674,7 +674,7 @@ c) Writing a HEALPix beam FITS file
   >>> import numpy as np
   >>> beam = UVBeam()
   >>> filenames = ['pyuvdata/data/HERA_NicCST_150MHz.txt', 'pyuvdata/data/HERA_NicCST_123MHz.txt']
-  >>> beam.read_cst_beam(filenames, beam_type='power', telescope_name='HERA',
+  >>> beam.read_cst_power(filenames, beam_type='power', telescope_name='HERA',
   ...                    feed_name='PAPER_dipole', feed_version='0.1',
   ...                    model_name='E-field pattern - Rigging height 4.9m',
   ...                    model_version='1.0')
@@ -695,7 +695,7 @@ a) Selecting a range of Zenith Angles
   >>> import numpy as np
   >>> beam = UVBeam()
   >>> filenames = ['pyuvdata/data/HERA_NicCST_150MHz.txt', 'pyuvdata/data/HERA_NicCST_123MHz.txt']
-  >>> beam.read_cst_beam(filenames, beam_type='power', telescope_name='HERA',
+  >>> beam.read_cst_power(filenames, beam_type='power', telescope_name='HERA',
   ...                    feed_name='PAPER_dipole', feed_version='0.1',
   ...                    model_name='E-field pattern - Rigging height 4.9m',
   ...                    model_version='1.0')
