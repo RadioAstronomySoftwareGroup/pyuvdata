@@ -98,7 +98,7 @@ class UVBeam(UVBase):
                 'electric field values are recorded in the pixel coordinate system. '
                 'Not required if beam_type is "power". The shape depends on the '
                 'pixel_coordinate_system, if it is "healpix", the shape is: '
-                '(Naxes_vec, 2, Npixels), otherwise it is (Naxes_vec, 2, Naxes1, Naxes2)')
+                '(Naxes_vec, 2, Npixels), otherwise it is (Naxes_vec, 2, Naxes2, Naxes1)')
         self._basis_vector_array = uvp.UVParameter('basis_vector_array',
                                                    description=desc, required=False,
                                                    expected_type=np.float,
@@ -421,6 +421,8 @@ class UVBeam(UVBase):
         import healpy as hp
         if self.pixel_coordinate_system != 'az_za':
             raise ValueError('pixel_coordinate_system must be "az_za"')
+        if self.beam_type != 'power':
+            raise ValueError('healpix conversion not yet defined for efield')
 
         phi_vals, theta_vals = np.meshgrid(self.axis1_array, self.axis2_array)
 
@@ -467,6 +469,11 @@ class UVBeam(UVBase):
         self.pixel_array = pixels
         self.Npixels = self.pixel_array.size
         self.data_array = healpix_data
+
+        self.Naxes1 = None
+        self.Naxes2 = None
+        self.axis1_array = None
+        self.axis2_array = None
 
         self.check()
 
@@ -1160,14 +1167,15 @@ class UVBeam(UVBase):
                                     clobber=clobber)
         del(beamfits_obj)
 
-    def read_cst_power(self, filenames, frequencies=None, telescope_name=None,
-                       feed_name=None, feed_version=None, model_name=None,
-                       model_version=None, history=''):
+    def read_cst_beam(self, filenames, beam_type='power', frequencies=None, telescope_name=None,
+                      feed_name=None, feed_version=None, model_name=None,
+                      model_version=None, history=''):
         """
         Read in data from a cst file.
 
         Args:
             filename: The cst file or list of files to read from.
+            beam_type: what beam_type to read in ('power' or 'efield'). Defaults to 'power'.
             frequencies: the frequency or list of frequencies corresponding to the filename(s).
                 If not passed, the code attempts to parse it from the filenames.
             telescope_name: the name of the telescope corresponding to the filename(s).
@@ -1187,11 +1195,12 @@ class UVBeam(UVBase):
             filenames = [filenames]
 
         cst_power_beam = cst_beam.CSTBeam()
-        cst_power_beam.read_cst_power(filenames, frequencies=frequencies,
-                                      telescope_name=telescope_name,
-                                      feed_name=feed_name,
-                                      feed_version=feed_version,
-                                      model_name=model_name,
-                                      model_version=model_version,
-                                      history=history)
+        cst_power_beam.read_cst_beam(filenames, beam_type=beam_type,
+                                     frequencies=frequencies,
+                                     telescope_name=telescope_name,
+                                     feed_name=feed_name,
+                                     feed_version=feed_version,
+                                     model_name=model_name,
+                                     model_version=model_version,
+                                     history=history)
         self._convert_from_filetype(cst_power_beam)
