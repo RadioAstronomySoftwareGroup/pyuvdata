@@ -186,8 +186,8 @@ class CSTBeam(UVBeam):
                 # rotate by pi/2 for second polarization
                 theta_beam2 = np.roll(theta_beam, int((np.pi / 2) / delta_phi), axis=0)
                 phi_beam2 = np.roll(phi_beam, int((np.pi / 2) / delta_phi), axis=0)
-                self.data_array[0, 0, 1, freq_i, :, :] = theta_beam2
-                self.data_array[1, 0, 1, freq_i, :, :] = phi_beam2
+                self.data_array[0, 0, 1, freq_i, :, :] = phi_beam2
+                self.data_array[1, 0, 1, freq_i, :, :] = theta_beam2
 
             self.bandpass_array.append(1.)
 
