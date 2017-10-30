@@ -180,14 +180,26 @@ f) Convenience functions to ask what antennas, baselines, and pols are in the da
   print(UV.get_antpairpols)  # All antenna pairs and polariations.
                              # ie, keys produced in UV.antpairpol_iter().
 
+g) Getting `antpos` in topocentric frame in units of meters
+***************
+::
+  from pyuvdata import uvutils, UVData # load modules
+  uvd = UVData() # instantiate class
+  uvd.read_miriad(<filename>) # read in miriad file
+  antpos = uvd.antenna_positions + uvd.telescope_location # get antennas positions in ECEF
+  antpos = uvutils.ENU_from_ECEF(antpos.T, *uvd.telescope_location_lat_lon_alt).T # convert to topo (ENU) coords.
+
 g) Quick access to file attributes of a UV* object (UVData, UVCal, UVFITS, etc)
 ***************
 ::
-  ## in bash ##
+
+  #!/bin/bash
   pyuvdata_inspect.py --attr=data_array.shape <uv*_file> # will print data_array.shape to stdout
 
+  #!/bin/bash
   pyuvdata_inspect.py --attr=Ntimes,Nfreqs,Nbls <uv*_file> # will print Ntimes,Nfreqs,Nbls to stdout
 
+  #!/bin/bash
   pyuvdata_inspect.py -i <uv*_file> # will load object to instance name "uv" and will remain in interpreter 
 
 
