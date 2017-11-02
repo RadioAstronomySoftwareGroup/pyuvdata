@@ -183,6 +183,7 @@ f) Convenience functions to ask what antennas, baselines, and pols are in the da
 g) Getting `antpos` in topocentric frame in units of meters
 ***************
 ::
+
   from pyuvdata import uvutils, UVData # load modules
   uvd = UVData() # instantiate class
   uvd.read_miriad(<filename>) # read in miriad file
