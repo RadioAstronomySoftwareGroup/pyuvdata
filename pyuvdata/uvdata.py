@@ -829,7 +829,6 @@ class UVData(UVBase):
         if len(bnew_inds) > 0:
             this_blts = np.concatenate((this_blts, new_blts))
             blt_order = np.argsort(this_blts)
-            this_blts = this_blts[blt_order]
             zero_pad = np.zeros(
                 (len(bnew_inds), this.Nspws, this.Nfreqs, this.Npols))
             this.data_array = np.concatenate([this.data_array, zero_pad], axis=0)
