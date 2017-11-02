@@ -2,6 +2,7 @@ import os
 import sys
 import re
 import numpy as np
+import warnings
 from uvbeam import UVBeam
 import utils as uvutils
 
@@ -16,7 +17,8 @@ class CSTBeam(UVBeam):
     45 degree rotations about the z-axis.
     """
 
-    def read_cst_beam(self, filelist, beam_type='power', frequencies=None, telescope_name=None,
+    def read_cst_beam(self, filenames, beam_type='power', feed_pol='x',
+                      frequencies=None, telescope_name=None,
                       feed_name=None, feed_version=None, model_name=None, model_version=None,
                       history='', run_check=True, run_check_acceptability=True):
 
@@ -24,8 +26,11 @@ class CSTBeam(UVBeam):
         Read in data from a cst file.
 
         Args:
-            filename: The cst file or list of files to read from.
+            filenames: The cst file or list of files to read from. If a list is passed,
+                the files are assumed to be for different frequecies.
             beam_type: what beam_type to read in ('power' or 'efield'). Defaults to 'power'.
+            feed_pol: what feed or polarization the files correspond to.
+                Defaults to 'x' (meaning x for efield or xx for power beams).
             frequencies: the frequency or list of frequencies corresponding to the filename(s).
                 If not passed, the code attempts to parse it from the filenames.
             telescope_name: the name of the telescope corresponding to the filename(s).
@@ -51,18 +56,24 @@ class CSTBeam(UVBeam):
         if beam_type is 'power':
             self.set_power()
             self.Naxes_vec = 1
-            self.polarization_array = np.array([-5, -6])
+            if feed_pol is 'x':
+                self.polarization_array = np.array([-5, -6])
+            else:
+                self.polarization_array = np.array([-6, -5])
             self.Npols = len(self.polarization_array)
         else:
             self.set_efield()
             self.Naxes_vec = 2
-            self.feed_array = np.array(['x', 'y'])
+            if feed_pol is 'x':
+                self.feed_array = np.array(['x', 'y'])
+            else:
+                self.feed_array = np.array(['y', 'x'])
             self.Nfeeds = len(self.feed_array)
 
         self.data_normalization = 'physical'
         self.antenna_type = 'simple'
 
-        self.Nfreqs = len(filelist)
+        self.Nfreqs = len(filenames)
         self.Nspws = 1
 
         self.freq_array = []
@@ -72,7 +83,7 @@ class CSTBeam(UVBeam):
         self.pixel_coordinate_system = 'az_za'
         self.set_cs_params()
 
-        for freq_i, fname in enumerate(filelist):
+        for freq_i, fname in enumerate(filenames):
             out_file = open(fname, 'r')
             line = out_file.readline().strip()  # Get the first line
             out_file.close()
@@ -145,7 +156,7 @@ class CSTBeam(UVBeam):
                 raise ValueError('Rotating by pi/2 failed')
 
             # get beam
-            if beam_type is 'power':
+            if self.beam_type is 'power':
                 data_col = np.where(np.array(column_names) == 'abs(v)')[0][0]
                 power_beam1 = data[:, data_col].reshape((theta_axis.size, phi_axis.size), order='F') ** 2.
 
@@ -195,13 +206,16 @@ class CSTBeam(UVBeam):
         self.bandpass_array = np.array(self.bandpass_array)
         sort_inds = np.argsort(self.freq_array)
 
-        self.data_array[0, 0, 0, :, :] = self.data_array[0, 0, 0, sort_inds, :]
-        self.data_array[0, 0, 1, :, :] = self.data_array[0, 0, 1, sort_inds, :]
+        self.data_array = self.data_array[:, :, :, sort_inds, :]
         self.bandpass_array = self.bandpass_array[sort_inds]
 
         self.freq_array.sort()
         self.freq_array = np.broadcast_to(self.freq_array, (self.Nspws, self.Nfreqs))
         self.bandpass_array = np.broadcast_to(self.bandpass_array, (self.Nspws, self.Nfreqs))
+
+        if frequencies is None:
+            warnings.warn('No frequencies provided. Detected frequencies are: '
+                          '{freqs} Hz'.format(freqs=self.freq_array))
 
         if run_check:
             self.check(run_check_acceptability=run_check_acceptability)
@@ -218,6 +232,12 @@ class CSTBeam(UVBeam):
         Returns:
             extracted frequency
         """
-        fi = fname.find('MHz')
+        fi = fname.find('Hz')
+        frequency = float(re.findall('\d+?\.?\d*', fname[:fi])[0])
 
-        return float(re.findall('\d+?\.?\d*', fname[:fi])[0]) * 1e6
+        si_prefix = fname[fi - 1]
+        si_dict = {'k': 1e3, 'M': 1e6, 'G': 1e9}
+        if si_prefix in si_dict.keys():
+            frequency = frequency * si_dict[si_prefix]
+
+        return frequency
