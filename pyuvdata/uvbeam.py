@@ -432,7 +432,6 @@ class UVBeam(UVBase):
         assert(hp.pixelfunc.nside2resol(nside) > min_res)
 
         npix = hp.nside2npix(nside)
-        hpxidx = np.arange(npix)
 
         az_za_data_shape = self.data_array.shape
         new_shape = list(az_za_data_shape[0:4])
@@ -1167,15 +1166,19 @@ class UVBeam(UVBase):
                                     clobber=clobber)
         del(beamfits_obj)
 
-    def read_cst_beam(self, filenames, beam_type='power', frequencies=None, telescope_name=None,
-                      feed_name=None, feed_version=None, model_name=None,
-                      model_version=None, history=''):
+    def read_cst_beam(self, filenames, beam_type='power', feed_pol='x',
+                      frequencies=None, telescope_name=None, feed_name=None,
+                      feed_version=None, model_name=None, model_version=None,
+                      history='', run_check=True, run_check_acceptability=True):
         """
         Read in data from a cst file.
 
         Args:
-            filename: The cst file or list of files to read from.
+            filenames: The cst file or list of files to read from. If a list is passed,
+                the files are assumed to be for different frequecies.
             beam_type: what beam_type to read in ('power' or 'efield'). Defaults to 'power'.
+            feed_pol: what feed or polarization the files correspond to.
+                Defaults to 'x' (meaning x for efield or xx for power beams).
             frequencies: the frequency or list of frequencies corresponding to the filename(s).
                 If not passed, the code attempts to parse it from the filenames.
             telescope_name: the name of the telescope corresponding to the filename(s).
@@ -1196,11 +1199,12 @@ class UVBeam(UVBase):
 
         cst_power_beam = cst_beam.CSTBeam()
         cst_power_beam.read_cst_beam(filenames, beam_type=beam_type,
-                                     frequencies=frequencies,
+                                     feed_pol=feed_pol, frequencies=frequencies,
                                      telescope_name=telescope_name,
                                      feed_name=feed_name,
                                      feed_version=feed_version,
                                      model_name=model_name,
                                      model_version=model_version,
-                                     history=history)
+                                     history=history, run_check=run_check,
+                                     run_check_acceptability=run_check_acceptability)
         self._convert_from_filetype(cst_power_beam)
