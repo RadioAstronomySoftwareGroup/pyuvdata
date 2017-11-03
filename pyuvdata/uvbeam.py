@@ -1170,7 +1170,7 @@ class UVBeam(UVBase):
                                     clobber=clobber)
         del(beamfits_obj)
 
-    def read_cst_beam(self, filename, beam_type='power', feed_pol='x',
+    def read_cst_beam(self, filename, beam_type='power', feed_pol='x', rotate_pol=None,
                       frequency=None, telescope_name=None, feed_name=None,
                       feed_version=None, model_name=None, model_version=None,
                       history='', run_check=True, run_check_acceptability=True):
@@ -1183,6 +1183,10 @@ class UVBeam(UVBase):
             beam_type: what beam_type to read in ('power' or 'efield'). Defaults to 'power'.
             feed_pol: the feed or polarization or list of feeds or polarizations the files correspond to.
                 Defaults to 'x' (meaning x for efield or xx for power beams).
+            rotate_pol: If True, assume the structure in the simulation is symmetric under
+                90 degree rotations about the z-axis (so that the y polarization can be
+                constructed by rotating the x polarization or vice versa).
+                Default: True if feed_pol is a single value, False if it is a list.
             frequency: the frequency or list of frequencies corresponding to the filename(s).
                 If not passed, the code attempts to parse it from the filenames.
             telescope_name: the name of the telescope corresponding to the filename(s).
@@ -1197,6 +1201,15 @@ class UVBeam(UVBase):
                 required parameters after reading in the file. Default is True.
         """
         import cst_beam
+        if isinstance(filename, (list, tuple)):
+            if len(filename) == 1:
+                filename = filename[0]
+        if isinstance(frequency, (list, tuple)):
+            if len(frequency) == 1:
+                frequency = frequency[0]
+        if isinstance(feed_pol, (list, tuple)):
+            if len(feed_pol) == 1:
+                feed_pol = feed_pol[0]
 
         if isinstance(filename, (list, tuple)):
             if frequency is not None:
@@ -1215,12 +1228,20 @@ class UVBeam(UVBase):
                         raise(ValueError, 'If feed_pol and filename are both '
                                           'lists they need to be the same length')
                     pol = feed_pol[0]
+                    if rotate_pol is None:
+                        if len(feed_pol) > 1:
+                            rotate_pol = False
+                        else:
+                            rotate_pol = True
                 else:
                     pol = feed_pol
+                    if rotate_pol is None:
+                        rotate_pol = True
             else:
                 pol = None
             self.read_cst_beam(filename[0], beam_type=beam_type,
-                               feed_pol=pol, frequency=freq,
+                               feed_pol=pol, rotate_pol=rotate_pol,
+                               frequency=freq,
                                telescope_name=telescope_name,
                                feed_name=feed_name,
                                feed_version=feed_version,
@@ -1229,14 +1250,23 @@ class UVBeam(UVBase):
                                history=history, run_check=run_check,
                                run_check_acceptability=run_check_acceptability)
             if len(filename) > 1:
-                for freq_i, f in enumerate(filename[1:]):
-                    if frequency is not None:
-                        freq = frequency[freq_i + 1]
+                for file_i, f in enumerate(filename[1:]):
+                    if isinstance(frequency, (list, tuple)):
+                        freq = frequency[file_i + 1]
+                    elif frequency is not None:
+                        freq = frequency
                     else:
                         freq = None
+                    if isinstance(feed_pol, (list, tuple)):
+                        pol = feed_pol[file_i + 1]
+                    elif feed_pol is not None:
+                        pol = feed_pol
+                    else:
+                        pol = None
                     beam2 = UVBeam()
                     beam2.read_cst_beam(f, beam_type=beam_type,
-                                        feed_pol=feed_pol, frequency=freq,
+                                        feed_pol=pol, rotate_pol=rotate_pol,
+                                        frequency=freq,
                                         telescope_name=telescope_name,
                                         feed_name=feed_name,
                                         feed_version=feed_version,
@@ -1247,9 +1277,16 @@ class UVBeam(UVBase):
                     self += beam2
                 del(beam2)
         else:
+            if isinstance(frequency, (list, tuple)):
+                raise(ValueError, 'Too many frequencies specified')
+            if isinstance(feed_pol, (list, tuple)):
+                raise(ValueError, 'Too many feed_pols specified')
+            if rotate_pol is None:
+                rotate_pol = True
             cst_beam_obj = cst_beam.CSTBeam()
             cst_beam_obj.read_cst_beam(filename, beam_type=beam_type,
-                                       feed_pol=feed_pol, frequency=frequency,
+                                       feed_pol=feed_pol, rotate_pol=rotate_pol,
+                                       frequency=frequency,
                                        telescope_name=telescope_name,
                                        feed_name=feed_name,
                                        feed_version=feed_version,

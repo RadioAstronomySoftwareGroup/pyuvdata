@@ -86,9 +86,8 @@ class CSTBeam(UVBeam):
 
         self.Nfreqs = 1
         self.Nspws = 1
-
-        self.freq_array = []
-        self.bandpass_array = []
+        self.freq_array = np.zeros((self.Nspws, self.Nfreqs))
+        self.bandpass_array = np.zeros((self.Nspws, self.Nfreqs))
 
         self.spw_array = np.array([0])
         self.pixel_coordinate_system = 'az_za'
@@ -146,9 +145,9 @@ class CSTBeam(UVBeam):
             self.data_array = np.zeros(self._data_array.expected_shape(self), dtype=np.complex)
 
         if frequency is not None:
-            self.freq_array.append(frequency)
+            self.freq_array[0] = frequency
         else:
-            self.freq_array.append(self.name2freq(filename))
+            self.freq_array[0] = self.name2freq(filename)
 
         if rotate_pol:
             # for second polarization, rotate by pi/2
@@ -205,10 +204,7 @@ class CSTBeam(UVBeam):
                 self.data_array[0, 0, 1, 0, :, :] = phi_beam2
                 self.data_array[1, 0, 1, 0, :, :] = theta_beam2
 
-        self.bandpass_array.append(1.)
-
-        self.freq_array = np.broadcast_to(np.array(self.freq_array), (self.Nspws, self.Nfreqs))
-        self.bandpass_array = np.broadcast_to(np.array(self.bandpass_array), (self.Nspws, self.Nfreqs))
+        self.bandpass_array[0] = 1
 
         if frequency is None:
             warnings.warn('No frequency provided. Detected frequency is: '
