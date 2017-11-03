@@ -1179,7 +1179,7 @@ class UVBeam(UVBase):
 
         Args:
             filename: The cst file or list of files to read from. If a list is passed,
-                the files are assumed to be for different frequecies.
+                the files are combined along the appropriate axes.
             beam_type: what beam_type to read in ('power' or 'efield'). Defaults to 'power'.
             feed_pol: the feed or polarization or list of feeds or polarizations the files correspond to.
                 Defaults to 'x' (meaning x for efield or xx for power beams).
