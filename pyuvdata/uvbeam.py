@@ -1222,20 +1222,18 @@ class UVBeam(UVBase):
                     freq = frequency
             else:
                 freq = None
-            if feed_pol is not None:
-                if isinstance(feed_pol, (list, tuple)):
-                    if not len(feed_pol) == len(filename):
-                        raise(ValueError, 'If feed_pol and filename are both '
-                                          'lists they need to be the same length')
-                    pol = feed_pol[0]
-                    if rotate_pol is None:
-                        rotate_pol = False
-                else:
-                    pol = feed_pol
-                    if rotate_pol is None:
-                        rotate_pol = True
+
+            if isinstance(feed_pol, (list, tuple)):
+                if not len(feed_pol) == len(filename):
+                    raise(ValueError, 'If feed_pol and filename are both '
+                                      'lists they need to be the same length')
+                pol = feed_pol[0]
+                if rotate_pol is None:
+                    rotate_pol = False
             else:
-                pol = None
+                pol = feed_pol
+                if rotate_pol is None:
+                    rotate_pol = True
             self.read_cst_beam(filename[0], beam_type=beam_type,
                                feed_pol=pol, rotate_pol=rotate_pol,
                                frequency=freq,

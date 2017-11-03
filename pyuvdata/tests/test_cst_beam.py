@@ -21,7 +21,7 @@ def test_read_power():
                          message='No frequency provided. Detected frequency is')
 
     beam2.read_cst_beam(cst_files, beam_type='power', frequency=[150e6, 123e6], telescope_name='TEST',
-                        feed_name='bob', feed_version='0.1', feed_pol=['x']
+                        feed_name='bob', feed_version='0.1', feed_pol=['x'],
                         model_name='E-field pattern - Rigging height 4.9m',
                         model_version='1.0')
 
@@ -47,8 +47,7 @@ def test_read_power():
                          message='No frequency provided. Detected frequency is')
 
     beam2.read_cst_beam([cst_files[0]], beam_type='power', frequency=[150e6],
-                        telescope_name='TEST', feed_pol=None,
-                        feed_name='bob', feed_version='0.1',
+                        telescope_name='TEST', feed_name='bob', feed_version='0.1',
                         model_name='E-field pattern - Rigging height 4.9m',
                         model_version='1.0')
 
@@ -65,7 +64,7 @@ def test_read_power():
                          message='No frequency provided. Detected frequency is')
 
     beam2.read_cst_beam([cst_files[0]], beam_type='power', frequency=[150e6],
-                        rotate_pol=False, telescope_name='TEST'
+                        rotate_pol=False, telescope_name='TEST',
                         feed_name='bob', feed_version='0.1',
                         model_name='E-field pattern - Rigging height 4.9m',
                         model_version='1.0')
