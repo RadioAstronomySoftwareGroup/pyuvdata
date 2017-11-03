@@ -101,7 +101,6 @@ def test_readpower_writehealpixfits():
     nt.assert_equal(beam_in.pixel_coordinate_system, 'healpix')
     nt.assert_equal(beam_in.beam_type, 'power')
     nt.assert_equal(beam_in.data_array.shape[0:4], (1, 1, 2, 2))
-    nt.assert_true(beam_in.Npixels < 360 * 181)
     nt.assert_equal(beam_in, beam_out)
 
     uvtest.checkWarnings(beam_in.read_cst_beam, [cst_files],

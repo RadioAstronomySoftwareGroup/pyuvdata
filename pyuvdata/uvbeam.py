@@ -412,11 +412,15 @@ class UVBeam(UVBase):
         self._gain_array.required = True
         self._coupling_matrix.required = True
 
-    def az_za_to_healpix(self):
+    def az_za_to_healpix(self, nside=None):
         """
         Convert beam in az_za coordinates to healpix coordinates. Pixelization is done
         using healpy's ang2pix method which is presumably a nearest neighbor approach.
 
+        Args:
+            nside: The nside to use for the Healpix map. If not specified, use
+            the nside that gives the closest resolution that is higher than the
+            input resolution.
         """
         import healpy as hp
         if self.pixel_coordinate_system != 'az_za':
@@ -426,10 +430,11 @@ class UVBeam(UVBase):
 
         phi_vals, theta_vals = np.meshgrid(self.axis1_array, self.axis2_array)
 
-        min_res = np.min(np.array([np.diff(self.axis1_array)[0], np.diff(self.axis2_array)[0]]))
-        nside_min_res = np.sqrt(3 / np.pi) * np.radians(60.) / min_res
-        nside = int(2**np.floor(np.log2(nside_min_res)))
-        assert(hp.pixelfunc.nside2resol(nside) > min_res)
+        if nside is None:
+            min_res = np.min(np.array([np.diff(self.axis1_array)[0], np.diff(self.axis2_array)[0]]))
+            nside_min_res = np.sqrt(3 / np.pi) * np.radians(60.) / min_res
+            nside = int(2**np.ceil(np.log2(nside_min_res)))
+            assert(hp.pixelfunc.nside2resol(nside) < min_res)
 
         npix = hp.nside2npix(nside)
 
@@ -457,7 +462,6 @@ class UVBeam(UVBase):
             hits[:, :, :, :, data_pixels[index]] += 1
 
         good_data = np.where(hits[0, 0, 0, 0, :] > 0)[0]
-        assert(good_data.size <= (self.Naxes1 * self.Naxes2))
 
         healpix_data = healpix_data[:, :, :, :, good_data]
         pixels = pixels[good_data]
