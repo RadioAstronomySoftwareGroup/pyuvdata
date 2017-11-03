@@ -1166,20 +1166,20 @@ class UVBeam(UVBase):
                                     clobber=clobber)
         del(beamfits_obj)
 
-    def read_cst_beam(self, filenames, beam_type='power', feed_pol='x',
-                      frequencies=None, telescope_name=None, feed_name=None,
+    def read_cst_beam(self, filename, beam_type='power', feed_pol='x',
+                      frequency=None, telescope_name=None, feed_name=None,
                       feed_version=None, model_name=None, model_version=None,
                       history='', run_check=True, run_check_acceptability=True):
         """
         Read in data from a cst file.
 
         Args:
-            filenames: The cst file or list of files to read from. If a list is passed,
+            filename: The cst file or list of files to read from. If a list is passed,
                 the files are assumed to be for different frequecies.
             beam_type: what beam_type to read in ('power' or 'efield'). Defaults to 'power'.
-            feed_pol: what feed or polarization the files correspond to.
+            feed_pol: the feed or polarization or list of feeds or polarizations the files correspond to.
                 Defaults to 'x' (meaning x for efield or xx for power beams).
-            frequencies: the frequency or list of frequencies corresponding to the filename(s).
+            frequency: the frequency or list of frequencies corresponding to the filename(s).
                 If not passed, the code attempts to parse it from the filenames.
             telescope_name: the name of the telescope corresponding to the filename(s).
             feed_name: the name of the feed corresponding to the filename(s).
@@ -1194,17 +1194,64 @@ class UVBeam(UVBase):
         """
         import cst_beam
 
-        if not isinstance(filenames, (list, tuple)):
-            filenames = [filenames]
-
-        cst_power_beam = cst_beam.CSTBeam()
-        cst_power_beam.read_cst_beam(filenames, beam_type=beam_type,
-                                     feed_pol=feed_pol, frequencies=frequencies,
-                                     telescope_name=telescope_name,
-                                     feed_name=feed_name,
-                                     feed_version=feed_version,
-                                     model_name=model_name,
-                                     model_version=model_version,
-                                     history=history, run_check=run_check,
-                                     run_check_acceptability=run_check_acceptability)
-        self._convert_from_filetype(cst_power_beam)
+        if isinstance(filename, (list, tuple)):
+            if frequency is not None:
+                if isinstance(frequency, (list, tuple)):
+                    if not len(frequency) == len(filename):
+                        raise(ValueError, 'If frequency and filename are both '
+                                          'lists they need to be the same length')
+                    freq = frequency[0]
+                else:
+                    freq = frequency
+            else:
+                freq = None
+            if feed_pol is not None:
+                if isinstance(feed_pol, (list, tuple)):
+                    if not len(feed_pol) == len(filename):
+                        raise(ValueError, 'If feed_pol and filename are both '
+                                          'lists they need to be the same length')
+                    pol = feed_pol[0]
+                else:
+                    pol = feed_pol
+            else:
+                pol = None
+            self.read_cst_beam(filename[0], beam_type=beam_type,
+                               feed_pol=pol, frequency=freq,
+                               telescope_name=telescope_name,
+                               feed_name=feed_name,
+                               feed_version=feed_version,
+                               model_name=model_name,
+                               model_version=model_version,
+                               history=history, run_check=run_check,
+                               run_check_acceptability=run_check_acceptability)
+            if len(filename) > 1:
+                for freq_i, f in enumerate(filename[1:]):
+                    if frequency is not None:
+                        freq = frequency[freq_i + 1]
+                    else:
+                        freq = None
+                    beam2 = UVBeam()
+                    beam2.read_cst_beam(f, beam_type=beam_type,
+                                        feed_pol=feed_pol, frequency=freq,
+                                        telescope_name=telescope_name,
+                                        feed_name=feed_name,
+                                        feed_version=feed_version,
+                                        model_name=model_name,
+                                        model_version=model_version,
+                                        history=history, run_check=run_check,
+                                        run_check_acceptability=run_check_acceptability)
+                    self += beam2
+                del(beam2)
+        else:
+            cst_beam_obj = cst_beam.CSTBeam()
+            cst_beam_obj.read_cst_beam(filename, beam_type=beam_type,
+                                       feed_pol=feed_pol, frequency=frequency,
+                                       telescope_name=telescope_name,
+                                       feed_name=feed_name,
+                                       feed_version=feed_version,
+                                       model_name=model_name,
+                                       model_version=model_version,
+                                       history=history, run_check=run_check,
+                                       run_check_acceptability=run_check_acceptability)
+            self._convert_from_filetype(cst_beam_obj)
+            del(cst_beam_obj)
