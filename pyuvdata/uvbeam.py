@@ -1229,10 +1229,7 @@ class UVBeam(UVBase):
                                           'lists they need to be the same length')
                     pol = feed_pol[0]
                     if rotate_pol is None:
-                        if len(feed_pol) > 1:
-                            rotate_pol = False
-                        else:
-                            rotate_pol = True
+                        rotate_pol = False
                 else:
                     pol = feed_pol
                     if rotate_pol is None:
