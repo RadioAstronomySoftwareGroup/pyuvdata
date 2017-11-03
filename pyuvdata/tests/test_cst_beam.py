@@ -16,10 +16,10 @@ def test_read_power():
     uvtest.checkWarnings(beam1.read_cst_beam, [cst_files],
                          {'beam_type': 'power', 'telescope_name': 'TEST', 'feed_name': 'bob',
                           'feed_version': '0.1', 'model_name': 'E-field pattern - Rigging height 4.9m',
-                          'model_version': '1.0'},
-                         message='No frequencies provided. Detected frequencies are')
+                          'model_version': '1.0'}, nwarnings=2,
+                         message='No frequency provided. Detected frequency is')
 
-    beam2.read_cst_beam(cst_files, beam_type='power', frequencies=[150e6, 123e6], telescope_name='TEST',
+    beam2.read_cst_beam(cst_files, beam_type='power', frequency=[150e6, 123e6], telescope_name='TEST',
                         feed_name='bob', feed_version='0.1',
                         model_name='E-field pattern - Rigging height 4.9m',
                         model_version='1.0')
@@ -34,7 +34,7 @@ def test_read_power():
                          {'beam_type': 'power', 'telescope_name': 'TEST', 'feed_name': 'bob',
                           'feed_version': '0.1', 'model_name': 'E-field pattern - Rigging height 4.9m',
                           'model_version': '1.0'},
-                         message='No frequencies provided. Detected frequencies are')
+                         message='No frequency provided. Detected frequency is')
 
 
 def test_read_efield():
@@ -44,10 +44,10 @@ def test_read_efield():
     uvtest.checkWarnings(beam1.read_cst_beam, [cst_files],
                          {'beam_type': 'efield', 'telescope_name': 'TEST', 'feed_name': 'bob',
                           'feed_version': '0.1', 'model_name': 'E-field pattern - Rigging height 4.9m',
-                          'model_version': '1.0'},
-                         message='No frequencies provided. Detected frequencies are')
+                          'model_version': '1.0'}, nwarnings=2,
+                         message='No frequency provided. Detected frequency is')
 
-    beam2.read_cst_beam(cst_files, beam_type='efield', frequencies=[150e6, 123e6], telescope_name='TEST',
+    beam2.read_cst_beam(cst_files, beam_type='efield', frequency=[150e6, 123e6], telescope_name='TEST',
                         feed_name='bob', feed_version='0.1',
                         model_name='E-field pattern - Rigging height 4.9m',
                         model_version='1.0')
@@ -66,8 +66,8 @@ def test_readcst_writebeamfits():
     uvtest.checkWarnings(beam_in.read_cst_beam, [cst_files],
                          {'beam_type': 'power', 'telescope_name': 'TEST', 'feed_name': 'bob',
                           'feed_version': '0.1', 'model_name': 'E-field pattern - Rigging height 4.9m',
-                          'model_version': '1.0'},
-                         message='No frequencies provided. Detected frequencies are')
+                          'model_version': '1.0'}, nwarnings=2,
+                         message='No frequency provided. Detected frequency is')
     beam_in.write_beamfits(testfile, clobber=True)
     beam_out.read_beamfits(testfile)
 
@@ -76,8 +76,8 @@ def test_readcst_writebeamfits():
     uvtest.checkWarnings(beam_in.read_cst_beam, [cst_files],
                          {'beam_type': 'efield', 'telescope_name': 'TEST', 'feed_name': 'bob',
                           'feed_version': '0.1', 'model_name': 'E-field pattern - Rigging height 4.9m',
-                          'model_version': '1.0'},
-                         message='No frequencies provided. Detected frequencies are')
+                          'model_version': '1.0'}, nwarnings=2,
+                         message='No frequency provided. Detected frequency is')
     beam_in.write_beamfits(testfile, clobber=True)
     beam_out.read_beamfits(testfile)
 
@@ -92,8 +92,8 @@ def test_readpower_writehealpixfits():
     uvtest.checkWarnings(beam_in.read_cst_beam, [cst_files],
                          {'beam_type': 'power', 'telescope_name': 'TEST', 'feed_name': 'bob',
                           'feed_version': '0.1', 'model_name': 'E-field pattern - Rigging height 4.9m',
-                          'model_version': '1.0'},
-                         message='No frequencies provided. Detected frequencies are')
+                          'model_version': '1.0'}, nwarnings=2,
+                         message='No frequency provided. Detected frequency is')
     beam_in.az_za_to_healpix()
     beam_in.write_beamfits(testfile, clobber=True)
     beam_out.read_beamfits(testfile)
@@ -107,6 +107,6 @@ def test_readpower_writehealpixfits():
     uvtest.checkWarnings(beam_in.read_cst_beam, [cst_files],
                          {'beam_type': 'efield', 'telescope_name': 'TEST', 'feed_name': 'bob',
                           'feed_version': '0.1', 'model_name': 'E-field pattern - Rigging height 4.9m',
-                          'model_version': '1.0'},
-                         message='No frequencies provided. Detected frequencies are')
+                          'model_version': '1.0'}, nwarnings=2,
+                         message='No frequency provided. Detected frequency is')
     nt.assert_raises(ValueError, beam_in.az_za_to_healpix)
