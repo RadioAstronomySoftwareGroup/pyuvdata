@@ -458,7 +458,11 @@ a) Reading a CST power beam file
   filenames = ['pyuvdata/data/HERA_NicCST_150MHz.txt', 'pyuvdata/data/HERA_NicCST_123MHz.txt']
   # have to specify the telescope_name, feed_name, feed_version, model_name
   # and model_version because they are not included in the file
-  beam.read_cst_beam(filenames, telescope_name='HERA', feed_name='PAPER_dipole',
+  # specify the polarization that the file represents and set rotate_pol to
+  # generate the other polarization by rotating by 90 degrees.
+  # (files for separate polarizations can also be passed separately)
+  beam.read_cst_beam(filenames, frequency=[150e6, 123e6], feed_pol='x', rotate_pol=True,
+                       telescope_name='HERA', feed_name='PAPER_dipole',
                        feed_version='0.1', model_name='E-field pattern - Rigging height 4.9m',
                        model_version='1.0')
 
