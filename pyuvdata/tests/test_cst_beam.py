@@ -30,6 +30,15 @@ def test_read_power():
     nt.assert_equal(beam1.data_array.shape, (1, 1, 2, 2, 181, 360))
     nt.assert_equal(beam1, beam2)
 
+    # test passing in other polarization
+    beam2.read_cst_beam(cst_files, beam_type='power', frequency=[150e6, 123e6],
+                        feed_pol='y', telescope_name='TEST',
+                        feed_name='bob', feed_version='0.1',
+                        model_name='E-field pattern - Rigging height 4.9m',
+                        model_version='1.0')
+    nt.assert_true(np.allclose(beam2.polarization_array, np.array([-6, -5])))
+    nt.assert_true(np.allclose(beam1.data_array[:, :, 0, :, :, :], beam2.data_array[:, :, 0, :, :, :]))
+
     # test single frequency and not rotating the polarization
     uvtest.checkWarnings(beam1.read_cst_beam, [cst_files[0]],
                          {'beam_type': 'power', 'telescope_name': 'TEST', 'feed_name': 'bob',
@@ -45,6 +54,7 @@ def test_read_power():
 
     nt.assert_equal(beam1.pixel_coordinate_system, 'az_za')
     nt.assert_equal(beam1.beam_type, 'power')
+    nt.assert_equal(beam1.polarization_array, np.array([-5]))
     nt.assert_equal(beam1.data_array.shape, (1, 1, 1, 1, 181, 360))
     nt.assert_equal(beam1, beam2)
 
@@ -103,6 +113,44 @@ def test_read_efield():
     nt.assert_equal(beam1.beam_type, 'efield')
     nt.assert_equal(beam1.data_array.shape, (2, 1, 2, 2, 181, 360))
     nt.assert_equal(beam1, beam2)
+
+    # test passing in other polarization
+    beam2.read_cst_beam(cst_files, beam_type='efield', frequency=[150e6, 123e6],
+                        feed_pol='y', telescope_name='TEST',
+                        feed_name='bob', feed_version='0.1',
+                        model_name='E-field pattern - Rigging height 4.9m',
+                        model_version='1.0')
+    nt.assert_true(beam2.feed_array[0], 'x')
+    nt.assert_true(beam2.feed_array[1], 'y')
+    nt.assert_true(np.allclose(beam1.data_array[:, :, 0, :, :, :], beam2.data_array[:, :, 0, :, :, :]))
+
+    # test single frequency and not rotating the polarization
+    uvtest.checkWarnings(beam1.read_cst_beam, [cst_files[0]],
+                         {'beam_type': 'efield', 'telescope_name': 'TEST', 'feed_name': 'bob',
+                          'feed_version': '0.1', 'model_name': 'E-field pattern - Rigging height 4.9m',
+                          'model_version': '1.0', 'rotate_pol': False},
+                         message='No frequency provided. Detected frequency is')
+
+    beam2.read_cst_beam(cst_files[0], beam_type='efield', frequency=[150e6],
+                        rotate_pol=False, telescope_name='TEST',
+                        feed_name='bob', feed_version='0.1',
+                        model_name='E-field pattern - Rigging height 4.9m',
+                        model_version='1.0')
+
+    nt.assert_equal(beam1.pixel_coordinate_system, 'az_za')
+    nt.assert_equal(beam1.beam_type, 'efield')
+    nt.assert_equal(beam1.feed_array, np.array(['x']))
+    nt.assert_equal(beam1.data_array.shape, (2, 1, 1, 1, 181, 360))
+    nt.assert_equal(beam1, beam2)
+
+    # test reading in multiple polarization files
+    beam1.read_cst_beam([cst_files[0], cst_files[0]], beam_type='efield', frequency=[150e6],
+                        feed_pol=['x', 'y'], telescope_name='TEST',
+                        feed_name='bob', feed_version='0.1',
+                        model_name='E-field pattern - Rigging height 4.9m',
+                        model_version='1.0')
+    nt.assert_equal(beam1.data_array.shape, (2, 1, 2, 1, 181, 360))
+    nt.assert_true(np.allclose(beam1.data_array[:, :, 0, :, :, :], beam1.data_array[:, :, 1, :, :, :]))
 
 
 def test_readcst_writebeamfits():
