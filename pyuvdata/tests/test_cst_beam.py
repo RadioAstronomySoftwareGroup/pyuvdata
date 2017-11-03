@@ -1,6 +1,7 @@
 import nose.tools as nt
 import os
 import numpy as np
+import copy
 from pyuvdata.data import DATA_PATH
 from pyuvdata import UVBeam
 import pyuvdata.tests as uvtest
@@ -29,12 +30,58 @@ def test_read_power():
     nt.assert_equal(beam1.data_array.shape, (1, 1, 2, 2, 181, 360))
     nt.assert_equal(beam1, beam2)
 
-    # test the bit about checking if the input is a list/tuple or not
+    # test single frequency and not rotating the polarization
     uvtest.checkWarnings(beam1.read_cst_beam, [cst_files[0]],
                          {'beam_type': 'power', 'telescope_name': 'TEST', 'feed_name': 'bob',
                           'feed_version': '0.1', 'model_name': 'E-field pattern - Rigging height 4.9m',
-                          'model_version': '1.0'},
+                          'model_version': '1.0', 'rotate_pol': False},
                          message='No frequency provided. Detected frequency is')
+
+    beam2.read_cst_beam(cst_files[0], beam_type='power', frequency=[150e6],
+                        rotate_pol=False, telescope_name='TEST',
+                        feed_name='bob', feed_version='0.1',
+                        model_name='E-field pattern - Rigging height 4.9m',
+                        model_version='1.0')
+
+    nt.assert_equal(beam1.pixel_coordinate_system, 'az_za')
+    nt.assert_equal(beam1.beam_type, 'power')
+    nt.assert_equal(beam1.data_array.shape, (1, 1, 1, 1, 181, 360))
+    nt.assert_equal(beam1, beam2)
+
+    # test reading in multiple polarization files
+    beam1.read_cst_beam([cst_files[0], cst_files[0]], beam_type='power', frequency=[150e6],
+                        feed_pol=['x', 'y'], telescope_name='TEST',
+                        feed_name='bob', feed_version='0.1',
+                        model_name='E-field pattern - Rigging height 4.9m',
+                        model_version='1.0')
+    nt.assert_equal(beam1.data_array.shape, (1, 1, 2, 1, 181, 360))
+    nt.assert_true(np.allclose(beam1.data_array[:, :, 0, :, :, :], beam1.data_array[:, :, 1, :, :, :]))
+
+    # test errors
+    nt.assert_raises(ValueError, beam1.read_cst_beam, cst_files, beam_type='power',
+                     frequency=[150e6, 123e6, 100e6], telescope_name='TEST',
+                     feed_name='bob', feed_version='0.1',
+                     model_name='E-field pattern - Rigging height 4.9m',
+                     model_version='1.0')
+
+    nt.assert_raises(ValueError, beam1.read_cst_beam, cst_files[0], beam_type='power',
+                     frequency=[150e6, 123e6], telescope_name='TEST',
+                     feed_name='bob', feed_version='0.1',
+                     model_name='E-field pattern - Rigging height 4.9m',
+                     model_version='1.0')
+
+    nt.assert_raises(ValueError, beam1.read_cst_beam, [cst_files[0], cst_files[0], cst_files[0]],
+                     beam_type='power',
+                     feed_pol=['x', 'y'], telescope_name='TEST',
+                     feed_name='bob', feed_version='0.1',
+                     model_name='E-field pattern - Rigging height 4.9m',
+                     model_version='1.0')
+
+    nt.assert_raises(ValueError, beam1.read_cst_beam, cst_files[0], beam_type='power',
+                     feed_pol=['x', 'y'], telescope_name='TEST',
+                     feed_name='bob', feed_version='0.1',
+                     model_name='E-field pattern - Rigging height 4.9m',
+                     model_version='1.0')
 
 
 def test_read_efield():
