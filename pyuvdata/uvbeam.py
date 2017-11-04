@@ -414,8 +414,8 @@ class UVBeam(UVBase):
 
     def az_za_to_healpix(self, nside=None):
         """
-        Convert beam in az_za coordinates to healpix coordinates. Pixelization is done
-        using healpy's ang2pix method which is presumably a nearest neighbor approach.
+        Convert beam in az_za coordinates to healpix coordinates.
+        The interpolation is done using scipy's interpolate.RectBivariateSpline().
 
         Args:
             nside: The nside to use for the Healpix map. If not specified, use
@@ -423,12 +423,11 @@ class UVBeam(UVBase):
             input resolution.
         """
         import healpy as hp
+        from scipy import interpolate
         if self.pixel_coordinate_system != 'az_za':
             raise ValueError('pixel_coordinate_system must be "az_za"')
         if self.beam_type != 'power':
             raise ValueError('healpix conversion not yet defined for efield')
-
-        phi_vals, theta_vals = np.meshgrid(self.axis1_array, self.axis2_array)
 
         if nside is None:
             min_res = np.min(np.array([np.diff(self.axis1_array)[0], np.diff(self.axis2_array)[0]]))
@@ -437,37 +436,40 @@ class UVBeam(UVBase):
             assert(hp.pixelfunc.nside2resol(nside) < min_res)
 
         npix = hp.nside2npix(nside)
+        hpx_res = hp.pixelfunc.nside2resol(nside)
 
-        az_za_data_shape = self.data_array.shape
-        new_shape = list(az_za_data_shape[0:4])
-        new_shape.append(self.Naxes1 * self.Naxes2)
-        new_shape = tuple(new_shape)
-        az_za_data = copy.deepcopy(self.data_array).reshape(new_shape)
-        phi_vals = phi_vals.flatten()
-        theta_vals = theta_vals.flatten()
-
+        az_za_data = self.data_array
         self.pixel_coordinate_system = 'healpix'
         self.nside = nside
         self.Npixels = npix
         self.ordering = 'ring'
         self.set_cs_params()
 
+        phi_vals, theta_vals = np.meshgrid(self.axis1_array, self.axis2_array)
         healpix_data = np.zeros(self._data_array.expected_shape(self), dtype=np.float)
-        data_pixels = hp.ang2pix(nside, theta_vals, phi_vals)
-        pixels = np.arange(npix)
-        hits = np.zeros(self._data_array.expected_shape(self))
+        pixels = np.arange(hp.nside2npix(nside))
+        hpx_theta, hpx_phi = hp.pix2ang(nside, pixels)
+        nearest_pix_dist = np.zeros(npix)
 
-        for index in range(self.Naxes1 * self.Naxes2):
-            healpix_data[:, :, :, :, data_pixels[index]] += az_za_data[:, :, :, :, index]
-            hits[:, :, :, :, data_pixels[index]] += 1
+        for index0 in range(self.Naxes_vec):
+            for index1 in range(self.Nspws):
+                for index2 in range(self.Npols):
+                    for index3 in range(self.Nfreqs):
+                        lut = interpolate.RectBivariateSpline(self.axis2_array, self.axis1_array,
+                                                              az_za_data[index0, index1, index2, index3, :])
+                        for hpx_i in pixels:
+                            if index0 == 0 and index1 == 0 and index2 == 0 and index3 == 0:
+                                pix_dists = np.sqrt((theta_vals - hpx_theta[hpx_i])**2. +
+                                                    (phi_vals - hpx_phi[hpx_i])**2.)
+                                nearest_pix_dist[hpx_i] = np.min(pix_dists)
+                            healpix_data[index0, index1, index2, index3, hpx_i] = \
+                                lut(hpx_theta[hpx_i], hpx_phi[hpx_i])
 
-        good_data = np.where(hits[0, 0, 0, 0, :] > 0)[0]
+        good_data = np.where(nearest_pix_dist < hpx_res * 2)[0]
 
-        healpix_data = healpix_data[:, :, :, :, good_data]
-        pixels = pixels[good_data]
-        hits = hits[:, :, :, :, good_data]
-
-        healpix_data = healpix_data / hits
+        if len(good_data) < npix:
+            healpix_data = healpix_data[:, :, :, :, good_data]
+            pixels = pixels[good_data]
 
         self.pixel_array = pixels
         self.Npixels = self.pixel_array.size
