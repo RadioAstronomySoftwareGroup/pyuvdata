@@ -3,11 +3,15 @@ import nose.tools as nt
 import os
 import numpy as np
 import copy
+import healpy as hp
 from pyuvdata import UVBeam
 import pyuvdata.tests as uvtest
 import pyuvdata.utils as uvutils
 import pyuvdata.version as uvversion
 from pyuvdata.data import DATA_PATH
+
+filenames = ['HERA_NicCST_150MHz.txt', 'HERA_NicCST_123MHz.txt']
+cst_files = [os.path.join(DATA_PATH, f) for f in filenames]
 
 
 def fill_dummy_beam(beam_obj, beam_type, pixel_coordinate_system):
@@ -222,11 +226,25 @@ def test_errors():
 
 def test_az_za_to_healpix():
     power_beam = UVBeam()
-    power_beam = fill_dummy_beam(power_beam, 'power', 'az_za')
+    power_beam.read_cst_beam(cst_files, beam_type='power', frequency=[150e6, 123e6],
+                             telescope_name='TEST', feed_name='bob',
+                             feed_version='0.1', feed_pol=['x'],
+                             model_name='E-field pattern - Rigging height 4.9m',
+                             model_version='1.0')
     n_max_pix = power_beam.Naxes1 * power_beam.Naxes2
 
     power_beam.az_za_to_healpix()
     nt.assert_true(power_beam.Npixels <= n_max_pix)
+
+    power_beam.read_cst_beam(cst_files[0], beam_type='power', frequency=[150e6],
+                             telescope_name='TEST', rotate_pol=False,
+                             feed_name='bob', feed_version='0.1', feed_pol=['x'],
+                             model_name='E-field pattern - Rigging height 4.9m',
+                             model_version='1.0')
+    power_beam.select(axis2_inds=np.where(power_beam.axis2_array <= np.pi / 2.)[0])
+    power_beam.az_za_to_healpix()
+    npix = hp.nside2npix(power_beam.nside)
+    nt.assert_true(power_beam.Npixels <= npix * 0.55)
 
 
 def test_select_pixels():
