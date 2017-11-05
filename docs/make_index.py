@@ -8,7 +8,6 @@ import pypandoc
 from astropy.time import Time
 
 
-
 def write_index_rst(readme_file=None, write_file=None):
     t = Time.now()
     t.out_subfmt = 'date'
@@ -70,5 +69,3 @@ def write_index_rst(readme_file=None, write_file=None):
     F = open(write_file, 'w')
     F.write(out)
     print("wrote " + write_file)
-
-
