@@ -63,6 +63,8 @@ def write_index_rst(readme_file=None, write_file=None):
             '   uvbeam\n'
             '   developer_docs\n')
 
+    out.encode('utf-8').strip()
+
     if write_file is None:
         write_path = os.path.dirname(os.path.abspath(inspect.stack()[0][1]))
         write_file = os.path.join(write_path, 'index.rst')
