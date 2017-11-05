@@ -10,7 +10,7 @@ from astropy.time import Time
 
 def write_calparams_rst(write_file=None):
     cal = UVCal()
-    out = 'UVCal Parameters\n==============\n'
+    out = 'UVCal Parameters\n==========================\n'
     out += ("These are the standard attributes of UVCal objects.\n\nUnder the hood "
             "they are actually properties based on UVParameter objects.\n\n")
     out += 'Required\n----------------\n'

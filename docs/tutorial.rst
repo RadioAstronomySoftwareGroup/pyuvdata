@@ -2,7 +2,7 @@ Tutorial
 ========
 
 UVData: File conversion
----------
+-----------------------
 Converting between tested data formats
 
 a) miriad (aipy) -> uvfits
@@ -116,7 +116,7 @@ f) CASA -> miriad (aipy)
 
 
 UVData: Phasing
----------
+-----------------------
 Phasing/unphasing data::
 
   >>> from pyuvdata import UVData
@@ -170,7 +170,7 @@ Making a simple waterfall plot::
 
 
 UVData: Location conversions
----------
+-----------------------
 A number of conversion methods exist to map between different coordinate systems for locations on the earth.
 
 a) Getting `antpos` in topocentric frame in units of meters
@@ -185,7 +185,7 @@ a) Getting `antpos` in topocentric frame in units of meters
 
 
 UVData: Quick data access
----------
+-----------------------
 A small suite of functions are available to quickly access numpy arrays of data,
 flags, and nsamples.
 
@@ -272,7 +272,7 @@ f) Convenience functions to ask what antennas, baselines, and pols are in the da
   [(0, 1, 'RR'), (0, 1, 'LL'), (0, 1, 'RL'), (0, 1, 'LR'), (0, 2, 'RR')]
 
 UVData: Selecting data
----------
+-----------------------
 The select method lets you select specific antennas (by number or name),
 antenna pairs, frequencies (in Hz or by channel number), times or polarizations
 to keep in the object while removing others.
@@ -364,7 +364,7 @@ d) Select data and return new object (leaving original in tact).
   [ 0 11 20]
 
 UVData: Adding data
----------
+-----------------------
 The __add__ method lets you combine UVData objects along
 the baseline-time, frequency, and/or polarization axis.
 
@@ -454,7 +454,7 @@ and added to the previous.
 
 
 UVCal: Reading/writing
----------
+-----------------------
 Calibration files using UVCal.
 
 a) Reading a gain calibration file.
@@ -552,7 +552,7 @@ b) Writing a gain calibration file.
   >>> cal.write_calfits(write_file)
 
 UVCal: Selecting data
----------
+-----------------------
 The select method lets you select specific antennas (by number or name),
 frequencies (in Hz or by channel number), times or polarizations
 to keep in the object while removing others.
@@ -606,7 +606,7 @@ b) Select 3 antennas to keep using the antenna names, also select 5 frequencies 
   [[  1.00000000e+08   1.00097656e+08   1.00195312e+08   1.00292969e+08]]
 
 UVBeam: Reading/writing
----------
+-----------------------
 Beam files using UVBeam.
 
 a) Reading a CST power beam file
@@ -705,7 +705,7 @@ d) Writing a HEALPix beam FITS file
   >>> beam.write_beamfits('tutorial.fits', clobber=True)
 
 UVBeam: Selecting data
----------
+-----------------------
 The select method lets you select specific image axis indices (or pixels if
 pixel_coordinate_system is HEALPix), frequencies and feeds (or polarizations if
 beam_type is power) to keep in the object while removing others.

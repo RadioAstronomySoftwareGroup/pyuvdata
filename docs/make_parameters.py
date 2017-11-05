@@ -10,7 +10,7 @@ from astropy.time import Time
 
 def write_dataparams_rst(write_file=None):
     UV = UVData()
-    out = 'UVData Parameters\n==============\n'
+    out = 'UVData Parameters\n==========================\n'
     out += ("These are the standard attributes of UVData objects.\n\nUnder the hood "
             "they are actually properties based on UVParameter objects.\n\nAngle type "
             "attributes also have convenience properties named the same thing \nwith "

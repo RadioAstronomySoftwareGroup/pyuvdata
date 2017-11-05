@@ -10,7 +10,7 @@ from astropy.time import Time
 
 def write_beamparams_rst(write_file=None):
     beam = UVBeam()
-    out = 'UVBeam Parameters\n==============\n'
+    out = 'UVBeam Parameters\n======================================\n'
     out += ("These are the standard attributes of UVBeam objects.\n\nUnder the hood "
             "they are actually properties based on UVParameter objects.\n\n")
     out += 'Required\n----------------\n'
