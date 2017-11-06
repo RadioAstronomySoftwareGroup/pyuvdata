@@ -884,6 +884,15 @@ def test_add():
     uv1.select(blt_inds=ind1)
     uv2.select(blt_inds=ind2)
     uv3.select(blt_inds=ind3)
+    uv3.data_array = uv3.data_array[-1::-1, :, :, :]
+    uv3.nsample_array = uv3.nsample_array[-1::-1, :, :, :]
+    uv3.flag_array = uv3.flag_array[-1::-1, :, :, :]
+    uv3.uvw_array = uv3.uvw_array[-1::-1, :]
+    uv3.time_array = uv3.time_array[-1::-1]
+    uv3.lst_array = uv3.lst_array[-1::-1]
+    uv3.ant_1_array = uv3.ant_1_array[-1::-1]
+    uv3.ant_2_array = uv3.ant_2_array[-1::-1]
+    uv3.baseline_array = uv3.baseline_array[-1::-1]
     uv1 += uv3
     uv1 += uv2
     nt.assert_true(uvutils.check_histories(uv_full.history + '  Downselected to '
