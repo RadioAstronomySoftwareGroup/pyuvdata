@@ -869,6 +869,32 @@ def test_add():
     uv1.history = uv_full.history
     nt.assert_equal(uv1, uv_full)
 
+    # Add baselines - out of order
+    uv1 = copy.deepcopy(uv_full)
+    uv2 = copy.deepcopy(uv_full)
+    uv3 = copy.deepcopy(uv_full)
+    ants = uv_full.get_ants()
+    ants1 = ants[0:6]
+    ants2 = ants[6:12]
+    ants3 = ants[12:]
+    # All blts where ant_1 is in list
+    ind1 = [i for i in range(uv1.Nblts) if uv1.ant_1_array[i] in ants1]
+    ind2 = [i for i in range(uv2.Nblts) if uv2.ant_1_array[i] in ants2]
+    ind3 = [i for i in range(uv3.Nblts) if uv3.ant_1_array[i] in ants3]
+    uv1.select(blt_inds=ind1)
+    uv2.select(blt_inds=ind2)
+    uv3.select(blt_inds=ind3)
+    uv1 += uv3
+    uv1 += uv2
+    nt.assert_true(uvutils.check_histories(uv_full.history + '  Downselected to '
+                                           'specific baseline-times using pyuvdata. '
+                                           'Combined data along baseline-time axis '
+                                           'using pyuvdata. Combined data along '
+                                           'baseline-time axis using pyuvdata.',
+                                           uv1.history))
+    uv1.history = uv_full.history
+    nt.assert_equal(uv1, uv_full)
+
     # Add multiple axes
     uv1 = copy.deepcopy(uv_full)
     uv2 = copy.deepcopy(uv_full)
