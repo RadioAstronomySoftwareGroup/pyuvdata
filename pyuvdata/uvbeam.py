@@ -1190,6 +1190,8 @@ class UVBeam(UVBase):
                 constructed by rotating the x polarization or vice versa).
                 Default: True if feed_pol is a single value, False if it is a list.
             frequency: the frequency or list of frequencies corresponding to the filename(s).
+                This is assumed to be in the same order as the files, so if it's used,
+                make sure the files are an ordered datatype.
                 If not passed, the code attempts to parse it from the filenames.
             telescope_name: the name of the telescope corresponding to the filename(s).
             feed_name: the name of the feed corresponding to the filename(s).
