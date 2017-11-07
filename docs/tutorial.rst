@@ -171,7 +171,7 @@ UVData: Location conversions
 -----------------------
 A number of conversion methods exist to map between different coordinate systems for locations on the earth.
 
-a) Getting `antpos` in topocentric frame in units of meters
+a) Getting antenna positions in topocentric frame in units of meters
 ***************
 ::
 
@@ -733,6 +733,8 @@ a) Selecting a range of Zenith Angles
 
 Tutorial Cleanup
 -----------------------
+::
+
   # delete all written files
   >>> import shutil, os
   >>> filelist = ['tutorial' + f for f in ['.uvfits', '1.uvfits', '2.uvfits', '3.uvfits', '.fits']]
