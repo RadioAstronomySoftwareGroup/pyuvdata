@@ -4,10 +4,28 @@ import numpy as np
 import copy
 from pyuvdata.data import DATA_PATH
 from pyuvdata import UVBeam
+from pyuvdata.cst_beam import CSTBeam
 import pyuvdata.tests as uvtest
 
 filenames = ['HERA_NicCST_150MHz.txt', 'HERA_NicCST_123MHz.txt']
 cst_files = [os.path.join(DATA_PATH, f) for f in filenames]
+
+
+def test_frequencyparse():
+    beam1 = CSTBeam()
+
+    parsed_freqs = [beam1.name2freq(f) for f in cst_files]
+    nt.assert_equal(parsed_freqs, [150e6, 123e6])
+
+    test_path = '/pyuvdata_1510194907049/_t_env/lib/python2.7/site-packages/pyuvdata/data/'
+    test_files = [os.path.join(test_path, f) for f in filenames]
+    parsed_freqs = [beam1.name2freq(f) for f in test_files]
+    nt.assert_equal(parsed_freqs, [150e6, 123e6])
+
+    test_names = ['HERA_Sim_120.87kHz.txt', 'HERA_Sim_120.87GHz.txt', 'HERA_Sim_120.87Hz.txt']
+    test_files = [os.path.join(test_path, f) for f in test_names]
+    parsed_freqs = [beam1.name2freq(f) for f in test_files]
+    nt.assert_equal(parsed_freqs, [120.87e3, 120.87e9, 120.87])
 
 
 def test_read_power():
