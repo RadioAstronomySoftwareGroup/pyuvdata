@@ -226,7 +226,7 @@ class CSTBeam(UVBeam):
             extracted frequency
         """
         fi = fname.find('Hz')
-        frequency = float(re.findall('\d+?\.?\d*', fname[:fi])[0])
+        frequency = float(re.findall('\d+?\.?\d*', fname[:fi])[-1])
 
         si_prefix = fname[fi - 1]
         si_dict = {'k': 1e3, 'M': 1e6, 'G': 1e9}
