@@ -21,7 +21,7 @@ def construct_version_info():
                                              stderr=subprocess.STDOUT).strip()
         git_version = subprocess.check_output(['git', '-C', pyuvdata_dir, 'describe',
                                                '--tags', '--abbrev=0']).strip()
-    except:
+    except subprocess.CalledProcessError:
         try:
             # Check if a GIT_INFO file was created when installing package
             git_file = os.path.join(pyuvdata_dir, 'GIT_INFO')
@@ -31,7 +31,7 @@ def construct_version_info():
                 git_hash = data[1]
                 git_description = data[2]
                 git_branch = data[3]
-        except:
+        except (IOError, OSError):
             git_origin = ''
             git_hash = ''
             git_description = ''
