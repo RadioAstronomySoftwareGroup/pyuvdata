@@ -121,8 +121,5 @@ From the source pyuvdata directory run ```nosetests pyuvdata```.
 
 
 # API
-The primary interface to data from python is via the UVData object. It provides
-import and export functionality to all supported file formats (UVFITS, Miriad, FHD, CASA measurement sets)
-and can be interacted with directly. Similarly, the primary calibration and beam interfaces are via the
-UVCal and UVBeam objects. The attributes of the UVData, UVCal and UVBeam objects are
+The primary interface to data from python is via the UVData object. It provides import functionality from all supported file formats (UVFITS, Miriad, FHD, CASA measurement sets) and export to UVFITS and Miriad formats and can be interacted with directly. Similarly, the primary calibration and beam interfaces are via the UVCal and UVBeam objects. The attributes of the UVData, UVCal and UVBeam objects are
 described in the uvdata_parameters, uvcal_parameters and uvbeam_parameters descriptions at https://pyuvdata.readthedocs.io or [here](https://github.com/HERA-Team/pyuvdata/blob/master/docs).
