@@ -997,7 +997,7 @@ class UVData(UVBase):
                 be kept for both baselines (1,2) and (2,3) to return a valid
                 pyuvdata object.
                 An ant_str cannot be passed in addition to any of the above antenna
-                args.  If this occurs, select raises a ValueError.
+                args or the polarizations arg.  If this occurs, select raises a ValueError.
             frequencies: The frequencies to keep in the object.
             freq_chans: The frequency channel numbers to keep in the object.
             times: The times to keep in the object.

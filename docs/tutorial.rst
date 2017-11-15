@@ -370,8 +370,8 @@ ________
   >>> UV = UVData()
   >>> filename = 'pyuvdata/data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
   >>> UV.read_uvfits(filename)
-  # Print the number of antenna pairs in the original file
 
+  # Print the number of antenna pairs in the original file
   >>> print(len(UV.get_antpairs()))
   153
 
