@@ -351,20 +351,24 @@ Basic options are 'auto', 'cross', or 'all'.  The ant_str can also contain:
 ________
 
 - 1: returns all antenna pairs containing antenna number 1 (including the auto correlation)
-- 1,2: returns all antenna pairs containing antennas 1 and 2
+- 1,2: returns all antenna pairs containing antennas 1 and/or 2
 
 ::
 
-  from pyuvdata import UVData
-  UV = UVData()
-  filename = 'pyuvdata/data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
-  UV.read_uvfits(filename)
-  # Print all the antennas numbers with data in the original file
-  print(UV.get_antpairs())
+  >>> from pyuvdata import UVData
+  >>> UV = UVData()
+  >>> filename = 'pyuvdata/data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
+  >>> UV.read_uvfits(filename)
+  # Print the number of antenna pairs in the original file
+
+  >>> print(len(UV.get_antpairs()))
+  153
+
   # Apply select to UV object
-  UV.select(ant_str='1,2,3')
-  # Print all the antennas numbers with data after the select
-  print(UV.get_antpairs())
+  >>> UV.select(ant_str='1,2,3')
+
+  # Print the number of antenna pairs after the select
+  >>> print(len(UV.get_antpairs()))
 
 2. Individual baseline(s):
 ________
@@ -376,16 +380,21 @@ ________
 
 ::
 
-  from pyuvdata import UVData
-  UV = UVData()
-  filename = 'pyuvdata/data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
-  UV.read_uvfits(filename)
-  # Print all the antennas numbers with data in the original file
-  print(UV.get_antpairs())
+  >>> from pyuvdata import UVData
+  >>> UV = UVData()
+  >>> filename = 'pyuvdata/data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
+  >>> UV.read_uvfits(filename)
+  # Print the number of antenna pairs in the original file
+
+  >>> print(len(UV.get_antpairs()))
+  153
+
   # Apply select to UV object
-  UV.select(ant_str='(1,2)_(3,4)')
-  # Print all the antennas numbers with data after the select
-  print(UV.get_antpairs())
+  >>> UV.select(ant_str='(1,2)_(3,4)')
+
+  # Print the antennas pairs with data after the select
+  >>> print(UV.get_antpairs())
+  [(1, 3), (1, 6), (2, 3), (2, 6)]
 
 3. Antenna number(s) and polarization(s):
 ________
@@ -404,16 +413,20 @@ all antenna pairs kept in the object will retain data for each specified polariz
 
 ::
 
-  from pyuvdata import UVData
-  UV = UVData()
-  filename = 'pyuvdata/data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
-  UV.read_uvfits(filename)
-  # Print all the antennas numbers and polarizations with data in the original file
-  print(UV.get_antpairs(), UV.get_pols())
+  >>> from pyuvdata import UVData
+  >>> UV = UVData()
+  >>> filename = 'pyuvdata/data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
+  >>> UV.read_uvfits(filename)
+  # Print the number of antennas and polarizations with data in the original file
+  >>> print(len(UV.get_antpairs()), UV.get_pols())
+  (153, ['RR', 'LL', 'RL', 'LR'])
+
   # Apply select to UV object
-  UV.select(ant_str='1r_2l,1l_3l,1r_4r')
+  >>> UV.select(ant_str='1r_2l,1l_3l,1r_6r')
+
   # Print all the antennas numbers and polarizations with data after the select
-  print(UV.get_antpairs(), UV.get_pols())
+  >>> print(UV.get_antpairs(), UV.get_pols())
+  ([(1, 2), (1, 3), (1, 6)], ['RR', 'LL', 'RL'])
 
 4. Stokes parameter(s):
 ________
@@ -434,16 +447,21 @@ If a minus sign is present in front of an antenna number, it will not be kept in
 
 ::
 
-  from pyuvdata import UVData
-  UV = UVData()
-  filename = 'pyuvdata/data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
-  UV.read_uvfits(filename)
-  # Print all the antennas numbers with data in the original file
-  print(UV.get_antpairs())
+  >>> from pyuvdata import UVData
+  >>> UV = UVData()
+  >>> filename = 'pyuvdata/data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
+  >>> UV.read_uvfits(filename)
+
+  # Print the number of antenna pairs in the original file
+  >>> print(len(UV.get_antpairs()))
+  153
+
   # Apply select to UV object
-  UV.select(ant_str='1,-1_3')
-  # Print all the antennas numbers with data after the select
-  print(UV.get_antpairs())
+  >>> UV.select(ant_str='1,-1_3')
+
+  # Print the number of antenna pairs with data after the select
+  >>> print(len(UV.get_antpairs()))
+  16
 
 e) Select data and return new object (leaving original in tact).
 ****************
