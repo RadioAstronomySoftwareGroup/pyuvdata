@@ -68,8 +68,24 @@ Comments on existing issues are also welcome.
 pyuvdata was originally developed in the low frequency 21cm community to support the development of calibration and foreground subtraction pipelines. Particular focus has been paid to supporting drift and phased array modes.
 
 # Installation
+For simple installation, the latest stable version is available via conda
+(preferred: ```conda install -c conda-forge pyuvdata``) or pip (```pip install pyuvdata```)
+
+## Optionally install the development version
+First install the dependencies, see below for package recommendations and
+extra dependencies for HEALPix beams and measurement set functionalities.
+
+Clone the repository using
+```git clone https://github.com/HERA-Team/pyuvdata.git```
+
+Navigate into the directory and run ```python setup.py install```.
+Note that this will attempt to automatically install any missing dependencies. If you use anaconda or another package manager you might prefer to first install the dependencies as described below.
+
+To install without dependencies, run
+```python setup.py develop --no-deps``` or ```pip install --no-deps```
+
 ## Dependencies
-First install dependencies. The numpy and astropy versions are important, so be sure to make sure these are up to date before you install.
+The numpy and astropy versions are important, so be sure to make sure these are up to date before you install.
 
 For anaconda users, we suggest using conda to install astropy, numpy and scipy and conda-forge
 for aipy (```conda install -c conda-forge aipy```).
@@ -79,10 +95,8 @@ for aipy (```conda install -c conda-forge aipy```).
 * astropy >= 1.2
 * pyephem
 * aipy >= 2.1.5
-* casacore-python (for CASA measurement set reading functionality)
-
-## Install pyuvdata
-For simple installation, the latest stable version is available via pip using ```pip install pyuvdata```
+* casacore-python (optional: for CASA measurement set reading functionality)
+* healpy (optional: working with beams in HEALPix formats)
 
 ### For measurement set functionality, install python-casacore
 python-casacore is required in order to use the measurement set capabilities of pyuvdata. python-casacore requires the casacore c++ libraries. To install via conda,  run
@@ -97,15 +111,6 @@ If you do not want to use conda, the casacore c++ libraries are available for ub
 To install via conda,  run
 ```conda install -c conda-forge healpy```
 
-### Optionally install the development version
-For the development version, clone the repository using
-```git clone https://github.com/HERA-Team/pyuvdata.git```
-
-Navigate into the directory and run ```python setup.py install```.
-Note that this will automatically install any missing dependencies. If you use anaconda or another package manager you might prefer to first install the dependencies as described above.
-
-To install without dependencies, run
-```python setup.py develop --no-deps``` or ```pip install --no-deps```
 
 ## Tests
 Requires installation of `nose` package.
