@@ -182,3 +182,26 @@ def test_jones_num_funcs():
     nt.assert_raises(KeyError, uvutils.jstr2num, 'foo')
     nt.assert_raises(ValueError, uvutils.jstr2num, 1)
     nt.assert_raises(ValueError, uvutils.jnum2str, 7.3)
+
+class Test_get_ENU_from_UVData:
+    def setUp(self):
+        uvd = pyuvdata.UVData()
+        uvd.read_miriad(os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcA"))
+        self.uvd = uvd
+    def test_antpos(self):
+        # no center, no pick data ants
+        antpos, ants = uvutils.get_ENU_from_UVData(self.uvd, center=False, pick_data_ants=False)
+        nt.assert_equal(len(ants), 113)
+        nt.assert_almost_equal(antpos[0, 0], 19.340211050751535)
+        nt.assert_equal(ants[0], 0)
+    def test_antpos_center(self):
+        # center
+        antpos, ants = uvutils.get_ENU_from_UVData(self.uvd, center=True, pick_data_ants=False)
+        nt.assert_almost_equal(antpos[0, 0], 22.472442651767714)
+    def test_antpos_pick_data_ants(self):
+        # pick data ants
+        antpos, ants = uvutils.get_ENU_from_UVData(self.uvd, center=True, pick_data_ants=True)
+        nt.assert_equal(ants[0], 9)
+        nt.assert_equal(antpos[0, 0], -0.0026981323386223721)
+
+
