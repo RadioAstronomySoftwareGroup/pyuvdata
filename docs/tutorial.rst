@@ -380,6 +380,7 @@ ________
 
   # Print the number of antenna pairs after the select
   >>> print(len(UV.get_antpairs()))
+  48
 
 2. Individual baseline(s):
 ________
@@ -395,13 +396,13 @@ ________
   >>> UV = UVData()
   >>> filename = 'pyuvdata/data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
   >>> UV.read_uvfits(filename)
-  # Print the number of antenna pairs in the original file
 
+  # Print the number of antenna pairs in the original file
   >>> print(len(UV.get_antpairs()))
   153
 
   # Apply select to UV object
-  >>> UV.select(ant_str='(1,2)_(3,4)')
+  >>> UV.select(ant_str='(1,2)_(3,6)')
 
   # Print the antennas pairs with data after the select
   >>> print(UV.get_antpairs())
@@ -428,6 +429,7 @@ all antenna pairs kept in the object will retain data for each specified polariz
   >>> UV = UVData()
   >>> filename = 'pyuvdata/data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
   >>> UV.read_uvfits(filename)
+
   # Print the number of antennas and polarizations with data in the original file
   >>> print(len(UV.get_antpairs()), UV.get_pols())
   (153, ['RR', 'LL', 'RL', 'LR'])
