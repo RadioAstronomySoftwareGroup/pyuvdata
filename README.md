@@ -69,7 +69,7 @@ pyuvdata was originally developed in the low frequency 21cm community to support
 
 # Installation
 For simple installation, the latest stable version is available via conda
-(preferred: ```conda install -c conda-forge pyuvdata``) or pip (```pip install pyuvdata```)
+(preferred: ```conda install -c conda-forge pyuvdata```) or pip (```pip install pyuvdata```)
 
 ## Optionally install the development version
 First install the dependencies, see below for package recommendations and
