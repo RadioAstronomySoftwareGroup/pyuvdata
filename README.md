@@ -65,7 +65,7 @@ issue log after verifying that the issue does not already exist.
 Comments on existing issues are also welcome.
 
 # Documentation
-A tutorial with example usage and developer documentation is hosted on ReadTheDocs (https://pyuvdata.readthedocs.io).
+A tutorial with example usage and developer API documentation is hosted on ReadTheDocs (https://pyuvdata.readthedocs.io).
 
 # History
 pyuvdata was originally developed in the low frequency 21cm community to support the development of calibration and foreground subtraction pipelines. Particular focus has been paid to supporting drift and phased array modes.
@@ -124,5 +124,6 @@ From the source pyuvdata directory run ```nosetests pyuvdata```.
 The primary interface to data from python is via the UVData object. It provides
 import and export functionality to all supported file formats (UVFITS, Miriad, FHD)
 and can be interacted with directly. The primary calibration interface is via the
-UVCal object. The attributes of the UVData and UVCal objects are
-described in the uvdata_parameters and uvcal_parameters descriptions at https://pyuvdata.readthedocs.io or [here](https://github.com/HERA-Team/pyuvdata/blob/master/docs).
+UVCal object. The primary beam interface is via the UVBeam object.
+The attributes of the UVData, UVCal and UVBeam objects are
+described in the uvdata_parameters, uvcal_parameters and uvbeam_parameters descriptions at https://pyuvdata.readthedocs.io or [here](https://github.com/HERA-Team/pyuvdata/blob/master/docs).
