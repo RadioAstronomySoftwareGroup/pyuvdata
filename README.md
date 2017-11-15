@@ -65,7 +65,7 @@ issue log after verifying that the issue does not already exist.
 Comments on existing issues are also welcome.
 
 # Documentation
-A tutorial with example usage and developer API documentation is hosted on ReadTheDocs (https://pyuvdata.readthedocs.io).
+A tutorial with example usage and developer API documentation is hosted on [ReadTheDocs](https://pyuvdata.readthedocs.io).
 
 # History
 pyuvdata was originally developed in the low frequency 21cm community to support the development of calibration and foreground subtraction pipelines. Particular focus has been paid to supporting drift and phased array modes.
@@ -76,7 +76,7 @@ For simple installation, the latest stable version is available via conda
 
 ## Optionally install the development version
 First install the dependencies, see below for package recommendations and
-extra dependencies for HEALPix beams and measurement set functionalities.
+extra dependencies for HEALPix beams and CASA measurement set functionalities.
 
 Clone the repository using
 ```git clone https://github.com/HERA-Team/pyuvdata.git```
@@ -101,7 +101,7 @@ for aipy, pyephem and optionally casacore-python and healpy (e.g. ```conda insta
 * casacore-python (optional: for CASA measurement set reading functionality)
 * healpy (optional: working with beams in HEALPix formats)
 
-### For measurement set functionality, install python-casacore
+### For CASA measurement set functionality, install python-casacore
 python-casacore is required in order to use the measurement set capabilities of pyuvdata. python-casacore requires the casacore c++ libraries. To install via conda,  run
 
 ```conda config --add channels conda-forge```
@@ -122,8 +122,7 @@ From the source pyuvdata directory run ```nosetests pyuvdata```.
 
 # API
 The primary interface to data from python is via the UVData object. It provides
-import and export functionality to all supported file formats (UVFITS, Miriad, FHD)
-and can be interacted with directly. The primary calibration interface is via the
-UVCal object. The primary beam interface is via the UVBeam object.
-The attributes of the UVData, UVCal and UVBeam objects are
+import and export functionality to all supported file formats (UVFITS, Miriad, FHD, CASA measurement sets)
+and can be interacted with directly. Similarly, the primary calibration and beam interfaces are via the
+UVCal and UVBeam objects. The attributes of the UVData, UVCal and UVBeam objects are
 described in the uvdata_parameters, uvcal_parameters and uvbeam_parameters descriptions at https://pyuvdata.readthedocs.io or [here](https://github.com/HERA-Team/pyuvdata/blob/master/docs).
