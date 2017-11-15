@@ -64,6 +64,9 @@ Bug reports or feature requests are also very welcome, please add them to the
 issue log after verifying that the issue does not already exist.
 Comments on existing issues are also welcome.
 
+# Documentation
+A tutorial with example usage and developer documentation is hosted on ReadTheDocs (https://pyuvdata.readthedocs.io).
+
 # History
 pyuvdata was originally developed in the low frequency 21cm community to support the development of calibration and foreground subtraction pipelines. Particular focus has been paid to supporting drift and phased array modes.
 
