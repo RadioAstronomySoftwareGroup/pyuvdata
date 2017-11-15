@@ -202,6 +202,6 @@ class Test_get_ENU_from_UVData:
         # pick data ants
         antpos, ants = uvutils.get_ENU_from_UVData(self.uvd, center=True, pick_data_ants=True)
         nt.assert_equal(ants[0], 9)
-        nt.assert_equal(antpos[0, 0], -0.0026981323386223721)
+        nt.assert_almost_equal(antpos[0, 0], -0.0026981323386223721)
 
 
