@@ -88,13 +88,13 @@ To install without dependencies, run
 The numpy and astropy versions are important, so be sure to make sure these are up to date before you install.
 
 For anaconda users, we suggest using conda to install astropy, numpy and scipy and conda-forge
-for aipy (```conda install -c conda-forge aipy```).
+for aipy, pyephem and optionally casacore-python and healpy (e.g. ```conda install -c conda-forge aipy```).
 
 * numpy >= 1.10
 * scipy
 * astropy >= 1.2
 * pyephem
-* aipy >= 2.1.5
+* aipy >= 2.1.6
 * casacore-python (optional: for CASA measurement set reading functionality)
 * healpy (optional: working with beams in HEALPix formats)
 
