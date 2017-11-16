@@ -1536,6 +1536,35 @@ class UVData(UVBase):
         """
         return np.unique(np.append(self.ant_1_array, self.ant_2_array))
 
+    def get_ENU_antpos(self, center=True, pick_data_ants=False):
+		"""
+		Returns antenna positions in ENU (topocentric) coordinates in units of meters.
+
+		Parameters:
+		-----------
+		center : bool, if True: subtract median of array position from antpos
+		pick_data_ants : bool, if True: return only antennas found in data
+
+		Returns: (antpos, ants)
+		--------
+		antpos : ndarray, antenna positions in TOPO frame and units of meters, shape=(Nants, 3)
+		ants : ndarray, antenna numbers matching ordering of antpos, shape=(Nants,)
+		"""
+		antpos = uvutils.ENU_from_ECEF((self.antenna_positions + self.telescope_location).T, *self.telescope_location_lat_lon_alt).T
+		ants = self.antenna_numbers
+
+		if pick_data_ants:
+			data_ants = np.unique(np.concatenate([self.ant_1_array, self.ant_2_array]))
+			telescope_ants = self.antenna_numbers
+			select = map(lambda x: x in data_ants, telescope_ants)
+			antpos = antpos[select, :]
+			ants = telescope_ants[select]
+
+		if center is True:
+			antpos -= np.median(antpos, axis=0)
+
+		return antpos, ants
+
     def get_baseline_nums(self):
         """
         Returns numpy array of unique baseline numbers in data.
