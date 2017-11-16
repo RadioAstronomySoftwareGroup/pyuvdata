@@ -435,7 +435,7 @@ def get_ENU_from_UVData(uvd, center=True, pick_data_ants=False):
         telescope_ants = uvd.antenna_numbers
         select = map(lambda x: x in data_ants, telescope_ants)
         antpos = antpos[select, :]
-        ants = data_ants
+        ants = telescope_ants[select]
 
     if center is True:
         antpos -= np.median(antpos, axis=0)
