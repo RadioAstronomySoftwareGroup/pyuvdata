@@ -1622,6 +1622,23 @@ def test_get_ants():
         nt.assert_true(ant in ants)
 
 
+def test_get_ENU_antpos():
+    uvd = UVData()
+    uvd.read_miriad(os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcA"))
+    # no center, no pick data ants
+    antpos, ants = uvd.get_ENU_antpos(center=False, pick_data_ants=False)
+    nt.assert_equal(len(ants), 113)
+    nt.assert_almost_equal(antpos[0, 0], 19.340211050751535)
+    nt.assert_equal(ants[0], 0)
+    # center
+    antpos, ants = uvd.get_ENU_antpos(center=True, pick_data_ants=False)
+    nt.assert_almost_equal(antpos[0, 0], 22.472442651767714)
+    # pick data ants
+    antpos, ants = uvd.get_ENU_antpos(center=True, pick_data_ants=True)
+    nt.assert_equal(ants[0], 9)
+    nt.assert_almost_equal(antpos[0, 0], -0.0026981323386223721)
+
+
 def test_get_pols():
     # Test function to get unique polarizations in string format
     uv = UVData()
