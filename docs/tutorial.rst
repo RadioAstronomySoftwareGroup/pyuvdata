@@ -166,7 +166,6 @@ Making a simple waterfall plot::
   >>> plt.imshow(np.abs(UV.get_data((1, 2, UV.polarization_array[0])))) # doctest: +SKIP
   >>> plt.show() # doctest: +SKIP
 
-
 UVData: Location conversions
 -----------------------
 A number of conversion methods exist to map between different coordinate systems for locations on the earth.
@@ -175,12 +174,17 @@ a) Getting antenna positions in topocentric frame in units of meters
 ***************
 ::
 
+  # directly from UVData object
+  >>> uvd = UVData()
+  >>> uvd.read_miriad('pyuvdata/data/new.uvA')
+  >>> antpos, ants = uvd.get_ENU_antpos()
+
+  # using uvutils
   >>> from pyuvdata import uvutils, UVData
   >>> uvd = UVData()
   >>> uvd.read_miriad('pyuvdata/data/new.uvA')
   >>> antpos = uvd.antenna_positions + uvd.telescope_location # get antennas positions in ECEF
   >>> antpos = uvutils.ENU_from_ECEF(antpos.T, *uvd.telescope_location_lat_lon_alt).T # convert to topo (ENU) coords.
-
 
 UVData: Quick data access
 -----------------------
