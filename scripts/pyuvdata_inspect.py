@@ -40,7 +40,7 @@ for i, f in enumerate(args.files):
     # check file exists
     if os.path.exists(f) is False:
         print("{0} doesn't exist".format(f))
-        if i == (Nfiles-1):
+        if i == (Nfiles - 1):
             exit(1)
         else:
             continue
@@ -79,8 +79,8 @@ for i, f in enumerate(args.files):
         try:
             Nnest = len(attr)
             this_attr = getattr(UV, attr[0])
-            for k in range(Nnest-1):
-                this_attr = getattr(this_attr, attr[k+1])
+            for k in range(Nnest - 1):
+                this_attr = getattr(this_attr, attr[k + 1])
             # print to stdout
             print("{0} of {1} is: {2}".format('.'.join(attr), f, this_attr))
             exit_clean = True
@@ -94,9 +94,9 @@ if args.interactive:
     try:
         from IPython import embed
         embed()
-    except:
-	import code
-	code.interact(local=dict(globals(), **locals()))
+    except ImportError:
+        import code
+        code.interact(local=dict(globals(), **locals()))
 
 else:
     if exit_clean is True:

@@ -966,9 +966,9 @@ class UVData(UVBase):
         return self
 
     def select(self, antenna_nums=None, antenna_names=None, ant_str=None,
-                   ant_pairs_nums=None, frequencies=None, freq_chans=None,
-                   times=None, polarizations=None, blt_inds=None, run_check=True,
-                   check_extra=True, run_check_acceptability=True, inplace=True):
+               ant_pairs_nums=None, frequencies=None, freq_chans=None,
+               times=None, polarizations=None, blt_inds=None, run_check=True,
+               check_extra=True, run_check_acceptability=True, inplace=True):
         """
         Select specific antennas, antenna pairs, frequencies, times and
         polarizations to keep in the object while discarding others.
@@ -1030,8 +1030,8 @@ class UVData(UVBase):
             n_selects += 1
 
         if ant_str is not None:
-            if not (antenna_nums is None and antenna_names is None
-                and ant_pairs_nums is None and polarizations is None):
+            if not (antenna_nums is None and antenna_names is None and
+                    ant_pairs_nums is None and polarizations is None):
                 raise ValueError(
                     'Cannot provide ant_str with antenna_nums, antenna_names, '
                     'ant_pairs_nums, or polarizations.')
@@ -1536,33 +1536,33 @@ class UVData(UVBase):
         return np.unique(np.append(self.ant_1_array, self.ant_2_array))
 
     def get_ENU_antpos(self, center=True, pick_data_ants=False):
-		"""
-		Returns antenna positions in ENU (topocentric) coordinates in units of meters.
+        """
+        Returns antenna positions in ENU (topocentric) coordinates in units of meters.
 
-		Parameters:
-		-----------
-		center : bool, if True: subtract median of array position from antpos
-		pick_data_ants : bool, if True: return only antennas found in data
+        Parameters:
+        -----------
+        center : bool, if True: subtract median of array position from antpos
+        pick_data_ants : bool, if True: return only antennas found in data
 
-		Returns: (antpos, ants)
-		--------
-		antpos : ndarray, antenna positions in TOPO frame and units of meters, shape=(Nants, 3)
-		ants : ndarray, antenna numbers matching ordering of antpos, shape=(Nants,)
-		"""
-		antpos = uvutils.ENU_from_ECEF((self.antenna_positions + self.telescope_location).T, *self.telescope_location_lat_lon_alt).T
-		ants = self.antenna_numbers
+        Returns: (antpos, ants)
+        --------
+        antpos : ndarray, antenna positions in TOPO frame and units of meters, shape=(Nants, 3)
+        ants : ndarray, antenna numbers matching ordering of antpos, shape=(Nants,)
+        """
+        antpos = uvutils.ENU_from_ECEF((self.antenna_positions + self.telescope_location).T, *self.telescope_location_lat_lon_alt).T
+        ants = self.antenna_numbers
 
-		if pick_data_ants:
-			data_ants = np.unique(np.concatenate([self.ant_1_array, self.ant_2_array]))
-			telescope_ants = self.antenna_numbers
-			select = map(lambda x: x in data_ants, telescope_ants)
-			antpos = antpos[select, :]
-			ants = telescope_ants[select]
+        if pick_data_ants:
+            data_ants = np.unique(np.concatenate([self.ant_1_array, self.ant_2_array]))
+            telescope_ants = self.antenna_numbers
+            select = map(lambda x: x in data_ants, telescope_ants)
+            antpos = antpos[select, :]
+            ants = telescope_ants[select]
 
-		if center is True:
-			antpos -= np.median(antpos, axis=0)
+        if center is True:
+            antpos -= np.median(antpos, axis=0)
 
-		return antpos, ants
+        return antpos, ants
 
     def get_baseline_nums(self):
         """
@@ -1936,12 +1936,12 @@ class UVData(UVBase):
                 elif ant_str[str_pos:].upper().startswith('AUTO'):
                     for pair in ant_pairs_data:
                         if (pair[0] == pair[1] and
-                            not pair in ant_pairs_nums):
+                                pair not in ant_pairs_nums):
                             ant_pairs_nums.append(pair)
                 elif ant_str[str_pos:].upper().startswith('CROSS'):
                     for pair in ant_pairs_data:
                         if not (pair[0] == pair[1] or
-                            pair in ant_pairs_nums):
+                                pair in ant_pairs_nums):
                             ant_pairs_nums.append(pair)
                 elif ant_str[str_pos:].upper().startswith('I'):
                     polarizations.append(uvutils.polstr2num('I'))
@@ -1952,8 +1952,7 @@ class UVData(UVBase):
                 elif ant_str[str_pos:].upper().startswith('V'):
                     polarizations.append(uvutils.polstr2num('V'))
                 else:
-                    raise ValueError('Unparsible argument {s}'.format(
-                                            s=ant_str))
+                    raise ValueError('Unparsible argument {s}'.format(s=ant_str))
 
                 comma_cnt = ant_str[str_pos:].find(',')
                 if comma_cnt >= 0:
@@ -1980,8 +1979,8 @@ class UVData(UVBase):
                 for ant_i in ant_i_list:
                     include_i = True
                     if type(ant_i) == str and ant_i.startswith('-'):
-                         ant_i = ant_i[1:] #nibble the - off the string
-                         include_i = False
+                        ant_i = ant_i[1:]  # nibble the - off the string
+                        include_i = False
 
                     for ant_j in ant_j_list:
                         include_j = True
@@ -2002,18 +2001,18 @@ class UVData(UVBase):
                             aj = [ant_j, '']
                         elif ant_i.isdigit() and not ant_j.isdigit():
                             if ('x' in ant_j or 'y' in ant_j):
-                                pols = ['x'+aj[1], 'y'+aj[1]]
+                                pols = ['x' + aj[1], 'y' + aj[1]]
                             else:
-                                pols = ['l'+aj[1], 'r'+aj[1]]
+                                pols = ['l' + aj[1], 'r' + aj[1]]
                             ai = [ant_i, '']
                         elif not ant_i.isdigit() and ant_j.isdigit():
                             if ('x' in ant_i or 'y' in ant_i):
-                                pols = [ai[1]+'x', ai[1]+'y']
+                                pols = [ai[1] + 'x', ai[1] + 'y']
                             else:
-                                pols = [ai[1]+'l', ai[1]+'r']
+                                pols = [ai[1] + 'l', ai[1] + 'r']
                             aj = [ant_j, '']
                         elif not ant_i.isdigit() and not ant_j.isdigit():
-                            pols = [ai[1]+aj[1]]
+                            pols = [ai[1] + aj[1]]
 
                         ant_tuple = tuple((abs(int(ai[0])), abs(int(aj[0]))))
 
@@ -2024,40 +2023,40 @@ class UVData(UVBase):
                             ant_tuple = ant_tuple[::-1]
                         else:
                             if not (ant_tuple[0] in ants_data or
-                                ant_tuple[0] in warned_ants):
+                                    ant_tuple[0] in warned_ants):
                                 warned_ants.append(ant_tuple[0])
                             if not (ant_tuple[1] in ants_data or
-                                ant_tuple[1] in warned_ants):
+                                    ant_tuple[1] in warned_ants):
                                 warned_ants.append(ant_tuple[1])
-                            if not pols is None:
+                            if pols is not None:
                                 for pol in pols:
-                                    if not (pol.upper() in pols_data
-                                        or pol in warned_pols):
+                                    if not (pol.upper() in pols_data or
+                                            pol in warned_pols):
                                         warned_pols.append(pol)
                             continue
 
                         if include_i and include_j:
-                            if not ant_tuple in ant_pairs_nums:
+                            if ant_tuple not in ant_pairs_nums:
                                 ant_pairs_nums.append(ant_tuple)
-                            if not pols is None:
+                            if pols is not None:
                                 for pol in pols:
                                     if (pol.upper() in pols_data and
-                                        not uvutils.polstr2num(pol) in polarizations):
+                                            uvutils.polstr2num(pol) not in polarizations):
                                         polarizations.append(uvutils.polstr2num(pol))
-                                    elif not (pol.upper() in pols_data
-                                        or pol in warned_pols):
+                                    elif not (pol.upper() in pols_data or
+                                              pol in warned_pols):
                                         warned_pols.append(pol)
                         else:
-                            if not pols is None:
+                            if pols is not None:
                                 for pol in pols:
                                     if pol.upper() in pols_data:
                                         if (self.Npols == 1 and
-                                            [pol.upper()] == pols_data):
+                                                [pol.upper()] == pols_data):
                                             ant_pairs_nums.remove(ant_tuple)
                                         if uvutils.polstr2num(pol) in polarizations:
                                             polarizations.remove(uvutils.polstr2num(pol))
-                                    elif not (pol.upper() in pols_data
-                                        or pol in warned_pols):
+                                    elif not (pol.upper() in pols_data or
+                                              pol in warned_pols):
                                         warned_pols.append(pol)
                             elif ant_tuple in ant_pairs_nums:
                                 ant_pairs_nums.remove(ant_tuple)
@@ -2075,12 +2074,12 @@ class UVData(UVBase):
 
         if print_toggle:
             print '\nParsed antenna pairs:'
-            if not ant_pairs_nums is None:
+            if ant_pairs_nums is not None:
                 for pair in ant_pairs_nums:
                     print pair
 
             print '\nParsed polarizations:'
-            if not polarizations is None:
+            if polarizations is not None:
                 for pol in polarizations:
                     print uvutils.polnum2str(pol)
 

@@ -1707,9 +1707,9 @@ def test_parse_ants():
     ant_str = '0'
     ant_pairs_nums, polarizations = uv.parse_ants(ant_str)
     ant_pairs_expected = [(0, 1), (0, 2), (0, 3), (0, 6), (0, 7), (0, 8),
-                                     (0, 11), (0, 14), (0, 18), (0, 19), (0, 20),
-                                     (0, 21), (0, 22), (0, 23), (0, 24), (0, 26),
-                                     (0, 27)]
+                          (0, 11), (0, 14), (0, 18), (0, 19), (0, 20),
+                          (0, 21), (0, 22), (0, 23), (0, 24), (0, 26),
+                          (0, 27)]
     nt.assert_items_equal(ant_pairs_nums, ant_pairs_expected)
     nt.assert_is_instance(polarizations, type(None))
 
@@ -1726,13 +1726,13 @@ def test_parse_ants():
     ant_str = '22,26'
     ant_pairs_nums, polarizations = uv.parse_ants(ant_str)
     ant_pairs_expected = [(0, 22), (0, 26), (1, 22), (1, 26), (2, 22), (2, 26),
-                                     (3, 22), (3, 26), (6, 22), (6, 26), (7, 22),
-                                     (7, 26), (8, 22), (8, 26), (11, 22), (11, 26),
-                                     (14, 22), (14, 26), (18, 22), (18, 26),
-                                     (19, 22), (19, 26), (20, 22), (20, 26),
-                                     (21, 22), (21, 26), (22, 23), (22, 24),
-                                     (22, 26), (22, 27), (23, 26), (24, 26),
-                                     (26, 27)]
+                          (3, 22), (3, 26), (6, 22), (6, 26), (7, 22),
+                          (7, 26), (8, 22), (8, 26), (11, 22), (11, 26),
+                          (14, 22), (14, 26), (18, 22), (18, 26),
+                          (19, 22), (19, 26), (20, 22), (20, 26),
+                          (21, 22), (21, 26), (22, 23), (22, 24),
+                          (22, 26), (22, 27), (23, 26), (24, 26),
+                          (26, 27)]
     nt.assert_items_equal(ant_pairs_nums, ant_pairs_expected)
     nt.assert_is_instance(polarizations, type(None))
 
@@ -1753,10 +1753,10 @@ def test_parse_ants():
 
     # Single baseline with single polarization in first entry
     ant_str = '1l_3,2x_3'
-    ant_pairs_nums, polarizations = uvtest.checkWarnings(
-                                    uv.parse_ants, [ant_str], {},
-                                    nwarnings=1,
-                                    message='Warning: Polarization')
+    ant_pairs_nums, polarizations = uvtest.checkWarnings(uv.parse_ants,
+                                                         [ant_str], {},
+                                                         nwarnings=1,
+                                                         message='Warning: Polarization')
     ant_pairs_expected = [(1, 3), (2, 3)]
     pols_expected = [-2, -4]
     nt.assert_items_equal(ant_pairs_nums, ant_pairs_expected)
@@ -1764,10 +1764,10 @@ def test_parse_ants():
 
     # Single baseline with single polarization in last entry
     ant_str = '1_3l,2_3x'
-    ant_pairs_nums, polarizations = uvtest.checkWarnings(
-                                    uv.parse_ants, [ant_str], {},
-                                    nwarnings=1,
-                                    message='Warning: Polarization')
+    ant_pairs_nums, polarizations = uvtest.checkWarnings(uv.parse_ants,
+                                                         [ant_str], {},
+                                                         nwarnings=1,
+                                                         message='Warning: Polarization')
     ant_pairs_expected = [(1, 3), (2, 3)]
     pols_expected = [-2, -3]
     nt.assert_items_equal(ant_pairs_nums, ant_pairs_expected)
@@ -1821,8 +1821,8 @@ def test_parse_ants():
     ant_str = '1,-3'
     ant_pairs_nums, polarizations = uv.parse_ants(ant_str)
     ant_pairs_expected = [(0, 1), (1, 2), (1, 6), (1, 7), (1, 8), (1, 11),
-                                      (1, 14), (1, 18), (1, 19), (1, 20), (1, 21),
-                                      (1, 22), (1, 23), (1, 24), (1, 26), (1, 27)]
+                          (1, 14), (1, 18), (1, 19), (1, 20), (1, 21),
+                          (1, 22), (1, 23), (1, 24), (1, 26), (1, 27)]
     nt.assert_items_equal(ant_pairs_nums, ant_pairs_expected)
     nt.assert_is_instance(polarizations, type(None))
 
@@ -1894,21 +1894,21 @@ def test_select_with_ant_str():
     # Check error thrown if ant_str passed with antenna_nums,
     # antenna_names, ant_pairs_nums, or polarizations
     nt.assert_raises(ValueError, uv.select,
-                            ant_str='',
-                            antenna_nums = [],
-                            inplace=inplace)
+                     ant_str='',
+                     antenna_nums=[],
+                     inplace=inplace)
     nt.assert_raises(ValueError, uv.select,
-                            ant_str='',
-                            antenna_names = [],
-                            inplace=inplace)
+                     ant_str='',
+                     antenna_nums=[],
+                     inplace=inplace)
     nt.assert_raises(ValueError, uv.select,
-                            ant_str='',
-                            ant_pairs_nums = [],
-                            inplace=inplace)
+                     ant_str='',
+                     antenna_nums=[],
+                     inplace=inplace)
     nt.assert_raises(ValueError, uv.select,
-                            ant_str='',
-                            polarizations = [],
-                            inplace=inplace)
+                     ant_str='',
+                     antenna_nums=[],
+                     inplace=inplace)
 
     # All baselines
     ant_str = 'all'
@@ -1939,8 +1939,8 @@ def test_select_with_ant_str():
     # Single antenna number
     ant_str = '0'
     ant_pairs = [(0, 1), (0, 2), (0, 3), (0, 6), (0, 7), (0, 8), (0, 11),
-                       (0, 14), (0, 18), (0, 19), (0, 20), (0, 21), (0, 22),
-                       (0, 23), (0, 24), (0, 26), (0, 27)]
+                 (0, 14), (0, 18), (0, 19), (0, 20), (0, 21), (0, 22),
+                 (0, 23), (0, 24), (0, 26), (0, 27)]
     uv2 = uv.select(ant_str=ant_str, inplace=inplace)
     nt.assert_items_equal(uv2.get_antpairs(), ant_pairs)
     nt.assert_items_equal(uv2.get_pols(), uv.get_pols())
@@ -1954,12 +1954,12 @@ def test_select_with_ant_str():
     # Multiple antenna numbers as list
     ant_str = '22,26'
     ant_pairs = [(0, 22), (0, 26), (1, 22), (1, 26), (2, 22), (2, 26),
-                       (3, 22), (3, 26), (6, 22), (6, 26), (7, 22),
-                       (7, 26), (8, 22), (8, 26), (11, 22), (11, 26),
-                       (14, 22), (14, 26), (18, 22), (18, 26), (19, 22),
-                       (19, 26), (20, 22), (20, 26), (21, 22), (21, 26),
-                       (22, 23), (22, 24), (22, 26), (22, 27), (23, 26),
-                       (24, 26), (26, 27)]
+                 (3, 22), (3, 26), (6, 22), (6, 26), (7, 22),
+                 (7, 26), (8, 22), (8, 26), (11, 22), (11, 26),
+                 (14, 22), (14, 26), (18, 22), (18, 26), (19, 22),
+                 (19, 26), (20, 22), (20, 26), (21, 22), (21, 26),
+                 (22, 23), (22, 24), (22, 26), (22, 27), (23, 26),
+                 (24, 26), (26, 27)]
     uv2 = uv.select(ant_str=ant_str, inplace=inplace)
     nt.assert_items_equal(uv2.get_antpairs(), ant_pairs)
     nt.assert_items_equal(uv2.get_pols(), uv.get_pols())
@@ -1983,8 +1983,8 @@ def test_select_with_ant_str():
     ant_str = '1l_3,2x_3'
     # x,y pols not present in data
     uv2 = uvtest.checkWarnings(uv.select, [],
-                                    {'ant_str': ant_str, 'inplace': inplace},
-                                    nwarnings=1, message='Warning: Polarization')
+                               {'ant_str': ant_str, 'inplace': inplace},
+                               nwarnings=1, message='Warning: Polarization')
     # with polarizations in data
     ant_str = '1l_3,2_3'
     ant_pairs = [(1, 3), (2, 3)]
@@ -1997,8 +1997,8 @@ def test_select_with_ant_str():
     ant_str = '1_3l,2_3x'
     # x,y pols not present in data
     uv2 = uvtest.checkWarnings(uv.select, [],
-                                    {'ant_str': ant_str, 'inplace': inplace},
-                                    nwarnings=1, message='Warning: Polarization')
+                               {'ant_str': ant_str, 'inplace': inplace},
+                               nwarnings=1, message='Warning: Polarization')
     # with polarizations in data
     ant_str = '1_3l,2_3'
     ant_pairs = [(1, 3), (2, 3)]
@@ -2011,15 +2011,15 @@ def test_select_with_ant_str():
     ant_str = '1_2,1_3,1_10'
     # Antenna number 10 not in data
     uv2 = uvtest.checkWarnings(uv.select, [],
-                                    {'ant_str': ant_str, 'inplace': inplace},
-                                    nwarnings=1, message='Warning: Antenna')
+                               {'ant_str': ant_str, 'inplace': inplace},
+                               nwarnings=1, message='Warning: Antenna')
     ant_pairs = [(1, 2), (1, 3)]
     nt.assert_items_equal(uv2.get_antpairs(), ant_pairs)
     nt.assert_items_equal(uv2.get_pols(), uv.get_pols())
 
     # Multiples baselines with polarizations as list
     ant_str = '1r_2l,1l_3l,1r_11r'
-    ant_pairs = [(1, 2),(1, 3),(1, 11)]
+    ant_pairs = [(1, 2), (1, 3), (1, 11)]
     pols = ['RR', 'LL', 'RL']
     uv2 = uv.select(ant_str=ant_str, inplace=inplace)
     nt.assert_items_equal(uv2.get_antpairs(), ant_pairs)
@@ -2063,8 +2063,8 @@ def test_select_with_ant_str():
     # Remove specific antenna number
     ant_str = '1,-3'
     ant_pairs = [(0, 1), (1, 2), (1, 6), (1, 7), (1, 8), (1, 11),
-                       (1, 14), (1, 18), (1, 19), (1, 20), (1, 21),
-                       (1, 22), (1, 23), (1, 24), (1, 26), (1, 27)]
+                 (1, 14), (1, 18), (1, 19), (1, 20), (1, 21),
+                 (1, 22), (1, 23), (1, 24), (1, 26), (1, 27)]
     uv2 = uv.select(ant_str=ant_str, inplace=inplace)
     nt.assert_items_equal(uv2.get_antpairs(), ant_pairs)
     nt.assert_items_equal(uv2.get_pols(), uv.get_pols())
@@ -2072,8 +2072,8 @@ def test_select_with_ant_str():
     # Remove specific baseline
     ant_str = '1,-1_3'
     ant_pairs = [(0, 1), (1, 2), (1, 6), (1, 7), (1, 8), (1, 11),
-                       (1, 14), (1, 18), (1, 19), (1, 20), (1, 21),
-                       (1, 22), (1, 23), (1, 24), (1, 26), (1, 27)]
+                 (1, 14), (1, 18), (1, 19), (1, 20), (1, 21),
+                 (1, 22), (1, 23), (1, 24), (1, 26), (1, 27)]
     uv2 = uv.select(ant_str=ant_str, inplace=inplace)
     nt.assert_items_equal(uv2.get_antpairs(), ant_pairs)
     nt.assert_items_equal(uv2.get_pols(), uv.get_pols())

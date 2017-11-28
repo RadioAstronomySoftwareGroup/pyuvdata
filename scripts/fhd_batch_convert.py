@@ -17,6 +17,7 @@ def parse_range(string):
 
     return start, end
 
+
 parser = argparse.ArgumentParser()
 parser.add_argument('fhd_run_folder',
                     help='name of an FHD output folder that contains a ' +
@@ -62,13 +63,13 @@ for f in files:
             file_dict[obsid].append(f)
         else:
             file_dict[obsid] = [f]
-    except:
+    except ValueError:
         continue
 
 try:
     obs_min = args.obsid_range[0]
     obs_max = args.obsid_range[1]
-except:
+except TypeError:
     obs_min = min(file_dict.keys())
     obs_max = max(file_dict.keys())
 
