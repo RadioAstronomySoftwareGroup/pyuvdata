@@ -42,6 +42,7 @@ def construct_version_info():
                     'git_branch': git_branch}
     return version_info
 
+
 version_info = construct_version_info()
 version = version_info['version']
 git_origin = version_info['git_origin']
@@ -55,6 +56,7 @@ def main():
     print('git origin = {0}'.format(git_origin))
     print('git branch = {0}'.format(git_branch))
     print('git description = {0}'.format(git_description))
+
 
 if __name__ == '__main__':
     main()

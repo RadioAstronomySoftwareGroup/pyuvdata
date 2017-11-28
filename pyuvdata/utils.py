@@ -409,4 +409,3 @@ def check_histories(history1, history2):
         return True
     else:
         return False
-

@@ -182,5 +182,3 @@ def test_jones_num_funcs():
     nt.assert_raises(KeyError, uvutils.jstr2num, 'foo')
     nt.assert_raises(ValueError, uvutils.jstr2num, 1)
     nt.assert_raises(ValueError, uvutils.jnum2str, 7.3)
-
-
