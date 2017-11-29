@@ -1715,10 +1715,10 @@ def test_parse_ants():
 
     # Single antenna number not in the data
     ant_str = '10'
-    ant_pairs_nums, polarizations = uvtest.checkWarnings(
-                                    uv.parse_ants, [ant_str], {},
-                                    nwarnings=1,
-                                    message='Warning: Antenna')
+    ant_pairs_nums, polarizations = uvtest.checkWarnings(uv.parse_ants,
+                                                         [ant_str], {},
+                                                         nwarnings=1,
+                                                         message='Warning: Antenna')
     nt.assert_is_instance(ant_pairs_nums, type(None))
     nt.assert_is_instance(polarizations, type(None))
 
@@ -1851,9 +1851,8 @@ def test_parse_ants():
     # Test ant_str='auto' on file with auto correlations
     uv = UVData()
     testfile = os.path.join(DATA_PATH, 'hera_testfile')
-    uvtest.checkWarnings(uv.read_miriad, [testfile],
-                                    nwarnings=1,
-                                    message='Altitude is not')
+    uvtest.checkWarnings(uv.read_miriad, [testfile], nwarnings=1,
+                         message='Altitude is not')
 
     ant_str = 'auto'
     ant_pairs_nums, polarizations = uv.parse_ants(ant_str)
@@ -1947,9 +1946,8 @@ def test_select_with_ant_str():
 
     # Single antenna number not present in data
     ant_str = '10'
-    uv2 = uvtest.checkWarnings(uv.select, [],
-                                    {'ant_str': ant_str, 'inplace': inplace},
-                                    nwarnings=1, message='Warning: Antenna')
+    uv2 = uvtest.checkWarnings(uv.select, [], {'ant_str': ant_str, 'inplace': inplace},
+                               nwarnings=1, message='Warning: Antenna')
 
     # Multiple antenna numbers as list
     ant_str = '22,26'
@@ -2097,9 +2095,8 @@ def test_select_with_ant_str():
     # Test ant_str = 'auto' on file with auto correlations
     uv = UVData()
     testfile = os.path.join(DATA_PATH, 'hera_testfile')
-    uvtest.checkWarnings(uv.read_miriad, [testfile],
-                                    nwarnings=1,
-                                    message='Altitude is not')
+    uvtest.checkWarnings(uv.read_miriad, [testfile], nwarnings=1,
+                         message='Altitude is not')
 
     ant_str = 'auto'
     ant_pairs = [(9, 9), (10, 10), (20, 20)]

@@ -2086,15 +2086,13 @@ class UVData(UVBase):
                     print uvutils.polnum2str(pol)
 
         if len(warned_ants) > 0:
-            warnings.warn('Warning: '
-                'Antenna number {a} passed, but not present '
-                'in the ant_1_array or ant_2_array'.format(
-                a=(',').join(map(str,warned_ants))))
+            warnings.warn('Warning: Antenna number {a} passed, but not present '
+                          'in the ant_1_array or ant_2_array'
+                          .format(a=(',').join(map(str, warned_ants))))
 
         if len(warned_pols) > 0:
-            warnings.warn('Warning: '
-                'Polarization {p} is not present in '
-                'the polarization_array'.format(
-                p=(',').join(warned_pols).upper()))
+            warnings.warn('Warning: Polarization {p} is not present in '
+                          'the polarization_array'
+                          .format(p=(',').join(warned_pols).upper()))
 
         return ant_pairs_nums, polarizations
