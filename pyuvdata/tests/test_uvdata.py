@@ -1715,8 +1715,11 @@ def test_parse_ants():
 
     # Single antenna number not in the data
     ant_str = '10'
-    ant_pairs_nums, polarizations = uv.parse_ants(ant_str)
-    nt.assert_items_equal(ant_pairs_nums, [])
+    ant_pairs_nums, polarizations = uvtest.checkWarnings(
+                                    uv.parse_ants, [ant_str], {},
+                                    nwarnings=1,
+                                    message='Warning: Antenna')
+    nt.assert_is_instance(ant_pairs_nums, type(None))
     nt.assert_is_instance(polarizations, type(None))
 
     # Multiple antenna numbers as list
@@ -1750,10 +1753,10 @@ def test_parse_ants():
 
     # Single baseline with single polarization in first entry
     ant_str = '1l_3,2x_3'
-    uvtest.checkWarnings(uv.parse_ants, [ant_str], {},
-                                    nwarnings=2, category=[UserWarning]*2,
-                                    message=['Warning: Polarization']*2)
-    ant_pairs_nums, polarizations = uv.parse_ants(ant_str)
+    ant_pairs_nums, polarizations = uvtest.checkWarnings(
+                                    uv.parse_ants, [ant_str], {},
+                                    nwarnings=1,
+                                    message='Warning: Polarization')
     ant_pairs_expected = [(1, 3), (2, 3)]
     pols_expected = [-2, -4]
     nt.assert_items_equal(ant_pairs_nums, ant_pairs_expected)
@@ -1761,10 +1764,10 @@ def test_parse_ants():
 
     # Single baseline with single polarization in last entry
     ant_str = '1_3l,2_3x'
-    uvtest.checkWarnings(uv.parse_ants, [ant_str], {},
-                                    nwarnings=2, category=[UserWarning]*2,
-                                    message=['Warning: Polarization']*2)
-    ant_pairs_nums, polarizations = uv.parse_ants(ant_str)
+    ant_pairs_nums, polarizations = uvtest.checkWarnings(
+                                    uv.parse_ants, [ant_str], {},
+                                    nwarnings=1,
+                                    message='Warning: Polarization')
     ant_pairs_expected = [(1, 3), (2, 3)]
     pols_expected = [-2, -3]
     nt.assert_items_equal(ant_pairs_nums, ant_pairs_expected)
@@ -1848,7 +1851,9 @@ def test_parse_ants():
     # Test ant_str='auto' on file with auto correlations
     uv = UVData()
     testfile = os.path.join(DATA_PATH, 'hera_testfile')
-    uv.read_miriad(testfile)
+    uvtest.checkWarnings(uv.read_miriad, [testfile],
+                                    nwarnings=1,
+                                    message='Altitude is not')
 
     ant_str = 'auto'
     ant_pairs_nums, polarizations = uv.parse_ants(ant_str)
@@ -1942,7 +1947,9 @@ def test_select_with_ant_str():
 
     # Single antenna number not present in data
     ant_str = '10'
-    nt.assert_raises(ValueError, uv.select, ant_str=ant_str, inplace=inplace)
+    uv2 = uvtest.checkWarnings(uv.select, [],
+                                    {'ant_str': ant_str, 'inplace': inplace},
+                                    nwarnings=1, message='Warning: Antenna')
 
     # Multiple antenna numbers as list
     ant_str = '22,26'
@@ -1975,9 +1982,9 @@ def test_select_with_ant_str():
     # Single baseline with single polarization in first entry
     ant_str = '1l_3,2x_3'
     # x,y pols not present in data
-    uvtest.checkWarnings(uv.select, [], {'ant_str': ant_str, 'inplace': inplace},
-                                    nwarnings=2, category=[UserWarning]*2,
-                                    message=['Warning: Polarization']*2)
+    uv2 = uvtest.checkWarnings(uv.select, [],
+                                    {'ant_str': ant_str, 'inplace': inplace},
+                                    nwarnings=1, message='Warning: Polarization')
     # with polarizations in data
     ant_str = '1l_3,2_3'
     ant_pairs = [(1, 3), (2, 3)]
@@ -1989,10 +1996,9 @@ def test_select_with_ant_str():
     # Single baseline with single polarization in last entry
     ant_str = '1_3l,2_3x'
     # x,y pols not present in data
-    uvtest.checkWarnings(uv.select, [], {'ant_str': ant_str, 'inplace': inplace},
-                                    nwarnings=2, category=[UserWarning]*2,
-                                    message=['Warning: Polarization']*2)
-    # nt.assert_raises(ValueError, uv.select, ant_str=ant_str, inplace=inplace)
+    uv2 = uvtest.checkWarnings(uv.select, [],
+                                    {'ant_str': ant_str, 'inplace': inplace},
+                                    nwarnings=1, message='Warning: Polarization')
     # with polarizations in data
     ant_str = '1_3l,2_3'
     ant_pairs = [(1, 3), (2, 3)]
@@ -2004,11 +2010,10 @@ def test_select_with_ant_str():
     # Multiple baselines as list
     ant_str = '1_2,1_3,1_10'
     # Antenna number 10 not in data
-    uvtest.checkWarnings(uv.select, [], {'ant_str': ant_str, 'inplace': inplace},
-                                    nwarnings=1, category=[UserWarning],
-                                    message=['Warning: Antenna'])
+    uv2 = uvtest.checkWarnings(uv.select, [],
+                                    {'ant_str': ant_str, 'inplace': inplace},
+                                    nwarnings=1, message='Warning: Antenna')
     ant_pairs = [(1, 2), (1, 3)]
-    uv2 = uv.select(ant_str=ant_str, inplace=inplace)
     nt.assert_items_equal(uv2.get_antpairs(), ant_pairs)
     nt.assert_items_equal(uv2.get_pols(), uv.get_pols())
 
@@ -2092,7 +2097,9 @@ def test_select_with_ant_str():
     # Test ant_str = 'auto' on file with auto correlations
     uv = UVData()
     testfile = os.path.join(DATA_PATH, 'hera_testfile')
-    uv.read_miriad(testfile)
+    uvtest.checkWarnings(uv.read_miriad, [testfile],
+                                    nwarnings=1,
+                                    message='Altitude is not')
 
     ant_str = 'auto'
     ant_pairs = [(9, 9), (10, 10), (20, 20)]
