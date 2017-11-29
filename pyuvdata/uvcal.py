@@ -230,7 +230,44 @@ class UVCal(UVBase):
                                                     expected_type=np.float,
                                                     required=False)
 
+        desc = ('Any user supplied extra keywords, type=dict')
+        self._extra_keywords = uvp.UVParameter('extra_keywords', required=False,
+                                               description=desc, value={},
+                                               spoof_val={}, expected_type=dict)
+
         super(UVCal, self).__init__()
+
+    def check(self, check_extra=True, run_check_acceptability=True):
+        """
+        Check that all required parameters are set reasonably.
+
+        Check that required parameters exist and have appropriate shapes.
+        Optionally check if the values are acceptable.
+
+        Args:
+            run_check_acceptability: Option to check if values in required parameters
+                are acceptable. Default is True.
+        """
+
+        # first run the basic check from UVBase
+        super(UVCal, self).check(check_extra=check_extra,
+                                 run_check_acceptability=run_check_acceptability)
+
+        # issue warning if extra_keywords keys are longer than 8 characters
+        for key in self.extra_keywords.keys():
+            if len(key) > 8:
+                warnings.warn('key {key} in extra_keywords is longer than 8 '
+                              'characters. It will be truncated to 8 if written '
+                              'to a calfits file format.'.format(key=key))
+
+        # issue warning if extra_keywords values are lists, arrays or dicts
+        for key, value in self.extra_keywords.iteritems():
+            if isinstance(value, (list, dict, np.ndarray)):
+                warnings.warn('{key} in extra_keywords is a list, array or dict, '
+                              'which will raise an error when writing calfits '
+                              'files'.format(key=key))
+
+        return True
 
     def set_gain(self):
         """Set cal_type to 'gain' and adjust required parameters."""
