@@ -12,7 +12,6 @@ import utils as uvutils
 import copy
 import collections
 import re
-import warnings
 
 
 class UVData(UVBase):
@@ -2026,26 +2025,14 @@ class UVData(UVBase):
                         else:
                             if not (ant_tuple[0] in ants_data or
                                 ant_tuple[0] in warned_ants):
-                                warnings.warn('Warning: '
-                                    'Antenna number {a} passed, but not present '
-                                    'in the ant_1_array or ant_2_array'.format(
-                                    a=ant_tuple[0]))
                                 warned_ants.append(ant_tuple[0])
                             if not (ant_tuple[1] in ants_data or
                                 ant_tuple[1] in warned_ants):
-                                warnings.warn('Warning: '
-                                    'Antenna number {a} passed, but not present '
-                                    'in the ant_1_array or ant_2_array'.format(
-                                    a=ant_tuple[1]))
                                 warned_ants.append(ant_tuple[1])
                             if not pols is None:
                                 for pol in pols:
                                     if not (pol.upper() in pols_data
                                         or pol in warned_pols):
-                                        warnings.warn('Warning: '
-                                            'Polarization {p} is not present in '
-                                            'the polarization_array'.format(
-                                            p=pol.upper()))
                                         warned_pols.append(pol)
                             continue
 
@@ -2059,10 +2046,6 @@ class UVData(UVBase):
                                         polarizations.append(uvutils.polstr2num(pol))
                                     elif not (pol.upper() in pols_data
                                         or pol in warned_pols):
-                                        warnings.warn('Warning: '
-                                            'Polarization {p} is not present in '
-                                            'the polarization_array'.format(
-                                            p=pol.upper()))
                                         warned_pols.append(pol)
                         else:
                             if not pols is None:
@@ -2075,10 +2058,6 @@ class UVData(UVBase):
                                             polarizations.remove(uvutils.polstr2num(pol))
                                     elif not (pol.upper() in pols_data
                                         or pol in warned_pols):
-                                        warnings.warn('Warning: '
-                                            'Polarization {p} is not present in '
-                                            'the polarization_array'.format(
-                                            p=pol.upper()))
                                         warned_pols.append(pol)
                             elif ant_tuple in ant_pairs_nums:
                                 ant_pairs_nums.remove(ant_tuple)
@@ -2086,10 +2065,7 @@ class UVData(UVBase):
         if ant_str.upper() == 'ALL':
             ant_pairs_nums = None
         elif len(ant_pairs_nums) == 0:
-            if (not ant_str.upper() in ['AUTO', 'CROSS']
-            and not ([True]*len(ant_str.split(',')) ==
-            [x.isdigit() for x in ant_str.split(',')])):
-                print ant_str + ' contains at least one non-digit that\'s not auto or cross'
+            if (not ant_str.upper() in ['AUTO', 'CROSS']):
                 ant_pairs_nums = None
 
         if len(polarizations) == 0:
@@ -2107,5 +2083,17 @@ class UVData(UVBase):
             if not polarizations is None:
                 for pol in polarizations:
                     print uvutils.polnum2str(pol)
+
+        if len(warned_ants) > 0:
+            warnings.warn('Warning: '
+                'Antenna number {a} passed, but not present '
+                'in the ant_1_array or ant_2_array'.format(
+                a=(',').join(map(str,warned_ants))))
+
+        if len(warned_pols) > 0:
+            warnings.warn('Warning: '
+                'Polarization {p} is not present in '
+                'the polarization_array'.format(
+                p=(',').join(warned_pols).upper()))
 
         return ant_pairs_nums, polarizations
