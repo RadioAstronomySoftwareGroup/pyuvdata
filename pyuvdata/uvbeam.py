@@ -306,7 +306,7 @@ class UVBeam(UVBase):
 
         super(UVBeam, self).__init__()
 
-    def check(self, run_check_acceptability=True):
+    def check(self, check_extra=True, run_check_acceptability=True):
         """
         Check that all required parameters are set reasonably.
 
@@ -314,6 +314,8 @@ class UVBeam(UVBase):
         Optionally check if the values are acceptable.
 
         Args:
+            check_extra: Option to check optional parameters as well as
+                required ones. Default is True.
             run_check_acceptability: Option to check if values in required parameters
                 are acceptable. Default is True.
         """
@@ -322,7 +324,22 @@ class UVBeam(UVBase):
         self.set_cs_params()
 
         # first run the basic check from UVBase
-        super(UVBeam, self).check(run_check_acceptability=run_check_acceptability)
+        super(UVBeam, self).check(check_extra=check_extra,
+                                  run_check_acceptability=run_check_acceptability)
+
+        # issue warning if extra_keywords keys are longer than 8 characters
+        for key in self.extra_keywords.keys():
+            if len(key) > 8:
+                warnings.warn('key {key} in extra_keywords is longer than 8 '
+                              'characters. It will be truncated to 8 if written '
+                              'to a fits file format.'.format(key=key))
+
+        # issue warning if extra_keywords values are lists, arrays or dicts
+        for key, value in self.extra_keywords.iteritems():
+            if isinstance(value, (list, dict, np.ndarray)):
+                warnings.warn('{key} in extra_keywords is a list, array or dict, '
+                              'which will raise an error when writing fits '
+                              'files'.format(key=key))
 
         return True
 
@@ -412,15 +429,22 @@ class UVBeam(UVBase):
         self._gain_array.required = True
         self._coupling_matrix.required = True
 
-    def az_za_to_healpix(self, nside=None):
+    def az_za_to_healpix(self, nside=None, run_check=True, check_extra=True,
+                         run_check_acceptability=True):
         """
         Convert beam in az_za coordinates to healpix coordinates.
         The interpolation is done using scipy's interpolate.RectBivariateSpline().
 
         Args:
             nside: The nside to use for the Healpix map. If not specified, use
-            the nside that gives the closest resolution that is higher than the
-            input resolution.
+                the nside that gives the closest resolution that is higher than the
+                input resolution.
+            run_check: Option to check for the existence and proper shapes of
+                required parameters after converting to healpix. Default is True.
+            check_extra: Option to check optional parameters as well as
+                required ones. Default is True.
+            run_check_acceptability: Option to check acceptable range of the values of
+                required parameters after combining objects. Default is True.
         """
         import healpy as hp
         from scipy import interpolate
@@ -480,9 +504,12 @@ class UVBeam(UVBase):
         self.axis1_array = None
         self.axis2_array = None
 
-        self.check()
+        if run_check:
+            self.check(check_extra=check_extra,
+                       run_check_acceptability=run_check_acceptability)
 
-    def __add__(self, other, run_check=True, run_check_acceptability=True, inplace=False):
+    def __add__(self, other, run_check=True, check_extra=True,
+                run_check_acceptability=True, inplace=False):
         """
         Combine two UVBeam objects. Objects can be added along frequency,
         feed or polarization (for efield or power beams), and/or pixel axes.
@@ -491,6 +518,8 @@ class UVBeam(UVBase):
             other: Another UVBeam object which will be added to self.
             run_check: Option to check for the existence and proper shapes of
                 required parameters after combining objects. Default is True.
+            check_extra: Option to check optional parameters as well as
+                required ones. Default is True.
             run_check_acceptability: Option to check acceptable range of the values of
                 required parameters after combining objects. Default is True.
             inplace: Overwrite self as we go, otherwise create a third object
@@ -501,10 +530,10 @@ class UVBeam(UVBase):
         else:
             this = copy.deepcopy(self)
         # Check that both objects are UVBeam and valid
-        this.check(run_check_acceptability=False)
+        this.check(check_extra=check_extra, run_check_acceptability=False)
         if not isinstance(other, this.__class__):
             raise(ValueError('Only UVBeam objects can be added to a UVBeam object'))
-        other.check(run_check_acceptability=False)
+        other.check(check_extra=check_extra, run_check_acceptability=False)
 
         # Check objects are compatible
         compatibility_params = ['_beam_type', '_data_normalization', '_telescope_name',
@@ -846,7 +875,8 @@ class UVBeam(UVBase):
 
         # Check final object is self-consistent
         if run_check:
-            this.check(run_check_acceptability=run_check_acceptability)
+            this.check(check_extra=check_extra,
+                       run_check_acceptability=run_check_acceptability)
 
         if not inplace:
             return this
@@ -863,7 +893,7 @@ class UVBeam(UVBase):
 
     def select(self, axis1_inds=None, axis2_inds=None, pixels=None,
                frequencies=None, freq_chans=None,
-               feeds=None, polarizations=None, run_check=True,
+               feeds=None, polarizations=None, run_check=True, check_extra=True,
                run_check_acceptability=True, inplace=True):
         """
         Select specific image axis indices or pixels (if healpix), frequencies and
@@ -886,6 +916,8 @@ class UVBeam(UVBase):
                 Cannot be set if the beam_type is "efield".
             run_check: Option to check for the existence and proper shapes of
                 required parameters after downselecting data on this object. Default is True.
+            check_extra: Option to check optional parameters as well as
+                required ones. Default is True.
             run_check_acceptability: Option to check acceptable range of the values of
                 required parameters after  downselecting data on this object. Default is True.
             inplace: Option to perform the select directly on self (True, default) or return
@@ -1102,7 +1134,8 @@ class UVBeam(UVBase):
 
         # check if object is self-consistent
         if run_check:
-            beam_object.check(run_check_acceptability=run_check_acceptability)
+            beam_object.check(check_extra=check_extra,
+                              run_check_acceptability=run_check_acceptability)
 
         if not inplace:
             return beam_object
@@ -1123,7 +1156,8 @@ class UVBeam(UVBase):
             setattr(other_obj, p, param)
         return other_obj
 
-    def read_beamfits(self, filename, run_check=True, run_check_acceptability=True):
+    def read_beamfits(self, filename, run_check=True, check_extra=True,
+                      run_check_acceptability=True):
         """
         Read in data from a beamfits file.
 
@@ -1131,28 +1165,33 @@ class UVBeam(UVBase):
             filename: The beamfits file or list of files to read from.
             run_check: Option to check for the existence and proper shapes of
                 required parameters after reading in the file. Default is True.
+            check_extra: Option to check optional parameters as well as
+                required ones. Default is True.
             run_check_acceptability: Option to check acceptable range of the values of
                 required parameters after reading in the file. Default is True.
         """
         import beamfits
         if isinstance(filename, (list, tuple)):
             self.read_beamfits(filename[0], run_check=run_check,
+                               check_extra=check_extra,
                                run_check_acceptability=run_check_acceptability)
             if len(filename) > 1:
                 for f in filename[1:]:
                     beam2 = UVBeam()
                     beam2.read_beamfits(f, run_check=run_check,
+                                        check_extra=check_extra,
                                         run_check_acceptability=run_check_acceptability)
                     self += beam2
                 del(beam2)
         else:
             beamfits_obj = beamfits.BeamFITS()
             beamfits_obj.read_beamfits(filename, run_check=run_check,
+                                       check_extra=check_extra,
                                        run_check_acceptability=run_check_acceptability)
             self._convert_from_filetype(beamfits_obj)
             del(beamfits_obj)
 
-    def write_beamfits(self, filename, run_check=True,
+    def write_beamfits(self, filename, run_check=True, check_extra=True,
                        run_check_acceptability=True, clobber=False):
         """
         Write the data to a beamfits file.
@@ -1161,6 +1200,8 @@ class UVBeam(UVBase):
             filename: The beamfits file to write to.
             run_check: Option to check for the existence and proper shapes of
                 required parameters before writing the file. Default is True.
+            check_extra: Option to check optional parameters as well as
+                required ones. Default is True.
             run_check_acceptability: Option to check acceptable range of the values of
                 required parameters before writing the file. Default is True.
             clobber: Option to overwrite the filename if the file already exists.
@@ -1168,6 +1209,7 @@ class UVBeam(UVBase):
         """
         beamfits_obj = self._convert_to_filetype('beamfits')
         beamfits_obj.write_beamfits(filename, run_check=run_check,
+                                    check_extra=check_extra,
                                     run_check_acceptability=run_check_acceptability,
                                     clobber=clobber)
         del(beamfits_obj)
@@ -1175,7 +1217,8 @@ class UVBeam(UVBase):
     def read_cst_beam(self, filename, beam_type='power', feed_pol='x', rotate_pol=None,
                       frequency=None, telescope_name=None, feed_name=None,
                       feed_version=None, model_name=None, model_version=None,
-                      history='', run_check=True, run_check_acceptability=True):
+                      history='', run_check=True, check_extra=True,
+                      run_check_acceptability=True):
         """
         Read in data from a cst file.
 
@@ -1201,6 +1244,8 @@ class UVBeam(UVBase):
             history: A string detailing the history of the filename(s).
             run_check: Option to check for the existence and proper shapes of
                 required parameters after reading in the file. Default is True.
+            check_extra: Option to check optional parameters as well as
+                required ones. Default is True.
             run_check_acceptability: Option to check acceptable range of the values of
                 required parameters after reading in the file. Default is True.
         """
@@ -1247,6 +1292,7 @@ class UVBeam(UVBase):
                                model_name=model_name,
                                model_version=model_version,
                                history=history, run_check=run_check,
+                               check_extra=check_extra,
                                run_check_acceptability=run_check_acceptability)
             for file_i, f in enumerate(filename[1:]):
                 if isinstance(frequency, (list, tuple)):
@@ -1269,6 +1315,7 @@ class UVBeam(UVBase):
                                     model_name=model_name,
                                     model_version=model_version,
                                     history=history, run_check=run_check,
+                                    check_extra=check_extra,
                                     run_check_acceptability=run_check_acceptability)
                 self += beam2
             del(beam2)
@@ -1289,6 +1336,7 @@ class UVBeam(UVBase):
                                        model_name=model_name,
                                        model_version=model_version,
                                        history=history, run_check=run_check,
+                                       check_extra=check_extra,
                                        run_check_acceptability=run_check_acceptability)
             self._convert_from_filetype(cst_beam_obj)
             del(cst_beam_obj)

@@ -26,7 +26,7 @@ class BeamFITS(UVBeam):
     frequency, efield vectors).
     """
 
-    def read_beamfits(self, filename, run_check=True,
+    def read_beamfits(self, filename, run_check=True, check_extra=True,
                       run_check_acceptability=True):
         """
         Read the data from a beamfits file.
@@ -35,6 +35,8 @@ class BeamFITS(UVBeam):
             filename: The beamfits file to write to.
             run_check: Option to check for the existence and proper shapes of
                 required parameters after reading in the file. Default is True.
+            check_extra: Option to check optional parameters as well as
+                required ones. Default is True.
             run_check_acceptability: Option to check acceptability of the values of
                 required parameters after reading in the file. Default is True.
         """
@@ -270,9 +272,10 @@ class BeamFITS(UVBeam):
             self.bandpass_array = np.zeros((self.Nspws, self.Nfreqs)) + 1.
 
         if run_check:
-            self.check(run_check_acceptability=run_check_acceptability)
+            self.check(check_extra=check_extra,
+                       run_check_acceptability=run_check_acceptability)
 
-    def write_beamfits(self, filename, run_check=True,
+    def write_beamfits(self, filename, run_check=True, check_extra=True,
                        run_check_acceptability=True, clobber=False):
         """
         Write the data to a beamfits file.
@@ -281,12 +284,15 @@ class BeamFITS(UVBeam):
             filename: The beamfits file to write to.
             run_check: Option to check for the existence and proper shapes of
                 required parameters before writing the file. Default is True.
+            check_extra: Option to check optional parameters as well as
+                required ones. Default is True.
             run_check_acceptability: Option to check acceptability of the values of
                 required parameters before writing the file. Default is True.
 
         """
         if run_check:
-            self.check(run_check_acceptability=run_check_acceptability)
+            self.check(check_extra=check_extra,
+                       run_check_acceptability=run_check_acceptability)
 
         if self.antenna_type != 'simple':
             raise ValueError('This beam fits writer currently only supports '
