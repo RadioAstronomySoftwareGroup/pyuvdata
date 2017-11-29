@@ -173,6 +173,26 @@ class CALFITS(UVCal):
         prihdr['CRVAL6'] = 1
         prihdr['CDELT6'] = -1
 
+        # end standard keywords; begin user-defined keywords
+        for key, value in self.extra_keywords.iteritems():
+            # header keywords have to be 8 characters or less
+            if len(str(key)) > 8:
+                warnings.warn('key {key} in extra_keywords is longer than 8 '
+                              'characters. It will be truncated to 8 as required '
+                              'by the calfits file format.'.format(key=key))
+            keyword = key[:8].upper()
+            if isinstance(value, (dict, list, np.ndarray)):
+                raise TypeError('Extra keyword {keyword} is of {keytype}. '
+                                'Only strings and numbers are '
+                                'supported in calfits.'.format(keyword=key,
+                                                               keytype=type(value)))
+
+            if keyword == 'COMMENT':
+                for line in value.splitlines():
+                    prihdr.add_comment(line)
+            else:
+                prihdr[keyword] = value
+
         # define data section based on calibration type
         if self.cal_type == 'gain':
             if self.input_flag_array is not None:
@@ -341,9 +361,9 @@ class CALFITS(UVCal):
             # Remove the padded entries.
             self.ant_array = self.ant_array[np.where(self.ant_array >= 0)[0]]
 
-        self.channel_width = hdr['CHWIDTH']
-        self.integration_time = hdr['INTTIME']
-        self.telescope_name = hdr['TELESCOP']
+        self.channel_width = hdr.pop('CHWIDTH')
+        self.integration_time = hdr.pop('INTTIME')
+        self.telescope_name = hdr.pop('TELESCOP')
         self.history = str(hdr.get('HISTORY', ''))
 
         if not uvutils.check_history_version(self.history, self.pyuvdata_version_str):
@@ -354,26 +374,26 @@ class CALFITS(UVCal):
 
         while 'HISTORY' in hdr.keys():
             hdr.remove('HISTORY')
-        self.time_range = map(float, hdr['TMERANGE'].split(','))
-        self.gain_convention = hdr['GNCONVEN']
-        self.x_orientation = hdr['XORIENT']
-        self.cal_type = hdr['CALTYPE']
+        self.time_range = map(float, hdr.pop('TMERANGE').split(','))
+        self.gain_convention = hdr.pop('GNCONVEN')
+        self.x_orientation = hdr.pop('XORIENT')
+        self.cal_type = hdr.pop('CALTYPE')
         if self.cal_type == 'delay':
-            self.freq_range = map(float, hdr['FRQRANGE'].split(','))
+            self.freq_range = map(float, hdr.pop('FRQRANGE').split(','))
         else:
             if 'FRQRANGE' in hdr:
-                self.freq_range = map(float, hdr['FRQRANGE'].split(','))
+                self.freq_range = map(float, hdr.pop('FRQRANGE').split(','))
         if 'OBSERVER' in hdr:
-            self.observer = hdr['OBSERVER']
+            self.observer = hdr.pop('OBSERVER')
         if 'ORIGCAL' in hdr:
-            self.git_origin_cal = hdr['ORIGCAL']
+            self.git_origin_cal = hdr.pop('ORIGCAL')
         if 'HASHCAL' in hdr:
-            self.git_hash_cal = hdr['HASHCAL']
+            self.git_hash_cal = hdr.pop('HASHCAL')
 
         # generate polarization and time array for either cal_type.
-        self.Njones = hdr['NAXIS2']
+        self.Njones = hdr.pop('NAXIS2')
         self.jones_array = uvutils.fits_gethduaxis(F[0], 2, strict_fits=strict_fits)
-        self.Ntimes = hdr['NAXIS3']
+        self.Ntimes = hdr.pop('NAXIS3')
         self.time_array = uvutils.fits_gethduaxis(F[0], 3, strict_fits=strict_fits)
 
         # get data.
@@ -381,15 +401,15 @@ class CALFITS(UVCal):
             self.set_gain()
             self.gain_array = data[:, :, :, :, :, 0] + 1j * data[:, :, :, :, :, 1]
             self.flag_array = data[:, :, :, :, :, 2].astype('bool')
-            if hdr['NAXIS1'] == 5:
+            if hdr.pop('NAXIS1') == 5:
                 self.input_flag_array = data[:, :, :, :, :, 3].astype('bool')
                 self.quality_array = data[:, :, :, :, :, 4]
             else:
                 self.quality_array = data[:, :, :, :, :, 3]
 
-            self.Nants_data = hdr['NAXIS6']
+            self.Nants_data = hdr.pop('NAXIS6')
 
-            self.Nspws = hdr['NAXIS5']
+            self.Nspws = hdr.pop('NAXIS5')
             # add this for backwards compatibility when the spw CRVAL wasn't recorded
             try:
                 spw_array = uvutils.fits_gethduaxis(F[0], 5, strict_fits=strict_fits) - 1
@@ -408,7 +428,7 @@ class CALFITS(UVCal):
                     raise
 
             # generate frequency array from primary data unit.
-            self.Nfreqs = hdr['NAXIS4']
+            self.Nfreqs = hdr.pop('NAXIS4')
             self.freq_array = uvutils.fits_gethduaxis(F[0], 4, strict_fits=strict_fits)
             self.freq_array.shape = (self.Nspws,) + self.freq_array.shape
 
@@ -416,14 +436,14 @@ class CALFITS(UVCal):
             self.set_delay()
             try:
                 # delay-style should have the same number of axes as gains
-                self.Nants_data = hdr['NAXIS6']
-                self.Nspws = hdr['NAXIS5']
+                self.Nants_data = hdr.pop('NAXIS6')
+                self.Nspws = hdr.pop('NAXIS5')
                 ax_spw = 5
                 old_delay = False
             except(KeyError):
                 _warn_olddelay(filename)
-                self.Nants_data = hdr['NAXIS5']
-                self.Nspws = hdr['NAXIS4']
+                self.Nants_data = hdr.pop('NAXIS5')
+                self.Nspws = hdr.pop('NAXIS4')
                 ax_spw = 4
                 old_delay = True
 
@@ -487,6 +507,25 @@ class CALFITS(UVCal):
                                rtol=self._jones_array.tols[0],
                                atol=self._jones_array.tols[0]):
                 raise ValueError('Jones values are different in FLAGS HDU than in primary HDU')
+
+        # remove standard FITS header items that are still around
+        std_fits_substrings = ['SIMPLE', 'BITPIX', 'EXTEND', 'BLOCKED',
+                               'GROUPS', 'PCOUNT', 'BSCALE', 'BZERO', 'NAXIS',
+                               'PTYPE', 'PSCAL', 'PZERO', 'CTYPE', 'CRVAL',
+                               'CRPIX', 'CDELT', 'CROTA', 'CUNIT']
+        for key in hdr.keys():
+            for sub in std_fits_substrings:
+                if key.find(sub) > -1:
+                    hdr.remove(key)
+
+        # find all the remaining header items and keep them as extra_keywords
+        for key in hdr:
+            if key == '':
+                continue
+            if key == 'COMMENT':
+                self.extra_keywords[key] = str(hdr.get(key))
+            else:
+                self.extra_keywords[key] = hdr.get(key)
 
         # get total quality array if present
         if 'TOTQLTY' in hdunames:
