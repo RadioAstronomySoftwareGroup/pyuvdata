@@ -17,7 +17,7 @@ class CSTBeam(UVBeam):
     def read_cst_beam(self, filename, beam_type='power', feed_pol='x',
                       rotate_pol=True, frequency=None, telescope_name=None,
                       feed_name=None, feed_version=None, model_name=None, model_version=None,
-                      history='', run_check=True, run_check_acceptability=True):
+                      history='', run_check=True, check_extra=True, run_check_acceptability=True):
 
         """
         Read in data from a cst file.
@@ -40,6 +40,8 @@ class CSTBeam(UVBeam):
             history: A string detailing the history of the filename.
             run_check: Option to check for the existence and proper shapes of
                 required parameters after reading in the file. Default is True.
+            check_extra: Option to check optional parameters as well as required
+                ones. Default is True.
             run_check_acceptability: Option to check acceptable range of the values of
                 required parameters after reading in the file. Default is True.
         """
@@ -211,7 +213,8 @@ class CSTBeam(UVBeam):
                           '{freqs} Hz'.format(freqs=self.freq_array))
 
         if run_check:
-            self.check(run_check_acceptability=run_check_acceptability)
+            self.check(check_extra=check_extra,
+                       run_check_acceptability=run_check_acceptability)
 
     def name2freq(self, fname):
         """
