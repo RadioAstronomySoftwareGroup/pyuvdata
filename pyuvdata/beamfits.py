@@ -2,6 +2,7 @@
 import numpy as np
 import astropy
 from astropy.io import fits
+import warnings
 from uvbeam import UVBeam
 import utils as uvutils
 
@@ -449,7 +450,18 @@ class BeamFITS(UVBeam):
         # end standard keywords; begin user-defined keywords
         for key, value in self.extra_keywords.iteritems():
             # header keywords have to be 8 characters or less
+            if len(str(key)) > 8:
+                warnings.warn('key {key} in extra_keywords is longer than 8 '
+                              'characters. It will be truncated to 8 as required '
+                              'by the uvfits file format.'.format(key=key))
             keyword = key[:8].upper()
+            if isinstance(value, (dict, list, np.ndarray)):
+                raise TypeError('Extra keyword {keyword} is of {keytype}. '
+                                'Only strings and numbers are '
+                                'supported in uvfits.'.format(keyword=key,
+                                                              keytype=type(value)))
+
+            # print "keyword=-value-", keyword+'='+'-'+str(value)+'-'
             if keyword == 'COMMENT':
                 for line in value.splitlines():
                     primary_header.add_comment(line)

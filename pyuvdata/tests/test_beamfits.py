@@ -5,6 +5,7 @@ import numpy as np
 import astropy
 from astropy.io import fits
 from pyuvdata import UVBeam
+import pyuvdata.tests as uvtest
 from pyuvdata.data import DATA_PATH
 import pyuvdata.utils as uvutils
 from .test_uvbeam import fill_dummy_beam
@@ -333,8 +334,100 @@ def test_casa_beam():
     # For now pretend it's in sine projection of az/za
     beam_in.pixel_coordinate_system = 'sin_zenith'
 
+    expected_extra_keywords = ['OBSERVER', 'OBSDEC', 'DATAMIN', 'OBJECT',
+                               'INSTRUME', 'DATAMAX', 'OBSRA', 'ORIGIN',
+                               'DATE-MAP', 'DATE', 'EQUINOX', 'DATE-OBS',
+                               'COMMENT']
+    nt.assert_equal(expected_extra_keywords.sort(),
+                    beam_in.extra_keywords.keys().sort())
+
     beam_in.write_beamfits(write_file, clobber=True)
     beam_out.read_beamfits(write_file)
+
+    nt.assert_equal(beam_in, beam_out)
+
+
+def test_extra_keywords():
+    beam_in = UVBeam()
+    beam_out = UVBeam()
+    casa_file = os.path.join(DATA_PATH, 'HERABEAM.FITS')
+    testfile = os.path.join(DATA_PATH, 'test/outtest_beam.fits')
+    beam_in.read_beamfits(casa_file, run_check=False)
+
+    # fill in missing parameters
+    beam_in.data_normalization = 'peak'
+    beam_in.feed_name = 'casa_ideal'
+    beam_in.feed_version = 'v0'
+    beam_in.model_name = 'casa_airy'
+    beam_in.model_version = 'v0'
+
+    # this file is actually in sine projection RA/DEC at zenith at a particular time.
+    # For now pretend it's in sine projection of az/za
+    beam_in.pixel_coordinate_system = 'sin_zenith'
+
+    # check for warnings & errors with extra_keywords that are dicts, lists or arrays
+    beam_in.extra_keywords['testdict'] = {'testkey': 23}
+    uvtest.checkWarnings(beam_in.check, message=['testdict in extra_keywords is a '
+                                                 'list, array or dict'])
+    nt.assert_raises(TypeError, beam_in.write_beamfits, testfile, run_check=False)
+    beam_in.extra_keywords.pop('testdict')
+
+    beam_in.extra_keywords['testlist'] = [12, 14, 90]
+    uvtest.checkWarnings(beam_in.check, message=['testlist in extra_keywords is a '
+                                                 'list, array or dict'])
+    nt.assert_raises(TypeError, beam_in.write_beamfits, testfile, run_check=False)
+    beam_in.extra_keywords.pop('testlist')
+
+    beam_in.extra_keywords['testarr'] = np.array([12, 14, 90])
+    uvtest.checkWarnings(beam_in.check, message=['testarr in extra_keywords is a '
+                                                 'list, array or dict'])
+    nt.assert_raises(TypeError, beam_in.write_beamfits, testfile, run_check=False)
+    beam_in.extra_keywords.pop('testarr')
+
+    # check for warnings with extra_keywords keys that are too long
+    beam_in.extra_keywords['test_long_key'] = True
+    uvtest.checkWarnings(beam_in.check, message=['key test_long_key in extra_keywords '
+                                                 'is longer than 8 characters'])
+    uvtest.checkWarnings(beam_in.write_beamfits, [testfile], {'run_check': False,
+                                                              'clobber': True},
+                         message=['key test_long_key in extra_keywords is longer than 8 characters'])
+    beam_in.extra_keywords.pop('test_long_key')
+
+    # check handling of boolean keywords
+    beam_in.extra_keywords['bool'] = True
+    beam_in.extra_keywords['bool2'] = False
+    beam_in.write_beamfits(testfile, clobber=True)
+    beam_out.read_beamfits(testfile, run_check=False)
+
+    nt.assert_equal(beam_in, beam_out)
+    beam_in.extra_keywords.pop('bool')
+    beam_in.extra_keywords.pop('bool2')
+
+    # check handling of int-like keywords
+    beam_in.extra_keywords['int1'] = np.int(5)
+    beam_in.extra_keywords['int2'] = 7
+    beam_in.write_beamfits(testfile, clobber=True)
+    beam_out.read_beamfits(testfile, run_check=False)
+
+    nt.assert_equal(beam_in, beam_out)
+    beam_in.extra_keywords.pop('int1')
+    beam_in.extra_keywords.pop('int2')
+
+    # check handling of float-like keywords
+    beam_in.extra_keywords['float1'] = np.int64(5.3)
+    beam_in.extra_keywords['float2'] = 6.9
+    beam_in.write_beamfits(testfile, clobber=True)
+    beam_out.read_beamfits(testfile, run_check=False)
+
+    nt.assert_equal(beam_in, beam_out)
+    beam_in.extra_keywords.pop('float1')
+    beam_in.extra_keywords.pop('float2')
+
+    # check handling of complex-like keywords
+    beam_in.extra_keywords['complex1'] = np.complex64(5.3 + 1.2j)
+    beam_in.extra_keywords['complex2'] = 6.9 + 4.6j
+    beam_in.write_beamfits(testfile, clobber=True)
+    beam_out.read_beamfits(testfile, run_check=False)
 
     nt.assert_equal(beam_in, beam_out)
 
