@@ -514,7 +514,6 @@ class UVFITS(UVData):
                                 'supported in uvfits.'.format(keyword=key,
                                                               keytype=type(value)))
 
-            # print "keyword=-value-", keyword+'='+'-'+str(value)+'-'
             if keyword == 'COMMENT':
                 for line in value.splitlines():
                     hdu.header.add_comment(line)
