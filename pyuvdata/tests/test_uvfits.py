@@ -164,6 +164,17 @@ def test_extra_keywords():
     uvtest.checkWarnings(uv_out.read_uvfits, [testfile], message='Telescope EVLA is not')
 
     nt.assert_equal(uv_in, uv_out)
+    uv_in.extra_keywords.pop('complex1')
+    uv_in.extra_keywords.pop('complex2')
+
+    # check handling of comment keywords
+    uv_in.extra_keywords['comment'] = ('this is a very long comment that will '
+                                       'be broken into several lines\nif '
+                                       'everything works properly.')
+    uv_in.write_uvfits(testfile)
+    uvtest.checkWarnings(uv_out.read_uvfits, [testfile], message='Telescope EVLA is not')
+
+    nt.assert_equal(uv_in, uv_out)
 
 
 def test_ReadUVFitsWriteMiriad():

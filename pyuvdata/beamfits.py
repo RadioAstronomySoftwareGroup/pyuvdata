@@ -185,11 +185,9 @@ class BeamFITS(UVBeam):
 
         # find all the remaining header items and keep them as extra_keywords
         for key in primary_header:
-            if key == '':
-                continue
             if key == 'COMMENT':
                 self.extra_keywords[key] = str(primary_header.get(key))
-            else:
+            elif key != '':
                 self.extra_keywords[key] = primary_header.get(key)
 
         if self.beam_type == 'efield':
