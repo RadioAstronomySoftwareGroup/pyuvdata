@@ -204,11 +204,9 @@ class UVFITS(UVData):
 
         # find all the remaining header items and keep them as extra_keywords
         for key in hdr:
-            if key == '':
-                continue
             if key == 'COMMENT':
                 self.extra_keywords[key] = str(hdr.get(key))
-            else:
+            elif key != '':
                 self.extra_keywords[key] = hdr.get(key)
 
         # READ the antenna table
