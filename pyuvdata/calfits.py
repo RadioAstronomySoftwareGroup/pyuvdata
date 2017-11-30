@@ -108,8 +108,6 @@ class CALFITS(UVCal):
         elif self.freq_range is not None:
             prihdr['FRQRANGE'] = ','.join(map(str, self.freq_range))
         prihdr['TMERANGE'] = ','.join(map(str, self.time_range))
-        for line in self.history.splitlines():
-            prihdr.add_history(line)
 
         for p in self.extra():
             ep = getattr(self, p)
@@ -192,6 +190,9 @@ class CALFITS(UVCal):
                     prihdr.add_comment(line)
             else:
                 prihdr[keyword] = value
+
+        for line in self.history.splitlines():
+            prihdr.add_history(line)
 
         # define data section based on calibration type
         if self.cal_type == 'gain':
