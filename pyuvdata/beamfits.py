@@ -459,7 +459,6 @@ class BeamFITS(UVBeam):
                                 'supported in uvfits.'.format(keyword=key,
                                                               keytype=type(value)))
 
-            # print "keyword=-value-", keyword+'='+'-'+str(value)+'-'
             if keyword == 'COMMENT':
                 for line in value.splitlines():
                     primary_header.add_comment(line)
