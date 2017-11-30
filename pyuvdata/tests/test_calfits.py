@@ -239,6 +239,17 @@ def test_extra_keywords():
     cal_out.read_calfits(testfile)
 
     nt.assert_equal(cal_in, cal_out)
+    cal_in.extra_keywords.pop('complex1')
+    cal_in.extra_keywords.pop('complex2')
+
+    # check handling of comment keywords
+    cal_in.extra_keywords['comment'] = ('this is a very long comment that will '
+                                        'be broken into several lines\nif '
+                                        'everything works properly.')
+    cal_in.write_calfits(testfile, clobber=True)
+    cal_out.read_calfits(testfile)
+
+    nt.assert_equal(cal_in, cal_out)
 
 
 def test_read_oldcalfits():
