@@ -551,6 +551,8 @@ class UVCal(UVBase):
             else:
                 raise ValueError('delay_convention can only be "minus" or "plus"')
 
+            self.history += '  Converted from delays to gains using pyuvdata.'
+
             phase_array = np.zeros((self.Nants_data, self.Nspws, self.Nfreqs, self.Ntimes, self.Njones))
             for si in range(self.Nspws):
                 temp = conv * 2 * np.pi * np.dot(self.delay_array[:, si, 0, :, :, np.newaxis],
