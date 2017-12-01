@@ -191,6 +191,9 @@ class TestUVCalBasicMethods(object):
                                        rtol=self.new_object._quality_array.tols[0],
                                        atol=self.new_object._quality_array.tols[1]))
 
+            nt.assert_equal(self.new_object.history, self.delay_object.history +
+                            '  Converted from delays to gains using pyuvdata.')
+
         # test a file with a total_quality_array
         self.new_object = copy.deepcopy(self.delay_object)
         tqa_size = self.new_object.delay_array.shape[1:]
@@ -211,6 +214,9 @@ class TestUVCalBasicMethods(object):
                                    self.new_object.quality_array[:, :, 10, :, :],
                                    rtol=self.new_object._quality_array.tols[0],
                                    atol=self.new_object._quality_array.tols[1]))
+
+        nt.assert_equal(self.new_object.history, self.delay_object.history +
+                        '  Converted from delays to gains using pyuvdata.')
 
         # error testing
         nt.assert_raises(ValueError, self.delay_object.convert_to_gain, delay_convention='bogus')
