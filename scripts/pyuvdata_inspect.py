@@ -60,7 +60,7 @@ for i, f in enumerate(args.files):
                 if args.verbose is True:
                     print("opened {0} as a {1} file with the {2} pyuvdata object".format(f, filetype, ob_names[j]))
             except:
-                pass
+                continue
             # exit loop if opened
             if opened is True:
                 break
