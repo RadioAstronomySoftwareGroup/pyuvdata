@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import argparse
-from pyuvdata import UVData, UVFITS, UVBeam, UVCal
+from pyuvdata import UVData, UVBeam, UVCal
 import os
 
 # setup argparse
@@ -25,10 +25,9 @@ if len(args.files) == 0:
     raise Exception("no files fed...")
 
 # pack data objects, their names, and read functions
-objs = [UVData, UVFITS, UVCal, UVBeam]
-ob_names = ['UVData', 'UVFITS', 'UVCal', 'UVBeam']
+objs = [UVData, UVCal, UVBeam]
+ob_names = ['UVData', 'UVCal', 'UVBeam']
 ob_reads = [['read_miriad', 'read_fhd', 'read_ms', 'read_uvfits'],
-            ['read_miriad', 'read_fhd', 'read_ms', 'read_uvfits'],
             ['read_calfits'],
             ['read_beamfits']]
 
@@ -59,7 +58,7 @@ for i, f in enumerate(args.files):
                 filetype = r.split('_')[-1]
                 if args.verbose is True:
                     print("opened {0} as a {1} file with the {2} pyuvdata object".format(f, filetype, ob_names[j]))
-            except:
+            except (IOError, KeyError, ValueError, RuntimeError):
                 continue
             # exit loop if opened
             if opened is True:
