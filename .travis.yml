@@ -30,6 +30,7 @@ install:
   - conda install -c conda-forge healpy
   - conda install -c conda-forge aipy
   - conda install -c conda-forge python-casacore
+  - conda install -c conda-forge pycodestyle
   - pip install coveralls
   - conda list
 script:
