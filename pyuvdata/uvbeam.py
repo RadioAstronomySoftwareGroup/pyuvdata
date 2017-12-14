@@ -329,6 +329,11 @@ class UVBeam(UVBase):
         super(UVBeam, self).check(check_extra=check_extra,
                                   run_check_acceptability=run_check_acceptability)
 
+        # check that basis_vector_array are basis vectors
+        if self.beam_type == 'efield':
+            if np.max(np.linalg.norm(self.basis_vector_array, axis=1)) > 1:
+                raise ValueError('basis vectors must have lengths of 1 or less.')
+
         # issue warning if extra_keywords keys are longer than 8 characters
         for key in self.extra_keywords.keys():
             if len(key) > 8:
@@ -1252,12 +1257,26 @@ class UVBeam(UVBase):
                 required parameters after reading in the file. Default is True.
         """
         import cst_beam
+        if isinstance(filename, np.ndarray):
+            if len(filename.shape) > 1:
+                raise ValueError('filename can not be a multi-dimensional array')
+            filename = filename.tolist()
         if isinstance(filename, (list, tuple)):
             if len(filename) == 1:
                 filename = filename[0]
+
+        if isinstance(frequency, np.ndarray):
+            if len(frequency.shape) > 1:
+                raise ValueError('frequency can not be a multi-dimensional array')
+            frequency = frequency.tolist()
         if isinstance(frequency, (list, tuple)):
             if len(frequency) == 1:
                 frequency = frequency[0]
+
+        if isinstance(feed_pol, np.ndarray):
+            if len(feed_pol.shape) > 1:
+                raise ValueError('frequency can not be a multi-dimensional array')
+            feed_pol = feed_pol.tolist()
         if isinstance(feed_pol, (list, tuple)):
             if len(feed_pol) == 1:
                 feed_pol = feed_pol[0]
@@ -1285,6 +1304,10 @@ class UVBeam(UVBase):
                 pol = feed_pol
                 if rotate_pol is None:
                     rotate_pol = True
+            if isinstance(freq, (list, tuple)):
+                raise ValueError('frequency can not be a nested list')
+            if isinstance(pol, (list, tuple)):
+                raise ValueError('feed_pol can not be a nested list')
             self.read_cst_beam(filename[0], beam_type=beam_type,
                                feed_pol=pol, rotate_pol=rotate_pol,
                                frequency=freq,
@@ -1297,6 +1320,9 @@ class UVBeam(UVBase):
                                check_extra=check_extra,
                                run_check_acceptability=run_check_acceptability)
             for file_i, f in enumerate(filename[1:]):
+                if isinstance(f, (list, tuple)):
+                    raise ValueError('filename can not be a nested list')
+
                 if isinstance(frequency, (list, tuple)):
                     freq = frequency[file_i + 1]
                 elif frequency is not None:

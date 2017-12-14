@@ -284,13 +284,22 @@ def test_select_pixels():
     power_beam2.write_beamfits(write_file_beamfits, clobber=True)
 
     # check for errors selecting pixels on non-healpix beams
-    power_beam = fill_dummy_beam(power_beam, 'power', 'az_za')
+    power_beam.read_cst_beam(cst_files, beam_type='power', frequency=[150e6, 123e6],
+                             telescope_name='TEST', feed_name='bob',
+                             feed_version='0.1', feed_pol=['x'],
+                             model_name='E-field pattern - Rigging height 4.9m',
+                             model_version='1.0')
+
     nt.assert_raises(ValueError, power_beam.select, pixels=pixels_to_keep)
 
 
 def test_select_axis1():
     power_beam = UVBeam()
-    power_beam = fill_dummy_beam(power_beam, 'power', 'az_za')
+    power_beam.read_cst_beam(cst_files, beam_type='power', frequency=[150e6, 123e6],
+                             telescope_name='TEST', feed_name='bob',
+                             feed_version='0.1', feed_pol=['x'],
+                             model_name='E-field pattern - Rigging height 4.9m',
+                             model_version='1.0')
 
     old_history = power_beam.history
     inds1_to_keep = np.arange(14, 63)
@@ -330,7 +339,11 @@ def test_select_axis1():
 
 def test_select_axis2():
     power_beam = UVBeam()
-    power_beam = fill_dummy_beam(power_beam, 'power', 'az_za')
+    power_beam.read_cst_beam(cst_files, beam_type='power', frequency=[150e6, 123e6],
+                             telescope_name='TEST', feed_name='bob',
+                             feed_version='0.1', feed_pol=['x'],
+                             model_name='E-field pattern - Rigging height 4.9m',
+                             model_version='1.0')
 
     old_history = power_beam.history
     inds2_to_keep = np.arange(5, 14)
@@ -370,10 +383,19 @@ def test_select_axis2():
 
 def test_select_frequencies():
     power_beam = UVBeam()
-    power_beam = fill_dummy_beam(power_beam, 'power', 'az_za')
+    # generate more frequencies for testing by reading them in several times
+    files_use = [cst_files[num % 2] for num in range(10)]
+    frequencies = np.arange(150e6, 160e6, 1e6)
+    print(len(files_use))
+    print(len(frequencies))
+    power_beam.read_cst_beam(files_use, beam_type='power', frequency=frequencies,
+                             telescope_name='TEST', feed_name='bob',
+                             feed_version='0.1', feed_pol=['x'],
+                             model_name='E-field pattern - Rigging height 4.9m',
+                             model_version='1.0')
 
     old_history = power_beam.history
-    freqs_to_keep = power_beam.freq_array[0, np.arange(7, 94)]
+    freqs_to_keep = power_beam.freq_array[0, np.arange(2, 9)]
 
     power_beam2 = power_beam.select(frequencies=freqs_to_keep, inplace=False)
 
@@ -390,7 +412,7 @@ def test_select_frequencies():
     write_file_beamfits = os.path.join(DATA_PATH, 'test/select_beam.fits')
     # test writing beamfits with only one frequency
 
-    freqs_to_keep = power_beam.freq_array[0, 51]
+    freqs_to_keep = power_beam.freq_array[0, 5]
     power_beam2 = power_beam.select(frequencies=freqs_to_keep, inplace=False)
     power_beam2.write_beamfits(write_file_beamfits, clobber=True)
 
@@ -407,10 +429,17 @@ def test_select_frequencies():
 
 def test_select_freq_chans():
     power_beam = UVBeam()
-    power_beam = fill_dummy_beam(power_beam, 'power', 'az_za')
+    # generate more frequencies for testing by reading them in several times
+    files_use = [cst_files[num % 2] for num in range(10)]
+    frequencies = np.arange(150e6, 160e6, 1e6)
+    power_beam.read_cst_beam(files_use, beam_type='power', frequency=frequencies,
+                             telescope_name='TEST', feed_name='bob',
+                             feed_version='0.1', feed_pol=['x'],
+                             model_name='E-field pattern - Rigging height 4.9m',
+                             model_version='1.0')
 
     old_history = power_beam.history
-    chans_to_keep = np.arange(7, 94)
+    chans_to_keep = np.arange(2, 9)
 
     power_beam2 = power_beam.select(freq_chans=chans_to_keep, inplace=False)
 
@@ -425,8 +454,8 @@ def test_select_freq_chans():
                                            power_beam2.history))
 
     # Test selecting both channels and frequencies
-    freqs_to_keep = power_beam.freq_array[0, np.arange(93, 100)]  # Overlaps with chans
-    all_chans_to_keep = np.arange(7, 100)
+    freqs_to_keep = power_beam.freq_array[0, np.arange(6, 10)]  # Overlaps with chans
+    all_chans_to_keep = np.arange(2, 10)
 
     power_beam2 = power_beam.select(frequencies=freqs_to_keep,
                                     freq_chans=chans_to_keep,
@@ -441,7 +470,11 @@ def test_select_freq_chans():
 
 def test_select_feeds():
     efield_beam = UVBeam()
-    efield_beam = fill_dummy_beam(efield_beam, 'efield', 'az_za')
+    efield_beam.read_cst_beam(cst_files, beam_type='efield', frequency=[150e6, 123e6],
+                              telescope_name='TEST', feed_name='bob',
+                              feed_version='0.1', feed_pol=['x'],
+                              model_name='E-field pattern - Rigging height 4.9m',
+                              model_version='1.0')
 
     old_history = efield_beam.history
     feeds_to_keep = ['x']
@@ -463,13 +496,23 @@ def test_select_feeds():
 
     # check for error with feeds on power beams
     power_beam = UVBeam()
-    power_beam = fill_dummy_beam(power_beam, 'power', 'az_za')
+    power_beam.read_cst_beam(cst_files, beam_type='power', frequency=[150e6, 123e6],
+                             telescope_name='TEST', feed_name='bob',
+                             feed_version='0.1', feed_pol=['x'],
+                             model_name='E-field pattern - Rigging height 4.9m',
+                             model_version='1.0')
     nt.assert_raises(ValueError, power_beam.select, feeds=['x'])
 
 
 def test_select_polarizations():
     power_beam = UVBeam()
-    power_beam = fill_dummy_beam(power_beam, 'power', 'az_za')
+    # generate more frequencies for testing by reading them in several times
+    files_use = [cst_files[0] for num in range(4)]
+    power_beam.read_cst_beam(files_use, beam_type='power', frequency=150e6,
+                             telescope_name='TEST', feed_name='bob',
+                             feed_version='0.1', feed_pol=['xx', 'yy', 'xy', 'yx'],
+                             model_name='E-field pattern - Rigging height 4.9m',
+                             model_version='1.0')
 
     old_history = power_beam.history
     pols_to_keep = [-5, -6]
@@ -498,20 +541,28 @@ def test_select_polarizations():
 
     # check for error with polarizations on efield beams
     efield_beam = UVBeam()
-    efield_beam = fill_dummy_beam(efield_beam, 'efield', 'az_za')
+    efield_beam.read_cst_beam(cst_files, beam_type='efield', frequency=[150e6, 123e6],
+                              telescope_name='TEST', feed_name='bob',
+                              feed_version='0.1', feed_pol=['x'],
+                              model_name='E-field pattern - Rigging height 4.9m',
+                              model_version='1.0')
     nt.assert_raises(ValueError, efield_beam.select, polarizations=[-5, -6])
 
 
 def test_select():
     power_beam = UVBeam()
-    power_beam = fill_dummy_beam(power_beam, 'power', 'az_za')
+    power_beam.read_cst_beam(cst_files, beam_type='power', frequency=[150e6, 123e6],
+                             telescope_name='TEST', feed_name='bob',
+                             feed_version='0.1', feed_pol=['x'],
+                             model_name='E-field pattern - Rigging height 4.9m',
+                             model_version='1.0')
 
     # now test selecting along all axes at once
     old_history = power_beam.history
 
     inds1_to_keep = np.arange(14, 63)
     inds2_to_keep = np.arange(5, 14)
-    freqs_to_keep = power_beam.freq_array[0, np.arange(31, 56)]
+    freqs_to_keep = [power_beam.freq_array[0, 0]]
     pols_to_keep = [-5]
 
     power_beam2 = power_beam.select(axis1_inds=inds1_to_keep,
@@ -552,7 +603,11 @@ def test_select():
 
     # repeat for efield beam
     efield_beam = UVBeam()
-    efield_beam = fill_dummy_beam(efield_beam, 'efield', 'az_za')
+    efield_beam.read_cst_beam(cst_files, beam_type='efield', frequency=[150e6, 123e6],
+                              telescope_name='TEST', feed_name='bob',
+                              feed_version='0.1', feed_pol=['x'],
+                              model_name='E-field pattern - Rigging height 4.9m',
+                              model_version='1.0')
     feeds_to_keep = ['x']
 
     efield_beam2 = efield_beam.select(axis1_inds=inds1_to_keep,
@@ -667,11 +722,14 @@ def test_select_healpix():
 
 def test_add():
     power_beam_full = UVBeam()
-    power_beam_full = fill_dummy_beam(power_beam_full, 'power', 'az_za')
-
+    power_beam_full.read_cst_beam(cst_files, beam_type='power', frequency=[150e6, 123e6],
+                                  telescope_name='TEST', feed_name='bob',
+                                  feed_version='0.1', feed_pol=['x'],
+                                  model_name='E-field pattern - Rigging height 4.9m',
+                                  model_version='1.0')
     # Add along first image axis
-    beam1 = power_beam_full.select(axis1_inds=np.arange(0, 36), inplace=False)
-    beam2 = power_beam_full.select(axis1_inds=np.arange(36, 72), inplace=False)
+    beam1 = power_beam_full.select(axis1_inds=np.arange(0, 180), inplace=False)
+    beam2 = power_beam_full.select(axis1_inds=np.arange(180, 360), inplace=False)
     beam1 += beam2
     # Check history is correct, before replacing and doing a full object check
     nt.assert_true(uvutils.check_histories(power_beam_full.history +
@@ -683,8 +741,8 @@ def test_add():
     nt.assert_equal(beam1, power_beam_full)
 
     # Add along second image axis
-    beam1 = power_beam_full.select(axis2_inds=np.arange(0, 9), inplace=False)
-    beam2 = power_beam_full.select(axis2_inds=np.arange(9, 18), inplace=False)
+    beam1 = power_beam_full.select(axis2_inds=np.arange(0, 90), inplace=False)
+    beam2 = power_beam_full.select(axis2_inds=np.arange(90, 181), inplace=False)
     beam1 += beam2
     # Check history is correct, before replacing and doing a full object check
     nt.assert_true(uvutils.check_histories(power_beam_full.history +
@@ -696,8 +754,8 @@ def test_add():
     nt.assert_equal(beam1, power_beam_full)
 
     # Add frequencies
-    beam1 = power_beam_full.select(freq_chans=np.arange(0, 50), inplace=False)
-    beam2 = power_beam_full.select(freq_chans=np.arange(50, 100), inplace=False)
+    beam1 = power_beam_full.select(freq_chans=0, inplace=False)
+    beam2 = power_beam_full.select(freq_chans=1, inplace=False)
     beam1 += beam2
     # Check history is correct, before replacing and doing a full object check
     nt.assert_true(uvutils.check_histories(power_beam_full.history +
@@ -709,8 +767,8 @@ def test_add():
     nt.assert_equal(beam1, power_beam_full)
 
     # Add polarizations
-    beam1 = power_beam_full.select(polarizations=power_beam_full.polarization_array[0:2], inplace=False)
-    beam2 = power_beam_full.select(polarizations=power_beam_full.polarization_array[2:4], inplace=False)
+    beam1 = power_beam_full.select(polarizations=-5, inplace=False)
+    beam2 = power_beam_full.select(polarizations=-6, inplace=False)
     beam1 += beam2
     nt.assert_true(uvutils.check_histories(power_beam_full.history +
                                            '  Downselected to specific polarizations '
@@ -722,7 +780,11 @@ def test_add():
 
     # Add feeds
     efield_beam_full = UVBeam()
-    efield_beam_full = fill_dummy_beam(efield_beam_full, 'efield', 'az_za')
+    efield_beam_full.read_cst_beam(cst_files, beam_type='efield', frequency=[150e6, 123e6],
+                                   telescope_name='TEST', feed_name='bob',
+                                   feed_version='0.1', feed_pol=['x'],
+                                   model_name='E-field pattern - Rigging height 4.9m',
+                                   model_version='1.0')
     beam1 = efield_beam_full.select(feeds=efield_beam_full.feed_array[0], inplace=False)
     beam2 = efield_beam_full.select(feeds=efield_beam_full.feed_array[1], inplace=False)
     beam1 += beam2
@@ -737,11 +799,11 @@ def test_add():
     # Add multiple axes
     beam_ref = copy.deepcopy(power_beam_full)
     beam1 = power_beam_full.select(axis1_inds=np.arange(0, power_beam_full.Naxes1 / 2),
-                                   polarizations=power_beam_full.polarization_array[0:2],
+                                   polarizations=power_beam_full.polarization_array[0],
                                    inplace=False)
     beam2 = power_beam_full.select(axis1_inds=np.arange(power_beam_full.Naxes1 / 2,
                                                         power_beam_full.Naxes1),
-                                   polarizations=power_beam_full.polarization_array[2:4],
+                                   polarizations=power_beam_full.polarization_array[1],
                                    inplace=False)
     beam1 += beam2
     nt.assert_true(uvutils.check_histories(power_beam_full.history +
@@ -751,8 +813,8 @@ def test_add():
                                            'image, polarization axis using pyuvdata.',
                                            beam1.history))
     # Zero out missing data in reference object
-    beam_ref.data_array[:, :, :2, :, :, power_beam_full.Naxes1 / 2:] = 0.0
-    beam_ref.data_array[:, :, 2:, :, :, :power_beam_full.Naxes1 / 2] = 0.0
+    beam_ref.data_array[:, :, 0, :, :, power_beam_full.Naxes1 / 2:] = 0.0
+    beam_ref.data_array[:, :, 1, :, :, :power_beam_full.Naxes1 / 2] = 0.0
     beam1.history = power_beam_full.history
     nt.assert_equal(beam1, beam_ref)
 
@@ -779,7 +841,11 @@ def test_add():
     nt.assert_equal(beam1, beam_ref)
 
     # Another combo with efield
-    efield_beam_full = fill_dummy_beam(efield_beam_full, 'efield', 'az_za')
+    efield_beam_full.read_cst_beam(cst_files, beam_type='efield', frequency=[150e6, 123e6],
+                                   telescope_name='TEST', feed_name='bob',
+                                   feed_version='0.1', feed_pol=['x'],
+                                   model_name='E-field pattern - Rigging height 4.9m',
+                                   model_version='1.0')
 
     beam_ref = copy.deepcopy(efield_beam_full)
     beam1 = efield_beam_full.select(axis1_inds=np.arange(0, efield_beam_full.Naxes1 / 2),
@@ -915,7 +981,11 @@ def test_break_add():
     nt.assert_raises(ValueError, beam1.__iadd__, beam2)
 
     # Overlapping data with non-healpix
-    power_beam_full = fill_dummy_beam(power_beam_full, 'power', 'az_za')
+    power_beam_full.read_cst_beam(cst_files, beam_type='power', frequency=[150e6, 123e6],
+                                  telescope_name='TEST', feed_name='bob',
+                                  feed_version='0.1', feed_pol=['x'],
+                                  model_name='E-field pattern - Rigging height 4.9m',
+                                  model_version='1.0')
     beam1 = copy.deepcopy(power_beam_full)
     beam2 = copy.deepcopy(power_beam_full)
     nt.assert_raises(ValueError, beam1.__iadd__, beam2)

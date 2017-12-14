@@ -57,16 +57,20 @@ class CSTBeam(UVBeam):
         if beam_type is 'power':
             self.set_power()
             self.Naxes_vec = 1
+
+            if feed_pol is 'x':
+                feed_pol = 'xx'
+            elif feed_pol is 'y':
+                feed_pol = 'yy'
+
             if rotate_pol:
-                if feed_pol is 'x':
-                    self.polarization_array = np.array([-5, -6])
-                else:
-                    self.polarization_array = np.array([-6, -5])
+                rot_pol_dict = {'xx': 'yy', 'yy': 'xx', 'xy': 'yx', 'yx': 'xy'}
+                pol2 = rot_pol_dict[feed_pol]
+                self.polarization_array = np.array([uvutils.polstr2num(feed_pol),
+                                                    uvutils.polstr2num(pol2)])
             else:
-                if feed_pol is 'x':
-                    self.polarization_array = np.array([-5])
-                else:
-                    self.polarization_array = np.array([-6])
+                self.polarization_array = np.array([uvutils.polstr2num(feed_pol)])
+
             self.Npols = len(self.polarization_array)
         else:
             self.set_efield()
