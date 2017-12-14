@@ -409,3 +409,23 @@ def check_histories(history1, history2):
         return True
     else:
         return False
+
+
+def combine_histories(history1, history2):
+    hist2_words = history2.split(' ')
+    add_hist = ''
+    test_hist1 = ' ' + history1 + ' '
+    for i, word in enumerate(hist2_words):
+        if ' ' + word + ' ' not in test_hist1:
+            add_hist += ' ' + word
+            keep_going = (i + 1 < len(hist2_words))
+            while keep_going:
+                if ((hist2_words[i + 1] is ' ') or
+                        (' ' + hist2_words[i + 1] + ' ' not in test_hist1)):
+                    add_hist += ' ' + hist2_words[i + 1]
+                    del(hist2_words[i + 1])
+                    keep_going = (i + 1 < len(hist2_words))
+                else:
+                    keep_going = False
+
+    return history1 + add_hist

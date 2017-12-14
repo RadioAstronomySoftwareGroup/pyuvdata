@@ -1035,21 +1035,7 @@ class UVCal(UVBase):
             history_update_string += ' axis using pyuvdata.'
             this.history += history_update_string
 
-        other_hist_words = other.history.split(' ')
-        add_hist = ''
-        for i, word in enumerate(other_hist_words):
-            if word not in this.history:
-                add_hist += ' ' + word
-                keep_going = (i + 1 < len(other_hist_words))
-                while keep_going:
-                    if ((other_hist_words[i + 1] is ' ') or
-                            (other_hist_words[i + 1] not in this.history)):
-                        add_hist += ' ' + other_hist_words[i + 1]
-                        del(other_hist_words[i + 1])
-                        keep_going = (i + 1 < len(other_hist_words))
-                    else:
-                        keep_going = False
-        this.history += add_hist
+        this.history = uvutils.combine_histories(this.history, other.history)
 
         # Check final object is self-consistent
         if run_check:
