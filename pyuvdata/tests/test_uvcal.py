@@ -997,7 +997,7 @@ class TestUVCalAddGain(object):
 
         # test history concatenation
         self.gain_object.history = gain_object.history
-        self.gain_object2.history = 'Some random history string OMNI_RUN'
+        self.gain_object2.history = 'Some random history string OMNI_RUN:'
         self.gain_object += self.gain_object2
         nt.assert_true(uvutils.check_histories(gain_object.history +
                                                ' Combined data along antenna axis '
