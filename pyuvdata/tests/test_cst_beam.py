@@ -43,7 +43,7 @@ def test_read_power():
     nt.assert_equal(beam1.data_array.shape, (1, 1, 2, 2, 181, 360))
 
     # test passing in other polarization
-    beam2.read_cst_beam(cst_files, beam_type='power', frequency=[150e6, 123e6],
+    beam2.read_cst_beam(np.array(cst_files), beam_type='power', frequency=np.array([150e6, 123e6]),
                         feed_pol='y', telescope_name='TEST',
                         feed_name='bob', feed_version='0.1',
                         model_name='E-field pattern - Rigging height 4.9m',
@@ -55,7 +55,7 @@ def test_read_power():
     nt.assert_true(np.allclose(beam1.data_array[:, :, 0, :, :, :], beam2.data_array[:, :, 0, :, :, :]))
 
     # test single frequency
-    uvtest.checkWarnings(beam1.read_cst_beam, [cst_files[0]],
+    uvtest.checkWarnings(beam1.read_cst_beam, [[cst_files[0]]],
                          {'beam_type': 'power', 'telescope_name': 'TEST', 'feed_name': 'bob',
                           'feed_version': '0.1', 'model_name': 'E-field pattern - Rigging height 4.9m',
                           'model_version': '1.0'},
@@ -82,7 +82,7 @@ def test_read_power():
 
     # test reading in multiple polarization files
     beam1.read_cst_beam([cst_files[0], cst_files[0]], beam_type='power', frequency=[150e6],
-                        feed_pol=['xy', 'yx'], telescope_name='TEST',
+                        feed_pol=np.array(['xy', 'yx']), telescope_name='TEST',
                         feed_name='bob', feed_version='0.1',
                         model_name='E-field pattern - Rigging height 4.9m',
                         model_version='1.0')
@@ -112,6 +112,46 @@ def test_read_power():
 
     nt.assert_raises(ValueError, beam1.read_cst_beam, cst_files[0], beam_type='power',
                      feed_pol=['x', 'y'], telescope_name='TEST',
+                     feed_name='bob', feed_version='0.1',
+                     model_name='E-field pattern - Rigging height 4.9m',
+                     model_version='1.0')
+
+    nt.assert_raises(ValueError, beam1.read_cst_beam, [[cst_files[0]], [cst_files[1]]],
+                     beam_type='power', frequency=[150e6, 123e6],
+                     feed_pol=['x'], telescope_name='TEST',
+                     feed_name='bob', feed_version='0.1',
+                     model_name='E-field pattern - Rigging height 4.9m',
+                     model_version='1.0')
+
+    nt.assert_raises(ValueError, beam1.read_cst_beam, np.array([[cst_files[0]], [cst_files[1]]]),
+                     beam_type='power', frequency=[150e6, 123e6],
+                     feed_pol=['x'], telescope_name='TEST',
+                     feed_name='bob', feed_version='0.1',
+                     model_name='E-field pattern - Rigging height 4.9m',
+                     model_version='1.0')
+
+    nt.assert_raises(ValueError, beam1.read_cst_beam, cst_files, beam_type='power',
+                     frequency=[[150e6], [123e6]], telescope_name='TEST',
+                     feed_name='bob', feed_version='0.1',
+                     model_name='E-field pattern - Rigging height 4.9m',
+                     model_version='1.0')
+
+    nt.assert_raises(ValueError, beam1.read_cst_beam, cst_files, beam_type='power',
+                     frequency=np.array([[150e6], [123e6]]), telescope_name='TEST',
+                     feed_name='bob', feed_version='0.1',
+                     model_name='E-field pattern - Rigging height 4.9m',
+                     model_version='1.0')
+
+    nt.assert_raises(ValueError, beam1.read_cst_beam, cst_files, beam_type='power',
+                     feed_pol=[['x'], ['y']], frequency=150e6,
+                     telescope_name='TEST',
+                     feed_name='bob', feed_version='0.1',
+                     model_name='E-field pattern - Rigging height 4.9m',
+                     model_version='1.0')
+
+    nt.assert_raises(ValueError, beam1.read_cst_beam, cst_files, beam_type='power',
+                     feed_pol=np.array([['x'], ['y']]), frequency=150e6,
+                     telescope_name='TEST',
                      feed_name='bob', feed_version='0.1',
                      model_name='E-field pattern - Rigging height 4.9m',
                      model_version='1.0')

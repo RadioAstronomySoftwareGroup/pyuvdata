@@ -240,6 +240,10 @@ def test_az_za_to_healpix():
     npix = hp.nside2npix(power_beam_healpix.nside)
     nt.assert_true(power_beam_healpix.Npixels <= npix * 0.55)
 
+    # Test error if not az_za
+    power_beam.pixel_coordinate_system = 'sin_zenith'
+    nt.assert_raises(ValueError, power_beam.az_za_to_healpix)
+
 
 def test_select_axis():
     power_beam = UVBeam()
@@ -444,6 +448,17 @@ def test_select_feeds():
 
     # check for error with selecting polarizations on efield beams
     nt.assert_raises(ValueError, efield_beam.select, polarizations=[-5, -6])
+
+    # Test check basis vectors
+    efield_beam.basis_vector_array[0, 1, :, :] = 1.0
+    nt.assert_raises(ValueError, efield_beam.check)
+
+    efield_beam.basis_vector_array[0, 0, :, :] = np.sqrt(0.5)
+    efield_beam.basis_vector_array[0, 1, :, :] = np.sqrt(0.5)
+    nt.assert_true(efield_beam.check())
+
+    efield_beam.basis_vector_array = None
+    nt.assert_raises(ValueError, efield_beam.check)
 
 
 def test_select_polarizations():
@@ -782,6 +797,9 @@ def test_add():
                                 :efield_beam.Naxes1 / 2] = 0.0
     beam1.history = efield_beam.history
     nt.assert_equal(beam1, beam_ref)
+
+    # Test error on converting to healpix
+    nt.assert_raises(ValueError, efield_beam.az_za_to_healpix)
 
     # Another combo with healpix efield
     efield_beam = fill_dummy_beam(efield_beam, 'efield', 'healpix')
