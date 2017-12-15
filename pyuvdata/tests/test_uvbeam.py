@@ -224,6 +224,54 @@ def test_errors():
     nt.assert_raises(ValueError, beam_obj._convert_to_filetype, 'foo')
 
 
+def test_efield_to_power():
+    efield_beam = UVBeam()
+    efield_beam.read_cst_beam(cst_files, beam_type='efield', frequency=[150e6, 123e6],
+                              telescope_name='TEST', feed_name='bob',
+                              feed_version='0.1', feed_pol=['x'],
+                              model_name='E-field pattern - Rigging height 4.9m',
+                              model_version='1.0')
+
+    power_beam = UVBeam()
+    power_beam.read_cst_beam(cst_files, beam_type='power', frequency=[150e6, 123e6],
+                             telescope_name='TEST', feed_name='bob',
+                             feed_version='0.1', feed_pol=['x'],
+                             model_name='E-field pattern - Rigging height 4.9m',
+                             model_version='1.0')
+
+    new_power_beam = copy.deepcopy(efield_beam)
+    new_power_beam.efield_to_power(calc_cross_pols=False)
+
+    # The values in the beam file only have 4 sig figs, so they don't match precisely
+    diff = np.abs(new_power_beam.data_array - power_beam.data_array)
+    reldiff = diff / power_beam.data_array
+    nt.assert_true(np.max(reldiff) < 0.002)
+    nt.assert_true(np.allclose(new_power_beam.data_array, power_beam.data_array, rtol=1e-2))
+
+    # set data_arrays equal to test the rest of the object
+    new_power_beam.data_array = power_beam.data_array
+    nt.assert_equal(new_power_beam, power_beam)
+
+    # test calculating cross pols
+    new_power_beam = copy.deepcopy(efield_beam)
+    new_power_beam.efield_to_power(calc_cross_pols=True)
+    nt.assert_true(np.all(np.abs(new_power_beam.data_array[:, :, 0, :, :,
+                                                           np.where(new_power_beam.axis1_array == 0)[0]]) >
+                          np.abs(new_power_beam.data_array[:, :, 2, :, :,
+                                                           np.where(new_power_beam.axis1_array == 0)[0]])))
+    nt.assert_true(np.all(np.abs(new_power_beam.data_array[:, :, 0, :, :,
+                                                           np.where(new_power_beam.axis1_array == np.pi / 2.)[0]]) >
+                          np.abs(new_power_beam.data_array[:, :, 2, :, :,
+                                                           np.where(new_power_beam.axis1_array == np.pi / 2.)[0]])))
+
+    # test keeping basis vectors
+    new_power_beam = copy.deepcopy(efield_beam)
+    new_power_beam.efield_to_power(calc_cross_pols=False, keep_basis_vector=True)
+    nt.assert_true(np.allclose(new_power_beam.data_array, np.abs(efield_beam.data_array)**2))
+
+    # TODO: add testing in healpix once we can convert efield beams to healpix
+
+
 def test_az_za_to_healpix():
     power_beam = UVBeam()
     power_beam.read_cst_beam(cst_files[0], beam_type='power', frequency=150e6,
