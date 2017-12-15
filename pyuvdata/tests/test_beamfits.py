@@ -14,11 +14,10 @@ filenames = ['HERA_NicCST_150MHz.txt', 'HERA_NicCST_123MHz.txt']
 cst_files = [os.path.join(DATA_PATH, f) for f in filenames]
 
 
-def test_writeread():
+def test_readCST_writereadFITS():
     beam_in = UVBeam()
     beam_out = UVBeam()
-    # fill UVBeam object with dummy data for now for testing purposes
-    beam_in.read_cst_beam(cst_files, beam_type='efield', frequency=[150e6, 123e6],
+    beam_in.read_cst_beam(cst_files[0], beam_type='efield', frequency=150e6,
                           telescope_name='TEST', feed_name='bob',
                           feed_version='0.1', feed_pol=['x'],
                           model_name='E-field pattern - Rigging height 4.9m',
@@ -34,7 +33,7 @@ def test_writeread():
     # redo for power beam
     del(beam_in)
     beam_in = UVBeam()
-    beam_in.read_cst_beam(cst_files, beam_type='power', frequency=[150e6, 123e6],
+    beam_in.read_cst_beam(cst_files[0], beam_type='power', frequency=150e6,
                           telescope_name='TEST', feed_name='bob',
                           feed_version='0.1', feed_pol=['x'],
                           model_name='E-field pattern - Rigging height 4.9m',
@@ -101,7 +100,7 @@ def test_writeread_healpix():
     # redo for power beam
     del(beam_in)
     beam_in = UVBeam()
-    beam_in.read_cst_beam(cst_files, beam_type='power', frequency=[150e6, 123e6],
+    beam_in.read_cst_beam(cst_files[0], beam_type='power', frequency=150e6,
                           telescope_name='TEST', feed_name='bob',
                           feed_version='0.1', feed_pol=['x'],
                           model_name='E-field pattern - Rigging height 4.9m',
@@ -138,7 +137,7 @@ def test_writeread_healpix():
 def test_errors():
     beam_in = UVBeam()
     beam_out = UVBeam()
-    beam_in.read_cst_beam(cst_files, beam_type='efield', frequency=[150e6, 123e6],
+    beam_in.read_cst_beam(cst_files[0], beam_type='efield', frequency=150e6,
                           telescope_name='TEST', feed_name='bob',
                           feed_version='0.1', feed_pol=['x'],
                           model_name='E-field pattern - Rigging height 4.9m',
@@ -156,11 +155,7 @@ def test_errors():
     nt.assert_raises(ValueError, beam_in.write_beamfits, write_file, clobber=True)
 
     # now change values for various items in primary hdu to test errors
-    beam_in.read_cst_beam(cst_files, beam_type='efield', frequency=[150e6, 123e6],
-                          telescope_name='TEST', feed_name='bob',
-                          feed_version='0.1', feed_pol=['x'],
-                          model_name='E-field pattern - Rigging height 4.9m',
-                          model_version='1.0')
+    beam_in.antenna_type = 'simple'
 
     header_vals_to_change = [{'BTYPE': 'foo'}, {'COORDSYS': 'sin_zenith'},
                              {'NAXIS': ''}]
@@ -201,12 +196,6 @@ def test_errors():
         nt.assert_raises(ValueError, beam_out.read_beamfits, write_file)
 
     # now change values for various items in basisvec hdu to not match primary hdu
-    beam_in.read_cst_beam(cst_files, beam_type='efield', frequency=[150e6, 123e6],
-                          telescope_name='TEST', feed_name='bob',
-                          feed_version='0.1', feed_pol=['x'],
-                          model_name='E-field pattern - Rigging height 4.9m',
-                          model_version='1.0')
-
     header_vals_to_change = [{'COORDSYS': 'foo'}, {'CTYPE1': 'foo'},
                              {'CTYPE2': 'foo'},
                              {'CDELT1': np.diff(beam_in.axis1_array)[0] * 2},
