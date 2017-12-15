@@ -412,7 +412,13 @@ class UVBeam(UVBase):
         self._feed_array.required = False
         self._Npols.required = True
         self._polarization_array.required = True
+
+        # If cross pols are included, the power beam is complex. Otherwise it's real
         self._data_array.expected_type = np.float
+        for pol in self.polarization_array:
+            if pol in [3, 4, -3, -4, -7, -8]:
+                self._data_array.expected_type = np.complex
+
         # call set_cs_params to fix data_array form
         self.set_cs_params()
 
@@ -435,6 +441,80 @@ class UVBeam(UVBase):
         self._delay_array.required = True
         self._gain_array.required = True
         self._coupling_matrix.required = True
+
+    def efield_to_power(self, calc_cross_pols=True, keep_basis_vector=False,
+                        run_check=True, check_extra=True, run_check_acceptability=True):
+        """
+        Convert E-field beam to power beam.
+
+        Args:
+            calc_cross_pols: If True, calculate the crossed polarization beams
+                (e.g. 'xy' and 'yx'), otherwise only calculate the same
+                polarization beams (e.g. 'xx' and 'yy'). Default is True.
+            keep_basis_vector: If True, keep the directionality information and
+                just multiply the efields for each basis vector separately
+                (caution: this is not what is standardly meant by the power beam).
+                Default is False.
+            run_check: Option to check for the existence and proper shapes of
+                required parameters after converting to power. Default is True.
+            check_extra: Option to check optional parameters as well as
+                required ones. Default is True.
+            run_check_acceptability: Option to check acceptable range of the values of
+                required parameters after combining objects. Default is True.
+        """
+        if self.beam_type is not 'efield':
+            raise ValueError('beam_type must be efield')
+
+        efield_data = self.data_array
+        efield_naxes_vec = self.Naxes_vec
+
+        feed_pol_order = [(0, 0)]
+        if self.Nfeeds > 1:
+            feed_pol_order.append((1, 1))
+
+        if calc_cross_pols:
+            self.Npols = self.Nfeeds ** 2
+            if self.Nfeeds > 1:
+                feed_pol_order.extend([(0, 1), (1, 0)])
+        else:
+            self.Npols = self.Nfeeds
+
+        pol_strings = []
+        for pair in feed_pol_order:
+            pol_strings.append(self.feed_array[pair[0]] + self.feed_array[pair[1]])
+        self.polarization_array = np.array([uvutils.polstr2num(ps.upper()) for ps in pol_strings])
+
+        if not keep_basis_vector:
+            self.Naxes_vec = 1
+
+        # adjust requirements, fix data_array form
+        self.set_power()
+        power_data = np.zeros(self._data_array.expected_shape(self), dtype=np.complex)
+
+        if keep_basis_vector:
+            for pol_i, pair in enumerate(feed_pol_order):
+                power_data[:, :, pol_i] = (efield_data[:, :, pair[0]] *
+                                           np.conj(efield_data[:, :, pair[1]]))
+
+        else:
+            for pol_i, pair in enumerate(feed_pol_order):
+                for dir_i in range(efield_naxes_vec):
+                    power_data[0, :, pol_i] += ((efield_data[dir_i, :, pair[0]] *
+                                                 np.conj(efield_data[dir_i, :, pair[1]])) *
+                                                (self.basis_vector_array[dir_i, 0]**2 +
+                                                 self.basis_vector_array[dir_i, 1]**2))
+
+        power_data = np.real_if_close(power_data, tol=10)
+
+        self.data_array = power_data
+        self.Nfeeds = None
+        self.feed_array = None
+        if not keep_basis_vector:
+            self.basis_vector_array = None
+
+        if run_check:
+            self.check(check_extra=check_extra,
+                       run_check_acceptability=run_check_acceptability)
 
     def az_za_to_healpix(self, nside=None, run_check=True, check_extra=True,
                          run_check_acceptability=True):

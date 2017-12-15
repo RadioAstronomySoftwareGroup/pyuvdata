@@ -41,6 +41,10 @@ def test_read_power():
     nt.assert_equal(beam1.pixel_coordinate_system, 'az_za')
     nt.assert_equal(beam1.beam_type, 'power')
     nt.assert_equal(beam1.data_array.shape, (1, 1, 2, 2, 181, 360))
+    nt.assert_equal(np.max(beam1.data_array), 8275.5409)
+
+    nt.assert_true(np.allclose(beam1.data_array[:, :, 0, :, :, np.where(beam1.axis1_array == 0)[0]],
+                               beam1.data_array[:, :, 1, :, :, np.where(beam1.axis1_array == np.pi / 2.)[0]]))
 
     # test passing in other polarization
     beam2.read_cst_beam(np.array(cst_files), beam_type='power', frequency=np.array([150e6, 123e6]),
@@ -82,13 +86,22 @@ def test_read_power():
 
     # test reading in multiple polarization files
     beam1.read_cst_beam([cst_files[0], cst_files[0]], beam_type='power', frequency=[150e6],
-                        feed_pol=np.array(['xy', 'yx']), telescope_name='TEST',
+                        feed_pol=np.array(['xx', 'yy']), telescope_name='TEST',
                         feed_name='bob', feed_version='0.1',
                         model_name='E-field pattern - Rigging height 4.9m',
                         model_version='1.0')
-    nt.assert_true(np.allclose(beam1.polarization_array, np.array([-7, -8])))
     nt.assert_equal(beam1.data_array.shape, (1, 1, 2, 1, 181, 360))
     nt.assert_true(np.allclose(beam1.data_array[:, :, 0, :, :, :], beam1.data_array[:, :, 1, :, :, :]))
+
+    # test reading in cross polarization files
+    beam2.read_cst_beam([cst_files[0]], beam_type='power', frequency=[150e6],
+                        feed_pol=np.array(['xy']), telescope_name='TEST',
+                        feed_name='bob', feed_version='0.1',
+                        model_name='E-field pattern - Rigging height 4.9m',
+                        model_version='1.0')
+    nt.assert_true(np.allclose(beam2.polarization_array, np.array([-7, -8])))
+    nt.assert_equal(beam2.data_array.shape, (1, 1, 2, 1, 181, 360))
+    nt.assert_true(np.allclose(beam1.data_array[:, :, 0, :, :, :], beam2.data_array[:, :, 0, :, :, :]))
 
     # test errors
     nt.assert_raises(ValueError, beam1.read_cst_beam, cst_files, beam_type='power',
@@ -170,6 +183,7 @@ def test_read_efield():
     nt.assert_equal(beam1.pixel_coordinate_system, 'az_za')
     nt.assert_equal(beam1.beam_type, 'efield')
     nt.assert_equal(beam1.data_array.shape, (2, 1, 2, 2, 181, 360))
+    nt.assert_equal(np.max(np.abs(beam1.data_array)), 90.97)
 
     # test passing in other polarization
     beam2.read_cst_beam(cst_files, beam_type='efield', frequency=[150e6, 123e6],
@@ -193,7 +207,8 @@ def test_read_efield():
     nt.assert_equal(beam2.beam_type, 'efield')
     nt.assert_equal(beam2.feed_array, np.array(['x']))
     nt.assert_equal(beam2.data_array.shape, (2, 1, 1, 1, 181, 360))
-    nt.assert_true(np.allclose(beam1.data_array[:, :, 0, 1, :, :], beam2.data_array))
+
+    nt.assert_true(np.allclose(beam1.data_array[:, :, 0, 1, :, :], beam2.data_array[:, :, 0, 0, :, :]))
 
     # test reading in multiple polarization files
     beam1.read_cst_beam([cst_files[0], cst_files[0]], beam_type='efield', frequency=[150e6],

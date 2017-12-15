@@ -55,7 +55,6 @@ class CSTBeam(UVBeam):
             self.history += self.pyuvdata_version_str
 
         if beam_type is 'power':
-            self.set_power()
             self.Naxes_vec = 1
 
             if feed_pol is 'x':
@@ -72,8 +71,8 @@ class CSTBeam(UVBeam):
                 self.polarization_array = np.array([uvutils.polstr2num(feed_pol)])
 
             self.Npols = len(self.polarization_array)
+            self.set_power()
         else:
-            self.set_efield()
             self.Naxes_vec = 2
             if rotate_pol:
                 if feed_pol is 'x':
@@ -86,6 +85,7 @@ class CSTBeam(UVBeam):
                 else:
                     self.feed_array = np.array(['y'])
             self.Nfeeds = len(self.feed_array)
+            self.set_efield()
 
         self.data_normalization = 'physical'
         self.antenna_type = 'simple'
@@ -130,6 +130,9 @@ class CSTBeam(UVBeam):
         if not theta_axis.size * phi_axis.size == theta_data.size:
             raise ValueError('Data does not appear to be on a grid')
 
+        theta_data = theta_data.reshape((theta_axis.size, phi_axis.size), order='F')
+        phi_data = phi_data.reshape((theta_axis.size, phi_axis.size), order='F')
+
         delta_theta = np.diff(theta_axis)
         if not np.isclose(np.max(delta_theta), np.min(delta_theta)):
             raise ValueError('Data does not appear to be regularly gridded in zenith angle')
@@ -146,7 +149,8 @@ class CSTBeam(UVBeam):
         self.Naxes2 = self.axis2_array.size
 
         if self.beam_type == 'power':
-            self.data_array = np.zeros(self._data_array.expected_shape(self), dtype=np.float)
+            # type depends on whether cross pols are present (if so, complex, else float)
+            self.data_array = np.zeros(self._data_array.expected_shape(self), dtype=self._data_array.expected_type)
         else:
             self.data_array = np.zeros(self._data_array.expected_shape(self), dtype=np.complex)
 
@@ -157,10 +161,16 @@ class CSTBeam(UVBeam):
 
         if rotate_pol:
             # for second polarization, rotate by pi/2
-            rot_phi = phi_axis + np.pi / 2
+            rot_phi = phi_data + np.pi / 2
             rot_phi[np.where(rot_phi >= 2 * np.pi)] -= 2 * np.pi
-            roll_rot_phi = np.roll(rot_phi, int((np.pi / 2) / delta_phi))
-            if not np.allclose(roll_rot_phi, phi_axis):
+            roll_rot_phi = np.roll(rot_phi, int((np.pi / 2) / delta_phi), axis=1)
+            if not np.allclose(roll_rot_phi, phi_data):
+                raise ValueError('Rotating by pi/2 failed')
+
+            # theta should not be affected by the rotation
+            rot_theta = theta_data
+            roll_rot_theta = np.roll(rot_theta, int((np.pi / 2) / delta_phi), axis=1)
+            if not np.allclose(roll_rot_theta, theta_data):
                 raise ValueError('Rotating by pi/2 failed')
 
         # get beam
@@ -172,7 +182,7 @@ class CSTBeam(UVBeam):
 
             if rotate_pol:
                 # rotate by pi/2 for second polarization
-                power_beam2 = np.roll(power_beam1, int((np.pi / 2) / delta_phi), axis=0)
+                power_beam2 = np.roll(power_beam1, int((np.pi / 2) / delta_phi), axis=1)
                 self.data_array[0, 0, 1, 0, :, :] = power_beam2
         else:
             self.basis_vector_array = np.zeros((self.Naxes_vec, 2, self.Naxes2, self.Naxes1))
@@ -198,15 +208,15 @@ class CSTBeam(UVBeam):
             phi_phase = theta_phase.reshape((theta_axis.size, phi_axis.size), order='F')
 
             theta_beam = theta_mag * np.exp(1j * theta_phase)
-            phi_beam = theta_mag * np.exp(1j * theta_phase)
+            phi_beam = phi_mag * np.exp(1j * phi_phase)
 
             self.data_array[0, 0, 0, 0, :, :] = phi_beam
             self.data_array[1, 0, 0, 0, :, :] = theta_beam
 
             if rotate_pol:
                 # rotate by pi/2 for second polarization
-                theta_beam2 = np.roll(theta_beam, int((np.pi / 2) / delta_phi), axis=0)
-                phi_beam2 = np.roll(phi_beam, int((np.pi / 2) / delta_phi), axis=0)
+                theta_beam2 = np.roll(theta_beam, int((np.pi / 2) / delta_phi), axis=1)
+                phi_beam2 = np.roll(phi_beam, int((np.pi / 2) / delta_phi), axis=1)
                 self.data_array[0, 0, 1, 0, :, :] = phi_beam2
                 self.data_array[1, 0, 1, 0, :, :] = theta_beam2
 
