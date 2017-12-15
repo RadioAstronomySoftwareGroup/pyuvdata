@@ -249,6 +249,15 @@ def test_select_axis():
                              model_name='E-field pattern - Rigging height 4.9m',
                              model_version='1.0')
 
+    # add optional parameters for testing purposes
+    power_beam.extra_keywords = {'KEY1': 'test_keyword'}
+    power_beam.reference_input_impedance = 340.
+    power_beam.reference_output_impedance = 50.
+    power_beam.receiver_temperature_array = np.random.normal(50.0, 5, size=(power_beam.Nspws, power_beam.Nfreqs))
+    power_beam.loss_array = np.random.normal(50.0, 5, size=(power_beam.Nspws, power_beam.Nfreqs))
+    power_beam.mismatch_array = np.random.normal(0.0, 1.0, size=(power_beam.Nspws, power_beam.Nfreqs))
+    power_beam.s_parameters = np.random.normal(0.0, 0.3, size=(4, power_beam.Nspws, power_beam.Nfreqs))
+
     old_history = power_beam.history
     # Test selecting on axis1
     inds1_to_keep = np.arange(14, 63)
@@ -327,6 +336,15 @@ def test_select_frequencies():
         new_beam.freq_array = power_beam.freq_array + power_beam.Nfreqs * 1e6
         power_beam += new_beam
 
+    # add optional parameters for testing purposes
+    power_beam.extra_keywords = {'KEY1': 'test_keyword'}
+    power_beam.reference_input_impedance = 340.
+    power_beam.reference_output_impedance = 50.
+    power_beam.receiver_temperature_array = np.random.normal(50.0, 5, size=(power_beam.Nspws, power_beam.Nfreqs))
+    power_beam.loss_array = np.random.normal(50.0, 5, size=(power_beam.Nspws, power_beam.Nfreqs))
+    power_beam.mismatch_array = np.random.normal(0.0, 1.0, size=(power_beam.Nspws, power_beam.Nfreqs))
+    power_beam.s_parameters = np.random.normal(0.0, 0.3, size=(4, power_beam.Nspws, power_beam.Nfreqs))
+
     old_history = power_beam.history
     freqs_to_keep = power_beam.freq_array[0, np.arange(2, 7)]
 
@@ -397,6 +415,15 @@ def test_select_feeds():
                               model_name='E-field pattern - Rigging height 4.9m',
                               model_version='1.0')
 
+    # add optional parameters for testing purposes
+    efield_beam.extra_keywords = {'KEY1': 'test_keyword'}
+    efield_beam.reference_input_impedance = 340.
+    efield_beam.reference_output_impedance = 50.
+    efield_beam.receiver_temperature_array = np.random.normal(50.0, 5, size=(efield_beam.Nspws, efield_beam.Nfreqs))
+    efield_beam.loss_array = np.random.normal(50.0, 5, size=(efield_beam.Nspws, efield_beam.Nfreqs))
+    efield_beam.mismatch_array = np.random.normal(0.0, 1.0, size=(efield_beam.Nspws, efield_beam.Nfreqs))
+    efield_beam.s_parameters = np.random.normal(0.0, 0.3, size=(4, efield_beam.Nspws, efield_beam.Nfreqs))
+
     old_history = efield_beam.history
     feeds_to_keep = ['x']
 
@@ -432,6 +459,15 @@ def test_select_polarizations():
         new_beam = copy.deepcopy(power_beam)
         new_beam.polarization_array = power_beam.polarization_array - power_beam.Npols
         power_beam += new_beam
+
+    # add optional parameters for testing purposes
+    power_beam.extra_keywords = {'KEY1': 'test_keyword'}
+    power_beam.reference_input_impedance = 340.
+    power_beam.reference_output_impedance = 50.
+    power_beam.receiver_temperature_array = np.random.normal(50.0, 5, size=(power_beam.Nspws, power_beam.Nfreqs))
+    power_beam.loss_array = np.random.normal(50.0, 5, size=(power_beam.Nspws, power_beam.Nfreqs))
+    power_beam.mismatch_array = np.random.normal(0.0, 1.0, size=(power_beam.Nspws, power_beam.Nfreqs))
+    power_beam.s_parameters = np.random.normal(0.0, 0.3, size=(4, power_beam.Nspws, power_beam.Nfreqs))
 
     old_history = power_beam.history
     pols_to_keep = [-5, -6]
@@ -474,6 +510,15 @@ def test_select():
     new_beam = copy.deepcopy(power_beam)
     new_beam.freq_array = power_beam.freq_array + power_beam.Nfreqs * 1e6
     power_beam += new_beam
+
+    # add optional parameters for testing purposes
+    power_beam.extra_keywords = {'KEY1': 'test_keyword'}
+    power_beam.reference_input_impedance = 340.
+    power_beam.reference_output_impedance = 50.
+    power_beam.receiver_temperature_array = np.random.normal(50.0, 5, size=(power_beam.Nspws, power_beam.Nfreqs))
+    power_beam.loss_array = np.random.normal(50.0, 5, size=(power_beam.Nspws, power_beam.Nfreqs))
+    power_beam.mismatch_array = np.random.normal(0.0, 1.0, size=(power_beam.Nspws, power_beam.Nfreqs))
+    power_beam.s_parameters = np.random.normal(0.0, 0.3, size=(4, power_beam.Nspws, power_beam.Nfreqs))
 
     # now test selecting along all axes at once
     old_history = power_beam.history
@@ -531,6 +576,15 @@ def test_select():
     new_beam.freq_array = efield_beam.freq_array + efield_beam.Nfreqs * 1e6
     efield_beam += new_beam
 
+    # add optional parameters for testing purposes
+    efield_beam.extra_keywords = {'KEY1': 'test_keyword'}
+    efield_beam.reference_input_impedance = 340.
+    efield_beam.reference_output_impedance = 50.
+    efield_beam.receiver_temperature_array = np.random.normal(50.0, 5, size=(efield_beam.Nspws, efield_beam.Nfreqs))
+    efield_beam.loss_array = np.random.normal(50.0, 5, size=(efield_beam.Nspws, efield_beam.Nfreqs))
+    efield_beam.mismatch_array = np.random.normal(0.0, 1.0, size=(efield_beam.Nspws, efield_beam.Nfreqs))
+    efield_beam.s_parameters = np.random.normal(0.0, 0.3, size=(4, efield_beam.Nspws, efield_beam.Nfreqs))
+
     feeds_to_keep = ['x']
 
     efield_beam2 = efield_beam.select(axis1_inds=inds1_to_keep,
@@ -582,6 +636,15 @@ def test_add():
     new_beam = copy.deepcopy(power_beam)
     new_beam.freq_array = power_beam.freq_array + power_beam.Nfreqs * 1e6
     power_beam += new_beam
+
+    # add optional parameters for testing purposes
+    power_beam.extra_keywords = {'KEY1': 'test_keyword'}
+    power_beam.reference_input_impedance = 340.
+    power_beam.reference_output_impedance = 50.
+    power_beam.receiver_temperature_array = np.random.normal(50.0, 5, size=(power_beam.Nspws, power_beam.Nfreqs))
+    power_beam.loss_array = np.random.normal(50.0, 5, size=(power_beam.Nspws, power_beam.Nfreqs))
+    power_beam.mismatch_array = np.random.normal(0.0, 1.0, size=(power_beam.Nspws, power_beam.Nfreqs))
+    power_beam.s_parameters = np.random.normal(0.0, 0.3, size=(4, power_beam.Nspws, power_beam.Nfreqs))
 
     # Add along first image axis
     beam1 = power_beam.select(axis1_inds=np.arange(0, 180), inplace=False)
@@ -645,6 +708,15 @@ def test_add():
     new_beam = copy.deepcopy(efield_beam)
     new_beam.freq_array = efield_beam.freq_array + efield_beam.Nfreqs * 1e6
     efield_beam += new_beam
+
+    # add optional parameters for testing purposes
+    efield_beam.extra_keywords = {'KEY1': 'test_keyword'}
+    efield_beam.reference_input_impedance = 340.
+    efield_beam.reference_output_impedance = 50.
+    efield_beam.receiver_temperature_array = np.random.normal(50.0, 5, size=(efield_beam.Nspws, efield_beam.Nfreqs))
+    efield_beam.loss_array = np.random.normal(50.0, 5, size=(efield_beam.Nspws, efield_beam.Nfreqs))
+    efield_beam.mismatch_array = np.random.normal(0.0, 1.0, size=(efield_beam.Nspws, efield_beam.Nfreqs))
+    efield_beam.s_parameters = np.random.normal(0.0, 0.3, size=(4, efield_beam.Nspws, efield_beam.Nfreqs))
 
     beam1 = efield_beam.select(feeds=efield_beam.feed_array[0], inplace=False)
     beam2 = efield_beam.select(feeds=efield_beam.feed_array[1], inplace=False)
@@ -835,6 +907,15 @@ def test_healpix():
     new_beam = copy.deepcopy(power_beam)
     new_beam.freq_array = power_beam.freq_array + power_beam.Nfreqs * 1e6
     power_beam += new_beam
+
+    # add optional parameters for testing purposes
+    power_beam.extra_keywords = {'KEY1': 'test_keyword'}
+    power_beam.reference_input_impedance = 340.
+    power_beam.reference_output_impedance = 50.
+    power_beam.receiver_temperature_array = np.random.normal(50.0, 5, size=(power_beam.Nspws, power_beam.Nfreqs))
+    power_beam.loss_array = np.random.normal(50.0, 5, size=(power_beam.Nspws, power_beam.Nfreqs))
+    power_beam.mismatch_array = np.random.normal(0.0, 1.0, size=(power_beam.Nspws, power_beam.Nfreqs))
+    power_beam.s_parameters = np.random.normal(0.0, 0.3, size=(4, power_beam.Nspws, power_beam.Nfreqs))
 
     power_beam_healpix = copy.deepcopy(power_beam)
     power_beam_healpix.az_za_to_healpix()

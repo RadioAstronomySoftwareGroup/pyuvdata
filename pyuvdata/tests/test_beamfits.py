@@ -23,6 +23,15 @@ def test_readCST_writereadFITS():
                           model_name='E-field pattern - Rigging height 4.9m',
                           model_version='1.0')
 
+    # add optional parameters for testing purposes
+    beam_in.extra_keywords = {'KEY1': 'test_keyword'}
+    beam_in.reference_input_impedance = 340.
+    beam_in.reference_output_impedance = 50.
+    beam_in.receiver_temperature_array = np.random.normal(50.0, 5, size=(beam_in.Nspws, beam_in.Nfreqs))
+    beam_in.loss_array = np.random.normal(50.0, 5, size=(beam_in.Nspws, beam_in.Nfreqs))
+    beam_in.mismatch_array = np.random.normal(0.0, 1.0, size=(beam_in.Nspws, beam_in.Nfreqs))
+    beam_in.s_parameters = np.random.normal(0.0, 0.3, size=(4, beam_in.Nspws, beam_in.Nfreqs))
+
     write_file = os.path.join(DATA_PATH, 'test/outtest_beam.fits')
 
     beam_in.write_beamfits(write_file, clobber=True)
@@ -38,6 +47,15 @@ def test_readCST_writereadFITS():
                           feed_version='0.1', feed_pol=['x'],
                           model_name='E-field pattern - Rigging height 4.9m',
                           model_version='1.0')
+
+    # add optional parameters for testing purposes
+    beam_in.extra_keywords = {'KEY1': 'test_keyword'}
+    beam_in.reference_input_impedance = 340.
+    beam_in.reference_output_impedance = 50.
+    beam_in.receiver_temperature_array = np.random.normal(50.0, 5, size=(beam_in.Nspws, beam_in.Nfreqs))
+    beam_in.loss_array = np.random.normal(50.0, 5, size=(beam_in.Nspws, beam_in.Nfreqs))
+    beam_in.mismatch_array = np.random.normal(0.0, 1.0, size=(beam_in.Nspws, beam_in.Nfreqs))
+    beam_in.s_parameters = np.random.normal(0.0, 0.3, size=(4, beam_in.Nspws, beam_in.Nfreqs))
 
     beam_in.write_beamfits(write_file, clobber=True)
     beam_out.read_beamfits(write_file)
@@ -105,6 +123,16 @@ def test_writeread_healpix():
                           feed_version='0.1', feed_pol=['x'],
                           model_name='E-field pattern - Rigging height 4.9m',
                           model_version='1.0')
+
+    # add optional parameters for testing purposes
+    beam_in.extra_keywords = {'KEY1': 'test_keyword'}
+    beam_in.reference_input_impedance = 340.
+    beam_in.reference_output_impedance = 50.
+    beam_in.receiver_temperature_array = np.random.normal(50.0, 5, size=(beam_in.Nspws, beam_in.Nfreqs))
+    beam_in.loss_array = np.random.normal(50.0, 5, size=(beam_in.Nspws, beam_in.Nfreqs))
+    beam_in.mismatch_array = np.random.normal(0.0, 1.0, size=(beam_in.Nspws, beam_in.Nfreqs))
+    beam_in.s_parameters = np.random.normal(0.0, 0.3, size=(4, beam_in.Nspws, beam_in.Nfreqs))
+
     beam_in.az_za_to_healpix()
 
     beam_in.write_beamfits(write_file, clobber=True)
@@ -454,12 +482,20 @@ def test_multi_files():
     Reading multiple files at once.
     """
     beam_full = UVBeam()
-    # fill UVBeam object with dummy data for now for testing purposes
     beam_full.read_cst_beam(cst_files, beam_type='efield', frequency=[150e6, 123e6],
                             telescope_name='TEST', feed_name='bob',
                             feed_version='0.1', feed_pol=['x'],
                             model_name='E-field pattern - Rigging height 4.9m',
                             model_version='1.0')
+
+    # add optional parameters for testing purposes
+    beam_full.extra_keywords = {'KEY1': 'test_keyword'}
+    beam_full.reference_input_impedance = 340.
+    beam_full.reference_output_impedance = 50.
+    beam_full.receiver_temperature_array = np.random.normal(50.0, 5, size=(beam_full.Nspws, beam_full.Nfreqs))
+    beam_full.loss_array = np.random.normal(50.0, 5, size=(beam_full.Nspws, beam_full.Nfreqs))
+    beam_full.mismatch_array = np.random.normal(0.0, 1.0, size=(beam_full.Nspws, beam_full.Nfreqs))
+    beam_full.s_parameters = np.random.normal(0.0, 0.3, size=(4, beam_full.Nspws, beam_full.Nfreqs))
 
     testfile1 = os.path.join(DATA_PATH, 'test/outtest_beam1.fits')
     testfile2 = os.path.join(DATA_PATH, 'test/outtest_beam2.fits')
