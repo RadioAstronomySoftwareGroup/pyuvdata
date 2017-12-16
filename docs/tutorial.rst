@@ -908,7 +908,7 @@ b) Convert a regularly gridded efield beam to a power beam
   >>> plt.plot(new_beam.axis2_array, np.sqrt(new_beam.data_array[0, 0, 0, 0, :, 0]), 'black', label='sqrt Power') # doctest: +SKIP
   >>> plt.xlabel('Zenith Angle (deg)') # doctest: +SKIP
   >>> plt.ylabel('Magnitude') # doctest: +SKIP
-  >>> plt.legend()
+  >>> plt.legend() # doctest: +SKIP
   >>> plt.show() # doctest: +SKIP
 
 Tutorial Cleanup
