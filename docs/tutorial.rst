@@ -743,7 +743,7 @@ b) Select 3 antennas to keep using the antenna names, also select 5 frequencies 
 
 UVBeam: Reading/writing
 -----------------------
-Beam files using UVBeam.
+Reading and writing beam files using UVBeam.
 
 a) Reading a CST power beam file
 ****************
@@ -795,7 +795,6 @@ b) Reading a CST E-field beam file
 
   >>> from pyuvdata import UVBeam
   >>> import numpy as np
-  >>> import matplotlib.pyplot as plt
   >>> beam = UVBeam()
 
   # you can pass several filenames and the objects from each file will be
@@ -852,6 +851,7 @@ a) Selecting a range of Zenith Angles
 
   >>> from pyuvdata import UVBeam
   >>> import numpy as np
+  >>> import matplotlib.pyplot as plt
   >>> beam = UVBeam()
   >>> filenames = ['pyuvdata/data/HERA_NicCST_150MHz.txt', 'pyuvdata/data/HERA_NicCST_123MHz.txt']
   >>> beam.read_cst_beam(filenames, beam_type='power', telescope_name='HERA',
@@ -868,6 +868,48 @@ a) Selecting a range of Zenith Angles
   >>> plt.ylabel('Power') # doctest: +SKIP
   >>> plt.show() # doctest: +SKIP
 
+UVBeam: Converting to beam types and coordinate systems
+-----------------------
+
+a) Convert a regularly gridded az_za power beam to HEALpix
+****************
+::
+  >>> from pyuvdata import UVBeam
+  >>> import numpy as np
+  >>> import healpy as hp
+  >>> beam = UVBeam()
+  >>> filenames = ['pyuvdata/data/HERA_NicCST_150MHz.txt', 'pyuvdata/data/HERA_NicCST_123MHz.txt']
+  >>> beam.read_cst_beam(filenames, beam_type='power', telescope_name='HERA',
+  ...                    feed_name='PAPER_dipole', feed_version='0.1',
+  ...                    model_name='E-field pattern - Rigging height 4.9m',
+  ...                    model_version='1.0')
+  >>> beam.az_za_to_healpix()
+  >>> hp.mollview(beam.data_array[0,0,0,0,:]) # doctest: +SKIP
+
+b) Convert a regularly gridded efield beam to a power beam
+****************
+::
+  >>> from pyuvdata import UVBeam
+  >>> import copy
+  >>> import numpy as np
+  >>> import matplotlib.pyplot as plt
+  >>> beam = UVBeam()
+  >>> filenames = ['pyuvdata/data/HERA_NicCST_150MHz.txt', 'pyuvdata/data/HERA_NicCST_123MHz.txt']
+  >>> beam.read_cst_beam(filenames, beam_type='efield', telescope_name='HERA',
+  ...                    feed_name='PAPER_dipole', feed_version='0.1',
+  ...                    model_name='E-field pattern - Rigging height 4.9m',
+  ...                    model_version='1.0')
+  >>> new_beam = copy.deepcopy(beam)
+  >>> new_beam.efield_to_power()
+
+  # plot zenith angle cut through the beams
+  >>> plt.plot(beam.axis2_array, beam.data_array[1, 0, 0, 0, :, 0].real, label='E-field real') # doctest: +SKIP
+  >>> plt.plot(beam.axis2_array, beam.data_array[1, 0, 0, 0, :, 0].imag, 'r', label='E-field imaginary') # doctest: +SKIP
+  >>> plt.plot(new_beam.axis2_array, np.sqrt(new_beam.data_array[0, 0, 0, 0, :, 0]), 'black', label='sqrt Power') # doctest: +SKIP
+  >>> plt.xlabel('Zenith Angle (deg)') # doctest: +SKIP
+  >>> plt.ylabel('Magnitude') # doctest: +SKIP
+  >>> plt.legend()
+  >>> plt.show() # doctest: +SKIP
 
 Tutorial Cleanup
 -----------------------
