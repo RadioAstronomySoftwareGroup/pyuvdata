@@ -110,12 +110,12 @@ class BeamFITS(UVBeam):
         n_efield_dims = max([ax_nums[key] for key in ax_nums])
 
         if self.beam_type == 'power':
-            self.set_power()
             self.data_array = data
             if primary_header.pop('CTYPE' + str(ax_nums['feed_pol'])).lower().strip() == 'stokes':
                 self.Npols = primary_header.pop('NAXIS' + str(ax_nums['feed_pol']))
             self.polarization_array = np.int32(uvutils.fits_gethduaxis(primary_hdu,
                                                                        ax_nums['feed_pol']))
+            self.set_power()
         elif self.beam_type == 'efield':
             self.set_efield()
             if n_dimensions < n_efield_dims:
