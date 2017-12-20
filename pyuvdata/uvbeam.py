@@ -500,19 +500,24 @@ class UVBeam(UVBase):
             for pol_i, pair in enumerate(feed_pol_order):
                 if efield_naxes_vec == 2:
                     for comp_i in range(2):
-                        comp = ((efield_data[0, :, pair[0]] *
-                                 np.conj(efield_data[0, :, pair[1]])) *
-                                self.basis_vector_array[0, comp_i]**2 +
-                                (efield_data[1, :, pair[0]] *
-                                 np.conj(efield_data[1, :, pair[1]])) *
-                                self.basis_vector_array[1, comp_i]**2 +
-                                (efield_data[0, :, pair[0]] *
-                                 np.conj(efield_data[1, :, pair[1]]) +
-                                 efield_data[1, :, pair[0]] *
-                                 np.conj(efield_data[0, :, pair[1]])) *
-                                (self.basis_vector_array[0, comp_i] *
-                                 self.basis_vector_array[1, comp_i]))
-                        power_data[0, :, pol_i] += comp
+                        power_data[0, :, pol_i] += \
+                            ((efield_data[0, :, pair[0]] *
+                              np.conj(efield_data[0, :, pair[1]])) *
+                             self.basis_vector_array[0, comp_i]**2 +
+                             (efield_data[1, :, pair[0]] *
+                              np.conj(efield_data[1, :, pair[1]])) *
+                             self.basis_vector_array[1, comp_i]**2 +
+                             (efield_data[0, :, pair[0]] *
+                              np.conj(efield_data[1, :, pair[1]]) +
+                              efield_data[1, :, pair[0]] *
+                              np.conj(efield_data[0, :, pair[1]])) *
+                             (self.basis_vector_array[0, comp_i] *
+                              self.basis_vector_array[1, comp_i]))
+                else:
+                    raise ValueError('Conversion to power with 3-vector efields '
+                                     'is not currently supported because we have '
+                                     'no examples to work with.')
+
         power_data = np.real_if_close(power_data, tol=10)
 
         self.data_array = power_data
