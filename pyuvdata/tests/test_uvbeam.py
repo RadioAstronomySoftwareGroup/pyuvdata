@@ -330,7 +330,7 @@ def test_efield_to_power():
     nt.assert_true(np.allclose(new_power_beam.data_array, np.abs(efield_beam.data_array)**2))
 
     # test raises error if beam is already a power beam
-    nt.assert_raises(power_beam.efield_to_power)
+    nt.assert_raises(ValueError, power_beam.efield_to_power)
 
     # TODO: add testing in healpix once we can convert efield beams to healpix
 
