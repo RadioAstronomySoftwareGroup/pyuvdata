@@ -330,7 +330,7 @@ class UVBeam(UVBase):
                                   run_check_acceptability=run_check_acceptability)
 
         # check that basis_vector_array are basis vectors
-        if self.beam_type == 'efield':
+        if self.basis_vector_array is not None:
             if np.max(np.linalg.norm(self.basis_vector_array, axis=1)) > 1:
                 raise ValueError('basis vectors must have lengths of 1 or less.')
 
@@ -498,12 +498,21 @@ class UVBeam(UVBase):
 
         else:
             for pol_i, pair in enumerate(feed_pol_order):
-                for dir_i in range(efield_naxes_vec):
-                    power_data[0, :, pol_i] += ((efield_data[dir_i, :, pair[0]] *
-                                                 np.conj(efield_data[dir_i, :, pair[1]])) *
-                                                (self.basis_vector_array[dir_i, 0]**2 +
-                                                 self.basis_vector_array[dir_i, 1]**2))
-
+                if efield_naxes_vec == 2:
+                    for comp_i in range(2):
+                        comp = ((efield_data[0, :, pair[0]] *
+                                 np.conj(efield_data[0, :, pair[1]])) *
+                                self.basis_vector_array[0, comp_i]**2 +
+                                (efield_data[1, :, pair[0]] *
+                                 np.conj(efield_data[1, :, pair[1]])) *
+                                self.basis_vector_array[1, comp_i]**2 +
+                                (efield_data[0, :, pair[0]] *
+                                 np.conj(efield_data[1, :, pair[1]]) +
+                                 efield_data[1, :, pair[0]] *
+                                 np.conj(efield_data[0, :, pair[1]])) *
+                                (self.basis_vector_array[0, comp_i] *
+                                 self.basis_vector_array[1, comp_i]))
+                        power_data[0, :, pol_i] += comp
         power_data = np.real_if_close(power_data, tol=10)
 
         self.data_array = power_data
