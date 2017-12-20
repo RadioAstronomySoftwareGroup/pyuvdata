@@ -310,8 +310,6 @@ def test_efield_to_power():
     new_power_beam2 = copy.deepcopy(efield_beam2)
     new_power_beam2.efield_to_power(calc_cross_pols=False)
 
-    print(new_power_beam.data_array[0, 0, 0, 0, 0:3, 0:3])
-    print(new_power_beam2.data_array[0, 0, 0, 0, 0:3, 0:3])
     nt.assert_equal(new_power_beam, new_power_beam2)
 
     # test calculating cross pols
