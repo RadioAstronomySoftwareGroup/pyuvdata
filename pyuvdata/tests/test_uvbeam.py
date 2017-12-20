@@ -331,6 +331,10 @@ def test_efield_to_power():
     # test raises error if beam is already a power beam
     nt.assert_raises(ValueError, power_beam.efield_to_power)
 
+    # test raises error if input efield beam has Naxes_vec=3
+    efield_beam.Naxes_vec = 3
+    nt.assert_raises(ValueError, efield_beam.efield_to_power)
+
     # TODO: add testing in healpix once we can convert efield beams to healpix
 
 
