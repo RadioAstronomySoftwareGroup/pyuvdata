@@ -246,7 +246,6 @@ def test_efield_to_power():
     diff = np.abs(new_power_beam.data_array - power_beam.data_array)
     reldiff = diff / power_beam.data_array
     nt.assert_true(np.max(reldiff) < 0.002)
-    nt.assert_true(np.allclose(new_power_beam.data_array, power_beam.data_array, rtol=1e-2))
 
     # set data_arrays equal to test the rest of the object
     power_beam.data_array = new_power_beam.data_array
