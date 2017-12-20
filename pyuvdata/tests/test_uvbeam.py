@@ -249,7 +249,7 @@ def test_efield_to_power():
     nt.assert_true(np.allclose(new_power_beam.data_array, power_beam.data_array, rtol=1e-2))
 
     # set data_arrays equal to test the rest of the object
-    new_power_beam.data_array = power_beam.data_array
+    power_beam.data_array = new_power_beam.data_array
     nt.assert_equal(new_power_beam, power_beam)
 
     # test with non-orthogonal basis vectors
@@ -270,8 +270,24 @@ def test_efield_to_power():
     new_power_beam2 = copy.deepcopy(efield_beam2)
     new_power_beam2.efield_to_power(calc_cross_pols=False)
 
-    new_power_beam = copy.deepcopy(efield_beam)
-    new_power_beam.efield_to_power(calc_cross_pols=False)
+    nt.assert_equal(new_power_beam, new_power_beam2)
+
+    # now try a different rotation to non-orthogonal basis vectors
+    new_basis_vecs = np.zeros_like(efield_beam.basis_vector_array)
+    new_basis_vecs[0, :, :, :] = efield_beam.basis_vector_array[0, :, :, :]
+    new_basis_vecs[1, 0, :, :] = np.sqrt(0.5)
+    new_basis_vecs[1, 1, :, :] = np.sqrt(0.5)
+    new_data = np.zeros_like(efield_beam.data_array)
+    new_data[0, :, :, :, :, :] = (efield_beam.data_array[0, :, :, :, :, :] -
+                                  efield_beam.data_array[1, :, :, :, :, :])
+    new_data[1, :, :, :, :, :] = np.sqrt(2) * efield_beam.data_array[1, :, :, :, :, :]
+    efield_beam2 = copy.deepcopy(efield_beam)
+    efield_beam2.basis_vector_array = new_basis_vecs
+    efield_beam2.data_array = new_data
+    efield_beam2.check()
+    # now convert to power. Should get the same result
+    new_power_beam2 = copy.deepcopy(efield_beam2)
+    new_power_beam2.efield_to_power(calc_cross_pols=False)
 
     nt.assert_equal(new_power_beam, new_power_beam2)
 
@@ -282,10 +298,10 @@ def test_efield_to_power():
     new_basis_vecs[1, 0, :, :] = -1 * np.sqrt(0.5)
     new_basis_vecs[1, 1, :, :] = np.sqrt(0.5)
     new_data = np.zeros_like(efield_beam.data_array)
-    new_data[0, :, :, :, :, :] = np.sqrt(2) * (efield_beam.data_array[0, :, :, :, :, :] +
-                                               efield_beam.data_array[1, :, :, :, :, :])
-    new_data[1, :, :, :, :, :] = np.sqrt(2) * (-1 * efield_beam.data_array[0, :, :, :, :, :] +
-                                               efield_beam.data_array[1, :, :, :, :, :])
+    new_data[0, :, :, :, :, :] = np.sqrt(0.5) * (efield_beam.data_array[0, :, :, :, :, :] +
+                                                 efield_beam.data_array[1, :, :, :, :, :])
+    new_data[1, :, :, :, :, :] = np.sqrt(0.5) * (-1 * efield_beam.data_array[0, :, :, :, :, :] +
+                                                 efield_beam.data_array[1, :, :, :, :, :])
     efield_beam2 = copy.deepcopy(efield_beam)
     efield_beam2.basis_vector_array = new_basis_vecs
     efield_beam2.data_array = new_data
@@ -293,6 +309,10 @@ def test_efield_to_power():
     # now convert to power. Should get the same result
     new_power_beam2 = copy.deepcopy(efield_beam2)
     new_power_beam2.efield_to_power(calc_cross_pols=False)
+
+    print(new_power_beam.data_array[0, 0, 0, 0, 0:3, 0:3])
+    print(new_power_beam2.data_array[0, 0, 0, 0, 0:3, 0:3])
+    nt.assert_equal(new_power_beam, new_power_beam2)
 
     # test calculating cross pols
     new_power_beam = copy.deepcopy(efield_beam)
@@ -310,6 +330,9 @@ def test_efield_to_power():
     new_power_beam = copy.deepcopy(efield_beam)
     new_power_beam.efield_to_power(calc_cross_pols=False, keep_basis_vector=True)
     nt.assert_true(np.allclose(new_power_beam.data_array, np.abs(efield_beam.data_array)**2))
+
+    # test raises error if beam is already a power beam
+    nt.assert_raises(power_beam.efield_to_power)
 
     # TODO: add testing in healpix once we can convert efield beams to healpix
 
