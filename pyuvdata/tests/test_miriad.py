@@ -852,3 +852,32 @@ def test_antpos_units():
     aantpos = (uvutils.ECEF_from_rotECEF(aantpos, uv.telescope_location_lat_lon_alt[1])
                - uv.telescope_location)
     nt.assert_true(np.allclose(aantpos, uv.antenna_positions))
+
+
+def test_readMiriadwriteMiraid_check_time_format():
+    """
+    test time_array is converted properly from Miriad format
+    """
+    # test read-in
+    fname = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.HH.uvcA')
+    uvd = UVData()
+    uvd.read_miriad(fname)
+    uvd_t = uvd.time_array.min()
+    uvd_l = uvd.lst_array.min()
+    uv = aipy.miriad.UV(fname)
+    uv_t = uv['time'] + uv['inttime'] / (24 * 3600.) / 2
+    uv_l = uv['lst'] + uv['inttime'] * 2*np.pi / (23.9344699*3600.) / 2
+    # assert starting time array and lst array are shifted by half integration
+    nt.assert_almost_equal(uvd_t, uv_t)
+    nt.assert_almost_equal(uvd_l, uv_l, delta=1e-8)
+    # test write-out
+    fout = os.path.join(DATA_PATH, 'ex_miriad')
+    uvd.write_miriad(fout, clobber=True)
+    # assert equal to original miriad time
+    uv2 = aipy.miriad.UV(fout)
+    nt.assert_almost_equal(uv['time'], uv2['time'])
+      nt.assert_almost_equal(uv['lst'], uv2['lst'])
+    if os.path.exists(fout):
+      shutil.rmtree(fout)
+
+
