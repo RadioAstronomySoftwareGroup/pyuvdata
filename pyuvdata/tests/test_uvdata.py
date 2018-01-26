@@ -189,10 +189,20 @@ class TestUVDataBasicMethods(object):
         # Check case where all data is autocorrelations
         # Currently only test files that have autos are fhd files
         testdir = os.path.join(DATA_PATH, 'fhd_vis_data/')
-        self.uv_object.read_fhd([testdir + '1061316296_flags.sav',
-                                 testdir + '1061316296_vis_XX.sav',
-                                 testdir + '1061316296_params.sav',
-                                 testdir + '1061316296_settings.txt'])
+        file_list = [testdir + '1061316296_flags.sav',
+                     testdir + '1061316296_vis_XX.sav',
+                     testdir + '1061316296_params.sav',
+                     testdir + '1061316296_settings.txt']
+
+        if uvtest.pre_1_14_numpy:
+            self.uv_object.read_fhd(file_list)
+        else:
+            # numpy 1.14 introduced a new deprecation warning
+            n_scipy_warnings, scipy_warn_list, scipy_category_list = uvtest.get_scipy_warnings(n_scipy_warnings=550)
+            uvtest.checkWarnings(self.uv_object.read_fhd, [file_list],
+                                 message=scipy_warn_list, category=scipy_category_list,
+                                 nwarnings=n_scipy_warnings)
+
         self.uv_object.select(blt_inds=np.where(self.uv_object.ant_1_array ==
                                                 self.uv_object.ant_2_array)[0])
         nt.assert_true(self.uv_object.check())
