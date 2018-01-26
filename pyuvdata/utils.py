@@ -9,6 +9,7 @@ import numpy as np
 import collections
 import six
 import warnings
+from astropy.time import Time
 
 # parameters for transforming between xyz & lat/lon/alt
 gps_b = 6356752.31424518
@@ -312,6 +313,30 @@ def fits_gethduaxis(HDU, axis, strict_fits=True):
         else:
             raise
     return dX * (np.arange(N) - Xi0) + X0
+
+
+def get_lst_for_time(jd_array, latitude, longitude, altitude):
+    """
+    Get the lsts for a set of jd times at an earth location.
+
+    Args:
+        jd_array: an array of JD times to get lst for
+        latitude: latitude of location to get lst for
+        longitude: longitude of location to get lst for
+        altitude: altitude of location to get lst for
+
+    Returns:
+        an array of lst times corresponding to the jd_array
+    """
+    lsts = []
+    curtime = jd_array[0]
+    lst_array = np.zeros_like(jd_array)
+    for ind, jd in enumerate(np.unique(jd_array)):
+        t = Time(jd, format='jd', location=(longitude, latitude))
+        lst_array[np.where(np.isclose(
+            jd, jd_array, atol=1e-6, rtol=1e-12))] = t.sidereal_time('apparent').radian
+
+    return lst_array
 
 
 def fits_indexhdus(hdulist):

@@ -507,9 +507,10 @@ class Miriad(UVData):
                 Should only be used for testing purposes.
         """
         # change time_array and lst_array to mark beginning of integration, per Miriad format
-        self.time_array -= self.integration_time / (24 * 3600.)  /2
+        miriad_time_array = self.time_array - self.integration_time / (24 * 3600.) / 2
         if self.telescope_location is not None:
-            self.set_lsts_from_time_array()
+            latitude, longitude, altitude = self.telescope_location_lat_lon_alt_degrees
+            miriad_lsts = uvutils.get_lst_for_time(miriad_time_array, latitude, longitude, altitude)
 
         if run_check:
             self.check(check_extra=check_extra,
@@ -734,11 +735,11 @@ class Miriad(UVData):
         c_ns = const.c.to('m/ns').value
         for viscnt, blt in enumerate(self.data_array):
             uvw = (self.uvw_array[viscnt] / c_ns).astype(np.double)  # NOTE issue 50 on conjugation
-            t = self.time_array[viscnt]
+            t = miriad_time_array[viscnt]
             i = self.ant_1_array[viscnt]
             j = self.ant_2_array[viscnt]
 
-            uv['lst'] = self.lst_array[viscnt]
+            uv['lst'] = miriad_lsts[viscnt]
             if self.phase_type == 'phased':
                 uv['ra'] = self.phase_center_ra
                 uv['dec'] = self.phase_center_dec
