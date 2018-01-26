@@ -564,13 +564,8 @@ class UVData(UVBase):
 
     def set_lsts_from_time_array(self):
         """Set the lst_array based from the time_array."""
-        lsts = []
-        self.lst_array = np.zeros(self.Nblts)
         latitude, longitude, altitude = self.telescope_location_lat_lon_alt_degrees
-        for ind, jd in enumerate(np.unique(self.time_array)):
-            t = Time(jd, format='jd', location=(longitude, latitude))
-            self.lst_array[np.where(np.isclose(
-                jd, self.time_array, atol=1e-6, rtol=1e-12))] = t.sidereal_time('apparent').radian
+        self.lst_array = uvutils.get_lst_for_time(self.time_array, latitude, longitude, altitude)
 
     def juldate2ephem(self, num):
         """
