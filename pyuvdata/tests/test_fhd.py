@@ -26,7 +26,15 @@ def test_ReadFHDWriteReadUVFits():
     """
     fhd_uv = UVData()
     uvfits_uv = UVData()
-    fhd_uv.read_fhd(testfiles)
+    if uvtest.pre_1_14_numpy:
+        fhd_uv.read_fhd(testfiles)
+    else:
+        # numpy 1.14 introduced a new deprecation warning
+        n_scipy_warnings, scipy_warn_list, scipy_category_list = uvtest.get_scipy_warnings()
+        uvtest.checkWarnings(fhd_uv.read_fhd, [testfiles],
+                             message=scipy_warn_list, category=scipy_category_list,
+                             nwarnings=n_scipy_warnings)
+
     fhd_uv.write_uvfits(os.path.join(DATA_PATH, 'test/outtest_FHD_1061316296.uvfits'),
                         spoof_nonessential=True)
     uvfits_uv.read_uvfits(os.path.join(DATA_PATH, 'test/outtest_FHD_1061316296.uvfits'))
@@ -48,7 +56,16 @@ def test_breakReadFHD():
     nt.assert_raises(StandardError, fhd_uv.read_fhd, ['foo'])  # No data files
     del(fhd_uv)
     fhd_uv = UVData()
-    uvtest.checkWarnings(fhd_uv.read_fhd, [testfiles[:-1]], message=['No settings'])
+    if uvtest.pre_1_14_numpy:
+        uvtest.checkWarnings(fhd_uv.read_fhd, [testfiles[:-1]], message=['No settings'])
+    else:
+        # numpy 1.14 introduced a new deprecation warning
+        n_scipy_warnings, scipy_warn_list, scipy_category_list = uvtest.get_scipy_warnings()
+        warn_list = ['No settings'] + scipy_warn_list
+        category_list = [UserWarning] + scipy_category_list
+        uvtest.checkWarnings(fhd_uv.read_fhd, [testfiles[:-1]],
+                             message=warn_list, category=category_list,
+                             nwarnings=n_scipy_warnings + 1)
     # Check only pyuvdata history with no settings file
     nt.assert_equal(fhd_uv.history, fhd_uv.pyuvdata_version_str)  # Check empty history with no settings
     del(fhd_uv)
@@ -58,7 +75,15 @@ def test_ReadFHD_model():
     """FHD to uvfits loopback test with model visibilities."""
     fhd_uv = UVData()
     uvfits_uv = UVData()
-    fhd_uv.read_fhd(testfiles, use_model=True)
+    if uvtest.pre_1_14_numpy:
+        fhd_uv.read_fhd(testfiles, use_model=True)
+    else:
+        # numpy 1.14 introduced a new deprecation warning
+        n_scipy_warnings, scipy_warn_list, scipy_category_list = uvtest.get_scipy_warnings()
+        uvtest.checkWarnings(fhd_uv.read_fhd, [testfiles], {'use_model': True},
+                             message=scipy_warn_list, category=scipy_category_list,
+                             nwarnings=n_scipy_warnings)
+
     fhd_uv.write_uvfits(os.path.join(DATA_PATH, 'test/outtest_FHD_1061316296_model.uvfits'),
                         spoof_nonessential=True)
     uvfits_uv.read_uvfits(os.path.join(DATA_PATH, 'test/outtest_FHD_1061316296_model.uvfits'))
@@ -75,8 +100,23 @@ def test_multi_files():
     fhd_uv2 = UVData()
     test1 = list(np.array(testfiles)[[0, 1, 2, 4, 6]])
     test2 = list(np.array(testfiles)[[0, 2, 3, 5, 6]])
-    fhd_uv1.read_fhd([test1, test2])
-    fhd_uv2.read_fhd(testfiles)
+    if uvtest.pre_1_14_numpy:
+        fhd_uv1.read_fhd([test1, test2])
+    else:
+        # numpy 1.14 introduced a new deprecation warning
+        n_scipy_warnings, scipy_warn_list, scipy_category_list = uvtest.get_scipy_warnings(n_scipy_warnings=1100)
+        uvtest.checkWarnings(fhd_uv1.read_fhd, [[test1, test2]],
+                             message=scipy_warn_list, category=scipy_category_list,
+                             nwarnings=n_scipy_warnings)
+
+    if uvtest.pre_1_14_numpy:
+        fhd_uv2.read_fhd(testfiles)
+    else:
+        # numpy 1.14 introduced a new deprecation warning
+        n_scipy_warnings, scipy_warn_list, scipy_category_list = uvtest.get_scipy_warnings()
+        uvtest.checkWarnings(fhd_uv2.read_fhd, [testfiles],
+                             message=scipy_warn_list, category=scipy_category_list,
+                             nwarnings=n_scipy_warnings)
 
     nt.assert_true(uvutils.check_histories(fhd_uv2.history + ' Combined data '
                                            'along polarization axis using pyuvdata.',

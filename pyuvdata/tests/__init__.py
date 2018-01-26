@@ -2,6 +2,7 @@
 import os
 import warnings
 import sys
+import numpy as np
 from pyuvdata.data import DATA_PATH
 import pyuvdata.utils as uvutils
 
@@ -24,6 +25,20 @@ def clearWarnings():
             continue
         if reg:
             reg.clear()
+
+
+# things we need to figure out expected warnings when reading FHD files
+pre_1_14_numpy = float(np.__version__[0:4]) < 1.14
+
+
+def get_scipy_warnings(n_scipy_warnings=1093):
+    scipy_warn_str = 'The binary mode of fromstring is deprecated'
+    scipy_warn_list = []
+    scipy_category_list = []
+    for i in range(n_scipy_warnings):
+        scipy_warn_list.append(scipy_warn_str)
+        scipy_category_list.append(DeprecationWarning)
+    return n_scipy_warnings, scipy_warn_list, scipy_category_list
 
 
 def checkWarnings(func, func_args=[], func_kwargs={},
