@@ -336,7 +336,7 @@ b) Select 3 antennas to keep using the antenna names, also select 5 frequencies 
 
   # print all the frequencies after the select
   >>> print(UV.freq_array)
-  [[  3.63045420e+10   3.63046670e+10   3.63047920e+10   3.63049170e+10]]
+  [[3.6304542e+10 3.6304667e+10 3.6304792e+10 3.6304917e+10]]
 
 c) Select a few antenna pairs to keep
 ****************
@@ -729,8 +729,8 @@ b) Select 3 antennas to keep using the antenna names, also select 5 frequencies 
 
   # print all the frequencies in the original file
   >>> print(cal.freq_array)
-  [[  1.00000000e+08   1.00097656e+08   1.00195312e+08 ...,   1.99707031e+08
-      1.99804688e+08   1.99902344e+08]]
+  [[1.00000000e+08 1.00097656e+08 1.00195312e+08 ... 1.99707031e+08
+    1.99804688e+08 1.99902344e+08]]
   >>> cal.select(antenna_names=['ant31', 'ant81', 'ant104'], freq_chans=np.arange(0, 4))
 
   # print all the antenna names with data after the select
@@ -739,7 +739,7 @@ b) Select 3 antennas to keep using the antenna names, also select 5 frequencies 
 
   # print all the frequencies after the select
   >>> print(cal.freq_array)
-  [[  1.00000000e+08   1.00097656e+08   1.00195312e+08   1.00292969e+08]]
+  [[1.00000000e+08 1.00097656e+08 1.00195312e+08 1.00292969e+08]]
 
 UVBeam: Reading/writing
 -----------------------
