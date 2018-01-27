@@ -474,7 +474,7 @@ class Miriad(UVData):
             # check that the RA values are not constant (if more than one time present)
             if (single_ra and not single_time):
                 raise ValueError('phase_type is "drift" but the RA values are constant.')
-            self.zenith_ra = ra_list
+            self.zenith_ra = copy.deepcopy(self.lst_array)
             self.zenith_dec = dec_list
 
         try:

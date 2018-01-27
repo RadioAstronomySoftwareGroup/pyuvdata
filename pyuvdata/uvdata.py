@@ -626,27 +626,27 @@ class UVData(UVBase):
         phs = np.exp(-1j * 2 * np.pi * (-1) * w_lambda[:, None, :, None])
         self.data_array *= phs
 
-        unique_times = np.unique(self.time_array)
-        for jd in unique_times:
+        unique_times, unique_inds = np.unique(self.time_array, return_index=True)
+        for ind, jd in enumerate(unique_times):
             inds = np.where(self.time_array == jd)[0]
+            lst = self.lst_array[unique_inds[ind]]
             obs.date, obs.epoch = self.juldate2ephem(
                 jd), self.juldate2ephem(jd)
             phase_center.compute(obs)
             phase_center_ra, phase_center_dec = phase_center.a_ra, phase_center.a_dec
-            zenith_ra = obs.sidereal_time()
-            zenith_dec = latitude
-            self.zenith_ra[inds] = zenith_ra
-            self.zenith_dec[inds] = zenith_dec
 
             # generate rotation matrices
             m0 = uvutils.top2eq_m(0., phase_center_dec)
-            m1 = uvutils.eq2top_m(phase_center_ra - zenith_ra, zenith_dec)
+            m1 = uvutils.eq2top_m(phase_center_ra - lst, latitude)
 
             # rotate and write uvws
             uvw = self.uvw_array[inds, :]
             uvw = np.dot(m0, uvw.T).T
             uvw = np.dot(m1, uvw.T).T
             self.uvw_array[inds, :] = uvw
+
+        self.zenith_ra = copy.deepcopy(self.lst_array)
+        self.zenith_dec = np.zeros_like(self.zenith_ra) + latitude
 
         # remove phase center
         self.phase_center_ra = None
@@ -731,8 +731,7 @@ class UVData(UVBase):
         # explicitly set epoch to J2000
         self.phase_center_epoch = 2000.0
 
-        unique_times, unique_inds = np.unique(
-            self.time_array, return_index=True)
+        unique_times, unique_inds = np.unique(self.time_array, return_index=True)
         uvws = np.zeros(self.uvw_array.shape, dtype=np.float64)
         for ind, jd in enumerate(unique_times):
             inds = np.where(self.time_array == jd)[0]
@@ -744,7 +743,7 @@ class UVData(UVBase):
             ra, dec = precess_pos.a_ra, precess_pos.a_dec
 
             # generate rotation matrices
-            m0 = uvutils.top2eq_m(lst - obs.sidereal_time(), latitude)
+            m0 = uvutils.top2eq_m(lst - lst, latitude)
             m1 = uvutils.eq2top_m(lst - ra, dec)
 
             # rotate and write uvws
