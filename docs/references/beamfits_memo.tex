@@ -1,0 +1,71 @@
+\documentclass[11pt, oneside]{article}   	% use "amsart" instead of "article" for AMSLaTeX format
+\usepackage{geometry}                		% See geometry.pdf to learn the layout options. There are lots.
+\geometry{letterpaper}                   		% ... or a4paper or a5paper or ... 
+%\geometry{landscape}                		% Activate for for rotated page geometry
+%\usepackage[parfill]{parskip}    		% Activate to begin paragraphs with an empty line rather than an indent
+\usepackage{graphicx}			
+							
+\usepackage{amssymb}
+
+\usepackage{hyperref} 
+\hypersetup{
+    colorlinks = true
+}
+
+\title{Memo: UVBeam FITS Format}
+\author{Bryna Hazelton, and the pyuvdata team}
+\date{Jan 27, 2018}							% Activate to display a given date or no date
+
+\begin{document}
+\maketitle
+\section{Introduction}
+This memo introduces a new FITS file format for storing
+beam models associated with the UVBeam object in
+pyuvdata\footnote{\url{https://github.com/HERA-Team/pyuvdata}}, a python package that
+provides an interface to interferometric data. Here, we describe the required and optional elements
+and the structure of a UVBeam FITS (hereafter \textit{beamfits}) file. 
+
+The contents of \textit{beamfits} files are explicitly mapped to attributes of the UVBeam object in 
+pyuvdata. For more details on these parameters, please see 
+\url{http://pyuvdata.readthedocs.io/en/latest/uvbeam_parameters.html}.
+For examples of how to interact with this format using pyuvdata, please see the
+pyuvdata tutorial: \url{http://pyuvdata.readthedocs.io/en/latest/tutorial.html}.
+
+\section{Overview}
+There are two main types of \textit{beamfits} files, depending on whether the beams are 
+pixelized in HEALPix\footnote{\url{https://healpix.jpl.nasa.gov/}} or a regular pixel grid. There are also two subtypes of files for power 
+and E-field beams for each pixelization scheme. So there are four primary flavors of 
+\textit{beamfits} files which have small differences in format. There are also several optional 
+metadata components that may or may not be present in any given file. These variations are 
+described in detail in the following sections.
+
+\section{Primary HDU}
+The primary HDU of \textit{beamfits} files is an Image HDU containing the beam model.
+
+\subsection{Primary Header}
+The following are required keywords in the primary header of a  \textit{beamfits} file. For more detailed explanations 
+of what these keywords mean, see the descriptions on pyuvdata's ReadTheDocs uvbeam\_parameters page. 
+The UVBeam parameter corresponding to each keyword is noted in parentheses.
+As with all FITS files, HISTORY and COMMENT cards are allowed.
+
+\begin{itemize}
+\item{\textbf{BTYPE}: should be set to either `power' or `efield' to designate a power or E-field beam type. (beam\_type)}
+\item{\textbf{NORMSTD}: should be set to one of `physical', `peak' or `solid\_angle'. (data\_normalization)}
+\item{\textbf{COORDSYS}: should be set to one of `az\_za', `sin\_zenith' or `healpix'. (pixel\_coordinate\_system)}
+\item{\textbf{TELESCOP}: Telescope name. (telescope\_name)}
+\item{\textbf{FEED}: Feed name (used to distinguish between different physical feed types on the same telescope). (feed\_name)}
+\item{\textbf{FEEDVER}: Feed version (used to distinguish between different versions of the same feed on the same telescope). (feed\_version)}
+\item{\textbf{MODEL}: Model name  (used to distinguish between different models of the same hardware). (model\_name)}
+\item{\textbf{MODELVER}: Model version (used to distinguish between different versions of the same models of the same hardware). (model\_version)}
+\item{\textbf{FEEDLIST}: Only for E-field beams. The list of feeds orientations represented in the data. (feed\_array)}
+\item{\textbf{NSIDE}: Only for HEALPix beams. The NSIDE of the HEALPix map. (nside)}
+\item{\textbf{ORDERING}: Only for HEALPix beams. The ordering parameter of the HEALPix map.(ordering)}
+\end{itemize}
+
+\subsection{Beam Data}
+The axes of the data array in the primary header depends on the pixelization scheme.
+
+For HEALPix beams, the data axes are:
+
+
+\end{document}  

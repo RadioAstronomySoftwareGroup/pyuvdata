@@ -19,13 +19,15 @@ class UVBeam(UVBase):
     """
 
     coordinate_system_dict = {
-        # uniformly gridded az/za coordinate system, az runs from East to North in radians
-        'az_za': ['az', 'za'],
-        # sine projection at zenith. y points North, x point East
-        'sin_zenith': ['sin_x', 'sin_y'],
-        # HEALPix map with zenith at north pole and
-        # az, za coordinate axes (for efield) where az runs from East to North.
-        'healpix': ['hpx_inds']}
+        'az_za': {'axes': ['az', 'za'],
+                  'description': 'uniformly gridded az/za coordinate system, '
+                  'where az runs from East to North in radians'},
+        'sin_zenith': {'axes': ['sin_x', 'sin_y'],
+                       'description': 'sine projection at zenith where y points North, x point East'},
+        'healpix': {'axes': ['hpx_inds'],
+                    'description': 'HEALPix map with zenith at the north pole and '
+                                   'az, za coordinate axes (for the basis_vector_array) '
+                                   'where az runs from East to North'}}
 
     def __init__(self):
         """Create a new UVBeam object."""
@@ -43,8 +45,11 @@ class UVBeam(UVBase):
         self._Naxes_vec = uvp.UVParameter('Naxes_vec', description=desc,
                                           expected_type=int, acceptable_vals=[2, 3])
 
-        desc = ('Pixel coordinate system, options are: ' +
-                ', '.join(self.coordinate_system_dict.keys()))
+        desc = ('Pixel coordinate system, options are: "' +
+                '", "'.join(self.coordinate_system_dict.keys()) + '".')
+        for key in self.coordinate_system_dict:
+            desc = desc + (' "' + key + '" is a ' + self.coordinate_system_dict[key]['description'] +
+                           '. It has axes [' + ', '.join(self.coordinate_system_dict[key]['axes']) + '].')
         self._pixel_coordinate_system = uvp.UVParameter('pixel_coordinate_system',
                                                         description=desc, form='str',
                                                         expected_type=str,
