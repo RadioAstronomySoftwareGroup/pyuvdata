@@ -82,7 +82,7 @@ class BeamFITS(UVBeam):
                     raise ValueError('First axis must be "Pix_Ind" for healpix beams')
             else:
                 coord_list = ctypes[0:2]
-                if coord_list != self.coordinate_system_dict[self.pixel_coordinate_system]:
+                if coord_list != self.coordinate_system_dict[self.pixel_coordinate_system]['axes']:
                     raise ValueError('Coordinate axis list does not match coordinate system')
 
         if self.pixel_coordinate_system == 'healpix':
@@ -371,14 +371,14 @@ class BeamFITS(UVBeam):
         else:
             # set up first image axis
             primary_header['CTYPE' + str(ax_nums['img_ax1'])] = \
-                (self.coordinate_system_dict[self.pixel_coordinate_system][0])
+                (self.coordinate_system_dict[self.pixel_coordinate_system]['axes'][0])
             primary_header['CRVAL' + str(ax_nums['img_ax1'])] = self.axis1_array[0]
             primary_header['CRPIX' + str(ax_nums['img_ax1'])] = 1
             primary_header['CDELT' + str(ax_nums['img_ax1'])] = axis1_spacing
 
             # set up second image axis
             primary_header['CTYPE' + str(ax_nums['img_ax2'])] = \
-                (self.coordinate_system_dict[self.pixel_coordinate_system][1])
+                (self.coordinate_system_dict[self.pixel_coordinate_system]['axes'][1])
             primary_header['CRVAL' + str(ax_nums['img_ax2'])] = self.axis2_array[0]
             primary_header['CRPIX' + str(ax_nums['img_ax2'])] = 1
             primary_header['CDELT' + str(ax_nums['img_ax2'])] = axis2_spacing
@@ -489,14 +489,14 @@ class BeamFITS(UVBeam):
 
             # set up first image axis
             basisvec_header['CTYPE' + str(basisvec_ax_nums['img_ax1'])] = \
-                (self.coordinate_system_dict[self.pixel_coordinate_system][0])
+                (self.coordinate_system_dict[self.pixel_coordinate_system]['axes'][0])
             basisvec_header['CRVAL' + str(basisvec_ax_nums['img_ax1'])] = self.axis1_array[0]
             basisvec_header['CRPIX' + str(basisvec_ax_nums['img_ax1'])] = 1
             basisvec_header['CDELT' + str(basisvec_ax_nums['img_ax1'])] = axis1_spacing
 
             # set up second image axis
             basisvec_header['CTYPE' + str(basisvec_ax_nums['img_ax2'])] = \
-                (self.coordinate_system_dict[self.pixel_coordinate_system][1])
+                (self.coordinate_system_dict[self.pixel_coordinate_system]['axes'][1])
             basisvec_header['CRVAL' + str(basisvec_ax_nums['img_ax2'])] = self.axis2_array[0]
             basisvec_header['CRPIX' + str(basisvec_ax_nums['img_ax2'])] = 1
             basisvec_header['CDELT' + str(basisvec_ax_nums['img_ax2'])] = axis2_spacing
