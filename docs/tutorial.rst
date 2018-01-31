@@ -657,6 +657,7 @@ b) Writing a gain calibration file.
 
   >>> cal = UVCal()
   >>> cal.set_gain()
+  >>> cal.set_redundant()
   >>> cal.Nfreqs = Nfreqs
   >>> cal.Njones = Njones
   >>> cal.Ntimes = Ntimes
