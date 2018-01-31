@@ -72,8 +72,8 @@ class BeamFITS(UVBeam):
             if ctypes[0] == 'Pix_Ind':
                 self.pixel_coordinate_system = 'healpix'
             else:
-                for cs, coords in self.coordinate_system_dict.iteritems():
-                    if coords == ctypes[0:2]:
+                for cs, cs_dict in self.coordinate_system_dict.iteritems():
+                    if cs_dict['axes'] == ctypes[0:2]:
                         coord_list = ctypes[0:2]
                         self.pixel_coordinate_system = cs
         else:
