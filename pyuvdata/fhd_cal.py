@@ -160,12 +160,13 @@ class FHDCal(UVCal):
             self.extra_keywords['polyfit'] = cal_data['polyfit'][0]
             self.extra_keywords['bandpass'] = cal_data['bandpass'][0]
             self.extra_keywords['mode_fit'] = cal_data['mode_fit'][0]
-            self.extra_keywords['amp_degee'] = cal_data['amp_degree'][0]
-            self.extra_keywords['phase_degree'] = cal_data['phase_degree'][0]
+            self.extra_keywords['amp_deg'] = cal_data['amp_degree'][0]
+            self.extra_keywords['phse_deg'] = cal_data['phase_degree'][0]
 
         if settings_file is not None:
             self.history, self.observer = get_fhd_history(settings_file, return_user=True)
         else:
+            warnings.warn('No settings file, history will be incomplete')
             self.history = ''
 
         if extra_history is not None:
