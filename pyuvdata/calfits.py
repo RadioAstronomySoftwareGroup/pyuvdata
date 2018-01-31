@@ -22,6 +22,13 @@ def _warn_olddelay(filename):
                   'future compatibility.'.format(file=filename))
 
 
+def _warn_oldstyle(filename):
+    warnings.warn('{file} appears to be an old calfits format '
+                  'which has been depricated. '
+                  'Rewrite this file with write_calfits to ensure '
+                  'future compatibility.'.format(file=filename))
+
+
 class CALFITS(UVCal):
     """
     Defines a calfits-specific class for reading and writing calfits files.
@@ -100,6 +107,19 @@ class CALFITS(UVCal):
         prihdr['TELESCOP'] = self.telescope_name
         prihdr['GNCONVEN'] = self.gain_convention
         prihdr['CALTYPE'] = self.cal_type
+        prihdr['CALSTYLE'] = self.cal_style
+        if self.sky_field is not None:
+            prihdr['FIELD'] = self.sky_field
+        if self.sky_catalog is not None:
+            prihdr['CATALOG'] = self.sky_catalog
+        if self.ref_antenna_name is not None:
+            prihdr['REFANT'] = self.ref_antenna_name
+        if self.Nsources is not None:
+            prihdr['NSOURCES'] = self.Nsources
+        if self.baseline_range is not None:
+            prihdr['BL_RANGE'] = '[' + ', '.join(self.baseline_range) + ']'
+        if self.diffuse_model is not None:
+            prihdr['DIFFUSE'] = self.diffuse_model
         prihdr['INTTIME'] = self.integration_time
         prihdr['CHWIDTH'] = self.channel_width
         prihdr['XORIENT'] = self.x_orientation
@@ -108,11 +128,6 @@ class CALFITS(UVCal):
         elif self.freq_range is not None:
             prihdr['FRQRANGE'] = ','.join(map(str, self.freq_range))
         prihdr['TMERANGE'] = ','.join(map(str, self.time_range))
-
-        for p in self.extra():
-            ep = getattr(self, p)
-            if ep.form is 'str':
-                prihdr['{0}'.format(p.upper().replace('_', '')[:8])] = ep.value
 
         if self.observer:
             prihdr['OBSERVER'] = self.observer
@@ -384,12 +399,22 @@ class CALFITS(UVCal):
         else:
             if 'FRQRANGE' in hdr:
                 self.freq_range = map(float, hdr.pop('FRQRANGE').split(','))
-        if 'OBSERVER' in hdr:
-            self.observer = hdr.pop('OBSERVER')
-        if 'ORIGCAL' in hdr:
-            self.git_origin_cal = hdr.pop('ORIGCAL')
-        if 'HASHCAL' in hdr:
-            self.git_hash_cal = hdr.pop('HASHCAL')
+
+        if 'CALSTYLE' not in hdr:
+            _warn_oldstyle(filename)
+            self.cal_style = 'redundant'
+        else:
+            self.cal_style = hdr.pop('CALSTYLE')
+        self.sky_field = hdr.pop('FIELD', None)
+        self.sky_catalog = hdr.pop('CATALOG', None)
+        self.ref_antenna_name = hdr.pop('REFANT', None)
+        self.Nsources = hdr.pop('NSOURCES', None)
+        self.baseline_range = hdr.pop('BL_RANGE', None)
+        self.diffuse_model = hdr.pop('DIFFUSE', None)
+
+        self.observer = hdr.pop('OBSERVER', None)
+        self.git_origin_cal = hdr.pop('ORIGCAL', None)
+        self.git_hash_cal = hdr.pop('HASHCAL', None)
 
         # generate polarization and time array for either cal_type.
         self.Njones = hdr.pop('NAXIS2')
@@ -413,7 +438,7 @@ class CALFITS(UVCal):
             self.Nspws = hdr.pop('NAXIS5')
             # add this for backwards compatibility when the spw CRVAL wasn't recorded
             try:
-                spw_array = uvutils.fits_gethduaxis(F[0], 5, strict_fits=strict_fits) - 1
+                spw_array = uvutils.fits_gethduaxis(F[0], 5, strict_fits=strict_fits)
                 if spw_array[0] == 0:
                     # XXX: backwards compatibility: if array is already (erroneously) zero-
                     #      indexed, do nothing
@@ -427,7 +452,6 @@ class CALFITS(UVCal):
                     self.spw_array = np.array([0])
                 else:
                     raise
-
             # generate frequency array from primary data unit.
             self.Nfreqs = hdr.pop('NAXIS4')
             self.freq_array = uvutils.fits_gethduaxis(F[0], 4, strict_fits=strict_fits)
@@ -530,7 +554,6 @@ class CALFITS(UVCal):
         if 'TOTQLTY' in hdunames:
             totqualhdu = F[hdunames['TOTQLTY']]
             self.total_quality_array = totqualhdu.data
-
             # add this for backwards compatibility when the spw CRVAL wasn't recorded
             try:
                 spw_array = uvutils.fits_gethduaxis(totqualhdu, 4, strict_fits=strict_fits) - 1
@@ -541,7 +564,10 @@ class CALFITS(UVCal):
                 else:
                     raise
             if not np.allclose(spw_array, self.spw_array):
-                raise ValueError('Spectral window values are different in TOTQLTY HDU than in primary HDU')
+                raise ValueError('Spectral window values are different in '
+                                 'TOTQLTY HDU than in primary HDU. primary HDU '
+                                 'has {pspw}, TOTQLTY has {tspw}'
+                                 .format(pspw=self.spw_array, tspw=spw_array))
 
             if self.cal_type != 'delay':
                 # delay-type files won't have a freq_array

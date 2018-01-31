@@ -22,7 +22,7 @@ class TestUVCalInit(object):
                                     '_jones_array', '_time_array', '_time_range',
                                     '_integration_time',
                                     '_gain_convention', '_flag_array',
-                                    '_quality_array', '_cal_type',
+                                    '_quality_array', '_cal_type', '_cal_style',
                                     '_x_orientation', '_history']
 
         self.required_properties = ['Nfreqs', 'Njones', 'Ntimes', 'Nspws',
@@ -34,16 +34,20 @@ class TestUVCalInit(object):
                                     'jones_array', 'time_array', 'time_range',
                                     'integration_time',
                                     'gain_convention', 'flag_array',
-                                    'quality_array', 'cal_type',
+                                    'quality_array', 'cal_type', 'cal_style',
                                     'x_orientation', 'history']
 
-        self.extra_parameters = ['_gain_array', '_delay_array',
+        self.extra_parameters = ['_gain_array', '_delay_array', '_sky_field',
+                                 '_sky_catalog', '_ref_antenna_name', '_Nsources',
+                                 '_baseline_range', '_diffuse_model',
                                  '_input_flag_array', '_freq_range',
                                  '_observer', '_git_origin_cal',
                                  '_git_hash_cal', '_total_quality_array',
                                  '_extra_keywords']
 
-        self.extra_properties = ['gain_array', 'delay_array',
+        self.extra_properties = ['gain_array', 'delay_array', 'sky_field',
+                                 'sky_catalog', 'ref_antenna_name', 'Nsources',
+                                 'baseline_range', 'diffuse_model',
                                  'input_flag_array', 'freq_range',
                                  'observer', 'git_origin_cal',
                                  'git_hash_cal', 'total_quality_array',
@@ -112,13 +116,16 @@ class TestUVCalBasicMethods(object):
         """Set up test"""
         self.gain_object = UVCal()
         gainfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.fitsA')
-        self.gain_object.read_calfits(gainfile)
+        message = [gainfile + ' appears to be an old calfits format which']
+        uvtest.checkWarnings(self.gain_object.read_calfits, [gainfile], message=message)
+
         self.gain_object2 = copy.deepcopy(self.gain_object)
         self.delay_object = UVCal()
         delayfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.HH.uvc.fits')
-        message = delayfile + ' appears to be an old calfits format'
+        message = [delayfile + ' appears to be an old calfits format which',
+                   delayfile + ' appears to be an old calfits format for delay files']
         uvtest.checkWarnings(self.delay_object.read_calfits, [delayfile],
-                             message=message)
+                             message=message, nwarnings=2)
 
     def teardown(self):
         """Tear down test"""
@@ -230,7 +237,8 @@ class TestUVCalSelectGain(object):
         """Set up test"""
         self.gain_object = UVCal()
         gainfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.fitsA')
-        self.gain_object.read_calfits(gainfile)
+        message = [gainfile + ' appears to be an old calfits format which']
+        uvtest.checkWarnings(self.gain_object.read_calfits, [gainfile], message=message)
         self.gain_object2 = copy.deepcopy(self.gain_object)
 
     def teardown(self):
@@ -506,8 +514,10 @@ class TestUVCalSelectDelay(object):
         # add an input flag array to the file to test for that.
         write_file = os.path.join(DATA_PATH, 'test/outtest_input_flags.fits')
         uv_in = UVCal()
-        message = delayfile + ' appears to be an old calfits format'
-        uvtest.checkWarnings(uv_in.read_calfits, [delayfile], message=message)
+        message = [delayfile + ' appears to be an old calfits format which',
+                   delayfile + ' appears to be an old calfits format for delay files']
+        uvtest.checkWarnings(uv_in.read_calfits, [delayfile], message=message,
+                             nwarnings=2)
         uv_in.input_flag_array = np.zeros(uv_in._input_flag_array.expected_shape(uv_in), dtype=bool)
         uv_in.write_calfits(write_file, clobber=True)
 
@@ -773,7 +783,8 @@ class TestUVCalAddGain(object):
         """Set up test"""
         self.gain_object = UVCal()
         gainfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.fitsA')
-        self.gain_object.read_calfits(gainfile)
+        message = [gainfile + ' appears to be an old calfits format which']
+        uvtest.checkWarnings(self.gain_object.read_calfits, [gainfile], message=message)
         self.gain_object2 = copy.deepcopy(self.gain_object)
 
     def teardown(self):
@@ -1139,8 +1150,10 @@ class TestUVCalAddDelay(object):
         # add an input flag array to the file to test for that.
         write_file = os.path.join(DATA_PATH, 'test/outtest_input_flags.fits')
         uv_in = UVCal()
-        message = delayfile + ' appears to be an old calfits format'
-        uvtest.checkWarnings(uv_in.read_calfits, [delayfile], message=message)
+        message = [delayfile + ' appears to be an old calfits format which',
+                   delayfile + ' appears to be an old calfits format for delay files']
+        uvtest.checkWarnings(uv_in.read_calfits, [delayfile], message=message,
+                             nwarnings=2)
         uv_in.input_flag_array = np.zeros(uv_in._input_flag_array.expected_shape(uv_in), dtype=bool)
         uv_in.write_calfits(write_file, clobber=True)
 

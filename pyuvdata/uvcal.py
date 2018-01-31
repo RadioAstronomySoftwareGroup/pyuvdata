@@ -162,6 +162,12 @@ class UVCal(UVBase):
                 'north/south orientation)')
         self._x_orientation = uvp.UVParameter('x_orientation', description=desc,
                                               expected_type=str)
+
+        desc = ('Style of calibration. Values are sky or redundant.')
+        self._cal_style = uvp.UVParameter('cal_style', form='str',
+                                          expected_type=str,
+                                          description=desc,
+                                          acceptable_vals=['sky', 'redundant'])
         # --- cal_type parameters ---
         desc = ('cal type parameter. Values are delay, gain or unknown.')
         self._cal_type = uvp.UVParameter('cal_type', form='str',
@@ -189,6 +195,41 @@ class UVCal(UVBase):
         self._freq_range = uvp.UVParameter('freq_range', required=False,
                                            description=desc, form=(2,),
                                            expected_type=float, tols=1e-3)
+
+        # --- cal_style parameters ---
+        desc = ('Style of calibration. Values are sky or redundant.')
+        self._cal_style = uvp.UVParameter('cal_style', form='str',
+                                          expected_type=str,
+                                          description=desc,
+                                          acceptable_vals=['sky', 'redundant'])
+
+        desc = ('Required if cal_style = "sky". Short string describing field '
+                'center or dominant source.')
+        self._sky_field = uvp.UVParameter('sky_field', form='str', required=False,
+                                          expected_type=str, description=desc)
+
+        desc = ('Required if cal_style = "sky". Name of calibration catalog.')
+        self._sky_catalog = uvp.UVParameter('sky_catalog', form='str', required=False,
+                                            expected_type=str, description=desc)
+
+        desc = ('Required if cal_style = "sky". Phase reference antenna.')
+        self._ref_antenna_name = uvp.UVParameter('ref_antenna_name', form='str',
+                                                 required=False,
+                                                 expected_type=str, description=desc)
+
+        desc = ('Number of sources used.')
+        self._Nsources = uvp.UVParameter('Nsources', required=False,
+                                         expected_type=np.int, description=desc)
+
+        desc = ('Range of baselines used for calibration.')
+        self._baseline_range = uvp.UVParameter('baseline_range', form=(2,),
+                                               required=False,
+                                               expected_type=np.float, description=desc)
+
+        desc = ('Name of diffuse model.')
+        self._diffuse_model = uvp.UVParameter('diffuse_model', form='str',
+                                              required=False,
+                                              expected_type=str, description=desc)
 
         # --- truly optional parameters ---
         desc = ('Array of input flags, True is flagged. shape: (Nants_data, Nspws, '
@@ -250,6 +291,11 @@ class UVCal(UVBase):
             run_check_acceptability: Option to check if values in required parameters
                 are acceptable. Default is True.
         """
+        # if make sure requirements are set properly for cal_style
+        if self.cal_style == 'sky':
+            self.set_sky()
+        elif self.cal_style == 'redundant':
+            self.set_redundant()
 
         # first run the basic check from UVBase
         super(UVCal, self).check(check_extra=check_extra,
@@ -297,6 +343,20 @@ class UVCal(UVBase):
         self._freq_range.required = False
         self._quality_array.form = self._gain_array.form
         self._total_quality_array.form = self._gain_array.form[1:]
+
+    def set_sky(self):
+        """Set cal_style to 'sky' and adjust required parameters."""
+        self.cal_style = 'sky'
+        self._sky_field.required = True
+        self._sky_catalog.required = True
+        self._ref_antenna_name.required = True
+
+    def set_redundant(self):
+        """Set cal_style to 'sky' and adjust required parameters."""
+        self.cal_style = 'redundant'
+        self._sky_field.required = False
+        self._sky_catalog.required = False
+        self._ref_antenna_name.required = False
 
     def select(self, antenna_nums=None, antenna_names=None,
                frequencies=None, freq_chans=None,
@@ -690,10 +750,13 @@ class UVCal(UVBase):
 
         # Check objects are compatible
         compatibility_params = ['_cal_type', '_integration_time', '_channel_width',
-                                '_telescope_name', '_gain_convention', '_x_orientation']
+                                '_telescope_name', '_gain_convention', '_x_orientation',
+                                '_cal_style', '_ref_antenna_name']
         if this.cal_type == 'delay':
             compatibility_params.append('_freq_range')
-        warning_params = ['_observer', '_git_hash_cal']
+        warning_params = ['_observer', '_git_hash_cal', '_sky_field',
+                          '_sky_catalog', '_Nsources', '_baseline_range',
+                          '_diffuse_model']
 
         for a in compatibility_params:
             if getattr(this, a) != getattr(other, a):
