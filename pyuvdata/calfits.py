@@ -117,7 +117,7 @@ class CALFITS(UVCal):
         if self.Nsources is not None:
             prihdr['NSOURCES'] = self.Nsources
         if self.baseline_range is not None:
-            prihdr['BL_RANGE'] = '[' + ', '.join(self.baseline_range) + ']'
+            prihdr['BL_RANGE'] = '[' + ', '.join([str(b) for b in self.baseline_range]) + ']'
         if self.diffuse_model is not None:
             prihdr['DIFFUSE'] = self.diffuse_model
         prihdr['INTTIME'] = self.integration_time
@@ -409,7 +409,9 @@ class CALFITS(UVCal):
         self.sky_catalog = hdr.pop('CATALOG', None)
         self.ref_antenna_name = hdr.pop('REFANT', None)
         self.Nsources = hdr.pop('NSOURCES', None)
-        self.baseline_range = hdr.pop('BL_RANGE', None)
+        bl_range_string = hdr.pop('BL_RANGE', None)
+        if bl_range_string is not None:
+            self.baseline_range = [float(b) for b in bl_range_string.strip('[').strip(']').split(',')]
         self.diffuse_model = hdr.pop('DIFFUSE', None)
 
         self.observer = hdr.pop('OBSERVER', None)
