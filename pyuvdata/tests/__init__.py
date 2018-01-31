@@ -87,6 +87,8 @@ def checkWarnings(func, func_args=[], func_kwargs={},
         else:
             for i, w_i in enumerate(w):
                 if w_i.category is not category[i]:
+                    print('expected category ' + str(i) + ' was: ', category[i])
+                    print('category ' + str(i) + ' was: ', str(w_i.category))
                     assert(False)
                 if message[i] is not None:
                     if message[i] not in str(w_i.message):
