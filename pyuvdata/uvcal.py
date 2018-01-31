@@ -163,11 +163,6 @@ class UVCal(UVBase):
         self._x_orientation = uvp.UVParameter('x_orientation', description=desc,
                                               expected_type=str)
 
-        desc = ('Style of calibration. Values are sky or redundant.')
-        self._cal_style = uvp.UVParameter('cal_style', form='str',
-                                          expected_type=str,
-                                          description=desc,
-                                          acceptable_vals=['sky', 'redundant'])
         # --- cal_type parameters ---
         desc = ('cal type parameter. Values are delay, gain or unknown.')
         self._cal_type = uvp.UVParameter('cal_type', form='str',
@@ -291,7 +286,7 @@ class UVCal(UVBase):
             run_check_acceptability: Option to check if values in required parameters
                 are acceptable. Default is True.
         """
-        # if make sure requirements are set properly for cal_style
+        # Make sure requirements are set properly for cal_style
         if self.cal_style == 'sky':
             self.set_sky()
         elif self.cal_style == 'redundant':
