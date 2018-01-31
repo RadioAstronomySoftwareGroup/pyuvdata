@@ -9,7 +9,7 @@ import numpy as np
 
 # set up FHD file list
 testdir = os.path.join(DATA_PATH, 'fhd_cal_data/')
-testfile_prefix = '1061311664_'
+testfile_prefix = '1061316296_'
 obs_testfile = os.path.join(testdir, testfile_prefix + 'obs.sav')
 cal_testfile = os.path.join(testdir, testfile_prefix + 'cal.sav')
 settings_testfile = os.path.join(testdir, testfile_prefix + 'settings.txt')
@@ -29,7 +29,7 @@ def test_ReadFHDcalWriteReadcalfits():
     else:
         # numpy 1.14 introduced a new deprecation warning
         n_scipy_warnings, scipy_warn_list, scipy_category_list = \
-            uvtest.get_scipy_warnings(n_scipy_warnings=1135)
+            uvtest.get_scipy_warnings(n_scipy_warnings=605)
         uvtest.checkWarnings(fhd_cal.read_fhd_cal, [cal_testfile, obs_testfile],
                              {'settings_file': settings_testfile},
                              message=scipy_warn_list, category=scipy_category_list,
