@@ -2,9 +2,10 @@ from scipy.io.idl import readsav
 import numpy as np
 import warnings
 from uvcal import UVCal
+import utils as uvutils
 
 
-class FHD_cal(UVCal):
+class FHDCal(UVCal):
     """
     Defines a FHD-specific subclass of UVCal for reading FHD calibration save files.
     This class should not be interacted with directly, instead use the read_fhd_cal
@@ -41,9 +42,13 @@ class FHD_cal(UVCal):
         this_dict = readsav(obs_file, python_dict=True)
         obs_data = this_dict['obs']
 
-        self.Nfreqs = cal_data['n_freq'][0]
-        self.freq_array = cal_data['freq'][0]
-        self.channel_width = self.freq_array[1] - self.freq_array[0]
+        self.Nspws = 1
+        self.spw_array = np.array([0])
+
+        self.Nfreqs = int(cal_data['n_freq'][0])
+        self.freq_array = np.zeros((self.Nspws, len(cal_data['freq'][0])), dtype=np.float_)
+        self.freq_array[0, :] = cal_data['freq'][0]
+        self.channel_width = float(np.mean(np.diff(self.freq_array)))
 
         # FHD only calculates one calibration over all the times.
         # cal_data.n_times gives the number of times that goes into that one
@@ -52,32 +57,32 @@ class FHD_cal(UVCal):
         self.Ntimes = 1
         time_array = obs_data['baseline_info'][0]['jdate'][0]
         self.integration_time = np.round(np.mean(np.diff(time_array)) * 24 * 3600, 2)
+        self.time_array = np.array([np.mean(time_array)])
 
-        self.Nspws = 1
-        self.spw_array = np.array([0])
-        self.Njones = cal_data['n_pol'][0]
+        self.Njones = int(cal_data['n_pol'][0])
         # FHD only has the diagonal elements (jxx, jyy) and if there's only one
         # present it must be jxx
         if self.Njones == 1:
-            self.jones_array = [-5]
+            self.jones_array = np.array([-5])
         else:
-            self.jones_array = [-5, -6]
+            self.jones_array = np.array([-5, -6])
 
         self.telescope_name = obs_data['instrument'][0]
 
-        self.Nants_data = cal_data['n_tile'][0]
-        self.Nants_telescope = cal_data['n_tile'][0]
-        self.antenna_names = cal_data.['tile_names'][0]
+        self.Nants_data = int(cal_data['n_tile'][0])
+        self.Nants_telescope = int(cal_data['n_tile'][0])
+        self.antenna_names = cal_data['tile_names'][0].tolist()
         self.antenna_numbers = np.arange(self.Nants_telescope)
         self.ant_array = np.arange(self.Nants_data)
 
-        self.cal_style = 'sky'
+        self.set_sky()
         self.sky_field = 'phase center (RA, Dec): ({ra}, {dec})'.format(
             ra=obs_data['orig_phasera'][0], dec=obs_data['orig_phasedec'][0])
         self.sky_catalog = cal_data['skymodel'][0]['catalog_name'][0]
         self.ref_antenna_name = cal_data['ref_antenna_name'][0]
-        self.Nsources = cal_data['skymodel'][0]['n_sources'][0]
-        self.baseline_range = [cal_data['min_cal_baseline'][0], cal_data['max_cal_baseline'][0]]
+        self.Nsources = int(cal_data['skymodel'][0]['n_sources'][0])
+        self.baseline_range = [float(cal_data['min_cal_baseline'][0]),
+                               float(cal_data['max_cal_baseline'][0])]
         galaxy_model = cal_data['skymodel'][0]['galaxy_model'][0]
         if galaxy_model == 0:
             galaxy_model = None
@@ -95,14 +100,14 @@ class FHD_cal(UVCal):
         self.gain_convention = 'divide'
         self.x_orientation = 'east'
 
-        self.cal_type = 'gain'
+        self.set_gain()
         fit_gain_array_in = cal_data['gain'][0]
-        fit_gain_array = np.zeros(self._gain_array.expected_shape, dtype=np.complex_)
+        fit_gain_array = np.zeros(self._gain_array.expected_shape(self), dtype=np.complex_)
         for jones_i, arr in enumerate(fit_gain_array_in):
             fit_gain_array[:, 0, :, 0, jones_i] = arr
         if raw:
             res_gain_array_in = cal_data['gain_residual'][0]
-            res_gain_array = np.zeros(self._gain_array.expected_shape, dtype=np.complex_)
+            res_gain_array = np.zeros(self._gain_array.expected_shape(self), dtype=np.complex_)
             for jones_i, arr in enumerate(fit_gain_array_in):
                 res_gain_array[:, 0, :, 0, jones_i] = arr
             self.gain_array = fit_gain_array + res_gain_array
@@ -132,22 +137,22 @@ class FHD_cal(UVCal):
         self.flag_array = np.zeros_like(self.gain_array, dtype=np.bool)
         flagged_ants = np.where(ant_use == 0)[0]
         for ant in flagged_ants:
-            flag_array[ant, :] = 1
+            self.flag_array[ant, :] = 1
         flagged_freqs = np.where(freq_use == 0)[0]
         for freq in flagged_freqs:
-            flag_array[:, :, freq] = 1
+            self.flag_array[:, :, freq] = 1
 
         # currently don't have branch info. may change in future.
         self.git_origin_cal = 'https://github.com/EoRImaging/FHD'
         self.git_hash_cal = obs_data['code_version'][0]
 
-        self.extra_keywords['auto_scale'] = \
+        self.extra_keywords['autoscal'] = \
             '[' + ', '.join(str(d) for d in cal_data['auto_scale'][0]) + ']'
-        self.extra_keywords['n_vis_cal'] = cal_data['n_vis_cal'][0]
+        self.extra_keywords['nvis_cal'] = cal_data['n_vis_cal'][0]
         self.extra_keywords['time_avg'] = cal_data['time_avg'][0]
-        self.extra_keywords['conv_thresh'] = cal_data['conv_thresh'][0]
+        self.extra_keywords['cvgthres'] = cal_data['conv_thresh'][0]
         if 'DELAYS' in obs_data.dtype.names:
-            self.extra_keywords['mwa_delays'] = \
+            self.extra_keywords['delays'] = \
                 '[' + ', '.join(str(int(d)) for d in obs_data['delays'][0]) + ']'
 
         if not raw:
@@ -189,3 +194,13 @@ class FHD_cal(UVCal):
                 self.history += '\n' + '\n'.join(extra_history)
             else:
                 self.history += '\n' + extra_history
+
+        if not uvutils.check_history_version(self.history, self.pyuvdata_version_str):
+            if self.history.endswith('\n'):
+                self.history += self.pyuvdata_version_str
+            else:
+                self.history += '\n' + self.pyuvdata_version_str
+
+        if run_check:
+            self.check(check_extra=check_extra,
+                       run_check_acceptability=run_check_acceptability)
