@@ -71,6 +71,27 @@ class FHD_cal(UVCal):
         self.antenna_numbers = np.arange(self.Nants_telescope)
         self.ant_array = np.arange(self.Nants_data)
 
+        self.cal_style = 'sky'
+        self.sky_field = 'phase center (RA, Dec): ({ra}, {dec})'.format(
+            ra=obs_data['orig_phasera'][0], dec=obs_data['orig_phasedec'][0])
+        self.sky_catalog = cal_data['skymodel'][0]['catalog_name'][0]
+        self.ref_antenna_name = cal_data['ref_antenna_name'][0]
+        self.Nsources = cal_data['skymodel'][0]['n_sources'][0]
+        self.baseline_range = [cal_data['min_cal_baseline'][0], cal_data['max_cal_baseline'][0]]
+        galaxy_model = cal_data['skymodel'][0]['galaxy_model'][0]
+        if galaxy_model == 0:
+            galaxy_model = None
+        diffuse_model = cal_data['skymodel'][0]['diffuse_model'][0]
+        if diffuse_model == 0:
+            diffuse_model = None
+        if galaxy_model is not None:
+            if diffuse_model is not None:
+                self.diffuse_model = galaxy_model + ' + ' + diffuse_model
+            else:
+                self.diffuse_model = galaxy_model
+        elif diffuse_model is not None:
+            self.diffuse_model = diffuse_model
+
         self.gain_convention = 'divide'
         self.x_orientation = 'east'
 
@@ -168,12 +189,3 @@ class FHD_cal(UVCal):
                 self.history += '\n' + '\n'.join(extra_history)
             else:
                 self.history += '\n' + extra_history
-
-        # new proposed keywords:
-        # cal_style: sky
-        # sky_field: 'phase center: RA, Dec' -- obs.orig_phasera, obs.orig_phasedec
-        # sky_catalog: cal.skymodel.catalog_name
-        # ref_antenna_name: ref_antenna_name
-        # n_sources: cal.skymodel.n_sources
-        # cal_baseline_range: min_cal_baseline to max_cal_baseline
-        # diffuse_model: cal.skymodel.galaxy_model or cal.skymodel.diffuse_model or both
