@@ -55,6 +55,9 @@ pro truncate_fhd_files
     *convergence[pol] = (*convergence[pol])[chan_range[0]:chan_range[1],0:ntile_keep-1]
     *auto_params[pol] = (*auto_params[pol])[*,0:ntile_keep-1]
   endfor
+  nsrc_keep = 15
+  new_skymodel = structure_update(cal.skymodel, n_sources = nsrc_keep, $
+    source_list = cal.skymodel.source_list[0:nsrc_keep-1])
   cal_new = structure_update(cal, n_freq=chan_range[1]-chan_range[0]+1, $
     n_tile = ntile_keep, n_time = nts_keep,  uu = cal.uu[blt_inds], $
     vv = cal.vv[blt_inds], tile_a=cal.tile_a[blt_inds], tile_b=cal.tile_b[blt_inds], $
@@ -63,7 +66,8 @@ pro truncate_fhd_files
     convergence = convergence, auto_params = auto_params, $
     amp_params = cal.amp_params[*,0:ntile_keep-1], $
     phase_params = cal.phase_params[*,0:ntile_keep-1], $
-    mode_params = cal.mode_params[*,0:ntile_keep-1])
+    mode_params = cal.mode_params[*,0:ntile_keep-1], $
+    skymodel=new_skymodel)
   cal=cal_new
   save,cal,filename=outdir+observation+'_cal.sav'
   
