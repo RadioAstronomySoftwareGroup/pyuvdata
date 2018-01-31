@@ -686,13 +686,13 @@ class UVCal(UVBase):
                     self += uvcal2
                 del(uvcal2)
         else:
-            uvfits_obj = calfits.CALFITS()
-            uvfits_obj.read_calfits(filename, run_check=run_check,
-                                    check_extra=check_extra,
-                                    run_check_acceptability=run_check_acceptability,
-                                    strict_fits=strict_fits)
-            self._convert_from_filetype(uvfits_obj)
-            del(uvfits_obj)
+            calfits_obj = calfits.CALFITS()
+            calfits_obj.read_calfits(filename, run_check=run_check,
+                                     check_extra=check_extra,
+                                     run_check_acceptability=run_check_acceptability,
+                                     strict_fits=strict_fits)
+            self._convert_from_filetype(calfits_obj)
+            del(calfits_obj)
 
     def write_calfits(self, filename, run_check=True, check_extra=True,
                       run_check_acceptability=True, clobber=False):
@@ -715,6 +715,59 @@ class UVCal(UVBase):
                                   run_check_acceptability=run_check_acceptability,
                                   clobber=clobber)
         del(calfits_obj)
+
+    def read_fhd_cal(self, cal_file, obs_file, settings_file=None, raw=True,
+                     extra_history=None, run_check=True, check_extra=True,
+                     run_check_acceptability=True):
+        """
+        Read data from an FHD cal.sav file.
+
+        Args:
+            cal_file: The cal.sav file to read from.
+            obs_file: The obs.sav file to read from.
+            settings_file: The settings_file to read from. Optional, but very
+                useful for provenance.
+            raw: Option to use the raw (per antenna, per frequency) solution or
+                to use the fitted (polynomial over phase/amplitude) solution.
+                Default is True (meaning use the raw solutions).
+            extra_history: Optional string or list of strings to add to the
+                object's history parameter. Default is None.
+            run_check: Option to check for the existence and proper shapes of
+                parameters after reading in the file. Default is True.
+            check_extra: Option to check optional parameters as well as required
+                ones. Default is True.
+            run_check_acceptability: Option to check acceptable range of the values of
+                parameters after reading in the file. Default is True.
+        """
+        import fhd_cal
+        if isinstance(cal_file, (list, tuple)):
+            if settings_file is not None:
+                settings_file_use = settings_file[0]
+            self.read_fhd_cal(cal_file[0], obs_file[0], settings_file=settings_file_use,
+                              raw=raw, extra_history=extra_history,
+                              run_check=run_check, check_extra=check_extra,
+                              run_check_acceptability=run_check_acceptability)
+            if len(filename) > 1:
+                for ind, f in enumerate(cal_file[1:]):
+                    uvcal2 = UVCal()
+                    if settings_file is not None:
+                        settings_file_use = settings_file[ind + 1]
+                    uvcal2.read_fhd_cal(f, obs_file[ind + 1],
+                                        settings_file=settings_file_use,
+                                        raw=raw, extra_history=extra_history,
+                                        run_check=run_check, check_extra=check_extra,
+                                        run_check_acceptability=run_check_acceptability)
+
+                    self += uvcal2
+                del(uvcal2)
+        else:
+            fhd_cal_obj = fhd_cal.FHDCal()
+            fhd_cal_obj.read_fhd_cal(cal_file, obs_file, settings_file=settings_file,
+                                     raw=raw, extra_history=extra_history,
+                                     run_check=run_check, check_extra=check_extra,
+                                     run_check_acceptability=run_check_acceptability)
+            self._convert_from_filetype(fhd_cal_obj)
+            del(fhd_cal_obj)
 
     def __add__(self, other, run_check=True, check_extra=True,
                 run_check_acceptability=True, inplace=False):
