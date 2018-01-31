@@ -347,7 +347,7 @@ class UVCal(UVBase):
         self._ref_antenna_name.required = True
 
     def set_redundant(self):
-        """Set cal_style to 'sky' and adjust required parameters."""
+        """Set cal_style to 'redundant' and adjust required parameters."""
         self.cal_style = 'redundant'
         self._sky_field.required = False
         self._sky_catalog.required = False
