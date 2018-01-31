@@ -50,19 +50,19 @@ pro truncate_fhd_files
   convergence = cal.convergence
   auto_params = cal.auto_params
   for pol=0,1 do begin
-    *gain[pol] = (*gain[pol])[chan_range[0]:chan_range[1],0:ntile_keep]
-    *convergence[pol] = (*convergence[pol])[chan_range[0]:chan_range[1],0:ntile_keep]
-    *auto_params[pol] = (*auto_params[pol])[*,0:ntile_keep]
+    *gain[pol] = (*gain[pol])[chan_range[0]:chan_range[1],0:ntile_keep-1]
+    *convergence[pol] = (*convergence[pol])[chan_range[0]:chan_range[1],0:ntile_keep-1]
+    *auto_params[pol] = (*auto_params[pol])[*,0:ntile_keep-1]
   endfor
   cal_new = structure_update(cal, n_freq=chan_range[1]-chan_range[0]+1, $
     n_tile = ntile_keep, n_time = nts_keep,  uu = cal.uu[blt_inds], $
     vv = cal.vv[blt_inds], tile_a=cal.tile_a[blt_inds], tile_b=cal.tile_b[blt_inds], $
-    tile_names = cal.tile_names[0:ntile_keep], bin_offset=bin_offset, $
+    tile_names = cal.tile_names[0:ntile_keep-1], bin_offset=bin_offset, $
     freq = cal.freq[chan_range[0]:chan_range[1]], gain = gain, $
     convergence = convergence, auto_params = auto_params, $
-    amp_params = cal.amp_params[*,0:ntile_keep], $
-    phase_params = cal.phase_params[*,0:ntile_keep], $
-    mode_params = cal.mode_params[*,0:ntile_keep])
+    amp_params = cal.amp_params[*,0:ntile_keep-1], $
+    phase_params = cal.phase_params[*,0:ntile_keep-1], $
+    mode_params = cal.mode_params[*,0:ntile_keep-1])
   cal=cal_new
   save,cal,filename=outdir+observation+'_cal.sav'
   
