@@ -1,16 +1,18 @@
-pro truncate_fhd_files
+pro truncate_fhd_files, npol=npol, chan_range=chan_range, t0=t0, outdir_str=outdir_str
   ; dir = '/nfs/mwa-09/r1/djc/EoR2013/Aug23/fhd_nb_decon_March2016_small/'
   dir = '/nfs/mwa-04/r1/EoRuvfits/analysis/fhd_nb_Aug2017_savedbp_w_cable_w_digjump/'
   observation = '1061316296'
-  outdir = dir+'data_for_tests/'
-  
+  if n_elements(outdir_str) eq 0 then outdir_str = ''
+  outdir = dir+'data_for_tests' + outdir_str + '/'
+
   if file_test(outdir, /directory) eq 0 then file_mkdir, outdir
-  
+
   file_copy, dir+'metadata/'+observation+'_layout.sav', outdir+observation+'_layout.sav', /overwrite
   file_copy, dir+'metadata/'+observation+'_settings.txt', outdir+observation+'_settings.txt', /overwrite
-  
-  chan_range = [204-1,204+1]
-  t0 = 4 ; Starting time so we don't include the first two seconds (which are flagged)
+
+  if n_elements(chan_range) eq 0 then chan_range = [204-1,204+1]
+  ; Starting time so we don't include the first two seconds (which are flagged)
+  if n_elements(t0) eq 0 then t0 = 4
   nts_keep = 4 ; Will keep roughly 1/10 the times
   ntile_keep = 9
   restore,dir+'metadata/'+observation+'_obs.sav' ; Need the obs to get time bins
@@ -20,9 +22,11 @@ pro truncate_fhd_files
   tmax_ind = (*obs.baseline_info).bin_offset[t0+nts_keep] ; Keep fraction of the original baseline times
   blt_inds = where(((*obs.baseline_info).tile_a lt (ntile_keep+1)) and ((*obs.baseline_info).tile_b lt (ntile_keep+1)) $
     and (params.time ge params.time[tmin_ind]) and (params.time lt params.time[tmax_ind]))
-  npol = 2
-  pols=['XX','YY']
-  
+  if n_elements(npol) eq 0 then npol = 2
+  if npol lt 0 or npol gt 2 then message, 'npol can only be 1 or 2'
+  if npol = 1 then pols=['XX'] else pols=['XX','YY']
+
+
   ; Now for the hard part
   print,'Reorganizing obs structure'
   bin_offset = Lonarr(nts_keep)
@@ -45,7 +49,7 @@ pro truncate_fhd_files
   *obs_new.vis_noise = (*obs.vis_noise)[*,chan_range[0]:chan_range[1]]
   obs=obs_new
   save,obs,filename=outdir+observation+'_obs.sav'
-  
+
   print,'Reorganizing cal structure'
   gain = cal.gain
   convergence = cal.convergence
@@ -70,7 +74,7 @@ pro truncate_fhd_files
     skymodel=new_skymodel)
   cal=cal_new
   save,cal,filename=outdir+observation+'_cal.sav'
-  
+
   ; params
   print,'Slicing params'
   params_new = {params,   uu:params.uu[blt_inds], $
@@ -80,7 +84,7 @@ pro truncate_fhd_files
     time:params.time[blt_inds]}
   params = params_new
   save,params,filename=outdir+observation+'_params.sav'
-  
+
   restore,dir+'vis_data/'+observation+'_flags.sav'  ; Flag file
   if n_elements(flag_arr) gt 0 then begin
     for pol=0,1 do begin
