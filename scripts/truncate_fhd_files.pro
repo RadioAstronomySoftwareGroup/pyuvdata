@@ -6,8 +6,8 @@ pro truncate_fhd_files
   
   if file_test(outdir, /directory) eq 0 then file_mkdir, outdir
   
-  file_copy, dir+'metadata/'+observation+'_layout.sav', outdir+observation+'_layout.sav'
-  file_copy, dir+'metadata/'+observation+'_settings.txt', outdir+observation+'_settings.txt'
+  file_copy, dir+'metadata/'+observation+'_layout.sav', outdir+observation+'_layout.sav', /overwrite
+  file_copy, dir+'metadata/'+observation+'_settings.txt', outdir+observation+'_settings.txt', /overwrite
   
   chan_range = [204-1,204+1]
   t0 = 4 ; Starting time so we don't include the first two seconds (which are flagged)
