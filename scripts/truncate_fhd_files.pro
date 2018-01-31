@@ -36,7 +36,8 @@ pro truncate_fhd_files
     fbin_i = ((*obs.baseline_info).fbin_i)[chan_range[0]:chan_range[1]], $
     freq_use = ((*obs.baseline_info).freq_use)[chan_range[0]:chan_range[1]], $
     time_use = ((*obs.baseline_info).time_use)[t0:(t0+nts_keep-1)])
-    
+    tile_use = ((*obs.baseline_info).tile_use)[0:ntile_keep-1])
+
   obs_new = structure_update(obs, n_freq=chan_range[1]-chan_range[0]+1, $
     n_time = nts_keep, nf_vis = obs.nf_vis[chan_range[0]:chan_range[1]],$
     nbaselines = ntile_keep*(ntile_keep-1)/2)
