@@ -8,6 +8,39 @@ from uvdata import UVData
 import utils as uvutils
 
 
+def get_fhd_history(settings_file, return_user=False):
+    settings_lines = open(settings_file, 'r').readlines()
+    main_loc = None
+    command_loc = None
+    obs_loc = None
+    user_line = None
+    for ind, line in enumerate(settings_lines):
+        if line.startswith('##MAIN'):
+            main_loc = ind
+        if line.startswith('##COMMAND_LINE'):
+            command_loc = ind
+        if line.startswith('##OBS'):
+            obs_loc = ind
+        if line.startswith('User'):
+            user_line = ind
+        if (main_loc is not None and command_loc is not None and
+                obs_loc is not None and user_line is not None):
+            break
+
+    main_lines = settings_lines[main_loc + 1:command_loc]
+    command_lines = settings_lines[command_loc + 1:obs_loc]
+    history_lines = ['FHD history\n'] + main_lines + command_lines
+    for ind, line in enumerate(history_lines):
+        history_lines[ind] = line.rstrip().replace('\t', ' ')
+    history = '\n'.join(history_lines)
+    user = settings_lines[user_line].split()[1]
+
+    if return_user:
+        return history, user
+    else:
+        return history
+
+
 class FHD(UVData):
     """
     Defines a FHD-specific subclass of UVData for reading FHD save files.
@@ -222,17 +255,10 @@ class FHD(UVData):
 
         # history: add the first few lines from the settings file
         if settings_file is not None:
-            history_list = ['fhd settings info']
-            with open(settings_file) as f:
-                # TODO Make this reading more robust.
-                head = list(islice(f, 11))
-            for line in head:
-                newline = ' '.join(str.split(line))
-                if not line.startswith('##'):
-                    history_list.append(newline)
-            self.history = '    '.join(history_list)
+            self.history = get_fhd_history(settings_file)
         else:
             self.history = ''
+
         if not uvutils.check_history_version(self.history, self.pyuvdata_version_str):
             self.history += self.pyuvdata_version_str
 

@@ -3,6 +3,7 @@ import numpy as np
 import warnings
 from uvcal import UVCal
 import utils as uvutils
+from fhd import get_fhd_history
 
 
 class FHDCal(UVCal):
@@ -163,31 +164,9 @@ class FHDCal(UVCal):
             self.extra_keywords['phase_degree'] = cal_data['phase_degree'][0]
 
         if settings_file is not None:
-            settings_lines = open(settings_file, 'r').readlines()
-            main_loc = None
-            command_loc = None
-            obs_loc = None
-            user_line = None
-            for ind, line in enumerate(settings_lines):
-                if line.startswith('##MAIN'):
-                    main_loc = ind
-                if line.startswith('##COMMAND_LINE'):
-                    command_loc = ind
-                if line.startswith('##OBS'):
-                    obs_loc = ind
-                if line.startswith('User'):
-                    user_line = ind
-                if (main_loc is not None and command_loc is not None and
-                        obs_loc is not None and user_line is not None):
-                    break
-
-            main_lines = settings_lines[main_loc + 1:command_loc]
-            command_lines = settings_lines[command_loc + 1:obs_loc]
-            history_lines = ['FHD history\n'] + main_lines + command_lines
-            for ind, line in enumerate(history_lines):
-                history_lines[ind] = line.rstrip().replace('\t', ' ')
-            self.history = '\n'.join(history_lines)
-            self.observer = settings_lines[user_line].split()[1]
+            self.history, self.observer = get_fhd_history(settings_file, return_user=True)
+        else:
+            self.history = ''
 
         if extra_history is not None:
             if isinstance(extra_history, (list, tuple)):
