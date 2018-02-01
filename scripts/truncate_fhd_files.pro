@@ -107,7 +107,7 @@ pro truncate_fhd_files, npol=npol, chan_range=chan_range, time_range=time_range,
     undefine,flag_arr
   endif
   
-  for pol=0,1 do begin
+  for pol=0, npol-1 do begin
     print,'Slicing pol '+pols[pol]
     restore,dir+'vis_data/'+observation+'_vis_'+pols[pol]+'.sav' ; Dirty data
     obs = obs_new
