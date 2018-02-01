@@ -161,8 +161,9 @@ class FHDCal(UVCal):
         self.extra_keywords['time_avg'] = cal_data['time_avg'][0]
         self.extra_keywords['cvgthres'] = cal_data['conv_thresh'][0]
         if 'DELAYS' in obs_data.dtype.names:
-            self.extra_keywords['delays'] = \
-                '[' + ', '.join(str(int(d)) for d in obs_data['delays'][0]) + ']'
+            if obs_data['delays'][0] is not None:
+                self.extra_keywords['delays'] = \
+                    '[' + ', '.join(str(int(d)) for d in obs_data['delays'][0]) + ']'
 
         if not raw:
             self.extra_keywords['polyfit'] = cal_data['polyfit'][0]
