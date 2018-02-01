@@ -1,5 +1,6 @@
 pro truncate_fhd_files, npol=npol, chan_range=chan_range, time_range=time_range, $
-    tile_range = tile_range, outdir_str=outdir_str
+    tile_range = tile_range, outdir_str=outdir_str, galaxy_model = galaxy_model, $
+    diffuse_model = diffuse_model
   ; dir = '/nfs/mwa-09/r1/djc/EoR2013/Aug23/fhd_nb_decon_March2016_small/'
   dir = '/nfs/mwa-04/r1/EoRuvfits/analysis/fhd_nb_Aug2017_savedbp_w_cable_w_digjump/'
   observation = '1061316296'
@@ -67,6 +68,12 @@ pro truncate_fhd_files, npol=npol, chan_range=chan_range, time_range=time_range,
   nsrc_keep = 15
   new_skymodel = structure_update(cal.skymodel, n_sources = nsrc_keep, $
     source_list = cal.skymodel.source_list[0:nsrc_keep-1])
+  if keyword_set(galaxy_model) then begin
+    new_skymodel.galaxy_model = 1
+  endif
+  if n_elements(diffuse_model) gt 0 then begin
+    new_skymodel.diffuse_model = diffuse_model
+  endif
   cal_new = structure_update(cal, n_freq=chan_range[1]-chan_range[0]+1, $
     n_tile = n_tiles, n_time = n_times,  uu = cal.uu[blt_inds], $
     vv = cal.vv[blt_inds], tile_a=cal.tile_a[blt_inds], tile_b=cal.tile_b[blt_inds], $
