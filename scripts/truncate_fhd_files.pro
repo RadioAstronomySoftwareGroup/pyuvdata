@@ -50,17 +50,17 @@ pro truncate_fhd_files, npol=npol, chan_range=chan_range, time_range=time_range,
     
   obs_new = structure_update(obs, n_freq=chan_range[1]-chan_range[0]+1, $
     n_time = n_times, nf_vis = obs.nf_vis[chan_range[0]:chan_range[1]],$
-    nbaselines = n_tiles*(n_tiles-1)/2)
+    nbaselines = n_tiles*(n_tiles-1)/2, n_pol = npol)
   *obs_new.baseline_info = new_baseline_info
   *obs_new.vis_noise = (*obs.vis_noise)[*,chan_range[0]:chan_range[1]]
   obs=obs_new
   save,obs,filename=outdir+observation+'_obs.sav'
   
   print,'Reorganizing cal structure'
-  gain = cal.gain
-  convergence = cal.convergence
-  auto_params = cal.auto_params
-  for pol=0,1 do begin
+  gain = cal.gain[0:npol-1]
+  convergence = cal.convergence[0:npol-1]
+  auto_params = cal.auto_params[0:npol-1]
+  for pol=0,npol-1 do begin
     *gain[pol] = (*gain[pol])[chan_range[0]:chan_range[1],tile_range[0]:tile_range[1]]
     *convergence[pol] = (*convergence[pol])[chan_range[0]:chan_range[1],tile_range[0]:tile_range[1]]
     *auto_params[pol] = (*auto_params[pol])[*,tile_range[0]:tile_range[1]]
@@ -75,7 +75,8 @@ pro truncate_fhd_files, npol=npol, chan_range=chan_range, time_range=time_range,
     new_skymodel.diffuse_model = diffuse_model
   endif
   cal_new = structure_update(cal, n_freq=chan_range[1]-chan_range[0]+1, $
-    n_tile = n_tiles, n_time = n_times,  uu = cal.uu[blt_inds], $
+    n_tile = n_tiles, n_time = n_times, n_pol = npol, $
+    uu = cal.uu[blt_inds], $
     vv = cal.vv[blt_inds], tile_a=cal.tile_a[blt_inds], tile_b=cal.tile_b[blt_inds], $
     tile_names = cal.tile_names[tile_range[0]:tile_range[1]], bin_offset=bin_offset, $
     freq = cal.freq[chan_range[0]:chan_range[1]], gain = gain, $
