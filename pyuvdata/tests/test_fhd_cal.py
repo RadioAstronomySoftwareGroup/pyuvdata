@@ -157,6 +157,7 @@ def test_breakReadFHDcal():
 
 
 def test_read_multi():
+    """Test reading in multiple files."""
     testdir2 = os.path.join(DATA_PATH, 'fhd_cal_data/set2')
     obs_testfile_list = [obs_testfile, os.path.join(testdir2, testfile_prefix + 'obs.sav')]
     cal_testfile_list = [cal_testfile, os.path.join(testdir2, testfile_prefix + 'cal.sav')]
@@ -181,3 +182,26 @@ def test_read_multi():
     fhd_cal.write_calfits(outfile, clobber=True)
     calfits_cal.read_calfits(outfile)
     nt.assert_equal(fhd_cal, calfits_cal)
+
+
+def test_break_read_multi():
+    """Test errors for different numbers of files."""
+
+    testdir2 = os.path.join(DATA_PATH, 'fhd_cal_data/set2')
+    obs_testfile_list = [obs_testfile, os.path.join(testdir2, testfile_prefix + 'obs.sav')]
+    cal_testfile_list = [cal_testfile, os.path.join(testdir2, testfile_prefix + 'cal.sav')]
+    settings_testfile_list = [settings_testfile, os.path.join(testdir2, testfile_prefix + 'settings.txt')]
+
+    fhd_cal = UVCal()
+    nt.assert_raises(ValueError, fhd_cal.read_fhd_cal, cal_testfile_list,
+                     obs_testfile_list[0], settings_file=settings_testfile_list)
+    nt.assert_raises(ValueError, fhd_cal.read_fhd_cal, cal_testfile_list,
+                     obs_testfile_list, settings_file=settings_testfile_list[0])
+    nt.assert_raises(ValueError, fhd_cal.read_fhd_cal, cal_testfile_list,
+                     obs_testfile_list + obs_testfile_list, settings_file=settings_testfile_list)
+    nt.assert_raises(ValueError, fhd_cal.read_fhd_cal, cal_testfile_list,
+                     obs_testfile_list, settings_file=settings_testfile_list + settings_testfile_list)
+    nt.assert_raises(ValueError, fhd_cal.read_fhd_cal, cal_testfile_list[0],
+                     obs_testfile_list, settings_file=settings_testfile_list[0])
+    nt.assert_raises(ValueError, fhd_cal.read_fhd_cal, cal_testfile_list[0],
+                     obs_testfile_list[0], settings_file=settings_testfile_list)
