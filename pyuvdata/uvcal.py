@@ -748,7 +748,7 @@ class UVCal(UVBase):
                 raise ValueError('Number of obs_files must match number of cal_files')
 
             if settings_file is not None:
-                if isinstance(obs_file, (list, tuple)):
+                if isinstance(settings_file, (list, tuple)):
                     if len(settings_file) != len(cal_file):
                         raise ValueError('Number of settings_files must match number of cal_files')
                 else:
@@ -776,7 +776,7 @@ class UVCal(UVBase):
             if isinstance(obs_file, (list, tuple)):
                 raise ValueError('Number of obs_files must match number of cal_files')
             if settings_file is not None:
-                if isinstance(obs_file, (list, tuple)):
+                if isinstance(settings_file, (list, tuple)):
                     raise ValueError('Number of settings_files must match number of cal_files')
 
             fhd_cal_obj = fhd_cal.FHDCal()
