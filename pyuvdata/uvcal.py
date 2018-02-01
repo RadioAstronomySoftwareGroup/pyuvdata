@@ -741,13 +741,25 @@ class UVCal(UVBase):
         """
         import fhd_cal
         if isinstance(cal_file, (list, tuple)):
+            if isinstance(obs_file, (list, tuple)):
+                if len(obs_file) != len(cal_file):
+                    raise ValueError('Number of obs_files must match number of cal_files')
+            else:
+                raise ValueError('Number of obs_files must match number of cal_files')
+
             if settings_file is not None:
+                if isinstance(obs_file, (list, tuple)):
+                    if len(settings_file) != len(cal_file):
+                        raise ValueError('Number of settings_files must match number of cal_files')
+                else:
+                    raise ValueError('Number of settings_files must match number of cal_files')
                 settings_file_use = settings_file[0]
+
             self.read_fhd_cal(cal_file[0], obs_file[0], settings_file=settings_file_use,
                               raw=raw, extra_history=extra_history,
                               run_check=run_check, check_extra=check_extra,
                               run_check_acceptability=run_check_acceptability)
-            if len(filename) > 1:
+            if len(cal_file) > 1:
                 for ind, f in enumerate(cal_file[1:]):
                     uvcal2 = UVCal()
                     if settings_file is not None:
@@ -761,6 +773,12 @@ class UVCal(UVBase):
                     self += uvcal2
                 del(uvcal2)
         else:
+            if isinstance(obs_file, (list, tuple)):
+                raise ValueError('Number of obs_files must match number of cal_files')
+            if settings_file is not None:
+                if isinstance(obs_file, (list, tuple)):
+                    raise ValueError('Number of settings_files must match number of cal_files')
+
             fhd_cal_obj = fhd_cal.FHDCal()
             fhd_cal_obj.read_fhd_cal(cal_file, obs_file, settings_file=settings_file,
                                      raw=raw, extra_history=extra_history,
