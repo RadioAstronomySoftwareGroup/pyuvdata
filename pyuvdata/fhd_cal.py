@@ -1,4 +1,5 @@
 from scipy.io.idl import readsav
+import os
 import numpy as np
 import warnings
 from uvcal import UVCal
@@ -84,12 +85,19 @@ class FHDCal(UVCal):
         self.Nsources = int(cal_data['skymodel'][0]['n_sources'][0])
         self.baseline_range = [float(cal_data['min_cal_baseline'][0]),
                                float(cal_data['max_cal_baseline'][0])]
+
         galaxy_model = cal_data['skymodel'][0]['galaxy_model'][0]
         if galaxy_model == 0:
             galaxy_model = None
+        else:
+            galaxy_model = 'gsm'
+
         diffuse_model = cal_data['skymodel'][0]['diffuse_model'][0]
-        if diffuse_model == 0:
+        if diffuse_model == '':
             diffuse_model = None
+        else:
+            diffuse_model = os.path.basename(diffuse_model)
+
         if galaxy_model is not None:
             if diffuse_model is not None:
                 self.diffuse_model = galaxy_model + ' + ' + diffuse_model

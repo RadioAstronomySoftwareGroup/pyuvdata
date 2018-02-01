@@ -107,6 +107,34 @@ def test_extra_history():
         nt.assert_true(line in fhd_cal.history)
 
 
+def test_flags_galaxy():
+    """
+    test that files with time, freq and tile flags and galaxy models behave as expected
+    """
+    testdir = os.path.join(DATA_PATH, 'fhd_cal_data/flag_set')
+    obs_testfile_flag = os.path.join(testdir, testfile_prefix + 'obs.sav')
+    cal_testfile_flag = os.path.join(testdir, testfile_prefix + 'cal.sav')
+    settings_testfile_flag = os.path.join(testdir, testfile_prefix + 'settings.txt')
+
+    fhd_cal = UVCal()
+    calfits_cal = UVCal()
+    if uvtest.pre_1_14_numpy:
+        fhd_cal.read_fhd_cal(cal_testfile_flag, obs_testfile_flag,
+                             settings_file=settings_testfile_flag)
+    else:
+        # numpy 1.14 introduced a new deprecation warning
+        n_scipy_warnings, scipy_warn_list, scipy_category_list = \
+            uvtest.get_scipy_warnings(n_scipy_warnings=602)
+        uvtest.checkWarnings(fhd_cal.read_fhd_cal, [cal_testfile_flag, obs_testfile_flag],
+                             {'settings_file': settings_testfile_flag},
+                             message=scipy_warn_list, category=scipy_category_list,
+                             nwarnings=n_scipy_warnings)
+    outfile = os.path.join(DATA_PATH, 'test/outtest_FHDcal_1061311664.calfits')
+    fhd_cal.write_calfits(outfile, clobber=True)
+    calfits_cal.read_calfits(outfile)
+    nt.assert_equal(fhd_cal, calfits_cal)
+
+
 def test_breakReadFHDcal():
     """Try various cases of missing files."""
     fhd_cal = UVCal()
@@ -126,3 +154,30 @@ def test_breakReadFHDcal():
                              nwarnings=n_scipy_warnings + 1)
     # Check only pyuvdata version history with no settings file
     nt.assert_equal(fhd_cal.history, '\n' + fhd_cal.pyuvdata_version_str)
+
+
+def test_read_multi():
+    testdir2 = os.path.join(DATA_PATH, 'fhd_cal_data/set2')
+    obs_testfile_list = [obs_testfile, os.path.join(testdir2, testfile_prefix + 'obs.sav')]
+    cal_testfile_list = [cal_testfile, os.path.join(testdir2, testfile_prefix + 'cal.sav')]
+    settings_testfile_list = [settings_testfile, os.path.join(testdir2, testfile_prefix + 'settings.txt')]
+
+    fhd_cal = UVCal()
+    calfits_cal = UVCal()
+    if uvtest.pre_1_14_numpy:
+        fhd_cal.read_fhd_cal(cal_testfile_list, obs_testfile_list,
+                             settings_file=settings_testfile_list)
+    else:
+        # numpy 1.14 introduced a new deprecation warning
+        n_scipy_warnings, scipy_warn_list, scipy_category_list = \
+            uvtest.get_scipy_warnings(n_scipy_warnings=1210)
+        warn_list = scipy_warn_list + ['UVParameter diffuse_model does not match']
+        category_list = scipy_category_list + [UserWarning]
+        uvtest.checkWarnings(fhd_cal.read_fhd_cal, [cal_testfile_list, obs_testfile_list],
+                             {'settings_file': settings_testfile_list},
+                             message=warn_list, category=category_list,
+                             nwarnings=n_scipy_warnings + 1)
+    outfile = os.path.join(DATA_PATH, 'test/outtest_FHDcal_1061311664.calfits')
+    fhd_cal.write_calfits(outfile, clobber=True)
+    calfits_cal.read_calfits(outfile)
+    nt.assert_equal(fhd_cal, calfits_cal)
