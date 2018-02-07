@@ -9,6 +9,11 @@ import utils as uvutils
 
 
 def get_fhd_history(settings_file, return_user=False):
+    """
+    Small function to get the important history from an FHD settings text file.
+
+    Includes information about the command line call, the user, machine name and date
+    """
     settings_lines = open(settings_file, 'r').readlines()
     main_loc = None
     command_loc = None
