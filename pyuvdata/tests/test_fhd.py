@@ -29,7 +29,10 @@ def test_ReadFHDWriteReadUVFits():
     if uvtest.pre_1_14_numpy:
         fhd_uv.read_fhd(testfiles)
     else:
-        # numpy 1.14 introduced a new deprecation warning
+        # numpy 1.14 introduced a new deprecation warning.
+        # Should be fixed when the next scipy version comes out.
+        # The number of replications of the warning varies some and must be
+        # empirically discovered. It it defaults to the most common number.
         n_scipy_warnings, scipy_warn_list, scipy_category_list = uvtest.get_scipy_warnings()
         uvtest.checkWarnings(fhd_uv.read_fhd, [testfiles],
                              message=scipy_warn_list, category=scipy_category_list,
@@ -59,7 +62,10 @@ def test_breakReadFHD():
     if uvtest.pre_1_14_numpy:
         uvtest.checkWarnings(fhd_uv.read_fhd, [testfiles[:-1]], message=['No settings'])
     else:
-        # numpy 1.14 introduced a new deprecation warning
+        # numpy 1.14 introduced a new deprecation warning.
+        # Should be fixed when the next scipy version comes out.
+        # The number of replications of the warning varies some and must be
+        # empirically discovered. It it defaults to the most common number.
         n_scipy_warnings, scipy_warn_list, scipy_category_list = uvtest.get_scipy_warnings()
         warn_list = ['No settings'] + scipy_warn_list
         category_list = [UserWarning] + scipy_category_list
@@ -78,7 +84,10 @@ def test_ReadFHD_model():
     if uvtest.pre_1_14_numpy:
         fhd_uv.read_fhd(testfiles, use_model=True)
     else:
-        # numpy 1.14 introduced a new deprecation warning
+        # numpy 1.14 introduced a new deprecation warning.
+        # Should be fixed when the next scipy version comes out.
+        # The number of replications of the warning varies some and must be
+        # empirically discovered. It it defaults to the most common number.
         n_scipy_warnings, scipy_warn_list, scipy_category_list = uvtest.get_scipy_warnings()
         uvtest.checkWarnings(fhd_uv.read_fhd, [testfiles], {'use_model': True},
                              message=scipy_warn_list, category=scipy_category_list,
@@ -103,7 +112,10 @@ def test_multi_files():
     if uvtest.pre_1_14_numpy:
         fhd_uv1.read_fhd([test1, test2])
     else:
-        # numpy 1.14 introduced a new deprecation warning
+        # numpy 1.14 introduced a new deprecation warning.
+        # Should be fixed when the next scipy version comes out.
+        # The number of replications of the warning varies some and must be
+        # empirically discovered. It it defaults to the most common number.
         n_scipy_warnings, scipy_warn_list, scipy_category_list = uvtest.get_scipy_warnings(n_scipy_warnings=1100)
         uvtest.checkWarnings(fhd_uv1.read_fhd, [[test1, test2]],
                              message=scipy_warn_list, category=scipy_category_list,
@@ -112,7 +124,10 @@ def test_multi_files():
     if uvtest.pre_1_14_numpy:
         fhd_uv2.read_fhd(testfiles)
     else:
-        # numpy 1.14 introduced a new deprecation warning
+        # numpy 1.14 introduced a new deprecation warning.
+        # Should be fixed when the next scipy version comes out.
+        # The number of replications of the warning varies some and must be
+        # empirically discovered. It it defaults to the most common number.
         n_scipy_warnings, scipy_warn_list, scipy_category_list = uvtest.get_scipy_warnings()
         uvtest.checkWarnings(fhd_uv2.read_fhd, [testfiles],
                              message=scipy_warn_list, category=scipy_category_list,

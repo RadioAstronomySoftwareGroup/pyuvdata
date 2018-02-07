@@ -32,6 +32,14 @@ pre_1_14_numpy = float(np.__version__[0:4]) < 1.14
 
 
 def get_scipy_warnings(n_scipy_warnings=1093):
+    """
+    Function to generate warning information for reading IDL save files.
+
+    numpy 1.14 introduced a new deprecation warning.
+    Should be fixed when the next scipy version comes out.
+    The number of replications of the warning varies some and must be
+    empirically discovered. It it defaults to the most common number.
+    """
     scipy_warn_str = 'The binary mode of fromstring is deprecated'
     scipy_warn_list = []
     scipy_category_list = []
