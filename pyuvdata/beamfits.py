@@ -530,7 +530,7 @@ class BeamFITS(UVBeam):
             hdulist.append(hpx_hdu)
 
         # check for frequency-specific optional arrays. If they're not None,
-        # make a binary table HDU to hold them
+        # add them to the BANDPARM binary table HDU along with the bandpass_array
         bandpass_col = fits.Column(name='bandpass', format='D',
                                    array=self.bandpass_array[0, :])
         col_list = [bandpass_col]
