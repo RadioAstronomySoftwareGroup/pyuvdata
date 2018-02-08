@@ -272,13 +272,13 @@ class UVBeam(UVBase):
                                                description=desc, value={},
                                                spoof_val={}, expected_type=dict)
 
-        desc = ('Reference input impedance of receiving chain (sets the reference '
+        desc = ('Reference input impedance of the receiving chain (sets the reference '
                 'for the S parameters), units: Ohms')
         self._reference_input_impedance = uvp.UVParameter('reference_input_impedance', required=False,
                                                           description=desc,
                                                           expected_type=np.float, tols=1e-3)
 
-        desc = ('Reference output impedance of receiving chain (sets the reference '
+        desc = ('Reference output impedance of the receiving chain (sets the reference '
                 'for the S parameters), units: Ohms')
         self._reference_output_impedance = uvp.UVParameter('reference_output_impedance', required=False,
                                                            description=desc,

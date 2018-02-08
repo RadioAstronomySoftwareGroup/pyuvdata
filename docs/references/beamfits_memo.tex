@@ -63,9 +63,92 @@ As with all FITS files, HISTORY and COMMENT cards are allowed.
 \end{itemize}
 
 \subsection{Beam Data}
-The axes of the data array in the primary header depends on the pixelization scheme.
+The axes of the data array in the primary HDU depends on the pixelization scheme.
 
-For HEALPix beams, the data axes are:
+\subsubsection{HEALPix beam axes}
+For HEALPix beams, the data axes are: 
+\begin{enumerate}
+\item{\textbf{PIX\_IND}: index into the HEALPix pixel array (in the HPX\_INDS extension) This is needed because partial sky maps are supported so pixels may be missing.}
+\item{\textbf{FREQ}: frequency}
+\item{\textbf{Polarization axis (STOKES or FEEDIND)}: STOKES for power beams give the polarization integer convention from uvfits (see AIPS memo 117), FEEDIND for E-field beams give the index into the FEEDLIST.}
+\item{\textbf{IF}: Spectral window number, currently only one spectral window is supported so this can only have length 1.}
+\item{\textbf{VECIND}: Basis vector index, the index into the dimensions of the basis vector array (stored in the BASISVEC extension). This is usually length 1 for power beams and length 2 for E-field beams.}
+\item{\textbf{COMPLEX}: real and imaginary (axis length 2)}
+\end{enumerate}
+
+\subsubsection{regularly pixelized beam axes}
+For regularly pixelized beams, the data axes are: 
+\begin{enumerate}
+\item{\textbf{First Image Axis (AZ or SIN\_X)}: Coordinates for the first image axis. The axis name is dictated by the COORDSYS keyword.}
+\item{\textbf{Second Image Axis (ZA or SIN\_Y)}: Coordinates for the second image axis. The axis name is dictated by the COORDSYS keyword.}
+\item{\textbf{FREQ}: frequency}
+\item{\textbf{Polarization axis (STOKES or FEEDIND)}: STOKES for power beams give the polarization integer convention from uvfits (see AIPS memo 117), FEEDIND for E-field beams give the index into the FEEDLIST.}
+\item{\textbf{IF}: Spectral window number, currently only one spectral window is supported so this can only have length 1.}
+\item{\textbf{VECIND}: Basis vector index, the index into the dimensions of the basis vector array (stored in the BASISVEC extension). This is usually length 1 for power beams and length 2 for E-field beams.}
+\item{\textbf{COMPLEX}: real and imaginary (axis length 2)}
+\end{enumerate}
+
+\section{BASISVEC HDU}
+The BASISVEC HDU is a required element of \textit{beamfits} files. It is an Image HDU containing the basis vector array.
+The \textbf{EXTNAME} keyword in the header must be set to BASISVEC. The only other required keyword in the header is:
+
+\begin{itemize}
+\item{\textbf{COORDSYS}: should be set to one of `az\_za', `sin\_zenith' or `healpix'. (pixel\_coordinate\_system) and must match the corresponding keyword in the primary header (this is used as a consistency check)}
+\end{itemize}
+
+\subsection{Basis Vector Data}
+The axes of the data array in the BASISVEC HDU depends on the pixelization scheme.
+
+\subsubsection{HEALPix beam axes}
+For HEALPix beams, the data axes are: 
+\begin{enumerate}
+\item{\textbf{PIX\_IND}: index into the HEALPix pixel array (in the HPX\_INDS extension) This is needed because partial sky maps are supported so pixels may be missing.}
+\item{\textbf{AXISIND}: vector coordinate system axis index. For HEALPix beams, the two axes are azimuth and zenith angle in that order.}
+\item{\textbf{VECCOORD}: Basis vector index, the index into the dimensions of the basis vector array (stored in the BASISVEC extension). This is usually length 1 for power beams and length 2 for E-field beams.}
+\end{enumerate}
+
+\subsubsection{regularly pixelized beam axes}
+For regularly pixelized beams, the data axes are: 
+\begin{enumerate}
+\item{\textbf{First Image Axis (AZ or SIN\_X)}: Coordinates for the first image axis. The axis name is dictated by the COORDSYS keyword.}
+\item{\textbf{Second Image Axis (ZA or SIN\_Y)}: Coordinates for the second image axis. The axis name is dictated by the COORDSYS keyword.}
+\item{\textbf{AXISIND}: vector coordinate system axis index. For regularly pixelized beams, the coordinate system matches the pixel coordinate system ([az, za] or [sin\_x, sin\_y]).}
+\item{\textbf{VECCOORD}: Basis vector index, the index into the dimensions of the basis vector array (stored in the BASISVEC extension). This is usually length 1 for power beams and length 2 for E-field beams.}
+\end{enumerate}
+
+\section{HPX\_INDS HDU}
+The HPX\_INDS HDU is a required element of HEALPix \textit{beamfits} files. It is a Binary Table HDU containing the HEALPix pixel numbers.
+The \textbf{EXTNAME} keyword in the header must be set to HPX\_INDS. There are no other required keywords in the header.
+
+\subsection{HEALPix Pixel Table}
+There is only one required column in the HPX\_INDS table:
+
+\begin{itemize}
+\item{\textbf{HPX\_INDS}: The HEALPix pixel numbers in the order that they are stored in the beam and basis vector arrays.}
+\end{itemize}
+
+\section{BANDPARM HDU}
+The BANDPARM HDU is an required element of \textit{beamfits} files. It is a Binary Table HDU containing the bandpass and other optional parameters that are functions of frequency only.
+The \textbf{EXTNAME} keyword in the header must be set to BANDPARM. There are no other required keywords in the header, but there are 2 optional header keywords:
+
+\begin{itemize}
+\item{\textbf{REFZIN}: Reference input impedance of the receiving chain (sets the reference for the S parameters), units: Ohms}
+\item{\textbf{REFZOUT}: Reference output impedance of the receiving chain (sets the reference for the S parameters), units: Ohms}
+\end{itemize}
+
+\subsection{BANDPARM Table}
+BANDPASS is the only required column in the BANDPARM table, but there are several optional columns that may be present.
+
+\begin{itemize}
+\item{\textbf{BANDPASS}: Frequency dependence of the beam. Depending on the data\_normalization, this may contain only the frequency dependence of the receiving chain or all the frequency dependence.}
+\item{\textbf{RX\_TEMP}: Receiver temperatures.}
+\item{\textbf{LOSS}: Antenna losses.}
+\item{\textbf{MISMATCH}: Antenna-amplifier mismatch.}
+\item{\textbf{S11}: S11 parameter of the receiving chain.}
+\item{\textbf{S12}: S12 parameter of the receiving chain.}
+\item{\textbf{S21}: S21 parameter of the receiving chain.}
+\item{\textbf{S22}: S22 parameter of the receiving chain.}
+\end{itemize}
 
 
 \end{document}  
