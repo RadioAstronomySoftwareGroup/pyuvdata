@@ -50,6 +50,3 @@ for filename in args.files:
     if args.verbose:
         print "saving {}".format(outfilename)
     UV.write_uvfits(outfilename, spoof_nonessential=True)
-
-
-
