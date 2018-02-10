@@ -107,6 +107,15 @@ class BeamFITS(UVBeam):
             self.axis1_array = uvutils.fits_gethduaxis(primary_hdu, ax_nums['img_ax1'])
             self.axis2_array = uvutils.fits_gethduaxis(primary_hdu, ax_nums['img_ax2'])
 
+            # if units aren't defined they are degrees by FITS convention
+            # convert degrees to radians because UVBeam uses radians
+            axis1_units = primary_header.pop('CUNIT' + str(ax_nums['img_ax1']), 'deg')
+            if axis1_units == 'deg':
+                self.axis1_array = np.deg2rad(self.axis1_array)
+            axis2_units = primary_header.pop('CUNIT' + str(ax_nums['img_ax2']), 'deg')
+            if axis2_units == 'deg':
+                self.axis2_array = np.deg2rad(self.axis2_array)
+
         n_efield_dims = max([ax_nums[key] for key in ax_nums])
 
         if self.beam_type == 'power':
@@ -190,11 +199,11 @@ class BeamFITS(UVBeam):
             elif key != '':
                 self.extra_keywords[key] = primary_header.get(key)
 
-        if self.beam_type == 'efield':
-            # read BASISVEC HDU
+        # read BASISVEC HDU if present
+        if 'BASISVEC' in hdunames:
             basisvec_hdu = F[hdunames['BASISVEC']]
-            self.basis_vector_array = basisvec_hdu.data
             basisvec_header = basisvec_hdu.header
+            self.basis_vector_array = basisvec_hdu.data
 
             if self.pixel_coordinate_system == 'healpix':
                 basisvec_ax_nums = hxp_basisvec_ax_nums
@@ -214,6 +223,16 @@ class BeamFITS(UVBeam):
                                                                basisvec_ax_nums['img_ax1'])
                 basisvec_axis2_array = uvutils.fits_gethduaxis(basisvec_hdu,
                                                                basisvec_ax_nums['img_ax2'])
+
+                # if units aren't defined they are degrees by FITS convention
+                # convert degrees to radians because UVBeam uses radians
+                axis1_units = basisvec_header.pop('CUNIT' + str(basisvec_ax_nums['img_ax1']), 'deg')
+                if axis1_units == 'deg':
+                    basisvec_axis1_array = np.deg2rad(basisvec_axis1_array)
+                axis2_units = basisvec_header.pop('CUNIT' + str(basisvec_ax_nums['img_ax2']), 'deg')
+                if axis2_units == 'deg':
+                    basisvec_axis2_array = np.deg2rad(basisvec_axis2_array)
+
                 if not np.all(basisvec_axis1_array == self.axis1_array):
                     raise ValueError('First image axis in BASISVEC HDU does not match '
                                      'primary HDU')
@@ -370,20 +389,25 @@ class BeamFITS(UVBeam):
 
         else:
             # set up first image axis
+            # FITs standard is to use degrees (not radians as in the UVBeam object)
+            deg_axis1_array = np.rad2deg(self.axis1_array)
+            deg_axis1_spacing = np.rad2deg(axis1_spacing)
             primary_header['CTYPE' + str(ax_nums['img_ax1'])] = \
                 (self.coordinate_system_dict[self.pixel_coordinate_system]['axes'][0])
-            primary_header['CRVAL' + str(ax_nums['img_ax1'])] = self.axis1_array[0]
+            primary_header['CRVAL' + str(ax_nums['img_ax1'])] = deg_axis1_array[0]
             primary_header['CRPIX' + str(ax_nums['img_ax1'])] = 1
-            primary_header['CDELT' + str(ax_nums['img_ax1'])] = axis1_spacing
-            primary_header['CUNIT' + str(ax_nums['img_ax1'])] = 'rad'
+            primary_header['CDELT' + str(ax_nums['img_ax1'])] = deg_axis1_spacing
+            primary_header['CUNIT' + str(ax_nums['img_ax1'])] = 'deg'
 
             # set up second image axis
+            deg_axis2_array = np.rad2deg(self.axis2_array)
+            deg_axis2_spacing = np.rad2deg(axis2_spacing)
             primary_header['CTYPE' + str(ax_nums['img_ax2'])] = \
                 (self.coordinate_system_dict[self.pixel_coordinate_system]['axes'][1])
-            primary_header['CRVAL' + str(ax_nums['img_ax2'])] = self.axis2_array[0]
+            primary_header['CRVAL' + str(ax_nums['img_ax2'])] = deg_axis2_array[0]
             primary_header['CRPIX' + str(ax_nums['img_ax2'])] = 1
-            primary_header['CDELT' + str(ax_nums['img_ax2'])] = axis2_spacing
-            primary_header['CUNIT' + str(ax_nums['img_ax2'])] = 'rad'
+            primary_header['CDELT' + str(ax_nums['img_ax2'])] = deg_axis2_spacing
+            primary_header['CUNIT' + str(ax_nums['img_ax2'])] = 'deg'
 
         # set up frequency axis
         primary_header['CTYPE' + str(ax_nums['freq'])] = 'FREQ'
@@ -471,57 +495,60 @@ class BeamFITS(UVBeam):
             primary_header.add_history(line)
 
         primary_hdu = fits.PrimaryHDU(data=primary_data, header=primary_header)
+        hdulist = fits.HDUList([primary_hdu])
 
-        basisvec_header = fits.Header()
-        basisvec_header['EXTNAME'] = 'BASISVEC'
-        basisvec_header['COORDSYS'] = self.pixel_coordinate_system
+        if self.basis_vector_array is not None:
+            basisvec_header = fits.Header()
+            basisvec_header['EXTNAME'] = 'BASISVEC'
+            basisvec_header['COORDSYS'] = self.pixel_coordinate_system
 
-        if self.pixel_coordinate_system == 'healpix':
-            basisvec_ax_nums = hxp_basisvec_ax_nums
+            if self.pixel_coordinate_system == 'healpix':
+                basisvec_ax_nums = hxp_basisvec_ax_nums
 
-            # set up pixel axis
-            basisvec_header['CTYPE' + str(basisvec_ax_nums['pixel'])] = \
-                ('Pix_Ind', 'Index into pixel array in HPX_INDS extension.')
-            basisvec_header['CRVAL' + str(basisvec_ax_nums['pixel'])] = 1
-            basisvec_header['CRPIX' + str(basisvec_ax_nums['pixel'])] = 1
-            basisvec_header['CDELT' + str(basisvec_ax_nums['pixel'])] = 1
+                # set up pixel axis
+                basisvec_header['CTYPE' + str(basisvec_ax_nums['pixel'])] = \
+                    ('Pix_Ind', 'Index into pixel array in HPX_INDS extension.')
+                basisvec_header['CRVAL' + str(basisvec_ax_nums['pixel'])] = 1
+                basisvec_header['CRPIX' + str(basisvec_ax_nums['pixel'])] = 1
+                basisvec_header['CDELT' + str(basisvec_ax_nums['pixel'])] = 1
 
-        else:
-            basisvec_ax_nums = reg_basisvec_ax_nums
+            else:
+                basisvec_ax_nums = reg_basisvec_ax_nums
 
-            # set up first image axis
-            basisvec_header['CTYPE' + str(basisvec_ax_nums['img_ax1'])] = \
-                (self.coordinate_system_dict[self.pixel_coordinate_system]['axes'][0])
-            basisvec_header['CRVAL' + str(basisvec_ax_nums['img_ax1'])] = self.axis1_array[0]
-            basisvec_header['CRPIX' + str(basisvec_ax_nums['img_ax1'])] = 1
-            basisvec_header['CDELT' + str(basisvec_ax_nums['img_ax1'])] = axis1_spacing
+                # set up first image axis
+                basisvec_header['CTYPE' + str(basisvec_ax_nums['img_ax1'])] = \
+                    (self.coordinate_system_dict[self.pixel_coordinate_system]['axes'][0])
+                basisvec_header['CRVAL' + str(basisvec_ax_nums['img_ax1'])] = deg_axis1_array[0]
+                basisvec_header['CRPIX' + str(basisvec_ax_nums['img_ax1'])] = 1
+                basisvec_header['CDELT' + str(basisvec_ax_nums['img_ax1'])] = deg_axis1_spacing
+                basisvec_header['CUNIT' + str(basisvec_ax_nums['img_ax1'])] = 'deg'
 
-            # set up second image axis
-            basisvec_header['CTYPE' + str(basisvec_ax_nums['img_ax2'])] = \
-                (self.coordinate_system_dict[self.pixel_coordinate_system]['axes'][1])
-            basisvec_header['CRVAL' + str(basisvec_ax_nums['img_ax2'])] = self.axis2_array[0]
-            basisvec_header['CRPIX' + str(basisvec_ax_nums['img_ax2'])] = 1
-            basisvec_header['CDELT' + str(basisvec_ax_nums['img_ax2'])] = axis2_spacing
+                # set up second image axis
+                basisvec_header['CTYPE' + str(basisvec_ax_nums['img_ax2'])] = \
+                    (self.coordinate_system_dict[self.pixel_coordinate_system]['axes'][1])
+                basisvec_header['CRVAL' + str(basisvec_ax_nums['img_ax2'])] = deg_axis2_array[0]
+                basisvec_header['CRPIX' + str(basisvec_ax_nums['img_ax2'])] = 1
+                basisvec_header['CDELT' + str(basisvec_ax_nums['img_ax2'])] = deg_axis2_spacing
+                basisvec_header['CUNIT' + str(basisvec_ax_nums['img_ax2'])] = 'deg'
 
-        # set up pixel coordinate system axis (length 2)
-        basisvec_header['CTYPE' + str(basisvec_ax_nums['coord'])] = ('AXISIND', 'Axis index')
-        basisvec_header['CUNIT' + str(basisvec_ax_nums['coord'])] = 'Integer'
-        basisvec_header['CRVAL' + str(basisvec_ax_nums['coord'])] = 1
-        basisvec_header['CRPIX' + str(basisvec_ax_nums['coord'])] = 1
-        basisvec_header['CDELT' + str(basisvec_ax_nums['coord'])] = 1
+            # set up pixel coordinate system axis (length 2)
+            basisvec_header['CTYPE' + str(basisvec_ax_nums['coord'])] = ('AXISIND', 'Axis index')
+            basisvec_header['CUNIT' + str(basisvec_ax_nums['coord'])] = 'Integer'
+            basisvec_header['CRVAL' + str(basisvec_ax_nums['coord'])] = 1
+            basisvec_header['CRPIX' + str(basisvec_ax_nums['coord'])] = 1
+            basisvec_header['CDELT' + str(basisvec_ax_nums['coord'])] = 1
 
-        # set up vector coordinate system axis (length Naxis_vec)
-        basisvec_header['CTYPE' + str(basisvec_ax_nums['basisvec'])] = \
-            ('VECCOORD', 'Basis vector index')
-        basisvec_header['CUNIT' + str(basisvec_ax_nums['basisvec'])] = 'Integer'
-        basisvec_header['CRVAL' + str(basisvec_ax_nums['basisvec'])] = 1
-        basisvec_header['CRPIX' + str(basisvec_ax_nums['basisvec'])] = 1
-        basisvec_header['CDELT' + str(basisvec_ax_nums['basisvec'])] = 1
+            # set up vector coordinate system axis (length Naxis_vec)
+            basisvec_header['CTYPE' + str(basisvec_ax_nums['basisvec'])] = \
+                ('VECCOORD', 'Basis vector index')
+            basisvec_header['CUNIT' + str(basisvec_ax_nums['basisvec'])] = 'Integer'
+            basisvec_header['CRVAL' + str(basisvec_ax_nums['basisvec'])] = 1
+            basisvec_header['CRPIX' + str(basisvec_ax_nums['basisvec'])] = 1
+            basisvec_header['CDELT' + str(basisvec_ax_nums['basisvec'])] = 1
 
-        basisvec_data = self.basis_vector_array
-        basisvec_hdu = fits.ImageHDU(data=basisvec_data, header=basisvec_header)
-
-        hdulist = fits.HDUList([primary_hdu, basisvec_hdu])
+            basisvec_data = self.basis_vector_array
+            basisvec_hdu = fits.ImageHDU(data=basisvec_data, header=basisvec_header)
+            hdulist.append(basisvec_hdu)
 
         if self.pixel_coordinate_system == 'healpix':
             # make healpix pixel number column. 'K' format indicates 64-bit integer

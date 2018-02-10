@@ -67,11 +67,10 @@ def test_readCST_writereadFITS():
     primary_hdr = F[0].header
     primary_hdr['BTYPE'] = 'Intensity'
     hdunames = uvutils.fits_indexhdus(F)
-    basisvec_hdu = F[hdunames['BASISVEC']]
     bandpass_hdu = F[hdunames['BANDPARM']]
 
     prihdu = fits.PrimaryHDU(data=data, header=primary_hdr)
-    hdulist = fits.HDUList([prihdu, basisvec_hdu, bandpass_hdu])
+    hdulist = fits.HDUList([prihdu, bandpass_hdu])
 
     if float(astropy.__version__[0:3]) < 1.3:
         hdulist.writeto(write_file, clobber=True)
@@ -87,11 +86,10 @@ def test_readCST_writereadFITS():
     primary_hdr = F[0].header
     primary_hdr.pop('COORDSYS')
     hdunames = uvutils.fits_indexhdus(F)
-    basisvec_hdu = F[hdunames['BASISVEC']]
     bandpass_hdu = F[hdunames['BANDPARM']]
 
     prihdu = fits.PrimaryHDU(data=data, header=primary_hdr)
-    hdulist = fits.HDUList([prihdu, basisvec_hdu, bandpass_hdu])
+    hdulist = fits.HDUList([prihdu, bandpass_hdu])
 
     if float(astropy.__version__[0:3]) < 1.3:
         hdulist.writeto(write_file, clobber=True)
@@ -146,12 +144,11 @@ def test_writeread_healpix():
     primary_hdr = F[0].header
     primary_hdr.pop('COORDSYS')
     hdunames = uvutils.fits_indexhdus(F)
-    basisvec_hdu = F[hdunames['BASISVEC']]
     hpx_hdu = F[hdunames['HPX_INDS']]
     bandpass_hdu = F[hdunames['BANDPARM']]
 
     prihdu = fits.PrimaryHDU(data=data, header=primary_hdr)
-    hdulist = fits.HDUList([prihdu, basisvec_hdu, hpx_hdu, bandpass_hdu])
+    hdulist = fits.HDUList([prihdu, hpx_hdu, bandpass_hdu])
 
     if float(astropy.__version__[0:3]) < 1.3:
         hdulist.writeto(write_file, clobber=True)
