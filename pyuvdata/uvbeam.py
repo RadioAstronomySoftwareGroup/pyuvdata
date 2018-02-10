@@ -20,7 +20,7 @@ class UVBeam(UVBase):
 
     coordinate_system_dict = {
         'az_za': {'axes': ['az', 'za'],
-                  'description': 'uniformly gridded az/za coordinate system, '
+                  'description': 'uniformly gridded azimuth, zenith angle coordinate system, '
                   'where az runs from East to North in radians'},
         'sin_zenith': {'axes': ['sin_x', 'sin_y'],
                        'description': 'sine projection at zenith where y points North, x point East'},
@@ -304,7 +304,8 @@ class UVBeam(UVBase):
                                                tols=1e-3)
 
         desc = ('S parameters of receiving chain, shape (4, Nspws, Nfreqs), '
-                'ordering: s11, s12, s21, s22. units ?')
+                'ordering: s11, s12, s21, s22. see '
+                'https://en.wikipedia.org/wiki/Scattering_parameters#Two-Port_S-Parameters')
         self._s_parameters = uvp.UVParameter('s_parameters', required=False,
                                              description=desc,
                                              form=(4, 'Nspws', 'Nfreqs'),
