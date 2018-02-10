@@ -375,6 +375,7 @@ class BeamFITS(UVBeam):
             primary_header['CRVAL' + str(ax_nums['img_ax1'])] = self.axis1_array[0]
             primary_header['CRPIX' + str(ax_nums['img_ax1'])] = 1
             primary_header['CDELT' + str(ax_nums['img_ax1'])] = axis1_spacing
+            primary_header['CUNIT' + str(ax_nums['img_ax1'])] = 'rad'
 
             # set up second image axis
             primary_header['CTYPE' + str(ax_nums['img_ax2'])] = \
@@ -382,10 +383,11 @@ class BeamFITS(UVBeam):
             primary_header['CRVAL' + str(ax_nums['img_ax2'])] = self.axis2_array[0]
             primary_header['CRPIX' + str(ax_nums['img_ax2'])] = 1
             primary_header['CDELT' + str(ax_nums['img_ax2'])] = axis2_spacing
+            primary_header['CUNIT' + str(ax_nums['img_ax2'])] = 'rad'
 
         # set up frequency axis
         primary_header['CTYPE' + str(ax_nums['freq'])] = 'FREQ'
-        primary_header['CUNIT' + str(ax_nums['freq'])] = ('Hz')
+        primary_header['CUNIT' + str(ax_nums['freq'])] = 'Hz'
         primary_header['CRVAL' + str(ax_nums['freq'])] = self.freq_array[0, 0]
         primary_header['CRPIX' + str(ax_nums['freq'])] = 1
         primary_header['CDELT' + str(ax_nums['freq'])] = freq_spacing
