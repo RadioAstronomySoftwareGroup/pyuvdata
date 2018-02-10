@@ -64,12 +64,12 @@ class BeamFITS(UVBeam):
             self.beam_type = 'power'
 
         n_dimensions = primary_header.pop('NAXIS')
-        ctypes = [primary_header[ctype] for ctype in (key for key in primary_header
-                                                      if 'ctype' in key.lower())]
+        ctypes = [primary_header[ctype].lower() for ctype in (key for key in primary_header
+                                                              if 'ctype' in key.lower())]
 
         self.pixel_coordinate_system = primary_header.pop('COORDSYS', None)
         if self.pixel_coordinate_system is None:
-            if ctypes[0] == 'Pix_Ind':
+            if ctypes[0] == 'pix_ind':
                 self.pixel_coordinate_system = 'healpix'
             else:
                 for cs, cs_dict in self.coordinate_system_dict.iteritems():
@@ -78,7 +78,7 @@ class BeamFITS(UVBeam):
                         self.pixel_coordinate_system = cs
         else:
             if self.pixel_coordinate_system == 'healpix':
-                if ctypes[0] != 'Pix_Ind':
+                if ctypes[0] != 'pix_ind':
                     raise ValueError('First axis must be "Pix_Ind" for healpix beams')
             else:
                 coord_list = ctypes[0:2]
@@ -198,7 +198,7 @@ class BeamFITS(UVBeam):
 
             if self.pixel_coordinate_system == 'healpix':
                 basisvec_ax_nums = hxp_basisvec_ax_nums
-                if basisvec_header['CTYPE' + str(basisvec_ax_nums['pixel'])] != 'Pix_Ind':
+                if basisvec_header['CTYPE' + str(basisvec_ax_nums['pixel'])].lower().strip() != 'pix_ind':
                     raise ValueError('First axis in BASISVEC HDU must be "Pix_Ind" for healpix beams')
 
                 basisvec_Npixels = basisvec_header.pop('NAXIS' + str(basisvec_ax_nums['pixel']))
