@@ -69,7 +69,7 @@ As with all FITS files, HISTORY and COMMENT cards are allowed.
 The axes of the data array in the primary HDU depends on the pixelization scheme. In all cases, the `CRVALn', `CRPIXn', and `CDELTn' keywords corresponding to each `CTYPEn' keyword fully specify the corresponding axis (following FITS convention). The `CUNITn' keyword is also specified for physical quantities (e.g. frequency, image coordinates).
 
 \subsubsection{HEALPix beam axes}
-For HEALPix beams, the data axes are: 
+For HEALPix beams, the data axes (values of the `CTYPEn' keywords) are: 
 \begin{enumerate}
 \item{\textbf{PIX\_IND}: index into the HEALPix pixel array (in the HPX\_INDS extension) This is needed because partial sky maps are supported so pixels may be missing (full sky maps are not handled differently, they have the same required elements as partial maps). (pixel\_array)}
 \item{\textbf{FREQ}: frequency in Hz (freq\_array)}
@@ -80,7 +80,7 @@ For HEALPix beams, the data axes are:
 \end{enumerate}
 
 \subsubsection{regularly pixelized beam axes}
-For regularly pixelized beams, the data axes are: 
+For regularly pixelized beams, the data axes (values of the `CTYPEn' keywords) are: 
 \begin{enumerate}
 \item{\textbf{First Image Axis (AZ or SIN\_X)}: Coordinates for the first image axis. The axis name is dictated by the COORDSYS keyword. (axis1\_array)}
 \item{\textbf{Second Image Axis (ZA or SIN\_Y)}: Coordinates for the second image axis. The axis name is dictated by the COORDSYS keyword. (axis2\_array)}
@@ -103,7 +103,7 @@ The \textbf{EXTNAME} keyword in the header must be set to BASISVEC. The only oth
 The axes of the data array in the BASISVEC HDU depends on the pixelization scheme. In all cases, the `CRVALn', `CRPIXn', and `CDELTn' keywords corresponding to each `CTYPEn' keyword fully specify the corresponding axis (following FITS convention). The `CUNITn' keyword is also specified for physical quantities (e.g. image coordinates).
 
 \subsubsection{HEALPix beam axes}
-For HEALPix beams, the data axes are: 
+For HEALPix beams, the data axes (values of the `CTYPEn' keywords) are: 
 \begin{enumerate}
 \item{\textbf{PIX\_IND}: index into the HEALPix pixel array (in the HPX\_INDS extension) This is needed because partial sky maps are supported so pixels may be missing (full sky maps are not handled differently, they have the same required elements as partial maps). (pixel\_array)}
 \item{\textbf{AXISIND}: vector coordinate system axis index. For HEALPix beams, the two axes are azimuth and zenith angle in that order.}
@@ -111,10 +111,10 @@ For HEALPix beams, the data axes are:
 \end{enumerate}
 
 \subsubsection{regularly pixelized beam axes}
-For regularly pixelized beams, the data axes are: 
+For regularly pixelized beams, the data axes (values of the `CTYPEn' keywords)  are: 
 \begin{enumerate}
-\item{\textbf{First Image Axis (AZ or SIN\_X)}: Coordinates for the first image axis. The axis name is dictated by the COORDSYS keyword. (axis1\_array)}
-\item{\textbf{Second Image Axis (ZA or SIN\_Y)}: Coordinates for the second image axis. The axis name is dictated by the COORDSYS keyword. (axis2\_array)}
+\item{\textbf{First Image Axis (AZ or SIN\_X)}: Coordinates for the first image axis. The axis name is dictated by the COORDSYS keyword. Angle units are in degrees. (axis1\_array)}
+\item{\textbf{Second Image Axis (ZA or SIN\_Y)}: Coordinates for the second image axis. The axis name is dictated by the COORDSYS keyword. Angle units are in degrees. (axis2\_array)}
 \item{\textbf{AXISIND}: vector coordinate system axis index. For regularly pixelized beams, the coordinate system matches the pixel coordinate system ([az, za] or [sin\_x, sin\_y]).}
 \item{\textbf{VECCOORD}: Basis vector index, the index into the dimensions of the basis vector array (stored in the BASISVEC extension). This is usually length 1 for power beams and length 2 for E-field beams.}
 \end{enumerate}
