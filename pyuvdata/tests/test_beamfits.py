@@ -182,7 +182,7 @@ def test_errors():
     # now change values for various items in primary hdu to test errors
     beam_in.antenna_type = 'simple'
 
-    header_vals_to_change = [{'BTYPE': 'foo'}, {'COORDSYS': 'sin_zenith'},
+    header_vals_to_change = [{'BTYPE': 'foo'}, {'COORDSYS': 'orthoslant_zenith'},
                              {'NAXIS': ''}]
 
     for i, hdr_dict in enumerate(header_vals_to_change):
@@ -374,7 +374,7 @@ def test_casa_beam():
 
     # this file is actually in sine projection RA/DEC at zenith at a particular time.
     # For now pretend it's in sine projection of az/za
-    beam_in.pixel_coordinate_system = 'sin_zenith'
+    beam_in.pixel_coordinate_system = 'orthoslant_zenith'
 
     expected_extra_keywords = ['OBSERVER', 'OBSDEC', 'DATAMIN', 'OBJECT',
                                'INSTRUME', 'DATAMAX', 'OBSRA', 'ORIGIN',
@@ -405,7 +405,7 @@ def test_extra_keywords():
 
     # this file is actually in sine projection RA/DEC at zenith at a particular time.
     # For now pretend it's in sine projection of az/za
-    beam_in.pixel_coordinate_system = 'sin_zenith'
+    beam_in.pixel_coordinate_system = 'orthoslant_zenith'
 
     # check for warnings & errors with extra_keywords that are dicts, lists or arrays
     beam_in.extra_keywords['testdict'] = {'testkey': 23}
