@@ -14,6 +14,9 @@ reg_primary_ax_nums = {'img_ax1': 1, 'img_ax2': 2, 'freq': 3, 'feed_pol': 4,
 hxp_basisvec_ax_nums = {'pixel': 1, 'coord': 2, 'basisvec': 3}
 reg_basisvec_ax_nums = {'img_ax1': 1, 'img_ax2': 2, 'coord': 3, 'basisvec': 4}
 
+fits_axisname_dict = {'hpx_inds': 'PIX_IND', 'azimuth': 'AZIMUTH', 'zen_angle': 'ZENANGLE',
+                      'zenorth_x': 'ZENX-SIN', 'zenorth_y': 'ZENY-SIN', }
+
 
 class BeamFITS(UVBeam):
     """
@@ -69,21 +72,17 @@ class BeamFITS(UVBeam):
 
         self.pixel_coordinate_system = primary_header.pop('COORDSYS', None)
         if self.pixel_coordinate_system is None:
-            if ctypes[0] == 'pix_ind':
-                self.pixel_coordinate_system = 'healpix'
-            else:
-                for cs, cs_dict in self.coordinate_system_dict.iteritems():
-                    if cs_dict['axes'] == ctypes[0:2]:
-                        coord_list = ctypes[0:2]
-                        self.pixel_coordinate_system = cs
+            for cs, cs_dict in self.coordinate_system_dict.iteritems():
+                ax_names = [fits_axisname_dict[ax].lower() for ax in cs_dict['axes']]
+                if ax_names == ctypes[0:len(ax_names)]:
+                    coord_list = ctypes[0:len(ax_names)]
+                    self.pixel_coordinate_system = cs
         else:
-            if self.pixel_coordinate_system == 'healpix':
-                if ctypes[0] != 'pix_ind':
-                    raise ValueError('First axis must be "Pix_Ind" for healpix beams')
-            else:
-                coord_list = ctypes[0:2]
-                if coord_list != self.coordinate_system_dict[self.pixel_coordinate_system]['axes']:
-                    raise ValueError('Coordinate axis list does not match coordinate system')
+            ax_names = [fits_axisname_dict[ax].lower() for ax in
+                        self.coordinate_system_dict[self.pixel_coordinate_system]['axes']]
+            coord_list = ctypes[0:len(ax_names)]
+            if coord_list != ax_names:
+                raise ValueError('Coordinate axis list does not match coordinate system')
 
         if self.pixel_coordinate_system == 'healpix':
             # get pixel values out of HPX_IND extension
@@ -217,8 +216,8 @@ class BeamFITS(UVBeam):
                                      'primary HDU')
             else:
                 basisvec_ax_nums = reg_basisvec_ax_nums
-                basisvec_coord_list = [basisvec_header['CTYPE' + str(basisvec_ax_nums['img_ax1'])],
-                                       basisvec_header['CTYPE' + str(basisvec_ax_nums['img_ax2'])]]
+                basisvec_coord_list = [basisvec_header['CTYPE' + str(basisvec_ax_nums['img_ax1'])].lower(),
+                                       basisvec_header['CTYPE' + str(basisvec_ax_nums['img_ax2'])].lower()]
                 basisvec_axis1_array = uvutils.fits_gethduaxis(basisvec_hdu,
                                                                basisvec_ax_nums['img_ax1'])
                 basisvec_axis2_array = uvutils.fits_gethduaxis(basisvec_hdu,
@@ -393,7 +392,7 @@ class BeamFITS(UVBeam):
             deg_axis1_array = np.rad2deg(self.axis1_array)
             deg_axis1_spacing = np.rad2deg(axis1_spacing)
             primary_header['CTYPE' + str(ax_nums['img_ax1'])] = \
-                (self.coordinate_system_dict[self.pixel_coordinate_system]['axes'][0])
+                (fits_axisname_dict[self.coordinate_system_dict[self.pixel_coordinate_system]['axes'][0]])
             primary_header['CRVAL' + str(ax_nums['img_ax1'])] = deg_axis1_array[0]
             primary_header['CRPIX' + str(ax_nums['img_ax1'])] = 1
             primary_header['CDELT' + str(ax_nums['img_ax1'])] = deg_axis1_spacing
@@ -403,7 +402,7 @@ class BeamFITS(UVBeam):
             deg_axis2_array = np.rad2deg(self.axis2_array)
             deg_axis2_spacing = np.rad2deg(axis2_spacing)
             primary_header['CTYPE' + str(ax_nums['img_ax2'])] = \
-                (self.coordinate_system_dict[self.pixel_coordinate_system]['axes'][1])
+                (fits_axisname_dict[self.coordinate_system_dict[self.pixel_coordinate_system]['axes'][1]])
             primary_header['CRVAL' + str(ax_nums['img_ax2'])] = deg_axis2_array[0]
             primary_header['CRPIX' + str(ax_nums['img_ax2'])] = 1
             primary_header['CDELT' + str(ax_nums['img_ax2'])] = deg_axis2_spacing
@@ -517,7 +516,7 @@ class BeamFITS(UVBeam):
 
                 # set up first image axis
                 basisvec_header['CTYPE' + str(basisvec_ax_nums['img_ax1'])] = \
-                    (self.coordinate_system_dict[self.pixel_coordinate_system]['axes'][0])
+                    (fits_axisname_dict[self.coordinate_system_dict[self.pixel_coordinate_system]['axes'][0]])
                 basisvec_header['CRVAL' + str(basisvec_ax_nums['img_ax1'])] = deg_axis1_array[0]
                 basisvec_header['CRPIX' + str(basisvec_ax_nums['img_ax1'])] = 1
                 basisvec_header['CDELT' + str(basisvec_ax_nums['img_ax1'])] = deg_axis1_spacing
@@ -525,7 +524,7 @@ class BeamFITS(UVBeam):
 
                 # set up second image axis
                 basisvec_header['CTYPE' + str(basisvec_ax_nums['img_ax2'])] = \
-                    (self.coordinate_system_dict[self.pixel_coordinate_system]['axes'][1])
+                    (fits_axisname_dict[self.coordinate_system_dict[self.pixel_coordinate_system]['axes'][1]])
                 basisvec_header['CRVAL' + str(basisvec_ax_nums['img_ax2'])] = deg_axis2_array[0]
                 basisvec_header['CRPIX' + str(basisvec_ax_nums['img_ax2'])] = 1
                 basisvec_header['CDELT' + str(basisvec_ax_nums['img_ax2'])] = deg_axis2_spacing

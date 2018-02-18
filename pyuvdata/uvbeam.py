@@ -19,11 +19,12 @@ class UVBeam(UVBase):
     """
 
     coordinate_system_dict = {
-        'az_za': {'axes': ['az', 'za'],
+        'az_za': {'axes': ['azimuth', 'zen_angle'],
                   'description': 'uniformly gridded azimuth, zenith angle coordinate system, '
                   'where az runs from East to North in radians'},
-        'sin_zenith': {'axes': ['sin_x', 'sin_y'],
-                       'description': 'sine projection at zenith where y points North, x point East'},
+        'orthoslant_zenith': {'axes': ['zenorth_x', 'zenorth_y'],
+                              'description': 'orthoslant projection at zenith where y points North, '
+                              'x point East'},
         'healpix': {'axes': ['hpx_inds'],
                     'description': 'HEALPix map with zenith at the north pole and '
                                    'az, za coordinate axes (for the basis_vector_array) '
