@@ -111,9 +111,13 @@ class BeamFITS(UVBeam):
             axis1_units = primary_header.pop('CUNIT' + str(ax_nums['img_ax1']), 'deg')
             if axis1_units == 'deg':
                 self.axis1_array = np.deg2rad(self.axis1_array)
+            elif axis1_units != 'rad':
+                raise ValueError('Units of first axis array are not "deg" or "rad".')
             axis2_units = primary_header.pop('CUNIT' + str(ax_nums['img_ax2']), 'deg')
             if axis2_units == 'deg':
                 self.axis2_array = np.deg2rad(self.axis2_array)
+            elif axis2_units != 'rad':
+                raise ValueError('Units of second axis array are not "deg" or "rad".')
 
         n_efield_dims = max([ax_nums[key] for key in ax_nums])
 
@@ -174,6 +178,14 @@ class BeamFITS(UVBeam):
 
         self.freq_array = uvutils.fits_gethduaxis(primary_hdu, ax_nums['freq'])
         self.freq_array.shape = (self.Nspws,) + self.freq_array.shape
+        # default frequency axis is Hz, but check for corresonding CUNIT
+        freq_units = primary_header.pop('CUNIT' + str(ax_nums['freq']), 'Hz')
+        if freq_units != 'Hz':
+            freq_factor = {'kHz': 1e3, 'MHz': 1e6, 'GHz': 1e9}
+            if freq_units in freq_factor.keys():
+                self.freq_array = self.freq_array * freq_factor[freq_units]
+            else:
+                raise ValueError('Frequency units not recognized.')
 
         self.history = str(primary_header.get('HISTORY', ''))
         if not uvutils.check_history_version(self.history, self.pyuvdata_version_str):
@@ -228,9 +240,13 @@ class BeamFITS(UVBeam):
                 axis1_units = basisvec_header.pop('CUNIT' + str(basisvec_ax_nums['img_ax1']), 'deg')
                 if axis1_units == 'deg':
                     basisvec_axis1_array = np.deg2rad(basisvec_axis1_array)
+                elif axis1_units != 'rad':
+                    raise ValueError('Units of first axis array in BASISVEC HDU are not "deg" or "rad".')
                 axis2_units = basisvec_header.pop('CUNIT' + str(basisvec_ax_nums['img_ax2']), 'deg')
                 if axis2_units == 'deg':
                     basisvec_axis2_array = np.deg2rad(basisvec_axis2_array)
+                elif axis2_units != 'rad':
+                    raise ValueError('Units of second axis array in BASISVEC HDU are not "deg" or "rad".')
 
                 if not np.all(basisvec_axis1_array == self.axis1_array):
                     raise ValueError('First image axis in BASISVEC HDU does not match '
