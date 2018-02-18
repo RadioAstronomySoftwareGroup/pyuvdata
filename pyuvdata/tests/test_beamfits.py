@@ -99,6 +99,27 @@ def test_readCST_writereadFITS():
     beam_out.read_beamfits(write_file)
     nt.assert_equal(beam_in, beam_out)
 
+    # now change frequency units
+    F = fits.open(write_file)
+    data = F[0].data
+    primary_hdr = F[0].header
+    primary_hdr['CUNIT3'] = 'MHz'
+    primary_hdr['CRVAL3'] = primary_hdr['CRVAL3'] / 1e6
+    primary_hdr['CDELT3'] = primary_hdr['CRVAL3'] / 1e6
+    hdunames = uvutils.fits_indexhdus(F)
+    bandpass_hdu = F[hdunames['BANDPARM']]
+
+    prihdu = fits.PrimaryHDU(data=data, header=primary_hdr)
+    hdulist = fits.HDUList([prihdu, bandpass_hdu])
+
+    if float(astropy.__version__[0:3]) < 1.3:
+        hdulist.writeto(write_file, clobber=True)
+    else:
+        hdulist.writeto(write_file, overwrite=True)
+
+    beam_out.read_beamfits(write_file)
+    nt.assert_equal(beam_in, beam_out)
+
 
 def test_writeread_healpix():
     beam_in = UVBeam()
@@ -183,7 +204,8 @@ def test_errors():
     beam_in.antenna_type = 'simple'
 
     header_vals_to_change = [{'BTYPE': 'foo'}, {'COORDSYS': 'orthoslant_zenith'},
-                             {'NAXIS': ''}]
+                             {'NAXIS': ''}, {'CUNIT1': 'foo'}, {'CUNIT2': 'foo'},
+                             {'CUNIT3': 'foo'}]
 
     for i, hdr_dict in enumerate(header_vals_to_change):
         beam_in.write_beamfits(write_file, clobber=True)
@@ -225,7 +247,7 @@ def test_errors():
                              {'CTYPE2': 'foo'},
                              {'CDELT1': np.diff(beam_in.axis1_array)[0] * 2},
                              {'CDELT2': np.diff(beam_in.axis2_array)[0] * 2},
-                             {'NAXIS4': ''}]
+                             {'NAXIS4': ''}, {'CUNIT1': 'foo'}, {'CUNIT2': 'foo'}]
 
     for i, hdr_dict in enumerate(header_vals_to_change):
         beam_in.write_beamfits(write_file, clobber=True)
@@ -372,8 +394,8 @@ def test_casa_beam():
     beam_in.model_name = 'casa_airy'
     beam_in.model_version = 'v0'
 
-    # this file is actually in sine projection RA/DEC at zenith at a particular time.
-    # For now pretend it's in sine projection of az/za
+    # this file is actually in an orthoslant projection RA/DEC at zenith at a particular time.
+    # For now pretend it's in a zenith orthoslant projection
     beam_in.pixel_coordinate_system = 'orthoslant_zenith'
 
     expected_extra_keywords = ['OBSERVER', 'OBSDEC', 'DATAMIN', 'OBJECT',
@@ -403,8 +425,8 @@ def test_extra_keywords():
     beam_in.model_name = 'casa_airy'
     beam_in.model_version = 'v0'
 
-    # this file is actually in sine projection RA/DEC at zenith at a particular time.
-    # For now pretend it's in sine projection of az/za
+    # this file is actually in an orthoslant projection RA/DEC at zenith at a particular time.
+    # For now pretend it's in a zenith orthoslant projection
     beam_in.pixel_coordinate_system = 'orthoslant_zenith'
 
     # check for warnings & errors with extra_keywords that are dicts, lists or arrays
