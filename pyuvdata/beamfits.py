@@ -425,7 +425,7 @@ class BeamFITS(UVBeam):
         primary_header['CRPIX' + str(ax_nums['feed_pol'])] = 1
 
         # set up spw axis
-        primary_header['CTYPE' + str(ax_nums['spw'])] = ('IF', 'Spectral window axis')
+        primary_header['CTYPE' + str(ax_nums['spw'])] = ('IF', 'Spectral window number.')
         primary_header['CUNIT' + str(ax_nums['spw'])] = 'Integer'
         primary_header['CRVAL' + str(ax_nums['spw'])] = 1
         primary_header['CRPIX' + str(ax_nums['spw'])] = 1
