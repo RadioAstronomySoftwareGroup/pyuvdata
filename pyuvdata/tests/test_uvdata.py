@@ -835,6 +835,15 @@ def test_add():
     uv1.history = uv_full.history
     nt.assert_equal(uv1, uv_full)
 
+    # Add frequencies - out of order
+    uv1 = copy.deepcopy(uv_full)
+    uv2 = copy.deepcopy(uv_full)
+    uv1.select(freq_chans=np.arange(0, 32))
+    uv2.select(freq_chans=np.arange(32, 64))
+    uv2 += uv1
+    uv2.history = uv_full.history
+    nt.assert_equal(uv2, uv_full)
+
     # Add polarizations
     uv1 = copy.deepcopy(uv_full)
     uv2 = copy.deepcopy(uv_full)
@@ -847,6 +856,15 @@ def test_add():
                                            'using pyuvdata.', uv1.history))
     uv1.history = uv_full.history
     nt.assert_equal(uv1, uv_full)
+
+    # Add polarizations - out of order
+    uv1 = copy.deepcopy(uv_full)
+    uv2 = copy.deepcopy(uv_full)
+    uv1.select(polarizations=uv1.polarization_array[0:2])
+    uv2.select(polarizations=uv2.polarization_array[2:4])
+    uv2 += uv1
+    uv2.history = uv_full.history
+    nt.assert_equal(uv2, uv_full)
 
     # Add times
     uv1 = copy.deepcopy(uv_full)
