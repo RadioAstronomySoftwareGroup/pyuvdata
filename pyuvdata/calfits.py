@@ -172,8 +172,8 @@ class CALFITS(UVCal):
         prihdr['CRVAL4'] = self.freq_array[0][0]
         prihdr['CDELT4'] = freq_spacing
 
-        # Nspw axis: number of spectral windows
-        prihdr['CTYPE5'] = ('NSPWS', 'Number of spectral windows.')
+        # spw axis: number of spectral windows
+        prihdr['CTYPE5'] = ('IF', 'Spectral window number.')
         prihdr['CUNIT5'] = 'Integer'
         prihdr['CRPIX5'] = 1
         prihdr['CRVAL5'] = 1
@@ -257,7 +257,7 @@ class CALFITS(UVCal):
             sechdr['CRVAL4'] = self.freq_array[0][0]
             sechdr['CDELT4'] = freq_spacing
 
-            sechdr['CTYPE5'] = ('NSPWS', 'Number of spectral windows.')
+            sechdr['CTYPE5'] = ('IF', 'Spectral window number.')
             sechdr['CUNIT5'] = 'Integer'
             sechdr['CRPIX5'] = 1
             sechdr['CRVAL5'] = 1
@@ -294,8 +294,8 @@ class CALFITS(UVCal):
             totqualhdr['CRVAL3'] = self.freq_array[0][0]
             totqualhdr['CDELT3'] = freq_spacing
 
-            # Nspws axis: number of spectral windows
-            totqualhdr['CTYPE4'] = ('NSPWS', 'Number of spectral windows.')
+            # spws axis: number of spectral windows
+            totqualhdr['CTYPE4'] = ('IF', 'Spectral window number.')
             totqualhdr['CUNIT4'] = 'Integer'
             totqualhdr['CRPIX4'] = 1
             totqualhdr['CRVAL4'] = 1
