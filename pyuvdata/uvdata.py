@@ -861,7 +861,6 @@ class UVData(UVBase):
             this.freq_array = np.concatenate([this.freq_array,
                                               other.freq_array[:, fnew_inds]], axis=1)
             f_order = np.argsort(this.freq_array[0, :])
-            this.freq_array = this.freq_array[:, f_order]
             this.data_array = np.concatenate([this.data_array, zero_pad], axis=2)
             this.nsample_array = np.concatenate([this.nsample_array, zero_pad], axis=2)
             this.flag_array = np.concatenate([this.flag_array, 1 - zero_pad],
@@ -872,7 +871,6 @@ class UVData(UVBase):
             this.polarization_array = np.concatenate([this.polarization_array,
                                                       other.polarization_array[pnew_inds]])
             p_order = np.argsort(np.abs(this.polarization_array))
-            this.polarization_array = this.polarization_array[p_order]
             this.data_array = np.concatenate([this.data_array, zero_pad], axis=3)
             this.nsample_array = np.concatenate([this.nsample_array, zero_pad], axis=3)
             this.flag_array = np.concatenate([this.flag_array, 1 - zero_pad],
@@ -895,10 +893,12 @@ class UVData(UVBase):
             this.nsample_array = this.nsample_array[blt_order, :, :, :]
             this.flag_array = this.flag_array[blt_order, :, :, :]
         if len(fnew_inds) > 0:
+            this.freq_array = this.freq_array[:, f_order]
             this.data_array = this.data_array[:, :, f_order, :]
             this.nsample_array = this.nsample_array[:, :, f_order, :]
             this.flag_array = this.flag_array[:, :, f_order, :]
         if len(pnew_inds) > 0:
+            this.polarization_array = this.polarization_array[p_order]
             this.data_array = this.data_array[:, :, :, p_order]
             this.nsample_array = this.nsample_array[:, :, :, p_order]
             this.flag_array = this.flag_array[:, :, :, p_order]
