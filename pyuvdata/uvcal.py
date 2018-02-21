@@ -1055,6 +1055,7 @@ class UVCal(UVBase):
                  this.flag_array.shape[3], len(jnew_inds)))
             this.jones_array = np.concatenate([this.jones_array, other.jones_array[jnew_inds]])
             order = np.argsort(np.abs(this.jones_array))
+            this.jones_array = this.jones_array[order]
             if this.cal_type == 'delay':
                 this.delay_array = np.concatenate([this.delay_array, zero_pad_data], axis=4)[
                     :, :, :, :, order]
