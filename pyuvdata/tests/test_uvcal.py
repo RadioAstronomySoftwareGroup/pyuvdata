@@ -876,6 +876,15 @@ class TestUVCalAddGain(object):
                                    rtol=self.gain_object._total_quality_array.tols[0],
                                    atol=self.gain_object._total_quality_array.tols[1]))
 
+        # Out of order - freqs
+        self.gain_object = copy.deepcopy(gain_object_full)
+        self.gain_object2 = copy.deepcopy(gain_object_full)
+        self.gain_object.select(frequencies=freqs2)
+        self.gain_object2.select(frequencies=freqs1)
+        self.gain_object += self.gain_object2
+        self.gain_object.history = gain_object_full.history
+        nt.assert_equal(self.gain_object, gain_object_full)
+
     def test_add_times(self):
         """Test adding times between two UVCal objects"""
         gain_object_full = copy.deepcopy(self.gain_object)
@@ -1214,6 +1223,15 @@ class TestUVCalAddDelay(object):
         self.delay_object += self.delay_object2
         nt.assert_true(np.allclose(self.delay_object.input_flag_array, tot_ifa))
 
+        # Out of order - antennas
+        self.delay_object = copy.deepcopy(delay_object_full)
+        self.delay_object2 = copy.deepcopy(self.delay_object)
+        self.delay_object.select(antenna_nums=ants2)
+        self.delay_object2.select(antenna_nums=ants1)
+        self.delay_object += self.delay_object2
+        self.delay_object.history = delay_object_full.history
+        nt.assert_equal(self.delay_object, delay_object_full)
+
     def test_add_times(self):
         """Test adding times between two UVCal objects"""
         delay_object_full = copy.deepcopy(self.delay_object)
@@ -1298,6 +1316,15 @@ class TestUVCalAddDelay(object):
         self.delay_object += self.delay_object2
         nt.assert_true(np.allclose(self.delay_object.input_flag_array, tot_ifa))
 
+        # Out of order - times
+        self.delay_object = copy.deepcopy(delay_object_full)
+        self.delay_object2 = copy.deepcopy(self.delay_object)
+        self.delay_object.select(times=times2)
+        self.delay_object2.select(times=times1)
+        self.delay_object += self.delay_object2
+        self.delay_object.history = delay_object_full.history
+        nt.assert_equal(self.delay_object, delay_object_full)
+
     def test_add_jones(self):
         """Test adding Jones axes between two UVCal objects"""
         delay_object_original = copy.deepcopy(self.delay_object)
@@ -1373,6 +1400,20 @@ class TestUVCalAddDelay(object):
         self.delay_object2.input_flag_array = ifa2
         self.delay_object += self.delay_object2
         nt.assert_true(np.allclose(self.delay_object.input_flag_array, tot_ifa))
+
+        # Out of order - jones
+        self.delay_object = copy.deepcopy(delay_object_original)
+        self.delay_object2 = copy.deepcopy(delay_object_original)
+        self.delay_object.jones_array[0] = -6
+        self.delay_object += self.delay_object2
+        self.delay_object2 = copy.deepcopy(self.delay_object)
+        self.delay_object.select(jones=-5)
+        self.delay_object.history = delay_object_original.history
+        nt.assert_equal(self.delay_object, delay_object_original)
+        self.delay_object2.select(jones=-6)
+        self.delay_object2.jones_array[:] = -5
+        self.delay_object2.history = delay_object_original.history
+        nt.assert_equal(self.delay_object2, delay_object_original)
 
     def test_add_errors(self):
         """Test behavior that will raise errors"""

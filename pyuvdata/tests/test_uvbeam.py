@@ -788,6 +788,13 @@ def test_add():
     beam1.history = power_beam.history
     nt.assert_equal(beam1, power_beam)
 
+    # Out of order - axis1
+    beam1 = power_beam.select(axis1_inds=np.arange(180, 360), inplace=False)
+    beam2 = power_beam.select(axis1_inds=np.arange(0, 180), inplace=False)
+    beam1 += beam2
+    beam1.history = power_beam.history
+    nt.assert_equal(beam1, power_beam)
+
     # Add along second image axis
     beam1 = power_beam.select(axis2_inds=np.arange(0, 90), inplace=False)
     beam2 = power_beam.select(axis2_inds=np.arange(90, 181), inplace=False)
@@ -798,6 +805,13 @@ def test_add():
                                            'second image axis using pyuvdata. '
                                            'Combined data along second image axis '
                                            'using pyuvdata.', beam1.history))
+    beam1.history = power_beam.history
+    nt.assert_equal(beam1, power_beam)
+
+    # Out of order - axis2
+    beam1 = power_beam.select(axis2_inds=np.arange(90, 181), inplace=False)
+    beam2 = power_beam.select(axis2_inds=np.arange(0, 90), inplace=False)
+    beam1 += beam2
     beam1.history = power_beam.history
     nt.assert_equal(beam1, power_beam)
 
@@ -814,6 +828,13 @@ def test_add():
     beam1.history = power_beam.history
     nt.assert_equal(beam1, power_beam)
 
+    # Out of order - freqs
+    beam1 = power_beam.select(freq_chans=1, inplace=False)
+    beam2 = power_beam.select(freq_chans=0, inplace=False)
+    beam1 += beam2
+    beam1.history = power_beam.history
+    nt.assert_equal(beam1, power_beam)
+
     # Add polarizations
     beam1 = power_beam.select(polarizations=-5, inplace=False)
     beam2 = power_beam.select(polarizations=-6, inplace=False)
@@ -823,6 +844,13 @@ def test_add():
                                            'using pyuvdata. Combined data along '
                                            'polarization axis using pyuvdata.',
                                            beam1.history))
+    beam1.history = power_beam.history
+    nt.assert_equal(beam1, power_beam)
+
+    # Out of order - pols
+    beam1 = power_beam.select(polarizations=-6, inplace=False)
+    beam2 = power_beam.select(polarizations=-5, inplace=False)
+    beam1 += beam2
     beam1.history = power_beam.history
     nt.assert_equal(beam1, power_beam)
 
@@ -855,6 +883,13 @@ def test_add():
                                            'using pyuvdata. Combined data along '
                                            'feed axis using pyuvdata.',
                                            beam1.history))
+    beam1.history = efield_beam.history
+    nt.assert_equal(beam1, efield_beam)
+
+    # Out of order - feeds
+    beam1 = efield_beam.select(feeds=efield_beam.feed_array[1], inplace=False)
+    beam2 = efield_beam.select(feeds=efield_beam.feed_array[0], inplace=False)
+    beam1 += beam2
     beam1.history = efield_beam.history
     nt.assert_equal(beam1, efield_beam)
 
