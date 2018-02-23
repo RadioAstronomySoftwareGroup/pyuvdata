@@ -1,6 +1,12 @@
 #!/usr/bin/env python
 """
 A command-line script for renumbering antenna numbers > 254 if possible in uvfits files.
+
+This is necessary for CASA because CASA cannot read in uvfits files with
+antenna numbers > 254 (apparently 255 isn't ok because 0-based antenna 255 is
+1-based 256 and that gets turned into 0 in some 8-bit code path in CASA).
+
+This only works if the number of antennas (Nants_telescope) is less than 255.
 """
 import numpy as np
 import os
