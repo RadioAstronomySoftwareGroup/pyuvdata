@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-A command-line script for renumbering antenna numbers > 255 if possible in uvfits files.
+A command-line script for renumbering antenna numbers > 254 if possible in uvfits files.
 """
 import numpy as np
 import os
@@ -9,7 +9,7 @@ from pyuvdata import UVData
 
 # setup argparse
 a = argparse.ArgumentParser(description="A command-line script for renumbering "
-                            "antenna numbers > 255 if possible in uvfits files.")
+                            "antenna numbers > 254 if possible in uvfits files.")
 a.add_argument("file_in", type=str, help="input uvfits file.")
 a.add_argument("file_out", type=str, help="output uvfits file.")
 a.add_argument("--overwrite", default=False, action='store_true',
@@ -21,8 +21,8 @@ a.add_argument("--verbose", default=False, action='store_true',
 args = a.parse_args()
 
 if os.path.exists(args.file_out) and args.overwrite is False:
-    print("{} exists, not overwriting...".format(args.file_out))
-    continue
+    print("{} exists. Use --overwrite to overwrite the file.".format(args.file_out))
+    return
 
 uv_obj = UVData()
 uv_obj.read_uvfits(args.file_in)
