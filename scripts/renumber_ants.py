@@ -17,6 +17,10 @@ a.add_argument("--verbose", default=False, action='store_true', help="report fee
 # get args
 args = a.parse_args()
 
+if os.path.exists(args.file_out) and args.overwrite is False:
+    print("{} exists, not overwriting...".format(args.file_out))
+    continue
+
 uv_obj = UVData()
 uv_obj.read_uvfits(args.file_in)
 
