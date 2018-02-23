@@ -55,9 +55,7 @@ for ant_in, ant_out in renumber_dict.iteritems():
     uv_obj.ant_1_array[wh_ant1_arr] = ant_out
     uv_obj.ant_2_array[wh_ant2_arr] = ant_out
 
-    blt_inds = np.array(sorted(list(set(wh_ant1_arr.tolist() + wh_ant2_arr.tolist()))))
-    uv_obj.baseline_array[blt_inds] = \
-        uv_obj.antnums_to_baseline(uv_obj.ant_1_array[blt_inds], uv_obj.ant_2_array[blt_inds])
+uv_obj.baseline_array = uv_obj.antnums_to_baseline(uv_obj.ant_1_array, uv_obj.ant_2_array)
 
 uv_obj.check()
 
