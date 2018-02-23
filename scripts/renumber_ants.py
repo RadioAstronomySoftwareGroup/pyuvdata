@@ -7,6 +7,8 @@ antenna numbers > 254 (apparently 255 isn't ok because 0-based antenna 255 is
 1-based 256 and that gets turned into 0 in some 8-bit code path in CASA).
 
 This only works if the number of antennas (Nants_telescope) is less than 255.
+
+Antenna names are not changed, so they reflect the original names of the antennas.
 """
 import numpy as np
 import os
@@ -52,6 +54,7 @@ for ant_in, ant_out in renumber_dict.iteritems():
     uv_obj.antenna_numbers[wh_ant_num] = ant_out
     uv_obj.ant_1_array[wh_ant1_arr] = ant_out
     uv_obj.ant_2_array[wh_ant2_arr] = ant_out
+
     blt_inds = np.array(sorted(list(set(wh_ant1_arr.tolist() + wh_ant2_arr.tolist()))))
     uv_obj.baseline_array[blt_inds] = \
         uv_obj.antnums_to_baseline(uv_obj.ant_1_array[blt_inds], uv_obj.ant_2_array[blt_inds])
