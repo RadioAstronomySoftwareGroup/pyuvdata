@@ -977,42 +977,75 @@ class UVBeam(UVBase):
         self.__add__(other, inplace=True)
         return self
 
-    def get_beam_area(self,stokes='I'):
+    def get_beam_area(self, stokes='pseudo_I'):
         """
         Computes the integral of the beam, which has units of steradians
+
+        Currently, only the "pseudo Stokes I" beam is supported.
+        See Equations 4 and 5 of Moore et al. (2017) ApJ 836, 154
+        or arxiv:1502.05072 for details.
         """
         if self.beam_type is not 'power':
             raise ValueError('beam_type must be power')
         if self._data_normalization.value != 'peak':
-            print self._data_normalization.value
             raise ValueError('beam must be peak normalized')
+        if self.pixel_coordinate_system is not 'healpix':
+            raise ValueError('Currently only healpix format supported')
+        if self.data_array.shape[0] > 1:
+            raise ValueError('Expect scalar for power beam, found vector')
+
         npix = self.data_array.shape[-1]
-        if stokes == 'I':
-            # Assume A_I = (B_xx + B_yy)/2
-            beam = np.mean(self.data_array[0,0], axis=-3)
+        pol_array = self.polarization_array
+        if stokes == 'pseudo_I':
+            if 1 in pol_array:
+                stokes_I_ind = np.where(np.isin(pol_array, 1))[0][0]
+                beam = self.data_array[0, 0, stokes_I_ind]
+            elif -5 in pol_array and -6 in pol_array:
+                # Assume A_I = (B_xx + B_yy)/2
+                xx_ind = np.where(np.isin(pol_array, -5))[0][0]
+                yy_ind = np.where(np.isin(pol_array, -6))[0][0]
+                beam = 0.5 * (self.data_array[0, 0, xx_ind] + self.data_array[0, 0, yy_ind])
+            else:
+                raise ValueError('Do not have the right polarization information')
         else:
             raise NotImplementedError()
 
         return np.sum(beam, axis=-1) * 4.*np.pi / npix
 
-    def get_beam_sq_area(self,stokes='I'):
+    def get_beam_sq_area(self, stokes='pseudo_I'):
         """
         Computes the integral of the beam**2, which has units of steradians
+
+        Currently, only the "pseudo Stokes I" beam is supported.
+        See Equations 4 and 5 of Moore et al. (2017) ApJ 836, 154
+        or arxiv:1502.05072 for details.
         """
         if self.beam_type is not 'power':
             raise ValueError('beam_type must be power')
         if self._data_normalization.value != 'peak':
-            print self._data_normalization.value
             raise ValueError('beam must be peak normalized')
+        if self.pixel_coordinate_system is not 'healpix':
+            raise ValueError('Currently only healpix format supported')
+        if self.data_array.shape[0] > 1:
+            raise ValueError('Expect scalar for power beam, found vector')
+
         npix = self.data_array.shape[-1]
-        if stokes == 'I':
-            # Assume A_I = (B_xx + B_yy)/2
-            beam = np.mean(self.data_array[0,0], axis=-3)
+        pol_array = self.polarization_array
+        if stokes == 'pseudo_I':
+            if 1 in pol_array:
+                stokes_I_ind = np.where(np.isin(pol_array, 1))[0][0]
+                beam = self.data_array[0, 0, stokes_I_ind]
+            elif -5 in pol_array and -6 in pol_array:
+                # Assume A_I = (B_xx + B_yy)/2
+                xx_ind = np.where(np.isin(pol_array, -5))[0][0]
+                yy_ind = np.where(np.isin(pol_array, -6))[0][0]
+                beam = 0.5 * (self.data_array[0, 0, xx_ind] + self.data_array[0, 0, yy_ind])
+            else:
+                raise ValueError('Do not have the right polarization information')
         else:
             raise NotImplementedError()
 
         return np.sum(beam**2, axis=-1) * 4.*np.pi / npix
-
 
     def select(self, axis1_inds=None, axis2_inds=None, pixels=None,
                frequencies=None, freq_chans=None,
