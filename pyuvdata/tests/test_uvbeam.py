@@ -1233,3 +1233,86 @@ def test_healpix():
     beam1 = copy.deepcopy(power_beam_healpix)
     beam2 = copy.deepcopy(power_beam_healpix)
     nt.assert_raises(ValueError, beam1.__iadd__, beam2)
+
+
+def test_get_beam_functions():
+    power_beam = UVBeam()
+    power_beam.read_cst_beam(cst_files[0], beam_type='power', frequency=150e6,
+                             telescope_name='TEST', feed_name='bob',
+                             feed_version='0.1',
+                             model_name='E-field pattern - Rigging height 4.9m',
+                             model_version='1.0')
+    fill_dummy_beam(power_beam, 'power', 'healpix')
+
+    # Check sizes of output
+    numfreqs = power_beam.freq_array.shape[-1]
+    beam_int = power_beam.get_beam_area()
+    beam_sq_int = power_beam.get_beam_sq_area()
+    nt.assert_equal(beam_int.shape[0], numfreqs)
+    nt.assert_equal(beam_sq_int.shape[0], numfreqs)
+
+    # Check for the case of a uniform beam over the whole sky
+    power_beam.data_array = np.ones_like(power_beam.data_array)
+    nt.assert_almost_equal(np.sum(power_beam.get_beam_area()), numfreqs*np.pi*4.)
+    power_beam.data_array = 2. * np.ones_like(power_beam.data_array)
+    nt.assert_almost_equal(np.sum(power_beam.get_beam_sq_area()), numfreqs*np.pi*16.)
+
+    # Check to make sure only pseudo Stokes I is accepted
+    nt.assert_raises(NotImplementedError, power_beam.get_beam_area, stokes='Q')
+    nt.assert_raises(NotImplementedError, power_beam.get_beam_sq_area, stokes='Q')
+
+    # Check only power beams accepted
+    efield_beam = UVBeam()
+    efield_beam.read_cst_beam(cst_files[0], beam_type='efield', frequency=150e6,
+                              telescope_name='TEST', feed_name='bob',
+                              feed_version='0.1',
+                              model_name='E-field pattern - Rigging height 4.9m',
+                              model_version='1.0')
+    fill_dummy_beam(efield_beam, 'efield', 'healpix')
+    nt.assert_raises(ValueError, efield_beam.get_beam_area)
+    nt.assert_raises(ValueError, efield_beam.get_beam_sq_area)
+
+    # Check only healpix accepted
+    az_za_beam = UVBeam()
+    az_za_beam.read_cst_beam(cst_files[0], beam_type='power', frequency=150e6,
+                             telescope_name='TEST', feed_name='bob',
+                             feed_version='0.1',
+                             model_name='E-field pattern - Rigging height 4.9m',
+                             model_version='1.0')
+    fill_dummy_beam(az_za_beam, 'power', 'az_za')
+    nt.assert_raises(ValueError, az_za_beam.get_beam_area)
+    nt.assert_raises(ValueError, az_za_beam.get_beam_sq_area)
+    sin_zenith_beam = UVBeam()
+    sin_zenith_beam.read_cst_beam(cst_files[0], beam_type='power', frequency=150e6,
+                                  telescope_name='TEST', feed_name='bob',
+                                  feed_version='0.1',
+                                  model_name='E-field pattern - Rigging height 4.9m',
+                                  model_version='1.0')
+    fill_dummy_beam(sin_zenith_beam, 'power', 'sin_zenith')
+    nt.assert_raises(ValueError, sin_zenith_beam.get_beam_area)
+    nt.assert_raises(ValueError, sin_zenith_beam.get_beam_sq_area)
+
+    # Check peak norm
+    norm_beam = UVBeam()
+    norm_beam.read_cst_beam(cst_files[0], beam_type='power', frequency=150e6,
+                            telescope_name='TEST', feed_name='bob',
+                            feed_version='0.1',
+                            model_name='E-field pattern - Rigging height 4.9m',
+                            model_version='1.0')
+    fill_dummy_beam(norm_beam, 'power', 'healpix')
+    norm_beam.data_normalization = 'physical'
+    nt.assert_raises(ValueError, norm_beam.get_beam_area)
+    nt.assert_raises(ValueError, norm_beam.get_beam_sq_area)
+    norm_beam.data_normalization = 'solid_angle'
+    nt.assert_raises(ValueError, norm_beam.get_beam_area)
+    nt.assert_raises(ValueError, norm_beam.get_beam_sq_area)
+
+    # Check polarization error
+    power_beam.polarization_array = [9, 18, 27, -5]
+    nt.assert_raises(ValueError, power_beam.get_beam_area)
+    nt.assert_raises(ValueError, power_beam.get_beam_sq_area)
+
+    # Check if power is scalar
+    power_beam.data_array = np.vstack([power_beam.data_array, power_beam.data_array])
+    nt.assert_raises(ValueError, power_beam.get_beam_area)
+    nt.assert_raises(ValueError, power_beam.get_beam_sq_area)
