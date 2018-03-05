@@ -995,7 +995,7 @@ class UVBeam(UVBase):
         if self.data_array.shape[0] > 1:
             raise ValueError('Expect scalar for power beam, found vector')
 
-        npix = self.data_array.shape[-1]
+        nside = self.nside
         pol_array = self.polarization_array
         if stokes == 'pseudo_I':
             if 1 in pol_array:
@@ -1011,7 +1011,7 @@ class UVBeam(UVBase):
         else:
             raise NotImplementedError()
 
-        return np.sum(beam, axis=-1) * 4. * np.pi / npix
+        return np.sum(beam, axis=-1) * np.pi / (3. * nside**2)
 
     def get_beam_sq_area(self, stokes='pseudo_I'):
         """
@@ -1030,7 +1030,7 @@ class UVBeam(UVBase):
         if self.data_array.shape[0] > 1:
             raise ValueError('Expect scalar for power beam, found vector')
 
-        npix = self.data_array.shape[-1]
+        nside = self.nside
         pol_array = self.polarization_array
         if stokes == 'pseudo_I':
             if 1 in pol_array:
@@ -1046,7 +1046,7 @@ class UVBeam(UVBase):
         else:
             raise NotImplementedError()
 
-        return np.sum(beam**2, axis=-1) * 4. * np.pi / npix
+        return np.sum(beam**2, axis=-1) * np.pi / (3. * nside**2)
 
     def select(self, axis1_inds=None, axis2_inds=None, pixels=None,
                frequencies=None, freq_chans=None,
