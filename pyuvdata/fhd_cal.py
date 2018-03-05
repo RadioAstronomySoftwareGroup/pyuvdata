@@ -73,7 +73,7 @@ class FHDCal(UVCal):
 
         self.Nants_data = int(cal_data['n_tile'][0])
         self.Nants_telescope = int(cal_data['n_tile'][0])
-        self.antenna_names = cal_data['tile_names'][0].tolist()
+        self.antenna_names = np.array(cal_data['tile_names'][0].tolist())
         self.antenna_numbers = np.arange(self.Nants_telescope)
         self.ant_array = np.arange(self.Nants_data)
 
