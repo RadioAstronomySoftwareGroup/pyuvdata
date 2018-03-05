@@ -6,6 +6,7 @@ from uvbase import UVBase
 import parameter as uvp
 import pyuvdata.utils as uvutils
 
+
 class UVBeam(UVBase):
     """
     A class for defining a radio telescope antenna beam.
@@ -1010,7 +1011,7 @@ class UVBeam(UVBase):
         else:
             raise NotImplementedError()
 
-        return np.sum(beam, axis=-1) * 4.*np.pi / npix
+        return np.sum(beam, axis=-1) * 4. * np.pi / npix
 
     def get_beam_sq_area(self, stokes='pseudo_I'):
         """
@@ -1045,7 +1046,7 @@ class UVBeam(UVBase):
         else:
             raise NotImplementedError()
 
-        return np.sum(beam**2, axis=-1) * 4.*np.pi / npix
+        return np.sum(beam**2, axis=-1) * 4. * np.pi / npix
 
     def select(self, axis1_inds=None, axis2_inds=None, pixels=None,
                frequencies=None, freq_chans=None,
