@@ -1252,10 +1252,12 @@ def test_get_beam_functions():
     nt.assert_equal(beam_sq_int.shape[0], numfreqs)
 
     # Check for the case of a uniform beam over the whole sky
+    dOmega = hp.nside2pixarea(power_beam.nside)
+    npix = power_beam.Npixels
     power_beam.data_array = np.ones_like(power_beam.data_array)
-    nt.assert_almost_equal(np.sum(power_beam.get_beam_area()), numfreqs*np.pi*4.)
+    nt.assert_almost_equal(np.sum(power_beam.get_beam_area()), numfreqs*npix*dOmega)
     power_beam.data_array = 2. * np.ones_like(power_beam.data_array)
-    nt.assert_almost_equal(np.sum(power_beam.get_beam_sq_area()), numfreqs*np.pi*16.)
+    nt.assert_almost_equal(np.sum(power_beam.get_beam_sq_area()), numfreqs*4.*npix*dOmega)
 
     # Check to make sure only pseudo Stokes I is accepted
     nt.assert_raises(NotImplementedError, power_beam.get_beam_area, stokes='Q')
