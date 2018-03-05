@@ -53,35 +53,34 @@ class UVCal(UVBase):
                                                form='str',
                                                expected_type=str)
 
-        desc = ('Number of antennas that have data associated with them '
-                '(i.e. number of unique entries in ant_array). May be smaller ' +
-                'than the number of antennas in the telescope')
+        desc = ('Number of antennas that have data associated with them ' +
+                '(i.e. length of ant_array), which may be smaller than the number' +
+                'of antennas in the telescope (i.e. length of antenna_numbers).')
         self._Nants_data = uvp.UVParameter('Nants_data', description=desc,
                                            expected_type=int)
 
-        desc = ('Number of antennas in the array. May be larger ' +
-                'than the number of antennas with data')
+        desc = ('Number of antennas in the antenna_numbers array. May be larger ' +
+                'than the number of antennas with gains associated with them.')
         self._Nants_telescope = uvp.UVParameter('Nants_telescope',
                                                 description=desc,
                                                 expected_type=int)
 
-        desc = ('Array of antenna indices for data arrays, shape (Nants_data), '
-                'type = int, 0 indexed')
+        desc = ('Array of integer antenna numbers that appear in self.gain_array, with shape (Nants_data,). '
+                'This array is ordered to match the inherent ordering of the zeroth axis of self.gain_array.')
         self._ant_array = uvp.UVParameter('ant_array', description=desc,
                                           expected_type=int, form=('Nants_data',))
 
-        desc = ('List of antenna names, shape (Nants_telescope), '
-                'with numbers given by antenna_numbers (which can be matched '
-                'to ant_array). There must be one entry here for each unique '
-                'entry in ant_array, but there may be extras as well.')
+        desc = ('Array of antenna names with shape (Nants_telescope,). ' +
+                'Ordering of elements matches ordering of antenna_numbers.')
         self._antenna_names = uvp.UVParameter('antenna_names',
                                               description=desc,
                                               form=('Nants_telescope',),
                                               expected_type=str)
 
-        desc = ('List of integer antenna numbers corresponding to antenna_names, '
-                'shape (Nants_telescope). There must be one entry here for each unique '
-                'entry in ant_array, but there may be extras as well.')
+        desc = ('Array of all integer-valued antenna numbers in the telescope with shape (Nants_telescope,). '
+                'Ordering of elements matches that of antenna_names. This array is not necessarily identical '
+                'to ant_array, in that this array holds all antenna numbers associated with the telescope, not '
+                'just antennas with data, and has an in principle non-specific ordering.')
         self._antenna_numbers = uvp.UVParameter('antenna_numbers',
                                                 description=desc,
                                                 form=('Nants_telescope',),
