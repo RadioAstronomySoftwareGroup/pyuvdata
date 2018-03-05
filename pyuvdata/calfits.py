@@ -369,7 +369,7 @@ class CALFITS(UVCal):
         anthdu = F[hdunames['ANTENNAS']]
         self.Nants_telescope = anthdu.header['NAXIS2']
         antdata = anthdu.data
-        self.antenna_names = map(str, antdata['ANTNAME'])
+        self.antenna_names = np.array(map(str, antdata['ANTNAME']))
         self.antenna_numbers = np.array(map(int, antdata['ANTINDEX']))
         self.ant_array = np.array(map(int, antdata['ANTARR']))
         if np.min(self.ant_array) < 0:
