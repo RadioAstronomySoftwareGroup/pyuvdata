@@ -15,6 +15,11 @@ cst_files = [os.path.join(DATA_PATH, f) for f in filenames]
 
 
 def fill_dummy_beam(beam_obj, beam_type, pixel_coordinate_system):
+    # this should only be used for HEALPix Efield beams because those cannot
+    # yet be constructed from the test data.
+    if beam_type != 'efield' or pixel_coordinate_system != 'healpix':
+        raise ValueError('Use actual test data files for beams that are not Healpix efield beams.')
+
     beam_obj.set_simple()
     beam_obj.telescope_name = 'testscope'
     beam_obj.feed_name = 'testfeed'
@@ -1242,7 +1247,16 @@ def test_get_beam_functions():
                              feed_version='0.1',
                              model_name='E-field pattern - Rigging height 4.9m',
                              model_version='1.0')
-    fill_dummy_beam(power_beam, 'power', 'healpix')
+    power_beam.az_za_to_healpix()
+
+    # Check that non-peak normalizations error
+    nt.assert_raises(ValueError, power_beam.get_beam_area)
+    nt.assert_raises(ValueError, power_beam.get_beam_sq_area)
+    power_beam.data_normalization = 'solid_angle'
+    nt.assert_raises(ValueError, power_beam.get_beam_area)
+    nt.assert_raises(ValueError, power_beam.get_beam_sq_area)
+    # change it to peak for rest of checks
+    power_beam.data_normalization = 'peak'
 
     # Check sizes of output
     numfreqs = power_beam.freq_array.shape[-1]
@@ -1255,59 +1269,18 @@ def test_get_beam_functions():
     dOmega = hp.nside2pixarea(power_beam.nside)
     npix = power_beam.Npixels
     power_beam.data_array = np.ones_like(power_beam.data_array)
-    nt.assert_almost_equal(np.sum(power_beam.get_beam_area()), numfreqs*npix*dOmega)
+    nt.assert_almost_equal(np.sum(power_beam.get_beam_area()), numfreqs * npix * dOmega)
     power_beam.data_array = 2. * np.ones_like(power_beam.data_array)
-    nt.assert_almost_equal(np.sum(power_beam.get_beam_sq_area()), numfreqs*4.*npix*dOmega)
+    nt.assert_almost_equal(np.sum(power_beam.get_beam_sq_area()), numfreqs * 4. * npix * dOmega)
+
+    # Check that if stokes I is in the beam polarization_array, it just uses it
+    power_beam.polarization_array = [1, 2]
+    nt.assert_almost_equal(np.sum(power_beam.get_beam_area()), 2. * numfreqs * npix * dOmega)
+    nt.assert_almost_equal(np.sum(power_beam.get_beam_sq_area()), 4. * numfreqs * npix * dOmega)
 
     # Check to make sure only pseudo Stokes I is accepted
     nt.assert_raises(NotImplementedError, power_beam.get_beam_area, stokes='Q')
     nt.assert_raises(NotImplementedError, power_beam.get_beam_sq_area, stokes='Q')
-
-    # Check only power beams accepted
-    efield_beam = UVBeam()
-    efield_beam.read_cst_beam(cst_files[0], beam_type='efield', frequency=150e6,
-                              telescope_name='TEST', feed_name='bob',
-                              feed_version='0.1',
-                              model_name='E-field pattern - Rigging height 4.9m',
-                              model_version='1.0')
-    fill_dummy_beam(efield_beam, 'efield', 'healpix')
-    nt.assert_raises(ValueError, efield_beam.get_beam_area)
-    nt.assert_raises(ValueError, efield_beam.get_beam_sq_area)
-
-    # Check only healpix accepted
-    az_za_beam = UVBeam()
-    az_za_beam.read_cst_beam(cst_files[0], beam_type='power', frequency=150e6,
-                             telescope_name='TEST', feed_name='bob',
-                             feed_version='0.1',
-                             model_name='E-field pattern - Rigging height 4.9m',
-                             model_version='1.0')
-    fill_dummy_beam(az_za_beam, 'power', 'az_za')
-    nt.assert_raises(ValueError, az_za_beam.get_beam_area)
-    nt.assert_raises(ValueError, az_za_beam.get_beam_sq_area)
-    sin_zenith_beam = UVBeam()
-    sin_zenith_beam.read_cst_beam(cst_files[0], beam_type='power', frequency=150e6,
-                                  telescope_name='TEST', feed_name='bob',
-                                  feed_version='0.1',
-                                  model_name='E-field pattern - Rigging height 4.9m',
-                                  model_version='1.0')
-    fill_dummy_beam(sin_zenith_beam, 'power', 'sin_zenith')
-    nt.assert_raises(ValueError, sin_zenith_beam.get_beam_area)
-    nt.assert_raises(ValueError, sin_zenith_beam.get_beam_sq_area)
-
-    # Check peak norm
-    norm_beam = UVBeam()
-    norm_beam.read_cst_beam(cst_files[0], beam_type='power', frequency=150e6,
-                            telescope_name='TEST', feed_name='bob',
-                            feed_version='0.1',
-                            model_name='E-field pattern - Rigging height 4.9m',
-                            model_version='1.0')
-    fill_dummy_beam(norm_beam, 'power', 'healpix')
-    norm_beam.data_normalization = 'physical'
-    nt.assert_raises(ValueError, norm_beam.get_beam_area)
-    nt.assert_raises(ValueError, norm_beam.get_beam_sq_area)
-    norm_beam.data_normalization = 'solid_angle'
-    nt.assert_raises(ValueError, norm_beam.get_beam_area)
-    nt.assert_raises(ValueError, norm_beam.get_beam_sq_area)
 
     # Check polarization error
     power_beam.polarization_array = [9, 18, 27, -5]
@@ -1318,3 +1291,26 @@ def test_get_beam_functions():
     power_beam.data_array = np.vstack([power_beam.data_array, power_beam.data_array])
     nt.assert_raises(ValueError, power_beam.get_beam_area)
     nt.assert_raises(ValueError, power_beam.get_beam_sq_area)
+
+    # Check only power beams accepted
+    efield_beam = UVBeam()
+    efield_beam.read_cst_beam(cst_files[0], beam_type='efield', frequency=150e6,
+                              telescope_name='TEST', feed_name='bob',
+                              feed_version='0.1',
+                              model_name='E-field pattern - Rigging height 4.9m',
+                              model_version='1.0')
+    nt.assert_raises(ValueError, efield_beam.get_beam_area)
+    nt.assert_raises(ValueError, efield_beam.get_beam_sq_area)
+
+    # Check only healpix accepted
+    az_za_beam = UVBeam()
+    az_za_beam.read_cst_beam(cst_files[0], beam_type='power', frequency=150e6,
+                             telescope_name='TEST', feed_name='bob',
+                             feed_version='0.1',
+                             model_name='E-field pattern - Rigging height 4.9m',
+                             model_version='1.0')
+
+    # change data_normalization to peak for rest of checks
+    az_za_beam.data_normalization = 'peak'
+    nt.assert_raises(ValueError, az_za_beam.get_beam_area)
+    nt.assert_raises(ValueError, az_za_beam.get_beam_sq_area)
