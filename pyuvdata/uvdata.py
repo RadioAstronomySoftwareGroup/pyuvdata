@@ -1278,22 +1278,28 @@ class UVData(UVBase):
             setattr(other_obj, p, param)
         return other_obj
 
-    def read_uvfits(self, filename, run_check=True, check_extra=True,
+    def read_uvfits(self, filename, metadata_only=False, run_check=True, check_extra=True,
                     run_check_acceptability=True):
         """
         Read in data from a uvfits file.
 
         Args:
             filename: The uvfits file or list of files to read from.
+            metadata_only: Option to only read in the metdata (not the visibility data)
+                to reduce time and memory if the full data is not required.
+                Results in an incompletely defined object (check will not pass).
             run_check: Option to check for the existence and proper shapes of
-                parameters after reading in the file. Default is True.
+                parameters after reading in the file. Default is True. Ignored if metadata_only is True.
             check_extra: Option to check optional parameters as well as required
-                ones. Default is True.
+                ones. Default is True. Ignored if metadata_only is True.
             run_check_acceptability: Option to check acceptable range of the values of
-                parameters after reading in the file. Default is True.
+                parameters after reading in the file. Default is True. Ignored if metadata_only is True.
         """
         import uvfits
         if isinstance(filename, (list, tuple)):
+            if metadata_only:
+                raise ValueError('metadata_only cannot be set for a list of uvfits files')
+
             self.read_uvfits(filename[0], run_check=run_check, check_extra=check_extra,
                              run_check_acceptability=run_check_acceptability)
             if len(filename) > 1:
@@ -1305,10 +1311,36 @@ class UVData(UVBase):
                 del(uv2)
         else:
             uvfits_obj = uvfits.UVFITS()
-            uvfits_obj.read_uvfits(filename, run_check=run_check, check_extra=check_extra,
+            uvfits_obj.read_uvfits(filename, metadata_only=metadata_only,
+                                   run_check=run_check, check_extra=check_extra,
                                    run_check_acceptability=run_check_acceptability)
             self._convert_from_filetype(uvfits_obj)
             del(uvfits_obj)
+
+    def read_uvfits_data(self, filename, metadata_only=False, run_check=True, check_extra=True,
+                         run_check_acceptability=True):
+        """
+        Read in data but not metadata from a uvfits file
+        (useful for an object that already has the associated metadata).
+
+        Args:
+            filename: The uvfits file
+            run_check: Option to check for the existence and proper shapes of
+                parameters after reading in the file. Default is True.
+            check_extra: Option to check optional parameters as well as required
+                ones. Default is True.
+            run_check_acceptability: Option to check acceptable range of the values of
+                parameters after reading in the file. Default is True.
+        """
+        import uvfits
+        if isinstance(filename, (list, tuple)):
+            raise ValueError('A list of files cannot be used when just reading data')
+
+        uvfits_obj = uvfits.UVFITS()
+        uvfits_obj.read_uvfits_data(filename, run_check=run_check, check_extra=check_extra,
+                                    run_check_acceptability=run_check_acceptability)
+        self._convert_from_filetype(uvfits_obj)
+        del(uvfits_obj)
 
     def write_uvfits(self, filename, spoof_nonessential=False,
                      force_phase=False, run_check=True, check_extra=True,
