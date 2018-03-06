@@ -18,6 +18,16 @@ def test_ReadNRAO():
     uvtest.checkWarnings(UV.read_uvfits, [testfile], message='Telescope EVLA is not')
     nt.assert_equal(expected_extra_keywords.sort(),
                     UV.extra_keywords.keys().sort())
+
+    # test reading in metadata first and then data
+    UV2 = UVData()
+    uvtest.checkWarnings(UV2.read_uvfits, [testfile], {'metadata_only': True},
+                         message='Telescope EVLA is not')
+    nt.assert_equal(expected_extra_keywords.sort(),
+                    UV2.extra_keywords.keys().sort())
+    nt.assert_raises(ValueError, UV2.check)
+    UV2.read_uvfits_data(testfile)
+    nt.assert_equal(UV, UV2)
     del(UV)
 
 
@@ -41,7 +51,8 @@ def test_breakReadUVFits():
     """Test errors on reading in a uvfits file with subarrays and other problems."""
     UV = UVData()
     multi_subarray_file = os.path.join(DATA_PATH, 'multi_subarray.uvfits')
-    nt.assert_raises(ValueError, UV.read_uvfits, multi_subarray_file)
+    uvtest.checkWarnings(nt.assert_raises, [ValueError, UV.read_uvfits, multi_subarray_file],
+                         message='Telescope EVLA is not')
 
     del(UV)
 

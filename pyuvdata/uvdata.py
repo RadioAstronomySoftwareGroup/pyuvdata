@@ -329,7 +329,7 @@ class UVData(UVBase):
                 are acceptable. Default is True.
         """
         # first run the basic check from UVBase
-        if np.all(self.ant_1_array == self.ant_2_array):
+        if self.ant_1_array is not None and np.all(self.ant_1_array == self.ant_2_array):
             # Special case of only containing auto correlations, adjust uvw acceptable_range
             self._uvw_array.acceptable_range = (0.0, 0.0)
 
@@ -1336,7 +1336,7 @@ class UVData(UVBase):
         if isinstance(filename, (list, tuple)):
             raise ValueError('A list of files cannot be used when just reading data')
 
-        uvfits_obj = uvfits.UVFITS()
+        uvfits_obj = self._convert_to_filetype('uvfits')
         uvfits_obj.read_uvfits_data(filename, run_check=run_check, check_extra=check_extra,
                                     run_check_acceptability=run_check_acceptability)
         self._convert_from_filetype(uvfits_obj)
