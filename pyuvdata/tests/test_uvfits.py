@@ -253,6 +253,13 @@ def test_multi_files():
     uv1.history = uv_full.history
     nt.assert_equal(uv1, uv_full)
 
+    # check raises error if metadata_only is set
+    nt.assert_raises(ValueError, uv1.read_uvfits, [testfile1, testfile2],
+                     metadata_only=True)
+
+    # check raises error for read_uvfits_data
+    nt.assert_raises(ValueError, uv1.read_uvfits_data, [testfile1, testfile2])
+
 
 def test_readMSWriteUVFits_CASAHistory():
     """
