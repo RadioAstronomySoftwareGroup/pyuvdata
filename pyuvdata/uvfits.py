@@ -107,7 +107,7 @@ class UVFITS(UVData):
                                  'one time present')
 
         # Now read in data array
-        if fits_spw:
+        if vis_hdu.header['NAXIS'] == 7:
 
             self.data_array = (vis_hdu.data.data[:, 0, 0, :, :, :, 0] +
                                1j * vis_hdu.data.data[:, 0, 0, :, :, :, 1])
@@ -161,7 +161,6 @@ class UVFITS(UVData):
         self.set_phased()
         # check if we have an spw dimension
         if vis_hdr['NAXIS'] == 7:
-            fits_spw = True
             if vis_hdr['NAXIS5'] > 1:
                 raise ValueError('Sorry.  Files with more than one spectral' +
                                  'window (spw) are not yet supported. A ' +
@@ -175,8 +174,6 @@ class UVFITS(UVData):
             self.phase_center_ra_degrees = np.float(vis_hdr.pop('CRVAL6'))
             self.phase_center_dec_degrees = np.float(vis_hdr.pop('CRVAL7'))
         else:
-            fits_spw = False
-
             self.Nspws = 1
             self.spw_array = np.array([0])
 
@@ -334,7 +331,7 @@ class UVFITS(UVData):
         hdu_list = fits.open(filename, memmap=True)
         vis_hdu = hdu_list[0]  # assumes the visibilities are in the primary hdu
 
-        self._get_data(self, vis_hdu, run_check, check_extra, run_check_acceptability)
+        self._get_data(vis_hdu, run_check, check_extra, run_check_acceptability)
 
         del(vis_hdu)
 
