@@ -229,6 +229,39 @@ def test_errors():
     nt.assert_raises(ValueError, beam_obj._convert_to_filetype, 'foo')
 
 
+def test_peak_normalize():
+    efield_beam = UVBeam()
+    efield_beam.read_cst_beam(cst_files, beam_type='efield', frequency=[150e6, 123e6],
+                              telescope_name='TEST', feed_name='bob',
+                              feed_version='0.1', feed_pol=['x'],
+                              model_name='E-field pattern - Rigging height 4.9m',
+                              model_version='1.0')
+    orig_bandpass_array = copy.deepcopy(efield_beam.bandpass_array)
+    maxima = np.zeros(efield_beam.Nfreqs)
+    for freq_i in range(efield_beam.Nfreqs):
+        maxima[freq_i] = np.amax(abs(efield_beam.data_array[:, :, :, freq_i]))
+    efield_beam.peak_normalize()
+    nt.assert_equal(np.amax(abs(efield_beam.data_array)), 1)
+    nt.assert_equal(np.sum(abs(efield_beam.bandpass_array - orig_bandpass_array * maxima)), 0)
+    nt.assert_equal(efield_beam.data_normalization, 'peak')
+
+    power_beam = UVBeam()
+    power_beam.read_cst_beam(cst_files, beam_type='power', frequency=[150e6, 123e6],
+                             telescope_name='TEST', feed_name='bob',
+                             feed_version='0.1', feed_pol=['x'],
+                             model_name='E-field pattern - Rigging height 4.9m',
+                             model_version='1.0')
+
+    orig_bandpass_array = copy.deepcopy(power_beam.bandpass_array)
+    maxima = np.zeros(efield_beam.Nfreqs)
+    for freq_i in range(efield_beam.Nfreqs):
+        maxima[freq_i] = np.amax(power_beam.data_array[:, :, :, freq_i])
+    power_beam.peak_normalize()
+    nt.assert_equal(np.amax(abs(power_beam.data_array)), 1)
+    nt.assert_equal(np.sum(abs(power_beam.bandpass_array - orig_bandpass_array * maxima)), 0)
+    nt.assert_equal(power_beam.data_normalization, 'peak')
+
+
 def test_efield_to_power():
     efield_beam = UVBeam()
     efield_beam.read_cst_beam(cst_files, beam_type='efield', frequency=[150e6, 123e6],

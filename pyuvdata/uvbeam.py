@@ -442,6 +442,16 @@ class UVBeam(UVBase):
         self._gain_array.required = True
         self._coupling_matrix.required = True
 
+    def peak_normalize(self):
+        """
+        Convert to peak normalization.
+        """
+        for i in range(self.Nfreqs):
+            max_val = abs(self.data_array[:, :, :, i, :]).max()
+            self.data_array[:, :, :, i, :] /= max_val
+            self.bandpass_array[:, i] *= max_val
+        self.data_normalization = 'peak'
+
     def efield_to_power(self, calc_cross_pols=True, keep_basis_vector=False,
                         run_check=True, check_extra=True, run_check_acceptability=True):
         """
