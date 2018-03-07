@@ -523,3 +523,21 @@ def test_total_quality_array_size():
     proper_shape = (cal_in.Nspws, 1, cal_in.Ntimes, cal_in.Njones)
     nt.assert_equal(cal_in.total_quality_array.shape, proper_shape)
     del(cal_in)
+
+
+def test_write_time_precision():
+    """
+    Test that times are being written to appropriate precision (see issue 311).
+    """
+    cal_in = UVCal()
+    cal_out = UVCal()
+    testfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.fitsA')
+    write_file = os.path.join(DATA_PATH, 'test/outtest_omnical.fits')
+    message = testfile + ' appears to be an old calfits format which'
+    uvtest.checkWarnings(cal_in.read_calfits, [testfile], message=message)
+    # overwrite time array to break old code
+    dt = cal_in.integration_time / (24. * 60. * 60.)
+    cal_in.time_array = dt * np.arange(cal_in.Ntimes)
+    cal_in.write_calfits(write_file, clobber=True)
+    cal_out.read_calfits(write_file)
+    nt.assert_equal(cal_in, cal_out)

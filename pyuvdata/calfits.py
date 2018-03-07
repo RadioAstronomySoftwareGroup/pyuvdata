@@ -76,13 +76,15 @@ class CALFITS(UVCal):
                 raise ValueError('The times are not evenly spaced (probably '
                                  'because of a select operation). The calfits format '
                                  'does not support unevenly spaced times.')
-            if np.isclose(time_spacing[0], self.integration_time):
-                time_spacing = self.integration_time
+            if np.isclose(time_spacing[0], self.integration_time / (24. * 60.**2)):
+                time_spacing = self.integration_time / (24. * 60.**2)
             else:
-                rounded_spacing = np.around(time_spacing, int(np.ceil(np.log10(self._time_array.tols[1]) * -1)))
+                rounded_spacing = np.around(time_spacing,
+                                            int(np.ceil(np.log10(self._time_array.tols[1] /
+                                                                 self.Ntimes) * -1) + 1))
                 time_spacing = rounded_spacing[0]
         else:
-            time_spacing = self.integration_time
+            time_spacing = self.integration_time / (24. * 60.**2)
 
         if self.Njones > 1:
             jones_spacing = np.diff(self.jones_array)
