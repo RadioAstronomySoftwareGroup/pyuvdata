@@ -261,6 +261,9 @@ def test_peak_normalize():
     nt.assert_equal(np.sum(abs(power_beam.bandpass_array - orig_bandpass_array * maxima)), 0)
     nt.assert_equal(power_beam.data_normalization, 'peak')
 
+    power_beam.data_normalization = 'solid_angle'
+    nt.assert_raises(NotImplementedError, power_beam.peak_normalize)
+
 
 def test_efield_to_power():
     efield_beam = UVBeam()
