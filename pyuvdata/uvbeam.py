@@ -446,6 +446,9 @@ class UVBeam(UVBase):
         """
         Convert to peak normalization.
         """
+        if self.data_normalization == 'solid_angle':
+            raise NotImplementedError('Conversion from solid_angle to peak '
+                                      'normalization is not yet implemented')
         for i in range(self.Nfreqs):
             max_val = abs(self.data_array[:, :, :, i, :]).max()
             self.data_array[:, :, :, i, :] /= max_val
