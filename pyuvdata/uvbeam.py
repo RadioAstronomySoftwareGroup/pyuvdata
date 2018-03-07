@@ -462,7 +462,7 @@ class UVBeam(UVBase):
             run_check_acceptability: Option to check acceptable range of the values of
                 required parameters after combining objects. Default is True.
         """
-        if self.beam_type is not 'efield':
+        if self.beam_type != 'efield':
             raise ValueError('beam_type must be efield')
 
         efield_data = self.data_array
@@ -986,11 +986,11 @@ class UVBeam(UVBase):
         See Equations 4 and 5 of Moore et al. (2017) ApJ 836, 154
         or arxiv:1502.05072 for details.
         """
-        if self.beam_type is not 'power':
+        if self.beam_type != 'power':
             raise ValueError('beam_type must be power')
         if self._data_normalization.value != 'peak':
             raise ValueError('beam must be peak normalized')
-        if self.pixel_coordinate_system is not 'healpix':
+        if self.pixel_coordinate_system != 'healpix':
             raise ValueError('Currently only healpix format supported')
         if self.data_array.shape[0] > 1:
             raise ValueError('Expect scalar for power beam, found vector')
@@ -1021,11 +1021,11 @@ class UVBeam(UVBase):
         See Equations 4 and 5 of Moore et al. (2017) ApJ 836, 154
         or arxiv:1502.05072 for details.
         """
-        if self.beam_type is not 'power':
+        if self.beam_type != 'power':
             raise ValueError('beam_type must be power')
         if self._data_normalization.value != 'peak':
             raise ValueError('beam must be peak normalized')
-        if self.pixel_coordinate_system is not 'healpix':
+        if self.pixel_coordinate_system != 'healpix':
             raise ValueError('Currently only healpix format supported')
         if self.data_array.shape[0] > 1:
             raise ValueError('Expect scalar for power beam, found vector')
