@@ -84,10 +84,14 @@ def test_readwriteread():
     nt.assert_equal(uv_in, uv_out)
 
     # check error if timesys is 'IAT'
-    testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-    uvtest.checkWarnings(uv_in.read_uvfits, [testfile], message='Telescope EVLA is not')
     uv_in.timesys = 'IAT'
     nt.assert_raises(ValueError, uv_in.write_uvfits, write_file)
+    uv_in.timesys = 'UTC'
+
+    # check that unflagged data with nsample = 0 will cause warnings
+    uv_in.nsample_array[range(11, 22)] = 0
+    uv_in.flag_array[range(11, 22)] = False
+    uvtest.checkWarnings(uv_in.write_uvfits, [write_file], message='Some unflagged data has nsample = 0')
 
     del(uv_in)
     del(uv_out)
