@@ -385,6 +385,13 @@ class UVFITS(UVData):
                                          'spoof this attribute.'
                                          .format(attribute=p))
 
+        # check for unflagged data with nsample = 0. Warn if any found
+        wh_nsample0 = np.where(self.nsample_array == 0)[0]
+        if np.any(~self.flag_array[wh_nsample0]):
+            warnings.warn('Some unflagged data has nsample = 0. Flags and '
+                          'nsamples are combined in uvfits files such that '
+                          'these data will appear to be flagged.')
+
         weights_array = self.nsample_array * \
             np.where(self.flag_array, -1, 1)
         data_array = self.data_array[:, np.newaxis,
