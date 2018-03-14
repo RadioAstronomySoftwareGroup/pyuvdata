@@ -14,6 +14,7 @@ import numpy as np
 import os
 import argparse
 from pyuvdata import UVData
+import sys
 
 # setup argparse
 a = argparse.ArgumentParser(description="A command-line script for renumbering "
@@ -30,7 +31,7 @@ args = a.parse_args()
 
 if os.path.exists(args.file_out) and args.overwrite is False:
     print("{} exists. Use --overwrite to overwrite the file.".format(args.file_out))
-    return
+    sys.exit(0)
 
 uv_obj = UVData()
 uv_obj.read_uvfits(args.file_in)
