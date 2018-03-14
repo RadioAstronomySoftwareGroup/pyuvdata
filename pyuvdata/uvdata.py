@@ -533,7 +533,6 @@ class UVData(UVBase):
     def set_lsts_from_time_array(self):
         """Set the lst_array based from the time_array."""
         lsts = []
-        curtime = self.time_array[0]
         self.lst_array = np.zeros(self.Nblts)
         latitude, longitude, altitude = self.telescope_location_lat_lon_alt_degrees
         for ind, jd in enumerate(np.unique(self.time_array)):
@@ -1317,7 +1316,7 @@ class UVData(UVBase):
             self._convert_from_filetype(uvfits_obj)
             del(uvfits_obj)
 
-    def read_uvfits_data(self, filename, metadata_only=False, run_check=True, check_extra=True,
+    def read_uvfits_data(self, filename, run_check=True, check_extra=True,
                          run_check_acceptability=True):
         """
         Read in data but not metadata from a uvfits file

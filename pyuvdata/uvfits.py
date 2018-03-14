@@ -36,13 +36,12 @@ class UVFITS(UVData):
         # DATE (full day) and _DATE (fractional day)
         # cotter uvfits files have one DATE that is a double
         # using data.par('date') is general -- it will add them together if there are 2
-        time0_array = vis_hdu.data.par('date')
-        self.time_array = time0_array
-        if np.finfo(time0_array[0]).precision < 5:
+        self.time_array = vis_hdu.data.par('date')
+        if np.finfo(self.time_array[0]).precision < 5:
             raise ValueError('JDs in this file are not precise to '
                              'better than a second.')
-        if (np.finfo(time0_array[0]).precision > 5 and
-                np.finfo(time0_array[0]).precision < 8):
+        if (np.finfo(self.time_array[0]).precision > 5 and
+                np.finfo(self.time_array[0]).precision < 8):
             warnings.warn('The JDs in this file have sub-second '
                           'precision, but not sub-millisecond. '
                           'Use with caution.')
