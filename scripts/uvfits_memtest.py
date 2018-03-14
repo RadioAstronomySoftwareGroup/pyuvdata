@@ -1,0 +1,56 @@
+#!/usr/bin/env python2.7
+# -*- mode: python; coding: utf-8 -*-
+
+from __future__ import print_function, division, absolute_import
+
+from memory_profiler import profile
+import numpy as np
+from astropy import constants as const
+from astropy.io import fits
+from pyuvdata import UVData
+
+
+@profile
+def read_uvfits():
+    filename = '/Volumes/Data1/mwa_uvfits/1066571272.uvfits'
+
+    # first test uvdata.read_uvfits. First read metadata then full data
+    uv_obj = UVData()
+    uv_obj.read_uvfits(filename, metadata_only=True)
+    uv_obj.read_uvfits_data(filename)
+    del(uv_obj)
+
+    # now test details with astropy
+    hdu_list = fits.open(filename, memmap=True)
+    vis_hdu = hdu_list[0]
+
+    # only read in times, then uvws, then visibilities
+    time0_array = vis_hdu.data.par('date')
+    uvw_array = (np.array(np.stack((vis_hdu.data.par('UU'),
+                                    vis_hdu.data.par('VV'),
+                                    vis_hdu.data.par('WW')))) * const.c.to('m/s').value).T
+
+    if vis_hdu.header['NAXIS'] == 7:
+
+        data_array = (vis_hdu.data.data[:, 0, 0, :, :, :, 0] +
+                      1j * vis_hdu.data.data[:, 0, 0, :, :, :, 1])
+    else:
+        data_array = (vis_hdu.data.data[:, 0, 0, :, :, 0] +
+                      1j * vis_hdu.data.data[:, 0, 0, :, :, 1])
+        data_array = data_array[:, np.newaxis, :, :]
+
+    # test for releasing resources
+    del(time0_array)
+    del(uvw_array)
+    del(data_array)
+
+    # release file handles
+    del(vis_hdu)
+    del(hdu_list)
+    del(filename)
+
+    return
+
+
+if __name__ == '__main__':
+    read_uvfits()
