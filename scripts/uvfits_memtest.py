@@ -47,6 +47,26 @@ def read_uvfits():
     # release file handles
     del(vis_hdu)
     del(hdu_list)
+
+    # now test reading a slice of the data
+    hdu_list = fits.open(filename, memmap=True)
+    vis_hdu = hdu_list[0]
+    Nfreqs = vis_hdu.header['NAXIS4']
+    freq_index = int(Nfreqs / 2)
+
+    if vis_hdu.header['NAXIS'] == 7:
+
+        data_slice = (vis_hdu.data.data[:, 0, 0, :, 0:freq_index, :, 0] +
+                      1j * vis_hdu.data.data[:, 0, 0, :, 0:freq_index, :, 1])
+    else:
+        data_slice = (vis_hdu.data.data[:, 0, 0, 0:freq_index, :, 0] +
+                      1j * vis_hdu.data.data[:, 0, 0, 0:freq_index, :, 1])
+        data_slice = data_slice[:, np.newaxis, :, :]
+
+    del(data_slice)
+
+    del(vis_hdu)
+    del(hdu_list)
     del(filename)
 
     return
