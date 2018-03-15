@@ -104,7 +104,9 @@ class UVFITS(UVData):
                 raise ValueError('integration time not specified and only '
                                  'one time present')
 
-    def _get_data(self, vis_hdu, run_check, check_extra, run_check_acceptability):
+    def _get_data(self, vis_hdu, antenna_nums, antenna_names, ant_str,
+                  ant_pairs_nums, frequencies, freq_chans, times, polarizations,
+                  blt_inds, run_check, check_extra, run_check_acceptability):
         """
         Internal function to read just the visibility and flag data of the uvfits file.
         Separated from full read so that header, metadata and data can be read independently.
@@ -114,38 +116,143 @@ class UVFITS(UVData):
             # random parameter data has not been read in, do that first
             self._get_parameter_data(vis_hdu)
 
-        if vis_hdu.header['NAXIS'] == 7:
+        # figure out what data to read in
+        blt_inds, freq_inds, pol_inds, n_selects, history_update_string = \
+            self._select_preprocess(antenna_nums, antenna_names, ant_str, ant_pairs_nums,
+                                    frequencies, freq_chans, times, polarizations, blt_inds)
 
-            self.data_array = (vis_hdu.data.data[:, 0, 0, :, :, :, 0] +
-                               1j * vis_hdu.data.data[:, 0, 0, :, :, :, 1])
-            self.flag_array = (vis_hdu.data.data[:, 0, 0, :, :, :, 2] <= 0)
-            self.nsample_array = np.abs(
-                vis_hdu.data.data[:, 0, 0, :, :, :, 2])
-            assert(self.Nspws == self.data_array.shape[1])
+        if blt_inds is None and freq_inds is None and pol_inds is None:
+            # no select, read in all the data
+            if vis_hdu.header['NAXIS'] == 7:
+                raw_data_array = vis_hdu.data.data[:, 0, 0, :, :, :, :]
+                assert(self.Nspws == raw_data_array.shape[1])
 
+            else:
+                # in many uvfits files the spw axis is left out,
+                # here we put it back in so the dimensionality stays the same
+                raw_data_array = vis_hdu.data.data[:, 0, 0, :, :, :]
+                raw_data_array = raw_data_array[:, np.newaxis, :, :]
         else:
-            # in many uvfits files the spw axis is left out,
-            # here we put it back in so the dimensionality stays the same
-            self.data_array = (vis_hdu.data.data[:, 0, 0, :, :, 0] +
-                               1j * vis_hdu.data.data[:, 0, 0, :, :, 1])
-            self.data_array = self.data_array[:, np.newaxis, :, :]
-            self.flag_array = (vis_hdu.data.data[:, 0, 0, :, :, 2] <= 0)
-            self.flag_array = self.flag_array[:, np.newaxis, :, :]
-            self.nsample_array = np.abs(vis_hdu.data.data[:, 0, 0, :, :, 2])
-            self.nsample_array = (self.nsample_array[:, np.newaxis, :, :])
+            if blt_inds is not None:
+                blt_frac = len(blt_inds) / float(self.Nblts)
+            else:
+                blt_frac = 1
+
+            if freq_inds is not None:
+                freq_frac = len(freq_inds) / float(self.Nfreqs)
+            else:
+                freq_frac = 1
+
+            if pol_inds is not None:
+                pol_frac = len(pol_inds) / float(self.Npols)
+            else:
+                pol_frac = 1
+
+            min_frac = np.min([blt_frac, freq_frac, pol_frac])
+
+            # do select operations on everything except data_array, flag_array and nsample_array
+            self._select_metadata(blt_inds, freq_inds, pol_inds, history_update_string)
+
+            # just read in the right portions of the data and flag arrays
+            if blt_frac == min_frac:
+                if vis_hdu.header['NAXIS'] == 7:
+                    raw_data_array = vis_hdu.data.data[blt_inds, 0, 0, :, :, :, :]
+                    assert(self.Nspws == raw_data_array.shape[1])
+                else:
+                    # in many uvfits files the spw axis is left out,
+                    # here we put it back in so the dimensionality stays the same
+                    raw_data_array = vis_hdu.data.data[blt_inds, 0, 0, :, :, :]
+                    raw_data_array = self.data_array[:, np.newaxis, :, :, :]
+                if freq_inds is not None:
+                    raw_data_array = raw_data_array[:, :, freq_inds, :, :]
+                if pol_inds is not None:
+                    raw_data_array = raw_data_array[:, :, :, pol_inds, :]
+            elif freq_frac == min_frac:
+                if vis_hdu.header['NAXIS'] == 7:
+                    raw_data_array = vis_hdu.data.data[:, 0, 0, :, freq_inds, :, :]
+                    # for some reason the axes get transposed. fix the ordering
+                    raw_data_array = np.transpose(raw_data_array, axes=(1, 2, 0, 3, 4))
+                    assert(self.Nspws == raw_data_array.shape[1])
+                else:
+                    # in many uvfits files the spw axis is left out,
+                    # here we put it back in so the dimensionality stays the same
+                    raw_data_array = vis_hdu.data.data[:, 0, 0, freq_inds, :, :]
+                    raw_data_array = self.data_array[:, np.newaxis, :, :, :]
+                if blt_inds is not None:
+                    raw_data_array = raw_data_array[blt_inds, :, :, :, :]
+                if pol_inds is not None:
+                    raw_data_array = raw_data_array[:, :, :, pol_inds, :]
+            else:
+                if vis_hdu.header['NAXIS'] == 7:
+                    raw_data_array = vis_hdu.data.data[:, 0, 0, :, :, pol_inds, :]
+                    # for some reason the axes get transposed. fix the ordering
+                    raw_data_array = np.transpose(raw_data_array, axes=(1, 2, 3, 0, 4))
+                    assert(self.Nspws == raw_data_array.shape[1])
+                else:
+                    # in many uvfits files the spw axis is left out,
+                    # here we put it back in so the dimensionality stays the same
+                    raw_data_array = vis_hdu.data.data[:, 0, 0, :, pol_inds, :]
+                    raw_data_array = self.data_array[:, np.newaxis, :, :, :]
+                if blt_inds is not None:
+                    raw_data_array = raw_data_array[blt_inds, :, :, :, :]
+                if freq_inds is not None:
+                    raw_data_array = raw_data_array[:, :, freq_inds, :, :]
+
+        self.data_array = (raw_data_array[:, :, :, :, 0] + 1j * raw_data_array[:, :, :, :, 1])
+        weights_array = raw_data_array[:, :, :, :, 2]
+        self.flag_array = (weights_array <= 0)
+        self.nsample_array = np.abs(weights_array)
 
         # check if object has all required UVParameters set
         if run_check:
             self.check(check_extra=check_extra,
                        run_check_acceptability=run_check_acceptability)
 
-    def read_uvfits(self, filename, read_data=True, read_metadata=True,
+    def read_uvfits(self, filename, antenna_nums=None, antenna_names=None,
+                    ant_str=None, ant_pairs_nums=None, frequencies=None,
+                    freq_chans=None, times=None, polarizations=None, blt_inds=None,
+                    read_data=True, read_metadata=True,
                     run_check=True, check_extra=True, run_check_acceptability=True):
         """
-        Read in header, metadata and data from a uvfits file.
+        Read in header, metadata and data from a uvfits file. Supports reading
+        only selected portions of the data.
 
         Args:
             filename: The uvfits file to read from.
+            antenna_nums: The antennas numbers to include when reading data into
+                the object (antenna positions and names for the excluded antennas
+                will be retained). This cannot be provided if antenna_names is
+                also provided. Ignored if read_data is False.
+            antenna_names: The antennas names to include when reading data into
+                the object (antenna positions and names for the excluded antennas
+                will be retained). This cannot be provided if antenna_nums is
+                also provided. Ignored if read_data is False.
+            ant_pairs_nums: A list of antenna number tuples (e.g. [(0,1), (3,2)])
+                specifying baselines to include when reading data into the object.
+                Ordering of the numbers within the tuple does not matter.
+                Ignored if read_data is False.
+            ant_str: A string containing information about what antenna numbers
+                and polarizations to include when reading data into the object.
+                Can be 'auto', 'cross', 'all', or combinations of antenna numbers
+                and polarizations (e.g. '1', '1_2', '1x_2y').
+                See tutorial for more examples of valid strings and
+                the behavior of different forms for ant_str.
+                If '1x_2y,2y_3y' is passed, both polarizations 'xy' and 'yy' will
+                be kept for both baselines (1,2) and (2,3) to return a valid
+                pyuvdata object.
+                An ant_str cannot be passed in addition to any of the above antenna
+                args or the polarizations arg.
+                Ignored if read_data is False.
+            frequencies: The frequencies to include when reading data into the
+                object. Ignored if read_data is False.
+            freq_chans: The frequency channel numbers to include when reading
+                data into the object. Ignored if read_data is False.
+            times: The times to include when reading data into the object.
+                Ignored if read_data is False.
+            polarizations: The polarizations to include when reading data into
+                the object. Ignored if read_data is False.
+            blt_inds: The baseline-time indices to include when reading data into
+                the object. This is not commonly used. Ignored if read_data is False.
             read_data: Read in the visibility and flag data. If set to false,
                 only the basic header info and metadata (if read_metadata is True)
                 will be read in. Results in an incompletely defined object
@@ -332,7 +439,9 @@ class UVFITS(UVData):
             return
 
         # Now read in the data
-        self._get_data(vis_hdu, run_check, check_extra, run_check_acceptability)
+        self._get_data(vis_hdu, antenna_nums, antenna_names, ant_str,
+                       ant_pairs_nums, frequencies, freq_chans, times, polarizations,
+                       blt_inds, run_check, check_extra, run_check_acceptability)
 
     def read_uvfits_metadata(self, filename):
         """
@@ -351,7 +460,10 @@ class UVFITS(UVData):
 
         del(vis_hdu)
 
-    def read_uvfits_data(self, filename, run_check=True, check_extra=True,
+    def read_uvfits_data(self, filename, antenna_nums=None, antenna_names=None,
+                         ant_str=None, ant_pairs_nums=None, frequencies=None,
+                         freq_chans=None, times=None, polarizations=None,
+                         blt_inds=None, run_check=True, check_extra=True,
                          run_check_acceptability=True):
         """
         Read in data but not header info from a uvfits file
@@ -359,6 +471,37 @@ class UVFITS(UVData):
 
         Args:
             filename: The uvfits file to read from.
+            antenna_nums: The antennas numbers to include when reading data into
+                the object (antenna positions and names for the excluded antennas
+                will be retained). This cannot be provided if antenna_names is
+                also provided.
+            antenna_names: The antennas names to include when reading data into
+                the object (antenna positions and names for the excluded antennas
+                will be retained). This cannot be provided if antenna_nums is
+                also provided.
+            ant_pairs_nums: A list of antenna number tuples (e.g. [(0,1), (3,2)])
+                specifying baselines to include when reading data into the object.
+                Ordering of the numbers within the tuple does not matter.
+            ant_str: A string containing information about what antenna numbers
+                and polarizations to include when reading data into the object.
+                Can be 'auto', 'cross', 'all', or combinations of antenna numbers
+                and polarizations (e.g. '1', '1_2', '1x_2y').
+                See tutorial for more examples of valid strings and
+                the behavior of different forms for ant_str.
+                If '1x_2y,2y_3y' is passed, both polarizations 'xy' and 'yy' will
+                be kept for both baselines (1,2) and (2,3) to return a valid
+                pyuvdata object.
+                An ant_str cannot be passed in addition to any of the above antenna
+                args or the polarizations arg.
+            frequencies: The frequencies to include when reading data into the
+                object.
+            freq_chans: The frequency channel numbers to include when reading
+                data into the object.
+            times: The times to include when reading data into the object.
+            polarizations: The polarizations to include when reading data into
+                the object.
+            blt_inds: The baseline-time indices to include when reading data into
+                the object. This is not commonly used.
             run_check: Option to check for the existence and proper shapes of
                 parameters after reading in the file. Default is True.
             check_extra: Option to check optional parameters as well as required
@@ -370,7 +513,9 @@ class UVFITS(UVData):
         hdu_list = fits.open(filename, memmap=True)
         vis_hdu = hdu_list[0]  # assumes the visibilities are in the primary hdu
 
-        self._get_data(vis_hdu, run_check, check_extra, run_check_acceptability)
+        self._get_data(vis_hdu, antenna_nums, antenna_names, ant_str,
+                       ant_pairs_nums, frequencies, freq_chans, times, polarizations,
+                       blt_inds, run_check, check_extra, run_check_acceptability)
 
         del(vis_hdu)
 
