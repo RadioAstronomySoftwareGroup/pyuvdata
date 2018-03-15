@@ -205,6 +205,82 @@ def test_extra_keywords():
     nt.assert_equal(uv_in, uv_out)
 
 
+def test_select_read():
+    uvfits_uv = UVData()
+    uvfits_uv2 = UVData()
+    uvfits_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+
+    # select on antennas
+    ants_to_keep = np.array([0, 19, 11, 24, 3, 23, 1, 20, 21])
+    uvtest.checkWarnings(uvfits_uv.read_uvfits, [uvfits_file],
+                         {'antenna_nums': ants_to_keep},
+                         message='Telescope EVLA is not')
+    uvtest.checkWarnings(uvfits_uv2.read_uvfits, [uvfits_file],
+                         message='Telescope EVLA is not')
+    uvfits_uv2.select(antenna_nums=ants_to_keep)
+    nt.assert_equal(uvfits_uv, uvfits_uv2)
+
+    # select on frequency channels
+    chans_to_keep = np.arange(12, 22)
+    uvtest.checkWarnings(uvfits_uv.read_uvfits, [uvfits_file],
+                         {'freq_chans': chans_to_keep},
+                         message='Telescope EVLA is not')
+    uvtest.checkWarnings(uvfits_uv2.read_uvfits, [uvfits_file],
+                         message='Telescope EVLA is not')
+    uvfits_uv2.select(freq_chans=chans_to_keep)
+    nt.assert_equal(uvfits_uv, uvfits_uv2)
+
+    # select on pols
+    pols_to_keep = [-1, -2]
+    uvtest.checkWarnings(uvfits_uv.read_uvfits, [uvfits_file],
+                         {'polarizations': pols_to_keep},
+                         message='Telescope EVLA is not')
+    uvtest.checkWarnings(uvfits_uv2.read_uvfits, [uvfits_file],
+                         message='Telescope EVLA is not')
+    uvfits_uv2.select(polarizations=pols_to_keep)
+    nt.assert_equal(uvfits_uv, uvfits_uv2)
+
+    # now test selecting on multiple axes
+    # frequencies first
+    uvtest.checkWarnings(uvfits_uv.read_uvfits, [uvfits_file],
+                         {'antenna_nums': ants_to_keep,
+                          'freq_chans': chans_to_keep,
+                          'polarizations': pols_to_keep},
+                         message='Telescope EVLA is not')
+    uvtest.checkWarnings(uvfits_uv2.read_uvfits, [uvfits_file],
+                         message='Telescope EVLA is not')
+    uvfits_uv2.select(antenna_nums=ants_to_keep, freq_chans=chans_to_keep,
+                      polarizations=pols_to_keep)
+    nt.assert_equal(uvfits_uv, uvfits_uv2)
+
+    # baselines first
+    ants_to_keep = np.array([0, 1])
+    uvtest.checkWarnings(uvfits_uv.read_uvfits, [uvfits_file],
+                         {'antenna_nums': ants_to_keep,
+                          'freq_chans': chans_to_keep,
+                          'polarizations': pols_to_keep},
+                         message='Telescope EVLA is not')
+    uvtest.checkWarnings(uvfits_uv2.read_uvfits, [uvfits_file],
+                         message='Telescope EVLA is not')
+    uvfits_uv2.select(antenna_nums=ants_to_keep, freq_chans=chans_to_keep,
+                      polarizations=pols_to_keep)
+    nt.assert_equal(uvfits_uv, uvfits_uv2)
+
+    # polarizations first
+    ants_to_keep = np.array([0, 1, 2, 3, 6, 7, 8, 11, 14, 18, 19, 20, 21, 22])
+    chans_to_keep = np.arange(12, 64)
+    uvtest.checkWarnings(uvfits_uv.read_uvfits, [uvfits_file],
+                         {'antenna_nums': ants_to_keep,
+                          'freq_chans': chans_to_keep,
+                          'polarizations': pols_to_keep},
+                         message='Telescope EVLA is not')
+    uvtest.checkWarnings(uvfits_uv2.read_uvfits, [uvfits_file],
+                         message='Telescope EVLA is not')
+    uvfits_uv2.select(antenna_nums=ants_to_keep, freq_chans=chans_to_keep,
+                      polarizations=pols_to_keep)
+    nt.assert_equal(uvfits_uv, uvfits_uv2)
+
+
 def test_ReadUVFitsWriteMiriad():
     """
     read uvfits, write miriad test.
