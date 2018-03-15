@@ -19,15 +19,28 @@ def test_ReadNRAO():
     nt.assert_equal(expected_extra_keywords.sort(),
                     UV.extra_keywords.keys().sort())
 
-    # test reading in metadata first and then data
+    # test reading in header data first, then metadata and then data
     UV2 = UVData()
-    uvtest.checkWarnings(UV2.read_uvfits, [testfile], {'metadata_only': True},
+    uvtest.checkWarnings(UV2.read_uvfits, [testfile], {'read_data': False, 'read_metadata': False},
+                         message='Telescope EVLA is not')
+    nt.assert_equal(expected_extra_keywords.sort(),
+                    UV2.extra_keywords.keys().sort())
+    nt.assert_raises(ValueError, UV2.check)
+    UV2.read_uvfits_metadata(testfile)
+    nt.assert_raises(ValueError, UV2.check)
+    UV2.read_uvfits_data(testfile)
+    nt.assert_equal(UV, UV2)
+
+    # test reading in header data first, then metadata & data
+    UV2 = UVData()
+    uvtest.checkWarnings(UV2.read_uvfits, [testfile], {'read_data': False, 'read_metadata': False},
                          message='Telescope EVLA is not')
     nt.assert_equal(expected_extra_keywords.sort(),
                     UV2.extra_keywords.keys().sort())
     nt.assert_raises(ValueError, UV2.check)
     UV2.read_uvfits_data(testfile)
     nt.assert_equal(UV, UV2)
+
     del(UV)
 
 
@@ -253,9 +266,9 @@ def test_multi_files():
     uv1.history = uv_full.history
     nt.assert_equal(uv1, uv_full)
 
-    # check raises error if metadata_only is set
+    # check raises error if read_data is False
     nt.assert_raises(ValueError, uv1.read_uvfits, [testfile1, testfile2],
-                     metadata_only=True)
+                     read_data=False)
 
     # check raises error for read_uvfits_data
     nt.assert_raises(ValueError, uv1.read_uvfits_data, [testfile1, testfile2])
