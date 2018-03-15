@@ -162,7 +162,7 @@ class UVFITS(UVData):
                     # in many uvfits files the spw axis is left out,
                     # here we put it back in so the dimensionality stays the same
                     raw_data_array = vis_hdu.data.data[blt_inds, 0, 0, :, :, :]
-                    raw_data_array = self.data_array[:, np.newaxis, :, :, :]
+                    raw_data_array = raw_data_array[:, np.newaxis, :, :, :]
                 if freq_inds is not None:
                     raw_data_array = raw_data_array[:, :, freq_inds, :, :]
                 if pol_inds is not None:
@@ -177,7 +177,7 @@ class UVFITS(UVData):
                     # in many uvfits files the spw axis is left out,
                     # here we put it back in so the dimensionality stays the same
                     raw_data_array = vis_hdu.data.data[:, 0, 0, freq_inds, :, :]
-                    raw_data_array = self.data_array[:, np.newaxis, :, :, :]
+                    raw_data_array = raw_data_array[:, np.newaxis, :, :, :]
                 if blt_inds is not None:
                     raw_data_array = raw_data_array[blt_inds, :, :, :, :]
                 if pol_inds is not None:
@@ -192,7 +192,7 @@ class UVFITS(UVData):
                     # in many uvfits files the spw axis is left out,
                     # here we put it back in so the dimensionality stays the same
                     raw_data_array = vis_hdu.data.data[:, 0, 0, :, pol_inds, :]
-                    raw_data_array = self.data_array[:, np.newaxis, :, :, :]
+                    raw_data_array = raw_data_array[:, np.newaxis, :, :, :]
                 if blt_inds is not None:
                     raw_data_array = raw_data_array[blt_inds, :, :, :, :]
                 if freq_inds is not None:
