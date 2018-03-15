@@ -24,13 +24,12 @@ class UVFITS(UVData):
     uvfits_required_extra = ['antenna_positions', 'gst0', 'rdate',
                              'earth_omega', 'dut1', 'timesys']
 
-    def _get_data(self, vis_hdu, run_check, check_extra, run_check_acceptability):
+    def _get_parameter_data(self, vis_hdu):
         """
-        Internal function to read just the data portion of the uvfits file.
-        Separated from full read so that metadata and data can be read independently.
+        Internal function to read just the random parameters portion of the
+        uvfits file (referred to as metadata).
+        Separated from full read so that header, metadata and data can be read independently.
         """
-        # First read in the random group parameters
-
         # astropy.io fits reader scales date according to relevant PZER0 (?)
         # uvfits standard is to have 2 DATE parameters, both floats:
         # DATE (full day) and _DATE (fractional day)
@@ -105,7 +104,16 @@ class UVFITS(UVData):
                 raise ValueError('integration time not specified and only '
                                  'one time present')
 
-        # Now read in data array
+    def _get_data(self, vis_hdu, run_check, check_extra, run_check_acceptability):
+        """
+        Internal function to read just the visibility and flag data of the uvfits file.
+        Separated from full read so that header, metadata and data can be read independently.
+        """
+
+        if self.time_array is None:
+            # random parameter data has not been read in, do that first
+            self._get_parameter_data(vis_hdu)
+
         if vis_hdu.header['NAXIS'] == 7:
 
             self.data_array = (vis_hdu.data.data[:, 0, 0, :, :, :, 0] +
@@ -131,24 +139,31 @@ class UVFITS(UVData):
             self.check(check_extra=check_extra,
                        run_check_acceptability=run_check_acceptability)
 
-    def read_uvfits(self, filename, metadata_only=False, run_check=True, check_extra=True,
-                    run_check_acceptability=True):
+    def read_uvfits(self, filename, read_data=True, read_metadata=True,
+                    run_check=True, check_extra=True, run_check_acceptability=True):
         """
-        Read in metadata and data from a uvfits file.
+        Read in header, metadata and data from a uvfits file.
 
         Args:
             filename: The uvfits file to read from.
-            metadata_only: Option to only read in the metdata (not the visibility data)
-                to reduce time and memory if the full data is not required.
-                Results in an incompletely defined object (check will not pass).
+            read_data: Read in the visibility and flag data. If set to false,
+                only the basic header info and metadata (if read_metadata is True)
+                will be read in. Results in an incompletely defined object
+                (check will not pass). Default True.
+            read_metadata: Read in metadata (times, baselines, uvws) as well as
+                basic header info. Only used if read_data is False
+                (metadata will be read if data is read). If both read_data and
+                read_metadata are false, only basic header info is read in. Default True.
             run_check: Option to check for the existence and proper shapes of
-                parameters after reading in the file. Default is True. Ignored if metadata_only is True.
+                parameters after reading in the file. Default is True.
+                Ignored if read_data is False.
             check_extra: Option to check optional parameters as well as required
-                ones. Default is True. Ignored if metadata_only is True.
+                ones. Default is True. Ignored if read_data is False.
             run_check_acceptability: Option to check acceptable range of the values of
-                parameters after reading in the file. Default is True. Ignored if metadata_only is True.
+                parameters after reading in the file. Default is True.
+                Ignored if read_data is False.
         """
-        if metadata_only:
+        if not read_data:
             run_check = False
 
         hdu_list = fits.open(filename, memmap=True)
@@ -303,7 +318,15 @@ class UVFITS(UVData):
         except ValueError, ve:
             warnings.warn(str(ve))
 
-        if metadata_only:
+        if not read_data and not read_metadata:
+            # don't read in the data or metadata. This means the object is incomplete,
+            # but that may not matter for many purposes.
+            return
+
+        # Now read in the random parameter info
+        self._get_parameter_data(vis_hdu)
+
+        if not read_data:
             # don't read in the data. This means the object is incomplete,
             # but that may not matter for many purposes.
             return
@@ -311,11 +334,28 @@ class UVFITS(UVData):
         # Now read in the data
         self._get_data(vis_hdu, run_check, check_extra, run_check_acceptability)
 
+    def read_uvfits_metadata(self, filename):
+        """
+        Read in metadata (random parameter info) but not data from a uvfits file
+        (useful for an object that already has the associated header info and
+        full visibility data isn't needed).
+
+        Args:
+            filename: The uvfits file to read from.
+        """
+
+        hdu_list = fits.open(filename, memmap=True)
+        vis_hdu = hdu_list[0]  # assumes the visibilities are in the primary hdu
+
+        self._get_parameter_data(vis_hdu)
+
+        del(vis_hdu)
+
     def read_uvfits_data(self, filename, run_check=True, check_extra=True,
                          run_check_acceptability=True):
         """
-        Read in data but not metadata from a uvfits file
-        (useful for an object that already has the associated metadata).
+        Read in data but not header info from a uvfits file
+        (useful for an object that already has the associated header info).
 
         Args:
             filename: The uvfits file to read from.
