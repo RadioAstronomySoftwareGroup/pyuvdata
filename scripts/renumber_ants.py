@@ -70,4 +70,3 @@ if args.filetype == 'uvfits':
     uv_obj.write_uvfits(args.file_out)
 elif args.filetype == 'miriad':
     uv_obj.write_miriad(args.file_out)
-
