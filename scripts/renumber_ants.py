@@ -40,7 +40,7 @@ if args.filetype == 'uvfits':
 elif args.filetype == 'miriad':
     uv_obj.read_miriad(args.file_in)
 else:
-    raise IOError("didn't recognize file {}".format(arge.file_in))
+    raise IOError("didn't recognize filetype {}".format(arge.filetype))
 
 large_ant_nums = sorted(list(uv_obj.antenna_numbers[np.where(uv_obj.antenna_numbers > 254)[0]]))
 
