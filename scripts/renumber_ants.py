@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-A command-line script for renumbering antenna numbers > 254 if possible in uvfits files.
+A command-line script for renumbering antenna numbers > 254 if possible.
 
 This is necessary for CASA because CASA cannot read in uvfits files with
 antenna numbers > 254 (apparently 255 isn't ok because 0-based antenna 255 is
@@ -18,13 +18,14 @@ import sys
 
 # setup argparse
 a = argparse.ArgumentParser(description="A command-line script for renumbering "
-                            "antenna numbers > 254 if possible in uvfits files.")
+                            "antenna numbers > 254 if possible.")
 a.add_argument("file_in", type=str, help="input uvfits file.")
 a.add_argument("file_out", type=str, help="output uvfits file.")
 a.add_argument("--overwrite", default=False, action='store_true',
                help="overwrite output file if it already exists.")
 a.add_argument("--verbose", default=False, action='store_true',
                help="report feedback to stdout.")
+a.add_argument("--filetype", default='uvfits', type=str, help="filetype, options=['uvfits', 'miriad']")
 
 # get args
 args = a.parse_args()
@@ -34,7 +35,12 @@ if os.path.exists(args.file_out) and args.overwrite is False:
     sys.exit(0)
 
 uv_obj = UVData()
-uv_obj.read_uvfits(args.file_in)
+if filetype == 'uvfits':
+    uv_obj.read_uvfits(args.file_in)
+elif filetype == 'miriad':
+    uv_obj.read_miriad(args.file_in)
+else:
+    raise IOError("didn't recognize file {}".format(arge.file_in))
 
 large_ant_nums = sorted(list(uv_obj.antenna_numbers[np.where(uv_obj.antenna_numbers > 254)[0]]))
 
@@ -60,4 +66,8 @@ uv_obj.baseline_array = uv_obj.antnums_to_baseline(uv_obj.ant_1_array, uv_obj.an
 
 uv_obj.check()
 
-uv_obj.write_uvfits(args.file_out)
+if filetype == 'uvfits':
+    uv_obj.write_uvfits(args.file_out)
+elif filetype == 'miriad':
+    uv_obj.write_miriad(args.file_out)
+
