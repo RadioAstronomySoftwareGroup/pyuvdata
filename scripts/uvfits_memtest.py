@@ -16,8 +16,16 @@ def read_uvfits():
 
     # first test uvdata.read_uvfits. First read metadata then full data
     uv_obj = UVData()
-    uv_obj.read_uvfits(filename, metadata_only=True)
+    uv_obj.read_uvfits(filename, read_data=False, read_metadata=False)
+    uv_obj.read_uvfits_metadata(filename)
     uv_obj.read_uvfits_data(filename)
+    del(uv_obj)
+
+    # now test uvdata.read_uvfits with select on read.
+    uv_obj = UVData()
+    uv_obj.read_uvfits(filename, read_data=False, read_metadata=False)
+    uv_obj.read_uvfits_metadata(filename)
+    uv_obj.read_uvfits_data(filename, freq_chans=np.arange(196))
     del(uv_obj)
 
     # now test details with astropy
