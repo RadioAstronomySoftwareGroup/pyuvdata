@@ -3,6 +3,8 @@ import numpy as np
 import copy
 import os
 import nose.tools as nt
+import astropy
+from astropy.io import fits
 from pyuvdata import UVData
 import pyuvdata.utils as uvutils
 import pyuvdata.tests as uvtest
@@ -278,6 +280,89 @@ def test_select_read():
                          message='Telescope EVLA is not')
     uvfits_uv2.select(antenna_nums=ants_to_keep, freq_chans=chans_to_keep,
                       polarizations=pols_to_keep)
+    nt.assert_equal(uvfits_uv, uvfits_uv2)
+
+    # repeat with no spw file
+    uvfitsfile_no_spw = os.path.join(DATA_PATH, 'zen.2456865.60537.xy.uvcRREAAM.uvfits')
+
+    # select on antennas
+    ants_to_keep = np.array([2, 4, 5])
+    uvtest.checkWarnings(uvfits_uv.read_uvfits, [uvfitsfile_no_spw],
+                         {'antenna_nums': ants_to_keep},
+                         known_warning='paper_uvfits')
+    uvtest.checkWarnings(uvfits_uv2.read_uvfits, [uvfitsfile_no_spw],
+                         known_warning='paper_uvfits')
+    uvfits_uv2.select(antenna_nums=ants_to_keep)
+    nt.assert_equal(uvfits_uv, uvfits_uv2)
+
+    # select on frequency channels
+    chans_to_keep = np.arange(4, 8)
+    uvtest.checkWarnings(uvfits_uv.read_uvfits, [uvfitsfile_no_spw],
+                         {'freq_chans': chans_to_keep},
+                         known_warning='paper_uvfits')
+    uvtest.checkWarnings(uvfits_uv2.read_uvfits, [uvfitsfile_no_spw],
+                         known_warning='paper_uvfits')
+    uvfits_uv2.select(freq_chans=chans_to_keep)
+    nt.assert_equal(uvfits_uv, uvfits_uv2)
+
+    # select on pols
+    # this requires writing a new file because the no spw file we have has only 1 pol
+    hdu_list = fits.open(uvfits_file)
+    hdunames = uvutils.fits_indexhdus(hdu_list)
+    vis_hdu = hdu_list[0]
+    vis_hdr = vis_hdu.header.copy()
+    raw_data_array = vis_hdu.data.data
+    raw_data_array = raw_data_array[:, :, :, 0, :, :, :]
+
+    vis_hdr['NAXIS'] = 6
+
+    vis_hdr['NAXIS5'] = vis_hdr['NAXIS6']
+    vis_hdr['CTYPE5'] = vis_hdr['CTYPE6']
+    vis_hdr['CRVAL5'] = vis_hdr['CRVAL6']
+    vis_hdr['CDELT5'] = vis_hdr['CDELT6']
+    vis_hdr['CRPIX5'] = vis_hdr['CRPIX6']
+    vis_hdr['CROTA5'] = vis_hdr['CROTA6']
+
+    vis_hdr['NAXIS6'] = vis_hdr['NAXIS7']
+    vis_hdr['CTYPE6'] = vis_hdr['CTYPE7']
+    vis_hdr['CRVAL6'] = vis_hdr['CRVAL7']
+    vis_hdr['CDELT6'] = vis_hdr['CDELT7']
+    vis_hdr['CRPIX6'] = vis_hdr['CRPIX7']
+    vis_hdr['CROTA6'] = vis_hdr['CROTA7']
+
+    vis_hdr.pop('NAXIS7')
+    vis_hdr.pop('CTYPE7')
+    vis_hdr.pop('CRVAL7')
+    vis_hdr.pop('CDELT7')
+    vis_hdr.pop('CRPIX7')
+    vis_hdr.pop('CROTA7')
+
+    par_names = vis_hdu.data.parnames
+
+    group_parameter_list = [vis_hdu.data.par(ind) for
+                            ind in range(len(par_names))]
+
+    vis_hdu = fits.GroupData(raw_data_array, parnames=par_names,
+                             pardata=group_parameter_list, bitpix=-32)
+    vis_hdu = fits.GroupsHDU(vis_hdu)
+    vis_hdu.header = vis_hdr
+
+    ant_hdu = hdu_list[hdunames['AIPS AN']]
+
+    write_file = os.path.join(DATA_PATH, 'test/outtest_casa.uvfits')
+    hdulist = fits.HDUList(hdus=[vis_hdu, ant_hdu])
+    if float(astropy.__version__[0:3]) < 1.3:
+        hdulist.writeto(write_file, clobber=True)
+    else:
+        hdulist.writeto(write_file, overwrite=True)
+
+    pols_to_keep = [-1, -2]
+    uvtest.checkWarnings(uvfits_uv.read_uvfits, [write_file],
+                         {'polarizations': pols_to_keep},
+                         message='Telescope EVLA is not')
+    uvtest.checkWarnings(uvfits_uv2.read_uvfits, [write_file],
+                         message='Telescope EVLA is not')
+    uvfits_uv2.select(polarizations=pols_to_keep)
     nt.assert_equal(uvfits_uv, uvfits_uv2)
 
 

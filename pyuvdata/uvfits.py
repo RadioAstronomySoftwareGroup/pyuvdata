@@ -121,7 +121,24 @@ class UVFITS(UVData):
             self._select_preprocess(antenna_nums, antenna_names, ant_str, ant_pairs_nums,
                                     frequencies, freq_chans, times, polarizations, blt_inds)
 
-        if blt_inds is None and freq_inds is None and pol_inds is None:
+        if blt_inds is not None:
+            blt_frac = len(blt_inds) / float(self.Nblts)
+        else:
+            blt_frac = 1
+
+        if freq_inds is not None:
+            freq_frac = len(freq_inds) / float(self.Nfreqs)
+        else:
+            freq_frac = 1
+
+        if pol_inds is not None:
+            pol_frac = len(pol_inds) / float(self.Npols)
+        else:
+            pol_frac = 1
+
+        min_frac = np.min([blt_frac, freq_frac, pol_frac])
+
+        if min_frac == 1:
             # no select, read in all the data
             if vis_hdu.header['NAXIS'] == 7:
                 raw_data_array = vis_hdu.data.data[:, 0, 0, :, :, :, :]
@@ -133,23 +150,6 @@ class UVFITS(UVData):
                 raw_data_array = vis_hdu.data.data[:, 0, 0, :, :, :]
                 raw_data_array = raw_data_array[:, np.newaxis, :, :]
         else:
-            if blt_inds is not None:
-                blt_frac = len(blt_inds) / float(self.Nblts)
-            else:
-                blt_frac = 1
-
-            if freq_inds is not None:
-                freq_frac = len(freq_inds) / float(self.Nfreqs)
-            else:
-                freq_frac = 1
-
-            if pol_inds is not None:
-                pol_frac = len(pol_inds) / float(self.Npols)
-            else:
-                pol_frac = 1
-
-            min_frac = np.min([blt_frac, freq_frac, pol_frac])
-
             # do select operations on everything except data_array, flag_array and nsample_array
             self._select_metadata(blt_inds, freq_inds, pol_inds, history_update_string)
 
@@ -178,6 +178,7 @@ class UVFITS(UVData):
                     # here we put it back in so the dimensionality stays the same
                     raw_data_array = vis_hdu.data.data[:, 0, 0, freq_inds, :, :]
                     raw_data_array = raw_data_array[:, np.newaxis, :, :, :]
+
                 if blt_inds is not None:
                     raw_data_array = raw_data_array[blt_inds, :, :, :, :]
                 if pol_inds is not None:
@@ -192,12 +193,16 @@ class UVFITS(UVData):
                     # in many uvfits files the spw axis is left out,
                     # here we put it back in so the dimensionality stays the same
                     raw_data_array = vis_hdu.data.data[:, 0, 0, :, pol_inds, :]
+                    # for some reason the axes get transposed. fix the ordering
+                    raw_data_array = np.transpose(raw_data_array, axes=(1, 2, 0, 3))
                     raw_data_array = raw_data_array[:, np.newaxis, :, :, :]
+
                 if blt_inds is not None:
                     raw_data_array = raw_data_array[blt_inds, :, :, :, :]
                 if freq_inds is not None:
                     raw_data_array = raw_data_array[:, :, freq_inds, :, :]
 
+        assert(len(raw_data_array.shape) == 5)
         self.data_array = (raw_data_array[:, :, :, :, 0] + 1j * raw_data_array[:, :, :, :, 1])
         weights_array = raw_data_array[:, :, :, :, 2]
         self.flag_array = (weights_array <= 0)
