@@ -35,9 +35,9 @@ if os.path.exists(args.file_out) and args.overwrite is False:
     sys.exit(0)
 
 uv_obj = UVData()
-if filetype == 'uvfits':
+if args.filetype == 'uvfits':
     uv_obj.read_uvfits(args.file_in)
-elif filetype == 'miriad':
+elif args.filetype == 'miriad':
     uv_obj.read_miriad(args.file_in)
 else:
     raise IOError("didn't recognize file {}".format(arge.file_in))
@@ -66,8 +66,8 @@ uv_obj.baseline_array = uv_obj.antnums_to_baseline(uv_obj.ant_1_array, uv_obj.an
 
 uv_obj.check()
 
-if filetype == 'uvfits':
+if args.filetype == 'uvfits':
     uv_obj.write_uvfits(args.file_out)
-elif filetype == 'miriad':
+elif args.filetype == 'miriad':
     uv_obj.write_miriad(args.file_out)
 
