@@ -684,7 +684,7 @@ time if only a portion of the data are needed.
   >>> times_to_keep = unique_times[[0, 2, 4]]
   >>> uv.read_uvfits_data(filename, times=times_to_keep)
   >>> print(uv.data_array.shape)
-  (179, 1, 32, 4)
+  (179, 1, 64, 4)
 
 ------
 UVCal
