@@ -117,7 +117,7 @@ class UVFITS(UVData):
             self._get_parameter_data(vis_hdu)
 
         # figure out what data to read in
-        blt_inds, freq_inds, pol_inds, n_selects, history_update_string = \
+        blt_inds, freq_inds, pol_inds, history_update_string = \
             self._select_preprocess(antenna_nums, antenna_names, ant_str, ant_pairs_nums,
                                     frequencies, freq_chans, times, polarizations, blt_inds)
 
@@ -163,9 +163,9 @@ class UVFITS(UVData):
                     # here we put it back in so the dimensionality stays the same
                     raw_data_array = vis_hdu.data.data[blt_inds, 0, 0, :, :, :]
                     raw_data_array = raw_data_array[:, np.newaxis, :, :, :]
-                if freq_inds is not None:
+                if freq_frac < 1:
                     raw_data_array = raw_data_array[:, :, freq_inds, :, :]
-                if pol_inds is not None:
+                if pol_frac < 1:
                     raw_data_array = raw_data_array[:, :, :, pol_inds, :]
             elif freq_frac == min_frac:
                 if vis_hdu.header['NAXIS'] == 7:
@@ -179,9 +179,9 @@ class UVFITS(UVData):
                     raw_data_array = vis_hdu.data.data[:, 0, 0, freq_inds, :, :]
                     raw_data_array = raw_data_array[:, np.newaxis, :, :, :]
 
-                if blt_inds is not None:
+                if blt_frac < 1:
                     raw_data_array = raw_data_array[blt_inds, :, :, :, :]
-                if pol_inds is not None:
+                if pol_frac < 1:
                     raw_data_array = raw_data_array[:, :, :, pol_inds, :]
             else:
                 if vis_hdu.header['NAXIS'] == 7:
@@ -197,16 +197,15 @@ class UVFITS(UVData):
                     raw_data_array = np.transpose(raw_data_array, axes=(1, 2, 0, 3))
                     raw_data_array = raw_data_array[:, np.newaxis, :, :, :]
 
-                if blt_inds is not None:
+                if blt_frac < 1:
                     raw_data_array = raw_data_array[blt_inds, :, :, :, :]
-                if freq_inds is not None:
+                if freq_frac < 1:
                     raw_data_array = raw_data_array[:, :, freq_inds, :, :]
 
         assert(len(raw_data_array.shape) == 5)
         self.data_array = (raw_data_array[:, :, :, :, 0] + 1j * raw_data_array[:, :, :, :, 1])
-        weights_array = raw_data_array[:, :, :, :, 2]
-        self.flag_array = (weights_array <= 0)
-        self.nsample_array = np.abs(weights_array)
+        self.flag_array = (raw_data_array[:, :, :, :, 2] <= 0)
+        self.nsample_array = np.abs(raw_data_array[:, :, :, :, 2])
 
         # check if object has all required UVParameters set
         if run_check:
