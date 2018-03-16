@@ -1423,7 +1423,7 @@ class UVData(UVBase):
         """
         import uvfits
         if isinstance(filename, (list, tuple)):
-            raise ValueError('A list of files cannot be used when just reading data')
+            raise ValueError('A list of files cannot be used when just reading metadata')
 
         uvfits_obj = self._convert_to_filetype('uvfits')
         uvfits_obj.read_uvfits_metadata(filename)
