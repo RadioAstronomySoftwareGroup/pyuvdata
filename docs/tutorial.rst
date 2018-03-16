@@ -42,7 +42,8 @@ b) uvfits -> miriad (aipy)
 
 c) FHD -> uvfits
 ****************
-When reading FHD format, we need to point to several files.::
+When reading FHD format, we need to point to several files.
+::
 
   >>> from pyuvdata import UVData
   >>> UV = UVData()
@@ -56,7 +57,7 @@ When reading FHD format, we need to point to several files.::
   >>> UV.write_uvfits('tutorial.uvfits', spoof_nonessential=True)
 
 d) FHD -> miriad (aipy)
-****************
+************************
 ::
 
   >>> from pyuvdata import UVData
@@ -95,7 +96,7 @@ e) CASA -> uvfits
   >>> UV.write_uvfits('tutorial.uvfits', spoof_nonessential=True)
 
 f) CASA -> miriad (aipy)
-******************
+**************************
 ::
 
   >>> from pyuvdata import UVData
@@ -118,12 +119,12 @@ f) CASA -> miriad (aipy)
   >>> UV.write_miriad(write_file)
 
 UVData: Quick data access
------------------------
+--------------------------
 A small suite of functions are available to quickly access numpy arrays of data,
 flags, and nsamples.
 
 a) Data for single antenna pair / polarization combination.
-***************
+************************************************************
 ::
 
   >>> from pyuvdata import UVData
@@ -143,7 +144,7 @@ a) Data for single antenna pair / polarization combination.
   >>> times = UV.get_times((1, 2))
 
 b) Flags and nsamples for above data.
-***************
+*********************************************
 ::
 
   >>> flags = UV.get_flags(1, 2, 'rr')
@@ -154,7 +155,7 @@ b) Flags and nsamples for above data.
   (9, 64)
 
 c) Data for single antenna pair, all polarizations.
-***************
+************************************************************
 ::
 
   >>> data = UV.get_data(1, 2)
@@ -167,7 +168,7 @@ c) Data for single antenna pair, all polarizations.
   True
 
 d) Data for single polarization, all baselines.
-***************
+************************************************************
 ::
 
   >>> data = UV.get_data('rr')
@@ -175,7 +176,7 @@ d) Data for single polarization, all baselines.
   (1360, 64)
 
 e) Iterate over all antenna pair / polarizations.
-***************
+************************************************************
 ::
 
   >>> for key, data in UV.antpairpol_iter():
@@ -185,7 +186,7 @@ e) Iterate over all antenna pair / polarizations.
     # Do something with the data, flags, nsamples
 
 f) Convenience functions to ask what antennas, baselines, and pols are in the data.
-***************
+******************************************************************************************
 ::
 
   # Get all unique antennas in data
@@ -205,7 +206,7 @@ f) Convenience functions to ask what antennas, baselines, and pols are in the da
   [(0, 1, 'RR'), (0, 1, 'LL'), (0, 1, 'RL'), (0, 1, 'LR'), (0, 2, 'RR')]
 
 g) Quick access to file attributes of a UV* object (UVData, UVCal, UVFITS, etc)
-***************
+******************************************************************************************
 ::
 
   ## in bash ##
@@ -217,7 +218,8 @@ g) Quick access to file attributes of a UV* object (UVData, UVCal, UVFITS, etc)
 
 UVData: Phasing
 -----------------------
-Phasing/unphasing data::
+Phasing/unphasing data
+::
 
   >>> from pyuvdata import UVData
   >>> import ephem
@@ -239,7 +241,7 @@ Phasing/unphasing data::
   >>> UV.phase(5.23368, 0.710940, ephem.J2000)
 
 UVData: Plotting
----------
+------------------
 Making a simple waterfall plot.
 
 Note: there is now support for reading in only part of a uvfits file
@@ -274,12 +276,12 @@ entire file to plot one waterfall.
 
 
 UVData: Location conversions
------------------------
+--------------------------------
 A number of conversion methods exist to map between different coordinate systems
 for locations on the earth.
 
 a) Getting antenna positions in topocentric frame in units of meters
-***************
+***************************************************************************
 ::
 
   # directly from UVData object
@@ -306,7 +308,7 @@ Note: The same select interface is now supported on the read for uvfits files
 entire file before doing the select.
 
 a) Select 3 antennas to keep using the antenna number.
-****************
+********************************************************
 ::
 
   >>> from pyuvdata import UVData
@@ -325,7 +327,7 @@ a) Select 3 antennas to keep using the antenna number.
   [ 0 11 20]
 
 b) Select 3 antennas to keep using the antenna names, also select 5 frequencies to keep.
-****************
+*****************************************************************************************
 ::
 
   >>> from pyuvdata import UVData
@@ -354,7 +356,7 @@ b) Select 3 antennas to keep using the antenna names, also select 5 frequencies 
   [[3.6304542e+10 3.6304667e+10 3.6304792e+10 3.6304917e+10]]
 
 c) Select a few antenna pairs to keep
-****************
+******************************************
 ::
 
   >>> from pyuvdata import UVData
@@ -373,12 +375,12 @@ c) Select a few antenna pairs to keep
   set([(0, 6), (0, 21), (0, 2)])
 
 d) Select antenna pairs and polarizations using ant_str argument
-****************
+********************************************************************
 
 Basic options are 'auto', 'cross', or 'all'.  The ant_str can also contain:
 
 1. Individual antenna number(s):
-________
+________________________________
 
 - 1: returns all antenna pairs containing antenna number 1 (including the auto correlation)
 - 1,2: returns all antenna pairs containing antennas 1 and/or 2
@@ -402,7 +404,7 @@ ________
   48
 
 2. Individual baseline(s):
-________
+___________________________
 
 - 1_2: returns only the antenna pair (1,2)
 - 1_2,1_3,1_10: returns antenna pairs (1,2),(1,3),(1,10)
@@ -428,7 +430,7 @@ ________
   [(1, 3), (1, 6), (2, 3), (2, 6)]
 
 3. Antenna number(s) and polarization(s):
-________
+__________________________________________
 
 When polarization information is passed with antenna numbers,
 all antenna pairs kept in the object will retain data for each specified polarization
@@ -461,7 +463,7 @@ all antenna pairs kept in the object will retain data for each specified polariz
   ([(1, 2), (1, 3), (1, 6)], ['RR', 'LL', 'RL'])
 
 4. Stokes parameter(s):
-________
+________________________
 
 Can be passed lowercase or uppercase
 
@@ -469,7 +471,7 @@ Can be passed lowercase or uppercase
 - q,V: keeps both Stokes Q and V
 
 5. Minus sign(s):
-________
+________________________
 
 If a minus sign is present in front of an antenna number, it will not be kept in the data
 
@@ -496,7 +498,7 @@ If a minus sign is present in front of an antenna number, it will not be kept in
   16
 
 e) Select data and return new object (leaving original in tact).
-****************
+********************************************************************
 ::
 
   >>> from pyuvdata import UVData
@@ -520,7 +522,7 @@ The __add__ method lets you combine UVData objects along
 the baseline-time, frequency, and/or polarization axis.
 
 a) Add frequencies.
-****************
+*********************
 ::
 
   >>> from pyuvdata import UVData
@@ -561,7 +563,7 @@ b) Add times.
   (459, 901, 1360)
 
 c) Adding in place.
-****************
+*******************
 The following two commands are equivalent, and act on uv1
 directly without creating a third uvdata object.
 ::
@@ -584,7 +586,7 @@ directly without creating a third uvdata object.
   >>> uv1 += uv2
 
 d) Reading multiple files.
-****************
+****************************
 If any of the read methods are given a list of files
 (or list of lists in the case of read_fhd), each file will be read in succession
 and added to the previous.
@@ -604,11 +606,11 @@ and added to the previous.
   >>> uv.read_uvfits(filenames)
 
 UVData: Working with large files
------------------------
+----------------------------------------------
 To save on memory and time, pyuvdata supports reading only parts of uvfits files.
 
 a) Reading just the header
-****************
+****************************
 When only the header info is read in, the UVData object is not fully specified,
 so only some of the expected attributes are filled out
 ::
@@ -630,7 +632,7 @@ so only some of the expected attributes are filled out
   None
 
 b) Reading the header and metadata
-****************
+******************************************
 The UVData object is still not fully specified, but every attribute except
 the data_array, flag_array and nsample_array are filled out. Either read in the
 metadata at the same time as the header (use read_metadata=True which is the default),
@@ -659,7 +661,7 @@ or read in the header followed by the metadata (both shown below)
   (1360, 1, 64, 4)
 
 c) Reading only parts of the data
-****************
+***************************************
 The same options that are available for the select function can also be passed to
 read_uvfits or read_uvfits_data to do the select on the read, saving memory and
 time if only a portion of the data are needed.
@@ -682,7 +684,7 @@ UVCal: Reading/writing
 Calibration files using UVCal.
 
 a) Reading a gain calibration file.
-****************
+*************************************
 ::
 
   >>> from pyuvdata import UVCal
@@ -720,7 +722,7 @@ a) Reading a gain calibration file.
 
 
 b) Writing a gain calibration file.
-****************
+******************************************
 ::
 
   >>> from pyuvdata import UVCal
@@ -783,7 +785,7 @@ frequencies (in Hz or by channel number), times or polarizations
 to keep in the object while removing others.
 
 a) Select 3 antennas to keep using the antenna number.
-****************
+********************************************************************
 ::
 
   >>> from pyuvdata import UVCal
@@ -803,7 +805,7 @@ a) Select 3 antennas to keep using the antenna number.
   [ 9 22 64]
 
 b) Select 3 antennas to keep using the antenna names, also select 5 frequencies to keep.
-****************
+**********************************************************************************************
 ::
 
   >>> from pyuvdata import UVCal
@@ -840,7 +842,7 @@ UVBeam: Reading/writing
 Reading and writing beam files using UVBeam.
 
 a) Reading a CST power beam file
-****************
+******************************************
 ::
 
   >>> from pyuvdata import UVBeam
@@ -884,7 +886,7 @@ a) Reading a CST power beam file
   >>> plt.show() # doctest: +SKIP
 
 b) Reading a CST E-field beam file
-****************
+******************************************
 ::
 
   >>> from pyuvdata import UVBeam
@@ -905,7 +907,7 @@ b) Reading a CST E-field beam file
   efield
 
 c) Writing a regularly gridded beam FITS file
-****************
+**********************************************
 ::
 
   >>> from pyuvdata import UVBeam
@@ -919,7 +921,7 @@ c) Writing a regularly gridded beam FITS file
   >>> beam.write_beamfits('tutorial.fits', clobber=True)
 
 d) Writing a HEALPix beam FITS file
-****************
+******************************************
 ::
 
   >>> from pyuvdata import UVBeam
@@ -940,7 +942,7 @@ pixel_coordinate_system is HEALPix), frequencies and feeds (or polarizations if
 beam_type is power) to keep in the object while removing others.
 
 a) Selecting a range of Zenith Angles
-****************
+******************************************
 ::
 
   >>> from pyuvdata import UVBeam
@@ -963,11 +965,12 @@ a) Selecting a range of Zenith Angles
   >>> plt.show() # doctest: +SKIP
 
 UVBeam: Converting to beam types and coordinate systems
------------------------
+---------------------------------------------------------------------
 
 a) Convert a regularly gridded az_za power beam to HEALpix
-****************
+********************************************************************
 ::
+
   >>> from pyuvdata import UVBeam
   >>> import numpy as np
   >>> import healpy as hp
@@ -981,8 +984,9 @@ a) Convert a regularly gridded az_za power beam to HEALpix
   >>> hp.mollview(beam.data_array[0,0,0,0,:]) # doctest: +SKIP
 
 b) Convert a regularly gridded efield beam to a power beam
-****************
+********************************************************************
 ::
+
   >>> from pyuvdata import UVBeam
   >>> import copy
   >>> import numpy as np
@@ -1005,8 +1009,10 @@ b) Convert a regularly gridded efield beam to a power beam
   >>> plt.legend() # doctest: +SKIP
   >>> plt.show() # doctest: +SKIP
 
+
+-----------------
 Tutorial Cleanup
------------------------
+-----------------
 ::
 
   # delete all written files
