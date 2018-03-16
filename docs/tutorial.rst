@@ -667,6 +667,7 @@ read_uvfits or read_uvfits_data to do the select on the read, saving memory and
 time if only a portion of the data are needed.
 ::
 
+  >>> import numpy as np
   >>> from pyuvdata import UVData
   >>> uv = UVData()
   >>> filename = 'pyuvdata/data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
@@ -674,6 +675,16 @@ time if only a portion of the data are needed.
   >>> print(uv.data_array.shape)
   (1360, 1, 32, 4)
 
+  # Reading in the header and metadata can help with specifying what data to read in
+  >>> uv.read_uvfits(filename, read_data=False)
+  >>> unique_times = np.unique(uv.time_array)
+  >>> print(unique_times.shape)
+  (15,)
+
+  >>> times_to_keep = unique_times[[0, 2, 4]]
+  >>> uv.read_uvfits_data(filename, times=times_to_keep)
+  >>> print(uv.data_array.shape)
+  (179, 1, 32, 4)
 
 ------
 UVCal
