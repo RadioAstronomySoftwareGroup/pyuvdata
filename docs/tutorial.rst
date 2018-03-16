@@ -139,7 +139,11 @@ Phasing/unphasing data::
 
 UVData: Plotting
 ---------
-Making a simple waterfall plot::
+Making a simple waterfall plot
+Note: there is now support for reading in only part of a uvfits file
+  (see :ref:`UVData: Working with large files`), so you need not read in the
+  entire file to plot one waterfall.
+::
 
   >>> from pyuvdata import UVData
   >>> import numpy as np
@@ -165,6 +169,7 @@ Making a simple waterfall plot::
   # Update: With new UI features, making waterfalls is easier than ever!
   >>> plt.imshow(np.abs(UV.get_data((1, 2, UV.polarization_array[0])))) # doctest: +SKIP
   >>> plt.show() # doctest: +SKIP
+
 
 UVData: Location conversions
 -----------------------
@@ -289,6 +294,9 @@ UVData: Selecting data
 The select method lets you select specific antennas (by number or name),
 antenna pairs, frequencies (in Hz or by channel number), times or polarizations
 to keep in the object while removing others.
+Note: The same select interface is now supported on the read for uvfits files
+  (see :ref:`UVData: Working with large files`), so you need not read in the
+  entire file before doing the select.
 
 a) Select 3 antennas to keep using the antenna number.
 ****************
