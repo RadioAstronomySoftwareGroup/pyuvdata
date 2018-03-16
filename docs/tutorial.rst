@@ -1,6 +1,10 @@
 Tutorial
 ========
 
+------
+UVData
+------
+
 UVData: File conversion
 -----------------------
 Converting between tested data formats
@@ -113,84 +117,6 @@ f) CASA -> miriad (aipy)
   ...    shutil.rmtree(write_file)
   >>> UV.write_miriad(write_file)
 
-
-UVData: Phasing
------------------------
-Phasing/unphasing data::
-
-  >>> from pyuvdata import UVData
-  >>> import ephem
-  >>> UV = UVData()
-  >>> miriad_file = 'pyuvdata/data/new.uvA'
-  >>> UV.read_miriad(miriad_file)
-  >>> print(UV.phase_type)
-  drift
-
-  # Phase the data to the zenith at first time step
-  >>> UV.phase_to_time(UV.time_array[0])
-  >>> print(UV.phase_type)
-  phased
-
-  # Undo phasing to try another phase center
-  >>> UV.unphase_to_drift()
-
-  # Phase to a specific ra/dec/epoch (in radians)
-  >>> UV.phase(5.23368, 0.710940, ephem.J2000)
-
-UVData: Plotting
----------
-Making a simple waterfall plot
-Note: there is now support for reading in only part of a uvfits file
-  (see :ref:`UVData: Working with large files`), so you need not read in the
-  entire file to plot one waterfall.
-::
-
-  >>> from pyuvdata import UVData
-  >>> import numpy as np
-  >>> import matplotlib.pyplot as plt
-  >>> UV = UVData()
-  >>> filename = 'pyuvdata/data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
-  >>> UV.read_uvfits(filename)
-  >>> print(UV.data_array.shape)
-  (1360, 1, 64, 4)
-  >>> print(UV.Ntimes)
-  15
-  >>> print(UV.Nfreqs)
-  64
-  >>> bl = UV.antnums_to_baseline(1, 2)
-  >>> print(bl)
-  69635
-  >>> bl_ind = np.where(UV.baseline_array == bl)[0]
-
-  # Amplitude waterfall for 0th spectral window and 0th polarization
-  >>> plt.imshow(np.abs(UV.data_array[bl_ind, 0, :, 0])) # doctest: +SKIP
-  >>> plt.show() # doctest: +SKIP
-
-  # Update: With new UI features, making waterfalls is easier than ever!
-  >>> plt.imshow(np.abs(UV.get_data((1, 2, UV.polarization_array[0])))) # doctest: +SKIP
-  >>> plt.show() # doctest: +SKIP
-
-
-UVData: Location conversions
------------------------
-A number of conversion methods exist to map between different coordinate systems for locations on the earth.
-
-a) Getting antenna positions in topocentric frame in units of meters
-***************
-::
-
-  # directly from UVData object
-  >>> uvd = UVData()
-  >>> uvd.read_miriad('pyuvdata/data/new.uvA')
-  >>> antpos, ants = uvd.get_ENU_antpos()
-
-  # using uvutils
-  >>> from pyuvdata import uvutils, UVData
-  >>> uvd = UVData()
-  >>> uvd.read_miriad('pyuvdata/data/new.uvA')
-  >>> antpos = uvd.antenna_positions + uvd.telescope_location # get antennas positions in ECEF
-  >>> antpos = uvutils.ENU_from_ECEF(antpos.T, *uvd.telescope_location_lat_lon_alt).T # convert to topo (ENU) coords.
-
 UVData: Quick data access
 -----------------------
 A small suite of functions are available to quickly access numpy arrays of data,
@@ -289,14 +215,95 @@ g) Quick access to file attributes of a UV* object (UVData, UVCal, UVFITS, etc)
 
   pyuvdata_inspect.py -i <uv*_file> # will load object to instance name "uv" and will remain in interpreter
 
+UVData: Phasing
+-----------------------
+Phasing/unphasing data::
+
+  >>> from pyuvdata import UVData
+  >>> import ephem
+  >>> UV = UVData()
+  >>> miriad_file = 'pyuvdata/data/new.uvA'
+  >>> UV.read_miriad(miriad_file)
+  >>> print(UV.phase_type)
+  drift
+
+  # Phase the data to the zenith at first time step
+  >>> UV.phase_to_time(UV.time_array[0])
+  >>> print(UV.phase_type)
+  phased
+
+  # Undo phasing to try another phase center
+  >>> UV.unphase_to_drift()
+
+  # Phase to a specific ra/dec/epoch (in radians)
+  >>> UV.phase(5.23368, 0.710940, ephem.J2000)
+
+UVData: Plotting
+---------
+Making a simple waterfall plot.
+
+Note: there is now support for reading in only part of a uvfits file
+(see :ref:`UVData: Working with large files`), so you need not read in the
+entire file to plot one waterfall.
+::
+
+  >>> from pyuvdata import UVData
+  >>> import numpy as np
+  >>> import matplotlib.pyplot as plt
+  >>> UV = UVData()
+  >>> filename = 'pyuvdata/data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
+  >>> UV.read_uvfits(filename)
+  >>> print(UV.data_array.shape)
+  (1360, 1, 64, 4)
+  >>> print(UV.Ntimes)
+  15
+  >>> print(UV.Nfreqs)
+  64
+  >>> bl = UV.antnums_to_baseline(1, 2)
+  >>> print(bl)
+  69635
+  >>> bl_ind = np.where(UV.baseline_array == bl)[0]
+
+  # Amplitude waterfall for 0th spectral window and 0th polarization
+  >>> plt.imshow(np.abs(UV.data_array[bl_ind, 0, :, 0])) # doctest: +SKIP
+  >>> plt.show() # doctest: +SKIP
+
+  # Update: With new UI features, making waterfalls is easier than ever!
+  >>> plt.imshow(np.abs(UV.get_data((1, 2, UV.polarization_array[0])))) # doctest: +SKIP
+  >>> plt.show() # doctest: +SKIP
+
+
+UVData: Location conversions
+-----------------------
+A number of conversion methods exist to map between different coordinate systems
+for locations on the earth.
+
+a) Getting antenna positions in topocentric frame in units of meters
+***************
+::
+
+  # directly from UVData object
+  >>> uvd = UVData()
+  >>> uvd.read_miriad('pyuvdata/data/new.uvA')
+  >>> antpos, ants = uvd.get_ENU_antpos()
+
+  # using uvutils
+  >>> from pyuvdata import uvutils, UVData
+  >>> uvd = UVData()
+  >>> uvd.read_miriad('pyuvdata/data/new.uvA')
+  >>> antpos = uvd.antenna_positions + uvd.telescope_location # get antennas positions in ECEF
+  >>> antpos = uvutils.ENU_from_ECEF(antpos.T, *uvd.telescope_location_lat_lon_alt).T # convert to topo (ENU) coords.
+
+
 UVData: Selecting data
 -----------------------
 The select method lets you select specific antennas (by number or name),
 antenna pairs, frequencies (in Hz or by channel number), times or polarizations
 to keep in the object while removing others.
+
 Note: The same select interface is now supported on the read for uvfits files
-  (see :ref:`UVData: Working with large files`), so you need not read in the
-  entire file before doing the select.
+(see :ref:`UVData: Working with large files`), so you need not read in the
+entire file before doing the select.
 
 a) Select 3 antennas to keep using the antenna number.
 ****************
@@ -651,7 +658,7 @@ or read in the header followed by the metadata (both shown below)
   >>> print(uv.data_array.shape)
   (1360, 1, 64, 4)
 
-b) Reading only parts of the data
+c) Reading only parts of the data
 ****************
 The same options that are available for the select function can also be passed to
 read_uvfits or read_uvfits_data to do the select on the read, saving memory and
@@ -665,6 +672,10 @@ time if only a portion of the data are needed.
   >>> print(uv.data_array.shape)
   (1360, 1, 32, 4)
 
+
+------
+UVCal
+------
 
 UVCal: Reading/writing
 -----------------------
@@ -818,6 +829,11 @@ b) Select 3 antennas to keep using the antenna names, also select 5 frequencies 
   # print all the frequencies after the select
   >>> print(cal.freq_array)
   [[1.00000000e+08 1.00097656e+08 1.00195312e+08 1.00292969e+08]]
+
+------
+UVBeam
+------
+
 
 UVBeam: Reading/writing
 -----------------------
