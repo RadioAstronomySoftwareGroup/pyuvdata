@@ -956,7 +956,7 @@ class UVData(UVBase):
                            frequencies, freq_chans, times, polarizations, blt_inds):
 
         """
-        Internal function to build up blt_inds, freq_inds, pol_inds, n_selects,
+        Internal function to build up blt_inds, freq_inds, pol_inds
         and history_update_string for select.
         """
         # build up history string as we go
@@ -1174,7 +1174,7 @@ class UVData(UVBase):
 
         history_update_string += ' using pyuvdata.'
 
-        return blt_inds, freq_inds, pol_inds, n_selects, history_update_string
+        return blt_inds, freq_inds, pol_inds, history_update_string
 
     def _select_metadata(self, blt_inds, freq_inds, pol_inds, history_update_string):
         """
@@ -1262,7 +1262,7 @@ class UVData(UVBase):
         else:
             uv_object = copy.deepcopy(self)
 
-        blt_inds, freq_inds, pol_inds, n_selects, history_update_string = \
+        blt_inds, freq_inds, pol_inds, history_update_string = \
             uv_object._select_preprocess(antenna_nums, antenna_names, ant_str, ant_pairs_nums,
                                          frequencies, freq_chans, times, polarizations, blt_inds)
 
