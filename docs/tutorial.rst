@@ -282,7 +282,7 @@ g) Quick access to file attributes of a UV* object (UVData, UVCal, UVFITS, etc)
 
   pyuvdata_inspect.py --attr=Ntimes,Nfreqs,Nbls <uv*_file> # will print Ntimes,Nfreqs,Nbls to stdout
 
-  pyuvdata_inspect.py -i <uv*_file> # will load object to instance name "uv" and will remain in interpreter 
+  pyuvdata_inspect.py -i <uv*_file> # will load object to instance name "uv" and will remain in interpreter
 
 UVData: Selecting data
 -----------------------
@@ -587,6 +587,75 @@ and added to the previous.
   >>> uv3.write_uvfits('tutorial3.uvfits')
   >>> filenames = ['tutorial1.uvfits', 'tutorial2.uvfits', 'tutorial3.uvfits']
   >>> uv.read_uvfits(filenames)
+
+UVData: Working with large files
+-----------------------
+To save on memory and time, pyuvdata supports reading only parts of uvfits files.
+
+a) Reading just the header
+****************
+When only the header info is read in, the UVData object is not fully specified,
+so only some of the expected attributes are filled out
+::
+
+  >>> from pyuvdata import UVData
+  >>> uv = UVData()
+  >>> filename = 'pyuvdata/data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
+  >>> uv.read_uvfits(filename, read_data=False, read_metadata=False)
+  >>> print(uv.Nblts, uv.Nfreqs, uv.Npols)
+  (1360, 64, 4)
+
+  >>> print(uv.freq_array.size)
+  64
+
+  >>> print(uv.time_array)
+  None
+
+  >>> print(uv.data_array)
+  None
+
+b) Reading the header and metadata
+****************
+The UVData object is still not fully specified, but every attribute except
+the data_array, flag_array and nsample_array are filled out. Either read in the
+metadata at the same time as the header (use read_metadata=True which is the default),
+or read in the header followed by the metadata (both shown below)
+::
+
+  >>> from pyuvdata import UVData
+  >>> uv = UVData()
+  >>> filename = 'pyuvdata/data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
+
+  >>> uv.read_uvfits(filename, read_data=False)
+
+  >>> uv.read_uvfits(filename, read_data=False, read_metadata=False)
+  >>> uv.read_uvfits_metadata(filename)
+
+  >>> print(uv.time_array.size)
+  1360
+
+  >>> print(uv.data_array)
+  None
+
+  # If the data_arra, flag_array or nsample_array are needed later, they can be
+  # read into the existing object:
+  >>> uv.read_uvfits_data(filename)
+  >>> print(uv.data_array.shape)
+  (1360, 1, 64, 4)
+
+b) Reading only parts of the data
+****************
+The same options that are available for the select function can also be passed to
+read_uvfits or read_uvfits_data to do the select on the read, saving memory and
+time if only a portion of the data are needed.
+::
+
+  >>> from pyuvdata import UVData
+  >>> uv = UVData()
+  >>> filename = 'pyuvdata/data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
+  >>> uv.read_uvfits(filename, freq_chans=np.arange(32))
+  >>> print(uv.data_array.shape)
+  (1360, 1, 32, 4)
 
 
 UVCal: Reading/writing
