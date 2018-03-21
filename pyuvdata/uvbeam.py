@@ -41,7 +41,7 @@ class UVBeam(UVBase):
                                       'More than one spectral window is not '
                                       'currently supported.', expected_type=int)
 
-        desc = ('Number of directions in vector_coordinate_system, options '
+        desc = ('Number of basis vectors specified at each pixel, options '
                 'are 2 or 3 (or 1 if beam_type is "power")')
         self._Naxes_vec = uvp.UVParameter('Naxes_vec', description=desc,
                                           expected_type=int, acceptable_vals=[2, 3])
