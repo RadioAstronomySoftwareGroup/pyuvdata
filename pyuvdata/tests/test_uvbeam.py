@@ -363,6 +363,12 @@ def test_efield_to_power():
                                                            np.where(new_power_beam.axis1_array == np.pi / 2.)[0]]) >
                           np.abs(new_power_beam.data_array[:, :, 2, :, :,
                                                            np.where(new_power_beam.axis1_array == np.pi / 2.)[0]])))
+    # test writing out & reading back in power files (with cross pols which are complex)
+    write_file = os.path.join(DATA_PATH, 'test/outtest_beam.fits')
+    new_power_beam.write_beamfits(write_file, clobber=True)
+    new_power_beam2 = UVBeam()
+    new_power_beam2.read_beamfits(write_file)
+    nt.assert_equal(new_power_beam, new_power_beam2)
 
     # test keeping basis vectors
     new_power_beam = copy.deepcopy(efield_beam)
