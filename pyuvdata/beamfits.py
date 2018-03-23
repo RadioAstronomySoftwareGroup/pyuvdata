@@ -122,7 +122,12 @@ class BeamFITS(UVBeam):
         n_efield_dims = max([ax_nums[key] for key in ax_nums])
 
         if self.beam_type == 'power':
-            self.data_array = data
+            # check for case where the data is complex (e.g. for xy beams)
+            if n_dimensions > ax_nums['complex'] - 1:
+                complex_arrs = np.split(data, 2, axis=0)
+                self.data_array = np.squeeze(complex_arrs[0] + 1j * complex_arrs[1], axis=0)
+            else:
+                self.data_array = data
             if primary_header.pop('CTYPE' + str(ax_nums['feed_pol'])).lower().strip() == 'stokes':
                 self.Npols = primary_header.pop('NAXIS' + str(ax_nums['feed_pol']))
             self.polarization_array = np.int32(uvutils.fits_gethduaxis(primary_hdu,
@@ -449,14 +454,19 @@ class BeamFITS(UVBeam):
             primary_header['CRVAL' + str(ax_nums['feed_pol'])] = self.polarization_array[0]
             primary_header['CDELT' + str(ax_nums['feed_pol'])] = pol_spacing
 
-            primary_data = self.data_array
+            # handle case where data_array is complex (e.g. for xy beams)
+            if np.iscomplexobj(self.data_array):
+                primary_data = np.concatenate([np.expand_dims(self.data_array.real, axis=0),
+                                               np.expand_dims(self.data_array.imag, axis=0)],
+                                              axis=0)
+            else:
+                primary_data = self.data_array
         elif self.beam_type == "efield":
             primary_header['CTYPE' + str(ax_nums['feed_pol'])] = \
                 ('FEEDIND', 'Feed: index into "FEEDLIST".')
             primary_header['CRVAL' + str(ax_nums['feed_pol'])] = 1
             primary_header['CDELT' + str(ax_nums['feed_pol'])] = 1
 
-            np.expand_dims(self.data_array.real, axis=0)
             primary_data = np.concatenate([np.expand_dims(self.data_array.real, axis=0),
                                            np.expand_dims(self.data_array.imag, axis=0)],
                                           axis=0)
@@ -479,7 +489,7 @@ class BeamFITS(UVBeam):
         primary_header['CRPIX' + str(ax_nums['basisvec'])] = 1
         primary_header['CDELT' + str(ax_nums['basisvec'])] = 1
 
-        if self.beam_type == 'efield':
+        if np.iscomplexobj(self.data_array):
             # set up complex axis
             primary_header['CTYPE' + str(ax_nums['complex'])] = ('COMPLEX', 'real, imaginary')
             primary_header['CRVAL' + str(ax_nums['complex'])] = 1
