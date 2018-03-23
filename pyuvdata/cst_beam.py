@@ -14,6 +14,31 @@ class CSTBeam(UVBeam):
     read_cst_beam method on the UVBeam class.
     """
 
+    def name2freq(self, fname):
+        """
+        Method to extract the frequency from the file name, assuming the file name
+        contains a substring with the frequency channel in MHz that the data represents.
+        e.g. "HERA_Sim_120.87MHz.txt" should yield 120.87e6
+
+        Args:
+            fname: filename (string)
+
+        Returns:
+            extracted frequency
+        """
+        fi = fname.find('Hz')
+        frequency = float(re.findall('\d*\.\d+|\d+', fname[:fi])[-1])
+        print(fname)
+        print(fi)
+        print(fname[:fi])
+
+        si_prefix = fname[fi - 1]
+        si_dict = {'k': 1e3, 'M': 1e6, 'G': 1e9}
+        if si_prefix in si_dict.keys():
+            frequency = frequency * si_dict[si_prefix]
+
+        return frequency
+
     def read_cst_beam(self, filename, beam_type='power', feed_pol='x',
                       rotate_pol=True, frequency=None, telescope_name=None,
                       feed_name=None, feed_version=None, model_name=None, model_version=None,
@@ -229,25 +254,3 @@ class CSTBeam(UVBeam):
         if run_check:
             self.check(check_extra=check_extra,
                        run_check_acceptability=run_check_acceptability)
-
-    def name2freq(self, fname):
-        """
-        Method to extract the frequency from the file name, assuming the file name
-        contains a substring with the frequency channel in MHz that the data represents.
-        e.g. "HERA_Sim_120.87MHz.txt" should yield 120.87e6
-
-        Args:
-            fname: filename (string)
-
-        Returns:
-            extracted frequency
-        """
-        fi = fname.find('Hz')
-        frequency = float(re.findall('\d*\.\d+|\d+', fname[:fi])[-1])
-
-        si_prefix = fname[fi - 1]
-        si_dict = {'k': 1e3, 'M': 1e6, 'G': 1e9}
-        if si_prefix in si_dict.keys():
-            frequency = frequency * si_dict[si_prefix]
-
-        return frequency
