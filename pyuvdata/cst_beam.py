@@ -26,7 +26,7 @@ class CSTBeam(UVBeam):
         Returns:
             extracted frequency
         """
-        fi = fname.find('Hz')
+        fi = fname.rfind('Hz')
         frequency = float(re.findall('\d*\.\d+|\d+', fname[:fi])[-1])
         print(fname)
         print(fi)
