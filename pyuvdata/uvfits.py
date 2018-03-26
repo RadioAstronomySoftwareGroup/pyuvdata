@@ -106,14 +106,15 @@ class UVFITS(UVData):
 
     def _get_data(self, vis_hdu, antenna_nums, antenna_names, ant_str,
                   ant_pairs_nums, frequencies, freq_chans, times, polarizations,
-                  blt_inds, run_check, check_extra, run_check_acceptability):
+                  blt_inds, read_metadata, run_check, check_extra,
+                  run_check_acceptability):
         """
         Internal function to read just the visibility and flag data of the uvfits file.
         Separated from full read so that header, metadata and data can be read independently.
         """
 
-        if self.time_array is None:
-            # random parameter data has not been read in, do that first
+        if self.time_array is None or read_metadata:
+            # first read in random group parameters
             self._get_parameter_data(vis_hdu)
 
         # figure out what data to read in
@@ -445,7 +446,7 @@ class UVFITS(UVData):
         # Now read in the data
         self._get_data(vis_hdu, antenna_nums, antenna_names, ant_str,
                        ant_pairs_nums, frequencies, freq_chans, times, polarizations,
-                       blt_inds, run_check, check_extra, run_check_acceptability)
+                       blt_inds, False, run_check, check_extra, run_check_acceptability)
 
     def read_uvfits_metadata(self, filename):
         """
@@ -460,6 +461,9 @@ class UVFITS(UVData):
         hdu_list = fits.open(filename, memmap=True)
         vis_hdu = hdu_list[0]  # assumes the visibilities are in the primary hdu
 
+        if self.data_array is not None:
+            raise ValueError('data_array is already defined, cannot read metadata')
+
         self._get_parameter_data(vis_hdu)
 
         del(vis_hdu)
@@ -467,8 +471,8 @@ class UVFITS(UVData):
     def read_uvfits_data(self, filename, antenna_nums=None, antenna_names=None,
                          ant_str=None, ant_pairs_nums=None, frequencies=None,
                          freq_chans=None, times=None, polarizations=None,
-                         blt_inds=None, run_check=True, check_extra=True,
-                         run_check_acceptability=True):
+                         blt_inds=None, read_metadata=True, run_check=True,
+                         check_extra=True, run_check_acceptability=True):
         """
         Read in data but not header info from a uvfits file
         (useful for an object that already has the associated header info).
@@ -506,6 +510,8 @@ class UVFITS(UVData):
                 the object.
             blt_inds: The baseline-time indices to include when reading data into
                 the object. This is not commonly used.
+            read_metadata: Option to read metadata even if it already exists
+                (to ensure data and metadata match). Default is True.
             run_check: Option to check for the existence and proper shapes of
                 parameters after reading in the file. Default is True.
             check_extra: Option to check optional parameters as well as required
@@ -519,7 +525,8 @@ class UVFITS(UVData):
 
         self._get_data(vis_hdu, antenna_nums, antenna_names, ant_str,
                        ant_pairs_nums, frequencies, freq_chans, times, polarizations,
-                       blt_inds, run_check, check_extra, run_check_acceptability)
+                       blt_inds, read_metadata, run_check, check_extra,
+                       run_check_acceptability)
 
         del(vis_hdu)
 
