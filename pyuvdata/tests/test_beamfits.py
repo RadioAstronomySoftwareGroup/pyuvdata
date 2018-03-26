@@ -42,11 +42,13 @@ def test_readCST_writereadFITS():
     # redo for power beam
     del(beam_in)
     beam_in = UVBeam()
-    beam_in.read_cst_beam(cst_files[0], beam_type='power', frequency=150e6,
+    # read in efield and convert to power to test cross-pols
+    beam_in.read_cst_beam(cst_files[0], beam_type='efield', frequency=150e6,
                           telescope_name='TEST', feed_name='bob',
                           feed_version='0.1', feed_pol=['x'],
                           model_name='E-field pattern - Rigging height 4.9m',
                           model_version='1.0')
+    beam_in.efield_to_power()
 
     # add optional parameters for testing purposes
     beam_in.extra_keywords = {'KEY1': 'test_keyword'}
@@ -137,11 +139,13 @@ def test_writeread_healpix():
     # redo for power beam
     del(beam_in)
     beam_in = UVBeam()
-    beam_in.read_cst_beam(cst_files[0], beam_type='power', frequency=150e6,
+    # read in efield and convert to power to test cross-pols
+    beam_in.read_cst_beam(cst_files[0], beam_type='efield', frequency=150e6,
                           telescope_name='TEST', feed_name='bob',
                           feed_version='0.1', feed_pol=['x'],
                           model_name='E-field pattern - Rigging height 4.9m',
                           model_version='1.0')
+    beam_in.efield_to_power()
 
     # add optional parameters for testing purposes
     beam_in.extra_keywords = {'KEY1': 'test_keyword'}
@@ -152,7 +156,12 @@ def test_writeread_healpix():
     beam_in.mismatch_array = np.random.normal(0.0, 1.0, size=(beam_in.Nspws, beam_in.Nfreqs))
     beam_in.s_parameters = np.random.normal(0.0, 0.3, size=(4, beam_in.Nspws, beam_in.Nfreqs))
 
+    # check that data_array is complex
+    nt.assert_true(np.iscomplexobj(np.real_if_close(beam_in.data_array, tol=10)))
+
     beam_in.az_za_to_healpix()
+    # check that data_array is complex after interpolation
+    nt.assert_true(np.iscomplexobj(np.real_if_close(beam_in.data_array, tol=10)))
 
     beam_in.write_beamfits(write_file, clobber=True)
     beam_out.read_beamfits(write_file)
