@@ -24,7 +24,7 @@ def test_ReadFHDcalWriteReadcalfits():
     """
     fhd_cal = UVCal()
     calfits_cal = UVCal()
-    if uvtest.pre_1_14_numpy:
+    if not uvtest.scipy_warnings:
         fhd_cal.read_fhd_cal(cal_testfile, obs_testfile, settings_file=settings_testfile)
     else:
         # numpy 1.14 introduced a new deprecation warning.
@@ -43,7 +43,7 @@ def test_ReadFHDcalWriteReadcalfits():
     nt.assert_equal(fhd_cal, calfits_cal)
 
     # do it again with fit gains (rather than raw)
-    if uvtest.pre_1_14_numpy:
+    if not uvtest.scipy_warnings:
         fhd_cal.read_fhd_cal(cal_testfile, obs_testfile,
                              settings_file=settings_testfile, raw=False)
     else:
@@ -70,7 +70,7 @@ def test_extra_history():
     fhd_cal = UVCal()
     calfits_cal = UVCal()
     extra_history = 'Some extra history for testing\n'
-    if uvtest.pre_1_14_numpy:
+    if not uvtest.scipy_warnings:
         fhd_cal.read_fhd_cal(cal_testfile, obs_testfile,
                              settings_file=settings_testfile,
                              extra_history=extra_history)
@@ -95,7 +95,7 @@ def test_extra_history():
     # try again with a list of history strings
     extra_history = ['Some extra history for testing',
                      'And some more history as well']
-    if uvtest.pre_1_14_numpy:
+    if not uvtest.scipy_warnings:
         fhd_cal.read_fhd_cal(cal_testfile, obs_testfile,
                              settings_file=settings_testfile,
                              extra_history=extra_history)
@@ -130,7 +130,7 @@ def test_flags_galaxy():
 
     fhd_cal = UVCal()
     calfits_cal = UVCal()
-    if uvtest.pre_1_14_numpy:
+    if not uvtest.scipy_warnings:
         fhd_cal.read_fhd_cal(cal_testfile_flag, obs_testfile_flag,
                              settings_file=settings_testfile_flag)
     else:
@@ -155,7 +155,7 @@ def test_breakReadFHDcal():
     fhd_cal = UVCal()
     nt.assert_raises(StandardError, fhd_cal.read_fhd_cal, cal_testfile)  # Missing obs
 
-    if uvtest.pre_1_14_numpy:
+    if not uvtest.scipy_warnings:
         uvtest.checkWarnings(fhd_cal.read_fhd_cal, [cal_testfile, obs_testfile],
                              message=['No settings file'])
     else:
@@ -183,7 +183,7 @@ def test_read_multi():
 
     fhd_cal = UVCal()
     calfits_cal = UVCal()
-    if uvtest.pre_1_14_numpy:
+    if not uvtest.scipy_warnings:
         fhd_cal.read_fhd_cal(cal_testfile_list, obs_testfile_list,
                              settings_file=settings_testfile_list)
     else:

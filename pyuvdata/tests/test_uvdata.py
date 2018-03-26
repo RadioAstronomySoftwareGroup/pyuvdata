@@ -194,7 +194,7 @@ class TestUVDataBasicMethods(object):
                      testdir + '1061316296_params.sav',
                      testdir + '1061316296_settings.txt']
 
-        if uvtest.pre_1_14_numpy:
+        if not uvtest.scipy_warnings:
             self.uv_object.read_fhd(file_list)
         else:
             # numpy 1.14 introduced a new deprecation warning

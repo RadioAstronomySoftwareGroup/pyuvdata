@@ -26,7 +26,7 @@ def test_ReadFHDWriteReadUVFits():
     """
     fhd_uv = UVData()
     uvfits_uv = UVData()
-    if uvtest.pre_1_14_numpy:
+    if not uvtest.scipy_warnings:
         fhd_uv.read_fhd(testfiles)
     else:
         # numpy 1.14 introduced a new deprecation warning.
@@ -59,7 +59,7 @@ def test_breakReadFHD():
     nt.assert_raises(StandardError, fhd_uv.read_fhd, ['foo'])  # No data files
     del(fhd_uv)
     fhd_uv = UVData()
-    if uvtest.pre_1_14_numpy:
+    if not uvtest.scipy_warnings:
         uvtest.checkWarnings(fhd_uv.read_fhd, [testfiles[:-1]], message=['No settings'])
     else:
         # numpy 1.14 introduced a new deprecation warning.
@@ -81,7 +81,7 @@ def test_ReadFHD_model():
     """FHD to uvfits loopback test with model visibilities."""
     fhd_uv = UVData()
     uvfits_uv = UVData()
-    if uvtest.pre_1_14_numpy:
+    if not uvtest.scipy_warnings:
         fhd_uv.read_fhd(testfiles, use_model=True)
     else:
         # numpy 1.14 introduced a new deprecation warning.
@@ -109,7 +109,7 @@ def test_multi_files():
     fhd_uv2 = UVData()
     test1 = list(np.array(testfiles)[[0, 1, 2, 4, 6]])
     test2 = list(np.array(testfiles)[[0, 2, 3, 5, 6]])
-    if uvtest.pre_1_14_numpy:
+    if not uvtest.scipy_warnings:
         fhd_uv1.read_fhd([test1, test2])
     else:
         # numpy 1.14 introduced a new deprecation warning.
@@ -121,7 +121,7 @@ def test_multi_files():
                              message=scipy_warn_list, category=scipy_category_list,
                              nwarnings=n_scipy_warnings)
 
-    if uvtest.pre_1_14_numpy:
+    if not uvtest.scipy_warnings:
         fhd_uv2.read_fhd(testfiles)
     else:
         # numpy 1.14 introduced a new deprecation warning.

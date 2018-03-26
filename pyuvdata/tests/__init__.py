@@ -3,6 +3,7 @@ import os
 import warnings
 import sys
 import numpy as np
+import scipy
 from pyuvdata.data import DATA_PATH
 import pyuvdata.utils as uvutils
 
@@ -28,7 +29,7 @@ def clearWarnings():
 
 
 # things we need to figure out expected warnings when reading FHD files
-pre_1_14_numpy = float(np.__version__[0:4]) < 1.14
+scipy_warnings = (float(np.__version__[0:4]) >= 1.14 and (scipy.__version__ < '1.0.1'))
 
 
 def get_scipy_warnings(n_scipy_warnings=1093):
