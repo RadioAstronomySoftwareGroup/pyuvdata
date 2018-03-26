@@ -412,6 +412,17 @@ def test_az_za_to_healpix():
     nt.assert_raises(ValueError, power_beam.az_za_to_healpix)
 
 
+    """ Add healpix version of E-field; compare to power """
+    efield_beam = UVBeam()
+    efield_beam.read_cst_beam(cst_files[0], beam_type='efield', frequency=150e6,
+                             telescope_name='TEST', feed_name='bob',
+                             feed_version='0.1', feed_pol=['x'],
+                             model_name='E-field pattern - Rigging height 4.9m',
+                             model_version='1.0')
+    efield_beam.az_za_to_healpix()
+    efield_beam.efield_to_power()
+    nt.assert_equal(efield_beam,power_beam)
+    
 def test_select_axis():
     power_beam = UVBeam()
     power_beam.read_cst_beam(cst_files[0], beam_type='power', frequency=150e6,
