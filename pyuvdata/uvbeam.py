@@ -629,10 +629,16 @@ class UVBeam(UVBase):
         hpx_theta, hpx_phi = hp.pix2ang(nside, pixels)
         nearest_pix_dist = np.zeros(npix)
 
-        for index0 in range(beam_object.Naxes_vec):
-            for index1 in range(beam_object.Nspws):
-                for index2 in range(beam_object.Npols):
-                    for index3 in range(beam_object.Nfreqs):
+        """ basis_vectors comes in defined at the rectangular grid.  need it for the healpix centers """
+        for index0 in range(self.Naxes_vec):
+            for index1 in range(self.Nspws):
+                # Npols is only defined for power beams.  For E-field beams need Nfeeds.
+                if self.beam_type == 'power':
+                    Npol_feeds = sef.Npols
+                else:
+                    Npol_feeds = sef.Nfeeds
+                for index2 in range(Npol_feeds):
+                    for index3 in range(self.Nfreqs):
 
                         if np.iscomplexobj(beam_object.data_array):
                             # interpolate real and imaginary parts separately
