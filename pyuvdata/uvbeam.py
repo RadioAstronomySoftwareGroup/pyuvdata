@@ -591,7 +591,11 @@ class UVBeam(UVBase):
         self.set_cs_params()
 
         phi_vals, theta_vals = np.meshgrid(self.axis1_array, self.axis2_array)
-        healpix_data = np.zeros(self._data_array.expected_shape(self), dtype=np.float)
+        if np.iscomplexobj(self.data_array):
+            data_type = np.complex
+        else:
+            data_type = np.float
+        healpix_data = np.zeros(self._data_array.expected_shape(self), dtype=data_type)
         pixels = np.arange(hp.nside2npix(nside))
         hpx_theta, hpx_phi = hp.pix2ang(nside, pixels)
         nearest_pix_dist = np.zeros(npix)
@@ -600,15 +604,32 @@ class UVBeam(UVBase):
             for index1 in range(self.Nspws):
                 for index2 in range(self.Npols):
                     for index3 in range(self.Nfreqs):
-                        lut = interpolate.RectBivariateSpline(self.axis2_array, self.axis1_array,
-                                                              az_za_data[index0, index1, index2, index3, :])
+
+                        if np.iscomplexobj(self.data_array):
+                            # interpolate real and imaginary parts separately
+                            real_lut = interpolate.RectBivariateSpline(self.axis2_array,
+                                                                       self.axis1_array,
+                                                                       az_za_data[index0, index1, index2, index3, :].real)
+                            imag_lut = interpolate.RectBivariateSpline(self.axis2_array,
+                                                                       self.axis1_array,
+                                                                       az_za_data[index0, index1, index2, index3, :].imag)
+                        else:
+                            lut = interpolate.RectBivariateSpline(self.axis2_array, self.axis1_array,
+                                                                  az_za_data[index0, index1, index2, index3, :])
                         for hpx_i in pixels:
                             if index0 == 0 and index1 == 0 and index2 == 0 and index3 == 0:
                                 pix_dists = np.sqrt((theta_vals - hpx_theta[hpx_i])**2. +
                                                     (phi_vals - hpx_phi[hpx_i])**2.)
                                 nearest_pix_dist[hpx_i] = np.min(pix_dists)
-                            healpix_data[index0, index1, index2, index3, hpx_i] = \
-                                lut(hpx_theta[hpx_i], hpx_phi[hpx_i])
+                            if np.iscomplexobj(self.data_array):
+                                # interpolate real and imaginary parts separately
+                                healpix_data[index0, index1, index2, index3, hpx_i] = (
+                                    real_lut(hpx_theta[hpx_i], hpx_phi[hpx_i]) +
+                                    1j * imag_lut(hpx_theta[hpx_i], hpx_phi[hpx_i]))
+
+                            else:
+                                healpix_data[index0, index1, index2, index3, hpx_i] = \
+                                    lut(hpx_theta[hpx_i], hpx_phi[hpx_i])
 
         good_data = np.where(nearest_pix_dist < hpx_res * 2)[0]
 
