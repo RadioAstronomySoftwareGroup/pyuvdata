@@ -630,6 +630,8 @@ class UVBeam(UVBase):
         nearest_pix_dist = np.zeros(npix)
 
         """ basis_vectors comes in defined at the rectangular grid.  need it for the healpix centers """
+
+        """ Still gotta do it """
         for index0 in range(self.Naxes_vec):
             for index1 in range(self.Nspws):
                 # Npols is only defined for power beams.  For E-field beams need Nfeeds.
