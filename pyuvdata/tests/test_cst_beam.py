@@ -22,7 +22,7 @@ def test_frequencyparse():
     parsed_freqs = [beam1.name2freq(f) for f in test_files]
     nt.assert_equal(parsed_freqs, [150e6, 123e6])
 
-    test_path = 'Simulations/Radiation patterns/E-field pattern - Rigging height 4.9 m/HERA_4.9m_E-pattern_100-200MHz/'
+    test_path = 'Simulations/Radiation patterns/E-field pattern-Rigging height4.9m/HERA_4.9m_E-pattern_100-200MHz/'
     test_files = [os.path.join(test_path, f) for f in filenames]
     parsed_freqs = [beam1.name2freq(f) for f in test_files]
     nt.assert_equal(parsed_freqs, [150e6, 123e6])
