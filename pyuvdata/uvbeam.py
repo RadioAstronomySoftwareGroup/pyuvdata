@@ -603,6 +603,7 @@ class UVBeam(UVBase):
         #    raise ValueError('healpix conversion not yet defined for efield')
         if self.basis_vector_array is not None:
             """ Basis vector operations """
+
         if nside is None:
             min_res = np.min(np.array([np.diff(beam_object.axis1_array)[0], np.diff(beam_object.axis2_array)[0]]))
             nside_min_res = np.sqrt(3 / np.pi) * np.radians(60.) / min_res
@@ -629,9 +630,16 @@ class UVBeam(UVBase):
         hpx_theta, hpx_phi = hp.pix2ang(nside, pixels)
         nearest_pix_dist = np.zeros(npix)
 
-        """ basis_vectors comes in defined at the rectangular grid.  need it for the healpix centers """
+        if (np.any(basis_vector_array[0, 1, :] > 0) or np.any(basis_vector_array[1, 0, :] > 0)):
+            """ Input basis vectors are not aligned to the native theta/phi
+            coordinate system """
+        else:
+            """ The basis vector array comes in defined at the rectangular grid.
+            Redefine it for the healpix centers """
+            self.basis_vector_array = np.zeros([self.Naxes_vec, self.Ncomponents_vec, self.Npixels])
+            self.basis_vector_array[0, 0, :] = np.ones(self.Npixels)  # theta hat
+            self.basis_vector_array[1, 1, :] = np.ones(self.Npixels)  # phi hat
 
-        """ Still gotta do it """
         for index0 in range(self.Naxes_vec):
             for index1 in range(self.Nspws):
                 # Npols is only defined for power beams.  For E-field beams need Nfeeds.
