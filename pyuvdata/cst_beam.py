@@ -96,6 +96,7 @@ class CSTBeam(UVBeam):
             self.set_power()
         else:
             self.Naxes_vec = 2
+            self.Ncomponents_vec = 2
             if rotate_pol:
                 if feed_pol is 'x':
                     self.feed_array = np.array(['x', 'y'])
@@ -207,7 +208,8 @@ class CSTBeam(UVBeam):
                 power_beam2 = np.roll(power_beam1, int((np.pi / 2) / delta_phi), axis=1)
                 self.data_array[0, 0, 1, 0, :, :] = power_beam2
         else:
-            self.basis_vector_array = np.zeros((self.Naxes_vec, 2, self.Naxes2, self.Naxes1))
+            self.basis_vector_array = np.zeros((self.Naxes_vec, self.Ncomponents_vec,
+                                                self.Naxes2, self.Naxes1))
             self.basis_vector_array[0, 0, :, :] = 1.0
             self.basis_vector_array[1, 1, :, :] = 1.0
 

@@ -11,8 +11,8 @@ hpx_primary_ax_nums = {'pixel': 1, 'freq': 2, 'feed_pol': 3, 'spw': 4,
 reg_primary_ax_nums = {'img_ax1': 1, 'img_ax2': 2, 'freq': 3, 'feed_pol': 4,
                        'spw': 5, 'basisvec': 6, 'complex': 7}
 
-hxp_basisvec_ax_nums = {'pixel': 1, 'coord': 2, 'basisvec': 3}
-reg_basisvec_ax_nums = {'img_ax1': 1, 'img_ax2': 2, 'coord': 3, 'basisvec': 4}
+hxp_basisvec_ax_nums = {'pixel': 1, 'ncomp': 2, 'basisvec': 3}
+reg_basisvec_ax_nums = {'img_ax1': 1, 'img_ax2': 2, 'ncomp': 3, 'basisvec': 4}
 
 fits_axisname_dict = {'hpx_inds': 'PIX_IND', 'azimuth': 'AZIMUTH', 'zen_angle': 'ZENANGLE',
                       'zenorth_x': 'ZENX-SIN', 'zenorth_y': 'ZENY-SIN', }
@@ -269,6 +269,7 @@ class BeamFITS(UVBeam):
                                      'match primary HDU')
 
             basisvec_Naxes_vec = basisvec_header['NAXIS' + str(basisvec_ax_nums['basisvec'])]
+            self.Ncomponents_vec = basisvec_header['NAXIS' + str(basisvec_ax_nums['ncomp'])]
 
             basisvec_cs = basisvec_header['COORDSYS']
             if basisvec_cs != self.pixel_coordinate_system:
@@ -564,12 +565,13 @@ class BeamFITS(UVBeam):
                 basisvec_header['CDELT' + str(basisvec_ax_nums['img_ax2'])] = deg_axis2_spacing
                 basisvec_header['CUNIT' + str(basisvec_ax_nums['img_ax2'])] = 'deg'
 
-            # set up pixel coordinate system axis (length 2)
-            basisvec_header['CTYPE' + str(basisvec_ax_nums['coord'])] = ('AXISIND', 'Axis index')
-            basisvec_header['CUNIT' + str(basisvec_ax_nums['coord'])] = 'Integer'
-            basisvec_header['CRVAL' + str(basisvec_ax_nums['coord'])] = 1
-            basisvec_header['CRPIX' + str(basisvec_ax_nums['coord'])] = 1
-            basisvec_header['CDELT' + str(basisvec_ax_nums['coord'])] = 1
+            # set up vector component axis (length Ncomponents_vec)
+            basisvec_header['CTYPE' + str(basisvec_ax_nums['ncomp'])] = \
+                ('COMPIND', 'Vector component index')
+            basisvec_header['CUNIT' + str(basisvec_ax_nums['ncomp'])] = 'Integer'
+            basisvec_header['CRVAL' + str(basisvec_ax_nums['ncomp'])] = 1
+            basisvec_header['CRPIX' + str(basisvec_ax_nums['ncomp'])] = 1
+            basisvec_header['CDELT' + str(basisvec_ax_nums['ncomp'])] = 1
 
             # set up vector coordinate system axis (length Naxis_vec)
             basisvec_header['CTYPE' + str(basisvec_ax_nums['basisvec'])] = \

@@ -14,101 +14,6 @@ filenames = ['HERA_NicCST_150MHz.txt', 'HERA_NicCST_123MHz.txt']
 cst_files = [os.path.join(DATA_PATH, f) for f in filenames]
 
 
-def fill_dummy_beam(beam_obj, beam_type, pixel_coordinate_system):
-    # this should only be used for HEALPix Efield beams because those cannot
-    # yet be constructed from the test data.
-    if beam_type != 'efield' or pixel_coordinate_system != 'healpix':
-        raise ValueError('Use actual test data files for beams that are not Healpix efield beams.')
-
-    beam_obj.set_simple()
-    beam_obj.telescope_name = 'testscope'
-    beam_obj.feed_name = 'testfeed'
-    beam_obj.feed_version = '0.1'
-    beam_obj.model_name = 'testmodel'
-    beam_obj.model_version = '1.0'
-    beam_obj.history = 'random data for test'
-
-    pyuvdata_version_str = ('  Read/written with pyuvdata version: '
-                            + uvversion.version + '.')
-    if uvversion.git_hash is not '':
-        pyuvdata_version_str += ('  Git origin: ' + uvversion.git_origin
-                                 + '.  Git hash: ' + uvversion.git_hash
-                                 + '.  Git branch: ' + uvversion.git_branch
-                                 + '.  Git description: ' + uvversion.git_description + '.')
-    beam_obj.history += pyuvdata_version_str
-
-    beam_obj.pixel_coordinate_system = pixel_coordinate_system
-    if pixel_coordinate_system == 'healpix':
-        beam_obj.nside = 512
-        beam_obj.ordering = 'ring'
-        beam_obj.pixel_array = np.arange(0, 6 * (beam_obj.nside) ^ 2)
-        beam_obj.Npixels = len(beam_obj.pixel_array)
-    elif pixel_coordinate_system == 'az_za':
-        beam_obj.axis1_array = np.radians(np.arange(-180.0, 180.0, 5.0))
-        beam_obj.Naxes1 = len(beam_obj.axis1_array)
-        beam_obj.axis2_array = np.radians(np.arange(0, 90.0, 5.0))
-        beam_obj.Naxes2 = len(beam_obj.axis2_array)
-
-    beam_obj.freq_array = np.arange(150e6, 160e6, 1e5)
-    beam_obj.freq_array = beam_obj.freq_array[np.newaxis, :]
-    beam_obj.Nfreqs = beam_obj.freq_array.shape[1]
-    beam_obj.spw_array = np.array([0])
-    beam_obj.Nspws = len(beam_obj.spw_array)
-    beam_obj.data_normalization = 'peak'
-    beam_obj.bandpass_array = np.zeros((beam_obj.Nspws, beam_obj.Nfreqs)) + 1.
-
-    if beam_type == 'power':
-        beam_obj.set_power()
-        beam_obj.polarization_array = np.array([-5, -6, -7, -8])
-        beam_obj.Npols = len(beam_obj.polarization_array)
-        beam_obj.Naxes_vec = 1
-
-        if pixel_coordinate_system == 'healpix':
-            data_size_tuple = (beam_obj.Naxes_vec, beam_obj.Nspws, beam_obj.Npols,
-                               beam_obj.Nfreqs, beam_obj.Npixels)
-        else:
-            data_size_tuple = (beam_obj.Naxes_vec, beam_obj.Nspws, beam_obj.Npols,
-                               beam_obj.Nfreqs, beam_obj.Naxes2, beam_obj.Naxes1)
-
-        beam_obj.data_array = np.square(np.random.normal(0.0, 0.2, size=data_size_tuple))
-    else:
-        beam_obj.set_efield()
-        beam_obj.feed_array = np.array(['x', 'y'])
-        beam_obj.Nfeeds = len(beam_obj.feed_array)
-        beam_obj.Naxes_vec = 2
-
-        if pixel_coordinate_system == 'healpix':
-            beam_obj.basis_vector_array = np.zeros((beam_obj.Naxes_vec, 2,
-                                                    beam_obj.Npixels))
-            beam_obj.basis_vector_array[0, 0, :] = 1.0
-            beam_obj.basis_vector_array[1, 1, :] = 1.0
-
-            data_size_tuple = (beam_obj.Naxes_vec, beam_obj.Nspws, beam_obj.Nfeeds,
-                               beam_obj.Nfreqs, beam_obj.Npixels)
-        else:
-            beam_obj.basis_vector_array = np.zeros((beam_obj.Naxes_vec, 2,
-                                                    beam_obj.Naxes2, beam_obj.Naxes1))
-            beam_obj.basis_vector_array[0, 0, :, :] = 1.0
-            beam_obj.basis_vector_array[1, 1, :, :] = 1.0
-
-            data_size_tuple = (beam_obj.Naxes_vec, beam_obj.Nspws, beam_obj.Nfeeds,
-                               beam_obj.Nfreqs, beam_obj.Naxes2, beam_obj.Naxes1)
-
-        beam_obj.data_array = (np.random.normal(0.0, 0.2, size=data_size_tuple)
-                               + 1j * np.random.normal(0.0, 0.2, size=data_size_tuple))
-
-    # add optional parameters for testing purposes
-    beam_obj.extra_keywords = {'KEY1': 'test_keyword'}
-    beam_obj.reference_input_impedance = 340.
-    beam_obj.reference_output_impedance = 50.
-    beam_obj.receiver_temperature_array = np.random.normal(50.0, 5, size=(beam_obj.Nspws, beam_obj.Nfreqs))
-    beam_obj.loss_array = np.random.normal(50.0, 5, size=(beam_obj.Nspws, beam_obj.Nfreqs))
-    beam_obj.mismatch_array = np.random.normal(0.0, 1.0, size=(beam_obj.Nspws, beam_obj.Nfreqs))
-    beam_obj.s_parameters = np.random.normal(0.0, 0.3, size=(4, beam_obj.Nspws, beam_obj.Nfreqs))
-
-    return beam_obj
-
-
 class TestUVBeamInit(object):
     def setUp(self):
         """Setup for basic parameter, property and iterator tests."""
@@ -133,6 +38,7 @@ class TestUVBeamInit(object):
                                     'antenna_type']
 
         self.extra_parameters = ['_Naxes1', '_Naxes2', '_Npixels', '_Nfeeds', '_Npols',
+                                 '_Ncomponents_vec',
                                  '_axis1_array', '_axis2_array', '_nside', '_ordering',
                                  '_pixel_array', '_feed_array', '_polarization_array',
                                  '_basis_vector_array',
@@ -146,6 +52,7 @@ class TestUVBeamInit(object):
                                  '_s_parameters']
 
         self.extra_properties = ['Naxes1', 'Naxes2', 'Npixels', 'Nfeeds', 'Npols',
+                                 'Ncomponents_vec',
                                  'axis1_array', 'axis2_array', 'nside', 'ordering',
                                  'pixel_array', 'feed_array', 'polarization_array',
                                  'basis_vector_array', 'extra_keywords', 'Nelements',
@@ -411,18 +318,29 @@ def test_az_za_to_healpix():
     power_beam.pixel_coordinate_system = 'sin_zenith'
     nt.assert_raises(ValueError, power_beam.az_za_to_healpix)
 
-
     """ Add healpix version of E-field; compare to power """
     efield_beam = UVBeam()
     efield_beam.read_cst_beam(cst_files[0], beam_type='efield', frequency=150e6,
+                              telescope_name='TEST', feed_name='bob',
+                              feed_version='0.1', feed_pol=['x'],
+                              model_name='E-field pattern - Rigging height 4.9m',
+                              model_version='1.0')
+    efield_beam.az_za_to_healpix()
+    efield_beam.efield_to_power(calc_cross_pols=False)
+
+    power_beam.read_cst_beam(cst_files[0], beam_type='power', frequency=150e6,
                              telescope_name='TEST', feed_name='bob',
                              feed_version='0.1', feed_pol=['x'],
                              model_name='E-field pattern - Rigging height 4.9m',
                              model_version='1.0')
-    efield_beam.az_za_to_healpix()
-    efield_beam.efield_to_power()
-    nt.assert_equal(efield_beam,power_beam)
-    
+    power_beam.az_za_to_healpix()
+
+    nt.assert_true(np.allclose(efield_beam.data_array, power_beam.data_array,
+                   rtol=0, atol=1))
+
+    nt.assert_equal(efield_beam, power_beam)
+
+
 def test_select_axis():
     power_beam = UVBeam()
     power_beam.read_cst_beam(cst_files[0], beam_type='power', frequency=150e6,
@@ -1011,17 +929,19 @@ def test_add():
     beam1.history = efield_beam.history
     nt.assert_equal(beam1, beam_ref)
 
-    # Test error on converting to healpix
-    nt.assert_raises(ValueError, efield_beam.az_za_to_healpix)
-
     # Another combo with healpix efield
-    efield_beam = fill_dummy_beam(efield_beam, 'efield', 'healpix')
+    efield_beam.read_cst_beam(cst_files, beam_type='efield', frequency=[150e6, 123e6],
+                              telescope_name='TEST', feed_name='bob',
+                              feed_version='0.1', feed_pol=['x'],
+                              model_name='E-field pattern - Rigging height 4.9m',
+                              model_version='1.0')
+    efield_beam.az_za_to_healpix()
 
     beam_ref = copy.deepcopy(efield_beam)
-    beam1 = efield_beam.select(freq_chans=np.arange(0, 50),
-                               feeds=efield_beam.feed_array[0], inplace=False)
-    beam2 = efield_beam.select(freq_chans=np.arange(50, 100),
-                               feeds=efield_beam.feed_array[1], inplace=False)
+    beam1 = efield_beam.select(freq_chans=0, feeds=efield_beam.feed_array[0],
+                               inplace=False)
+    beam2 = efield_beam.select(freq_chans=1, feeds=efield_beam.feed_array[1],
+                               inplace=False)
     beam1 += beam2
     nt.assert_true(uvutils.check_histories(efield_beam.history
                                            + '  Downselected to specific frequencies, '
@@ -1029,13 +949,18 @@ def test_add():
                                            'along frequency, feed axis using pyuvdata.',
                                            beam1.history))
     # Zero out missing data in reference object
-    beam_ref.data_array[:, :, 1, :50, :] = 0.0
-    beam_ref.data_array[:, :, 0, 50:, :] = 0.0
+    beam_ref.data_array[:, :, 1, 0, :] = 0.0
+    beam_ref.data_array[:, :, 0, 1, :] = 0.0
     beam1.history = efield_beam.history
     nt.assert_equal(beam1, beam_ref)
 
     # Add without inplace
-    efield_beam = fill_dummy_beam(efield_beam, 'efield', 'healpix')
+    efield_beam.read_cst_beam(cst_files[0], beam_type='efield', frequency=150e6,
+                              telescope_name='TEST', feed_name='bob',
+                              feed_version='0.1', feed_pol=['x'],
+                              model_name='E-field pattern - Rigging height 4.9m',
+                              model_version='1.0')
+    efield_beam.az_za_to_healpix()
     beam1 = efield_beam.select(pixels=efield_beam.pixel_array[0:efield_beam.Npixels / 2],
                                inplace=False)
     beam2 = efield_beam.select(pixels=efield_beam.pixel_array[efield_beam.Npixels / 2:],
@@ -1235,10 +1160,15 @@ def test_healpix():
 
     # repeat for efield beam
     efield_beam = UVBeam()
-    efield_beam = fill_dummy_beam(efield_beam, 'efield', 'healpix')
+    efield_beam.read_cst_beam(cst_files[0], beam_type='efield', frequency=150e6,
+                              telescope_name='TEST', feed_name='bob',
+                              feed_version='0.1', feed_pol=['x'],
+                              model_name='E-field pattern - Rigging height 4.9m',
+                              model_version='1.0')
+    efield_beam.az_za_to_healpix()
     old_history = efield_beam.history
 
-    freqs_to_keep = efield_beam.freq_array[0, np.arange(31, 56)]
+    freqs_to_keep = efield_beam.freq_array[0]
     feeds_to_keep = ['x']
 
     efield_beam2 = efield_beam.select(pixels=pixels_to_keep,
