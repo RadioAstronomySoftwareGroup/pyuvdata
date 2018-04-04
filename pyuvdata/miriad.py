@@ -633,6 +633,11 @@ class Miriad(UVData):
                 ra_list[blt_index] = ra_pol_list[blt_index, 0]
                 dec_list[blt_index] = dec_pol_list[blt_index, 0]
 
+        # get unflagged blts
+        blt_good = np.where(~np.all(self.flag_array, axis=(1, 2, 3)))
+        single_ra = np.isclose(np.mean(np.diff(ra_list[blt_good])), 0.)
+        single_time = np.isclose(np.mean(np.diff(self.time_array[blt_good])), 0.)
+
         # first check to see if the phase_type was specified.
         if phase_type is not None:
             if phase_type is 'phased':
@@ -646,9 +651,9 @@ class Miriad(UVData):
         else:
             # check if ra is constant throughout file; if it is,
             # file is tracking if not, file is drift scanning
-            if self.Ntimes > 1:
-                blt_good = np.where(~np.all(self.flag_array, axis=(1, 2, 3)))
-                if np.isclose(np.mean(np.diff(ra_list[blt_good])), 0.):
+            # check if there's only one unflagged time
+            if not single_time:
+                if single_ra:
                     self.set_phased()
                 else:
                     self.set_drift()
@@ -663,16 +668,14 @@ class Miriad(UVData):
 
         if self.phase_type == 'phased':
             # check that the RA values do not vary
-            blt_good = np.where(~np.all(self.flag_array, axis=(1, 2, 3)))
-            if not np.isclose(np.mean(np.diff(ra_list[blt_good])), 0.):
+            if not single_ra:
                 raise(ValueError, 'phase_type is "phased" but the RA values are varying.')
             self.phase_center_ra = float(ra_list[0])
             self.phase_center_dec = float(dec_list[0])
             self.phase_center_epoch = uv['epoch']
         else:
             # check that the RA values are not constant (if more than one time present)
-            blt_good = np.where(~np.all(self.flag_array, axis=(1, 2, 3)))
-            if np.isclose(np.mean(np.diff(ra_list[blt_good])), 0.) and self.Ntimes > 1:
+            if (single_ra and not single_time):
                 raise(ValueError, 'phase_type is "drift" but the RA values are constant.')
             self.zenith_ra = ra_list
             self.zenith_dec = dec_list
