@@ -358,6 +358,24 @@ def test_singletimeselect_drift():
     uv_out.read_miriad(testfile, phase_type='drift')
     nt.assert_equal(uv_in, uv_out)
 
+    # check again with more than one time but only 1 unflagged time
+    uvtest.checkWarnings(uv_in.read_miriad, [miriad_file],
+                         known_warning='miriad')
+    time_gt0_array = np.where(uv_in.time_array > uv_in.time_array[0])[0]
+    uv_in.flag_array[time_gt0_array, :, :, :] = True
+
+    # get unflagged blts
+    blt_good = np.where(~np.all(uv_in.flag_array, axis=(1, 2, 3)))
+    nt.assert_true(np.isclose(np.mean(np.diff(uv_in.time_array[blt_good])), 0.))
+
+    uv_in.write_miriad(testfile, clobber=True)
+    uv_out.read_miriad(testfile)
+    nt.assert_equal(uv_in, uv_out)
+
+    # check that setting the phase_type works
+    uv_out.read_miriad(testfile, phase_type='drift')
+    nt.assert_equal(uv_in, uv_out)
+
 
 def test_poltoind():
     miriad_uv = UVData()
