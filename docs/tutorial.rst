@@ -892,7 +892,7 @@ a) Reading a CST power beam file
   # plot zenith angle cut through beam
   >>> plt.plot(beam.axis2_array, beam.data_array[0, 0, 0, 0, :, 0]) # doctest: +SKIP
   >>> plt.xscale('log') # doctest: +SKIP
-  >>> plt.xlabel('Zenith Angle (deg)') # doctest: +SKIP
+  >>> plt.xlabel('Zenith Angle (radians)') # doctest: +SKIP
   >>> plt.ylabel('Power') # doctest: +SKIP
   >>> plt.show() # doctest: +SKIP
 
@@ -971,7 +971,7 @@ a) Selecting a range of Zenith Angles
   >>> plt.plot(beam.axis2_array, beam.data_array[0, 0, 0, 0, :, 0], # doctest: +SKIP
   ...         new_beam.axis2_array, new_beam.data_array[0, 0, 0, 0, :, 0], 'r')
   >>> plt.xscale('log') # doctest: +SKIP
-  >>> plt.xlabel('Zenith Angle (deg)') # doctest: +SKIP
+  >>> plt.xlabel('Zenith Angle (radians)') # doctest: +SKIP
   >>> plt.ylabel('Power') # doctest: +SKIP
   >>> plt.show() # doctest: +SKIP
 
@@ -1015,7 +1015,7 @@ b) Convert a regularly gridded efield beam to a power beam
   >>> plt.plot(beam.axis2_array, beam.data_array[1, 0, 0, 0, :, 0].real, label='E-field real') # doctest: +SKIP
   >>> plt.plot(beam.axis2_array, beam.data_array[1, 0, 0, 0, :, 0].imag, 'r', label='E-field imaginary') # doctest: +SKIP
   >>> plt.plot(new_beam.axis2_array, np.sqrt(new_beam.data_array[0, 0, 0, 0, :, 0]), 'black', label='sqrt Power') # doctest: +SKIP
-  >>> plt.xlabel('Zenith Angle (deg)') # doctest: +SKIP
+  >>> plt.xlabel('Zenith Angle (radians)') # doctest: +SKIP
   >>> plt.ylabel('Magnitude') # doctest: +SKIP
   >>> plt.legend() # doctest: +SKIP
   >>> plt.show() # doctest: +SKIP
