@@ -157,12 +157,14 @@ class UVFITS(UVData):
             # just read in the right portions of the data and flag arrays
             if blt_frac == min_frac:
                 if vis_hdu.header['NAXIS'] == 7:
-                    raw_data_array = vis_hdu.data.data[blt_inds, 0, 0, :, :, :, :]
+                    raw_data_array = vis_hdu.data.data[blt_inds, :, :, :, :, :, :]
+                    raw_data_array = raw_data_array[:, 0, 0, :, :, :, :]
                     assert(self.Nspws == raw_data_array.shape[1])
                 else:
                     # in many uvfits files the spw axis is left out,
                     # here we put it back in so the dimensionality stays the same
-                    raw_data_array = vis_hdu.data.data[blt_inds, 0, 0, :, :, :]
+                    raw_data_array = vis_hdu.data.data[blt_inds, :, :, :, :, :]
+                    raw_data_array = raw_data_array[:, 0, 0, :, :, :]
                     raw_data_array = raw_data_array[:, np.newaxis, :, :, :]
                 if freq_frac < 1:
                     raw_data_array = raw_data_array[:, :, freq_inds, :, :]
@@ -170,14 +172,14 @@ class UVFITS(UVData):
                     raw_data_array = raw_data_array[:, :, :, pol_inds, :]
             elif freq_frac == min_frac:
                 if vis_hdu.header['NAXIS'] == 7:
-                    raw_data_array = vis_hdu.data.data[:, 0, 0, :, freq_inds, :, :]
-                    # for some reason the axes get transposed. fix the ordering
-                    raw_data_array = np.transpose(raw_data_array, axes=(1, 2, 0, 3, 4))
+                    raw_data_array = vis_hdu.data.data[:, :, :, :, freq_inds, :, :]
+                    raw_data_array = raw_data_array[:, 0, 0, :, :, :, :]
                     assert(self.Nspws == raw_data_array.shape[1])
                 else:
                     # in many uvfits files the spw axis is left out,
                     # here we put it back in so the dimensionality stays the same
-                    raw_data_array = vis_hdu.data.data[:, 0, 0, freq_inds, :, :]
+                    raw_data_array = vis_hdu.data.data[:, :, :, freq_inds, :, :]
+                    raw_data_array = raw_data_array[:, 0, 0, :, :, :]
                     raw_data_array = raw_data_array[:, np.newaxis, :, :, :]
 
                 if blt_frac < 1:
@@ -186,16 +188,14 @@ class UVFITS(UVData):
                     raw_data_array = raw_data_array[:, :, :, pol_inds, :]
             else:
                 if vis_hdu.header['NAXIS'] == 7:
-                    raw_data_array = vis_hdu.data.data[:, 0, 0, :, :, pol_inds, :]
-                    # for some reason the axes get transposed. fix the ordering
-                    raw_data_array = np.transpose(raw_data_array, axes=(1, 2, 3, 0, 4))
+                    raw_data_array = vis_hdu.data.data[:, :, :, :, :, pol_inds, :]
+                    raw_data_array = raw_data_array[:, 0, 0, :, :, :, :]
                     assert(self.Nspws == raw_data_array.shape[1])
                 else:
                     # in many uvfits files the spw axis is left out,
                     # here we put it back in so the dimensionality stays the same
-                    raw_data_array = vis_hdu.data.data[:, 0, 0, :, pol_inds, :]
-                    # for some reason the axes get transposed. fix the ordering
-                    raw_data_array = np.transpose(raw_data_array, axes=(1, 2, 0, 3))
+                    raw_data_array = vis_hdu.data.data[:, :, :, :, pol_inds, :]
+                    raw_data_array = raw_data_array[:, 0, 0, :, :, :]
                     raw_data_array = raw_data_array[:, np.newaxis, :, :, :]
 
                 if blt_frac < 1:
