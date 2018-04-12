@@ -587,7 +587,7 @@ class UVFITS(UVData):
                                  'that are spaced by more than their channel width.')
             freq_spacing = freq_spacing[0]
         else:
-            freq_spacing = 1
+            freq_spacing = 1.0
 
         if self.Npols > 1:
             pol_spacing = np.diff(self.polarization_array)
