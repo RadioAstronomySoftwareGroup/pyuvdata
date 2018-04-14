@@ -1315,6 +1315,16 @@ def test_get_beam_functions():
     power_beam.data_array = 2. * np.ones_like(power_beam.data_array)
     nt.assert_almost_equal(np.sum(power_beam.get_beam_sq_area()), numfreqs * 4. * npix * dOmega)
 
+    # check XX and YY beam areas work and match to within 5 sigfigs
+    XX_area = power_beam.get_beam_area('XX')
+    xx_area = power_beam.get_beam_area('xx')
+    nt.assert_almost_equal(xx_area, XX_area)
+    YY_area = power_beam.get_beam_area('YY')
+    nt.assert_almost_equal(YY_area / XX_area, 1.0, places=5)
+    XX_area = power_beam.get_beam_sq_area("XX")
+    YY_area = power_beam.get_beam_sq_area("YY")
+    nt.assert_almost_equal(YY_area / XX_area, 1.0, places=5)
+
     # Check that if stokes I is in the beam polarization_array, it just uses it
     power_beam.polarization_array = [1, 2]
     nt.assert_almost_equal(np.sum(power_beam.get_beam_area()), 2. * numfreqs * npix * dOmega)
