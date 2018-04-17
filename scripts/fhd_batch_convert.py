@@ -10,7 +10,7 @@ from pyuvdata import UVData
 def parse_range(string):
     m = re.match(r'(\d+)(?:-(\d+))?$', string)
     if not m:
-        raise ArgumentTypeError("'" + string + "' is not a range of numbers." +
+        raise ArgumentTypeError("'" + string + "' is not a range of numbers."
                                 " Expected forms like '0-5' or '2'.")
     start = int(m.group(1))
     end = int(m.group(2)) or start
@@ -20,10 +20,10 @@ def parse_range(string):
 
 parser = argparse.ArgumentParser()
 parser.add_argument('fhd_run_folder',
-                    help='name of an FHD output folder that contains a ' +
+                    help='name of an FHD output folder that contains a '
                          'vis_data folder and a metadata folder')
 parser.add_argument('--obsid_range', type=parse_range,
-                    help='range of obsids to use, can be a single value or ' +
+                    help='range of obsids to use, can be a single value or '
                          'a min and max with a dash between')
 parser.add_argument('--no-dirty', dest='dirty', action='store_false',
                     help='do not convert dirty visibilities')

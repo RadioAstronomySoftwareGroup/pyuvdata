@@ -28,8 +28,8 @@ def get_fhd_history(settings_file, return_user=False):
             obs_loc = ind
         if line.startswith('User'):
             user_line = ind
-        if (main_loc is not None and command_loc is not None and
-                obs_loc is not None and user_line is not None):
+        if (main_loc is not None and command_loc is not None
+                and obs_loc is not None and user_line is not None):
             break
 
     main_lines = settings_lines[main_loc + 1:command_loc]

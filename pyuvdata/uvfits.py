@@ -39,8 +39,8 @@ class UVFITS(UVData):
         if np.finfo(self.time_array[0]).precision < 5:
             raise ValueError('JDs in this file are not precise to '
                              'better than a second.')
-        if (np.finfo(self.time_array[0]).precision > 5 and
-                np.finfo(self.time_array[0]).precision < 8):
+        if (np.finfo(self.time_array[0]).precision > 5
+                and np.finfo(self.time_array[0]).precision < 8):
             warnings.warn('The JDs in this file have sub-second '
                           'precision, but not sub-millisecond. '
                           'Use with caution.')
@@ -90,8 +90,8 @@ class UVFITS(UVData):
         # read baseline vectors in units of seconds, return in meters
         self.uvw_array = (np.array(np.stack((vis_hdu.data.par('UU'),
                                              vis_hdu.data.par('VV'),
-                                             vis_hdu.data.par('WW')))) *
-                          const.c.to('m/s').value).T
+                                             vis_hdu.data.par('WW'))))
+                          * const.c.to('m/s').value).T
 
         if 'INTTIM' in vis_hdu.data.parnames:
             self.integration_time = float(vis_hdu.data.par('INTTIM')[0])
@@ -288,8 +288,8 @@ class UVFITS(UVData):
         # check if we have an spw dimension
         if vis_hdr['NAXIS'] == 7:
             if vis_hdr['NAXIS5'] > 1:
-                raise ValueError('Sorry.  Files with more than one spectral' +
-                                 'window (spw) are not yet supported. A ' +
+                raise ValueError('Sorry.  Files with more than one spectral'
+                                 'window (spw) are not yet supported. A '
                                  'great project for the interested student!')
 
             self.Nspws = vis_hdr.pop('NAXIS5')
@@ -379,16 +379,16 @@ class UVFITS(UVData):
         # get telescope location and antenna positions.
         # VLA incorrectly sets ARRAYX/ARRAYY/ARRAYZ to 0, and puts array center
         # in the antenna positions themselves
-        if (np.isclose(ant_hdu.header['ARRAYX'], 0) and
-                np.isclose(ant_hdu.header['ARRAYY'], 0) and
-                np.isclose(ant_hdu.header['ARRAYZ'], 0)):
+        if (np.isclose(ant_hdu.header['ARRAYX'], 0)
+                and np.isclose(ant_hdu.header['ARRAYY'], 0)
+                and np.isclose(ant_hdu.header['ARRAYZ'], 0)):
             x_telescope = np.mean(ant_hdu.data['STABXYZ'][:, 0])
             y_telescope = np.mean(ant_hdu.data['STABXYZ'][:, 1])
             z_telescope = np.mean(ant_hdu.data['STABXYZ'][:, 2])
-            self.antenna_positions = (ant_hdu.data.field('STABXYZ') -
-                                      np.array([x_telescope,
-                                                y_telescope,
-                                                z_telescope]))
+            self.antenna_positions = (ant_hdu.data.field('STABXYZ')
+                                      - np.array([x_telescope,
+                                                  y_telescope,
+                                                  z_telescope]))
 
         else:
             x_telescope = ant_hdu.header['ARRAYX']
@@ -563,9 +563,9 @@ class UVFITS(UVData):
                       'timestamp.')
                 self.phase_to_time(self.time_array[0])
             else:
-                raise ValueError('The data are in drift mode. ' +
-                                 'Set force_phase to true to phase the data ' +
-                                 'to zenith of the first timestamp before ' +
+                raise ValueError('The data are in drift mode. '
+                                 'Set force_phase to true to phase the data '
+                                 'to zenith of the first timestamp before '
                                  'writing a uvfits file.')
         else:
             raise ValueError('The phasing type of the data is unknown. '
@@ -643,8 +643,8 @@ class UVFITS(UVData):
         # We are setting PZERO4 = float32(first time of observation)
         time_array = np.float32(self.time_array - np.float64(tzero))
 
-        int_time_array = (np.zeros_like((time_array), dtype=np.float) +
-                          self.integration_time)
+        int_time_array = (np.zeros_like((time_array), dtype=np.float)
+                          + self.integration_time)
 
         baselines_use = self.antnums_to_baseline(self.ant_1_array,
                                                  self.ant_2_array,
@@ -670,8 +670,8 @@ class UVFITS(UVData):
 
         # list contains arrays of [u,v,w,date,baseline];
         # each array has shape (Nblts)
-        if (np.max(self.ant_1_array) < 255 and
-                np.max(self.ant_2_array) < 255):
+        if (np.max(self.ant_1_array) < 255
+                and np.max(self.ant_2_array) < 255):
             # if the number of antennas is less than 256 then include both the
             # baseline array and the antenna arrays in the group parameters.
             # Otherwise just use the antenna arrays

@@ -40,11 +40,11 @@ def read_uvfits():
 
     if vis_hdu.header['NAXIS'] == 7:
 
-        data_array = (vis_hdu.data.data[:, 0, 0, :, :, :, 0] +
-                      1j * vis_hdu.data.data[:, 0, 0, :, :, :, 1])
+        data_array = (vis_hdu.data.data[:, 0, 0, :, :, :, 0]
+                      + 1j * vis_hdu.data.data[:, 0, 0, :, :, :, 1])
     else:
-        data_array = (vis_hdu.data.data[:, 0, 0, :, :, 0] +
-                      1j * vis_hdu.data.data[:, 0, 0, :, :, 1])
+        data_array = (vis_hdu.data.data[:, 0, 0, :, :, 0]
+                      + 1j * vis_hdu.data.data[:, 0, 0, :, :, 1])
         data_array = data_array[:, np.newaxis, :, :]
 
     # test for releasing resources
@@ -64,11 +64,11 @@ def read_uvfits():
 
     if vis_hdu.header['NAXIS'] == 7:
 
-        data_slice = (vis_hdu.data.data[:, 0, 0, :, 0:freq_index, :, 0] +
-                      1j * vis_hdu.data.data[:, 0, 0, :, 0:freq_index, :, 1])
+        data_slice = (vis_hdu.data.data[:, 0, 0, :, 0:freq_index, :, 0]
+                      + 1j * vis_hdu.data.data[:, 0, 0, :, 0:freq_index, :, 1])
     else:
-        data_slice = (vis_hdu.data.data[:, 0, 0, 0:freq_index, :, 0] +
-                      1j * vis_hdu.data.data[:, 0, 0, 0:freq_index, :, 1])
+        data_slice = (vis_hdu.data.data[:, 0, 0, 0:freq_index, :, 0]
+                      + 1j * vis_hdu.data.data[:, 0, 0, 0:freq_index, :, 1])
         data_slice = data_slice[:, np.newaxis, :, :]
 
     del(data_slice)

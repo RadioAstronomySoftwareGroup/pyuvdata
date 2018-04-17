@@ -21,8 +21,8 @@ def test_parameter_iter():
     for prop in telescope_obj:
         all.append(prop)
     for a in required_parameters:
-        nt.assert_true(a in all, msg='expected attribute ' + a +
-                       ' not returned in object iterator')
+        nt.assert_true(a in all, msg='expected attribute ' + a
+                       + ' not returned in object iterator')
 
 
 def test_required_parameter_iter():
@@ -32,8 +32,8 @@ def test_required_parameter_iter():
     for prop in telescope_obj.required():
         required.append(prop)
     for a in required_parameters:
-        nt.assert_true(a in required, msg='expected attribute ' + a +
-                       ' not returned in required iterator')
+        nt.assert_true(a in required, msg='expected attribute ' + a
+                       + ' not returned in required iterator')
 
 
 def test_extra_parameter_iter():
@@ -43,8 +43,8 @@ def test_extra_parameter_iter():
     for prop in telescope_obj.extra():
         extra.append(prop)
     for a in extra_parameters:
-        nt.assert_true(a in extra, msg='expected attribute ' + a +
-                       ' not returned in extra iterator')
+        nt.assert_true(a in extra, msg='expected attribute ' + a
+                       + ' not returned in extra iterator')
 
 
 def test_unexpected_parameters():

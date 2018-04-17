@@ -53,13 +53,13 @@ class UVCal(UVBase):
                                                form='str',
                                                expected_type=str)
 
-        desc = ('Number of antennas that have data associated with them ' +
-                '(i.e. length of ant_array), which may be smaller than the number' +
+        desc = ('Number of antennas that have data associated with them '
+                '(i.e. length of ant_array), which may be smaller than the number'
                 'of antennas in the telescope (i.e. length of antenna_numbers).')
         self._Nants_data = uvp.UVParameter('Nants_data', description=desc,
                                            expected_type=int)
 
-        desc = ('Number of antennas in the antenna_numbers array. May be larger ' +
+        desc = ('Number of antennas in the antenna_numbers array. May be larger '
                 'than the number of antennas with gains associated with them.')
         self._Nants_telescope = uvp.UVParameter('Nants_telescope',
                                                 description=desc,
@@ -70,7 +70,7 @@ class UVCal(UVBase):
         self._ant_array = uvp.UVParameter('ant_array', description=desc,
                                           expected_type=int, form=('Nants_data',))
 
-        desc = ('Array of antenna names with shape (Nants_telescope,). ' +
+        desc = ('Array of antenna names with shape (Nants_telescope,). '
                 'Ordering of elements matches ordering of antenna_numbers.')
         self._antenna_names = uvp.UVParameter('antenna_names',
                                               description=desc,
@@ -481,8 +481,8 @@ class UVCal(UVBase):
                 frequencies = cal_object.freq_array[0, freq_chans]
             else:
                 frequencies = uvutils.get_iterable(frequencies)
-                frequencies = np.sort(list(set(frequencies) |
-                                      set(cal_object.freq_array[0, freq_chans])))
+                frequencies = np.sort(list(set(frequencies)
+                                      | set(cal_object.freq_array[0, freq_chans])))
 
         if frequencies is not None:
             frequencies = uvutils.get_iterable(frequencies)

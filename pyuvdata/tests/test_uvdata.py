@@ -100,8 +100,8 @@ class TestUVDataInit(object):
         for prop in self.uv_object:
             all.append(prop)
         for a in self.required_parameters + self.extra_parameters:
-            nt.assert_true(a in all, msg='expected attribute ' + a +
-                           ' not returned in object iterator')
+            nt.assert_true(a in all, msg='expected attribute ' + a
+                           + ' not returned in object iterator')
 
     def test_required_parameter_iter(self):
         "Test expected required parameters."
@@ -109,8 +109,8 @@ class TestUVDataInit(object):
         for prop in self.uv_object.required():
             required.append(prop)
         for a in self.required_parameters:
-            nt.assert_true(a in required, msg='expected attribute ' + a +
-                           ' not returned in required iterator')
+            nt.assert_true(a in required, msg='expected attribute ' + a
+                           + ' not returned in required iterator')
 
     def test_extra_parameter_iter(self):
         "Test expected optional parameters."
@@ -118,8 +118,8 @@ class TestUVDataInit(object):
         for prop in self.uv_object.extra():
             extra.append(prop)
         for a in self.extra_parameters:
-            nt.assert_true(a in extra, msg='expected attribute ' + a +
-                           ' not returned in extra iterator')
+            nt.assert_true(a in extra, msg='expected attribute ' + a
+                           + ' not returned in extra iterator')
 
     def test_unexpected_parameters(self):
         "Test for extra parameters."
@@ -203,8 +203,8 @@ class TestUVDataBasicMethods(object):
                                  message=scipy_warn_list, category=scipy_category_list,
                                  nwarnings=n_scipy_warnings)
 
-        self.uv_object.select(blt_inds=np.where(self.uv_object.ant_1_array ==
-                                                self.uv_object.ant_2_array)[0])
+        self.uv_object.select(blt_inds=np.where(self.uv_object.ant_1_array
+                                                == self.uv_object.ant_2_array)[0])
         nt.assert_true(self.uv_object.check())
 
     def test_nants_data_telescope(self):
