@@ -83,21 +83,21 @@ class UVData(UVBase):
                                           'Numbers, shape (Nspws)', form=('Nspws',),
                                           expected_type=int)
 
-        desc = ('Projected baseline vectors relative to phase center, ' +
+        desc = ('Projected baseline vectors relative to phase center, '
                 'shape (Nblts, 3), units meters')
         self._uvw_array = uvp.UVParameter('uvw_array', description=desc,
                                           form=('Nblts', 3),
                                           expected_type=np.float,
                                           acceptable_range=(1e-3, 1e8), tols=.001)
 
-        desc = ('Array of times, center of integration, shape (Nblts), ' +
+        desc = ('Array of times, center of integration, shape (Nblts), '
                 'units Julian Date')
         self._time_array = uvp.UVParameter('time_array', description=desc,
                                            form=('Nblts',),
                                            expected_type=np.float,
                                            tols=1e-3 / (60.0 * 60.0 * 24.0))  # 1 ms in days
 
-        desc = ('Array of lsts, center of integration, shape (Nblts), ' +
+        desc = ('Array of lsts, center of integration, shape (Nblts), '
                 'units radians')
         self._lst_array = uvp.UVParameter('lst_array', description=desc,
                                           form=('Nblts',),
@@ -219,12 +219,12 @@ class UVData(UVBase):
 
         # --- antenna information ----
         desc = ('Number of antennas with data present (i.e. number of unique '
-                'entries in ant_1_array and ant_2_array). May be smaller ' +
+                'entries in ant_1_array and ant_2_array). May be smaller '
                 'than the number of antennas in the array')
         self._Nants_data = uvp.UVParameter('Nants_data', description=desc,
                                            expected_type=int)
 
-        desc = ('Number of antennas in the array. May be larger ' +
+        desc = ('Number of antennas in the array. May be larger '
                 'than the number of antennas with data')
         self._Nants_telescope = uvp.UVParameter('Nants_telescope',
                                                 description=desc, expected_type=int)
@@ -338,8 +338,8 @@ class UVData(UVBase):
 
         # Check internal consistency of numbers which don't explicitly correspond
         # to the shape of another array.
-        nants_data_calc = int(len(np.unique(self.ant_1_array.tolist() +
-                                            self.ant_2_array.tolist())))
+        nants_data_calc = int(len(np.unique(self.ant_1_array.tolist()
+                                            + self.ant_2_array.tolist())))
         if self.Nants_data != nants_data_calc:
             raise ValueError('Nants_data must be equal to the number of unique '
                              'values in ant_1_array and ant_2_array')
@@ -422,8 +422,8 @@ class UVData(UVBase):
             for p in telescope_obj:
                 telescope_param = getattr(telescope_obj, p)
                 self_param = getattr(self, p)
-                if telescope_param.value is not None and (overwrite is True or
-                                                          self_param.value is None):
+                if telescope_param.value is not None and (overwrite is True
+                                                          or self_param.value is None):
                     telescope_shape = telescope_param.expected_shape(telescope_obj)
                     self_shape = self_param.expected_shape(self)
                     if telescope_shape == self_shape:
@@ -557,7 +557,7 @@ class UVData(UVBase):
         if self.phase_type == 'phased':
             pass
         elif self.phase_type == 'drift':
-            raise ValueError('The data is already drift scanning; can only ' +
+            raise ValueError('The data is already drift scanning; can only '
                              'unphase phased data.')
         else:
             raise ValueError('The phasing type of the data is unknown. '
@@ -582,8 +582,8 @@ class UVData(UVBase):
         self.zenith_dec = np.zeros_like(self.time_array)
 
         # apply -w phasor
-        w_lambda = (self.uvw_array[:, 2].reshape(self.Nblts, 1).astype(np.float64) /
-                    const.c.to('m/s').value * self.freq_array.reshape(1, self.Nfreqs))
+        w_lambda = (self.uvw_array[:, 2].reshape(self.Nblts, 1).astype(np.float64)
+                    / const.c.to('m/s').value * self.freq_array.reshape(1, self.Nfreqs))
         phs = np.exp(-1j * 2 * np.pi * (-1) * w_lambda[:, None, :, None])
         self.data_array *= phs
 
@@ -625,7 +625,7 @@ class UVData(UVBase):
         if self.phase_type == 'drift':
             pass
         elif self.phase_type == 'phased':
-            raise ValueError('The data is already phased; can only phase ' +
+            raise ValueError('The data is already phased; can only phase '
                              'drift scanning data.')
         else:
             raise ValueError('The phasing type of the data is unknown. '
@@ -716,8 +716,8 @@ class UVData(UVBase):
             uvws[inds, :] = uvw
 
         # calculate data and apply phasor
-        w_lambda = (uvws[:, 2].reshape(self.Nblts, 1) /
-                    const.c.to('m/s').value * self.freq_array.reshape(1, self.Nfreqs))
+        w_lambda = (uvws[:, 2].reshape(self.Nblts, 1)
+                    / const.c.to('m/s').value * self.freq_array.reshape(1, self.Nfreqs))
         phs = np.exp(-1j * 2 * np.pi * w_lambda[:, None, :, None])
         self.data_array *= phs
 
@@ -964,8 +964,8 @@ class UVData(UVBase):
         n_selects = 0
 
         if ant_str is not None:
-            if not (antenna_nums is None and antenna_names is None and
-                    ant_pairs_nums is None and polarizations is None):
+            if not (antenna_nums is None and antenna_names is None
+                    and ant_pairs_nums is None and polarizations is None):
                 raise ValueError(
                     'Cannot provide ant_str with antenna_nums, antenna_names, '
                     'ant_pairs_nums, or polarizations.')
@@ -1030,8 +1030,8 @@ class UVData(UVBase):
             if not all(isinstance(item, tuple) for item in ant_pairs_nums):
                 raise ValueError(
                     'ant_pairs_nums must be a list of tuples of antenna numbers.')
-            if not all([isinstance(item[0], (int, long, np.integer)) for item in ant_pairs_nums] +
-                       [isinstance(item[1], (int, long, np.integer)) for item in ant_pairs_nums]):
+            if not all([isinstance(item[0], (int, long, np.integer)) for item in ant_pairs_nums]
+                       + [isinstance(item[1], (int, long, np.integer)) for item in ant_pairs_nums]):
                 raise ValueError(
                     'ant_pairs_nums must be a list of tuples of antenna numbers.')
             if n_selects > 0:
@@ -1107,8 +1107,8 @@ class UVData(UVBase):
                 frequencies = self.freq_array[0, freq_chans]
             else:
                 frequencies = uvutils.get_iterable(frequencies)
-                frequencies = np.sort(list(set(frequencies) |
-                                           set(self.freq_array[0, freq_chans])))
+                frequencies = np.sort(list(set(frequencies)
+                                           | set(self.freq_array[0, freq_chans])))
 
         if frequencies is not None:
             frequencies = uvutils.get_iterable(frequencies)
@@ -2107,13 +2107,13 @@ class UVData(UVBase):
                         ant_pairs_nums = self.get_antpairs()
                 elif ant_str[str_pos:].upper().startswith('AUTO'):
                     for pair in ant_pairs_data:
-                        if (pair[0] == pair[1] and
-                                pair not in ant_pairs_nums):
+                        if (pair[0] == pair[1]
+                                and pair not in ant_pairs_nums):
                             ant_pairs_nums.append(pair)
                 elif ant_str[str_pos:].upper().startswith('CROSS'):
                     for pair in ant_pairs_data:
-                        if not (pair[0] == pair[1] or
-                                pair in ant_pairs_nums):
+                        if not (pair[0] == pair[1]
+                                or pair in ant_pairs_nums):
                             ant_pairs_nums.append(pair)
                 elif ant_str[str_pos:].upper().startswith('I'):
                     polarizations.append(uvutils.polstr2num('I'))
@@ -2194,16 +2194,16 @@ class UVData(UVBase):
                         elif ant_tuple[::-1] in ant_pairs_data:
                             ant_tuple = ant_tuple[::-1]
                         else:
-                            if not (ant_tuple[0] in ants_data or
-                                    ant_tuple[0] in warned_ants):
+                            if not (ant_tuple[0] in ants_data
+                                    or ant_tuple[0] in warned_ants):
                                 warned_ants.append(ant_tuple[0])
-                            if not (ant_tuple[1] in ants_data or
-                                    ant_tuple[1] in warned_ants):
+                            if not (ant_tuple[1] in ants_data
+                                    or ant_tuple[1] in warned_ants):
                                 warned_ants.append(ant_tuple[1])
                             if pols is not None:
                                 for pol in pols:
-                                    if not (pol.upper() in pols_data or
-                                            pol in warned_pols):
+                                    if not (pol.upper() in pols_data
+                                            or pol in warned_pols):
                                         warned_pols.append(pol)
                             continue
 
@@ -2212,23 +2212,23 @@ class UVData(UVBase):
                                 ant_pairs_nums.append(ant_tuple)
                             if pols is not None:
                                 for pol in pols:
-                                    if (pol.upper() in pols_data and
-                                            uvutils.polstr2num(pol) not in polarizations):
+                                    if (pol.upper() in pols_data
+                                            and uvutils.polstr2num(pol) not in polarizations):
                                         polarizations.append(uvutils.polstr2num(pol))
-                                    elif not (pol.upper() in pols_data or
-                                              pol in warned_pols):
+                                    elif not (pol.upper() in pols_data
+                                              or pol in warned_pols):
                                         warned_pols.append(pol)
                         else:
                             if pols is not None:
                                 for pol in pols:
                                     if pol.upper() in pols_data:
-                                        if (self.Npols == 1 and
-                                                [pol.upper()] == pols_data):
+                                        if (self.Npols == 1
+                                                and [pol.upper()] == pols_data):
                                             ant_pairs_nums.remove(ant_tuple)
                                         if uvutils.polstr2num(pol) in polarizations:
                                             polarizations.remove(uvutils.polstr2num(pol))
-                                    elif not (pol.upper() in pols_data or
-                                              pol in warned_pols):
+                                    elif not (pol.upper() in pols_data
+                                              or pol in warned_pols):
                                         warned_pols.append(pol)
                             elif ant_tuple in ant_pairs_nums:
                                 ant_pairs_nums.remove(ant_tuple)

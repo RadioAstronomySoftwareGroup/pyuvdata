@@ -24,7 +24,7 @@ def write_index_rst(readme_file=None, write_file=None):
     regex_travis = re.compile(travis_str)
     loc_travis_start = re.search(regex_travis, readme_md).start()
     loc_travis_end = re.search(regex_travis, readme_md).end()
-    end_branch_str = '\)\]'
+    end_branch_str = r'\)\]'
     regex_end = re.compile(end_branch_str)
     loc_branch_end = re.search(regex_end, readme_md).start()
     branch_str = readme_md[loc_travis_end:loc_branch_end]
@@ -47,7 +47,7 @@ def write_index_rst(readme_file=None, write_file=None):
     readme_text = readme_text.replace(' ' + rst_status_badge, rst_status_badge)
 
     end_text = 'parameters descriptions'
-    regex = re.compile(end_text.replace(' ', '\s+'))
+    regex = re.compile(end_text.replace(' ', r'\s+'))
     loc = re.search(regex, readme_text).start()
 
     out += readme_text[0:loc] + end_text + '.'

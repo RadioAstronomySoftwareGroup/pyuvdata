@@ -67,8 +67,8 @@ class TestUVCalInit(object):
         for prop in self.uv_cal_object:
             all.append(prop)
         for a in self.required_parameters + self.extra_parameters:
-            nt.assert_true(a in all, msg='expected attribute ' + a +
-                           ' not returned in object iterator')
+            nt.assert_true(a in all, msg='expected attribute ' + a
+                           + ' not returned in object iterator')
 
     def test_required_parameter_iter(self):
         "Test expected required parameters."
@@ -76,8 +76,8 @@ class TestUVCalInit(object):
         for prop in self.uv_cal_object.required():
             required.append(prop)
         for a in self.required_parameters:
-            nt.assert_true(a in required, msg='expected attribute ' + a +
-                           ' not returned in required iterator')
+            nt.assert_true(a in required, msg='expected attribute ' + a
+                           + ' not returned in required iterator')
 
     def test_unexpected_parameters(self):
         "Test for extra parameters."
@@ -189,8 +189,8 @@ class TestUVCalBasicMethods(object):
             else:
                 conv = 1
             nt.assert_true(np.allclose(np.angle(self.new_object.gain_array[:, :, 10, :, :]) % (2 * np.pi),
-                                       (conv * 2 * np.pi * self.delay_object.delay_array[:, :, 0, :, :] *
-                                       self.delay_object.freq_array[0, 10]) % (2 * np.pi),
+                                       (conv * 2 * np.pi * self.delay_object.delay_array[:, :, 0, :, :]
+                                       * self.delay_object.freq_array[0, 10]) % (2 * np.pi),
                                        rtol=self.new_object._gain_array.tols[0],
                                        atol=self.new_object._gain_array.tols[1]))
             nt.assert_true(np.allclose(self.delay_object.quality_array,
@@ -198,8 +198,8 @@ class TestUVCalBasicMethods(object):
                                        rtol=self.new_object._quality_array.tols[0],
                                        atol=self.new_object._quality_array.tols[1]))
 
-            nt.assert_equal(self.new_object.history, self.delay_object.history +
-                            '  Converted from delays to gains using pyuvdata.')
+            nt.assert_equal(self.new_object.history, self.delay_object.history
+                            + '  Converted from delays to gains using pyuvdata.')
 
         # test a file with a total_quality_array
         self.new_object = copy.deepcopy(self.delay_object)
@@ -213,8 +213,8 @@ class TestUVCalBasicMethods(object):
                                   rtol=self.new_object._gain_array.tols[0],
                                   atol=self.new_object._gain_array.tols[1]))
         nt.assert_true(np.allclose(np.angle(self.new_object.gain_array[:, :, 10, :, :]) % (2 * np.pi),
-                                   (-1 * 2 * np.pi * self.delay_object.delay_array[:, :, 0, :, :] *
-                                    self.delay_object.freq_array[0, 10]) % (2 * np.pi),
+                                   (-1 * 2 * np.pi * self.delay_object.delay_array[:, :, 0, :, :]
+                                    * self.delay_object.freq_array[0, 10]) % (2 * np.pi),
                                    rtol=self.new_object._gain_array.tols[0],
                                    atol=self.new_object._gain_array.tols[1]))
         nt.assert_true(np.allclose(self.delay_object.quality_array,
@@ -222,8 +222,8 @@ class TestUVCalBasicMethods(object):
                                    rtol=self.new_object._quality_array.tols[0],
                                    atol=self.new_object._quality_array.tols[1]))
 
-        nt.assert_equal(self.new_object.history, self.delay_object.history +
-                        '  Converted from delays to gains using pyuvdata.')
+        nt.assert_equal(self.new_object.history, self.delay_object.history
+                        + '  Converted from delays to gains using pyuvdata.')
 
         # error testing
         nt.assert_raises(ValueError, self.delay_object.convert_to_gain, delay_convention='bogus')
@@ -801,8 +801,8 @@ class TestUVCalAddGain(object):
         self.gain_object2.select(antenna_nums=ants2)
         self.gain_object += self.gain_object2
         # Check history is correct, before replacing and doing a full object check
-        nt.assert_true(uvutils.check_histories(gain_object_full.history +
-                                               '  Downselected to specific '
+        nt.assert_true(uvutils.check_histories(gain_object_full.history
+                                               + '  Downselected to specific '
                                                'antennas using pyuvdata. Combined '
                                                'data along antenna axis using pyuvdata.',
                                                self.gain_object.history))
@@ -826,8 +826,8 @@ class TestUVCalAddGain(object):
         self.gain_object2.select(frequencies=freqs2)
         self.gain_object += self.gain_object2
         # Check history is correct, before replacing and doing a full object check
-        nt.assert_true(uvutils.check_histories(gain_object_full.history +
-                                               '  Downselected to specific '
+        nt.assert_true(uvutils.check_histories(gain_object_full.history
+                                               + '  Downselected to specific '
                                                'frequencies using pyuvdata. Combined '
                                                'data along frequency axis using pyuvdata.',
                                                self.gain_object.history))
@@ -895,8 +895,8 @@ class TestUVCalAddGain(object):
         self.gain_object2.select(times=times2)
         self.gain_object += self.gain_object2
         # Check history is correct, before replacing and doing a full object check
-        nt.assert_true(uvutils.check_histories(gain_object_full.history +
-                                               '  Downselected to specific '
+        nt.assert_true(uvutils.check_histories(gain_object_full.history
+                                               + '  Downselected to specific '
                                                'times using pyuvdata. Combined '
                                                'data along time axis using pyuvdata.',
                                                self.gain_object.history))
@@ -1007,8 +1007,8 @@ class TestUVCalAddGain(object):
         self.gain_object2.select(antenna_nums=ants2)
         gain_object_add = self.gain_object + self.gain_object2
         # Check history is correct, before replacing and doing a full object check
-        nt.assert_true(uvutils.check_histories(gain_object.history +
-                                               '  Downselected to specific '
+        nt.assert_true(uvutils.check_histories(gain_object.history
+                                               + '  Downselected to specific '
                                                'antennas using pyuvdata. Combined '
                                                'data along antenna axis using pyuvdata.',
                                                gain_object_add.history))
@@ -1019,8 +1019,8 @@ class TestUVCalAddGain(object):
         self.gain_object.history = gain_object.history
         self.gain_object2.history = 'Some random history string OMNI_RUN:'
         self.gain_object += self.gain_object2
-        nt.assert_true(uvutils.check_histories(gain_object.history +
-                                               ' Combined data along antenna axis '
+        nt.assert_true(uvutils.check_histories(gain_object.history
+                                               + ' Combined data along antenna axis '
                                                'using pyuvdata. Some random '
                                                'history string',
                                                self.gain_object.history))
@@ -1141,8 +1141,8 @@ class TestUVCalAddGain(object):
         self.gain_object2.write_calfits(f2, clobber=True)
         # Read both files together
         self.gain_object.read_calfits([f1, f2])
-        nt.assert_true(uvutils.check_histories(gain_object_full.history +
-                                               '  Downselected to specific times'
+        nt.assert_true(uvutils.check_histories(gain_object_full.history
+                                               + '  Downselected to specific times'
                                                ' using pyuvdata. Combined data '
                                                'along time axis using pyuvdata.',
                                                self.gain_object.history))
@@ -1183,8 +1183,8 @@ class TestUVCalAddDelay(object):
         self.delay_object2.select(antenna_nums=ants2)
         self.delay_object += self.delay_object2
         # Check history is correct, before replacing and doing a full object check
-        nt.assert_true(uvutils.check_histories(delay_object_full.history +
-                                               '  Downselected to specific '
+        nt.assert_true(uvutils.check_histories(delay_object_full.history
+                                               + '  Downselected to specific '
                                                'antennas using pyuvdata. Combined '
                                                'data along antenna axis using pyuvdata.',
                                                self.delay_object.history))
@@ -1242,8 +1242,8 @@ class TestUVCalAddDelay(object):
         self.delay_object2.select(times=times2)
         self.delay_object += self.delay_object2
         # Check history is correct, before replacing and doing a full object check
-        nt.assert_true(uvutils.check_histories(delay_object_full.history +
-                                               '  Downselected to specific '
+        nt.assert_true(uvutils.check_histories(delay_object_full.history
+                                               + '  Downselected to specific '
                                                'times using pyuvdata. Combined '
                                                'data along time axis using pyuvdata.',
                                                self.delay_object.history))
@@ -1436,8 +1436,8 @@ class TestUVCalAddDelay(object):
         self.delay_object2.write_calfits(f2, clobber=True)
         # Read both files together
         self.delay_object.read_calfits([f1, f2])
-        nt.assert_true(uvutils.check_histories(delay_object_full.history +
-                                               '  Downselected to specific times'
+        nt.assert_true(uvutils.check_histories(delay_object_full.history
+                                               + '  Downselected to specific times'
                                                ' using pyuvdata. Combined data '
                                                'along time axis using pyuvdata.',
                                                self.delay_object.history))

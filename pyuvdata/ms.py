@@ -127,8 +127,8 @@ class MS(UVData):
         self.channel_width = float(tb_spws.getcol('CHAN_WIDTH')[0, 0])
         self.Nspws = int(freqs.shape[0])
         if self.Nspws > 1:
-            raise ValueError('Sorry.  Files with more than one spectral' +
-                             'window (spw) are not yet supported. A ' +
+            raise ValueError('Sorry.  Files with more than one spectral'
+                             'window (spw) are not yet supported. A '
                              'great project for the interested student!')
 
         self.spw_array = np.arange(self.Nspws)

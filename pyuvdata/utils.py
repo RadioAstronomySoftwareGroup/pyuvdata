@@ -40,9 +40,9 @@ def LatLonAlt_from_XYZ(xyz):
     # GPS positions PDF in docs/references folder
     gps_p = np.sqrt(xyz[0, :]**2 + xyz[1, :]**2)
     gps_theta = np.arctan2(xyz[2, :] * gps_a, gps_p * gps_b)
-    latitude = np.arctan2(xyz[2, :] + e_prime_squared * gps_b *
-                          np.sin(gps_theta)**3, gps_p - e_squared * gps_a *
-                          np.cos(gps_theta)**3)
+    latitude = np.arctan2(xyz[2, :] + e_prime_squared * gps_b
+                          * np.sin(gps_theta)**3, gps_p - e_squared * gps_a
+                          * np.cos(gps_theta)**3)
 
     longitude = np.arctan2(xyz[1, :], xyz[0, :])
     gps_N = gps_a / np.sqrt(1 - e_squared * np.sin(latitude)**2)
@@ -169,14 +169,14 @@ def ENU_from_ECEF(xyz, latitude, longitude, altitude):
     xyz = np.squeeze(xyz)
 
     enu = np.zeros((3, Npts))
-    enu[0, :] = (-np.sin(longitude) * xyz_use[0, :] +
-                 np.cos(longitude) * xyz_use[1, :])
-    enu[1, :] = (-np.sin(latitude) * np.cos(longitude) * xyz_use[0, :] -
-                 np.sin(latitude) * np.sin(longitude) * xyz_use[1, :] +
-                 np.cos(latitude) * xyz_use[2, :])
-    enu[2, :] = (np.cos(latitude) * np.cos(longitude) * xyz_use[0, :] +
-                 np.cos(latitude) * np.sin(longitude) * xyz_use[1, :] +
-                 np.sin(latitude) * xyz_use[2, :])
+    enu[0, :] = (-np.sin(longitude) * xyz_use[0, :]
+                 + np.cos(longitude) * xyz_use[1, :])
+    enu[1, :] = (-np.sin(latitude) * np.cos(longitude) * xyz_use[0, :]
+                 - np.sin(latitude) * np.sin(longitude) * xyz_use[1, :]
+                 + np.cos(latitude) * xyz_use[2, :])
+    enu[2, :] = (np.cos(latitude) * np.cos(longitude) * xyz_use[0, :]
+                 + np.cos(latitude) * np.sin(longitude) * xyz_use[1, :]
+                 + np.sin(latitude) * xyz_use[2, :])
     enu = np.squeeze(enu)
 
     return enu
@@ -205,14 +205,14 @@ def ECEF_from_ENU(enu, latitude, longitude, altitude):
     xyz = np.zeros((3, Npts))
     if Npts == 1:
         enu = enu[:, np.newaxis]
-    xyz[0, :] = (-np.sin(latitude) * np.cos(longitude) * enu[1, :] -
-                 np.sin(longitude) * enu[0, :] +
-                 np.cos(latitude) * np.cos(longitude) * enu[2, :])
-    xyz[1, :] = (-np.sin(latitude) * np.sin(longitude) * enu[1, :] +
-                 np.cos(longitude) * enu[0, :] +
-                 np.cos(latitude) * np.sin(longitude) * enu[2, :])
-    xyz[2, :] = (np.cos(latitude) * enu[1, :] +
-                 np.sin(latitude) * enu[2, :])
+    xyz[0, :] = (-np.sin(latitude) * np.cos(longitude) * enu[1, :]
+                 - np.sin(longitude) * enu[0, :]
+                 + np.cos(latitude) * np.cos(longitude) * enu[2, :])
+    xyz[1, :] = (-np.sin(latitude) * np.sin(longitude) * enu[1, :]
+                 + np.cos(longitude) * enu[0, :]
+                 + np.cos(latitude) * np.sin(longitude) * enu[2, :])
+    xyz[2, :] = (np.cos(latitude) * enu[1, :]
+                 + np.sin(latitude) * enu[2, :])
     enu = np.squeeze(enu)
 
     xyz_center = XYZ_from_LatLonAlt(latitude, longitude, altitude)
@@ -420,8 +420,8 @@ def combine_histories(history1, history2):
             add_hist += ' ' + word
             keep_going = (i + 1 < len(hist2_words))
             while keep_going:
-                if ((hist2_words[i + 1] is ' ') or
-                        (' ' + hist2_words[i + 1] + ' ' not in test_hist1)):
+                if ((hist2_words[i + 1] is ' ')
+                        or (' ' + hist2_words[i + 1] + ' ' not in test_hist1)):
                     add_hist += ' ' + hist2_words[i + 1]
                     del(hist2_words[i + 1])
                     keep_going = (i + 1 < len(hist2_words))

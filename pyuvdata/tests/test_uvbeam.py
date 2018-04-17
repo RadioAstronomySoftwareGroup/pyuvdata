@@ -28,13 +28,13 @@ def fill_dummy_beam(beam_obj, beam_type, pixel_coordinate_system):
     beam_obj.model_version = '1.0'
     beam_obj.history = 'random data for test'
 
-    pyuvdata_version_str = ('  Read/written with pyuvdata version: ' +
-                            uvversion.version + '.')
+    pyuvdata_version_str = ('  Read/written with pyuvdata version: '
+                            + uvversion.version + '.')
     if uvversion.git_hash is not '':
-        pyuvdata_version_str += ('  Git origin: ' + uvversion.git_origin +
-                                 '.  Git hash: ' + uvversion.git_hash +
-                                 '.  Git branch: ' + uvversion.git_branch +
-                                 '.  Git description: ' + uvversion.git_description + '.')
+        pyuvdata_version_str += ('  Git origin: ' + uvversion.git_origin
+                                 + '.  Git hash: ' + uvversion.git_hash
+                                 + '.  Git branch: ' + uvversion.git_branch
+                                 + '.  Git description: ' + uvversion.git_description + '.')
     beam_obj.history += pyuvdata_version_str
 
     beam_obj.pixel_coordinate_system = pixel_coordinate_system
@@ -94,8 +94,8 @@ def fill_dummy_beam(beam_obj, beam_type, pixel_coordinate_system):
             data_size_tuple = (beam_obj.Naxes_vec, beam_obj.Nspws, beam_obj.Nfeeds,
                                beam_obj.Nfreqs, beam_obj.Naxes2, beam_obj.Naxes1)
 
-        beam_obj.data_array = (np.random.normal(0.0, 0.2, size=data_size_tuple) +
-                               1j * np.random.normal(0.0, 0.2, size=data_size_tuple))
+        beam_obj.data_array = (np.random.normal(0.0, 0.2, size=data_size_tuple)
+                               + 1j * np.random.normal(0.0, 0.2, size=data_size_tuple))
 
     # add optional parameters for testing purposes
     beam_obj.extra_keywords = {'KEY1': 'test_keyword'}
@@ -171,8 +171,8 @@ class TestUVBeamInit(object):
         for prop in self.beam_obj:
             all.append(prop)
         for a in self.required_parameters + self.extra_parameters:
-            nt.assert_true(a in all, msg='expected attribute ' + a +
-                           ' not returned in object iterator')
+            nt.assert_true(a in all, msg='expected attribute ' + a
+                           + ' not returned in object iterator')
 
     def test_required_parameter_iter(self):
         "Test expected required parameters."
@@ -180,8 +180,8 @@ class TestUVBeamInit(object):
         for prop in self.beam_obj.required():
             required.append(prop)
         for a in self.required_parameters:
-            nt.assert_true(a in required, msg='expected attribute ' + a +
-                           ' not returned in required iterator')
+            nt.assert_true(a in required, msg='expected attribute ' + a
+                           + ' not returned in required iterator')
 
     def test_extra_parameter_iter(self):
         "Test expected optional parameters."
@@ -189,8 +189,8 @@ class TestUVBeamInit(object):
         for prop in self.beam_obj.extra():
             extra.append(prop)
         for a in self.extra_parameters:
-            nt.assert_true(a in extra, msg='expected attribute ' + a +
-                           ' not returned in extra iterator')
+            nt.assert_true(a in extra, msg='expected attribute ' + a
+                           + ' not returned in extra iterator')
 
     def test_unexpected_parameters(self):
         "Test for extra parameters."
@@ -300,8 +300,8 @@ def test_efield_to_power():
     new_basis_vecs[1, :, :, :] = efield_beam.basis_vector_array[1, :, :, :]
     new_data = np.zeros_like(efield_beam.data_array)
     new_data[0, :, :, :, :, :] = np.sqrt(2) * efield_beam.data_array[0, :, :, :, :, :]
-    new_data[1, :, :, :, :, :] = (efield_beam.data_array[1, :, :, :, :, :] -
-                                  efield_beam.data_array[0, :, :, :, :, :])
+    new_data[1, :, :, :, :, :] = (efield_beam.data_array[1, :, :, :, :, :]
+                                  - efield_beam.data_array[0, :, :, :, :, :])
     efield_beam2 = copy.deepcopy(efield_beam)
     efield_beam2.basis_vector_array = new_basis_vecs
     efield_beam2.data_array = new_data
@@ -318,8 +318,8 @@ def test_efield_to_power():
     new_basis_vecs[1, 0, :, :] = np.sqrt(0.5)
     new_basis_vecs[1, 1, :, :] = np.sqrt(0.5)
     new_data = np.zeros_like(efield_beam.data_array)
-    new_data[0, :, :, :, :, :] = (efield_beam.data_array[0, :, :, :, :, :] -
-                                  efield_beam.data_array[1, :, :, :, :, :])
+    new_data[0, :, :, :, :, :] = (efield_beam.data_array[0, :, :, :, :, :]
+                                  - efield_beam.data_array[1, :, :, :, :, :])
     new_data[1, :, :, :, :, :] = np.sqrt(2) * efield_beam.data_array[1, :, :, :, :, :]
     efield_beam2 = copy.deepcopy(efield_beam)
     efield_beam2.basis_vector_array = new_basis_vecs
@@ -338,10 +338,10 @@ def test_efield_to_power():
     new_basis_vecs[1, 0, :, :] = -1 * np.sqrt(0.5)
     new_basis_vecs[1, 1, :, :] = np.sqrt(0.5)
     new_data = np.zeros_like(efield_beam.data_array)
-    new_data[0, :, :, :, :, :] = np.sqrt(0.5) * (efield_beam.data_array[0, :, :, :, :, :] +
-                                                 efield_beam.data_array[1, :, :, :, :, :])
-    new_data[1, :, :, :, :, :] = np.sqrt(0.5) * (-1 * efield_beam.data_array[0, :, :, :, :, :] +
-                                                 efield_beam.data_array[1, :, :, :, :, :])
+    new_data[0, :, :, :, :, :] = np.sqrt(0.5) * (efield_beam.data_array[0, :, :, :, :, :]
+                                                 + efield_beam.data_array[1, :, :, :, :, :])
+    new_data[1, :, :, :, :, :] = np.sqrt(0.5) * (-1 * efield_beam.data_array[0, :, :, :, :, :]
+                                                 + efield_beam.data_array[1, :, :, :, :, :])
     efield_beam2 = copy.deepcopy(efield_beam)
     efield_beam2.basis_vector_array = new_basis_vecs
     efield_beam2.data_array = new_data
@@ -356,13 +356,13 @@ def test_efield_to_power():
     new_power_beam = copy.deepcopy(efield_beam)
     new_power_beam.efield_to_power(calc_cross_pols=True)
     nt.assert_true(np.all(np.abs(new_power_beam.data_array[:, :, 0, :, :,
-                                                           np.where(new_power_beam.axis1_array == 0)[0]]) >
-                          np.abs(new_power_beam.data_array[:, :, 2, :, :,
-                                                           np.where(new_power_beam.axis1_array == 0)[0]])))
+                                                           np.where(new_power_beam.axis1_array == 0)[0]])
+                          > np.abs(new_power_beam.data_array[:, :, 2, :, :,
+                                                             np.where(new_power_beam.axis1_array == 0)[0]])))
     nt.assert_true(np.all(np.abs(new_power_beam.data_array[:, :, 0, :, :,
-                                                           np.where(new_power_beam.axis1_array == np.pi / 2.)[0]]) >
-                          np.abs(new_power_beam.data_array[:, :, 2, :, :,
-                                                           np.where(new_power_beam.axis1_array == np.pi / 2.)[0]])))
+                                                           np.where(new_power_beam.axis1_array == np.pi / 2.)[0]])
+                          > np.abs(new_power_beam.data_array[:, :, 2, :, :,
+                                                             np.where(new_power_beam.axis1_array == np.pi / 2.)[0]])))
     # test writing out & reading back in power files (with cross pols which are complex)
     write_file = os.path.join(DATA_PATH, 'test/outtest_beam.fits')
     new_power_beam.write_beamfits(write_file, clobber=True)
@@ -827,8 +827,8 @@ def test_add():
     beam2 = power_beam.select(axis1_inds=np.arange(180, 360), inplace=False)
     beam1 += beam2
     # Check history is correct, before replacing and doing a full object check
-    nt.assert_true(uvutils.check_histories(power_beam.history +
-                                           '  Downselected to specific parts of '
+    nt.assert_true(uvutils.check_histories(power_beam.history
+                                           + '  Downselected to specific parts of '
                                            'first image axis using pyuvdata. '
                                            'Combined data along first image axis '
                                            'using pyuvdata.', beam1.history))
@@ -847,8 +847,8 @@ def test_add():
     beam2 = power_beam.select(axis2_inds=np.arange(90, 181), inplace=False)
     beam1 += beam2
     # Check history is correct, before replacing and doing a full object check
-    nt.assert_true(uvutils.check_histories(power_beam.history +
-                                           '  Downselected to specific parts of '
+    nt.assert_true(uvutils.check_histories(power_beam.history
+                                           + '  Downselected to specific parts of '
                                            'second image axis using pyuvdata. '
                                            'Combined data along second image axis '
                                            'using pyuvdata.', beam1.history))
@@ -867,8 +867,8 @@ def test_add():
     beam2 = power_beam.select(freq_chans=1, inplace=False)
     beam1 += beam2
     # Check history is correct, before replacing and doing a full object check
-    nt.assert_true(uvutils.check_histories(power_beam.history +
-                                           '  Downselected to specific frequencies '
+    nt.assert_true(uvutils.check_histories(power_beam.history
+                                           + '  Downselected to specific frequencies '
                                            'using pyuvdata. Combined data along '
                                            'frequency axis using pyuvdata.',
                                            beam1.history))
@@ -886,8 +886,8 @@ def test_add():
     beam1 = power_beam.select(polarizations=-5, inplace=False)
     beam2 = power_beam.select(polarizations=-6, inplace=False)
     beam1 += beam2
-    nt.assert_true(uvutils.check_histories(power_beam.history +
-                                           '  Downselected to specific polarizations '
+    nt.assert_true(uvutils.check_histories(power_beam.history
+                                           + '  Downselected to specific polarizations '
                                            'using pyuvdata. Combined data along '
                                            'polarization axis using pyuvdata.',
                                            beam1.history))
@@ -925,8 +925,8 @@ def test_add():
     beam1 = efield_beam.select(feeds=efield_beam.feed_array[0], inplace=False)
     beam2 = efield_beam.select(feeds=efield_beam.feed_array[1], inplace=False)
     beam1 += beam2
-    nt.assert_true(uvutils.check_histories(efield_beam.history +
-                                           '  Downselected to specific feeds '
+    nt.assert_true(uvutils.check_histories(efield_beam.history
+                                           + '  Downselected to specific feeds '
                                            'using pyuvdata. Combined data along '
                                            'feed axis using pyuvdata.',
                                            beam1.history))
@@ -950,8 +950,8 @@ def test_add():
                               polarizations=power_beam.polarization_array[1],
                               inplace=False)
     beam1 += beam2
-    nt.assert_true(uvutils.check_histories(power_beam.history +
-                                           '  Downselected to specific parts of '
+    nt.assert_true(uvutils.check_histories(power_beam.history
+                                           + '  Downselected to specific parts of '
                                            'first image axis, polarizations using '
                                            'pyuvdata. Combined data along first '
                                            'image, polarization axis using pyuvdata.',
@@ -973,8 +973,8 @@ def test_add():
                                                     efield_beam.Naxes2),
                                inplace=False)
     beam1 += beam2
-    nt.assert_true(uvutils.check_histories(efield_beam.history +
-                                           '  Downselected to specific parts of '
+    nt.assert_true(uvutils.check_histories(efield_beam.history
+                                           + '  Downselected to specific parts of '
                                            'first image axis, parts of second '
                                            'image axis using pyuvdata. Combined '
                                            'data along first image, second image '
@@ -1006,8 +1006,8 @@ def test_add():
     beam2 = efield_beam.select(freq_chans=np.arange(50, 100),
                                feeds=efield_beam.feed_array[1], inplace=False)
     beam1 += beam2
-    nt.assert_true(uvutils.check_histories(efield_beam.history +
-                                           '  Downselected to specific frequencies, '
+    nt.assert_true(uvutils.check_histories(efield_beam.history
+                                           + '  Downselected to specific frequencies, '
                                            'feeds using pyuvdata. Combined data '
                                            'along frequency, feed axis using pyuvdata.',
                                            beam1.history))
@@ -1024,8 +1024,8 @@ def test_add():
     beam2 = efield_beam.select(pixels=efield_beam.pixel_array[efield_beam.Npixels / 2:],
                                inplace=False)
     beam1 = beam1 + beam2
-    nt.assert_true(uvutils.check_histories(efield_beam.history +
-                                           '  Downselected to specific healpix pixels '
+    nt.assert_true(uvutils.check_histories(efield_beam.history
+                                           + '  Downselected to specific healpix pixels '
                                            'using pyuvdata. Combined data '
                                            'along healpix pixel axis using pyuvdata.',
                                            beam1.history))
@@ -1074,8 +1074,8 @@ def test_add():
     beam2 = power_beam.select(polarizations=power_beam.polarization_array[2:4], inplace=False)
     beam2.history += ' testing the history. Read/written with pyuvdata'
     beam1 += beam2
-    nt.assert_true(uvutils.check_histories(power_beam.history +
-                                           '  Downselected to specific polarizations '
+    nt.assert_true(uvutils.check_histories(power_beam.history
+                                           + '  Downselected to specific polarizations '
                                            'using pyuvdata. Combined data along '
                                            'polarization axis using pyuvdata. '
                                            'testing the history.',
@@ -1263,8 +1263,8 @@ def test_healpix():
         pixels=power_beam_healpix.pixel_array[power_beam_healpix.Npixels / 2:],
         freq_chans=1, inplace=False)
     beam1 += beam2
-    nt.assert_true(uvutils.check_histories(power_beam_healpix.history +
-                                           '  Downselected to specific healpix '
+    nt.assert_true(uvutils.check_histories(power_beam_healpix.history
+                                           + '  Downselected to specific healpix '
                                            'pixels, frequencies using pyuvdata. '
                                            'Combined data along healpix pixel, '
                                            'frequency axis using pyuvdata.',

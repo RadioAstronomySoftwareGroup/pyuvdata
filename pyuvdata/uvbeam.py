@@ -46,11 +46,11 @@ class UVBeam(UVBase):
         self._Naxes_vec = uvp.UVParameter('Naxes_vec', description=desc,
                                           expected_type=int, acceptable_vals=[2, 3])
 
-        desc = ('Pixel coordinate system, options are: "' +
-                '", "'.join(self.coordinate_system_dict.keys()) + '".')
+        desc = ('Pixel coordinate system, options are: "'
+                + '", "'.join(self.coordinate_system_dict.keys()) + '".')
         for key in self.coordinate_system_dict:
-            desc = desc + (' "' + key + '" is a ' + self.coordinate_system_dict[key]['description'] +
-                           '. It has axes [' + ', '.join(self.coordinate_system_dict[key]['axes']) + '].')
+            desc = desc + (' "' + key + '" is a ' + self.coordinate_system_dict[key]['description']
+                           + '. It has axes [' + ', '.join(self.coordinate_system_dict[key]['axes']) + '].')
         self._pixel_coordinate_system = uvp.UVParameter('pixel_coordinate_system',
                                                         description=desc, form='str',
                                                         expected_type=str,
@@ -513,26 +513,26 @@ class UVBeam(UVBase):
 
         if keep_basis_vector:
             for pol_i, pair in enumerate(feed_pol_order):
-                power_data[:, :, pol_i] = (efield_data[:, :, pair[0]] *
-                                           np.conj(efield_data[:, :, pair[1]]))
+                power_data[:, :, pol_i] = (efield_data[:, :, pair[0]]
+                                           * np.conj(efield_data[:, :, pair[1]]))
 
         else:
             for pol_i, pair in enumerate(feed_pol_order):
                 if efield_naxes_vec == 2:
                     for comp_i in range(2):
                         power_data[0, :, pol_i] += \
-                            ((efield_data[0, :, pair[0]] *
-                              np.conj(efield_data[0, :, pair[1]])) *
-                             self.basis_vector_array[0, comp_i]**2 +
-                             (efield_data[1, :, pair[0]] *
-                              np.conj(efield_data[1, :, pair[1]])) *
-                             self.basis_vector_array[1, comp_i]**2 +
-                             (efield_data[0, :, pair[0]] *
-                              np.conj(efield_data[1, :, pair[1]]) +
-                              efield_data[1, :, pair[0]] *
-                              np.conj(efield_data[0, :, pair[1]])) *
-                             (self.basis_vector_array[0, comp_i] *
-                              self.basis_vector_array[1, comp_i]))
+                            ((efield_data[0, :, pair[0]]
+                             * np.conj(efield_data[0, :, pair[1]]))
+                             * self.basis_vector_array[0, comp_i]**2
+                             + (efield_data[1, :, pair[0]]
+                             * np.conj(efield_data[1, :, pair[1]]))
+                             * self.basis_vector_array[1, comp_i]**2
+                             + (efield_data[0, :, pair[0]]
+                             * np.conj(efield_data[1, :, pair[1]])
+                             + efield_data[1, :, pair[0]]
+                             * np.conj(efield_data[0, :, pair[1]]))
+                             * (self.basis_vector_array[0, comp_i]
+                             * self.basis_vector_array[1, comp_i]))
                 else:
                     raise ValueError('Conversion to power with 3-vector efields '
                                      'is not currently supported because we have '
@@ -618,14 +618,14 @@ class UVBeam(UVBase):
                                                                   az_za_data[index0, index1, index2, index3, :])
                         for hpx_i in pixels:
                             if index0 == 0 and index1 == 0 and index2 == 0 and index3 == 0:
-                                pix_dists = np.sqrt((theta_vals - hpx_theta[hpx_i])**2. +
-                                                    (phi_vals - hpx_phi[hpx_i])**2.)
+                                pix_dists = np.sqrt((theta_vals - hpx_theta[hpx_i])**2.
+                                                    + (phi_vals - hpx_phi[hpx_i])**2.)
                                 nearest_pix_dist[hpx_i] = np.min(pix_dists)
                             if np.iscomplexobj(self.data_array):
                                 # interpolate real and imaginary parts separately
                                 healpix_data[index0, index1, index2, index3, hpx_i] = (
-                                    real_lut(hpx_theta[hpx_i], hpx_phi[hpx_i]) +
-                                    1j * imag_lut(hpx_theta[hpx_i], hpx_phi[hpx_i]))
+                                    real_lut(hpx_theta[hpx_i], hpx_phi[hpx_i])
+                                    + 1j * imag_lut(hpx_theta[hpx_i], hpx_phi[hpx_i]))
 
                             else:
                                 healpix_data[index0, index1, index2, index3, hpx_i] = \
@@ -808,9 +808,9 @@ class UVBeam(UVBase):
         if this.pixel_coordinate_system == 'healpix':
             if len(pix_new_inds) > 0:
                 data_pix_axis = 4
-                data_pad_dims = tuple(list(this.data_array.shape[0:data_pix_axis]) +
-                                      [len(pix_new_inds)] +
-                                      list(this.data_array.shape[data_pix_axis + 1:]))
+                data_pad_dims = tuple(list(this.data_array.shape[0:data_pix_axis])
+                                      + [len(pix_new_inds)]
+                                      + list(this.data_array.shape[data_pix_axis + 1:]))
                 data_zero_pad = np.zeros(data_pad_dims)
 
                 this.pixel_array = np.concatenate([this.pixel_array,
@@ -823,9 +823,9 @@ class UVBeam(UVBase):
 
                 if this.beam_type == 'efield':
                     basisvec_pix_axis = 2
-                    basisvec_pad_dims = tuple(list(this.basis_vector_array.shape[0:basisvec_pix_axis]) +
-                                              [len(pix_new_inds)] +
-                                              list(this.basis_vector_array.shape[basisvec_pix_axis + 1:]))
+                    basisvec_pad_dims = tuple(list(this.basis_vector_array.shape[0:basisvec_pix_axis])
+                                              + [len(pix_new_inds)]
+                                              + list(this.basis_vector_array.shape[basisvec_pix_axis + 1:]))
                     basisvec_zero_pad = np.zeros(basisvec_pad_dims)
 
                     this.basis_vector_array = np.concatenate([this.basis_vector_array,
@@ -834,9 +834,9 @@ class UVBeam(UVBase):
         else:
             if len(ax1_new_inds) > 0:
                 data_ax1_axis = 5
-                data_pad_dims = tuple(list(this.data_array.shape[0:data_ax1_axis]) +
-                                      [len(ax1_new_inds)] +
-                                      list(this.data_array.shape[data_ax1_axis + 1:]))
+                data_pad_dims = tuple(list(this.data_array.shape[0:data_ax1_axis])
+                                      + [len(ax1_new_inds)]
+                                      + list(this.data_array.shape[data_ax1_axis + 1:]))
                 data_zero_pad = np.zeros(data_pad_dims)
 
                 this.axis1_array = np.concatenate([this.axis1_array,
@@ -848,9 +848,9 @@ class UVBeam(UVBase):
 
                 if this.beam_type == 'efield':
                     basisvec_ax1_axis = 3
-                    basisvec_pad_dims = tuple(list(this.basis_vector_array.shape[0:basisvec_ax1_axis]) +
-                                              [len(ax1_new_inds)] +
-                                              list(this.basis_vector_array.shape[basisvec_ax1_axis + 1:]))
+                    basisvec_pad_dims = tuple(list(this.basis_vector_array.shape[0:basisvec_ax1_axis])
+                                              + [len(ax1_new_inds)]
+                                              + list(this.basis_vector_array.shape[basisvec_ax1_axis + 1:]))
                     basisvec_zero_pad = np.zeros(basisvec_pad_dims)
 
                     this.basis_vector_array = np.concatenate([this.basis_vector_array, basisvec_zero_pad],
@@ -858,9 +858,9 @@ class UVBeam(UVBase):
 
             if len(ax2_new_inds) > 0:
                 data_ax2_axis = 4
-                data_pad_dims = tuple(list(this.data_array.shape[0:data_ax2_axis]) +
-                                      [len(ax2_new_inds)] +
-                                      list(this.data_array.shape[data_ax2_axis + 1:]))
+                data_pad_dims = tuple(list(this.data_array.shape[0:data_ax2_axis])
+                                      + [len(ax2_new_inds)]
+                                      + list(this.data_array.shape[data_ax2_axis + 1:]))
                 data_zero_pad = np.zeros(data_pad_dims)
 
                 this.axis2_array = np.concatenate([this.axis2_array,
@@ -873,9 +873,9 @@ class UVBeam(UVBase):
 
                 if this.beam_type == 'efield':
                     basisvec_ax2_axis = 2
-                    basisvec_pad_dims = tuple(list(this.basis_vector_array.shape[0:basisvec_ax2_axis]) +
-                                              [len(ax2_new_inds)] +
-                                              list(this.basis_vector_array.shape[basisvec_ax2_axis + 1:]))
+                    basisvec_pad_dims = tuple(list(this.basis_vector_array.shape[0:basisvec_ax2_axis])
+                                              + [len(ax2_new_inds)]
+                                              + list(this.basis_vector_array.shape[basisvec_ax2_axis + 1:]))
                     basisvec_zero_pad = np.zeros(basisvec_pad_dims)
 
                     this.basis_vector_array = np.concatenate([this.basis_vector_array, basisvec_zero_pad],
@@ -883,9 +883,9 @@ class UVBeam(UVBase):
 
         if len(fnew_inds) > 0:
             faxis = 3
-            data_pad_dims = tuple(list(this.data_array.shape[0:faxis]) +
-                                  [len(fnew_inds)] +
-                                  list(this.data_array.shape[faxis + 1:]))
+            data_pad_dims = tuple(list(this.data_array.shape[0:faxis])
+                                  + [len(fnew_inds)]
+                                  + list(this.data_array.shape[faxis + 1:]))
             data_zero_pad = np.zeros(data_pad_dims)
 
             this.freq_array = np.concatenate([this.freq_array,
@@ -918,9 +918,9 @@ class UVBeam(UVBase):
 
         if len(pnew_inds) > 0:
             paxis = 2
-            data_pad_dims = tuple(list(this.data_array.shape[0:paxis]) +
-                                  [len(pnew_inds)] +
-                                  list(this.data_array.shape[paxis + 1:]))
+            data_pad_dims = tuple(list(this.data_array.shape[0:paxis])
+                                  + [len(pnew_inds)]
+                                  + list(this.data_array.shape[paxis + 1:]))
             data_zero_pad = np.zeros(data_pad_dims)
 
             if this.beam_type == 'power':
@@ -1213,8 +1213,8 @@ class UVBeam(UVBase):
                 frequencies = beam_object.freq_array[0, freq_chans]
             else:
                 frequencies = uvutils.get_iterable(frequencies)
-                frequencies = np.sort(list(set(frequencies) |
-                                      set(beam_object.freq_array[0, freq_chans])))
+                frequencies = np.sort(list(set(frequencies)
+                                      | set(beam_object.freq_array[0, freq_chans])))
 
         if frequencies is not None:
             frequencies = uvutils.get_iterable(frequencies)
@@ -1316,8 +1316,8 @@ class UVBeam(UVBase):
             beam_object.polarization_array = beam_object.polarization_array[pol_inds]
 
             if len(pol_inds) > 2:
-                pol_separation = (beam_object.polarization_array[1:] -
-                                  beam_object.polarization_array[:-1])
+                pol_separation = (beam_object.polarization_array[1:]
+                                  - beam_object.polarization_array[:-1])
                 if np.min(pol_separation) < np.max(pol_separation):
                     warnings.warn('Selected polarizations are not evenly spaced. This '
                                   'is not supported by the regularly gridded beam fits format')

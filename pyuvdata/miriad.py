@@ -77,8 +77,8 @@ class Miriad(UVData):
 
         extra_miriad_variables = []
         for variable in uv.vars():
-            if (variable not in default_miriad_variables and
-                    variable not in other_miriad_variables):
+            if (variable not in default_miriad_variables
+                    and variable not in other_miriad_variables):
                 extra_miriad_variables.append(variable)
 
         miriad_header_data = {'Nfreqs': 'nchan',
@@ -520,8 +520,8 @@ class Miriad(UVData):
             except(KeyError):
                 pass
         if self.antenna_diameters is not None:
-            self.antenna_diameters = (self.antenna_diameters *
-                                      np.ones(self.Nants_telescope, dtype=np.float))
+            self.antenna_diameters = (self.antenna_diameters
+                                      * np.ones(self.Nants_telescope, dtype=np.float))
 
         # form up a grid which indexes time and baselines along the 'long'
         # axis of the visdata array
@@ -569,8 +569,8 @@ class Miriad(UVData):
         if self.telescope_location is not None:
             self.set_lsts_from_time_array()
         self.nsample_array = np.ones(self.data_array.shape, dtype=np.float)
-        self.freq_array = (np.arange(self.Nfreqs) * self.channel_width +
-                           uv['sfreq'] * 1e9)
+        self.freq_array = (np.arange(self.Nfreqs) * self.channel_width
+                           + uv['sfreq'] * 1e9)
         # Tile freq_array to shape (Nspws, Nfreqs).
         # Currently does not actually support Nspws>1!
         self.freq_array = np.tile(self.freq_array, (self.Nspws, 1))

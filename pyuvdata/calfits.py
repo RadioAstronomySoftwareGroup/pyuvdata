@@ -80,8 +80,8 @@ class CALFITS(UVCal):
                 time_spacing = self.integration_time / (24. * 60.**2)
             else:
                 rounded_spacing = np.around(time_spacing,
-                                            int(np.ceil(np.log10(self._time_array.tols[1] /
-                                                                 self.Ntimes) * -1) + 1))
+                                            int(np.ceil(np.log10(self._time_array.tols[1]
+                                                                 / self.Ntimes) * -1) + 1))
                 time_spacing = rounded_spacing[0]
         else:
             time_spacing = self.integration_time / (24. * 60.**2)
