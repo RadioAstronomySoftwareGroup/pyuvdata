@@ -1289,6 +1289,11 @@ def test_get_beam_functions():
                              feed_version='0.1',
                              model_name='E-field pattern - Rigging height 4.9m',
                              model_version='1.0')
+
+    # assert get_beam fails
+    nt.assert_raises(AssertionError, power_beam._get_beam, 'I')
+
+    # Convert to healpix
     power_beam.az_za_to_healpix()
 
     # Check that non-peak normalizations error
