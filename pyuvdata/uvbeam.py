@@ -1019,13 +1019,27 @@ class UVBeam(UVBase):
         self.__add__(other, inplace=True)
         return self
 
-    def _get_beam(self, stokes):
+    def _get_beam(self, pol):
         """
-        Get the healpix beam map corresponding to the specififed stokes polarization,
-        'pseudo_I', 'pseudo_Q', etc., or linear dipole polarization, 'XX', 'YY', etc.
+        Get the healpix beam map corresponding to the specififed polarization,
+        'I', 'Q', etc., or linear dipole polarization, 'XX', 'YY', etc.
+
+        Currently only 'I', 'XX' and 'YY' are supported.
+
+        Args:
+          pol : polarization string, Ex. a stokes pol 'I', or a linear pol 'XX'
+
+        Return:
+          beam : healpix beam
         """
+        # assert map is in healpix coords
+        assert self.pixel_coordinate_system == 'healpix', "pixel_coordinate_system must be healpix"
+
+        # get pol array
         pol_array = self.polarization_array
-        if stokes == 'pseudo_I':
+
+        # get beam
+        if pol == 'I':
             if 1 in pol_array:
                 stokes_I_ind = np.where(np.isin(pol_array, 1))[0][0]
                 beam = self.data_array[0, 0, stokes_I_ind]
@@ -1036,30 +1050,36 @@ class UVBeam(UVBase):
                 beam = 0.5 * (self.data_array[0, 0, xx_ind] + self.data_array[0, 0, yy_ind])
             else:
                 raise ValueError('Do not have the right polarization information')
-        elif stokes.upper() == 'XX':
+        elif pol.upper() == 'XX':
             if -5 in pol_array:
                 xx_ind = np.where(np.isin(pol_array, -5))[0][0]
                 beam = self.data_array[0, 0, xx_ind]
             else:
                 raise ValueError('Do not have the right polarization information')
-        elif stokes.upper() == 'YY':
+        elif pol.upper() == 'YY':
             if -6 in pol_array:
                 yy_ind = np.where(np.isin(pol_array, -6))[0][0]
                 beam = self.data_array[0, 0, yy_ind]
             else:
                 raise ValueError('Do not have the right polarization information')
         else:
-            raise NotImplementedError("Stokes {} not yet implemented...".format(stokes))
+            raise NotImplementedError("Stokes {} not yet implemented...".format(pol))
 
         return beam
 
-    def get_beam_area(self, stokes='pseudo_I'):
+    def get_beam_area(self, pol='I'):
         """
         Computes the integral of the beam, which has units of steradians
 
-        Currently, only the "pseudo Stokes I" beam and linear dipole 'XX' and 'YY' are
+        Currently, only the pseudo Stokes "I" beam and linear dipole 'XX' and 'YY' are
         supported. See Equations 4 and 5 of Moore et al. (2017) ApJ 836, 154
         or arxiv:1502.05072 for details.
+
+        Args:
+          pol : polarization string, Ex. a stokes pol 'I', or a linear pol 'XX'
+
+        Returns:
+          omega : float, integral of the beam across the sky [steradians]
         """
         if self.beam_type != 'power':
             raise ValueError('beam_type must be power')
@@ -1073,17 +1093,26 @@ class UVBeam(UVBase):
         nside = self.nside
 
         # get beam
-        beam = self._get_beam(stokes)
+        beam = self._get_beam(pol)
 
-        return np.sum(beam, axis=-1) * np.pi / (3. * nside**2)
+        # get integral
+        omega = np.sum(beam, axis=-1) * np.pi / (3. * nside**2)
 
-    def get_beam_sq_area(self, stokes='pseudo_I'):
+        return omega
+
+    def get_beam_sq_area(self, pol='I'):
         """
-        Computes the integral of the beam**2, which has units of steradians
+        Computes the integral of the beam^2, which has units of steradians
 
-        Currently, only the "pseudo Stokes I" beam and linear dipole 'XX' and 'YY' are
+        Currently, only the pseudo Stokes "I" beam and linear dipole 'XX' and 'YY' are
         supported. See Equations 4 and 5 of Moore et al. (2017) ApJ 836, 154
         or arxiv:1502.05072 for details.
+
+        Args:
+          pol : polarization string, Ex. a stokes pol 'I', or a linear pol 'XX'
+
+        Returns:
+          omega : float, integral of the beam^2 across the sky [steradians]
         """
         if self.beam_type != 'power':
             raise ValueError('beam_type must be power')
@@ -1097,9 +1126,12 @@ class UVBeam(UVBase):
         nside = self.nside
 
         # get beam
-        beam = self._get_beam(stokes)
+        beam = self._get_beam(pol)
 
-        return np.sum(beam**2, axis=-1) * np.pi / (3. * nside**2)
+        # get integral
+        omega = np.sum(beam**2, axis=-1) * np.pi / (3. * nside**2)
+
+        return omega
 
     def select(self, axis1_inds=None, axis2_inds=None, pixels=None,
                frequencies=None, freq_chans=None,
