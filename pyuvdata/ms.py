@@ -242,8 +242,13 @@ class MS(UVData):
         elif(tbField.getcol('PHASE_DIR').shape[1] == 1):
             self.phase_type = 'phased'
             # MSv2.0 appears to assume J2000. Not sure how to specifiy otherwise
-            self.phase_center_epoch = float(
-                tb.getcolkeyword('UVW', 'MEASINFO')['Ref'][1:])
+            epoch_string=tb.getcolkeyword('UVW', 'MEASINFO')['Ref']
+            #For measurement sets made with COTTER, this keyword is ITRF instead of the epoch 
+            if epoch_string=='ITRF':
+                self.phase_center_epoch = 2000.
+            else:
+                self.phase_center_epoch = float(
+                    tb.getcolkeyword('UVW', 'MEASINFO')['Ref'][1:])
             self.phase_center_ra = float(tbField.getcol('PHASE_DIR')[0][0][0])
             self.phase_center_dec = float(tbField.getcol('PHASE_DIR')[0][0][1])
             self.set_phased()
