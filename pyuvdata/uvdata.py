@@ -55,10 +55,11 @@ class UVData(UVBase):
                                                  'Nfreqs', 'Npols'),
                                            expected_type=np.complex)
 
-        desc = 'Visibility units, options are: "uncalib", "Jy" or "K str"'
+        desc = 'Visibility units, options are: "uncalib", "Jy" or "K str", "mK str", "mK", "K"'
         self._vis_units = uvp.UVParameter('vis_units', description=desc,
                                           form='str', expected_type=str,
-                                          acceptable_vals=["uncalib", "Jy", "K str"])
+                                          acceptable_vals=["uncalib", "Jy", "K str", "mK str",
+                                                           "mK", "K"])
 
         desc = ('Number of data points averaged into each data element, '
                 'NOT required to be an integer. type = float, same shape as data_array')
