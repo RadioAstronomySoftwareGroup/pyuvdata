@@ -1336,8 +1336,8 @@ def test_get_beam_functions():
     nt.assert_almost_equal(np.sum(power_beam.get_beam_sq_area()), 4. * numfreqs * npix * dOmega)
 
     # Check to make sure only pseudo Stokes I is accepted
-    nt.assert_raises(NotImplementedError, power_beam.get_beam_area, stokes='Q')
-    nt.assert_raises(NotImplementedError, power_beam.get_beam_sq_area, stokes='Q')
+    nt.assert_raises(NotImplementedError, power_beam.get_beam_area, pol='Q')
+    nt.assert_raises(NotImplementedError, power_beam.get_beam_sq_area, pol='Q')
 
     # Check polarization error
     power_beam.polarization_array = [9, 18, 27, -5]
