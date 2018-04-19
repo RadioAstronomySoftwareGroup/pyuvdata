@@ -177,8 +177,11 @@ class MS(UVData):
         # use first interval and assume rest are constant (though measurement set has all integration times for each Nblt )
         # self.integration_time=tb.getcol('INTERVAL')[0]
         # for some reason, interval ends up larger than the difference between times...
-        self.integration_time = float(
-            times_unique[1] - times_unique[0]) * 3600. * 24.
+        if len(times_unique) == 1:
+            self.integration_time = 1.0
+        else:
+            self.integration_time = float(
+                times_unique[1] - times_unique[0]) * 3600. * 24.
         # open table with antenna location information
         tbAnt = tables.table(filepath + '/ANTENNA')
         tbObs = tables.table(filepath + '/OBSERVATION')
