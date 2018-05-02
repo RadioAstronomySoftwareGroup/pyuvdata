@@ -152,12 +152,12 @@ def test_pol_funcs():
     """ Test utility functions to convert between polarization strings and numbers """
 
     pol_nums = [-8, -7, -6, -5, -4, -3, -2, -1, 1, 2, 3, 4]
-    pol_str = ['YX', 'XY', 'YY', 'XX', 'LR', 'RL', 'LL', 'RR', 'I', 'Q', 'U', 'V']
+    pol_str = ['YX', 'XY', 'YY', 'XX', 'LR', 'RL', 'LL', 'RR', 'pI', 'pQ', 'pU', 'pV']
     nt.assert_equal(pol_nums, uvutils.polstr2num(pol_str))
     nt.assert_equal(pol_str, uvutils.polnum2str(pol_nums))
     # Check individuals
     nt.assert_equal(-6, uvutils.polstr2num('YY'))
-    nt.assert_equal('V', uvutils.polnum2str(4))
+    nt.assert_equal('pV', uvutils.polnum2str(4))
     # Check errors
     nt.assert_raises(KeyError, uvutils.polstr2num, 'foo')
     nt.assert_raises(ValueError, uvutils.polstr2num, 1)

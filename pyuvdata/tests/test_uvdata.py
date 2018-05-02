@@ -1690,8 +1690,8 @@ def test_get_feedpols():
     pols_data = ['R', 'L']
     nt.assert_items_equal(pols, pols_data)
 
-    # Test break when stokes visibilities are present
-    uv.polarization_array[0] = 1  # Stokes I
+    # Test break when pseudo-Stokes visibilities are present
+    uv.polarization_array[0] = 1  # pseudo-Stokes I
     nt.assert_raises(ValueError, uv.get_feedpols)
 
 
@@ -1720,8 +1720,8 @@ def test_parse_ants():
     nt.assert_items_equal(uv.get_antpairs(), ant_pairs_nums)
     nt.assert_is_instance(polarizations, type(None))
 
-    # Stokes params
-    ant_str = 'I,q,U,v'
+    # pseudo-Stokes params
+    ant_str = 'pI,pq,pU,pv'
     ant_pairs_nums, polarizations = uv.parse_ants(ant_str)
     pols_expected = [4, 3, 2, 1]
     nt.assert_is_instance(ant_pairs_nums, type(None))
@@ -1868,8 +1868,8 @@ def test_parse_ants():
     nt.assert_items_equal(ant_pairs_nums, ant_pairs_expected)
     nt.assert_items_equal(polarizations, pols_expected)
 
-    # Antenna numbers and Stokes parameters
-    ant_str = '(1l,2r)_(3l,6r),I,q'
+    # Antenna numbers and pseudo-Stokes parameters
+    ant_str = '(1l,2r)_(3l,6r),pI,pq'
     ant_pairs_nums, polarizations = uv.parse_ants(ant_str)
     ant_pairs_expected = [(1, 3), (1, 6), (2, 3), (2, 6)]
     pols_expected = [2, 1, -1, -2, -3, -4]
@@ -1955,8 +1955,8 @@ def test_select_with_ant_str():
     nt.assert_items_equal(uv2.get_pols(), uv.get_pols())
     # All baselines in data are cross correlations
 
-    # Stokes params
-    ant_str = 'I,q,U,v'
+    # pseudo-Stokes params
+    ant_str = 'pI,pq,pU,pv'
     nt.assert_raises(ValueError, uv.select, ant_str=ant_str, inplace=inplace)
 
     # Unparsible string
@@ -2112,9 +2112,9 @@ def test_select_with_ant_str():
     nt.assert_items_equal(uv2.get_antpairs(), ant_pairs)
     nt.assert_items_equal(uv2.get_pols(), pols)
 
-    # Test stokes params with select
-    ant_str = 'i,Q'
-    pols = ['Q', 'I']
+    # Test pseudo-Stokes params with select
+    ant_str = 'pi,pQ'
+    pols = ['pQ', 'pI']
     uv.polarization_array = np.array([4, 3, 2, 1])
     uv2 = uv.select(ant_str=ant_str, inplace=inplace)
     nt.assert_items_equal(uv2.get_antpairs(), uv.get_antpairs())

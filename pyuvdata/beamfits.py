@@ -128,8 +128,13 @@ class BeamFITS(UVBeam):
                 self.data_array = np.squeeze(complex_arrs[0] + 1j * complex_arrs[1], axis=0)
             else:
                 self.data_array = data
+
+            # Note: This axis is called STOKES by analogy with the equivilent uvfits axis
+            # However, this confusing because it is NOT a true Stokes axis,
+            #   it is really the polarization axis.
             if primary_header.pop('CTYPE' + str(ax_nums['feed_pol'])).lower().strip() == 'stokes':
                 self.Npols = primary_header.pop('NAXIS' + str(ax_nums['feed_pol']))
+
             self.polarization_array = np.int32(uvutils.fits_gethduaxis(primary_hdu,
                                                                        ax_nums['feed_pol']))
             self.set_power()
@@ -449,8 +454,11 @@ class BeamFITS(UVBeam):
             else:
                 pol_spacing = 1
 
+            # Note: This axis is called STOKES by analogy with the equivilent uvfits axis
+            # However, this confusing because it is NOT a true Stokes axis,
+            #   it is really the polarization axis.
             primary_header['CTYPE' + str(ax_nums['feed_pol'])] = \
-                ('STOKES', 'Polarization integers, see AIPS memo 117')
+                ('STOKES', 'Polarization integers, see uvbeam memo')
             primary_header['CRVAL' + str(ax_nums['feed_pol'])] = self.polarization_array[0]
             primary_header['CDELT' + str(ax_nums['feed_pol'])] = pol_spacing
 

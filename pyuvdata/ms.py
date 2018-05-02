@@ -22,7 +22,7 @@ AIPS polarization numbers
 polDict = {1: 1, 2: 2, 3: 3, 4: 4, 5: -1, 6: -3,
            7: -4, 8: -2, 9: -5, 10: -7, 11: -8, 12: -6}
 
-# convert from casa stokes integers to pyuvdata
+# convert from casa polarization integers to pyuvdata
 
 
 class MS(UVData):

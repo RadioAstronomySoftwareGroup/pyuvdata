@@ -315,6 +315,7 @@ def fits_indexhdus(hdulist):
 def polstr2num(pol):
     """
     Convert polarization str to number according to AIPS Memo 117.
+    Use 'pI', 'pQ', 'pU' and 'pV' to make it clear that these are pseudo-Stokes, not true Stokes
 
     Args:
         pol: polarization string
@@ -322,7 +323,7 @@ def polstr2num(pol):
     Returns:
         Number corresponding to string
     """
-    poldict = {'I': 1, 'Q': 2, 'U': 3, 'V': 4,
+    poldict = {'PI': 1, 'PQ': 2, 'PU': 3, 'PV': 4,
                'RR': -1, 'LL': -2, 'RL': -3, 'LR': -4,
                'XX': -5, 'YY': -6, 'XY': -7, 'YX': -8}
     if isinstance(pol, str):
@@ -337,6 +338,7 @@ def polstr2num(pol):
 def polnum2str(num):
     """
     Convert polarization number to str according to AIPS Memo 117.
+    Use 'pI', 'pQ', 'pU' and 'pV' to make it clear that these are pseudo-Stokes, not true Stokes
 
     Args:
         num: polarization number
@@ -344,7 +346,7 @@ def polnum2str(num):
     Returns:
         String corresponding to string
     """
-    str_list = ['YX', 'XY', 'YY', 'XX', 'LR', 'RL', 'LL', 'RR', '', 'I', 'Q', 'U', 'V']
+    str_list = ['YX', 'XY', 'YY', 'XX', 'LR', 'RL', 'LL', 'RR', '', 'pI', 'pQ', 'pU', 'pV']
     if isinstance(num, (int, long, np.int32, np.int64)):
         out = str_list[num + 8]
     elif isinstance(num, collections.Iterable):

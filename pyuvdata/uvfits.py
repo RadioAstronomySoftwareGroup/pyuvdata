@@ -701,6 +701,9 @@ class UVFITS(UVData):
         hdu.header['CRPIX2  '] = 1.0
         hdu.header['CDELT2  '] = 1.0
 
+        # Note: This axis is called STOKES to comply with the AIPS memo 117
+        # However, this confusing because it is NOT a true Stokes axis,
+        #   it is really the polarization axis.
         hdu.header['CTYPE3  '] = 'STOKES  '
         hdu.header['CRVAL3  '] = self.polarization_array[0]
         hdu.header['CRPIX3  '] = 1.0

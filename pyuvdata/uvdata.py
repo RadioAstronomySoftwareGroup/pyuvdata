@@ -128,8 +128,13 @@ class UVData(UVBase):
                                            tols=1e-3)  # mHz
 
         desc = ('Array of polarization integers, shape (Npols). '
-                'AIPS Memo 117 says: stokes 1:4 (I,Q,U,V);  '
-                'circular -1:-4 (RR,LL,RL,LR); linear -5:-8 (XX,YY,XY,YX)')
+                'AIPS Memo 117 says: pseudo-stokes 1:4 (pI, pQ, pU, pV);  '
+                'circular -1:-4 (RR, LL, RL, LR); linear -5:-8 (XX, YY, XY, YX). '
+                'NOTE: AIPS Memo 117 actually calls the pseudo-Stokes polarizations '
+                '"Stokes", but this is inaccurate as visibilities cannot be in '
+                'true Stokes polarizations for physical antennas. We adopt the '
+                'term pseudo-Stokes to refer to linear combinations of instrumental '
+                'visibility polarizations (e.g. pI = xx + yy).')
         self._polarization_array = uvp.UVParameter('polarization_array',
                                                    description=desc,
                                                    expected_type=int,
@@ -1766,10 +1771,10 @@ class UVData(UVBase):
     def get_feedpols(self):
         """
         Returns list of unique antenna feed polarizations (e.g. ['X', 'Y']) in data.
-        NOTE: Will return ValueError if any stokes visibilities are present.
+        NOTE: Will return ValueError if any pseudo-Stokes visibilities are present.
         """
         if np.any(self.polarization_array > 0):
-            raise ValueError('Stokes visibilities cannot be interpreted as feed polarizations')
+            raise ValueError('Pseudo-Stokes visibilities cannot be interpreted as feed polarizations')
         else:
             return list(set(''.join(self.get_pols())))
 
@@ -2058,7 +2063,7 @@ class UVData(UVBase):
     def parse_ants(self, ant_str, print_toggle=False):
         """
         Generates two lists of antenna pair tuples and polarization indices based
-        on parsing of the string ant_str.  If no valid polarizations (Stokes
+        on parsing of the string ant_str.  If no valid polarizations (pseudo-Stokes
         params, or combinations of [lr] or [xy]) or antenna numbers are found in
         ant_str, ant_pairs_nums and polarizations are returned as None.
 
@@ -2078,7 +2083,7 @@ class UVData(UVBase):
 
         Output:
             ant_pairs_nums: List of tuples containing the parsed pairs of
-                antenna numbers. If 'all' or Stokes parameters are passed as
+                antenna numbers. If 'all' or pseudo-Stokes parameters are passed as
                 ant_str, returned as None.
             polarizations: List of desired polarizations. If no polarizations
                 found in ant_str then returned as None.
@@ -2115,14 +2120,14 @@ class UVData(UVBase):
                         if not (pair[0] == pair[1]
                                 or pair in ant_pairs_nums):
                             ant_pairs_nums.append(pair)
-                elif ant_str[str_pos:].upper().startswith('I'):
-                    polarizations.append(uvutils.polstr2num('I'))
-                elif ant_str[str_pos:].upper().startswith('Q'):
-                    polarizations.append(uvutils.polstr2num('Q'))
-                elif ant_str[str_pos:].upper().startswith('U'):
-                    polarizations.append(uvutils.polstr2num('U'))
-                elif ant_str[str_pos:].upper().startswith('V'):
-                    polarizations.append(uvutils.polstr2num('V'))
+                elif ant_str[str_pos:].upper().startswith('PI'):
+                    polarizations.append(uvutils.polstr2num('pI'))
+                elif ant_str[str_pos:].upper().startswith('PQ'):
+                    polarizations.append(uvutils.polstr2num('pQ'))
+                elif ant_str[str_pos:].upper().startswith('PU'):
+                    polarizations.append(uvutils.polstr2num('pU'))
+                elif ant_str[str_pos:].upper().startswith('PV'):
+                    polarizations.append(uvutils.polstr2num('pV'))
                 else:
                     raise ValueError('Unparsible argument {s}'.format(s=ant_str))
 
