@@ -129,8 +129,8 @@ class BeamFITS(UVBeam):
             else:
                 self.data_array = data
 
-            # Note: This axis is called STOKES by analogy with the equivilent uvfits axis
-            # However, this confusing because it is NOT a true Stokes axis,
+            # Note: This axis is called STOKES by analogy with the equivalent uvfits axis
+            # However, this is confusing because it is NOT a true Stokes axis,
             #   it is really the polarization axis.
             if primary_header.pop('CTYPE' + str(ax_nums['feed_pol'])).lower().strip() == 'stokes':
                 self.Npols = primary_header.pop('NAXIS' + str(ax_nums['feed_pol']))
@@ -454,8 +454,8 @@ class BeamFITS(UVBeam):
             else:
                 pol_spacing = 1
 
-            # Note: This axis is called STOKES by analogy with the equivilent uvfits axis
-            # However, this confusing because it is NOT a true Stokes axis,
+            # Note: This axis is called STOKES by analogy with the equivalent uvfits axis
+            # However, this is confusing because it is NOT a true Stokes axis,
             #   it is really the polarization axis.
             primary_header['CTYPE' + str(ax_nums['feed_pol'])] = \
                 ('STOKES', 'Polarization integers, see uvbeam memo')
