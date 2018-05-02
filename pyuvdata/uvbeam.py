@@ -129,8 +129,8 @@ class UVBeam(UVBase):
                                       expected_type=int, required=False)
 
         desc = ('Array of polarization integers, shape (Npols). '
-                'AIPS Memo 117 says: stokes 1:4 (I,Q,U,V);  '
-                'circular -1:-4 (RR,LL,RL,LR); linear -5:-8 (XX,YY,XY,YX). '
+                'Uses the same convention as UVData: pseudo-stokes 1:4 (pI, pQ, pU, pV);  '
+                'circular -1:-4 (RR, LL, RL, LR); linear -5:-8 (XX, YY, XY, YX). '
                 'Only required if beam_type is "power".')
         self._polarization_array = uvp.UVParameter('polarization_array',
                                                    description=desc, required=False,
@@ -1022,12 +1022,12 @@ class UVBeam(UVBase):
     def _get_beam(self, pol):
         """
         Get the healpix beam map corresponding to the specififed polarization,
-        'I', 'Q', etc., or linear dipole polarization, 'XX', 'YY', etc.
+        pseudo-stokes I: 'pI', or linear dipole polarization: 'XX', 'YY', etc.
 
-        Currently only 'I', 'XX' and 'YY' are supported.
+        Currently only 'pI', 'XX' and 'YY' are supported.
 
         Args:
-          pol : polarization string, Ex. a stokes pol 'I', or a linear pol 'XX'
+          pol : polarization string, Ex. a pseudo-stokes pol 'pI', or a linear pol 'XX'
 
         Return:
           beam : healpix beam
@@ -1041,8 +1041,8 @@ class UVBeam(UVBase):
         # get beam
         if pol == 'I':
             if 1 in pol_array:
-                stokes_I_ind = np.where(np.isin(pol_array, 1))[0][0]
-                beam = self.data_array[0, 0, stokes_I_ind]
+                stokes_pI_ind = np.where(np.isin(pol_array, 1))[0][0]
+                beam = self.data_array[0, 0, stokes_pI_ind]
             elif -5 in pol_array and -6 in pol_array:
                 # Assume A_I = (B_xx + B_yy)/2
                 xx_ind = np.where(np.isin(pol_array, -5))[0][0]
@@ -1063,7 +1063,7 @@ class UVBeam(UVBase):
             else:
                 raise ValueError('Do not have the right polarization information')
         else:
-            raise NotImplementedError("Stokes {} not yet implemented...".format(pol))
+            raise NotImplementedError("Polarization {} not yet implemented...".format(pol))
 
         return beam
 
@@ -1071,12 +1071,12 @@ class UVBeam(UVBase):
         """
         Computes the integral of the beam, which has units of steradians
 
-        Currently, only the pseudo Stokes "I" beam and linear dipole 'XX' and 'YY' are
+        Currently, only the pseudo-Stokes 'pI' beam and linear dipole 'XX' and 'YY' are
         supported. See Equations 4 and 5 of Moore et al. (2017) ApJ 836, 154
         or arxiv:1502.05072 for details.
 
         Args:
-          pol : polarization string, Ex. a stokes pol 'I', or a linear pol 'XX'
+          pol : polarization string, Ex. a pseudo-stokes pol 'pI', or a linear pol 'XX'
 
         Returns:
           omega : float, integral of the beam across the sky [steradians]
@@ -1104,12 +1104,12 @@ class UVBeam(UVBase):
         """
         Computes the integral of the beam^2, which has units of steradians
 
-        Currently, only the pseudo Stokes "I" beam and linear dipole 'XX' and 'YY' are
+        Currently, only the pseudo-Stokes 'pI' beam and linear dipole 'XX' and 'YY' are
         supported. See Equations 4 and 5 of Moore et al. (2017) ApJ 836, 154
         or arxiv:1502.05072 for details.
 
         Args:
-          pol : polarization string, Ex. a stokes pol 'I', or a linear pol 'XX'
+          pol : polarization string, Ex. a pseudo-stokes pol 'pI', or a linear pol 'XX'
 
         Returns:
           omega : float, integral of the beam^2 across the sky [steradians]
