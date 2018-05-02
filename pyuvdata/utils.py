@@ -315,7 +315,8 @@ def fits_indexhdus(hdulist):
 def polstr2num(pol):
     """
     Convert polarization str to number according to AIPS Memo 117.
-    Use 'pI', 'pQ', 'pU' and 'pV' to make it clear that these are pseudo-Stokes, not true Stokes
+    Prefer 'pI', 'pQ', 'pU' and 'pV' to make it clear that these are pseudo-Stokes,
+    not true Stokes, but also support 'I', 'Q', 'U', 'V'.
 
     Args:
         pol: polarization string
@@ -324,6 +325,7 @@ def polstr2num(pol):
         Number corresponding to string
     """
     poldict = {'PI': 1, 'PQ': 2, 'PU': 3, 'PV': 4,
+               'I': 1, 'Q': 2, 'U': 3, 'V': 4,
                'RR': -1, 'LL': -2, 'RL': -3, 'LR': -4,
                'XX': -5, 'YY': -6, 'XY': -7, 'YX': -8}
     if isinstance(pol, str):
