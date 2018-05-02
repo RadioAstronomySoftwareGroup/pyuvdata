@@ -324,6 +324,8 @@ def polstr2num(pol):
     Returns:
         Number corresponding to string
     """
+    # Use all upper case keys to support case in-sensitive handling
+    # (cast input string to upper case for key comparison)
     poldict = {'PI': 1, 'PQ': 2, 'PU': 3, 'PV': 4,
                'I': 1, 'Q': 2, 'U': 3, 'V': 4,
                'RR': -1, 'LL': -2, 'RL': -3, 'LR': -4,
