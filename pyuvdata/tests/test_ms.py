@@ -8,13 +8,15 @@ from pyuvdata.data import DATA_PATH
 import pyuvdata.tests as uvtest
 from pyuvdata import UVFITS
 
+
 def test_cotter_ms():
     """Test reading in an ms made from MWA data with cotter (no dysco compression)"""
     UV = UVData()
     testfile = os.path.join(DATA_PATH, '1102865728_small.ms')
     UV.read_ms(testfile)
- 
+
     del(UV)
+
 
 def test_readNRAO():
     """Test reading in a CASA tutorial ms file."""
