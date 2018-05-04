@@ -497,7 +497,7 @@ If a minus sign is present in front of an antenna number, it will not be kept in
   >>> print(len(UV.get_antpairs()))
   16
 
-e) Select data and return new object (leaving original in tact).
+e) Select data and return new object (leaving original intact).
 ********************************************************************
 ::
 
@@ -978,7 +978,7 @@ a) Selecting a range of Zenith Angles
 UVBeam: Converting to beam types and coordinate systems
 ---------------------------------------------------------------------
 
-a) Convert a regularly gridded az_za power beam to HEALpix
+a) Convert a regularly gridded az_za power beam to HEALpix (leaving original intact).
 ********************************************************************
 ::
 
@@ -991,10 +991,10 @@ a) Convert a regularly gridded az_za power beam to HEALpix
   ...                    feed_name='PAPER_dipole', feed_version='0.1',
   ...                    model_name='E-field pattern - Rigging height 4.9m',
   ...                    model_version='1.0')
-  >>> beam.az_za_to_healpix()
-  >>> hp.mollview(beam.data_array[0,0,0,0,:]) # doctest: +SKIP
+  >>> hpx_beam = beam.az_za_to_healpix(inplace=False)
+  >>> hp.mollview(hpx_beam.data_array[0,0,0,0,:]) # doctest: +SKIP
 
-b) Convert a regularly gridded efield beam to a power beam
+b) Convert a regularly gridded efield beam to a power beam (leaving original intact).
 ********************************************************************
 ::
 
@@ -1008,8 +1008,7 @@ b) Convert a regularly gridded efield beam to a power beam
   ...                    feed_name='PAPER_dipole', feed_version='0.1',
   ...                    model_name='E-field pattern - Rigging height 4.9m',
   ...                    model_version='1.0')
-  >>> new_beam = copy.deepcopy(beam)
-  >>> new_beam.efield_to_power()
+  >>> new_beam = beam.efield_to_power(inplace=False)
 
   # plot zenith angle cut through the beams
   >>> plt.plot(beam.axis2_array, beam.data_array[1, 0, 0, 0, :, 0].real, label='E-field real') # doctest: +SKIP
