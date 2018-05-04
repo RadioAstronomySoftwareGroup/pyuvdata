@@ -554,6 +554,10 @@ class UVBeam(UVBase):
         if not keep_basis_vector:
             beam_object.basis_vector_array = None
 
+        history_update_string = (' Converted from efield to power using pyuvdata.')
+
+        beam_object.history = beam_object.history + history_update_string
+
         if run_check:
             beam_object.check(check_extra=check_extra,
                               run_check_acceptability=run_check_acceptability)
@@ -664,6 +668,11 @@ class UVBeam(UVBase):
         beam_object.Naxes2 = None
         beam_object.axis1_array = None
         beam_object.axis2_array = None
+
+        history_update_string = (' Converted from regularly gridded '
+                                 'azimuth/zenith_angle to HEALPix using pyuvdata.')
+
+        beam_object.history = beam_object.history + history_update_string
 
         if run_check:
             beam_object.check(check_extra=check_extra,
