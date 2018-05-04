@@ -280,8 +280,7 @@ def test_efield_to_power():
                              model_name='E-field pattern - Rigging height 4.9m',
                              model_version='1.0')
 
-    new_power_beam = copy.deepcopy(efield_beam)
-    new_power_beam.efield_to_power(calc_cross_pols=False)
+    new_power_beam = efield_beam.efield_to_power(calc_cross_pols=False, inplace=False)
 
     # The values in the beam file only have 4 sig figs, so they don't match precisely
     diff = np.abs(new_power_beam.data_array - power_beam.data_array)
@@ -353,8 +352,7 @@ def test_efield_to_power():
     nt.assert_equal(new_power_beam, new_power_beam2)
 
     # test calculating cross pols
-    new_power_beam = copy.deepcopy(efield_beam)
-    new_power_beam.efield_to_power(calc_cross_pols=True)
+    new_power_beam = efield_beam.efield_to_power(calc_cross_pols=True, inplace=False)
     nt.assert_true(np.all(np.abs(new_power_beam.data_array[:, :, 0, :, :,
                                                            np.where(new_power_beam.axis1_array == 0)[0]])
                           > np.abs(new_power_beam.data_array[:, :, 2, :, :,
@@ -371,8 +369,9 @@ def test_efield_to_power():
     nt.assert_equal(new_power_beam, new_power_beam2)
 
     # test keeping basis vectors
-    new_power_beam = copy.deepcopy(efield_beam)
-    new_power_beam.efield_to_power(calc_cross_pols=False, keep_basis_vector=True)
+    new_power_beam = efield_beam.efield_to_power(calc_cross_pols=False,
+                                                 keep_basis_vector=True,
+                                                 inplace=False)
     nt.assert_true(np.allclose(new_power_beam.data_array, np.abs(efield_beam.data_array)**2))
 
     # test raises error if beam is already a power beam
@@ -395,8 +394,7 @@ def test_az_za_to_healpix():
 
     power_beam.select(axis2_inds=np.where(power_beam.axis2_array <= np.pi / 2.)[0])
 
-    power_beam_healpix = copy.deepcopy(power_beam)
-    power_beam_healpix.az_za_to_healpix()
+    power_beam_healpix = power_beam.az_za_to_healpix(inplace=False)
 
     npix = hp.nside2npix(power_beam_healpix.nside)
     nt.assert_true(power_beam_healpix.Npixels <= npix * 0.55)
@@ -1131,8 +1129,7 @@ def test_healpix():
     power_beam.mismatch_array = np.random.normal(0.0, 1.0, size=(power_beam.Nspws, power_beam.Nfreqs))
     power_beam.s_parameters = np.random.normal(0.0, 0.3, size=(4, power_beam.Nspws, power_beam.Nfreqs))
 
-    power_beam_healpix = copy.deepcopy(power_beam)
-    power_beam_healpix.az_za_to_healpix()
+    power_beam_healpix = power_beam.az_za_to_healpix(inplace=False)
 
     # test that Npixels make sense
     n_max_pix = power_beam.Naxes1 * power_beam.Naxes2

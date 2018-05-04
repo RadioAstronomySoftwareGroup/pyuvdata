@@ -463,7 +463,8 @@ class UVBeam(UVBase):
         self.data_normalization = 'peak'
 
     def efield_to_power(self, calc_cross_pols=True, keep_basis_vector=False,
-                        run_check=True, check_extra=True, run_check_acceptability=True):
+                        run_check=True, check_extra=True, run_check_acceptability=True,
+                        inplace=True):
         """
         Convert E-field beam to power beam.
 
@@ -481,35 +482,42 @@ class UVBeam(UVBase):
                 required ones. Default is True.
             run_check_acceptability: Option to check acceptable range of the values of
                 required parameters after combining objects. Default is True.
+            inplace: Option to perform the select directly on self (True, default) or return
+                a new UVBeam object, which is a subselection of self (False)
         """
-        if self.beam_type != 'efield':
+        if inplace:
+            beam_object = self
+        else:
+            beam_object = copy.deepcopy(self)
+
+        if beam_object.beam_type != 'efield':
             raise ValueError('beam_type must be efield')
 
-        efield_data = self.data_array
-        efield_naxes_vec = self.Naxes_vec
+        efield_data = beam_object.data_array
+        efield_naxes_vec = beam_object.Naxes_vec
 
         feed_pol_order = [(0, 0)]
-        if self.Nfeeds > 1:
+        if beam_object.Nfeeds > 1:
             feed_pol_order.append((1, 1))
 
         if calc_cross_pols:
-            self.Npols = self.Nfeeds ** 2
-            if self.Nfeeds > 1:
+            beam_object.Npols = beam_object.Nfeeds ** 2
+            if beam_object.Nfeeds > 1:
                 feed_pol_order.extend([(0, 1), (1, 0)])
         else:
-            self.Npols = self.Nfeeds
+            beam_object.Npols = beam_object.Nfeeds
 
         pol_strings = []
         for pair in feed_pol_order:
-            pol_strings.append(self.feed_array[pair[0]] + self.feed_array[pair[1]])
-        self.polarization_array = np.array([uvutils.polstr2num(ps.upper()) for ps in pol_strings])
+            pol_strings.append(beam_object.feed_array[pair[0]] + beam_object.feed_array[pair[1]])
+        beam_object.polarization_array = np.array([uvutils.polstr2num(ps.upper()) for ps in pol_strings])
 
         if not keep_basis_vector:
-            self.Naxes_vec = 1
+            beam_object.Naxes_vec = 1
 
         # adjust requirements, fix data_array form
-        self.set_power()
-        power_data = np.zeros(self._data_array.expected_shape(self), dtype=np.complex)
+        beam_object.set_power()
+        power_data = np.zeros(beam_object._data_array.expected_shape(beam_object), dtype=np.complex)
 
         if keep_basis_vector:
             for pol_i, pair in enumerate(feed_pol_order):
@@ -523,16 +531,16 @@ class UVBeam(UVBase):
                         power_data[0, :, pol_i] += \
                             ((efield_data[0, :, pair[0]]
                              * np.conj(efield_data[0, :, pair[1]]))
-                             * self.basis_vector_array[0, comp_i]**2
+                             * beam_object.basis_vector_array[0, comp_i]**2
                              + (efield_data[1, :, pair[0]]
                              * np.conj(efield_data[1, :, pair[1]]))
-                             * self.basis_vector_array[1, comp_i]**2
+                             * beam_object.basis_vector_array[1, comp_i]**2
                              + (efield_data[0, :, pair[0]]
                              * np.conj(efield_data[1, :, pair[1]])
                              + efield_data[1, :, pair[0]]
                              * np.conj(efield_data[0, :, pair[1]]))
-                             * (self.basis_vector_array[0, comp_i]
-                             * self.basis_vector_array[1, comp_i]))
+                             * (beam_object.basis_vector_array[0, comp_i]
+                             * beam_object.basis_vector_array[1, comp_i]))
                 else:
                     raise ValueError('Conversion to power with 3-vector efields '
                                      'is not currently supported because we have '
@@ -540,18 +548,21 @@ class UVBeam(UVBase):
 
         power_data = np.real_if_close(power_data, tol=10)
 
-        self.data_array = power_data
-        self.Nfeeds = None
-        self.feed_array = None
+        beam_object.data_array = power_data
+        beam_object.Nfeeds = None
+        beam_object.feed_array = None
         if not keep_basis_vector:
-            self.basis_vector_array = None
+            beam_object.basis_vector_array = None
 
         if run_check:
-            self.check(check_extra=check_extra,
-                       run_check_acceptability=run_check_acceptability)
+            beam_object.check(check_extra=check_extra,
+                              run_check_acceptability=run_check_acceptability)
+        if not inplace:
+            return beam_object
 
     def az_za_to_healpix(self, nside=None, run_check=True, check_extra=True,
-                         run_check_acceptability=True):
+                         run_check_acceptability=True,
+                         inplace=True):
         """
         Convert beam in az_za coordinates to healpix coordinates.
         The interpolation is done using scipy's interpolate.RectBivariateSpline().
@@ -566,16 +577,23 @@ class UVBeam(UVBase):
                 required ones. Default is True.
             run_check_acceptability: Option to check acceptable range of the values of
                 required parameters after combining objects. Default is True.
+            inplace: Option to perform the select directly on self (True, default) or return
+                a new UVBeam object, which is a subselection of self (False)
         """
         import healpy as hp
         from scipy import interpolate
-        if self.pixel_coordinate_system != 'az_za':
+        if inplace:
+            beam_object = self
+        else:
+            beam_object = copy.deepcopy(self)
+
+        if beam_object.pixel_coordinate_system != 'az_za':
             raise ValueError('pixel_coordinate_system must be "az_za"')
-        if self.beam_type != 'power':
+        if beam_object.beam_type != 'power':
             raise ValueError('healpix conversion not yet defined for efield')
 
         if nside is None:
-            min_res = np.min(np.array([np.diff(self.axis1_array)[0], np.diff(self.axis2_array)[0]]))
+            min_res = np.min(np.array([np.diff(beam_object.axis1_array)[0], np.diff(beam_object.axis2_array)[0]]))
             nside_min_res = np.sqrt(3 / np.pi) * np.radians(60.) / min_res
             nside = int(2**np.ceil(np.log2(nside_min_res)))
             assert(hp.pixelfunc.nside2resol(nside) < min_res)
@@ -583,45 +601,46 @@ class UVBeam(UVBase):
         npix = hp.nside2npix(nside)
         hpx_res = hp.pixelfunc.nside2resol(nside)
 
-        az_za_data = self.data_array
-        self.pixel_coordinate_system = 'healpix'
-        self.nside = nside
-        self.Npixels = npix
-        self.ordering = 'ring'
-        self.set_cs_params()
+        az_za_data = beam_object.data_array
+        beam_object.pixel_coordinate_system = 'healpix'
+        beam_object.nside = nside
+        beam_object.Npixels = npix
+        beam_object.ordering = 'ring'
+        beam_object.set_cs_params()
 
-        phi_vals, theta_vals = np.meshgrid(self.axis1_array, self.axis2_array)
-        if np.iscomplexobj(self.data_array):
+        phi_vals, theta_vals = np.meshgrid(beam_object.axis1_array, beam_object.axis2_array)
+        if np.iscomplexobj(beam_object.data_array):
             data_type = np.complex
         else:
             data_type = np.float
-        healpix_data = np.zeros(self._data_array.expected_shape(self), dtype=data_type)
+        healpix_data = np.zeros(beam_object._data_array.expected_shape(beam_object), dtype=data_type)
         pixels = np.arange(hp.nside2npix(nside))
         hpx_theta, hpx_phi = hp.pix2ang(nside, pixels)
         nearest_pix_dist = np.zeros(npix)
 
-        for index0 in range(self.Naxes_vec):
-            for index1 in range(self.Nspws):
-                for index2 in range(self.Npols):
-                    for index3 in range(self.Nfreqs):
+        for index0 in range(beam_object.Naxes_vec):
+            for index1 in range(beam_object.Nspws):
+                for index2 in range(beam_object.Npols):
+                    for index3 in range(beam_object.Nfreqs):
 
-                        if np.iscomplexobj(self.data_array):
+                        if np.iscomplexobj(beam_object.data_array):
                             # interpolate real and imaginary parts separately
-                            real_lut = interpolate.RectBivariateSpline(self.axis2_array,
-                                                                       self.axis1_array,
+                            real_lut = interpolate.RectBivariateSpline(beam_object.axis2_array,
+                                                                       beam_object.axis1_array,
                                                                        az_za_data[index0, index1, index2, index3, :].real)
-                            imag_lut = interpolate.RectBivariateSpline(self.axis2_array,
-                                                                       self.axis1_array,
+                            imag_lut = interpolate.RectBivariateSpline(beam_object.axis2_array,
+                                                                       beam_object.axis1_array,
                                                                        az_za_data[index0, index1, index2, index3, :].imag)
                         else:
-                            lut = interpolate.RectBivariateSpline(self.axis2_array, self.axis1_array,
+                            lut = interpolate.RectBivariateSpline(beam_object.axis2_array,
+                                                                  beam_object.axis1_array,
                                                                   az_za_data[index0, index1, index2, index3, :])
                         for hpx_i in pixels:
                             if index0 == 0 and index1 == 0 and index2 == 0 and index3 == 0:
                                 pix_dists = np.sqrt((theta_vals - hpx_theta[hpx_i])**2.
                                                     + (phi_vals - hpx_phi[hpx_i])**2.)
                                 nearest_pix_dist[hpx_i] = np.min(pix_dists)
-                            if np.iscomplexobj(self.data_array):
+                            if np.iscomplexobj(beam_object.data_array):
                                 # interpolate real and imaginary parts separately
                                 healpix_data[index0, index1, index2, index3, hpx_i] = (
                                     real_lut(hpx_theta[hpx_i], hpx_phi[hpx_i])
@@ -637,18 +656,20 @@ class UVBeam(UVBase):
             healpix_data = healpix_data[:, :, :, :, good_data]
             pixels = pixels[good_data]
 
-        self.pixel_array = pixels
-        self.Npixels = self.pixel_array.size
-        self.data_array = healpix_data
+        beam_object.pixel_array = pixels
+        beam_object.Npixels = beam_object.pixel_array.size
+        beam_object.data_array = healpix_data
 
-        self.Naxes1 = None
-        self.Naxes2 = None
-        self.axis1_array = None
-        self.axis2_array = None
+        beam_object.Naxes1 = None
+        beam_object.Naxes2 = None
+        beam_object.axis1_array = None
+        beam_object.axis2_array = None
 
         if run_check:
-            self.check(check_extra=check_extra,
-                       run_check_acceptability=run_check_acceptability)
+            beam_object.check(check_extra=check_extra,
+                              run_check_acceptability=run_check_acceptability)
+        if not inplace:
+            return beam_object
 
     def __add__(self, other, run_check=True, check_extra=True,
                 run_check_acceptability=True, inplace=False):
