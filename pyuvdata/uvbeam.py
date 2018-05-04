@@ -673,9 +673,11 @@ class UVBeam(UVBase):
                                 nearest_pix_dist[hpx_i] = np.min(pix_dists)
                             if np.iscomplexobj(beam_object.data_array):
                                 # interpolate real and imaginary parts separately
-                                healpix_data[index0, index1, index2, index3, hpx_i] = (
-                                    real_lut(hpx_theta[hpx_i], hpx_phi[hpx_i])
-                                    + 1j * imag_lut(hpx_theta[hpx_i], hpx_phi[hpx_i]))
+                                # The bizarre [0][0] is to enforce that real,imag_lut (1,1)
+                                # matches to a scalar value in healpix_data
+                                healpix_data[index0, index1, index2, index3, hpx_i] = ((
+                                    real_lut(hpx_theta[hpx_i], hpx_phi[hpx_i]) +
+                                    1j * imag_lut(hpx_theta[hpx_i], hpx_phi[hpx_i]))[0][0])
 
                             else:
                                 healpix_data[index0, index1, index2, index3, hpx_i] = \
