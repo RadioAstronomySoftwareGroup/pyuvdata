@@ -227,7 +227,7 @@ class CSTBeam(UVBeam):
             else:
                 phi_phase = data[:, phi_phase_col]
             theta_phase = theta_phase.reshape((theta_axis.size, phi_axis.size), order='F')
-            phi_phase = theta_phase.reshape((theta_axis.size, phi_axis.size), order='F')
+            phi_phase = phi_phase.reshape((theta_axis.size, phi_axis.size), order='F')
 
             theta_beam = theta_mag * np.exp(1j * theta_phase)
             phi_beam = phi_mag * np.exp(1j * phi_phase)
