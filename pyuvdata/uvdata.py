@@ -1617,8 +1617,8 @@ class UVData(UVBase):
             del(fhd_obj)
 
     def read_miriad(self, filepath, correct_lat_lon=True, run_check=True,
-                    check_extra=True,
-                    run_check_acceptability=True, phase_type=None):
+                    check_extra=True, run_check_acceptability=True, phase_type=None,
+                    antpairs=None, pols=None, times=None):
         """
         Read in data from a miriad file.
 
@@ -1630,20 +1630,28 @@ class UVData(UVBase):
                 ones. Default is True.
             run_check_acceptability: Option to check acceptable range of the values of
                 parameters after reading in the file. Default is True.
+            antpairs: List of len-2 antnum integer tuples in data to only read-in.
+                Ex: [(0, 0), (0, 1), ...]
+            pols: List of polarization integers or strings to only read-in.
+                Ex: ['xx', 'yy', ...]
+            times: len-2 list containing min and max range of times (Julian Date) to read-in.
+                Ex: [2458115.20, 2458115.40]
         """
         import miriad
         if isinstance(filepath, (list, tuple)):
             self.read_miriad(filepath[0], correct_lat_lon=correct_lat_lon,
                              run_check=run_check, check_extra=check_extra,
                              run_check_acceptability=run_check_acceptability,
-                             phase_type=phase_type)
+                             phase_type=phase_type, antpairs=antpairs, pols=pols,
+                             times=times)
             if len(filepath) > 1:
                 for f in filepath[1:]:
                     uv2 = UVData()
                     uv2.read_miriad(f, correct_lat_lon=correct_lat_lon,
                                     run_check=run_check, check_extra=check_extra,
                                     run_check_acceptability=run_check_acceptability,
-                                    phase_type=phase_type)
+                                    phase_type=phase_type, antpairs=antpairs, pols=pols,
+                                    times=times)
                     self += uv2
                 del(uv2)
         else:
@@ -1651,7 +1659,8 @@ class UVData(UVBase):
             miriad_obj.read_miriad(filepath, correct_lat_lon=correct_lat_lon,
                                    run_check=run_check, check_extra=check_extra,
                                    run_check_acceptability=run_check_acceptability,
-                                   phase_type=phase_type)
+                                   phase_type=phase_type, antpairs=antpairs, pols=pols,
+                                   times=times)
             self._convert_from_filetype(miriad_obj)
             del(miriad_obj)
 
