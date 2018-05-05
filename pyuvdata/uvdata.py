@@ -1630,8 +1630,10 @@ class UVData(UVBase):
                 ones. Default is True.
             run_check_acceptability: Option to check acceptable range of the values of
                 parameters after reading in the file. Default is True.
-            antpairs: List of len-2 antnum integer tuples in data to only read-in.
-                Ex: [(0, 0), (0, 1), ...]
+            antpairs: List of antnum-pair tuples in data to read-in.
+                If a tuple contains a single antnum, read-in all baselines that touch that antnum.
+                In this case, make sure the tuple is an iterable, e.g. (2,) not (2).
+                Ex: [(0, 0), (0, 1), (2,), ...].
             pols: List of polarization integers or strings to only read-in.
                 Ex: ['xx', 'yy', ...]
             times: len-2 list containing min and max range of times (Julian Date) to read-in.
