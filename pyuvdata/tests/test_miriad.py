@@ -476,7 +476,7 @@ def test_breakReadMiriad():
     testfile = os.path.join(DATA_PATH, 'test/outtest_miriad.uv')
     uvtest.checkWarnings(uv_in.read_miriad, [miriad_file],
                          known_warning='miriad')
-    
+
     uvtest.checkWarnings(uv_in.read_miriad, [miriad_file],
                          known_warning='miriad')
     uv_in.Nblts += 10
@@ -559,7 +559,7 @@ def test_readWriteReadMiriad():
     nt.assert_equal(nschan, nfreqs)
     nt.assert_equal(ischan, 1)
 
-    ## check partial IO selections ##
+    # check partial IO selections
     full = UVData()
     full.read_miriad(testfile)
     uv_in = UVData()
@@ -575,7 +575,7 @@ def test_readWriteReadMiriad():
 
     # test time loading
     uv_in.read_miriad(testfile, times=[2456865.607, 2456865.609])
-    full_times = np.unique(full.time_array[(full.time_array>2456865.607)&(full.time_array<2456865.609)])
+    full_times = np.unique(full.time_array[(full.time_array > 2456865.607) & (full.time_array < 2456865.609)])
     nt.assert_true(np.isclose(np.unique(uv_in.time_array), full_times).all())
 
     # test polarization loading
@@ -586,16 +586,16 @@ def test_readWriteReadMiriad():
 
     # assert exceptions
     nt.assert_raises(AssertionError, uv_in.read_miriad, testfile, antpairs='foo')
-    nt.assert_raises(AssertionError, uv_in.read_miriad, testfile, antpairs=[[0,1]])
-    nt.assert_raises(AssertionError, uv_in.read_miriad, testfile, antpairs=[('foo',)])
+    nt.assert_raises(AssertionError, uv_in.read_miriad, testfile, antpairs=[[0, 1]])
+    nt.assert_raises(AssertionError, uv_in.read_miriad, testfile, antpairs=[('foo', )])
     nt.assert_raises(ValueError, uv_in.read_miriad, testfile, antpairs=[(0, 10)])
     nt.assert_raises(AssertionError, uv_in.read_miriad, testfile, pols='xx')
     nt.assert_raises(AssertionError, uv_in.read_miriad, testfile, pols=[1.0])
     nt.assert_raises(ValueError, uv_in.read_miriad, testfile, pols=['yy'])
     nt.assert_raises(ValueError, uv_in.read_miriad, testfile, pols=['yy'])
     nt.assert_raises(AssertionError, uv_in.read_miriad, testfile, times='foo')
-    nt.assert_raises(AssertionError, uv_in.read_miriad, testfile, times=[1,2,3])
-    nt.assert_raises(AssertionError, uv_in.read_miriad, testfile, times=['foo','bar'])
+    nt.assert_raises(AssertionError, uv_in.read_miriad, testfile, times=[1, 2, 3])
+    nt.assert_raises(AssertionError, uv_in.read_miriad, testfile, times=['foo', 'bar'])
     nt.assert_raises(ValueError, uv_in.read_miriad, testfile, times=[10.1, 10.2])
 
     del(uv_in)
