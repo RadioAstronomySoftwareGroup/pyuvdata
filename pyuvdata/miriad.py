@@ -48,7 +48,7 @@ class Miriad(UVData):
             antpairs: List of antnum-pair tuples in data to read-in.
                 If a tuple contains a single antnum, read-in all baselines that touch that antnum.
                 In this case, make sure the tuple is an iterable, e.g. (2,) not (2).
-                Ex: [(0, 0), (0, 1), (2,), ...]. 
+                Ex: [(0, 0), (0, 1), (2,), ...].
             pols: List of polarization integers or strings to only read-in.
                 Ex: ['xx', 'yy', ...]
             times: len-2 list containing min and max range of times (Julian Date) to read-in.
@@ -196,14 +196,14 @@ class Miriad(UVData):
         for extra_variable in extra_miriad_variables:
             check_variables[extra_variable] = uv[extra_variable]
 
-        ## perform data selections if provided ##
+        # perform data selections if provided
         # select on antpairs using aipy.scripting.uv_selector
         if antpairs is not None:
             # type check
             err_msg = "antpairs must be a list of antnum integer tuples, Ex: [(0, 1), (3,), ...]"
             assert isinstance(antpairs, list), err_msg
             assert np.array(map(lambda ap: isinstance(ap, tuple), antpairs)).all(), err_msg
-            assert np.array(map(lambda ap: map(lambda a: isinstance(a, (int,np.int,np.int32)), ap), antpairs)).all(), err_msg
+            assert np.array(map(lambda ap: map(lambda a: isinstance(a, (int, np.int, np.int32)), ap), antpairs)).all(), err_msg
             # convert ant-pair tuples to string form required by aipy.scripting.uv_selector
             antpair_str = ','.join(map(lambda ap: '_'.join(map(lambda a: str(a), ap)), antpairs))
             aipy.scripting.uv_selector(uv, antpair_str)
@@ -213,9 +213,9 @@ class Miriad(UVData):
             # type check
             err_msg = "pols must be a list of polarization strings or ints, Ex: ['xx', ...] or [-5, ...]"
             assert isinstance(pols, list), err_msg
-            assert np.array(map(lambda p: isinstance(p, (str,np.str,int,np.int,np.int32)), pols)).all(), err_msg
+            assert np.array(map(lambda p: isinstance(p, (str, np.str, int, np.int, np.int32)), pols)).all(), err_msg
             # convert to pol integer if string
-            pols = [p if isinstance(p, (int,np.int,np.int32)) else uvutils.polstr2num(p) for p in pols]
+            pols = [p if isinstance(p, (int, np.int, np.int32)) else uvutils.polstr2num(p) for p in pols]
             # iterate through all possible pols and reject if not in pols
             pol_list = []
             for p in np.arange(-8, 5):
