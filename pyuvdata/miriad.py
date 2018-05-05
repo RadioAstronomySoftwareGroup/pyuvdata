@@ -9,6 +9,7 @@ import aipy
 from uvdata import UVData
 import telescopes as uvtel
 import utils as uvutils
+import itertools
 
 
 class Miriad(UVData):
@@ -29,7 +30,8 @@ class Miriad(UVData):
         return pol_ind
 
     def read_miriad(self, filepath, correct_lat_lon=True, run_check=True,
-                    check_extra=True, run_check_acceptability=True, phase_type=None):
+                    check_extra=True, run_check_acceptability=True, phase_type=None,
+                    antpairs=None, pols=None, times=None):
         """
         Read in data from a miriad file.
 
@@ -43,6 +45,14 @@ class Miriad(UVData):
                 ones. Default is True.
             run_check_acceptability: Option to check acceptable range of the values of
                 parameters after reading in the file. Default is True.
+            antpairs: List of antnum-pair tuples in data to read-in.
+                If a tuple contains a single antnum, read-in all baselines that touch that antnum.
+                In this case, make sure the tuple is an iterable, e.g. (2,) not (2).
+                Ex: [(0, 0), (0, 1), (2,), ...]. 
+            pols: List of polarization integers or strings to only read-in.
+                Ex: ['xx', 'yy', ...]
+            times: len-2 list containing min and max range of times (Julian Date) to read-in.
+                Ex: [2458115.20, 2458115.40]
         """
         if not os.path.exists(filepath):
             raise(IOError, filepath + ' not found')
@@ -186,6 +196,45 @@ class Miriad(UVData):
         for extra_variable in extra_miriad_variables:
             check_variables[extra_variable] = uv[extra_variable]
 
+        ## perform data selections if provided ##
+        # select on antpairs using aipy.scripting.uv_selector
+        if antpairs is not None:
+            # type check
+            err_msg = "antpairs must be a list of antnum integer tuples, Ex: [(0, 1), (3,), ...]"
+            assert isinstance(antpairs, list), err_msg
+            assert np.array(map(lambda ap: isinstance(ap, tuple), antpairs)).all(), err_msg
+            assert np.array(map(lambda ap: map(lambda a: isinstance(a, (int,np.int,np.int32)), ap), antpairs)).all(), err_msg
+            # convert ant-pair tuples to string form required by aipy.scripting.uv_selector
+            antpair_str = ','.join(map(lambda ap: '_'.join(map(lambda a: str(a), ap)), antpairs))
+            aipy.scripting.uv_selector(uv, antpair_str)
+
+        # select on polarizations
+        if pols is not None:
+            # type check
+            err_msg = "pols must be a list of polarization strings or ints, Ex: ['xx', ...] or [-5, ...]"
+            assert isinstance(pols, list), err_msg
+            assert np.array(map(lambda p: isinstance(p, (str,np.str,int,np.int,np.int32)), pols)).all(), err_msg
+            # convert to pol integer if string
+            pols = [p if isinstance(p, (int,np.int,np.int32)) else uvutils.polstr2num(p) for p in pols]
+            # iterate through all possible pols and reject if not in pols
+            pol_list = []
+            for p in np.arange(-8, 5):
+                if p not in pols:
+                    uv.select('polarization', p, p, include=False)
+                else:
+                    pol_list.append(p)
+            # assert not empty
+            assert len(pol_list) > 0, "No polarizations in data matched {}".format(pols)
+
+        # select on time range
+        if times is not None:
+            # type check
+            err_msg = "times must be a len-2 list of Julian Date floats, Ex: [2458115.2, 2458115.6]"
+            assert isinstance(times, list), err_msg
+            assert len(times) == 2, err_msg
+            assert np.array(map(lambda t: isinstance(t, (float, np.float, np.float64)), times)).all(), err_msg
+            uv.select('time', times[0], times[1], include=True)
+
         data_accumulator = {}
         pol_list = []
         for (uvw, t, (i, j)), d, f in uv.all(raw=True):
@@ -268,9 +317,7 @@ class Miriad(UVData):
             data_accumulator[pol] = np.array(data)
 
         self.polarization_array = np.array(pol_list)
-        if len(self.polarization_array) != self.Npols:
-            warnings.warn('npols={npols} but found {n} pols in data file'.format(
-                npols=self.Npols, n=len(self.polarization_array)))
+        self.Npols = len(pol_list)
 
         # makes a data_array (and flag_array) of zeroes to be filled in by
         #   data values
