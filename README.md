@@ -17,7 +17,7 @@ The three main goals are:
 pyuvdata has three major user classes:
 
 * UVData: supports interferometric data (visibilities) and associated metadata
-* UVCal: supports interferometric calibration solutions (antenna-based) and associated metadata
+* UVCal: supports interferometric calibration solutions (antenna-based) and associated metadata (Note that this is a fairly new object, consider it to be a beta version)
 * UVBeam: supports primary beams (E-field or power) and associated metadata (Note that this is a new object and is very experimental)
 
 ## UVData Tested File Paths
@@ -35,7 +35,8 @@ pyuvdata has three major user classes:
 * CASA measurement sets (read-only support)
 
 ## UVCal file formats
-* calfits (a new format defined in pyuvdata, detailed memo coming soon). Note that this format was recently defined and may change in coming versions, based on user needs. Consider it to be in a beta version, but we will strive to make future versions backwards compatible with the current format.
+* calfits: a new format defined in pyuvdata, a detailed memo is available here: [calfits_memo](https://github.com/HERA-Team/pyuvdata/blob/master/docs/references/calfits_memo.pdf). Note that this format was recently defined and may change in coming versions, based on user needs. Consider it to be in a beta version, but we will strive to make future versions backwards compatible with the current format.
+* FHD calibration files (read-only support)
 
 ## UVBeam file formats
 * regularly gridded fits for both E-field and power beams
