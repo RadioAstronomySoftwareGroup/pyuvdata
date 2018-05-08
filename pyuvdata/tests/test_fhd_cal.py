@@ -184,8 +184,9 @@ def test_read_multi():
     fhd_cal = UVCal()
     calfits_cal = UVCal()
     if not uvtest.scipy_warnings:
-        fhd_cal.read_fhd_cal(cal_testfile_list, obs_testfile_list,
-                             settings_file=settings_testfile_list)
+        uvtest.checkWarnings(fhd_cal.read_fhd_cal, [cal_testfile_list, obs_testfile_list],
+                             {'settings_file': settings_testfile_list},
+                             message='UVParameter diffuse_model does not match')
     else:
         # numpy 1.14 introduced a new deprecation warning.
         # Should be fixed when the next scipy version comes out.
