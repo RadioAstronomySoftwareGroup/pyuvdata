@@ -287,9 +287,12 @@ def test_efield_to_power():
     reldiff = diff / power_beam.data_array
     nt.assert_true(np.max(reldiff) < 0.002)
 
-    # set data_arrays equal to test the rest of the object
-    power_beam.data_array = new_power_beam.data_array
-    nt.assert_equal(new_power_beam, power_beam)
+    # set data_array tolerances higher to test the rest of the object
+    # tols are (relative, absolute)
+    power_beam._data_array.tols = [0.002, 0.0001]
+    # modify the history to match
+    power_beam.history += ' Converted from efield to power using pyuvdata.'
+    nt.assert_equal(power_beam, new_power_beam)
 
     # test with non-orthogonal basis vectors
     # first construct a beam with non-orthogonal basis vectors
@@ -395,6 +398,11 @@ def test_az_za_to_healpix():
     power_beam.select(axis2_inds=np.where(power_beam.axis2_array <= np.pi / 2.)[0])
 
     power_beam_healpix = power_beam.az_za_to_healpix(inplace=False)
+
+    # check that history is updated appropriately
+    nt.assert_equal(power_beam_healpix.history, power_beam.history
+                    + ' Converted from regularly gridded azimuth/zenith_angle '
+                    'to HEALPix using pyuvdata.')
 
     npix = hp.nside2npix(power_beam_healpix.nside)
     nt.assert_true(power_beam_healpix.Npixels <= npix * 0.55)
