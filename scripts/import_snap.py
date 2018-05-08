@@ -3,6 +3,7 @@ Script to import a numpy array written by a snap board and convert to a uvdata
 set
 '''
 
+<<<<<<< HEAD
 import numpy as np
 import yaml
 import argparse
@@ -15,18 +16,31 @@ from astropy.coordinates import SkyCoord,EarthLocation,AltAz
 import astropy.units as u
 from hera_mc.sys_handling import Handling
 from hera_mc import cm_utils
+=======
+import numpy
+import yaml
+import argparse
+from pyuvdata import UVData
+
+>>>>>>> starting snap conversion script.
 desc=('Convert SNAP outputs into uvdata sets.'
       'Usage: import_snap.py -c config.yaml -z observation.npz'
       'config.yaml is a .yaml file containing instrument meta-data'
       'observation.npz contains numpy array of data from the SNAP')
 
 parser=argparse.ArgumentParser(description=desc)
+<<<<<<< HEAD
 parser.add_argument('--config','-c',dest='config',help='configuration yaml file')
 parser.add_argument('--data','-z',dest='data',help='data npz file')
+=======
+parser.add_argument('--config','-c',help='configuration .yaml file')
+parser.add_argument('--data','-z',help='data .npz file')
+>>>>>>> starting snap conversion script.
 
 args=parser.parse_args()
 
 
+<<<<<<< HEAD
 with open(args.config) as configfile:
     config=yaml.load(configfile)
 
@@ -176,3 +190,11 @@ if config['FORMAT']=='MIRIAD':
     data_uv.write_miriad(config['OUTPUTNAME'])
 elif config['FORMAT']=='UVFITS':
     data_uv.write_uvfits(config['OUTPUTNAME'])
+=======
+with open(parser.config) as configfile:
+    config=yaml.load(configfile)
+
+data=np.load(parser.data)
+
+#instantiate a uvdata object.
+>>>>>>> starting snap conversion script.
