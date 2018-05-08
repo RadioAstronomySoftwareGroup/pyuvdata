@@ -654,7 +654,7 @@ or read in the header followed by the metadata (both shown below)
   >>> print(uv.data_array)
   None
 
-  # If the data_arra, flag_array or nsample_array are needed later, they can be
+  # If the data_array, flag_array or nsample_array are needed later, they can be
   # read into the existing object:
   >>> uv.read_uvfits_data(filename)
   >>> print(uv.data_array.shape)
