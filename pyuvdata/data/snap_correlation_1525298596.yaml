@@ -1,3 +1,13 @@
 #******************************************************************
 #Example .yaml file that stores metadata for snap correlation file.
 #******************************************************************
+TELESCOPE_NAME: HERA #the name of the telescope being SNAPPED.
+POLARIZATIONS: #list polarization string labels in
+  - XX         #order that they appear in SNAP
+  - XY
+  - YX
+  - YY
+TELESCOPE_LOCATION_ITRF:
+  -
+  -
+  -
