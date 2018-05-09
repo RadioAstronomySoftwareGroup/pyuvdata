@@ -26,7 +26,7 @@ install:
   - conda info -a
 
   # create environment and install dependencies
-  - conda install numpy scipy astropy nose pip
+  - conda install numpy scipy astropy nose pip h5py
   - conda install -c conda-forge healpy aipy python-casacore pycodestyle coveralls
   - conda list
 script:
