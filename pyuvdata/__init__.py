@@ -10,6 +10,7 @@ from .miriad import *
 from .uvcal import *
 from .calfits import *
 from .uvbeam import *
+from .uvhdf5 import *
 import version
 
 __version__ = version.version
