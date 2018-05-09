@@ -1312,6 +1312,9 @@ class UVData(UVBase):
         elif filetype is 'miriad':
             import miriad
             other_obj = miriad.Miriad()
+        elif filetype is 'uvhdf5':
+            import uvhdf5
+            other_obj = uvhdf5.UVHDF5()
         else:
             raise ValueError('filetype must be uvfits, miriad, or fhd')
         for p in self:
@@ -1697,6 +1700,38 @@ class UVData(UVBase):
                                 run_check_acceptability=run_check_acceptability,
                                 clobber=clobber, no_antnums=no_antnums)
         del(miriad_obj)
+
+    def read_uvhdf5(self, filename, run_check=True, check_extra=True,
+                    run_check_acceptability=True):
+        """
+        Read uvhdf5 file
+        """
+        import uvhdf5
+        if isinstance(filename, (list, tuple)):
+            self.read_uvhdf5(filename[0], run_check=run_check, check_extra=check_extra,
+                             run_check_acceptability=run_check_acceptability)
+            if len(filename) > 1:
+                for f in filename[1:]:
+                    uv2 = UVData()
+                    uv2.read_uvhdf5(f, run_check=run_check, check_extra=check_extra,
+                                    run_check_acceptability=run_check_acceptability)
+                    self += uv2
+                del(uv2)
+        else:
+            uvhdf5_obj = uvhdf5.UVHDF5()
+            uvhdf5_obj.read_uvhdf5(filename, run_check=run_check, check_extra=check_extra,
+                                   run_check_acceptability=run_check_acceptability)
+            self._convert_from_filetype(uvhdf5_obj)
+            del(uvhdf5_obj)
+
+    def write_uvhdf5(self, filename, run_check=True, check_extra=True,
+                     run_check_acceptability=True, clobber=False):
+        uvhdf5_obj = self._convert_to_filetype('uvhdf5')
+        uvhdf5_obj.write_uvhdf5(filename, run_check=run_check,
+                                check_extra=check_extra,
+                                run_check_acceptability=run_check_acceptability,
+                                clobber=clobber)
+        del(uvhdf5_obj)
 
     def reorder_pols(self, order=None, run_check=True, check_extra=True,
                      run_check_acceptability=True):
