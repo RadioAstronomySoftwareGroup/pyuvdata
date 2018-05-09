@@ -136,7 +136,6 @@ class UVHDF5(UVData):
 
         return
 
-
     def write_uvhdf5(self, filename, run_check=True, check_extra=True,
                      run_check_acceptability=True, clobber=False):
         """
