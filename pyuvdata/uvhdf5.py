@@ -61,17 +61,34 @@ class UVHDF5(UVData):
             self.x_orientation = header['x_orientation'].value
         if 'telescope_name' in header:
             self.telescope_name = header['telescope_name'].value
+        if 'antenna_positions' in header:
+            self.antenna_positions = header['antenna_positions'].value
         if 'instrument' in header:
             self.instrument = header['instrument'].value
         else:
             self.instrument = None
 
+        # check for phasing information
+        self.phase_type = header['phase_type'].value
+        if self.phase_type == 'phased':
+            self.set_phased()
+            self.phase_center_ra = header['phase_center_ra'].value
+            self.phase_center_dec = header['phase_center_dec'].value
+            self.phase_center_epoch = header['phase_center_epoch'].value
+        elif self.phase_type == 'drift':
+            self.set_drift()
+            self.zenith_dec = header['zenith_dec'].value
+            self.zenith_ra = header['zenith_ra'].value
+        else:
+            self.set_unknown_phase_type()
+
         # get antenna arrays
-        self.Nants_data = header['Nants_data'].value
-        self.Nants_telescope = header['Nants_telescope'].value
+        # cast to native python int type
+        self.Nants_data = int(header['Nants_data'].value)
+        self.Nants_telescope = int(header['Nants_telescope'].value)
         self.ant_1_array = header['ant_1_array'].value
         self.ant_2_array = header['ant_2_array'].value
-        self.antenna_names = header['antenna_names'].value
+        self.antenna_names = list(header['antenna_names'].value)
         self.antenna_numbers = header['antenna_numbers'].value
 
         # get baseline array
@@ -84,12 +101,12 @@ class UVHDF5(UVData):
 
         # get time information
         self.time_array = header['time_array'].value
-        self.integration_time = header['integration_time'].value
+        self.integration_time = float(header['integration_time'].value)
         self.lst_array = header['lst_array'].value
 
         # get frequency information
         self.freq_array = header['freq_array'].value
-        self.channel_width = header['channel_width'].value
+        self.channel_width = float(header['channel_width'].value)
         self.spw_array = header['spw_array'].value
 
         # get polarization information
@@ -99,11 +116,11 @@ class UVHDF5(UVData):
         self.nsample_array = header['nsample_array'].value
 
         # get data shapes
-        self.Nfreqs = header['Nfreqs'].value
-        self.Npols = header['Npols'].value
-        self.Ntimes = header['Ntimes'].value
-        self.Nblts = header['Nblts'].value
-        self.Nspws = header['Nspws'].value
+        self.Nfreqs = int(header['Nfreqs'].value)
+        self.Npols = int(header['Npols'].value)
+        self.Ntimes = int(header['Ntimes'].value)
+        self.Nblts = int(header['Nblts'].value)
+        self.Nspws = int(header['Nspws'].value)
 
         # read data array
         dgrp = f['/Data']
@@ -170,12 +187,44 @@ class UVHDF5(UVData):
         header['polarization_array'] = self.polarization_array
         header['spw_array'] = self.spw_array
 
+        # write out phasing information
+        header['phase_type'] = self.phase_type
+        if self.zenith_dec is not None:
+            header['zenith_dec'] = self.zenith_dec
+        if self.zenith_ra is not None:
+            header['zenith_ra'] = self.zenith_ra
+        if self.phase_center_ra is not None:
+            header['phase_center_ra'] = self.phase_center_ra
+        if self.phase_center_dec is not None:
+            header['phase_center_dec'] = self.phase_center_dec
+        if self.phase_center_epoch is not None:
+            header['phase_center_epoch'] = self.phase_center_epoch
+
         # write out optional parameters
+        if self.antenna_positions is not None:
+            header['antenna_positions'] = self.antenna_positions
+        if self.dut1 is not None:
+            header['dut1'] = self.dut1
+        if self.earth_omega is not None:
+            header['earth_omega'] = self.earth_omega
+        if self.gst0 is not None:
+            header['earth_omega'] = self.gst0
+        if self.rdate is not None:
+            header['rdate'] = self.rdate
+        if self.timesys is not None:
+            header['timesys'] = self.timesys
+        if self.x_orientation is not None:
+            header['x_orientation'] = self.x_orientation
+
+        # write out extra parameters
         for p in self.extra():
             param = getattr(self, p)
             if param.name == 'extra_keywords':
                 for k in param.value.keys():
                     header[k] = param.value[k]
+            elif param.name == 'antenna_positions':
+                # we already dealt with these values above
+                pass
             elif param.value is not None:
                 header[param.name] = param.value
 
