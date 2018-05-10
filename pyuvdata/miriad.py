@@ -31,7 +31,8 @@ class Miriad(UVData):
 
     def read_miriad(self, filepath, correct_lat_lon=True, run_check=True,
                     check_extra=True, run_check_acceptability=True, phase_type=None,
-                    antpairs=None, pols=None, times=None):
+                    antenna_nums=None, ant_str=None, ant_pairs_nums=None, 
+                    polarizations=None, time_range=None):
         """
         Read in data from a miriad file.
 
@@ -45,13 +46,16 @@ class Miriad(UVData):
                 ones. Default is True.
             run_check_acceptability: Option to check acceptable range of the values of
                 parameters after reading in the file. Default is True.
-            antpairs: List of antnum-pair tuples in data to read-in.
-                If a tuple contains a single antnum, read-in all baselines that touch that antnum.
-                In this case, make sure the tuple is an iterable, e.g. (2,) not (2).
-                Ex: [(0, 0), (0, 1), (2,), ...].
-            pols: List of polarization integers or strings to only read-in.
+            antenna_nums: The antennas numbers to only read into the object.
+            ant_pairs_nums: A list of antenna number tuples (e.g. [(0,1), (3,2)])
+                specifying baselines to read into the object. Ordering of the
+                numbers within the tuple does not matter. A single antenna iterable
+                e.g. (1,) is interpreted as all visibilities with that antenna.
+            ant_str: A string containing information about what kinds of visibility data
+                to read-in.  Can be 'auto', 'cross', 'all'.
+            polarizations: List of polarization integers or strings to read-in.
                 Ex: ['xx', 'yy', ...]
-            times: len-2 list containing min and max range of times (Julian Date) to read-in.
+            time_range: len-2 list containing min and max range of times (Julian Date) to read-in.
                 Ex: [2458115.20, 2458115.40]
         """
         if not os.path.exists(filepath):
@@ -196,44 +200,61 @@ class Miriad(UVData):
         for extra_variable in extra_miriad_variables:
             check_variables[extra_variable] = uv[extra_variable]
 
-        # perform data selections if provided
-        # select on antpairs using aipy.scripting.uv_selector
-        if antpairs is not None:
-            # type check
-            err_msg = "antpairs must be a list of antnum integer tuples, Ex: [(0, 1), (3,), ...]"
-            assert isinstance(antpairs, list), err_msg
-            assert np.array(map(lambda ap: isinstance(ap, tuple), antpairs)).all(), err_msg
-            assert np.array(map(lambda ap: map(lambda a: isinstance(a, (int, np.int, np.int32)), ap), antpairs)).all(), err_msg
-            # convert ant-pair tuples to string form required by aipy.scripting.uv_selector
-            antpair_str = ','.join(map(lambda ap: '_'.join(map(lambda a: str(a), ap)), antpairs))
+        # select on ant_str if provided
+        if ant_str is not None:
+            # typc check
+            assert isinstance(ant_str, (str, np.str)), "ant_str must be fed as a string"
+            uv.select(ant_str, 0, 0)
+        # select on antenna_nums and/or ant_pairs_nums using aipy.scripting.uv_selector
+        if antenna_nums is not None or ant_pairs_nums is not None:
+            antpair_str = ''
+            if ant_pairs_nums is not None:
+                # type check
+                err_msg = "ant_pairs_nums must be a list of antnum integer tuples, Ex: [(0, 1), ...]"
+                assert isinstance(ant_pairs_nums, list), err_msg
+                assert np.array(map(lambda ap: isinstance(ap, tuple), ant_pairs_nums)).all(), err_msg
+                assert np.array(map(lambda ap: map(lambda a: isinstance(a, (int, np.int, np.int32)), ap), ant_pairs_nums)).all(), err_msg
+                # convert ant-pair tuples to string form required by aipy.scripting.uv_selector
+                antpair_str += ','.join(map(lambda ap: '_'.join(map(lambda a: str(a), ap)), ant_pairs_nums))
+            if antenna_nums is not None:
+                # type check
+                err_msg = "antenna_nums must be fed as a list of antenna number integers"
+                assert isinstance(antenna_nums, (np.ndarray, list)), err_msg
+                assert isinstance(antenna_nums[0], (int, np.int, np.int32)), err_msg
+                # get all possible combinations
+                antpairs = list(itertools.combinations_with_replacement(antenna_nums, 2))
+                # convert antenna numbers to string form required by aipy.scripting.uv_selector
+                if len(antpair_str) > 0:
+                    antpair_str += ','
+                antpair_str += ','.join(map(lambda ap: '_'.join(map(lambda a: str(a), ap)), antpairs))
             aipy.scripting.uv_selector(uv, antpair_str)
 
         # select on polarizations
-        if pols is not None:
+        if polarizations is not None:
             # type check
             err_msg = "pols must be a list of polarization strings or ints, Ex: ['xx', ...] or [-5, ...]"
-            assert isinstance(pols, list), err_msg
-            assert np.array(map(lambda p: isinstance(p, (str, np.str, int, np.int, np.int32)), pols)).all(), err_msg
+            assert isinstance(polarizations, (list, np.ndarray)), err_msg
+            assert np.array(map(lambda p: isinstance(p, (str, np.str, int, np.int, np.int32)), polarizations)).all(), err_msg
             # convert to pol integer if string
-            pols = [p if isinstance(p, (int, np.int, np.int32)) else uvutils.polstr2num(p) for p in pols]
+            polarizations = [p if isinstance(p, (int, np.int, np.int32)) else uvutils.polstr2num(p) for p in polarizations]
             # iterate through all possible pols and reject if not in pols
             pol_list = []
             for p in np.arange(-8, 5):
-                if p not in pols:
+                if p not in polarizations:
                     uv.select('polarization', p, p, include=False)
                 else:
                     pol_list.append(p)
             # assert not empty
-            assert len(pol_list) > 0, "No polarizations in data matched {}".format(pols)
+            assert len(pol_list) > 0, "No polarizations in data matched {}".format(polarizations)
 
         # select on time range
-        if times is not None:
+        if time_range is not None:
             # type check
-            err_msg = "times must be a len-2 list of Julian Date floats, Ex: [2458115.2, 2458115.6]"
-            assert isinstance(times, list), err_msg
-            assert len(times) == 2, err_msg
-            assert np.array(map(lambda t: isinstance(t, (float, np.float, np.float64)), times)).all(), err_msg
-            uv.select('time', times[0], times[1], include=True)
+            err_msg = "time_range must be a len-2 list of Julian Date floats, Ex: [2458115.2, 2458115.6]"
+            assert isinstance(time_range, (list, np.ndarray)), err_msg
+            assert len(time_range) == 2, err_msg
+            assert np.array(map(lambda t: isinstance(t, (float, np.float, np.float64)), time_range)).all(), err_msg
+            uv.select('time', time_range[0], time_range[1], include=True)
 
         data_accumulator = {}
         pol_list = []

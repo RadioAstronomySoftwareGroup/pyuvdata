@@ -1618,7 +1618,8 @@ class UVData(UVBase):
 
     def read_miriad(self, filepath, correct_lat_lon=True, run_check=True,
                     check_extra=True, run_check_acceptability=True, phase_type=None,
-                    antpairs=None, pols=None, times=None):
+                    antenna_nums=None, ant_str=None, ant_pairs_nums=None, 
+                    polarizations=None, time_range=None):
         """
         Read in data from a miriad file.
 
@@ -1630,13 +1631,16 @@ class UVData(UVBase):
                 ones. Default is True.
             run_check_acceptability: Option to check acceptable range of the values of
                 parameters after reading in the file. Default is True.
-            antpairs: List of antnum-pair tuples in data to read-in.
-                If a tuple contains a single antnum, read-in all baselines that touch that antnum.
-                In this case, make sure the tuple is an iterable, e.g. (2,) not (2).
-                Ex: [(0, 0), (0, 1), (2,), ...].
-            pols: List of polarization integers or strings to only read-in.
+            antenna_nums: The antennas numbers to read into the object.
+            ant_pairs_nums: A list of antenna number tuples (e.g. [(0,1), (3,2)])
+                specifying baselines to read into the object. Ordering of the
+                numbers within the tuple does not matter. A single antenna iterable
+                e.g. (1,) is interpreted as all visibilities with that antenna.
+            ant_str: A string containing information about what kinds of visibility data
+                to read-in.  Can be 'auto', 'cross', 'all'.
+            polarizations: List of polarization integers or strings to read-in.
                 Ex: ['xx', 'yy', ...]
-            times: len-2 list containing min and max range of times (Julian Date) to read-in.
+            time_range: len-2 list containing min and max range of times (Julian Date) to read-in.
                 Ex: [2458115.20, 2458115.40]
         """
         import miriad
@@ -1644,16 +1648,18 @@ class UVData(UVBase):
             self.read_miriad(filepath[0], correct_lat_lon=correct_lat_lon,
                              run_check=run_check, check_extra=check_extra,
                              run_check_acceptability=run_check_acceptability,
-                             phase_type=phase_type, antpairs=antpairs, pols=pols,
-                             times=times)
+                             phase_type=phase_type, antenna_nums=antenna_nums, 
+                             ant_str=ant_str, ant_pairs_nums=ant_pairs_nums,
+                             polarizations=polarizations, time_range=time_range)
             if len(filepath) > 1:
                 for f in filepath[1:]:
                     uv2 = UVData()
                     uv2.read_miriad(f, correct_lat_lon=correct_lat_lon,
                                     run_check=run_check, check_extra=check_extra,
                                     run_check_acceptability=run_check_acceptability,
-                                    phase_type=phase_type, antpairs=antpairs, pols=pols,
-                                    times=times)
+                                    phase_type=phase_type, antenna_nums=antenna_nums, 
+                                    ant_str=ant_str, ant_pairs_nums=ant_pairs_nums,
+                                    polarizations=polarizations, time_range=time_range)
                     self += uv2
                 del(uv2)
         else:
@@ -1661,8 +1667,9 @@ class UVData(UVBase):
             miriad_obj.read_miriad(filepath, correct_lat_lon=correct_lat_lon,
                                    run_check=run_check, check_extra=check_extra,
                                    run_check_acceptability=run_check_acceptability,
-                                   phase_type=phase_type, antpairs=antpairs, pols=pols,
-                                   times=times)
+                                   phase_type=phase_type, antenna_nums=antenna_nums, 
+                                   ant_str=ant_str, ant_pairs_nums=ant_pairs_nums,
+                                   polarizations=polarizations, time_range=time_range)
             self._convert_from_filetype(miriad_obj)
             del(miriad_obj)
 
