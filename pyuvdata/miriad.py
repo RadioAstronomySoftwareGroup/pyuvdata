@@ -31,7 +31,7 @@ class Miriad(UVData):
 
     def read_miriad(self, filepath, correct_lat_lon=True, run_check=True,
                     check_extra=True, run_check_acceptability=True, phase_type=None,
-                    antenna_nums=None, ant_str=None, ant_pairs_nums=None, 
+                    antenna_nums=None, ant_str=None, ant_pairs_nums=None,
                     polarizations=None, time_range=None):
         """
         Read in data from a miriad file.
