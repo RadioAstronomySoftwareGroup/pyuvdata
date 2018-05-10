@@ -1151,7 +1151,7 @@ class UVBeam(UVBase):
             raise ValueError('beam must be peak normalized')
         if self.pixel_coordinate_system != 'healpix':
             raise ValueError('Currently only healpix format supported')
-        if self.data_array.shape[0] > 1:
+        if self.Naxes_vec > 1:
             raise ValueError('Expect scalar for power beam, found vector')
 
         nside = self.nside
