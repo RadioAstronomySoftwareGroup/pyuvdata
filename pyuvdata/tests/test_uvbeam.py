@@ -4,8 +4,7 @@ import os
 import numpy as np
 import copy
 import healpy as hp
-#from pyuvdata import UVBeam
-from uvbeam import UVBeam
+from pyuvdata import UVBeam
 import pyuvdata.tests as uvtest
 import pyuvdata.utils as uvutils
 import pyuvdata.version as uvversion
