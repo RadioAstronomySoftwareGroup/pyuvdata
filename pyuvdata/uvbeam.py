@@ -51,8 +51,8 @@ class UVBeam(UVBase):
         self._Ncomponents_vec = uvp.UVParameter('Ncomponents_vec', description=desc,
                                                 expected_type=int, acceptable_vals=[2, 3], required=False)
 
-        desc = ('Pixel coordinate system, options are: "' +
-                '", "'.join(self.coordinate_system_dict.keys()) + '".')
+        desc = ('Pixel coordinate system, options are: "'
+                + '", "'.join(self.coordinate_system_dict.keys()) + '".')
         for key in self.coordinate_system_dict:
             desc = desc + (' "' + key + '" is a ' + self.coordinate_system_dict[key]['description']
                            + '. It has axes [' + ', '.join(self.coordinate_system_dict[key]['axes']) + '].')
@@ -602,7 +602,7 @@ class UVBeam(UVBase):
 
         if beam_object.pixel_coordinate_system != 'az_za':
             raise ValueError('pixel_coordinate_system must be "az_za"')
-        if self.basis_vector_array is not None:
+        if beam_object.basis_vector_array is not None:
             """ Basis vector operations """
 
         if nside is None:
@@ -631,28 +631,30 @@ class UVBeam(UVBase):
         hpx_theta, hpx_phi = hp.pix2ang(nside, pixels)
         nearest_pix_dist = np.zeros(npix)
 
-        if self.basis_vector_array is not None:
-            if (np.any(self.basis_vector_array[0, 1, :] > 0) or
-                    np.any(self.basis_vector_array[1, 0, :] > 0)):
+        if beam_object.basis_vector_array is not None:
+            if (np.any(beam_object.basis_vector_array[0, 1, :] > 0)
+                    or np.any(beam_object.basis_vector_array[1, 0, :] > 0)):
                 """ Input basis vectors are not aligned to the native theta/phi
                 coordinate system """
                 pass
             else:
                 """ The basis vector array comes in defined at the rectangular grid.
                 Redefine it for the healpix centers """
-                self.basis_vector_array = np.zeros([self.Naxes_vec, self.Ncomponents_vec, self.Npixels])
-                self.basis_vector_array[0, 0, :] = np.ones(self.Npixels)  # theta hat
-                self.basis_vector_array[1, 1, :] = np.ones(self.Npixels)  # phi hat
+                beam_object.basis_vector_array = np.zeros([beam_object.Naxes_vec,
+                                                           beam_object.Ncomponents_vec,
+                                                           beam_object.Npixels])
+                beam_object.basis_vector_array[0, 0, :] = np.ones(beam_object.Npixels)  # theta hat
+                beam_object.basis_vector_array[1, 1, :] = np.ones(beam_object.Npixels)  # phi hat
 
-        for index0 in range(self.Naxes_vec):
-            for index1 in range(self.Nspws):
+        for index0 in range(beam_object.Naxes_vec):
+            for index1 in range(beam_object.Nspws):
                 # Npols is only defined for power beams.  For E-field beams need Nfeeds.
-                if self.beam_type == 'power':
-                    Npol_feeds = self.Npols
+                if beam_object.beam_type == 'power':
+                    Npol_feeds = beam_object.Npols
                 else:
-                    Npol_feeds = self.Nfeeds
+                    Npol_feeds = beam_object.Nfeeds
                 for index2 in range(Npol_feeds):
-                    for index3 in range(self.Nfreqs):
+                    for index3 in range(beam_object.Nfreqs):
 
                         if np.iscomplexobj(beam_object.data_array):
                             # interpolate real and imaginary parts separately
@@ -676,8 +678,8 @@ class UVBeam(UVBase):
                                 # The bizarre [0][0] is to enforce that real,imag_lut (1,1)
                                 # matches to a scalar value in healpix_data
                                 healpix_data[index0, index1, index2, index3, hpx_i] = ((
-                                    real_lut(hpx_theta[hpx_i], hpx_phi[hpx_i]) +
-                                    1j * imag_lut(hpx_theta[hpx_i], hpx_phi[hpx_i]))[0][0])
+                                    real_lut(hpx_theta[hpx_i], hpx_phi[hpx_i])
+                                    + 1j * imag_lut(hpx_theta[hpx_i], hpx_phi[hpx_i]))[0][0])
 
                             else:
                                 healpix_data[index0, index1, index2, index3, hpx_i] = \
