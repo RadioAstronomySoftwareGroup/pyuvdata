@@ -589,6 +589,13 @@ def test_readWriteReadMiriad():
     # test ant_str
     uv_in.read_miriad(testfile, ant_str='auto')
     nt.assert_true(np.array([blp[0] == blp[1] for blp in uv_in.get_antpairs()]).all())
+    uv_in.read_miriad(testfile, ant_str='cross')
+    nt.assert_true(np.array([blp[0] != blp[1] for blp in uv_in.get_antpairs()]).all())
+    uv_in.read_miriad(testfile, ant_str='all')
+    uv_in.history = ''
+    full.history = ''
+    nt.assert_equal(uv_in, full)
+
 
     # assert exceptions
     nt.assert_raises(AssertionError, uv_in.read_miriad, testfile, ant_pairs_nums='foo')
