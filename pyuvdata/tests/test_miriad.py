@@ -572,7 +572,7 @@ def test_readWriteReadMiriad():
     uv_in.read_miriad(testfile, antenna_nums=[0])
     diff = set(full.get_antpairs()) - set(uv_in.get_antpairs())
     nt.assert_true(0 not in np.unique(diff))
-    uv_in.read_miriad(testfile, antenna_nums=[0], ant_pairs_nums=[(2,4)])
+    uv_in.read_miriad(testfile, antenna_nums=[0], ant_pairs_nums=[(2, 4)])
     nt.assert_true(np.array([bl in uv_in.get_antpairs() for bl in [(0, 0), (2, 4)]]).all())
 
     # test time loading
@@ -631,7 +631,7 @@ def test_readWriteReadMiriad():
     # assert partial-read and select are same
     full.read_miriad(testfile)
     t = np.unique(full.time_array)
-    full.select(times=t[((t>2456865.607)&(t<2456865.609))])
+    full.select(times=t[((t > 2456865.607) & (t < 2456865.609))])
     full.history = ''
     uv_in.read_miriad(testfile, time_range=[2456865.607, 2456865.609])
     uv_in.history = ''

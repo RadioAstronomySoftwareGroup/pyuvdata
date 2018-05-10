@@ -1618,7 +1618,7 @@ class UVData(UVBase):
 
     def read_miriad(self, filepath, correct_lat_lon=True, run_check=True,
                     check_extra=True, run_check_acceptability=True, phase_type=None,
-                    antenna_nums=None, ant_str=None, ant_pairs_nums=None, 
+                    antenna_nums=None, ant_str=None, ant_pairs_nums=None,
                     polarizations=None, time_range=None):
         """
         Read in data from a miriad file.
@@ -1648,7 +1648,7 @@ class UVData(UVBase):
             self.read_miriad(filepath[0], correct_lat_lon=correct_lat_lon,
                              run_check=run_check, check_extra=check_extra,
                              run_check_acceptability=run_check_acceptability,
-                             phase_type=phase_type, antenna_nums=antenna_nums, 
+                             phase_type=phase_type, antenna_nums=antenna_nums,
                              ant_str=ant_str, ant_pairs_nums=ant_pairs_nums,
                              polarizations=polarizations, time_range=time_range)
             if len(filepath) > 1:
@@ -1657,7 +1657,7 @@ class UVData(UVBase):
                     uv2.read_miriad(f, correct_lat_lon=correct_lat_lon,
                                     run_check=run_check, check_extra=check_extra,
                                     run_check_acceptability=run_check_acceptability,
-                                    phase_type=phase_type, antenna_nums=antenna_nums, 
+                                    phase_type=phase_type, antenna_nums=antenna_nums,
                                     ant_str=ant_str, ant_pairs_nums=ant_pairs_nums,
                                     polarizations=polarizations, time_range=time_range)
                     self += uv2
@@ -1667,7 +1667,7 @@ class UVData(UVBase):
             miriad_obj.read_miriad(filepath, correct_lat_lon=correct_lat_lon,
                                    run_check=run_check, check_extra=check_extra,
                                    run_check_acceptability=run_check_acceptability,
-                                   phase_type=phase_type, antenna_nums=antenna_nums, 
+                                   phase_type=phase_type, antenna_nums=antenna_nums,
                                    ant_str=ant_str, ant_pairs_nums=ant_pairs_nums,
                                    polarizations=polarizations, time_range=time_range)
             self._convert_from_filetype(miriad_obj)
