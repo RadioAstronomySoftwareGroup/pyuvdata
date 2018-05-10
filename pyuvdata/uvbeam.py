@@ -1064,14 +1064,13 @@ class UVBeam(UVBase):
         """
         # assert map is in healpix coords
         assert self.pixel_coordinate_system == 'healpix', "pixel_coordinate_system must be healpix"
-        
         # pols dict
         pols_dict = {'pI': (-5, -6), 'pQ': (-5, -6), 'pU': (-7, -8), 'pV': (-7, -8)}
         # get pol array
         pol_array = self.polarization_array
         polnum = uvutils.polstr2num(pol)
-
-        allowed = [1, -5, -6, -7, -8] # pQ, pU and pV yet to be implemented
+        # pQ, pU and pV yet to be implemented
+        allowed = [1, -5, -6, -7, -8] 
         if polnum in allowed:
             if polnum in pol_array:
                 stokes_p_ind = np.where(np.isin(pol_array, polnum))[0][0]
@@ -1081,9 +1080,9 @@ class UVBeam(UVBase):
                 if keys[0] in pol_array and keys[1] in pol_array:
                     xx_ind = np.where(np.isin(pol_array, keys[0]))[0][0]
                     yy_ind = np.where(np.isin(pol_array, keys[1]))[0][0]
-                    beam = 0.5 * (self.data_array[0, 0, xx_ind] + self.data_array[0, 0, yy_ind])  
+                    beam = 0.5 * (self.data_array[0, 0, xx_ind] + self.data_array[0, 0, yy_ind])
                 else:
-                   raise ValueError('Do not have the right polarization information')
+                    raise ValueError('Do not have the right polarization information')
             else:
                 raise NotImplementedError("Polarization {} not yet implemented...".format(pol))
         else:

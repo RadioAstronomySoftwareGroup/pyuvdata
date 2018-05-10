@@ -1380,16 +1380,23 @@ def test_get_beam_functions():
     # check cross polarized beam (xy and yx)
     efield_beam = UVBeam()
     efield_beam.read_cst_beam(cst_files[0], beam_type='e-field', frequency=150e6,
-                             telescope_name='TEST', feed_name='bob',
-                             feed_version='0.1',
-                             model_name='E-field pattern - Rigging height 4.9m',
-                             model_version='1.0')
+                              telescope_name='TEST', feed_name='bob',
+                              feed_version='0.1',
+                              model_name='E-field pattern - Rigging height 4.9m',
+                              model_version='1.0')
 
     efield_beam.efield_to_power()
     power_beam = copy.deepcopy(efield_beam)
     power_beam.az_za_to_healpix()
     power_beam.peak_normalize()
+    XX_area = power_beam.get_beam_sq_area("XX")
+    YY_area = power_beam.get_beam_sq_area("YY")
     XY_area = power_beam.get_beam_sq_area("XY")
-    YY_area = power_beam.get_beam_sq_area("YX") 
-
-    
+    YX_area = power_beam.get_beam_sq_area("YX")
+    # check if XY beam area is equal to beam YX beam area
+    nt.assert_almost_equal(XY_area, YX_area)
+    # check if XY/YX beam area is less than XX/YY beam area
+    nt.assert_less(XY_area, XX_area)
+    nt.assert_less(XY_area, YY_area)
+    nt.assert_less(YX_area, XX_area)
+    nt.assert_less(YX_area, YY_area)
