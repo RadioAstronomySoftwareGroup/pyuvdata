@@ -476,6 +476,10 @@ class UVBeam(UVBase):
         """
         Convert E-field beam to power beam.
 
+        Note that this interpolation isn't perfect. Interpolating an Efield beam
+        and then converting to power gives a different result than converting
+        to power and then interpolating at about a 5% level.
+
         Args:
             calc_cross_pols: If True, calculate the crossed polarization beams
                 (e.g. 'xy' and 'yx'), otherwise only calculate the same
