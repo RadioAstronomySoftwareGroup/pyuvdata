@@ -960,51 +960,6 @@ def test_add():
     beam1.history = efield_beam.history
     nt.assert_equal(beam1, beam_ref)
 
-    # Another combo with healpix efield
-    efield_beam.read_cst_beam(cst_files, beam_type='efield', frequency=[150e6, 123e6],
-                              telescope_name='TEST', feed_name='bob',
-                              feed_version='0.1', feed_pol=['x'],
-                              model_name='E-field pattern - Rigging height 4.9m',
-                              model_version='1.0')
-    efield_beam.az_za_to_healpix()
-
-    beam_ref = copy.deepcopy(efield_beam)
-    beam1 = efield_beam.select(freq_chans=0, feeds=efield_beam.feed_array[0],
-                               inplace=False)
-    beam2 = efield_beam.select(freq_chans=1, feeds=efield_beam.feed_array[1],
-                               inplace=False)
-    beam1 += beam2
-    nt.assert_true(uvutils.check_histories(efield_beam.history
-                                           + '  Downselected to specific frequencies, '
-                                           'feeds using pyuvdata. Combined data '
-                                           'along frequency, feed axis using pyuvdata.',
-                                           beam1.history))
-    # Zero out missing data in reference object
-    beam_ref.data_array[:, :, 1, 0, :] = 0.0
-    beam_ref.data_array[:, :, 0, 1, :] = 0.0
-    beam1.history = efield_beam.history
-    nt.assert_equal(beam1, beam_ref)
-
-    # Add without inplace
-    efield_beam.read_cst_beam(cst_files[0], beam_type='efield', frequency=150e6,
-                              telescope_name='TEST', feed_name='bob',
-                              feed_version='0.1', feed_pol=['x'],
-                              model_name='E-field pattern - Rigging height 4.9m',
-                              model_version='1.0')
-    efield_beam.az_za_to_healpix()
-    beam1 = efield_beam.select(pixels=efield_beam.pixel_array[0:efield_beam.Npixels / 2],
-                               inplace=False)
-    beam2 = efield_beam.select(pixels=efield_beam.pixel_array[efield_beam.Npixels / 2:],
-                               inplace=False)
-    beam1 = beam1 + beam2
-    nt.assert_true(uvutils.check_histories(efield_beam.history
-                                           + '  Downselected to specific healpix pixels '
-                                           'using pyuvdata. Combined data '
-                                           'along healpix pixel axis using pyuvdata.',
-                                           beam1.history))
-    beam1.history = efield_beam.history
-    nt.assert_equal(beam1, efield_beam)
-
     # Check warnings
     # generate more frequencies for testing by copying and adding several times
     while power_beam.Nfreqs < 8:
@@ -1252,59 +1207,78 @@ def test_healpix():
     beam1.history = power_beam_healpix.history
     nt.assert_equal(beam1, beam_ref)
 
+    # Test adding another combo with efield
+    beam_ref = copy.deepcopy(efield_beam)
+    beam1 = efield_beam.select(freq_chans=0, feeds=efield_beam.feed_array[0],
+                               inplace=False)
+    beam2 = efield_beam.select(freq_chans=1, feeds=efield_beam.feed_array[1],
+                               inplace=False)
+    beam1 += beam2
+    nt.assert_true(uvutils.check_histories(efield_beam.history
+                                           + '  Downselected to specific frequencies, '
+                                           'feeds using pyuvdata. Combined data '
+                                           'along frequency, feed axis using pyuvdata.',
+                                           beam1.history))
+    # Zero out missing data in reference object
+    beam_ref.data_array[:, :, 1, 0, :] = 0.0
+    beam_ref.data_array[:, :, 0, 1, :] = 0.0
+    beam1.history = efield_beam.history
+    nt.assert_equal(beam1, beam_ref)
+
+    # Add without inplace
+    beam1 = efield_beam.select(pixels=efield_beam.pixel_array[0:efield_beam.Npixels / 2],
+                               inplace=False)
+    beam2 = efield_beam.select(pixels=efield_beam.pixel_array[efield_beam.Npixels / 2:],
+                               inplace=False)
+    beam1 = beam1 + beam2
+    nt.assert_true(uvutils.check_histories(efield_beam.history
+                                           + '  Downselected to specific healpix pixels '
+                                           'using pyuvdata. Combined data '
+                                           'along healpix pixel axis using pyuvdata.',
+                                           beam1.history))
+    beam1.history = efield_beam.history
+    nt.assert_equal(beam1, efield_beam)
+
     # ---------------
     # Test error: adding overlapping data with healpix
     beam1 = copy.deepcopy(power_beam_healpix)
     beam2 = copy.deepcopy(power_beam_healpix)
     nt.assert_raises(ValueError, beam1.__iadd__, beam2)
 
-
-def test_get_beam_functions():
-    power_beam = UVBeam()
-    power_beam.read_cst_beam(cst_files[0], beam_type='power', frequency=150e6,
-                             telescope_name='TEST', feed_name='bob',
-                             feed_version='0.1',
-                             model_name='E-field pattern - Rigging height 4.9m',
-                             model_version='1.0')
-
-    # assert get_beam fails
-    nt.assert_raises(AssertionError, power_beam._get_beam, 'pI')
-
-    # Convert to healpix
-    power_beam.az_za_to_healpix()
-
+    # ---------------
     # Check that non-peak normalizations error
-    nt.assert_raises(ValueError, power_beam.get_beam_area)
-    nt.assert_raises(ValueError, power_beam.get_beam_sq_area)
-    power_beam.data_normalization = 'solid_angle'
-    nt.assert_raises(ValueError, power_beam.get_beam_area)
-    nt.assert_raises(ValueError, power_beam.get_beam_sq_area)
+    nt.assert_raises(ValueError, power_beam_healpix.get_beam_area)
+    nt.assert_raises(ValueError, power_beam_healpix.get_beam_sq_area)
+    healpix_norm = copy.deepcopy(power_beam_healpix)
+    healpix_norm.data_normalization = 'solid_angle'
+    nt.assert_raises(ValueError, healpix_norm.get_beam_area)
+    nt.assert_raises(ValueError, healpix_norm.get_beam_sq_area)
     # change it to peak for rest of checks
-    power_beam.data_normalization = 'peak'
+    healpix_norm.data_normalization = 'peak'
 
     # Check sizes of output
-    numfreqs = power_beam.freq_array.shape[-1]
-    beam_int = power_beam.get_beam_area()
-    beam_sq_int = power_beam.get_beam_sq_area()
+    numfreqs = healpix_norm.freq_array.shape[-1]
+    beam_int = healpix_norm.get_beam_area()
+    beam_sq_int = healpix_norm.get_beam_sq_area()
     nt.assert_equal(beam_int.shape[0], numfreqs)
     nt.assert_equal(beam_sq_int.shape[0], numfreqs)
 
     # Check for the case of a uniform beam over the whole sky
-    dOmega = hp.nside2pixarea(power_beam.nside)
-    npix = power_beam.Npixels
-    power_beam.data_array = np.ones_like(power_beam.data_array)
-    nt.assert_almost_equal(np.sum(power_beam.get_beam_area()), numfreqs * npix * dOmega)
-    power_beam.data_array = 2. * np.ones_like(power_beam.data_array)
-    nt.assert_almost_equal(np.sum(power_beam.get_beam_sq_area()), numfreqs * 4. * npix * dOmega)
+    dOmega = hp.nside2pixarea(healpix_norm.nside)
+    npix = healpix_norm.Npixels
+    healpix_norm.data_array = np.ones_like(healpix_norm.data_array)
+    nt.assert_almost_equal(np.sum(healpix_norm.get_beam_area()), numfreqs * npix * dOmega)
+    healpix_norm.data_array = 2. * np.ones_like(healpix_norm.data_array)
+    nt.assert_almost_equal(np.sum(healpix_norm.get_beam_sq_area()), numfreqs * 4. * npix * dOmega)
 
     # check XX and YY beam areas work and match to within 5 sigfigs
-    XX_area = power_beam.get_beam_area('XX')
-    xx_area = power_beam.get_beam_area('xx')
+    XX_area = healpix_norm.get_beam_area('XX')
+    xx_area = healpix_norm.get_beam_area('xx')
     nt.assert_almost_equal(xx_area, XX_area)
-    YY_area = power_beam.get_beam_area('YY')
+    YY_area = healpix_norm.get_beam_area('YY')
     nt.assert_almost_equal(YY_area / XX_area, 1.0, places=5)
-    XX_area = power_beam.get_beam_sq_area("XX")
-    YY_area = power_beam.get_beam_sq_area("YY")
+    XX_area = healpix_norm.get_beam_sq_area("XX")
+    YY_area = healpix_norm.get_beam_sq_area("YY")
     nt.assert_almost_equal(YY_area / XX_area, 1.0, places=5)
 
     # check backwards compatability with pstokes nomenclature and int polnum
@@ -1314,23 +1288,37 @@ def test_get_beam_functions():
     nt.assert_almost_equal(I_area, pI_area, area1)
 
     # Check that if pseudo-Stokes I (pI) is in the beam polarization_array, it just uses it
-    power_beam.polarization_array = [1, 2]
-    nt.assert_almost_equal(np.sum(power_beam.get_beam_area()), 2. * numfreqs * npix * dOmega)
-    nt.assert_almost_equal(np.sum(power_beam.get_beam_sq_area()), 4. * numfreqs * npix * dOmega)
+    healpix_norm.polarization_array = [1, 2]
+    nt.assert_almost_equal(np.sum(healpix_norm.get_beam_area()), 2. * numfreqs * npix * dOmega)
+    nt.assert_almost_equal(np.sum(healpix_norm.get_beam_sq_area()), 4. * numfreqs * npix * dOmega)
 
     # Check to make sure only pseudo-Stokes I is accepted
-    nt.assert_raises(NotImplementedError, power_beam.get_beam_area, pol='pQ')
-    nt.assert_raises(NotImplementedError, power_beam.get_beam_sq_area, pol='pQ')
+    nt.assert_raises(NotImplementedError, healpix_norm.get_beam_area, pol='Q')
+    nt.assert_raises(NotImplementedError, healpix_norm.get_beam_sq_area, pol='Q')
 
     # Check polarization error
-    power_beam.polarization_array = [9, 18, 27, -5]
-    nt.assert_raises(ValueError, power_beam.get_beam_area)
-    nt.assert_raises(ValueError, power_beam.get_beam_sq_area)
+    healpix_norm.polarization_array = [9, 18, 27, -5]
+    nt.assert_raises(ValueError, healpix_norm.get_beam_area)
+    nt.assert_raises(ValueError, healpix_norm.get_beam_sq_area)
+
+    healpix_norm_fullpol = efield_beam.efield_to_power(inplace=False)
+    healpix_norm_fullpol.peak_normalize()
+    XX_area = healpix_norm_fullpol.get_beam_sq_area("XX")
+    YY_area = healpix_norm_fullpol.get_beam_sq_area("YY")
+    XY_area = healpix_norm_fullpol.get_beam_sq_area("XY")
+    YX_area = healpix_norm_fullpol.get_beam_sq_area("YX")
+    # check if XY beam area is equal to beam YX beam area
+    nt.assert_almost_equal(XY_area, YX_area)
+    # check if XY/YX beam area is less than XX/YY beam area
+    nt.assert_less(XY_area, XX_area)
+    nt.assert_less(XY_area, YY_area)
+    nt.assert_less(YX_area, XX_area)
+    nt.assert_less(YX_area, YY_area)
 
     # Check if power is scalar
-    power_beam.data_array = np.vstack([power_beam.data_array, power_beam.data_array])
-    nt.assert_raises(ValueError, power_beam.get_beam_area)
-    nt.assert_raises(ValueError, power_beam.get_beam_sq_area)
+    healpix_norm.data_array = np.vstack([healpix_norm.data_array, healpix_norm.data_array])
+    nt.assert_raises(ValueError, healpix_norm.get_beam_area)
+    nt.assert_raises(ValueError, healpix_norm.get_beam_sq_area)
 
     # Check only power beams accepted
     efield_beam = UVBeam()
@@ -1355,26 +1343,14 @@ def test_get_beam_functions():
     nt.assert_raises(ValueError, az_za_beam.get_beam_area)
     nt.assert_raises(ValueError, az_za_beam.get_beam_sq_area)
 
-    # check cross polarized beam (xy and yx)
-    efield_beam = UVBeam()
-    efield_beam.read_cst_beam(cst_files[0], beam_type='e-field', frequency=150e6,
-                              telescope_name='TEST', feed_name='bob',
-                              feed_version='0.1',
-                              model_name='E-field pattern - Rigging height 4.9m',
-                              model_version='1.0')
 
-    efield_beam.efield_to_power()
-    power_beam = copy.deepcopy(efield_beam)
-    power_beam.az_za_to_healpix()
-    power_beam.peak_normalize()
-    XX_area = power_beam.get_beam_sq_area("XX")
-    YY_area = power_beam.get_beam_sq_area("YY")
-    XY_area = power_beam.get_beam_sq_area("XY")
-    YX_area = power_beam.get_beam_sq_area("YX")
-    # check if XY beam area is equal to beam YX beam area
-    nt.assert_almost_equal(XY_area, YX_area)
-    # check if XY/YX beam area is less than XX/YY beam area
-    nt.assert_less(XY_area, XX_area)
-    nt.assert_less(XY_area, YY_area)
-    nt.assert_less(YX_area, XX_area)
-    nt.assert_less(YX_area, YY_area)
+def test_get_beam_functions():
+    power_beam = UVBeam()
+    power_beam.read_cst_beam(cst_files[0], beam_type='power', frequency=150e6,
+                             telescope_name='TEST', feed_name='bob',
+                             feed_version='0.1',
+                             model_name='E-field pattern - Rigging height 4.9m',
+                             model_version='1.0')
+
+    # assert get_beam fails for non-HEALPix beam (HEALPix checks are in test_healpix)
+    nt.assert_raises(AssertionError, power_beam._get_beam, 'I')
