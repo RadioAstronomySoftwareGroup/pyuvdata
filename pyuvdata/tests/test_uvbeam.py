@@ -191,12 +191,17 @@ def test_efield_to_power():
 
     # The values in the beam file only have 4 sig figs, so they don't match precisely
     diff = np.abs(new_power_beam.data_array - power_beam.data_array)
+    nt.assert_true(np.max(diff) < 2)
     reldiff = diff / power_beam.data_array
     nt.assert_true(np.max(reldiff) < 0.002)
 
+    tols = [0.002, 0]
+    nt.assert_true(np.allclose(power_beam.data_array, new_power_beam.data_array,
+                               rtol=tols[0], atol=tols[1]))
+
     # set data_array tolerances higher to test the rest of the object
     # tols are (relative, absolute)
-    power_beam._data_array.tols = [0.002, 0.0001]
+    power_beam._data_array.tols = tols
     # modify the history to match
     power_beam.history += ' Converted from efield to power using pyuvdata.'
     nt.assert_equal(power_beam, new_power_beam)
@@ -318,27 +323,49 @@ def test_az_za_to_healpix():
     power_beam.pixel_coordinate_system = 'sin_zenith'
     nt.assert_raises(ValueError, power_beam.az_za_to_healpix)
 
-    """ Add healpix version of E-field; compare to power """
+    # Now check Efield interpolation
     efield_beam = UVBeam()
     efield_beam.read_cst_beam(cst_files[0], beam_type='efield', frequency=150e6,
                               telescope_name='TEST', feed_name='bob',
                               feed_version='0.1', feed_pol=['x'],
                               model_name='E-field pattern - Rigging height 4.9m',
                               model_version='1.0')
-    efield_beam.az_za_to_healpix()
-    efield_beam.efield_to_power(calc_cross_pols=False)
+    interp_then_sq = efield_beam.az_za_to_healpix(inplace=False)
+    interp_then_sq.efield_to_power(calc_cross_pols=False)
 
-    power_beam.read_cst_beam(cst_files[0], beam_type='power', frequency=150e6,
-                             telescope_name='TEST', feed_name='bob',
-                             feed_version='0.1', feed_pol=['x'],
-                             model_name='E-field pattern - Rigging height 4.9m',
-                             model_version='1.0')
-    power_beam.az_za_to_healpix()
+    # convert to power and then interpolate to compare.
+    # Don't use power read from file because it has rounding errors that will dominate this comparison
+    sq_then_interp = efield_beam.efield_to_power(calc_cross_pols=False, inplace=False)
+    sq_then_interp.az_za_to_healpix()
 
-    nt.assert_true(np.allclose(efield_beam.data_array, power_beam.data_array,
-                   rtol=0, atol=1))
+    # square then interpolate is different from interpolate then square at a
+    # higher level than normally allowed in the equality.
+    # We can live with it for now, may need to improve it later
+    diff = np.abs(interp_then_sq.data_array - sq_then_interp.data_array)
+    nt.assert_true(np.max(diff) < 0.5)
+    reldiff = diff / sq_then_interp.data_array
+    nt.assert_true(np.max(reldiff) < 0.05)
 
-    nt.assert_equal(efield_beam, power_beam)
+    tols = [0.05, 0]
+    nt.assert_true(np.allclose(sq_then_interp.data_array, interp_then_sq.data_array,
+                               rtol=tols[0], atol=tols[1]))
+
+    # set data_array tolerances higher to test the rest of the object
+    # tols are (relative, absolute)
+    sq_then_interp._data_array.tols = tols
+
+    # check history changes
+    interp_history_add = ' Converted from regularly gridded azimuth/zenith_angle to HEALPix using pyuvdata.'
+    sq_history_add = ' Converted from efield to power using pyuvdata.'
+    nt.assert_equal(sq_then_interp.history,
+                    efield_beam.history + sq_history_add + interp_history_add)
+    nt.assert_equal(interp_then_sq.history,
+                    efield_beam.history + interp_history_add + sq_history_add)
+
+    # now change history on one so we can compare the rest of the object
+    sq_then_interp.history = efield_beam.history + interp_history_add + sq_history_add
+
+    nt.assert_equal(sq_then_interp, interp_then_sq)
 
 
 def test_select_axis():
