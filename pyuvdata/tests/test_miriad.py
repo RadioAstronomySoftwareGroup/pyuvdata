@@ -595,7 +595,7 @@ def test_readWriteReadMiriad():
     uv_in.history = ''
     full.history = ''
     nt.assert_equal(uv_in, full)
-
+    nt.assert_raises(AssertionError, uv_in.read_miriad, testfile, ant_str='auto', antenna_nums=[0,1])
 
     # assert exceptions
     nt.assert_raises(AssertionError, uv_in.read_miriad, testfile, ant_pairs_nums='foo')
