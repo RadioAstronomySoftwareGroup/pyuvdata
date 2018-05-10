@@ -1034,40 +1034,33 @@ class UVBeam(UVBase):
         """
         # assert map is in healpix coords
         assert self.pixel_coordinate_system == 'healpix', "pixel_coordinate_system must be healpix"
-
+        
+        # pols dict
+        pols_dict = {'pI': (-5, -6), 'pQ': (-5, -6), 'pU': (-7, -8), 'pV': (-7, -8)}
         # get pol array
         pol_array = self.polarization_array
+        polnum = uvutils.polstr2num(pol)
 
-        # get beam
-        if pol == 'I':
-            if 1 in pol_array:
-                stokes_pI_ind = np.where(np.isin(pol_array, 1))[0][0]
-                beam = self.data_array[0, 0, stokes_pI_ind]
-            elif -5 in pol_array and -6 in pol_array:
-                # Assume A_I = (B_xx + B_yy)/2
-                xx_ind = np.where(np.isin(pol_array, -5))[0][0]
-                yy_ind = np.where(np.isin(pol_array, -6))[0][0]
-                beam = 0.5 * (self.data_array[0, 0, xx_ind] + self.data_array[0, 0, yy_ind])
+        allowed = [1, -5, -6, -7, -8] # pQ, pU and pV yet to be implemented
+        if polnum in allowed:
+            if polnum in pol_array:
+                stokes_p_ind = np.where(np.isin(pol_array, polnum))[0][0]
+                beam = self.data_array[0, 0, stokes_p_ind]
+            elif pol == 'pI':
+                keys = pols_dict['pI']
+                if keys[0] in pol_array and keys[1] in pol_array:
+                    xx_ind = np.where(np.isin(pol_array, keys[0]))[0][0]
+                    yy_ind = np.where(np.isin(pol_array, keys[1]))[0][0]
+                    beam = 0.5 * (self.data_array[0, 0, xx_ind] + self.data_array[0, 0, yy_ind])  
+                else:
+                   raise ValueError('Do not have the right polarization information')
             else:
-                raise ValueError('Do not have the right polarization information')
-        elif pol.upper() == 'XX':
-            if -5 in pol_array:
-                xx_ind = np.where(np.isin(pol_array, -5))[0][0]
-                beam = self.data_array[0, 0, xx_ind]
-            else:
-                raise ValueError('Do not have the right polarization information')
-        elif pol.upper() == 'YY':
-            if -6 in pol_array:
-                yy_ind = np.where(np.isin(pol_array, -6))[0][0]
-                beam = self.data_array[0, 0, yy_ind]
-            else:
-                raise ValueError('Do not have the right polarization information')
+                raise NotImplementedError("Polarization {} not yet implemented...".format(pol))
         else:
             raise NotImplementedError("Polarization {} not yet implemented...".format(pol))
-
         return beam
 
-    def get_beam_area(self, pol='I'):
+    def get_beam_area(self, pol='pI'):
         """
         Computes the integral of the beam, which has units of steradians
 
@@ -1100,7 +1093,7 @@ class UVBeam(UVBase):
 
         return omega
 
-    def get_beam_sq_area(self, pol='I'):
+    def get_beam_sq_area(self, pol='pI'):
         """
         Computes the integral of the beam^2, which has units of steradians
 
