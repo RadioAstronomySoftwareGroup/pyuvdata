@@ -204,7 +204,7 @@ class Miriad(UVData):
         if ant_str is not None:
             # typc check
             assert isinstance(ant_str, (str, np.str)), "ant_str must be fed as a string"
-            uv.select(ant_str, 0, 0)
+            aipy.scripting.uv_selector(uv, ant_str)
         # select on antenna_nums and/or ant_pairs_nums using aipy.scripting.uv_selector
         if antenna_nums is not None or ant_pairs_nums is not None:
             antpair_str = ''
