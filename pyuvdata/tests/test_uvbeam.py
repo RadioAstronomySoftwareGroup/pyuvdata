@@ -4,7 +4,8 @@ import os
 import numpy as np
 import copy
 import healpy as hp
-from pyuvdata import UVBeam
+#from pyuvdata import UVBeam
+from uvbeam import UVBeam
 import pyuvdata.tests as uvtest
 import pyuvdata.utils as uvutils
 import pyuvdata.version as uvversion
@@ -1296,7 +1297,7 @@ def test_get_beam_functions():
                              model_version='1.0')
 
     # assert get_beam fails
-    nt.assert_raises(AssertionError, power_beam._get_beam, 'I')
+    nt.assert_raises(AssertionError, power_beam._get_beam, 'pI')
 
     # Convert to healpix
     power_beam.az_za_to_healpix()
@@ -1341,8 +1342,8 @@ def test_get_beam_functions():
     nt.assert_almost_equal(np.sum(power_beam.get_beam_sq_area()), 4. * numfreqs * npix * dOmega)
 
     # Check to make sure only pseudo-Stokes I is accepted
-    nt.assert_raises(NotImplementedError, power_beam.get_beam_area, pol='Q')
-    nt.assert_raises(NotImplementedError, power_beam.get_beam_sq_area, pol='Q')
+    nt.assert_raises(NotImplementedError, power_beam.get_beam_area, pol='pQ')
+    nt.assert_raises(NotImplementedError, power_beam.get_beam_sq_area, pol='pQ')
 
     # Check polarization error
     power_beam.polarization_array = [9, 18, 27, -5]
@@ -1376,3 +1377,20 @@ def test_get_beam_functions():
     az_za_beam.data_normalization = 'peak'
     nt.assert_raises(ValueError, az_za_beam.get_beam_area)
     nt.assert_raises(ValueError, az_za_beam.get_beam_sq_area)
+
+    # check cross polarized beam (xy and yx)
+    efield_beam = UVBeam()
+    efield_beam.read_cst_beam(cst_files[0], beam_type='e-field', frequency=150e6,
+                             telescope_name='TEST', feed_name='bob',
+                             feed_version='0.1',
+                             model_name='E-field pattern - Rigging height 4.9m',
+                             model_version='1.0')
+
+    efield_beam.efield_to_power()
+    power_beam = copy.deepcopy(efield_beam)
+    power_beam.az_za_to_healpix()
+    power_beam.peak_normalize()
+    XY_area = power_beam.get_beam_sq_area("XY")
+    YY_area = power_beam.get_beam_sq_area("YX") 
+
+    
