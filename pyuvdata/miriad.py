@@ -52,7 +52,8 @@ class Miriad(UVData):
                 numbers within the tuple does not matter. A single antenna iterable
                 e.g. (1,) is interpreted as all visibilities with that antenna.
             ant_str: A string containing information about what kinds of visibility data
-                to read-in.  Can be 'auto', 'cross', 'all'.
+                to read-in.  Can be 'auto', 'cross', 'all'. Cannot provide ant_str if
+                antenna_nums and/or ant_pairs_nums is not None.
             polarizations: List of polarization integers or strings to read-in.
                 Ex: ['xx', 'yy', ...]
             time_range: len-2 list containing min and max range of times (Julian Date) to read-in.
@@ -204,6 +205,7 @@ class Miriad(UVData):
         if ant_str is not None:
             # type check
             assert isinstance(ant_str, (str, np.str)), "ant_str must be fed as a string"
+            assert antenna_nums is None and ant_pairs_nums is None, "ant_str must be None if antenna_nums or ant_pairs_nums is not None"
             aipy.scripting.uv_selector(uv, ant_str)
         # select on antenna_nums and/or ant_pairs_nums using aipy.scripting.uv_selector
         if antenna_nums is not None or ant_pairs_nums is not None:

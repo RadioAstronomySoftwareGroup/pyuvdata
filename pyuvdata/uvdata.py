@@ -1637,7 +1637,8 @@ class UVData(UVBase):
                 numbers within the tuple does not matter. A single antenna iterable
                 e.g. (1,) is interpreted as all visibilities with that antenna.
             ant_str: A string containing information about what kinds of visibility data
-                to read-in.  Can be 'auto', 'cross', 'all'.
+                to read-in.  Can be 'auto', 'cross', 'all'. Cannot provide ant_str if
+                antenna_nums and/or ant_pairs_nums is not None.
             polarizations: List of polarization integers or strings to read-in.
                 Ex: ['xx', 'yy', ...]
             time_range: len-2 list containing min and max range of times (Julian Date) to read-in.
