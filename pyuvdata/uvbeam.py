@@ -1040,7 +1040,7 @@ class UVBeam(UVBase):
         pol_array = self.polarization_array
         polnum = uvutils.polstr2num(pol)
         # pQ, pU and pV yet to be implemented
-        allowed = [1, -5, -6, -7, -8] 
+        allowed = [1, -5, -6, -7, -8]
         if polnum in allowed:
             if polnum in pol_array:
                 stokes_p_ind = np.where(np.isin(pol_array, polnum))[0][0]
