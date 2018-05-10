@@ -1151,6 +1151,11 @@ def test_healpix():
                               feed_version='0.1', feed_pol=['x'],
                               model_name='E-field pattern - Rigging height 4.9m',
                               model_version='1.0')
+    # generate more frequencies for testing by copying and adding
+    new_beam = copy.deepcopy(efield_beam)
+    new_beam.freq_array = efield_beam.freq_array + efield_beam.Nfreqs * 1e6
+    efield_beam += new_beam
+
     efield_beam.az_za_to_healpix()
     old_history = efield_beam.history
 
@@ -1246,6 +1251,7 @@ def test_healpix():
     nt.assert_raises(ValueError, beam1.__iadd__, beam2)
 
     # ---------------
+    # Test beam area methods
     # Check that non-peak normalizations error
     nt.assert_raises(ValueError, power_beam_healpix.get_beam_area)
     nt.assert_raises(ValueError, power_beam_healpix.get_beam_sq_area)
@@ -1253,8 +1259,11 @@ def test_healpix():
     healpix_norm.data_normalization = 'solid_angle'
     nt.assert_raises(ValueError, healpix_norm.get_beam_area)
     nt.assert_raises(ValueError, healpix_norm.get_beam_sq_area)
+
+    # change it back to 'physical'
+    healpix_norm.data_normalization = 'physical'
     # change it to peak for rest of checks
-    healpix_norm.data_normalization = 'peak'
+    healpix_norm.peak_normalize()
 
     # Check sizes of output
     numfreqs = healpix_norm.freq_array.shape[-1]
@@ -1274,12 +1283,14 @@ def test_healpix():
     # check XX and YY beam areas work and match to within 5 sigfigs
     XX_area = healpix_norm.get_beam_area('XX')
     xx_area = healpix_norm.get_beam_area('xx')
-    nt.assert_almost_equal(xx_area, XX_area)
+    nt.assert_true(np.allclose(xx_area, XX_area))
     YY_area = healpix_norm.get_beam_area('YY')
-    nt.assert_almost_equal(YY_area / XX_area, 1.0, places=5)
+    nt.assert_true(np.allclose(YY_area / XX_area, np.ones(numfreqs)))
+    # nt.assert_almost_equal(YY_area / XX_area, 1.0, places=5)
     XX_area = healpix_norm.get_beam_sq_area("XX")
     YY_area = healpix_norm.get_beam_sq_area("YY")
-    nt.assert_almost_equal(YY_area / XX_area, 1.0, places=5)
+    nt.assert_true(np.allclose(YY_area / XX_area, np.ones(numfreqs)))
+    # nt.assert_almost_equal(YY_area / XX_area, 1.0, places=5)
 
     # check backwards compatability with pstokes nomenclature and int polnum
     I_area = power_beam.get_beam_area('I')
@@ -1316,32 +1327,15 @@ def test_healpix():
     nt.assert_less(YX_area, YY_area)
 
     # Check if power is scalar
-    healpix_norm.data_array = np.vstack([healpix_norm.data_array, healpix_norm.data_array])
-    nt.assert_raises(ValueError, healpix_norm.get_beam_area)
-    nt.assert_raises(ValueError, healpix_norm.get_beam_sq_area)
+    healpix_vec_norm = efield_beam.efield_to_power(keep_basis_vector=True,
+                                                   calc_cross_pols=False,
+                                                   inplace=False)
+    nt.assert_raises(ValueError, healpix_vec_norm.get_beam_area)
+    nt.assert_raises(ValueError, healpix_vec_norm.get_beam_sq_area)
 
     # Check only power beams accepted
-    efield_beam = UVBeam()
-    efield_beam.read_cst_beam(cst_files[0], beam_type='efield', frequency=150e6,
-                              telescope_name='TEST', feed_name='bob',
-                              feed_version='0.1',
-                              model_name='E-field pattern - Rigging height 4.9m',
-                              model_version='1.0')
     nt.assert_raises(ValueError, efield_beam.get_beam_area)
     nt.assert_raises(ValueError, efield_beam.get_beam_sq_area)
-
-    # Check only healpix accepted
-    az_za_beam = UVBeam()
-    az_za_beam.read_cst_beam(cst_files[0], beam_type='power', frequency=150e6,
-                             telescope_name='TEST', feed_name='bob',
-                             feed_version='0.1',
-                             model_name='E-field pattern - Rigging height 4.9m',
-                             model_version='1.0')
-
-    # change data_normalization to peak for rest of checks
-    az_za_beam.data_normalization = 'peak'
-    nt.assert_raises(ValueError, az_za_beam.get_beam_area)
-    nt.assert_raises(ValueError, az_za_beam.get_beam_sq_area)
 
 
 def test_get_beam_functions():
@@ -1352,5 +1346,10 @@ def test_get_beam_functions():
                              model_name='E-field pattern - Rigging height 4.9m',
                              model_version='1.0')
 
-    # assert get_beam fails for non-HEALPix beam (HEALPix checks are in test_healpix)
     nt.assert_raises(AssertionError, power_beam._get_beam, 'I')
+
+    # Check only healpix accepted (HEALPix checks are in test_healpix)
+    # change data_normalization to peak for rest of checks
+    power_beam.peak_normalize()
+    nt.assert_raises(ValueError, power_beam.get_beam_area)
+    nt.assert_raises(ValueError, power_beam.get_beam_sq_area)
