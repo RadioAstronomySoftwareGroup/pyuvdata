@@ -226,6 +226,10 @@ def test_efield_to_power():
 
     nt.assert_equal(new_power_beam, new_power_beam2)
 
+    # check that this raises an error if trying to convert to HEALPix:
+    nt.assert_raises(NotImplementedError, efield_beam2.az_za_to_healpix,
+                     inplace=False)
+
     # now try a different rotation to non-orthogonal basis vectors
     new_basis_vecs = np.zeros_like(efield_beam.basis_vector_array)
     new_basis_vecs[0, :, :, :] = efield_beam.basis_vector_array[0, :, :, :]

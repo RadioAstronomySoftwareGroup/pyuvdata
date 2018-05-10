@@ -640,7 +640,10 @@ class UVBeam(UVBase):
                     or np.any(beam_object.basis_vector_array[1, 0, :] > 0)):
                 """ Input basis vectors are not aligned to the native theta/phi
                 coordinate system """
-                pass
+                raise NotImplementedError('HEALPix conversion for input basis '
+                                          'vectors that are not aligned to the '
+                                          'native theta/phi coordinate system '
+                                          'is not yet supported')
             else:
                 """ The basis vector array comes in defined at the rectangular grid.
                 Redefine it for the healpix centers """
