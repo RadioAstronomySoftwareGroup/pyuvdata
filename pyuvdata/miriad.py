@@ -365,7 +365,10 @@ class Miriad(UVData):
         ant_j_unique = np.array(ant_j_unique)
 
         # Determine maximum digits needed to distinguish different values
-        ndig_ant = np.ceil(np.log10(sorted_unique_ants[-1])).astype(int) + 1
+        if sorted_unique_ants[-1] > 0:
+            ndig_ant = np.ceil(np.log10(sorted_unique_ants[-1])).astype(int) + 1
+        else:
+            ndig_ant = 1
         # Be excessive in precision because we use the floating point values as dictionary keys later
         prec_t = - 2 * np.floor(np.log10(self._time_array.tols[-1])).astype(int)
         ndig_t = (np.ceil(np.log10(times[-1])).astype(int) + prec_t + 2)
