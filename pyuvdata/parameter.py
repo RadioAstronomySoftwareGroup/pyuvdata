@@ -157,8 +157,8 @@ class UVParameter(object):
                         if self.value.strip() != other.value.strip():
                             if (self.value.replace('\n', '').replace(' ', '')
                                     != other.value.replace('\n', '').replace(' ', '')):
-                                print('{name} parameter value is a string (not '
-                                      'a list), values are different'.format(name=self.name))
+                                print('{name} parameter value is a string, '
+                                      'values are different'.format(name=self.name))
                                 return False
 
             return True
