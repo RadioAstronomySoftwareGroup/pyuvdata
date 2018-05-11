@@ -1335,6 +1335,12 @@ def test_get_beam_functions():
     YY_area = power_beam.get_beam_sq_area("YY")
     nt.assert_almost_equal(YY_area / XX_area, 1.0, places=5)
 
+    # check backwards compatability with pstokes nomenclature and int polnum
+    I_area = power_beam.get_beam_area('I')
+    pI_area = power_beam.get_beam_area('pI')
+    area1 = power_beam.get_beam_area(1)
+    nt.assert_almost_equal(I_area, pI_area, area1)
+
     # Check that if pseudo-Stokes I (pI) is in the beam polarization_array, it just uses it
     power_beam.polarization_array = [1, 2]
     nt.assert_almost_equal(np.sum(power_beam.get_beam_area()), 2. * numfreqs * npix * dOmega)

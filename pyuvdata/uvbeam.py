@@ -1057,26 +1057,30 @@ class UVBeam(UVBase):
         Currently only 'pI', 'XX' and 'YY' are supported.
 
         Args:
-          pol : polarization string, Ex. a pseudo-stokes pol 'pI', or a linear pol 'XX'
+          pol : polarization string or integer, Ex. a pseudo-stokes pol 'pI', or a linear pol 'XX'
 
         Return:
           beam : healpix beam
         """
         # assert map is in healpix coords
         assert self.pixel_coordinate_system == 'healpix', "pixel_coordinate_system must be healpix"
+        # assert type is int, not string
+        if isinstance(pol, (str, np.str)):
+            pol = uvutils.polstr2num(pol)
+        # get pol-string
+        polstr = uvutils.polnum2str(pol)
         # pols dict
-        pols_dict = {'pI': (-5, -6), 'pQ': (-5, -6), 'pU': (-7, -8), 'pV': (-7, -8)}
+        pols_dict = {1: (-5, -6), 2: (-5, -6), 3: (-7, -8), 4: (-7, -8)}
         # get pol array
         pol_array = self.polarization_array
-        polnum = uvutils.polstr2num(pol)
         # pQ, pU and pV yet to be implemented
         allowed = [1, -5, -6, -7, -8]
-        if polnum in allowed:
-            if polnum in pol_array:
-                stokes_p_ind = np.where(np.isin(pol_array, polnum))[0][0]
+        if pol in allowed:
+            if pol in pol_array:
+                stokes_p_ind = np.where(np.isin(pol_array, pol))[0][0]
                 beam = self.data_array[0, 0, stokes_p_ind]
-            elif pol == 'pI':
-                keys = pols_dict['pI']
+            elif pol == 1:
+                keys = pols_dict[1]
                 if keys[0] in pol_array and keys[1] in pol_array:
                     xx_ind = np.where(np.isin(pol_array, keys[0]))[0][0]
                     yy_ind = np.where(np.isin(pol_array, keys[1]))[0][0]
@@ -1084,9 +1088,9 @@ class UVBeam(UVBase):
                 else:
                     raise ValueError('Do not have the right polarization information')
             else:
-                raise NotImplementedError("Polarization {} not yet implemented...".format(pol))
+                raise NotImplementedError("Polarization {} not yet implemented...".format(polstr))
         else:
-            raise NotImplementedError("Polarization {} not yet implemented...".format(pol))
+            raise NotImplementedError("Polarization {} not yet implemented...".format(polstr))
         return beam
 
     def get_beam_area(self, pol='pI'):
