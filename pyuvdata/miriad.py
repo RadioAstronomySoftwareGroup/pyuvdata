@@ -224,10 +224,7 @@ class Miriad(UVData):
                 assert np.array(map(lambda ap: map(lambda a: isinstance(a, (int, np.int, np.int32)), ap), ant_pairs_nums)).all(), err_msg
                 # convert ant-pair tuples to string form required by aipy.scripting.uv_selector
                 antpair_str += ','.join(map(lambda ap: '_'.join(map(lambda a: str(a), ap)), ant_pairs_nums))
-                if n_selects > 0:
-                    history_update_string += ', antenna pairs'
-                else:
-                    history_update_string += 'antenna pairs'
+                history_update_string += 'antenna pairs'
                 n_selects += 1
             if antenna_nums is not None:
                 # type check
