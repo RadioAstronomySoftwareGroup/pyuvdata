@@ -1330,6 +1330,7 @@ def test_healpix():
     healpix_vec_norm = efield_beam.efield_to_power(keep_basis_vector=True,
                                                    calc_cross_pols=False,
                                                    inplace=False)
+    healpix_vec_norm.peak_normalize()
     nt.assert_raises(ValueError, healpix_vec_norm.get_beam_area)
     nt.assert_raises(ValueError, healpix_vec_norm.get_beam_sq_area)
 
