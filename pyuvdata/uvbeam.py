@@ -1088,7 +1088,7 @@ class UVBeam(UVBase):
                 else:
                     raise ValueError('Do not have the right polarization information')
             else:
-                raise NotImplementedError("Polarization {} not yet implemented...".format(polstr))
+                raise ValueError('Do not have the right polarization information')
         else:
             raise NotImplementedError("Polarization {} not yet implemented...".format(polstr))
         return beam
