@@ -338,7 +338,7 @@ class UVBeam(UVBase):
 
         # check that basis_vector_array are basis vectors
         if self.basis_vector_array is not None:
-            if np.max(np.linalg.norm(self.basis_vector_array, axis=1)) > 1:
+            if np.max(np.linalg.norm(self.basis_vector_array, axis=1)) > (1 + 1e-15):
                 raise ValueError('basis vectors must have lengths of 1 or less.')
 
         # issue warning if extra_keywords keys are longer than 8 characters
