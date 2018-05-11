@@ -1319,12 +1319,12 @@ def test_healpix():
     XY_area = healpix_norm_fullpol.get_beam_sq_area("XY")
     YX_area = healpix_norm_fullpol.get_beam_sq_area("YX")
     # check if XY beam area is equal to beam YX beam area
-    nt.assert_almost_equal(XY_area, YX_area)
+    nt.assert_true(np.allclose(XY_area, YX_area))
     # check if XY/YX beam area is less than XX/YY beam area
-    nt.assert_less(XY_area, XX_area)
-    nt.assert_less(XY_area, YY_area)
-    nt.assert_less(YX_area, XX_area)
-    nt.assert_less(YX_area, YY_area)
+    nt.assert_true(np.all(np.less(XY_area, XX_area)))
+    nt.assert_true(np.all(np.less(XY_area, YY_area)))
+    nt.assert_true(np.all(np.less(YX_area, XX_area)))
+    nt.assert_true(np.all(np.less(YX_area, YY_area)))
 
     # Check if power is scalar
     healpix_vec_norm = efield_beam.efield_to_power(keep_basis_vector=True,
