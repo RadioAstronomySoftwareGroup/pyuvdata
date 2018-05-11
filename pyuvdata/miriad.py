@@ -201,12 +201,18 @@ class Miriad(UVData):
         for extra_variable in extra_miriad_variables:
             check_variables[extra_variable] = uv[extra_variable]
 
+        history_update_string = '  Downselected to specific '
+        n_selects = 0
+
         # select on ant_str if provided
         if ant_str is not None:
             # type check
             assert isinstance(ant_str, (str, np.str)), "ant_str must be fed as a string"
             assert antenna_nums is None and ant_pairs_nums is None, "ant_str must be None if antenna_nums or ant_pairs_nums is not None"
             aipy.scripting.uv_selector(uv, ant_str)
+            if ant_str != 'all':
+                history_update_string += 'antenna pairs'
+                n_selects += 1
         # select on antenna_nums and/or ant_pairs_nums using aipy.scripting.uv_selector
         if antenna_nums is not None or ant_pairs_nums is not None:
             antpair_str = ''
@@ -218,6 +224,11 @@ class Miriad(UVData):
                 assert np.array(map(lambda ap: map(lambda a: isinstance(a, (int, np.int, np.int32)), ap), ant_pairs_nums)).all(), err_msg
                 # convert ant-pair tuples to string form required by aipy.scripting.uv_selector
                 antpair_str += ','.join(map(lambda ap: '_'.join(map(lambda a: str(a), ap)), ant_pairs_nums))
+                if n_selects > 0:
+                    history_update_string += ', antenna pairs'
+                else:
+                    history_update_string += 'antenna pairs'
+                n_selects += 1
             if antenna_nums is not None:
                 # type check
                 err_msg = "antenna_nums must be fed as a list of antenna number integers"
@@ -229,6 +240,11 @@ class Miriad(UVData):
                 if len(antpair_str) > 0:
                     antpair_str += ','
                 antpair_str += ','.join(map(lambda ap: '_'.join(map(lambda a: str(a), ap)), antpairs))
+                if n_selects > 0:
+                    history_update_string += ', antennas'
+                else:
+                    history_update_string += 'antennas'
+                n_selects += 1
             aipy.scripting.uv_selector(uv, antpair_str)
 
         # select on polarizations
@@ -248,6 +264,11 @@ class Miriad(UVData):
                     pol_list.append(p)
             # assert not empty
             assert len(pol_list) > 0, "No polarizations in data matched {}".format(polarizations)
+            if n_selects > 0:
+                history_update_string += ', polarizations'
+            else:
+                history_update_string += 'polarizations'
+            n_selects += 1
 
         # select on time range
         if time_range is not None:
@@ -257,6 +278,14 @@ class Miriad(UVData):
             assert len(time_range) == 2, err_msg
             assert np.array(map(lambda t: isinstance(t, (float, np.float, np.float64)), time_range)).all(), err_msg
             uv.select('time', time_range[0], time_range[1], include=True)
+            if n_selects > 0:
+                history_update_string += ', times'
+            else:
+                history_update_string += 'times'
+            n_selects += 1
+        history_update_string += ' using pyuvdata.'
+        if n_selects > 0:
+            self.history += history_update_string
 
         data_accumulator = {}
         pol_list = []
@@ -306,6 +335,10 @@ class Miriad(UVData):
                 pol_list.append(uv['pol'])
                 # NB: flag types in miriad are usually ints
 
+        if len(data_accumulator.keys()) == 0:
+            raise ValueError('No data is present, probably as a result of '
+                             'select on read that excludes all the data')
+
         # keep all single valued extra_variables as extra_keywords
         for key in check_variables.keys():
             if type(check_variables[key]) == str:
@@ -340,6 +373,11 @@ class Miriad(UVData):
             data_accumulator[pol] = np.array(data)
 
         self.polarization_array = np.array(pol_list)
+        if polarizations is None:
+            # A select on read would make the header npols not match the pols in the data
+            if len(self.polarization_array) != self.Npols:
+                warnings.warn('npols={npols} but found {n} pols in data file'.format(
+                              npols=self.Npols, n=len(self.polarization_array)))
         self.Npols = len(pol_list)
 
         # makes a data_array (and flag_array) of zeroes to be filled in by
@@ -602,19 +640,27 @@ class Miriad(UVData):
         tij_grid = np.array(map(lambda x: map(float, x.split("_")), unique_blts))
         t_grid, ant_i_grid, ant_j_grid = tij_grid.T
         # set the data sizes
-        try:
-            self.Nblts = uv['nblts']
-            if self.Nblts != len(t_grid):
-                warnings.warn('Nblts does not match the number of unique blts in the data')
+        if antenna_nums is None and ant_pairs_nums is None and ant_str is None and time_range is None:
+            try:
+                self.Nblts = uv['nblts']
+                if self.Nblts != len(t_grid):
+                    warnings.warn('Nblts does not match the number of unique blts in the data')
+                    self.Nblts = len(t_grid)
+            except(KeyError):
                 self.Nblts = len(t_grid)
-        except(KeyError):
+        else:
+            # The select on read will make the header nblts not match the number of unique blts
             self.Nblts = len(t_grid)
-        try:
-            self.Ntimes = uv['ntimes']
-            if self.Ntimes != len(times):
-                warnings.warn('Ntimes does not match the number of unique times in the data')
+        if time_range is None:
+            try:
+                self.Ntimes = uv['ntimes']
+                if self.Ntimes != len(times):
+                    warnings.warn('Ntimes does not match the number of unique times in the data')
+                    self.Ntimes = len(times)
+            except(KeyError):
                 self.Ntimes = len(times)
-        except(KeyError):
+        else:
+            # The select on read will make the header ntimes not match the number of unique times
             self.Ntimes = len(times)
 
         self.time_array = t_grid
@@ -623,12 +669,16 @@ class Miriad(UVData):
 
         self.baseline_array = self.antnums_to_baseline(ant_i_grid.astype(int),
                                                        ant_j_grid.astype(int))
-        try:
-            self.Nbls = uv['nbls']
-            if self.Nbls != len(np.unique(self.baseline_array)):
-                warnings.warn('Nbls does not match the number of unique baselines in the data')
+        if antenna_nums is None and ant_pairs_nums is None and ant_str is None:
+            try:
+                self.Nbls = uv['nbls']
+                if self.Nbls != len(np.unique(self.baseline_array)):
+                    warnings.warn('Nbls does not match the number of unique baselines in the data')
+                    self.Nbls = len(np.unique(self.baseline_array))
+            except(KeyError):
                 self.Nbls = len(np.unique(self.baseline_array))
-        except(KeyError):
+        else:
+            # The select on read will make the header nbls not match the number of unique bls
             self.Nbls = len(np.unique(self.baseline_array))
 
         # slot the data into a grid
