@@ -626,7 +626,6 @@ def test_readWriteReadMiriad():
     full.read_miriad(write_file)
     full.select(antenna_nums=[0])
     uv_in.read_miriad(write_file, antenna_nums=[0])
-    uv_in.extra_keywords = full.extra_keywords
     nt.assert_equal(uv_in, full)
 
     # assert partial-read and select are same

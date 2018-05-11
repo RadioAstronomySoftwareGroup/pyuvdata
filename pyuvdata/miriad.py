@@ -87,8 +87,8 @@ class Miriad(UVData):
                                   'freqs', 'leakage', 'bandpass',
                                   'tscale', 'coord', 'veldop', 'time', 'obsra',
                                   'operator', 'version', 'axismax', 'axisrms',
-                                  'xyphase', 'xyamp', 'systemp', 'xtsys', 'ytsys'
-                                  ]
+                                  'xyphase', 'xyamp', 'systemp', 'xtsys', 'ytsys',
+                                  'baseline']
 
         extra_miriad_variables = []
         for variable in uv.vars():
