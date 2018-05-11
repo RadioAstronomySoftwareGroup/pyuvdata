@@ -203,6 +203,8 @@ class UVBase(object):
                 self_param = getattr(self, p)
                 other_param = getattr(other, p)
                 if self_param != other_param:
+                    print('parameter {} does not match. Left is {},'
+                          ' right is {}'.format(p, self_param.value, other_param.value))
                     p_equal = False
             return p_equal
         else:
