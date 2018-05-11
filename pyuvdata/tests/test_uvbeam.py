@@ -304,7 +304,6 @@ def test_efield_to_power():
     new_data[0, :, :, :, :, :] = np.sqrt(2) * efield_beam.data_array[0, :, :, :, :, :]
     new_data[1, :, :, :, :, :] = (efield_beam.data_array[1, :, :, :, :, :]
                                   - efield_beam.data_array[0, :, :, :, :, :])
-    print(np.max(np.linalg.norm(new_basis_vecs, axis=1)))
     efield_beam2 = copy.deepcopy(efield_beam)
     efield_beam2.basis_vector_array = new_basis_vecs
     efield_beam2.data_array = new_data
@@ -623,7 +622,6 @@ def test_select_feeds():
 
     efield_beam.basis_vector_array[0, 0, :, :] = np.sqrt(0.5)
     efield_beam.basis_vector_array[0, 1, :, :] = np.sqrt(0.5)
-    print(np.max(np.linalg.norm(efield_beam.basis_vector_array, axis=1)))
     nt.assert_true(efield_beam.check())
 
     efield_beam.basis_vector_array = None
