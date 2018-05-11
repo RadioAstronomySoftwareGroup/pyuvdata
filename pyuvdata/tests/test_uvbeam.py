@@ -1303,6 +1303,10 @@ def test_healpix():
     nt.assert_almost_equal(np.sum(healpix_norm.get_beam_area()), 2. * numfreqs * npix * dOmega)
     nt.assert_almost_equal(np.sum(healpix_norm.get_beam_sq_area()), 4. * numfreqs * npix * dOmega)
 
+    # Check error if desired pol is allowed but isn't in the polarization_array
+    nt.assert_raises(ValueError, healpix_norm.get_beam_area, pol='xx')
+    nt.assert_raises(ValueError, healpix_norm.get_beam_sq_area, pol='xx')
+
     # Check to make sure only pseudo-Stokes I is accepted
     nt.assert_raises(NotImplementedError, healpix_norm.get_beam_area, pol='Q')
     nt.assert_raises(NotImplementedError, healpix_norm.get_beam_sq_area, pol='Q')
