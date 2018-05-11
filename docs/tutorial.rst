@@ -686,6 +686,12 @@ time if only a portion of the data are needed.
   >>> print(uv.data_array.shape)
   (179, 1, 64, 4)
 
+  # Similar capabilities exist for miriad files
+  >>> filename = 'pyuvdata/data/zen.2457698.40355.xx.HH.uvcA'
+  >>> uv.read_miriad(filename, ant_pairs_nums=[(9, 10), (9, 20)])
+  >>> print(uv.get_antpairs())
+  [(9, 10), (9, 20)]
+
 ------
 UVCal
 ------
