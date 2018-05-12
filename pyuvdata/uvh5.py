@@ -6,15 +6,15 @@ from uvdata import UVData
 import utils as uvutils
 
 
-class UVHDF5(UVData):
+class UVH5(UVData):
     """
-    Defines an HDF5-specific subclass of UVData for reading and writing uvhdf5 files.
-    This class should not be interacted with directly, instead use the read_uvhdf5
-    and write_uvhdf5 methods on the UVData class.
+    Defines an HDF5-specific subclass of UVData for reading and writing uvh5 files.
+    This class should not be interacted with directly, instead use the read_uvh5
+    and write_uvh5 methods on the UVData class.
     """
 
-    def read_uvhdf5(self, filename, run_check=True,
-                    check_extra=True, run_check_acceptability=True, phase_type=None):
+    def read_uvh5(self, filename, run_check=True,
+                  check_extra=True, run_check_acceptability=True, phase_type=None):
         if not os.path.exists(filename):
             raise(IOError, filename + ' not found')
 
@@ -136,8 +136,8 @@ class UVHDF5(UVData):
 
         return
 
-    def write_uvhdf5(self, filename, run_check=True, check_extra=True,
-                     run_check_acceptability=True, clobber=False):
+    def write_uvh5(self, filename, run_check=True, check_extra=True,
+                   run_check_acceptability=True, clobber=False):
         """
         Write data
         """
