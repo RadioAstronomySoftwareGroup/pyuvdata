@@ -10,18 +10,18 @@ import pyuvdata.tests as uvtest
 import warnings
 
 
-def test_ReadMiriadWriteUVhdf5ReadUVhdf5():
+def test_ReadMiriadWriteUVhdf5ReadUVH5():
     """
-    Read in a miriad file, write it out, read back in, and
+    Read in a miriad file, write it out as uvh5, read back in, and
     check for object equality.
     """
     uv_in = UVData()
     uv_out = UVData()
     miriad_file = os.path.join(DATA_PATH, 'zen.2456865.60537.xy.uvcRREAA')
-    testfile = os.path.join(DATA_PATH, 'test', 'outtest_miriad.hdf5')
+    testfile = os.path.join(DATA_PATH, 'test', 'outtest_miriad.h5')
     uvtest.checkWarnings(uv_in.read_miriad, [miriad_file],
                          nwarnings=1, category=[UserWarning],
                          message=['Altitude is not present'])
-    uv_in.write_uvhdf5(testfile, clobber=True)
-    uv_out.read_uvhdf5(testfile)
+    uv_in.write_uvh5(testfile, clobber=True)
+    uv_out.read_uvh5(testfile)
     nt.assert_equal(uv_in, uv_out)
