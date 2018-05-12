@@ -1,3 +1,7 @@
+# -*- mode: python; coding: utf-8 -*-
+# Copyright (c) 2018 The HERA Collaboration
+# Licensed under the 2-clause BSD License
+
 """Class for reading and writing HDF5 files."""
 import numpy as np
 import h5py
@@ -48,11 +52,11 @@ class UVH5(UVData):
 
         # check for optional values
         if 'dut1' in header:
-            self.dut1 = header['dut1'].value
+            self.dut1 = float(header['dut1'].value)
         if 'earth_omega' in header:
-            self.earth_omega = header['earth_omega'].value
+            self.earth_omega = float(header['earth_omega'].value)
         if 'gst0' in header:
-            self.gst0 = header['gst0'].value
+            self.gst0 = float(header['gst0'].value)
         if 'rdate' in header:
             self.rdate = header['rdate'].value
         if 'timesys' in header:
@@ -72,9 +76,9 @@ class UVH5(UVData):
         self.phase_type = header['phase_type'].value
         if self.phase_type == 'phased':
             self.set_phased()
-            self.phase_center_ra = header['phase_center_ra'].value
-            self.phase_center_dec = header['phase_center_dec'].value
-            self.phase_center_epoch = header['phase_center_epoch'].value
+            self.phase_center_ra = float(header['phase_center_ra'].value)
+            self.phase_center_dec = float(header['phase_center_dec'].value)
+            self.phase_center_epoch = float(header['phase_center_epoch'].value)
         elif self.phase_type == 'drift':
             self.set_drift()
             self.zenith_dec = header['zenith_dec'].value
@@ -121,6 +125,12 @@ class UVH5(UVData):
         self.Ntimes = int(header['Ntimes'].value)
         self.Nblts = int(header['Nblts'].value)
         self.Nspws = int(header['Nspws'].value)
+
+        # get extra_keywords
+        if "extra_keywords" in header:
+            self.extra_keywords = {}
+            for key in header["extra_keywords"].keys():
+                self.extra_keywords[key] = header["extra_keywords"][key].value
 
         # read data array
         dgrp = f['/Data']
@@ -207,7 +217,7 @@ class UVH5(UVData):
         if self.earth_omega is not None:
             header['earth_omega'] = self.earth_omega
         if self.gst0 is not None:
-            header['earth_omega'] = self.gst0
+            header['gst0'] = self.gst0
         if self.rdate is not None:
             header['rdate'] = self.rdate
         if self.timesys is not None:
@@ -219,13 +229,16 @@ class UVH5(UVData):
         for p in self.extra():
             param = getattr(self, p)
             if param.name == 'extra_keywords':
+                # make a new group inside the header
+                extra_keywords = header.create_group("extra_keywords")
                 for k in param.value.keys():
-                    header[k] = param.value[k]
-            elif param.name == 'antenna_positions':
-                # we already dealt with these values above
-                pass
-            elif param.value is not None:
-                header[param.name] = param.value
+                    extra_keywords[k] = param.value[k]
+            else:
+                # make sure we didn't write it out already
+                if not param.name in header:
+                    if param.value is not None:
+                        # add to header
+                        header[param.name] = param.value
 
         # write out history
         header['history'] = self.history
