@@ -244,7 +244,7 @@ UVData: Plotting
 ------------------
 Making a simple waterfall plot.
 
-Note: there is now support for reading in only part of a uvfits file
+Note: there is now support for reading in only part of a uvfits or miriad file
 (see :ref:`UVData: Working with large files`), so you need not read in the
 entire file to plot one waterfall.
 ::
@@ -607,9 +607,10 @@ and added to the previous.
 
 UVData: Working with large files
 ----------------------------------------------
-To save on memory and time, pyuvdata supports reading only parts of uvfits files.
+To save on memory and time, pyuvdata supports reading only parts of uvfits and
+miriad files.
 
-a) Reading just the header
+a) Reading just the header of a uvfits file
 ****************************
 When only the header info is read in, the UVData object is not fully specified,
 so only some of the expected attributes are filled out
@@ -631,7 +632,7 @@ so only some of the expected attributes are filled out
   >>> print(uv.data_array)
   None
 
-b) Reading the header and metadata
+b) Reading the header and metadata of a uvfits file
 ******************************************
 The UVData object is still not fully specified, but every attribute except
 the data_array, flag_array and nsample_array are filled out. Either read in the
@@ -660,7 +661,7 @@ or read in the header followed by the metadata (both shown below)
   >>> print(uv.data_array.shape)
   (1360, 1, 64, 4)
 
-c) Reading only parts of the data
+c) Reading only parts of uvfits data
 ***************************************
 The same options that are available for the select function can also be passed to
 read_uvfits or read_uvfits_data to do the select on the read, saving memory and
@@ -686,11 +687,18 @@ time if only a portion of the data are needed.
   >>> print(uv.data_array.shape)
   (179, 1, 64, 4)
 
-  # Similar capabilities exist for miriad files
-  >>> filename = 'pyuvdata/data/zen.2457698.40355.xx.HH.uvcA'
-  >>> uv.read_miriad(filename, ant_pairs_nums=[(9, 10), (9, 20)])
-  >>> print(uv.get_antpairs())
-  [(9, 10), (9, 20)]
+c) Reading only parts of miriad data
+***************************************
+Many of the same options that are available for the select function can also be
+passed to read_miriad to do the select on the read, saving memory and
+time if only a portion of the data are needed.
+::
+>>> from pyuvdata import UVData
+>>> uv = UVData()
+>>> filename = 'pyuvdata/data/zen.2457698.40355.xx.HH.uvcA'
+>>> uv.read_miriad(filename, ant_pairs_nums=[(9, 10), (9, 20)])
+>>> print(uv.get_antpairs())
+[(9, 10), (9, 20)]
 
 ------
 UVCal
