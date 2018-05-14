@@ -235,7 +235,7 @@ class UVH5(UVData):
                     extra_keywords[k] = param.value[k]
             else:
                 # make sure we didn't write it out already
-                if not param.name in header:
+                if param.name not in header:
                     if param.value is not None:
                         # add to header
                         header[param.name] = param.value
