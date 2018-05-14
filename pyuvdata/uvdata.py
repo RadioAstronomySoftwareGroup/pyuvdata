@@ -338,6 +338,14 @@ class UVData(UVBase):
             # Special case of only containing auto correlations, adjust uvw acceptable_range
             self._uvw_array.acceptable_range = (0.0, 0.0)
 
+        # set the phase type based on object's value
+        if self.phase_type == 'phased':
+            self.set_phased()
+        elif self.phase_type == 'drift':
+            self.set_drift()
+        else:
+            self.set_unknown_phase_type()
+
         super(UVData, self).check(check_extra=check_extra,
                                   run_check_acceptability=run_check_acceptability)
 
