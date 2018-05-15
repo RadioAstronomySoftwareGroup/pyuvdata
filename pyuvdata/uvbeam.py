@@ -606,8 +606,6 @@ class UVBeam(UVBase):
 
         if beam_object.pixel_coordinate_system != 'az_za':
             raise ValueError('pixel_coordinate_system must be "az_za"')
-        if beam_object.basis_vector_array is not None:
-            """ Basis vector operations """
 
         if nside is None:
             min_res = np.min(np.array([np.diff(beam_object.axis1_array)[0], np.diff(beam_object.axis2_array)[0]]))
