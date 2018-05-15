@@ -244,7 +244,7 @@ class UVH5(UVData):
         # write out data and flags
         # TODO: add filter options for visdata (bitshuffle) and flags (lzf compression)
         dgrp = f.create_group("Data")
-        visdata = dgrp.create_dataset("visdata",  chunks=True,
+        visdata = dgrp.create_dataset("visdata", chunks=True,
                                       data=self.data_array.astype(np.complex64))
         flags = dgrp.create_dataset("flags", chunks=True,
                                     data=self.flag_array)
