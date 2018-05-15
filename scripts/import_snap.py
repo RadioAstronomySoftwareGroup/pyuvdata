@@ -12,6 +12,8 @@ from astropy.time import Time
 import copy
 from astropy.coordinates import SkyCoord,EarthLocation,AltAz
 import astropy.units as u
+from hera_mc.sys_handling import Handling
+from hera_mc import cm_utils
 desc=('Convert SNAP outputs into uvdata sets.'
       'Usage: import_snap.py -c config.yaml -z observation.npz'
       'config.yaml is a .yaml file containing instrument meta-data'
@@ -69,7 +71,10 @@ np.hstack([data['anetenna_pairs'][:,1] for p in range(data_uv.Ntimes)]).flatten(
 .astype(int)
 data_uv.baseline_array=\
 (2048*(data_uv.ant_2_array+1)+(data_uv.ant_1_array+1)+2**16).astype(int)
-#create baseline_array
+#Translate antenna locations
+my_handler=Handling()
+
+#Create baseline_array
 #create polarization array
 data_uv.polarization_array=\
 np.array([polstr2num(config['POLARIZATIONS'][p])\
