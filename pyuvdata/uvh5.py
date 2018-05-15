@@ -70,7 +70,7 @@ class UVH5(UVData):
         if 'antenna_diameters' in header:
             self.antenna_diameters = header['antenna_diameters'].value
         if 'uvplane_reference_time' in header:
-            self.uvplane_reference_time = header['uvplane_reference_time'].value
+            self.uvplane_reference_time = int(header['uvplane_reference_time'].value)
 
         # check for phasing information
         self.phase_type = header['phase_type'].value
