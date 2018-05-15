@@ -36,8 +36,6 @@ def test_ReadUVFITSWriteUVH5ReadUVH5():
     uv_out = UVData()
     uvfits_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
     testfile = os.path.join(DATA_PATH, 'test', 'outtest_uvfits.h5')
-    expected_extra_keywords = ['OBSERVER', 'SORTORD', 'SPECSYS',
-                               'RESTFREQ', 'ORIGIN']
     uvtest.checkWarnings(uv_in.read_uvfits, [uvfits_file], message='Telescope EVLA is not')
     uv_in.write_uvh5(testfile, clobber=True)
     uv_out.read_uvh5(testfile)
