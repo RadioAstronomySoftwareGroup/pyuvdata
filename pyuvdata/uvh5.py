@@ -67,10 +67,10 @@ class UVH5(UVData):
             self.telescope_name = header['telescope_name'].value
         if 'antenna_positions' in header:
             self.antenna_positions = header['antenna_positions'].value
-        if 'instrument' in header:
-            self.instrument = header['instrument'].value
-        else:
-            self.instrument = None
+        if 'antenna_diameters' in header:
+            self.antenna_diameters = header['antenna_diameters'].value
+        if 'uvplane_reference_time' in header:
+            self.uvplane_reference_time = header['uvplane_reference_time'].value
 
         # check for phasing information
         self.phase_type = header['phase_type'].value
@@ -172,7 +172,7 @@ class UVH5(UVData):
         header['instrument'] = self.instrument
         header['object_name'] = self.object_name
 
-        # write out UVParameters
+        # write out required UVParameters
         header['Nants_data'] = self.Nants_data
         header['Nants_telescope'] = self.Nants_telescope
         header['Nbls'] = self.Nbls
@@ -181,8 +181,6 @@ class UVH5(UVData):
         header['Npols'] = self.Npols
         header['Nspws'] = self.Nspws
         header['Ntimes'] = self.Ntimes
-
-        # write out arrays
         header['antenna_names'] = self.antenna_names
         header['antenna_numbers'] = self.antenna_numbers
         header['uvw_array'] = self.uvw_array
@@ -192,9 +190,14 @@ class UVH5(UVData):
         header['freq_array'] = self.freq_array
         header['integration_time'] = self.integration_time
         header['lst_array'] = self.lst_array
-        header['nsample_array'] = self.nsample_array
         header['polarization_array'] = self.polarization_array
         header['spw_array'] = self.spw_array
+        header['ant_1_array'] = self.ant_1_array
+        header['ant_2_array'] = self.ant_2_array
+
+        # treat nsample_array differently, because it is very large
+        # TODO: add filter options
+        header['nsample_array'] = self.nsample_array.astype(np.float32)
 
         # write out phasing information
         header['phase_type'] = self.phase_type
@@ -224,32 +227,26 @@ class UVH5(UVData):
             header['timesys'] = self.timesys
         if self.x_orientation is not None:
             header['x_orientation'] = self.x_orientation
+        if self.antenna_diameters is not None:
+            header['antenna_diameters'] = self.antenna_diameters
+        if self.uvplane_reference_time is not None:
+            header['uvplane_reference_time'] = self.uvplane_reference_time
 
-        # write out extra parameters
-        for p in self.extra():
-            param = getattr(self, p)
-            if param.name == 'extra_keywords':
-                # make a new group inside the header
-                extra_keywords = header.create_group("extra_keywords")
-                for k in param.value.keys():
-                    extra_keywords[k] = param.value[k]
-            else:
-                # make sure we didn't write it out already
-                if param.name not in header:
-                    if param.value is not None:
-                        # add to header
-                        header[param.name] = param.value
+        # write out extra keywords if it exists and has elements
+        if self.extra_keywords:
+            extra_keywords = header.create_group("extra_keywords")
+            for k in self.extra_keywords.keys():
+                extra_keywords[k] = self.extra_keywords[k]
 
         # write out history
         header['history'] = self.history
 
-        # write out antenna arrays
-        header['ant_1_array'] = self.ant_1_array
-        header['ant_2_array'] = self.ant_2_array
-
         # write out data and flags
+        # TODO: add filter options for visdata (bitshuffle) and flags (lzf compression)
         dgrp = f.create_group("Data")
-        dgrp['visdata'] = self.data_array
-        dgrp['flags'] = self.flag_array
+        visdata = dgrp.create_dataset("visdata",  chunks=True,
+                                      data=self.data_array.astype(np.complex64))
+        flags = dgrp.create_dataset("flags", chunks=True,
+                                    data=self.flag_array)
 
         return
