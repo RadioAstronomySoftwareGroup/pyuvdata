@@ -568,30 +568,52 @@ def test_readWriteReadMiriad():
     # test only specified bls were read, and that flipped antpair is loaded too
     uv_in.read_miriad(write_file, ant_pairs_nums=[(0, 0), (0, 1), (4, 2)])
     nt.assert_equal(uv_in.get_antpairs(), [(0, 0), (0, 1), (2, 4)])
+    exp_uv = full.select(ant_pairs_nums=[(0, 0), (0, 1), (4, 2)], inplace=False)
+    nt.assert_equal(uv_in, exp_uv)
 
     # test all bls w/ 0 are loaded
     uv_in.read_miriad(write_file, antenna_nums=[0])
     diff = set(full.get_antpairs()) - set(uv_in.get_antpairs())
     nt.assert_true(0 not in np.unique(diff))
+    exp_uv = full.select(antenna_nums=[0], inplace=False)
+    nt.assert_true(np.max(exp_uv.ant_1_array) == 0)
+    nt.assert_true(np.max(exp_uv.ant_2_array) == 0)
+    nt.assert_equal(uv_in, exp_uv)
+
     uv_in.read_miriad(write_file, antenna_nums=[0], ant_pairs_nums=[(2, 4)])
     nt.assert_true(np.array([bl in uv_in.get_antpairs() for bl in [(0, 0), (2, 4)]]).all())
+    exp_uv = full.select(antenna_nums=[0], ant_pairs_nums=[(2, 4)], inplace=False)
+    nt.assert_equal(uv_in, exp_uv)
 
     # test time loading
     uv_in.read_miriad(write_file, time_range=[2456865.607, 2456865.609])
     full_times = np.unique(full.time_array[(full.time_array > 2456865.607) & (full.time_array < 2456865.609)])
     nt.assert_true(np.isclose(np.unique(uv_in.time_array), full_times).all())
+    exp_uv = full.select(times=full_times, inplace=False)
+    nt.assert_equal(uv_in, exp_uv)
 
     # test polarization loading
     uv_in.read_miriad(write_file, polarizations=['xy'])
     nt.assert_equal(full.polarization_array, uv_in.polarization_array)
+    exp_uv = full.select(polarizations=['xy'], inplace=False)
+    nt.assert_equal(uv_in, exp_uv)
+
     uv_in.read_miriad(write_file, polarizations=[-7])
     nt.assert_equal(full.polarization_array, uv_in.polarization_array)
+    exp_uv = full.select(polarizations=[-7], inplace=False)
+    nt.assert_equal(uv_in, exp_uv)
 
     # test ant_str
     uv_in.read_miriad(write_file, ant_str='auto')
     nt.assert_true(np.array([blp[0] == blp[1] for blp in uv_in.get_antpairs()]).all())
+    exp_uv = full.select(ant_str='auto', inplace=False)
+    nt.assert_equal(uv_in, exp_uv)
+
     uv_in.read_miriad(write_file, ant_str='cross')
     nt.assert_true(np.array([blp[0] != blp[1] for blp in uv_in.get_antpairs()]).all())
+    exp_uv = full.select(ant_str='cross', inplace=False)
+    nt.assert_equal(uv_in, exp_uv)
+
     uv_in.read_miriad(write_file, ant_str='all')
     nt.assert_equal(uv_in, full)
     nt.assert_raises(AssertionError, uv_in.read_miriad, write_file, ant_str='auto', antenna_nums=[0, 1])
@@ -611,29 +633,21 @@ def test_readWriteReadMiriad():
     nt.assert_raises(AssertionError, uv_in.read_miriad, write_file, ant_str=0)
 
     # assert partial-read and select are same
-    full.read_miriad(write_file)
     uv_in.read_miriad(write_file, polarizations=[-7], ant_pairs_nums=[(4, 4)])
-    full.select(polarizations=[-7], ant_pairs_nums=[(4, 4)])
-    nt.assert_equal(uv_in, full)
+    exp_uv = full.select(polarizations=[-7], ant_pairs_nums=[(4, 4)], inplace=False)
+    nt.assert_equal(uv_in, exp_uv)
 
     # assert partial-read and select are same
-    full.read_miriad(write_file)
-    full.select(ant_str='auto')
-    uv_in.read_miriad(write_file, ant_str='auto')
-    nt.assert_equal(uv_in, full)
-
-    # assert partial-read and select are same
-    full.read_miriad(write_file)
-    full.select(antenna_nums=[0])
-    uv_in.read_miriad(write_file, antenna_nums=[0])
-    nt.assert_equal(uv_in, full)
-
-    # assert partial-read and select are same
-    full.read_miriad(write_file)
     t = np.unique(full.time_array)
-    full.select(times=t[((t > 2456865.607) & (t < 2456865.609))])
-    uv_in.read_miriad(write_file, time_range=[2456865.607, 2456865.609])
-    nt.assert_equal(uv_in, full)
+    uv_in.read_miriad(write_file, antenna_nums=[0], time_range=[2456865.607, 2456865.609])
+    exp_uv = full.select(antenna_nums=[0], times=t[((t > 2456865.607) & (t < 2456865.609))], inplace=False)
+    nt.assert_equal(uv_in, exp_uv)
+
+    # assert partial-read and select are same
+    t = np.unique(full.time_array)
+    uv_in.read_miriad(write_file, polarizations=[-7], time_range=[2456865.607, 2456865.609])
+    exp_uv = full.select(polarizations=[-7], times=t[((t > 2456865.607) & (t < 2456865.609))], inplace=False)
+    nt.assert_equal(uv_in, exp_uv)
 
     del(uv_in)
     del(uv_out)

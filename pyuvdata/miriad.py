@@ -216,16 +216,6 @@ class Miriad(UVData):
         # select on antenna_nums and/or ant_pairs_nums using aipy.scripting.uv_selector
         if antenna_nums is not None or ant_pairs_nums is not None:
             antpair_str = ''
-            if ant_pairs_nums is not None:
-                # type check
-                err_msg = "ant_pairs_nums must be a list of antnum integer tuples, Ex: [(0, 1), ...]"
-                assert isinstance(ant_pairs_nums, list), err_msg
-                assert np.array(map(lambda ap: isinstance(ap, tuple), ant_pairs_nums)).all(), err_msg
-                assert np.array(map(lambda ap: map(lambda a: isinstance(a, (int, np.int, np.int32)), ap), ant_pairs_nums)).all(), err_msg
-                # convert ant-pair tuples to string form required by aipy.scripting.uv_selector
-                antpair_str += ','.join(map(lambda ap: '_'.join(map(lambda a: str(a), ap)), ant_pairs_nums))
-                history_update_string += 'antenna pairs'
-                n_selects += 1
             if antenna_nums is not None:
                 # type check
                 err_msg = "antenna_nums must be fed as a list of antenna number integers"
@@ -234,15 +224,39 @@ class Miriad(UVData):
                 # get all possible combinations
                 antpairs = list(itertools.combinations_with_replacement(antenna_nums, 2))
                 # convert antenna numbers to string form required by aipy.scripting.uv_selector
+                antpair_str += ','.join(map(lambda ap: '_'.join(map(lambda a: str(a), ap)), antpairs))
+                history_update_string += 'antennas'
+                n_selects += 1
+            if ant_pairs_nums is not None:
+                # type check
+                err_msg = "ant_pairs_nums must be a list of antnum integer tuples, Ex: [(0, 1), ...]"
+                assert isinstance(ant_pairs_nums, list), err_msg
+                assert np.array(map(lambda ap: isinstance(ap, tuple), ant_pairs_nums)).all(), err_msg
+                assert np.array(map(lambda ap: map(lambda a: isinstance(a, (int, np.int, np.int32)), ap), ant_pairs_nums)).all(), err_msg
+                # convert ant-pair tuples to string form required by aipy.scripting.uv_selector
                 if len(antpair_str) > 0:
                     antpair_str += ','
-                antpair_str += ','.join(map(lambda ap: '_'.join(map(lambda a: str(a), ap)), antpairs))
+                antpair_str += ','.join(map(lambda ap: '_'.join(map(lambda a: str(a), ap)), ant_pairs_nums))
                 if n_selects > 0:
-                    history_update_string += ', antennas'
+                    history_update_string += ', antenna pairs'
                 else:
-                    history_update_string += 'antennas'
+                    history_update_string += 'antenna pairs'
                 n_selects += 1
             aipy.scripting.uv_selector(uv, antpair_str)
+
+        # select on time range
+        if time_range is not None:
+            # type check
+            err_msg = "time_range must be a len-2 list of Julian Date floats, Ex: [2458115.2, 2458115.6]"
+            assert isinstance(time_range, (list, np.ndarray)), err_msg
+            assert len(time_range) == 2, err_msg
+            assert np.array(map(lambda t: isinstance(t, (float, np.float, np.float64)), time_range)).all(), err_msg
+            uv.select('time', time_range[0], time_range[1], include=True)
+            if n_selects > 0:
+                history_update_string += ', times'
+            else:
+                history_update_string += 'times'
+            n_selects += 1
 
         # select on polarizations
         if polarizations is not None:
@@ -267,19 +281,6 @@ class Miriad(UVData):
                 history_update_string += 'polarizations'
             n_selects += 1
 
-        # select on time range
-        if time_range is not None:
-            # type check
-            err_msg = "time_range must be a len-2 list of Julian Date floats, Ex: [2458115.2, 2458115.6]"
-            assert isinstance(time_range, (list, np.ndarray)), err_msg
-            assert len(time_range) == 2, err_msg
-            assert np.array(map(lambda t: isinstance(t, (float, np.float, np.float64)), time_range)).all(), err_msg
-            uv.select('time', time_range[0], time_range[1], include=True)
-            if n_selects > 0:
-                history_update_string += ', times'
-            else:
-                history_update_string += 'times'
-            n_selects += 1
         history_update_string += ' using pyuvdata.'
         if n_selects > 0:
             self.history += history_update_string

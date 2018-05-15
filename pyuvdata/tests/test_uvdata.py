@@ -726,7 +726,7 @@ def test_select():
     blts_pair_select = [tuple(sorted((a1, a2))) in sorted_pairs_to_keep for (a1, a2) in
                         zip(uv_object.ant_1_array, uv_object.ant_2_array)]
     blts_time_select = [t in times_to_keep for t in uv_object.time_array]
-    Nblts_select = np.sum([bi & ai & pi & ti for (bi, ai, pi, ti) in
+    Nblts_select = np.sum([bi & (ai | pi) & ti for (bi, ai, pi, ti) in
                            zip(blts_blt_select, blts_ant_select, blts_pair_select,
                                blts_time_select)])
 
@@ -738,11 +738,6 @@ def test_select():
     nt.assert_equal(Nblts_select, uv_object2.Nblts)
     for ant in np.unique(uv_object2.ant_1_array.tolist() + uv_object2.ant_2_array.tolist()):
         nt.assert_true(ant in ants_to_keep)
-
-    sorted_pairs_object2 = [tuple(sorted(p)) for p in zip(
-        uv_object2.ant_1_array, uv_object2.ant_2_array)]
-    for pair in sorted_pairs_object2:
-        nt.assert_true(pair in sorted_pairs_to_keep)
 
     nt.assert_equal(len(freqs_to_keep), uv_object2.Nfreqs)
     for f in freqs_to_keep:
