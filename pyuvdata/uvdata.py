@@ -1031,11 +1031,8 @@ class UVData(UVBase):
 
             ant_blt_inds = np.array(
                 list(set(inds1).intersection(inds2)), dtype=np.int)
-            if blt_inds is not None:
-                blt_inds = np.array(
-                    list(set(blt_inds).intersection(ant_blt_inds)), dtype=np.int)
-            else:
-                blt_inds = ant_blt_inds
+        else:
+            ant_blt_inds = None
 
         if ant_pairs_nums is not None:
             if isinstance(ant_pairs_nums, tuple) and len(ant_pairs_nums) == 2:
@@ -1072,11 +1069,20 @@ class UVData(UVBase):
                     raise ValueError('Antenna pair {p} does not have any data '
                                      'associated with it.'.format(p=pair))
 
-            if blt_inds is not None:
-                blt_inds = np.array(
-                    list(set(blt_inds).intersection(ant_pair_blt_inds)), dtype=np.int)
+            if ant_blt_inds is not None:
+                # Use union (or) to join antenna_names/nums & ant_pairs_nums
+                ant_blt_inds = np.array(list(set(ant_blt_inds).union(ant_pair_blt_inds)))
             else:
-                blt_inds = ant_pair_blt_inds
+                ant_blt_inds = ant_pair_blt_inds
+
+        if ant_blt_inds is not None:
+            if blt_inds is not None:
+                # Use intesection (and) to join antenna_names/nums/ant_pairs_nums with blt_inds
+                # handled differently because of the time aspect (which is anded with antennas below)
+                blt_inds = np.array(
+                    list(set(blt_inds).intersection(ant_blt_inds)), dtype=np.int)
+            else:
+                blt_inds = ant_blt_inds
 
         if times is not None:
             times = uvutils.get_iterable(times)
@@ -1096,6 +1102,7 @@ class UVData(UVBase):
                         'Time {t} is not present in the time_array'.format(t=jd))
 
             if blt_inds is not None:
+                # Use intesection (and) to join antenna_names/nums/ant_pairs_nums/blt_inds with times
                 blt_inds = np.array(
                     list(set(blt_inds).intersection(time_blt_inds)), dtype=np.int)
             else:
@@ -1167,9 +1174,13 @@ class UVData(UVBase):
 
             pol_inds = np.zeros(0, dtype=np.int)
             for p in polarizations:
-                if p in self.polarization_array:
+                if isinstance(p, str):
+                    p_num = uvutils.polstr2num(p)
+                else:
+                    p_num = p
+                if p_num in self.polarization_array:
                     pol_inds = np.append(pol_inds, np.where(
-                        self.polarization_array == p)[0])
+                        self.polarization_array == p_num)[0])
                 else:
                     raise ValueError(
                         'Polarization {p} is not present in the polarization_array'.format(p=p))
