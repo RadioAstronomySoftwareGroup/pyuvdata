@@ -32,7 +32,7 @@ install:
 script:
   - nosetests pyuvdata --with-coverage --cover-package=pyuvdata
   - python -m doctest docs/tutorial.rst
-  - pycodestyle */*.py --ignore=E501,W503
+  - pycodestyle --ignore=E501,W503
 
 after_success:
     - coveralls

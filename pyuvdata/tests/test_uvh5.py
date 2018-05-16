@@ -30,6 +30,7 @@ def test_ReadMiriadWriteUVH5ReadUVH5():
 
     return
 
+
 def test_ReadUVFITSWriteUVH5ReadUVH5():
     """
     UVFITS round trip test
@@ -48,6 +49,7 @@ def test_ReadUVFITSWriteUVH5ReadUVH5():
 
     return
 
+
 def test_ReadUVH5Errors():
     """
     Test raising errors in read_uvh5 function
@@ -57,6 +59,7 @@ def test_ReadUVH5Errors():
     nt.assert_raises(IOError, uv_in.read_uvh5, fake_file)
 
     return
+
 
 def test_WriteUVH5Errors():
     """
@@ -80,6 +83,7 @@ def test_WriteUVH5Errors():
     os.remove(testfile)
 
     return
+
 
 def test_UVH5OptionalParameters():
     """
