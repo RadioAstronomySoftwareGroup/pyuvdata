@@ -18,7 +18,22 @@ class UVH5(UVData):
     """
 
     def read_uvh5(self, filename, run_check=True,
-                  check_extra=True, run_check_acceptability=True, phase_type=None):
+                  check_extra=True, run_check_acceptability=True):
+        """
+        Read in data from a UVH5 file.
+
+        Args:
+            filename: The file name to read.
+            run_check: Option to check for the existence and proper shapes of
+                parameters after reading in the file. Default is True.
+            check_extra: Option to check optional parameters as well as required
+                ones. Default is True.
+            run_check_acceptability: Option to check acceptable range of the values of
+                parameters after reading in the file. Default is True.
+
+        Returns:
+            None
+        """
         if not os.path.exists(filename):
             raise(IOError, filename + ' not found')
 
@@ -116,9 +131,6 @@ class UVH5(UVData):
         # get polarization information
         self.polarization_array = header['polarization_array'].value
 
-        # get sample information
-        self.nsample_array = header['nsample_array'].value
-
         # get data shapes
         self.Nfreqs = int(header['Nfreqs'].value)
         self.Npols = int(header['Npols'].value)
@@ -139,6 +151,9 @@ class UVH5(UVData):
         # read the flag array
         self.flag_array = dgrp['flags'].value
 
+        # get sample information
+        self.nsample_array = dgrp['nsample_array'].value
+
         # check if the object has all required UVParameters
         if run_check:
             self.check(check_extra=check_extra,
@@ -149,7 +164,20 @@ class UVH5(UVData):
     def write_uvh5(self, filename, run_check=True, check_extra=True,
                    run_check_acceptability=True, clobber=False):
         """
-        Write data
+        Write a UVData object to a UVH5 file.
+
+        Args:
+            filename: The UVH5 file to write to.
+            run_check: Option to check for the existence and proper shapes of
+                parameters before writing the file. Default is True.
+            check_extra: Option to check optional parameters as well as required
+                ones. Default is True.
+            run_check_acceptability: Option to check acceptable range of the values of
+                parameters before writing the file. Default is True.
+            clobber: Option to overwrite the file if it already exists. Default is False.
+
+        Returns:
+            None
         """
         if run_check:
             self.check(check_extra=check_extra,
@@ -195,10 +223,6 @@ class UVH5(UVData):
         header['ant_1_array'] = self.ant_1_array
         header['ant_2_array'] = self.ant_2_array
 
-        # treat nsample_array differently, because it is very large
-        # TODO: add filter options
-        header['nsample_array'] = self.nsample_array.astype(np.float32)
-
         # write out phasing information
         header['phase_type'] = self.phase_type
         if self.zenith_dec is not None:
@@ -242,11 +266,14 @@ class UVH5(UVData):
         header['history'] = self.history
 
         # write out data and flags
-        # TODO: add filter options for visdata (bitshuffle) and flags (lzf compression)
+        # TODO: add filter options for visdata (bitshuffle), flags, and
+        #     nsample_array (lzf compression)
         dgrp = f.create_group("Data")
         visdata = dgrp.create_dataset("visdata", chunks=True,
                                       data=self.data_array.astype(np.complex64))
         flags = dgrp.create_dataset("flags", chunks=True,
                                     data=self.flag_array)
+        nsample_array = dgrp.create_dataset("nsample_array", chunks=True,
+                                            data=self.nsample_array.astype(np.float32))
 
         return
