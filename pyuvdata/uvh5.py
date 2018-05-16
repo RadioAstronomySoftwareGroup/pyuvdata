@@ -4,7 +4,6 @@
 
 """Class for reading and writing HDF5 files."""
 import numpy as np
-import h5py
 import os
 from uvdata import UVData
 import utils as uvutils
@@ -34,6 +33,7 @@ class UVH5(UVData):
         Returns:
             None
         """
+        import h5py
         if not os.path.exists(filename):
             raise(IOError, filename + ' not found')
 
@@ -179,6 +179,7 @@ class UVH5(UVData):
         Returns:
             None
         """
+        import h5py
         if run_check:
             self.check(check_extra=check_extra,
                        run_check_acceptability=run_check_acceptability)
