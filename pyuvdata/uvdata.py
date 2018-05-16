@@ -1316,7 +1316,7 @@ class UVData(UVBase):
             import uvh5
             other_obj = uvh5.UVH5()
         else:
-            raise ValueError('filetype must be uvfits, miriad, or fhd')
+            raise ValueError('filetype must be uvfits, miriad, fhd, or uvh5')
         for p in self:
             param = getattr(self, p)
             setattr(other_obj, p, param)
@@ -1704,7 +1704,19 @@ class UVData(UVBase):
     def read_uvh5(self, filename, run_check=True, check_extra=True,
                   run_check_acceptability=True):
         """
-        Read uvh5 file
+        Read a UVH5 file.
+
+        Args:
+            filename: The UVH5 file to read.
+            run_check: Option to check for the existence and proper shapes of
+                parameters after reading in the file. Default is True.
+            check_extra: Option to check optional parameters as well as required
+                ones. Default is True.
+            run_check_acceptability: Option to check acceptable range of the values of
+                parameters after reading in the file. Default is True.
+
+        Returns:
+            None
         """
         import uvh5
         if isinstance(filename, (list, tuple)):
@@ -1726,6 +1738,22 @@ class UVData(UVBase):
 
     def write_uvh5(self, filename, run_check=True, check_extra=True,
                    run_check_acceptability=True, clobber=False):
+        """
+        Write a UVData object to a UVH5 file.
+
+        Args:
+            filename: The UVH5 file to write to.
+            run_check: Option to check for the existence and proper shapes of
+                parameters before writing the file. Default is True.
+            check_extra: Option to check optional parameters as well as required
+                ones. Default is True.
+            run_check_acceptability: Option to check acceptable range of the values of
+                parameters before writing the file. Default is True.
+            clobber: Option to overwrite the file if it already exists. Default is False.
+
+        Returns:
+            None
+        """
         uvh5_obj = self._convert_to_filetype('uvh5')
         uvh5_obj.write_uvh5(filename, run_check=run_check,
                             check_extra=check_extra,
