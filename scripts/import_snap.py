@@ -61,26 +61,72 @@ data_uv.data_array=np.zeros((data_uv.Nblts,data_uv.Nspws,data_uv.Nfreqs,data_uv.
 for tnum in range(data_uv.Ntimes):
     data_uv.data_array[tnum*data_uv.Ntimes:(tnum+1)*data_uv.Ntimes,1,:,:]\
     =data['data'][tnum,:,:,:]
-#create ant_1_array
-data_uv.ant_1_array=\
-np.hstack([data['antenna_pairs'][:,0] for p in range(data_uv.Ntimes)]).flatten()\
-.astype(int)
-#create ant_2_array
-data_uv.ant_2_array=\
-np.hstack([data['anetenna_pairs'][:,1] for p in range(data_uv.Ntimes)]).flatten()\
-.astype(int)
-data_uv.baseline_array=\
-(2048*(data_uv.ant_2_array+1)+(data_uv.ant_1_array+1)+2**16).astype(int)
-#Translate antenna locations
-my_handler=Handling()
 
+#Translate antenna locations
+my_handle=Handling()
+begintime=Time(data['times'][0],format='unix')
+antenna_configuration=my_handle.get_all_fully_connected_at_date(begintime)
+#get antenna numbers
+all_antennas=[]
+data_antennas=[]
+all_antenna_pos=[]
+data_antenna_pos=[]
+all_antenna_enu={}
+data_antenna_enu=[]
+enu_datum=['WGS84']
+for connection in antenna_configuration:
+    antnum=connection['antenna_number']
+    antname=connection['station_name']
+    ant_lla=(connection['latitude'],
+              connection['longitude'],
+              connection['elevation'])
+    ant_xyz=pyuvdata.utils.XYZ_from_LatLonAlt(ant_lla[0],ant_lla[1],ant_lla[2])
+    ant_enu=(connection['easting'],
+             connection['northing'],
+             connection['elevation'])
+    all_antnums.append(antnum)
+    all_antnames.append(antname)
+    all_antennas_lla.append(ant_lla)
+    all_antennas_enu[antnum]=np.array(ant_enu)
+    all_antennas_xyz.append(ant_xyz)
+    if connection['antenna_number'] in config['ANTENNAS']:
+        data_antnums.append(antnum)
+        data_antnames.append(antname)
+        data_antennas_lla.append(ant_lla)
+        data_antennas_enu.append(ant_enu)
+        data_antennas_xyz.append(ant_xyz)
+#Convert antenna ENU into ITRF
 #Create baseline_array
 #create polarization array
 data_uv.polarization_array=\
 np.array([polstr2num(config['POLARIZATIONS'][p])\
  for p in len(config['POLARIZATIONS'])]).astype(int)
 #set telescope location
-data_uv.telescope_location=np.array(config['TELESCOPE_LOCATION_ITRF'])
+data_uv.telescope_location=np.array(all_antennas_xyz).mean(axis=0)
+data_uv.antenna_positions=np.array(all_antennas_xyz)-data_uv.telescope_location
+data_uv.antenna_numbers=np.array(all_antnum).astype(int)
+data_uv.antenna_names=all_antnames
+data_uv.Nants_telescope=len(data_uv.antenna_numbers)
+#create ant_1_array
+data_uv.ant_1_array=\
+np.hstack([data['antenna_pairs'][:,0] for p in range(data_uv.Ntimes)]).flatten()\
+.astype(int)
+#create ant_2_array
+data_uv.ant_2_array=\
+np.hstack([data['antenna_pairs'][:,1] for p in range(data_uv.Ntimes)]).flatten()\
+.astype(int)
+#convert from input index to antenna number and compute uvw
+data_uv.uvw_array=np.zeros((data_uvw.Nblts,3))
+for mnum,ant in enumerate(data_uv.ant_1_array):
+    data_uv.ant_1_array[mnum]=config['ANTENNA_NUMBERS'][ant]
+    data_uv.ant_2_array[mnum]=config['ANTENNA_NUMBERS'][ant]
+    ant1,ant2=data_uv.ant_1_array[mnum],data_uv.ant_2_array[mnum]
+    data_uv.uvw_array[mnum]=all_antennas_enu[ant2]-all_antennas_enu[ant1]
+data_uv.baseline_array=\
+(2048*(data_uv.ant_2_array+1)+(data_uv.ant_1_array+1)+2**16).astype(int)
+data_uv.Nants_data=len(data_antnums)
+data_uv.antenna_names=all_antnames
+
 #create time array, convert to julian days
 jd_times=Time(data['times'],format='unix').jd
 data_uv.time_array=\
