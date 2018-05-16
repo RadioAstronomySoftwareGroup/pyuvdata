@@ -145,3 +145,8 @@ zenith_altaz=SkyCoord(location=observatory,obstime=observation_times,
 data_uv.zenith_ra=zenith_altaz.ra.degree
 data_uv.zenith_dec=zenith_altaz.dec.degree
 data_uv.instrument=config['INSTRUMENT_NAME']
+
+if config['FORMAT']=='MIRIAD':
+    data_uv.write_miriad(config['OUTPUTNAME'])
+elif config['FORMAT']=='UVFITS':
+    data_uv.write_uvfits(config['OUTPUTNAME'])
