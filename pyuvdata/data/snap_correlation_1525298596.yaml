@@ -4,6 +4,8 @@
 TELESCOPE_NAME: HERA #the name of the telescope being SNAPPED.
 INSTRUMENT_NAME: SNAP
 OBJECT_NAME: DRIFT
+FORMAT: MIRIAD
+OUTPUTNAME: snap_test.xy.HH
 POLARIZATIONS: #list polarization string labels in
   - XX         #order that they appear in SNAP
   - XY

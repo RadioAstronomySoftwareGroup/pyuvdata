@@ -167,11 +167,15 @@ for tnum,t in enumerate(data_uv.time_array):
     data_uv.zenith_dec[tnum]=zenith_altaz.dec.degree
 
 data_uv.instrument=config['INSTRUMENT_NAME']
+<<<<<<< HEAD
 data_uv.spw_array=np.zeros(data_uv.Nspws).astype(int)
 data_uv.telescope_name=config['TELESCOPE_NAME']
 #print(data_uv.Nbls)
 #print(data_uv.Nblts)
 #print(data_uv.Ntimes)
+=======
+
+>>>>>>> file writing added.
 if config['FORMAT']=='MIRIAD':
     data_uv.write_miriad(config['OUTPUTNAME'])
 elif config['FORMAT']=='UVFITS':
