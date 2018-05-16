@@ -9,20 +9,7 @@ POLARIZATIONS: #list polarization string labels in
   - XY
   - YX
   - YY
-TELESCOPE_LOCATION_ITRF:
-  -
-  -
-  -
-ANTENNAS:
-  ANT0:
-    -
-    -
-    -
-  ANT1:
-    -
-    -
-    -
-  ANT2:
-    -
-    -
-    -
+ANTENNA_NUMBERS: #hera_mc db antenna numbers in input 0,1, and 2 of snap.
+  - 86
+  - 136
+  - 123
