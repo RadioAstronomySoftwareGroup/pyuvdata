@@ -377,7 +377,9 @@ c) Select a few antenna pairs to keep
 d) Select antenna pairs and polarizations using ant_str argument
 ********************************************************************
 
-Basic options are 'auto', 'cross', or 'all'.  The ant_str can also contain:
+Basic options are 'auto', 'cross', or 'all'. 'auto' returns just the
+autocorrelations (all pols), while 'cross' returns just the cross-correlations
+(all pols).  The ant_str can also contain:
 
 1. Individual antenna number(s):
 ________________________________
