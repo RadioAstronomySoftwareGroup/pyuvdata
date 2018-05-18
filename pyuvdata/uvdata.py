@@ -567,6 +567,18 @@ class UVData(UVBase):
         """
         return ephem.date(num - 2415020.)
 
+    def ephem2juldate(self, ephemdate):
+        """
+        Convert ephem date to Julian date
+
+        Args:
+            ephemdate: ephemeral date, as ephem object or tuple (year, dd, hh, mm, ss)
+        
+        Returns:
+            Julian date
+        """
+        return ephem.date(ephemdate) + 2415020.
+
     def unphase_to_drift(self):
         """Convert from a phased dataset to a drift dataset."""
         if self.phase_type == 'phased':
