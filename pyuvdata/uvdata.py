@@ -571,7 +571,7 @@ class UVData(UVBase):
 
         Args:
             ephemdate: ephemeral date, as ephem object or tuple (year, dd, hh, mm, ss)
-        
+
         Returns:
             Julian date
         """
