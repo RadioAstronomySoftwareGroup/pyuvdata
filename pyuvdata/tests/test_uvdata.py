@@ -2147,3 +2147,15 @@ def test_select_with_ant_str():
     uv2 = uv.select(ant_str=ant_str, inplace=inplace)
     nt.assert_items_equal(uv2.get_antpairs(), ant_pairs)
     nt.assert_items_equal(uv2.get_pols(), uv.get_pols())
+
+
+def test_juldate2ephem():
+    # Test select function with ant_str argument
+    uv = UVData()
+    date = 2458099.42105096
+    eph = uv.juldate2ephem(date)
+    jul1 = uv.ephem2juldate(eph)
+    jul2 = uv.ephem2juldate(eph.tuple())
+
+    nt.assert_almost_equals(date, jul1)
+    nt.assert_almost_equals(date, jul2)
