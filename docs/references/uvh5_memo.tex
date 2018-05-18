@@ -1,0 +1,136 @@
+\documentclass[11pt, oneside]{article}
+\usepackage{geometry}
+\geometry{letterpaper}
+%\geometry{landscape}
+%\usepackage[parfill]{parskip}
+\usepackage{graphicx}			
+							
+\usepackage{amssymb}
+
+\usepackage{hyperref} 
+\hypersetup{
+    colorlinks = true
+}
+
+\usepackage{cleveref}
+\crefformat{footnote}{#2\footnotemark[#1]#3}
+
+\title{Memo: UVH5 file format}
+\author{Paul La Plante, and the pyuvdata team}
+\date{\today}
+
+\begin{document}
+\maketitle
+\section{Introduction}
+This memo introduces a new HDF5\footnote{\url{https://www.hdfgroup.org/}}-based
+file format of a UVData object in
+pyuvdata\footnote{\url{https://github.com/HERA-Team/pyuvdata}}, a python package
+that provides an interface to interferometric data. Here, we describe the
+required and optional elements and the structure of this file format, called
+\textit{UVH5}.
+
+We assume that the user has a working knowledge of HDF5, as well as UVData
+objects in pyuvdata. For more information about HDF5, please visit
+\url{https://portal.hdfgroup.org/display/HDF5/HDF5}. For more information about
+the parameters present in a UVData object, please visit
+\url{http://pyuvdata.readthedocs.io/en/latest/uvdata_parameters.html}. An
+example for how to interact with UVData objects in pyuvdata is available at
+\url{http://pyuvdata.readthedocs.io/en/latest/tutorial.html}.
+
+\section{Overview}
+A UVH5 object contains the interferometric data from a radio telescope, as well
+as the associated metadata necessary to interpret it. A UVH5 file contains two
+primary HDF5 groups: the \verb+Header+ group, which contains the metadata, and
+the \verb+Data+ group, which contains the data itself, the flags, and
+information about the number of samples corresponding to the data. Datasets in
+the \verb+Data+ group are also typically passed through HDF5's compression
+pipeline, to reduce the amount of on-disk space required to store the data.
+However, because HDF5 is aware of any compression applied to a dataset, there is
+little that the user has to explicitly do when reading data. For users
+interested in creating new files, the use of compression is not strictly
+required by the UVH5 format, again because the HDF5 file is self-documenting in
+this regard. However, be warned that most UVH5 files ``in the wild'' typically
+feature compression of datasets in the \verb+Data+ group.
+
+In the disucssion below, we discuss required and optional datasets in the
+various groups. We note in parenthesis the corresponding attribute of a UVData
+object. Note that in nearly all cases, the names are coincident, to make things
+as transparent as possible to the user.
+
+\section{Header}
+The \verb+Header+ group of the file contains the metadata necessary to interpret
+the data. We begin with the required parameters, then continue to optional
+ones. Unless otherwise noted, all datasets are scalars (i.e., not arrays). The
+preceision of the data type is also not specified as part of the format, because
+in general the user is free to set it according to the desired use case (and
+HDF5 records the precision and endianness when generating datasets). When using
+the standard \verb+h5py+-based implementation in pyuvdata, this typically
+results in 32-bit integers and double precision floating point numbers.
+
+\subsection{Required Parameters}
+\begin{itemize}
+\item \textbf{latitude}: \textit{float} the latitude of the telescope site, in
+  radians. (\textit{latitude})
+\item \textbf{longitude}: \textit{float} the longitude of the telescope site, in
+  radians. (\textit{longitude})
+\item \textbf{altitude}: \textit{float} the altitude of the telescope site, in
+  meters. (\textit{altitude})
+\item \textbf{instrument}: \textit{string} the name of the instrument, typically
+  the elescope name. (\textit{instrument})
+\item \textbf{object_name}: \textit{string} the name of the object tracked by
+  the telescope. For a drift-scan antenna, this is typically
+  ``zenith''. (\textit{object_name})
+\item \textbf{history}: \textit{string} the history of the data
+  file. (\textit{history})
+\item \textbf{phase_type}: \textit{string} the phase type of the
+  observation. Should be ``phased'' or ``drift''. Any other value is treated as
+  an unrecognized type. (\textit{phase_type})
+\item \textbf{Nants_data}: \textit{int} the number of antennas that data in the
+  file corresponds to. May be smaller than the number of antennas in the
+  array. (\textit{Nants_data})
+\item \textbf{Nants_telescope}: \textit{int} the number of antennas in the
+  array. May be larger than the number of antennas with data corresponding to
+  them. (\textit{Nants_telescope})
+\item \textbf{ant_1_array}: \textit{int} an array of the first antenna indices
+  corresponding to baselines present in the data. This is a one-dimensional
+  array of size Nblts. (\textit{ant_1_array})
+\item \textbf{ant_2_array}: \textit{int} an array of the second antenna indices
+  corresponding to baselines present in the data. This is a one-dimensional
+  array of size Nblts. (\textit{ant_2_array})
+\item \textbf{antenna_names}: \textit{string} an array of the names of antennas
+  present in the array. This is a one-dimensional array of size
+  Nants_telescope. Note there must be one entry for every unique antenna in
+  ant_1_array and ant_2_array, but there may be additional
+  entries. (\textit{antenna_names})
+\item \textbf{baseline_array}: \textit{int} an array of baseline indices
+  corresponding to the data. This is a one-dimensional array of size Nblts. The
+  baseline index is calculated as:
+  \[
+    \mathtt{baseline} = 2048*(\mathtt{ant2}+1)+(\mathtt{ant1}+1) + 2^{16}.
+  \]
+  For current implementations, 32-bit integers (an ``int'' type in C) are
+  sufficient. However, for arrays with a very large number of antennas
+  ($\mathcal{O}(10^6)$), 64-bit integers (a ``long'' type in C) may be
+  required. (\textit{baseline_array})
+\item \textbf{Nbls}: \textit{int} the number of baselines present in the
+  data. For full cross-correlation data (including auto-correlations), this
+  should be Nants_data*(Nants_data+1)/2. (\textit{Nbls})
+\item \textbf{Nblts}: \textit{int} The number of baseline-times (i.e., the
+  number of spectra) present in the data. Note that this value need not be equal
+  to Nbls * Ntimes. (\textit{Nblts})
+\item \textbf{Nfreqs}: \textit{int} The number of frequency channels in the
+  data. (\textit{Nfreqs})
+\item \textbf{Npols}: \textit{int} The number of polarization products in the
+  data. (\textit{Npols})
+\item \textbf{Ntimes}: \textit{int} The number of time samples present in the
+  data. (\textit{Ntimes})
+\item \textbf{Nspws}: \textit{int} The number of spectral windows present in the
+  data. (\textit{Nspws})
+\item \textbf{}
+\end{itemize}
+
+
+
+
+
+\end{document}
