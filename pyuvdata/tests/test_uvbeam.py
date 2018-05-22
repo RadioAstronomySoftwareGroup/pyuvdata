@@ -51,6 +51,7 @@ class TestUVBeamInit(object):
                                  '_extra_keywords', '_Nelements',
                                  '_element_coordinate_system',
                                  '_element_location_array', '_delay_array',
+                                 '_interpolation_function',
                                  '_gain_array', '_coupling_matrix',
                                  '_reference_input_impedance', '_reference_output_impedance',
                                  '_receiver_temperature_array',
@@ -64,6 +65,7 @@ class TestUVBeamInit(object):
                                  'basis_vector_array', 'extra_keywords', 'Nelements',
                                  'element_coordinate_system',
                                  'element_location_array', 'delay_array',
+                                 'interpolation_function',
                                  'gain_array', 'coupling_matrix',
                                  'reference_input_impedance', 'reference_output_impedance',
                                  'receiver_temperature_array',
@@ -268,7 +270,8 @@ def test_efield_to_power():
     nt.assert_equal(new_power_beam, new_power_beam2)
 
     # check that this raises an error if trying to convert to HEALPix:
-    nt.assert_raises(NotImplementedError, efield_beam2.az_za_to_healpix,
+    efield_beam2.interpolation_function = 'az_za_simple'
+    nt.assert_raises(NotImplementedError, efield_beam2.to_healpix,
                      inplace=False)
 
     # now try a different rotation to non-orthogonal basis vectors
@@ -344,7 +347,7 @@ def test_efield_to_power():
     # TODO: add testing in healpix once we can convert efield beams to healpix
 
 
-def test_az_za_to_healpix():
+def test_to_healpix():
     power_beam = UVBeam()
     power_beam.read_cst_beam(cst_files[0], beam_type='power', frequency=150e6,
                              telescope_name='TEST', feed_name='bob',
@@ -354,7 +357,11 @@ def test_az_za_to_healpix():
 
     power_beam.select(axis2_inds=np.where(power_beam.axis2_array <= np.pi / 2.)[0])
 
-    power_beam_healpix = power_beam.az_za_to_healpix(inplace=False)
+    # test error if no interpolation function is set
+    nt.assert_raises(ValueError, power_beam.to_healpix, inplace=False)
+
+    power_beam.interpolation_function = 'az_za_simple'
+    power_beam_healpix = power_beam.to_healpix(inplace=False)
 
     # check that history is updated appropriately
     nt.assert_equal(power_beam_healpix.history, power_beam.history
@@ -366,7 +373,7 @@ def test_az_za_to_healpix():
 
     # Test error if not az_za
     power_beam.pixel_coordinate_system = 'sin_zenith'
-    nt.assert_raises(ValueError, power_beam.az_za_to_healpix)
+    nt.assert_raises(ValueError, power_beam.to_healpix)
 
     # Now check Efield interpolation
     efield_beam = UVBeam()
@@ -375,13 +382,14 @@ def test_az_za_to_healpix():
                               feed_version='0.1', feed_pol=['x'],
                               model_name='E-field pattern - Rigging height 4.9m',
                               model_version='1.0')
-    interp_then_sq = efield_beam.az_za_to_healpix(inplace=False)
+    efield_beam.interpolation_function = 'az_za_simple'
+    interp_then_sq = efield_beam.to_healpix(inplace=False)
     interp_then_sq.efield_to_power(calc_cross_pols=False)
 
     # convert to power and then interpolate to compare.
     # Don't use power read from file because it has rounding errors that will dominate this comparison
     sq_then_interp = efield_beam.efield_to_power(calc_cross_pols=False, inplace=False)
-    sq_then_interp.az_za_to_healpix()
+    sq_then_interp.to_healpix()
 
     # square then interpolate is different from interpolate then square at a
     # higher level than normally allowed in the equality.
@@ -1075,7 +1083,7 @@ def test_add():
 
 def test_healpix():
     # put all the testing on healpix in this one function to minimize slow calls
-    # to uvbeam.az_za_to_healpix()
+    # to uvbeam.to_healpix()
     power_beam = UVBeam()
     power_beam.read_cst_beam(cst_files[0], beam_type='power', frequency=150e6,
                              telescope_name='TEST', feed_name='bob',
@@ -1097,7 +1105,8 @@ def test_healpix():
     power_beam.mismatch_array = np.random.normal(0.0, 1.0, size=(power_beam.Nspws, power_beam.Nfreqs))
     power_beam.s_parameters = np.random.normal(0.0, 0.3, size=(4, power_beam.Nspws, power_beam.Nfreqs))
 
-    power_beam_healpix = power_beam.az_za_to_healpix(inplace=False)
+    power_beam.interpolation_function = 'az_za_simple'
+    power_beam_healpix = power_beam.to_healpix(inplace=False)
 
     # test that Npixels make sense
     n_max_pix = power_beam.Naxes1 * power_beam.Naxes2
@@ -1194,7 +1203,8 @@ def test_healpix():
     new_beam.freq_array = efield_beam.freq_array + efield_beam.Nfreqs * 1e6
     efield_beam += new_beam
 
-    efield_beam.az_za_to_healpix()
+    efield_beam.interpolation_function = 'az_za_simple'
+    efield_beam.to_healpix()
     old_history = efield_beam.history
 
     freqs_to_keep = np.array([efield_beam.freq_array[0, 0]])
