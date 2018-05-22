@@ -8,6 +8,7 @@ from __future__ import absolute_import, division, print_function
 import numpy as np
 import warnings
 import copy
+from scipy import interpolate
 from .uvbase import UVBase
 from . import parameter as uvp
 import pyuvdata.utils as uvutils
@@ -35,6 +36,8 @@ class UVBeam(UVBase):
                     'description': 'HEALPix map with zenith at the north pole and '
                                    'az, za coordinate axes (for the basis_vector_array) '
                                    'where az runs from East to North'}}
+
+    interpolation_function_dict = {'az_za_simple': 'interp_az_za_rect_spline'}
 
     def __init__(self):
         """Create a new UVBeam object."""
@@ -278,6 +281,15 @@ class UVBeam(UVBase):
                                                 expected_type=np.complex)
 
         # -------- extra, non-required parameters ----------
+        desc = ('String indicating interpolation function. Must be set to use '
+                'the interp_* methods. Allowed values are : "'
+                + '", "'.join(self.interpolation_function_dict.keys()) + '".')
+        self._interpolation_function = uvp.UVParameter('interpolation_function',
+                                                       required=False,
+                                                       form='str', expected_type=str,
+                                                       description=desc,
+                                                       acceptable_vals=self.interpolation_function_dict.keys())
+
         desc = ('Any user supplied extra keywords, type=dict. Keys should be '
                 '8 character or less strings if writing to beam fits files. '
                 'Use the special key "comment" for long multi-line string comments.')
@@ -697,12 +709,108 @@ class UVBeam(UVBase):
         if not inplace:
             return beam_object
 
-    def az_za_to_healpix(self, nside=None, run_check=True, check_extra=True,
-                         run_check_acceptability=True,
-                         inplace=True):
+    def interp_az_za_rect_spline(self, az_array, za_array):
         """
-        Convert beam in az_za coordinates to healpix coordinates.
-        The interpolation is done using scipy's interpolate.RectBivariateSpline().
+        Simple interpolation function for az_za coordinate systemself.
+
+        Args:
+            az_array: az values to interpolate to (same length as za_array)
+            za_array: za values to interpolate to (same length as az_array)
+
+        Returns:
+            an array of interpolated values, shape: (Naxes_vec, Nspws, Nfeeds or Npols, Nfreqs, az_array.size)
+            an array of interpolated basis vectors, shape: (Naxes_vec, Ncomponents_vec, npoints)
+            an array of distances from nearest beam pixel, shape: (npoints)
+        """
+        if self.pixel_coordinate_system != 'az_za':
+            raise ValueError('pixel_coordinate_system must be "az_za"')
+
+        assert(isinstance(az_array, np.ndarray))
+        assert(isinstance(za_array, np.ndarray))
+        assert(az_array.ndim == 1)
+        assert(az_array.shape == za_array.shape)
+
+        npoints = az_array.size
+        nearest_pix_dist = np.zeros(npoints)
+
+        phi_vals, theta_vals = np.meshgrid(self.axis1_array, self.axis2_array)
+        if np.iscomplexobj(self.data_array):
+            data_type = np.complex
+        else:
+            data_type = np.float
+
+        if self.beam_type == 'efield':
+            data_shape = (self.Naxes_vec, self.Nspws, self.Nfeeds, self.Nfreqs, npoints)
+        else:
+            data_shape = (self.Naxes_vec, self.Nspws, self.Npols, self.Nfreqs, npoints)
+        interp_data = np.zeros(data_shape, dtype=data_type)
+
+        if self.basis_vector_array is not None:
+            if (np.any(self.basis_vector_array[0, 1, :] > 0)
+                    or np.any(self.basis_vector_array[1, 0, :] > 0)):
+                """ Input basis vectors are not aligned to the native theta/phi
+                coordinate system """
+                raise NotImplementedError('interpolation for input basis '
+                                          'vectors that are not aligned to the '
+                                          'native theta/phi coordinate system '
+                                          'is not yet supported')
+            else:
+                """ The basis vector array comes in defined at the rectangular grid.
+                Redefine it for the interpolation points """
+                interp_basis_vector = np.zeros([self.Naxes_vec,
+                                                self.Ncomponents_vec,
+                                                npoints])
+                interp_basis_vector[0, 0, :] = np.ones(npoints)  # theta hat
+                interp_basis_vector[1, 1, :] = np.ones(npoints)  # phi hat
+        else:
+            interp_basis_vector = None
+
+        for index0 in range(self.Naxes_vec):
+            for index1 in range(self.Nspws):
+                # Npols is only defined for power beams.  For E-field beams need Nfeeds.
+                if self.beam_type == 'power':
+                    Npol_feeds = self.Npols
+                else:
+                    Npol_feeds = self.Nfeeds
+                for index2 in range(Npol_feeds):
+                    for index3 in range(self.Nfreqs):
+
+                        if np.iscomplexobj(self.data_array):
+                            # interpolate real and imaginary parts separately
+                            real_lut = interpolate.RectBivariateSpline(self.axis2_array,
+                                                                       self.axis1_array,
+                                                                       self.data_array[index0, index1, index2, index3, :].real)
+                            imag_lut = interpolate.RectBivariateSpline(self.axis2_array,
+                                                                       self.axis1_array,
+                                                                       self.data_array[index0, index1, index2, index3, :].imag)
+                        else:
+                            lut = interpolate.RectBivariateSpline(self.axis2_array,
+                                                                  self.axis1_array,
+                                                                  self.data_array[index0, index1, index2, index3, :])
+                        if index0 == 0 and index1 == 0 and index2 == 0 and index3 == 0:
+                            for point_i in range(npoints):
+                                pix_dists = np.sqrt((theta_vals - za_array[point_i])**2.
+                                                    + (phi_vals - az_array[point_i])**2.)
+                                nearest_pix_dist[point_i] = np.min(pix_dists)
+
+                        if np.iscomplexobj(self.data_array):
+                            # interpolate real and imaginary parts separately
+                            interp_data[index0, index1, index2, index3, :] = \
+                                (real_lut(za_array, az_array, grid=False)
+                                    + 1j * imag_lut(za_array, az_array, grid=False))
+
+                        else:
+                            interp_data[index0, index1, index2, index3, :] = \
+                                lut(za_array, az_array, grid=False)
+
+        return interp_data, interp_basis_vector, nearest_pix_dist
+
+    def to_healpix(self, nside=None, run_check=True, check_extra=True,
+                   run_check_acceptability=True,
+                   inplace=True):
+        """
+        Convert beam in to healpix coordinates.
+        The interpolation is done using the interpolation method specified in self.interpolation_function.
 
         Note that this interpolation isn't perfect. Interpolating an Efield beam
         and then converting to power gives a different result than converting
@@ -722,14 +830,14 @@ class UVBeam(UVBase):
                 a new UVBeam object, which is a subselection of self (False)
         """
         import healpy as hp
-        from scipy import interpolate
+
+        if self.interpolation_function is None:
+            raise ValueError('interpolation_function must be set on object first')
+
         if inplace:
             beam_object = self
         else:
             beam_object = copy.deepcopy(self)
-
-        if beam_object.pixel_coordinate_system != 'az_za':
-            raise ValueError('pixel_coordinate_system must be "az_za"')
 
         if nside is None:
             min_res = np.min(np.array([np.diff(beam_object.axis1_array)[0], np.diff(beam_object.axis2_array)[0]]))
@@ -740,88 +848,37 @@ class UVBeam(UVBase):
         npix = hp.nside2npix(nside)
         hpx_res = hp.pixelfunc.nside2resol(nside)
 
-        az_za_data = beam_object.data_array
+        phi_vals, theta_vals = np.meshgrid(beam_object.axis1_array, beam_object.axis2_array)
+        if np.iscomplexobj(beam_object.data_array):
+            data_type = np.complex
+        else:
+            data_type = np.float
+        pixels = np.arange(hp.nside2npix(nside))
+        hpx_theta, hpx_phi = hp.pix2ang(nside, pixels)
+
+        interp_data, interp_basis_vector, nearest_pix_dist = \
+            getattr(self, self.interpolation_function_dict[self.interpolation_function])(hpx_phi, hpx_theta)
+
+        good_data = np.where(nearest_pix_dist < hpx_res * 2)[0]
+
+        if len(good_data) < npix:
+            interp_data = interp_data[:, :, :, :, good_data]
+            pixels = pixels[good_data]
+            if interp_basis_vector is not None:
+                interp_basis_vector = interp_basis_vector[:, :, good_data]
+
         beam_object.pixel_coordinate_system = 'healpix'
         beam_object.nside = nside
         beam_object.Npixels = npix
         beam_object.ordering = 'ring'
         beam_object.set_cs_params()
 
-        phi_vals, theta_vals = np.meshgrid(beam_object.axis1_array, beam_object.axis2_array)
-        if np.iscomplexobj(beam_object.data_array):
-            data_type = np.complex
-        else:
-            data_type = np.float
-        healpix_data = np.zeros(beam_object._data_array.expected_shape(beam_object), dtype=data_type)
-        pixels = np.arange(hp.nside2npix(nside))
-        hpx_theta, hpx_phi = hp.pix2ang(nside, pixels)
-        nearest_pix_dist = np.zeros(npix)
-
         if beam_object.basis_vector_array is not None:
-            if (np.any(beam_object.basis_vector_array[0, 1, :] > 0)
-                    or np.any(beam_object.basis_vector_array[1, 0, :] > 0)):
-                """ Input basis vectors are not aligned to the native theta/phi
-                coordinate system """
-                raise NotImplementedError('HEALPix conversion for input basis '
-                                          'vectors that are not aligned to the '
-                                          'native theta/phi coordinate system '
-                                          'is not yet supported')
-            else:
-                """ The basis vector array comes in defined at the rectangular grid.
-                Redefine it for the healpix centers """
-                beam_object.basis_vector_array = np.zeros([beam_object.Naxes_vec,
-                                                           beam_object.Ncomponents_vec,
-                                                           beam_object.Npixels])
-                beam_object.basis_vector_array[0, 0, :] = np.ones(beam_object.Npixels)  # theta hat
-                beam_object.basis_vector_array[1, 1, :] = np.ones(beam_object.Npixels)  # phi hat
-
-        for index0 in range(beam_object.Naxes_vec):
-            for index1 in range(beam_object.Nspws):
-                # Npols is only defined for power beams.  For E-field beams need Nfeeds.
-                if beam_object.beam_type == 'power':
-                    Npol_feeds = beam_object.Npols
-                else:
-                    Npol_feeds = beam_object.Nfeeds
-                for index2 in range(Npol_feeds):
-                    for index3 in range(beam_object.Nfreqs):
-
-                        if np.iscomplexobj(beam_object.data_array):
-                            # interpolate real and imaginary parts separately
-                            real_lut = interpolate.RectBivariateSpline(beam_object.axis2_array,
-                                                                       beam_object.axis1_array,
-                                                                       az_za_data[index0, index1, index2, index3, :].real)
-                            imag_lut = interpolate.RectBivariateSpline(beam_object.axis2_array,
-                                                                       beam_object.axis1_array,
-                                                                       az_za_data[index0, index1, index2, index3, :].imag)
-                        else:
-                            lut = interpolate.RectBivariateSpline(beam_object.axis2_array,
-                                                                  beam_object.axis1_array,
-                                                                  az_za_data[index0, index1, index2, index3, :])
-                        if index0 == 0 and index1 == 0 and index2 == 0 and index3 == 0:
-                            for hpx_i in pixels:
-                                pix_dists = np.sqrt((theta_vals - hpx_theta[hpx_i])**2.
-                                                    + (phi_vals - hpx_phi[hpx_i])**2.)
-                                nearest_pix_dist[hpx_i] = np.min(pix_dists)
-
-                        if np.iscomplexobj(beam_object.data_array):
-                            # interpolate real and imaginary parts separately
-                            healpix_data[index0, index1, index2, index3, :] = \
-                                (real_lut(hpx_theta, hpx_phi, grid=False)
-                                    + 1j * imag_lut(hpx_theta, hpx_phi, grid=False))
-
-                        else:
-                            healpix_data[index0, index1, index2, index3, :] = \
-                                lut(hpx_theta, hpx_phi, grid=False)
-
-        good_data = np.where(nearest_pix_dist < hpx_res * 2)[0]
-
-        if len(good_data) < npix:
-            healpix_data = healpix_data[:, :, :, :, good_data]
-            pixels = pixels[good_data]
+            beam_object.basis_vector_array = interp_basis_vector
 
         beam_object.pixel_array = pixels
         beam_object.Npixels = beam_object.pixel_array.size
-        beam_object.data_array = healpix_data
+        beam_object.data_array = interp_data
 
         beam_object.Naxes1 = None
         beam_object.Naxes2 = None
