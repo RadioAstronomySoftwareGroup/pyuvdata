@@ -114,7 +114,7 @@ class UVData(UVBase):
                                             expected_type=int, form=('Nblts',))
 
         desc = ('Array of baseline indices, shape (Nblts), '
-                'type = int; baseline = 2048 * (ant2+1) + (ant1+1) + 2^16')
+                'type = int; baseline = 2048 * (ant1+1) + (ant2+1) + 2^16')
         self._baseline_array = uvp.UVParameter('baseline_array',
                                                description=desc,
                                                expected_type=int, form=('Nblts',))
