@@ -469,6 +469,7 @@ def get_miriad_antpos(uv):
     Returns:
         antpos: ndarray of antenna position floats in ENU frame [meters]
         ants: ndarray of antenna number integers
+        uvd: pyuvdata.miriad.Miriad object
     """
     from pyuvdata.miriad import Miriad
 
@@ -492,4 +493,4 @@ def get_miriad_antpos(uv):
     # get antenna positions in ENU frame
     antpos, ants = uvd.get_ENU_antpos(pick_data_ants=False)
 
-    return antpos, ants
+    return antpos, ants, uvd
