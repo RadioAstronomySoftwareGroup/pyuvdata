@@ -195,12 +195,9 @@ def test_efield_to_power():
     reldiff = diff / power_beam.data_array
     nt.assert_true(np.max(reldiff) < 0.002)
 
-    tols = [0.002, 0]
-    nt.assert_true(np.allclose(power_beam.data_array, new_power_beam.data_array,
-                               rtol=tols[0], atol=tols[1]))
-
     # set data_array tolerances higher to test the rest of the object
     # tols are (relative, absolute)
+    tols = [0.002, 0]
     power_beam._data_array.tols = tols
     # modify the history to match
     power_beam.history += ' Converted from efield to power using pyuvdata.'
@@ -350,12 +347,9 @@ def test_az_za_to_healpix():
     reldiff = diff / sq_then_interp.data_array
     nt.assert_true(np.max(reldiff) < 0.05)
 
-    tols = [0.05, 0]
-    nt.assert_true(np.allclose(sq_then_interp.data_array, interp_then_sq.data_array,
-                               rtol=tols[0], atol=tols[1]))
-
     # set data_array tolerances higher to test the rest of the object
     # tols are (relative, absolute)
+    tols = [0.05, 0]
     sq_then_interp._data_array.tols = tols
 
     # check history changes
@@ -1159,7 +1153,7 @@ def test_healpix():
     efield_beam.az_za_to_healpix()
     old_history = efield_beam.history
 
-    freqs_to_keep = efield_beam.freq_array[0]
+    freqs_to_keep = np.array([efield_beam.freq_array[0, 0]])
     feeds_to_keep = ['x']
 
     efield_beam2 = efield_beam.select(pixels=pixels_to_keep,
@@ -1173,7 +1167,7 @@ def test_healpix():
     for pi in np.unique(efield_beam2.pixel_array):
         nt.assert_true(pi in pixels_to_keep)
 
-    nt.assert_equal(len(freqs_to_keep), efield_beam2.Nfreqs)
+    nt.assert_equal(freqs_to_keep.size, efield_beam2.Nfreqs)
     for f in freqs_to_keep:
         nt.assert_true(f in efield_beam2.freq_array)
     for f in np.unique(efield_beam2.freq_array):
