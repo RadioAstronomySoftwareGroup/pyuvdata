@@ -37,7 +37,7 @@ class UVBeam(UVBase):
                                    'az, za coordinate axes (for the basis_vector_array) '
                                    'where az runs from East to North'}}
 
-    interpolation_function_dict = {'az_za_simple': 'interp_az_za_rect_spline'}
+    interpolation_function_dict = {'az_za_simple': '_interp_az_za_rect_spline'}
 
     def __init__(self):
         """Create a new UVBeam object."""
@@ -709,9 +709,9 @@ class UVBeam(UVBase):
         if not inplace:
             return beam_object
 
-    def interp_az_za_rect_spline(self, az_array, za_array):
+    def _interp_az_za_rect_spline(self, az_array, za_array):
         """
-        Simple interpolation function for az_za coordinate systemself.
+        Simple interpolation function for az_za coordinate system.
 
         Args:
             az_array: az values to interpolate to (same length as za_array)
@@ -805,6 +805,24 @@ class UVBeam(UVBase):
 
         return interp_data, interp_basis_vector, nearest_pix_dist
 
+    def interp_az_za(self, az_array, za_array):
+        """
+        Interpolate beam to given az, za locations (in radians).
+
+        Args:
+            az_array: az values to interpolate to (same length as za_array)
+            za_array: za values to interpolate to (same length as az_array)
+
+        Returns:
+            an array of interpolated values, shape: (Naxes_vec, Nspws, Nfeeds or Npols, Nfreqs, az_array.size)
+            an array of interpolated basis vectors, shape: (Naxes_vec, Ncomponents_vec, npoints)
+            an array of distances from nearest beam pixel, shape: (npoints)
+        """
+        if self.interpolation_function is None:
+            raise ValueError('interpolation_function must be set on object first')
+
+        return getattr(self, self.interpolation_function_dict[self.interpolation_function])(az_array, za_array)
+
     def to_healpix(self, nside=None, run_check=True, check_extra=True,
                    run_check_acceptability=True,
                    inplace=True):
@@ -831,9 +849,6 @@ class UVBeam(UVBase):
         """
         import healpy as hp
 
-        if self.interpolation_function is None:
-            raise ValueError('interpolation_function must be set on object first')
-
         if inplace:
             beam_object = self
         else:
@@ -848,7 +863,6 @@ class UVBeam(UVBase):
         npix = hp.nside2npix(nside)
         hpx_res = hp.pixelfunc.nside2resol(nside)
 
-        phi_vals, theta_vals = np.meshgrid(beam_object.axis1_array, beam_object.axis2_array)
         if np.iscomplexobj(beam_object.data_array):
             data_type = np.complex
         else:
@@ -856,8 +870,7 @@ class UVBeam(UVBase):
         pixels = np.arange(hp.nside2npix(nside))
         hpx_theta, hpx_phi = hp.pix2ang(nside, pixels)
 
-        interp_data, interp_basis_vector, nearest_pix_dist = \
-            getattr(self, self.interpolation_function_dict[self.interpolation_function])(hpx_phi, hpx_theta)
+        interp_data, interp_basis_vector, nearest_pix_dist = self.interp(hpx_phi, hpx_theta)
 
         good_data = np.where(nearest_pix_dist < hpx_res * 2)[0]
 
