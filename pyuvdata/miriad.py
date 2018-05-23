@@ -37,7 +37,7 @@ class Miriad(UVData):
                              "polarization_array".format(pol=pol))
         return pol_ind
 
-    def read_miriad(self, filepath, correct_lat_lon=True, run_check=True, read_data=True,
+    def read_miriad(self, filepath, correct_lat_lon=True, run_check=True,
                     check_extra=True, run_check_acceptability=True, phase_type=None,
                     antenna_nums=None, ant_str=None, bls=None,
                     polarizations=None, time_range=None):
@@ -54,8 +54,6 @@ class Miriad(UVData):
                 ones. Default is True.
             run_check_acceptability: Option to check acceptable range of the values of
                 parameters after reading in the file. Default is True.
-            read_data: boolean, if True save arrays with shape of the data during read-in,
-                else only save the metadata. 
             antenna_nums: The antennas numbers to only read into the object.
             bls: A list of antenna number tuples (e.g. [(0,1), (3,2)]) or a list of
                 baseline 3-tuples (e.g. [(0,1,'xx'), (2,3,'yy')]) specifying baselines
@@ -240,11 +238,6 @@ class Miriad(UVData):
                     if not np.allclose(uv[extra_variable],
                                        check_variables[extra_variable]):
                         check_variables.pop(extra_variable)
-
-            if not read_data:
-                # set data references to None
-                del d, f
-                d, f = None, None
 
             try:
                 data_accumulator[uv['pol']].append([uvw, t, i, j, d, f, cnt,
@@ -1177,4 +1170,3 @@ class Miriad(UVData):
             # there is no antpos variable
             warnings.warn('Antenna positions are not present in the file.')
             self.antenna_positions = None
-
