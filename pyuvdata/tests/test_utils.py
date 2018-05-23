@@ -191,7 +191,7 @@ def test_get_miriad_antpos():
     """ test for utils.get_miriad_antpos function """
     dfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.HH.uvcA')
     # test basic execution
-    antpos, ants = uvutils.get_miriad_antpos(dfile)
+    antpos, ants, uvd = uvutils.get_miriad_antpos(dfile)
     # assert shape and size
     nt.assert_equal(antpos.shape, (113, 3))
     nt.assert_equal(len(ants), 113)
@@ -199,6 +199,6 @@ def test_get_miriad_antpos():
     nt.assert_true(np.mean(np.abs(antpos)) < 100.0)
     # try w/ UV instance
     uv = aipy.miriad.UV(dfile)
-    antpos2, ants2 = uvutils.get_miriad_antpos(uv)
+    antpos2, ants2, uvd2 = uvutils.get_miriad_antpos(uv)
     nt.assert_true(np.all(np.isclose(antpos, antpos2)))
     nt.assert_true(np.all(np.isclose(ants, ants2)))
