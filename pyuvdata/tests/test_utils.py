@@ -5,6 +5,9 @@ import pyuvdata
 import numpy as np
 from pyuvdata.data import DATA_PATH
 import pyuvdata.utils as uvutils
+import aipy
+from pyuvdata.miriad import Miriad
+
 
 ref_latlonalt = (-26.7 * np.pi / 180.0, 116.7 * np.pi / 180.0, 377.8)
 ref_xyz = (-2562123.42683, 5094215.40141, -2848728.58869)
@@ -182,3 +185,22 @@ def test_jones_num_funcs():
     nt.assert_raises(KeyError, uvutils.jstr2num, 'foo')
     nt.assert_raises(ValueError, uvutils.jstr2num, 1)
     nt.assert_raises(ValueError, uvutils.jnum2str, 7.3)
+
+
+def test_get_miriad_antpos():
+    """ test for utils.get_miriad_antpos function """
+    dfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.HH.uvcA')
+    # test basic execution
+    antpos, ants = uvutils.get_miriad_antpos(dfile)
+    # assert shape and size
+    nt.assert_equal(antpos.shape, (113, 3))
+    nt.assert_equal(len(ants), 113)
+    # assert antpos units looks like meters
+    nt.assert_true(np.mean(np.abs(antpos)) < 100.0)
+    # try w/ UV instance
+    uv = aipy.miriad.UV(dfile)
+    antpos2, ants2 = uvutils.get_miriad_antpos(uv)
+    nt.assert_true(np.all(np.isclose(antpos, antpos2)))
+    nt.assert_true(np.all(np.isclose(ants, ants2)))
+
+

@@ -779,3 +779,12 @@ def test_antpos_units():
     aantpos = (uvutils.ECEF_from_rotECEF(aantpos, uv.telescope_location_lat_lon_alt[1])
                - uv.telescope_location)
     nt.assert_true(np.allclose(aantpos, uv.antenna_positions))
+
+def test_get_miriad_antpos():
+    """
+    test the miriad.get_miriad_antpos function
+    """
+    dfile = os.path.join(DATA_PATH, 'zen.2456865.60537.xy.uvcRREAA')
+    uv = aipy.miriad.UV(dfile)
+    uvd = UVData()
+
