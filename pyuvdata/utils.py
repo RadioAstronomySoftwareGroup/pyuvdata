@@ -9,6 +9,7 @@ import numpy as np
 import collections
 import six
 import warnings
+import aipy
 
 # parameters for transforming between xyz & lat/lon/alt
 gps_b = 6356752.31424518
@@ -456,3 +457,38 @@ def combine_histories(history1, history2):
                     keep_going = False
 
     return history1 + add_hist
+
+def get_miriad_antpos(uv):
+    """
+    Load the telescope antennas and their positions from a miriad file.
+
+    Args:
+        uv: string filepath to miriad file, or aipy.miriad.UV instance
+
+    Returns:
+        antpos: ndarray of antenna position floats in ENU frame [meters]
+        ants: ndarray of antenna number integers
+    """
+    from pyuvdata.miriad import Miriad
+
+    # type check
+    if isinstance(uv, (str, np.str)):
+        uv = aipy.miriad.UV(uv)
+    assert isinstance(uv, aipy.miriad.UV), "input uv must be a miriad filepath or an aipy.miriad.UV instance"
+
+    # instantiate a blank Miriad object
+    uvd = Miriad()
+
+    # load variables
+    uvd._load_miriad_variables(uv)
+
+    # load telescope coords
+    uvd._load_telescope_coords(uv)
+
+    # load antenna positions
+    uvd._load_antpos(uv)
+
+    # get antenna positions in ENU frame
+    antpos, ants = uvd.get_ENU_antpos(pick_data_ants=False)
+
+    return antpos, ants
