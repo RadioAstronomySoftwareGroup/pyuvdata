@@ -458,6 +458,7 @@ def combine_histories(history1, history2):
 
     return history1 + add_hist
 
+
 def get_miriad_antpos(uv):
     """
     Load the telescope antennas and their positions from a miriad file.

@@ -208,5 +208,3 @@ def test_get_miriad_antpos():
     antpos2, ants2 = uvutils.get_miriad_antpos(uv)
     nt.assert_true(np.all(np.isclose(antpos, antpos2)))
     nt.assert_true(np.all(np.isclose(ants, ants2)))
-
-
