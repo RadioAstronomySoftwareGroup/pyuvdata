@@ -709,18 +709,67 @@ class UVBeam(UVBase):
         if not inplace:
             return beam_object
 
-    def _interp_az_za_rect_spline(self, az_array, za_array):
+    def _interp_freq(self, freq_array):
+        """
+        Simple interpolation function for frequency axis.
+
+        Args:
+            freq_array: frequency values to interpolate to
+
+        Returns:
+            an array of interpolated values, shape: (Naxes_vec, Nspws, Nfeeds or Npols, freq_array.size, Npixels or (Naxis2, Naxis1))
+            an array of distances from nearest frequency, shape: (freq_array.size)
+        """
+        assert(isinstance(freq_array, np.ndarray))
+        assert(freq_array.ndim == 1)
+
+        nfreqs = freq_array.size
+        nearest_freq_dist = np.zeros(nfreqs)
+
+        if np.iscomplexobj(input_data_array):
+            data_type = np.complex
+        else:
+            data_type = np.float
+
+        if self.beam_type == 'efield':
+            data_shape = (self.Naxes_vec, self.Nspws, self.Nfeeds, input_nfreqs, npoints)
+        else:
+            data_shape = (self.Naxes_vec, self.Nspws, self.Npols, input_nfreqs, npoints)
+        interp_data = np.zeros(data_shape, dtype=data_type)
+
+        if np.iscomplexobj(input_data_array):
+            # interpolate real and imaginary parts separately
+            real_lut = interpolate.interp1d(self.freq_array, self.data_array.real, axis=3)
+            imag_lut = interpolate.interp1d(self.freq_array, self.data_array.imag, axis=3)
+            interp_data = (real_lut(freq_array) + 1j * imag_lut(freq_array))
+        else:
+            lut = interpolate.interp1d(self.freq_array, self.data_array, axis=3)
+            interp_data = lut(freq_array)
+
+        for f_i in range(nfreqs):
+            freq_dists = self.freq_array - freq_array[f_i]
+            nearest_freq_dist[f_i] = np.min(freq_dists)
+
+        return interp_data, nearest_freq_dist
+
+    def _interp_az_za_rect_spline(self, az_array, za_array, input_data_array=None,
+                                  input_nfreqs=None):
         """
         Simple interpolation function for az_za coordinate system.
 
         Args:
             az_array: az values to interpolate to (same length as za_array)
             za_array: za values to interpolate to (same length as az_array)
+            input_data_array: optionally pass in a data array that has a
+                different length frequency axis that self.data_array
+                (e.g. from interpolating in frequency)
+            input_nfreqs: length of frequency axis for input_data_array
+                (e.g. from interpolating in frequency)
 
         Returns:
             an array of interpolated values, shape: (Naxes_vec, Nspws, Nfeeds or Npols, Nfreqs, az_array.size)
-            an array of interpolated basis vectors, shape: (Naxes_vec, Ncomponents_vec, npoints)
-            an array of distances from nearest beam pixel, shape: (npoints)
+            an array of interpolated basis vectors, shape: (Naxes_vec, Ncomponents_vec, az_array.size)
+            an array of distances from nearest beam pixel, shape: (az_array.size)
         """
         if self.pixel_coordinate_system != 'az_za':
             raise ValueError('pixel_coordinate_system must be "az_za"')
@@ -734,15 +783,23 @@ class UVBeam(UVBase):
         nearest_pix_dist = np.zeros(npoints)
 
         phi_vals, theta_vals = np.meshgrid(self.axis1_array, self.axis2_array)
-        if np.iscomplexobj(self.data_array):
+        if input_nfreqs is None:
+            input_nfreqs = self.Nfreqs
+        if input_data_array is None:
+            input_data_array = self.data_array
+
+        if input_data_array.shape[3] != input_nfreqs:
+            raise ValueError('input_nfreqs must match input_data_array.shape[3]')
+
+        if np.iscomplexobj(input_data_array):
             data_type = np.complex
         else:
             data_type = np.float
 
         if self.beam_type == 'efield':
-            data_shape = (self.Naxes_vec, self.Nspws, self.Nfeeds, self.Nfreqs, npoints)
+            data_shape = (self.Naxes_vec, self.Nspws, self.Nfeeds, input_nfreqs, npoints)
         else:
-            data_shape = (self.Naxes_vec, self.Nspws, self.Npols, self.Nfreqs, npoints)
+            data_shape = (self.Naxes_vec, self.Nspws, self.Npols, input_nfreqs, npoints)
         interp_data = np.zeros(data_shape, dtype=data_type)
 
         if self.basis_vector_array is not None:
@@ -773,27 +830,27 @@ class UVBeam(UVBase):
                 else:
                     Npol_feeds = self.Nfeeds
                 for index2 in range(Npol_feeds):
-                    for index3 in range(self.Nfreqs):
+                    for index3 in range(input_nfreqs):
 
-                        if np.iscomplexobj(self.data_array):
+                        if np.iscomplexobj(input_data_array):
                             # interpolate real and imaginary parts separately
                             real_lut = interpolate.RectBivariateSpline(self.axis2_array,
                                                                        self.axis1_array,
-                                                                       self.data_array[index0, index1, index2, index3, :].real)
+                                                                       input_data_array[index0, index1, index2, index3, :].real)
                             imag_lut = interpolate.RectBivariateSpline(self.axis2_array,
                                                                        self.axis1_array,
-                                                                       self.data_array[index0, index1, index2, index3, :].imag)
+                                                                       input_data_array[index0, index1, index2, index3, :].imag)
                         else:
                             lut = interpolate.RectBivariateSpline(self.axis2_array,
                                                                   self.axis1_array,
-                                                                  self.data_array[index0, index1, index2, index3, :])
+                                                                  input_data_array[index0, index1, index2, index3, :])
                         if index0 == 0 and index1 == 0 and index2 == 0 and index3 == 0:
                             for point_i in range(npoints):
                                 pix_dists = np.sqrt((theta_vals - za_array[point_i])**2.
                                                     + (phi_vals - az_array[point_i])**2.)
                                 nearest_pix_dist[point_i] = np.min(pix_dists)
 
-                        if np.iscomplexobj(self.data_array):
+                        if np.iscomplexobj(input_data_array):
                             # interpolate real and imaginary parts separately
                             interp_data[index0, index1, index2, index3, :] = \
                                 (real_lut(za_array, az_array, grid=False)
@@ -805,23 +862,42 @@ class UVBeam(UVBase):
 
         return interp_data, interp_basis_vector, nearest_pix_dist
 
-    def interp_az_za(self, az_array, za_array):
+    def interp(self, az_array=None, za_array=None, freq_array=None):
         """
         Interpolate beam to given az, za locations (in radians).
 
         Args:
             az_array: az values to interpolate to (same length as za_array)
             za_array: za values to interpolate to (same length as az_array)
+            freq_array: frequency values to interpolate to
 
         Returns:
-            an array of interpolated values, shape: (Naxes_vec, Nspws, Nfeeds or Npols, Nfreqs, az_array.size)
-            an array of interpolated basis vectors, shape: (Naxes_vec, Ncomponents_vec, npoints)
-            an array of distances from nearest beam pixel, shape: (npoints)
+            an array of interpolated values, shape: (Naxes_vec, Nspws, Nfeeds or Npols,
+                Nfreqs or freq_array.size if freq_array is passed,
+                Npixels/(Naxis1, Naxis2) or az_array.size if az/za_arrays are passed)
+            an array of interpolated basis vectors (or self.basis_vector_array
+                if az/za_arrays are not passed), shape: (Naxes_vec, Ncomponents_vec,
+                Npixels/(Naxis1, Naxis2) or az_array.size if az/za_arrays are passed)
+            an array of distances from nearest beam pixel (or freq if az/za_arrays aren't passed),
+                shape: (az_array.size or freq_array.size)
         """
         if self.interpolation_function is None:
             raise ValueError('interpolation_function must be set on object first')
 
-        return getattr(self, self.interpolation_function_dict[self.interpolation_function])(az_array, za_array)
+        if freq_array is not None:
+            interp_data, nearest_freq_dist = self._interp_freq(freq_array)
+            nfreqs = freq_array.size
+        else:
+            interp_data = None
+            nfreqs = None
+
+        if az_array is None:
+            return interp_data, self.basis_vector_array, nearest_freq_dist
+        else:
+            interp_func = self.interpolation_function_dict[self.interpolation_function]
+            return getattr(self, interp_func)(az_array, za_array,
+                                              input_data_array=interp_data,
+                                              input_nfreqs=nfreqs)
 
     def to_healpix(self, nside=None, run_check=True, check_extra=True,
                    run_check_acceptability=True,
@@ -870,7 +946,8 @@ class UVBeam(UVBase):
         pixels = np.arange(hp.nside2npix(nside))
         hpx_theta, hpx_phi = hp.pix2ang(nside, pixels)
 
-        interp_data, interp_basis_vector, nearest_pix_dist = self.interp(hpx_phi, hpx_theta)
+        interp_data, interp_basis_vector, nearest_pix_dist = \
+            self.interp(az_array=hpx_phi, za_array=hpx_theta)
 
         good_data = np.where(nearest_pix_dist < hpx_res * 2)[0]
 
