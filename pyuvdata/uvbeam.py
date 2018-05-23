@@ -726,29 +726,54 @@ class UVBeam(UVBase):
         nfreqs = freq_array.size
         nearest_freq_dist = np.zeros(nfreqs)
 
-        if np.iscomplexobj(input_data_array):
+        for f_i in range(nfreqs):
+            freq_dists = self.freq_array[0, :] - freq_array[f_i]
+            nearest_freq_dist[f_i] = np.min(freq_dists)
+
+        if self.Nfreqs == 1:
+            warnings.warn('Only one frequency in UVBeam so cannot interpolate. '
+                          'Just using that frequency instead.')
+            return self.data_array, nearest_freq_dist
+
+        if np.iscomplexobj(self.data_array):
             data_type = np.complex
         else:
             data_type = np.float
+        interp_data_shape = np.array(self.data_array.shape)
+        interp_data_shape[3] = nfreqs
+        interp_data = np.zeros(interp_data_shape, dtype=data_type)
 
-        if self.beam_type == 'efield':
-            data_shape = (self.Naxes_vec, self.Nspws, self.Nfeeds, input_nfreqs, npoints)
-        else:
-            data_shape = (self.Naxes_vec, self.Nspws, self.Npols, input_nfreqs, npoints)
-        interp_data = np.zeros(data_shape, dtype=data_type)
+        freqs_below = np.where(freq_array < np.min(self.freq_array))
+        n_below = freqs_below[0].size
+        freqs_above = np.where(freq_array > np.max(self.freq_array))
+        n_above = freqs_above[0].size
+        freqs_interp = np.where((freq_array > np.min(self.freq_array))
+                                & (freq_array < np.max(self.freq_array)))
+        n_interp = freqs_interp[0].size
 
-        if np.iscomplexobj(input_data_array):
+        if (n_below > 0 or n_above > 0):
+            warnings.warn('at least one interpolation frequency is outside of '
+                          'UVBeam freq_array. Just using the max or min UVBeam '
+                          'frequency for those values')
+
+            min_freq = np.where(self.freq_array == np.min(self.freq_array))
+            for fi in freqs_below:
+                interp_data[:, :, :, fi] = self.data_array[:, :, :, min_freq]
+            max_freq = np.where(self.freq_array == np.max(self.freq_array))
+            for fi in freqs_above:
+                interp_data[:, :, :, fi] = self.data_array[:, :, :, max_freq]
+
+        if n_interp == 0:
+            return interp_data, nearest_freq_dist
+
+        if np.iscomplexobj(self.data_array):
             # interpolate real and imaginary parts separately
-            real_lut = interpolate.interp1d(self.freq_array, self.data_array.real, axis=3)
-            imag_lut = interpolate.interp1d(self.freq_array, self.data_array.imag, axis=3)
-            interp_data = (real_lut(freq_array) + 1j * imag_lut(freq_array))
+            real_lut = interpolate.interp1d(self.freq_array[0, :], self.data_array.real, axis=3)
+            imag_lut = interpolate.interp1d(self.freq_array[0, :], self.data_array.imag, axis=3)
+            interp_data[:, :, :, freqs_interp] = (real_lut(freq_array) + 1j * imag_lut(freq_array))
         else:
-            lut = interpolate.interp1d(self.freq_array, self.data_array, axis=3)
-            interp_data = lut(freq_array)
-
-        for f_i in range(nfreqs):
-            freq_dists = self.freq_array - freq_array[f_i]
-            nearest_freq_dist[f_i] = np.min(freq_dists)
+            lut = interpolate.interp1d(self.freq_array[0, :], self.data_array, axis=3)
+            interp_data[:, :, :, freqs_interp] = lut(freq_array)
 
         return interp_data, nearest_freq_dist
 
@@ -890,7 +915,6 @@ class UVBeam(UVBase):
         else:
             interp_data = None
             nfreqs = None
-
         if az_array is None:
             return interp_data, self.basis_vector_array, nearest_freq_dist
         else:
