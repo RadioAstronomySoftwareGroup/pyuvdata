@@ -779,4 +779,3 @@ def test_antpos_units():
     aantpos = (uvutils.ECEF_from_rotECEF(aantpos, uv.telescope_location_lat_lon_alt[1])
                - uv.telescope_location)
     nt.assert_true(np.allclose(aantpos, uv.antenna_positions))
-    
