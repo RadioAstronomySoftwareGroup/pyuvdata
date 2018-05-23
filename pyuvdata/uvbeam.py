@@ -747,8 +747,8 @@ class UVBeam(UVBase):
         n_below = freqs_below[0].size
         freqs_above = np.where(freq_array > np.max(self.freq_array))
         n_above = freqs_above[0].size
-        freqs_interp = np.where((freq_array > np.min(self.freq_array))
-                                & (freq_array < np.max(self.freq_array)))
+        freqs_interp = np.where((freq_array >= np.min(self.freq_array))
+                                & (freq_array <= np.max(self.freq_array)))
         n_interp = freqs_interp[0].size
 
         if (n_below > 0 or n_above > 0):
@@ -756,12 +756,12 @@ class UVBeam(UVBase):
                           'UVBeam freq_array. Just using the max or min UVBeam '
                           'frequency for those values')
 
-            min_freq = np.where(self.freq_array == np.min(self.freq_array))
+            min_freq = np.where(self.freq_array[0, :] == np.min(self.freq_array[0, :]))
             for fi in freqs_below:
-                interp_data[:, :, :, fi] = self.data_array[:, :, :, min_freq]
-            max_freq = np.where(self.freq_array == np.max(self.freq_array))
+                interp_data[:, :, :, fi] = self.data_array[:, :, :, min_freq[0]]
+            max_freq = np.where(self.freq_array[0, :] == np.max(self.freq_array[0, :]))
             for fi in freqs_above:
-                interp_data[:, :, :, fi] = self.data_array[:, :, :, max_freq]
+                interp_data[:, :, :, fi] = self.data_array[:, :, :, max_freq[0]]
 
         if n_interp == 0:
             return interp_data, nearest_freq_dist
@@ -770,10 +770,10 @@ class UVBeam(UVBase):
             # interpolate real and imaginary parts separately
             real_lut = interpolate.interp1d(self.freq_array[0, :], self.data_array.real, axis=3)
             imag_lut = interpolate.interp1d(self.freq_array[0, :], self.data_array.imag, axis=3)
-            interp_data[:, :, :, freqs_interp] = (real_lut(freq_array) + 1j * imag_lut(freq_array))
+            interp_data[:, :, :, freqs_interp[0]] = (real_lut(freq_array) + 1j * imag_lut(freq_array))
         else:
             lut = interpolate.interp1d(self.freq_array[0, :], self.data_array, axis=3)
-            interp_data[:, :, :, freqs_interp] = lut(freq_array)
+            interp_data[:, :, :, freqs_interp[0]] = lut(freq_array)
 
         return interp_data, nearest_freq_dist
 
