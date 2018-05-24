@@ -137,7 +137,8 @@ def test_writeread_healpix():
                           feed_version='0.1', feed_pol=['x'],
                           model_name='E-field pattern - Rigging height 4.9m',
                           model_version='1.0')
-    beam_in.az_za_to_healpix()
+    beam_in.interpolation_function = 'az_za_simple'
+    beam_in.to_healpix()
 
     write_file = os.path.join(DATA_PATH, 'test/outtest_beam_hpx.fits')
 
@@ -169,7 +170,8 @@ def test_writeread_healpix():
     # check that data_array is complex
     nt.assert_true(np.iscomplexobj(np.real_if_close(beam_in.data_array, tol=10)))
 
-    beam_in.az_za_to_healpix()
+    beam_in.interpolation_function = 'az_za_simple'
+    beam_in.to_healpix()
     # check that data_array is complex after interpolation
     nt.assert_true(np.iscomplexobj(np.real_if_close(beam_in.data_array, tol=10)))
 
@@ -318,7 +320,8 @@ def test_healpix_errors():
                           feed_version='0.1', feed_pol=['x'],
                           model_name='E-field pattern - Rigging height 4.9m',
                           model_version='1.0')
-    beam_in.az_za_to_healpix()
+    beam_in.interpolation_function = 'az_za_simple'
+    beam_in.to_healpix()
 
     header_vals_to_change = [{'CTYPE1': 'foo'}, {'NAXIS1': ''}]
 
@@ -364,7 +367,8 @@ def test_healpix_errors():
                           feed_version='0.1', feed_pol=['x'],
                           model_name='E-field pattern - Rigging height 4.9m',
                           model_version='1.0')
-    beam_in.az_za_to_healpix()
+    beam_in.interpolation_function = 'az_za_simple'
+    beam_in.to_healpix()
 
     header_vals_to_change = [{'CTYPE1': 'foo'}, {'NAXIS1': ''}]
 
