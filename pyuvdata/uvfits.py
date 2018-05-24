@@ -88,10 +88,12 @@ class UVFITS(UVData):
             len(np.unique(self.ant_1_array.tolist() + self.ant_2_array.tolist())))
 
         # read baseline vectors in units of seconds, return in meters
-        self.uvw_array = (np.array(np.stack((vis_hdu.data.par('UU'),
-                                             vis_hdu.data.par('VV'),
-                                             vis_hdu.data.par('WW'))))
-                          * const.c.to('m/s').value).T
+        # FITS uvw direction convention is opposite ours and Miriad's.
+        # So conjugate the visibilities and flip the uvws:
+        self.uvw_array = (-1) * (np.array(np.stack((vis_hdu.data.par('UU'),
+                                                    vis_hdu.data.par('VV'),
+                                                    vis_hdu.data.par('WW'))))
+                                 * const.c.to('m/s').value).T
 
         if 'INTTIM' in vis_hdu.data.parnames:
             self.integration_time = float(vis_hdu.data.par('INTTIM')[0])
@@ -204,7 +206,9 @@ class UVFITS(UVData):
                     raw_data_array = raw_data_array[:, :, freq_inds, :, :]
 
         assert(len(raw_data_array.shape) == 5)
-        self.data_array = (raw_data_array[:, :, :, :, 0] + 1j * raw_data_array[:, :, :, :, 1])
+        # FITS uvw direction convention is opposite ours and Miriad's.
+        # So conjugate the visibilities and flip the uvws:
+        self.data_array = (raw_data_array[:, :, :, :, 0] - 1j * raw_data_array[:, :, :, :, 1])
         self.flag_array = (raw_data_array[:, :, :, :, 2] <= 0)
         self.nsample_array = np.abs(raw_data_array[:, :, :, :, 2])
 
@@ -626,8 +630,10 @@ class UVFITS(UVData):
 
         weights_array = self.nsample_array * \
             np.where(self.flag_array, -1, 1)
-        data_array = self.data_array[:, np.newaxis,
-                                     np.newaxis, :, :, :, np.newaxis]
+        # FITS uvw direction convention is opposite ours and Miriad's.
+        # So conjugate the visibilities and flip the uvws:
+        data_array = np.conj(self.data_array[:, np.newaxis,
+                                             np.newaxis, :, :, :, np.newaxis])
         weights_array = weights_array[:, np.newaxis, np.newaxis, :, :, :,
                                       np.newaxis]
         # uvfits_array_data shape will be  (Nblts,1,1,[Nspws],Nfreqs,Npols,3)
@@ -635,7 +641,9 @@ class UVFITS(UVData):
                                             data_array.imag,
                                             weights_array], axis=6)
 
-        uvw_array_sec = self.uvw_array / const.c.to('m/s').value
+        # FITS uvw direction convention is opposite ours and Miriad's.
+        # So conjugate the visibilities and flip the uvws:
+        uvw_array_sec = -1 * self.uvw_array / const.c.to('m/s').value
         # jd_midnight = np.floor(self.time_array[0] - 0.5) + 0.5
         tzero = np.float32(self.time_array[0])
 
