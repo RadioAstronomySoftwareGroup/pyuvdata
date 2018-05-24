@@ -84,7 +84,9 @@ class UVData(UVBase):
                                           expected_type=int)
 
         desc = ('Projected baseline vectors relative to phase center, '
-                'shape (Nblts, 3), units meters')
+                'shape (Nblts, 3), units meters. Convention is: uvw = xyz(ant2) - xyz(ant1).'
+                'Note that this is the Miriad convention but it is different '
+                'from the AIPS/FITS convention (where uvw = xyz(ant1) - xyz(ant2)).')
         self._uvw_array = uvp.UVParameter('uvw_array', description=desc,
                                           form=('Nblts', 3),
                                           expected_type=np.float,
