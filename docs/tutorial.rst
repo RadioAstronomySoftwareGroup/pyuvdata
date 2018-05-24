@@ -992,7 +992,10 @@ d) Writing a HEALPix beam FITS file
   ...                    feed_name='PAPER_dipole', feed_version='0.1',
   ...                    model_name='E-field pattern - Rigging height 4.9m',
   ...                    model_version='1.0')
-  >>> beam.az_za_to_healpix()
+
+  # have to specify which interpolation function to use
+  >>> beam.interpolation_function = 'az_za_simple'
+  >>> beam.to_healpix()
   >>> beam.write_beamfits('tutorial.fits', clobber=True)
 
 UVBeam: Selecting data
@@ -1040,7 +1043,10 @@ a) Convert a regularly gridded az_za power beam to HEALpix (leaving original int
   ...                    feed_name='PAPER_dipole', feed_version='0.1',
   ...                    model_name='E-field pattern - Rigging height 4.9m',
   ...                    model_version='1.0')
-  >>> hpx_beam = beam.az_za_to_healpix(inplace=False)
+
+  # have to specify which interpolation function to use
+  >>> hpx_beam.interpolation_function = 'az_za_simple'
+  >>> hpx_beam = beam.to_healpix(inplace=False)
   >>> hp.mollview(hpx_beam.data_array[0,0,0,0,:]) # doctest: +SKIP
 
 b) Convert a regularly gridded az_za efield beam to HEALpix (leaving original intact).
@@ -1056,7 +1062,10 @@ b) Convert a regularly gridded az_za efield beam to HEALpix (leaving original in
   ...                    feed_name='PAPER_dipole', feed_version='0.1',
   ...                    model_name='E-field pattern - Rigging height 4.9m',
   ...                    model_version='1.0')
-  >>> hpx_beam = beam.az_za_to_healpix(inplace=False)
+
+  # have to specify which interpolation function to use
+  >>> hpx_beam.interpolation_function = 'az_za_simple'
+  >>> hpx_beam = beam.to_healpix(inplace=False)
   >>> hp.mollview(np.abs(hpx_beam.data_array[0,0,0,0,:])) # doctest: +SKIP
 
 
