@@ -1045,7 +1045,7 @@ a) Convert a regularly gridded az_za power beam to HEALpix (leaving original int
   ...                    model_version='1.0')
 
   # have to specify which interpolation function to use
-  >>> hpx_beam.interpolation_function = 'az_za_simple'
+  >>> beam.interpolation_function = 'az_za_simple'
   >>> hpx_beam = beam.to_healpix(inplace=False)
   >>> hp.mollview(hpx_beam.data_array[0,0,0,0,:]) # doctest: +SKIP
 
@@ -1064,7 +1064,7 @@ b) Convert a regularly gridded az_za efield beam to HEALpix (leaving original in
   ...                    model_version='1.0')
 
   # have to specify which interpolation function to use
-  >>> hpx_beam.interpolation_function = 'az_za_simple'
+  >>> beam.interpolation_function = 'az_za_simple'
   >>> hpx_beam = beam.to_healpix(inplace=False)
   >>> hp.mollview(np.abs(hpx_beam.data_array[0,0,0,0,:])) # doctest: +SKIP
 
