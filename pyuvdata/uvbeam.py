@@ -784,11 +784,11 @@ class UVBeam(UVBase):
             input_nfreqs = self.Nfreqs
         if az_array is None:
             return input_data_array, self.basis_vector_array
-        else:
-            assert(isinstance(az_array, np.ndarray))
-            assert(isinstance(za_array, np.ndarray))
-            assert(az_array.ndim == 1)
-            assert(az_array.shape == za_array.shape)
+
+        assert(isinstance(az_array, np.ndarray))
+        assert(isinstance(za_array, np.ndarray))
+        assert(az_array.ndim == 1)
+        assert(az_array.shape == za_array.shape)
 
         npoints = az_array.size
 
