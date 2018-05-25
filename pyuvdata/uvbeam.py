@@ -758,19 +758,14 @@ class UVBeam(UVBase):
 
         return interp_data, nearest_freq_dist
 
-    def _interp_az_za_rect_spline(self, az_array, za_array, input_data_array=None,
-                                  input_nfreqs=None):
+    def _interp_az_za_rect_spline(self, az_array, za_array, freq_array):
         """
         Simple interpolation function for az_za coordinate system.
 
         Args:
             az_array: az values to interpolate to (same length as za_array)
             za_array: za values to interpolate to (same length as az_array)
-            input_data_array: optionally pass in a data array that has a
-                different length frequency axis that self.data_array
-                (e.g. from interpolating in frequency)
-            input_nfreqs: length of frequency axis for input_data_array
-                (e.g. from interpolating in frequency)
+            freq_array: frequency values to interpolate to
 
         Returns:
             an array of interpolated values, shape: (Naxes_vec, Nspws, Nfeeds or Npols, Nfreqs, az_array.size)
@@ -780,19 +775,28 @@ class UVBeam(UVBase):
         if self.pixel_coordinate_system != 'az_za':
             raise ValueError('pixel_coordinate_system must be "az_za"')
 
-        assert(isinstance(az_array, np.ndarray))
-        assert(isinstance(za_array, np.ndarray))
-        assert(az_array.ndim == 1)
-        assert(az_array.shape == za_array.shape)
+        if freq_array is not None:
+            assert(isinstance(freq_array, np.ndarray))
+            input_data_array, nearest_freq_dist = self._interp_freq(freq_array)
+            input_nfreqs = freq_array.size
+        else:
+            input_data_array = self.data_array
+            input_nfreqs = self.Nfreqs
+        if az_array is None:
+            return input_data_array, self.basis_vector_array
+        else:
+            assert(isinstance(az_array, np.ndarray))
+            assert(isinstance(za_array, np.ndarray))
+            assert(az_array.ndim == 1)
+            assert(az_array.shape == za_array.shape)
 
         npoints = az_array.size
-        nearest_pix_dist = np.zeros(npoints)
+
+        axis1_diff = np.diff(self.axis1_array)[0]
+        axis2_diff = np.diff(self.axis2_array)[0]
+        max_axis_diff = np.max([axis1_diff, axis2_diff])
 
         phi_vals, theta_vals = np.meshgrid(self.axis1_array, self.axis2_array)
-        if input_nfreqs is None:
-            input_nfreqs = self.Nfreqs
-        if input_data_array is None:
-            input_data_array = self.data_array
 
         if input_data_array.shape[3] != input_nfreqs:
             raise ValueError('input_nfreqs must match input_data_array.shape[3]')
@@ -854,7 +858,9 @@ class UVBeam(UVBase):
                             for point_i in range(npoints):
                                 pix_dists = np.sqrt((theta_vals - za_array[point_i])**2.
                                                     + (phi_vals - az_array[point_i])**2.)
-                                nearest_pix_dist[point_i] = np.min(pix_dists)
+                                if np.min(pix_dists) > (max_axis_diff * 2.0):
+                                    raise ValueError('at least one interpolation location is outside of '
+                                                     'the UVBeam pixel coverage.')
 
                         if np.iscomplexobj(input_data_array):
                             # interpolate real and imaginary parts separately
@@ -866,7 +872,7 @@ class UVBeam(UVBase):
                             interp_data[index0, index1, index2, index3, :] = \
                                 lut(za_array, az_array, grid=False)
 
-        return interp_data, interp_basis_vector, nearest_pix_dist
+        return interp_data, interp_basis_vector
 
     def interp(self, az_array=None, za_array=None, freq_array=None):
         """
@@ -890,19 +896,8 @@ class UVBeam(UVBase):
         if self.interpolation_function is None:
             raise ValueError('interpolation_function must be set on object first')
 
-        if freq_array is not None:
-            interp_data, nearest_freq_dist = self._interp_freq(freq_array)
-            nfreqs = freq_array.size
-        else:
-            interp_data = None
-            nfreqs = None
-        if az_array is None:
-            return interp_data, self.basis_vector_array, nearest_freq_dist
-        else:
-            interp_func = self.interpolation_function_dict[self.interpolation_function]
-            return getattr(self, interp_func)(az_array, za_array,
-                                              input_data_array=interp_data,
-                                              input_nfreqs=nfreqs)
+        interp_func = self.interpolation_function_dict[self.interpolation_function]
+        return getattr(self, interp_func)(az_array, za_array, freq_array)
 
     def to_healpix(self, nside=None, run_check=True, check_extra=True,
                    run_check_acceptability=True,
@@ -951,16 +946,25 @@ class UVBeam(UVBase):
         pixels = np.arange(hp.nside2npix(nside))
         hpx_theta, hpx_phi = hp.pix2ang(nside, pixels)
 
-        interp_data, interp_basis_vector, nearest_pix_dist = \
+        phi_vals, theta_vals = np.meshgrid(self.axis1_array, self.axis2_array)
+
+        # Don't ask for interpolation to pixels that aren't inside the beam area
+        inds_to_use = []
+        for index in range(pixels.size):
+            pix_dists = np.sqrt((theta_vals - hpx_theta[index])**2.
+                                + (phi_vals - hpx_phi[index])**2.)
+            if np.min(pix_dists) < hpx_res * 2:
+                inds_to_use.append(index)
+
+        inds_to_use = np.array(inds_to_use)
+
+        if inds_to_use.size < npix:
+            pixels = pixels[inds_to_use]
+            hpx_theta = hpx_theta[inds_to_use]
+            hpx_phi = hpx_phi[inds_to_use]
+
+        interp_data, interp_basis_vector = \
             self.interp(az_array=hpx_phi, za_array=hpx_theta)
-
-        good_data = np.where(nearest_pix_dist < hpx_res * 2)[0]
-
-        if len(good_data) < npix:
-            interp_data = interp_data[:, :, :, :, good_data]
-            pixels = pixels[good_data]
-            if interp_basis_vector is not None:
-                interp_basis_vector = interp_basis_vector[:, :, good_data]
 
         beam_object.pixel_coordinate_system = 'healpix'
         beam_object.nside = nside
