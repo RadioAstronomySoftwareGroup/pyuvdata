@@ -552,12 +552,13 @@ def test_readWriteReadMiriad():
     # check that variables 'ischan' and 'nschan' were written to new file
     # need to use aipy, since pyuvdata is not currently capturing these variables
     uv_in.read_miriad(write_file)
-    uv_aipy = amiriad.UV(write_file)
+    uv_aipy = amiriad.UV(write_file) #on enterprise this line makes it so you cant delete the file
     nfreqs = uv_in.Nfreqs
     nschan = uv_aipy['nschan']
     ischan = uv_aipy['ischan']
     nt.assert_equal(nschan, nfreqs)
-    nt.assert_equal(ischan, 1)
+    nt.assert_equal(ischan, 1)	
+    del(uv_aipy)#close the file so it can be used later
 
     # check partial IO selections
     full = UVData()
@@ -651,7 +652,6 @@ def test_readWriteReadMiriad():
 
     del(uv_in)
     del(uv_out)
-    del(uv_aipy)
     del(full)
 
 
