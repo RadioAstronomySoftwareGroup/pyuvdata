@@ -1267,8 +1267,8 @@ def test_healpix():
 
     # Check sizes of output
     numfreqs = healpix_norm.freq_array.shape[-1]
-    beam_int = healpix_norm.get_beam_area()
-    beam_sq_int = healpix_norm.get_beam_sq_area()
+    beam_int = healpix_norm.get_beam_area(pol='xx')
+    beam_sq_int = healpix_norm.get_beam_sq_area(pol='xx')
     nt.assert_equal(beam_int.shape[0], numfreqs)
     nt.assert_equal(beam_sq_int.shape[0], numfreqs)
 
@@ -1276,9 +1276,9 @@ def test_healpix():
     dOmega = hp.nside2pixarea(healpix_norm.nside)
     npix = healpix_norm.Npixels
     healpix_norm.data_array = np.ones_like(healpix_norm.data_array)
-    nt.assert_almost_equal(np.sum(healpix_norm.get_beam_area()), numfreqs * npix * dOmega)
+    nt.assert_almost_equal(np.sum(healpix_norm.get_beam_area(pol='xx')), numfreqs * npix * dOmega)
     healpix_norm.data_array = 2. * np.ones_like(healpix_norm.data_array)
-    nt.assert_almost_equal(np.sum(healpix_norm.get_beam_sq_area()), numfreqs * 4. * npix * dOmega)
+    nt.assert_almost_equal(np.sum(healpix_norm.get_beam_sq_area(pol='xx')), numfreqs * 4. * npix * dOmega)
 
     # check XX and YY beam areas work and match to within 5 sigfigs
     XX_area = healpix_norm.get_beam_area('XX')
@@ -1292,30 +1292,19 @@ def test_healpix():
     nt.assert_true(np.allclose(YY_area / XX_area, np.ones(numfreqs)))
     # nt.assert_almost_equal(YY_area / XX_area, 1.0, places=5)
 
-    # check backwards compatability with pstokes nomenclature and int polnum
-    I_area = healpix_norm.get_beam_area('I')
-    pI_area = healpix_norm.get_beam_area('pI')
-    area1 = healpix_norm.get_beam_area(1)
-    nt.assert_true(np.allclose(I_area, pI_area))
-    nt.assert_true(np.allclose(I_area, area1))
-
     # Check that if pseudo-Stokes I (pI) is in the beam polarization_array, it just uses it
     healpix_norm.polarization_array = [1, 2]
-    nt.assert_almost_equal(np.sum(healpix_norm.get_beam_area()), 2. * numfreqs * npix * dOmega)
-    nt.assert_almost_equal(np.sum(healpix_norm.get_beam_sq_area()), 4. * numfreqs * npix * dOmega)
+    # nt.assert_almost_equal(np.sum(healpix_norm.get_beam_area()), 2. * numfreqs * npix * dOmega)
+    # nt.assert_almost_equal(np.sum(healpix_norm.get_beam_sq_area()), 4. * numfreqs * npix * dOmega)
 
     # Check error if desired pol is allowed but isn't in the polarization_array
     nt.assert_raises(ValueError, healpix_norm.get_beam_area, pol='xx')
     nt.assert_raises(ValueError, healpix_norm.get_beam_sq_area, pol='xx')
 
-    # Check to make sure only pseudo-Stokes I is accepted
-    nt.assert_raises(NotImplementedError, healpix_norm.get_beam_area, pol='Q')
-    nt.assert_raises(NotImplementedError, healpix_norm.get_beam_sq_area, pol='Q')
-
     # Check polarization error
-    healpix_norm.polarization_array = [9, 18, 27, -5]
-    nt.assert_raises(ValueError, healpix_norm.get_beam_area)
-    nt.assert_raises(ValueError, healpix_norm.get_beam_sq_area)
+    healpix_norm.polarization_array = [9, 18, 27, -4]
+    nt.assert_raises(ValueError, healpix_norm.get_beam_area, pol='xx')
+    nt.assert_raises(ValueError, healpix_norm.get_beam_sq_area, pol='xx')
 
     healpix_norm_fullpol = efield_beam.efield_to_power(inplace=False)
     healpix_norm_fullpol.peak_normalize()
@@ -1342,6 +1331,35 @@ def test_healpix():
     # Check only power beams accepted
     nt.assert_raises(ValueError, efield_beam.get_beam_area)
     nt.assert_raises(ValueError, efield_beam.get_beam_sq_area)
+
+    # check pseudo-Stokes parameters
+    efield_beam = UVBeam()
+    efield_beam.read_cst_beam(cst_files[0], beam_type='efield', frequency=150e6,
+                              telescope_name='TEST', feed_name='bob',
+                              feed_version='0.1',
+                              model_name='E-field pattern - Rigging height 4.9m',
+                              model_version='1.0')
+
+    efield_beam.az_za_to_healpix()
+    efield_beam.peak_normalize()
+    pI_area = efield_beam.get_beam_sq_area("pI")
+    pQ_area = efield_beam.get_beam_sq_area("pQ")
+    pU_area = efield_beam.get_beam_sq_area("pU")
+    pV_area = efield_beam.get_beam_sq_area("pV")
+    nt.assert_true(np.all(np.less(pQ_area, pI_area)))
+    nt.assert_true(np.all(np.less(pU_area, pI_area)))
+    nt.assert_true(np.all(np.less(pV_area, pI_area)))
+
+    # check backwards compatability with pstokes nomenclature and int polnum
+    I_area = efield_beam.get_beam_area('I')
+    pI_area = efield_beam.get_beam_area('pI')
+    area1 = efield_beam.get_beam_area(1)
+    nt.assert_true(np.allclose(I_area, pI_area))
+    nt.assert_true(np.allclose(I_area, area1))
+
+    # check efield beam type is accepted for pseudo-stokes and power for linear polarizations
+    nt.assert_raises(ValueError, healpix_vec_norm.get_beam_sq_area, 'pI')
+    nt.assert_raises(ValueError, efield_beam.get_beam_sq_area, 'xx')
 
 
 def test_get_beam_functions():
