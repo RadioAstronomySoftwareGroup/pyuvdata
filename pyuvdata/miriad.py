@@ -6,6 +6,7 @@
 from __future__ import absolute_import, division, print_function
 
 from astropy import constants as const
+from astropy.coordinates import Angle
 import os
 import shutil
 import numpy as np
@@ -165,7 +166,13 @@ class Miriad(UVData):
             assert isinstance(time_range, (list, np.ndarray)), err_msg
             assert len(time_range) == 2, err_msg
             assert np.array([isinstance(t, (float, np.float, np.float64)) for t in time_range]).all(), err_msg
-            uv.select('time', time_range[0], time_range[1], include=True)
+
+            # UVData.time_array marks center of integration, while Miriad 'time' marks beginning
+            # assume time_range refers to the center of the integrations,
+            # so subtract 1/2 an integration before using with miriad select
+            time_range_use = np.array(time_range) - uv['inttime'] / (24 * 3600.) / 2
+
+            uv.select('time', time_range_use[0], time_range_use[1], include=True)
             if n_selects > 0:
                 history_update_string += ', times'
             else:
@@ -474,8 +481,17 @@ class Miriad(UVData):
             # check that the RA values are not constant (if more than one time present)
             if (single_ra and not single_time):
                 raise ValueError('phase_type is "drift" but the RA values are constant.')
-            self.zenith_ra = copy.deepcopy(self.lst_array)
-            self.zenith_dec = dec_list
+
+            ra_diff = np.abs(ra_list - self.lst_array)
+            dec_diff = np.abs(dec_list - latitude)
+            acceptable_offset = Angle('1d')
+            if (np.max(ra_diff) > acceptable_offset.rad
+                    or np.max(dec_diff) > acceptable_offset.rad):
+                warnings.warn('drift RA and/or Dec is off from lst and/or '
+                              'latitude by more than {}, '
+                              'so it appears that it is not a zenith drift scan. '
+                              'Setting phase_type to "unknown"'.format(acceptable_offset))
+                self.set_unknown_phase_type()
 
         try:
             self.set_telescope_params()
@@ -734,7 +750,7 @@ class Miriad(UVData):
         # write data
         c_ns = const.c.to('m/ns').value
         for viscnt, blt in enumerate(self.data_array):
-            uvw = (self.uvw_array[viscnt] / c_ns).astype(np.double)  # NOTE issue 50 on conjugation
+            uvw = (self.uvw_array[viscnt] / c_ns).astype(np.double)
             t = miriad_time_array[viscnt]
             i = self.ant_1_array[viscnt]
             j = self.ant_2_array[viscnt]
@@ -744,8 +760,8 @@ class Miriad(UVData):
                 uv['ra'] = self.phase_center_ra
                 uv['dec'] = self.phase_center_dec
             elif self.phase_type == 'drift':
-                uv['ra'] = self.zenith_ra[viscnt]
-                uv['dec'] = self.zenith_dec[viscnt]
+                uv['ra'] = miriad_lsts[viscnt]
+                uv['dec'] = self.telescope_location_lat_lon_alt[0]
             else:
                 raise ValueError('The phasing type of the data is unknown. '
                                  'Set the phase_type to "drift" or "phased" to '

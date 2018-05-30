@@ -83,8 +83,6 @@ class UVH5(UVData):
             self.phase_center_epoch = float(header['phase_center_epoch'].value)
         elif self.phase_type == 'drift':
             self.set_drift()
-            self.zenith_dec = header['zenith_dec'].value
-            self.zenith_ra = header['zenith_ra'].value
         else:
             self.set_unknown_phase_type()
 
@@ -351,10 +349,6 @@ class UVH5(UVData):
 
         # write out phasing information
         header['phase_type'] = self.phase_type
-        if self.zenith_dec is not None:
-            header['zenith_dec'] = self.zenith_dec
-        if self.zenith_ra is not None:
-            header['zenith_ra'] = self.zenith_ra
         if self.phase_center_ra is not None:
             header['phase_center_ra'] = self.phase_center_ra
         if self.phase_center_dec is not None:
