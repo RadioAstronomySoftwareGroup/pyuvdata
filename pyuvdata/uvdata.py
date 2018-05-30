@@ -6,7 +6,9 @@
 from __future__ import absolute_import, division, print_function
 
 from astropy import constants as const
+import astropy.units as units
 from astropy.time import Time
+from astropy.coordinates import SkyCoord, EarthLocation, FK5, Angle
 import os
 import numpy as np
 import six
@@ -190,23 +192,6 @@ class UVData(UVBase):
         self._phase_type = uvp.UVParameter('phase_type', form='str', expected_type=str,
                                            description=desc, value='unknown',
                                            acceptable_vals=['drift', 'phased', 'unknown'])
-
-        desc = ('Required if phase_type = "drift". Right ascension of zenith. '
-                'units: radians, shape (Nblts). Can also be accessed using zenith_ra_degrees.')
-        self._zenith_ra = uvp.AngleParameter('zenith_ra', required=False,
-                                             description=desc,
-                                             expected_type=np.float,
-                                             form=('Nblts',),
-                                             tols=radian_tol)
-
-        desc = ('Required if phase_type = "drift". Declination of zenith. '
-                'units: radians, shape (Nblts). Can also be accessed using zenith_dec_degrees.')
-        # in practice, dec of zenith will never change; does not need to be shape Nblts
-        self._zenith_dec = uvp.AngleParameter('zenith_dec', required=False,
-                                              description=desc,
-                                              expected_type=np.float,
-                                              form=('Nblts',),
-                                              tols=radian_tol)
 
         desc = ('Required if phase_type = "phased". Epoch year of the phase '
                 'applied to the data (eg 2000.)')
@@ -398,8 +383,6 @@ class UVData(UVBase):
     def set_drift(self):
         """Set phase_type to 'drift' and adjust required parameters."""
         self.phase_type = 'drift'
-        self._zenith_ra.required = True
-        self._zenith_dec.required = True
         self._phase_center_epoch.required = False
         self._phase_center_ra.required = False
         self._phase_center_dec.required = False
@@ -407,8 +390,6 @@ class UVData(UVBase):
     def set_phased(self):
         """Set phase_type to 'phased' and adjust required parameters."""
         self.phase_type = 'phased'
-        self._zenith_ra.required = False
-        self._zenith_dec.required = False
         self._phase_center_epoch.required = True
         self._phase_center_ra.required = True
         self._phase_center_dec.required = True
@@ -416,8 +397,6 @@ class UVData(UVBase):
     def set_unknown_phase_type(self):
         """Set phase_type to 'unknown' and adjust required parameters."""
         self.phase_type = 'unknown'
-        self._zenith_ra.required = False
-        self._zenith_dec.required = False
         self._phase_center_epoch.required = False
         self._phase_center_ra.required = False
         self._phase_center_dec.required = False
@@ -603,6 +582,80 @@ class UVData(UVBase):
                              'Set the phase_type to drift or phased to '
                              'reflect the phasing status of the data')
 
+        # apply -w phasor
+        # Does this assume a co-planar array?
+        w_lambda = (self.uvw_array[:, 2].reshape(self.Nblts, 1).astype(np.float64)
+                    / const.c.to('m/s').value * self.freq_array.reshape(1, self.Nfreqs))
+        phs = np.exp(-1j * 2 * np.pi * (-1) * w_lambda[:, None, :, None])
+        self.data_array *= phs
+
+        # get observation ra/dec by creating a sky coord at the phase center
+        # (in icrs for J2000, FK5 otherwise) and converting to FK5 with the obs time as the equinox
+        telescope_location = EarthLocation.from_geocentric(self.telescope_location[0],
+                                                           self.telescope_location[1],
+                                                           self.telescope_location[2],
+                                                           unit='m')
+
+        if self.phase_center_epoch == 2000:
+            phase_center_coord = SkyCoord(ra=self.phase_center_ra,
+                                          dec=self.phase_center_dec, unit='radian',
+                                          frame='icrs')
+        else:
+            phase_center_coord = SkyCoord(ra=self.phase_center_ra,
+                                          dec=self.phase_center_dec, unit='radian',
+                                          equinox=self.phase_center_epoch,
+                                          frame='FK5')
+
+        unique_times, unique_inds = np.unique(self.time_array, return_index=True)
+        for ind, jd in enumerate(unique_times):
+            inds = np.where(self.time_array == jd)[0]
+            lst = self.lst_array[unique_inds[ind]]
+
+            # convert to FK5 at jd
+            obs_time = Time(jd, format='jd', location=(telescope_location.lon,
+                                                       telescope_location.lat))
+            obs_phase_coord = phase_center_coord.transform_to(FK5(equinox=obs_time))
+            phase_center_ra = obs_phase_coord.ra.rad
+            phase_center_dec = obs_phase_coord.dec.rad
+
+            # Now generate ra/dec of zenith at jd in the FK5 coordinate system
+            # to use in the rotation matrices
+            # (Note these are close to but not identical to lst/latitude)
+            zenith_coord = SkyCoord(alt=Angle(90 * units.deg), az=Angle(0 * units.deg),
+                                    obstime=obs_time, frame='altaz', location=telescope_location)
+
+            obs_zenith_coord = zenith_coord.transform_to(FK5(equinox=obs_time))
+            zenith_ra = obs_zenith_coord.ra.rad
+            zenith_dec = obs_zenith_coord.dec.rad
+
+            # generate rotation matrices
+            m0 = uvutils.top2eq_m(0., phase_center_dec)
+            m1 = uvutils.eq2top_m(phase_center_ra - zenith_ra, zenith_dec)
+
+            # rotate and write uvws
+            uvw = self.uvw_array[inds, :]
+            uvw = np.dot(m0, uvw.T).T
+            uvw = np.dot(m1, uvw.T).T
+            self.uvw_array[inds, :] = uvw
+
+        # remove phase center
+        self.phase_center_ra = None
+        self.phase_center_dec = None
+        self.phase_center_epoch = None
+        self.set_drift()
+
+    def unphase_to_drift_ephem(self):
+        """Convert from a phased dataset to a drift dataset."""
+        if self.phase_type == 'phased':
+            pass
+        elif self.phase_type == 'drift':
+            raise ValueError('The data is already drift scanning; can only '
+                             'unphase phased data.')
+        else:
+            raise ValueError('The phasing type of the data is unknown. '
+                             'Set the phase_type to drift or phased to '
+                             'reflect the phasing status of the data')
+
         latitude, longitude, altitude = self.telescope_location_lat_lon_alt
 
         obs = ephem.Observer()
@@ -616,9 +669,6 @@ class UVData(UVBase):
         phase_center._epoch = epoch
         phase_center._ra = self.phase_center_ra
         phase_center._dec = self.phase_center_dec
-
-        self.zenith_ra = np.zeros_like(self.time_array)
-        self.zenith_dec = np.zeros_like(self.time_array)
 
         # apply -w phasor
         w_lambda = (self.uvw_array[:, 2].reshape(self.Nblts, 1).astype(np.float64)
@@ -645,47 +695,99 @@ class UVData(UVBase):
             uvw = np.dot(m1, uvw.T).T
             self.uvw_array[inds, :] = uvw
 
-        self.zenith_ra = copy.deepcopy(self.lst_array)
-        self.zenith_dec = np.zeros_like(self.zenith_ra) + latitude
-
         # remove phase center
         self.phase_center_ra = None
         self.phase_center_dec = None
         self.phase_center_epoch = None
         self.set_drift()
 
-    def phase_to_time(self, time):
+    def phase(self, ra, dec, epoch):
         """
-        Phase a drift scan dataset to the ra/dec of zenith at a particular time.
+        Phase a drift scan dataset to a single ra/dec at a particular epoch.
+
+        Will not phase already phased data.
 
         Args:
-            time: The time to phase to.
+            ra: The ra to phase to in radians.
+            dec: The dec to phase to in radians.
+            epoch: The epoch to use for phasing.
+                Either an astropy Time object or the string "J2000" (which is the default).
         """
         if self.phase_type == 'drift':
             pass
         elif self.phase_type == 'phased':
             raise ValueError('The data is already phased; can only phase '
-                             'drift scanning data.')
+                             'drift scan data. Use unphase_to_drift to '
+                             'convert to a drift scan.')
         else:
             raise ValueError('The phasing type of the data is unknown. '
-                             'Set the phase_type to drift or phased to '
+                             'Set the phase_type to "drift" or "phased" to '
                              'reflect the phasing status of the data')
 
-        obs = ephem.Observer()
-        # obs inits with default values for parameters -- be sure to replace them
-        latitude, longitude, altitude = self.telescope_location_lat_lon_alt
-        obs.lat = latitude
-        obs.lon = longitude
+        if epoch == "J2000" or epoch == 2000:
+            phase_center_coord = SkyCoord(ra=ra, dec=dec, unit='radian', frame='icrs')
+        else:
+            assert(isinstance(epoch, Time))
+            phase_center_coord = SkyCoord(ra=ra, dec=dec, unit='radian',
+                                          equinox=epoch, frame=FK5)
+            # convert to icrs (i.e. J2000) to write to object
+            phase_center_coord = phase_center_coord.transform_to('icrs')
 
-        obs.date, obs.epoch = self.juldate2ephem(
-            time), self.juldate2ephem(time)
+        self.phase_center_ra = phase_center_coord.ra.radian
+        self.phase_center_dec = phase_center_coord.dec.radian
+        self.phase_center_epoch = 2000.0
 
-        ra = obs.sidereal_time()
-        dec = latitude
-        epoch = self.juldate2ephem(time)
-        self.phase(ra, dec, epoch)
+        telescope_location = EarthLocation.from_geocentric(self.telescope_location[0],
+                                                           self.telescope_location[1],
+                                                           self.telescope_location[2],
+                                                           unit='m')
 
-    def phase(self, ra, dec, epoch):
+        unique_times, unique_inds = np.unique(self.time_array, return_index=True)
+        uvws = np.zeros(self.uvw_array.shape, dtype=np.float64)
+        for ind, jd in enumerate(unique_times):
+            inds = np.where(self.time_array == jd)[0]
+            lst = self.lst_array[unique_inds[ind]]
+
+            # calculate ra/dec of phase center in current epoch
+            # convert to FK5 at jd
+            obs_time = Time(jd, format='jd', location=(telescope_location.lon,
+                                                       telescope_location.lat))
+            obs_phase_coord = phase_center_coord.transform_to(FK5(equinox=obs_time))
+            phase_center_ra = obs_phase_coord.ra.rad
+            phase_center_dec = obs_phase_coord.dec.rad
+
+            # Now generate ra/dec of zenith at jd in the FK5 coordinate system
+            # to use in the rotation matrices
+            # (Note these are close to but not identical to lst/latitude)
+            # use these instead to match phasing
+            zenith_coord = SkyCoord(alt=Angle(90 * units.deg), az=Angle(0 * units.deg),
+                                    obstime=obs_time, frame='altaz', location=telescope_location)
+
+            obs_zenith_coord = zenith_coord.transform_to(FK5(equinox=obs_time))
+            zenith_ra = obs_zenith_coord.ra.rad
+            zenith_dec = obs_zenith_coord.dec.rad
+
+            # generate rotation matrices
+            m0 = uvutils.top2eq_m(zenith_ra - zenith_ra, zenith_dec)
+            m1 = uvutils.eq2top_m(zenith_ra - phase_center_ra, phase_center_dec)
+
+            # rotate and write uvws
+            uvw = self.uvw_array[inds, :]
+            uvw = np.dot(m0, uvw.T).T
+            uvw = np.dot(m1, uvw.T).T
+            self.uvw_array[inds, :] = uvw
+            uvws[inds, :] = uvw
+
+        # calculate data and apply phasor
+        # Does this assume a co-planar array?
+        w_lambda = (uvws[:, 2].reshape(self.Nblts, 1)
+                    / const.c.to('m/s').value * self.freq_array.reshape(1, self.Nfreqs))
+        phs = np.exp(-1j * 2 * np.pi * w_lambda[:, None, :, None])
+        self.data_array *= phs
+
+        self.set_phased()
+
+    def phase_ephem(self, ra, dec, epoch):
         """
         Phase a drift scan dataset to a single ra/dec at a particular epoch.
 
@@ -762,6 +864,73 @@ class UVData(UVBase):
         del(obs)
         self.set_phased()
 
+    def phase_to_time(self, time):
+        """
+        Phase a drift scan dataset to the ra/dec of zenith at a particular time.
+
+        Args:
+            time: The time to phase to, an astropy Time object.
+        """
+        if self.phase_type == 'drift':
+            pass
+        elif self.phase_type == 'phased':
+            raise ValueError('The data is already phased; can only phase '
+                             'drift scanning data.')
+        else:
+            raise ValueError('The phasing type of the data is unknown. '
+                             'Set the phase_type to drift or phased to '
+                             'reflect the phasing status of the data')
+
+        assert(isinstance(time, Time))
+
+        # Generate ra/dec of zenith at time in the FK5 coordinate system
+        # to use for phasing
+        # (Note these are close to but not identical to lst/latitude)
+        telescope_location = EarthLocation.from_geocentric(self.telescope_location[0],
+                                                           self.telescope_location[1],
+                                                           self.telescope_location[2],
+                                                           unit='m')
+
+        zenith_coord = SkyCoord(alt=Angle(90 * units.deg), az=Angle(0 * units.deg),
+                                obstime=time, frame='altaz', location=telescope_location)
+
+        obs_zenith_coord = zenith_coord.transform_to(FK5(equinox=time))
+        zenith_ra = obs_zenith_coord.ra
+        zenith_dec = obs_zenith_coord.dec
+
+        self.phase(zenith_ra, zenith_dec, time)
+
+    def phase_to_time_ephem(self, time):
+        """
+        Phase a drift scan dataset to the ra/dec of zenith at a particular time.
+
+        Args:
+            time: The time to phase to.
+        """
+        if self.phase_type == 'drift':
+            pass
+        elif self.phase_type == 'phased':
+            raise ValueError('The data is already phased; can only phase '
+                             'drift scanning data.')
+        else:
+            raise ValueError('The phasing type of the data is unknown. '
+                             'Set the phase_type to drift or phased to '
+                             'reflect the phasing status of the data')
+
+        obs = ephem.Observer()
+        # obs inits with default values for parameters -- be sure to replace them
+        latitude, longitude, altitude = self.telescope_location_lat_lon_alt
+        obs.lat = latitude
+        obs.lon = longitude
+
+        obs.date, obs.epoch = self.juldate2ephem(
+            time), self.juldate2ephem(time)
+
+        ra = obs.sidereal_time()
+        dec = latitude
+        epoch = self.juldate2ephem(time)
+        self.phase_ephem(ra, dec, epoch)
+
     def __add__(self, other, run_check=True, check_extra=True,
                 run_check_acceptability=True, inplace=False):
         """
@@ -792,7 +961,6 @@ class UVData(UVBase):
         other.check(check_extra=check_extra, run_check_acceptability=run_check_acceptability)
 
         # Check objects are compatible
-        # Note zenith_ra will not necessarily be the same if times are different.
         # But phase_center should be the same, even if in drift (empty parameters)
         compatibility_params = ['_vis_units', '_integration_time', '_channel_width',
                                 '_object_name', '_telescope_name', '_instrument',
@@ -889,11 +1057,7 @@ class UVData(UVBase):
                                                other.ant_2_array[bnew_inds]])[blt_order]
             this.baseline_array = np.concatenate([this.baseline_array,
                                                   other.baseline_array[bnew_inds]])[blt_order]
-            if this.phase_type == 'drift':
-                this.zenith_ra = np.concatenate([this.zenith_ra,
-                                                 other.zenith_ra[bnew_inds]])[blt_order]
-                this.zenith_dec = np.concatenate([this.zenith_dec,
-                                                 other.zenith_dec[bnew_inds]])[blt_order]
+
         if len(fnew_inds) > 0:
             zero_pad = np.zeros((this.data_array.shape[0], this.Nspws, len(fnew_inds),
                                  this.Npols))
@@ -1278,10 +1442,6 @@ class UVData(UVBase):
                 len(set(self.ant_1_array.tolist() + self.ant_2_array.tolist())))
 
             self.Ntimes = len(np.unique(self.time_array))
-
-            if self.phase_type == 'drift':
-                self.zenith_ra = self.zenith_ra[blt_inds]
-                self.zenith_dec = self.zenith_dec[blt_inds]
 
         if freq_inds is not None:
             self.Nfreqs = len(freq_inds)

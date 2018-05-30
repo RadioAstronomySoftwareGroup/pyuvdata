@@ -576,7 +576,8 @@ class UVFITS(UVData):
                 print('The data are in drift mode and do not have a '
                       'defined phase center. Phasing to zenith of the first '
                       'timestamp.')
-                self.phase_to_time(self.time_array[0])
+                phase_time = Time(self.time_array[0], format='jd')
+                self.phase_to_time(phase_time)
             else:
                 raise ValueError('The data are in drift mode. '
                                  'Set force_phase to true to phase the data '
