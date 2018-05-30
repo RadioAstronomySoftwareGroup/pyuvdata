@@ -255,7 +255,7 @@ Phasing/unphasing data
 ::
 
   >>> from pyuvdata import UVData
-  >>> import ephem
+  >>> from astropy.time import Time
   >>> UV = UVData()
   >>> miriad_file = 'pyuvdata/data/new.uvA'
   >>> UV.read_miriad(miriad_file)
@@ -263,7 +263,7 @@ Phasing/unphasing data
   drift
 
   # Phase the data to the zenith at first time step
-  >>> UV.phase_to_time(UV.time_array[0])
+  >>> UV.phase_to_time(Time(UV.time_array[0], format='jd'))
   >>> print(UV.phase_type)
   phased
 
@@ -271,7 +271,7 @@ Phasing/unphasing data
   >>> UV.unphase_to_drift()
 
   # Phase to a specific ra/dec/epoch (in radians)
-  >>> UV.phase(5.23368, 0.710940, ephem.J2000)
+  >>> UV.phase(5.23368, 0.710940, "J2000")
 
 UVData: Plotting
 ------------------
