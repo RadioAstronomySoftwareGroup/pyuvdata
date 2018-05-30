@@ -1084,6 +1084,60 @@ class UVBeam(UVBase):
         self.__add__(other, inplace=True)
         return self
 
+    def _stokes_matrix(self, n):
+        """
+        Calculates Pauli matrices (where indices are reordered from the quantum mechanical convention
+        to an order which gives the ordering of the Stoes vector as [I, Q, U, V]) according to
+        https://arxiv.org/pdf/1401.2095.pdf.
+
+        Args :
+            n : Index for which to calculate the Pauli matrix; n should lie between 0 and 3 for the 4x4
+                 Mueller matrix in https://arxiv.org/pdf/1802.04151.pdf.
+
+        Returns :
+            2 x 2 numpy array Pauli matrix
+        """
+        if n < 0:
+            raise ValueError('n must be positive integer.')
+        if n > 4:
+            raise ValueError('n should lie between 0 and 3.')
+        if n == 0:
+            p = np.array([[1., 0.], [0., 1.]])
+        if n == 1:
+            p = np.array([[1., 0.], [0., -1.]])
+        if n == 2:
+            p = np.array([[0., 1.], [1., 0.]])
+        if n == 3:
+            p = np.array([[1., -1.j], [1.j, 0.]])
+
+        return p
+
+    def _construct_mueller(self, jones, i, j):
+        """
+        Generates Mueller component as done in https://arxiv.org/pdf/1802.04151.pdf
+
+                    Mij = Tr(J sigma_i J sigma_j J^*),
+
+        where sigma_i and sigma_j are Pauli matrices.
+
+        Args :
+            jones : Jones matrices containing the electric field components for the dipole arms or polarizations.
+
+            i : Index at which the first Pauli matrix sigma_i is calculated.
+
+            j : Index at which the second Pauli matrix sigma_j is calculated.
+
+        Returns :
+            npix numpy array containig the values for the corresponding Mueller component
+        """
+        Pi = self._stokes_matrix(i)
+        Pj = self._stokes_matrix(j)
+
+        Mij = 0.5 * np.einsum('...ab,...bc,...cd,...ad', Pi, jones, Pj, jones.conj())
+        Mij = np.abs(Mij)
+
+        return Mij
+
     def _get_beam(self, pol):
         """
         Get the healpix beam map corresponding to the specififed polarization,
@@ -1102,39 +1156,35 @@ class UVBeam(UVBase):
         # assert type is int, not string
         if isinstance(pol, (str, np.str)):
             pol = uvutils.polstr2num(pol)
-        # get pol-string
-        polstr = uvutils.polnum2str(pol)
-        # pols dict
-        pols_dict = {1: (-5, -6), 2: (-5, -6), 3: (-7, -8), 4: (-7, -8)}
-        # get pol array
         pol_array = self.polarization_array
-        # pQ, pU and pV yet to be implemented
-        allowed = [1, -5, -6, -7, -8]
-        if pol in allowed:
+        if pol in [-5, -6, -7, -8]:  # linear polarizations
             if pol in pol_array:
                 stokes_p_ind = np.where(np.isin(pol_array, pol))[0][0]
                 beam = self.data_array[0, 0, stokes_p_ind]
-            elif pol == 1:
-                keys = pols_dict[1]
-                if keys[0] in pol_array and keys[1] in pol_array:
-                    xx_ind = np.where(np.isin(pol_array, keys[0]))[0][0]
-                    yy_ind = np.where(np.isin(pol_array, keys[1]))[0][0]
-                    beam = 0.5 * (self.data_array[0, 0, xx_ind] + self.data_array[0, 0, yy_ind])
-                else:
-                    raise ValueError('Do not have the right polarization information')
             else:
                 raise ValueError('Do not have the right polarization information')
+        elif pol in [1, 2, 3, 4]:  # pseudo stokes
+            assert self.beam_type == 'efield', "Beam type must be efield for pseudo stokes {}".format(uvutils.polnum2str(pol))
+            # forming jones matrix
+            _sh = self.data_array.shape
+            jones = np.ndarray((_sh[-1], 2, 2), dtype=complex)
+            jones[:, 0, 0] = self.data_array[0, 0, 0, 0, :]
+            jones[:, 0, 1] = self.data_array[0, 0, 1, 0, :]
+            jones[:, 1, 0] = self.data_array[1, 0, 0, 0, :]
+            jones[:, 1, 1] = self.data_array[1, 0, 1, 0, :]
+            beam = self._construct_mueller(jones, pol - 1, pol - 1)
         else:
-            raise NotImplementedError("Polarization {} not yet implemented...".format(polstr))
+            raise ValueError('Do not have the right polarization information')
+
         return beam
 
     def get_beam_area(self, pol='pI'):
         """
         Computes the integral of the beam, which has units of steradians
 
-        Currently, only the pseudo-Stokes 'pI' beam and linear dipole 'XX' and 'YY' are
+        Pseudo-Stokes 'pI' (I), 'pQ'(Q), 'pU'(U), 'pV'(V) beam and linear dipole 'XX', 'XY', 'YX' and 'YY' are
         supported. See Equations 4 and 5 of Moore et al. (2017) ApJ 836, 154
-        or arxiv:1502.05072 for details.
+        or arxiv:1502.05072 and Kohn et al. (2018) or https://arxiv.org/pdf/1802.04151.pdf for details.
 
         Args:
           pol : polarization string, Ex. a pseudo-stokes pol 'pI', or a linear pol 'XX'
@@ -1142,14 +1192,20 @@ class UVBeam(UVBase):
         Returns:
           omega : float, integral of the beam across the sky [steradians]
         """
-        if self.beam_type != 'power':
-            raise ValueError('beam_type must be power')
+        if isinstance(pol, (str, np.str)):
+            pol = uvutils.polstr2num(pol)
+        if pol in [-5, -6, -7, -8]:
+            if self.beam_type != 'power':
+                raise ValueError('beam_type must be power')
+            if self.Naxes_vec > 1:
+                raise ValueError('Expect scalar for power beam, found vector')
+        else:
+            if self.beam_type != 'efield':
+                raise ValueError('beam_type must be efield')
         if self._data_normalization.value != 'peak':
             raise ValueError('beam must be peak normalized')
         if self.pixel_coordinate_system != 'healpix':
             raise ValueError('Currently only healpix format supported')
-        if self.Naxes_vec > 1:
-            raise ValueError('Expect scalar for power beam, found vector')
 
         nside = self.nside
 
@@ -1165,7 +1221,7 @@ class UVBeam(UVBase):
         """
         Computes the integral of the beam^2, which has units of steradians
 
-        Currently, only the pseudo-Stokes 'pI' beam and linear dipole 'XX' and 'YY' are
+        Pseudo-Stokes 'pI' (I), 'pQ'(Q), 'pU'(U), 'pV'(V) beam and linear dipole 'XX', 'XY', 'YX' and 'YY' are
         supported. See Equations 4 and 5 of Moore et al. (2017) ApJ 836, 154
         or arxiv:1502.05072 for details.
 
@@ -1175,14 +1231,20 @@ class UVBeam(UVBase):
         Returns:
           omega : float, integral of the beam^2 across the sky [steradians]
         """
-        if self.beam_type != 'power':
-            raise ValueError('beam_type must be power')
+        if isinstance(pol, (str, np.str)):
+            pol = uvutils.polstr2num(pol)
+        if pol in [-5, -6, -7, -8]:
+            if self.beam_type != 'power':
+                raise ValueError('beam_type must be power')
+            if self.Naxes_vec > 1:
+                raise ValueError('Expect scalar for power beam, found vector')
+        else:
+            if self.beam_type != 'efield':
+                raise ValueError('beam_type must be efield')
         if self._data_normalization.value != 'peak':
             raise ValueError('beam must be peak normalized')
         if self.pixel_coordinate_system != 'healpix':
             raise ValueError('Currently only healpix format supported')
-        if self.data_array.shape[0] > 1:
-            raise ValueError('Expect scalar for power beam, found vector')
 
         nside = self.nside
 
