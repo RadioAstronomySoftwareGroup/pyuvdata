@@ -11,6 +11,7 @@ import copy
 import numpy as np
 import ephem
 import nose.tools as nt
+from astropy.time import Time, TimeDelta
 from pyuvdata import UVData
 from pyuvdata.miriad import Miriad
 import pyuvdata.utils as uvutils
@@ -861,7 +862,14 @@ def test_readMiriadwriteMiraid_check_time_format():
     uvd_l = uvd.lst_array.min()
     uv = aipy.miriad.UV(fname)
     uv_t = uv['time'] + uv['inttime'] / (24 * 3600.) / 2
-    uv_l = uv['lst'] + uv['inttime'] * 2 * np.pi / (23.9344699 * 3600.) / 2
+
+    lat, lon, alt = uvd.telescope_location_lat_lon_alt
+    t1 = Time(uv['time'], format='jd', location=(lon, lat))
+    dt = TimeDelta(uv['inttime'] / 2, format='sec')
+    t2 = t1 + dt
+    delta_lst = t2.sidereal_time('apparent').radian - t1.sidereal_time('apparent').radian
+    uv_l = uv['lst'] + delta_lst
+
     # assert starting time array and lst array are shifted by half integration
     nt.assert_almost_equal(uvd_t, uv_t)
     nt.assert_almost_equal(uvd_l, uv_l, delta=1e-8)
