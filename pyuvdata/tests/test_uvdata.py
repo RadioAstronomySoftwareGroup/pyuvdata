@@ -1219,7 +1219,7 @@ def test_break_add():
 
     # Wrong class
     uv1 = copy.deepcopy(uv_full)
-    nt.assert_raises(ValueError, uv1.__iadd__, np.zeros(5))
+    nt.assert_raises(AssertionError, uv1.__iadd__, np.zeros(5))
 
     # One phased, one not
     uv2 = copy.deepcopy(uv_full)
