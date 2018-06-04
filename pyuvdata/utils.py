@@ -435,3 +435,174 @@ def combine_histories(history1, history2):
                     keep_going = False
 
     return history1 + add_hist
+
+
+def combine_uvdata(uvds, run_check=True, check_extra=True,
+                   run_check_acceptability=True):
+    """
+    Combine multiple, non-overlapping UVData objects into a single UVData.
+
+    Args:
+        uvds: list of UVData objects with non-overlapping data
+        ru
+    """
+    # Check that all objects are UVData and valid
+    for uvd in uvds:
+        assert isinstance(uvd, UVData), 'Only UVData objects can be added to a UVData object'
+        uvd.check(check_extra=check_extra, run_check_acceptability=run_check_acceptability)
+
+    # assert at least two UVData objects present
+    assert len(uvds) > 1, "Input uvds must have at least two UVData objects"
+
+    # Check objects are compatible
+    # Note zenith_ra will not necessarily be the same if times are different.
+    # But phase_center should be the same, even if in drift (empty parameters)
+    compatibility_params = ['_vis_units', '_integration_time', '_channel_width',
+                            '_object_name', '_telescope_name', '_instrument',
+                            '_telescope_location', '_phase_type',
+                            '_Nants_telescope', '_antenna_names',
+                            '_antenna_numbers', '_antenna_positions',
+                            '_phase_center_ra', '_phase_center_dec',
+                            '_phase_center_epoch']
+
+    this = copy.deepcopy(uvds[0])
+    for uvd in uvds[1:]:
+        for a in compatibility_params:
+            if getattr(this, a) != getattr(uvd, a):
+                msg = 'UVParameter ' + \
+                    a[1:] + ' does not match. Cannot combine objects.'
+                raise(ValueError(msg))
+
+    # Create blt arrays for each uvd for convenience
+    prec_t = - 2 * \
+        np.floor(np.log10(this._time_array.tols[-1])).astype(int)
+    prec_b = 8
+    uvd_blts = []
+    for uvd in uvds:
+        uvd_blts.append(np.array(["_".join(["{1:.{0}f}".format(prec_t, blt[0]),
+                                 str(blt[1]).zfill(prec_b)]) for blt in
+                                 zip(uvd.time_array, uvd.baseline_array)]))
+    # get freq and pol arrays for each uvd
+    uvd_freqs = [uvd.freq_array.squeeze() for uvd in uvds]
+    uvd_pols = [uvd.polarization_array for uvd in uvds]
+
+    # iterate over each uvd pair and check for overlapping data
+    join_axes = {"baseline-time": False, "frequency": False, "polarization": False}
+    for uvd_pair in list(itertools.combinations(range(len(uvds)), 2)):
+        uvd1 = uvds[uvd_pair[0]]
+        uvd2 = uvds[uvd_pair[1]]
+
+        # Check we don't have overlapping data
+        both_pol = np.intersect1d(
+            uvd1.polarization_array, uvd2.polarization_array)
+        both_freq = np.intersect1d(
+            uvd1.freq_array[0, :], uvd2.freq_array[0, :])
+        both_blts = np.intersect1d(uvd_blts[uvd_pair[0]], uvd_blts[uvd_pair[1]])
+        if len(both_pol) > 0:
+            if len(both_freq) > 0:
+                if len(both_blts) > 0:
+                    raise(ValueError('Objects {} and {} have overlapping data and'
+                                     ' cannot be combined.'.format(uvd1, uvd2)))
+
+        # Set join_axes to True
+        if len(both_blts) == 0:
+            join_axes['baseline-time'] = True
+        if len(both_freq) == 0:
+            join_axes['frequency'] = True
+        if len(both_pol) == 0:
+            join_axes['polarization'] = True
+
+    # Get new data axes
+    new_blts = np.array(sorted(set(np.concatenate(uvd_blts))))
+    Nblts = len(new_blts)
+    new_freqs = np.array(sorted(set(np.concatenate(uvd_freqs))))
+    Nfreqs = len(new_freqs)
+    new_pols = np.array(sorted(set(np.concatenate(uvd_pols))))
+    new_pols = new_pols[np.argsort(np.abs(new_pols))]
+    Npols = len(new_pols)
+
+    # Pad out new arrays
+    data_array = np.ones((Nblts, 1, Nfreqs, Npols), dtype=np.complex128)
+    flag_array = np.ones((Nblts, 1, Nfreqs, Npols), dtype=np.bool)
+    nsample_array = np.zeros((Nblts, 1, Nfreqs, Npols), dtype=np.float64)
+    uvw_array = np.empty((Nblts, 3), dtype=np.float64)
+    lst_array = np.empty((Nblts), dtype=np.float64)
+    ant_1_array = np.empty((Nblts), dtype=np.int64)
+    ant_2_array = np.empty((Nblts), dtype=np.int64)
+    zenith_ra = np.empty((Nblts), dtype=np.float64)
+    zenith_dec = np.empty((Nblts), dtype=np.float64)
+    time_array, baseline_array = np.split(np.array([blt.split('_') for blt in new_blts]).astype(np.float64), 2, axis=1)
+    time_array = time_array[:, 0]
+    baseline_array = baseline_array[:, 0].astype(np.int64)
+    time_array = np.empty((Nblts), dtype=np.float64)
+    freq_array = new_freqs[np.newaxis, :]
+    polarization_array = new_pols.astype(np.int64)
+
+    # iterate over uvds and insert data
+    for i, uvd in enumerate(uvds):
+        # get indexing arrays
+        blts_inds = np.nonzero(np.in1d(new_blts, uvd_blts[i]))[0][:, None, None]
+        freq_inds = np.nonzero(np.in1d(new_freqs, uvd_freqs[i]))[0][None]
+        pol_inds = np.nonzero(np.in1d(new_pols, uvd_pols[i]))[0]
+
+        # insert data
+        data_array[blts_inds, :, freq_inds, pol_inds] = uvds[i].data_array
+        flag_array[blts_inds, :, freq_inds, pol_inds] = uvds[i].flag_array
+        nsample_array[blts_inds, :, freq_inds, pol_inds] = uvds[i].nsample_array
+        uvw_array[blts_inds.squeeze()] = uvds[i].uvw_array
+        lst_array[blts_inds.squeeze()] = uvds[i].lst_array
+        ant_1_array[blts_inds.squeeze()] = uvds[i].ant_1_array
+        ant_2_array[blts_inds.squeeze()] = uvds[i].ant_2_array
+        zenith_ra[blts_inds.squeeze()] = uvds[i].zenith_ra
+        zenith_dec[blts_inds.squeeze()] = uvds[i].zenith_dec
+
+    # assign to object
+    this.data_array = data_array
+    this.flag_array = flag_array
+    this.nsample_array = nsample_array
+    this.uvw_array = uvw_array
+    this.lst_array = lst_array
+    this.ant_1_array = ant_1_array
+    this.ant_2_array = ant_2_array
+    this.zenith_ra = zenith_ra
+    this.zenith_dec = zenith_dec
+    this.time_array = time_array
+    this.lst_array = lst_array
+    this.baseline_array = baseline_array
+    this.freq_array = freq_array
+    this.polarization_array = polarization_array
+    this.Ntimes = len(np.unique(this.time_array))
+    this.Nbls = len(np.unique(this.baseline_array))
+    this.Nblts = Nblts
+    this.Nfreqs = Nfreqs
+    this.Npols = Npols
+    this.Nants_data = len(
+        np.unique(this.ant_1_array.tolist() + this.ant_2_array.tolist()))
+
+    # Check specific requirements
+    if this.Nfreqs > 1:
+        freq_separation = np.diff(this.freq_array[0, :])
+        if not np.isclose(np.min(freq_separation), np.max(freq_separation),
+                          rtol=this._freq_array.tols[0], atol=this._freq_array.tols[1]):
+            warnings.warn('Combined frequencies are not evenly spaced. This will '
+                          'make it impossible to write this data out to some file types.')
+        elif np.max(freq_separation) > this.channel_width:
+            warnings.warn('Combined frequencies are not contiguous. This will make '
+                          'it impossible to write this data out to some file types.')
+
+    if this.Npols > 2:
+        pol_separation = np.diff(this.polarization_array)
+        if np.min(pol_separation) < np.max(pol_separation):
+            warnings.warn('Combined polarizations are not evenly spaced. This will '
+                          'make it impossible to write this data out to some file types.')
+
+    # Build up history string
+    this.history += ' Combined data along ' + ', '.join([k for k in join_axes if join_axes[k]])
+
+    for uvd in uvds[1:]:
+        this.history = uvutils.combine_histories(this.history, uvd.history)
+
+    # Check final object is self-consistent
+    if run_check:
+        this.check(check_extra=check_extra,
+                   run_check_acceptability=run_check_acceptability)
