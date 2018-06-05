@@ -141,7 +141,7 @@ for ai,ant1,ant2 in zip(range(data_uv.Nblts),
     ant1,ant2=data_uv.ant_1_array[ai],data_uv.ant_2_array[ai]
     data_uv.uvw_array[ai]=all_antennas_enu[ant2]-all_antennas_enu[ant1]
 data_uv.baseline_array=\
-(2048*(data_uv.ant_2_array+1)+(data_uv.ant_1_array+1)+2**16).astype(np.int64)
+(2048*(data_uv.ant_1_array+1)+(data_uv.ant_2_array+1)+2**16).astype(np.int64)
 #print(data_uv.Nants_data)
 #print(np.unique(data_uv.ant_1_array))
 #print(np.unique(data_uv.ant_2_array))
