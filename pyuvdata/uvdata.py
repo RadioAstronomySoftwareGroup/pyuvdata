@@ -833,6 +833,43 @@ class UVData(UVBase):
         self.phase(zenith_ra, zenith_dec, epoch='J2000', phase_frame=phase_frame,
                    use_ant_pos=use_ant_pos)
 
+    def set_uvws_from_antenna_positions(self, allow_phasing=False):
+        """
+        Calculate UVWs based on antenna_positions
+
+        Args:
+            allow_phasing: Option for phased data. If data is phased and
+            allow_phasing is set, data will be unphased, UVWs will be
+            calculated, and then data will be rephased. Script will error if
+            data is phased and allow_phasing is not set. Default is False
+        """
+        phase_type = self.phase_type
+        if phase_type == 'phased':
+            if allow_phasing:
+                warnings.warn('Warning: Data is phased. Unphasing to '
+                              'calculate UVWs.')
+                phase_center_ra = self.phase_center_ra
+                phase_center_dec = self.phase_center_dec
+                phase_center_epoch = self.phase_center_epoch
+                self.unphase_to_drift()
+            else:
+                raise ValueError('UVW calculation requires unphased data. '
+                                 'Use unphase_to_drift or set '
+                                 'allow_phasing=True.')
+        antenna_locs_ENU = uvutils.ENU_from_ECEF(
+            (self.antenna_positions + self.telescope_location).T,
+            *self.telescope_location_lat_lon_alt
+            ).T
+        for ant1 in list(set(self.ant_1_array)):
+            for ant2 in list(set(self.ant_2_array)):
+                baseline_inds = np.intersect1d(
+                    np.where(self.ant_1_array == ant1)[0],
+                    np.where(self.ant_2_array == ant2)[0]
+                    )
+                UV.uvw_array[baseline_inds, :] = antenna_locs_ENU[ant2, :] - antenna_locs_ENU[ant1, :]
+        if phase_type == 'phased':
+            self.phase(phase_center_ra, phase_center_dec, phase_center_epoch)
+
     def __add__(self, other, run_check=True, check_extra=True,
                 run_check_acceptability=True, inplace=False):
         """
