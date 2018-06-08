@@ -860,13 +860,16 @@ class UVData(UVBase):
             (self.antenna_positions + self.telescope_location).T,
             *self.telescope_location_lat_lon_alt
             ).T
+        uvw_array = np.zeros((self.baseline_array.size, 3))
         for ant1 in list(set(self.ant_1_array)):
             for ant2 in list(set(self.ant_2_array)):
                 baseline_inds = np.intersect1d(
                     np.where(self.ant_1_array == ant1)[0],
                     np.where(self.ant_2_array == ant2)[0]
                     )
-                self.uvw_array[baseline_inds, :] = antenna_locs_ENU[ant2, :] - antenna_locs_ENU[ant1, :]
+                uvw_array[baseline_inds, :] = (antenna_locs_ENU[ant2, :]
+                                               - antenna_locs_ENU[ant1, :])
+        self.uvw_array = uvw_array
         if phase_type == 'phased':
             self.phase(phase_center_ra, phase_center_dec, phase_center_epoch)
 
