@@ -1334,7 +1334,10 @@ def test_healpix():
                               model_name='E-field pattern - Rigging height 4.9m',
                               model_version='1.0')
 
+    nt.assert_raises(ValueError, efield_beam.efield_to_pstokes, 'pI')
+
     efield_beam.az_za_to_healpix()
+    efield_beam.efield_to_pstokes()
     efield_beam.peak_normalize()
     pI_area = efield_beam.get_beam_sq_area("pI")
     pQ_area = efield_beam.get_beam_sq_area("pQ")

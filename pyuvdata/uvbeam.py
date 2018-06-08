@@ -470,6 +470,122 @@ class UVBeam(UVBase):
             self.bandpass_array[:, i] *= max_val
         self.data_normalization = 'peak'
 
+    def _stokes_matrix(self, pol_index):
+        """
+        Calculate Pauli matrices (where indices are reordered from the quantum mechanical
+        convention to an order which gives the ordering of the pseudo-Stokes vector
+        ['pI', 'pQ', 'pU, 'pV']) according to https://arxiv.org/pdf/1401.2095.pdf.
+
+        Args:
+            pol_index : Polarization index for which the Pauli matrix is generated, the index
+            must lie between 0 and 3 ('pI': 0, 'pQ': 1, 'pU': 2, 'pV':3).
+        """
+
+        if pol_index < 0:
+            raise ValueError('n must be positive integer.')
+        if pol_index > 4:
+            raise ValueError('n should lie between 0 and 3.')
+        if pol_index == 0:
+            pauli_mat = np.array([[1., 0.], [0., 1.]])
+        if pol_index == 1:
+            pauli_mat = np.array([[1., 0.], [0., -1.]])
+        if pol_index == 2:
+            pauli_mat = np.array([[0., 1.], [1., 0.]])
+        if pol_index == 3:
+            pauli_mat = np.array([[0., -1.j], [1.j, 0.]])
+
+        return pauli_mat
+
+    def _construct_mueller(self, jones, pol_index1, pol_index2):
+        """
+        Generate Mueller component as done in https://arxiv.org/pdf/1802.04151.pdf
+
+                Mij = Tr(J sigma_i J^* sigma_j)
+
+        where sigma_i and sigma_j are Pauli matrices
+
+        Args:
+            jones : Jones matrices containing the electric field for the dipole arms
+                or linear polarizations.
+            pol_index1 : Polarization index referring to the first index of Mij (i).
+            pol_index2 : Polarization index referring to the second index of Mij (j).
+
+        Returns:
+            npix numpy array containing the Mij values.
+        """
+        pauli_mat1 = self._stokes_matrix(pol_index1)
+        pauli_mat2 = self._stokes_matrix(pol_index2)
+
+        Mij = 0.5 * np.einsum('...ab,...bc,...cd,...ad', pauli_mat1, jones, pauli_mat2, np.conj(jones))
+        Mij = np.abs(Mij)
+
+        return Mij
+
+    def efield_to_pstokes(self, run_check=True, check_extra=True, run_check_acceptability=True, inplace=True):
+        """
+        Convert E-field to pseudo-stokes power as done in https://arxiv.org/pdf/1802.04151.pdf.
+
+                M_ij = Tr(sigma_i J sigma_j J^*)
+
+        where sigma_i and sigma_j are Pauli matrices.
+
+        Args:
+            run_check : Option to check for the existence and proper shapes of the required parameters
+                after converting to power. Default is True.
+            run_check_acceptability: Option to check acceptable range of the values of required parameters
+                after combining objects. Default is True.
+            check_extra : Option to check optional parameters as well as required ones. Default is True.
+            inplace : Option to perform the select directly on self (True, default) or return a new UVBeam
+                object, which is a subselection of self (False).
+        """
+        if inplace:
+            beam_object = self
+        else:
+            beam_object = copy.deepcopy(self)
+
+        if beam_object.beam_type != 'efield':
+            raise ValueError('beam_type must be efield.')
+
+        if self.pixel_coordinate_system != 'healpix':
+            raise ValueError('Currently only healpix format is supported')
+
+        # construct jones matrix containing the electric field
+        _sh = beam_object.data_array.shape
+        efield_data = beam_object.data_array
+
+        pol_strings = ['pI', 'pQ', 'pU', 'pV']
+        power_data = np.zeros((1, 1, len(pol_strings), 1, _sh[-1]), dtype=np.complex)
+        beam_object.polarization_array = np.array([uvutils.polstr2num(ps.upper()) for ps in pol_strings])
+
+        jones = np.zeros((_sh[-1], 2, 2), dtype=np.complex)
+        pol_strings = ['pI', 'pQ', 'pU', 'pV']
+        jones[:, 0, 0] = efield_data[0, 0, 0, 0, :]
+        jones[:, 0, 1] = efield_data[0, 0, 1, 0, :]
+        jones[:, 1, 0] = efield_data[1, 0, 0, 0, :]
+        jones[:, 1, 1] = efield_data[1, 0, 1, 0, :]
+
+        for pol_i in range(len(pol_strings)):
+            power_data[:, :, pol_i, :, :] = self._construct_mueller(jones, pol_i, pol_i)
+
+        beam_object.data_array = power_data
+        beam_object.polarization_array = np.array([uvutils.polstr2num(ps.upper()) for ps in pol_strings])
+        beam_object.Naxes_vec = 1
+        beam_object.set_power()
+
+        history_update_string = (' Converted from efield to pseudo-stokes power using pyuvdata.')
+        beam_object.Npols = beam_object.Nfeeds ** 2
+        beam_object.history = beam_object.history + history_update_string
+        beam_object.Nfeeds = None
+        beam_object.feed_array = None
+        beam_object.basis_vector_array = None
+        beam_object.Ncomponents_vec = None
+
+        if run_check:
+            beam_object.check(check_extra=check_extra,
+                              run_check_acceptability=run_check_acceptability)
+        if not inplace:
+            return beam_object
+
     def efield_to_power(self, calc_cross_pols=True, keep_basis_vector=False,
                         run_check=True, check_extra=True, run_check_acceptability=True,
                         inplace=True):
@@ -1084,66 +1200,10 @@ class UVBeam(UVBase):
         self.__add__(other, inplace=True)
         return self
 
-    def _stokes_matrix(self, n):
-        """
-        Calculates Pauli matrices (where indices are reordered from the quantum mechanical convention
-        to an order which gives the ordering of the Stoes vector as [I, Q, U, V]) according to
-        https://arxiv.org/pdf/1401.2095.pdf.
-
-        Args :
-            n : Index for which to calculate the Pauli matrix; n should lie between 0 and 3 for the 4x4
-                 Mueller matrix in https://arxiv.org/pdf/1802.04151.pdf.
-
-        Returns :
-            2 x 2 numpy array Pauli matrix
-        """
-        if n < 0:
-            raise ValueError('n must be positive integer.')
-        if n > 4:
-            raise ValueError('n should lie between 0 and 3.')
-        if n == 0:
-            p = np.array([[1., 0.], [0., 1.]])
-        if n == 1:
-            p = np.array([[1., 0.], [0., -1.]])
-        if n == 2:
-            p = np.array([[0., 1.], [1., 0.]])
-        if n == 3:
-            p = np.array([[1., -1.j], [1.j, 0.]])
-
-        return p
-
-    def _construct_mueller(self, jones, i, j):
-        """
-        Generates Mueller component as done in https://arxiv.org/pdf/1802.04151.pdf
-
-                    Mij = Tr(J sigma_i J sigma_j J^*),
-
-        where sigma_i and sigma_j are Pauli matrices.
-
-        Args :
-            jones : Jones matrices containing the electric field components for the dipole arms or polarizations.
-
-            i : Index at which the first Pauli matrix sigma_i is calculated.
-
-            j : Index at which the second Pauli matrix sigma_j is calculated.
-
-        Returns :
-            npix numpy array containig the values for the corresponding Mueller component
-        """
-        Pi = self._stokes_matrix(i)
-        Pj = self._stokes_matrix(j)
-
-        Mij = 0.5 * np.einsum('...ab,...bc,...cd,...ad', Pi, jones, Pj, jones.conj())
-        Mij = np.abs(Mij)
-
-        return Mij
-
     def _get_beam(self, pol):
         """
         Get the healpix beam map corresponding to the specififed polarization,
-        pseudo-stokes I: 'pI', or linear dipole polarization: 'XX', 'YY', etc.
-
-        Currently only 'pI', 'XX' and 'YY' are supported.
+        pseudo-stokes I: 'pI', Q: 'pQ', U: 'pU' and V: 'pV' or linear dipole polarization: 'XX', 'YY', etc.
 
         Args:
           pol : polarization string or integer, Ex. a pseudo-stokes pol 'pI', or a linear pol 'XX'
@@ -1157,22 +1217,9 @@ class UVBeam(UVBase):
         if isinstance(pol, (str, np.str)):
             pol = uvutils.polstr2num(pol)
         pol_array = self.polarization_array
-        if pol in [-5, -6, -7, -8]:  # linear polarizations
-            if pol in pol_array:
-                stokes_p_ind = np.where(np.isin(pol_array, pol))[0][0]
-                beam = self.data_array[0, 0, stokes_p_ind]
-            else:
-                raise ValueError('Do not have the right polarization information')
-        elif pol in [1, 2, 3, 4]:  # pseudo stokes
-            assert self.beam_type == 'efield', "Beam type must be efield for pseudo stokes {}".format(uvutils.polnum2str(pol))
-            # forming jones matrix
-            _sh = self.data_array.shape
-            jones = np.ndarray((_sh[-1], 2, 2), dtype=complex)
-            jones[:, 0, 0] = self.data_array[0, 0, 0, 0, :]
-            jones[:, 0, 1] = self.data_array[0, 0, 1, 0, :]
-            jones[:, 1, 0] = self.data_array[1, 0, 0, 0, :]
-            jones[:, 1, 1] = self.data_array[1, 0, 1, 0, :]
-            beam = self._construct_mueller(jones, pol - 1, pol - 1)
+        if pol in pol_array:
+            stokes_p_ind = np.where(np.isin(pol_array, pol))[0][0]
+            beam = self.data_array[0, 0, stokes_p_ind]
         else:
             raise ValueError('Do not have the right polarization information')
 
@@ -1194,14 +1241,10 @@ class UVBeam(UVBase):
         """
         if isinstance(pol, (str, np.str)):
             pol = uvutils.polstr2num(pol)
-        if pol in [-5, -6, -7, -8]:
-            if self.beam_type != 'power':
-                raise ValueError('beam_type must be power')
-            if self.Naxes_vec > 1:
-                raise ValueError('Expect scalar for power beam, found vector')
-        else:
-            if self.beam_type != 'efield':
-                raise ValueError('beam_type must be efield')
+        if self.beam_type != 'power':
+            raise ValueError('beam_type must be power')
+        if self.Naxes_vec > 1:
+            raise ValueError('Expect scalar for power beam, found vector')
         if self._data_normalization.value != 'peak':
             raise ValueError('beam must be peak normalized')
         if self.pixel_coordinate_system != 'healpix':
@@ -1233,14 +1276,10 @@ class UVBeam(UVBase):
         """
         if isinstance(pol, (str, np.str)):
             pol = uvutils.polstr2num(pol)
-        if pol in [-5, -6, -7, -8]:
-            if self.beam_type != 'power':
-                raise ValueError('beam_type must be power')
-            if self.Naxes_vec > 1:
-                raise ValueError('Expect scalar for power beam, found vector')
-        else:
-            if self.beam_type != 'efield':
-                raise ValueError('beam_type must be efield')
+        if self.beam_type != 'power':
+            raise ValueError('beam_type must be power')
+        if self.Naxes_vec > 1:
+            raise ValueError('Expect scalar for power beam, found vector')
         if self._data_normalization.value != 'peak':
             raise ValueError('beam must be peak normalized')
         if self.pixel_coordinate_system != 'healpix':
