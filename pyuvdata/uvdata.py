@@ -846,8 +846,8 @@ class UVData(UVBase):
         phase_type = self.phase_type
         if phase_type == 'phased':
             if allow_phasing:
-                warnings.warn('Warning: Data is phased. Unphasing to '
-                              'calculate UVWs.')
+                warnings.warn('Warning: Data will be unphased and rephased '
+                              'to calculate UVWs.')
                 phase_center_ra = self.phase_center_ra
                 phase_center_dec = self.phase_center_dec
                 phase_center_epoch = self.phase_center_epoch
@@ -866,7 +866,7 @@ class UVData(UVBase):
                     np.where(self.ant_1_array == ant1)[0],
                     np.where(self.ant_2_array == ant2)[0]
                     )
-                UV.uvw_array[baseline_inds, :] = antenna_locs_ENU[ant2, :] - antenna_locs_ENU[ant1, :]
+                self.uvw_array[baseline_inds, :] = antenna_locs_ENU[ant2, :] - antenna_locs_ENU[ant1, :]
         if phase_type == 'phased':
             self.phase(phase_center_ra, phase_center_dec, phase_center_epoch)
 
