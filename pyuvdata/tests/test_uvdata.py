@@ -278,6 +278,10 @@ class TestBaselineAntnumMethods(object):
                              {'attempt256': True}, message='found > 256 antennas')
         nt.assert_raises(
             Exception, self.uv_object2.antnums_to_baseline, 0, 0)
+        # check a len-1 array returns as an array
+        ant1 = np.array([1])
+        ant2 = np.array([2])
+        nt.assert_true(isinstance(self.uv_object.antnums_to_baseline(ant1, ant2), np.ndarray))
 
 
 def test_known_telescopes():
