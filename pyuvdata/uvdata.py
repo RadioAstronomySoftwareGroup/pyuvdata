@@ -519,7 +519,12 @@ class UVData(UVBase):
                           'with CASA etc'
                 warnings.warn(message)
 
-        return np.int64(2048 * (ant1 + 1) + (ant2 + 1) + 2**16)
+        baseline = 2048 * (ant1 + 1) + (ant2 + 1) + 2**16
+
+        if isinstance(baseline, np.ndarray):
+            return baseline.astype(np.int64)
+        else:
+            return np.int64(baseline)
 
     def order_pols(self, order='AIPS'):
         '''
