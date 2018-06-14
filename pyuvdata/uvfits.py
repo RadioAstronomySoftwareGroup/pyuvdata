@@ -107,7 +107,7 @@ class UVFITS(UVData):
                                  'one time present')
 
     def _get_data(self, vis_hdu, antenna_nums, antenna_names, ant_str,
-                  ant_pairs_nums, frequencies, freq_chans, times, polarizations,
+                  bls, frequencies, freq_chans, times, polarizations,
                   blt_inds, read_metadata, run_check, check_extra,
                   run_check_acceptability):
         """
@@ -121,7 +121,7 @@ class UVFITS(UVData):
 
         # figure out what data to read in
         blt_inds, freq_inds, pol_inds, history_update_string = \
-            self._select_preprocess(antenna_nums, antenna_names, ant_str, ant_pairs_nums,
+            self._select_preprocess(antenna_nums, antenna_names, ant_str, bls,
                                     frequencies, freq_chans, times, polarizations, blt_inds)
 
         if blt_inds is not None:
@@ -218,7 +218,7 @@ class UVFITS(UVData):
                        run_check_acceptability=run_check_acceptability)
 
     def read_uvfits(self, filename, antenna_nums=None, antenna_names=None,
-                    ant_str=None, ant_pairs_nums=None, frequencies=None,
+                    ant_str=None, bls=None, frequencies=None,
                     freq_chans=None, times=None, polarizations=None, blt_inds=None,
                     read_data=True, read_metadata=True,
                     run_check=True, check_extra=True, run_check_acceptability=True):
@@ -236,10 +236,12 @@ class UVFITS(UVData):
                 the object (antenna positions and names for the excluded antennas
                 will be retained). This cannot be provided if antenna_nums is
                 also provided. Ignored if read_data is False.
-            ant_pairs_nums: A list of antenna number tuples (e.g. [(0,1), (3,2)])
-                specifying baselines to include when reading data into the object.
-                Ordering of the numbers within the tuple does not matter.
-                Ignored if read_data is False.
+            bls: A list of antenna number tuples (e.g. [(0,1), (3,2)]) or a list of 
+                baseline 3-tuples (e.g. [(0,1,'xx'), (2,3,'yy')]) specifying baselines 
+                to keep in the object. For length-2 tuples, the  ordering of the numbers 
+                within the tuple does not matter. For length-3 tuples, the polarization 
+                string is in the order of the two antennas. If length-3 tuples are provided, 
+                the polarizations argument below must be None. Ignored if read_data is False.
             ant_str: A string containing information about what antenna numbers
                 and polarizations to include when reading data into the object.
                 Can be 'auto', 'cross', 'all', or combinations of antenna numbers
@@ -449,7 +451,7 @@ class UVFITS(UVData):
 
         # Now read in the data
         self._get_data(vis_hdu, antenna_nums, antenna_names, ant_str,
-                       ant_pairs_nums, frequencies, freq_chans, times, polarizations,
+                       bls, frequencies, freq_chans, times, polarizations,
                        blt_inds, False, run_check, check_extra, run_check_acceptability)
 
     def read_uvfits_metadata(self, filename):
@@ -473,7 +475,7 @@ class UVFITS(UVData):
         del(vis_hdu)
 
     def read_uvfits_data(self, filename, antenna_nums=None, antenna_names=None,
-                         ant_str=None, ant_pairs_nums=None, frequencies=None,
+                         ant_str=None, bls=None, frequencies=None,
                          freq_chans=None, times=None, polarizations=None,
                          blt_inds=None, read_metadata=True, run_check=True,
                          check_extra=True, run_check_acceptability=True):
@@ -491,7 +493,7 @@ class UVFITS(UVData):
                 the object (antenna positions and names for the excluded antennas
                 will be retained). This cannot be provided if antenna_nums is
                 also provided.
-            ant_pairs_nums: A list of antenna number tuples (e.g. [(0,1), (3,2)])
+            bls: A list of antenna number tuples (e.g. [(0,1), (3,2)])
                 specifying baselines to include when reading data into the object.
                 Ordering of the numbers within the tuple does not matter.
             ant_str: A string containing information about what antenna numbers
@@ -528,7 +530,7 @@ class UVFITS(UVData):
         vis_hdu = hdu_list[0]  # assumes the visibilities are in the primary hdu
 
         self._get_data(vis_hdu, antenna_nums, antenna_names, ant_str,
-                       ant_pairs_nums, frequencies, freq_chans, times, polarizations,
+                       bls, frequencies, freq_chans, times, polarizations,
                        blt_inds, read_metadata, run_check, check_extra,
                        run_check_acceptability)
 
