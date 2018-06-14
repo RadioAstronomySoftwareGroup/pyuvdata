@@ -979,7 +979,7 @@ class UVData(UVBase):
         self.__add__(other, inplace=True)
         return self
 
-    def _select_preprocess(self, antenna_nums, antenna_names, ant_str, ant_pairs_nums,
+    def _select_preprocess(self, antenna_nums, antenna_names, ant_str, bls,
                            frequencies, freq_chans, times, polarizations, blt_inds):
 
         """
@@ -1048,46 +1048,60 @@ class UVData(UVBase):
         else:
             ant_blt_inds = None
 
-        if ant_pairs_nums is not None:
-            if isinstance(ant_pairs_nums, tuple) and len(ant_pairs_nums) == 2:
+        if bls is not None:
+            if isinstance(bls, tuple) and (len(bls) == 2 or len(bls) == 3):
                 ant_pairs_nums = [ant_pairs_nums]
-            if not all(isinstance(item, tuple) for item in ant_pairs_nums):
+            if not all(isinstance(item, tuple) for item in bls):
                 raise ValueError(
-                    'ant_pairs_nums must be a list of tuples of antenna numbers.')
-            if not all([isinstance(item[0], (int, long, np.integer)) for item in ant_pairs_nums]
-                       + [isinstance(item[1], (int, long, np.integer)) for item in ant_pairs_nums]):
+                    'bls must be a list of tuples of antenna numbers (optionally with polarization).')
+            if not all([isinstance(item[0], (int, long, np.integer)) for item in bls]
+                       + [isinstance(item[1], (int, long, np.integer)) for item in bls]):
                 raise ValueError(
-                    'ant_pairs_nums must be a list of tuples of antenna numbers.')
+                    'bls must be a list of tuples of antenna numbers (optionally with polarization).')
+            if all([len(item) == 3 for item in bls]):
+                if polarizations is not None:
+                    raise ValueError('Cannot provide length-3 tuples and also specify polarizations.')
+                if not all([isinstance(item[2], str) for item in bls]):
+                    raise ValueError('The third element in each bl must be a polarization string')
+
             if n_selects > 0:
-                history_update_string += ', antenna pairs'
+                history_update_string += ', baselines'
             else:
-                history_update_string += 'antenna pairs'
+                history_update_string += 'baselines'
             n_selects += 1
-            ant_pair_blt_inds = np.zeros(0, dtype=np.int)
-            for pair in ant_pairs_nums:
-                if not (pair[0] in self.ant_1_array or pair[0] in self.ant_2_array):
+            bls_blt_inds = np.zeros(0, dtype=np.int)
+            bl_pols = set()
+            for bl in bls:
+                if not (bl[0] in self.ant_1_array or bl[0] in self.ant_2_array):
                     raise ValueError('Antenna number {a} is not present in the '
-                                     'ant_1_array or ant_2_array'.format(a=pair[0]))
-                if not (pair[1] in self.ant_1_array or pair[1] in self.ant_2_array):
+                                     'ant_1_array or ant_2_array'.format(a=bl[0]))
+                if not (bl[1] in self.ant_1_array or bl[1] in self.ant_2_array):
                     raise ValueError('Antenna number {a} is not present in the '
-                                     'ant_1_array or ant_2_array'.format(a=pair[1]))
+                                     'ant_1_array or ant_2_array'.format(a=bl[1]))
                 wh1 = np.where(np.logical_and(
-                    self.ant_1_array == pair[0], self.ant_2_array == pair[1]))[0]
+                    self.ant_1_array == bl[0], self.ant_2_array == bl[1]))[0]
                 wh2 = np.where(np.logical_and(
-                    self.ant_1_array == pair[1], self.ant_2_array == pair[0]))[0]
+                    self.ant_1_array == bl[1], self.ant_2_array == bl[0]))[0]
                 if len(wh1) > 0:
-                    ant_pair_blt_inds = np.append(ant_pair_blt_inds, list(wh1))
+                    bls_blt_inds = np.append(bls_blt_inds, list(wh1))
+                    if len(bl) == 3:
+                        bl_pols.add(bl[2])
                 if len(wh2) > 0:
-                    ant_pair_blt_inds = np.append(ant_pair_blt_inds, list(wh2))
+                    bls_blt_inds = np.append(bls_blt_inds, list(wh2))
+                    if len(bl) == 3:
+                        bl_pols.add(bl[2][::-1]) # reverse polarization string
                 if len(wh1) == 0 and len(wh2) == 0:
                     raise ValueError('Antenna pair {p} does not have any data '
-                                     'associated with it.'.format(p=pair))
+                                     'associated with it.'.format(p=bl))
+
+            if len(bl_pols) > 0:
+                polarizations = list(bl_pols)
 
             if ant_blt_inds is not None:
                 # Use union (or) to join antenna_names/nums & ant_pairs_nums
-                ant_blt_inds = np.array(list(set(ant_blt_inds).union(ant_pair_blt_inds)))
+                ant_blt_inds = np.array(list(set(ant_blt_inds).union(bls_blt_inds)))
             else:
-                ant_blt_inds = ant_pair_blt_inds
+                ant_blt_inds = bls_blt_inds
 
         if ant_blt_inds is not None:
             if blt_inds is not None:
@@ -1249,7 +1263,7 @@ class UVData(UVBase):
         self.history = self.history + history_update_string
 
     def select(self, antenna_nums=None, antenna_names=None, ant_str=None,
-               ant_pairs_nums=None, frequencies=None, freq_chans=None,
+               bls=None, frequencies=None, freq_chans=None,
                times=None, polarizations=None, blt_inds=None, run_check=True,
                check_extra=True, run_check_acceptability=True, inplace=True):
         """
@@ -1267,9 +1281,12 @@ class UVData(UVBase):
             antenna_names: The antennas names to keep in the object (antenna
                 positions and names for the removed antennas will be retained).
                 This cannot be provided if antenna_nums is also provided.
-            ant_pairs_nums: A list of antenna number tuples (e.g. [(0,1), (3,2)])
-                specifying baselines to keep in the object. Ordering of the
-                numbers within the tuple does not matter.
+            bls: A list of antenna number tuples (e.g. [(0,1), (3,2)]) or a list of 
+                baseline 3-tuples (e.g. [(0,1,'xx'), (2,3,'yy')]) specifying baselines 
+                to keep in the object. For length-2 tuples, the  ordering of the numbers 
+                within the tuple does not matter. For length-3 tuples, the polarization 
+                string is in the order of the two antennas. If length-3 tuples are provided, 
+                the polarizations argument below must be None.
             ant_str: A string containing information about what antenna numbers
                 and polarizations to keep in the object.  Can be 'auto', 'cross', 'all',
                 or combinations of antenna numbers and polarizations (e.g. '1',
@@ -1301,7 +1318,7 @@ class UVData(UVBase):
             uv_object = copy.deepcopy(self)
 
         blt_inds, freq_inds, pol_inds, history_update_string = \
-            uv_object._select_preprocess(antenna_nums, antenna_names, ant_str, ant_pairs_nums,
+            uv_object._select_preprocess(antenna_nums, antenna_names, ant_str, bls,
                                          frequencies, freq_chans, times, polarizations, blt_inds)
 
         # do select operations on everything except data_array, flag_array and nsample_array
@@ -1356,7 +1373,7 @@ class UVData(UVBase):
         return other_obj
 
     def read_uvfits(self, filename, antenna_nums=None, antenna_names=None,
-                    ant_str=None, ant_pairs_nums=None, frequencies=None,
+                    ant_str=None, bls=None, frequencies=None,
                     freq_chans=None, times=None, polarizations=None, blt_inds=None,
                     read_data=True, read_metadata=True, run_check=True,
                     check_extra=True, run_check_acceptability=True):
@@ -1373,10 +1390,12 @@ class UVData(UVBase):
                 the object (antenna positions and names for the excluded antennas
                 will be retained). This cannot be provided if antenna_nums is
                 also provided. Ignored if read_data is False.
-            ant_pairs_nums: A list of antenna number tuples (e.g. [(0,1), (3,2)])
-                specifying baselines to include when reading data into the object.
-                Ordering of the numbers within the tuple does not matter.
-                Ignored if read_data is False.
+            bls: A list of antenna number tuples (e.g. [(0,1), (3,2)]) or a list of 
+                baseline 3-tuples (e.g. [(0,1,'xx'), (2,3,'yy')]) specifying baselines 
+                to keep in the object. For length-2 tuples, the  ordering of the numbers 
+                within the tuple does not matter. For length-3 tuples, the polarization 
+                string is in the order of the two antennas. If length-3 tuples are provided, 
+                the polarizations argument below must be None. Ignored if read_data is False.
             ant_str: A string containing information about what antenna numbers
                 and polarizations to include when reading data into the object.
                 Can be 'auto', 'cross', 'all', or combinations of antenna numbers
@@ -1423,7 +1442,7 @@ class UVData(UVBase):
 
             self.read_uvfits(filename[0], antenna_nums=antenna_nums,
                              antenna_names=antenna_names, ant_str=ant_str,
-                             ant_pairs_nums=ant_pairs_nums, frequencies=frequencies,
+                             bls=bls, frequencies=frequencies,
                              freq_chans=freq_chans, times=times,
                              polarizations=polarizations, blt_inds=blt_inds,
                              run_check=run_check, check_extra=check_extra,
@@ -1433,7 +1452,7 @@ class UVData(UVBase):
                     uv2 = UVData()
                     uv2.read_uvfits(f, antenna_nums=antenna_nums,
                                     antenna_names=antenna_names, ant_str=ant_str,
-                                    ant_pairs_nums=ant_pairs_nums, frequencies=frequencies,
+                                    bls=bls, frequencies=frequencies,
                                     freq_chans=freq_chans, times=times,
                                     polarizations=polarizations, blt_inds=blt_inds,
                                     run_check=run_check, check_extra=check_extra,
@@ -1444,7 +1463,7 @@ class UVData(UVBase):
             uvfits_obj = uvfits.UVFITS()
             uvfits_obj.read_uvfits(filename, antenna_nums=antenna_nums,
                                    antenna_names=antenna_names, ant_str=ant_str,
-                                   ant_pairs_nums=ant_pairs_nums, frequencies=frequencies,
+                                   bls=bls, frequencies=frequencies,
                                    freq_chans=freq_chans, times=times,
                                    polarizations=polarizations, blt_inds=blt_inds,
                                    read_data=read_data, read_metadata=read_metadata,

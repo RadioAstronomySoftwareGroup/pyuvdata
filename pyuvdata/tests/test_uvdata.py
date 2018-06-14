@@ -446,7 +446,7 @@ def test_select_antennas():
                      antenna_nums=ants_to_keep, antenna_names=ant_names)
 
 
-def test_select_ant_pairs():
+def test_select_bls():
     uv_object = UVData()
     testfile = os.path.join(
         DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
@@ -467,7 +467,7 @@ def test_select_ant_pairs():
     Nblts_selected = np.sum(blts_select)
 
     uv_object2 = copy.deepcopy(uv_object)
-    uv_object2.select(ant_pairs_nums=ant_pairs_to_keep)
+    uv_object2.select(bls=ant_pairs_to_keep)
     sorted_pairs_object2 = [tuple(sorted(p)) for p in zip(
         uv_object2.ant_1_array, uv_object2.ant_2_array)]
 
@@ -483,8 +483,10 @@ def test_select_ant_pairs():
     for pair in sorted_pairs_object2:
         nt.assert_true(pair in sorted_pairs_to_keep)
 
+    print uv_object2.history
+    print old_history + '  Downselected to specific baselines using pyuvdata.'
     nt.assert_true(uvutils.check_histories(old_history + '  Downselected to '
-                                           'specific antenna pairs using pyuvdata.',
+                                           'specific baselines using pyuvdata.',
                                            uv_object2.history))
 
     # check that you can use numpy integers with out errors:
@@ -492,7 +494,7 @@ def test_select_ant_pairs():
     second_ants = map(np.int32, [0, 20, 8, 1, 2, 3, 22])
     ant_pairs_to_keep = zip(first_ants, second_ants)
 
-    uv_object2 = uv_object.select(ant_pairs_nums=ant_pairs_to_keep, inplace=False)
+    uv_object2 = uv_object.select(bls=ant_pairs_to_keep, inplace=False)
     sorted_pairs_object2 = [tuple(sorted(p)) for p in zip(
         uv_object2.ant_1_array, uv_object2.ant_2_array)]
 
@@ -513,19 +515,19 @@ def test_select_ant_pairs():
                                            uv_object2.history))
 
     # check that you can specify a single pair without errors
-    uv_object2.select(ant_pairs_nums=(0, 6))
+    uv_object2.select(bls=(0, 6))
     sorted_pairs_object2 = [tuple(sorted(p)) for p in zip(
         uv_object2.ant_1_array, uv_object2.ant_2_array)]
     nt.assert_equal(list(set(sorted_pairs_object2)), [(0, 6)])
 
     # check for errors associated with antenna pairs not included in data and bad inputs
     nt.assert_raises(ValueError, uv_object.select,
-                     ant_pairs_nums=zip(first_ants, second_ants) + [0, 6])
+                     bls=zip(first_ants, second_ants) + [0, 6])
     nt.assert_raises(ValueError, uv_object.select,
-                     ant_pairs_nums=[(uv_object.antenna_names[0], uv_object.antenna_names[1])])
-    nt.assert_raises(ValueError, uv_object.select, ant_pairs_nums=(5, 1))
-    nt.assert_raises(ValueError, uv_object.select, ant_pairs_nums=(0, 5))
-    nt.assert_raises(ValueError, uv_object.select, ant_pairs_nums=(27, 27))
+                     bls=[(uv_object.antenna_names[0], uv_object.antenna_names[1])])
+    nt.assert_raises(ValueError, uv_object.select, bls=(5, 1))
+    nt.assert_raises(ValueError, uv_object.select, bls=(0, 5))
+    nt.assert_raises(ValueError, uv_object.select, bls=(27, 27))
 
 
 def test_select_times():
