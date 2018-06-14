@@ -992,12 +992,12 @@ class UVData(UVBase):
 
         if ant_str is not None:
             if not (antenna_nums is None and antenna_names is None
-                    and ant_pairs_nums is None and polarizations is None):
+                    and bls is None and polarizations is None):
                 raise ValueError(
                     'Cannot provide ant_str with antenna_nums, antenna_names, '
-                    'ant_pairs_nums, or polarizations.')
+                    'bls, or polarizations.')
             else:
-                ant_pairs_nums, polarizations = self.parse_ants(ant_str)
+                bls, polarizations = self.parse_ants(ant_str)
 
         # Antennas, times and blt_inds all need to be combined into a set of
         # blts indices to keep.
@@ -1050,7 +1050,7 @@ class UVData(UVBase):
 
         if bls is not None:
             if isinstance(bls, tuple) and (len(bls) == 2 or len(bls) == 3):
-                ant_pairs_nums = [ant_pairs_nums]
+                bls = [bls]
             if not all(isinstance(item, tuple) for item in bls):
                 raise ValueError(
                     'bls must be a list of tuples of antenna numbers (optionally with polarization).')
@@ -1491,7 +1491,7 @@ class UVData(UVBase):
         del(uvfits_obj)
 
     def read_uvfits_data(self, filename, antenna_nums=None, antenna_names=None,
-                         ant_str=None, ant_pairs_nums=None, frequencies=None,
+                         ant_str=None, bls=None, frequencies=None,
                          freq_chans=None, times=None, polarizations=None,
                          blt_inds=None, run_check=True, check_extra=True,
                          run_check_acceptability=True):
@@ -1509,9 +1509,12 @@ class UVData(UVBase):
                 the object (antenna positions and names for the excluded antennas
                 will be retained). This cannot be provided if antenna_nums is
                 also provided.
-            ant_pairs_nums: A list of antenna number tuples (e.g. [(0,1), (3,2)])
-                specifying baselines to include when reading data into the object.
-                Ordering of the numbers within the tuple does not matter.
+            bls: A list of antenna number tuples (e.g. [(0,1), (3,2)]) or a list of 
+                baseline 3-tuples (e.g. [(0,1,'xx'), (2,3,'yy')]) specifying baselines 
+                to keep in the object. For length-2 tuples, the  ordering of the numbers 
+                within the tuple does not matter. For length-3 tuples, the polarization 
+                string is in the order of the two antennas. If length-3 tuples are 
+                provided, the polarizations argument below must be None.
             ant_str: A string containing information about what antenna numbers
                 and polarizations to include when reading data into the object.
                 Can be 'auto', 'cross', 'all', or combinations of antenna numbers
@@ -1546,7 +1549,7 @@ class UVData(UVBase):
         uvfits_obj = self._convert_to_filetype('uvfits')
         uvfits_obj.read_uvfits_data(filename, antenna_nums=antenna_nums,
                                     antenna_names=antenna_names, ant_str=ant_str,
-                                    ant_pairs_nums=ant_pairs_nums, frequencies=frequencies,
+                                    bls=bls, frequencies=frequencies,
                                     freq_chans=freq_chans, times=times,
                                     polarizations=polarizations, blt_inds=blt_inds,
                                     run_check=run_check, check_extra=check_extra,
