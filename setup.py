@@ -9,7 +9,7 @@ import json
 # When setting up, the binary extension modules haven't yet been built, so
 # without a workaround we can't use the pyuvdata code to get the version.
 os.environ['PYUVDATA_IGNORE_EXTMOD_IMPORT_FAIL'] = '1'
-from pyuvdata import version
+from pyuvdata import version  # noqa (pycodestyle complains about import below code)
 
 data = [version.git_origin, version.git_hash, version.git_description, version.git_branch]
 with open(op.join('pyuvdata', 'GIT_INFO'), 'w') as outfile:
@@ -30,7 +30,7 @@ setup_args = {
     'ext_modules': [
         Extension(
             'pyuvdata._miriad',
-            sources = [
+            sources=[
                 'pyuvdata/src/miriad_wrap.cpp',
                 'pyuvdata/src/uvio.c',
                 'pyuvdata/src/hio.c',
@@ -40,8 +40,8 @@ setup_args = {
                 'pyuvdata/src/headio.c',
                 'pyuvdata/src/maskio.c',
             ],
-            define_macros = global_c_macros,
-            include_dirs = [
+            define_macros=global_c_macros,
+            include_dirs=[
                 np.get_include(),
                 'pyuvdata/src',
             ]
