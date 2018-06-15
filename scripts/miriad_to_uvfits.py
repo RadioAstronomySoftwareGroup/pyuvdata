@@ -3,8 +3,6 @@
 A command-line script for converting
 a Miriad file to UVFITS format
 """
-import aipy as a
-import numpy as np
 import argparse
 import sys
 import os
