@@ -586,12 +586,12 @@ def test_readWriteReadMiriad():
     exp_uv = full.select(antenna_nums=[0], bls=[(2, 4)], inplace=False)
     nt.assert_equal(uv_in, exp_uv)
 
-    uv_in.read_miriad(write_file, bls=[(2, 4,'xy')])
+    uv_in.read_miriad(write_file, bls=[(2, 4, 'xy')])
     nt.assert_true(np.array([bl in uv_in.get_antpairs() for bl in [(2, 4)]]).all())
     exp_uv = full.select(bls=[(2, 4, 'xy')], inplace=False)
     nt.assert_equal(uv_in, exp_uv)
 
-    uv_in.read_miriad(write_file, bls=[(4, 2,'yx')])
+    uv_in.read_miriad(write_file, bls=[(4, 2, 'yx')])
     nt.assert_true(np.array([bl in uv_in.get_antpairs() for bl in [(2, 4)]]).all())
     exp_uv = full.select(bls=[(4, 2, 'yx')], inplace=False)
     nt.assert_equal(uv_in, exp_uv)
@@ -633,7 +633,7 @@ def test_readWriteReadMiriad():
     nt.assert_raises(ValueError, uv_in.read_miriad, write_file, bls='foo')
     nt.assert_raises(ValueError, uv_in.read_miriad, write_file, bls=[[0, 1]])
     nt.assert_raises(ValueError, uv_in.read_miriad, write_file, bls=[('foo', )])
-    nt.assert_raises(ValueError, uv_in.read_miriad, write_file, bls=[(1,2), (2,3,'xx')])
+    nt.assert_raises(ValueError, uv_in.read_miriad, write_file, bls=[(1, 2), (2, 3, 'xx')])
     nt.assert_raises(AssertionError, uv_in.read_miriad, write_file, antenna_nums=np.array([(0, 10)]))
     nt.assert_raises(AssertionError, uv_in.read_miriad, write_file, polarizations='xx')
     nt.assert_raises(AssertionError, uv_in.read_miriad, write_file, polarizations=[1.0])

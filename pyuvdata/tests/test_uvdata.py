@@ -490,7 +490,7 @@ def test_select_bls():
     # check select with polarizations
     first_ants = [6, 2, 7, 2, 21, 27, 8]
     second_ants = [0, 20, 8, 1, 2, 3, 22]
-    pols = ['RR','RR','RR','RR','RR','RR','RR']
+    pols = ['RR', 'RR', 'RR', 'RR', 'RR', 'RR', 'RR']
     new_unique_ants = np.unique(first_ants + second_ants)
     bls_to_keep = zip(first_ants, second_ants, pols)
     sorted_bls_to_keep = [tuple(sorted(p)) for p in bls_to_keep]
@@ -524,7 +524,6 @@ def test_select_bls():
     nt.assert_true(uvutils.check_histories(old_history + '  Downselected to '
                                            'specific baselines, polarizations using pyuvdata.',
                                            uv_object2.history))
-
 
     # check that you can use numpy integers with out errors:
     first_ants = map(np.int32, [6, 2, 7, 2, 21, 27, 8])
