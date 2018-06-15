@@ -567,9 +567,9 @@ def test_readWriteReadMiriad():
     uv_in = UVData()
 
     # test only specified bls were read, and that flipped antpair is loaded too
-    uv_in.read_miriad(write_file, ant_pairs_nums=[(0, 0), (0, 1), (4, 2)])
+    uv_in.read_miriad(write_file, bls=[(0, 0), (0, 1), (4, 2)])
     nt.assert_equal(uv_in.get_antpairs(), [(0, 0), (0, 1), (2, 4)])
-    exp_uv = full.select(ant_pairs_nums=[(0, 0), (0, 1), (4, 2)], inplace=False)
+    exp_uv = full.select(bls=[(0, 0), (0, 1), (4, 2)], inplace=False)
     nt.assert_equal(uv_in, exp_uv)
 
     # test all bls w/ 0 are loaded
@@ -581,9 +581,9 @@ def test_readWriteReadMiriad():
     nt.assert_true(np.max(exp_uv.ant_2_array) == 0)
     nt.assert_equal(uv_in, exp_uv)
 
-    uv_in.read_miriad(write_file, antenna_nums=[0], ant_pairs_nums=[(2, 4)])
+    uv_in.read_miriad(write_file, antenna_nums=[0], bls=[(2, 4)])
     nt.assert_true(np.array([bl in uv_in.get_antpairs() for bl in [(0, 0), (2, 4)]]).all())
-    exp_uv = full.select(antenna_nums=[0], ant_pairs_nums=[(2, 4)], inplace=False)
+    exp_uv = full.select(antenna_nums=[0], bls=[(2, 4)], inplace=False)
     nt.assert_equal(uv_in, exp_uv)
 
     # test time loading
@@ -620,9 +620,9 @@ def test_readWriteReadMiriad():
     nt.assert_raises(AssertionError, uv_in.read_miriad, write_file, ant_str='auto', antenna_nums=[0, 1])
 
     # assert exceptions
-    nt.assert_raises(AssertionError, uv_in.read_miriad, write_file, ant_pairs_nums='foo')
-    nt.assert_raises(AssertionError, uv_in.read_miriad, write_file, ant_pairs_nums=[[0, 1]])
-    nt.assert_raises(AssertionError, uv_in.read_miriad, write_file, ant_pairs_nums=[('foo', )])
+    nt.assert_raises(ValueError, uv_in.read_miriad, write_file, bls='foo')
+    nt.assert_raises(ValueError, uv_in.read_miriad, write_file, bls=[[0, 1]])
+    nt.assert_raises(ValueError, uv_in.read_miriad, write_file, bls=[('foo', )])
     nt.assert_raises(AssertionError, uv_in.read_miriad, write_file, antenna_nums=np.array([(0, 10)]))
     nt.assert_raises(AssertionError, uv_in.read_miriad, write_file, polarizations='xx')
     nt.assert_raises(AssertionError, uv_in.read_miriad, write_file, polarizations=[1.0])
@@ -634,8 +634,8 @@ def test_readWriteReadMiriad():
     nt.assert_raises(AssertionError, uv_in.read_miriad, write_file, ant_str=0)
 
     # assert partial-read and select are same
-    uv_in.read_miriad(write_file, polarizations=[-7], ant_pairs_nums=[(4, 4)])
-    exp_uv = full.select(polarizations=[-7], ant_pairs_nums=[(4, 4)], inplace=False)
+    uv_in.read_miriad(write_file, polarizations=[-7], bls=[(4, 4)])
+    exp_uv = full.select(polarizations=[-7], bls=[(4, 4)], inplace=False)
     nt.assert_equal(uv_in, exp_uv)
 
     # assert partial-read and select are same

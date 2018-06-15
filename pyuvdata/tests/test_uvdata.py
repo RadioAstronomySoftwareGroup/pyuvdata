@@ -483,9 +483,9 @@ def test_select_bls():
     for pair in sorted_pairs_object2:
         nt.assert_true(pair in sorted_pairs_to_keep)
 
-    # nt.assert_true(uvutils.check_histories(old_history + '  Downselected to '
-    #                                        'specific baselines using pyuvdata.',
-    #                                        uv_object2.history))
+    nt.assert_true(uvutils.check_histories(old_history + '  Downselected to '
+                                           'specific baselines using pyuvdata.',
+                                           uv_object2.history))
 
     # check that you can use numpy integers with out errors:
     first_ants = map(np.int32, [6, 2, 7, 2, 21, 27, 8])
