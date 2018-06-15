@@ -236,11 +236,11 @@ class UVFITS(UVData):
                 the object (antenna positions and names for the excluded antennas
                 will be retained). This cannot be provided if antenna_nums is
                 also provided. Ignored if read_data is False.
-            bls: A list of antenna number tuples (e.g. [(0,1), (3,2)]) or a list of 
-                baseline 3-tuples (e.g. [(0,1,'xx'), (2,3,'yy')]) specifying baselines 
-                to keep in the object. For length-2 tuples, the  ordering of the numbers 
-                within the tuple does not matter. For length-3 tuples, the polarization 
-                string is in the order of the two antennas. If length-3 tuples are provided, 
+            bls: A list of antenna number tuples (e.g. [(0,1), (3,2)]) or a list of
+                baseline 3-tuples (e.g. [(0,1,'xx'), (2,3,'yy')]) specifying baselines
+                to keep in the object. For length-2 tuples, the  ordering of the numbers
+                within the tuple does not matter. For length-3 tuples, the polarization
+                string is in the order of the two antennas. If length-3 tuples are provided,
                 the polarizations argument below must be None. Ignored if read_data is False.
             ant_str: A string containing information about what antenna numbers
                 and polarizations to include when reading data into the object.
@@ -493,9 +493,12 @@ class UVFITS(UVData):
                 the object (antenna positions and names for the excluded antennas
                 will be retained). This cannot be provided if antenna_nums is
                 also provided.
-            bls: A list of antenna number tuples (e.g. [(0,1), (3,2)])
-                specifying baselines to include when reading data into the object.
-                Ordering of the numbers within the tuple does not matter.
+            bls: A list of antenna number tuples (e.g. [(0,1), (3,2)]) or a list of
+                baseline 3-tuples (e.g. [(0,1,'xx'), (2,3,'yy')]) specifying baselines
+                to keep in the object. For length-2 tuples, the  ordering of the numbers
+                within the tuple does not matter. For length-3 tuples, the polarization
+                string is in the order of the two antennas. If length-3 tuples are provided,
+                the polarizations argument below must be None.
             ant_str: A string containing information about what antenna numbers
                 and polarizations to include when reading data into the object.
                 Can be 'auto', 'cross', 'all', or combinations of antenna numbers
