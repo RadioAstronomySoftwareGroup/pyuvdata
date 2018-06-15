@@ -10,7 +10,6 @@ from pyuvdata import UVData
 import pyuvdata.utils as uvutils
 import pyuvdata.tests as uvtest
 from pyuvdata.data import DATA_PATH
-import aipy.miriad as amiriad
 from astropy import constants as const
 import warnings
 
@@ -552,7 +551,7 @@ def test_readWriteReadMiriad():
     # check that variables 'ischan' and 'nschan' were written to new file
     # need to use aipy, since pyuvdata is not currently capturing these variables
     uv_in.read_miriad(write_file)
-    uv_aipy = amiriad.UV(write_file)  # on enterprise, this line makes it so you cant delete the file
+    uv_aipy = aipy.miriad.UV(write_file)  # on enterprise, this line makes it so you cant delete the file
     nfreqs = uv_in.Nfreqs
     nschan = uv_aipy['nschan']
     ischan = uv_aipy['ischan']
@@ -773,7 +772,7 @@ def test_antpos_units():
     testfile = os.path.join(DATA_PATH, 'test/uv_antpos_units')
     uvtest.checkWarnings(uv.read_uvfits, [uvfits_file], message='Telescope EVLA is not')
     uv.write_miriad(testfile, clobber=True)
-    auv = amiriad.UV(testfile)
+    auv = aipy.miriad.UV(testfile)
     aantpos = auv['antpos'].reshape(3, -1).T * const.c.to('m/ns').value
     aantpos = aantpos[uv.antenna_numbers, :]
     aantpos = (uvutils.ECEF_from_rotECEF(aantpos, uv.telescope_location_lat_lon_alt[1])
