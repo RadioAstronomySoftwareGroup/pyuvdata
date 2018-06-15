@@ -32,20 +32,20 @@ except ImportError:
     class UV(object):
         pass
 
-    _miriad = UV() # eww gross but it works
+    _miriad = UV()  # eww gross but it works
     _miriad.UV = UV
 
 
 str2pol = {
-    'I' :  1, # Stokes Paremeters
-    'Q' :  2,
-    'U' :  3,
-    'V' :  4,
-    'rr': -1, # Circular Polarizations
+    'I': 1,  # Stokes Paremeters
+    'Q': 2,
+    'U': 3,
+    'V': 4,
+    'rr': -1,  # Circular Polarizations
     'll': -2,
     'rl': -3,
     'lr': -4,
-    'xx': -5, # Linear Polarizations
+    'xx': -5,  # Linear Polarizations
     'yy': -6,
     'xy': -7,
     'yx': -8,
@@ -92,9 +92,9 @@ def parse_ants(ant_str, nants):
             if ant_str[cnt:].startswith('all'):
                 rv = []
             elif ant_str[cnt:].startswith('auto'):
-                rv.append(('auto',1,-1))
+                rv.append(('auto', 1, -1))
             elif ant_str[cnt:].startswith('cross'):
-                rv.append(('auto',0,-1))
+                rv.append(('auto', 0, -1))
             else:
                 raise ValueError('Unparsable ant argument "%s"' % ant_str)
 
@@ -124,7 +124,7 @@ def parse_ants(ant_str, nants):
 
             for i in ais:
                 if type(i) == str and i.startswith('-'):
-                    i = i[1:] # nibble the - off the string
+                    i = i[1:]  # nibble the - off the string
                     include_i = 0
                 else:
                     include_i = 1
@@ -143,9 +143,9 @@ def parse_ants(ant_str, nants):
                     i, j = str(i), str(j)
 
                     if not i.isdigit():
-                        ai = re.search(r'(\d+)([x,y])',i).groups()
+                        ai = re.search(r'(\d+)([x,y])', i).groups()
                     if not j.isdigit():
-                        aj = re.search(r'(\d+)([x,y])',j).groups()
+                        aj = re.search(r'(\d+)([x,y])', j).groups()
 
                     if i.isdigit() and not j.isdigit():
                         pol = ['x' + aj[1], 'y' + aj[1]]
@@ -156,7 +156,7 @@ def parse_ants(ant_str, nants):
                     elif not i.isdigit() and not j.isdigit():
                         pol = [ai[1] + aj[1]]
 
-                    if not pol is None:
+                    if pol is not None:
                         bl = ij2bl(abs(int(ai[0])), abs(int(aj[0])))
                         for p in pol:
                             rv.append((bl, include, p))
@@ -184,7 +184,7 @@ def uv_selector(uv, ants=-1, pol_str=-1):
                     uv.select('and', -1, -1)
 
             if pol == -1:
-                pol = pol_str # default to explicit pol parameter
+                pol = pol_str  # default to explicit pol parameter
 
             if bl == 'auto':
                 uv.select('auto', 0, 0, include=include)
@@ -203,21 +203,21 @@ def uv_selector(uv, ants=-1, pol_str=-1):
 
 
 itemtable = {
-    'obstype' : 'a',
-    'history' : 'a',
+    'obstype': 'a',
+    'history': 'a',
     'vartable': 'a',
-    'ngains'  : 'i',
-    'nfeeds'  : 'i',
-    'ntau'    : 'i',
-    'nsols'   : 'i',
+    'ngains': 'i',
+    'nfeeds': 'i',
+    'ntau': 'i',
+    'nsols': 'i',
     'interval': 'd',
-    'leakage' : 'c',
-    'freq0'   : 'd',
-    'freqs'   : '?',
+    'leakage': 'c',
+    'freq0': 'd',
+    'freqs': '?',
     'bandpass': 'c',
-    'nspect0' : 'i',
-    'nchan0'  : 'i',
-    'stopt'   : 'd',
+    'nspect0': 'i',
+    'nchan0': 'i',
+    'stopt': 'd',
     'duration': 'd',
 }
 
@@ -230,6 +230,7 @@ class UV(_miriad.UV):
     """Top-level interface to a Miriad UV data set.
 
     """
+
     def __init__(self, filename, status='old', corrmode='r'):
         """Open a miriad file. status can be ('old','new','append'). corrmode can be
         'r' (float32 data storage) or 'j' (int16 with shared exponent).
@@ -247,14 +248,13 @@ class UV(_miriad.UV):
         if status == 'old':
             self.vartable = self._gen_vartable()
             self.read()
-            self.rewind() # Update variables for the user
+            self.rewind()  # Update variables for the user
             try:
                 self.nchan = self['nchan']
             except KeyError:
                 pass
         else:
             self.vartable = {'corr': corrmode}
-
 
     def _gen_vartable(self):
         """Generate table of variables and types from the vartable header.
@@ -270,13 +270,11 @@ class UV(_miriad.UV):
 
         return vartable
 
-
     def vars(self):
         """Return a list of available variables.
 
         """
         return list(self.vartable.keys())
-
 
     def items(self):
         """Return a list of available header items.
@@ -291,7 +289,6 @@ class UV(_miriad.UV):
             except IOError:
                 pass
         return items
-
 
     def _rdhd(self, name):
         """Provide read access to header items via low-level calls.
@@ -347,7 +344,6 @@ class UV(_miriad.UV):
         else:
             return np.array(rv)
 
-
     def _wrhd(self, name, val):
         """Provide write access to header items via low-level calls.
 
@@ -378,7 +374,6 @@ class UV(_miriad.UV):
                 offset += _miriad.hwrite(h, offset, v, t)
 
         _miriad.hdaccess(h)
-
 
     def _rdhd_special(self, name):
         """Provide read access to special header items of type '?' to _rdhd.
@@ -411,7 +406,6 @@ class UV(_miriad.UV):
         else:
             raise ValueError('Unknown special header: ' + name)
 
-
     def _wrhd_special(self, name, val):
         """Provide write access to special header items of type '?' to _wrhd
 
@@ -432,7 +426,6 @@ class UV(_miriad.UV):
         else:
             raise ValueError('Unknown special header: ' + name)
 
-
     def __getitem__(self, name):
         """Allow access to variables and header items via ``uv[name]``.
 
@@ -444,7 +437,6 @@ class UV(_miriad.UV):
             type = itemtable[name]
             return self._rdhd(name)
 
-
     def __setitem__(self, name, val):
         """Allow setting variables and header items via ``uv[name] = val``.
 
@@ -454,7 +446,6 @@ class UV(_miriad.UV):
             self._wrvr(name, type, val)
         except KeyError:
             self._wrhd(name, val)
-
 
     def select(self, name, n1, n2, include=True):
         """Choose which data are returned by read().
@@ -481,7 +472,6 @@ class UV(_miriad.UV):
             n2 += 1
         self._select(name, float(n1), float(n2), int(include))
 
-
     def read(self, raw=False):
         """Return the next data record. Calling this function causes vars to change to
         reflect the record which this function returns. 'raw' causes data and
@@ -498,7 +488,6 @@ class UV(_miriad.UV):
         if raw:
             return preamble, data, flags
         return preamble, np.ma.array(data, mask=flags)
-
 
     def all(self, raw=False):
         """Provide an iterator over preamble, data. Allows constructs like: ``for
@@ -531,7 +520,6 @@ class UV(_miriad.UV):
 
         self.raw_write(preamble, data.astype(np.complex64), flags.astype(np.int32))
 
-
     def init_from_uv(self, uv, override={}, exclude=[]):
         """Initialize header items and variables from another UV. Those in override
         will be overwritten by override[k], and tracking will be turned off
@@ -562,8 +550,7 @@ class UV(_miriad.UV):
             else:
                 self.vartable[k] = uv.vartable[k]
                 self._wrvr(k, uv.vartable[k], uv[k])
-                uv.trackvr(k, 'c') # Set to copy when copyvr() called
-
+                uv.trackvr(k, 'c')  # Set to copy when copyvr() called
 
     def pipe(self, uv, mfunc=_uv_pipe_default_action, append2hist='', raw=False):
         """Pipe in data from another UV through the function ``mfunc(uv, preamble,
@@ -585,7 +572,6 @@ class UV(_miriad.UV):
                 np, nd = mfunc(uv, p, d)
                 self.copyvr(uv)
                 self.write(np, nd)
-
 
     def add_var(self, name, type):
         """Add a variable of the specified type to a UV file.
