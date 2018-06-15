@@ -1092,7 +1092,7 @@ class UVData(UVBase):
                 if len(wh2) > 0:
                     bls_blt_inds = np.append(bls_blt_inds, list(wh2))
                     if len(bl) == 3:
-                        bl_pols.add(bl[2][::-1]) # reverse polarization string
+                        bl_pols.add(bl[2][::-1])  # reverse polarization string
                 if len(wh1) == 0 and len(wh2) == 0:
                     raise ValueError('Antenna pair {p} does not have any data '
                                      'associated with it.'.format(p=bl))
@@ -1284,11 +1284,11 @@ class UVData(UVBase):
             antenna_names: The antennas names to keep in the object (antenna
                 positions and names for the removed antennas will be retained).
                 This cannot be provided if antenna_nums is also provided.
-            bls: A list of antenna number tuples (e.g. [(0,1), (3,2)]) or a list of 
-                baseline 3-tuples (e.g. [(0,1,'xx'), (2,3,'yy')]) specifying baselines 
-                to keep in the object. For length-2 tuples, the  ordering of the numbers 
-                within the tuple does not matter. For length-3 tuples, the polarization 
-                string is in the order of the two antennas. If length-3 tuples are provided, 
+            bls: A list of antenna number tuples (e.g. [(0,1), (3,2)]) or a list of
+                baseline 3-tuples (e.g. [(0,1,'xx'), (2,3,'yy')]) specifying baselines
+                to keep in the object. For length-2 tuples, the  ordering of the numbers
+                within the tuple does not matter. For length-3 tuples, the polarization
+                string is in the order of the two antennas. If length-3 tuples are provided,
                 the polarizations argument below must be None.
             ant_str: A string containing information about what antenna numbers
                 and polarizations to keep in the object.  Can be 'auto', 'cross', 'all',
@@ -1393,11 +1393,11 @@ class UVData(UVBase):
                 the object (antenna positions and names for the excluded antennas
                 will be retained). This cannot be provided if antenna_nums is
                 also provided. Ignored if read_data is False.
-            bls: A list of antenna number tuples (e.g. [(0,1), (3,2)]) or a list of 
-                baseline 3-tuples (e.g. [(0,1,'xx'), (2,3,'yy')]) specifying baselines 
-                to keep in the object. For length-2 tuples, the  ordering of the numbers 
-                within the tuple does not matter. For length-3 tuples, the polarization 
-                string is in the order of the two antennas. If length-3 tuples are provided, 
+            bls: A list of antenna number tuples (e.g. [(0,1), (3,2)]) or a list of
+                baseline 3-tuples (e.g. [(0,1,'xx'), (2,3,'yy')]) specifying baselines
+                to keep in the object. For length-2 tuples, the  ordering of the numbers
+                within the tuple does not matter. For length-3 tuples, the polarization
+                string is in the order of the two antennas. If length-3 tuples are provided,
                 the polarizations argument below must be None. Ignored if read_data is False.
             ant_str: A string containing information about what antenna numbers
                 and polarizations to include when reading data into the object.
@@ -1512,11 +1512,11 @@ class UVData(UVBase):
                 the object (antenna positions and names for the excluded antennas
                 will be retained). This cannot be provided if antenna_nums is
                 also provided.
-            bls: A list of antenna number tuples (e.g. [(0,1), (3,2)]) or a list of 
-                baseline 3-tuples (e.g. [(0,1,'xx'), (2,3,'yy')]) specifying baselines 
-                to keep in the object. For length-2 tuples, the  ordering of the numbers 
-                within the tuple does not matter. For length-3 tuples, the polarization 
-                string is in the order of the two antennas. If length-3 tuples are 
+            bls: A list of antenna number tuples (e.g. [(0,1), (3,2)]) or a list of
+                baseline 3-tuples (e.g. [(0,1,'xx'), (2,3,'yy')]) specifying baselines
+                to keep in the object. For length-2 tuples, the  ordering of the numbers
+                within the tuple does not matter. For length-3 tuples, the polarization
+                string is in the order of the two antennas. If length-3 tuples are
                 provided, the polarizations argument below must be None.
             ant_str: A string containing information about what antenna numbers
                 and polarizations to include when reading data into the object.
@@ -1693,11 +1693,11 @@ class UVData(UVBase):
             run_check_acceptability: Option to check acceptable range of the values of
                 parameters after reading in the file. Default is True.
             antenna_nums: The antennas numbers to read into the object.
-            bls: A list of antenna number tuples (e.g. [(0,1), (3,2)]) or a list of 
-                baseline 3-tuples (e.g. [(0,1,'xx'), (2,3,'yy')]) specifying baselines 
-                to keep in the object. For length-2 tuples, the  ordering of the numbers 
-                within the tuple does not matter. For length-3 tuples, the polarization 
-                string is in the order of the two antennas. If length-3 tuples are 
+            bls: A list of antenna number tuples (e.g. [(0,1), (3,2)]) or a list of
+                baseline 3-tuples (e.g. [(0,1,'xx'), (2,3,'yy')]) specifying baselines
+                to keep in the object. For length-2 tuples, the  ordering of the numbers
+                within the tuple does not matter. For length-3 tuples, the polarization
+                string is in the order of the two antennas. If length-3 tuples are
                 provided, the polarizations argument below must be None.
             ant_str: A string containing information about what kinds of visibility data
                 to read-in.  Can be 'auto', 'cross', 'all'. Cannot provide ant_str if
