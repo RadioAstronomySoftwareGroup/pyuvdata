@@ -32,7 +32,7 @@ class Miriad(UVData):
 
     def read_miriad(self, filepath, correct_lat_lon=True, run_check=True,
                     check_extra=True, run_check_acceptability=True, phase_type=None,
-                    antenna_nums=None, ant_str=None, ant_pairs_nums=None,
+                    antenna_nums=None, ant_str=None, bls=None,
                     polarizations=None, time_range=None):
         """
         Read in data from a miriad file.
@@ -48,13 +48,15 @@ class Miriad(UVData):
             run_check_acceptability: Option to check acceptable range of the values of
                 parameters after reading in the file. Default is True.
             antenna_nums: The antennas numbers to only read into the object.
-            ant_pairs_nums: A list of antenna number tuples (e.g. [(0,1), (3,2)])
-                specifying baselines to read into the object. Ordering of the
-                numbers within the tuple does not matter. A single antenna iterable
-                e.g. (1,) is interpreted as all visibilities with that antenna.
+            bls: A list of antenna number tuples (e.g. [(0,1), (3,2)]) or a list of
+                baseline 3-tuples (e.g. [(0,1,'xx'), (2,3,'yy')]) specifying baselines
+                to keep in the object. For length-2 tuples, the  ordering of the numbers
+                within the tuple does not matter. For length-3 tuples, the polarization
+                string is in the order of the two antennas. If length-3 tuples are provided,
+                the polarizations argument below must be None.
             ant_str: A string containing information about what kinds of visibility data
                 to read-in.  Can be 'auto', 'cross', 'all'. Cannot provide ant_str if
-                antenna_nums and/or ant_pairs_nums is not None.
+                antenna_nums and/or bls is not None.
             polarizations: List of polarization integers or strings to read-in.
                 Ex: ['xx', 'yy', ...]
             time_range: len-2 list containing min and max range of times (Julian Date) to read-in.
@@ -209,13 +211,13 @@ class Miriad(UVData):
         if ant_str is not None:
             # type check
             assert isinstance(ant_str, (str, np.str)), "ant_str must be fed as a string"
-            assert antenna_nums is None and ant_pairs_nums is None, "ant_str must be None if antenna_nums or ant_pairs_nums is not None"
-            aipy_extracts.uv_selector(uv, ant_str)
+            assert antenna_nums is None and bls is None, "ant_str must be None if antenna_nums or bls is not None"
+            aipy_extracts.scripting.uv_selector(uv, ant_str)
             if ant_str != 'all':
                 history_update_string += 'antenna pairs'
                 n_selects += 1
-        # select on antenna_nums and/or ant_pairs_nums using aipy_extracts.uv_selector
-        if antenna_nums is not None or ant_pairs_nums is not None:
+        # select on antenna_nums and/or bls using aipy.scripting.uv_selector
+        if antenna_nums is not None or bls is not None:
             antpair_str = ''
             if antenna_nums is not None:
                 # type check
@@ -228,20 +230,47 @@ class Miriad(UVData):
                 antpair_str += ','.join(map(lambda ap: '_'.join(map(lambda a: str(a), ap)), antpairs))
                 history_update_string += 'antennas'
                 n_selects += 1
-            if ant_pairs_nums is not None:
-                # type check
-                err_msg = "ant_pairs_nums must be a list of antnum integer tuples, Ex: [(0, 1), ...]"
-                assert isinstance(ant_pairs_nums, list), err_msg
-                assert np.array(map(lambda ap: isinstance(ap, tuple), ant_pairs_nums)).all(), err_msg
-                assert np.array(map(lambda ap: map(lambda a: isinstance(a, (int, np.int, np.int32)), ap), ant_pairs_nums)).all(), err_msg
-                # convert ant-pair tuples to string form required by aipy_extracts.uv_selector
+            if bls is not None:
+                if isinstance(bls, tuple) and (len(bls) == 2 or len(bls) == 3):
+                    bls = [bls]
+                if not all(isinstance(item, tuple) for item in bls):
+                    raise ValueError(
+                        'bls must be a list of tuples of antenna numbers (optionally with polarization).')
+                if all([len(item) == 2 for item in bls]):
+                    if not all([isinstance(item[0], (int, long, np.integer)) for item in bls]
+                               + [isinstance(item[1], (int, long, np.integer)) for item in bls]):
+                        raise ValueError(
+                            'bls must be a list of tuples of antenna numbers (optionally with polarization).')
+                elif all([len(item) == 3 for item in bls]):
+                    if polarizations is not None:
+                        raise ValueError('Cannot provide length-3 tuples and also specify polarizations.')
+                    if not all([isinstance(item[2], str) for item in bls]):
+                        raise ValueError('The third element in each bl must be a polarization string')
+                else:
+                    raise ValueError('bls tuples must be all length-2 or all length-3')
+
+                # convert ant-pair tuples to string form required by aipy_extracts.scripting.uv_selector
                 if len(antpair_str) > 0:
                     antpair_str += ','
-                antpair_str += ','.join(map(lambda ap: '_'.join(map(lambda a: str(a), ap)), ant_pairs_nums))
+                bl_str_list = []
+                bl_pols = set()
+                for bl in bls:
+                    if bl[0] <= bl[1]:
+                        bl_str_list.append(str(bl[0]) + '_' + str(bl[1]))
+                        if len(bl) == 3:
+                            bl_pols.add(bl[2])
+                    else:
+                        bl_str_list.append(str(bl[1]) + '_' + str(bl[0]))
+                        if len(bl) == 3:
+                            bl_pols.add(bl[2][::-1])
+                antpair_str += ','.join(bl_str_list)
+                if len(bl_pols) > 0:
+                    polarizations = list(bl_pols)
+
                 if n_selects > 0:
-                    history_update_string += ', antenna pairs'
+                    history_update_string += ', baselines'
                 else:
-                    history_update_string += 'antenna pairs'
+                    history_update_string += 'baselines'
                 n_selects += 1
             aipy_extracts.uv_selector(uv, antpair_str)
 
@@ -639,7 +668,7 @@ class Miriad(UVData):
         tij_grid = np.array(map(lambda x: map(float, x.split("_")), unique_blts))
         t_grid, ant_i_grid, ant_j_grid = tij_grid.T
         # set the data sizes
-        if antenna_nums is None and ant_pairs_nums is None and ant_str is None and time_range is None:
+        if antenna_nums is None and bls is None and ant_str is None and time_range is None:
             try:
                 self.Nblts = uv['nblts']
                 if self.Nblts != len(t_grid):
@@ -668,7 +697,7 @@ class Miriad(UVData):
 
         self.baseline_array = self.antnums_to_baseline(ant_i_grid.astype(int),
                                                        ant_j_grid.astype(int))
-        if antenna_nums is None and ant_pairs_nums is None and ant_str is None:
+        if antenna_nums is None and bls is None and ant_str is None:
             try:
                 self.Nbls = uv['nbls']
                 if self.Nbls != len(np.unique(self.baseline_array)):
