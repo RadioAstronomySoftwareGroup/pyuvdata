@@ -1,10 +1,15 @@
 from setuptools import setup, Extension
 import glob
+import os
 import os.path as op
 from os import listdir
 import numpy as np
-from pyuvdata import version
 import json
+
+# When setting up, the binary extension modules haven't yet been built, so
+# without a workaround we can't use the pyuvdata code to get the version.
+os.environ['PYUVDATA_IGNORE_EXTMOD_IMPORT_FAIL'] = '1'
+from pyuvdata import version
 
 data = [version.git_origin, version.git_hash, version.git_description, version.git_branch]
 with open(op.join('pyuvdata', 'GIT_INFO'), 'w') as outfile:
