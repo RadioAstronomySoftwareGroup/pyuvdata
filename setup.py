@@ -51,7 +51,7 @@ setup_args = {
     'version': version.version,
     'include_package_data': True,
     'setup_requires': ['numpy>=1.10'],
-    'install_requires': ['numpy>=1.10', 'scipy', 'astropy>=1.2', 'pyephem', 'aipy>=2.1.6'],
+    'install_requires': ['numpy>=1.10', 'scipy', 'astropy>=1.2', 'pyephem'],
     'classifiers': ['Development Status :: 5 - Production/Stable',
                     'Intended Audience :: Science/Research',
                     'License :: OSI Approved :: BSD License',

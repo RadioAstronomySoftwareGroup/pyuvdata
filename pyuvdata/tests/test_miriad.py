@@ -5,13 +5,14 @@ import copy
 import numpy as np
 import ephem
 import nose.tools as nt
-import aipy
 from pyuvdata import UVData
 import pyuvdata.utils as uvutils
 import pyuvdata.tests as uvtest
 from pyuvdata.data import DATA_PATH
 from astropy import constants as const
 import warnings
+
+from .. import aipy_extracts
 
 
 def test_ReadWriteReadATCA():
@@ -168,7 +169,7 @@ def test_miriad_location_handling():
     miriad_file = os.path.join(DATA_PATH, 'zen.2456865.60537.xy.uvcRREAA')
     testdir = os.path.join(DATA_PATH, 'test/')
     testfile = os.path.join(DATA_PATH, 'test/outtest_miriad.uv')
-    aipy_uv = aipy.miriad.UV(miriad_file)
+    aipy_uv = aipy_extracts.UV(miriad_file)
 
     if os.path.exists(testfile):
         shutil.rmtree(testfile)
@@ -195,7 +196,7 @@ def test_miriad_location_handling():
     antpos = antpos.T.flatten() / const.c.to('m/ns').value
 
     # make new file
-    aipy_uv2 = aipy.miriad.UV(testfile, status='new')
+    aipy_uv2 = aipy_extracts.UV(testfile, status='new')
     # initialize headers from old file
     # change telescope name (so the position isn't set from known_telescopes)
     # and use absolute antenna positions
@@ -220,8 +221,8 @@ def test_miriad_location_handling():
     # make new file
     if os.path.exists(testfile):
         shutil.rmtree(testfile)
-    aipy_uv = aipy.miriad.UV(miriad_file)
-    aipy_uv2 = aipy.miriad.UV(testfile, status='new')
+    aipy_uv = aipy_extracts.UV(miriad_file)
+    aipy_uv2 = aipy_extracts.UV(testfile, status='new')
     # initialize headers from old file
     # change telescope name (so the position isn't set from known_telescopes)
     # and use absolute antenna positions, change file latitude
@@ -248,8 +249,8 @@ def test_miriad_location_handling():
     # make new file
     if os.path.exists(testfile):
         shutil.rmtree(testfile)
-    aipy_uv = aipy.miriad.UV(miriad_file)
-    aipy_uv2 = aipy.miriad.UV(testfile, status='new')
+    aipy_uv = aipy_extracts.UV(miriad_file)
+    aipy_uv2 = aipy_extracts.UV(testfile, status='new')
     # initialize headers from old file
     # change telescope name (so the position isn't set from known_telescopes)
     # and use absolute antenna positions, change file longitude
@@ -276,8 +277,8 @@ def test_miriad_location_handling():
     # make new file
     if os.path.exists(testfile):
         shutil.rmtree(testfile)
-    aipy_uv = aipy.miriad.UV(miriad_file)
-    aipy_uv2 = aipy.miriad.UV(testfile, status='new')
+    aipy_uv = aipy_extracts.UV(miriad_file)
+    aipy_uv2 = aipy_extracts.UV(testfile, status='new')
     # initialize headers from old file
     # change telescope name (so the position isn't set from known_telescopes)
     # and use absolute antenna positions, change file latitude and longitude
@@ -313,8 +314,8 @@ def test_miriad_location_handling():
     # make new file
     if os.path.exists(testfile):
         shutil.rmtree(testfile)
-    aipy_uv = aipy.miriad.UV(miriad_file)
-    aipy_uv2 = aipy.miriad.UV(testfile, status='new')
+    aipy_uv = aipy_extracts.UV(miriad_file)
+    aipy_uv2 = aipy_extracts.UV(testfile, status='new')
     # initialize headers from old file
     # change telescope name (so the position isn't set from known_telescopes)
     # and use modified absolute antenna positions
@@ -551,7 +552,7 @@ def test_readWriteReadMiriad():
     # check that variables 'ischan' and 'nschan' were written to new file
     # need to use aipy, since pyuvdata is not currently capturing these variables
     uv_in.read_miriad(write_file)
-    uv_aipy = aipy.miriad.UV(write_file)  # on enterprise, this line makes it so you cant delete the file
+    uv_aipy = aipy_extracts.UV(write_file)  # on enterprise, this line makes it so you cant delete the file
     nfreqs = uv_in.Nfreqs
     nschan = uv_aipy['nschan']
     ischan = uv_aipy['ischan']
@@ -772,7 +773,7 @@ def test_antpos_units():
     testfile = os.path.join(DATA_PATH, 'test/uv_antpos_units')
     uvtest.checkWarnings(uv.read_uvfits, [uvfits_file], message='Telescope EVLA is not')
     uv.write_miriad(testfile, clobber=True)
-    auv = aipy.miriad.UV(testfile)
+    auv = aipy_extracts.UV(testfile)
     aantpos = auv['antpos'].reshape(3, -1).T * const.c.to('m/ns').value
     aantpos = aantpos[uv.antenna_numbers, :]
     aantpos = (uvutils.ECEF_from_rotECEF(aantpos, uv.telescope_location_lat_lon_alt[1])

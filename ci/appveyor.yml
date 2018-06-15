@@ -1,6 +1,3 @@
-# Doesn't work because aipy doesn't compile on Windows.
-# Moved out of main folder until aipy dependency is resolved.
-#
 # based on PANDAS appveyor.yml
 # https://searchcode.com/file/116370094/appveyor.yml
 # Which references the following sites as inspiration
@@ -65,14 +62,8 @@ install:
   # create our env
   - cmd: conda create -q -n test-environment python=%PYTHON_VERSION% numpy scipy astropy nose
   - cmd: activate test-environment
-#  - cmd: pip install aipy
-#  - cmd: conda install -c pkgw aipy
   - cmd: set DISTUTILS_DEBUG='test'
   - cmd: ls -ltr "C:\\Program Files (x86)\\Microsoft Visual Studio 9.0\\VC\\BIN\\"
-#  - cmd: git clone -q --branch=master https://github.com/HERA-Team/aipy.git C:\projects\aipy
-  - cmd: git clone -q --branch=master https://github.com/bhazelton/aipy.git C:\projects\aipy
-  - cmd: cd ../aipy
-  - cmd: python setup.py install
   - cmd: cd ../pyuvdata
   - cmd: python setup.py install
 

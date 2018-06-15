@@ -27,7 +27,7 @@ install:
 
   # create environment and install dependencies
   - conda install numpy scipy astropy nose pip h5py
-  - conda install -c conda-forge healpy aipy python-casacore pycodestyle coveralls
+  - conda install -c conda-forge healpy python-casacore pycodestyle coveralls
   - conda list
 script:
   - nosetests pyuvdata --with-coverage --cover-package=pyuvdata

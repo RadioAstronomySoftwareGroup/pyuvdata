@@ -5,11 +5,12 @@ import shutil
 import numpy as np
 import copy
 import warnings
-import aipy
 from uvdata import UVData
 import telescopes as uvtel
 import utils as uvutils
 import itertools
+
+from . import aipy_extracts
 
 
 class Miriad(UVData):
@@ -61,7 +62,7 @@ class Miriad(UVData):
         """
         if not os.path.exists(filepath):
             raise(IOError, filepath + ' not found')
-        uv = aipy.miriad.UV(filepath)
+        uv = aipy_extracts.UV(filepath)
 
         # list of miriad variables always read
         # NB: this includes variables in try/except (i.e. not all variables are
@@ -209,11 +210,11 @@ class Miriad(UVData):
             # type check
             assert isinstance(ant_str, (str, np.str)), "ant_str must be fed as a string"
             assert antenna_nums is None and ant_pairs_nums is None, "ant_str must be None if antenna_nums or ant_pairs_nums is not None"
-            aipy.scripting.uv_selector(uv, ant_str)
+            aipy_extracts.uv_selector(uv, ant_str)
             if ant_str != 'all':
                 history_update_string += 'antenna pairs'
                 n_selects += 1
-        # select on antenna_nums and/or ant_pairs_nums using aipy.scripting.uv_selector
+        # select on antenna_nums and/or ant_pairs_nums using aipy_extracts.uv_selector
         if antenna_nums is not None or ant_pairs_nums is not None:
             antpair_str = ''
             if antenna_nums is not None:
@@ -223,7 +224,7 @@ class Miriad(UVData):
                 assert isinstance(antenna_nums[0], (int, np.int, np.int32)), err_msg
                 # get all possible combinations
                 antpairs = list(itertools.combinations_with_replacement(antenna_nums, 2))
-                # convert antenna numbers to string form required by aipy.scripting.uv_selector
+                # convert antenna numbers to string form required by aipy_extracts.uv_selector
                 antpair_str += ','.join(map(lambda ap: '_'.join(map(lambda a: str(a), ap)), antpairs))
                 history_update_string += 'antennas'
                 n_selects += 1
@@ -233,7 +234,7 @@ class Miriad(UVData):
                 assert isinstance(ant_pairs_nums, list), err_msg
                 assert np.array(map(lambda ap: isinstance(ap, tuple), ant_pairs_nums)).all(), err_msg
                 assert np.array(map(lambda ap: map(lambda a: isinstance(a, (int, np.int, np.int32)), ap), ant_pairs_nums)).all(), err_msg
-                # convert ant-pair tuples to string form required by aipy.scripting.uv_selector
+                # convert ant-pair tuples to string form required by aipy_extracts.uv_selector
                 if len(antpair_str) > 0:
                     antpair_str += ','
                 antpair_str += ','.join(map(lambda ap: '_'.join(map(lambda a: str(a), ap)), ant_pairs_nums))
@@ -242,7 +243,7 @@ class Miriad(UVData):
                 else:
                     history_update_string += 'antenna pairs'
                 n_selects += 1
-            aipy.scripting.uv_selector(uv, antpair_str)
+            aipy_extracts.uv_selector(uv, antpair_str)
 
         # select on time range
         if time_range is not None:
@@ -291,7 +292,7 @@ class Miriad(UVData):
             # control for the case of only a single spw not showing up in
             # the dimension
             # Note that the (i, j) tuple is calculated from a baseline number in
-            # aipy (see miriad_wrap.h). The i, j values are also adjusted by aipy
+            # _miriad (see miriad_wrap.h). The i, j values are also adjusted by _miriad
             # to start at 0 rather than 1.
             if len(d.shape) == 1:
                 d.shape = (1,) + d.shape
@@ -602,7 +603,7 @@ class Miriad(UVData):
             else:
                 # Backwards compatibility for old way of storing antenna_names.
                 # This is a horrible hack to save & recover antenna_names array.
-                # Miriad can't handle arrays of strings and AIPY use to not handle
+                # Miriad can't handle arrays of strings and _miriad used to not handle
                 # long enough single strings to put them all into one string
                 # so we convert them into hex values and then into floats on
                 # write and convert back to strings here
@@ -685,7 +686,7 @@ class Miriad(UVData):
         self.flag_array = np.ones(self.data_array.shape, dtype=np.bool)
         self.uvw_array = np.zeros((self.Nblts, 3))
         # NOTE: Using our lst calculator, which uses astropy,
-        # instead of aipy values which come from pyephem.
+        # instead of _miriad values which come from pyephem.
         # The differences are of order 5 seconds.
         if self.telescope_location is not None:
             self.set_lsts_from_time_array()
@@ -859,7 +860,7 @@ class Miriad(UVData):
                                  'The miriad format does not support frequencies '
                                  'that are spaced by more than their channel width.')
 
-        uv = aipy.miriad.UV(filepath, status='new')
+        uv = aipy_extracts.UV(filepath, status='new')
 
         # initialize header variables
         uv._wrhd('obstype', 'mixed-auto-cross')
@@ -985,7 +986,7 @@ class Miriad(UVData):
         # NB: arrays/lists/dicts could potentially be written as strings or 1D
         # vectors.  This is not supported at present!
         # NB: complex numbers *should* be supportable, but are not currently
-        # supported due to unexplained errors in aipy.miriad and/or its underlying libraries
+        # supported due to unexplained errors in _miriad and/or its underlying libraries
         numpy_types = {np.int8: int,
                        np.int16: int,
                        np.int32: int,
