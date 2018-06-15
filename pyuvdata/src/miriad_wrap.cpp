@@ -262,7 +262,7 @@ PyObject * UVObject_rdvr(UVObject *self, PyObject *args) {
     }
 
     if (length * elem_size > MAXVAR) {
-        PyErr_Format(PyExc_ValueError, "UV variable \"%s\" too big for aipy's "
+        PyErr_Format(PyExc_ValueError, "UV variable \"%s\" too big for pyuvdata's "
                      "internal buffers", name);
         return NULL;
     }

@@ -21,11 +21,11 @@ pyuvdata has three major user classes:
 * UVBeam: supports primary beams (E-field or power) and associated metadata (Note that this is a new object and is very experimental)
 
 ## UVData Tested File Paths
-* uvfits -> miriad (aipy)
-* miriad (aipy) -> uvfits
+* uvfits -> miriad
+* miriad -> uvfits
 * FHD -> uvfits
-* FHD -> miriad (aipy)
-* CASA measurement sets -> miriad (aipy)
+* FHD -> miriad
+* CASA measurement sets -> miriad
 * CASA measurement sets -> uvfits
 
 ## UVData File standard notes
@@ -46,7 +46,7 @@ pyuvdata has three major user classes:
 ## Known Issues and Planned Improvements
 * UVData: different multiple spectral windows or multiple sources are not currently supported
 * UVData: testing against miriad package
-* UVData: replacing AIPY and pyephem with astropy+NOVAS for time and phase calculations
+* UVData: replacing pyephem with astropy+NOVAS for time and phase calculations
 * UVData: add support for writing CASA measurement sets
 * UVData: phasing is tested to a part in 10^3, and assumes planar array. Improvements are tracked on Issue \#148.
 * UVCal: expand support for calibration solutions: support other formats beyond FITS
@@ -92,13 +92,12 @@ To install without dependencies, run
 The numpy and astropy versions are important, so be sure to make sure these are up to date before you install.
 
 For anaconda users, we suggest using conda to install astropy, numpy and scipy and conda-forge
-for aipy, pyephem and optionally casacore-python and healpy (e.g. ```conda install -c conda-forge aipy```).
+for pyephem and optionally casacore-python and healpy (e.g. ```conda install -c conda-forge pyephem```).
 
 * numpy >= 1.10
 * scipy
 * astropy >= 1.2
 * pyephem
-* aipy >= 2.1.6
 * casacore-python (optional: for CASA measurement set reading functionality)
 * healpy (optional: working with beams in HEALPix formats)
 

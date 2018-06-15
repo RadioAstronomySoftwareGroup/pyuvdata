@@ -9,8 +9,8 @@ UVData: File conversion
 -----------------------
 Converting between tested data formats
 
-a) miriad (aipy) -> uvfits
-**************************
+a) miriad -> uvfits
+*******************
 ::
 
   >>> from pyuvdata import UVData
@@ -24,8 +24,8 @@ a) miriad (aipy) -> uvfits
   >>> UV.write_uvfits('tutorial.uvfits', force_phase=True, spoof_nonessential=True)
   The data are in drift mode and do not have a defined phase center. Phasing to zenith of the first timestamp.
 
-b) uvfits -> miriad (aipy)
-**************************
+b) uvfits -> miriad
+*******************
 ::
 
   >>> from pyuvdata import UVData
@@ -56,8 +56,8 @@ When reading FHD format, we need to point to several files.
   >>> UV.read_fhd(fhd_files)
   >>> UV.write_uvfits('tutorial.uvfits', spoof_nonessential=True)
 
-d) FHD -> miriad (aipy)
-************************
+d) FHD -> miriad
+****************
 ::
 
   >>> from pyuvdata import UVData
@@ -95,8 +95,8 @@ e) CASA -> uvfits
   # Write out uvfits file
   >>> UV.write_uvfits('tutorial.uvfits', spoof_nonessential=True)
 
-f) CASA -> miriad (aipy)
-**************************
+f) CASA -> miriad
+*****************
 ::
 
   >>> from pyuvdata import UVData
