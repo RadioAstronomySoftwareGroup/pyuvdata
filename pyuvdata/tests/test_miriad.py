@@ -650,8 +650,8 @@ def test_readWriteReadMiriad():
     nt.assert_equal(uv_in, exp_uv)
 
     # assert partial-read and select are same
-    uv_in.read_miriad(write_file, polarizations=[-7], bls=[(4, 4, 'xy')])
-    exp_uv = full.select(polarizations=[-7], bls=[(4, 4, 'xy')], inplace=False)
+    uv_in.read_miriad(write_file, bls=[(4, 4, 'xy')])
+    exp_uv = full.select(bls=[(4, 4, 'xy')], inplace=False)
     nt.assert_equal(uv_in, exp_uv)
 
     # assert partial-read and select are same

@@ -1089,14 +1089,13 @@ class UVData(UVBase):
                     bls_blt_inds = np.append(bls_blt_inds, list(wh1))
                     if len(bl) == 3:
                         bl_pols.add(bl[2])
-                if len(wh2) > 0:
+                elif len(wh2) > 0:
                     bls_blt_inds = np.append(bls_blt_inds, list(wh2))
                     if len(bl) == 3:
                         bl_pols.add(bl[2][::-1])  # reverse polarization string
-                if len(wh1) == 0 and len(wh2) == 0:
+                else:
                     raise ValueError('Antenna pair {p} does not have any data '
                                      'associated with it.'.format(p=bl))
-
             if len(bl_pols) > 0:
                 polarizations = list(bl_pols)
 
