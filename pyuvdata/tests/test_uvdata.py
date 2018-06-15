@@ -487,6 +487,45 @@ def test_select_bls():
                                            'specific baselines using pyuvdata.',
                                            uv_object2.history))
 
+    # check select with polarizations
+    first_ants = [6, 2, 7, 2, 21, 27, 8]
+    second_ants = [0, 20, 8, 1, 2, 3, 22]
+    pols = ['RR','RR','RR','RR','RR','RR','RR']
+    new_unique_ants = np.unique(first_ants + second_ants)
+    bls_to_keep = zip(first_ants, second_ants, pols)
+    sorted_bls_to_keep = [tuple(sorted(p)) for p in bls_to_keep]
+
+    sorted_pairs_object = [tuple(sorted(p)) for p in zip(
+        uv_object.ant_1_array, uv_object.ant_2_array)]
+
+    blts_select = [tuple(sorted((a1, a2, 'RR'))) in sorted_bls_to_keep for (a1, a2) in
+                   zip(uv_object.ant_1_array, uv_object.ant_2_array)]
+    Nblts_selected = np.sum(blts_select)
+
+    uv_object2 = copy.deepcopy(uv_object)
+    uv_object2.select(bls=bls_to_keep)
+    sorted_pairs_object2 = [tuple(sorted(p)) + ('RR',) for p in zip(
+        uv_object2.ant_1_array, uv_object2.ant_2_array)]
+
+    nt.assert_equal(len(new_unique_ants), uv_object2.Nants_data)
+    nt.assert_equal(Nblts_selected, uv_object2.Nblts)
+    for ant in new_unique_ants:
+        nt.assert_true(
+            ant in uv_object2.ant_1_array or ant in uv_object2.ant_2_array)
+    for ant in np.unique(uv_object2.ant_1_array.tolist() + uv_object2.ant_2_array.tolist()):
+        nt.assert_true(ant in new_unique_ants)
+    for bl in sorted_bls_to_keep:
+        nt.assert_true(bl in sorted_pairs_object2)
+    for bl in sorted_pairs_object2:
+        nt.assert_true(bl in sorted_bls_to_keep)
+
+    print old_history + '  Downselected to specific baselines using pyuvdata.'
+    print uv_object2.history
+    nt.assert_true(uvutils.check_histories(old_history + '  Downselected to '
+                                           'specific baselines, polarizations using pyuvdata.',
+                                           uv_object2.history))
+
+
     # check that you can use numpy integers with out errors:
     first_ants = map(np.int32, [6, 2, 7, 2, 21, 27, 8])
     second_ants = map(np.int32, [0, 20, 8, 1, 2, 3, 22])
