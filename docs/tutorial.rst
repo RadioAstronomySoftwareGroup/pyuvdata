@@ -367,7 +367,7 @@ c) Select a few antenna pairs to keep
   # print how many antenna pairs with data in the original file
   >>> print(len(set(zip(UV.ant_1_array, UV.ant_2_array))))
   153
-  >>> UV.select(ant_pairs_nums=[(0, 2), (6, 0), (0, 21)])
+  >>> UV.select(bls=[(0, 2), (6, 0), (0, 21)])
 
   # note that order of the values in the pair does not matter
   # print all the antenna pairs after the select
@@ -698,7 +698,7 @@ time if only a portion of the data are needed.
 >>> from pyuvdata import UVData
 >>> uv = UVData()
 >>> filename = 'pyuvdata/data/zen.2457698.40355.xx.HH.uvcA'
->>> uv.read_miriad(filename, ant_pairs_nums=[(9, 10), (9, 20)])
+>>> uv.read_miriad(filename, bls=[(9, 10), (9, 20)])
 >>> print(uv.get_antpairs())
 [(9, 10), (9, 20)]
 
