@@ -3,7 +3,7 @@ import os
 import shutil
 import nose.tools as nt
 from .. import aipy_extracts as ae
-from .. data import DATA_PATH
+from ..data import DATA_PATH
 
 
 def test_bl2ij():
@@ -71,6 +71,29 @@ def test_parse_ants():
 
     # check that malformed antstr raises and error
     nt.assert_raises(ValueError, ae.parse_ants, '(0_1)_2', nants)
+    return
+
+
+def test_UV_wrhd():
+    """Test _wrdh method on UV object"""
+    test_file = os.path.join(DATA_PATH, 'test', 'miriad_test.uv')
+    if os.path.exists(test_file):
+        shutil.rmtree(test_file)
+    uv = ae.UV(test_file, status='new', corrmode='r')
+
+    # test writing freqs
+    freqs = [3, 1, 0.1, 0.2, 2, 0.2, 0.3, 3, 0.3, 0.4]
+    uv._wrhd('freqs', freqs)
+
+    # test writing other values
+    uv._wrhd('nchan0', 1024)
+
+    # test that we wrote something
+    del uv
+    nt.assert_true(os.path.isdir(test_file))
+
+    # clean up
+    shutil.rmtree(test_file)
     return
 
 
