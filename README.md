@@ -88,6 +88,12 @@ Note that this will attempt to automatically install any missing dependencies. I
 To install without dependencies, run
 ```python setup.py develop --no-deps``` or ```pip install --no-deps```
 
+To compile the binary extension modules such that you can successfully run `import pyuvdata` from the top-level directory of your Git checkout, run:
+
+```
+python setup.py build_ext --inplace
+```
+
 ## Dependencies
 The numpy and astropy versions are important, so be sure to make sure these are up to date before you install.
 
