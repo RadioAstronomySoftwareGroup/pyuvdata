@@ -66,7 +66,7 @@ def test_parse_ants():
     for k in cases:
         cases[k] = [(v + (-1,))[:3] for v in cases[k]]
     for ant_str in cases:
-        nt.assert_equal(ae.parse_ants(ant_str, nants), 
+        nt.assert_equal(ae.parse_ants(ant_str, nants),
                         cases[ant_str])
 
     # check that malformed antstr raises and error
