@@ -1,3 +1,6 @@
+# Doesn't work because _miriad doesn't compile on Windows.
+# Moved out of main folder until this is resolved.
+#
 # based on PANDAS appveyor.yml
 # https://searchcode.com/file/116370094/appveyor.yml
 # Which references the following sites as inspiration
