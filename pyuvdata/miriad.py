@@ -212,11 +212,11 @@ class Miriad(UVData):
             # type check
             assert isinstance(ant_str, (str, np.str)), "ant_str must be fed as a string"
             assert antenna_nums is None and bls is None, "ant_str must be None if antenna_nums or bls is not None"
-            aipy_extracts.scripting.uv_selector(uv, ant_str)
+            aipy_extracts.uv_selector(uv, ant_str)
             if ant_str != 'all':
                 history_update_string += 'antenna pairs'
                 n_selects += 1
-        # select on antenna_nums and/or bls using aipy.scripting.uv_selector
+        # select on antenna_nums and/or bls using aipy.uv_selector
         if antenna_nums is not None or bls is not None:
             antpair_str = ''
             if antenna_nums is not None:
@@ -249,7 +249,7 @@ class Miriad(UVData):
                 else:
                     raise ValueError('bls tuples must be all length-2 or all length-3')
 
-                # convert ant-pair tuples to string form required by aipy_extracts.scripting.uv_selector
+                # convert ant-pair tuples to string form required by aipy_extracts.uv_selector
                 if len(antpair_str) > 0:
                     antpair_str += ','
                 bl_str_list = []
