@@ -487,7 +487,7 @@ class UVData(UVBase):
         """
         if self.Nants_telescope > 2048:
             raise Exception('error Nants={Nants}>2048 not '
-                                'supported'.format(Nants=self.Nants_telescope))
+                            'supported'.format(Nants=self.Nants_telescope))
         if np.min(baseline) > 2**16:
             ant2 = (baseline - 2**16) % 2048 - 1
             ant1 = (baseline - 2**16 - (ant2 + 1)) / 2048 - 1
@@ -513,8 +513,8 @@ class UVData(UVBase):
         ant1, ant2 = np.int64((ant1, ant2))
         if self.Nants_telescope > 2048:
             raise Exception('cannot convert ant1, ant2 to a baseline index '
-                                'with Nants={Nants}>2048.'
-                                .format(Nants=self.Nants_telescope))
+                            'with Nants={Nants}>2048.'
+                            .format(Nants=self.Nants_telescope))
         if attempt256:
             if (np.max(ant1) < 255 and np.max(ant2) < 255):
                 return 256 * (ant1 + 1) + (ant2 + 1)
