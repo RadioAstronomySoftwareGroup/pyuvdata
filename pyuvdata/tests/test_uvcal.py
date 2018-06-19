@@ -105,7 +105,7 @@ class TestUVCalInit(object):
     def test_properties(self):
         "Test that properties can be get and set properly."
         prop_dict = dict(list(zip(self.required_properties + self.extra_properties,
-                             self.required_parameters + self.extra_parameters)))
+                                  self.required_parameters + self.extra_parameters)))
         for k, v in prop_dict.items():
             rand_num = np.random.rand()
             setattr(self.uv_cal_object, k, rand_num)
