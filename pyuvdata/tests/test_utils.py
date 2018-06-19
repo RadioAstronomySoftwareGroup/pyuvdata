@@ -1,4 +1,10 @@
-"""Tests for common utility functions."""
+# -*- coding: utf-8 -*-
+
+"""Tests for common utility functions.
+
+"""
+from __future__ import absolute_import, division, print_function
+
 import os
 import nose.tools as nt
 import pyuvdata

@@ -1,4 +1,7 @@
 #! /usr/bin/env python
+# -*- coding: utf-8 -*-
+
+from __future__ import absolute_import, division, print_function
 
 import argparse
 import os
@@ -73,11 +76,11 @@ except TypeError:
     obs_min = min(file_dict.keys())
     obs_max = max(file_dict.keys())
 
-for k in file_dict.keys():
+for k in list(file_dict.keys()):
     if k > obs_max or k < obs_min:
         file_dict.pop(k)
 
-for i, (k, v) in enumerate(file_dict.iteritems()):
+for i, (k, v) in enumerate(file_dict.items()):
     if args.dirty:
         print('converting dirty vis for obsid {}, ({} of {})'.format(k, i, len(file_dict)))
         uvfits_file = op.join(output_folder, str(k) + '.uvfits')

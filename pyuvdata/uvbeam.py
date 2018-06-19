@@ -1,9 +1,15 @@
-"""Primary container for radio telescope antenna beams."""
+# -*- coding: utf-8 -*-
+
+"""Primary container for radio telescope antenna beams.
+
+"""
+from __future__ import absolute_import, division, print_function
+
 import numpy as np
 import warnings
 import copy
-from uvbase import UVBase
-import parameter as uvp
+from .uvbase import UVBase
+from . import parameter as uvp
 import pyuvdata.utils as uvutils
 
 
@@ -59,7 +65,7 @@ class UVBeam(UVBase):
         self._pixel_coordinate_system = uvp.UVParameter('pixel_coordinate_system',
                                                         description=desc, form='str',
                                                         expected_type=str,
-                                                        acceptable_vals=self.coordinate_system_dict.keys())
+                                                        acceptable_vals=list(self.coordinate_system_dict.keys()))
 
         desc = ('Number of elements along the first pixel axis. '
                 'Not required if pixel_coordinate_system is "healpix".')
@@ -355,7 +361,7 @@ class UVBeam(UVBase):
                               'to a fits file format.'.format(key=key))
 
         # issue warning if extra_keywords values are lists, arrays or dicts
-        for key, value in self.extra_keywords.iteritems():
+        for key, value in self.extra_keywords.items():
             if isinstance(value, (list, dict, np.ndarray)):
                 warnings.warn('{key} in extra_keywords is a list, array or dict, '
                               'which will raise an error when writing fits '
@@ -739,7 +745,7 @@ class UVBeam(UVBase):
         # Check that both objects are UVBeam and valid
         this.check(check_extra=check_extra, run_check_acceptability=False)
         if not isinstance(other, this.__class__):
-            raise(ValueError('Only UVBeam objects can be added to a UVBeam object'))
+            raise ValueError('Only UVBeam objects can be added to a UVBeam object')
         other.check(check_extra=check_extra, run_check_acceptability=False)
 
         # Check objects are compatible
@@ -751,7 +757,7 @@ class UVBeam(UVBase):
             if getattr(this, a) != getattr(other, a):
                 msg = 'UVParameter ' + \
                     a[1:] + ' does not match. Cannot combine objects.'
-                raise(ValueError(msg))
+                raise ValueError(msg)
 
         # check for presence of optional parameters with a frequency axis in both objects
         optional_freq_params = ['_receiver_temperature_array', '_loss_array',
@@ -790,13 +796,13 @@ class UVBeam(UVBase):
             if len(both_freq) > 0:
                 if self.pixel_coordinate_system == 'healpix':
                     if len(both_pixels) > 0:
-                        raise(ValueError('These objects have overlapping data and'
-                                         ' cannot be combined.'))
+                        raise ValueError('These objects have overlapping data and'
+                                         ' cannot be combined.')
                 else:
                     if len(both_axis1) > 0:
                         if len(both_axis2) > 0:
-                            raise(ValueError('These objects have overlapping data and'
-                                             ' cannot be combined.'))
+                            raise ValueError('These objects have overlapping data and'
+                                             ' cannot be combined.')
 
         if this.pixel_coordinate_system == 'healpix':
             temp = np.nonzero(~np.in1d(other.pixel_array, this.pixel_array))[0]
@@ -1450,7 +1456,7 @@ class UVBeam(UVBase):
 
     def _convert_to_filetype(self, filetype):
         if filetype is 'beamfits':
-            import beamfits
+            from . import beamfits
             other_obj = beamfits.BeamFITS()
         else:
             raise ValueError('filetype must be beamfits')
@@ -1473,7 +1479,7 @@ class UVBeam(UVBase):
             run_check_acceptability: Option to check acceptable range of the values of
                 required parameters after reading in the file. Default is True.
         """
-        import beamfits
+        from . import beamfits
         if isinstance(filename, (list, tuple)):
             self.read_beamfits(filename[0], run_check=run_check,
                                check_extra=check_extra,
@@ -1552,7 +1558,7 @@ class UVBeam(UVBase):
             run_check_acceptability: Option to check acceptable range of the values of
                 required parameters after reading in the file. Default is True.
         """
-        import cst_beam
+        from . import cst_beam
         if isinstance(filename, np.ndarray):
             if len(filename.shape) > 1:
                 raise ValueError('filename can not be a multi-dimensional array')
@@ -1581,8 +1587,8 @@ class UVBeam(UVBase):
             if frequency is not None:
                 if isinstance(frequency, (list, tuple)):
                     if not len(frequency) == len(filename):
-                        raise(ValueError, 'If frequency and filename are both '
-                                          'lists they need to be the same length')
+                        raise ValueError('If frequency and filename are both '
+                                         'lists they need to be the same length')
                     freq = frequency[0]
                 else:
                     freq = frequency
@@ -1591,8 +1597,8 @@ class UVBeam(UVBase):
 
             if isinstance(feed_pol, (list, tuple)):
                 if not len(feed_pol) == len(filename):
-                    raise(ValueError, 'If feed_pol and filename are both '
-                                      'lists they need to be the same length')
+                    raise ValueError('If feed_pol and filename are both '
+                                     'lists they need to be the same length')
                 pol = feed_pol[0]
                 if rotate_pol is None:
                     rotate_pol = False
@@ -1645,9 +1651,9 @@ class UVBeam(UVBase):
             del(beam2)
         else:
             if isinstance(frequency, (list, tuple)):
-                raise(ValueError, 'Too many frequencies specified')
+                raise ValueError('Too many frequencies specified')
             if isinstance(feed_pol, (list, tuple)):
-                raise(ValueError, 'Too many feed_pols specified')
+                raise ValueError('Too many feed_pols specified')
             if rotate_pol is None:
                 rotate_pol = True
             cst_beam_obj = cst_beam.CSTBeam()

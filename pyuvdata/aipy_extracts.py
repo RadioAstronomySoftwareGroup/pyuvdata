@@ -110,7 +110,7 @@ def parse_ants(ant_str, nants):
 
             if m[2] is None:
                 ais = [m[8]]
-                ajs = range(nants)
+                ajs = list(range(nants))
             else:
                 if m[3] is None:
                     ais = [m[2]]

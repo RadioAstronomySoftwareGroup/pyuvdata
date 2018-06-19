@@ -1,4 +1,10 @@
-"""Tests for MS object."""
+# -*- coding: utf-8 -*-
+
+"""Tests for MS object.
+
+"""
+from __future__ import absolute_import, division, print_function
+
 import nose.tools as nt
 import os
 import copy
@@ -26,7 +32,7 @@ def test_readNRAO():
 
     UV.read_ms(testfile)
     nt.assert_equal(expected_extra_keywords.sort(),
-                    UV.extra_keywords.keys().sort())
+                    list(UV.extra_keywords.keys()).sort())
     del(UV)
 
 

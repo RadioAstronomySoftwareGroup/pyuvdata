@@ -1,7 +1,7 @@
 #!/usr/bin/env python2.7
 # -*- mode: python; coding: utf-8 -*-
 
-from __future__ import print_function, division, absolute_import
+from __future__ import absolute_import, division, print_function
 
 from memory_profiler import profile
 import numpy as np
@@ -60,7 +60,7 @@ def read_uvfits():
     hdu_list = fits.open(filename, memmap=True)
     vis_hdu = hdu_list[0]
     Nfreqs = vis_hdu.header['NAXIS4']
-    freq_index = int(Nfreqs / 2)
+    freq_index = int(Nfreqs // 2)
 
     if vis_hdu.header['NAXIS'] == 7:
 

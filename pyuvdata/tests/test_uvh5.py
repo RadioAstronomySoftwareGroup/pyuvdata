@@ -1,4 +1,10 @@
-"""Tests for HDF5 object"""
+# -*- coding: utf-8 -*-
+
+"""Tests for HDF5 object
+
+"""
+from __future__ import absolute_import, division, print_function
+
 import os
 import copy
 import numpy as np

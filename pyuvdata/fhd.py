@@ -1,11 +1,17 @@
-"""Class for reading FHD save files."""
+# -*- coding: utf-8 -*-
+
+"""Class for reading FHD save files.
+
+"""
+from __future__ import absolute_import, division, print_function
+
 from astropy import constants as const
 from scipy.io.idl import readsav
 from itertools import islice
 import numpy as np
 import warnings
-from uvdata import UVData
-import utils as uvutils
+from .uvdata import UVData
+from . import utils as uvutils
 
 
 def get_fhd_history(settings_file, return_user=False):
@@ -97,11 +103,11 @@ class FHD(UVData):
                 continue
 
         if len(datafiles) < 1:
-            raise StandardError('No data files included in file list')
+            raise Exception('No data files included in file list')
         if params_file is None:
-            raise StandardError('No params file included in file list')
+            raise Exception('No params file included in file list')
         if flags_file is None:
-            raise StandardError('No flags file included in file list')
+            raise Exception('No flags file included in file list')
         if settings_file is None:
             warnings.warn('No settings file included in file list')
 
@@ -109,7 +115,7 @@ class FHD(UVData):
         # consistent with each other
 
         vis_data = {}
-        for pol, file in datafiles.iteritems():
+        for pol, file in datafiles.items():
             this_dict = readsav(file, python_dict=True)
             if use_model:
                 vis_data[pol] = this_dict['vis_model_ptr']
@@ -145,7 +151,7 @@ class FHD(UVData):
         self.Nbls = int(obs['NBASELINES'][0])
         self.Nblts = data_shape[0]
         self.Nfreqs = int(obs['N_FREQ'][0])
-        self.Npols = len(vis_data.keys())
+        self.Npols = len(list(vis_data.keys()))
         self.Nspws = 1
         self.spw_array = np.array([0])
         self.vis_units = 'JY'
@@ -164,7 +170,7 @@ class FHD(UVData):
                                        self.Npols), dtype=np.float_)
         self.flag_array = np.zeros((self.Nblts, self.Nspws, self.Nfreqs,
                                     self.Npols), dtype=np.bool_)
-        for pol, vis in vis_data.iteritems():
+        for pol, vis in vis_data.items():
             pol_i = pol_list.index(linear_pol_dict[pol])
             self.data_array[:, 0, :, pol_i] = vis
             self.flag_array[:, 0, :, pol_i] = vis_weights_data[pol] <= 0
@@ -285,7 +291,7 @@ class FHD(UVData):
 
         try:
             self.set_telescope_params()
-        except ValueError, ve:
+        except ValueError as ve:
             warnings.warn(str(ve))
 
         # check if object has all required uv_properties set

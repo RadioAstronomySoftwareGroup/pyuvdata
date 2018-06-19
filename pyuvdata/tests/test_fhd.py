@@ -1,4 +1,10 @@
-"""Tests for FHD object."""
+# -*- coding: utf-8 -*-
+
+"""Tests for FHD object.
+
+"""
+from __future__ import absolute_import, division, print_function
+
 import nose.tools as nt
 import os
 from pyuvdata import UVData
@@ -49,14 +55,14 @@ def test_ReadFHDWriteReadUVFits():
 def test_breakReadFHD():
     """Try various cases of incomplete file lists."""
     fhd_uv = UVData()
-    nt.assert_raises(StandardError, fhd_uv.read_fhd, testfiles[1:])  # Missing flags
+    nt.assert_raises(Exception, fhd_uv.read_fhd, testfiles[1:])  # Missing flags
     del(fhd_uv)
     fhd_uv = UVData()
     subfiles = [item for sublist in [testfiles[0:2], testfiles[3:]] for item in sublist]
-    nt.assert_raises(StandardError, fhd_uv.read_fhd, subfiles)  # Missing params
+    nt.assert_raises(Exception, fhd_uv.read_fhd, subfiles)  # Missing params
     del(fhd_uv)
     fhd_uv = UVData()
-    nt.assert_raises(StandardError, fhd_uv.read_fhd, ['foo'])  # No data files
+    nt.assert_raises(Exception, fhd_uv.read_fhd, ['foo'])  # No data files
     del(fhd_uv)
     fhd_uv = UVData()
     if not uvtest.scipy_warnings:

@@ -1,8 +1,23 @@
-"""Telescope information and known telescope list."""
+# -*- coding: utf-8 -*-
+
+"""Telescope information and known telescope list.
+
+"""
+from __future__ import absolute_import, division, print_function
+
+# Note that if we don't set __all__, the __init__ module's asterisk import
+# includes the `telescopes` dict which then makes it impossible (or at least
+# incredibly unnatural) to reference this module!
+__all__ = [
+    'Telescope',
+    'get_telescope',
+    'known_telescopes',
+]
+
 import numpy as np
 from astropy.coordinates import Angle
-import uvbase
-import parameter as uvp
+from . import uvbase
+from . import parameter as uvp
 
 # center_xyz is the location of the telescope in ITRF (earth-centered frame)
 telescopes = {'PAPER': {'center_xyz': None,
@@ -65,7 +80,7 @@ class Telescope(uvbase.UVBase):
 
 def known_telescopes():
     """Get list of known telescopes."""
-    return telescopes.keys()
+    return list(telescopes.keys())
 
 
 def get_telescope(telescope_name):

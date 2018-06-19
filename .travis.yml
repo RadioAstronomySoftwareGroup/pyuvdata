@@ -4,6 +4,8 @@ language: python
 python:
   # We don't actually use the Travis Python, but this keeps it organized.
   - "2.7"
+  - "3.6"
+
 install:
   # ensure that we have the full tag information available for version.py
   - git fetch --unshallow --tags
@@ -26,7 +28,7 @@ install:
   - conda info -a
 
   # create environment and install dependencies
-  - conda install numpy scipy astropy nose pip h5py
+  - conda install numpy scipy astropy nose pip h5py six
   - conda install -c conda-forge healpy pyephem python-casacore pycodestyle coveralls
   - conda list
 script:

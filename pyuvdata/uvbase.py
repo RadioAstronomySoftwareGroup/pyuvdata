@@ -1,12 +1,16 @@
+# -*- coding: utf-8 -*-
+
 """
 Base class for objects with UVParameter attributes.
 
 Subclassed by UVData and Telescope.
 """
+from __future__ import absolute_import, division, print_function
+
 import numpy as np
 import warnings
-import parameter as uvp
-import version as uvversion
+from . import parameter as uvp
+from . import version as uvversion
 
 
 def _warning(msg, *a):

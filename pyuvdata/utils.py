@@ -1,6 +1,13 @@
-"""Commonly used utility functions."""
+# -*- coding: utf-8 -*-
+
+"""Commonly used utility functions.
+
+"""
+from __future__ import absolute_import, division, print_function
+
 import numpy as np
 import collections
+import six
 import warnings
 
 # parameters for transforming between xyz & lat/lon/alt
@@ -285,7 +292,7 @@ def fits_gethduaxis(HDU, axis, strict_fits=True):
         Xi0 = HDU.header['CRPIX' + ax] - 1
     except(KeyError):
         if not strict_fits:
-            import calfits
+            from . import calfits
             calfits._warn_oldcalfits('This file')
             Xi0 = 0
         else:
@@ -351,7 +358,7 @@ def polnum2str(num):
         String corresponding to string
     """
     str_list = ['YX', 'XY', 'YY', 'XX', 'LR', 'RL', 'LL', 'RR', '', 'pI', 'pQ', 'pU', 'pV']
-    if isinstance(num, (int, long, np.int32, np.int64)):
+    if isinstance(num, six.integer_types + (np.int32, np.int64)):
         out = str_list[num + 8]
     elif isinstance(num, collections.Iterable):
             out = [str_list[i + 8] for i in num]
@@ -394,7 +401,7 @@ def jnum2str(jnum):
         String corresponding to string
     """
     str_list = ['jyx', 'jxy', 'jyy', 'jxx', 'jlr', 'jrl', 'jll', 'jrr']
-    if isinstance(jnum, (int, long, np.int32, np.int64)):
+    if isinstance(jnum, six.integer_types + (np.int32, np.int64)):
         out = str_list[jnum + 8]
     elif isinstance(jnum, collections.Iterable):
             out = [str_list[i + 8] for i in jnum]

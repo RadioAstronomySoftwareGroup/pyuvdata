@@ -1,9 +1,13 @@
+# -*- coding: utf-8 -*-
+
+from __future__ import absolute_import, division, print_function
+
 import numpy as np
 import warnings
 import copy
-from uvbase import UVBase
-import parameter as uvp
-import utils as uvutils
+from .uvbase import UVBase
+from . import parameter as uvp
+from . import utils as uvutils
 
 
 class UVCal(UVBase):
@@ -303,7 +307,7 @@ class UVCal(UVBase):
                               'to a calfits file format.'.format(key=key))
 
         # issue warning if extra_keywords values are lists, arrays or dicts
-        for key, value in self.extra_keywords.iteritems():
+        for key, value in self.extra_keywords.items():
             if isinstance(value, (list, dict, np.ndarray)):
                 warnings.warn('{key} in extra_keywords is a list, array or dict, '
                               'which will raise an error when writing calfits '
@@ -629,7 +633,7 @@ class UVCal(UVBase):
                 self.check(check_extra=check_extra,
                            run_check_acceptability=run_check_acceptability)
         else:
-            raise(ValueError, 'cal_type is unknown, cannot convert to gain')
+            raise ValueError('cal_type is unknown, cannot convert to gain')
 
     def _convert_from_filetype(self, other):
         for p in other:
@@ -638,7 +642,7 @@ class UVCal(UVBase):
 
     def _convert_to_filetype(self, filetype):
         if filetype is 'calfits':
-            import calfits
+            from . import calfits
             other_obj = calfits.CALFITS()
         else:
             raise ValueError('filetype must be calfits.')
@@ -669,7 +673,7 @@ class UVCal(UVBase):
                 calfits files that were missing many CRPIX and CRVAL keywords.
                 Default is False.
         """
-        import calfits
+        from . import calfits
         if isinstance(filename, (list, tuple)):
             self.read_calfits(filename[0], run_check=run_check,
                               check_extra=check_extra,
@@ -738,7 +742,7 @@ class UVCal(UVBase):
             run_check_acceptability: Option to check acceptable range of the values of
                 parameters after reading in the file. Default is True.
         """
-        import fhd_cal
+        from . import fhd_cal
         if isinstance(cal_file, (list, tuple)):
             if isinstance(obs_file, (list, tuple)):
                 if len(obs_file) != len(cal_file):
@@ -810,7 +814,7 @@ class UVCal(UVBase):
         # Check that both objects are UVCal and valid
         this.check(check_extra=check_extra, run_check_acceptability=run_check_acceptability)
         if not isinstance(other, this.__class__):
-            raise(ValueError('Only UVCal objects can be added to a UVCal object'))
+            raise ValueError('Only UVCal objects can be added to a UVCal object')
         other.check(check_extra=check_extra, run_check_acceptability=run_check_acceptability)
 
         # Check objects are compatible
@@ -827,7 +831,7 @@ class UVCal(UVBase):
             if getattr(this, a) != getattr(other, a):
                 msg = 'UVParameter ' + \
                     a[1:] + ' does not match. Cannot combine objects.'
-                raise(ValueError(msg))
+                raise ValueError(msg)
         for a in warning_params:
             if getattr(this, a) != getattr(other, a):
                 msg = 'UVParameter ' + \
@@ -855,8 +859,8 @@ class UVCal(UVBase):
             if len(both_times) > 0:
                 if len(both_freq) > 0:
                     if len(both_ants) > 0:
-                        raise(ValueError('These objects have overlapping data and'
-                                         ' cannot be combined.'))
+                        raise ValueError('These objects have overlapping data and'
+                                         ' cannot be combined.')
 
         temp = np.nonzero(~np.in1d(other.ant_array, this.ant_array))[0]
         if len(temp) > 0:

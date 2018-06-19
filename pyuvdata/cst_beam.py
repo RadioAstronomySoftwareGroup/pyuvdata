@@ -1,10 +1,14 @@
+# -*- coding: utf-8 -*-
+
+from __future__ import absolute_import, division, print_function
+
 import os
 import sys
 import re
 import numpy as np
 import warnings
-from uvbeam import UVBeam
-import utils as uvutils
+from .uvbeam import UVBeam
+from . import utils as uvutils
 
 
 class CSTBeam(UVBeam):

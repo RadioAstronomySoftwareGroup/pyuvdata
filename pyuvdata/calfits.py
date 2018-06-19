@@ -1,9 +1,13 @@
+# -*- coding: utf-8 -*-
+
+from __future__ import absolute_import, division, print_function
+
 import astropy
 from astropy.io import fits
 import numpy as np
 import warnings
-from uvcal import UVCal
-import utils as uvutils
+from .uvcal import UVCal
+from . import utils as uvutils
 
 
 def _warn_oldcalfits(filename):
@@ -189,7 +193,7 @@ class CALFITS(UVCal):
         prihdr['CDELT6'] = -1
 
         # end standard keywords; begin user-defined keywords
-        for key, value in self.extra_keywords.iteritems():
+        for key, value in self.extra_keywords.items():
             # header keywords have to be 8 characters or less
             if len(str(key)) > 8:
                 warnings.warn('key {key} in extra_keywords is longer than 8 '
@@ -371,9 +375,9 @@ class CALFITS(UVCal):
         anthdu = F[hdunames['ANTENNAS']]
         self.Nants_telescope = anthdu.header['NAXIS2']
         antdata = anthdu.data
-        self.antenna_names = np.array(map(str, antdata['ANTNAME']))
-        self.antenna_numbers = np.array(map(int, antdata['ANTINDEX']))
-        self.ant_array = np.array(map(int, antdata['ANTARR']))
+        self.antenna_names = np.array(list(map(str, antdata['ANTNAME'])))
+        self.antenna_numbers = np.array(list(map(int, antdata['ANTINDEX'])))
+        self.ant_array = np.array(list(map(int, antdata['ANTARR'])))
         if np.min(self.ant_array) < 0:
             # ant_array was shorter than the other columns, so it was padded with -1s.
             # Remove the padded entries.
@@ -392,15 +396,15 @@ class CALFITS(UVCal):
 
         while 'HISTORY' in hdr.keys():
             hdr.remove('HISTORY')
-        self.time_range = map(float, hdr.pop('TMERANGE').split(','))
+        self.time_range = list(map(float, hdr.pop('TMERANGE').split(',')))
         self.gain_convention = hdr.pop('GNCONVEN')
         self.x_orientation = hdr.pop('XORIENT')
         self.cal_type = hdr.pop('CALTYPE')
         if self.cal_type == 'delay':
-            self.freq_range = map(float, hdr.pop('FRQRANGE').split(','))
+            self.freq_range = list(map(float, hdr.pop('FRQRANGE').split(',')))
         else:
             if 'FRQRANGE' in hdr:
-                self.freq_range = map(float, hdr.pop('FRQRANGE').split(','))
+                self.freq_range = list(map(float, hdr.pop('FRQRANGE').split(',')))
 
         if 'CALSTYLE' not in hdr:
             _warn_oldstyle(filename)

@@ -1,4 +1,10 @@
-"""Tests for BeamFits object."""
+# -*- coding: utf-8 -*-
+
+"""Tests for BeamFits object.
+
+"""
+from __future__ import absolute_import, division, print_function
+
 import nose.tools as nt
 import os
 import numpy as np
@@ -223,7 +229,7 @@ def test_errors():
     for i, hdr_dict in enumerate(header_vals_to_change):
         beam_in.write_beamfits(write_file, clobber=True)
 
-        keyword = hdr_dict.keys()[0]
+        keyword = list(hdr_dict.keys())[0]
         new_val = hdr_dict[keyword]
         F = fits.open(write_file)
         data = F[0].data
@@ -265,7 +271,7 @@ def test_errors():
     for i, hdr_dict in enumerate(header_vals_to_change):
         beam_in.write_beamfits(write_file, clobber=True)
 
-        keyword = hdr_dict.keys()[0]
+        keyword = list(hdr_dict.keys())[0]
         new_val = hdr_dict[keyword]
         F = fits.open(write_file)
         data = F[0].data
@@ -319,7 +325,7 @@ def test_healpix_errors():
     for i, hdr_dict in enumerate(header_vals_to_change):
         beam_in.write_beamfits(write_file, clobber=True)
 
-        keyword = hdr_dict.keys()[0]
+        keyword = list(hdr_dict.keys())[0]
         new_val = hdr_dict[keyword]
         F = fits.open(write_file)
         data = F[0].data
@@ -365,7 +371,7 @@ def test_healpix_errors():
     for i, hdr_dict in enumerate(header_vals_to_change):
         beam_in.write_beamfits(write_file, clobber=True)
 
-        keyword = hdr_dict.keys()[0]
+        keyword = list(hdr_dict.keys())[0]
         new_val = hdr_dict[keyword]
         F = fits.open(write_file)
         data = F[0].data
@@ -426,7 +432,7 @@ def test_casa_beam():
                                'DATE-MAP', 'DATE', 'EQUINOX', 'DATE-OBS',
                                'COMMENT']
     nt.assert_equal(expected_extra_keywords.sort(),
-                    beam_in.extra_keywords.keys().sort())
+                    list(beam_in.extra_keywords.keys()).sort())
 
     beam_in.write_beamfits(write_file, clobber=True)
     beam_out.read_beamfits(write_file)

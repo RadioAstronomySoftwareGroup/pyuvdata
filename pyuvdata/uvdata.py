@@ -1,14 +1,21 @@
-"""Primary container for radio interferometer datasets."""
+# -*- coding: utf-8 -*-
+
+"""Primary container for radio interferometer datasets.
+
+"""
+from __future__ import absolute_import, division, print_function
+
 from astropy import constants as const
 from astropy.time import Time
 import os
 import numpy as np
+import six
 import warnings
 import ephem
-from uvbase import UVBase
-import parameter as uvp
-import telescopes as uvtel
-import utils as uvutils
+from .uvbase import UVBase
+from . import parameter as uvp
+from . import telescopes as uvtel
+from . import utils as uvutils
 import copy
 import collections
 import re
@@ -375,7 +382,7 @@ class UVData(UVBase):
                               'to uvfits or miriad file formats.'.format(key=key))
 
         # issue warning if extra_keywords values are lists, arrays or dicts
-        for key, value in self.extra_keywords.iteritems():
+        for key, value in self.extra_keywords.items():
             if isinstance(value, (list, dict, np.ndarray)):
                 warnings.warn('{key} in extra_keywords is a list, array or dict, '
                               'which will raise an error when writing uvfits or '
@@ -479,7 +486,7 @@ class UVData(UVBase):
             tuple with the two antenna numbers corresponding to the baseline.
         """
         if self.Nants_telescope > 2048:
-            raise StandardError('error Nants={Nants}>2048 not '
+            raise Exception('error Nants={Nants}>2048 not '
                                 'supported'.format(Nants=self.Nants_telescope))
         if np.min(baseline) > 2**16:
             ant2 = (baseline - 2**16) % 2048 - 1
@@ -505,7 +512,7 @@ class UVData(UVBase):
         """
         ant1, ant2 = np.int64((ant1, ant2))
         if self.Nants_telescope > 2048:
-            raise StandardError('cannot convert ant1, ant2 to a baseline index '
+            raise Exception('cannot convert ant1, ant2 to a baseline index '
                                 'with Nants={Nants}>2048.'
                                 .format(Nants=self.Nants_telescope))
         if attempt256:
@@ -540,7 +547,7 @@ class UVData(UVBase):
             pol_inds = np.argsort(pol_inds)
         else:
             warnings.warn('Invalid order supplied. No sorting performed.')
-            pol_inds = range(self.Npols)
+            pol_inds = list(range(self.Npols))
         # Generate a map from original indices to new indices
         if not np.array_equal(pol_inds, self.Npols):
             self.reorder_pols(order=pol_inds)
@@ -775,7 +782,7 @@ class UVData(UVBase):
         # Check that both objects are UVData and valid
         this.check(check_extra=check_extra, run_check_acceptability=run_check_acceptability)
         if not isinstance(other, this.__class__):
-            raise(ValueError('Only UVData objects can be added to a UVData object'))
+            raise ValueError('Only UVData objects can be added to a UVData object')
         other.check(check_extra=check_extra, run_check_acceptability=run_check_acceptability)
 
         # Check objects are compatible
@@ -792,7 +799,7 @@ class UVData(UVBase):
             if getattr(this, a) != getattr(other, a):
                 msg = 'UVParameter ' + \
                     a[1:] + ' does not match. Cannot combine objects.'
-                raise(ValueError(msg))
+                raise ValueError(msg)
 
         # Build up history string
         history_update_string = ' Combined data along '
@@ -817,8 +824,8 @@ class UVData(UVBase):
         if len(both_pol) > 0:
             if len(both_freq) > 0:
                 if len(both_blts) > 0:
-                    raise(ValueError('These objects have overlapping data and'
-                                     ' cannot be combined.'))
+                    raise ValueError('These objects have overlapping data and'
+                                     ' cannot be combined.')
 
         temp = np.nonzero(~np.in1d(other_blts, this_blts))[0]
         if len(temp) > 0:
@@ -1054,8 +1061,8 @@ class UVData(UVBase):
             if not all(isinstance(item, tuple) for item in ant_pairs_nums):
                 raise ValueError(
                     'ant_pairs_nums must be a list of tuples of antenna numbers.')
-            if not all([isinstance(item[0], (int, long, np.integer)) for item in ant_pairs_nums]
-                       + [isinstance(item[1], (int, long, np.integer)) for item in ant_pairs_nums]):
+            if not all([isinstance(item[0], six.integer_types + (np.integer,)) for item in ant_pairs_nums]
+                       + [isinstance(item[1], six.integer_types + (np.integer,)) for item in ant_pairs_nums]):
                 raise ValueError(
                     'ant_pairs_nums must be a list of tuples of antenna numbers.')
             if n_selects > 0:
@@ -1337,16 +1344,16 @@ class UVData(UVBase):
 
     def _convert_to_filetype(self, filetype):
         if filetype is 'uvfits':
-            import uvfits
+            from . import uvfits
             other_obj = uvfits.UVFITS()
         elif filetype is 'fhd':
-            import fhd
+            from . import fhd
             other_obj = fhd.FHD()
         elif filetype is 'miriad':
-            import miriad
+            from . import miriad
             other_obj = miriad.Miriad()
         elif filetype is 'uvh5':
-            import uvh5
+            from . import uvh5
             other_obj = uvh5.UVH5()
         else:
             raise ValueError('filetype must be uvfits, miriad, fhd, or uvh5')
@@ -1416,7 +1423,7 @@ class UVData(UVBase):
                 parameters after reading in the file. Default is True.
                 Ignored if read_data is False.
         """
-        import uvfits
+        from . import uvfits
         if isinstance(filename, (list, tuple)):
             if not read_data:
                 raise ValueError('read_data cannot be False for a list of uvfits files')
@@ -1462,7 +1469,7 @@ class UVData(UVBase):
         Args:
             filename: The uvfits file to read from.
         """
-        import uvfits
+        from . import uvfits
         if isinstance(filename, (list, tuple)):
             raise ValueError('A list of files cannot be used when just reading metadata')
 
@@ -1520,7 +1527,7 @@ class UVData(UVBase):
             run_check_acceptability: Option to check acceptable range of the values of
                 parameters after reading in the file. Default is True.
         """
-        import uvfits
+        from . import uvfits
         if isinstance(filename, (list, tuple)):
             raise ValueError('A list of files cannot be used when just reading data')
 
@@ -1591,7 +1598,7 @@ class UVData(UVBase):
             from nose.plugins.skip import SkipTest
             raise SkipTest('casacore not detected. casacore'
                            ' must be installed for measurement set functionality')
-        import ms
+        from . import ms
 
         if isinstance(filepath, (list, tuple)):
             self.read_ms(filepath[0], run_check=run_check, check_extra=check_extra,
@@ -1631,7 +1638,7 @@ class UVData(UVBase):
             run_check_acceptability: Option to check acceptable range of the values of
                 parameters after reading in the file. Default is True.
         """
-        import fhd
+        from . import fhd
         if isinstance(filelist[0], (list, tuple)):
             self.read_fhd(filelist[0], use_model=use_model, run_check=run_check,
                           check_extra=check_extra,
@@ -1680,7 +1687,7 @@ class UVData(UVBase):
             time_range: len-2 list containing min and max range of times (Julian Date) to read-in.
                 Ex: [2458115.20, 2458115.40]
         """
-        import miriad
+        from . import miriad
         if isinstance(filepath, (list, tuple)):
             self.read_miriad(filepath[0], correct_lat_lon=correct_lat_lon,
                              run_check=run_check, check_extra=check_extra,
@@ -1751,7 +1758,7 @@ class UVData(UVBase):
         Returns:
             None
         """
-        import uvh5
+        from . import uvh5
         if isinstance(filename, (list, tuple)):
             self.read_uvh5(filename[0], run_check=run_check, check_extra=check_extra,
                            run_check_acceptability=run_check_acceptability)
@@ -1847,7 +1854,7 @@ class UVData(UVBase):
         if pick_data_ants:
             data_ants = np.unique(np.concatenate([self.ant_1_array, self.ant_2_array]))
             telescope_ants = self.antenna_numbers
-            select = map(lambda x: x in data_ants, telescope_ants)
+            select = [x in data_ants for x in telescope_ants]
             antpos = antpos[select, :]
             ants = telescope_ants[select]
 
@@ -2365,15 +2372,15 @@ class UVData(UVBase):
             polarizations.sort(reverse=True)
 
         if print_toggle:
-            print '\nParsed antenna pairs:'
+            print('\nParsed antenna pairs:')
             if ant_pairs_nums is not None:
                 for pair in ant_pairs_nums:
-                    print pair
+                    print(pair)
 
-            print '\nParsed polarizations:'
+            print('\nParsed polarizations:')
             if polarizations is not None:
                 for pol in polarizations:
-                    print uvutils.polnum2str(pol)
+                    print(uvutils.polnum2str(pol))
 
         if len(warned_ants) > 0:
             warnings.warn('Warning: Antenna number {a} passed, but not present '

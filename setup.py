@@ -1,3 +1,7 @@
+# -*- coding: utf-8 -*-
+
+from __future__ import absolute_import, division, print_function
+
 from setuptools import setup, Extension
 import glob
 import os
@@ -50,8 +54,8 @@ setup_args = {
     'scripts': glob.glob('scripts/*'),
     'version': version.version,
     'include_package_data': True,
-    'setup_requires': ['numpy>=1.10'],
-    'install_requires': ['numpy>=1.10', 'scipy', 'astropy>=1.2', 'pyephem'],
+    'setup_requires': ['numpy>=1.10', 'six>=1.10'],
+    'install_requires': ['numpy>=1.10', 'six>=1.10', 'scipy', 'astropy>=1.2', 'pyephem'],
     'classifiers': ['Development Status :: 5 - Production/Stable',
                     'Intended Audience :: Science/Research',
                     'License :: OSI Approved :: BSD License',
@@ -61,4 +65,4 @@ setup_args = {
 }
 
 if __name__ == '__main__':
-    apply(setup, (), setup_args)
+    setup(**setup_args)
