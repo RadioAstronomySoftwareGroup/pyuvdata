@@ -556,8 +556,8 @@ b) Add times.
 
   # Downselect times to recombine
   >>> times = np.unique(uv1.time_array)
-  >>> uv1.select(times=times[0:len(times) / 2])
-  >>> uv2.select(times=times[len(times) / 2:])
+  >>> uv1.select(times=times[0:len(times) // 2])
+  >>> uv2.select(times=times[len(times) // 2:])
   >>> uv3 = uv1 + uv2
   >>> print(uv1.Ntimes, uv2.Ntimes, uv3.Ntimes)
   (7, 8, 15)
@@ -577,14 +577,14 @@ directly without creating a third uvdata object.
   >>> filename = 'pyuvdata/data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
   >>> uv1.read_uvfits(filename)
   >>> uv2 = copy.deepcopy(uv1)
-  >>> uv1.select(times=times[0:len(times) / 2])
-  >>> uv2.select(times=times[len(times) / 2:])
+  >>> uv1.select(times=times[0:len(times) // 2])
+  >>> uv2.select(times=times[len(times) // 2:])
   >>> uv1.__add__(uv2, inplace=True)
 
   >>> uv1.read_uvfits(filename)
   >>> uv2 = copy.deepcopy(uv1)
-  >>> uv1.select(times=times[0:len(times) / 2])
-  >>> uv2.select(times=times[len(times) / 2:])
+  >>> uv1.select(times=times[0:len(times) // 2])
+  >>> uv2.select(times=times[len(times) // 2:])
   >>> uv1 += uv2
 
 d) Reading multiple files.
