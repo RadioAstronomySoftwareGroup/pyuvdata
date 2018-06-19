@@ -1,4 +1,10 @@
-"""Tests for telescope objects and functions."""
+# -*- coding: utf-8 -*-
+
+"""Tests for telescope objects and functions.
+
+"""
+from __future__ import absolute_import, division, print_function
+
 import numpy as np
 import nose.tools as nt
 import pyuvdata

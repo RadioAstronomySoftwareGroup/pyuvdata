@@ -1,4 +1,10 @@
-"""Commonly used utility functions."""
+# -*- coding: utf-8 -*-
+
+"""Commonly used utility functions.
+
+"""
+from __future__ import absolute_import, division, print_function
+
 import numpy as np
 import collections
 import six

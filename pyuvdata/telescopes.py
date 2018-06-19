@@ -1,4 +1,10 @@
-"""Telescope information and known telescope list."""
+# -*- coding: utf-8 -*-
+
+"""Telescope information and known telescope list.
+
+"""
+from __future__ import absolute_import, division, print_function
+
 import numpy as np
 from astropy.coordinates import Angle
 from . import uvbase

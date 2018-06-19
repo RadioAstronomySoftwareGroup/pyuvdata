@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 """
 Define UVParameters: data and metadata objects for interferometric data sets.
 
@@ -5,7 +7,10 @@ UVParameters are objects to hold specific data and metadata associated with
 interferometric data sets. They are used as attributes for classes based on
 UVBase. This module also includes specialized sublasses for particular types
 of metadata.
+
 """
+from __future__ import absolute_import, division, print_function
+
 import numpy as np
 import six
 from . import utils
