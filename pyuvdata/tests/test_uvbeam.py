@@ -908,10 +908,10 @@ def test_add():
 
     # Add multiple axes
     beam_ref = copy.deepcopy(power_beam)
-    beam1 = power_beam.select(axis1_inds=np.arange(0, power_beam.Naxes1 / 2),
+    beam1 = power_beam.select(axis1_inds=np.arange(0, power_beam.Naxes1 // 2),
                               polarizations=power_beam.polarization_array[0],
                               inplace=False)
-    beam2 = power_beam.select(axis1_inds=np.arange(power_beam.Naxes1 / 2,
+    beam2 = power_beam.select(axis1_inds=np.arange(power_beam.Naxes1 // 2,
                                                    power_beam.Naxes1),
                               polarizations=power_beam.polarization_array[1],
                               inplace=False)
@@ -923,19 +923,19 @@ def test_add():
                                            'image, polarization axis using pyuvdata.',
                                            beam1.history))
     # Zero out missing data in reference object
-    beam_ref.data_array[:, :, 0, :, :, power_beam.Naxes1 / 2:] = 0.0
-    beam_ref.data_array[:, :, 1, :, :, :power_beam.Naxes1 / 2] = 0.0
+    beam_ref.data_array[:, :, 0, :, :, power_beam.Naxes1 // 2:] = 0.0
+    beam_ref.data_array[:, :, 1, :, :, :power_beam.Naxes1 // 2] = 0.0
     beam1.history = power_beam.history
     nt.assert_equal(beam1, beam_ref)
 
     # Another combo with efield
     beam_ref = copy.deepcopy(efield_beam)
-    beam1 = efield_beam.select(axis1_inds=np.arange(0, efield_beam.Naxes1 / 2),
-                               axis2_inds=np.arange(0, efield_beam.Naxes2 / 2),
+    beam1 = efield_beam.select(axis1_inds=np.arange(0, efield_beam.Naxes1 // 2),
+                               axis2_inds=np.arange(0, efield_beam.Naxes2 // 2),
                                inplace=False)
-    beam2 = efield_beam.select(axis1_inds=np.arange(efield_beam.Naxes1 / 2,
+    beam2 = efield_beam.select(axis1_inds=np.arange(efield_beam.Naxes1 // 2,
                                                     efield_beam.Naxes1),
-                               axis2_inds=np.arange(efield_beam.Naxes2 / 2,
+                               axis2_inds=np.arange(efield_beam.Naxes2 // 2,
                                                     efield_beam.Naxes2),
                                inplace=False)
     beam1 += beam2
@@ -948,15 +948,15 @@ def test_add():
                                            beam1.history))
 
     # Zero out missing data in reference object
-    beam_ref.data_array[:, :, :, :, :efield_beam.Naxes2 / 2,
-                        efield_beam.Naxes1 / 2:] = 0.0
-    beam_ref.data_array[:, :, :, :, efield_beam.Naxes2 / 2:,
-                        :efield_beam.Naxes1 / 2] = 0.0
+    beam_ref.data_array[:, :, :, :, :efield_beam.Naxes2 // 2,
+                        efield_beam.Naxes1 // 2:] = 0.0
+    beam_ref.data_array[:, :, :, :, efield_beam.Naxes2 // 2:,
+                        :efield_beam.Naxes1 // 2] = 0.0
 
-    beam_ref.basis_vector_array[:, :, :efield_beam.Naxes2 / 2,
-                                efield_beam.Naxes1 / 2:] = 0.0
-    beam_ref.basis_vector_array[:, :, efield_beam.Naxes2 / 2:,
-                                :efield_beam.Naxes1 / 2] = 0.0
+    beam_ref.basis_vector_array[:, :, :efield_beam.Naxes2 // 2,
+                                efield_beam.Naxes1 // 2:] = 0.0
+    beam_ref.basis_vector_array[:, :, efield_beam.Naxes2 // 2:,
+                                :efield_beam.Naxes1 // 2] = 0.0
     beam1.history = efield_beam.history
     nt.assert_equal(beam1, beam_ref)
 
@@ -1194,10 +1194,10 @@ def test_healpix():
     # Test adding a different combo with healpix
     beam_ref = copy.deepcopy(power_beam_healpix)
     beam1 = power_beam_healpix.select(
-        pixels=power_beam_healpix.pixel_array[0:power_beam_healpix.Npixels / 2],
+        pixels=power_beam_healpix.pixel_array[0:power_beam_healpix.Npixels // 2],
         freq_chans=0, inplace=False)
     beam2 = power_beam_healpix.select(
-        pixels=power_beam_healpix.pixel_array[power_beam_healpix.Npixels / 2:],
+        pixels=power_beam_healpix.pixel_array[power_beam_healpix.Npixels // 2:],
         freq_chans=1, inplace=False)
     beam1 += beam2
     nt.assert_true(uvutils.check_histories(power_beam_healpix.history
@@ -1207,8 +1207,8 @@ def test_healpix():
                                            'frequency axis using pyuvdata.',
                                            beam1.history))
     # Zero out missing data in reference object
-    beam_ref.data_array[:, :, :, 0, power_beam_healpix.Npixels / 2:] = 0.0
-    beam_ref.data_array[:, :, :, 1, :power_beam_healpix.Npixels / 2] = 0.0
+    beam_ref.data_array[:, :, :, 0, power_beam_healpix.Npixels // 2:] = 0.0
+    beam_ref.data_array[:, :, :, 1, :power_beam_healpix.Npixels // 2] = 0.0
     beam1.history = power_beam_healpix.history
     nt.assert_equal(beam1, beam_ref)
 
@@ -1231,9 +1231,9 @@ def test_healpix():
     nt.assert_equal(beam1, beam_ref)
 
     # Add without inplace
-    beam1 = efield_beam.select(pixels=efield_beam.pixel_array[0:efield_beam.Npixels / 2],
+    beam1 = efield_beam.select(pixels=efield_beam.pixel_array[0:efield_beam.Npixels // 2],
                                inplace=False)
-    beam2 = efield_beam.select(pixels=efield_beam.pixel_array[efield_beam.Npixels / 2:],
+    beam2 = efield_beam.select(pixels=efield_beam.pixel_array[efield_beam.Npixels // 2:],
                                inplace=False)
     beam1 = beam1 + beam2
     nt.assert_true(uvutils.check_histories(efield_beam.history

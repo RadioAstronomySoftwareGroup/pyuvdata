@@ -909,8 +909,8 @@ def test_add():
     uv1 = copy.deepcopy(uv_full)
     uv2 = copy.deepcopy(uv_full)
     times = np.unique(uv_full.time_array)
-    uv1.select(times=times[0:len(times) / 2])
-    uv2.select(times=times[len(times) / 2:])
+    uv1.select(times=times[0:len(times) // 2])
+    uv2.select(times=times[len(times) // 2:])
     uv1 += uv2
     nt.assert_true(uvutils.check_histories(uv_full.history + '  Downselected to '
                                            'specific times using pyuvdata. '
@@ -976,9 +976,9 @@ def test_add():
     uv2 = copy.deepcopy(uv_full)
     uv_ref = copy.deepcopy(uv_full)
     times = np.unique(uv_full.time_array)
-    uv1.select(times=times[0:len(times) / 2],
+    uv1.select(times=times[0:len(times) // 2],
                polarizations=uv1.polarization_array[0:2])
-    uv2.select(times=times[len(times) / 2:],
+    uv2.select(times=times[len(times) // 2:],
                polarizations=uv2.polarization_array[2:4])
     uv1 += uv2
     nt.assert_true(uvutils.check_histories(uv_full.history + '  Downselected to '
@@ -987,9 +987,9 @@ def test_add():
                                            'baseline-time, polarization axis '
                                            'using pyuvdata.', uv1.history))
     blt_ind1 = np.array([ind for ind in range(uv_full.Nblts) if
-                         uv_full.time_array[ind] in times[0:len(times) / 2]])
+                         uv_full.time_array[ind] in times[0:len(times) // 2]])
     blt_ind2 = np.array([ind for ind in range(uv_full.Nblts) if
-                         uv_full.time_array[ind] in times[len(times) / 2:]])
+                         uv_full.time_array[ind] in times[len(times) // 2:]])
     # Zero out missing data in reference object
     uv_ref.data_array[blt_ind1, :, :, 2:] = 0.0
     uv_ref.nsample_array[blt_ind1, :, :, 2:] = 0.0
@@ -1005,8 +1005,8 @@ def test_add():
     uv2 = copy.deepcopy(uv_full)
     uv_ref = copy.deepcopy(uv_full)
     times = np.unique(uv_full.time_array)
-    uv1.select(times=times[0:len(times) / 2], freq_chans=np.arange(0, 32))
-    uv2.select(times=times[len(times) / 2:], freq_chans=np.arange(32, 64))
+    uv1.select(times=times[0:len(times) // 2], freq_chans=np.arange(0, 32))
+    uv2.select(times=times[len(times) // 2:], freq_chans=np.arange(32, 64))
     uv1 += uv2
     nt.assert_true(uvutils.check_histories(uv_full.history + '  Downselected to '
                                            'specific times, frequencies using '
@@ -1014,9 +1014,9 @@ def test_add():
                                            'baseline-time, frequency axis using '
                                            'pyuvdata.', uv1.history))
     blt_ind1 = np.array([ind for ind in range(uv_full.Nblts) if
-                         uv_full.time_array[ind] in times[0:len(times) / 2]])
+                         uv_full.time_array[ind] in times[0:len(times) // 2]])
     blt_ind2 = np.array([ind for ind in range(uv_full.Nblts) if
-                         uv_full.time_array[ind] in times[len(times) / 2:]])
+                         uv_full.time_array[ind] in times[len(times) // 2:]])
     # Zero out missing data in reference object
     uv_ref.data_array[blt_ind1, :, 32:, :] = 0.0
     uv_ref.nsample_array[blt_ind1, :, 32:, :] = 0.0
@@ -1031,8 +1031,8 @@ def test_add():
     uv1 = copy.deepcopy(uv_full)
     uv2 = copy.deepcopy(uv_full)
     times = np.unique(uv_full.time_array)
-    uv1.select(times=times[0:len(times) / 2])
-    uv2.select(times=times[len(times) / 2:])
+    uv1.select(times=times[0:len(times) // 2])
+    uv2.select(times=times[len(times) // 2:])
     uv1 = uv1 + uv2
     nt.assert_true(uvutils.check_histories(uv_full.history + '  Downselected to '
                                            'specific times using pyuvdata. '
@@ -1118,8 +1118,8 @@ def test_add_drift():
     uv1 = copy.deepcopy(uv_full)
     uv2 = copy.deepcopy(uv_full)
     times = np.unique(uv_full.time_array)
-    uv1.select(times=times[0:len(times) / 2])
-    uv2.select(times=times[len(times) / 2:])
+    uv1.select(times=times[0:len(times) // 2])
+    uv2.select(times=times[len(times) // 2:])
     uv1 += uv2
     nt.assert_true(uvutils.check_histories(uv_full.history + '  Downselected to '
                                            'specific times using pyuvdata. '
@@ -1150,9 +1150,9 @@ def test_add_drift():
     uv2 = copy.deepcopy(uv_full)
     uv_ref = copy.deepcopy(uv_full)
     times = np.unique(uv_full.time_array)
-    uv1.select(times=times[0:len(times) / 2],
+    uv1.select(times=times[0:len(times) // 2],
                polarizations=uv1.polarization_array[0:2])
-    uv2.select(times=times[len(times) / 2:],
+    uv2.select(times=times[len(times) // 2:],
                polarizations=uv2.polarization_array[2:4])
     uv1 += uv2
     nt.assert_true(uvutils.check_histories(uv_full.history + '  Downselected to '
@@ -1161,9 +1161,9 @@ def test_add_drift():
                                            'baseline-time, polarization '
                                            'axis using pyuvdata.', uv1.history))
     blt_ind1 = np.array([ind for ind in range(uv_full.Nblts) if
-                         uv_full.time_array[ind] in times[0:len(times) / 2]])
+                         uv_full.time_array[ind] in times[0:len(times) // 2]])
     blt_ind2 = np.array([ind for ind in range(uv_full.Nblts) if
-                         uv_full.time_array[ind] in times[len(times) / 2:]])
+                         uv_full.time_array[ind] in times[len(times) // 2:]])
     # Zero out missing data in reference object
     uv_ref.data_array[blt_ind1, :, :, 2:] = 0.0
     uv_ref.nsample_array[blt_ind1, :, :, 2:] = 0.0
@@ -1179,8 +1179,8 @@ def test_add_drift():
     uv2 = copy.deepcopy(uv_full)
     uv_ref = copy.deepcopy(uv_full)
     times = np.unique(uv_full.time_array)
-    uv1.select(times=times[0:len(times) / 2], freq_chans=np.arange(0, 32))
-    uv2.select(times=times[len(times) / 2:], freq_chans=np.arange(32, 64))
+    uv1.select(times=times[0:len(times) // 2], freq_chans=np.arange(0, 32))
+    uv2.select(times=times[len(times) // 2:], freq_chans=np.arange(32, 64))
     uv1 += uv2
     nt.assert_true(uvutils.check_histories(uv_full.history + '  Downselected to '
                                            'specific times, frequencies using '
@@ -1188,9 +1188,9 @@ def test_add_drift():
                                            'baseline-time, frequency '
                                            'axis using pyuvdata.', uv1.history))
     blt_ind1 = np.array([ind for ind in range(uv_full.Nblts) if
-                         uv_full.time_array[ind] in times[0:len(times) / 2]])
+                         uv_full.time_array[ind] in times[0:len(times) // 2]])
     blt_ind2 = np.array([ind for ind in range(uv_full.Nblts) if
-                         uv_full.time_array[ind] in times[len(times) / 2:]])
+                         uv_full.time_array[ind] in times[len(times) // 2:]])
     # Zero out missing data in reference object
     uv_ref.data_array[blt_ind1, :, 32:, :] = 0.0
     uv_ref.nsample_array[blt_ind1, :, 32:, :] = 0.0
@@ -1205,8 +1205,8 @@ def test_add_drift():
     uv1 = copy.deepcopy(uv_full)
     uv2 = copy.deepcopy(uv_full)
     times = np.unique(uv_full.time_array)
-    uv1.select(times=times[0:len(times) / 2])
-    uv2.select(times=times[len(times) / 2:])
+    uv1.select(times=times[0:len(times) // 2])
+    uv2.select(times=times[len(times) // 2:])
     uv1 = uv1 + uv2
     nt.assert_true(uvutils.check_histories(uv_full.history + '  Downselected to '
                                            'specific times using pyuvdata. '
