@@ -118,9 +118,9 @@ class TestUVBeamInit(object):
 
     def test_properties(self):
         "Test that properties can be get and set properly."
-        prop_dict = dict(zip(self.required_properties + self.extra_properties,
-                             self.required_parameters + self.extra_parameters))
-        for k, v in prop_dict.iteritems():
+        prop_dict = dict(list(zip(self.required_properties + self.extra_properties,
+                             self.required_parameters + self.extra_parameters)))
+        for k, v in prop_dict.items():
             rand_num = np.random.rand()
             setattr(self.beam_obj, k, rand_num)
             this_param = getattr(self.beam_obj, v)
@@ -1019,7 +1019,7 @@ def test_add():
                         'Naxes_vec': 3, 'nside': 16, 'ordering': 'nested'}
 
     beam1 = power_beam.select(freq_chans=0, inplace=False)
-    for param, value in params_to_change.iteritems():
+    for param, value in params_to_change.items():
         beam2 = power_beam.select(freq_chans=1, inplace=False)
         setattr(beam2, param, value)
         nt.assert_raises(ValueError, beam1.__iadd__, beam2)

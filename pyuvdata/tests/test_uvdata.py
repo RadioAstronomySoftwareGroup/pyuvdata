@@ -140,9 +140,9 @@ class TestUVDataInit(object):
 
     def test_properties(self):
         "Test that properties can be get and set properly."
-        prop_dict = dict(zip(self.required_properties + self.extra_properties,
-                             self.required_parameters + self.extra_parameters))
-        for k, v in prop_dict.iteritems():
+        prop_dict = dict(list(zip(self.required_properties + self.extra_properties,
+                             self.required_parameters + self.extra_parameters)))
+        for k, v in prop_dict.items():
             rand_num = np.random.rand()
             setattr(self.uv_object, k, rand_num)
             this_param = getattr(self.uv_object, v)
@@ -240,7 +240,7 @@ class TestBaselineAntnumMethods(object):
         """Test baseline to antnum conversion for 256 & larger conventions."""
         nt.assert_equal(self.uv_object.baseline_to_antnums(67585), (0, 0))
         nt.assert_raises(
-            StandardError, self.uv_object2.baseline_to_antnums, 67585)
+            Exception, self.uv_object2.baseline_to_antnums, 67585)
 
         ant_pairs = [(10, 20), (280, 310)]
         for pair in ant_pairs:
@@ -267,7 +267,7 @@ class TestBaselineAntnumMethods(object):
         uvtest.checkWarnings(self.uv_object.antnums_to_baseline, [257, 256],
                              {'attempt256': True}, message='found > 256 antennas')
         nt.assert_raises(
-            StandardError, self.uv_object2.antnums_to_baseline, 0, 0)
+            Exception, self.uv_object2.antnums_to_baseline, 0, 0)
 
 
 def test_known_telescopes():
@@ -456,7 +456,7 @@ def test_select_ant_pairs():
     first_ants = [6, 2, 7, 2, 21, 27, 8]
     second_ants = [0, 20, 8, 1, 2, 3, 22]
     new_unique_ants = np.unique(first_ants + second_ants)
-    ant_pairs_to_keep = zip(first_ants, second_ants)
+    ant_pairs_to_keep = list(zip(first_ants, second_ants))
     sorted_pairs_to_keep = [tuple(sorted(p)) for p in ant_pairs_to_keep]
 
     sorted_pairs_object = [tuple(sorted(p)) for p in zip(
@@ -488,9 +488,9 @@ def test_select_ant_pairs():
                                            uv_object2.history))
 
     # check that you can use numpy integers with out errors:
-    first_ants = map(np.int32, [6, 2, 7, 2, 21, 27, 8])
-    second_ants = map(np.int32, [0, 20, 8, 1, 2, 3, 22])
-    ant_pairs_to_keep = zip(first_ants, second_ants)
+    first_ants = list(map(np.int32, [6, 2, 7, 2, 21, 27, 8]))
+    second_ants = list(map(np.int32, [0, 20, 8, 1, 2, 3, 22]))
+    ant_pairs_to_keep = list(zip(first_ants, second_ants))
 
     uv_object2 = uv_object.select(ant_pairs_nums=ant_pairs_to_keep, inplace=False)
     sorted_pairs_object2 = [tuple(sorted(p)) for p in zip(
@@ -520,7 +520,7 @@ def test_select_ant_pairs():
 
     # check for errors associated with antenna pairs not included in data and bad inputs
     nt.assert_raises(ValueError, uv_object.select,
-                     ant_pairs_nums=zip(first_ants, second_ants) + [0, 6])
+                     ant_pairs_nums=list(zip(first_ants, second_ants)) + [0, 6])
     nt.assert_raises(ValueError, uv_object.select,
                      ant_pairs_nums=[(uv_object.antenna_names[0], uv_object.antenna_names[1])])
     nt.assert_raises(ValueError, uv_object.select, ant_pairs_nums=(5, 1))
@@ -878,7 +878,7 @@ def test_add():
     # Add baselines
     uv1 = copy.deepcopy(uv_full)
     uv2 = copy.deepcopy(uv_full)
-    ant_list = range(15)  # Roughly half the antennas in the data
+    ant_list = list(range(15))  # Roughly half the antennas in the data
     # All blts where ant_1 is in list
     ind1 = [i for i in range(uv1.Nblts) if uv1.ant_1_array[i] in ant_list]
     ind2 = [i for i in range(uv1.Nblts) if uv1.ant_1_array[i] not in ant_list]
@@ -942,9 +942,9 @@ def test_add():
                                            'pyuvdata. Combined data along '
                                            'baseline-time, polarization axis '
                                            'using pyuvdata.', uv1.history))
-    blt_ind1 = np.array([ind for ind in xrange(uv_full.Nblts) if
+    blt_ind1 = np.array([ind for ind in range(uv_full.Nblts) if
                          uv_full.time_array[ind] in times[0:len(times) / 2]])
-    blt_ind2 = np.array([ind for ind in xrange(uv_full.Nblts) if
+    blt_ind2 = np.array([ind for ind in range(uv_full.Nblts) if
                          uv_full.time_array[ind] in times[len(times) / 2:]])
     # Zero out missing data in reference object
     uv_ref.data_array[blt_ind1, :, :, 2:] = 0.0
@@ -969,9 +969,9 @@ def test_add():
                                            'pyuvdata. Combined data along '
                                            'baseline-time, frequency axis using '
                                            'pyuvdata.', uv1.history))
-    blt_ind1 = np.array([ind for ind in xrange(uv_full.Nblts) if
+    blt_ind1 = np.array([ind for ind in range(uv_full.Nblts) if
                          uv_full.time_array[ind] in times[0:len(times) / 2]])
-    blt_ind2 = np.array([ind for ind in xrange(uv_full.Nblts) if
+    blt_ind2 = np.array([ind for ind in range(uv_full.Nblts) if
                          uv_full.time_array[ind] in times[len(times) / 2:]])
     # Zero out missing data in reference object
     uv_ref.data_array[blt_ind1, :, 32:, :] = 0.0
@@ -1087,7 +1087,7 @@ def test_add_drift():
     # Add baselines
     uv1 = copy.deepcopy(uv_full)
     uv2 = copy.deepcopy(uv_full)
-    ant_list = range(15)  # Roughly half the antennas in the data
+    ant_list = list(range(15))  # Roughly half the antennas in the data
     # All blts where ant_1 is in list
     ind1 = [i for i in range(uv1.Nblts) if uv1.ant_1_array[i] in ant_list]
     ind2 = [i for i in range(uv1.Nblts) if uv1.ant_1_array[i] not in ant_list]
@@ -1116,9 +1116,9 @@ def test_add_drift():
                                            'pyuvdata. Combined data along '
                                            'baseline-time, polarization '
                                            'axis using pyuvdata.', uv1.history))
-    blt_ind1 = np.array([ind for ind in xrange(uv_full.Nblts) if
+    blt_ind1 = np.array([ind for ind in range(uv_full.Nblts) if
                          uv_full.time_array[ind] in times[0:len(times) / 2]])
-    blt_ind2 = np.array([ind for ind in xrange(uv_full.Nblts) if
+    blt_ind2 = np.array([ind for ind in range(uv_full.Nblts) if
                          uv_full.time_array[ind] in times[len(times) / 2:]])
     # Zero out missing data in reference object
     uv_ref.data_array[blt_ind1, :, :, 2:] = 0.0
@@ -1143,9 +1143,9 @@ def test_add_drift():
                                            'pyuvdata. Combined data along '
                                            'baseline-time, frequency '
                                            'axis using pyuvdata.', uv1.history))
-    blt_ind1 = np.array([ind for ind in xrange(uv_full.Nblts) if
+    blt_ind1 = np.array([ind for ind in range(uv_full.Nblts) if
                          uv_full.time_array[ind] in times[0:len(times) / 2]])
-    blt_ind2 = np.array([ind for ind in xrange(uv_full.Nblts) if
+    blt_ind2 = np.array([ind for ind in range(uv_full.Nblts) if
                          uv_full.time_array[ind] in times[len(times) / 2:]])
     # Zero out missing data in reference object
     uv_ref.data_array[blt_ind1, :, 32:, :] = 0.0

@@ -9,11 +9,11 @@ import numpy as np
 import os
 import warnings
 from pyuvdata import UVData
-import parameter as uvp
+from . import parameter as uvp
 import casacore.tables as tables
-import telescopes
+from . import telescopes
 import re
-import utils as uvutils
+from . import utils as uvutils
 
 """
 This dictionary defines the mapping between CASA polarization numbers and
@@ -109,7 +109,7 @@ class MS(UVData):
             raise ValueError(
                 'Invalid data_column value supplied. Use \'Data\',\'MODEL\' or \'CORRECTED_DATA\'')
         if not os.path.exists(filepath):
-            raise(IOError, filepath + ' not found')
+            raise IOError(filepath + ' not found')
         # set visibility units
         if(data_column == 'DATA'):
             self.vis_units = "UNCALIB"

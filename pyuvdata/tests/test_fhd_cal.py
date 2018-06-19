@@ -153,7 +153,7 @@ def test_flags_galaxy():
 def test_breakReadFHDcal():
     """Try various cases of missing files."""
     fhd_cal = UVCal()
-    nt.assert_raises(StandardError, fhd_cal.read_fhd_cal, cal_testfile)  # Missing obs
+    nt.assert_raises(Exception, fhd_cal.read_fhd_cal, cal_testfile)  # Missing obs
 
     if not uvtest.scipy_warnings:
         uvtest.checkWarnings(fhd_cal.read_fhd_cal, [cal_testfile, obs_testfile],

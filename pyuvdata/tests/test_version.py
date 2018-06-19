@@ -2,7 +2,7 @@
 import nose.tools as nt
 import sys
 import os
-from StringIO import StringIO
+from six import StringIO
 import subprocess
 import json
 import pyuvdata

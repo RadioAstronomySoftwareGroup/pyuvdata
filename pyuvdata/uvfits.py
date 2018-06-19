@@ -5,9 +5,9 @@ from astropy.time import Time
 from astropy.io import fits
 import numpy as np
 import warnings
-from uvdata import UVData
-import parameter as uvp
-import utils as uvutils
+from .uvdata import UVData
+from . import parameter as uvp
+from . import utils as uvutils
 
 
 class UVFITS(UVData):
@@ -431,7 +431,7 @@ class UVFITS(UVData):
 
         try:
             self.set_telescope_params()
-        except ValueError, ve:
+        except ValueError as ve:
             warnings.warn(str(ve))
 
         if not read_data and not read_metadata:
@@ -751,7 +751,7 @@ class UVFITS(UVData):
             hdu.header.add_history(line)
 
         # end standard keywords; begin user-defined keywords
-        for key, value in self.extra_keywords.iteritems():
+        for key, value in self.extra_keywords.items():
             # header keywords have to be 8 characters or less
             if len(str(key)) > 8:
                 warnings.warn('key {key} in extra_keywords is longer than 8 '
