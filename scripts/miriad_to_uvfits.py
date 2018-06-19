@@ -1,8 +1,13 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
 """
 A command-line script for converting
 a Miriad file to UVFITS format
 """
+
+from __future__ import absolute_import, division, print_function
+
 import argparse
 import sys
 import os

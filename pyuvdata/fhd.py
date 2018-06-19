@@ -1,4 +1,10 @@
-"""Class for reading FHD save files."""
+# -*- coding: utf-8 -*-
+
+"""Class for reading FHD save files.
+
+"""
+from __future__ import absolute_import, division, print_function
+
 from astropy import constants as const
 from scipy.io.idl import readsav
 from itertools import islice

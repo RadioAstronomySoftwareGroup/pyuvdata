@@ -1,4 +1,10 @@
-"""Tests for calfits object"""
+# -*- coding: utf-8 -*-
+
+"""Tests for calfits object
+
+"""
+from __future__ import absolute_import, division, print_function
+
 import nose.tools as nt
 import os
 import astropy

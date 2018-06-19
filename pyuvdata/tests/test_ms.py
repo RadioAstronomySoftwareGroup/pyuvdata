@@ -1,4 +1,10 @@
-"""Tests for MS object."""
+# -*- coding: utf-8 -*-
+
+"""Tests for MS object.
+
+"""
+from __future__ import absolute_import, division, print_function
+
 import nose.tools as nt
 import os
 import copy

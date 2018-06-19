@@ -1,7 +1,10 @@
+# -*- coding: utf-8 -*-
+
 """
 Class for reading and writing casa measurement sets.
 Requires casacore.
 """
+from __future__ import absolute_import, division, print_function
 
 from astropy import constants as const
 import astropy.time as time

@@ -1,4 +1,10 @@
-"""Setup testing environment, define useful testing functions."""
+# -*- coding: utf-8 -*-
+
+"""Setup testing environment, define useful testing functions.
+
+"""
+from __future__ import absolute_import, division, print_function
+
 import os
 import warnings
 import sys

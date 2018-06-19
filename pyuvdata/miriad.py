@@ -1,4 +1,10 @@
-"""Class for reading and writing Miriad files."""
+# -*- coding: utf-8 -*-
+
+"""Class for reading and writing Miriad files.
+
+"""
+from __future__ import absolute_import, division, print_function
+
 from astropy import constants as const
 import os
 import shutil

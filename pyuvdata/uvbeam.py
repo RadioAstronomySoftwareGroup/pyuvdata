@@ -1,4 +1,10 @@
-"""Primary container for radio telescope antenna beams."""
+# -*- coding: utf-8 -*-
+
+"""Primary container for radio telescope antenna beams.
+
+"""
+from __future__ import absolute_import, division, print_function
+
 import numpy as np
 import warnings
 import copy

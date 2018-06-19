@@ -1,4 +1,10 @@
-"""Tests for uvbase object."""
+# -*- coding: utf-8 -*-
+
+"""Tests for uvbase object.
+
+"""
+from __future__ import absolute_import, division, print_function
+
 import nose.tools as nt
 import numpy as np
 import copy
