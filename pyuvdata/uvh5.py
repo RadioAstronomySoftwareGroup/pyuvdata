@@ -81,6 +81,8 @@ class UVH5(UVData):
             self.phase_center_ra = float(header['phase_center_ra'].value)
             self.phase_center_dec = float(header['phase_center_dec'].value)
             self.phase_center_epoch = float(header['phase_center_epoch'].value)
+            if 'phase_center_frame' in header:
+                self.phase_center_frame = header['phase_center_frame'].value
         elif self.phase_type == 'drift':
             self.set_drift()
         else:
@@ -355,6 +357,8 @@ class UVH5(UVData):
             header['phase_center_dec'] = self.phase_center_dec
         if self.phase_center_epoch is not None:
             header['phase_center_epoch'] = self.phase_center_epoch
+        if self.phase_center_frame is not None:
+            header['phase_center_frame'] = self.phase_center_frame
 
         # write out optional parameters
         if self.antenna_positions is not None:

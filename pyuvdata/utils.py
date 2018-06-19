@@ -246,6 +246,36 @@ def ECEF_from_ENU(enu, latitude, longitude, altitude):
     return xyz
 
 
+def mwatools_calcuvw(ha, dec, xyz):
+    if xyz.ndim == 1:
+        xyz = xyz[np.newaxis, :]
+
+    sh = np.sin(ha)
+    sd = np.sin(dec)
+    ch = np.cos(ha)
+    cd = np.cos(dec)
+
+    u = sh * xyz[:, 0] + ch * xyz[:, 1]
+    v = -sd * ch * xyz[:, 0] + sd * sh * xyz[:, 1] + cd * xyz[:, 2]
+    w = cd * ch * xyz[:, 0] - cd * sh * xyz[:, 1] + sd * xyz[:, 2]
+    return np.array([u, v, w]).T
+
+
+def mwatools_calcuvw_unphase(ha, dec, uvw):
+    if uvw.ndim == 1:
+        uvw = uvw[np.newaxis, :]
+
+    sh = np.sin(ha)
+    sd = np.sin(dec)
+    ch = np.cos(ha)
+    cd = np.cos(dec)
+
+    x = sh * uvw[:, 0] - sd * ch * uvw[:, 1] + cd * ch * uvw[:, 2]
+    y = ch * uvw[:, 0] + sd * sh * uvw[:, 1] - cd * sh * uvw[:, 2]
+    z = cd * uvw[:, 1] + sd * uvw[:, 2]
+    return np.array([x, y, z]).T
+
+
 def eq2top_m(ha, dec):
     """Return the 3x3 matrix converting equatorial coordinates to topocentric
     at the given hour angle (ha) and declination (dec).

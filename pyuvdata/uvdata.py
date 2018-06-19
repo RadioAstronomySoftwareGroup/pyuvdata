@@ -8,7 +8,7 @@ from __future__ import absolute_import, division, print_function
 from astropy import constants as const
 import astropy.units as units
 from astropy.time import Time
-from astropy.coordinates import SkyCoord, EarthLocation, FK5, Angle
+from astropy.coordinates import SkyCoord, EarthLocation, FK5, Angle, Longitude
 import os
 import numpy as np
 import six
@@ -215,6 +215,15 @@ class UVData(UVBase):
                                                     description=desc,
                                                     expected_type=np.float,
                                                     tols=radian_tol)
+
+        desc = ('Only relevant if phase_type = "phased". Specifies the frame the'
+                ' data and uvw_array are phased to. Options are "gcrs" and "icrs",'
+                ' default is "icrs"')
+        self._phase_center_frame = uvp.UVParameter('phase_center_frame',
+                                                   required=False,
+                                                   description=desc,
+                                                   expected_type=str,
+                                                   acceptable_vals=['icrs', 'gcrs'])
 
         # --- antenna information ----
         desc = ('Number of antennas with data present (i.e. number of unique '
@@ -570,80 +579,6 @@ class UVData(UVBase):
         """
         return ephem.date(ephemdate) + 2415020.
 
-    def unphase_to_drift(self):
-        """Convert from a phased dataset to a drift dataset."""
-        if self.phase_type == 'phased':
-            pass
-        elif self.phase_type == 'drift':
-            raise ValueError('The data is already drift scanning; can only '
-                             'unphase phased data.')
-        else:
-            raise ValueError('The phasing type of the data is unknown. '
-                             'Set the phase_type to drift or phased to '
-                             'reflect the phasing status of the data')
-
-        # apply -w phasor
-        # Does this assume a co-planar array?
-        w_lambda = (self.uvw_array[:, 2].reshape(self.Nblts, 1).astype(np.float64)
-                    / const.c.to('m/s').value * self.freq_array.reshape(1, self.Nfreqs))
-        phs = np.exp(-1j * 2 * np.pi * (-1) * w_lambda[:, None, :, None])
-        self.data_array *= phs
-
-        # get observation ra/dec by creating a sky coord at the phase center
-        # (in icrs for J2000, FK5 otherwise) and converting to FK5 with the obs time as the equinox
-        telescope_location = EarthLocation.from_geocentric(self.telescope_location[0],
-                                                           self.telescope_location[1],
-                                                           self.telescope_location[2],
-                                                           unit='m')
-
-        if self.phase_center_epoch == 2000:
-            phase_center_coord = SkyCoord(ra=self.phase_center_ra,
-                                          dec=self.phase_center_dec, unit='radian',
-                                          frame='icrs')
-        else:
-            phase_center_coord = SkyCoord(ra=self.phase_center_ra,
-                                          dec=self.phase_center_dec, unit='radian',
-                                          equinox=self.phase_center_epoch,
-                                          frame='FK5')
-
-        unique_times, unique_inds = np.unique(self.time_array, return_index=True)
-        for ind, jd in enumerate(unique_times):
-            inds = np.where(self.time_array == jd)[0]
-            lst = self.lst_array[unique_inds[ind]]
-
-            # convert to FK5 at jd
-            obs_time = Time(jd, format='jd', location=(telescope_location.lon,
-                                                       telescope_location.lat))
-            obs_phase_coord = phase_center_coord.transform_to(FK5(equinox=obs_time))
-            phase_center_ra = obs_phase_coord.ra.rad
-            phase_center_dec = obs_phase_coord.dec.rad
-
-            # Now generate ra/dec of zenith at jd in the FK5 coordinate system
-            # to use in the rotation matrices
-            # (Note these are close to but not identical to lst/latitude)
-            zenith_coord = SkyCoord(alt=Angle(90 * units.deg), az=Angle(0 * units.deg),
-                                    obstime=obs_time, frame='altaz', location=telescope_location)
-
-            obs_zenith_coord = zenith_coord.transform_to(FK5(equinox=obs_time))
-            zenith_ra = obs_zenith_coord.ra.rad
-            zenith_dec = obs_zenith_coord.dec.rad
-
-            # generate rotation matrices
-            m0 = uvutils.top2eq_m(0., phase_center_dec)
-            m1 = uvutils.eq2top_m(phase_center_ra - zenith_ra, zenith_dec)
-
-            # rotate and write uvws
-            uvw = self.uvw_array[inds, :]
-            uvw = np.dot(m0, uvw.T).T
-            uvw = np.dot(m1, uvw.T).T
-            self.uvw_array[inds, :] = uvw
-
-        # remove phase center
-        self.phase_center_ra = None
-        self.phase_center_dec = None
-        self.phase_center_epoch = None
-        self.set_drift()
-
     def unphase_to_drift_ephem(self):
         """Convert from a phased dataset to a drift dataset."""
         if self.phase_type == 'phased':
@@ -686,6 +621,8 @@ class UVData(UVBase):
             phase_center_ra, phase_center_dec = phase_center.a_ra, phase_center.a_dec
 
             # generate rotation matrices
+            # m0 = uvutils.top2eq_m(0., phase_center_dec)
+            # m1 = uvutils.eq2top_m(phase_center_ra - zenith_ra, zenith_dec)
             m0 = uvutils.top2eq_m(0., phase_center_dec)
             m1 = uvutils.eq2top_m(phase_center_ra - lst, latitude)
 
@@ -701,9 +638,120 @@ class UVData(UVBase):
         self.phase_center_epoch = None
         self.set_drift()
 
-    def phase(self, ra, dec, epoch):
+    def unphase_to_drift(self, phase_frame=None, use_ant_pos=False):
         """
+        Convert from a phased dataset to a drift dataset.
+
+        Args:
+            phase_frame: the astropy frame to phase from. Either 'icrs' or 'gcrs'.
+                'gcrs' accounts for precession & nutation, 'icrs' also includes abberation.
+                Defaults to using the 'phase_center_frame' attribute or 'icrs'
+                if that attribute is None
+            use_ant_pos: If True, calculate the uvws directly from the
+                antenna positions rather than from the existing uvws.
+        """
+        if self.phase_type == 'phased':
+            pass
+        elif self.phase_type == 'drift':
+            raise ValueError('The data is already drift scanning; can only '
+                             'unphase phased data.')
+        else:
+            raise ValueError('The phasing type of the data is unknown. '
+                             'Set the phase_type to drift or phased to '
+                             'reflect the phasing status of the data')
+
+        if phase_frame is None:
+            if self.phase_center_frame is not None:
+                phase_frame = self.phase_center_frame
+            else:
+                phase_frame = 'icrs'
+
+        # apply -w phasor
+        w_lambda = (self.uvw_array[:, 2].reshape(self.Nblts, 1).astype(np.float64)
+                    / const.c.to('m/s').value * self.freq_array.reshape(1, self.Nfreqs))
+        phs = np.exp(-1j * 2 * np.pi * (-1) * w_lambda[:, None, :, None])
+        self.data_array *= phs
+
+        telescope_location = EarthLocation.from_geocentric(self.telescope_location[0],
+                                                           self.telescope_location[1],
+                                                           self.telescope_location[2],
+                                                           unit='m')
+
+        unique_times, unique_inds = np.unique(self.time_array, return_index=True)
+        for ind, jd in enumerate(unique_times):
+            inds = np.where(self.time_array == jd)[0]
+
+            obs_time = Time(jd, format='jd')
+
+            zenith_coord = SkyCoord(alt=Angle(90 * units.deg), az=Angle(0 * units.deg),
+                                    obstime=obs_time, frame='altaz',
+                                    location=telescope_location)
+            frame_zenith = zenith_coord.transform_to(phase_frame)
+
+            frame_ha = Longitude(frame_zenith.ra - Angle(self.phase_center_ra * units.rad))
+
+            itrs_telescope_location = SkyCoord(x=self.telescope_location[0] * units.m,
+                                               y=self.telescope_location[1] * units.m,
+                                               z=self.telescope_location[2] * units.m,
+                                               representation='cartesian',
+                                               frame='itrs', obstime=obs_time)
+            frame_telescope_location = itrs_telescope_location.transform_to(phase_frame)
+            frame_telescope_location.representation = 'cartesian'
+
+            if use_ant_pos:
+                ant_rel_rot = uvutils.rotECEF_from_ECEF(self.antenna_positions,
+                                                        self.telescope_location_lat_lon_alt[1])
+
+                ant_uvw = uvutils.mwatools_calcuvw(0, self.telescope_location_lat_lon_alt[0],
+                                                   ant_rel_rot)
+
+                for bl_ind in inds:
+                    ant1 = self.ant_1_array[bl_ind]
+                    ant2 = self.ant_2_array[bl_ind]
+                    self.uvw_array[bl_ind, :] = ant_uvw[ant2] - ant_uvw[ant1]
+
+            else:
+                if phase_frame == 'icrs':
+                    gcrs_telescope_location = itrs_telescope_location.transform_to('gcrs')
+                    gcrs_telescope_location.representation = 'cartesian'
+                    gcrs_lat_lon_alt = uvutils.LatLonAlt_from_XYZ(gcrs_telescope_location.cartesian.get_xyz().value)
+
+                else:
+                    gcrs_lat_lon_alt = uvutils.LatLonAlt_from_XYZ(frame_telescope_location.cartesian.get_xyz().value)
+
+                # first unphase to get positions in rotECEF frame
+                uvw_rot_positions = uvutils.mwatools_calcuvw_unphase(frame_ha.rad,
+                                                                     self.phase_center_dec,
+                                                                     self.uvw_array[inds, :])
+
+                # rotate them so they can be added to telescope location in frame
+                uvw_rel_positions = uvutils.ECEF_from_rotECEF(uvw_rot_positions,
+                                                              gcrs_lat_lon_alt[1])
+
+                frame_uvw_coord = SkyCoord(x=uvw_rel_positions[:, 0] * units.m + frame_telescope_location.x,
+                                           y=uvw_rel_positions[:, 1] * units.m + frame_telescope_location.y,
+                                           z=uvw_rel_positions[:, 2] * units.m + frame_telescope_location.z,
+                                           representation='cartesian',
+                                           frame=phase_frame, obstime=obs_time)
+
+                itrs_uvw_coord = frame_uvw_coord.transform_to('itrs')
+
+                # this takes out the telescope location in the new frame,
+                # so these are vectors again
+                self.uvw_array[inds, :] = (itrs_uvw_coord.cartesian
+                                           - itrs_telescope_location.cartesian).get_xyz().T.value
+
+        # remove phase center
+        self.phase_center_frame = None
+        self.phase_center_ra = None
+        self.phase_center_dec = None
+        self.phase_center_epoch = None
+        self.set_drift()
+
+    def phase(self, ra, dec, epoch, phase_frame='icrs', use_ant_pos=False):
+        """"
         Phase a drift scan dataset to a single ra/dec at a particular epoch.
+        Based on MWA_Tools/CONV2UVFITS/convutils.
 
         Will not phase already phased data.
 
@@ -712,6 +760,10 @@ class UVData(UVBase):
             dec: The dec to phase to in radians.
             epoch: The epoch to use for phasing.
                 Either an astropy Time object or the string "J2000" (which is the default).
+            phase_frame: the astropy frame to phase to. Either 'icrs' or 'gcrs'.
+                'gcrs' accounts for precession & nutation, 'icrs' also includes abberation.
+            use_ant_pos: If True, calculate the uvws directly from the
+                antenna positions rather than from the existing uvws.
         """
         if self.phase_type == 'drift':
             pass
@@ -724,17 +776,28 @@ class UVData(UVBase):
                              'Set the phase_type to "drift" or "phased" to '
                              'reflect the phasing status of the data')
 
+        if phase_frame not in ['icrs', 'gcrs']:
+            raise ValueError('phase_frame can only be set to icrs or gcrs.')
+
         if epoch == "J2000" or epoch == 2000:
-            phase_center_coord = SkyCoord(ra=ra, dec=dec, unit='radian', frame='icrs')
+            phase_center_icrs = SkyCoord(ra=ra, dec=dec, unit='radian', frame='icrs')
         else:
             assert(isinstance(epoch, Time))
             phase_center_coord = SkyCoord(ra=ra, dec=dec, unit='radian',
                                           equinox=epoch, frame=FK5)
             # convert to icrs (i.e. J2000) to write to object
-            phase_center_coord = phase_center_coord.transform_to('icrs')
+            phase_center_icrs = phase_center_coord.transform_to('icrs')
 
-        self.phase_center_ra = phase_center_coord.ra.radian
-        self.phase_center_dec = phase_center_coord.dec.radian
+        if phase_frame == 'icrs':
+            frame_phase_center = phase_center_icrs
+        else:
+            # use center of observation for obstime for gcrs
+            center_time = np.mean([np.max(self.time_array), np.min(self.time_array)])
+            phase_center_icrs.obstime = Time(center_time, format='jd')
+            frame_phase_center = phase_center_icrs.transform_to(phase_frame)
+
+        self.phase_center_ra = frame_phase_center.ra.radian
+        self.phase_center_dec = frame_phase_center.dec.radian
         self.phase_center_epoch = 2000.0
 
         telescope_location = EarthLocation.from_geocentric(self.telescope_location[0],
@@ -746,45 +809,85 @@ class UVData(UVBase):
         uvws = np.zeros(self.uvw_array.shape, dtype=np.float64)
         for ind, jd in enumerate(unique_times):
             inds = np.where(self.time_array == jd)[0]
-            lst = self.lst_array[unique_inds[ind]]
 
-            # calculate ra/dec of phase center in current epoch
-            # convert to FK5 at jd
-            obs_time = Time(jd, format='jd', location=(telescope_location.lon,
-                                                       telescope_location.lat))
-            obs_phase_coord = phase_center_coord.transform_to(FK5(equinox=obs_time))
-            phase_center_ra = obs_phase_coord.ra.rad
-            phase_center_dec = obs_phase_coord.dec.rad
+            obs_time = Time(jd, format='jd')
 
-            # Now generate ra/dec of zenith at jd in the FK5 coordinate system
-            # to use in the rotation matrices
-            # (Note these are close to but not identical to lst/latitude)
-            # use these instead to match phasing
             zenith_coord = SkyCoord(alt=Angle(90 * units.deg), az=Angle(0 * units.deg),
                                     obstime=obs_time, frame='altaz', location=telescope_location)
+            frame_zenith = zenith_coord.transform_to(phase_frame)
 
-            obs_zenith_coord = zenith_coord.transform_to(FK5(equinox=obs_time))
-            zenith_ra = obs_zenith_coord.ra.rad
-            zenith_dec = obs_zenith_coord.dec.rad
+            frame_ha = Longitude(frame_zenith.ra - frame_phase_center.ra)
 
-            # generate rotation matrices
-            m0 = uvutils.top2eq_m(zenith_ra - zenith_ra, zenith_dec)
-            m1 = uvutils.eq2top_m(zenith_ra - phase_center_ra, phase_center_dec)
+            itrs_telescope_location = SkyCoord(x=self.telescope_location[0] * units.m,
+                                               y=self.telescope_location[1] * units.m,
+                                               z=self.telescope_location[2] * units.m,
+                                               representation='cartesian',
+                                               frame='itrs', obstime=obs_time)
 
-            # rotate and write uvws
-            uvw = self.uvw_array[inds, :]
-            uvw = np.dot(m0, uvw.T).T
-            uvw = np.dot(m1, uvw.T).T
-            self.uvw_array[inds, :] = uvw
-            uvws[inds, :] = uvw
+            frame_telescope_location = itrs_telescope_location.transform_to(phase_frame)
+
+            if phase_frame == 'icrs':
+                gcrs_telescope_location = itrs_telescope_location.transform_to('gcrs')
+                gcrs_telescope_location.representation = 'cartesian'
+                gcrs_lat_lon_alt = uvutils.LatLonAlt_from_XYZ(gcrs_telescope_location.cartesian.get_xyz().value)
+
+            else:
+                gcrs_lat_lon_alt = uvutils.LatLonAlt_from_XYZ(frame_telescope_location.cartesian.get_xyz().value)
+
+            frame_telescope_location.representation = 'cartesian'
+
+            if use_ant_pos:
+                itrs_ant_coord = SkyCoord(x=self.antenna_positions[:, 0] * units.m,
+                                          y=self.antenna_positions[:, 1] * units.m,
+                                          z=self.antenna_positions[:, 2] * units.m,
+                                          representation='cartesian',
+                                          frame='itrs', obstime=obs_time)
+
+                frame_ant_coord = itrs_ant_coord.transform_to(phase_frame)
+                frame_ant_coord.representation = 'cartesian'
+
+                frame_ant_rel = (frame_ant_coord.cartesian
+                                 - frame_telescope_location.cartesian).get_xyz().T.value
+                frame_ant_rel_rot = uvutils.rotECEF_from_ECEF(frame_ant_rel,
+                                                              gcrs_lat_lon_alt[1])
+                frame_ant_uvw = uvutils.mwatools_calcuvw(frame_ha.rad,
+                                                         frame_phase_center.dec.rad,
+                                                         frame_ant_rel_rot)
+
+                for bl_ind in inds:
+                    ant1 = self.ant_1_array[bl_ind]
+                    ant2 = self.ant_2_array[bl_ind]
+                    self.uvw_array[bl_ind, :] = frame_ant_uvw[ant2] - frame_ant_uvw[ant1]
+            else:
+                # need to make the uvws have a full position, not just be a vector
+                # so that they will transform properly.
+                # Add in the center of the array, and then remove it later
+
+                itrs_uvw_coord = SkyCoord(x=self.uvw_array[inds, 0] * units.m + itrs_telescope_location.x,
+                                          y=self.uvw_array[inds, 1] * units.m + itrs_telescope_location.y,
+                                          z=self.uvw_array[inds, 2] * units.m + itrs_telescope_location.z,
+                                          representation='cartesian',
+                                          frame='itrs', obstime=obs_time)
+                frame_uvw_coord = itrs_uvw_coord.transform_to(phase_frame)
+
+                # this takes out the telescope location in the new frame,
+                # so these are vectors again
+                frame_rel_uvw = (frame_uvw_coord.cartesian
+                                 - frame_telescope_location.cartesian).get_xyz().T.value
+                frame_uvw_rot = uvutils.rotECEF_from_ECEF(frame_rel_uvw,
+                                                          gcrs_lat_lon_alt[1])
+
+                self.uvw_array[inds, :] = uvutils.mwatools_calcuvw(frame_ha.rad,
+                                                                   frame_phase_center.dec.rad,
+                                                                   frame_uvw_rot)
 
         # calculate data and apply phasor
-        # Does this assume a co-planar array?
-        w_lambda = (uvws[:, 2].reshape(self.Nblts, 1)
+        w_lambda = (self.uvw_array[:, 2].reshape(self.Nblts, 1)
                     / const.c.to('m/s').value * self.freq_array.reshape(1, self.Nfreqs))
         phs = np.exp(-1j * 2 * np.pi * w_lambda[:, None, :, None])
         self.data_array *= phs
 
+        self.phase_center_frame = phase_frame
         self.set_phased()
 
     def phase_ephem(self, ra, dec, epoch):
@@ -845,7 +948,7 @@ class UVData(UVBase):
             ra, dec = precess_pos.a_ra, precess_pos.a_dec
 
             # generate rotation matrices
-            m0 = uvutils.top2eq_m(lst - lst, latitude)
+            m0 = uvutils.top2eq_m(lst - obs.sidereal_time(), latitude)
             m1 = uvutils.eq2top_m(lst - ra, dec)
 
             # rotate and write uvws
