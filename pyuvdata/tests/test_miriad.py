@@ -309,7 +309,7 @@ def test_miriad_location_handling():
     # mean position inside the earth
 
     good_antpos = np.where(antpos_length > 0)[0]
-    rot_ants = good_antpos[:len(good_antpos) / 2]
+    rot_ants = good_antpos[:len(good_antpos) // 2]
     rot_antpos = uvutils.rotECEF_from_ECEF(ecef_antpos[rot_ants, :], longitude + np.pi)
     modified_antpos = uvutils.rotECEF_from_ECEF(ecef_antpos, longitude)
     modified_antpos[rot_ants, :] = rot_antpos

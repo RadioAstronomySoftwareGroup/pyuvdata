@@ -60,7 +60,7 @@ def read_uvfits():
     hdu_list = fits.open(filename, memmap=True)
     vis_hdu = hdu_list[0]
     Nfreqs = vis_hdu.header['NAXIS4']
-    freq_index = int(Nfreqs / 2)
+    freq_index = int(Nfreqs // 2)
 
     if vis_hdu.header['NAXIS'] == 7:
 

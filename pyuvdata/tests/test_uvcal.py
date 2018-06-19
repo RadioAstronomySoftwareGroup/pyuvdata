@@ -894,7 +894,7 @@ class TestUVCalAddGain(object):
     def test_add_times(self):
         """Test adding times between two UVCal objects"""
         gain_object_full = copy.deepcopy(self.gain_object)
-        Nt2 = self.gain_object.Ntimes / 2
+        Nt2 = self.gain_object.Ntimes // 2
         times1 = self.gain_object.time_array[:Nt2]
         times2 = self.gain_object.time_array[Nt2:]
         self.gain_object.select(times=times1)
@@ -1134,7 +1134,7 @@ class TestUVCalAddGain(object):
     def test_multi_files(self):
         """Test read function when multiple files are included"""
         gain_object_full = copy.deepcopy(self.gain_object)
-        Nt2 = self.gain_object.Ntimes / 2
+        Nt2 = self.gain_object.Ntimes // 2
         # Break up delay object into two objects, divided in time
         times1 = self.gain_object.time_array[:Nt2]
         times2 = self.gain_object.time_array[Nt2:]
@@ -1241,7 +1241,7 @@ class TestUVCalAddDelay(object):
     def test_add_times(self):
         """Test adding times between two UVCal objects"""
         delay_object_full = copy.deepcopy(self.delay_object)
-        Nt2 = self.delay_object.Ntimes / 2
+        Nt2 = self.delay_object.Ntimes // 2
         times1 = self.delay_object.time_array[:Nt2]
         times2 = self.delay_object.time_array[Nt2:]
         self.delay_object.select(times=times1)
@@ -1429,7 +1429,7 @@ class TestUVCalAddDelay(object):
     def test_multi_files(self):
         """Test read function when multiple files are included"""
         delay_object_full = copy.deepcopy(self.delay_object)
-        Nt2 = self.delay_object.Ntimes / 2
+        Nt2 = self.delay_object.Ntimes // 2
         # Break up delay object into two objects, divided in time
         times1 = self.delay_object.time_array[:Nt2]
         times2 = self.delay_object.time_array[Nt2:]
