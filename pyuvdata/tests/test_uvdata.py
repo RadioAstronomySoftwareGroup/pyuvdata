@@ -55,14 +55,14 @@ class TestUVDataInit(object):
                                  '_gst0', '_rdate', '_earth_omega', '_dut1',
                                  '_timesys', '_uvplane_reference_time',
                                  '_phase_center_ra', '_phase_center_dec',
-                                 '_phase_center_epoch']
+                                 '_phase_center_epoch', '_phase_center_frame']
 
         self.extra_properties = ['extra_keywords', 'antenna_positions',
                                  'x_orientation', 'antenna_diameters', 'gst0',
                                  'rdate', 'earth_omega', 'dut1', 'timesys',
                                  'uvplane_reference_time',
                                  'phase_center_ra', 'phase_center_dec',
-                                 'phase_center_epoch']
+                                 'phase_center_epoch', 'phase_center_frame']
 
         self.other_properties = ['telescope_location_lat_lon_alt',
                                  'telescope_location_lat_lon_alt_degrees',
@@ -340,6 +340,16 @@ def test_phase_unphaseHERA():
     UV_phase.unphase_to_drift()
 
     nt.assert_equal(UV_raw, UV_phase)
+
+    # check that they match using gcrs
+    UV_phase.phase(0., 0., "J2000", phase_frame='gcrs')
+    UV_phase.unphase_to_drift()
+
+    nt.assert_equal(UV_raw, UV_phase)
+
+    # check that they match if you phase & unphase using antenna locations
+    UV_phase.phase(0., 0., "J2000", use_ant_pos=True)
+    UV_phase.unphase_to_drift(use_ant_pos=True)
 
     # check errors when trying to unphase drift or unknown data
     nt.assert_raises(ValueError, UV_raw.unphase_to_drift)

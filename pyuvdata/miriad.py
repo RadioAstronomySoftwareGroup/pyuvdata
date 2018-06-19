@@ -477,6 +477,8 @@ class Miriad(UVData):
             self.phase_center_ra = float(ra_list[0])
             self.phase_center_dec = float(dec_list[0])
             self.phase_center_epoch = uv['epoch']
+            if 'phsframe' in uv.vartable.keys():
+                self.phase_center_frame = uv['phsframe']
         else:
             # check that the RA values are not constant (if more than one time present)
             if (single_ra and not single_time):
@@ -646,6 +648,8 @@ class Miriad(UVData):
         if self.phase_type == 'phased':
             uv.add_var('epoch', 'r')
             uv['epoch'] = self.phase_center_epoch
+            if self.phase_center_frame is not None:
+                uv['phsframe'] = self.phase_center_frame
 
         # required pyuvdata variables that are not recognized miriad variables
         uv.add_var('ntimes', 'i')
