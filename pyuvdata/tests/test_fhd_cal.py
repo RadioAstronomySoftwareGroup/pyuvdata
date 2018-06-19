@@ -1,4 +1,10 @@
-"""Tests for FHD_cal object."""
+# -*- coding: utf-8 -*-
+
+"""Tests for FHD_cal object.
+
+"""
+from __future__ import absolute_import, division, print_function
+
 import nose.tools as nt
 import os
 from pyuvdata import UVCal

@@ -1,4 +1,10 @@
-"""Tests for aipy_extracts"""
+# -*- coding: utf-8 -*-
+
+"""Tests for aipy_extracts
+
+"""
+from __future__ import absolute_import, division, print_function
+
 import os
 import shutil
 import nose.tools as nt

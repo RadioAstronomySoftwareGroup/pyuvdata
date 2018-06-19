@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 """
 A command-line script for renumbering antenna numbers > 254 if possible.
 
@@ -9,7 +10,10 @@ antenna numbers > 254 (apparently 255 isn't ok because 0-based antenna 255 is
 This only works if the number of antennas (Nants_telescope) is less than 255.
 
 Antenna names are not changed, so they reflect the original names of the antennas.
+
 """
+from __future__ import absolute_import, division, print_function
+
 import numpy as np
 import os
 import argparse

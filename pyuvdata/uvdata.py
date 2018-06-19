@@ -1,4 +1,10 @@
-"""Primary container for radio interferometer datasets."""
+# -*- coding: utf-8 -*-
+
+"""Primary container for radio interferometer datasets.
+
+"""
+from __future__ import absolute_import, division, print_function
+
 from astropy import constants as const
 from astropy.time import Time
 import os

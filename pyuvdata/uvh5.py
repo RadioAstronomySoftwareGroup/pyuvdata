@@ -2,7 +2,11 @@
 # Copyright (c) 2018 The HERA Collaboration
 # Licensed under the 2-clause BSD License
 
-"""Class for reading and writing HDF5 files."""
+"""Class for reading and writing HDF5 files.
+
+"""
+from __future__ import absolute_import, division, print_function
+
 import numpy as np
 import os
 from .uvdata import UVData

@@ -1,4 +1,10 @@
-"""Class for reading and writing beamfits files."""
+# -*- coding: utf-8 -*-
+
+"""Class for reading and writing beamfits files.
+
+"""
+from __future__ import absolute_import, division, print_function
+
 import numpy as np
 import astropy
 from astropy.io import fits
