@@ -51,7 +51,7 @@ def test_unexpected_parameters():
     "Test for extra parameters."
     telescope_obj = pyuvdata.Telescope()
     expected_parameters = required_parameters + extra_parameters
-    attributes = [i for i in telescope_obj.__dict__.keys() if i[0] == '_']
+    attributes = [i for i in list(telescope_obj.__dict__.keys()) if i[0] == '_']
     for a in attributes:
         nt.assert_true(a in expected_parameters,
                        msg='unexpected parameter ' + a + ' found in Telescope')
@@ -61,7 +61,7 @@ def test_unexpected_attributes():
     "Test for extra attributes."
     telescope_obj = pyuvdata.Telescope()
     expected_attributes = required_properties + other_attributes
-    attributes = [i for i in telescope_obj.__dict__.keys() if i[0] != '_']
+    attributes = [i for i in list(telescope_obj.__dict__.keys()) if i[0] != '_']
     for a in attributes:
         nt.assert_true(a in expected_attributes,
                        msg='unexpected attribute ' + a + ' found in Telescope')
@@ -70,8 +70,8 @@ def test_unexpected_attributes():
 def test_properties():
     "Test that properties can be get and set properly."
     telescope_obj = pyuvdata.Telescope()
-    prop_dict = dict(zip(required_properties, required_parameters))
-    for k, v in prop_dict.iteritems():
+    prop_dict = dict(list(zip(required_properties, required_parameters)))
+    for k, v in prop_dict.items():
         rand_num = np.random.rand()
         setattr(telescope_obj, k, rand_num)
         this_param = getattr(telescope_obj, v)

@@ -19,14 +19,14 @@ def test_ReadNRAO():
                                'RESTFREQ', 'ORIGIN']
     uvtest.checkWarnings(UV.read_uvfits, [testfile], message='Telescope EVLA is not')
     nt.assert_equal(expected_extra_keywords.sort(),
-                    UV.extra_keywords.keys().sort())
+                    list(UV.extra_keywords.keys()).sort())
 
     # test reading in header data first, then metadata and then data
     UV2 = UVData()
     uvtest.checkWarnings(UV2.read_uvfits, [testfile], {'read_data': False, 'read_metadata': False},
                          message='Telescope EVLA is not')
     nt.assert_equal(expected_extra_keywords.sort(),
-                    UV2.extra_keywords.keys().sort())
+                    list(UV2.extra_keywords.keys()).sort())
     nt.assert_raises(ValueError, UV2.check)
     UV2.read_uvfits_metadata(testfile)
     nt.assert_raises(ValueError, UV2.check)
@@ -38,7 +38,7 @@ def test_ReadNRAO():
     uvtest.checkWarnings(UV2.read_uvfits, [testfile], {'read_data': False, 'read_metadata': False},
                          message='Telescope EVLA is not')
     nt.assert_equal(expected_extra_keywords.sort(),
-                    UV2.extra_keywords.keys().sort())
+                    list(UV2.extra_keywords.keys()).sort())
     nt.assert_raises(ValueError, UV2.check)
     UV2.read_uvfits_data(testfile)
     nt.assert_equal(UV, UV2)
@@ -115,8 +115,8 @@ def test_readwriteread():
     uv_in.timesys = 'UTC'
 
     # check that unflagged data with nsample = 0 will cause warnings
-    uv_in.nsample_array[range(11, 22)] = 0
-    uv_in.flag_array[range(11, 22)] = False
+    uv_in.nsample_array[list(range(11, 22))] = 0
+    uv_in.flag_array[list(range(11, 22))] = False
     uvtest.checkWarnings(uv_in.write_uvfits, [write_file], message='Some unflagged data has nsample = 0')
 
     del(uv_in)

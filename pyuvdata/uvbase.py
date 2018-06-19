@@ -5,8 +5,8 @@ Subclassed by UVData and Telescope.
 """
 import numpy as np
 import warnings
-import parameter as uvp
-import version as uvversion
+from . import parameter as uvp
+from . import version as uvversion
 
 
 def _warning(msg, *a):

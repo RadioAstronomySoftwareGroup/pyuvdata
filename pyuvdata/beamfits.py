@@ -3,8 +3,8 @@ import numpy as np
 import astropy
 from astropy.io import fits
 import warnings
-from uvbeam import UVBeam
-import utils as uvutils
+from .uvbeam import UVBeam
+from . import utils as uvutils
 
 hpx_primary_ax_nums = {'pixel': 1, 'freq': 2, 'feed_pol': 3, 'spw': 4,
                        'basisvec': 5, 'complex': 6}
@@ -72,7 +72,7 @@ class BeamFITS(UVBeam):
 
         self.pixel_coordinate_system = primary_header.pop('COORDSYS', None)
         if self.pixel_coordinate_system is None:
-            for cs, cs_dict in self.coordinate_system_dict.iteritems():
+            for cs, cs_dict in self.coordinate_system_dict.items():
                 ax_names = [fits_axisname_dict[ax].lower() for ax in cs_dict['axes']]
                 if ax_names == ctypes[0:len(ax_names)]:
                     coord_list = ctypes[0:len(ax_names)]
@@ -141,7 +141,7 @@ class BeamFITS(UVBeam):
         elif self.beam_type == 'efield':
             self.set_efield()
             if n_dimensions < n_efield_dims:
-                raise (ValueError, 'beam_type is efield and data dimensionality is too low')
+                raise ValueError('beam_type is efield and data dimensionality is too low')
             complex_arrs = np.split(data, 2, axis=0)
             self.data_array = np.squeeze(complex_arrs[0] + 1j * complex_arrs[1], axis=0)
             if primary_header.pop('CTYPE' + str(ax_nums['feed_pol'])).lower().strip() == 'feedind':
@@ -506,7 +506,7 @@ class BeamFITS(UVBeam):
             primary_header['CDELT' + str(ax_nums['complex'])] = 1
 
         # end standard keywords; begin user-defined keywords
-        for key, value in self.extra_keywords.iteritems():
+        for key, value in self.extra_keywords.items():
             # header keywords have to be 8 characters or less
             if len(str(key)) > 8:
                 warnings.warn('key {key} in extra_keywords is longer than 8 '

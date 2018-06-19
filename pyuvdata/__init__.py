@@ -11,6 +11,6 @@ from .uvcal import *
 from .calfits import *
 from .uvbeam import *
 from .uvh5 import *
-import version
+from . import version
 
 __version__ = version.version

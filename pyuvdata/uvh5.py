@@ -5,8 +5,8 @@
 """Class for reading and writing HDF5 files."""
 import numpy as np
 import os
-from uvdata import UVData
-import utils as uvutils
+from .uvdata import UVData
+from . import utils as uvutils
 
 
 class UVH5(UVData):
@@ -35,7 +35,7 @@ class UVH5(UVData):
         """
         import h5py
         if not os.path.exists(filename):
-            raise(IOError, filename + ' not found')
+            raise IOError(filename + ' not found')
 
         # open hdf5 file for reading
         f = h5py.File(filename, 'r')
@@ -206,7 +206,7 @@ class UVH5(UVData):
 
         if os.path.exists(filename):
             if clobber:
-                print "File exists; clobbering"
+                print("File exists; clobbering")
             else:
                 raise ValueError("File exists; skipping")
 

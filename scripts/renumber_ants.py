@@ -48,11 +48,11 @@ new_nums = sorted(list(set(range(255)) - set(uv_obj.antenna_numbers)))
 if len(new_nums) < len(large_ant_nums):
     raise ValueError('too many antennas in dataset, cannot renumber all below 255')
 new_nums = new_nums[-1 * len(large_ant_nums):]
-renumber_dict = dict(zip(large_ant_nums, new_nums))
+renumber_dict = dict(list(zip(large_ant_nums, new_nums)))
 
-for ant_in, ant_out in renumber_dict.iteritems():
+for ant_in, ant_out in renumber_dict.items():
     if args.verbose:
-        print "renumbering {a1} to {a2}".format(a1=ant_in, a2=ant_out)
+        print("renumbering {a1} to {a2}".format(a1=ant_in, a2=ant_out))
 
     wh_ant_num = np.where(uv_obj.antenna_numbers == ant_in)[0]
     wh_ant1_arr = np.where(uv_obj.ant_1_array == ant_in)[0]

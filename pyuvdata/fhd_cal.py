@@ -2,9 +2,9 @@ from scipy.io.idl import readsav
 import os
 import numpy as np
 import warnings
-from uvcal import UVCal
-import utils as uvutils
-from fhd import get_fhd_history
+from .uvcal import UVCal
+from . import utils as uvutils
+from .fhd import get_fhd_history
 
 
 class FHDCal(UVCal):
