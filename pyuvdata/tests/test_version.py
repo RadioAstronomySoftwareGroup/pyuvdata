@@ -8,6 +8,7 @@ from __future__ import absolute_import, division, print_function
 import nose.tools as nt
 import sys
 import os
+import six
 from six import StringIO
 import subprocess
 import json
@@ -23,21 +24,40 @@ def test_construct_version_info():
     # this line is modified from the main implementation since we're in pyuvdata/tests/
     pyuvdata_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 
+    def get_git_output(args, capture_stderr=False):
+        """Get output from Git, ensuring that it is of the ``str`` type,
+        not bytes."""
+
+        argv = ['git', '-C', pyuvdata_dir] + args
+
+        if capture_stderr:
+            data = subprocess.check_output(argv, stderr=subprocess.STDOUT)
+        else:
+            data = subprocess.check_output(argv)
+
+        data = data.strip()
+
+        if six.PY2:
+            return data
+        return data.decode('utf8')
+
+    def unicode_to_str(u):
+        if six.PY2:
+            return u.encode('utf8')
+        return u
+
     try:
-        git_origin = subprocess.check_output(['git', 'config', '--get', 'remote.origin.url'],
-                                             stderr=subprocess.STDOUT).strip()
-        git_hash = subprocess.check_output(['git', 'rev-parse', 'HEAD'],
-                                           stderr=subprocess.STDOUT).strip()
-        git_description = subprocess.check_output(['git', 'describe', '--dirty', '--tags', '--always']).strip()
-        git_branch = subprocess.check_output(['git', 'rev-parse', '--abbrev-ref', 'HEAD'],
-                                             stderr=subprocess.STDOUT).strip()
-        git_version = subprocess.check_output(['git', 'describe', '--tags', '--abbrev=0']).strip()
+        git_origin = get_git_output(['config', '--get', 'remote.origin.url'], capture_stderr=True)
+        git_hash = get_git_output(['rev-parse', 'HEAD'], capture_stderr=True)
+        git_description = get_git_output(['describe', '--dirty', '--tag', '--always'])
+        git_branch = get_git_output(['rev-parse', '--abbrev-ref', 'HEAD'], capture_stderr=True)
+        git_version = get_git_output(['describe', '--tags', '--abbrev=0'])
     except subprocess.CalledProcessError:
         try:
             # Check if a GIT_INFO file was created when installing package
             git_file = os.path.join(pyuvdata_dir, 'GIT_INFO')
             with open(git_file) as data_file:
-                data = [x.encode('UTF8') for x in json.loads(data_file.read().strip())]
+                data = [unicode_to_str(x) for x in json.loads(data_file.read().strip())]
                 git_origin = data[0]
                 git_hash = data[1]
                 git_description = data[2]
