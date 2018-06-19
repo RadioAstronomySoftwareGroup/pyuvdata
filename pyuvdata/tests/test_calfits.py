@@ -92,7 +92,7 @@ def test_errors():
     for i, hdr_dict in enumerate(header_vals_to_double):
         cal_in.write_calfits(write_file, clobber=True)
 
-        unit = hdr_dict.keys()[0]
+        unit = list(hdr_dict.keys())[0]
         keyword = hdr_dict[unit]
 
         F = fits.open(write_file)
@@ -146,7 +146,7 @@ def test_errors():
     for i, hdr_dict in enumerate(header_vals_to_double):
         cal_in.write_calfits(write_file, clobber=True)
 
-        unit = hdr_dict.keys()[0]
+        unit = list(hdr_dict.keys())[0]
         keyword = hdr_dict[unit]
 
         F = fits.open(write_file)
@@ -283,7 +283,7 @@ def test_read_oldcalfits():
     for i, hdr_dict in enumerate(header_vals_to_remove):
         cal_in.write_calfits(write_file, clobber=True)
 
-        unit = hdr_dict.keys()[0]
+        unit = list(hdr_dict.keys())[0]
         keyword = hdr_dict[unit]
 
         F = fits.open(write_file)
@@ -335,7 +335,7 @@ def test_read_oldcalfits():
     for i, hdr_dict in enumerate(header_vals_to_remove):
         cal_in.write_calfits(write_file, clobber=True)
 
-        unit = hdr_dict.keys()[0]
+        unit = list(hdr_dict.keys())[0]
         keyword = hdr_dict[unit]
 
         F = fits.open(write_file)

@@ -72,7 +72,7 @@ for i, f in enumerate(args.files):
         continue
 
     # print out desired attribute(s) of data object
-    attrs = map(lambda x: x.split('.'), args.attrs.split(','))
+    attrs = [x.split('.') for x in args.attrs.split(',')]
     for j, attr in enumerate(attrs):
         # try to get attribute
         try:

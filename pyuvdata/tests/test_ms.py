@@ -26,7 +26,7 @@ def test_readNRAO():
 
     UV.read_ms(testfile)
     nt.assert_equal(expected_extra_keywords.sort(),
-                    UV.extra_keywords.keys().sort())
+                    list(UV.extra_keywords.keys()).sort())
     del(UV)
 
 

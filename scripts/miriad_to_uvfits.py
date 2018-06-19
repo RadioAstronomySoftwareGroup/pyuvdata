@@ -36,15 +36,15 @@ for filename in args.files:
     if args.phase_time is not None:
         UV.phase_to_time(args.phase_time)
         if args.verbose:
-            print "phasing {} to time {}".format(filename, args.phase_time)
+            print("phasing {} to time {}".format(filename, args.phase_time))
 
     else:
         UV.phase_to_time(UV.time_array[0])
         if args.verbose:
-            print "phasing {} to time {}".format(filename, UV.time_array[0])
+            print("phasing {} to time {}".format(filename, UV.time_array[0]))
 
     # write data
     UV.history += history
     if args.verbose:
-        print "saving {}".format(outfilename)
+        print("saving {}".format(outfilename))
     UV.write_uvfits(outfilename, spoof_nonessential=True)

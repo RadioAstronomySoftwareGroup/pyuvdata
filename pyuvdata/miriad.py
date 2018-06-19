@@ -5,9 +5,9 @@ import shutil
 import numpy as np
 import copy
 import warnings
-from uvdata import UVData
-import telescopes as uvtel
-import utils as uvutils
+from .uvdata import UVData
+from . import telescopes as uvtel
+from . import utils as uvutils
 import itertools
 
 from . import aipy_extracts
@@ -22,12 +22,12 @@ class Miriad(UVData):
 
     def _pol_to_ind(self, pol):
         if self.polarization_array is None:
-            raise(ValueError, "Can't index polarization {p} because "
-                  "polarization_array is not set".format(p=pol))
+            raise ValueError("Can't index polarization {p} because "
+                             "polarization_array is not set".format(p=pol))
         pol_ind = np.argwhere(self.polarization_array == pol)
         if len(pol_ind) != 1:
-            raise(ValueError, "multiple matches for pol={pol} in "
-                  "polarization_array".format(pol=pol))
+            raise ValueError("multiple matches for pol={pol} in "
+                             "polarization_array".format(pol=pol))
         return pol_ind
 
     def read_miriad(self, filepath, correct_lat_lon=True, run_check=True,
@@ -63,7 +63,7 @@ class Miriad(UVData):
                 Ex: [2458115.20, 2458115.40]
         """
         if not os.path.exists(filepath):
-            raise(IOError, filepath + ' not found')
+            raise IOError(filepath + ' not found')
         uv = aipy_extracts.UV(filepath)
 
         # list of miriad variables always read
@@ -227,7 +227,7 @@ class Miriad(UVData):
                 # get all possible combinations
                 antpairs = list(itertools.combinations_with_replacement(antenna_nums, 2))
                 # convert antenna numbers to string form required by aipy_extracts.uv_selector
-                antpair_str += ','.join(map(lambda ap: '_'.join(map(lambda a: str(a), ap)), antpairs))
+                antpair_str += ','.join(['_'.join([str(a) for a in ap]) for ap in antpairs])
                 history_update_string += 'antennas'
                 n_selects += 1
             if bls is not None:
@@ -280,7 +280,7 @@ class Miriad(UVData):
             err_msg = "time_range must be a len-2 list of Julian Date floats, Ex: [2458115.2, 2458115.6]"
             assert isinstance(time_range, (list, np.ndarray)), err_msg
             assert len(time_range) == 2, err_msg
-            assert np.array(map(lambda t: isinstance(t, (float, np.float, np.float64)), time_range)).all(), err_msg
+            assert np.array([isinstance(t, (float, np.float, np.float64)) for t in time_range]).all(), err_msg
             uv.select('time', time_range[0], time_range[1], include=True)
             if n_selects > 0:
                 history_update_string += ', times'
@@ -293,7 +293,7 @@ class Miriad(UVData):
             # type check
             err_msg = "pols must be a list of polarization strings or ints, Ex: ['xx', ...] or [-5, ...]"
             assert isinstance(polarizations, (list, np.ndarray)), err_msg
-            assert np.array(map(lambda p: isinstance(p, (str, np.str, int, np.int, np.int32)), polarizations)).all(), err_msg
+            assert np.array([isinstance(p, (str, np.str, int, np.int, np.int32)) for p in polarizations]).all(), err_msg
             # convert to pol integer if string
             polarizations = [p if isinstance(p, (int, np.int, np.int32)) else uvutils.polstr2num(p) for p in polarizations]
             # iterate through all possible pols and reject if not in pols
@@ -328,9 +328,9 @@ class Miriad(UVData):
                 self.Nspws = d.shape[0]
                 self.spw_array = np.arange(self.Nspws)
             else:
-                raise(ValueError, """Sorry.  Files with more than one spectral
-                      window (spw) are not yet supported. A great
-                      project for the interested student!""")
+                raise ValueError("Sorry.  Files with more than one spectral "
+                                 "window (spw) are not yet supported. A great "
+                                 "project for the interested student!")
             try:
                 cnt = uv['cnt']
             except(KeyError):
@@ -340,7 +340,7 @@ class Miriad(UVData):
             lst = uv['lst']
             source = uv['source']
             if source != _source:
-                raise(ValueError, 'This appears to be a multi source file, which is not supported.')
+                raise ValueError('This appears to be a multi source file, which is not supported.')
             else:
                 _source = source
 
@@ -363,7 +363,7 @@ class Miriad(UVData):
                 pol_list.append(uv['pol'])
                 # NB: flag types in miriad are usually ints
 
-        if len(data_accumulator.keys()) == 0:
+        if len(list(data_accumulator.keys())) == 0:
             raise ValueError('No data is present, probably as a result of '
                              'select on read that excludes all the data')
 
@@ -397,7 +397,7 @@ class Miriad(UVData):
                 else:
                     self.extra_keywords[key] = uv[key]
 
-        for pol, data in data_accumulator.iteritems():
+        for pol, data in data_accumulator.items():
             data_accumulator[pol] = np.array(data)
 
         self.polarization_array = np.array(pol_list)
@@ -665,7 +665,7 @@ class Miriad(UVData):
         # form up a grid which indexes time and baselines along the 'long'
         # axis of the visdata array
 
-        tij_grid = np.array(map(lambda x: map(float, x.split("_")), unique_blts))
+        tij_grid = np.array([list(map(float, x.split("_"))) for x in unique_blts])
         t_grid, ant_i_grid, ant_j_grid = tij_grid.T
         # set the data sizes
         if antenna_nums is None and bls is None and ant_str is None and time_range is None:
@@ -731,7 +731,7 @@ class Miriad(UVData):
         dec_pol_list = np.zeros((self.Nblts, self.Npols))
         uvw_pol_list = np.zeros((self.Nblts, 3, self.Npols))
         c_ns = const.c.to('m/ns').value
-        for pol, data in data_accumulator.iteritems():
+        for pol, data in data_accumulator.items():
             pol_ind = self._pol_to_ind(pol)
             for ind, d in enumerate(data):
                 blt = ["{1:.{0}f}".format(prec_t, d[1]).zfill(ndig_t),
@@ -755,7 +755,7 @@ class Miriad(UVData):
         # Collapse pol axis for ra_list, dec_list, and uvw_list
         ra_list = np.zeros(self.Nblts)
         dec_list = np.zeros(self.Nblts)
-        for blt_index in xrange(self.Nblts):
+        for blt_index in range(self.Nblts):
             test = ~np.all(self.flag_array[blt_index, :, :, :], axis=(0, 1))
             good_pol = np.where(test)[0]
             if len(good_pol) == 1:
@@ -820,20 +820,20 @@ class Miriad(UVData):
         if self.phase_type == 'phased':
             # check that the RA values do not vary
             if not single_ra:
-                raise(ValueError, 'phase_type is "phased" but the RA values are varying.')
+                raise ValueError('phase_type is "phased" but the RA values are varying.')
             self.phase_center_ra = float(ra_list[0])
             self.phase_center_dec = float(dec_list[0])
             self.phase_center_epoch = uv['epoch']
         else:
             # check that the RA values are not constant (if more than one time present)
             if (single_ra and not single_time):
-                raise(ValueError, 'phase_type is "drift" but the RA values are constant.')
+                raise ValueError('phase_type is "drift" but the RA values are constant.')
             self.zenith_ra = ra_list
             self.zenith_dec = dec_list
 
         try:
             self.set_telescope_params()
-        except ValueError, ve:
+        except ValueError as ve:
             warnings.warn(str(ve))
 
         # check if object has all required uv_properties set
@@ -870,7 +870,7 @@ class Miriad(UVData):
 
         if os.path.exists(filepath):
             if clobber:
-                print 'File exists: clobbering'
+                print('File exists: clobbering')
                 shutil.rmtree(filepath)
             else:
                 raise ValueError('File exists: skipping')
@@ -1034,7 +1034,7 @@ class Miriad(UVData):
                  float: 'd',
                  bool: 'a',  # booleans are stored as strings and changed back on read
                  }
-        for key, value in self.extra_keywords.iteritems():
+        for key, value in self.extra_keywords.items():
             if type(value) in numpy_types.keys():
                 if numpy_types[type(value)] == int:
                     value = int(value)

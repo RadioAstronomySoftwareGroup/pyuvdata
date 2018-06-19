@@ -59,8 +59,8 @@ def test_parse_ants():
         '0,1,all': [],
     }
     for i in range(nants):
-        cases[str(i)] = map(lambda x: (ae.ij2bl(x, i), 1), range(nants))
-        cases['-' + str(i)] = map(lambda x: (ae.ij2bl(x, i), 0), range(nants))
+        cases[str(i)] = [(ae.ij2bl(x, i), 1) for x in range(nants)]
+        cases['-' + str(i)] = [(ae.ij2bl(x, i), 0) for x in range(nants)]
     # inelegantly paste on the new pol parsing flag on the above tests
     # XXX really should add some new tests for the new pol parsing
     for k in cases:
