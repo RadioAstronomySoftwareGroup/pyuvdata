@@ -637,7 +637,7 @@ def test_readWriteReadMiriad():
     # assert exceptions
     nt.assert_raises(ValueError, uv_in.read_miriad, write_file, bls='foo')
     nt.assert_raises(ValueError, uv_in.read_miriad, write_file, bls=[[0, 1]])
-    nt.assert_raises(ValueError, uv_in.read_miriad, write_file, bls=[['foo', 'bar']])
+    nt.assert_raises(ValueError, uv_in.read_miriad, write_file, bls=[('foo', 'bar')])
     nt.assert_raises(ValueError, uv_in.read_miriad, write_file, bls=[('foo', )])
     nt.assert_raises(ValueError, uv_in.read_miriad, write_file, bls=[(1, 2), (2, 3, 'xx')])
     nt.assert_raises(ValueError, uv_in.read_miriad, write_file, bls=[(2, 4, 0)])
