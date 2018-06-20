@@ -9,7 +9,6 @@ import nose.tools as nt
 import os
 import numpy as np
 import copy
-import ephem
 from pyuvdata.uvcal import UVCal
 import pyuvdata.utils as uvutils
 import pyuvdata.tests as uvtest
