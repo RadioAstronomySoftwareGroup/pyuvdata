@@ -860,7 +860,7 @@ def test_readMiriadwriteMiraid_check_time_format():
     uvd.read_miriad(fname)
     uvd_t = uvd.time_array.min()
     uvd_l = uvd.lst_array.min()
-    uv = aipy.miriad.UV(fname)
+    uv = aipy_extracts.UV(fname)
     uv_t = uv['time'] + uv['inttime'] / (24 * 3600.) / 2
 
     lat, lon, alt = uvd.telescope_location_lat_lon_alt
@@ -877,7 +877,7 @@ def test_readMiriadwriteMiraid_check_time_format():
     fout = os.path.join(DATA_PATH, 'ex_miriad')
     uvd.write_miriad(fout, clobber=True)
     # assert equal to original miriad time
-    uv2 = aipy.miriad.UV(fout)
+    uv2 = aipy_extracts.UV(fout)
     nt.assert_almost_equal(uv['time'], uv2['time'])
     nt.assert_almost_equal(uv['lst'], uv2['lst'])
     if os.path.exists(fout):

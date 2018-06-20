@@ -100,7 +100,7 @@ class Miriad(UVData):
                 history_update_string += 'antenna pairs'
                 n_selects += 1
 
-        # select on antenna_nums and/or bls using aipy.uv_selector
+        # select on antenna_nums and/or bls using aipy_extracts.uv_selector
         if antenna_nums is not None or bls is not None:
             antpair_str = ''
             if antenna_nums is not None:
