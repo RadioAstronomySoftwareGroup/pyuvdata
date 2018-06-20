@@ -365,8 +365,9 @@ def test_to_healpix():
 
     # check that history is updated appropriately
     nt.assert_equal(power_beam_healpix.history, power_beam.history
-                    + ' Converted from regularly gridded azimuth/zenith_angle '
-                    'to HEALPix using pyuvdata.')
+                    + ' Interpolated from regularly gridded '
+                      'azimuth/zenith_angle to HEALPix using pyuvdata '
+                      'with interpolation_function = az_za_simple.')
 
     npix = hp.nside2npix(power_beam_healpix.nside)
     nt.assert_true(power_beam_healpix.Npixels <= npix * 0.55)
@@ -405,7 +406,9 @@ def test_to_healpix():
     sq_then_interp._data_array.tols = tols
 
     # check history changes
-    interp_history_add = ' Converted from regularly gridded azimuth/zenith_angle to HEALPix using pyuvdata.'
+    interp_history_add = (' Interpolated from regularly gridded '
+                          'azimuth/zenith_angle to HEALPix using pyuvdata '
+                          'with interpolation_function = az_za_simple.')
     sq_history_add = ' Converted from efield to power using pyuvdata.'
     nt.assert_equal(sq_then_interp.history,
                     efield_beam.history + sq_history_add + interp_history_add)
