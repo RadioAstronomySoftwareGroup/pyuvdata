@@ -731,9 +731,7 @@ class UVBeam(UVBase):
             nearest_freq_dist[f_i] = np.min(freq_dists)
 
         if self.Nfreqs == 1:
-            warnings.warn('Only one frequency in UVBeam so cannot interpolate. '
-                          'Just using that frequency instead.')
-            return self.data_array, nearest_freq_dist
+            raise ValueError('Only one frequency in UVBeam so cannot interpolate.')
 
         if np.iscomplexobj(self.data_array):
             data_type = np.complex
@@ -904,7 +902,8 @@ class UVBeam(UVBase):
                    inplace=True):
         """
         Convert beam in to healpix coordinates.
-        The interpolation is done using the interpolation method specified in self.interpolation_function.
+        The interpolation is done using the interpolation method specified in
+        self.interpolation_function.
 
         Note that this interpolation isn't perfect. Interpolating an Efield beam
         and then converting to power gives a different result than converting
@@ -984,8 +983,10 @@ class UVBeam(UVBase):
         beam_object.axis1_array = None
         beam_object.axis2_array = None
 
-        history_update_string = (' Converted from regularly gridded '
-                                 'azimuth/zenith_angle to HEALPix using pyuvdata.')
+        history_update_string = (' Interpolated from regularly gridded '
+                                 'azimuth/zenith_angle to HEALPix using pyuvdata '
+                                 'with interpolation_function = '
+                                 + self.interpolation_function + '.')
 
         beam_object.history = beam_object.history + history_update_string
 
