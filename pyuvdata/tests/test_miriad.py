@@ -9,7 +9,6 @@ import os
 import shutil
 import copy
 import numpy as np
-import ephem
 import nose.tools as nt
 from astropy.time import Time, TimeDelta
 from pyuvdata import UVData
@@ -800,7 +799,7 @@ def test_ReadMiriadPhase():
     phased_uv = UVData()
     # test that phasing makes files equal
     uvtest.checkWarnings(unphased.read, [unphasedfile, 'miriad'], known_warning='miriad')
-    unphased.phase(ra=0.0, dec=0.0, epoch=ephem.J2000)
+    unphased.phase(ra=0.0, dec=0.0, epoch='J2000')
     uvtest.checkWarnings(phased.read, [phasedfile, 'miriad'], known_warning='miriad')
     nt.assert_equal(unphased, phased)
 '''

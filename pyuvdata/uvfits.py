@@ -290,98 +290,6 @@ class UVFITS(UVData):
         if not read_data:
             run_check = False
 
-<<<<<<< HEAD
-        with fits.open(filename, memmap=True) as hdu_list:
-            vis_hdu = hdu_list[0]  # assumes the visibilities are in the primary hdu
-            vis_hdr = vis_hdu.header.copy()
-            hdunames = uvutils.fits_indexhdus(hdu_list)  # find the rest of the tables
-
-            # First get everything we can out of the header.
-            self.set_phased()
-            # check if we have an spw dimension
-            if vis_hdr['NAXIS'] == 7:
-                if vis_hdr['NAXIS5'] > 1:
-                    raise ValueError('Sorry.  Files with more than one spectral'
-                                     'window (spw) are not yet supported. A '
-                                     'great project for the interested student!')
-
-                self.Nspws = vis_hdr.pop('NAXIS5')
-
-                self.spw_array = np.int32(uvutils.fits_gethduaxis(vis_hdu, 5)) - 1
-
-                # the axis number for phase center depends on if the spw exists
-                self.phase_center_ra_degrees = np.float(vis_hdr.pop('CRVAL6'))
-                self.phase_center_dec_degrees = np.float(vis_hdr.pop('CRVAL7'))
-            else:
-                self.Nspws = 1
-                self.spw_array = np.array([0])
-
-                # the axis number for phase center depends on if the spw exists
-                self.phase_center_ra_degrees = np.float(vis_hdr.pop('CRVAL5'))
-                self.phase_center_dec_degrees = np.float(vis_hdr.pop('CRVAL6'))
-
-            # get shapes
-            self.Nfreqs = vis_hdr.pop('NAXIS4')
-            self.Npols = vis_hdr.pop('NAXIS3')
-            self.Nblts = vis_hdr.pop('GCOUNT')
-
-            self.freq_array = uvutils.fits_gethduaxis(vis_hdu, 4)
-            self.freq_array.shape = (self.Nspws,) + self.freq_array.shape
-            self.channel_width = vis_hdr.pop('CDELT4')
-            self.polarization_array = np.int32(uvutils.fits_gethduaxis(vis_hdu, 3))
-
-            # other info -- not required but frequently used
-            self.object_name = vis_hdr.pop('OBJECT', None)
-            self.telescope_name = vis_hdr.pop('TELESCOP', None)
-            self.instrument = vis_hdr.pop('INSTRUME', None)
-            latitude_degrees = vis_hdr.pop('LAT', None)
-            longitude_degrees = vis_hdr.pop('LON', None)
-            altitude = vis_hdr.pop('ALT', None)
-            self.x_orientation = vis_hdr.pop('XORIENT', None)
-            self.history = str(vis_hdr.get('HISTORY', ''))
-            if not uvutils.check_history_version(self.history, self.pyuvdata_version_str):
-                self.history += self.pyuvdata_version_str
-
-            while 'HISTORY' in vis_hdr.keys():
-                vis_hdr.remove('HISTORY')
-
-            self.vis_units = vis_hdr.pop('BUNIT', 'UNCALIB')
-            self.phase_center_epoch = vis_hdr.pop('EPOCH', None)
-
-            # remove standard FITS header items that are still around
-            std_fits_substrings = ['SIMPLE', 'BITPIX', 'EXTEND', 'BLOCKED',
-                                   'GROUPS', 'PCOUNT', 'BSCALE', 'BZERO', 'NAXIS',
-                                   'PTYPE', 'PSCAL', 'PZERO', 'CTYPE', 'CRVAL',
-                                   'CRPIX', 'CDELT', 'CROTA', 'CUNIT', 'DATE-OBS']
-            for key in list(vis_hdr.keys()):
-                for sub in std_fits_substrings:
-                    if key.find(sub) > -1:
-                        vis_hdr.remove(key)
-
-            # find all the remaining header items and keep them as extra_keywords
-            for key in vis_hdr:
-                if key == 'COMMENT':
-                    self.extra_keywords[key] = str(vis_hdr.get(key))
-                elif key != '':
-                    self.extra_keywords[key] = vis_hdr.get(key)
-
-            # Next read the antenna table
-            ant_hdu = hdu_list[hdunames['AIPS AN']]
-
-            # stuff in the header
-            if self.telescope_name is None:
-                self.telescope_name = ant_hdu.header['ARRNAM']
-
-            self.gst0 = ant_hdu.header['GSTIA0']
-            self.rdate = ant_hdu.header['RDATE']
-            self.earth_omega = ant_hdu.header['DEGPDY']
-            self.dut1 = ant_hdu.header['UT1UTC']
-            if 'TIMESYS' in ant_hdu.header.keys():
-                self.timesys = ant_hdu.header['TIMESYS']
-            else:
-                # CASA misspells this one
-                self.timesys = ant_hdu.header['TIMSYS']
-=======
         with fits.open(filename, memmap=True) as hdu_list:
             vis_hdu = hdu_list[0]  # assumes the visibilities are in the primary hdu
             vis_hdr = vis_hdu.header.copy()
@@ -473,7 +381,6 @@ class UVFITS(UVData):
             else:
                 # CASA misspells this one
                 self.timesys = ant_hdu.header['TIMSYS']
->>>>>>> major rework of phasing code based on mwa tools
 
             if 'FRAME' in ant_hdu.header.keys():
                 xyz_telescope_frame = ant_hdu.header['FRAME']
