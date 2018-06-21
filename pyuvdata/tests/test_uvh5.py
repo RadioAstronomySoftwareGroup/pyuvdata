@@ -109,3 +109,25 @@ def test_UVH5OptionalParameters():
     os.remove(testfile)
 
     return
+
+
+def test_UVH5CompressionOptions():
+    """
+    Test writing data with compression filters
+    """
+    uv_in = UVData()
+    uv_out = UVData()
+    uvfits_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    uvtest.checkWarnings(uv_in.read_uvfits, [uvfits_file], message='Telescope EVLA is not')
+    testfile = os.path.join(DATA_PATH, 'test', 'outtest_uvfits_compression.h5')
+
+    # write out and read back in
+    uv_in.write_uvh5(testfile, clobber=True, data_compression="lzf",
+                     flags_compression=None, nsample_compression=None)
+    uv_out.read_uvh5(testfile)
+    nt.assert_equal(uv_in, uv_out)
+
+    # clean up
+    os.remove(testfile)
+
+    return
