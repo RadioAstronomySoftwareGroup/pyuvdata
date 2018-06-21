@@ -1796,7 +1796,9 @@ class UVData(UVBase):
             del(uvh5_obj)
 
     def write_uvh5(self, filename, run_check=True, check_extra=True,
-                   run_check_acceptability=True, clobber=False):
+                   run_check_acceptability=True, clobber=False,
+                   data_compression=None, flags_compression="lzf",
+                   nsample_compression="lzf"):
         """
         Write a UVData object to a UVH5 file.
 
@@ -1809,6 +1811,12 @@ class UVData(UVBase):
             run_check_acceptability: Option to check acceptable range of the values of
                 parameters before writing the file. Default is True.
             clobber: Option to overwrite the file if it already exists. Default is False.
+            data_compression: HDF5 filter to apply when writing the data_array. Default is
+                None (no filter/compression).
+            flags_compression: HDF5 filter to apply when writing the flags_array. Default is
+                the LZF filter.
+            nsample_compression: HDF5 filter to apply when writing the nsample_array. Deafult is
+                the LZF filter.
 
         Returns:
             None
@@ -1817,7 +1825,9 @@ class UVData(UVBase):
         uvh5_obj.write_uvh5(filename, run_check=run_check,
                             check_extra=check_extra,
                             run_check_acceptability=run_check_acceptability,
-                            clobber=clobber)
+                            clobber=clobber, data_compression=data_compression,
+                            flags_compression=flags_compression,
+                            nsample_compression=nsample_compression)
         del(uvh5_obj)
 
     def reorder_pols(self, order=None, run_check=True, check_extra=True,

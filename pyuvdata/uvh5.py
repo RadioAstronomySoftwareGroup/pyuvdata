@@ -162,7 +162,8 @@ class UVH5(UVData):
         return
 
     def write_uvh5(self, filename, run_check=True, check_extra=True,
-                   run_check_acceptability=True, clobber=False):
+                   run_check_acceptability=True, clobber=False,
+                   data_compression=None, flags_compression="lzf", nsample_compression="lzf"):
         """
         Write a UVData object to a UVH5 file.
 
@@ -175,9 +176,28 @@ class UVH5(UVData):
             run_check_acceptability: Option to check acceptable range of the values of
                 parameters before writing the file. Default is True.
             clobber: Option to overwrite the file if it already exists. Default is False.
+            data_compression: HDF5 filter to apply when writing the data_array. Default is
+                 None (no filter/compression).
+            flags_compression: HDF5 filter to apply when writing the flags_array. Default is
+                 the LZF filter.
+            nsample_compression: HDF5 filter to apply when writing the nsample_array. Default is
+                 the LZF filter.
 
         Returns:
             None
+
+        Notes:
+            The HDF5 library allows for the application of "filters" when writing data, which can
+            provide moderate to significant levels of compression for the datasets in question.
+            Testing has shown that for some typical cases of UVData objects (empty/sparse flag_array
+            objects, and/or uniform nsample_arrays), the built-in LZF filter provides significant
+            compression for minimal computational overhead.
+
+            Note that for typical HERA data files written after mid-2018, the bitshuffle filter was
+            applied to the data_array. Because of the lack of portability, it is not included as an
+            option here; in the future, it may be added. Note that as long as bitshuffle is installed
+            on the system in a way that h5py can find it, no action needs to be taken to _read_ a
+            data_array encoded with bitshuffle (or an error will be raised).
         """
         import h5py
         if run_check:
@@ -266,15 +286,28 @@ class UVH5(UVData):
         # write out history
         header['history'] = self.history
 
-        # write out data and flags
-        # TODO: add filter options for visdata (bitshuffle), flags, and
-        #     nsample_array (lzf compression)
+        # write out data, flags, and nsample arrays
         dgrp = f.create_group("Data")
-        visdata = dgrp.create_dataset("visdata", chunks=True,
-                                      data=self.data_array.astype(np.complex64))
-        flags = dgrp.create_dataset("flags", chunks=True,
-                                    data=self.flag_array)
-        nsample_array = dgrp.create_dataset("nsample_array", chunks=True,
-                                            data=self.nsample_array.astype(np.float32))
+        if data_compression is not None:
+            visdata = dgrp.create_dataset("visdata", chunks=True,
+                                          data=self.data_array.astype(np.complex64),
+                                          compression=data_compression)
+        else:
+            visdata = dgrp.create_dataset("visdata", chunks=True,
+                                          data=self.data_array.astype(np.complex64))
+        if flags_compression is not None:
+            flags = dgrp.create_dataset("flags", chunks=True,
+                                        data=self.flag_array,
+                                        compression=flags_compression)
+        else:
+            flags = dgrp.create_dataset("flags", chunks=True,
+                                        data=self.flag_array)
+        if nsample_compression is not None:
+            nsample_array = dgrp.create_dataset("nsample_array", chunks=True,
+                                                data=self.nsample_array.astype(np.float32),
+                                                compression=nsample_compression)
+        else:
+            nsample_array = dgrp.create_dataset("nsample_array", chunks=True,
+                                                data=self.nsample_array.astype(np.float32))
 
         return
