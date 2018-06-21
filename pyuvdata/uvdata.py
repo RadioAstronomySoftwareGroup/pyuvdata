@@ -555,7 +555,7 @@ class UVData(UVBase):
         self.lst_array = uvutils.get_lst_for_time(self.time_array, latitude, longitude, altitude)
 
     def unphase_to_drift(self, phase_frame=None, use_ant_pos=False,
-                         use_mwatools_phasing=False):
+                         use_mwatools_phasing=True):
         """
         Convert from a phased dataset to a drift dataset.
 
@@ -629,6 +629,8 @@ class UVData(UVBase):
                                                 self.antenna_positions)
 
                 for bl_ind in inds:
+                    if ind == 0:
+                        print('calculating drift uvws from ant_pos')
                     ant1 = self.ant_1_array[bl_ind]
                     ant2 = self.ant_2_array[bl_ind]
                     self.uvw_array[bl_ind, :] = ant_uvw[ant2] - ant_uvw[ant1]
@@ -677,7 +679,7 @@ class UVData(UVBase):
         self.set_drift()
 
     def phase(self, ra, dec, epoch='J2000', phase_frame='icrs', use_ant_pos=False,
-              use_mwatools_phasing=False):
+              use_mwatools_phasing=True):
         """"
         Phase a drift scan dataset to a single ra/dec at a particular epoch.
         Tested against MWA_Tools/CONV2UVFITS/convutils.
