@@ -605,7 +605,7 @@ class UVData(UVBase):
                                     location=telescope_location)
             frame_zenith = zenith_coord.transform_to(phase_frame)
 
-            frame_ha = Longitude(frame_zenith.ra - self.phase_center_ra)
+            frame_ha = Longitude(frame_zenith.ra - Angle(self.phase_center_ra * units.rad))
 
             itrs_telescope_location = SkyCoord(x=self.telescope_location[0] * units.m,
                                                y=self.telescope_location[1] * units.m,
