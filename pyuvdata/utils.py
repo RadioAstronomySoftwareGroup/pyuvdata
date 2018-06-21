@@ -247,6 +247,20 @@ def ECEF_from_ENU(enu, latitude, longitude, altitude):
 
 
 def mwatools_calcuvw(ha, dec, xyz):
+    """
+    This code expects relative xyz locations rotated so the x-axis goes through
+    the local meridian in the same frame that ra/dec are in (e.g. icrs or gcrs)
+    and returns uvws.
+
+    Args:
+        ra: right ascension to phase to in desired frame
+        dec: declination to phase to in desired frame
+        xyz: locations relative to the array center & rotated so that the
+            x-axis goes through the local meridian in desired frame
+
+    Returns:
+        uvw array in the same frame as ra and dec
+    """
     if xyz.ndim == 1:
         xyz = xyz[np.newaxis, :]
 
@@ -262,6 +276,20 @@ def mwatools_calcuvw(ha, dec, xyz):
 
 
 def mwatools_calcuvw_unphase(ha, dec, uvw):
+    """
+    This code expects uvws in the same frame that ra/dec are in (e.g. icrs or gcrs)
+    and returns relative xyz locations rotated so the x-axis goes through
+    the local meridian.
+
+    Args:
+        ra: right ascension to phase to in desired frame
+        dec: declination to phase to in desired frame
+        uvw: phased uvw values
+
+    Returns:
+        xyz locations rotated so the x-axis goes through the local meridian
+        in the same frame as the uvws, ra and dec
+    """
     if uvw.ndim == 1:
         uvw = uvw[np.newaxis, :]
 
