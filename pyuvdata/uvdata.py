@@ -655,7 +655,7 @@ class UVData(UVBase):
         self.phase_center_epoch = None
         self.set_drift()
 
-    def phase(self, ra, dec, epoch, phase_frame='icrs', use_ant_pos=False):
+    def phase(self, ra, dec, epoch='J2000', phase_frame='icrs', use_ant_pos=False):
         """"
         Phase a drift scan dataset to a single ra/dec at a particular epoch.
         Tested against MWA_Tools/CONV2UVFITS/convutils.
@@ -667,8 +667,14 @@ class UVData(UVBase):
             dec: The dec to phase to in radians.
             epoch: The epoch to use for phasing.
                 Either an astropy Time object or the string "J2000" (which is the default).
+                Note that the epoch is only used to evaluate the ra & dec values,
+                if the epoch is not J2000, the ra & dec values are interpreted
+                as FK5 ra/dec values and translated to J2000, the data are then
+                phased to the J2000 ra/dec values.
             phase_frame: the astropy frame to phase to. Either 'icrs' or 'gcrs'.
-                'gcrs' accounts for precession & nutation, 'icrs' also includes abberation.
+                'gcrs' accounts for precession & nutation,
+                'icrs' accounts for precession, nutation & abberation.
+                Default is 'icrs'.
             use_ant_pos: If True, calculate the uvws directly from the
                 antenna positions rather than from the existing uvws.
         """
@@ -798,6 +804,12 @@ class UVData(UVBase):
 
         Args:
             time: The time to phase to, an astropy Time object.
+            phase_frame: the astropy frame to phase to. Either 'icrs' or 'gcrs'.
+                'gcrs' accounts for precession & nutation,
+                'icrs' accounts for precession, nutation & abberation.
+                Default is 'icrs'.
+            use_ant_pos: If True, calculate the uvws directly from the
+                antenna positions rather than from the existing uvws.
         """
         if self.phase_type == 'drift':
             pass
