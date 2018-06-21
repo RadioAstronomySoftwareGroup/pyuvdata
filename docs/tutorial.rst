@@ -121,6 +121,36 @@ f) CASA -> miriad
   ...    shutil.rmtree(write_file)
   >>> UV.write_miriad(write_file)
 
+g) miriad -> uvh5
+*****************
+::
+
+  >>> from pyuvdata import UVData
+  >>> UV = UVData()
+
+  # This miriad file is known to be a drift scan
+  >>> miriad_file = 'pyuvdata/data/new.uvA'
+  >>> UV.read_miriad(miriad_file)
+
+  # Write out the uvfits file
+  >>> UV.write_uvh5('tutorial.h5')
+
+h) uvfits -> uvh5
+*****************
+::
+
+   >>> from pyuvdata import UVData
+   >>> import os
+   >>> UV = UVData()
+   >>> uvfits_file = 'pyuvdata/data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
+   >>> UV.read_uvfits(uvfits_file)
+
+   # Write out the UVH5 file
+   >>> write_file = 'tutorial.h5'
+   >>> if os.path.exists(write_file):
+   ...    os.remove(write_file)
+   >>> UV.write_uvh5(write_file)
+
 UVData: Quick data access
 --------------------------
 A small suite of functions are available to quickly access numpy arrays of data,
