@@ -768,7 +768,6 @@ class UVBeam(UVBase):
         Returns:
             an array of interpolated values, shape: (Naxes_vec, Nspws, Nfeeds or Npols, Nfreqs, az_array.size)
             an array of interpolated basis vectors, shape: (Naxes_vec, Ncomponents_vec, az_array.size)
-            an array of distances from nearest beam pixel, shape: (az_array.size)
         """
         if self.pixel_coordinate_system != 'az_za':
             raise ValueError('pixel_coordinate_system must be "az_za"')
