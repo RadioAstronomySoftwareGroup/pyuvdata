@@ -336,19 +336,19 @@ def test_phase_unphaseHERA():
     uvtest.checkWarnings(UV_phase.read_miriad, [testfile], {'correct_lat_lon': False},
                          message='Altitude is not present in file and '
                                  'latitude and longitude values do not match')
-    UV_phase.phase(0., 0., "J2000")
+    UV_phase.phase(0., 0., epoch="J2000")
     UV_phase.unphase_to_drift()
 
     nt.assert_equal(UV_raw, UV_phase)
 
     # check that they match using gcrs
-    UV_phase.phase(0., 0., "J2000", phase_frame='gcrs')
+    UV_phase.phase(0., 0., epoch="J2000", phase_frame='gcrs')
     UV_phase.unphase_to_drift()
 
     nt.assert_equal(UV_raw, UV_phase)
 
     # check that they match if you phase & unphase using antenna locations
-    UV_phase.phase(0., 0., "J2000", use_ant_pos=True)
+    UV_phase.phase(0., 0., epoch="J2000", use_ant_pos=True)
     UV_phase.unphase_to_drift(use_ant_pos=True)
 
     # check errors when trying to unphase drift or unknown data
@@ -357,13 +357,13 @@ def test_phase_unphaseHERA():
     nt.assert_raises(ValueError, UV_raw.unphase_to_drift)
 
     # check errors when trying to phase phased or unknown data
-    UV_phase.phase(0., 0., "J2000")
-    nt.assert_raises(ValueError, UV_phase.phase, 0., 0., "J2000")
+    UV_phase.phase(0., 0., epoch="J2000")
+    nt.assert_raises(ValueError, UV_phase.phase, 0., 0., epoch="J2000")
     nt.assert_raises(ValueError, UV_phase.phase_to_time,
                      UV_phase.time_array[0])
 
     UV_phase.set_unknown_phase_type()
-    nt.assert_raises(ValueError, UV_phase.phase, 0., 0., "J2000")
+    nt.assert_raises(ValueError, UV_phase.phase, 0., 0., epoch="J2000")
     nt.assert_raises(ValueError, UV_phase.phase_to_time,
                      UV_phase.time_array[0])
 
