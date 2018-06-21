@@ -246,62 +246,63 @@ def ECEF_from_ENU(enu, latitude, longitude, altitude):
     return xyz
 
 
-def mwatools_calcuvw(ha, dec, xyz):
+def phase_uvw(ra, dec, xyz):
+    """
+    This code expects relative xyz locations in the same frame
+    that ra/dec are in (e.g. icrs or gcrs) and returns uvws in the same frame.
+
+    Args:
+        ra: right ascension to phase to in desired frame
+        dec: declination to phase to in desired frame
+        xyz: locations relative to the array center in desired frame
+
+    Returns:
+        uvw array in the same frame as xyz, ra and dec
+    """
     if xyz.ndim == 1:
         xyz = xyz[np.newaxis, :]
 
-    sh = np.sin(ha)
-    sd = np.sin(dec)
-    ch = np.cos(ha)
-    cd = np.cos(dec)
+    uvw = np.zeros_like(xyz)
+    uvw[:, 0] = (-np.sin(ra) * xyz[:, 0]
+                 + np.cos(ra) * xyz[:, 1])
+    uvw[:, 1] = (-np.sin(dec) * np.cos(ra) * xyz[:, 0]
+                 - np.sin(dec) * np.sin(ra) * xyz[:, 1]
+                 + np.cos(dec) * xyz[:, 2])
+    uvw[:, 2] = (np.cos(dec) * np.cos(ra) * xyz[:, 0]
+                 + np.cos(dec) * np.sin(ra) * xyz[:, 1]
+                 + np.sin(dec) * xyz[:, 2])
+    return(uvw)
 
-    u = sh * xyz[:, 0] + ch * xyz[:, 1]
-    v = -sd * ch * xyz[:, 0] + sd * sh * xyz[:, 1] + cd * xyz[:, 2]
-    w = cd * ch * xyz[:, 0] - cd * sh * xyz[:, 1] + sd * xyz[:, 2]
-    return np.array([u, v, w]).T
 
+def unphase_uvw(ra, dec, uvw):
+    """
+    This code expects uvw locations in the same frame that ra/dec are in
+    (e.g. icrs or gcrs) and returns relative xyz values in the same frame.
 
-def mwatools_calcuvw_unphase(ha, dec, uvw):
+    Args:
+        ra: right ascension data are phased to
+        dec: declination data are phased to
+        uvw: phased uvw values
+
+    Returns:
+        xyz locations relative to the array center in the phased frame
+    """
     if uvw.ndim == 1:
         uvw = uvw[np.newaxis, :]
 
-    sh = np.sin(ha)
-    sd = np.sin(dec)
-    ch = np.cos(ha)
-    cd = np.cos(dec)
+    xyz = np.zeros_like(uvw)
+    xyz[:, 0] = (-np.sin(ra) * uvw[:, 0]
+                 - np.sin(dec) * np.cos(ra) * uvw[:, 1]
+                 + np.cos(dec) * np.cos(ra) * uvw[:, 2])
 
-    x = sh * uvw[:, 0] - sd * ch * uvw[:, 1] + cd * ch * uvw[:, 2]
-    y = ch * uvw[:, 0] + sd * sh * uvw[:, 1] - cd * sh * uvw[:, 2]
-    z = cd * uvw[:, 1] + sd * uvw[:, 2]
-    return np.array([x, y, z]).T
+    xyz[:, 1] = (np.cos(ra) * uvw[:, 0]
+                 - np.sin(dec) * np.sin(ra) * uvw[:, 1]
+                 + np.cos(dec) * np.sin(ra) * uvw[:, 2])
 
+    xyz[:, 2] = (np.cos(dec) * uvw[:, 1]
+                 + np.sin(dec) * uvw[:, 2])
 
-def eq2top_m(ha, dec):
-    """Return the 3x3 matrix converting equatorial coordinates to topocentric
-    at the given hour angle (ha) and declination (dec).
-    Borrowed from aipy."""
-    sin_H, cos_H = np.sin(ha), np.cos(ha)
-    sin_d, cos_d = np.sin(dec), np.cos(dec)
-    mat = np.array([[sin_H, cos_H, np.zeros_like(ha)],
-                    [-sin_d * cos_H, sin_d * sin_H, cos_d],
-                    [cos_d * cos_H, -cos_d * sin_H, sin_d]])
-    if len(mat.shape) == 3:
-        mat = mat.transpose([2, 0, 1])
-    return mat
-
-
-def top2eq_m(ha, dec):
-    """Return the 3x3 matrix converting topocentric coordinates to equatorial
-    at the given hour angle (ha) and declination (dec).
-    Slightly changed from aipy to simply write the matrix instead of inverting."""
-    sin_H, cos_H = np.sin(ha), np.cos(ha)
-    sin_d, cos_d = np.sin(dec), np.cos(dec)
-    mat = np.array([[sin_H, -cos_H * sin_d, cos_d * cos_H],
-                    [cos_H, sin_d * sin_H, -cos_d * sin_H],
-                    [np.zeros_like(ha), cos_d, sin_d]])
-    if len(mat.shape) == 3:
-        mat = mat.transpose([2, 0, 1])
-    return mat
+    return(xyz)
 
 
 def get_iterable(x):
