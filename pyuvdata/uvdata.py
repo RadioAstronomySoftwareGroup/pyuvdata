@@ -837,7 +837,7 @@ class UVData(UVBase):
         zenith_ra = obs_zenith_coord.ra
         zenith_dec = obs_zenith_coord.dec
 
-        self.phase(zenith_ra, zenith_dec, 'J2000', phase_frame=phase_frame,
+        self.phase(zenith_ra, zenith_dec, epoch='J2000', phase_frame=phase_frame,
                    use_ant_pos=use_ant_pos)
 
     def __add__(self, other, run_check=True, check_extra=True,

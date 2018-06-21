@@ -271,7 +271,7 @@ Phasing/unphasing data
   >>> UV.unphase_to_drift()
 
   # Phase to a specific ra/dec/epoch (in radians)
-  >>> UV.phase(5.23368, 0.710940, "J2000")
+  >>> UV.phase(5.23368, 0.710940, epoch="J2000")
 
 UVData: Plotting
 ------------------
