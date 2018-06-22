@@ -354,12 +354,15 @@ def test_phase_unphaseHERA():
     #
     # nt.assert_equal(UV_raw, UV_phase)
 
-    # check that phasing to zenith with one timestamp doesn't change anything
+    # check that phasing to zenith with one timestamp has small changes
+    # (it won't be identical because of precession/nutation changing the coordinate axes)
+    # use gcrs rather than icrs to reduce differences (don't include abberation)
     UV_raw_small = UV_raw.select(times=UV_raw.time_array[0], inplace=False)
     UV_phase_small = UV_phase.select(times=UV_raw.time_array[0], inplace=False)
-    UV_phase_small.phase_to_time(time=Time(UV_raw.time_array[0], format='jd'))
+    UV_phase_small.phase_to_time(time=Time(UV_raw.time_array[0], format='jd'),
+                                 phase_frame='gcrs')
 
-    # it seems like this should be true to better precision, but I'm not sure
+    # it's unclear to me how close this should be...
     nt.assert_true(np.allclose(UV_phase_small.uvw_array, UV_raw_small.uvw_array, atol=1e-2))
 
     # check errors when trying to unphase drift or unknown data
