@@ -19,6 +19,7 @@ from pyuvdata.data import DATA_PATH
 if six.PY2:
     nt.assert_count_equal = nt.assert_items_equal
 
+
 class TestUVDataInit(object):
     def setUp(self):
         """Setup for basic parameter, property and iterator tests."""

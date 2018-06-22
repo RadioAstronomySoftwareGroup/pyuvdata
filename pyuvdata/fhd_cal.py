@@ -92,7 +92,7 @@ class FHDCal(UVCal):
                                float(cal_data['max_cal_baseline'][0])]
 
         galaxy_model = cal_data['skymodel'][0]['galaxy_model'][0]
-        if isinstance(galaxy_model, six.binary_type): # In Python 3, we sometimes get Unicode, sometimes bytes
+        if isinstance(galaxy_model, six.binary_type):  # In Python 3, we sometimes get Unicode, sometimes bytes
             galaxy_model = uvutils.bytes_to_str(galaxy_model)
         if galaxy_model == 0:
             galaxy_model = None
