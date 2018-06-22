@@ -13,7 +13,7 @@ from . import parameter as uvp
 from . import version as uvversion
 
 
-def _warning(msg, *a):
+def _warning(msg, *a, **kwargs):
     """Improve the printing of user warnings."""
     return str(msg) + '\n'
 
