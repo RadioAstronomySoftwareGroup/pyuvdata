@@ -244,8 +244,8 @@ class Miriad(UVData):
                     raise ValueError(
                         'bls must be a list of tuples of antenna numbers (optionally with polarization).')
                 if all([len(item) == 2 for item in bls]):
-                    if not all([isinstance(item[0], (int, long, np.integer)) for item in bls]
-                               + [isinstance(item[1], (int, long, np.integer)) for item in bls]):
+                    if not all([isinstance(item[0], six.integer_types + (np.integer,)) for item in bls]
+                               + [isinstance(item[1], six.integer_types + (np.integer,)) for item in bls]):
                         raise ValueError(
                             'bls must be a list of tuples of antenna numbers (optionally with polarization).')
                 elif all([len(item) == 3 for item in bls]):
@@ -648,7 +648,7 @@ class Miriad(UVData):
                               'file with write_miriad to ensure future '
                               'compatibility'.format(file=filepath))
                 ant_name_flt = uv['antnames']
-                ant_name_list = [('%x' % elem.astype(np.int64)).decode('hex') for elem in ant_name_flt]
+                ant_name_list = [str(elem.astype(np.int64)) for elem in ant_name_flt]
                 self.antenna_names = ant_name_list
 
         except(KeyError):

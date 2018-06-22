@@ -41,7 +41,7 @@ class UVTest(UVBase):
 
         self._intlist = uvp.UVParameter('intlist', description='integer list',
                                         form=('int1',), expected_type=int,
-                                        value=[i for i in np.arange(self._int1.value)])
+                                        value=list(range(self._int1.value)))
         super(UVTest, self).__init__()
 
 
