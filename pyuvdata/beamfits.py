@@ -214,7 +214,7 @@ class BeamFITS(UVBeam):
                                'GROUPS', 'PCOUNT', 'BSCALE', 'BZERO', 'NAXIS',
                                'PTYPE', 'PSCAL', 'PZERO', 'CTYPE', 'CRVAL',
                                'CRPIX', 'CDELT', 'CROTA', 'CUNIT']
-        for key in primary_header.keys():
+        for key in list(primary_header.keys()):
             for sub in std_fits_substrings:
                 if key.find(sub) > -1:
                     primary_header.remove(key)

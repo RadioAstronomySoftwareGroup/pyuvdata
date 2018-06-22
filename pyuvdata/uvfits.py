@@ -352,7 +352,7 @@ class UVFITS(UVData):
                                    'GROUPS', 'PCOUNT', 'BSCALE', 'BZERO', 'NAXIS',
                                    'PTYPE', 'PSCAL', 'PZERO', 'CTYPE', 'CRVAL',
                                    'CRPIX', 'CDELT', 'CROTA', 'CUNIT', 'DATE-OBS']
-            for key in vis_hdr.keys():
+            for key in list(vis_hdr.keys()):
                 for sub in std_fits_substrings:
                     if key.find(sub) > -1:
                         vis_hdr.remove(key)
