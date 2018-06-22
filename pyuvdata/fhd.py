@@ -20,7 +20,8 @@ def get_fhd_history(settings_file, return_user=False):
 
     Includes information about the command line call, the user, machine name and date
     """
-    settings_lines = open(settings_file, 'r').readlines()
+    with open(settings_file, 'r') as f:
+        settings_lines = f.readlines()
     main_loc = None
     command_loc = None
     obs_loc = None
