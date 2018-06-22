@@ -34,7 +34,8 @@ def construct_version_info():
         return u
 
     version_file = os.path.join(pyuvdata_dir, 'VERSION')
-    version = open(version_file).read().strip()
+    with open(version_file) as f:
+        version = f.read().strip()
 
     try:
         git_origin = get_git_output(['config', '--get', 'remote.origin.url'], capture_stderr=True)
