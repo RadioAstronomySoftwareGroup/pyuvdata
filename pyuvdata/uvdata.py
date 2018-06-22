@@ -614,6 +614,7 @@ class UVData(UVBase):
                                                frame='itrs', obstime=obs_time)
             frame_telescope_location = itrs_telescope_location.transform_to(phase_frame)
             frame_telescope_location.representation = 'cartesian'
+            itrs_lat_lon_alt = uvutils.LatLonAlt_from_XYZ(itrs_telescope_location.cartesian.get_xyz().value)
 
             if use_ant_pos:
                 if use_mwatools_phasing:
@@ -629,8 +630,6 @@ class UVData(UVBase):
                                                 self.antenna_positions)
 
                 for bl_ind in inds:
-                    if ind == 0:
-                        print('calculating drift uvws from ant_pos')
                     ant1 = self.ant_1_array[bl_ind]
                     ant2 = self.ant_2_array[bl_ind]
                     self.uvw_array[bl_ind, :] = ant_uvw[ant2] - ant_uvw[ant1]
@@ -666,10 +665,9 @@ class UVData(UVBase):
 
                 itrs_uvw_coord = frame_uvw_coord.transform_to('itrs')
 
-                # this takes out the telescope location in the new frame,
-                # so these are vectors again
-                self.uvw_array[inds, :] = (itrs_uvw_coord.cartesian
-                                           - itrs_telescope_location.cartesian).get_xyz().T.value
+                # now convert them to ENU, which is the space uvws are in
+                self.uvw_array[inds, :] = uvutils.ENU_from_ECEF(itrs_uvw_coord.cartesian.get_xyz().value,
+                                                                *itrs_lat_lon_alt).T
 
         # remove phase center
         self.phase_center_frame = None
@@ -760,6 +758,7 @@ class UVData(UVBase):
                                                z=self.telescope_location[2] * units.m,
                                                representation='cartesian',
                                                frame='itrs', obstime=obs_time)
+            itrs_lat_lon_alt = uvutils.LatLonAlt_from_XYZ(itrs_telescope_location.cartesian.get_xyz().value)
 
             frame_telescope_location = itrs_telescope_location.transform_to(phase_frame)
 
@@ -802,13 +801,13 @@ class UVData(UVBase):
                     ant2 = self.ant_2_array[bl_ind]
                     self.uvw_array[bl_ind, :] = frame_ant_uvw[ant2] - frame_ant_uvw[ant1]
             else:
-                # need to make the uvws have a full position, not just be a vector
-                # so that they will transform properly.
-                # Add in the center of the array, and then remove it later
+                # Also, uvws should be thought of like ENU, not ECEF (or rotated ECEF)
+                # convert them to ECEF to transform between frames
+                uvw_ecef = uvutils.ECEF_from_ENU(self.uvw_array[inds, :].T, *itrs_lat_lon_alt).T
 
-                itrs_uvw_coord = SkyCoord(x=self.uvw_array[inds, 0] * units.m + itrs_telescope_location.x,
-                                          y=self.uvw_array[inds, 1] * units.m + itrs_telescope_location.y,
-                                          z=self.uvw_array[inds, 2] * units.m + itrs_telescope_location.z,
+                itrs_uvw_coord = SkyCoord(x=uvw_ecef[:, 0] * units.m,
+                                          y=uvw_ecef[:, 1] * units.m,
+                                          z=uvw_ecef[:, 2] * units.m,
                                           representation='cartesian',
                                           frame='itrs', obstime=obs_time)
                 frame_uvw_coord = itrs_uvw_coord.transform_to(phase_frame)
@@ -819,9 +818,11 @@ class UVData(UVBase):
                                  - frame_telescope_location.cartesian).get_xyz().T.value
 
                 if use_mwatools_phasing:
+                    # rotate to frame with x-axis through local meridian for phasing code
                     frame_uvw_rot = uvutils.rotECEF_from_ECEF(frame_rel_uvw,
                                                               gcrs_lat_lon_alt[1])
 
+                    # phase: for zenith this effectively results in ENU positions
                     self.uvw_array[inds, :] = uvutils.mwatools_calcuvw(frame_ha.rad,
                                                                        frame_phase_center.dec.rad,
                                                                        frame_uvw_rot)
@@ -839,7 +840,8 @@ class UVData(UVBase):
         self.phase_center_frame = phase_frame
         self.set_phased()
 
-    def phase_to_time(self, time, phase_frame='icrs', use_ant_pos=False):
+    def phase_to_time(self, time, phase_frame='icrs', use_ant_pos=False,
+                      use_mwatools_phasing=True):
         """
         Phase a drift scan dataset to the ra/dec of zenith at a particular time.
 
@@ -879,7 +881,7 @@ class UVData(UVBase):
         zenith_dec = obs_zenith_coord.dec
 
         self.phase(zenith_ra, zenith_dec, epoch='J2000', phase_frame=phase_frame,
-                   use_ant_pos=use_ant_pos)
+                   use_ant_pos=use_ant_pos, use_mwatools_phasing=use_mwatools_phasing)
 
     def __add__(self, other, run_check=True, check_extra=True,
                 run_check_acceptability=True, inplace=False):

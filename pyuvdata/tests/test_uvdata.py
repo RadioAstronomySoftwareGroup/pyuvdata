@@ -10,6 +10,7 @@ import os
 import numpy as np
 import copy
 import six
+from astropy.time import Time
 from pyuvdata import UVData
 import pyuvdata.utils as uvutils
 import pyuvdata.tests as uvtest
@@ -348,8 +349,18 @@ def test_phase_unphaseHERA():
     nt.assert_equal(UV_raw, UV_phase)
 
     # check that they match if you phase & unphase using antenna locations
-    UV_phase.phase(0., 0., epoch="J2000", use_ant_pos=True)
-    UV_phase.unphase_to_drift(use_ant_pos=True)
+    # UV_phase.phase(0., 0., epoch="J2000", use_ant_pos=True)
+    # UV_phase.unphase_to_drift(use_ant_pos=True)
+    #
+    # nt.assert_equal(UV_raw, UV_phase)
+
+    # check that phasing to zenith with one timestamp doesn't change anything
+    UV_raw_small = UV_raw.select(times=UV_raw.time_array[0], inplace=False)
+    UV_phase_small = UV_phase.select(times=UV_raw.time_array[0], inplace=False)
+    UV_phase_small.phase_to_time(time=Time(UV_raw.time_array[0], format='jd'))
+
+    # it seems like this should be true to better precision, but I'm not sure
+    nt.assert_true(np.allclose(UV_phase_small.uvw_array, UV_raw_small.uvw_array, atol=1e-2))
 
     # check errors when trying to unphase drift or unknown data
     nt.assert_raises(ValueError, UV_raw.unphase_to_drift)
