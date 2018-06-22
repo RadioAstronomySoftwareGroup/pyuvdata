@@ -525,8 +525,6 @@ def test_select_bls():
     for bl in sorted_pairs_object2:
         nt.assert_true(bl in sorted_bls_to_keep)
 
-    print old_history + '  Downselected to specific baselines using pyuvdata.'
-    print uv_object2.history
     nt.assert_true(uvutils.check_histories(old_history + '  Downselected to '
                                            'specific baselines, polarizations using pyuvdata.',
                                            uv_object2.history))
