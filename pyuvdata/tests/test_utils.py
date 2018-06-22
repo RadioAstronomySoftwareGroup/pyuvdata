@@ -7,6 +7,9 @@ from __future__ import absolute_import, division, print_function
 
 import os
 import nose.tools as nt
+from astropy import units
+from astropy.time import Time
+from astropy.coordinates import SkyCoord, Angle, EarthLocation, Longitude
 import pyuvdata
 import numpy as np
 from pyuvdata.data import DATA_PATH
@@ -153,6 +156,70 @@ def test_mwa_ecef_conversion():
     # test other direction of ECEF rotation
     rot_xyz = uvutils.rotECEF_from_ECEF(new_xyz, lon)
     nt.assert_true(np.allclose(rot_xyz.T, xyz))
+
+
+def test_phasing_funcs():
+    # these tests are based on a notebook where I tested against the mwa_tools phasing code
+    ra_hrs = 12.1
+    dec_degs = -42.3
+    mjd = 55780.1
+
+    array_center_xyz = np.array([-2559454.08, 5095372.14, -2849057.18])
+    lat_lon_alt = uvutils.LatLonAlt_from_XYZ(array_center_xyz)
+
+    obs_time = Time(mjd, format='mjd', location=(lat_lon_alt[1], lat_lon_alt[0]))
+
+    icrs_coord = SkyCoord(ra=Angle(ra_hrs, unit='hr'), dec=Angle(dec_degs, unit='deg'),
+                          obstime=obs_time)
+    gcrs_coord = icrs_coord.transform_to('gcrs')
+
+    # in east/north/up frame (relative to array center) in meters: (Nants, 3)
+    ants_enu = np.array([-101.94, 0156.41, 0001.24])
+
+    ant_xyz_abs = uvutils.ECEF_from_ENU(ants_enu.T, lat_lon_alt[0], lat_lon_alt[1], lat_lon_alt[2]).T
+    ant_xyz_rel_itrs = ant_xyz_abs - array_center_xyz
+    ant_xyz_rel_rot = uvutils.rotECEF_from_ECEF(ant_xyz_rel_itrs, lat_lon_alt[1])
+
+    array_center_coord = SkyCoord(x=array_center_xyz[0] * units.m,
+                                  y=array_center_xyz[1] * units.m,
+                                  z=array_center_xyz[2] * units.m,
+                                  representation='cartesian', frame='itrs',
+                                  obstime=obs_time)
+
+    itrs_coord = SkyCoord(x=ant_xyz_abs[0] * units.m,
+                          y=ant_xyz_abs[1] * units.m,
+                          z=ant_xyz_abs[2] * units.m,
+                          representation='cartesian', frame='itrs',
+                          obstime=obs_time)
+
+    loc_obj = EarthLocation.from_geocentric(array_center_xyz[0],
+                                            array_center_xyz[1],
+                                            array_center_xyz[2],
+                                            unit='m')
+
+    zenith_coord = SkyCoord(alt=Angle(90 * units.deg), az=Angle(0 * units.deg),
+                            obstime=obs_time, frame='altaz', location=loc_obj)
+    gcrs_zenith = zenith_coord.transform_to('gcrs')
+
+    ha_gcrs = Longitude(gcrs_zenith.ra - gcrs_coord.ra)
+
+    gcrs_array_center = array_center_coord.transform_to('gcrs')
+    gcrs_from_itrs_coord = itrs_coord.transform_to('gcrs')
+
+    gcrs_rel = (gcrs_from_itrs_coord.cartesian - gcrs_array_center.cartesian).get_xyz().T
+    gcrs_lat_lon_alt = uvutils.LatLonAlt_from_XYZ(gcrs_array_center.cartesian.get_xyz().value)
+
+    gcrs_rel_rot = uvutils.rotECEF_from_ECEF(gcrs_rel.value, gcrs_lat_lon_alt[1])
+
+    gcrs_uvw = uvutils.mwatools_calcuvw(ha_gcrs.rad, gcrs_coord.dec.rad, gcrs_rel_rot)
+
+    mwa_tools_calcuvw_u = -97.122828
+    mwa_tools_calcuvw_v = 50.388281
+    mwa_tools_calcuvw_w = -151.27976
+
+    nt.assert_true(np.allclose(gcrs_uvw[0, 0], mwa_tools_calcuvw_u, atol=1e-3))
+    nt.assert_true(np.allclose(gcrs_uvw[0, 1], mwa_tools_calcuvw_v, atol=1e-3))
+    nt.assert_true(np.allclose(gcrs_uvw[0, 2], mwa_tools_calcuvw_w, atol=1e-3))
 
 
 def test_pol_funcs():
