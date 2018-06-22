@@ -9,8 +9,21 @@ from __future__ import absolute_import, division, print_function
 
 import numpy as np
 import os
+import six
 from .uvdata import UVData
 from . import utils as uvutils
+
+
+def str_to_bytes(s):
+    if six.PY2:
+        return s
+    return s.encode('utf8')
+
+def bytes_to_str(b):
+    if six.PY2:
+        return b
+    return b.decode('utf8')
+
 
 
 class UVH5(UVData):
@@ -111,7 +124,7 @@ class UVH5(UVData):
         self.Nants_telescope = int(header['Nants_telescope'].value)
         self.ant_1_array = header['ant_1_array'].value
         self.ant_2_array = header['ant_2_array'].value
-        self.antenna_names = list(header['antenna_names'].value)
+        self.antenna_names = [bytes_to_str(n) for n in header['antenna_names'].value]
         self.antenna_numbers = header['antenna_numbers'].value
 
         # get baseline array
@@ -234,7 +247,7 @@ class UVH5(UVData):
         header['Npols'] = self.Npols
         header['Nspws'] = self.Nspws
         header['Ntimes'] = self.Ntimes
-        header['antenna_names'] = self.antenna_names
+        header['antenna_names'] = [str_to_bytes(n) for n in self.antenna_names]
         header['antenna_numbers'] = self.antenna_numbers
         header['uvw_array'] = self.uvw_array
         header['vis_units'] = self.vis_units
