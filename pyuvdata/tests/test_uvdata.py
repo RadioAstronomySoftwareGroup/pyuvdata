@@ -455,6 +455,13 @@ def test_select_antennas():
                      antenna_nums=ants_to_keep, antenna_names=ant_names)
 
 
+def sort_bl(p):
+    """Sort a tuple that starts with a pair of antennas, and may have stuff after."""
+    if p[1] >= p[0]:
+        return p
+    return (p[1], p[0]) + p[2:]
+
+
 def test_select_bls():
     uv_object = UVData()
     testfile = os.path.join(
@@ -466,18 +473,18 @@ def test_select_bls():
     second_ants = [0, 20, 8, 1, 2, 3, 22]
     new_unique_ants = np.unique(first_ants + second_ants)
     ant_pairs_to_keep = list(zip(first_ants, second_ants))
-    sorted_pairs_to_keep = [tuple(sorted(p)) for p in ant_pairs_to_keep]
+    sorted_pairs_to_keep = [sort_bl(p) for p in ant_pairs_to_keep]
 
-    sorted_pairs_object = [tuple(sorted(p)) for p in zip(
+    sorted_pairs_object = [sort_bl(p) for p in zip(
         uv_object.ant_1_array, uv_object.ant_2_array)]
 
-    blts_select = [tuple(sorted((a1, a2))) in sorted_pairs_to_keep for (a1, a2) in
+    blts_select = [sort_bl((a1, a2)) in sorted_pairs_to_keep for (a1, a2) in
                    zip(uv_object.ant_1_array, uv_object.ant_2_array)]
     Nblts_selected = np.sum(blts_select)
 
     uv_object2 = copy.deepcopy(uv_object)
     uv_object2.select(bls=ant_pairs_to_keep)
-    sorted_pairs_object2 = [tuple(sorted(p)) for p in zip(
+    sorted_pairs_object2 = [sort_bl(p) for p in zip(
         uv_object2.ant_1_array, uv_object2.ant_2_array)]
 
     nt.assert_equal(len(new_unique_ants), uv_object2.Nants_data)
@@ -501,19 +508,19 @@ def test_select_bls():
     second_ants = [0, 20, 8, 1, 2, 3, 22]
     pols = ['RR', 'RR', 'RR', 'RR', 'RR', 'RR', 'RR']
     new_unique_ants = np.unique(first_ants + second_ants)
-    bls_to_keep = zip(first_ants, second_ants, pols)
-    sorted_bls_to_keep = [tuple(sorted(p)) for p in bls_to_keep]
+    bls_to_keep = list(zip(first_ants, second_ants, pols))
+    sorted_bls_to_keep = [sort_bl(p) for p in bls_to_keep]
 
-    sorted_pairs_object = [tuple(sorted(p)) for p in zip(
+    sorted_pairs_object = [sort_bl(p) for p in zip(
         uv_object.ant_1_array, uv_object.ant_2_array)]
 
-    blts_select = [tuple(sorted((a1, a2, 'RR'))) in sorted_bls_to_keep for (a1, a2) in
+    blts_select = [sort_bl((a1, a2, 'RR')) in sorted_bls_to_keep for (a1, a2) in
                    zip(uv_object.ant_1_array, uv_object.ant_2_array)]
     Nblts_selected = np.sum(blts_select)
 
     uv_object2 = copy.deepcopy(uv_object)
     uv_object2.select(bls=bls_to_keep)
-    sorted_pairs_object2 = [tuple(sorted(p)) + ('RR',) for p in zip(
+    sorted_pairs_object2 = [sort_bl(p) + ('RR',) for p in zip(
         uv_object2.ant_1_array, uv_object2.ant_2_array)]
 
     nt.assert_equal(len(new_unique_ants), uv_object2.Nants_data)
@@ -538,7 +545,7 @@ def test_select_bls():
     ant_pairs_to_keep = list(zip(first_ants, second_ants))
 
     uv_object2 = uv_object.select(bls=ant_pairs_to_keep, inplace=False)
-    sorted_pairs_object2 = [tuple(sorted(p)) for p in zip(
+    sorted_pairs_object2 = [sort_bl(p) for p in zip(
         uv_object2.ant_1_array, uv_object2.ant_2_array)]
 
     nt.assert_equal(len(new_unique_ants), uv_object2.Nants_data)
@@ -559,7 +566,7 @@ def test_select_bls():
 
     # check that you can specify a single pair without errors
     uv_object2.select(bls=(0, 6))
-    sorted_pairs_object2 = [tuple(sorted(p)) for p in zip(
+    sorted_pairs_object2 = [sort_bl(p) for p in zip(
         uv_object2.ant_1_array, uv_object2.ant_2_array)]
     nt.assert_equal(list(set(sorted_pairs_object2)), [(0, 6)])
 
@@ -755,7 +762,7 @@ def test_select():
     ants_to_keep = np.array([11, 6, 20, 26, 2, 27, 3, 7, 14])
 
     ant_pairs_to_keep = [(2, 11), (20, 26), (6, 7), (3, 27), (14, 6)]
-    sorted_pairs_to_keep = [tuple(sorted(p)) for p in ant_pairs_to_keep]
+    sorted_pairs_to_keep = [sort_bl(p) for p in ant_pairs_to_keep]
 
     freqs_to_keep = uv_object.freq_array[0, np.arange(31, 39)]
 
@@ -768,7 +775,7 @@ def test_select():
     blts_blt_select = [i in blt_inds for i in np.arange(uv_object.Nblts)]
     blts_ant_select = [(a1 in ants_to_keep) & (a2 in ants_to_keep) for (a1, a2) in
                        zip(uv_object.ant_1_array, uv_object.ant_2_array)]
-    blts_pair_select = [tuple(sorted((a1, a2))) in sorted_pairs_to_keep for (a1, a2) in
+    blts_pair_select = [sort_bl((a1, a2)) in sorted_pairs_to_keep for (a1, a2) in
                         zip(uv_object.ant_1_array, uv_object.ant_2_array)]
     blts_time_select = [t in times_to_keep for t in uv_object.time_array]
     Nblts_select = np.sum([bi & (ai | pi) & ti for (bi, ai, pi, ti) in
