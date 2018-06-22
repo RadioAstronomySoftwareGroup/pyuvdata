@@ -555,7 +555,7 @@ class UVData(UVBase):
         self.lst_array = uvutils.get_lst_for_time(self.time_array, latitude, longitude, altitude)
 
     def unphase_to_drift(self, phase_frame=None, use_ant_pos=False,
-                         use_mwatools_phasing=True):
+                         use_mwatools_phasing=False):
         """
         Convert from a phased dataset to a drift dataset.
 
@@ -643,11 +643,15 @@ class UVData(UVBase):
                 else:
                     gcrs_lat_lon_alt = uvutils.LatLonAlt_from_XYZ(frame_telescope_location.cartesian.get_xyz().value)
 
+                uvws_use = self.uvw_array[inds, :]
+                if uvws_use.ndim == 1:
+                    uvws_use = uvws_use[np.newaxis, :]
+
                 if use_mwatools_phasing:
                     # first unphase to get positions in rotECEF frame
                     uvw_rot_positions = uvutils.mwatools_calcuvw_unphase(frame_ha.rad,
                                                                          self.phase_center_dec,
-                                                                         self.uvw_array[inds, :])
+                                                                         uvws_use)
 
                     # rotate them so they can be added to telescope location in frame
                     uvw_rel_positions = uvutils.ECEF_from_rotECEF(uvw_rot_positions,
@@ -655,7 +659,7 @@ class UVData(UVBase):
                 else:
                     uvw_rel_positions = uvutils.unphase_uvw(self.phase_center_ra,
                                                             self.phase_center_dec,
-                                                            self.uvw_array[inds, :])
+                                                            uvws_use)
 
                 frame_uvw_coord = SkyCoord(x=uvw_rel_positions[:, 0] * units.m + frame_telescope_location.x,
                                            y=uvw_rel_positions[:, 1] * units.m + frame_telescope_location.y,
@@ -741,7 +745,6 @@ class UVData(UVBase):
                                                            unit='m')
 
         unique_times, unique_inds = np.unique(self.time_array, return_index=True)
-        uvws = np.zeros(self.uvw_array.shape, dtype=np.float64)
         for ind, jd in enumerate(unique_times):
             inds = np.where(self.time_array == jd)[0]
 
@@ -803,7 +806,10 @@ class UVData(UVBase):
             else:
                 # Also, uvws should be thought of like ENU, not ECEF (or rotated ECEF)
                 # convert them to ECEF to transform between frames
-                uvw_ecef = uvutils.ECEF_from_ENU(self.uvw_array[inds, :].T, *itrs_lat_lon_alt).T
+                uvws_use = self.uvw_array[inds, :]
+                if uvws_use.ndim == 1:
+                    uvws_use = uvws_use[np.newaxis, :]
+                uvw_ecef = uvutils.ECEF_from_ENU(uvws_use.T, *itrs_lat_lon_alt).T
 
                 itrs_uvw_coord = SkyCoord(x=uvw_ecef[:, 0] * units.m,
                                           y=uvw_ecef[:, 1] * units.m,

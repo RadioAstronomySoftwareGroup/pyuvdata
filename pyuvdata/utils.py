@@ -182,13 +182,13 @@ def ENU_from_ECEF(xyz, latitude, longitude, altitude):
 
     xyz_center = XYZ_from_LatLonAlt(latitude, longitude, altitude)
 
+    xyz_use = xyz
     if Npts == 1:
-        xyz = xyz[:, np.newaxis]
+        xyz_use = xyz_use[:, np.newaxis]
     xyz_use = np.zeros_like(xyz)
     xyz_use[0, :] = xyz[0, :] - xyz_center[0]
     xyz_use[1, :] = xyz[1, :] - xyz_center[1]
     xyz_use[2, :] = xyz[2, :] - xyz_center[2]
-    xyz = np.squeeze(xyz)
 
     enu = np.zeros((3, Npts))
     enu[0, :] = (-np.sin(longitude) * xyz_use[0, :]
@@ -199,7 +199,8 @@ def ENU_from_ECEF(xyz, latitude, longitude, altitude):
     enu[2, :] = (np.cos(latitude) * np.cos(longitude) * xyz_use[0, :]
                  + np.cos(latitude) * np.sin(longitude) * xyz_use[1, :]
                  + np.sin(latitude) * xyz_use[2, :])
-    enu = np.squeeze(enu)
+    if len(xyz.shape) == 1:
+        enu = np.squeeze(enu)
 
     return enu
 
@@ -225,8 +226,9 @@ def ECEF_from_ENU(enu, latitude, longitude, altitude):
         Npts = enu.shape[1]
 
     xyz = np.zeros((3, Npts))
+    enu_use = enu
     if Npts == 1:
-        enu = enu[:, np.newaxis]
+        enu_use = enu_use[:, np.newaxis]
     xyz[0, :] = (-np.sin(latitude) * np.cos(longitude) * enu[1, :]
                  - np.sin(longitude) * enu[0, :]
                  + np.cos(latitude) * np.cos(longitude) * enu[2, :])
@@ -235,13 +237,13 @@ def ECEF_from_ENU(enu, latitude, longitude, altitude):
                  + np.cos(latitude) * np.sin(longitude) * enu[2, :])
     xyz[2, :] = (np.cos(latitude) * enu[1, :]
                  + np.sin(latitude) * enu[2, :])
-    enu = np.squeeze(enu)
 
     xyz_center = XYZ_from_LatLonAlt(latitude, longitude, altitude)
     xyz[0, :] = xyz[0, :] + xyz_center[0]
     xyz[1, :] = xyz[1, :] + xyz_center[1]
     xyz[2, :] = xyz[2, :] + xyz_center[2]
-    xyz = np.squeeze(xyz)
+    if len(enu.shape) == 1:
+        xyz = np.squeeze(xyz)
 
     return xyz
 
