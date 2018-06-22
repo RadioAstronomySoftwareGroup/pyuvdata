@@ -182,13 +182,13 @@ def ENU_from_ECEF(xyz, latitude, longitude, altitude):
 
     xyz_center = XYZ_from_LatLonAlt(latitude, longitude, altitude)
 
-    xyz_use = xyz
+    xyz_in = xyz
     if Npts == 1:
-        xyz_use = xyz_use[:, np.newaxis]
-    xyz_use = np.zeros_like(xyz)
-    xyz_use[0, :] = xyz[0, :] - xyz_center[0]
-    xyz_use[1, :] = xyz[1, :] - xyz_center[1]
-    xyz_use[2, :] = xyz[2, :] - xyz_center[2]
+        xyz_in = xyz_in[:, np.newaxis]
+    xyz_use = np.zeros_like(xyz_in)
+    xyz_use[0, :] = xyz_in[0, :] - xyz_center[0]
+    xyz_use[1, :] = xyz_in[1, :] - xyz_center[1]
+    xyz_use[2, :] = xyz_in[2, :] - xyz_center[2]
 
     enu = np.zeros((3, Npts))
     enu[0, :] = (-np.sin(longitude) * xyz_use[0, :]
@@ -225,18 +225,18 @@ def ECEF_from_ENU(enu, latitude, longitude, altitude):
     else:
         Npts = enu.shape[1]
 
-    xyz = np.zeros((3, Npts))
     enu_use = enu
     if Npts == 1:
         enu_use = enu_use[:, np.newaxis]
-    xyz[0, :] = (-np.sin(latitude) * np.cos(longitude) * enu[1, :]
-                 - np.sin(longitude) * enu[0, :]
-                 + np.cos(latitude) * np.cos(longitude) * enu[2, :])
-    xyz[1, :] = (-np.sin(latitude) * np.sin(longitude) * enu[1, :]
-                 + np.cos(longitude) * enu[0, :]
-                 + np.cos(latitude) * np.sin(longitude) * enu[2, :])
-    xyz[2, :] = (np.cos(latitude) * enu[1, :]
-                 + np.sin(latitude) * enu[2, :])
+    xyz = np.zeros_like(enu_use)
+    xyz[0, :] = (-np.sin(latitude) * np.cos(longitude) * enu_use[1, :]
+                 - np.sin(longitude) * enu_use[0, :]
+                 + np.cos(latitude) * np.cos(longitude) * enu_use[2, :])
+    xyz[1, :] = (-np.sin(latitude) * np.sin(longitude) * enu_use[1, :]
+                 + np.cos(longitude) * enu_use[0, :]
+                 + np.cos(latitude) * np.sin(longitude) * enu_use[2, :])
+    xyz[2, :] = (np.cos(latitude) * enu_use[1, :]
+                 + np.sin(latitude) * enu_use[2, :])
 
     xyz_center = XYZ_from_LatLonAlt(latitude, longitude, altitude)
     xyz[0, :] = xyz[0, :] + xyz_center[0]
