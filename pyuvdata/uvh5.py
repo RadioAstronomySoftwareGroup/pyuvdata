@@ -13,7 +13,6 @@ from .uvdata import UVData
 from . import utils as uvutils
 
 
-
 class UVH5(UVData):
     """
     Defines an HDF5-specific subclass of UVData for reading and writing uvh5 files.

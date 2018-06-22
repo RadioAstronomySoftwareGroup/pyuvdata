@@ -18,11 +18,17 @@ e_prime_squared = 6.73949674228e-3
 
 
 if six.PY2:
-    str_to_bytes = lambda s: s
-    bytes_to_str = lambda b: b
+    def str_to_bytes(s):
+        return s
+
+    def bytes_to_str(b):
+        return b
 else:
-    str_to_bytes = lambda s: s.encode('utf8')
-    bytes_to_str = lambda b: b.decode('utf8')
+    def str_to_bytes(s):
+        return s.encode('utf8')
+
+    def bytes_to_str(b):
+        return b.decode('utf8')
 
 
 def LatLonAlt_from_XYZ(xyz):
