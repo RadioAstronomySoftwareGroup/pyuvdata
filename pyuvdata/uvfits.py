@@ -290,175 +290,175 @@ class UVFITS(UVData):
         if not read_data:
             run_check = False
 
-        hdu_list = fits.open(filename, memmap=True)
-        vis_hdu = hdu_list[0]  # assumes the visibilities are in the primary hdu
-        vis_hdr = vis_hdu.header.copy()
-        hdunames = uvutils.fits_indexhdus(hdu_list)  # find the rest of the tables
+        with fits.open(filename, memmap=True) as hdu_list:
+            vis_hdu = hdu_list[0]  # assumes the visibilities are in the primary hdu
+            vis_hdr = vis_hdu.header.copy()
+            hdunames = uvutils.fits_indexhdus(hdu_list)  # find the rest of the tables
 
-        # First get everything we can out of the header.
-        self.set_phased()
-        # check if we have an spw dimension
-        if vis_hdr['NAXIS'] == 7:
-            if vis_hdr['NAXIS5'] > 1:
-                raise ValueError('Sorry.  Files with more than one spectral'
-                                 'window (spw) are not yet supported. A '
-                                 'great project for the interested student!')
+            # First get everything we can out of the header.
+            self.set_phased()
+            # check if we have an spw dimension
+            if vis_hdr['NAXIS'] == 7:
+                if vis_hdr['NAXIS5'] > 1:
+                    raise ValueError('Sorry.  Files with more than one spectral'
+                                     'window (spw) are not yet supported. A '
+                                     'great project for the interested student!')
 
-            self.Nspws = vis_hdr.pop('NAXIS5')
+                self.Nspws = vis_hdr.pop('NAXIS5')
 
-            self.spw_array = np.int32(uvutils.fits_gethduaxis(vis_hdu, 5)) - 1
+                self.spw_array = np.int32(uvutils.fits_gethduaxis(vis_hdu, 5)) - 1
 
-            # the axis number for phase center depends on if the spw exists
-            self.phase_center_ra_degrees = np.float(vis_hdr.pop('CRVAL6'))
-            self.phase_center_dec_degrees = np.float(vis_hdr.pop('CRVAL7'))
-        else:
-            self.Nspws = 1
-            self.spw_array = np.array([0])
+                # the axis number for phase center depends on if the spw exists
+                self.phase_center_ra_degrees = np.float(vis_hdr.pop('CRVAL6'))
+                self.phase_center_dec_degrees = np.float(vis_hdr.pop('CRVAL7'))
+            else:
+                self.Nspws = 1
+                self.spw_array = np.array([0])
 
-            # the axis number for phase center depends on if the spw exists
-            self.phase_center_ra_degrees = np.float(vis_hdr.pop('CRVAL5'))
-            self.phase_center_dec_degrees = np.float(vis_hdr.pop('CRVAL6'))
+                # the axis number for phase center depends on if the spw exists
+                self.phase_center_ra_degrees = np.float(vis_hdr.pop('CRVAL5'))
+                self.phase_center_dec_degrees = np.float(vis_hdr.pop('CRVAL6'))
 
-        # get shapes
-        self.Nfreqs = vis_hdr.pop('NAXIS4')
-        self.Npols = vis_hdr.pop('NAXIS3')
-        self.Nblts = vis_hdr.pop('GCOUNT')
+            # get shapes
+            self.Nfreqs = vis_hdr.pop('NAXIS4')
+            self.Npols = vis_hdr.pop('NAXIS3')
+            self.Nblts = vis_hdr.pop('GCOUNT')
 
-        self.freq_array = uvutils.fits_gethduaxis(vis_hdu, 4)
-        self.freq_array.shape = (self.Nspws,) + self.freq_array.shape
-        self.channel_width = vis_hdr.pop('CDELT4')
-        self.polarization_array = np.int32(uvutils.fits_gethduaxis(vis_hdu, 3))
+            self.freq_array = uvutils.fits_gethduaxis(vis_hdu, 4)
+            self.freq_array.shape = (self.Nspws,) + self.freq_array.shape
+            self.channel_width = vis_hdr.pop('CDELT4')
+            self.polarization_array = np.int32(uvutils.fits_gethduaxis(vis_hdu, 3))
 
-        # other info -- not required but frequently used
-        self.object_name = vis_hdr.pop('OBJECT', None)
-        self.telescope_name = vis_hdr.pop('TELESCOP', None)
-        self.instrument = vis_hdr.pop('INSTRUME', None)
-        latitude_degrees = vis_hdr.pop('LAT', None)
-        longitude_degrees = vis_hdr.pop('LON', None)
-        altitude = vis_hdr.pop('ALT', None)
-        self.x_orientation = vis_hdr.pop('XORIENT', None)
-        self.history = str(vis_hdr.get('HISTORY', ''))
-        if not uvutils.check_history_version(self.history, self.pyuvdata_version_str):
-            self.history += self.pyuvdata_version_str
+            # other info -- not required but frequently used
+            self.object_name = vis_hdr.pop('OBJECT', None)
+            self.telescope_name = vis_hdr.pop('TELESCOP', None)
+            self.instrument = vis_hdr.pop('INSTRUME', None)
+            latitude_degrees = vis_hdr.pop('LAT', None)
+            longitude_degrees = vis_hdr.pop('LON', None)
+            altitude = vis_hdr.pop('ALT', None)
+            self.x_orientation = vis_hdr.pop('XORIENT', None)
+            self.history = str(vis_hdr.get('HISTORY', ''))
+            if not uvutils.check_history_version(self.history, self.pyuvdata_version_str):
+                self.history += self.pyuvdata_version_str
 
-        while 'HISTORY' in vis_hdr.keys():
-            vis_hdr.remove('HISTORY')
+            while 'HISTORY' in vis_hdr.keys():
+                vis_hdr.remove('HISTORY')
 
-        self.vis_units = vis_hdr.pop('BUNIT', 'UNCALIB')
-        self.phase_center_epoch = vis_hdr.pop('EPOCH', None)
+            self.vis_units = vis_hdr.pop('BUNIT', 'UNCALIB')
+            self.phase_center_epoch = vis_hdr.pop('EPOCH', None)
 
-        # remove standard FITS header items that are still around
-        std_fits_substrings = ['SIMPLE', 'BITPIX', 'EXTEND', 'BLOCKED',
-                               'GROUPS', 'PCOUNT', 'BSCALE', 'BZERO', 'NAXIS',
-                               'PTYPE', 'PSCAL', 'PZERO', 'CTYPE', 'CRVAL',
-                               'CRPIX', 'CDELT', 'CROTA', 'CUNIT', 'DATE-OBS']
-        for key in vis_hdr.keys():
-            for sub in std_fits_substrings:
-                if key.find(sub) > -1:
-                    vis_hdr.remove(key)
+            # remove standard FITS header items that are still around
+            std_fits_substrings = ['SIMPLE', 'BITPIX', 'EXTEND', 'BLOCKED',
+                                   'GROUPS', 'PCOUNT', 'BSCALE', 'BZERO', 'NAXIS',
+                                   'PTYPE', 'PSCAL', 'PZERO', 'CTYPE', 'CRVAL',
+                                   'CRPIX', 'CDELT', 'CROTA', 'CUNIT', 'DATE-OBS']
+            for key in vis_hdr.keys():
+                for sub in std_fits_substrings:
+                    if key.find(sub) > -1:
+                        vis_hdr.remove(key)
 
-        # find all the remaining header items and keep them as extra_keywords
-        for key in vis_hdr:
-            if key == 'COMMENT':
-                self.extra_keywords[key] = str(vis_hdr.get(key))
-            elif key != '':
-                self.extra_keywords[key] = vis_hdr.get(key)
+            # find all the remaining header items and keep them as extra_keywords
+            for key in vis_hdr:
+                if key == 'COMMENT':
+                    self.extra_keywords[key] = str(vis_hdr.get(key))
+                elif key != '':
+                    self.extra_keywords[key] = vis_hdr.get(key)
 
-        # Next read the antenna table
-        ant_hdu = hdu_list[hdunames['AIPS AN']]
+            # Next read the antenna table
+            ant_hdu = hdu_list[hdunames['AIPS AN']]
 
-        # stuff in the header
-        if self.telescope_name is None:
-            self.telescope_name = ant_hdu.header['ARRNAM']
+            # stuff in the header
+            if self.telescope_name is None:
+                self.telescope_name = ant_hdu.header['ARRNAM']
 
-        self.gst0 = ant_hdu.header['GSTIA0']
-        self.rdate = ant_hdu.header['RDATE']
-        self.earth_omega = ant_hdu.header['DEGPDY']
-        self.dut1 = ant_hdu.header['UT1UTC']
-        if 'TIMESYS' in ant_hdu.header.keys():
-            self.timesys = ant_hdu.header['TIMESYS']
-        else:
-            # CASA misspells this one
-            self.timesys = ant_hdu.header['TIMSYS']
+            self.gst0 = ant_hdu.header['GSTIA0']
+            self.rdate = ant_hdu.header['RDATE']
+            self.earth_omega = ant_hdu.header['DEGPDY']
+            self.dut1 = ant_hdu.header['UT1UTC']
+            if 'TIMESYS' in ant_hdu.header.keys():
+                self.timesys = ant_hdu.header['TIMESYS']
+            else:
+                # CASA misspells this one
+                self.timesys = ant_hdu.header['TIMSYS']
 
-        if 'FRAME' in ant_hdu.header.keys():
-            xyz_telescope_frame = ant_hdu.header['FRAME']
-        else:
-            warnings.warn('Required Antenna frame keyword not set, '
-                          'setting to ????')
-            xyz_telescope_frame = '????'
+            if 'FRAME' in ant_hdu.header.keys():
+                xyz_telescope_frame = ant_hdu.header['FRAME']
+            else:
+                warnings.warn('Required Antenna frame keyword not set, '
+                              'setting to ????')
+                xyz_telescope_frame = '????'
 
-        # get telescope location and antenna positions.
-        # VLA incorrectly sets ARRAYX/ARRAYY/ARRAYZ to 0, and puts array center
-        # in the antenna positions themselves
-        if (np.isclose(ant_hdu.header['ARRAYX'], 0)
-                and np.isclose(ant_hdu.header['ARRAYY'], 0)
-                and np.isclose(ant_hdu.header['ARRAYZ'], 0)):
-            x_telescope = np.mean(ant_hdu.data['STABXYZ'][:, 0])
-            y_telescope = np.mean(ant_hdu.data['STABXYZ'][:, 1])
-            z_telescope = np.mean(ant_hdu.data['STABXYZ'][:, 2])
-            self.antenna_positions = (ant_hdu.data.field('STABXYZ')
-                                      - np.array([x_telescope,
-                                                  y_telescope,
-                                                  z_telescope]))
+            # get telescope location and antenna positions.
+            # VLA incorrectly sets ARRAYX/ARRAYY/ARRAYZ to 0, and puts array center
+            # in the antenna positions themselves
+            if (np.isclose(ant_hdu.header['ARRAYX'], 0)
+                    and np.isclose(ant_hdu.header['ARRAYY'], 0)
+                    and np.isclose(ant_hdu.header['ARRAYZ'], 0)):
+                x_telescope = np.mean(ant_hdu.data['STABXYZ'][:, 0])
+                y_telescope = np.mean(ant_hdu.data['STABXYZ'][:, 1])
+                z_telescope = np.mean(ant_hdu.data['STABXYZ'][:, 2])
+                self.antenna_positions = (ant_hdu.data.field('STABXYZ')
+                                          - np.array([x_telescope,
+                                                      y_telescope,
+                                                      z_telescope]))
 
-        else:
-            x_telescope = ant_hdu.header['ARRAYX']
-            y_telescope = ant_hdu.header['ARRAYY']
-            z_telescope = ant_hdu.header['ARRAYZ']
-            # AIPS memo #117 says that antenna_positions should be relative to
-            # the array center, but in a rotated ECEF frame so that the x-axis
-            # goes through the local meridian.
-            rot_ecef_positions = ant_hdu.data.field('STABXYZ')
-            latitude, longitude, altitude = \
-                uvutils.LatLonAlt_from_XYZ(np.array([x_telescope, y_telescope, z_telescope]))
-            self.antenna_positions = uvutils.ECEF_from_rotECEF(rot_ecef_positions,
-                                                               longitude)
+            else:
+                x_telescope = ant_hdu.header['ARRAYX']
+                y_telescope = ant_hdu.header['ARRAYY']
+                z_telescope = ant_hdu.header['ARRAYZ']
+                # AIPS memo #117 says that antenna_positions should be relative to
+                # the array center, but in a rotated ECEF frame so that the x-axis
+                # goes through the local meridian.
+                rot_ecef_positions = ant_hdu.data.field('STABXYZ')
+                latitude, longitude, altitude = \
+                    uvutils.LatLonAlt_from_XYZ(np.array([x_telescope, y_telescope, z_telescope]))
+                self.antenna_positions = uvutils.ECEF_from_rotECEF(rot_ecef_positions,
+                                                                   longitude)
 
-        if xyz_telescope_frame == 'ITRF':
-            self.telescope_location = np.array(
-                [x_telescope, y_telescope, z_telescope])
-        else:
-            if latitude_degrees is not None and longitude_degrees is not None and altitude is not None:
-                self.telescope_location_lat_lon_alt_degrees = (
-                    latitude_degrees, longitude_degrees, altitude)
+            if xyz_telescope_frame == 'ITRF':
+                self.telescope_location = np.array(
+                    [x_telescope, y_telescope, z_telescope])
+            else:
+                if latitude_degrees is not None and longitude_degrees is not None and altitude is not None:
+                    self.telescope_location_lat_lon_alt_degrees = (
+                        latitude_degrees, longitude_degrees, altitude)
 
-        # stuff in columns
-        ant_names = ant_hdu.data.field('ANNAME').tolist()
-        self.antenna_names = []
-        for name in ant_names:
-            self.antenna_names.append(name.replace('\x00!', ''))
+            # stuff in columns
+            ant_names = ant_hdu.data.field('ANNAME').tolist()
+            self.antenna_names = []
+            for name in ant_names:
+                self.antenna_names.append(name.replace('\x00!', ''))
 
-        # subtract one to get to 0-indexed values rather than 1-indexed values
-        self.antenna_numbers = ant_hdu.data.field('NOSTA') - 1
+            # subtract one to get to 0-indexed values rather than 1-indexed values
+            self.antenna_numbers = ant_hdu.data.field('NOSTA') - 1
 
-        self.Nants_telescope = len(self.antenna_numbers)
+            self.Nants_telescope = len(self.antenna_numbers)
 
-        if 'DIAMETER' in ant_hdu.columns.names:
-            self.antenna_diameters = ant_hdu.data.field('DIAMETER')
+            if 'DIAMETER' in ant_hdu.columns.names:
+                self.antenna_diameters = ant_hdu.data.field('DIAMETER')
 
-        try:
-            self.set_telescope_params()
-        except ValueError as ve:
-            warnings.warn(str(ve))
+            try:
+                self.set_telescope_params()
+            except ValueError as ve:
+                warnings.warn(str(ve))
 
-        if not read_data and not read_metadata:
-            # don't read in the data or metadata. This means the object is incomplete,
-            # but that may not matter for many purposes.
-            return
+            if not read_data and not read_metadata:
+                # don't read in the data or metadata. This means the object is incomplete,
+                # but that may not matter for many purposes.
+                return
 
-        # Now read in the random parameter info
-        self._get_parameter_data(vis_hdu)
+            # Now read in the random parameter info
+            self._get_parameter_data(vis_hdu)
 
-        if not read_data:
-            # don't read in the data. This means the object is incomplete,
-            # but that may not matter for many purposes.
-            return
+            if not read_data:
+                # don't read in the data. This means the object is incomplete,
+                # but that may not matter for many purposes.
+                return
 
-        # Now read in the data
-        self._get_data(vis_hdu, antenna_nums, antenna_names, ant_str,
-                       bls, frequencies, freq_chans, times, polarizations,
-                       blt_inds, False, run_check, check_extra, run_check_acceptability)
+            # Now read in the data
+            self._get_data(vis_hdu, antenna_nums, antenna_names, ant_str,
+                           bls, frequencies, freq_chans, times, polarizations,
+                           blt_inds, False, run_check, check_extra, run_check_acceptability)
 
     def read_uvfits_metadata(self, filename):
         """
