@@ -50,276 +50,276 @@ class BeamFITS(UVBeam):
             run_check_acceptability: Option to check acceptability of the values of
                 required parameters after reading in the file. Default is True.
         """
-        F = fits.open(filename)
-        primary_hdu = F[0]
-        primary_header = primary_hdu.header.copy()
-        hdunames = uvutils.fits_indexhdus(F)  # find the rest of the tables
+        with fits.open(filename) as F:
+            primary_hdu = F[0]
+            primary_header = primary_hdu.header.copy()
+            hdunames = uvutils.fits_indexhdus(F)  # find the rest of the tables
 
-        data = primary_hdu.data
+            data = primary_hdu.data
 
-        # only support simple antenna_types for now.
-        # support for phased arrays should be added
-        self.set_simple()
+            # only support simple antenna_types for now.
+            # support for phased arrays should be added
+            self.set_simple()
 
-        self.beam_type = primary_header.pop('BTYPE', None)
-        if self.beam_type is not None:
-            self.beam_type = self.beam_type.lower()
-        else:
-            bunit = primary_header.pop('BUNIT', None)
-            if bunit is not None and bunit.lower().strip() == 'jy/beam':
+            self.beam_type = primary_header.pop('BTYPE', None)
+            if self.beam_type is not None:
+                self.beam_type = self.beam_type.lower()
+            else:
+                bunit = primary_header.pop('BUNIT', None)
+                if bunit is not None and bunit.lower().strip() == 'jy/beam':
+                    self.beam_type = 'power'
+
+            if self.beam_type == 'intensity':
                 self.beam_type = 'power'
 
-        if self.beam_type == 'intensity':
-            self.beam_type = 'power'
+            n_dimensions = primary_header.pop('NAXIS')
+            ctypes = [primary_header[ctype].lower() for ctype in (key for key in primary_header
+                                                                  if 'ctype' in key.lower())]
 
-        n_dimensions = primary_header.pop('NAXIS')
-        ctypes = [primary_header[ctype].lower() for ctype in (key for key in primary_header
-                                                              if 'ctype' in key.lower())]
-
-        self.pixel_coordinate_system = primary_header.pop('COORDSYS', None)
-        if self.pixel_coordinate_system is None:
-            for cs, cs_dict in self.coordinate_system_dict.items():
-                ax_names = [fits_axisname_dict[ax].lower() for ax in cs_dict['axes']]
-                if ax_names == ctypes[0:len(ax_names)]:
-                    coord_list = ctypes[0:len(ax_names)]
-                    self.pixel_coordinate_system = cs
-        else:
-            ax_names = [fits_axisname_dict[ax].lower() for ax in
-                        self.coordinate_system_dict[self.pixel_coordinate_system]['axes']]
-            coord_list = ctypes[0:len(ax_names)]
-            if coord_list != ax_names:
-                raise ValueError('Coordinate axis list does not match coordinate system')
-
-        if self.pixel_coordinate_system == 'healpix':
-            # get pixel values out of HPX_IND extension
-            hpx_hdu = F[hdunames['HPX_INDS']]
-            self.Npixels = hpx_hdu.header['NAXIS2']
-            hpx_data = hpx_hdu.data
-            self.pixel_array = hpx_data['hpx_inds']
-
-            ax_nums = hpx_primary_ax_nums
-            self.nside = primary_header.pop('NSIDE', None)
-            self.ordering = primary_header.pop('ORDERING', None)
-            data_Npixels = primary_header.pop('NAXIS' + str(ax_nums['pixel']))
-            if data_Npixels != self.Npixels:
-                raise ValueError('Number of pixels in HPX_IND extension does '
-                                 'not match number of pixels in data array')
-        else:
-            ax_nums = reg_primary_ax_nums
-            self.Naxes1 = primary_header.pop('NAXIS' + str(ax_nums['img_ax1']))
-            self.Naxes2 = primary_header.pop('NAXIS' + str(ax_nums['img_ax2']))
-
-            self.axis1_array = uvutils.fits_gethduaxis(primary_hdu, ax_nums['img_ax1'])
-            self.axis2_array = uvutils.fits_gethduaxis(primary_hdu, ax_nums['img_ax2'])
-
-            # if units aren't defined they are degrees by FITS convention
-            # convert degrees to radians because UVBeam uses radians
-            axis1_units = primary_header.pop('CUNIT' + str(ax_nums['img_ax1']), 'deg')
-            if axis1_units == 'deg':
-                self.axis1_array = np.deg2rad(self.axis1_array)
-            elif axis1_units != 'rad':
-                raise ValueError('Units of first axis array are not "deg" or "rad".')
-            axis2_units = primary_header.pop('CUNIT' + str(ax_nums['img_ax2']), 'deg')
-            if axis2_units == 'deg':
-                self.axis2_array = np.deg2rad(self.axis2_array)
-            elif axis2_units != 'rad':
-                raise ValueError('Units of second axis array are not "deg" or "rad".')
-
-        n_efield_dims = max([ax_nums[key] for key in ax_nums])
-
-        if self.beam_type == 'power':
-            # check for case where the data is complex (e.g. for xy beams)
-            if n_dimensions > ax_nums['complex'] - 1:
-                complex_arrs = np.split(data, 2, axis=0)
-                self.data_array = np.squeeze(complex_arrs[0] + 1j * complex_arrs[1], axis=0)
+            self.pixel_coordinate_system = primary_header.pop('COORDSYS', None)
+            if self.pixel_coordinate_system is None:
+                for cs, cs_dict in self.coordinate_system_dict.items():
+                    ax_names = [fits_axisname_dict[ax].lower() for ax in cs_dict['axes']]
+                    if ax_names == ctypes[0:len(ax_names)]:
+                        coord_list = ctypes[0:len(ax_names)]
+                        self.pixel_coordinate_system = cs
             else:
-                self.data_array = data
-
-            # Note: This axis is called STOKES by analogy with the equivalent uvfits axis
-            # However, this is confusing because it is NOT a true Stokes axis,
-            #   it is really the polarization axis.
-            if primary_header.pop('CTYPE' + str(ax_nums['feed_pol'])).lower().strip() == 'stokes':
-                self.Npols = primary_header.pop('NAXIS' + str(ax_nums['feed_pol']))
-
-            self.polarization_array = np.int32(uvutils.fits_gethduaxis(primary_hdu,
-                                                                       ax_nums['feed_pol']))
-            self.set_power()
-        elif self.beam_type == 'efield':
-            self.set_efield()
-            if n_dimensions < n_efield_dims:
-                raise ValueError('beam_type is efield and data dimensionality is too low')
-            complex_arrs = np.split(data, 2, axis=0)
-            self.data_array = np.squeeze(complex_arrs[0] + 1j * complex_arrs[1], axis=0)
-            if primary_header.pop('CTYPE' + str(ax_nums['feed_pol'])).lower().strip() == 'feedind':
-                self.Nfeeds = primary_header.pop('NAXIS' + str(ax_nums['feed_pol']))
-            feedlist = primary_header.pop('FEEDLIST', None)
-            if feedlist is not None:
-                self.feed_array = np.array(feedlist[1:-1].split(', '))
-        else:
-            raise ValueError('Unknown beam_type: {type}, beam_type should be '
-                             '"efield" or "power".'.format(type=self.beam_type))
-
-        self.data_normalization = primary_header.pop('NORMSTD', None)
-
-        self.telescope_name = primary_header.pop('TELESCOP')
-        self.feed_name = primary_header.pop('FEED', None)
-        self.feed_version = primary_header.pop('FEEDVER', None)
-        self.model_name = primary_header.pop('MODEL', None)
-        self.model_version = primary_header.pop('MODELVER', None)
-
-        # shapes
-        if primary_header.pop('CTYPE' + str(ax_nums['freq'])).lower().strip() == 'freq':
-            self.Nfreqs = primary_header.pop('NAXIS' + str(ax_nums['freq']))
-
-        if n_dimensions > ax_nums['spw'] - 1:
-            if primary_header.pop('CTYPE' + str(ax_nums['spw'])).lower().strip() == 'if':
-                self.Nspws = primary_header.pop('NAXIS' + str(ax_nums['spw']), None)
-                # subtract 1 to be zero-indexed
-                self.spw_array = uvutils.fits_gethduaxis(primary_hdu, ax_nums['spw']) - 1
-
-        if n_dimensions > ax_nums['basisvec'] - 1:
-            if primary_header.pop('CTYPE' + str(ax_nums['basisvec'])).lower().strip() == 'vecind':
-                self.Naxes_vec = primary_header.pop('NAXIS' + str(ax_nums['basisvec']), None)
-
-        if (self.Nspws is None or self.Naxes_vec is None) and self.beam_type == 'power':
-            if self.Nspws is None:
-                self.Nspws = 1
-                self.spw_array = np.array([0])
-            if self.Naxes_vec is None:
-                self.Naxes_vec = 1
-
-            # add extra empty dimensions to data_array as appropriate
-            while len(self.data_array.shape) < n_efield_dims - 1:
-                self.data_array = np.expand_dims(self.data_array, axis=0)
-
-        self.freq_array = uvutils.fits_gethduaxis(primary_hdu, ax_nums['freq'])
-        self.freq_array.shape = (self.Nspws,) + self.freq_array.shape
-        # default frequency axis is Hz, but check for corresonding CUNIT
-        freq_units = primary_header.pop('CUNIT' + str(ax_nums['freq']), 'Hz')
-        if freq_units != 'Hz':
-            freq_factor = {'kHz': 1e3, 'MHz': 1e6, 'GHz': 1e9}
-            if freq_units in freq_factor.keys():
-                self.freq_array = self.freq_array * freq_factor[freq_units]
-            else:
-                raise ValueError('Frequency units not recognized.')
-
-        self.history = str(primary_header.get('HISTORY', ''))
-        if not uvutils.check_history_version(self.history, self.pyuvdata_version_str):
-            self.history += self.pyuvdata_version_str
-        while 'HISTORY' in primary_header.keys():
-            primary_header.remove('HISTORY')
-
-        # remove standard FITS header items that are still around
-        std_fits_substrings = ['SIMPLE', 'BITPIX', 'EXTEND', 'BLOCKED',
-                               'GROUPS', 'PCOUNT', 'BSCALE', 'BZERO', 'NAXIS',
-                               'PTYPE', 'PSCAL', 'PZERO', 'CTYPE', 'CRVAL',
-                               'CRPIX', 'CDELT', 'CROTA', 'CUNIT']
-        for key in list(primary_header.keys()):
-            for sub in std_fits_substrings:
-                if key.find(sub) > -1:
-                    primary_header.remove(key)
-
-        # find all the remaining header items and keep them as extra_keywords
-        for key in primary_header:
-            if key == 'COMMENT':
-                self.extra_keywords[key] = str(primary_header.get(key))
-            elif key != '':
-                self.extra_keywords[key] = primary_header.get(key)
-
-        # read BASISVEC HDU if present
-        if 'BASISVEC' in hdunames:
-            basisvec_hdu = F[hdunames['BASISVEC']]
-            basisvec_header = basisvec_hdu.header
-            self.basis_vector_array = basisvec_hdu.data
+                ax_names = [fits_axisname_dict[ax].lower() for ax in
+                            self.coordinate_system_dict[self.pixel_coordinate_system]['axes']]
+                coord_list = ctypes[0:len(ax_names)]
+                if coord_list != ax_names:
+                    raise ValueError('Coordinate axis list does not match coordinate system')
 
             if self.pixel_coordinate_system == 'healpix':
-                basisvec_ax_nums = hxp_basisvec_ax_nums
-                if basisvec_header['CTYPE' + str(basisvec_ax_nums['pixel'])].lower().strip() != 'pix_ind':
-                    raise ValueError('First axis in BASISVEC HDU must be "Pix_Ind" for healpix beams')
+                # get pixel values out of HPX_IND extension
+                hpx_hdu = F[hdunames['HPX_INDS']]
+                self.Npixels = hpx_hdu.header['NAXIS2']
+                hpx_data = hpx_hdu.data
+                self.pixel_array = hpx_data['hpx_inds']
 
-                basisvec_Npixels = basisvec_header.pop('NAXIS' + str(basisvec_ax_nums['pixel']))
-
-                if basisvec_Npixels != self.Npixels:
-                    raise ValueError('Number of pixels in BASISVEC HDU does not match '
-                                     'primary HDU')
+                ax_nums = hpx_primary_ax_nums
+                self.nside = primary_header.pop('NSIDE', None)
+                self.ordering = primary_header.pop('ORDERING', None)
+                data_Npixels = primary_header.pop('NAXIS' + str(ax_nums['pixel']))
+                if data_Npixels != self.Npixels:
+                    raise ValueError('Number of pixels in HPX_IND extension does '
+                                     'not match number of pixels in data array')
             else:
-                basisvec_ax_nums = reg_basisvec_ax_nums
-                basisvec_coord_list = [basisvec_header['CTYPE' + str(basisvec_ax_nums['img_ax1'])].lower(),
-                                       basisvec_header['CTYPE' + str(basisvec_ax_nums['img_ax2'])].lower()]
-                basisvec_axis1_array = uvutils.fits_gethduaxis(basisvec_hdu,
-                                                               basisvec_ax_nums['img_ax1'])
-                basisvec_axis2_array = uvutils.fits_gethduaxis(basisvec_hdu,
-                                                               basisvec_ax_nums['img_ax2'])
+                ax_nums = reg_primary_ax_nums
+                self.Naxes1 = primary_header.pop('NAXIS' + str(ax_nums['img_ax1']))
+                self.Naxes2 = primary_header.pop('NAXIS' + str(ax_nums['img_ax2']))
+
+                self.axis1_array = uvutils.fits_gethduaxis(primary_hdu, ax_nums['img_ax1'])
+                self.axis2_array = uvutils.fits_gethduaxis(primary_hdu, ax_nums['img_ax2'])
 
                 # if units aren't defined they are degrees by FITS convention
                 # convert degrees to radians because UVBeam uses radians
-                axis1_units = basisvec_header.pop('CUNIT' + str(basisvec_ax_nums['img_ax1']), 'deg')
+                axis1_units = primary_header.pop('CUNIT' + str(ax_nums['img_ax1']), 'deg')
                 if axis1_units == 'deg':
-                    basisvec_axis1_array = np.deg2rad(basisvec_axis1_array)
+                    self.axis1_array = np.deg2rad(self.axis1_array)
                 elif axis1_units != 'rad':
-                    raise ValueError('Units of first axis array in BASISVEC HDU are not "deg" or "rad".')
-                axis2_units = basisvec_header.pop('CUNIT' + str(basisvec_ax_nums['img_ax2']), 'deg')
+                    raise ValueError('Units of first axis array are not "deg" or "rad".')
+                axis2_units = primary_header.pop('CUNIT' + str(ax_nums['img_ax2']), 'deg')
                 if axis2_units == 'deg':
-                    basisvec_axis2_array = np.deg2rad(basisvec_axis2_array)
+                    self.axis2_array = np.deg2rad(self.axis2_array)
                 elif axis2_units != 'rad':
-                    raise ValueError('Units of second axis array in BASISVEC HDU are not "deg" or "rad".')
+                    raise ValueError('Units of second axis array are not "deg" or "rad".')
 
-                if not np.all(basisvec_axis1_array == self.axis1_array):
-                    raise ValueError('First image axis in BASISVEC HDU does not match '
-                                     'primary HDU')
-                if not np.all(basisvec_axis2_array == self.axis2_array):
-                    raise ValueError('Second image axis in BASISVEC HDU does not '
-                                     'match primary HDU')
-                if basisvec_coord_list != coord_list:
-                    raise ValueError('Pixel coordinate list in BASISVEC HDU does not '
-                                     'match primary HDU')
+            n_efield_dims = max([ax_nums[key] for key in ax_nums])
 
-            basisvec_Naxes_vec = basisvec_header['NAXIS' + str(basisvec_ax_nums['basisvec'])]
-            self.Ncomponents_vec = basisvec_header['NAXIS' + str(basisvec_ax_nums['ncomp'])]
+            if self.beam_type == 'power':
+                # check for case where the data is complex (e.g. for xy beams)
+                if n_dimensions > ax_nums['complex'] - 1:
+                    complex_arrs = np.split(data, 2, axis=0)
+                    self.data_array = np.squeeze(complex_arrs[0] + 1j * complex_arrs[1], axis=0)
+                else:
+                    self.data_array = data
 
-            basisvec_cs = basisvec_header['COORDSYS']
-            if basisvec_cs != self.pixel_coordinate_system:
-                raise ValueError('Pixel coordinate system in BASISVEC HDU does '
-                                 'not match primary HDU')
+                # Note: This axis is called STOKES by analogy with the equivalent uvfits axis
+                # However, this is confusing because it is NOT a true Stokes axis,
+                #   it is really the polarization axis.
+                if primary_header.pop('CTYPE' + str(ax_nums['feed_pol'])).lower().strip() == 'stokes':
+                    self.Npols = primary_header.pop('NAXIS' + str(ax_nums['feed_pol']))
 
-            if basisvec_Naxes_vec != self.Naxes_vec:
-                raise ValueError('Number of vector coordinate axes in BASISVEC '
-                                 'HDU does not match primary HDU')
+                self.polarization_array = np.int32(uvutils.fits_gethduaxis(primary_hdu,
+                                                                           ax_nums['feed_pol']))
+                self.set_power()
+            elif self.beam_type == 'efield':
+                self.set_efield()
+                if n_dimensions < n_efield_dims:
+                    raise ValueError('beam_type is efield and data dimensionality is too low')
+                complex_arrs = np.split(data, 2, axis=0)
+                self.data_array = np.squeeze(complex_arrs[0] + 1j * complex_arrs[1], axis=0)
+                if primary_header.pop('CTYPE' + str(ax_nums['feed_pol'])).lower().strip() == 'feedind':
+                    self.Nfeeds = primary_header.pop('NAXIS' + str(ax_nums['feed_pol']))
+                feedlist = primary_header.pop('FEEDLIST', None)
+                if feedlist is not None:
+                    self.feed_array = np.array(feedlist[1:-1].split(', '))
+            else:
+                raise ValueError('Unknown beam_type: {type}, beam_type should be '
+                                 '"efield" or "power".'.format(type=self.beam_type))
 
-        # check to see if BANDPARM HDU exists and read it out if it does
-        if 'BANDPARM' in hdunames:
-            bandpass_hdu = F[hdunames['BANDPARM']]
-            bandpass_header = bandpass_hdu.header.copy()
-            self.reference_input_impedance = bandpass_header.pop('refzin', None)
-            self.reference_output_impedance = bandpass_header.pop('refzout', None)
+            self.data_normalization = primary_header.pop('NORMSTD', None)
 
-            freq_data = bandpass_hdu.data
-            columns = [c.name for c in freq_data.columns]
-            self.bandpass_array = freq_data['bandpass']
-            self.bandpass_array = self.bandpass_array[np.newaxis, :]
+            self.telescope_name = primary_header.pop('TELESCOP')
+            self.feed_name = primary_header.pop('FEED', None)
+            self.feed_version = primary_header.pop('FEEDVER', None)
+            self.model_name = primary_header.pop('MODEL', None)
+            self.model_version = primary_header.pop('MODELVER', None)
 
-            if 'rx_temp' in columns:
-                self.receiver_temperature_array = freq_data['rx_temp']
-                self.receiver_temperature_array = self.receiver_temperature_array[np.newaxis, :]
-            if 'loss' in columns:
-                self.loss_array = freq_data['loss']
-                self.loss_array = self.loss_array[np.newaxis, :]
-            if 'mismatch' in columns:
-                self.mismatch_array = freq_data['mismatch']
-                self.mismatch_array = self.mismatch_array[np.newaxis, :]
-            if 's11' in columns:
-                s11 = freq_data['s11']
-                s12 = freq_data['s12']
-                s21 = freq_data['s21']
-                s22 = freq_data['s22']
-                self.s_parameters = np.zeros((4, 1, len(s11)))
-                self.s_parameters[0, 0, :] = s11
-                self.s_parameters[1, 0, :] = s12
-                self.s_parameters[2, 0, :] = s21
-                self.s_parameters[3, 0, :] = s22
-        else:
-            # no bandpass information, set it to an array of ones
-            self.bandpass_array = np.zeros((self.Nspws, self.Nfreqs)) + 1.
+            # shapes
+            if primary_header.pop('CTYPE' + str(ax_nums['freq'])).lower().strip() == 'freq':
+                self.Nfreqs = primary_header.pop('NAXIS' + str(ax_nums['freq']))
+
+            if n_dimensions > ax_nums['spw'] - 1:
+                if primary_header.pop('CTYPE' + str(ax_nums['spw'])).lower().strip() == 'if':
+                    self.Nspws = primary_header.pop('NAXIS' + str(ax_nums['spw']), None)
+                    # subtract 1 to be zero-indexed
+                    self.spw_array = uvutils.fits_gethduaxis(primary_hdu, ax_nums['spw']) - 1
+
+            if n_dimensions > ax_nums['basisvec'] - 1:
+                if primary_header.pop('CTYPE' + str(ax_nums['basisvec'])).lower().strip() == 'vecind':
+                    self.Naxes_vec = primary_header.pop('NAXIS' + str(ax_nums['basisvec']), None)
+
+            if (self.Nspws is None or self.Naxes_vec is None) and self.beam_type == 'power':
+                if self.Nspws is None:
+                    self.Nspws = 1
+                    self.spw_array = np.array([0])
+                if self.Naxes_vec is None:
+                    self.Naxes_vec = 1
+
+                # add extra empty dimensions to data_array as appropriate
+                while len(self.data_array.shape) < n_efield_dims - 1:
+                    self.data_array = np.expand_dims(self.data_array, axis=0)
+
+            self.freq_array = uvutils.fits_gethduaxis(primary_hdu, ax_nums['freq'])
+            self.freq_array.shape = (self.Nspws,) + self.freq_array.shape
+            # default frequency axis is Hz, but check for corresonding CUNIT
+            freq_units = primary_header.pop('CUNIT' + str(ax_nums['freq']), 'Hz')
+            if freq_units != 'Hz':
+                freq_factor = {'kHz': 1e3, 'MHz': 1e6, 'GHz': 1e9}
+                if freq_units in freq_factor.keys():
+                    self.freq_array = self.freq_array * freq_factor[freq_units]
+                else:
+                    raise ValueError('Frequency units not recognized.')
+
+            self.history = str(primary_header.get('HISTORY', ''))
+            if not uvutils.check_history_version(self.history, self.pyuvdata_version_str):
+                self.history += self.pyuvdata_version_str
+            while 'HISTORY' in primary_header.keys():
+                primary_header.remove('HISTORY')
+
+            # remove standard FITS header items that are still around
+            std_fits_substrings = ['SIMPLE', 'BITPIX', 'EXTEND', 'BLOCKED',
+                                   'GROUPS', 'PCOUNT', 'BSCALE', 'BZERO', 'NAXIS',
+                                   'PTYPE', 'PSCAL', 'PZERO', 'CTYPE', 'CRVAL',
+                                   'CRPIX', 'CDELT', 'CROTA', 'CUNIT']
+            for key in list(primary_header.keys()):
+                for sub in std_fits_substrings:
+                    if key.find(sub) > -1:
+                        primary_header.remove(key)
+
+            # find all the remaining header items and keep them as extra_keywords
+            for key in primary_header:
+                if key == 'COMMENT':
+                    self.extra_keywords[key] = str(primary_header.get(key))
+                elif key != '':
+                    self.extra_keywords[key] = primary_header.get(key)
+
+            # read BASISVEC HDU if present
+            if 'BASISVEC' in hdunames:
+                basisvec_hdu = F[hdunames['BASISVEC']]
+                basisvec_header = basisvec_hdu.header
+                self.basis_vector_array = basisvec_hdu.data
+
+                if self.pixel_coordinate_system == 'healpix':
+                    basisvec_ax_nums = hxp_basisvec_ax_nums
+                    if basisvec_header['CTYPE' + str(basisvec_ax_nums['pixel'])].lower().strip() != 'pix_ind':
+                        raise ValueError('First axis in BASISVEC HDU must be "Pix_Ind" for healpix beams')
+
+                    basisvec_Npixels = basisvec_header.pop('NAXIS' + str(basisvec_ax_nums['pixel']))
+
+                    if basisvec_Npixels != self.Npixels:
+                        raise ValueError('Number of pixels in BASISVEC HDU does not match '
+                                         'primary HDU')
+                else:
+                    basisvec_ax_nums = reg_basisvec_ax_nums
+                    basisvec_coord_list = [basisvec_header['CTYPE' + str(basisvec_ax_nums['img_ax1'])].lower(),
+                                           basisvec_header['CTYPE' + str(basisvec_ax_nums['img_ax2'])].lower()]
+                    basisvec_axis1_array = uvutils.fits_gethduaxis(basisvec_hdu,
+                                                                   basisvec_ax_nums['img_ax1'])
+                    basisvec_axis2_array = uvutils.fits_gethduaxis(basisvec_hdu,
+                                                                   basisvec_ax_nums['img_ax2'])
+
+                    # if units aren't defined they are degrees by FITS convention
+                    # convert degrees to radians because UVBeam uses radians
+                    axis1_units = basisvec_header.pop('CUNIT' + str(basisvec_ax_nums['img_ax1']), 'deg')
+                    if axis1_units == 'deg':
+                        basisvec_axis1_array = np.deg2rad(basisvec_axis1_array)
+                    elif axis1_units != 'rad':
+                        raise ValueError('Units of first axis array in BASISVEC HDU are not "deg" or "rad".')
+                    axis2_units = basisvec_header.pop('CUNIT' + str(basisvec_ax_nums['img_ax2']), 'deg')
+                    if axis2_units == 'deg':
+                        basisvec_axis2_array = np.deg2rad(basisvec_axis2_array)
+                    elif axis2_units != 'rad':
+                        raise ValueError('Units of second axis array in BASISVEC HDU are not "deg" or "rad".')
+
+                    if not np.all(basisvec_axis1_array == self.axis1_array):
+                        raise ValueError('First image axis in BASISVEC HDU does not match '
+                                         'primary HDU')
+                    if not np.all(basisvec_axis2_array == self.axis2_array):
+                        raise ValueError('Second image axis in BASISVEC HDU does not '
+                                         'match primary HDU')
+                    if basisvec_coord_list != coord_list:
+                        raise ValueError('Pixel coordinate list in BASISVEC HDU does not '
+                                         'match primary HDU')
+
+                basisvec_Naxes_vec = basisvec_header['NAXIS' + str(basisvec_ax_nums['basisvec'])]
+                self.Ncomponents_vec = basisvec_header['NAXIS' + str(basisvec_ax_nums['ncomp'])]
+
+                basisvec_cs = basisvec_header['COORDSYS']
+                if basisvec_cs != self.pixel_coordinate_system:
+                    raise ValueError('Pixel coordinate system in BASISVEC HDU does '
+                                     'not match primary HDU')
+
+                if basisvec_Naxes_vec != self.Naxes_vec:
+                    raise ValueError('Number of vector coordinate axes in BASISVEC '
+                                     'HDU does not match primary HDU')
+
+            # check to see if BANDPARM HDU exists and read it out if it does
+            if 'BANDPARM' in hdunames:
+                bandpass_hdu = F[hdunames['BANDPARM']]
+                bandpass_header = bandpass_hdu.header.copy()
+                self.reference_input_impedance = bandpass_header.pop('refzin', None)
+                self.reference_output_impedance = bandpass_header.pop('refzout', None)
+
+                freq_data = bandpass_hdu.data
+                columns = [c.name for c in freq_data.columns]
+                self.bandpass_array = freq_data['bandpass']
+                self.bandpass_array = self.bandpass_array[np.newaxis, :]
+
+                if 'rx_temp' in columns:
+                    self.receiver_temperature_array = freq_data['rx_temp']
+                    self.receiver_temperature_array = self.receiver_temperature_array[np.newaxis, :]
+                if 'loss' in columns:
+                    self.loss_array = freq_data['loss']
+                    self.loss_array = self.loss_array[np.newaxis, :]
+                if 'mismatch' in columns:
+                    self.mismatch_array = freq_data['mismatch']
+                    self.mismatch_array = self.mismatch_array[np.newaxis, :]
+                if 's11' in columns:
+                    s11 = freq_data['s11']
+                    s12 = freq_data['s12']
+                    s21 = freq_data['s21']
+                    s22 = freq_data['s22']
+                    self.s_parameters = np.zeros((4, 1, len(s11)))
+                    self.s_parameters[0, 0, :] = s11
+                    self.s_parameters[1, 0, :] = s12
+                    self.s_parameters[2, 0, :] = s21
+                    self.s_parameters[3, 0, :] = s22
+            else:
+                # no bandpass information, set it to an array of ones
+                self.bandpass_array = np.zeros((self.Nspws, self.Nfreqs)) + 1.
 
         if run_check:
             self.check(check_extra=check_extra,
