@@ -546,7 +546,7 @@ class CALFITS(UVCal):
                                    'GROUPS', 'PCOUNT', 'BSCALE', 'BZERO', 'NAXIS',
                                    'PTYPE', 'PSCAL', 'PZERO', 'CTYPE', 'CRVAL',
                                    'CRPIX', 'CDELT', 'CROTA', 'CUNIT']
-            for key in hdr.keys():
+            for key in list(hdr.keys()):
                 for sub in std_fits_substrings:
                     if key.find(sub) > -1:
                         hdr.remove(key)
