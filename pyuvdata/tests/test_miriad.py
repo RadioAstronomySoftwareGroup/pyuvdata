@@ -528,6 +528,14 @@ def test_readWriteReadMiriad():
 
     nt.assert_equal(uv_in, uv_out)
 
+    # check that we can read & write phased data
+    uv_in2 = copy.deepcopy(uv_in)
+    uv_in2.phase_to_time(Time(np.mean(uv_in2.time_array), format='jd'))
+    uv_in2.write_miriad(write_file, clobber=True)
+    uv_out.read_miriad(write_file)
+
+    nt.assert_equal(uv_in2, uv_out)
+
     # check that trying to overwrite without clobber raises an error
     nt.assert_raises(ValueError, uv_in.write_miriad, write_file)
 

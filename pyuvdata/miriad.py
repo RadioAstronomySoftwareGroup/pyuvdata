@@ -478,7 +478,7 @@ class Miriad(UVData):
             self.phase_center_dec = float(dec_list[0])
             self.phase_center_epoch = uv['epoch']
             if 'phsframe' in uv.vartable.keys():
-                self.phase_center_frame = uv['phsframe']
+                self.phase_center_frame = uv['phsframe'].replace('\x00', '')
         else:
             # check that the RA values are not constant (if more than one time present)
             if (single_ra and not single_time):
@@ -649,6 +649,7 @@ class Miriad(UVData):
             uv.add_var('epoch', 'r')
             uv['epoch'] = self.phase_center_epoch
             if self.phase_center_frame is not None:
+                uv.add_var('phsframe', 'a')
                 uv['phsframe'] = self.phase_center_frame
 
         # required pyuvdata variables that are not recognized miriad variables
@@ -880,7 +881,7 @@ class Miriad(UVData):
                                     'lst', 'pol', 'nants', 'antnames', 'nblts',
                                     'ntimes', 'nbls', 'sfreq', 'epoch',
                                     'antpos', 'antnums', 'degpdy', 'antdiam',
-                                    ]
+                                    'phsframe']
         # list of miriad variables not read, but also not interesting
         # NB: nspect (I think) is number of spectral windows, will want one day
         # NB: xyphase & xyamp are "On-line X Y phase/amplitude measurements" which we may want in
