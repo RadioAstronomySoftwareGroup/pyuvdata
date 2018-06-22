@@ -9,6 +9,7 @@ import os
 import copy
 import numpy as np
 import nose.tools as nt
+from astropy.time import Time
 from pyuvdata import UVData
 import pyuvdata.utils as uvutils
 from pyuvdata.data import DATA_PATH
@@ -30,6 +31,13 @@ def test_ReadMiriadWriteUVH5ReadUVH5():
                          message=['Altitude is not present'])
     uv_in.write_uvh5(testfile, clobber=True)
     uv_out.read_uvh5(testfile)
+    nt.assert_equal(uv_in, uv_out)
+
+    # also test round-tripping phased data
+    uv_in.phase_to_time(Time(np.mean(uv_in.time_array), format='jd'))
+    uv_in.write_uvh5(testfile, clobber=True)
+    uv_out.read_uvh5(testfile)
+
     nt.assert_equal(uv_in, uv_out)
 
     # clean up
