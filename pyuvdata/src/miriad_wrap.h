@@ -48,11 +48,11 @@
         PyErr_Format(PyExc_ValueError, "expected a string"); \
         return NULL; }
 #define CHK_INT(o) \
-    if (!PyInt_Check(o)) { \
+    if (!PyInt_Check(o) && !PyIndex_Check(o)) {            \
         PyErr_Format(PyExc_ValueError, "expected an int"); \
         return NULL; }
 #define CHK_LONG(o) \
-    if (!PyLong_Check(o)) { \
+    if (!PyLong_Check(o) && !PyIndex_Check(o)) { \
         PyErr_Format(PyExc_ValueError, "expected a long"); \
         return NULL; }
 #define CHK_FLOAT(o) \
