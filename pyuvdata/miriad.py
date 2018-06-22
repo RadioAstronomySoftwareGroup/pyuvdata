@@ -10,6 +10,7 @@ import os
 import shutil
 import numpy as np
 import copy
+import six
 import warnings
 from .uvdata import UVData
 from . import telescopes as uvtel

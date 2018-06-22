@@ -17,6 +17,14 @@ e_squared = 6.69437999014e-3
 e_prime_squared = 6.73949674228e-3
 
 
+if six.PY2:
+    str_to_bytes = lambda s: s
+    bytes_to_str = lambda b: b
+else:
+    str_to_bytes = lambda s: s.encode('utf8')
+    bytes_to_str = lambda b: b.decode('utf8')
+
+
 def LatLonAlt_from_XYZ(xyz):
     """
     Calculate lat/lon/alt from ECEF x,y,z.

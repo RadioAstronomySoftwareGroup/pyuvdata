@@ -5,6 +5,7 @@ from __future__ import absolute_import, division, print_function
 from scipy.io.idl import readsav
 import os
 import numpy as np
+import six
 import warnings
 from .uvcal import UVCal
 from . import utils as uvutils
@@ -73,30 +74,34 @@ class FHDCal(UVCal):
         else:
             self.jones_array = np.array([-5, -6])
 
-        self.telescope_name = obs_data['instrument'][0]
+        self.telescope_name = uvutils.bytes_to_str(obs_data['instrument'][0])
 
         self.Nants_data = int(cal_data['n_tile'][0])
         self.Nants_telescope = int(cal_data['n_tile'][0])
-        self.antenna_names = np.array(cal_data['tile_names'][0].tolist())
+        self.antenna_names = np.array([uvutils.bytes_to_str(n) for n in cal_data['tile_names'][0].tolist()])
         self.antenna_numbers = np.arange(self.Nants_telescope)
         self.ant_array = np.arange(self.Nants_data)
 
         self.set_sky()
         self.sky_field = 'phase center (RA, Dec): ({ra}, {dec})'.format(
             ra=obs_data['orig_phasera'][0], dec=obs_data['orig_phasedec'][0])
-        self.sky_catalog = cal_data['skymodel'][0]['catalog_name'][0]
-        self.ref_antenna_name = cal_data['ref_antenna_name'][0]
+        self.sky_catalog = uvutils.bytes_to_str(cal_data['skymodel'][0]['catalog_name'][0])
+        self.ref_antenna_name = uvutils.bytes_to_str(cal_data['ref_antenna_name'][0])
         self.Nsources = int(cal_data['skymodel'][0]['n_sources'][0])
         self.baseline_range = [float(cal_data['min_cal_baseline'][0]),
                                float(cal_data['max_cal_baseline'][0])]
 
         galaxy_model = cal_data['skymodel'][0]['galaxy_model'][0]
+        if isinstance(galaxy_model, six.binary_type): # In Python 3, we sometimes get Unicode, sometimes bytes
+            galaxy_model = uvutils.bytes_to_str(galaxy_model)
         if galaxy_model == 0:
             galaxy_model = None
         else:
             galaxy_model = 'gsm'
 
         diffuse_model = cal_data['skymodel'][0]['diffuse_model'][0]
+        if isinstance(diffuse_model, six.binary_type):
+            diffuse_model = uvutils.bytes_to_str(diffuse_model)
         if diffuse_model == '':
             diffuse_model = None
         else:
@@ -157,7 +162,7 @@ class FHDCal(UVCal):
 
         # currently don't have branch info. may change in future.
         self.git_origin_cal = 'https://github.com/EoRImaging/FHD'
-        self.git_hash_cal = obs_data['code_version'][0]
+        self.git_hash_cal = uvutils.bytes_to_str(obs_data['code_version'][0])
 
         self.extra_keywords['autoscal'] = \
             '[' + ', '.join(str(d) for d in cal_data['auto_scale'][0]) + ']'
