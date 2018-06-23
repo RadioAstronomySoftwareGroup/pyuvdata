@@ -1,6 +1,9 @@
 Tutorial
 ========
 
+.. testsetup::
+   from __future__ import absolute_import, division, print_function
+
 ------
 UVData
 ------
@@ -371,8 +374,8 @@ c) Select a few antenna pairs to keep
 
   # note that order of the values in the pair does not matter
   # print all the antenna pairs after the select
-  >>> print(set(zip(UV.ant_1_array, UV.ant_2_array)))
-  set([(0, 6), (0, 21), (0, 2)])
+  >>> print(list(set(zip(UV.ant_1_array, UV.ant_2_array))))
+  [(0, 6), (0, 21), (0, 2)]
 
 d) Select antenna pairs and polarizations using ant_str argument
 ********************************************************************
@@ -454,14 +457,14 @@ all antenna pairs kept in the object will retain data for each specified polariz
   >>> UV.read_uvfits(filename)
 
   # Print the number of antennas and polarizations with data in the original file
-  >>> print(len(UV.get_antpairs()), UV.get_pols())
+  >>> print((len(UV.get_antpairs()), UV.get_pols()))
   (153, ['RR', 'LL', 'RL', 'LR'])
 
   # Apply select to UV object
   >>> UV.select(ant_str='1r_2l,1l_3l,1r_6r')
 
   # Print all the antennas numbers and polarizations with data after the select
-  >>> print(UV.get_antpairs(), UV.get_pols())
+  >>> print((UV.get_antpairs(), UV.get_pols()))
   ([(1, 2), (1, 3), (1, 6)], ['RR', 'LL', 'RL'])
 
 4. Stokes parameter(s):
@@ -539,7 +542,7 @@ a) Add frequencies.
   >>> uv1.select(freq_chans=np.arange(0, 32))
   >>> uv2.select(freq_chans=np.arange(32, 64))
   >>> uv3 = uv1 + uv2
-  >>> print(uv1.Nfreqs, uv2.Nfreqs, uv3.Nfreqs)
+  >>> print((uv1.Nfreqs, uv2.Nfreqs, uv3.Nfreqs))
   (32, 32, 64)
 
 b) Add times.
@@ -559,9 +562,9 @@ b) Add times.
   >>> uv1.select(times=times[0:len(times) // 2])
   >>> uv2.select(times=times[len(times) // 2:])
   >>> uv3 = uv1 + uv2
-  >>> print(uv1.Ntimes, uv2.Ntimes, uv3.Ntimes)
+  >>> print((uv1.Ntimes, uv2.Ntimes, uv3.Ntimes))
   (7, 8, 15)
-  >>> print(uv1.Nblts, uv2.Nblts, uv3.Nblts)
+  >>> print((uv1.Nblts, uv2.Nblts, uv3.Nblts))
   (459, 901, 1360)
 
 c) Adding in place.
@@ -622,7 +625,7 @@ so only some of the expected attributes are filled out
   >>> uv = UVData()
   >>> filename = 'pyuvdata/data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
   >>> uv.read_uvfits(filename, read_data=False, read_metadata=False)
-  >>> print(uv.Nblts, uv.Nfreqs, uv.Npols)
+  >>> print((uv.Nblts, uv.Nfreqs, uv.Npols))
   (1360, 64, 4)
 
   >>> print(uv.freq_array.size)
@@ -726,7 +729,7 @@ a) Reading a gain calibration file.
   gain
 
   # number of antenna polarizations and polarization type.
-  >>> print(cal.Njones, cal.jones_array)
+  >>> print((cal.Njones, cal.jones_array))
   (1, array([-5]))
 
   # Number of antennas with data
@@ -898,7 +901,7 @@ a) Reading a CST power beam file
   physical
 
   # number of beam polarizations and polarization type.
-  >>> print(beam.Npols, beam.polarization_array)
+  >>> print((beam.Npols, beam.polarization_array))
   (2, array([-5, -6]))
   >>> print(beam.Nfreqs)
   2
