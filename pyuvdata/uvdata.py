@@ -511,7 +511,7 @@ class UVData(UVBase):
             integer baseline number corresponding to the two antenna numbers.
         """
         ant1, ant2 = np.int64((ant1, ant2))
-        if self.Nants_telescope > 2048:
+        if self.Nants_telescope is not None and self.Nants_telescope > 2048:
             raise Exception('cannot convert ant1, ant2 to a baseline index '
                             'with Nants={Nants}>2048.'
                             .format(Nants=self.Nants_telescope))
