@@ -6,7 +6,7 @@
 from __future__ import absolute_import, division, print_function
 
 from astropy import constants as const
-from astropy.coordinates import Angle
+from astropy.coordinates import Angle, SkyCoord
 import os
 import shutil
 import numpy as np
@@ -484,13 +484,16 @@ class Miriad(UVData):
             if (single_ra and not single_time):
                 raise ValueError('phase_type is "drift" but the RA values are constant.')
 
-            ra_diff = np.abs(ra_list - self.lst_array)
-            dec_diff = np.abs(dec_list - latitude)
+            # use skycoord to simplify calculating sky separations.
+            # Note, this should be done in the TEE frame, which isn't supported by astropy
+            # Frame doesn't really matter, though, because this is just geometrical, so use icrs
+            pointing_coords = SkyCoord(ra=ra_list, dec=dec_list, unit='radian', frame='icrs')
+            zenith_coord = SkyCoord(ra=self.lst_array, dec=latitude, unit='radian', frame='icrs')
+
+            separation_angles = pointing_coords.separation(zenith_coord)
             acceptable_offset = Angle('1d')
-            if (np.max(ra_diff) > acceptable_offset.rad
-                    or np.max(dec_diff) > acceptable_offset.rad):
-                warnings.warn('drift RA and/or Dec is off from lst and/or '
-                              'latitude by more than {}, '
+            if (np.max(separation_angles.rad) > acceptable_offset.rad):
+                warnings.warn('drift RA, Dec is off from lst, latitude by more than {}, '
                               'so it appears that it is not a zenith drift scan. '
                               'Setting phase_type to "unknown"'.format(acceptable_offset))
                 self.set_unknown_phase_type()
