@@ -552,20 +552,22 @@ class UVBeam(UVBase):
         # construct jones matrix containing the electric field
         _sh = beam_object.data_array.shape
         efield_data = beam_object.data_array
+        Nfreqs = beam_object.Nfreqs
 
         pol_strings = ['pI', 'pQ', 'pU', 'pV']
-        power_data = np.zeros((1, 1, len(pol_strings), 1, _sh[-1]), dtype=np.complex)
+        power_data = np.zeros((1, 1, len(pol_strings), _sh[-2], _sh[-1]), dtype=np.complex)
         beam_object.polarization_array = np.array([uvutils.polstr2num(ps.upper()) for ps in pol_strings])
 
-        jones = np.zeros((_sh[-1], 2, 2), dtype=np.complex)
-        pol_strings = ['pI', 'pQ', 'pU', 'pV']
-        jones[:, 0, 0] = efield_data[0, 0, 0, 0, :]
-        jones[:, 0, 1] = efield_data[0, 0, 1, 0, :]
-        jones[:, 1, 0] = efield_data[1, 0, 0, 0, :]
-        jones[:, 1, 1] = efield_data[1, 0, 1, 0, :]
+        for fq_i in range(Nfreqs):
+            jones = np.zeros((_sh[-1], 2, 2), dtype=np.complex)
+            pol_strings = ['pI', 'pQ', 'pU', 'pV']
+            jones[:, 0, 0] = efield_data[0, 0, 0, fq_i, :]
+            jones[:, 0, 1] = efield_data[0, 0, 1, fq_i, :]
+            jones[:, 1, 0] = efield_data[1, 0, 0, fq_i, :]
+            jones[:, 1, 1] = efield_data[1, 0, 1, fq_i, :]
 
-        for pol_i in range(len(pol_strings)):
-            power_data[:, :, pol_i, :, :] = self._construct_mueller(jones, pol_i, pol_i)
+            for pol_i in range(len(pol_strings)):
+                power_data[:, :, pol_i, fq_i, :] = self._construct_mueller(jones, pol_i, pol_i)
 
         beam_object.data_array = power_data
         beam_object.polarization_array = np.array([uvutils.polstr2num(ps.upper()) for ps in pol_strings])
