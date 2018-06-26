@@ -351,6 +351,11 @@ def test_phase_unphaseHERA():
     UV_phase.unphase_to_drift()
     nt.assert_equal(UV_raw, UV_phase)
 
+    # check that they match if you use a different epoch
+    UV_phase.phase(0., 0., epoch=Time('2010-01-01T00:00:00', format='isot', scale='utc'))
+    UV_phase.unphase_to_drift()
+    nt.assert_equal(UV_raw, UV_phase)
+
     # check that they match if you phase & unphase using antenna locations
     # first replace the uvws with the right values
     antenna_enu = uvutils.ENU_from_ECEF((UV_raw.antenna_positions + UV_raw.telescope_location).T,
@@ -366,9 +371,9 @@ def test_phase_unphaseHERA():
 
     UV_raw_new = copy.deepcopy(UV_raw)
     UV_raw_new.uvw_array = uvw_calc
-    UV_phase.phase(0., 0., epoch="J2000", use_ant_pos=True)
+    UV_phase.phase(0., 0., epoch="J2000", use_ant_pos=True, use_mwatools_phasing=False)
     UV_phase2 = copy.deepcopy(UV_raw_new)
-    UV_phase2.phase(0., 0., epoch="J2000")
+    UV_phase2.phase(0., 0., epoch="J2000", use_mwatools_phasing=False)
 
     # The uvw's only agree to ~1mm. should they be better?
     nt.assert_true(np.allclose(UV_phase2.uvw_array, UV_phase.uvw_array, atol=1e-3))
@@ -378,7 +383,17 @@ def test_phase_unphaseHERA():
     UV_phase2._data_array.tols = (0, 1e-3)
     nt.assert_equal(UV_phase2, UV_phase)
 
-    UV_phase.unphase_to_drift(use_ant_pos=True)
+    UV_phase.unphase_to_drift(use_ant_pos=True, use_mwatools_phasing=False)
+    nt.assert_equal(UV_raw_new, UV_phase)
+
+    # redo this test with mwatools_phasing
+    UV_phase.phase(0., 0., epoch="J2000", use_ant_pos=True, use_mwatools_phasing=True)
+    UV_phase2 = copy.deepcopy(UV_raw_new)
+    UV_phase2.phase(0., 0., epoch="J2000", use_mwatools_phasing=True)
+    nt.assert_true(np.allclose(UV_phase2.uvw_array, UV_phase.uvw_array, atol=1e-3))
+    UV_phase2._data_array.tols = (0, 1e-3)
+    nt.assert_equal(UV_phase2, UV_phase)
+    UV_phase.unphase_to_drift(use_ant_pos=True, use_mwatools_phasing=True)
     nt.assert_equal(UV_raw_new, UV_phase)
 
     # check that phasing to zenith with one timestamp has small changes
@@ -415,6 +430,10 @@ def test_phase_unphaseHERA():
     nt.assert_raises(ValueError, UV_phase.phase, 0., 0., epoch="J2000")
     nt.assert_raises(ValueError, UV_phase.phase_to_time,
                      UV_phase.time_array[0])
+
+    # check errors when trying to phase to an unsupported frame
+    UV_phase = copy.deepcopy(UV_raw)
+    nt.assert_raises(ValueError, UV_phase.phase, 0., 0., epoch="J2000", phase_frame='cirs')
 
     del(UV_phase)
     del(UV_raw)
