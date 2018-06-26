@@ -337,33 +337,68 @@ def test_phase_unphaseHERA():
     uvtest.checkWarnings(UV_phase.read_miriad, [testfile], {'correct_lat_lon': False},
                          message='Altitude is not present in file and '
                                  'latitude and longitude values do not match')
-    UV_phase.phase(0., 0., epoch="J2000")
-    UV_phase.unphase_to_drift()
+    UV_phase.phase(0., 0., epoch="J2000", use_mwatools_phasing=False)
+    UV_phase.unphase_to_drift(use_mwatools_phasing=False)
+    nt.assert_equal(UV_raw, UV_phase)
 
+    # check that they match using mwatools_calcuvw
+    UV_phase.phase(0., 0., epoch="J2000", use_mwatools_phasing=True)
+    UV_phase.unphase_to_drift(use_mwatools_phasing=True)
     nt.assert_equal(UV_raw, UV_phase)
 
     # check that they match using gcrs
     UV_phase.phase(0., 0., epoch="J2000", phase_frame='gcrs')
     UV_phase.unphase_to_drift()
-
     nt.assert_equal(UV_raw, UV_phase)
 
     # check that they match if you phase & unphase using antenna locations
-    # UV_phase.phase(0., 0., epoch="J2000", use_ant_pos=True)
-    # UV_phase.unphase_to_drift(use_ant_pos=True)
-    #
-    # nt.assert_equal(UV_raw, UV_phase)
+    # first replace the uvws with the right values
+    antenna_enu = uvutils.ENU_from_ECEF((UV_raw.antenna_positions + UV_raw.telescope_location).T,
+                                        *UV_raw.telescope_location_lat_lon_alt).T
+    uvw_calc = np.zeros_like(UV_raw.uvw_array)
+    unique_times, unique_inds = np.unique(UV_raw.time_array, return_index=True)
+    for ind, jd in enumerate(unique_times):
+        inds = np.where(UV_raw.time_array == jd)[0]
+        for bl_ind in inds:
+            ant1 = UV_raw.ant_1_array[bl_ind]
+            ant2 = UV_raw.ant_2_array[bl_ind]
+            uvw_calc[bl_ind, :] = antenna_enu[ant2, :] - antenna_enu[ant1, :]
+
+    UV_raw_new = copy.deepcopy(UV_raw)
+    UV_raw_new.uvw_array = uvw_calc
+    UV_phase.phase(0., 0., epoch="J2000", use_ant_pos=True)
+    UV_phase2 = copy.deepcopy(UV_raw_new)
+    UV_phase2.phase(0., 0., epoch="J2000")
+
+    # The uvw's only agree to ~1mm. should they be better?
+    nt.assert_true(np.allclose(UV_phase2.uvw_array, UV_phase.uvw_array, atol=1e-3))
+    # the data array are just multiplied by the w's for phasing, so a difference
+    # at the 1e-3 level makes the data array different at that level too.
+    # -> change the tolerance on data_array for this test
+    UV_phase2._data_array.tols = (0, 1e-3)
+    nt.assert_equal(UV_phase2, UV_phase)
+
+    UV_phase.unphase_to_drift(use_ant_pos=True)
+    nt.assert_equal(UV_raw_new, UV_phase)
 
     # check that phasing to zenith with one timestamp has small changes
     # (it won't be identical because of precession/nutation changing the coordinate axes)
     # use gcrs rather than icrs to reduce differences (don't include abberation)
     UV_raw_small = UV_raw.select(times=UV_raw.time_array[0], inplace=False)
-    UV_phase_small = UV_phase.select(times=UV_raw.time_array[0], inplace=False)
-    UV_phase_small.phase_to_time(time=Time(UV_raw.time_array[0], format='jd'),
-                                 phase_frame='gcrs')
+    UV_phase_mwa_small = copy.deepcopy(UV_raw_small)
+    UV_phase_mwa_small.phase_to_time(time=Time(UV_raw.time_array[0], format='jd'),
+                                     phase_frame='gcrs', use_mwatools_phasing=True)
 
     # it's unclear to me how close this should be...
-    nt.assert_true(np.allclose(UV_phase_small.uvw_array, UV_raw_small.uvw_array, atol=1e-2))
+    nt.assert_true(np.allclose(UV_phase_mwa_small.uvw_array, UV_raw_small.uvw_array, atol=1e-2))
+
+    # check it again with simple phasing
+    UV_phase_simple_small = copy.deepcopy(UV_raw_small)
+    UV_phase_simple_small.phase_to_time(time=Time(UV_raw.time_array[0], format='jd'),
+                                        phase_frame='gcrs', use_mwatools_phasing=False)
+
+    # it's unclear to me how close this should be...
+    nt.assert_true(np.allclose(UV_phase_simple_small.uvw_array, UV_raw_small.uvw_array, atol=1e-2))
 
     # check errors when trying to unphase drift or unknown data
     nt.assert_raises(ValueError, UV_raw.unphase_to_drift)

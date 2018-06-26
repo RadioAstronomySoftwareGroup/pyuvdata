@@ -613,8 +613,7 @@ class UVData(UVBase):
                                                representation='cartesian',
                                                frame='itrs', obstime=obs_time)
             frame_telescope_location = itrs_telescope_location.transform_to(phase_frame)
-            frame_telescope_location.representation = 'cartesian'
-            itrs_lat_lon_alt = uvutils.LatLonAlt_from_XYZ(itrs_telescope_location.cartesian.get_xyz().value)
+            itrs_lat_lon_alt = self.telescope_location_lat_lon_alt
 
             if use_ant_pos:
                 if use_mwatools_phasing:
@@ -632,16 +631,17 @@ class UVData(UVBase):
                 for bl_ind in inds:
                     ant1 = self.ant_1_array[bl_ind]
                     ant2 = self.ant_2_array[bl_ind]
-                    self.uvw_array[bl_ind, :] = ant_uvw[ant2] - ant_uvw[ant1]
+                    self.uvw_array[bl_ind, :] = ant_uvw[ant2, :] - ant_uvw[ant1, :]
 
             else:
                 if phase_frame == 'icrs':
                     gcrs_telescope_location = itrs_telescope_location.transform_to('gcrs')
-                    gcrs_telescope_location.representation = 'cartesian'
-                    gcrs_lat_lon_alt = uvutils.LatLonAlt_from_XYZ(gcrs_telescope_location.cartesian.get_xyz().value)
+                    gcrs_telescope_lon = gcrs_telescope_location.ra.rad
 
                 else:
-                    gcrs_lat_lon_alt = uvutils.LatLonAlt_from_XYZ(frame_telescope_location.cartesian.get_xyz().value)
+                    gcrs_telescope_lon = frame_telescope_location.ra.rad
+
+                frame_telescope_location.representation = 'cartesian'
 
                 uvws_use = self.uvw_array[inds, :]
                 if uvws_use.ndim == 1:
@@ -655,7 +655,7 @@ class UVData(UVBase):
 
                     # rotate them so they can be added to telescope location in frame
                     uvw_rel_positions = uvutils.ECEF_from_rotECEF(uvw_rot_positions,
-                                                                  gcrs_lat_lon_alt[1])
+                                                                  gcrs_telescope_lon)
                 else:
                     uvw_rel_positions = uvutils.unphase_uvw(self.phase_center_ra,
                                                             self.phase_center_dec,
@@ -761,17 +761,16 @@ class UVData(UVBase):
                                                z=self.telescope_location[2] * units.m,
                                                representation='cartesian',
                                                frame='itrs', obstime=obs_time)
-            itrs_lat_lon_alt = uvutils.LatLonAlt_from_XYZ(itrs_telescope_location.cartesian.get_xyz().value)
+            itrs_lat_lon_alt = self.telescope_location_lat_lon_alt
 
             frame_telescope_location = itrs_telescope_location.transform_to(phase_frame)
 
             if phase_frame == 'icrs':
                 gcrs_telescope_location = itrs_telescope_location.transform_to('gcrs')
-                gcrs_telescope_location.representation = 'cartesian'
-                gcrs_lat_lon_alt = uvutils.LatLonAlt_from_XYZ(gcrs_telescope_location.cartesian.get_xyz().value)
+                gcrs_telescope_lon = gcrs_telescope_location.ra.rad
 
             else:
-                gcrs_lat_lon_alt = uvutils.LatLonAlt_from_XYZ(frame_telescope_location.cartesian.get_xyz().value)
+                gcrs_telescope_lon = frame_telescope_location.ra.rad
 
             frame_telescope_location.representation = 'cartesian'
 
@@ -790,7 +789,7 @@ class UVData(UVBase):
 
                 if use_mwatools_phasing:
                     frame_ant_rel_rot = uvutils.rotECEF_from_ECEF(frame_ant_rel,
-                                                                  gcrs_lat_lon_alt[1])
+                                                                  gcrs_telescope_lon)
                     frame_ant_uvw = uvutils.mwatools_calcuvw(frame_ha.rad,
                                                              frame_phase_center.dec.rad,
                                                              frame_ant_rel_rot)
@@ -802,7 +801,7 @@ class UVData(UVBase):
                 for bl_ind in inds:
                     ant1 = self.ant_1_array[bl_ind]
                     ant2 = self.ant_2_array[bl_ind]
-                    self.uvw_array[bl_ind, :] = frame_ant_uvw[ant2] - frame_ant_uvw[ant1]
+                    self.uvw_array[bl_ind, :] = frame_ant_uvw[ant2, :] - frame_ant_uvw[ant1, :]
             else:
                 # Also, uvws should be thought of like ENU, not ECEF (or rotated ECEF)
                 # convert them to ECEF to transform between frames
@@ -820,13 +819,13 @@ class UVData(UVBase):
 
                 # this takes out the telescope location in the new frame,
                 # so these are vectors again
-                frame_rel_uvw = (frame_uvw_coord.cartesian
-                                 - frame_telescope_location.cartesian).get_xyz().T.value
+                frame_rel_uvw = (frame_uvw_coord.cartesian.get_xyz().value.T
+                                 - frame_telescope_location.cartesian.get_xyz().value)
 
                 if use_mwatools_phasing:
                     # rotate to frame with x-axis through local meridian for phasing code
                     frame_uvw_rot = uvutils.rotECEF_from_ECEF(frame_rel_uvw,
-                                                              gcrs_lat_lon_alt[1])
+                                                              gcrs_telescope_lon)
 
                     # phase: for zenith this effectively results in ENU positions
                     self.uvw_array[inds, :] = uvutils.mwatools_calcuvw(frame_ha.rad,
