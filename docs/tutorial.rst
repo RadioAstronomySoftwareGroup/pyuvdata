@@ -1085,6 +1085,63 @@ c) Convert a regularly gridded efield beam to a power beam (leaving original int
   >>> plt.legend() # doctest: +SKIP
   >>> plt.show() # doctest: +SKIP
 
+Generating pseudo Stokes ('pI', 'pQ', 'pU', 'pV') beams
+********************************************************************
+::
+
+  >>> from pyuvdata import UVBeam
+  >>> import pyuvdata.utils as uvutils
+  >>> import numpy as np
+  >>> import healpy as hp
+  >>> beam = UVBeam()
+  >>> filenames = ['pyuvdata/data/HERA_NicCST_150MHz.txt', 'pyuvdata/data/HERA_NicCST_123MHz.txt']
+  >>> beam.read_cst_beam(filenames, beam_type='efield', telescope_name='HERA',
+  ...                    feed_name='PAPER_dipole', feed_version='0.1',
+  ...                    model_name='E-field pattern - Rigging height 4.9m',
+  ...                    model_version='1.0')
+  >>> pstokes_beam = beam.az_za_to_healpix(inplace=False)
+  >>> pstokes_beam.efield_to_pstokes()
+  >>> pstokes_beam.peak_normalize()
+  # plotting pseudo-stokes I
+  >>> pol_array = pstokes_beam.polarization_array
+  >>> pstokes = uvutils.polstr2num('pI') 
+  >>> pstokes_ind = np.where(np.isin(pol_array, pstokes))[0][0]
+  >>> hp.mollview(np.abs(pstokes_beam.data_array[0, 0, pstokes_ind, 0, :])) # doctest: +SKIP
+
+Calculating pseudo Stokes ('pI', 'pQ', 'pU', 'pV') beam area and beam squared area
+********************************************************************
+::
+
+  >>> from pyuvdata import UVBeam
+  >>> import pyuvdata.utils as uvutils
+  >>> import numpy as np
+  >>> import healpy as hp
+  >>> beam = UVBeam()
+  >>> filenames = ['pyuvdata/data/HERA_NicCST_150MHz.txt', 'pyuvdata/data/HERA_NicCST_123MHz.txt']
+  >>> beam.read_cst_beam(filenames, beam_type='efield', telescope_name='HERA',
+  ...                    feed_name='PAPER_dipole', feed_version='0.1',
+  ...                    model_name='E-field pattern - Rigging height 4.9m',
+  ...                    model_version='1.0')
+  >>> pstokes_beam = beam.az_za_to_healpix(inplace=False)
+  >>> pstokes_beam.efield_to_pstokes()
+  >>> pstokes_beam.peak_normalize()
+  # calculating beam area    
+  >>> freqs = pstokes_beam.freq_array
+  >>> pI_area = pstokes_beam.get_beam_area('pI')
+  >>> pQ_area = pstokes_beam.get_beam_area('pQ')
+  >>> pU_area = pstokes_beam.get_beam_area('pU')
+  >>> pV_area = pstokes_beam.get_beam_area('pV')
+  >>> print ('Beam area at {} MHz for pseudo-stokes \nI: {} \nQ: {} \nU: {} \nV: {}'.format(freqs[0][0]*1e-6, pI_area[0], pQ_area[0], pU_area[0], pV_area[0])) 
+  >>> print ('Beam area at {} MHz for pseudo-stokes \nI: {} \nQ: {} \nU: {} \nV:{}'.format(freqs[0][1]*1e-6, pI_area[1], pQ_area[1], pU_area[1], pV_area[1]))
+
+  # calculating beam squared area
+  >>> freqs = pstokes_beam.freq_array
+  >>> pI_sq_area = pstokes_beam.get_beam_sq_area('pI')
+  >>> pQ_sq_area = pstokes_beam.get_beam_sq_area('pQ')
+  >>> pU_sq_area = pstokes_beam.get_beam_sq_area('pU')
+  >>> pV_sq_area = pstokes_beam.get_beam_sq_area('pV')
+  >>> print ('Beam squared area at {} MHz for pseudo-stokes \nI: {} \nQ: {} \nU: {} \nV: {}'.format(freqs[0][0]*1e-6, pI_sq_area[0], pQ_sq_area[0], pU_sq_area[0], pV_sq_area[0]))
+  >>> print ('Beam squared area at {} MHz for pseudo-stokes \nI: {} \nQ: {} \nU: {} \nV: {}'.format(freqs[0][1]*1e-6, pI_sq_area[1], pQ_sq_area[1], pU_sq_area[1], pV_sq_area[1])) # doctest: +SKIP
 
 -----------------
 Tutorial Cleanup
