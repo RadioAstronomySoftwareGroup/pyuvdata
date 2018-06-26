@@ -1100,19 +1100,24 @@ Calculating pseudo Stokes ('pI', 'pQ', 'pU', 'pV') beam area and beam squared ar
   >>> pQ_area = pstokes_beam.get_beam_area('pQ')
   >>> pU_area = pstokes_beam.get_beam_area('pU')
   >>> pV_area = pstokes_beam.get_beam_area('pV')
-  >>> print ('Beam area at {} MHz for pseudo-stokes\nI: {}\nQ: {}\nU: {}\nV: {}'.format(freqs[0][0]*1e-6, pI_area[0], pQ_area[0], pU_area[0], pV_area[0])) 
-  Beam area at 123.0 MHz for pseudo-stokes
-  I: (0.0573383819108+0j)
-  Q: (0.0359331192328+0j)
-  U: (0.0333860957706+0j)
-  V: (0.0537202887061+0j)
+  >>> pI_area1, pI_area2 = round(pI_area[0].real, 5), round(pI_area[1].real, 5)
+  >>> pQ_area1, pQ_area2 = round(pQ_area[0].real, 5), round(pQ_area[1].real, 5)
+  >>> pU_area1, pU_area2 = round(pU_area[0].real, 5), round(pU_area[1].real, 5)
+  >>> pV_area1, pV_area2 = round(pV_area[0].real, 5), round(pV_area[1].real, 5)
 
-  >>> print ('Beam area at {} MHz for pseudo-stokes\nI: {}\nQ: {}\nU: {}\nV: {}'.format(freqs[0][1]*1e-6, pI_area[1], pQ_area[1], pU_area[1], pV_area[1]))
+  >>> print ('Beam area at {} MHz for pseudo-stokes\nI: {}\nQ: {}\nU: {}\nV: {}'.format(freqs[0][0]*1e-6, pI_area1, pU_area1, pU_area1, pV_area1))
+  Beam area at 123.0 MHz for pseudo-stokes
+  I: 0.05734
+  Q: 0.03339
+  U: 0.03339
+  V: 0.05372
+
+  >>> print ('Beam area at {} MHz for pseudo-stokes\nI: {}\nQ: {}\nU: {}\nV: {}'.format(freqs[0][1]*1e-6, pI_area2, pU_area2, pU_area2, pV_area2))
   Beam area at 150.0 MHz for pseudo-stokes
-  I: (0.0396480518859+0j)
-  Q: (0.0247384882778+0j)
-  U: (0.0226503939425+0j)
-  V: (0.0366412896546+0j)
+  I: 0.03965
+  Q: 0.02265
+  U: 0.02265
+  V: 0.03664
 
   # calculating beam squared area
   >>> freqs = pstokes_beam.freq_array
@@ -1120,20 +1125,24 @@ Calculating pseudo Stokes ('pI', 'pQ', 'pU', 'pV') beam area and beam squared ar
   >>> pQ_sq_area = pstokes_beam.get_beam_sq_area('pQ')
   >>> pU_sq_area = pstokes_beam.get_beam_sq_area('pU')
   >>> pV_sq_area = pstokes_beam.get_beam_sq_area('pV')
+  >>> pI_sq_area1, pI_sq_area2 = round(pI_sq_area[0].real, 5), round(pI_sq_area[1].real, 5)
+  >>> pQ_sq_area1, pQ_sq_area2 = round(pQ_sq_area[0].real, 5), round(pQ_sq_area[1].real, 5)
+  >>> pU_sq_area1, pU_sq_area2 = round(pU_sq_area[0].real, 5), round(pU_sq_area[1].real, 5)
+  >>> pV_sq_area1, pV_sq_area2 = round(pV_sq_area[0].real, 5), round(pV_sq_area[1].real, 5)
 
-  >>> print ('Beam squared area at {} MHz for pseudo-stokes\nI: {}\nQ: {}\nU: {}\nV: {}'.format(freqs[0][0]*1e-6, pI_sq_area[0], pQ_sq_area[0], pU_sq_area[0], pV_sq_area[0]))
+  >>> print ('Beam squared area at {} MHz for pseudo-stokes\nI: {}\nQ: {}\nU: {}\nV: {}'.format(freqs[0][0]*1e-6, pI_sq_area1, pU_sq_area1, pU_sq_area1, pV_sq_area1))
   Beam squared area at 123.0 MHz for pseudo-stokes
-  I: (0.0243927994086+0j)
-  Q: (0.0116904276833+0j)
-  U: (0.0116127093244+0j)
-  V: (0.0242569949097+0j)
-  
-  >>> print ('Beam squared area at {} MHz for pseudo-stokes\nI: {}\nQ: {}\nU: {}\nV: {}'.format(freqs[0][1]*1e-6, pI_sq_area[1], pQ_sq_area[1], pU_sq_area[1], pV_sq_area[1])) # doctest: +SKIP
+  I: 0.02439
+  Q: 0.01161
+  U: 0.01161
+  V: 0.02426
+
+  >>> print ('Beam squared area at {} MHz for pseudo-stokes\nI: {}\nQ: {}\nU: {}\nV: {}'.format(freqs[0][1]*1e-6, pI_sq_area2, pU_sq_area2, pU_sq_area2, pV_sq_area2))
   Beam squared area at 150.0 MHz for pseudo-stokes
-  I: (0.0169327668664+0j)
-  Q: (0.00796369717055+0j)
-  U: (0.00790186204102+0j)
-  V: (0.0168296728179+0j)
+  I: 0.01693
+  Q: 0.0079
+  U: 0.0079
+  V: 0.01683
 
 -----------------
 Tutorial Cleanup
