@@ -641,8 +641,6 @@ class UVData(UVBase):
                 else:
                     gcrs_telescope_lon = frame_telescope_location.ra.rad
 
-                frame_telescope_location.representation = 'cartesian'
-
                 uvws_use = self.uvw_array[inds, :]
                 if uvws_use.ndim == 1:
                     uvws_use = uvws_use[np.newaxis, :]
@@ -652,7 +650,6 @@ class UVData(UVBase):
                     uvw_rot_positions = uvutils.mwatools_calcuvw_unphase(frame_ha.rad,
                                                                          self.phase_center_dec,
                                                                          uvws_use)
-
                     # rotate them so they can be added to telescope location in frame
                     uvw_rel_positions = uvutils.ECEF_from_rotECEF(uvw_rot_positions,
                                                                   gcrs_telescope_lon)
@@ -660,6 +657,13 @@ class UVData(UVBase):
                     uvw_rel_positions = uvutils.unphase_uvw(self.phase_center_ra,
                                                             self.phase_center_dec,
                                                             uvws_use)
+
+                # This promotion is REQUIRED to get the right answer when we
+                # add in the telescope location for ICRS
+                # In some cases, the uvws are already float64, but sometimes they're not
+                uvw_rel_positions = np.float64(uvw_rel_positions)
+
+                frame_telescope_location.representation = 'cartesian'
 
                 frame_uvw_coord = SkyCoord(x=uvw_rel_positions[:, 0] * units.m + frame_telescope_location.x,
                                            y=uvw_rel_positions[:, 1] * units.m + frame_telescope_location.y,
@@ -775,14 +779,17 @@ class UVData(UVBase):
             frame_telescope_location.representation = 'cartesian'
 
             if use_ant_pos:
-                itrs_ant_coord = SkyCoord(x=self.antenna_positions[:, 0] * units.m,
-                                          y=self.antenna_positions[:, 1] * units.m,
-                                          z=self.antenna_positions[:, 2] * units.m,
+                # This promotion is REQUIRED to get the right answer when we
+                # add in the telescope location for ICRS
+                ecef_ant_pos = np.float64(self.antenna_positions) + self.telescope_location
+
+                itrs_ant_coord = SkyCoord(x=ecef_ant_pos[:, 0] * units.m,
+                                          y=ecef_ant_pos[:, 1] * units.m,
+                                          z=ecef_ant_pos[:, 2] * units.m,
                                           representation='cartesian',
                                           frame='itrs', obstime=obs_time)
 
                 frame_ant_coord = itrs_ant_coord.transform_to(phase_frame)
-                frame_ant_coord.representation = 'cartesian'
 
                 frame_ant_rel = (frame_ant_coord.cartesian
                                  - frame_telescope_location.cartesian).get_xyz().T.value
@@ -808,6 +815,11 @@ class UVData(UVBase):
                 uvws_use = self.uvw_array[inds, :]
                 if uvws_use.ndim == 1:
                     uvws_use = uvws_use[np.newaxis, :]
+
+                # This promotion is REQUIRED to get the right answer when we
+                # add in the telescope location for ICRS
+                # In some cases, the uvws are already float64, but sometimes they're not
+                uvws_use = np.float64(uvws_use)
                 uvw_ecef = uvutils.ECEF_from_ENU(uvws_use.T, *itrs_lat_lon_alt).T
 
                 itrs_uvw_coord = SkyCoord(x=uvw_ecef[:, 0] * units.m,
