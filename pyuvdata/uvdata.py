@@ -685,7 +685,7 @@ class UVData(UVBase):
         self.set_drift()
 
     def phase(self, ra, dec, epoch='J2000', phase_frame='icrs', use_ant_pos=False,
-              use_mwatools_phasing=True):
+              use_mwatools_phasing=False):
         """"
         Phase a drift scan dataset to a single ra/dec at a particular epoch.
         Tested against MWA_Tools/CONV2UVFITS/convutils.
@@ -858,7 +858,7 @@ class UVData(UVBase):
         self.set_phased()
 
     def phase_to_time(self, time, phase_frame='icrs', use_ant_pos=False,
-                      use_mwatools_phasing=True):
+                      use_mwatools_phasing=False):
         """
         Phase a drift scan dataset to the ra/dec of zenith at a particular time.
 
