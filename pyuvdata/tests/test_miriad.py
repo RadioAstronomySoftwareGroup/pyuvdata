@@ -149,7 +149,7 @@ def test_wronglatlon():
     uvtest.checkWarnings(uv_in.read_miriad, [latfile], nwarnings=3,
                          message=['Altitude is not present in file and latitude value does not match',
                                   latfile + ' was written with an old version of pyuvdata',
-                                  'drift RA and/or Dec is off from lst and/or latitude by more than 1.0 deg'])
+                                  'drift RA, Dec is off from lst, latitude by more than 1.0 deg'])
     uvtest.checkWarnings(uv_in.read_miriad, [lonfile], nwarnings=2,
                          message=['Altitude is not present in file and longitude value does not match',
                                   lonfile + ' was written with an old version of pyuvdata'])
@@ -245,8 +245,7 @@ def test_miriad_location_handling():
                                   'file lat/lon coordinates. Antenna positions '
                                   'are present, but the mean antenna latitude '
                                   'value does not match',
-                                  'drift RA and/or Dec is off from lst and/or '
-                                  'latitude by more than 1.0 deg',
+                                  'drift RA, Dec is off from lst, latitude by more than 1.0 deg',
                                   'Telescope foo is not in known_telescopes.'])
 
     # Test for handling when antenna positions have a different mean longitude than the file longitude
@@ -276,8 +275,7 @@ def test_miriad_location_handling():
                                   'file lat/lon coordinates. Antenna positions '
                                   'are present, but the mean antenna longitude '
                                   'value does not match',
-                                  'drift RA and/or Dec is off from lst and/or '
-                                  'latitude by more than 1.0 deg',
+                                  'drift RA, Dec is off from lst, latitude by more than 1.0 deg',
                                   'Telescope foo is not in known_telescopes.'])
 
     # Test for handling when antenna positions have a different mean longitude &
@@ -306,8 +304,7 @@ def test_miriad_location_handling():
                                   'file lat/lon coordinates. Antenna positions '
                                   'are present, but the mean antenna latitude and '
                                   'longitude values do not match',
-                                  'drift RA and/or Dec is off from lst and/or '
-                                  'latitude by more than 1.0 deg',
+                                  'drift RA, Dec is off from lst, latitude by more than 1.0 deg',
                                   'Telescope foo is not in known_telescopes.'])
 
     # Test for handling when antenna positions are far enough apart to make the
