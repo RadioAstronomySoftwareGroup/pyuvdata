@@ -102,13 +102,13 @@ python setup.py build_ext --inplace
 The numpy and astropy versions are important, so be sure to make sure these are up to date before you install.
 
 For anaconda users, we suggest using conda to install astropy, numpy, scipy, and optionally h5py, and
-conda-forge for optionally installing casacore-python and healpy (e.g. ```conda install -c conda-forge pyephem```).
+conda-forge for optionally installing python-casacore and healpy (e.g. ```conda install -c conda-forge python-casacore```).
 
 * numpy >= 1.10
 * scipy
 * astropy >= 1.2
 * h5py (optional: for reading and writing uvh5 format)
-* casacore-python (optional: for CASA measurement set reading functionality)
+* python-casacore (optional: for CASA measurement set reading functionality)
 * healpy (optional: working with beams in HEALPix formats)
 
 ### For CASA measurement set functionality, install python-casacore
