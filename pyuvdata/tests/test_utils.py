@@ -227,10 +227,12 @@ def test_phasing_funcs():
     nt.assert_true(np.allclose(gcrs_uvw, gcrs_uvw_simple))
 
     # also test unphasing
-    temp = uvutils.mwatools_calcuvw_unphase(ha_gcrs.rad, gcrs_coord.dec.rad, gcrs_uvw)
+    temp = uvutils.mwatools_calcuvw_unphase(ha_gcrs.rad, gcrs_coord.dec.rad,
+                                            np.squeeze(gcrs_uvw))
     nt.assert_true(np.allclose(gcrs_rel_rot, temp))
 
-    temp2 = uvutils.unphase_uvw(gcrs_coord.ra.rad, gcrs_coord.dec.rad, gcrs_uvw_simple)
+    temp2 = uvutils.unphase_uvw(gcrs_coord.ra.rad, gcrs_coord.dec.rad,
+                                np.squeeze(gcrs_uvw_simple))
     nt.assert_true(np.allclose(gcrs_rel.value, temp2))
 
 
