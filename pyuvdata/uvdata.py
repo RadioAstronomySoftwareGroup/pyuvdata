@@ -1697,6 +1697,8 @@ class UVData(UVBase):
 
         Args:
             filepath: The miriad file directory or list of directories to read from.
+            correct_lat_lon: flag -- that only matters if altitude is missing --
+                to update the latitude and longitude from the known_telescopes list
             run_check: Option to check for the existence and proper shapes of
                 parameters after reading in the file. Default is True.
             check_extra: Option to check optional parameters as well as required
@@ -1748,19 +1750,21 @@ class UVData(UVBase):
             self._convert_from_filetype(miriad_obj)
             del(miriad_obj)
 
-    def read_miriad_metadata(self, filename):
+    def read_miriad_metadata(self, filename, correct_lat_lon=True):
         """
         Read in metadata (random parameter info) but not data from a miriad file.
 
         Args:
             filename: The miriad file to read from.
+            correct_lat_lon: flag -- that only matters if altitude is missing --
+                to update the latitude and longitude from the known_telescopes list
         """
         from . import miriad
         if isinstance(filename, (list, tuple)):
             raise ValueError('A list of files cannot be used when just reading metadata')
 
         miriad_obj = self._convert_to_filetype('miriad')
-        miriad_obj.read_miriad_metadata(filename)
+        miriad_obj.read_miriad_metadata(filename, correct_lat_lon=correct_lat_lon)
         self._convert_from_filetype(miriad_obj)
         del(miriad_obj)
 
