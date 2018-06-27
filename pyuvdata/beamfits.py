@@ -641,7 +641,7 @@ class BeamFITS(UVBeam):
             bandpass_hdu.header['refzout'] = self.reference_output_impedance
         hdulist.append(bandpass_hdu)
 
-        if float(astropy.__version__[0:3]) < 1.3:
+        if float(astropy.__version__[0:3]) < 1.3:  # pragma: no cover
             hdulist.writeto(filename, clobber=clobber)
         else:
             hdulist.writeto(filename, overwrite=clobber)
