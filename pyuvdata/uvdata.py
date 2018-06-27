@@ -1734,7 +1734,7 @@ class UVData(UVBase):
         # check if casacore is installed
         try:
             import casacore
-        except(ImportError):
+        except(ImportError):  # pragma: no cover
             # only import skip if importerror raised
             # this way, nose import errors aren't raised
             # unless this errors is already encountered.
