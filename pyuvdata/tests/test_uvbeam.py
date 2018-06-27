@@ -197,7 +197,13 @@ def test_efield_to_pstokes():
     pstokes_beam.efield_to_pstokes()
 
     pstokes_beam = copy.deepcopy(efield_beam)
+    pstokes_beam.az_za_to_healpix()
+    beam_return = pstokes_beam.efield_to_pstokes(inplace=False)
+
+    pstokes_beam = copy.deepcopy(efield_beam)
     nt.assert_raises(ValueError, pstokes_beam.efield_to_pstokes)
+
+    pstokes_beam = copy.deepcopy(efield_beam)
 
     power_beam = UVBeam()
     power_beam.read_cst_beam(cst_files, beam_type='power', frequency=[150e6, 123e6],
@@ -205,6 +211,8 @@ def test_efield_to_pstokes():
                              feed_version='0.1', feed_pol=['x'],
                              model_name='E-field pattern - Rigging height 4.9m',
                              model_version='1.0')
+    nt.assert_raises(ValueError, power_beam.efield_to_pstokes)
+
     nt.assert_raises(ValueError, power_beam.efield_to_pstokes)
 
 
@@ -1410,4 +1418,14 @@ def test_get_beam_functions():
     power_beam.peak_normalize()
     nt.assert_raises(ValueError, power_beam.get_beam_area)
     nt.assert_raises(ValueError, power_beam.get_beam_sq_area)
-    nt.assert_raises(AssertionError, power_beam._get_beam, 'pI')
+
+    power_beam = UVBeam()
+    power_beam.read_cst_beam(cst_files[0], beam_type='power', frequency=150e6,
+                             telescope_name='TEST', feed_name='bob',
+                             feed_version='0.1',
+                             model_name='E-field pattern - Rigging height 4.9m',
+                             model_version='1.0')
+    power_beam.az_za_to_healpix()
+    power_beam.peak_normalize()
+    power_beam._get_beam('xx')
+    nt.assert_raises(ValueError, power_beam._get_beam, 4)
