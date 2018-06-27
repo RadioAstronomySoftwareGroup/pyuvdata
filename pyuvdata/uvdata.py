@@ -642,8 +642,6 @@ class UVData(UVBase):
                     gcrs_telescope_lon = frame_telescope_location.ra.rad
 
                 uvws_use = self.uvw_array[inds, :]
-                if uvws_use.ndim == 1:
-                    uvws_use = uvws_use[np.newaxis, :]
 
                 if use_mwatools_phasing:
                     # first unphase to get positions in rotECEF frame
@@ -813,8 +811,6 @@ class UVData(UVBase):
                 # Also, uvws should be thought of like ENU, not ECEF (or rotated ECEF)
                 # convert them to ECEF to transform between frames
                 uvws_use = self.uvw_array[inds, :]
-                if uvws_use.ndim == 1:
-                    uvws_use = uvws_use[np.newaxis, :]
 
                 # This promotion is REQUIRED to get the right answer when we
                 # add in the telescope location for ICRS
