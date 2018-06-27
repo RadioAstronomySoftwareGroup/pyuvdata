@@ -73,19 +73,12 @@ class Miriad(UVData):
             raise IOError(filepath + ' not found')
         uv = aipy_extracts.UV(filepath)
 
-        # load miriad variables into self
-        (default_miriad_variables, other_miriad_variables,
-         extra_miriad_variables) = self._load_miriad_variables(uv)
+        # load metadata
+        (default_miriad_variables, other_miriad_variables, extra_miriad_variables,
+         check_variables) = self.read_miriad_metadata(uv)
 
         # read through the file and get the data
         _source = uv['source']  # check source of initial visibility
-        # dict of extra variables to see if they change
-        check_variables = {}
-        for extra_variable in extra_miriad_variables:
-            check_variables[extra_variable] = uv[extra_variable]
-
-        # load telescope coordinates into self
-        self._load_telescope_coords(uv, correct_lat_lon=correct_lat_lon)
 
         history_update_string = '  Downselected to specific '
         n_selects = 0
@@ -252,36 +245,6 @@ class Miriad(UVData):
             raise ValueError('No data is present, probably as a result of '
                              'select on read that excludes all the data')
 
-        # keep all single valued extra_variables as extra_keywords
-        for key in check_variables.keys():
-            if type(check_variables[key]) == str:
-                value = check_variables[key].replace('\x00', '')
-                # check for booleans encoded as strings
-                if value == 'True':
-                    value = True
-                elif value == 'False':
-                    value = False
-                self.extra_keywords[key] = value
-            else:
-                self.extra_keywords[key] = check_variables[key]
-
-        # Check for items in itemtable to put into extra_keywords
-        # These will end up as variables in written files, but is internally consistent.
-        for key in uv.items():
-            # A few items that are not needed, we read elsewhere, or is not supported
-            # when downselecting, so we don't read here.
-            if key not in ['vartable', 'history', 'obstype'] and key not in other_miriad_variables:
-                if type(uv[key]) == str:
-                    value = uv[key].replace('\x00', '')
-                    value = uv[key].replace('\x01', '')
-                    if value == 'True':
-                        value = True
-                    elif value == 'False':
-                        value = False
-                    self.extra_keywords[key] = value
-                else:
-                    self.extra_keywords[key] = uv[key]
-
         for pol, data in data_accumulator.items():
             data_accumulator[pol] = np.array(data)
 
@@ -335,62 +298,11 @@ class Miriad(UVData):
         reverse_inds = dict(zip(unique_blts, range(len(unique_blts))))
         self.Nants_data = len(sorted_unique_ants)
 
-        # load antennas and antenna positions into self
+        # load antennas and antenna positions using sorted unique ants list
         self._load_antpos(uv, sorted_unique_ants=sorted_unique_ants)
-
-        if self.antenna_numbers is None:
-            # there are no antenna_numbers or antenna_positions, so just use
-            # the antennas present in the visibilities
-            # (Nants_data will therefore match Nants_telescope)
-            self.antenna_numbers = np.array(sorted_unique_ants)
-            self.Nants_telescope = len(self.antenna_numbers)
-
-        # antenna names is a foreign concept in miriad but required in other formats.
-        try:
-            # Here we deal with the way pyuvdata tacks it on to keep the
-            # name information if we have it:
-            # make it into one long comma-separated string
-            ant_name_var = uv['antnames']
-            if isinstance(ant_name_var, str):
-                ant_name_str = ant_name_var.replace('\x00', '')
-                ant_name_list = ant_name_str[1:-1].split(', ')
-                self.antenna_names = ant_name_list
-            else:
-                # Backwards compatibility for old way of storing antenna_names.
-                # This is a horrible hack to save & recover antenna_names array.
-                # Miriad can't handle arrays of strings and AIPY use to not handle
-                # long enough single strings to put them all into one string
-                # so we convert them into hex values and then into floats on
-                # write and convert back to strings here
-                warnings.warn('{file} was written with an old version of '
-                              'pyuvdata, which has been deprecated. Rewrite this '
-                              'file with write_miriad to ensure future '
-                              'compatibility'.format(file=filepath))
-                ant_name_flt = uv['antnames']
-                ant_name_list = [('%x' % elem.astype(np.int64)).decode('hex') for elem in ant_name_flt]
-                self.antenna_names = ant_name_list
-
-        except(KeyError):
-            self.antenna_names = self.antenna_numbers.astype(str).tolist()
-
-        # check for antenna diameters
-        try:
-            self.antenna_diameters = uv['antdiam']
-        except(KeyError):
-            # backwards compatibility for when keyword was 'diameter'
-            try:
-                self.antenna_diameters = uv['diameter']
-                # if we find it, we need to remove it from extra_keywords to keep from writing it out
-                self.extra_keywords.pop('diameter')
-            except(KeyError):
-                pass
-        if self.antenna_diameters is not None:
-            self.antenna_diameters = (self.antenna_diameters
-                                      * np.ones(self.Nants_telescope, dtype=np.float))
 
         # form up a grid which indexes time and baselines along the 'long'
         # axis of the visdata array
-
         tij_grid = np.array([list(map(float, x.split("_"))) for x in unique_blts])
         t_grid, ant_i_grid, ant_j_grid = tij_grid.T
         # set the data sizes
@@ -838,16 +750,88 @@ class Miriad(UVData):
 
                 uv.write(preamble, data, flags)
 
+    def read_miriad_metadata(self, filename):
+        """
+        Read in metadata (parameter info) but not data from a miriad file.
+
+        Args:
+            filename : The miriad file to read
+
+        Returns:
+            default_miriad_variables: list of default miriad variables
+            other_miriad_variables: list of other miriad variables
+            extra_miriad_variables: list of extra, non-standard variables
+            check_variables: dict of extra miriad variables
+        """
+        # check for data array
+        if self.data_array is not None:
+            raise ValueError('data_array is already defined, cannot read metadata')
+
+        # get UV descriptor
+        if isinstance(filename, (str, np.str)):
+            uv = aipy_extracts.UV(filename)
+        elif isinstance(filename, aipy_extracts.UV):
+            uv = filename
+
+        # load miriad variables
+        (default_miriad_variables, other_miriad_variables, 
+         extra_miriad_variables) = self._load_miriad_variables(uv)
+
+        # dict of extra variables
+        check_variables = {}
+        for extra_variable in extra_miriad_variables:
+            check_variables[extra_variable] = uv[extra_variable]
+
+        # keep all single valued extra_variables as extra_keywords
+        for key in check_variables.keys():
+            if type(check_variables[key]) == str:
+                value = check_variables[key].replace('\x00', '')
+                # check for booleans encoded as strings
+                if value == 'True':
+                    value = True
+                elif value == 'False':
+                    value = False
+                self.extra_keywords[key] = value
+            else:
+                self.extra_keywords[key] = check_variables[key]
+
+        # Check for items in itemtable to put into extra_keywords
+        # These will end up as variables in written files, but is internally consistent.
+        for key in uv.items():
+            # A few items that are not needed, we read elsewhere, or is not supported
+            # when downselecting, so we don't read here.
+            if key not in ['vartable', 'history', 'obstype'] and key not in other_miriad_variables:
+                if type(uv[key]) == str:
+                    value = uv[key].replace('\x00', '')
+                    value = uv[key].replace('\x01', '')
+                    if value == 'True':
+                        value = True
+                    elif value == 'False':
+                        value = False
+                    self.extra_keywords[key] = value
+                else:
+                    self.extra_keywords[key] = uv[key]
+
+        # load telescope coords
+        self._load_telescope_coords(uv)
+
+        # load antenna positions
+        self._load_antpos(uv)
+
+        return (default_miriad_variables, other_miriad_variables, extra_miriad_variables, 
+                check_variables)
+
     def _load_miriad_variables(self, uv):
         """
-        Load miriad variables.
+        Load miriad variables from an aipy.miriad UV descriptor.
 
         Args:
             uv: aipy.miriad.UV instance
 
         Returns:
-            extra_miriad_variables: list of extra, non-standard variables in the
-                miriad file.
+            default_miriad_variables: list of default miriad variables
+            other_miriad_varialbes: list of other miriad varialbes
+            extra_miriad_variables: list of extra, non-standard variables
         """
         # list of miriad variables always read
         # NB: this includes variables in try/except (i.e. not all variables are
@@ -928,7 +912,7 @@ class Miriad(UVData):
 
     def _load_telescope_coords(self, uv, correct_lat_lon=True):
         """
-        Load telescope lat, lon alt coordinates from miriad UV descriptor.
+        Load telescope lat, lon alt coordinates from aipy.miriad UV descriptor.
 
         Args:
             uv: aipy.miriad.UV instance
@@ -1001,6 +985,7 @@ class Miriad(UVData):
 
         Args:
             uv: aipy.miriad.UV instance.
+            sorted_unique_ants: 
         """
         # check if telescope coords exist
         if not hasattr(self, 'telescope_location_lat_lon_alt'):
@@ -1170,3 +1155,54 @@ class Miriad(UVData):
             # there is no antpos variable
             warnings.warn('Antenna positions are not present in the file.')
             self.antenna_positions = None
+
+        if self.antenna_numbers is None:
+            # there are no antenna_numbers or antenna_positions, so just use
+            # the antennas present in the visibilities
+            # (Nants_data will therefore match Nants_telescope)
+            self.antenna_numbers = np.array(sorted_unique_ants)
+            self.Nants_telescope = len(self.antenna_numbers)
+
+        # antenna names is a foreign concept in miriad but required in other formats.
+        try:
+            # Here we deal with the way pyuvdata tacks it on to keep the
+            # name information if we have it:
+            # make it into one long comma-separated string
+            ant_name_var = uv['antnames']
+            if isinstance(ant_name_var, str):
+                ant_name_str = ant_name_var.replace('\x00', '')
+                ant_name_list = ant_name_str[1:-1].split(', ')
+                self.antenna_names = ant_name_list
+            else:
+                # Backwards compatibility for old way of storing antenna_names.
+                # This is a horrible hack to save & recover antenna_names array.
+                # Miriad can't handle arrays of strings and AIPY use to not handle
+                # long enough single strings to put them all into one string
+                # so we convert them into hex values and then into floats on
+                # write and convert back to strings here
+                warnings.warn('This file was written with an old version of '
+                              'pyuvdata, which has been deprecated. Rewrite this '
+                              'file with write_miriad to ensure future '
+                              'compatibility')
+                ant_name_flt = uv['antnames']
+                ant_name_list = [('%x' % elem.astype(np.int64)).decode('hex') for elem in ant_name_flt]
+                self.antenna_names = ant_name_list
+
+        except(KeyError):
+            self.antenna_names = self.antenna_numbers.astype(str).tolist()
+
+        # check for antenna diameters
+        try:
+            self.antenna_diameters = uv['antdiam']
+        except(KeyError):
+            # backwards compatibility for when keyword was 'diameter'
+            try:
+                self.antenna_diameters = uv['diameter']
+                # if we find it, we need to remove it from extra_keywords to keep from writing it out
+                self.extra_keywords.pop('diameter')
+            except(KeyError):
+                pass
+        if self.antenna_diameters is not None:
+            self.antenna_diameters = (self.antenna_diameters
+                                      * np.ones(self.Nants_telescope, dtype=np.float))
+

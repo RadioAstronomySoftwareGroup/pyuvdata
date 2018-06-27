@@ -155,17 +155,17 @@ def test_wronglatlon():
 
     uvtest.checkWarnings(uv_in.read_miriad, [latfile], nwarnings=2,
                          message=['Altitude is not present in file and latitude value does not match',
-                                  latfile + ' was written with an old version of pyuvdata'])
+                                  'This file was written with an old version of pyuvdata'])
     uvtest.checkWarnings(uv_in.read_miriad, [lonfile], nwarnings=2,
                          message=['Altitude is not present in file and longitude value does not match',
-                                  lonfile + ' was written with an old version of pyuvdata'])
+                                  'This file was written with an old version of pyuvdata'])
     uvtest.checkWarnings(uv_in.read_miriad, [telescopefile], {'run_check': False},
                          nwarnings=4,
                          message=['Altitude is not present in Miriad file, and telescope',
                                   'Telescope location is set at sealevel at the '
                                   'file lat/lon coordinates. Antenna positions '
                                   'are present, but the mean antenna position',
-                                  telescopefile + ' was written with an old version of pyuvdata',
+                                  'This file was written with an old version of pyuvdata',
                                   'Telescope foo is not in known_telescopes.'])
 
 
