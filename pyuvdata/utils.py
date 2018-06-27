@@ -9,7 +9,6 @@ import numpy as np
 import collections
 import six
 import warnings
-import aipy
 
 # parameters for transforming between xyz & lat/lon/alt
 gps_b = 6356752.31424518

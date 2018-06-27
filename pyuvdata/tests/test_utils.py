@@ -11,7 +11,6 @@ import pyuvdata
 import numpy as np
 from pyuvdata.data import DATA_PATH
 import pyuvdata.utils as uvutils
-import aipy
 from pyuvdata.miriad import Miriad
 
 
