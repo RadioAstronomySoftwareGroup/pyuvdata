@@ -345,6 +345,94 @@ def test_efield_to_power():
     nt.assert_raises(ValueError, efield_beam.efield_to_power)
 
 
+def test_interpolation():
+    power_beam = UVBeam()
+    power_beam.read_cst_beam(cst_files, beam_type='power', frequency=[150e6, 123e6],
+                             telescope_name='TEST', feed_name='bob',
+                             feed_version='0.1', feed_pol=['x'],
+                             model_name='E-field pattern - Rigging height 4.9m',
+                             model_version='1.0')
+
+    # check that interpolating to existing points gives the same answer
+    za_orig_vals, az_orig_vals = np.meshgrid(power_beam.axis2_array,
+                                             power_beam.axis1_array)
+    az_orig_vals = az_orig_vals.ravel(order='C')
+    za_orig_vals = za_orig_vals.ravel(order='C')
+    freq_orig_vals = np.array([123e6, 150e6])
+
+    # test error if no interpolation function is set
+    nt.assert_raises(ValueError, power_beam.interp, az_array=az_orig_vals,
+                     za_array=za_orig_vals, freq_array=freq_orig_vals)
+
+    power_beam.interpolation_function = 'az_za_simple'
+    interp_data_array, interp_basis_vector = power_beam.interp(az_array=az_orig_vals,
+                                                               za_array=za_orig_vals,
+                                                               freq_array=freq_orig_vals)
+
+    data_array_compare = power_beam.data_array
+    interp_data_array = interp_data_array.reshape(data_array_compare.shape, order='F')
+
+    nt.assert_true(np.allclose(data_array_compare, interp_data_array))
+
+    # test no errors using different points
+    az_interp_vals = np.array(np.arange(0, 2 * np.pi, np.pi / 9.0).tolist()
+                              + np.arange(0, 2 * np.pi, np.pi / 9.0).tolist())
+    za_interp_vals = np.array((np.zeros((18)) + np.pi / 4).tolist()
+                              + (np.zeros((18)) + np.pi / 12).tolist())
+    freq_interp_vals = np.arange(125e6, 145e6, 5e6)
+
+    interp_data_array, interp_basis_vector = power_beam.interp(az_array=az_interp_vals,
+                                                               za_array=za_interp_vals,
+                                                               freq_array=freq_interp_vals)
+
+    # test no errors only frequency interpolation
+    interp_data_array, interp_basis_vector = power_beam.interp(freq_array=freq_interp_vals)
+
+    # redo tests using Efield:
+    efield_beam = UVBeam()
+    efield_beam.read_cst_beam(cst_files, beam_type='efield', frequency=[150e6, 123e6],
+                              telescope_name='TEST', feed_name='bob',
+                              feed_version='0.1', feed_pol=['x'],
+                              model_name='E-field pattern - Rigging height 4.9m',
+                              model_version='1.0')
+
+    efield_beam.interpolation_function = 'az_za_simple'
+    interp_data_array, interp_basis_vector = efield_beam.interp(az_array=az_orig_vals,
+                                                                za_array=za_orig_vals,
+                                                                freq_array=freq_orig_vals)
+
+    interp_data_array = interp_data_array.reshape(efield_beam.data_array.shape, order='F')
+    interp_basis_vector = interp_basis_vector.reshape(efield_beam.basis_vector_array.shape, order='F')
+
+    nt.assert_true(np.allclose(efield_beam.data_array, interp_data_array))
+    nt.assert_true(np.allclose(efield_beam.basis_vector_array, interp_basis_vector))
+
+    # test no errors using different points
+    az_interp_vals = np.array(np.arange(0, 2 * np.pi, np.pi / 9.0).tolist()
+                              + np.arange(0, 2 * np.pi, np.pi / 9.0).tolist())
+    za_interp_vals = np.array((np.zeros((18)) + np.pi / 4).tolist()
+                              + (np.zeros((18)) + np.pi / 12).tolist())
+    freq_interp_vals = np.arange(125e6, 145e6, 10e6)
+
+    interp_data_array, interp_basis_vector = efield_beam.interp(az_array=az_interp_vals,
+                                                                za_array=za_interp_vals,
+                                                                freq_array=freq_interp_vals)
+
+    # test errors if frequency interp values outside range
+    nt.assert_raises(ValueError, power_beam.interp, az_array=az_interp_vals,
+                     za_array=za_interp_vals, freq_array=np.array([100]))
+
+    # test errors if one frequency
+    power_beam_singlef = power_beam.select(freq_chans=[0], inplace=False)
+    nt.assert_raises(ValueError, power_beam_singlef.interp, az_array=az_interp_vals,
+                     za_array=za_interp_vals, freq_array=freq_interp_vals)
+
+    # test errors if positions outside range
+    power_beam.select(axis2_inds=np.where(power_beam.axis2_array <= np.pi / 2.)[0])
+    nt.assert_raises(ValueError, power_beam.interp, az_array=az_interp_vals,
+                     za_array=za_interp_vals + np.pi / 2)
+
+
 def test_to_healpix():
     power_beam = UVBeam()
     power_beam.read_cst_beam(cst_files[0], beam_type='power', frequency=150e6,
@@ -354,9 +442,6 @@ def test_to_healpix():
                              model_version='1.0')
 
     power_beam.select(axis2_inds=np.where(power_beam.axis2_array <= np.pi / 2.)[0])
-
-    # test error if no interpolation function is set
-    nt.assert_raises(ValueError, power_beam.to_healpix, inplace=False)
 
     power_beam.interpolation_function = 'az_za_simple'
     power_beam_healpix = power_beam.to_healpix(inplace=False)
