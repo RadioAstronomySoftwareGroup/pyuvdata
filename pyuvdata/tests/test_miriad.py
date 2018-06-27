@@ -99,7 +99,7 @@ def test_ReadMiriadWriteUVFits():
     uvtest.checkWarnings(miriad_uv.read_miriad, [miriad_file],
                          {'correct_lat_lon': False},
                          message=['Altitude is not present in Miriad file, '
-                                  'using known location altitude'])
+                                  'using known location values for PAPER.'])
 
     # check that setting the phase_type to something wrong errors
     nt.assert_raises(ValueError, uvtest.checkWarnings, miriad_uv.read_miriad,
@@ -153,21 +153,24 @@ def test_wronglatlon():
     lonfile = os.path.join(DATA_PATH, 'zen.2456865.60537_wronglon.xy.uvcRREAA')
     telescopefile = os.path.join(DATA_PATH, 'zen.2456865.60537_wrongtelecope.xy.uvcRREAA')
 
-    uvtest.checkWarnings(uv_in.read_miriad, [latfile], nwarnings=2,
-                         message=['Altitude is not present in file and latitude value does not match',
+    uvtest.checkWarnings(uv_in.read_miriad, [latfile], nwarnings=3,
+                         message=['Altitude is not present in file and latitude value does not match value',
+                                  'This file was written with an old version of pyuvdata',
                                   'This file was written with an old version of pyuvdata'])
-    uvtest.checkWarnings(uv_in.read_miriad, [lonfile], nwarnings=2,
-                         message=['Altitude is not present in file and longitude value does not match',
+    uvtest.checkWarnings(uv_in.read_miriad, [lonfile], nwarnings=3,
+                         message=['Altitude is not present in file and longitude value does not match value '\
+                                  'for PAPER in known telescopes. Using values from known telescopes.',
+                                  'This file was written with an old version of pyuvdata',
                                   'This file was written with an old version of pyuvdata'])
     uvtest.checkWarnings(uv_in.read_miriad, [telescopefile], {'run_check': False},
-                         nwarnings=4,
+                         nwarnings=5,
                          message=['Altitude is not present in Miriad file, and telescope',
                                   'Telescope location is set at sealevel at the '
                                   'file lat/lon coordinates. Antenna positions '
                                   'are present, but the mean antenna position',
                                   'This file was written with an old version of pyuvdata',
+                                  'This file was written with an old version of pyuvdata',
                                   'Telescope foo is not in known_telescopes.'])
-
 
 def test_miriad_location_handling():
     uv_in = UVData()
@@ -684,6 +687,16 @@ def test_readWriteReadMiriad():
     del(uv_out)
     del(full)
 
+    # try metadata only read
+    uv_in = UVData()
+    uv_in.read_miriad_metadata(testfile)
+    nt.assert_equal(uv_in.time_array, None)
+    nt.assert_equal(uv_in.data_array, None)
+    metadata = ['antenna_positions', 'antenna_names', 'antenna_positions', 'channel_width',
+                'integration_time', 'history', 'vis_units', 'telescope_location']
+    for m in metadata:
+        nt.assert_true(getattr(uv_in, m) is not None)
+
 
 def test_readMSWriteMiriad_CASAHistory():
     """
@@ -718,8 +731,9 @@ def test_rwrMiriad_antpos_issues():
     uvtest.checkWarnings(uv_in.read_miriad, [testfile], known_warning='miriad')
     uv_in.antenna_positions = None
     uv_in.write_miriad(write_file, clobber=True)
-    uvtest.checkWarnings(uv_out.read_miriad, [write_file],
-                         message=['Antenna positions are not present in the file.'])
+    uvtest.checkWarnings(uv_out.read_miriad, [write_file], nwarnings=2,
+                         message=['Antenna positions are not present in the file.',
+                                  'Antenna positions are not present in the file.'])
 
     nt.assert_equal(uv_in, uv_out)
 
@@ -745,8 +759,9 @@ def test_rwrMiriad_antpos_issues():
     uv_in.antenna_names = new_names
     uv_in.Nants_telescope = len(uv_in.antenna_numbers)
     uv_in.write_miriad(write_file, clobber=True, no_antnums=True)
-    uvtest.checkWarnings(uv_out.read_miriad, [write_file],
-                         message=['Antenna positions are not present in the file.'])
+    uvtest.checkWarnings(uv_out.read_miriad, [write_file], nwarnings=2,
+                         message=['Antenna positions are not present in the file.',
+                                  'Antenna positions are not present in the file.'])
 
     nt.assert_equal(uv_in, uv_out)
 

@@ -1748,6 +1748,22 @@ class UVData(UVBase):
             self._convert_from_filetype(miriad_obj)
             del(miriad_obj)
 
+    def read_miriad_metadata(self, filename):
+        """
+        Read in metadata (random parameter info) but not data from a miriad file.
+
+        Args:
+            filename: The miriad file to read from.
+        """
+        from . import miriad
+        if isinstance(filename, (list, tuple)):
+            raise ValueError('A list of files cannot be used when just reading metadata')
+
+        miriad_obj = self._convert_to_filetype('miriad')
+        miriad_obj.read_miriad_metadata(filename)
+        self._convert_from_filetype(miriad_obj)
+        del(miriad_obj)
+
     def write_miriad(self, filepath, run_check=True, check_extra=True,
                      run_check_acceptability=True, clobber=False, no_antnums=False):
         """
