@@ -724,11 +724,9 @@ class UVBeam(UVBase):
         assert(freq_array.ndim == 1)
 
         nfreqs = freq_array.size
-        nearest_freq_dist = np.zeros(nfreqs)
 
         for f_i in range(nfreqs):
             freq_dists = self.freq_array[0, :] - freq_array[f_i]
-            nearest_freq_dist[f_i] = np.min(freq_dists)
 
         if self.Nfreqs == 1:
             raise ValueError('Only one frequency in UVBeam so cannot interpolate.')
@@ -754,7 +752,7 @@ class UVBeam(UVBase):
             lut = interpolate.interp1d(self.freq_array[0, :], self.data_array, axis=3)
             interp_data = lut(freq_array)
 
-        return interp_data, nearest_freq_dist
+        return interp_data
 
     def _interp_az_za_rect_spline(self, az_array, za_array, freq_array):
         """
@@ -774,7 +772,7 @@ class UVBeam(UVBase):
 
         if freq_array is not None:
             assert(isinstance(freq_array, np.ndarray))
-            input_data_array, nearest_freq_dist = self._interp_freq(freq_array)
+            input_data_array = self._interp_freq(freq_array)
             input_nfreqs = freq_array.size
         else:
             input_data_array = self.data_array
