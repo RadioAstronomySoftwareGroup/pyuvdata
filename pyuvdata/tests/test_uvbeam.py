@@ -207,6 +207,7 @@ def test_efield_to_pstokes():
                              model_version='1.0')
     nt.assert_raises(ValueError, power_beam.efield_to_pstokes)
 
+
 def test_efield_to_power():
     efield_beam = UVBeam()
     efield_beam.read_cst_beam(cst_files, beam_type='efield', frequency=[150e6, 123e6],
