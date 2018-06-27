@@ -67,6 +67,8 @@ def test_ReadMiriadWriteUVFits():
     miriad_uv = UVData()
     uvfits_uv = UVData()
     miriad_file = os.path.join(DATA_PATH, 'zen.2456865.60537.xy.uvcRREAA')
+    if not os.path.exists(os.path.join(DATA_PATH, 'test')):
+        os.mkdir(os.path.join(DATA_PATH, 'test'))
     testfile = os.path.join(DATA_PATH, 'test/outtest_miriad.uvfits')
     uvtest.checkWarnings(miriad_uv.read_miriad, [miriad_file],
                          known_warning='miriad')
@@ -97,9 +99,8 @@ def test_ReadMiriadWriteUVFits():
 
     # check warning when correct_lat_lon is set to False
     uvtest.checkWarnings(miriad_uv.read_miriad, [miriad_file],
-                         {'correct_lat_lon': False},
-                         message=['Altitude is not present in Miriad file, '
-                                  'using known location values for PAPER.'])
+                         {'correct_lat_lon': False}, nwarnings=1,
+                         message=['Altitude is not present in Miriad file, using known location altitude value for PAPER and lat/lon from file.'])
 
     # check that setting the phase_type to something wrong errors
     nt.assert_raises(ValueError, uvtest.checkWarnings, miriad_uv.read_miriad,
