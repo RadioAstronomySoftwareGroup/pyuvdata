@@ -11,6 +11,7 @@ import numpy as np
 import copy
 import six
 from astropy.time import Time
+from astropy.coordinates import Angle
 from pyuvdata import UVData
 import pyuvdata.utils as uvutils
 import pyuvdata.tests as uvtest
@@ -339,22 +340,30 @@ def test_phase_unphaseHERA():
                                  'latitude and longitude values do not match')
     UV_phase.phase(0., 0., epoch="J2000", use_mwatools_phasing=False)
     UV_phase.unphase_to_drift(use_mwatools_phasing=False)
+    # check that phase + unphase gets back to raw
     nt.assert_equal(UV_raw, UV_phase)
 
-    # check that they match using mwatools_calcuvw
-    UV_phase.phase(0., 0., epoch="J2000", use_mwatools_phasing=True)
+    # check that phase + unphase work using mwatools_calcuvw
+    UV_phase.phase(Angle('12.3h').rad, Angle('-30d').rad, epoch=2000, use_mwatools_phasing=True)
     UV_phase.unphase_to_drift(use_mwatools_phasing=True)
     nt.assert_equal(UV_raw, UV_phase)
 
-    # check that they match using gcrs
-    UV_phase.phase(0., 0., epoch="J2000", phase_frame='gcrs')
+    # check that phase + unphase work using gcrs
+    UV_phase.phase(Angle('5d').rad, Angle('30d').rad, phase_frame='gcrs')
     UV_phase.unphase_to_drift()
     nt.assert_equal(UV_raw, UV_phase)
 
-    # check that they match if you use a different epoch
-    UV_phase.phase(0., 0., epoch=Time('2010-01-01T00:00:00', format='isot', scale='utc'))
+    # check that phase + unphase work using a different epoch
+    UV_phase.phase(Angle('180d').rad, Angle('90d'), epoch=Time('2010-01-01T00:00:00', format='isot', scale='utc'))
     UV_phase.unphase_to_drift()
     nt.assert_equal(UV_raw, UV_phase)
+
+    # check that phase + unphase work with one baseline
+    UV_raw_small = UV_raw.select(blt_inds=[0], inplace=False)
+    UV_phase_small = copy.deepcopy(UV_raw_small)
+    UV_phase_small.phase(Angle('23h').rad, Angle('15d').rad)
+    UV_phase_small.unphase_to_drift()
+    nt.assert_equal(UV_raw_small, UV_phase_small)
 
     # check that they match if you phase & unphase using antenna locations
     # first replace the uvws with the right values
@@ -383,10 +392,11 @@ def test_phase_unphaseHERA():
     UV_phase2._data_array.tols = (0, 1e-3)
     nt.assert_equal(UV_phase2, UV_phase)
 
+    # check that phase + unphase gets back to raw using antpos
     UV_phase.unphase_to_drift(use_ant_pos=True, use_mwatools_phasing=False)
     nt.assert_equal(UV_raw_new, UV_phase)
 
-    # redo this test with mwatools_phasing
+    # redo all the antpos tests with mwatools_phasing
     UV_phase.phase(0., 0., epoch="J2000", use_ant_pos=True, use_mwatools_phasing=True)
     UV_phase2 = copy.deepcopy(UV_raw_new)
     UV_phase2.phase(0., 0., epoch="J2000", use_mwatools_phasing=True)
@@ -419,6 +429,7 @@ def test_phase_unphaseHERA():
     nt.assert_raises(ValueError, UV_raw.unphase_to_drift)
     UV_raw.set_unknown_phase_type()
     nt.assert_raises(ValueError, UV_raw.unphase_to_drift)
+    UV_raw.set_drift()
 
     # check errors when trying to phase phased or unknown data
     UV_phase.phase(0., 0., epoch="J2000")
@@ -709,6 +720,8 @@ def test_select_bls():
     nt.assert_raises(ValueError, uv_object.select, bls=(5, 1))
     nt.assert_raises(ValueError, uv_object.select, bls=(0, 5))
     nt.assert_raises(ValueError, uv_object.select, bls=(27, 27))
+    nt.assert_raises(ValueError, uv_object.select, bls=(6, 0, 'RR'), polarizations='RR')
+    nt.assert_raises(ValueError, uv_object.select, bls=(6, 0, 8))
 
 
 def test_select_times():
