@@ -1108,13 +1108,14 @@ Generating pseudo Stokes ('pI', 'pQ', 'pU', 'pV') beams
   ...                    feed_name='PAPER_dipole', feed_version='0.1',
   ...                    model_name='E-field pattern - Rigging height 4.9m',
   ...                    model_version='1.0')
-  >>> pstokes_beam = beam.az_za_to_healpix(inplace=False)
+  >>> beam.interpolation_function = 'az_za_simple'
+  >>> pstokes_beam = beam.to_healpix(inplace=False)
   >>> pstokes_beam.efield_to_pstokes()
   >>> pstokes_beam.peak_normalize()
 
   # plotting pseudo-stokes I
   >>> pol_array = pstokes_beam.polarization_array
-  >>> pstokes = uvutils.polstr2num('pI') 
+  >>> pstokes = uvutils.polstr2num('pI')
   >>> pstokes_ind = np.where(np.isin(pol_array, pstokes))[0][0]
   >>> hp.mollview(np.abs(pstokes_beam.data_array[0, 0, pstokes_ind, 0, :])) # doctest: +SKIP
 
@@ -1132,11 +1133,12 @@ Calculating pseudo Stokes ('pI', 'pQ', 'pU', 'pV') beam area and beam squared ar
   ...                    feed_name='PAPER_dipole', feed_version='0.1',
   ...                    model_name='E-field pattern - Rigging height 4.9m',
   ...                    model_version='1.0')
-  >>> pstokes_beam = beam.az_za_to_healpix(inplace=False)
+  >>> beam.interpolation_function = 'az_za_simple'
+  >>> pstokes_beam = beam.to_healpix(inplace=False)
   >>> pstokes_beam.efield_to_pstokes()
   >>> pstokes_beam.peak_normalize()
 
-  # calculating beam area    
+  # calculating beam area
   >>> freqs = pstokes_beam.freq_array
   >>> pI_area = pstokes_beam.get_beam_area('pI')
   >>> pQ_area = pstokes_beam.get_beam_area('pQ')
@@ -1193,7 +1195,7 @@ Tutorial Cleanup
 
   # delete all written files
   >>> import shutil, os
-  >>> filelist = ['tutorial' + f for f in ['.uvfits', '1.uvfits', '2.uvfits', '3.uvfits', '.fits']]
+  >>> filelist = ['tutorial' + f for f in ['.uvfits', '1.uvfits', '2.uvfits', '3.uvfits', '.fits', '.h5']]
   >>> for f in filelist:
   ...     os.remove(f)
   >>> shutil.rmtree('tutorial.uv')
