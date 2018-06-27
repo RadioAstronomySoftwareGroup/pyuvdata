@@ -120,6 +120,40 @@ def test_readwriteread():
     nt.assert_raises(ValueError, uv_in.write_uvfits, write_file)
     uv_in.timesys = 'UTC'
 
+    # check error if one time & no inttime specified
+    uv_singlet = uv_in.select(times=uv_in.time_array[0], inplace=False)
+    uv_singlet.telescope_name = 'HERA'
+    uv_singlet.write_uvfits(write_file)
+
+    hdu_list = fits.open(write_file)
+    hdunames = uvutils.fits_indexhdus(hdu_list)
+    vis_hdu = hdu_list[0]
+    vis_hdr = vis_hdu.header.copy()
+    raw_data_array = vis_hdu.data.data
+
+    par_names = np.array(vis_hdu.data.parnames)
+    pars_use = np.where(par_names != 'INTTIM')[0]
+    par_names = par_names[pars_use].tolist()
+
+    group_parameter_list = [vis_hdu.data.par(name) for name in par_names]
+
+    vis_hdu = fits.GroupData(raw_data_array, parnames=par_names,
+                             pardata=group_parameter_list, bitpix=-32)
+    vis_hdu = fits.GroupsHDU(vis_hdu)
+    vis_hdu.header = vis_hdr
+
+    ant_hdu = hdu_list[hdunames['AIPS AN']]
+
+    hdulist = fits.HDUList(hdus=[vis_hdu, ant_hdu])
+    if float(astropy.__version__[0:3]) < 1.3:
+        hdulist.writeto(write_file, clobber=True)
+    else:
+        hdulist.writeto(write_file, overwrite=True)
+    uvtest.checkWarnings(nt.assert_raises, [ValueError, uv_out.read_uvfits, write_file],
+                         message=['ERFA function "utcut1" yielded 1 of "dubious year (Note 3)"',
+                                  'ERFA function "utctai" yielded 1 of "dubious year (Note 3)"'],
+                         nwarnings=2, category=astropy._erfa.core.ErfaWarning)
+
     # check that unflagged data with nsample = 0 will cause warnings
     uv_in.nsample_array[list(range(11, 22))] = 0
     uv_in.flag_array[list(range(11, 22))] = False
