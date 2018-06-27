@@ -75,7 +75,7 @@ class Miriad(UVData):
 
         # load metadata
         (default_miriad_variables, other_miriad_variables, extra_miriad_variables,
-         check_variables) = self.read_miriad_metadata(uv)
+         check_variables) = self.read_miriad_metadata(uv, correct_lat_lon=correct_lat_lon)
 
         # read through the file and get the data
         _source = uv['source']  # check source of initial visibility
@@ -750,12 +750,14 @@ class Miriad(UVData):
 
                 uv.write(preamble, data, flags)
 
-    def read_miriad_metadata(self, filename):
+    def read_miriad_metadata(self, filename, correct_lat_lon=True):
         """
         Read in metadata (parameter info) but not data from a miriad file.
 
         Args:
             filename : The miriad file to read
+            correct_lat_lon: flag -- that only matters if altitude is missing --
+                to update the latitude and longitude from the known_telescopes list
 
         Returns:
             default_miriad_variables: list of default miriad variables
@@ -813,7 +815,7 @@ class Miriad(UVData):
                     self.extra_keywords[key] = uv[key]
 
         # load telescope coords
-        self._load_telescope_coords(uv)
+        self._load_telescope_coords(uv, correct_lat_lon=correct_lat_lon)
 
         # load antenna positions
         self._load_antpos(uv)
@@ -979,17 +981,19 @@ class Miriad(UVData):
                               'set using antenna positions.'
                               .format(telescope_name=self.telescope_name))
 
-    def _load_antpos(self, uv, sorted_unique_ants=[]):
+    def _load_antpos(self, uv, sorted_unique_ants=[], correct_lat_lon=True):
         """
         Load antennas and their positions from a Miriad UV descriptor.
 
         Args:
             uv: aipy.miriad.UV instance.
-            sorted_unique_ants: 
+            sorted_unique_ants: list of unique antennas
+            correct_lat_lon: flag -- that only matters if altitude is missing --
+                to update the latitude and longitude from the known_telescopes list
         """
         # check if telescope coords exist
         if not hasattr(self, 'telescope_location_lat_lon_alt'):
-            self._load_telescope_coords(uv)
+            self._load_telescope_coords(uv, correct_lat_lon=correct_lat_lon)
 
         latitude = uv['latitud']  # in units of radians
         longitude = uv['longitu']
