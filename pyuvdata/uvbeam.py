@@ -793,8 +793,7 @@ class UVBeam(UVBase):
 
         phi_vals, theta_vals = np.meshgrid(self.axis1_array, self.axis2_array)
 
-        if input_data_array.shape[3] != input_nfreqs:
-            raise ValueError('input_nfreqs must match input_data_array.shape[3]')
+        assert(input_data_array.shape[3] == input_nfreqs)
 
         if np.iscomplexobj(input_data_array):
             data_type = np.complex
