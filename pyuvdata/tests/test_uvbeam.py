@@ -344,8 +344,6 @@ def test_efield_to_power():
     efield_beam.Naxes_vec = 3
     nt.assert_raises(ValueError, efield_beam.efield_to_power)
 
-    # TODO: add testing in healpix once we can convert efield beams to healpix
-
 
 def test_to_healpix():
     power_beam = UVBeam()
@@ -1393,7 +1391,8 @@ def test_healpix():
 
     nt.assert_raises(ValueError, efield_beam.efield_to_pstokes, 'pI')
 
-    efield_beam.az_za_to_healpix()
+    efield_beam.interpolation_function = 'az_za_simple'
+    efield_beam.to_healpix()
     efield_beam.efield_to_pstokes()
     efield_beam.peak_normalize()
     pI_area = efield_beam.get_beam_sq_area("pI")
