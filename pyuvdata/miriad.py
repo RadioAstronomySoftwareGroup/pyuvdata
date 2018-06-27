@@ -776,7 +776,7 @@ class Miriad(UVData):
             uv = filename
 
         # load miriad variables
-        (default_miriad_variables, other_miriad_variables, 
+        (default_miriad_variables, other_miriad_variables,
          extra_miriad_variables) = self._load_miriad_variables(uv)
 
         # dict of extra variables
@@ -820,7 +820,7 @@ class Miriad(UVData):
         # load antenna positions
         self._load_antpos(uv)
 
-        return (default_miriad_variables, other_miriad_variables, extra_miriad_variables, 
+        return (default_miriad_variables, other_miriad_variables, extra_miriad_variables,
                 check_variables)
 
     def _load_miriad_variables(self, uv):
@@ -1209,4 +1209,3 @@ class Miriad(UVData):
         if self.antenna_diameters is not None:
             self.antenna_diameters = (self.antenna_diameters
                                       * np.ones(self.Nants_telescope, dtype=np.float))
-

@@ -529,7 +529,7 @@ class UVData(UVBase):
         baseline = 2048 * (ant1 + 1) + (ant2 + 1) + 2**16
 
         if isinstance(baseline, np.ndarray):
-            return baseline.astype(np.int64)
+            return np.asarray(baseline, dtype=np.int64)
         else:
             return np.int64(baseline)
 
