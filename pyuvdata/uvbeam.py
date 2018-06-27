@@ -61,7 +61,7 @@ class UVBeam(UVBase):
                                                 expected_type=int, acceptable_vals=[2, 3], required=False)
 
         desc = ('Pixel coordinate system, options are: "'
-                + '", "'.join(self.coordinate_system_dict.keys()) + '".')
+                + '", "'.join(list(self.coordinate_system_dict.keys())) + '".')
         for key in self.coordinate_system_dict:
             desc = desc + (' "' + key + '" is a ' + self.coordinate_system_dict[key]['description']
                            + '. It has axes [' + ', '.join(self.coordinate_system_dict[key]['axes']) + '].')
@@ -283,12 +283,12 @@ class UVBeam(UVBase):
         # -------- extra, non-required parameters ----------
         desc = ('String indicating interpolation function. Must be set to use '
                 'the interp_* methods. Allowed values are : "'
-                + '", "'.join(self.interpolation_function_dict.keys()) + '".')
+                + '", "'.join(list(self.interpolation_function_dict.keys())) + '".')
         self._interpolation_function = uvp.UVParameter('interpolation_function',
                                                        required=False,
                                                        form='str', expected_type=str,
                                                        description=desc,
-                                                       acceptable_vals=self.interpolation_function_dict.keys())
+                                                       acceptable_vals=list(self.interpolation_function_dict.keys()))
 
         desc = ('Any user supplied extra keywords, type=dict. Keys should be '
                 '8 character or less strings if writing to beam fits files. '
@@ -366,7 +366,7 @@ class UVBeam(UVBase):
                 raise ValueError('basis vectors must have lengths of 1 or less.')
 
         # issue warning if extra_keywords keys are longer than 8 characters
-        for key in self.extra_keywords.keys():
+        for key in list(self.extra_keywords.keys()):
             if len(key) > 8:
                 warnings.warn('key {key} in extra_keywords is longer than 8 '
                               'characters. It will be truncated to 8 if written '
