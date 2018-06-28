@@ -655,7 +655,7 @@ def test_readWriteReadMiriad():
     nt.assert_raises(ValueError, uv_in.read_miriad, write_file, bls=[(2, 4, 'xy')], polarizations=['xy'])
     nt.assert_raises(AssertionError, uv_in.read_miriad, write_file, antenna_nums=np.array([(0, 10)]))
     nt.assert_raises(AssertionError, uv_in.read_miriad, write_file, polarizations='xx')
-    nt.assert_raises(ValueError, uv_in.read_miriad, write_file, polarizations=[1.0])
+    nt.assert_raises((AssertionError, ValueError), uv_in.read_miriad, write_file, polarizations=[1.0])
     nt.assert_raises(ValueError, uv_in.read_miriad, write_file, polarizations=['yy'])
     nt.assert_raises(AssertionError, uv_in.read_miriad, write_file, time_range='foo')
     nt.assert_raises(AssertionError, uv_in.read_miriad, write_file, time_range=[1, 2, 3])
