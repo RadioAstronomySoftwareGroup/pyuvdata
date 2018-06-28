@@ -12,6 +12,7 @@ import numpy as np
 import ephem
 import nose.tools as nt
 from pyuvdata import UVData
+from pyuvdata.miriad import Miriad
 import pyuvdata.utils as uvutils
 import pyuvdata.tests as uvtest
 from pyuvdata.data import DATA_PATH
@@ -27,13 +28,15 @@ def test_ReadWriteReadATCA():
     atca_file = os.path.join(DATA_PATH, 'atca_miriad')
     testfile = os.path.join(DATA_PATH, 'test/outtest_atca_miriad.uv')
     uvtest.checkWarnings(uv_in.read_miriad, [atca_file],
-                         nwarnings=3, category=[UserWarning, UserWarning, UserWarning],
+                         nwarnings=4, category=[UserWarning, UserWarning, UserWarning, UserWarning],
                          message=['Altitude is not present in Miriad file, and '
-                                  'telescope ATCA is not in known_telescopes. '
-                                  'Telescope location',
-                                  'Telescope location is set at sealevel at the '
-                                  'file lat/lon coordinates. Antenna positions '
-                                  'are present, but the mean antenna position',
+                                  'telescope ATCA is not in known_telescopes. ',
+                                  'Altitude is not present',
+                                  'Telescope location is set at sealevel at the file lat/lon '\
+                                  'coordinates. Antenna positions are present, but the mean antenna '\
+                                  'position does not give a telescope_location on the surface of the '\
+                                  'earth. Antenna positions do not appear to be on the surface of the '\
+                                  'earth and will be treated as relative.',
                                   'Telescope ATCA is not in known_telescopes.'])
 
     uv_in.write_miriad(testfile, clobber=True)
@@ -164,8 +167,9 @@ def test_wronglatlon():
                                   'This file was written with an old version of pyuvdata',
                                   'This file was written with an old version of pyuvdata'])
     uvtest.checkWarnings(uv_in.read_miriad, [telescopefile], {'run_check': False},
-                         nwarnings=5,
+                         nwarnings=6,
                          message=['Altitude is not present in Miriad file, and telescope',
+                                  'Altitude is not present in Miriad file, and telescope',
                                   'Telescope location is set at sealevel at the '
                                   'file lat/lon coordinates. Antenna positions '
                                   'are present, but the mean antenna position',
@@ -217,10 +221,11 @@ def test_miriad_location_handling():
     # close file properly
     del(aipy_uv2)
 
-    uvtest.checkWarnings(uv_out.read_miriad, [testfile], nwarnings=3,
+    uvtest.checkWarnings(uv_out.read_miriad, [testfile], nwarnings=4,
                          message=['Altitude is not present in Miriad file, and '
                                   'telescope foo is not in known_telescopes. '
                                   'Telescope location will be set using antenna positions.',
+                                  'Altitude is not present ',
                                   'Telescope location is not set, but antenna '
                                   'positions are present. Mean antenna latitude '
                                   'and longitude values match file values, so '
@@ -245,14 +250,14 @@ def test_miriad_location_handling():
     # close file properly
     del(aipy_uv2)
 
-    uvtest.checkWarnings(uv_out.read_miriad, [testfile], nwarnings=3,
+    uvtest.checkWarnings(uv_out.read_miriad, [testfile], nwarnings=4,
                          message=['Altitude is not present in Miriad file, and '
                                   'telescope foo is not in known_telescopes. '
                                   'Telescope location will be set using antenna positions.',
-                                  'Telescope location is set at sealevel at the '
-                                  'file lat/lon coordinates. Antenna positions '
-                                  'are present, but the mean antenna latitude '
-                                  'value does not match',
+                                  'Altitude is not present ',
+                                  'Telescope location is set at sealevel at the file lat/lon coordinates. '\
+                                  'Antenna positions are present, but the mean antenna latitude value does '\
+                                  'not match file values so they are not used for altiude.',
                                   'Telescope foo is not in known_telescopes.'])
 
     # Test for handling when antenna positions have a different mean longitude than the file longitude
@@ -273,10 +278,11 @@ def test_miriad_location_handling():
     # close file properly
     del(aipy_uv2)
 
-    uvtest.checkWarnings(uv_out.read_miriad, [testfile], nwarnings=3,
+    uvtest.checkWarnings(uv_out.read_miriad, [testfile], nwarnings=4,
                          message=['Altitude is not present in Miriad file, and '
                                   'telescope foo is not in known_telescopes. '
                                   'Telescope location will be set using antenna positions.',
+                                  'Altitude is not present ',
                                   'Telescope location is set at sealevel at the '
                                   'file lat/lon coordinates. Antenna positions '
                                   'are present, but the mean antenna longitude '
@@ -300,10 +306,11 @@ def test_miriad_location_handling():
     # close file properly
     del(aipy_uv2)
 
-    uvtest.checkWarnings(uv_out.read_miriad, [testfile], nwarnings=3,
+    uvtest.checkWarnings(uv_out.read_miriad, [testfile], nwarnings=4,
                          message=['Altitude is not present in Miriad file, and '
                                   'telescope foo is not in known_telescopes. '
                                   'Telescope location will be set using antenna positions.',
+                                  'Altitude is not present ',
                                   'Telescope location is set at sealevel at the '
                                   'file lat/lon coordinates. Antenna positions '
                                   'are present, but the mean antenna latitude and '
@@ -336,10 +343,11 @@ def test_miriad_location_handling():
     # close file properly
     del(aipy_uv2)
 
-    uvtest.checkWarnings(uv_out.read_miriad, [testfile], nwarnings=3,
+    uvtest.checkWarnings(uv_out.read_miriad, [testfile], nwarnings=4,
                          message=['Altitude is not present in Miriad file, and '
                                   'telescope foo is not in known_telescopes. '
                                   'Telescope location will be set using antenna positions.',
+                                  'Altitude is not present ',
                                   'Telescope location is set at sealevel at the '
                                   'file lat/lon coordinates. Antenna positions '
                                   'are present, but the mean antenna position '
@@ -708,13 +716,13 @@ def test_readWriteReadMiriad():
     uv_in.read_miriad(testfile)
     nt.assert_raises(ValueError, uv_in.read_miriad_metadata, testfile)
 
-    # test load_telescope_coords w/ blank UVData
-    uv_in = UVData()
+    # test load_telescope_coords w/ blank Miriad
+    uv_in = Miriad()
     uv = aipy_extracts.UV(testfile)
     uv_in._load_telescope_coords(uv)
     nt.assert_true(uv_in.telescope_location_lat_lon_alt is not None)
-    # test load_antpos w/ blank UVData
-    uv_in = UVData()
+    # test load_antpos w/ blank Miriad
+    uv_in = Miriad()
     uv = aipy_extracts.UV(testfile)
     uv_in._load_antpos(uv)
     nt.assert_true(uv_in.antenna_positions is not None)

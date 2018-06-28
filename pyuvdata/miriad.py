@@ -922,7 +922,7 @@ class Miriad(UVData):
                 to update the latitude and longitude from the known_telescopes list
         """
         # check if telescope name is present
-        if not hasattr(self, 'telescope_name'):
+        if self.telescope_name is None:
             self._load_miriad_variables(uv)
 
         latitude = uv['latitud']  # in units of radians
@@ -992,7 +992,7 @@ class Miriad(UVData):
                 to update the latitude and longitude from the known_telescopes list
         """
         # check if telescope coords exist
-        if not hasattr(self, 'telescope_location_lat_lon_alt'):
+        if self.telescope_location_lat_lon_alt is None:
             self._load_telescope_coords(uv, correct_lat_lon=correct_lat_lon)
 
         latitude = uv['latitud']  # in units of radians
