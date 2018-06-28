@@ -195,11 +195,13 @@ def test_efield_to_pstokes():
                               model_version='1.0')
 
     pstokes_beam = copy.deepcopy(efield_beam)
-    pstokes_beam.az_za_to_healpix()
+    pstokes_beam.interpolation_function = 'az_za_simple'
+    pstokes_beam.to_healpix()
     pstokes_beam.efield_to_pstokes()
 
     pstokes_beam = copy.deepcopy(efield_beam)
-    pstokes_beam.az_za_to_healpix()
+    pstokes_beam.interpolation_function = 'az_za_simple'
+    pstokes_beam.to_healpix()
     beam_return = pstokes_beam.efield_to_pstokes(inplace=False)
 
     pstokes_beam = copy.deepcopy(efield_beam)
@@ -1522,7 +1524,8 @@ def test_get_beam_functions():
                              feed_version='0.1',
                              model_name='E-field pattern - Rigging height 4.9m',
                              model_version='1.0')
-    power_beam.az_za_to_healpix()
+    power_beam.interpolation_function = 'az_za_simple'
+    power_beam.to_healpix()
     power_beam.peak_normalize()
     power_beam._get_beam('xx')
     nt.assert_raises(ValueError, power_beam._get_beam, 4)
