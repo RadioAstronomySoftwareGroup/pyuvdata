@@ -1189,7 +1189,12 @@ class Miriad(UVData):
                               'file with write_miriad to ensure future '
                               'compatibility')
                 ant_name_flt = uv['antnames']
-                ant_name_list = [('%x' % elem.astype(np.int64)).decode('hex') for elem in ant_name_flt]
+                ant_name_list = []
+                for elem in ant_name_flt:
+                    an = '%x' % elem.astype(np.int64)
+                    if type(an) is not str:
+                        an = an.decode('hex')
+                    ant_name_list.append(an)
                 self.antenna_names = ant_name_list
 
         except(KeyError):
