@@ -604,7 +604,7 @@ class UVFITS(UVData):
                                  'that are spaced by more than their channel width.')
             freq_spacing = freq_spacing[0]
         else:
-            freq_spacing = 1.0
+            freq_spacing = self.channel_width
 
         if self.Npols > 1:
             pol_spacing = np.diff(self.polarization_array)
@@ -879,7 +879,7 @@ class UVFITS(UVData):
 
         # write the file
         hdulist = fits.HDUList(hdus=[hdu, ant_hdu])
-        if float(astropy.__version__[0:3]) < 1.3:
+        if float(astropy.__version__[0:3]) < 1.3:  # pragma: no cover
             hdulist.writeto(filename, clobber=True)
         else:
             hdulist.writeto(filename, overwrite=True)
