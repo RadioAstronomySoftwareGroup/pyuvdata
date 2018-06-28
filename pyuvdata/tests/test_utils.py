@@ -11,7 +11,6 @@ import pyuvdata
 import numpy as np
 from pyuvdata.data import DATA_PATH
 import pyuvdata.utils as uvutils
-from pyuvdata.miriad import Miriad
 
 
 ref_latlonalt = (-26.7 * np.pi / 180.0, 116.7 * np.pi / 180.0, 377.8)

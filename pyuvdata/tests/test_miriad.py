@@ -699,6 +699,26 @@ def test_readWriteReadMiriad():
     for m in metadata:
         nt.assert_true(getattr(uv_in, m) is not None)
 
+    # test exceptions
+    # multiple file read-in
+    uv_in = UVData()
+    nt.assert_raises(ValueError, uv_in.read_miriad_metadata, [testfile, testfile])
+    # read-in when data already exists
+    uv_in = UVData()
+    uvd_in.read_miriad(testfile)
+    nt.assert_raises(ValueError, uv_in.read_miriad_metadata, testfile)
+
+    # test load_telescope_coords w/ blank UVData
+    uv_in = UVData()
+    uv = aipy_extracts.UV(testfile)
+    uv_in._load_telescope_coords(uv)
+    nt.assert_true(uv_in.telescope_location_lat_lon_alt is not None)
+    # test load_antpos w/ blank UVData
+    uv_in = UVData()
+    uv = aipy_extracts.UV(testfile)
+    uv_in._load_antpos(uv)
+    nt.assert_true(uv_in.antenna_positions is not None)
+
 
 def test_readMSWriteMiriad_CASAHistory():
     """

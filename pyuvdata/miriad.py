@@ -1192,8 +1192,11 @@ class Miriad(UVData):
                 ant_name_list = []
                 for elem in ant_name_flt:
                     an = '%x' % elem.astype(np.int64)
-                    if type(an) is not str:
+                    # python2 in try, python3 in except
+                    try:
                         an = an.decode('hex')
+                    except AttributeError:
+                        an = bytes.fromhex(an).decode()
                     ant_name_list.append(an)
                 self.antenna_names = ant_name_list
 
