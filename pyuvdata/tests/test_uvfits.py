@@ -39,15 +39,18 @@ def test_ReadNRAO():
     UV2.read_uvfits(testfile)
     nt.assert_equal(UV, UV2)
 
-    # test reading in header data first, then metadata & data
+    # test reading in header & metadata first, then data
     UV2 = UVData()
-    uvtest.checkWarnings(UV2.read_uvfits, [testfile], {'read_data': False, 'read_metadata': False},
+    uvtest.checkWarnings(UV2.read_uvfits, [testfile], {'read_data': False},
                          message='Telescope EVLA is not')
     nt.assert_equal(expected_extra_keywords.sort(),
                     list(UV2.extra_keywords.keys()).sort())
     nt.assert_raises(ValueError, UV2.check)
     UV2.read_uvfits(testfile)
     nt.assert_equal(UV, UV2)
+
+    # check error trying to read metadata after data is already present
+    nt.assert_raises(ValueError, UV2.read_uvfits_metadata, testfile)
 
     del(UV)
 
@@ -115,14 +118,53 @@ def test_readwriteread():
     uvtest.checkWarnings(uv_out.read_uvfits, [write_file], message='Telescope EVLA is not')
     nt.assert_equal(uv_in, uv_out)
 
+    # check that if antenna_numbers are > 256 everything works
+    uvtest.checkWarnings(uv_in.read_uvfits, [testfile], message='Telescope EVLA is not')
+    uv_in.antenna_numbers = uv_in.antenna_numbers + 256
+    uv_in.ant_1_array = uv_in.ant_1_array + 256
+    uv_in.ant_2_array = uv_in.ant_2_array + 256
+    uv_in.baseline_array = uv_in.antnums_to_baseline(uv_in.ant_1_array, uv_in.ant_2_array)
+    uvtest.checkWarnings(uv_in.write_uvfits, [write_file],
+                         message='antnums_to_baseline: found > 256 antennas, using 2048 baseline')
+    uvtest.checkWarnings(uv_out.read_uvfits, [write_file], message='Telescope EVLA is not')
+    nt.assert_equal(uv_in, uv_out)
+
+    # check missing telescope_name, timesys vs timsys spelling, xyz_telescope_frame=????
+    hdu_list = fits.open(write_file)
+    hdunames = uvutils.fits_indexhdus(hdu_list)
+    vis_hdu = hdu_list[0]
+    vis_hdr = vis_hdu.header.copy()
+
+    vis_hdr.pop('TELESCOP')
+
+    vis_hdu.header = vis_hdr
+
+    ant_hdu = hdu_list[hdunames['AIPS AN']]
+    ant_hdr = ant_hdu.header.copy()
+
+    time_sys = ant_hdr.pop('TIMSYS')
+    ant_hdr['TIMESYS'] = time_sys
+    ant_hdr['FRAME'] = '????'
+
+    ant_hdu.header = ant_hdr
+
+    hdulist = fits.HDUList(hdus=[vis_hdu, ant_hdu])
+    if float(astropy.__version__[0:3]) < 1.3:
+        hdulist.writeto(write_file, clobber=True)
+    else:
+        hdulist.writeto(write_file, overwrite=True)
+    uvtest.checkWarnings(uv_out.read_uvfits, [write_file], message='Telescope EVLA is not')
+    nt.assert_equal(uv_out.telescope_name, 'EVLA')
+    nt.assert_equal(uv_out.timesys, time_sys)
+
     # check error if timesys is 'IAT'
+    uvtest.checkWarnings(uv_in.read_uvfits, [testfile], message='Telescope EVLA is not')
     uv_in.timesys = 'IAT'
     nt.assert_raises(ValueError, uv_in.write_uvfits, write_file)
     uv_in.timesys = 'UTC'
 
     # check error if one time & no inttime specified
     uv_singlet = uv_in.select(times=uv_in.time_array[0], inplace=False)
-    uv_singlet.telescope_name = 'HERA'
     uv_singlet.write_uvfits(write_file)
 
     hdu_list = fits.open(write_file)
@@ -150,9 +192,11 @@ def test_readwriteread():
     else:
         hdulist.writeto(write_file, overwrite=True)
     uvtest.checkWarnings(nt.assert_raises, [ValueError, uv_out.read_uvfits, write_file],
-                         message=['ERFA function "utcut1" yielded 1 of "dubious year (Note 3)"',
+                         message=['Telescope EVLA is not',
+                                  'ERFA function "utcut1" yielded 1 of "dubious year (Note 3)"',
                                   'ERFA function "utctai" yielded 1 of "dubious year (Note 3)"'],
-                         nwarnings=2, category=astropy._erfa.core.ErfaWarning)
+                         nwarnings=3, category=[UserWarning, astropy._erfa.core.ErfaWarning,
+                                                astropy._erfa.core.ErfaWarning])
 
     # check that unflagged data with nsample = 0 will cause warnings
     uv_in.nsample_array[list(range(11, 22))] = 0
@@ -270,6 +314,14 @@ def test_select_read():
     uvtest.checkWarnings(uvfits_uv2.read_uvfits, [uvfits_file],
                          message='Telescope EVLA is not')
     uvfits_uv2.select(freq_chans=chans_to_keep)
+    nt.assert_equal(uvfits_uv, uvfits_uv2)
+
+    # check writing & reading single frequency files
+    uvfits_uv.select(freq_chans=[0])
+    testfile = os.path.join(DATA_PATH, 'test/outtest_casa.uvfits')
+    uvfits_uv.write_uvfits(testfile)
+    uvtest.checkWarnings(uvfits_uv2.read_uvfits, [testfile],
+                         message='Telescope EVLA is not')
     nt.assert_equal(uvfits_uv, uvfits_uv2)
 
     # select on pols
