@@ -20,13 +20,55 @@ class UVH5(UVData):
     and write_uvh5 methods on the UVData class.
     """
 
-    def read_uvh5(self, filename, run_check=True,
-                  check_extra=True, run_check_acceptability=True):
+    def read_uvh5(self, filename, antenna_nums=None, antenna_names=None,
+                  ant_str=None, bls=None, frequencies=None, freq_channels=None,
+                  times=None, polarizations=None, blt_inds=None, read_data=True,
+                  run_check=True, check_extra=True,
+                  run_check_acceptability=True):
         """
         Read in data from a UVH5 file.
 
         Args:
             filename: The file name to read.
+            antenna_nums: The antennas numbers to include when reading data into
+                the object (antenna positions and names for the excluded antennas
+                will be retained). This cannot be provided if antenna_names is
+                also provided. Ignored if read_data is False.
+            antenna_names: The antennas names to include when reading data into
+                the object (antenna positions and names for the excluded antennas
+                will be retained). This cannot be provided if antenna_nums is
+                also provided. Ignored if read_data is False.
+            bls: A list of antenna number tuples (e.g. [(0,1), (3,2)]) or a list of
+                baseline 3-tuples (e.g. [(0,1,'xx'), (2,3,'yy')]) specifying baselines
+                to keep in the object. For length-2 tuples, the  ordering of the numbers
+                within the tuple does not matter. For length-3 tuples, the polarization
+                string is in the order of the two antennas. If length-3 tuples are provided,
+                the polarizations argument below must be None. Ignored if read_data is False.
+            ant_str: A string containing information about what antenna numbers
+                and polarizations to include when reading data into the object.
+                Can be 'auto', 'cross', 'all', or combinations of antenna numbers
+                and polarizations (e.g. '1', '1_2', '1x_2y').
+                See tutorial for more examples of valid strings and
+                the behavior of different forms for ant_str.
+                If '1x_2y,2y_3y' is passed, both polarizations 'xy' and 'yy' will
+                be kept for both baselines (1,2) and (2,3) to return a valid
+                pyuvdata object.
+                An ant_str cannot be passed in addition to any of the above antenna
+                args or the polarizations arg.
+                Ignored if read_data is False.
+            frequencies: The frequencies to include when reading data into the
+                object. Ignored if read_data is False.
+            freq_chans: The frequency channel numbers to include when reading
+                data into the object. Ignored if read_data is False.
+            times: The times to include when reading data into the object.
+                Ignored if read_data is False.
+            polarizations: The polarizations to include when reading data into
+                the object. Ignored if read_data is False.
+            blt_inds: The baseline-time indices to include when reading data into
+                the object. This is not commonly used. Ignored if read_data is False.
+            read_data: Read in the visibility and flag data. If set to false,
+                only the header info and metadata will be read in. Results in an
+                incompletely defined object (check will not pass). Default True.
             run_check: Option to check for the existence and proper shapes of
                 parameters after reading in the file. Default is True.
             check_extra: Option to check optional parameters as well as required
@@ -41,124 +83,220 @@ class UVH5(UVData):
         if not os.path.exists(filename):
             raise IOError(filename + ' not found')
 
+        if not read_data:
+            run_check = False
+
         # open hdf5 file for reading
-        f = h5py.File(filename, 'r')
+        with h5py.File(filename, 'r') as f:
+            # extract header information
+            header = f['/Header']
 
-        # extract header information
-        header = f['/Header']
+            # get telescope information
+            latitude = header['latitude'].value
+            longitude = header['longitude'].value
+            altitude = header['altitude'].value
+            self.telescope_location_lat_lon_alt = (latitude, longitude, altitude)
+            self.instrument = header['instrument'].value
 
-        # get telescope information
-        latitude = header['latitude'].value
-        longitude = header['longitude'].value
-        altitude = header['altitude'].value
-        self.telescope_location_lat_lon_alt = (latitude, longitude, altitude)
-        self.instrument = header['instrument'].value
+            # get source information
+            self.object_name = header['object_name'].value
 
-        # get source information
-        self.object_name = header['object_name'].value
+            # set history appropriately
+            self.history = header['history'].value
+            if not uvutils.check_history_version(self.history, self.pyuvdata_version_str):
+                self.history += self.pyuvdata_version_str
 
-        # set history appropriately
-        self.history = header['history'].value
-        if not uvutils.check_history_version(self.history, self.pyuvdata_version_str):
-            self.history += self.pyuvdata_version_str
+            # check for vis_units
+            if 'vis_units' in header:
+                self.vis_units = header['vis_units'].value
+            else:
+                # default to uncalibrated data
+                self.vis_units = 'UNCALIB'
 
-        # check for vis_units
-        if 'vis_units' in header:
-            self.vis_units = header['vis_units'].value
+            # check for optional values
+            if 'dut1' in header:
+                self.dut1 = float(header['dut1'].value)
+            if 'earth_omega' in header:
+                self.earth_omega = float(header['earth_omega'].value)
+            if 'gst0' in header:
+                self.gst0 = float(header['gst0'].value)
+            if 'rdate' in header:
+                self.rdate = header['rdate'].value
+            if 'timesys' in header:
+                self.timesys = header['timesys'].value
+            if 'x_orientation' in header:
+                self.x_orientation = header['x_orientation'].value
+            if 'telescope_name' in header:
+                self.telescope_name = header['telescope_name'].value
+            if 'antenna_positions' in header:
+                self.antenna_positions = header['antenna_positions'].value
+            if 'antenna_diameters' in header:
+                self.antenna_diameters = header['antenna_diameters'].value
+            if 'uvplane_reference_time' in header:
+                self.uvplane_reference_time = int(header['uvplane_reference_time'].value)
+
+            # check for phasing information
+            self.phase_type = header['phase_type'].value
+            if self.phase_type == 'phased':
+                self.set_phased()
+                self.phase_center_ra = float(header['phase_center_ra'].value)
+                self.phase_center_dec = float(header['phase_center_dec'].value)
+                self.phase_center_epoch = float(header['phase_center_epoch'].value)
+            elif self.phase_type == 'drift':
+                self.set_drift()
+                self.zenith_dec = header['zenith_dec'].value
+                self.zenith_ra = header['zenith_ra'].value
+            else:
+                self.set_unknown_phase_type()
+
+            # get antenna arrays
+            # cast to native python int type
+            self.Nants_data = int(header['Nants_data'].value)
+            self.Nants_telescope = int(header['Nants_telescope'].value)
+            self.ant_1_array = header['ant_1_array'].value
+            self.ant_2_array = header['ant_2_array'].value
+            self.antenna_names = list(header['antenna_names'].value)
+            self.antenna_numbers = header['antenna_numbers'].value
+
+            # get baseline array
+            self.baseline_array = self.antnums_to_baseline(self.ant_1_array,
+                                                           self.ant_2_array)
+            self.Nbls = len(np.unique(self.baseline_array))
+
+            # get uvw array
+            self.uvw_array = header['uvw_array'].value
+
+            # get time information
+            self.time_array = header['time_array'].value
+            self.integration_time = float(header['integration_time'].value)
+            self.lst_array = header['lst_array'].value
+
+            # get frequency information
+            self.freq_array = header['freq_array'].value
+            self.channel_width = float(header['channel_width'].value)
+            self.spw_array = header['spw_array'].value
+
+            # get polarization information
+            self.polarization_array = header['polarization_array'].value
+
+            # get data shapes
+            self.Nfreqs = int(header['Nfreqs'].value)
+            self.Npols = int(header['Npols'].value)
+            self.Ntimes = int(header['Ntimes'].value)
+            self.Nblts = int(header['Nblts'].value)
+            self.Nspws = int(header['Nspws'].value)
+
+            # get extra_keywords
+            if "extra_keywords" in header:
+                self.extra_keywords = {}
+                for key in header["extra_keywords"].keys():
+                    self.extra_keywords[key] = header["extra_keywords"][key].value
+
+            if not read_data:
+                # don't read in the data. This means the object is incomplete,
+                # but that may not matter for many purposes.
+                return
+
+            # Now read in the data
+            dgrp = f['/Data']
+            self._get_data(dgrp, antenna_nums, antenna_names, ant_str,
+                           bls, frequencies, freq_chans, times, polarizations,
+                           blt_inds, run_check, check_extra, run_check_acceptability)
+
+            return
+
+    def _get_data(self, dgrp, antenna_nums, antenna_names, ant_str,
+                  bls, frequencies, freq_chans, times, polarizations,
+                  blt_inds, run_check, check_extra, run_check_acceptability):
+        """
+        Internal function to read just the visibility, flag, and nsample data of the uvh5 file.
+        Separated from full read so that header/metadata and data can be read independently.
+        """
+        # figure out what data to read in
+        blt_inds, freq_inds, pol_inds, history_update_string = \
+            self._select_preprocess(antenna_nums, antenna_names, ant_str, bls,
+                                    frequencies, freq_chans, times, polarizations, blt_inds)
+
+        if blt_inds is not None:
+            blt_frac = len(blt_inds) / float(self.Nblts)
         else:
-            # default to uncalibrated data
-            self.vis_units = 'UNCALIB'
+            blt_frac = 1
 
-        # check for optional values
-        if 'dut1' in header:
-            self.dut1 = float(header['dut1'].value)
-        if 'earth_omega' in header:
-            self.earth_omega = float(header['earth_omega'].value)
-        if 'gst0' in header:
-            self.gst0 = float(header['gst0'].value)
-        if 'rdate' in header:
-            self.rdate = header['rdate'].value
-        if 'timesys' in header:
-            self.timesys = header['timesys'].value
-        if 'x_orientation' in header:
-            self.x_orientation = header['x_orientation'].value
-        if 'telescope_name' in header:
-            self.telescope_name = header['telescope_name'].value
-        if 'antenna_positions' in header:
-            self.antenna_positions = header['antenna_positions'].value
-        if 'antenna_diameters' in header:
-            self.antenna_diameters = header['antenna_diameters'].value
-        if 'uvplane_reference_time' in header:
-            self.uvplane_reference_time = int(header['uvplane_reference_time'].value)
-
-        # check for phasing information
-        self.phase_type = header['phase_type'].value
-        if self.phase_type == 'phased':
-            self.set_phased()
-            self.phase_center_ra = float(header['phase_center_ra'].value)
-            self.phase_center_dec = float(header['phase_center_dec'].value)
-            self.phase_center_epoch = float(header['phase_center_epoch'].value)
-        elif self.phase_type == 'drift':
-            self.set_drift()
-            self.zenith_dec = header['zenith_dec'].value
-            self.zenith_ra = header['zenith_ra'].value
+        if freq_inds is not None:
+            freq_frac = len(freq_inds) / float(self.Nfreqs)
         else:
-            self.set_unknown_phase_type()
+            freq_frac = 1
 
-        # get antenna arrays
-        # cast to native python int type
-        self.Nants_data = int(header['Nants_data'].value)
-        self.Nants_telescope = int(header['Nants_telescope'].value)
-        self.ant_1_array = header['ant_1_array'].value
-        self.ant_2_array = header['ant_2_array'].value
-        self.antenna_names = [uvutils.bytes_to_str(n) for n in header['antenna_names'].value]
-        self.antenna_numbers = header['antenna_numbers'].value
+        if pol_inds is not None:
+            pol_frac = len(pol_inds) / float(self.Npols)
+        else:
+            pol_frac = 1
 
-        # get baseline array
-        self.baseline_array = self.antnums_to_baseline(self.ant_1_array,
-                                                       self.ant_2_array)
-        self.Nbls = len(np.unique(self.baseline_array))
+        min_frac = np.min([blt_frac, freq_frac, pol_frac])
 
-        # get uvw array
-        self.uvw_array = header['uvw_array'].value
+        if min_frac == 1:
+            # no select, read in all the data
+            self.data_array = dgrp['visdata'].value
+            self.flag_array = dgrp['flags'].value
+            self.nsample_array = dgrp['nsample_array'].value
+        else:
+            # do select operations on everything except data_array, flag_array and nsample_array
+            self._select_metadata(blt_inds, freq_inds, pol_inds, history_update_string)
 
-        # get time information
-        self.time_array = header['time_array'].value
-        self.integration_time = float(header['integration_time'].value)
-        self.lst_array = header['lst_array'].value
+            # open references to datasets
+            visdata_dset = dgrp['visdata']
+            flags_dset = dgrp['flags']
+            nsample_array_dset = dgrp['nsample_array']
 
-        # get frequency information
-        self.freq_array = header['freq_array'].value
-        self.channel_width = float(header['channel_width'].value)
-        self.spw_array = header['spw_array'].value
+            # just read in the right portions of the data and flag arrays
+            if blt_frac == min_frac:
+                visdata = visdata_dset[blt_inds, :, :, :]
+                flags = flags_dset[blt_inds, :, :, :]
+                nsample_array = nsample_array_dset[blt_inds, :, :, :]
 
-        # get polarization information
-        self.polarization_array = header['polarization_array'].value
+                assert(self.Nspws == visdata.shape[1])
 
-        # get data shapes
-        self.Nfreqs = int(header['Nfreqs'].value)
-        self.Npols = int(header['Npols'].value)
-        self.Ntimes = int(header['Ntimes'].value)
-        self.Nblts = int(header['Nblts'].value)
-        self.Nspws = int(header['Nspws'].value)
+                if freq_frac < 1:
+                    visdata = visdata[:, :, freq_inds, :]
+                    flags = flags[:, :, freq_inds, :]
+                    nsample_array = nsample_array[:, :, freq_inds, :]
+                if pol_frac < 1:
+                    visdata = visdata[:, :, :, pol_inds]
+                    flags = flags[:, :, :, pol_inds]
+                    nsample_array = nsample_array[:, :, :, pol_inds]
+            elif freq_frac == min_frac:
+                visdata = visdata_dset[:, :, freq_inds, :]
+                flags = flags_dset[:, :, freq_inds, :]
+                nsample_array = nsample_array_dset[:, :, freq_inds, :]
 
-        # get extra_keywords
-        if "extra_keywords" in header:
-            self.extra_keywords = {}
-            for key in header["extra_keywords"].keys():
-                self.extra_keywords[key] = header["extra_keywords"][key].value
+                if blt_frac < 1:
+                    visdata = visdata[blt_inds, :, :, :]
+                    flags = flags[blt_inds, :, :, :]
+                    nsample_array = nsample_array[blt_inds, :, :, :]
+                if pol_frac < 1:
+                    visdata = visdata[:, :, :, pol_inds]
+                    flags = flags[:, :, :, pol_inds]
+                    nsample_array = nsample_array[:, :, :, pol_inds]
+            else:
+                visdata = visdata_dset[:, :, :, pol_inds]
+                flags = flags_dset[:, :, :, pol_inds]
+                nsample_array = nsample_array_dset[:, :, :, pol_inds]
 
-        # read data array
-        dgrp = f['/Data']
-        self.data_array = dgrp['visdata'].value
+                if blt_frac < 1:
+                    visdata = visdata[blt_inds, :, :, :]
+                    flags = flags[blt_inds, :, :, :]
+                    nsample_array = nsample_array[blt_inds, :, :, :]
+                if freq_frac < 1:
+                    visdata = visdata[:, :, freq_inds, :]
+                    flags = flags[:, :, freq_inds, :]
+                    nsample_array = nsample_array[:, :, freq_inds, :]
 
-        # read the flag array
-        self.flag_array = dgrp['flags'].value
+            # save arrays in object
+            self.data_array = visdata
+            self.flag_array = flags
+            self.nsample_array = nsample_array
 
-        # get sample information
-        self.nsample_array = dgrp['nsample_array'].value
-
-        # check if the object has all required UVParameters
+        # check if object has all required UVParameters set
         if run_check:
             self.check(check_extra=check_extra,
                        run_check_acceptability=run_check_acceptability)
