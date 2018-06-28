@@ -705,7 +705,7 @@ def test_readWriteReadMiriad():
     nt.assert_raises(ValueError, uv_in.read_miriad_metadata, [testfile, testfile])
     # read-in when data already exists
     uv_in = UVData()
-    uvd_in.read_miriad(testfile)
+    uv_in.read_miriad(testfile)
     nt.assert_raises(ValueError, uv_in.read_miriad_metadata, testfile)
 
     # test load_telescope_coords w/ blank UVData
