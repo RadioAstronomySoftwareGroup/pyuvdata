@@ -20,190 +20,118 @@ class UVH5(UVData):
     and write_uvh5 methods on the UVData class.
     """
 
-    def read_uvh5(self, filename, antenna_nums=None, antenna_names=None,
-                  ant_str=None, bls=None, frequencies=None, freq_channels=None,
-                  times=None, polarizations=None, blt_inds=None, read_data=True,
-                  run_check=True, check_extra=True,
-                  run_check_acceptability=True):
+    def _read_header(self, header):
         """
-        Read in data from a UVH5 file.
+        Internal function to read header information from a UVH5 file.
 
         Args:
-            filename: The file name to read.
-            antenna_nums: The antennas numbers to include when reading data into
-                the object (antenna positions and names for the excluded antennas
-                will be retained). This cannot be provided if antenna_names is
-                also provided. Ignored if read_data is False.
-            antenna_names: The antennas names to include when reading data into
-                the object (antenna positions and names for the excluded antennas
-                will be retained). This cannot be provided if antenna_nums is
-                also provided. Ignored if read_data is False.
-            bls: A list of antenna number tuples (e.g. [(0,1), (3,2)]) or a list of
-                baseline 3-tuples (e.g. [(0,1,'xx'), (2,3,'yy')]) specifying baselines
-                to keep in the object. For length-2 tuples, the  ordering of the numbers
-                within the tuple does not matter. For length-3 tuples, the polarization
-                string is in the order of the two antennas. If length-3 tuples are provided,
-                the polarizations argument below must be None. Ignored if read_data is False.
-            ant_str: A string containing information about what antenna numbers
-                and polarizations to include when reading data into the object.
-                Can be 'auto', 'cross', 'all', or combinations of antenna numbers
-                and polarizations (e.g. '1', '1_2', '1x_2y').
-                See tutorial for more examples of valid strings and
-                the behavior of different forms for ant_str.
-                If '1x_2y,2y_3y' is passed, both polarizations 'xy' and 'yy' will
-                be kept for both baselines (1,2) and (2,3) to return a valid
-                pyuvdata object.
-                An ant_str cannot be passed in addition to any of the above antenna
-                args or the polarizations arg.
-                Ignored if read_data is False.
-            frequencies: The frequencies to include when reading data into the
-                object. Ignored if read_data is False.
-            freq_chans: The frequency channel numbers to include when reading
-                data into the object. Ignored if read_data is False.
-            times: The times to include when reading data into the object.
-                Ignored if read_data is False.
-            polarizations: The polarizations to include when reading data into
-                the object. Ignored if read_data is False.
-            blt_inds: The baseline-time indices to include when reading data into
-                the object. This is not commonly used. Ignored if read_data is False.
-            read_data: Read in the visibility and flag data. If set to false,
-                only the header info and metadata will be read in. Results in an
-                incompletely defined object (check will not pass). Default True.
-            run_check: Option to check for the existence and proper shapes of
-                parameters after reading in the file. Default is True.
-            check_extra: Option to check optional parameters as well as required
-                ones. Default is True.
-            run_check_acceptability: Option to check acceptable range of the values of
-                parameters after reading in the file. Default is True.
+            header: reference to an h5py data group that contains the header information.
 
         Returns:
             None
         """
-        import h5py
-        if not os.path.exists(filename):
-            raise IOError(filename + ' not found')
+        # get telescope information
+        latitude = header['latitude'].value
+        longitude = header['longitude'].value
+        altitude = header['altitude'].value
+        self.telescope_location_lat_lon_alt = (latitude, longitude, altitude)
+        self.instrument = header['instrument'].value
 
-        if not read_data:
-            run_check = False
+        # get source information
+        self.object_name = header['object_name'].value
 
-        # open hdf5 file for reading
-        with h5py.File(filename, 'r') as f:
-            # extract header information
-            header = f['/Header']
+        # set history appropriately
+        self.history = header['history'].value
+        if not uvutils.check_history_version(self.history, self.pyuvdata_version_str):
+            self.history += self.pyuvdata_version_str
 
-            # get telescope information
-            latitude = header['latitude'].value
-            longitude = header['longitude'].value
-            altitude = header['altitude'].value
-            self.telescope_location_lat_lon_alt = (latitude, longitude, altitude)
-            self.instrument = header['instrument'].value
+        # check for vis_units
+        if 'vis_units' in header:
+            self.vis_units = header['vis_units'].value
+        else:
+            # default to uncalibrated data
+            self.vis_units = 'UNCALIB'
 
-            # get source information
-            self.object_name = header['object_name'].value
+        # check for optional values
+        if 'dut1' in header:
+            self.dut1 = float(header['dut1'].value)
+        if 'earth_omega' in header:
+            self.earth_omega = float(header['earth_omega'].value)
+        if 'gst0' in header:
+            self.gst0 = float(header['gst0'].value)
+        if 'rdate' in header:
+            self.rdate = header['rdate'].value
+        if 'timesys' in header:
+            self.timesys = header['timesys'].value
+        if 'x_orientation' in header:
+            self.x_orientation = header['x_orientation'].value
+        if 'telescope_name' in header:
+            self.telescope_name = header['telescope_name'].value
+        if 'antenna_positions' in header:
+            self.antenna_positions = header['antenna_positions'].value
+        if 'antenna_diameters' in header:
+            self.antenna_diameters = header['antenna_diameters'].value
+        if 'uvplane_reference_time' in header:
+            self.uvplane_reference_time = int(header['uvplane_reference_time'].value)
 
-            # set history appropriately
-            self.history = header['history'].value
-            if not uvutils.check_history_version(self.history, self.pyuvdata_version_str):
-                self.history += self.pyuvdata_version_str
+        # check for phasing information
+        self.phase_type = header['phase_type'].value
+        if self.phase_type == 'phased':
+            self.set_phased()
+            self.phase_center_ra = float(header['phase_center_ra'].value)
+            self.phase_center_dec = float(header['phase_center_dec'].value)
+            self.phase_center_epoch = float(header['phase_center_epoch'].value)
+        elif self.phase_type == 'drift':
+            self.set_drift()
+            self.zenith_dec = header['zenith_dec'].value
+            self.zenith_ra = header['zenith_ra'].value
+        else:
+            self.set_unknown_phase_type()
 
-            # check for vis_units
-            if 'vis_units' in header:
-                self.vis_units = header['vis_units'].value
-            else:
-                # default to uncalibrated data
-                self.vis_units = 'UNCALIB'
+        # get antenna arrays
+        # cast to native python int type
+        self.Nants_data = int(header['Nants_data'].value)
+        self.Nants_telescope = int(header['Nants_telescope'].value)
+        self.ant_1_array = header['ant_1_array'].value
+        self.ant_2_array = header['ant_2_array'].value
+        self.antenna_names = list(header['antenna_names'].value)
+        self.antenna_numbers = header['antenna_numbers'].value
 
-            # check for optional values
-            if 'dut1' in header:
-                self.dut1 = float(header['dut1'].value)
-            if 'earth_omega' in header:
-                self.earth_omega = float(header['earth_omega'].value)
-            if 'gst0' in header:
-                self.gst0 = float(header['gst0'].value)
-            if 'rdate' in header:
-                self.rdate = header['rdate'].value
-            if 'timesys' in header:
-                self.timesys = header['timesys'].value
-            if 'x_orientation' in header:
-                self.x_orientation = header['x_orientation'].value
-            if 'telescope_name' in header:
-                self.telescope_name = header['telescope_name'].value
-            if 'antenna_positions' in header:
-                self.antenna_positions = header['antenna_positions'].value
-            if 'antenna_diameters' in header:
-                self.antenna_diameters = header['antenna_diameters'].value
-            if 'uvplane_reference_time' in header:
-                self.uvplane_reference_time = int(header['uvplane_reference_time'].value)
+        # get baseline array
+        self.baseline_array = self.antnums_to_baseline(self.ant_1_array,
+                                                       self.ant_2_array)
+        self.Nbls = len(np.unique(self.baseline_array))
 
-            # check for phasing information
-            self.phase_type = header['phase_type'].value
-            if self.phase_type == 'phased':
-                self.set_phased()
-                self.phase_center_ra = float(header['phase_center_ra'].value)
-                self.phase_center_dec = float(header['phase_center_dec'].value)
-                self.phase_center_epoch = float(header['phase_center_epoch'].value)
-            elif self.phase_type == 'drift':
-                self.set_drift()
-                self.zenith_dec = header['zenith_dec'].value
-                self.zenith_ra = header['zenith_ra'].value
-            else:
-                self.set_unknown_phase_type()
+        # get uvw array
+        self.uvw_array = header['uvw_array'].value
 
-            # get antenna arrays
-            # cast to native python int type
-            self.Nants_data = int(header['Nants_data'].value)
-            self.Nants_telescope = int(header['Nants_telescope'].value)
-            self.ant_1_array = header['ant_1_array'].value
-            self.ant_2_array = header['ant_2_array'].value
-            self.antenna_names = list(header['antenna_names'].value)
-            self.antenna_numbers = header['antenna_numbers'].value
+        # get time information
+        self.time_array = header['time_array'].value
+        self.integration_time = float(header['integration_time'].value)
+        self.lst_array = header['lst_array'].value
 
-            # get baseline array
-            self.baseline_array = self.antnums_to_baseline(self.ant_1_array,
-                                                           self.ant_2_array)
-            self.Nbls = len(np.unique(self.baseline_array))
+        # get frequency information
+        self.freq_array = header['freq_array'].value
+        self.channel_width = float(header['channel_width'].value)
+        self.spw_array = header['spw_array'].value
 
-            # get uvw array
-            self.uvw_array = header['uvw_array'].value
+        # get polarization information
+        self.polarization_array = header['polarization_array'].value
 
-            # get time information
-            self.time_array = header['time_array'].value
-            self.integration_time = float(header['integration_time'].value)
-            self.lst_array = header['lst_array'].value
+        # get data shapes
+        self.Nfreqs = int(header['Nfreqs'].value)
+        self.Npols = int(header['Npols'].value)
+        self.Ntimes = int(header['Ntimes'].value)
+        self.Nblts = int(header['Nblts'].value)
+        self.Nspws = int(header['Nspws'].value)
 
-            # get frequency information
-            self.freq_array = header['freq_array'].value
-            self.channel_width = float(header['channel_width'].value)
-            self.spw_array = header['spw_array'].value
+        # get extra_keywords
+        if "extra_keywords" in header:
+            self.extra_keywords = {}
+            for key in header["extra_keywords"].keys():
+                self.extra_keywords[key] = header["extra_keywords"][key].value
 
-            # get polarization information
-            self.polarization_array = header['polarization_array'].value
-
-            # get data shapes
-            self.Nfreqs = int(header['Nfreqs'].value)
-            self.Npols = int(header['Npols'].value)
-            self.Ntimes = int(header['Ntimes'].value)
-            self.Nblts = int(header['Nblts'].value)
-            self.Nspws = int(header['Nspws'].value)
-
-            # get extra_keywords
-            if "extra_keywords" in header:
-                self.extra_keywords = {}
-                for key in header["extra_keywords"].keys():
-                    self.extra_keywords[key] = header["extra_keywords"][key].value
-
-            if not read_data:
-                # don't read in the data. This means the object is incomplete,
-                # but that may not matter for many purposes.
-                return
-
-            # Now read in the data
-            dgrp = f['/Data']
-            self._get_data(dgrp, antenna_nums, antenna_names, ant_str,
-                           bls, frequencies, freq_chans, times, polarizations,
-                           blt_inds, run_check, check_extra, run_check_acceptability)
-
-            return
+        return
 
     def _get_data(self, dgrp, antenna_nums, antenna_names, ant_str,
                   bls, frequencies, freq_chans, times, polarizations,
@@ -303,58 +231,94 @@ class UVH5(UVData):
 
         return
 
-    def write_uvh5(self, filename, run_check=True, check_extra=True,
-                   run_check_acceptability=True, clobber=False,
-                   data_compression=None, flags_compression="lzf", nsample_compression="lzf"):
+    def read_uvh5(self, filename, antenna_nums=None, antenna_names=None,
+                  ant_str=None, bls=None, frequencies=None, freq_channels=None,
+                  times=None, polarizations=None, blt_inds=None, read_data=True,
+                  run_check=True, check_extra=True,
+                  run_check_acceptability=True):
         """
-        Write a UVData object to a UVH5 file.
+        Read in data from a UVH5 file.
 
         Args:
-            filename: The UVH5 file to write to.
+            filename: The file name to read.
+            antenna_nums: The antennas numbers to include when reading data into
+                the object (antenna positions and names for the excluded antennas
+                will be retained). This cannot be provided if antenna_names is
+                also provided. Ignored if read_data is False.
+            antenna_names: The antennas names to include when reading data into
+                the object (antenna positions and names for the excluded antennas
+                will be retained). This cannot be provided if antenna_nums is
+                also provided. Ignored if read_data is False.
+            bls: A list of antenna number tuples (e.g. [(0,1), (3,2)]) or a list of
+                baseline 3-tuples (e.g. [(0,1,'xx'), (2,3,'yy')]) specifying baselines
+                to keep in the object. For length-2 tuples, the  ordering of the numbers
+                within the tuple does not matter. For length-3 tuples, the polarization
+                string is in the order of the two antennas. If length-3 tuples are provided,
+                the polarizations argument below must be None. Ignored if read_data is False.
+            ant_str: A string containing information about what antenna numbers
+                and polarizations to include when reading data into the object.
+                Can be 'auto', 'cross', 'all', or combinations of antenna numbers
+                and polarizations (e.g. '1', '1_2', '1x_2y').
+                See tutorial for more examples of valid strings and
+                the behavior of different forms for ant_str.
+                If '1x_2y,2y_3y' is passed, both polarizations 'xy' and 'yy' will
+                be kept for both baselines (1,2) and (2,3) to return a valid
+                pyuvdata object.
+                An ant_str cannot be passed in addition to any of the above antenna
+                args or the polarizations arg.
+                Ignored if read_data is False.
+            frequencies: The frequencies to include when reading data into the
+                object. Ignored if read_data is False.
+            freq_chans: The frequency channel numbers to include when reading
+                data into the object. Ignored if read_data is False.
+            times: The times to include when reading data into the object.
+                Ignored if read_data is False.
+            polarizations: The polarizations to include when reading data into
+                the object. Ignored if read_data is False.
+            blt_inds: The baseline-time indices to include when reading data into
+                the object. This is not commonly used. Ignored if read_data is False.
+            read_data: Read in the visibility and flag data. If set to false,
+                only the header info and metadata will be read in. Results in an
+                incompletely defined object (check will not pass). Default True.
             run_check: Option to check for the existence and proper shapes of
-                parameters before writing the file. Default is True.
+                parameters after reading in the file. Default is True.
             check_extra: Option to check optional parameters as well as required
                 ones. Default is True.
             run_check_acceptability: Option to check acceptable range of the values of
-                parameters before writing the file. Default is True.
-            clobber: Option to overwrite the file if it already exists. Default is False.
-            data_compression: HDF5 filter to apply when writing the data_array. Default is
-                 None (no filter/compression).
-            flags_compression: HDF5 filter to apply when writing the flags_array. Default is
-                 the LZF filter.
-            nsample_compression: HDF5 filter to apply when writing the nsample_array. Default is
-                 the LZF filter.
+                parameters after reading in the file. Default is True.
 
         Returns:
             None
-
-        Notes:
-            The HDF5 library allows for the application of "filters" when writing data, which can
-            provide moderate to significant levels of compression for the datasets in question.
-            Testing has shown that for some typical cases of UVData objects (empty/sparse flag_array
-            objects, and/or uniform nsample_arrays), the built-in LZF filter provides significant
-            compression for minimal computational overhead.
-
-            Note that for typical HERA data files written after mid-2018, the bitshuffle filter was
-            applied to the data_array. Because of the lack of portability, it is not included as an
-            option here; in the future, it may be added. Note that as long as bitshuffle is installed
-            on the system in a way that h5py can find it, no action needs to be taken to _read_ a
-            data_array encoded with bitshuffle (or an error will be raised).
         """
         import h5py
-        if run_check:
-            self.check(check_extra=check_extra,
-                       run_check_acceptability=run_check_acceptability)
+        if not os.path.exists(filename):
+            raise IOError(filename + ' not found')
 
-        if os.path.exists(filename):
-            if clobber:
-                print("File exists; clobbering")
-            else:
-                raise ValueError("File exists; skipping")
+        if not read_data:
+            run_check = False
 
-        f = h5py.File(filename, 'w')
-        header = f.create_group("Header")
+        # open hdf5 file for reading
+        with h5py.File(filename, 'r') as f:
+            # extract header information
+            header = f['/Header']
+            self._read_header(header)
 
+            if not read_data:
+                # don't read in the data. This means the object is incomplete,
+                # but that may not matter for many purposes.
+                return
+
+            # Now read in the data
+            dgrp = f['/Data']
+            self._get_data(dgrp, antenna_nums, antenna_names, ant_str,
+                           bls, frequencies, freq_chans, times, polarizations,
+                           blt_inds, run_check, check_extra, run_check_acceptability)
+
+            return
+
+    def _write_uvh5_header(self, header):
+        """Internal function to write uvh5 header information.
+        """
         # write out telescope and source information
         header['latitude'] = self.telescope_location_lat_lon_alt[0]
         header['longitude'] = self.telescope_location_lat_lon_alt[1]
@@ -428,28 +392,265 @@ class UVH5(UVData):
         # write out history
         header['history'] = self.history
 
-        # write out data, flags, and nsample arrays
-        dgrp = f.create_group("Data")
-        if data_compression is not None:
-            visdata = dgrp.create_dataset("visdata", chunks=True,
-                                          data=self.data_array.astype(np.complex64),
-                                          compression=data_compression)
+        return
+
+    def write_uvh5(self, filename, run_check=True, check_extra=True,
+                   run_check_acceptability=True, clobber=False,
+                   data_compression=None, flags_compression="lzf", nsample_compression="lzf"):
+        """
+        Write an in-memory UVData object to a UVH5 file.
+
+        Args:
+            filename: The UVH5 file to write to.
+            run_check: Option to check for the existence and proper shapes of
+                parameters before writing the file. Default is True.
+            check_extra: Option to check optional parameters as well as required
+                ones. Default is True.
+            run_check_acceptability: Option to check acceptable range of the values of
+                parameters before writing the file. Default is True.
+            clobber: Option to overwrite the file if it already exists. Default is False.
+            data_compression: HDF5 filter to apply when writing the data_array. Default is
+                 None (no filter/compression).
+            flags_compression: HDF5 filter to apply when writing the flags_array. Default is
+                 the LZF filter.
+            nsample_compression: HDF5 filter to apply when writing the nsample_array. Default is
+                 the LZF filter.
+
+        Returns:
+            None
+
+        Notes:
+            The HDF5 library allows for the application of "filters" when writing data, which can
+            provide moderate to significant levels of compression for the datasets in question.
+            Testing has shown that for some typical cases of UVData objects (empty/sparse flag_array
+            objects, and/or uniform nsample_arrays), the built-in LZF filter provides significant
+            compression for minimal computational overhead.
+
+            Note that for typical HERA data files written after mid-2018, the bitshuffle filter was
+            applied to the data_array. Because of the lack of portability, it is not included as an
+            option here; in the future, it may be added. Note that as long as bitshuffle is installed
+            on the system in a way that h5py can find it, no action needs to be taken to _read_ a
+            data_array encoded with bitshuffle (or an error will be raised).
+        """
+        import h5py
+        if run_check:
+            self.check(check_extra=check_extra,
+                       run_check_acceptability=run_check_acceptability)
+
+        if os.path.exists(filename):
+            if clobber:
+                print("File exists; clobbering")
+            else:
+                raise ValueError("File exists; skipping")
+
+        # open file for writing
+        with h5py.open(filename, 'w') as f:
+            # write header
+            header = f.create_group("Header")
+            self._write_header(header)
+
+            # write out data, flags, and nsample arrays
+            dgrp = f.create_group("Data")
+            if data_compression is not None:
+                visdata = dgrp.create_dataset("visdata", chunks=True,
+                                              data=self.data_array.astype(np.complex64),
+                                              compression=data_compression)
+            else:
+                visdata = dgrp.create_dataset("visdata", chunks=True,
+                                              data=self.data_array.astype(np.complex64))
+            if flags_compression is not None:
+                flags = dgrp.create_dataset("flags", chunks=True,
+                                            data=self.flag_array,
+                                            compression=flags_compression)
+            else:
+                flags = dgrp.create_dataset("flags", chunks=True,
+                                            data=self.flag_array)
+            if nsample_compression is not None:
+                nsample_array = dgrp.create_dataset("nsample_array", chunks=True,
+                                                    data=self.nsample_array.astype(np.float32),
+                                                    compression=nsample_compression)
+            else:
+                nsample_array = dgrp.create_dataset("nsample_array", chunks=True,
+                                                    data=self.nsample_array.astype(np.float32))
+
+        return
+
+    def initalize_uvh5_file(self, filename, clobber=False, data_compression=None,
+                            flags_compression="lzf", nsample_compression="lzf"):
+        """Initialize a UVH5 file on disk to be written to in parts.
+
+        Args:
+            filename: The UVH5 file to write to.
+            clobber: Option to overwrite the file if it already exists. Default is False.
+            data_compression: HDF5 filter to apply when writing the data_array. Default is
+                 None (no filter/compression).
+            flags_compression: HDF5 filter to apply when writing the flags_array. Default is
+                 the LZF filter.
+            nsample_compression: HDF5 filter to apply when writing the nsample_array. Default is
+                 the LZF filter.
+
+        Returns:
+            None
+
+        Notes:
+            The HDF5 library allows for the application of "filters" when writing data, which can
+            provide moderate to significant levels of compression for the datasets in question.
+            Testing has shown that for some typical cases of UVData objects (empty/sparse flag_array
+            objects, and/or uniform nsample_arrays), the built-in LZF filter provides significant
+            compression for minimal computational overhead.
+
+            Note that for typical HERA data files written after mid-2018, the bitshuffle filter was
+            applied to the data_array. Because of the lack of portability, it is not included as an
+            option here; in the future, it may be added. Note that as long as bitshuffle is installed
+            on the system in a way that h5py can find it, no action needs to be taken to _read_ a
+            data_array encoded with bitshuffle (or an error will be raised).
+        """
+        import h5py
+
+        if os.path.exists(filename):
+            if clobber:
+                print("File exists; clobbering")
+            else:
+                raise ValueError("File exists; skipping")
+
+        # write header and empty arrays to file
+        with h5py.open(filename, 'w') as f:
+            # write header
+            header = f.create_group("Header")
+            self._write_header(header)
+
+            # initialize the data groups on disk
+            data_size = (self.Nblts, self.Nspws, self.Nfreqs[0], self.Npols)
+            dgrp = f.create_group("Data")
+            if data_compression is not None:
+                visdata = dgrp.create_dataset("visdata", data_size, chunks=True,
+                                              compression=data_compression)
+            else:
+                visdata = dgrp.create_dataset("visdata", data_size, chunks=True)
+            if flags_compression is not None:
+                flags = dgrp.create_dataset("flags", data_size, chunks=True,
+                                            compression=flags_compression)
+            else:
+                flags = dgrp.create_dataset("flags", data_size, chunks=True)
+            if nsample_compression is not None:
+                nsample_array = dgrp.create_dataset("nsample_array", data_size, chunks=True,
+                                                    compression=nsample_compression)
+            else:
+                nsample_array = dgrp.create_dataset("nsample_array", data_size, chunks=True)
+
+        return
+
+    def _check_header(self, filename):
+        """
+        Check that the metadata present in a file header matches the object's metadata.
+
+        Args:
+            header: reference to an h5py data group that contains the header information.
+
+        Returns:
+            None
+
+        Notes:
+            This function creates a new UVData object an reads in the header information saved
+            on disk to compare with the object in memory. Note that this adds memory overhead
+            to contain the size of the data, but this memory footprint is typically much smaller
+            than the size of the data.
+        """
+        uvd_file = UVData()
+        with h5py.File(filename, 'r') as f:
+            header = f['/Header']
+            uvd_file._read_header(header)
+
+        if self != uvd_file:
+            raise AssertionError("The object metadata in memory and metadata on disk are different")
         else:
-            visdata = dgrp.create_dataset("visdata", chunks=True,
-                                          data=self.data_array.astype(np.complex64))
-        if flags_compression is not None:
-            flags = dgrp.create_dataset("flags", chunks=True,
-                                        data=self.flag_array,
-                                        compression=flags_compression)
-        else:
-            flags = dgrp.create_dataset("flags", chunks=True,
-                                        data=self.flag_array)
-        if nsample_compression is not None:
-            nsample_array = dgrp.create_dataset("nsample_array", chunks=True,
-                                                data=self.nsample_array.astype(np.float32),
-                                                compression=nsample_compression)
-        else:
-            nsample_array = dgrp.create_dataset("nsample_array", chunks=True,
-                                                data=self.nsample_array.astype(np.float32))
+            # clean up after ourselves
+            del uvd
+        return
+
+    def write_uvh5_part(self, filename, data_array, flags_array, nsample_array, check_header=True,
+                        antenna_nums=None, antenna_names=None, ant_str=None, bls=None,
+                        frequencies=None, freq_channels=None, times=None, polarizations=None,
+                        blt_inds=None):
+        """
+        Write out a part of a UVH5 file that has been previously initialized.
+
+        Args:
+            filename: the file on disk to write data to. It must already exist,
+                and is assumed to have been initialized with initialize_uvh5_file.
+            data_array: the data to write to disk. A check is done to ensure that
+                the dimensions of the data passed in conform to the ones specified by
+                the "selection" arguments.
+            flags_array: the flags array to write to disk. A check is done to ensure
+                that the dimensions of the data passed in conform to the ones specified
+                by the "selection" arguments.
+            nsample_array: the nsample array to write to disk. A check is done to ensure
+                that the dimensions fo the data passed in conform to the ones specified
+                by the "selection" arguments.
+            check_header: option to check that the metadata present in the header
+                on disk matches that in the object. Default is True.
+            antenna_nums: The antennas numbers to include when writing data into
+                the object (antenna positions and names for the excluded antennas
+                will be retained). This cannot be provided if antenna_names is
+                also provided.
+            antenna_names: The antennas names to include when writing data into
+                the object (antenna positions and names for the excluded antennas
+                will be retained). This cannot be provided if antenna_nums is
+                also provided.
+            bls: A list of antenna number tuples (e.g. [(0,1), (3,2)]) or a list of
+                baseline 3-tuples (e.g. [(0,1,'xx'), (2,3,'yy')]) specifying baselines
+                to write to the file. For length-2 tuples, the ordering of the numbers
+                within the tuple does not matter. For length-3 tuples, the polarization
+                string is in the order of the two antennas. If length-3 tuples are provided,
+                the polarizations argument below must be None.
+            ant_str: A string containing information about what antenna numbers
+                and polarizations to include when writing data into the object.
+                Can be 'auto', 'cross', 'all', or combinations of antenna numbers
+                and polarizations (e.g. '1', '1_2', '1x_2y').
+                See tutorial for more examples of valid strings and
+                the behavior of different forms for ant_str.
+                If '1x_2y,2y_3y' is passed, both polarizations 'xy' and 'yy' will
+                be written for both baselines (1,2) and (2,3) to reflect a valid
+                pyuvdata object.
+                An ant_str cannot be passed in addition to any of the above antenna
+                args or the polarizations arg.
+            frequencies: The frequencies to include when writing data to the file.
+            freq_chans: The frequency channel numbers to include when writing data to the file.
+            times: The times to include when writing data to the file.
+            polarizations: The polarizations to include when writing data to the file.
+            blt_inds: The baseline-time indices to include when writing data to the file.
+                This is not commonly used.
+
+        Returns:
+            None
+        """
+        import h5py
+
+        if check_header:
+            self._check_header(filename)
+
+        # figure out which "full file" indices to write data to
+        blt_inds, freq_inds, pol_inds, _ = self._select_preprocess(
+            antenna_nums, antenna_names, ant_str, bls, frequencies, freq_chans, times,
+            polarizations, blt_inds)
+
+        # make sure that the dimensions of the data to write are correct
+        if data_array.shape != flags_array.shape:
+            raise AssertionError("data_array and flags_array must have the same shape")
+        if data_array.shape != nsample_array.shape:
+            raise AssertionError("data_array and nsample_array must have the same shape")
+        proper_shape = (len(blt_inds), 1, len(freq_inds), len(pol_inds))
+        if data_array.shape != proper_shape:
+            raise AssertionError("data_array has shape {0}; was expecting {1}".format(data_array.shape, proper_shape))
+
+        # actually write the data
+        with h5py.File(filename, 'r+') as f:
+            dgrp = f['/Data']
+            visdata_dset = dgrp['visdata']
+            visdata_dset[blt_inds, :, freq_inds, pol_inds] = data_array
+            flags_dset = dgrp['flags']
+            flags_dset[blt_inds, :, freq_inds, pol_inds] = flags_array
+            nsample_array_dset = dgrp['nsample_array']
+            nsample_array_dset[blt_inds, :, freq_inds, pol_inds] = nsample_array
 
         return
