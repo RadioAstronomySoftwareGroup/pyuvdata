@@ -232,10 +232,9 @@ class UVH5(UVData):
         return
 
     def read_uvh5(self, filename, antenna_nums=None, antenna_names=None,
-                  ant_str=None, bls=None, frequencies=None, freq_channels=None,
+                  ant_str=None, bls=None, frequencies=None, freq_chans=None,
                   times=None, polarizations=None, blt_inds=None, read_data=True,
-                  run_check=True, check_extra=True,
-                  run_check_acceptability=True):
+                  run_check=True, check_extra=True, run_check_acceptability=True):
         """
         Read in data from a UVH5 file.
 
@@ -316,7 +315,7 @@ class UVH5(UVData):
 
             return
 
-    def _write_uvh5_header(self, header):
+    def _write_header(self, header):
         """Internal function to write uvh5 header information.
         """
         # write out telescope and source information
@@ -444,7 +443,7 @@ class UVH5(UVData):
                 raise ValueError("File exists; skipping")
 
         # open file for writing
-        with h5py.open(filename, 'w') as f:
+        with h5py.File(filename, 'w') as f:
             # write header
             header = f.create_group("Header")
             self._write_header(header)
@@ -514,7 +513,7 @@ class UVH5(UVData):
                 raise ValueError("File exists; skipping")
 
         # write header and empty arrays to file
-        with h5py.open(filename, 'w') as f:
+        with h5py.File(filename, 'w') as f:
             # write header
             header = f.create_group("Header")
             self._write_header(header)
