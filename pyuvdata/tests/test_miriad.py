@@ -70,8 +70,6 @@ def test_ReadMiriadWriteUVFits():
     miriad_uv = UVData()
     uvfits_uv = UVData()
     miriad_file = os.path.join(DATA_PATH, 'zen.2456865.60537.xy.uvcRREAA')
-    if not os.path.exists(os.path.join(DATA_PATH, 'test')):
-        os.mkdir(os.path.join(DATA_PATH, 'test'))
     testfile = os.path.join(DATA_PATH, 'test/outtest_miriad.uvfits')
     uvtest.checkWarnings(miriad_uv.read_miriad, [miriad_file],
                          known_warning='miriad')
