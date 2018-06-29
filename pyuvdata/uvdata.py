@@ -1329,7 +1329,8 @@ class UVData(UVBase):
             freq_arr_use = self.freq_array[0, :]
             for f in frequencies:
                 nearest_ind = (np.abs(freq_arr_use - f)).argmin()
-                if np.isclose(freq_arr_use[nearest_ind], f):
+                if np.isclose(freq_arr_use[nearest_ind], f,
+                              self._freq_array.tols[0], self._freq_array.tols[1]):
                     freq_inds = np.append(freq_inds, nearest_ind)
                 else:
                     raise ValueError(
