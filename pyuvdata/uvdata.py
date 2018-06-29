@@ -847,7 +847,8 @@ class UVData(UVBase):
         if phase_type == 'phased':
             if allow_phasing:
                 warnings.warn('Warning: Data will be unphased and rephased '
-                              'to calculate UVWs.')
+                              'to calculate UVWs.'
+                              )
                 phase_center_ra = self.phase_center_ra
                 phase_center_dec = self.phase_center_dec
                 phase_center_epoch = self.phase_center_epoch
@@ -855,7 +856,8 @@ class UVData(UVBase):
             else:
                 raise ValueError('UVW calculation requires unphased data. '
                                  'Use unphase_to_drift or set '
-                                 'allow_phasing=True.')
+                                 'allow_phasing=True.'
+                                 )
         antenna_locs_ENU = uvutils.ENU_from_ECEF(
             (self.antenna_positions + self.telescope_location).T,
             *self.telescope_location_lat_lon_alt
