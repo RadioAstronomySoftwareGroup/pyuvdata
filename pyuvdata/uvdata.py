@@ -1328,12 +1328,9 @@ class UVData(UVBase):
             # this works because we only allow one SPW. This will have to be reworked when we support more.
             freq_arr_use = self.freq_array[0, :]
             for f in frequencies:
-                print(f)
-                nearest_ind = (np.abs(freq_arr_use - f)).argmin()
-                print(nearest_ind)
-                if np.isclose(freq_arr_use[nearest_ind], f,
-                              self._freq_array.tols[0], self._freq_array.tols[1]):
-                    freq_inds = np.append(freq_inds, nearest_ind)
+                if f in freq_arr_use:
+                    freq_inds = np.append(
+                        freq_inds, np.where(freq_arr_use == f)[0])
                 else:
                     raise ValueError(
                         'Frequency {f} is not present in the freq_array'.format(f=f))
