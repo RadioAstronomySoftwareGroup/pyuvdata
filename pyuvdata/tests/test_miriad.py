@@ -32,10 +32,10 @@ def test_ReadWriteReadATCA():
                          message=['Altitude is not present in Miriad file, and '
                                   'telescope ATCA is not in known_telescopes. ',
                                   'Altitude is not present',
-                                  'Telescope location is set at sealevel at the file lat/lon '\
-                                  'coordinates. Antenna positions are present, but the mean antenna '\
-                                  'position does not give a telescope_location on the surface of the '\
-                                  'earth. Antenna positions do not appear to be on the surface of the '\
+                                  'Telescope location is set at sealevel at the file lat/lon '
+                                  'coordinates. Antenna positions are present, but the mean antenna '
+                                  'position does not give a telescope_location on the surface of the '
+                                  'earth. Antenna positions do not appear to be on the surface of the '
                                   'earth and will be treated as relative.',
                                   'Telescope ATCA is not in known_telescopes.'])
 
@@ -255,8 +255,8 @@ def test_miriad_location_handling():
                                   'telescope foo is not in known_telescopes. '
                                   'Telescope location will be set using antenna positions.',
                                   'Altitude is not present ',
-                                  'Telescope location is set at sealevel at the file lat/lon coordinates. '\
-                                  'Antenna positions are present, but the mean antenna latitude value does '\
+                                  'Telescope location is set at sealevel at the file lat/lon coordinates. '
+                                  'Antenna positions are present, but the mean antenna latitude value does '
                                   'not match file values so they are not used for altiude.',
                                   'Telescope foo is not in known_telescopes.'])
 
