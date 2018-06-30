@@ -168,3 +168,72 @@ def test_UVH5ReadMultiple_files():
     os.remove(testfile2)
 
     return
+
+
+def test_UVH5PartialRead():
+    """
+    Test reading in only part of a dataset from disk
+    """
+    uvh5_uv = UVData()
+    uvh5_uv2 = UVData()
+    uvfits_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    uvtest.checkWarnings(uvh5_uv.read_uvfits, [uvfits_file], message='Telescope EVLA is not')
+    testfile = os.path.join(DATA_PATH, 'test', 'outtest.h5')
+    uvh5_uv.write_uvh5(testfile, clobber=True)
+
+    # select on antennas
+    ants_to_keep = np.array([0, 19, 11, 24, 3, 23, 1, 20, 21])
+    uvh5_uv.read_uvh5(testfile, antenna_nums=ants_to_keep)
+    uvh5_uv2.read_uvh5(testfile)
+    uvh5_uv2.select(antenna_nums=ants_to_keep)
+    nt.assert_equal(uvh5_uv, uvh5_uv2)
+
+    # select on frequency channels
+    chans_to_keep = np.arange(12, 22)
+    uvh5_uv.read_uvh5(testfile, freq_chans=chans_to_keep)
+    uvh5_uv2.read_uvh5(testfile)
+    uvh5_uv2.select(freq_chans=chans_to_keep)
+    nt.assert_equal(uvh5_uv, uvh5_uv2)
+
+    # select on pols
+    pols_to_keep = [-1, -2]
+    uvh5_uv.read_uvh5(testfile, polarizations=pols_to_keep)
+    uvh5_uv2.read_uvh5(testfile)
+    uvh5_uv2.select(polarizations=pols_to_keep)
+    nt.assert_equal(uvh5_uv, uvh5_uv2)
+
+    # now test selecting on multiple axes
+    # frequencies first
+    uvh5_uv.read_uvh5(testfile, antenna_nums=ants_to_keep,
+                      freq_chans=chans_to_keep,
+                      polarizations=pols_to_keep)
+    uvh5_uv2.read_uvh5(testfile)
+    uvh5_uv2.select(antenna_nums=ants_to_keep, freq_chans=chans_to_keep,
+                    polarizations=pols_to_keep)
+    nt.assert_equal(uvh5_uv, uvh5_uv2)
+
+    # baselines first
+    ants_to_keep = np.array([0, 1])
+    uvh5_uv.read_uvh5(testfile, antenna_nums=ants_to_keep,
+                      freq_chans=chans_to_keep,
+                      polarizations=pols_to_keep)
+    uvh5_uv2.read_uvh5(testfile)
+    uvh5_uv2.select(antenna_nums=ants_to_keep, freq_chans=chans_to_keep,
+                    polarizations=pols_to_keep)
+    nt.assert_equal(uvh5_uv, uvh5_uv2)
+
+    # polarizations first
+    ants_to_keep = np.array([0, 1, 2, 3, 6, 7, 8, 11, 14, 18, 19, 20, 21, 22])
+    chans_to_keep = np.arange(12, 64)
+    uvh5_uv.read_uvh5(testfile, antenna_nums=ants_to_keep,
+                      freq_chans=chans_to_keep,
+                      polarizations=pols_to_keep)
+    uvh5_uv2.read_uvh5(testfile)
+    uvh5_uv2.select(antenna_nums=ants_to_keep, freq_chans=chans_to_keep,
+                    polarizations=pols_to_keep)
+    nt.assert_equal(uvh5_uv, uvh5_uv2)
+
+    # clean up
+    os.remove(testfile)
+
+    return

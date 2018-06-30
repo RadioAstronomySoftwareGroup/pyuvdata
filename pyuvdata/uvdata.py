@@ -1767,13 +1767,55 @@ class UVData(UVBase):
                                 clobber=clobber, no_antnums=no_antnums)
         del(miriad_obj)
 
-    def read_uvh5(self, filename, run_check=True, check_extra=True,
-                  run_check_acceptability=True):
+    def read_uvh5(self, filename, antenna_nums=None, antenna_names=None,
+                  ant_str=None, bls=None, frequencies=None, freq_chans=None,
+                  times=None, polarizations=None, blt_inds=None, read_data=True,
+                  run_check=True, check_extra=True, run_check_acceptability=True):
         """
         Read a UVH5 file.
 
         Args:
             filename: The UVH5 file to read.
+            antenna_nums: The antennas numbers to include when reading data into
+                the object (antenna positions and names for the excluded antennas
+                will be retained). This cannot be provided if antenna_names is
+                also provided. Ignored if read_data is False.
+            antenna_names: The antennas names to include when reading data into
+                the object (antenna positions and names for the excluded antennas
+                will be retained). This cannot be provided if antenna_nums is
+                also provided. Ignored if read_data is False.
+            bls: A list of antenna number tuples (e.g. [(0,1), (3,2)]) or a list of
+                baseline 3-tuples (e.g. [(0,1,'xx'), (2,3,'yy')]) specifying baselines
+                to keep in the object. For length-2 tuples, the  ordering of the numbers
+                within the tuple does not matter. For length-3 tuples, the polarization
+                string is in the order of the two antennas. If length-3 tuples are provided,
+                the polarizations argument below must be None. Ignored if read_data is False.
+            ant_str: A string containing information about what antenna numbers
+                and polarizations to include when reading data into the object.
+                Can be 'auto', 'cross', 'all', or combinations of antenna numbers
+                and polarizations (e.g. '1', '1_2', '1x_2y').
+                See tutorial for more examples of valid strings and
+                the behavior of different forms for ant_str.
+                If '1x_2y,2y_3y' is passed, both polarizations 'xy' and 'yy' will
+                be kept for both baselines (1,2) and (2,3) to return a valid
+                pyuvdata object.
+                An ant_str cannot be passed in addition to any of the above antenna
+                args or the polarizations arg.
+                Ignored if read_data is False.
+            frequencies: The frequencies to include when reading data into the
+                object.  Ignored if read_data is False.
+            freq_chans: The frequency channel numbers to include when reading
+                data into the object. Ignored if read_data is False.
+            times: The times to include when reading data into the object.
+                Ignored if read_data is False.
+            polarizations: The polarizations to include when reading data into
+                the object.  Ignored if read_data is False.
+            blt_inds: The baseline-time indices to include when reading data into
+                the object. This is not commonly used. Ignored if read_data is False.
+            read_data: Read in the visibility and flag data. If set to false,
+                only the basic header info and metadata (if read_metadata is True)
+                will be read in. Results in an incompletely defined object
+                (check will not pass). Default True.
             run_check: Option to check for the existence and proper shapes of
                 parameters after reading in the file. Default is True.
             check_extra: Option to check optional parameters as well as required
@@ -1786,18 +1828,35 @@ class UVData(UVBase):
         """
         from . import uvh5
         if isinstance(filename, (list, tuple)):
-            self.read_uvh5(filename[0], run_check=run_check, check_extra=check_extra,
+            if not read_data:
+                raise ValueError('read_data cannot be False for a list of uvfits files')
+
+            self.read_uvh5(filename[0], antenna_nums=antenna_nums,
+                           antenna_names=antenna_names, ant_str=ant_str, bls=bls,
+                           frequencies=frequencies, freq_chans=freq_chans, times=times,
+                           polarizations=polarizations, blt_inds=blt_inds,
+                           read_data=read_data, run_check=run_check,
+                           check_extra=check_extra,
                            run_check_acceptability=run_check_acceptability)
             if len(filename) > 1:
                 for f in filename[1:]:
                     uv2 = UVData()
-                    uv2.read_uvh5(f, run_check=run_check, check_extra=check_extra,
+                    uv2.read_uvh5(f, antenna_nums=antenna_nums,
+                                  antenna_names=antenna_names, ant_str=ant_str, bls=bls,
+                                  frequencies=frequencies, freq_chans=freq_chans,
+                                  times=times, polarizations=polarizations,
+                                  blt_inds=blt_inds, read_data=read_data,
+                                  run_check=run_check, check_extra=check_extra,
                                   run_check_acceptability=run_check_acceptability)
                     self += uv2
                 del(uv2)
         else:
             uvh5_obj = uvh5.UVH5()
-            uvh5_obj.read_uvh5(filename, run_check=run_check, check_extra=check_extra,
+            uvh5_obj.read_uvh5(filename, antenna_nums=antenna_nums,
+                               antenna_names=antenna_names, ant_str=ant_str, bls=bls,
+                               frequencies=frequencies, freq_chans=freq_chans, times=times,
+                               polarizations=polarizations, blt_inds=blt_inds,
+                               read_data=read_data, run_check=run_check, check_extra=check_extra,
                                run_check_acceptability=run_check_acceptability)
             self._convert_from_filetype(uvh5_obj)
             del(uvh5_obj)
