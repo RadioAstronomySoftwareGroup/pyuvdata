@@ -237,3 +237,45 @@ def test_UVH5PartialRead():
     os.remove(testfile)
 
     return
+
+
+def test_UVH5PartialWrite():
+    """
+    Test writing an entire UVH5 file in pieces
+    """
+    full_uvh5 = UVData()
+    partial_uvh5 = UVData()
+    uvfits_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    uvtest.checkWarnings(full_uvh5.read_uvfits, [uvfits_file], message='Telescope EVLA is not')
+    testfile = os.path.join(DATA_PATH, 'test', 'outtest.h5')
+    full_uvh5.write_uvh5(testfile, clobber=True)
+    full_uvh5.read_uvh5(testfile)
+
+    # delete data arrays in partial file
+    partial_uvh5 = copy.deepcopy(full_uvh5)
+    partial_uvh5.data_array = None
+    partial_uvh5.flag_array = None
+    partial_uvh5.nsample_array = None
+
+    # initialize file on disk
+    partial_testfile = os.path.join(DATA_PATH, 'test', 'outtest_partial.h5')
+    partial_uvh5.initialize_uvh5_file(partial_testfile, clobber=True)
+
+    # write to file by iterating over antpairpol
+    antpairpols = full_uvh5.get_antpairpols()
+    for key in antpairpols:
+        data = full_uvh5.get_data(key, squeeze='none')
+        flags = full_uvh5.get_flags(key, squeeze='none')
+        nsamples = full_uvh5.get_nsamples(key, squeeze='none')
+        partial_uvh5.write_uvh5_part(partial_testfile, data, flags, nsamples,
+                                     bls=key)
+
+    # now read in the full file and make sure that it matches the original
+    partial_uvh5.read_uvh5(partial_testfile)
+    nt.assert_equal(full_uvh5, partial_uvh5)
+
+    # clean up
+    os.remove(testfile)
+    os.remove(partial_testfile)
+
+    return

@@ -2,7 +2,7 @@
 # Copyright (c) 2018 The HERA Collaboration
 # Licensed under the 2-clause BSD License
 
-"""Class for reading and writing HDF5 files.
+"""Class for reading and writing UVH5 files.
 
 """
 from __future__ import absolute_import, division, print_function
@@ -474,8 +474,8 @@ class UVH5(UVData):
 
         return
 
-    def initalize_uvh5_file(self, filename, clobber=False, data_compression=None,
-                            flags_compression="lzf", nsample_compression="lzf"):
+    def initialize_uvh5_file(self, filename, clobber=False, data_compression=None,
+                             flags_compression="lzf", nsample_compression="lzf"):
         """Initialize a UVH5 file on disk to be written to in parts.
 
         Args:
@@ -492,6 +492,11 @@ class UVH5(UVData):
             None
 
         Notes:
+            When partially writing out data, this function should be called first to initialize the
+            file on disk. The data is then actually written by calling the write_uvh5_part method,
+            with the same filename as the one specified in this function. See the tutorial for a
+            worked example.
+
             The HDF5 library allows for the application of "filters" when writing data, which can
             provide moderate to significant levels of compression for the datasets in question.
             Testing has shown that for some typical cases of UVData objects (empty/sparse flag_array
@@ -519,23 +524,26 @@ class UVH5(UVData):
             self._write_header(header)
 
             # initialize the data groups on disk
-            data_size = (self.Nblts, self.Nspws, self.Nfreqs[0], self.Npols)
+            data_size = (self.Nblts, self.Nspws, self.Nfreqs, self.Npols)
             dgrp = f.create_group("Data")
             if data_compression is not None:
                 visdata = dgrp.create_dataset("visdata", data_size, chunks=True,
-                                              compression=data_compression)
+                                              dtype='c8', compression=data_compression)
             else:
-                visdata = dgrp.create_dataset("visdata", data_size, chunks=True)
+                visdata = dgrp.create_dataset("visdata", data_size, chunks=True,
+                                              dtype='c8')
             if flags_compression is not None:
                 flags = dgrp.create_dataset("flags", data_size, chunks=True,
-                                            compression=flags_compression)
+                                            dtype='b1', compression=flags_compression)
             else:
-                flags = dgrp.create_dataset("flags", data_size, chunks=True)
+                flags = dgrp.create_dataset("flags", data_size, chunks=True,
+                                            dtype='b1')
             if nsample_compression is not None:
                 nsample_array = dgrp.create_dataset("nsample_array", data_size, chunks=True,
-                                                    compression=nsample_compression)
+                                                    dtype='f4', compression=nsample_compression)
             else:
-                nsample_array = dgrp.create_dataset("nsample_array", data_size, chunks=True)
+                nsample_array = dgrp.create_dataset("nsample_array", data_size, chunks=True,
+                                                    dtype='f4')
 
         return
 
@@ -551,11 +559,12 @@ class UVH5(UVData):
 
         Notes:
             This function creates a new UVData object an reads in the header information saved
-            on disk to compare with the object in memory. Note that this adds memory overhead
-            to contain the size of the data, but this memory footprint is typically much smaller
-            than the size of the data.
+            on disk to compare with the object in memory. Note that this adds some small
+            memory overhead, but this amount is typically much smaller than the size of the data.
         """
-        uvd_file = UVData()
+        import h5py
+
+        uvd_file = UVH5()
         with h5py.File(filename, 'r') as f:
             header = f['/Header']
             uvd_file._read_header(header)
@@ -564,12 +573,12 @@ class UVH5(UVData):
             raise AssertionError("The object metadata in memory and metadata on disk are different")
         else:
             # clean up after ourselves
-            del uvd
+            del uvd_file
         return
 
     def write_uvh5_part(self, filename, data_array, flags_array, nsample_array, check_header=True,
                         antenna_nums=None, antenna_names=None, ant_str=None, bls=None,
-                        frequencies=None, freq_channels=None, times=None, polarizations=None,
+                        frequencies=None, freq_chans=None, times=None, polarizations=None,
                         blt_inds=None):
         """
         Write out a part of a UVH5 file that has been previously initialized.
@@ -622,8 +631,19 @@ class UVH5(UVData):
 
         Returns:
             None
+
+        Notes:
+            When partially writing out data, this function should be called after calling
+            initialize_uvh5_file. The same filename is passed in, with an optional check to ensure
+            that the object's metadata in-memory matches the header on-disk. See the tutorial for a
+            worked example.
         """
         import h5py
+
+        # check that the file already exists
+        if not os.path.exists(filename):
+            raise AssertionError("{0} does not exists; please first initialize it with initialize_uvh5_file".format(
+                filename))
 
         if check_header:
             self._check_header(filename)
@@ -638,18 +658,115 @@ class UVH5(UVData):
             raise AssertionError("data_array and flags_array must have the same shape")
         if data_array.shape != nsample_array.shape:
             raise AssertionError("data_array and nsample_array must have the same shape")
-        proper_shape = (len(blt_inds), 1, len(freq_inds), len(pol_inds))
+
+        # check what part of each dimension to grab
+        # we can use numpy slice objects to index the h5py indices
+        if blt_inds is not None:
+            Nblts = len(blt_inds)
+
+            # test if blts are regularly spaced
+            if len(set(np.ediff1d(blt_inds))) <= 1:
+                blt_reg_spaced = True
+                blt_start = blt_inds[0]
+                blt_end = blt_inds[-1] + 1
+                if len(blt_inds) == 1:
+                    d_blt = 1
+                else:
+                    d_blt = blt_inds[1] - blt_inds[0]
+                blt_inds = np.s_[blt_start:blt_end:d_blt]
+            else:
+                blt_reg_spaced = False
+        else:
+            Nblts = self.Nblts
+            blt_reg_spaced = True
+            blt_inds = np.s_[:]
+        if freq_inds is not None:
+            Nfreqs = len(freq_inds)
+
+            # test if frequencies are regularly spaced
+            if len(set(np.ediff1d(freq_inds))) <= 1:
+                f_reg_spaced = True
+                freq_start = freq_inds[0]
+                freq_end = freq_inds[-1] + 1
+                if len(freq_inds) == 1:
+                    d_freq = 1
+                else:
+                    d_freq = freq_inds[1] - freq_inds[0]
+                freq_inds = np.s_[freq_start:freq_end:d_freq]
+            else:
+                f_reg_spaced = False
+        else:
+            Nfreqs = self.Nfreqs
+            freq_reg_spaced = True
+            freq_inds = np.s_[:]
+        if pol_inds is not None:
+            Npols = len(pol_inds)
+
+            # test if pols are regularly spaced
+            if len(set(np.ediff1d(pol_inds))) <= 1:
+                pol_reg_spaced = True
+                pol_start = pol_inds[0]
+                pol_end = pol_inds[-1] + 1
+                if len(pol_inds) == 1:
+                    d_pol = 1
+                else:
+                    d_pol = pol_inds[1] - pol_inds[0]
+                pol_inds = np.s_[pol_start:pol_end:d_pol]
+            else:
+                pol_reg_spaced = False
+        else:
+            Npols = self.Npols
+            pol_reg_spaced = True
+            pol_inds = np.s_[:]
+
+        # check for proper size of input arrays
+        proper_shape = (Nblts, 1, Nfreqs, Npols)
         if data_array.shape != proper_shape:
-            raise AssertionError("data_array has shape {0}; was expecting {1}".format(data_array.shape, proper_shape))
+            raise AssertionError("data_array has shape {0}; was expecting {1}".format(data_array.shape,
+                                                                                      proper_shape))
 
         # actually write the data
         with h5py.File(filename, 'r+') as f:
             dgrp = f['/Data']
             visdata_dset = dgrp['visdata']
-            visdata_dset[blt_inds, :, freq_inds, pol_inds] = data_array
             flags_dset = dgrp['flags']
-            flags_dset[blt_inds, :, freq_inds, pol_inds] = flags_array
             nsample_array_dset = dgrp['nsample_array']
-            nsample_array_dset[blt_inds, :, freq_inds, pol_inds] = nsample_array
+
+            # check if we can do fancy indexing
+            # as long as at least 2 out of 3 axes can be written as slices, we can be fancy
+            n_reg_spaced = np.count_nonzero([blt_reg_spaced, freq_reg_spaced, pol_reg_spaced])
+            if n_reg_spaced >= 2:
+                visdata_dset[blt_inds, :, freq_inds, pol_inds] = data_array
+                flags_dset[blt_inds, :, freq_inds, pol_inds] = flags_array
+                nsample_array_dset[blt_inds, :, freq_inds, pol_inds] = nsample_array
+            elif n_reg_spaced == 1:
+                # figure out which axis is regularly spaced
+                if blt_reg_spaced:
+                    for ifreq, freq_idx in enumerate(freq_inds):
+                        for ipol, pol_idx in enumerate(pol_inds):
+                            visdata_dset[blt_inds, :, freq_idx, pol_idx] = data_array[:, :, ifreq, ipol]
+                            flags_dset[blt_inds, :, freq_idx, pol_idx] = flags_array[:, :, ifreq, ipol]
+                            nsample_array_dset[blt_inds, :, freq_idx, pol_idx] = nsample_array[:, :, ifreq, ipol]
+                elif freq_reg_spaced:
+                    for iblt, blt_idx in enumerate(blt_inds):
+                        for ipol, pol_idx in enumerate(pol_inds):
+                            visdata_dset[blt_idx, :, freq_inds, pol_idx] = data_array[iblt, :, :, ipol]
+                            flags_dset[blt_idx, :, freq_inds, pol_idx] = flags_array[iblt, :, :, ipol]
+                            nsample_array_dset[blt_idx, :, freq_inds, pol_idx] = nsample_array[iblt, :, :, ipol]
+                else:  # pol_reg_spaced
+                    for iblt, blt_idx in enumerate(blt_inds):
+                        for ifreq, freq_idx in enumerate(freq_inds):
+                            visdata_dset[blt_idx, :, freq_idx, pol_inds] = data_array[iblt, :, ifreq, :]
+                            flags_dset[blt_idx, :, freq_idx, pol_inds] = flags_array[iblt, :, ifreq, :]
+                            nsample_array_dset[blt_idx, :, freq_idx, pol_inds] = nsample_array[iblt, :, ifreq, :]
+            else:
+                # all axes irregularly spaced
+                # perform a triple loop -- probably very slow!
+                for iblt, blt_idx in enumerate(blt_inds):
+                    for ifreq, freq_idx in enumerate(freq_inds):
+                        for ipol, pol_idx in enumerate(pol_inds):
+                            visdata_dset[blt_idx, :, freq_idx, pol_idx] = data_array[iblt, :, ifreq, ipol]
+                            flags_dset[blt_idx, :, freq_idx, pol_idx] = flags_array[iblt, :, ifreq, ipol]
+                            nsample_array_dset[blt_idx, :, freq_idx, pol_idx] = nsample_array[iblt, :, ifreq, ipol]
 
         return
