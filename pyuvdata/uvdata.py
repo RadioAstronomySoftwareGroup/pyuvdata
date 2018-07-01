@@ -1891,7 +1891,7 @@ class UVData(UVBase):
                    data_compression=None, flags_compression="lzf",
                    nsample_compression="lzf"):
         """
-        Write a UVData object to a UVH5 file.
+        Write a completely in-memory UVData object to a UVH5 file.
 
         Args:
             filename: The UVH5 file to write to.
@@ -1919,6 +1919,102 @@ class UVData(UVBase):
                             clobber=clobber, data_compression=data_compression,
                             flags_compression=flags_compression,
                             nsample_compression=nsample_compression)
+        del(uvh5_obj)
+
+    def initialize_uvh5_file(self, filename, clobber=False, data_compression=None,
+                             flags_compression="lzf", nsample_compression="lzf"):
+        """
+        Initialize a UVH5 file on disk with the header metadata and empty data arrays.
+
+        Args:
+            filename: The UVH5 file to write to.
+            clobber: Option to overwrite the file if it already exists. Default is False.
+            data_compression: HDF5 filter to apply when writing the data_array. Default is
+                None (no filter/compression).
+            flags_compression: HDF5 filter to apply when writing the flags_array. Default is
+                the LZF filter.
+            nsample_compression: HDF5 filter to apply when writing the nsample_array. Default is
+                the LZF filter.
+
+        Returns:
+            None
+
+        Notes:
+            When partially writing out data, this function should be called first to initialize the
+            file on disk. The data is then actually written by calling the write_uvh5_part method,
+            with the same filename as the one specified in this function. See the tutorial for a
+            worked example.
+        """
+        uvh5_obj = self._convert_to_filetype('uvh5')
+        uvh5_obj.initialize_uvh5_file(filename, clobber=clobber,
+                                      data_compression=data_compression,
+                                      flags_compression=flags_compression,
+                                      nsample_compression=nsample_compression)
+        del(uvh5_obj)
+
+    def write_uvh5_part(self, filename, data_array, flags_array, nsample_array, check_header=True,
+                        antenna_nums=None, antenna_names=None, ant_str=None, bls=None,
+                        frequencies=None, freq_chans=None, times=None, polarizations=None,
+                        blt_inds=None):
+        """
+        Write data to a UVH5 file that has already been initialized.
+
+        Args:
+            filename: the file on disk to write data to. It must already exist,
+                and is assumed to have been initialized with initialize_uvh5_file.
+            data_array: the data to write to disk. A check is done to ensure that
+                the dimensions of the data passed in conform to the ones specified by
+                the "selection" arguments.
+            flags_array: the flags array to write to disk. A check is done to ensure
+                that the dimensions of the data passed in conform to the ones specified
+                by the "selection" arguments.
+            nsample_array: the nsample array to write to disk. A check is done to ensure
+                that the dimensions fo the data passed in conform to the ones specified
+                by the "selection" arguments.
+            check_header: option to check that the metadata present in the header
+                on disk matches that in the object. Default is True.
+            antenna_nums: The antennas numbers to include when writing data into
+                the object (antenna positions and names for the excluded antennas
+                will be retained). This cannot be provided if antenna_names is
+                also provided.
+            antenna_names: The antennas names to include when writing data into
+                the object (antenna positions and names for the excluded antennas
+                will be retained). This cannot be provided if antenna_nums is
+                also provided.
+            bls: A list of antenna number tuples (e.g. [(0,1), (3,2)]) or a list of
+                baseline 3-tuples (e.g. [(0,1,'xx'), (2,3,'yy')]) specifying baselines
+                to write to the file. For length-2 tuples, the ordering of the numbers
+                within the tuple does not matter. For length-3 tuples, the polarization
+                string is in the order of the two antennas. If length-3 tuples are provided,
+                the polarizations argument below must be None.
+            ant_str: A string containing information about what antenna numbers
+                and polarizations to include when writing data into the object.
+                Can be 'auto', 'cross', 'all', or combinations of antenna numbers
+                and polarizations (e.g. '1', '1_2', '1x_2y').
+                See tutorial for more examples of valid strings and
+                the behavior of different forms for ant_str.
+                If '1x_2y,2y_3y' is passed, both polarizations 'xy' and 'yy' will
+                be written for both baselines (1,2) and (2,3) to reflect a valid
+                pyuvdata object.
+                An ant_str cannot be passed in addition to any of the above antenna
+                args or the polarizations arg.
+            frequencies: The frequencies to include when writing data to the file.
+            freq_chans: The frequency channel numbers to include when writing data to the file.
+            times: The times to include when writing data to the file.
+            polarizations: The polarizations to include when writing data to the file.
+            blt_inds: The baseline-time indices to include when writing data to the file.
+                This is not commonly used.
+
+        Returns:
+            None
+        """
+        uvh5_obj = self._convert_to_filetype('uvh5')
+        uvh5_obj.write_uvh5_part(filename, data_array, flags_array, nsample_array,
+                                 check_header=check_header, antenna_nums=antenna_nums,
+                                 antenna_names=antenna_names, bls=bls, ant_str=ant_str,
+                                 frequencies=frequencies, freq_chans=freq_chans,
+                                 times=times, polarizations=polarizations,
+                                 blt_inds=blt_inds)
         del(uvh5_obj)
 
     def reorder_pols(self, order=None, run_check=True, check_extra=True,
