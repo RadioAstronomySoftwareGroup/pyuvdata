@@ -313,7 +313,7 @@ class UVH5(UVData):
                            bls, frequencies, freq_chans, times, polarizations,
                            blt_inds, run_check, check_extra, run_check_acceptability)
 
-            return
+        return
 
     def _write_header(self, header):
         """Internal function to write uvh5 header information.
@@ -685,7 +685,7 @@ class UVH5(UVData):
 
             # test if frequencies are regularly spaced
             if len(set(np.ediff1d(freq_inds))) <= 1:
-                f_reg_spaced = True
+                freq_reg_spaced = True
                 freq_start = freq_inds[0]
                 freq_end = freq_inds[-1] + 1
                 if len(freq_inds) == 1:
@@ -694,7 +694,7 @@ class UVH5(UVData):
                     d_freq = freq_inds[1] - freq_inds[0]
                 freq_inds = np.s_[freq_start:freq_end:d_freq]
             else:
-                f_reg_spaced = False
+                freq_reg_spaced = False
         else:
             Nfreqs = self.Nfreqs
             freq_reg_spaced = True

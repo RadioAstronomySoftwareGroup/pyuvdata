@@ -274,6 +274,179 @@ def test_UVH5PartialWrite():
     partial_uvh5.read_uvh5(partial_testfile)
     nt.assert_equal(full_uvh5, partial_uvh5)
 
+    # start over, and write frequencies
+    partial_uvh5 = copy.deepcopy(full_uvh5)
+    partial_uvh5.data_array = None
+    partial_uvh5.flag_array = None
+    partial_uvh5.nsample_array = None
+
+    # initialize file on disk
+    partial_uvh5.initialize_uvh5_file(partial_testfile, clobber=True)
+    Nfreqs = full_uvh5.Nfreqs
+    Hfreqs = Nfreqs // 2
+    freqs1 = np.arange(Hfreqs)
+    freqs2 = np.arange(Hfreqs, Nfreqs)
+    data = full_uvh5.data_array[:, :, freqs1, :]
+    flags = full_uvh5.flag_array[:, :, freqs1, :]
+    nsamples = full_uvh5.nsample_array[:, :, freqs1, :]
+    partial_uvh5.write_uvh5_part(partial_testfile, data, flags, nsamples,
+                                 freq_chans=freqs1)
+    data = full_uvh5.data_array[:, :, freqs2, :]
+    flags = full_uvh5.flag_array[:, :, freqs2, :]
+    nsamples = full_uvh5.nsample_array[:, :, freqs2, :]
+    partial_uvh5.write_uvh5_part(partial_testfile, data, flags, nsamples,
+                                 freq_chans=freqs2)
+
+    # read in the full file and make sure it matches
+    partial_uvh5.read_uvh5(partial_testfile)
+    nt.assert_equal(full_uvh5, partial_uvh5)
+
+    # start over, write chunks of blts
+    partial_uvh5 = copy.deepcopy(full_uvh5)
+    partial_uvh5.data_array = None
+    partial_uvh5.flag_array = None
+    partial_uvh5.nsample_array = None
+
+    # initialize file on disk
+    partial_uvh5.initialize_uvh5_file(partial_testfile, clobber=True)
+    Nblts = full_uvh5.Nblts
+    Hblts = Nblts // 2
+    blts1 = np.arange(Hblts)
+    blts2 = np.arange(Hblts, Nblts)
+    data = full_uvh5.data_array[blts1, :, :, :]
+    flags = full_uvh5.flag_array[blts1, :, :, :]
+    nsamples = full_uvh5.nsample_array[blts1, :, :, :]
+    partial_uvh5.write_uvh5_part(partial_testfile, data, flags, nsamples,
+                                 blt_inds=blts1)
+    data = full_uvh5.data_array[blts2, :, :, :]
+    flags = full_uvh5.flag_array[blts2, :, :, :]
+    nsamples = full_uvh5.nsample_array[blts2, :, :, :]
+    partial_uvh5.write_uvh5_part(partial_testfile, data, flags, nsamples,
+                                 blt_inds=blts2)
+
+    # read in the full file and make sure it matches
+    partial_uvh5.read_uvh5(partial_testfile)
+    nt.assert_equal(full_uvh5, partial_uvh5)
+
+    # start over, write groups of pols
+    partial_uvh5 = copy.deepcopy(full_uvh5)
+    partial_uvh5.data_array = None
+    partial_uvh5.flag_array = None
+    partial_uvh5.nsample_array = None
+
+    # initialize file on disk
+    partial_uvh5.initialize_uvh5_file(partial_testfile, clobber=True)
+    Npols = full_uvh5.Npols
+    Hpols = Npols // 2
+    pols1 = np.arange(Hpols)
+    pols2 = np.arange(Hpols, Npols)
+    data = full_uvh5.data_array[:, :, :, pols1]
+    flags = full_uvh5.flag_array[:, :, :, pols1]
+    nsamples = full_uvh5.nsample_array[:, :, :, pols1]
+    partial_uvh5.write_uvh5_part(partial_testfile, data, flags, nsamples,
+                                 polarizations=full_uvh5.polarization_array[:Hpols])
+    data = full_uvh5.data_array[:, :, :, pols2]
+    flags = full_uvh5.flag_array[:, :, :, pols2]
+    nsamples = full_uvh5.nsample_array[:, :, :, pols2]
+    partial_uvh5.write_uvh5_part(partial_testfile, data, flags, nsamples,
+                                 polarizations=full_uvh5.polarization_array[Hpols:])
+
+    # read in the full file and make sure it matches
+    partial_uvh5.read_uvh5(partial_testfile)
+    nt.assert_equal(full_uvh5, partial_uvh5)
+
+    # clean up
+    os.remove(testfile)
+    os.remove(partial_testfile)
+
+    return
+
+
+def test_UVH5PartialWriteErrors():
+    """
+    Test errors in uvh5_write_part method
+    """
+    full_uvh5 = UVData()
+    partial_uvh5 = UVData()
+    uvfits_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    uvtest.checkWarnings(full_uvh5.read_uvfits, [uvfits_file], message='Telescope EVLA is not')
+    testfile = os.path.join(DATA_PATH, 'test', 'outtest.h5')
+    full_uvh5.write_uvh5(testfile, clobber=True)
+    full_uvh5.read_uvh5(testfile)
+
+    # get a waterfall
+    antpairpols = full_uvh5.get_antpairpols()
+    key = antpairpols[0]
+    data = full_uvh5.get_data(key, squeeze='none')
+    flags = full_uvh5.get_data(key, squeeze='none')
+    nsamples = full_uvh5.get_data(key, squeeze='none')
+
+    # delete data arrays in partial file
+    partial_uvh5 = copy.deepcopy(full_uvh5)
+    partial_uvh5.data_array = None
+    partial_uvh5.flag_array = None
+    partial_uvh5.nsample_array = None
+
+    # try to write to a file that doesn't exists
+    partial_testfile = os.path.join(DATA_PATH, 'test', 'outtest_partial.h5')
+    if os.path.exists(partial_testfile):
+        os.remove(partial_testfile)
+    nt.assert_raises(AssertionError, partial_uvh5.write_uvh5_part, partial_testfile, data,
+                     flags, nsamples, bls=key)
+
+    # initialize file on disk
+    partial_uvh5.initialize_uvh5_file(partial_testfile, clobber=True)
+
+    # pass in arrays that are different sizes
+    nt.assert_raises(AssertionError, partial_uvh5.write_uvh5_part, partial_testfile, data,
+                     flags[:, :, :, 0], nsamples, bls=key)
+    nt.assert_raises(AssertionError, partial_uvh5.write_uvh5_part, partial_testfile, data,
+                     flags, nsamples[:, :, :, 0], bls=key)
+
+    # pass in arrays that are the same size, but don't match expected shape
+    nt.assert_raises(AssertionError, partial_uvh5.write_uvh5_part, partial_testfile, data[:, :, :, 0],
+                     flags[:, :, :, 0], nsamples[:, :, :, 0])
+
+    # clean up
+    os.remove(testfile)
+    os.remove(partial_testfile)
+
+    return
+
+
+def test_UVH5InitializeFile():
+    """
+    Test initializing a UVH5 file on disk
+    """
+    full_uvh5 = UVData()
+    partial_uvh5 = UVData()
+    uvfits_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    uvtest.checkWarnings(full_uvh5.read_uvfits, [uvfits_file], message='Telescope EVLA is not')
+    testfile = os.path.join(DATA_PATH, 'test', 'outtest.h5')
+    full_uvh5.write_uvh5(testfile, clobber=True)
+    full_uvh5.read_uvh5(testfile)
+    full_uvh5.data_array = None
+    full_uvh5.flag_array = None
+    full_uvh5.nsample_array = None
+
+    # initialize file
+    partial_uvh5 = copy.deepcopy(full_uvh5)
+    partial_testfile = os.path.join(DATA_PATH, 'test', 'outtest_partial.h5')
+    partial_uvh5.initialize_uvh5_file(partial_testfile, clobber=True)
+
+    # read it in and make sure that the metadata matches the original
+    partial_uvh5.read_uvh5(partial_testfile, read_data=False)
+    nt.assert_equal(partial_uvh5, full_uvh5)
+
+    # add options for compression
+    partial_uvh5.initialize_uvh5_file(partial_testfile, clobber=True, data_compression="lzf",
+                                      flags_compression=None, nsample_compression=None)
+    partial_uvh5.read_uvh5(partial_testfile, read_data=False)
+    nt.assert_equal(partial_uvh5, full_uvh5)
+
+    # check that an error is raised then file exists and clobber is False
+    nt.assert_raises(ValueError, partial_uvh5.initialize_uvh5_file, partial_testfile, clobber=False)
+
     # clean up
     os.remove(testfile)
     os.remove(partial_testfile)
