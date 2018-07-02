@@ -426,6 +426,40 @@ def test_UVH5PartialWriteIrregular():
     partial_uvh5_file.read_uvh5(partial_testfile)
     nt.assert_equal(partial_uvh5_file, partial_uvh5)
 
+    # do it again, with a single frequency
+    # reinitialize
+    partial_uvh5 = copy.deepcopy(full_uvh5)
+    partial_uvh5.data_array = None
+    partial_uvh5.flag_array = None
+    partial_uvh5.nsample_array = None
+
+    # initialize file on disk
+    partial_testfile = os.path.join(DATA_PATH, 'test', 'outtest_partial.h5')
+    initialize_with_zeros(partial_uvh5, partial_testfile)
+
+    # make a mostly empty object in memory to match what we'll write to disk
+    partial_uvh5.data_array = np.zeros_like(full_uvh5.data_array, dtype=np.complex64)
+    partial_uvh5.flag_array = np.zeros_like(full_uvh5.flag_array, dtype=np.bool)
+    partial_uvh5.nsample_array = np.zeros_like(full_uvh5.nsample_array, dtype=np.float32)
+
+    # write a single freq to file
+    freq_inds = np.arange(1)
+    data = full_uvh5.data_array[:, :, freq_inds, :]
+    flags = full_uvh5.flag_array[:, :, freq_inds, :]
+    nsamples = full_uvh5.nsample_array[:, :, freq_inds, :]
+    partial_uvh5.write_uvh5_part(partial_testfile, data, flags, nsamples,
+                                 freq_chans=freq_inds)
+
+    # also write the arrays to the partial object
+    partial_uvh5.data_array[:, :, freq_inds, :] = data
+    partial_uvh5.flag_array[:, :, freq_inds, :] = flags
+    partial_uvh5.nsample_array[:, :, freq_inds, :] = nsamples
+
+    # read in the file and make sure it matches
+    partial_uvh5_file = UVData()
+    partial_uvh5_file.read_uvh5(partial_testfile)
+    nt.assert_equal(partial_uvh5_file, partial_uvh5)
+
     # do it again, with a single polarization
     # reinitialize
     partial_uvh5 = copy.deepcopy(full_uvh5)
@@ -442,7 +476,7 @@ def test_UVH5PartialWriteIrregular():
     partial_uvh5.flag_array = np.zeros_like(full_uvh5.flag_array, dtype=np.bool)
     partial_uvh5.nsample_array = np.zeros_like(full_uvh5.nsample_array, dtype=np.float32)
 
-    # write a single blt to file
+    # write a single pol to file
     pol_inds = np.arange(1)
     data = full_uvh5.data_array[:, :, :, pol_inds]
     flags = full_uvh5.flag_array[:, :, :, pol_inds]
