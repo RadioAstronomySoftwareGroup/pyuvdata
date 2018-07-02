@@ -94,7 +94,7 @@ class UVH5(UVData):
         self.Nants_telescope = int(header['Nants_telescope'].value)
         self.ant_1_array = header['ant_1_array'].value
         self.ant_2_array = header['ant_2_array'].value
-        self.antenna_names = list(header['antenna_names'].value)
+        self.antenna_names = [uvutils.bytes_to_str(n) for n in header['antenna_names'].value]
         self.antenna_numbers = header['antenna_numbers'].value
 
         # get baseline array
