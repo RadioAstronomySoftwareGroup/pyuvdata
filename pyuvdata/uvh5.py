@@ -166,7 +166,7 @@ class UVH5(UVData):
             # no select, read in all the data
             self.data_array = dgrp['visdata'].value
             self.flag_array = dgrp['flags'].value
-            self.nsample_array = dgrp['nsample_array'].value
+            self.nsample_array = dgrp['nsamples'].value
         else:
             # do select operations on everything except data_array, flag_array and nsample_array
             self._select_metadata(blt_inds, freq_inds, pol_inds, history_update_string)
@@ -174,55 +174,55 @@ class UVH5(UVData):
             # open references to datasets
             visdata_dset = dgrp['visdata']
             flags_dset = dgrp['flags']
-            nsample_array_dset = dgrp['nsample_array']
+            nsamples_dset = dgrp['nsamples']
 
             # just read in the right portions of the data and flag arrays
             if blt_frac == min_frac:
                 visdata = visdata_dset[blt_inds, :, :, :]
                 flags = flags_dset[blt_inds, :, :, :]
-                nsample_array = nsample_array_dset[blt_inds, :, :, :]
+                nsamples = nsamples_dset[blt_inds, :, :, :]
 
                 assert(self.Nspws == visdata.shape[1])
 
                 if freq_frac < 1:
                     visdata = visdata[:, :, freq_inds, :]
                     flags = flags[:, :, freq_inds, :]
-                    nsample_array = nsample_array[:, :, freq_inds, :]
+                    nsamples = nsamples[:, :, freq_inds, :]
                 if pol_frac < 1:
                     visdata = visdata[:, :, :, pol_inds]
                     flags = flags[:, :, :, pol_inds]
-                    nsample_array = nsample_array[:, :, :, pol_inds]
+                    nsamples = nsamples[:, :, :, pol_inds]
             elif freq_frac == min_frac:
                 visdata = visdata_dset[:, :, freq_inds, :]
                 flags = flags_dset[:, :, freq_inds, :]
-                nsample_array = nsample_array_dset[:, :, freq_inds, :]
+                nsamples = nsamples_dset[:, :, freq_inds, :]
 
                 if blt_frac < 1:
                     visdata = visdata[blt_inds, :, :, :]
                     flags = flags[blt_inds, :, :, :]
-                    nsample_array = nsample_array[blt_inds, :, :, :]
+                    nsamples = nsamples[blt_inds, :, :, :]
                 if pol_frac < 1:
                     visdata = visdata[:, :, :, pol_inds]
                     flags = flags[:, :, :, pol_inds]
-                    nsample_array = nsample_array[:, :, :, pol_inds]
+                    nsamples = nsamples[:, :, :, pol_inds]
             else:
                 visdata = visdata_dset[:, :, :, pol_inds]
                 flags = flags_dset[:, :, :, pol_inds]
-                nsample_array = nsample_array_dset[:, :, :, pol_inds]
+                nsamples = nsamples_dset[:, :, :, pol_inds]
 
                 if blt_frac < 1:
                     visdata = visdata[blt_inds, :, :, :]
                     flags = flags[blt_inds, :, :, :]
-                    nsample_array = nsample_array[blt_inds, :, :, :]
+                    nsamples = nsamples[blt_inds, :, :, :]
                 if freq_frac < 1:
                     visdata = visdata[:, :, freq_inds, :]
                     flags = flags[:, :, freq_inds, :]
-                    nsample_array = nsample_array[:, :, freq_inds, :]
+                    nsamples = nsamples[:, :, freq_inds, :]
 
             # save arrays in object
             self.data_array = visdata
             self.flag_array = flags
-            self.nsample_array = nsample_array
+            self.nsample_array = nsamples
 
         # check if object has all required UVParameters set
         if run_check:
@@ -465,11 +465,11 @@ class UVH5(UVData):
                 flags = dgrp.create_dataset("flags", chunks=True,
                                             data=self.flag_array)
             if nsample_compression is not None:
-                nsample_array = dgrp.create_dataset("nsample_array", chunks=True,
+                nsample_array = dgrp.create_dataset("nsamples", chunks=True,
                                                     data=self.nsample_array.astype(np.float32),
                                                     compression=nsample_compression)
             else:
-                nsample_array = dgrp.create_dataset("nsample_array", chunks=True,
+                nsample_array = dgrp.create_dataset("nsamples", chunks=True,
                                                     data=self.nsample_array.astype(np.float32))
 
         return
@@ -539,10 +539,10 @@ class UVH5(UVData):
                 flags = dgrp.create_dataset("flags", data_size, chunks=True,
                                             dtype='b1')
             if nsample_compression is not None:
-                nsample_array = dgrp.create_dataset("nsample_array", data_size, chunks=True,
+                nsample_array = dgrp.create_dataset("nsamples", data_size, chunks=True,
                                                     dtype='f4', compression=nsample_compression)
             else:
-                nsample_array = dgrp.create_dataset("nsample_array", data_size, chunks=True,
+                nsample_array = dgrp.create_dataset("nsamples", data_size, chunks=True,
                                                     dtype='f4')
 
         return
@@ -730,7 +730,7 @@ class UVH5(UVData):
             dgrp = f['/Data']
             visdata_dset = dgrp['visdata']
             flags_dset = dgrp['flags']
-            nsample_array_dset = dgrp['nsample_array']
+            nsamples_dset = dgrp['nsamples']
 
             # check if we can do fancy indexing
             # as long as at least 2 out of 3 axes can be written as slices, we can be fancy
@@ -738,7 +738,7 @@ class UVH5(UVData):
             if n_reg_spaced >= 2:
                 visdata_dset[blt_inds, :, freq_inds, pol_inds] = data_array
                 flags_dset[blt_inds, :, freq_inds, pol_inds] = flags_array
-                nsample_array_dset[blt_inds, :, freq_inds, pol_inds] = nsample_array
+                nsamples_dset[blt_inds, :, freq_inds, pol_inds] = nsample_array
             elif n_reg_spaced == 1:
                 # figure out which axis is regularly spaced
                 if blt_reg_spaced:
@@ -746,19 +746,19 @@ class UVH5(UVData):
                         for ipol, pol_idx in enumerate(pol_inds):
                             visdata_dset[blt_inds, :, freq_idx, pol_idx] = data_array[:, :, ifreq, ipol]
                             flags_dset[blt_inds, :, freq_idx, pol_idx] = flags_array[:, :, ifreq, ipol]
-                            nsample_array_dset[blt_inds, :, freq_idx, pol_idx] = nsample_array[:, :, ifreq, ipol]
+                            nsamples_dset[blt_inds, :, freq_idx, pol_idx] = nsample_array[:, :, ifreq, ipol]
                 elif freq_reg_spaced:
                     for iblt, blt_idx in enumerate(blt_inds):
                         for ipol, pol_idx in enumerate(pol_inds):
                             visdata_dset[blt_idx, :, freq_inds, pol_idx] = data_array[iblt, :, :, ipol]
                             flags_dset[blt_idx, :, freq_inds, pol_idx] = flags_array[iblt, :, :, ipol]
-                            nsample_array_dset[blt_idx, :, freq_inds, pol_idx] = nsample_array[iblt, :, :, ipol]
+                            nsamples_dset[blt_idx, :, freq_inds, pol_idx] = nsample_array[iblt, :, :, ipol]
                 else:  # pol_reg_spaced
                     for iblt, blt_idx in enumerate(blt_inds):
                         for ifreq, freq_idx in enumerate(freq_inds):
                             visdata_dset[blt_idx, :, freq_idx, pol_inds] = data_array[iblt, :, ifreq, :]
                             flags_dset[blt_idx, :, freq_idx, pol_inds] = flags_array[iblt, :, ifreq, :]
-                            nsample_array_dset[blt_idx, :, freq_idx, pol_inds] = nsample_array[iblt, :, ifreq, :]
+                            nsamples_dset[blt_idx, :, freq_idx, pol_inds] = nsample_array[iblt, :, ifreq, :]
             else:
                 # all axes irregularly spaced
                 # perform a triple loop -- probably very slow!
@@ -767,6 +767,6 @@ class UVH5(UVData):
                         for ipol, pol_idx in enumerate(pol_inds):
                             visdata_dset[blt_idx, :, freq_idx, pol_idx] = data_array[iblt, :, ifreq, ipol]
                             flags_dset[blt_idx, :, freq_idx, pol_idx] = flags_array[iblt, :, ifreq, ipol]
-                            nsample_array_dset[blt_idx, :, freq_idx, pol_idx] = nsample_array[iblt, :, ifreq, ipol]
+                            nsamples_dset[blt_idx, :, freq_idx, pol_idx] = nsample_array[iblt, :, ifreq, ipol]
 
         return
