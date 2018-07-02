@@ -587,7 +587,7 @@ class UVH5(UVData):
             self.nsample_array = None
             replace_nsamples = True
         else:
-            replace_namples = False
+            replace_nsamples = False
 
         if self != uvd_file:
             raise AssertionError("The object metadata in memory and metadata on disk are different")
