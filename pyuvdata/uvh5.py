@@ -569,10 +569,36 @@ class UVH5(UVData):
             header = f['/Header']
             uvd_file._read_header(header)
 
+        # temporarily remove data, flag, and nsample arrays, so we only check metadata
+        if self.data_array is not None:
+            data_array = self.data_array
+            self.data_array = None
+            replace_data = True
+        else:
+            replace_data = False
+        if self.flag_array is not None:
+            flag_array = self.flag_array
+            self.flag_array = None
+            replace_flags = True
+        else:
+            replace_flags = False
+        if self.nsample_array is not None:
+            nsample_array = self.nsample_array
+            self.nsample_array = None
+            replace_nsamples = True
+        else:
+            replace_namples = False
+
         if self != uvd_file:
             raise AssertionError("The object metadata in memory and metadata on disk are different")
         else:
             # clean up after ourselves
+            if replace_data:
+                self.data_array = data_array
+            if replace_flags:
+                self.flag_array = flag_array
+            if replace_nsamples:
+                self.nsample_array = nsample_array
             del uvd_file
         return
 
