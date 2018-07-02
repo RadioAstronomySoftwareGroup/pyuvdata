@@ -14,6 +14,7 @@ import pyuvdata.utils as uvutils
 from pyuvdata.data import DATA_PATH
 import pyuvdata.tests as uvtest
 import warnings
+import h5py
 
 
 def test_ReadMiriadWriteUVH5ReadUVH5():
@@ -358,6 +359,336 @@ def test_UVH5PartialWrite():
     # clean up
     os.remove(testfile)
     os.remove(partial_testfile)
+
+    return
+
+
+def test_UVH5PartialWriteIrregular():
+    """
+    Test writing a uvh5 file using irregular intervals
+    """
+    def initialize_with_zeros(uvd, filename):
+        """
+        Initialize a file with all zeros for data arrays
+        """
+        uvd.initialize_uvh5_file(filename, clobber=True)
+        data_shape = (uvd.Nblts, 1, uvd.Nfreqs, uvd.Npols)
+        data = np.zeros(data_shape, dtype=np.complex64)
+        flags = np.zeros(data_shape, dtype=np.bool)
+        nsamples = np.zeros(data_shape, dtype=np.float32)
+        with h5py.File(filename, 'r+') as f:
+            dgrp = f['/Data']
+            data_dset = dgrp['visdata']
+            flags_dset = dgrp['flags']
+            nsample_dset = dgrp['nsamples']
+            data_dset = data
+            flags_dset = flags
+            nsample_dset = nsamples
+        return
+
+    full_uvh5 = UVData()
+    partial_uvh5 = UVData()
+    uvfits_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    uvtest.checkWarnings(full_uvh5.read_uvfits, [uvfits_file], message='Telescope EVLA is not')
+    testfile = os.path.join(DATA_PATH, 'test', 'outtest.h5')
+    full_uvh5.write_uvh5(testfile, clobber=True)
+    full_uvh5.read_uvh5(testfile)
+
+    # delete data arrays in partial file
+    partial_uvh5 = copy.deepcopy(full_uvh5)
+    partial_uvh5.data_array = None
+    partial_uvh5.flag_array = None
+    partial_uvh5.nsample_array = None
+
+    # initialize file on disk
+    partial_testfile = os.path.join(DATA_PATH, 'test', 'outtest_partial.h5')
+    initialize_with_zeros(partial_uvh5, partial_testfile)
+
+    # make a mostly empty object in memory to match what we'll write to disk
+    partial_uvh5.data_array = np.zeros_like(full_uvh5.data_array, dtype=np.complex64)
+    partial_uvh5.flag_array = np.zeros_like(full_uvh5.flag_array, dtype=np.bool)
+    partial_uvh5.nsample_array = np.zeros_like(full_uvh5.nsample_array, dtype=np.float32)
+
+    # write a single blt to file
+    blt_inds = np.arange(1)
+    data = full_uvh5.data_array[blt_inds, :, :, :]
+    flags = full_uvh5.flag_array[blt_inds, :, :, :]
+    nsamples = full_uvh5.nsample_array[blt_inds, :, :, :]
+    partial_uvh5.write_uvh5_part(partial_testfile, data, flags, nsamples, blt_inds=blt_inds)
+
+    # also write the arrays to the partial object
+    partial_uvh5.data_array[blt_inds, :, :, :] = data
+    partial_uvh5.flag_array[blt_inds, :, :, :] = flags
+    partial_uvh5.nsample_array[blt_inds, :, :, :] = nsamples
+
+    # read in the file and make sure it matches
+    partial_uvh5_file = UVData()
+    partial_uvh5_file.read_uvh5(partial_testfile)
+    nt.assert_equal(partial_uvh5_file, partial_uvh5)
+
+    # do it again, with a single polarization
+    # reinitialize
+    partial_uvh5 = copy.deepcopy(full_uvh5)
+    partial_uvh5.data_array = None
+    partial_uvh5.flag_array = None
+    partial_uvh5.nsample_array = None
+
+    # initialize file on disk
+    partial_testfile = os.path.join(DATA_PATH, 'test', 'outtest_partial.h5')
+    initialize_with_zeros(partial_uvh5, partial_testfile)
+
+    # make a mostly empty object in memory to match what we'll write to disk
+    partial_uvh5.data_array = np.zeros_like(full_uvh5.data_array, dtype=np.complex64)
+    partial_uvh5.flag_array = np.zeros_like(full_uvh5.flag_array, dtype=np.bool)
+    partial_uvh5.nsample_array = np.zeros_like(full_uvh5.nsample_array, dtype=np.float32)
+
+    # write a single blt to file
+    pol_inds = np.arange(1)
+    data = full_uvh5.data_array[:, :, :, pol_inds]
+    flags = full_uvh5.flag_array[:, :, :, pol_inds]
+    nsamples = full_uvh5.nsample_array[:, :, :, pol_inds]
+    partial_uvh5.write_uvh5_part(partial_testfile, data, flags, nsamples,
+                                 polarizations=partial_uvh5.polarization_array[pol_inds])
+
+    # also write the arrays to the partial object
+    partial_uvh5.data_array[:, :, :, pol_inds] = data
+    partial_uvh5.flag_array[:, :, :, pol_inds] = flags
+    partial_uvh5.nsample_array[:, :, :, pol_inds] = nsamples
+
+    # read in the file and make sure it matches
+    partial_uvh5_file = UVData()
+    partial_uvh5_file.read_uvh5(partial_testfile)
+    nt.assert_equal(partial_uvh5_file, partial_uvh5)
+
+    # test irregularly spaced blts and freqs
+    # reinitialize
+    partial_uvh5 = copy.deepcopy(full_uvh5)
+    partial_uvh5.data_array = None
+    partial_uvh5.flag_array = None
+    partial_uvh5.nsample_array = None
+
+    # initialize file on disk
+    partial_testfile = os.path.join(DATA_PATH, 'test', 'outtest_partial.h5')
+    initialize_with_zeros(partial_uvh5, partial_testfile)
+
+    # make a mostly empty object in memory to match what we'll write to disk
+    partial_uvh5.data_array = np.zeros_like(full_uvh5.data_array, dtype=np.complex64)
+    partial_uvh5.flag_array = np.zeros_like(full_uvh5.flag_array, dtype=np.bool)
+    partial_uvh5.nsample_array = np.zeros_like(full_uvh5.nsample_array, dtype=np.float32)
+
+    # define blts and freqs
+    blt_inds = [0, 1, 2, 7]
+    freq_inds = [0, 2, 3, 4]
+    data_shape = (len(blt_inds), 1, len(freq_inds), full_uvh5.Npols)
+    data = np.zeros(data_shape, dtype=np.complex64)
+    flags = np.zeros(data_shape, dtype=np.bool)
+    nsamples = np.zeros(data_shape, dtype=np.float32)
+    for iblt, blt_idx in enumerate(blt_inds):
+        for ifreq, freq_idx in enumerate(freq_inds):
+            data[iblt, :, ifreq, :] = full_uvh5.data_array[blt_idx, :, freq_idx, :]
+            flags[iblt, :, ifreq, :] = full_uvh5.flag_array[blt_idx, :, freq_idx, :]
+            nsamples[iblt, :, ifreq, :] = full_uvh5.nsample_array[blt_idx, :, freq_idx, :]
+    uvtest.checkWarnings(partial_uvh5.write_uvh5_part, [partial_testfile, data, flags, nsamples],
+                         {'blt_inds': blt_inds, 'freq_chans': freq_inds},
+                         message='Selected frequencies are not evenly spaced')
+
+    # also write the arrays to the partial object
+    for iblt, blt_idx in enumerate(blt_inds):
+        for ifreq, freq_idx in enumerate(freq_inds):
+            partial_uvh5.data_array[blt_idx, :, freq_idx, :] = data[iblt, :, ifreq, :]
+            partial_uvh5.flag_array[blt_idx, :, freq_idx, :] = flags[iblt, :, ifreq, :]
+            partial_uvh5.nsample_array[blt_idx, :, freq_idx, :] = nsamples[iblt, :, ifreq, :]
+
+    # read in the file and make sure it matches
+    partial_uvh5_file = UVData()
+    partial_uvh5_file.read_uvh5(partial_testfile)
+    nt.assert_equal(partial_uvh5_file, partial_uvh5)
+
+    # test irregularly spaced freqs and pols
+    # reinitialize
+    partial_uvh5 = copy.deepcopy(full_uvh5)
+    partial_uvh5.data_array = None
+    partial_uvh5.flag_array = None
+    partial_uvh5.nsample_array = None
+
+    # initialize file on disk
+    partial_testfile = os.path.join(DATA_PATH, 'test', 'outtest_partial.h5')
+    initialize_with_zeros(partial_uvh5, partial_testfile)
+
+    # make a mostly empty object in memory to match what we'll write to disk
+    partial_uvh5.data_array = np.zeros_like(full_uvh5.data_array, dtype=np.complex64)
+    partial_uvh5.flag_array = np.zeros_like(full_uvh5.flag_array, dtype=np.bool)
+    partial_uvh5.nsample_array = np.zeros_like(full_uvh5.nsample_array, dtype=np.float32)
+
+    # define blts and freqs
+    freq_inds = [0, 1, 2, 7]
+    pol_inds = [0, 1, 3]
+    data_shape = (full_uvh5.Nblts, 1, len(freq_inds), len(pol_inds))
+    data = np.zeros(data_shape, dtype=np.complex64)
+    flags = np.zeros(data_shape, dtype=np.bool)
+    nsamples = np.zeros(data_shape, dtype=np.float32)
+    for ifreq, freq_idx in enumerate(freq_inds):
+        for ipol, pol_idx in enumerate(pol_inds):
+            data[:, :, ifreq, ipol] = full_uvh5.data_array[:, :, freq_idx, pol_idx]
+            flags[:, :, ifreq, ipol] = full_uvh5.flag_array[:, :, freq_idx, pol_idx]
+            nsamples[:, :, ifreq, ipol] = full_uvh5.nsample_array[:, :, freq_idx, pol_idx]
+    uvtest.checkWarnings(partial_uvh5.write_uvh5_part, [partial_testfile, data, flags, nsamples],
+                         {'freq_chans': freq_inds, 'polarizations': full_uvh5.polarization_array[pol_inds]},
+                         nwarnings=2, message=['Selected frequencies are not evenly spaced',
+                                               'Selected polarization values are not evenly spaced'])
+
+    # also write the arrays to the partial object
+    for ifreq, freq_idx in enumerate(freq_inds):
+        for ipol, pol_idx in enumerate(pol_inds):
+            partial_uvh5.data_array[:, :, freq_idx, pol_idx] = data[:, :, ifreq, ipol]
+            partial_uvh5.flag_array[:, :, freq_idx, pol_idx] = flags[:, :, ifreq, ipol]
+            partial_uvh5.nsample_array[:, :, freq_idx, pol_idx] = nsamples[:, :, ifreq, ipol]
+
+    # read in the file and make sure it matches
+    partial_uvh5_file = UVData()
+    partial_uvh5_file.read_uvh5(partial_testfile)
+    nt.assert_equal(partial_uvh5_file, partial_uvh5)
+
+    # test irregularly spaced blts and pols
+    # reinitialize
+    partial_uvh5 = copy.deepcopy(full_uvh5)
+    partial_uvh5.data_array = None
+    partial_uvh5.flag_array = None
+    partial_uvh5.nsample_array = None
+
+    # initialize file on disk
+    partial_testfile = os.path.join(DATA_PATH, 'test', 'outtest_partial.h5')
+    initialize_with_zeros(partial_uvh5, partial_testfile)
+
+    # make a mostly empty object in memory to match what we'll write to disk
+    partial_uvh5.data_array = np.zeros_like(full_uvh5.data_array, dtype=np.complex64)
+    partial_uvh5.flag_array = np.zeros_like(full_uvh5.flag_array, dtype=np.bool)
+    partial_uvh5.nsample_array = np.zeros_like(full_uvh5.nsample_array, dtype=np.float32)
+
+    # define blts and freqs
+    blt_inds = [0, 1, 2, 7]
+    pol_inds = [0, 1, 3]
+    data_shape = (len(blt_inds), 1, full_uvh5.Nfreqs, len(pol_inds))
+    data = np.zeros(data_shape, dtype=np.complex64)
+    flags = np.zeros(data_shape, dtype=np.bool)
+    nsamples = np.zeros(data_shape, dtype=np.float32)
+    for iblt, blt_idx in enumerate(blt_inds):
+        for ipol, pol_idx in enumerate(pol_inds):
+            data[iblt, :, :, ipol] = full_uvh5.data_array[blt_idx, :, :, pol_idx]
+            flags[iblt, :, :, ipol] = full_uvh5.flag_array[blt_idx, :, :, pol_idx]
+            nsamples[iblt, :, :, ipol] = full_uvh5.nsample_array[blt_idx, :, :, pol_idx]
+    uvtest.checkWarnings(partial_uvh5.write_uvh5_part, [partial_testfile, data, flags, nsamples],
+                         {'blt_inds': blt_inds, 'polarizations': full_uvh5.polarization_array[pol_inds]},
+                         message='Selected polarization values are not evenly spaced')
+
+    # also write the arrays to the partial object
+    for iblt, blt_idx in enumerate(blt_inds):
+        for ipol, pol_idx in enumerate(pol_inds):
+            partial_uvh5.data_array[blt_idx, :, :, pol_idx] = data[iblt, :, :, ipol]
+            partial_uvh5.flag_array[blt_idx, :, :, pol_idx] = flags[iblt, :, :, ipol]
+            partial_uvh5.nsample_array[blt_idx, :, :, pol_idx] = nsamples[iblt, :, :, ipol]
+
+    # read in the file and make sure it matches
+    partial_uvh5_file = UVData()
+    partial_uvh5_file.read_uvh5(partial_testfile)
+    nt.assert_equal(partial_uvh5_file, partial_uvh5)
+
+    # test irregularly spaced freqs and pols
+    # reinitialize
+    partial_uvh5 = copy.deepcopy(full_uvh5)
+    partial_uvh5.data_array = None
+    partial_uvh5.flag_array = None
+    partial_uvh5.nsample_array = None
+
+    # initialize file on disk
+    partial_testfile = os.path.join(DATA_PATH, 'test', 'outtest_partial.h5')
+    initialize_with_zeros(partial_uvh5, partial_testfile)
+
+    # make a mostly empty object in memory to match what we'll write to disk
+    partial_uvh5.data_array = np.zeros_like(full_uvh5.data_array, dtype=np.complex64)
+    partial_uvh5.flag_array = np.zeros_like(full_uvh5.flag_array, dtype=np.bool)
+    partial_uvh5.nsample_array = np.zeros_like(full_uvh5.nsample_array, dtype=np.float32)
+
+    # define blts and freqs
+    freq_inds = [0, 1, 2, 7]
+    pol_inds = [0, 1, 3]
+    data_shape = (full_uvh5.Nblts, 1, len(freq_inds), len(pol_inds))
+    data = np.zeros(data_shape, dtype=np.complex64)
+    flags = np.zeros(data_shape, dtype=np.bool)
+    nsamples = np.zeros(data_shape, dtype=np.float32)
+    for ifreq, freq_idx in enumerate(freq_inds):
+        for ipol, pol_idx in enumerate(pol_inds):
+            data[:, :, ifreq, ipol] = full_uvh5.data_array[:, :, freq_idx, pol_idx]
+            flags[:, :, ifreq, ipol] = full_uvh5.flag_array[:, :, freq_idx, pol_idx]
+            nsamples[:, :, ifreq, ipol] = full_uvh5.nsample_array[:, :, freq_idx, pol_idx]
+    uvtest.checkWarnings(partial_uvh5.write_uvh5_part, [partial_testfile, data, flags, nsamples],
+                         {'freq_chans': freq_inds, 'polarizations': full_uvh5.polarization_array[pol_inds]},
+                         nwarnings=2, message=['Selected frequencies are not evenly spaced',
+                                               'Selected polarization values are not evenly spaced'])
+
+    # also write the arrays to the partial object
+    for ifreq, freq_idx in enumerate(freq_inds):
+        for ipol, pol_idx in enumerate(pol_inds):
+            partial_uvh5.data_array[:, :, freq_idx, pol_idx] = data[:, :, ifreq, ipol]
+            partial_uvh5.flag_array[:, :, freq_idx, pol_idx] = flags[:, :, ifreq, ipol]
+            partial_uvh5.nsample_array[:, :, freq_idx, pol_idx] = nsamples[:, :, ifreq, ipol]
+
+    # read in the file and make sure it matches
+    partial_uvh5_file = UVData()
+    partial_uvh5_file.read_uvh5(partial_testfile)
+    nt.assert_equal(partial_uvh5_file, partial_uvh5)
+
+    # test irregularly spaced everything
+    # reinitialize
+    partial_uvh5 = copy.deepcopy(full_uvh5)
+    partial_uvh5.data_array = None
+    partial_uvh5.flag_array = None
+    partial_uvh5.nsample_array = None
+
+    # initialize file on disk
+    partial_testfile = os.path.join(DATA_PATH, 'test', 'outtest_partial.h5')
+    initialize_with_zeros(partial_uvh5, partial_testfile)
+
+    # make a mostly empty object in memory to match what we'll write to disk
+    partial_uvh5.data_array = np.zeros_like(full_uvh5.data_array, dtype=np.complex64)
+    partial_uvh5.flag_array = np.zeros_like(full_uvh5.flag_array, dtype=np.bool)
+    partial_uvh5.nsample_array = np.zeros_like(full_uvh5.nsample_array, dtype=np.float32)
+
+    # define blts and freqs
+    blt_inds = [0, 1, 2, 7]
+    freq_inds = [0, 2, 3, 4]
+    pol_inds = [0, 1, 3]
+    data_shape = (len(blt_inds), 1, len(freq_inds), len(pol_inds))
+    data = np.zeros(data_shape, dtype=np.complex64)
+    flags = np.zeros(data_shape, dtype=np.bool)
+    nsamples = np.zeros(data_shape, dtype=np.float32)
+    for iblt, blt_idx in enumerate(blt_inds):
+        for ifreq, freq_idx in enumerate(freq_inds):
+            for ipol, pol_idx in enumerate(pol_inds):
+                data[iblt, :, ifreq, ipol] = full_uvh5.data_array[blt_idx, :, freq_idx, pol_idx]
+                flags[iblt, :, ifreq, ipol] = full_uvh5.flag_array[blt_idx, :, freq_idx, pol_idx]
+                nsamples[iblt, :, ifreq, ipol] = full_uvh5.nsample_array[blt_idx, :, freq_idx, pol_idx]
+    uvtest.checkWarnings(partial_uvh5.write_uvh5_part, [partial_testfile, data, flags, nsamples],
+                         {'blt_inds': blt_inds, 'freq_chans': freq_inds,
+                          'polarizations': full_uvh5.polarization_array[pol_inds]},
+                         nwarnings=2, message=['Selected frequencies are not evenly spaced',
+                                               'Selected polarization values are not evenly spaced'])
+
+    # also write the arrays to the partial object
+    for iblt, blt_idx in enumerate(blt_inds):
+        for ifreq, freq_idx in enumerate(freq_inds):
+            for ipol, pol_idx in enumerate(pol_inds):
+                partial_uvh5.data_array[blt_idx, :, freq_idx, pol_idx] = data[iblt, :, ifreq, ipol]
+                partial_uvh5.flag_array[blt_idx, :, freq_idx, pol_idx] = flags[iblt, :, ifreq, ipol]
+                partial_uvh5.nsample_array[blt_idx, :, freq_idx, pol_idx] = nsamples[iblt, :, ifreq, ipol]
+
+    # read in the file and make sure it matches
+    partial_uvh5_file = UVData()
+    partial_uvh5_file.read_uvh5(partial_testfile)
+    nt.assert_equal(partial_uvh5_file, partial_uvh5)
+
+    # clean up
+    os.remove(testfile)
 
     return
 
