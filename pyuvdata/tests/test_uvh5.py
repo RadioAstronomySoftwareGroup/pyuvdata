@@ -738,6 +738,11 @@ def test_UVH5PartialWriteErrors():
     nt.assert_raises(AssertionError, partial_uvh5.write_uvh5_part, partial_testfile, data[:, :, :, 0],
                      flags[:, :, :, 0], nsamples[:, :, :, 0])
 
+    # initialize a file on disk, and pass in a different object so check_header fails
+    empty_uvd = UVData()
+    nt.assert_raises(AssertionError, empty_uvd.write_uvh5_part, partial_testfile, data,
+                     flags, nsamples, bls=key)
+
     # clean up
     os.remove(testfile)
     os.remove(partial_testfile)
