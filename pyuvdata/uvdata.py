@@ -583,8 +583,13 @@ class UVData(UVBase):
             else:
                 phase_frame = 'icrs'
 
+        # This promotion is REQUIRED to get the right answer when we
+        # add in the telescope location for ICRS
+        # In some cases, the uvws are already float64, but sometimes they're not
+        self.uvw_array = np.float64(self.uvw_array)
+
         # apply -w phasor
-        w_lambda = (self.uvw_array[:, 2].reshape(self.Nblts, 1).astype(np.float64)
+        w_lambda = (self.uvw_array[:, 2].reshape(self.Nblts, 1)
                     / const.c.to('m/s').value * self.freq_array.reshape(1, self.Nfreqs))
         phs = np.exp(-1j * 2 * np.pi * (-1) * w_lambda[:, None, :, None])
         self.data_array *= phs
@@ -656,11 +661,6 @@ class UVData(UVBase):
                                                             self.phase_center_dec,
                                                             uvws_use)
 
-                # This promotion is REQUIRED to get the right answer when we
-                # add in the telescope location for ICRS
-                # In some cases, the uvws are already float64, but sometimes they're not
-                uvw_rel_positions = np.float64(uvw_rel_positions)
-
                 frame_telescope_location.representation = 'cartesian'
 
                 frame_uvw_coord = SkyCoord(x=uvw_rel_positions[:, 0] * units.m + frame_telescope_location.x,
@@ -720,26 +720,36 @@ class UVData(UVBase):
         if phase_frame not in ['icrs', 'gcrs']:
             raise ValueError('phase_frame can only be set to icrs or gcrs.')
 
-        if epoch == "J2000" or epoch == 2000:
-            phase_center_icrs = SkyCoord(ra=ra, dec=dec, unit='radian', frame='icrs')
-        else:
-            assert(isinstance(epoch, Time))
-            phase_center_coord = SkyCoord(ra=ra, dec=dec, unit='radian',
-                                          equinox=epoch, frame=FK5)
-            # convert to icrs (i.e. J2000) to write to object
-            phase_center_icrs = phase_center_coord.transform_to('icrs')
-
         if phase_frame == 'icrs':
-            frame_phase_center = phase_center_icrs
+            if epoch == "J2000" or epoch == 2000:
+                frame_phase_center = SkyCoord(ra=ra, dec=dec, unit='radian', frame='icrs')
+            else:
+                assert(isinstance(epoch, Time))
+                phase_center_coord = SkyCoord(ra=ra, dec=dec, unit='radian',
+                                              equinox=epoch, frame=FK5)
+                # convert to icrs (i.e. J2000) to write to object
+                frame_phase_center = phase_center_coord.transform_to('icrs')
         else:
             # use center of observation for obstime for gcrs
             center_time = np.mean([np.max(self.time_array), np.min(self.time_array)])
-            phase_center_icrs.obstime = Time(center_time, format='jd')
-            frame_phase_center = phase_center_icrs.transform_to(phase_frame)
+            if epoch == "J2000" or epoch == 2000:
+                frame_phase_center = SkyCoord(ra=ra, dec=dec, unit='radian', frame='gcrs',
+                                              obstime=Time(center_time, format='jd'))
+            else:
+                assert(isinstance(epoch, Time))
+                phase_center_coord = SkyCoord(ra=ra, dec=dec, unit='radian',
+                                              equinox=epoch, frame=FK5)
+                # convert to gcrs (i.e. J2000) to write to object
+                phase_center_coord.obstime = Time(center_time, format='jd')
+                frame_phase_center = phase_center_coord.transform_to('gcrs')
 
         self.phase_center_ra = frame_phase_center.ra.radian
         self.phase_center_dec = frame_phase_center.dec.radian
         self.phase_center_epoch = 2000.0
+
+        # This promotion is REQUIRED to get the right answer when we
+        # add in the telescope location for ICRS
+        self.uvw_array = np.float64(self.uvw_array)
 
         telescope_location = EarthLocation.from_geocentric(self.telescope_location[0],
                                                            self.telescope_location[1],
@@ -812,10 +822,6 @@ class UVData(UVBase):
                 # convert them to ECEF to transform between frames
                 uvws_use = self.uvw_array[inds, :]
 
-                # This promotion is REQUIRED to get the right answer when we
-                # add in the telescope location for ICRS
-                # In some cases, the uvws are already float64, but sometimes they're not
-                uvws_use = np.float64(uvws_use)
                 uvw_ecef = uvutils.ECEF_from_ENU(uvws_use.T, *itrs_lat_lon_alt).T
 
                 itrs_uvw_coord = SkyCoord(x=uvw_ecef[:, 0] * units.m,
