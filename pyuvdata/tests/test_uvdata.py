@@ -450,6 +450,58 @@ def test_phase_unphaseHERA():
     del(UV_raw)
 
 
+def test_phasing():
+    """ Use MWA files phased to 2 different places to test phasing. """
+    file1 = os.path.join(DATA_PATH, '1133866760.uvfits')
+    file2 = os.path.join(DATA_PATH, '1133866760_rephase.uvfits')
+    uvd1 = UVData()
+    uvd2 = UVData()
+    uvd1.read_uvfits(file1)
+    uvd2.read_uvfits(file2)
+
+    uvd1_drift = copy.deepcopy(uvd1)
+    uvd1_drift.unphase_to_drift(phase_frame='gcrs', use_mwatools_phasing=False)
+    uvd1_drift_mwatools = copy.deepcopy(uvd1)
+    uvd1_drift_mwatools.unphase_to_drift(phase_frame='gcrs', use_mwatools_phasing=True)
+    uvd1_drift_antpos = copy.deepcopy(uvd1)
+    uvd1_drift_antpos.unphase_to_drift(phase_frame='gcrs', use_mwatools_phasing=False, use_ant_pos=True)
+
+    uvd2_drift = copy.deepcopy(uvd2)
+    uvd2_drift.unphase_to_drift(phase_frame='gcrs', use_mwatools_phasing=False)
+    uvd2_drift_mwatools = copy.deepcopy(uvd2)
+    uvd2_drift_mwatools.unphase_to_drift(phase_frame='gcrs', use_mwatools_phasing=True)
+    uvd2_drift_antpos = copy.deepcopy(uvd2)
+    uvd2_drift_antpos.unphase_to_drift(phase_frame='gcrs', use_mwatools_phasing=False, use_ant_pos=True)
+
+    # the tolerances here are empirical
+    nt.assert_true(np.allclose(uvd1_drift.uvw_array, uvd1_drift_mwatools.uvw_array, atol=3e-3))
+    nt.assert_true(np.allclose(uvd2_drift.uvw_array, uvd2_drift_mwatools.uvw_array, atol=3e-3))
+    nt.assert_true(np.allclose(uvd1_drift.uvw_array, uvd2_drift.uvw_array, atol=2e-2))
+    nt.assert_true(np.allclose(uvd1_drift_mwatools.uvw_array, uvd2_drift_mwatools.uvw_array, atol=2e-2))
+    nt.assert_true(np.allclose(uvd1_drift_antpos.uvw_array, uvd2_drift_antpos.uvw_array))
+
+    uvd2_rephase = copy.deepcopy(uvd2_drift)
+    uvd2_rephase.phase(uvd1.phase_center_ra,
+                       uvd1.phase_center_dec,
+                       uvd1.phase_center_epoch,
+                       phase_frame='gcrs', use_mwatools_phasing=False)
+    uvd2_rephase_mwatools = copy.deepcopy(uvd2_drift_mwatools)
+    uvd2_rephase_mwatools.phase(uvd1.phase_center_ra,
+                                uvd1.phase_center_dec,
+                                uvd1.phase_center_epoch,
+                                phase_frame='gcrs', use_mwatools_phasing=True)
+    uvd2_rephase_antpos = copy.deepcopy(uvd2_drift_antpos)
+    uvd2_rephase_antpos.phase(uvd1.phase_center_ra,
+                              uvd1.phase_center_dec,
+                              uvd1.phase_center_epoch,
+                              phase_frame='gcrs', use_mwatools_phasing=True, use_ant_pos=True)
+
+    # the tolerances here are empirical
+    nt.assert_true(np.allclose(uvd1.uvw_array, uvd2_rephase.uvw_array, atol=2e-2))
+    nt.assert_true(np.allclose(uvd1.uvw_array, uvd2_rephase_mwatools.uvw_array, atol=2e-2))
+    nt.assert_true(np.allclose(uvd1.uvw_array, uvd2_rephase_antpos.uvw_array, atol=3e-3))
+
+
 def test_set_phase_unknown():
     uv_object = UVData()
     testfile = os.path.join(
