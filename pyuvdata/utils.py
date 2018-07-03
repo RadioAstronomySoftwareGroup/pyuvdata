@@ -239,64 +239,6 @@ def ECEF_from_ENU(enu, latitude, longitude, altitude):
     return xyz
 
 
-def mwatools_calcuvw(ha, dec, xyz):
-    """
-    This code expects relative xyz locations rotated so the x-axis goes through
-    the local meridian in the same frame that ra/dec are in (e.g. icrs or gcrs)
-    and returns uvws.
-
-    Args:
-        ra: right ascension to phase to in desired frame
-        dec: declination to phase to in desired frame
-        xyz: locations relative to the array center & rotated so that the
-            x-axis goes through the local meridian in desired frame
-
-    Returns:
-        uvw array in the same frame as ra and dec
-    """
-    if xyz.ndim == 1:
-        xyz = xyz[np.newaxis, :]
-
-    sh = np.sin(ha)
-    sd = np.sin(dec)
-    ch = np.cos(ha)
-    cd = np.cos(dec)
-
-    u = sh * xyz[:, 0] + ch * xyz[:, 1]
-    v = -sd * ch * xyz[:, 0] + sd * sh * xyz[:, 1] + cd * xyz[:, 2]
-    w = cd * ch * xyz[:, 0] - cd * sh * xyz[:, 1] + sd * xyz[:, 2]
-    return np.array([u, v, w]).T
-
-
-def mwatools_calcuvw_unphase(ha, dec, uvw):
-    """
-    This code expects uvws in the same frame that ra/dec are in (e.g. icrs or gcrs)
-    and returns relative xyz locations rotated so the x-axis goes through
-    the local meridian.
-
-    Args:
-        ra: right ascension to phase to in desired frame
-        dec: declination to phase to in desired frame
-        uvw: phased uvw values
-
-    Returns:
-        xyz locations rotated so the x-axis goes through the local meridian
-        in the same frame as the uvws, ra and dec
-    """
-    if uvw.ndim == 1:
-        uvw = uvw[np.newaxis, :]
-
-    sh = np.sin(ha)
-    sd = np.sin(dec)
-    ch = np.cos(ha)
-    cd = np.cos(dec)
-
-    x = sh * uvw[:, 0] - sd * ch * uvw[:, 1] + cd * ch * uvw[:, 2]
-    y = ch * uvw[:, 0] + sd * sh * uvw[:, 1] - cd * sh * uvw[:, 2]
-    z = cd * uvw[:, 1] + sd * uvw[:, 2]
-    return np.array([x, y, z]).T
-
-
 def phase_uvw(ra, dec, xyz):
     """
     This code expects relative xyz locations in the same frame
