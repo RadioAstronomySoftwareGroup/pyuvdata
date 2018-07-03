@@ -603,23 +603,11 @@ class UVData(UVBase):
         phs = np.exp(-1j * 2 * np.pi * (-1) * w_lambda[:, None, :, None])
         self.data_array *= phs
 
-        telescope_location = EarthLocation.from_geocentric(self.telescope_location[0],
-                                                           self.telescope_location[1],
-                                                           self.telescope_location[2],
-                                                           unit='m')
-
         unique_times, unique_inds = np.unique(self.time_array, return_index=True)
         for ind, jd in enumerate(unique_times):
             inds = np.where(self.time_array == jd)[0]
 
             obs_time = Time(jd, format='jd')
-
-            zenith_coord = SkyCoord(alt=Angle(90 * units.deg), az=Angle(0 * units.deg),
-                                    obstime=obs_time, frame='altaz',
-                                    location=telescope_location)
-            frame_zenith = zenith_coord.transform_to(phase_frame)
-
-            frame_ha = Longitude(frame_zenith.ra - frame_phase_center.ra)
 
             itrs_telescope_location = SkyCoord(x=self.telescope_location[0] * units.m,
                                                y=self.telescope_location[1] * units.m,
@@ -736,22 +724,11 @@ class UVData(UVBase):
         # add in the telescope location for ICRS
         self.uvw_array = np.float64(self.uvw_array)
 
-        telescope_location = EarthLocation.from_geocentric(self.telescope_location[0],
-                                                           self.telescope_location[1],
-                                                           self.telescope_location[2],
-                                                           unit='m')
-
         unique_times, unique_inds = np.unique(self.time_array, return_index=True)
         for ind, jd in enumerate(unique_times):
             inds = np.where(self.time_array == jd)[0]
 
             obs_time = Time(jd, format='jd')
-
-            zenith_coord = SkyCoord(alt=Angle(90 * units.deg), az=Angle(0 * units.deg),
-                                    obstime=obs_time, frame='altaz', location=telescope_location)
-            frame_zenith = zenith_coord.transform_to(phase_frame)
-
-            frame_ha = Longitude(frame_zenith.ra - frame_phase_center.ra)
 
             itrs_telescope_location = SkyCoord(x=self.telescope_location[0] * units.m,
                                                y=self.telescope_location[1] * units.m,
