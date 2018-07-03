@@ -8,7 +8,7 @@ from __future__ import absolute_import, division, print_function
 from astropy import constants as const
 import astropy.units as units
 from astropy.time import Time
-from astropy.coordinates import SkyCoord, EarthLocation, FK5, Angle, Longitude
+from astropy.coordinates import SkyCoord, EarthLocation, FK5, Angle
 import os
 import numpy as np
 import six
