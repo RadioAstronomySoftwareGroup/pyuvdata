@@ -207,11 +207,9 @@ def test_phasing_funcs():
     gcrs_from_itrs_coord = itrs_coord.transform_to('gcrs')
 
     gcrs_rel = (gcrs_from_itrs_coord.cartesian - gcrs_array_center.cartesian).get_xyz().T
-    gcrs_lat_lon_alt = uvutils.LatLonAlt_from_XYZ(gcrs_array_center.cartesian.get_xyz().value)
 
-    gcrs_rel_rot = uvutils.rotECEF_from_ECEF(gcrs_rel.value, gcrs_lat_lon_alt[1])
-
-    gcrs_uvw = uvutils.mwatools_calcuvw(ha_gcrs.rad, gcrs_coord.dec.rad, gcrs_rel_rot)
+    gcrs_uvw = uvutils.phase_uvw(gcrs_coord.ra.rad, gcrs_coord.dec.rad,
+                                 gcrs_rel.value)
 
     mwa_tools_calcuvw_u = -97.122828
     mwa_tools_calcuvw_v = 50.388281
@@ -221,18 +219,9 @@ def test_phasing_funcs():
     nt.assert_true(np.allclose(gcrs_uvw[0, 1], mwa_tools_calcuvw_v, atol=1e-3))
     nt.assert_true(np.allclose(gcrs_uvw[0, 2], mwa_tools_calcuvw_w, atol=1e-3))
 
-    # also test with simple phasing:
-    gcrs_uvw_simple = uvutils.phase_uvw(gcrs_coord.ra.rad, gcrs_coord.dec.rad,
-                                        gcrs_rel.value)
-    nt.assert_true(np.allclose(gcrs_uvw, gcrs_uvw_simple))
-
     # also test unphasing
-    temp = uvutils.mwatools_calcuvw_unphase(ha_gcrs.rad, gcrs_coord.dec.rad,
-                                            np.squeeze(gcrs_uvw))
-    nt.assert_true(np.allclose(gcrs_rel_rot, temp))
-
     temp2 = uvutils.unphase_uvw(gcrs_coord.ra.rad, gcrs_coord.dec.rad,
-                                np.squeeze(gcrs_uvw_simple))
+                                np.squeeze(gcrs_uvw))
     nt.assert_true(np.allclose(gcrs_rel.value, temp2))
 
 
