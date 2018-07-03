@@ -149,7 +149,7 @@ def test_wronglatlon():
     uvtest.checkWarnings(uv_in.read_miriad, [latfile], nwarnings=3,
                          message=['Altitude is not present in file and latitude value does not match',
                                   'This file was written with an old version of pyuvdata',
-                                  'This file was written with an old version of pyuvdata']),
+                                  'This file was written with an old version of pyuvdata'])
     uvtest.checkWarnings(uv_in.read_miriad, [lonfile], nwarnings=3,
                          message=['Altitude is not present in file and longitude value does not match',
                                   'This file was written with an old version of pyuvdata',
