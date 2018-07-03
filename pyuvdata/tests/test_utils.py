@@ -9,7 +9,7 @@ import os
 import nose.tools as nt
 from astropy import units
 from astropy.time import Time
-from astropy.coordinates import SkyCoord, Angle, EarthLocation, Longitude
+from astropy.coordinates import SkyCoord, Angle
 import pyuvdata
 import numpy as np
 from pyuvdata.data import DATA_PATH
@@ -191,17 +191,6 @@ def test_phasing_funcs():
                           z=ant_xyz_abs[2] * units.m,
                           representation='cartesian', frame='itrs',
                           obstime=obs_time)
-
-    loc_obj = EarthLocation.from_geocentric(array_center_xyz[0],
-                                            array_center_xyz[1],
-                                            array_center_xyz[2],
-                                            unit='m')
-
-    zenith_coord = SkyCoord(alt=Angle(90 * units.deg), az=Angle(0 * units.deg),
-                            obstime=obs_time, frame='altaz', location=loc_obj)
-    gcrs_zenith = zenith_coord.transform_to('gcrs')
-
-    ha_gcrs = Longitude(gcrs_zenith.ra - gcrs_coord.ra)
 
     gcrs_array_center = array_center_coord.transform_to('gcrs')
     gcrs_from_itrs_coord = itrs_coord.transform_to('gcrs')
