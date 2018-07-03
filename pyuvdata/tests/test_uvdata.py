@@ -465,6 +465,8 @@ def test_phasing():
     uvd1_drift_mwatools.unphase_to_drift(phase_frame='gcrs', use_mwatools_phasing=True)
     uvd1_drift_antpos = copy.deepcopy(uvd1)
     uvd1_drift_antpos.unphase_to_drift(phase_frame='gcrs', use_mwatools_phasing=False, use_ant_pos=True)
+    uvd1_drift_antpos_mwatools = copy.deepcopy(uvd1)
+    uvd1_drift_antpos_mwatools.unphase_to_drift(phase_frame='gcrs', use_mwatools_phasing=True, use_ant_pos=True)
 
     uvd2_drift = copy.deepcopy(uvd2)
     uvd2_drift.unphase_to_drift(phase_frame='gcrs', use_mwatools_phasing=False)
@@ -472,6 +474,8 @@ def test_phasing():
     uvd2_drift_mwatools.unphase_to_drift(phase_frame='gcrs', use_mwatools_phasing=True)
     uvd2_drift_antpos = copy.deepcopy(uvd2)
     uvd2_drift_antpos.unphase_to_drift(phase_frame='gcrs', use_mwatools_phasing=False, use_ant_pos=True)
+    uvd2_drift_antpos_mwatools = copy.deepcopy(uvd2)
+    uvd2_drift_antpos_mwatools.unphase_to_drift(phase_frame='gcrs', use_mwatools_phasing=True, use_ant_pos=True)
 
     # the tolerances here are empirical
     nt.assert_true(np.allclose(uvd1_drift.uvw_array, uvd1_drift_mwatools.uvw_array, atol=3e-3))
@@ -479,6 +483,7 @@ def test_phasing():
     nt.assert_true(np.allclose(uvd1_drift.uvw_array, uvd2_drift.uvw_array, atol=2e-2))
     nt.assert_true(np.allclose(uvd1_drift_mwatools.uvw_array, uvd2_drift_mwatools.uvw_array, atol=2e-2))
     nt.assert_true(np.allclose(uvd1_drift_antpos.uvw_array, uvd2_drift_antpos.uvw_array))
+    nt.assert_true(np.allclose(uvd1_drift_antpos_mwatools.uvw_array, uvd2_drift_antpos_mwatools.uvw_array))
 
     uvd2_rephase = copy.deepcopy(uvd2_drift)
     uvd2_rephase.phase(uvd1.phase_center_ra,
@@ -494,12 +499,60 @@ def test_phasing():
     uvd2_rephase_antpos.phase(uvd1.phase_center_ra,
                               uvd1.phase_center_dec,
                               uvd1.phase_center_epoch,
-                              phase_frame='gcrs', use_mwatools_phasing=True, use_ant_pos=True)
+                              phase_frame='gcrs', use_mwatools_phasing=False,
+                              use_ant_pos=True)
+
+    uvd2_rephase_antpos_mwatools = copy.deepcopy(uvd2_drift_antpos)
+    uvd2_rephase_antpos_mwatools.phase(uvd1.phase_center_ra,
+                                       uvd1.phase_center_dec,
+                                       uvd1.phase_center_epoch,
+                                       phase_frame='gcrs', use_mwatools_phasing=True,
+                                       use_ant_pos=True)
 
     # the tolerances here are empirical
     nt.assert_true(np.allclose(uvd1.uvw_array, uvd2_rephase.uvw_array, atol=2e-2))
     nt.assert_true(np.allclose(uvd1.uvw_array, uvd2_rephase_mwatools.uvw_array, atol=2e-2))
-    nt.assert_true(np.allclose(uvd1.uvw_array, uvd2_rephase_antpos.uvw_array, atol=3e-3))
+    nt.assert_true(np.allclose(uvd1.uvw_array, uvd2_rephase_antpos.uvw_array, atol=5e-3))
+    nt.assert_true(np.allclose(uvd1.uvw_array, uvd2_rephase_antpos_mwatools.uvw_array, atol=5e-3))
+
+    # rephase the drift objects to the original pointing and verify that they match
+    uvd1_drift.phase(uvd1.phase_center_ra, uvd1.phase_center_dec,
+                     uvd1.phase_center_epoch, phase_frame='gcrs',
+                     use_mwatools_phasing=False)
+    uvd1_drift_mwatools.phase(uvd1.phase_center_ra, uvd1.phase_center_dec,
+                              uvd1.phase_center_epoch, phase_frame='gcrs',
+                              use_mwatools_phasing=True)
+    uvd1_drift_antpos.phase(uvd1.phase_center_ra, uvd1.phase_center_dec,
+                            uvd1.phase_center_epoch, phase_frame='gcrs',
+                            use_mwatools_phasing=False, use_ant_pos=True)
+    uvd1_drift_antpos_mwatools.phase(uvd1.phase_center_ra, uvd1.phase_center_dec,
+                                     uvd1.phase_center_epoch, phase_frame='gcrs',
+                                     use_mwatools_phasing=True, use_ant_pos=True)
+
+    # the tolerances here are empirical
+    nt.assert_true(np.allclose(uvd1.uvw_array, uvd1_drift.uvw_array, atol=1e-4))
+    nt.assert_true(np.allclose(uvd1.uvw_array, uvd1_drift_mwatools.uvw_array, atol=1e-4))
+    nt.assert_true(np.allclose(uvd1.uvw_array, uvd1_drift_antpos.uvw_array, atol=5e-3))
+    nt.assert_true(np.allclose(uvd1.uvw_array, uvd1_drift_antpos_mwatools.uvw_array, atol=5e-3))
+
+    uvd2_drift.phase(uvd2.phase_center_ra, uvd2.phase_center_dec,
+                     uvd2.phase_center_epoch, phase_frame='gcrs',
+                     use_mwatools_phasing=False)
+    uvd2_drift_mwatools.phase(uvd2.phase_center_ra, uvd2.phase_center_dec,
+                              uvd2.phase_center_epoch, phase_frame='gcrs',
+                              use_mwatools_phasing=True)
+    uvd2_drift_antpos.phase(uvd2.phase_center_ra, uvd2.phase_center_dec,
+                            uvd2.phase_center_epoch, phase_frame='gcrs',
+                            use_mwatools_phasing=False, use_ant_pos=True)
+    uvd2_drift_antpos_mwatools.phase(uvd2.phase_center_ra, uvd2.phase_center_dec,
+                                     uvd2.phase_center_epoch, phase_frame='gcrs',
+                                     use_mwatools_phasing=True, use_ant_pos=True)
+
+    # the tolerances here are empirical
+    nt.assert_true(np.allclose(uvd2.uvw_array, uvd2_drift.uvw_array, atol=1e-4))
+    nt.assert_true(np.allclose(uvd2.uvw_array, uvd2_drift_mwatools.uvw_array, atol=1e-4))
+    nt.assert_true(np.allclose(uvd2.uvw_array, uvd2_drift_antpos.uvw_array, atol=2e-2))
+    nt.assert_true(np.allclose(uvd2.uvw_array, uvd2_drift_antpos_mwatools.uvw_array, atol=2e-2))
 
 
 def test_set_phase_unknown():
