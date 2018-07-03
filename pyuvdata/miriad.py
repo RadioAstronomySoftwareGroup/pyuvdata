@@ -488,7 +488,9 @@ class Miriad(UVData):
             # Note, this should be done in the TEE frame, which isn't supported by astropy
             # Frame doesn't really matter, though, because this is just geometrical, so use icrs
             pointing_coords = SkyCoord(ra=ra_list, dec=dec_list, unit='radian', frame='icrs')
-            zenith_coord = SkyCoord(ra=self.lst_array, dec=latitude, unit='radian', frame='icrs')
+            zenith_coord = SkyCoord(ra=self.lst_array,
+                                    dec=self.telescope_location_lat_lon_alt[0],
+                                    unit='radian', frame='icrs')
 
             separation_angles = pointing_coords.separation(zenith_coord)
             acceptable_offset = Angle('1d')
