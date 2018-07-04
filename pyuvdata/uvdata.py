@@ -786,8 +786,10 @@ class UVData(UVBase):
             this = copy.deepcopy(self)
         # Check that both objects are UVData and valid
         this.check(check_extra=check_extra, run_check_acceptability=run_check_acceptability)
-        if not isinstance(other, this.__class__):
-            raise ValueError('Only UVData objects can be added to a UVData object')
+        if not issubclass(other.__class__, this.__class__):
+            if not issubclass(this.__class__, other.__class__):
+                raise ValueError('Only UVData (or subclass) objects can be '
+                                 'added to a UVData (or subclass) object')
         other.check(check_extra=check_extra, run_check_acceptability=run_check_acceptability)
 
         # Check objects are compatible
