@@ -353,7 +353,6 @@ def get_lst_for_time(jd_array, latitude, longitude, altitude):
         an array of lst times corresponding to the jd_array
     """
     lsts = []
-    curtime = jd_array[0]
     lst_array = np.zeros_like(jd_array)
     for ind, jd in enumerate(np.unique(jd_array)):
         t = Time(jd, format='jd', location=(longitude, latitude))

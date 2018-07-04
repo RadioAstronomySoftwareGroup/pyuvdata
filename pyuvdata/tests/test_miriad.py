@@ -802,22 +802,6 @@ def test_rwrMiriad_antpos_issues():
     nt.assert_equal(uv_in, uv_out)
 
 
-'''
-This test is commented out since we no longer believe AIPY phases correctly
-to the astrometric ra/dec.  Hopefully we can reinstitute it one day.
-def test_ReadMiriadPhase():
-    unphasedfile = os.path.join(DATA_PATH, 'new.uvA')
-    phasedfile = os.path.join(DATA_PATH, 'new.uvA.phased')
-    unphased_uv = UVData()
-    phased_uv = UVData()
-    # test that phasing makes files equal
-    uvtest.checkWarnings(unphased.read, [unphasedfile, 'miriad'], known_warning='miriad')
-    unphased.phase(ra=0.0, dec=0.0, epoch='J2000')
-    uvtest.checkWarnings(phased.read, [phasedfile, 'miriad'], known_warning='miriad')
-    nt.assert_equal(unphased, phased)
-'''
-
-
 def test_multi_files():
     """
     Reading multiple files at once.
