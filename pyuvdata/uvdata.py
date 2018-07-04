@@ -1017,6 +1017,7 @@ class UVData(UVBase):
         # test for blt_inds presence before adding inds from antennas & times
         if blt_inds is not None:
             blt_inds = uvutils.get_iterable(blt_inds)
+            assert(np.array(blt_inds).ndim == 1)
             history_update_string += 'baseline-times'
             n_selects += 1
 
@@ -1025,17 +1026,20 @@ class UVData(UVBase):
                 raise ValueError(
                     'Only one of antenna_nums and antenna_names can be provided.')
 
-            antenna_names = uvutils.get_iterable(antenna_names)
+            if not isinstance(antenna_names, (list, tuple, np.ndarray)):
+                antenna_names = (antenna_names,)
+            assert(np.array(antenna_names).ndim == 1)
             antenna_nums = []
             for s in antenna_names:
                 if s not in self.antenna_names:
                     raise ValueError(
                         'Antenna name {a} is not present in the antenna_names array'.format(a=s))
                 antenna_nums.append(self.antenna_numbers[np.where(
-                    np.array(self.antenna_names) == s)[0]])
+                    np.array(self.antenna_names) == s)][0])
 
         if antenna_nums is not None:
             antenna_nums = uvutils.get_iterable(antenna_nums)
+            assert(np.array(antenna_nums).ndim == 1)
             if n_selects > 0:
                 history_update_string += ', antennas'
             else:
@@ -1128,6 +1132,7 @@ class UVData(UVBase):
 
         if times is not None:
             times = uvutils.get_iterable(times)
+            assert(np.array(times).ndim == 1)
             if n_selects > 0:
                 history_update_string += ', times'
             else:
@@ -1165,6 +1170,7 @@ class UVData(UVBase):
 
         if freq_chans is not None:
             freq_chans = uvutils.get_iterable(freq_chans)
+            assert(np.array(freq_chans).ndim == 1)
             if frequencies is None:
                 frequencies = self.freq_array[0, freq_chans]
             else:
@@ -1174,6 +1180,7 @@ class UVData(UVBase):
 
         if frequencies is not None:
             frequencies = uvutils.get_iterable(frequencies)
+            assert(np.array(frequencies).ndim == 1)
             if n_selects > 0:
                 history_update_string += ', frequencies'
             else:
@@ -1208,6 +1215,7 @@ class UVData(UVBase):
 
         if polarizations is not None:
             polarizations = uvutils.get_iterable(polarizations)
+            assert(np.array(polarizations).ndim == 1)
             if n_selects > 0:
                 history_update_string += ', polarizations'
             else:
