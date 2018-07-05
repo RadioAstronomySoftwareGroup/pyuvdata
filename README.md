@@ -18,7 +18,7 @@ pyuvdata has three major user classes:
 
 * UVData: supports interferometric data (visibilities) and associated metadata
 * UVCal: supports interferometric calibration solutions (antenna-based) and associated metadata (Note that this is a fairly new object, consider it to be a beta version)
-* UVBeam: supports primary beams (E-field or power) and associated metadata (Note that this is a new object and is very experimental)
+* UVBeam: supports primary beams (E-field or power) and associated metadata (Note that this is a new object and is very experimental, consider it to be an alpha version)
 
 ## UVData Tested File Paths
 * uvfits -> miriad
@@ -35,7 +35,7 @@ pyuvdata has three major user classes:
 ## UVData File standard notes
 * miriad is supported for aipy-style analysis, further testing is required for use in the miriad package
 * uvfits conforms to AIPS memo 117 (as of May 2015).  It is tested against FHD, CASA, and AIPS. However AIPS is limited to <80 antennas and CASA imaging does not seem to support >255 antennas.
-* uvh5 is an HDF5-based file format defined by the HERA collaboration, and is defined by a memo (coming soon).
+* uvh5 is an HDF5-based file format defined by the HERA collaboration, and will be defined by a memo (coming soon). Note that this is a new format and is very experimental, consider it to be an alpha version.
 * FHD (read-only support, tested against MWA and PAPER data)
 * CASA measurement sets (read-only support)
 
@@ -48,14 +48,18 @@ pyuvdata has three major user classes:
 * non-standard HEALPix fits for both E-field and power beams (in an ImageHDU rather than a binary table to support frequency, polarization and E-field vector axes)
 * read support for CST beam text files
 
+## Under Development
+* UVData: uvh5 file format (alpha version)
+* UVData: phasing was recently updated to use astropy. It has been tested against MWA files and matches to better than 2 cm (5mm if starting from antenna positions rather than the uvws.)
+* UVCal: object and calfits file format (beta version)
+* UVBeam: object and beamfits file format (alpha version)
+
 ## Known Issues and Planned Improvements
 * UVData: different multiple spectral windows or multiple sources are not currently supported
-* UVData: testing against miriad package
+* UVData: testing against miriad package (not just aipy derived data sets)
 * UVData: add support for writing CASA measurement sets
-* UVData: phasing is tested to a part in 10^3, and assumes planar array. Improvements are tracked on Issue \#148.
-* UVCal: expand support for calibration solutions: support other formats beyond FITS
-* UVBeam: support reading HFSS beam model file formats
 * UVBeam: support reading/writing/combining standard HEALPix FITs files (individual files per frequency, polarization and E-field vector)
+* UVBeam: support phased-array antenna beams.
 
 For details see the [issue log](https://github.com/HERA-Team/pyuvdata/issues).
 
