@@ -697,7 +697,7 @@ def test_readWriteReadMiriad():
 
     # try metadata only read
     uv_in = UVData()
-    uv_in.read_miriad_metadata(testfile)
+    uv_in.read_miriad(testfile, read_data=False)
     nt.assert_equal(uv_in.time_array, None)
     nt.assert_equal(uv_in.data_array, None)
     metadata = ['antenna_positions', 'antenna_names', 'antenna_positions', 'channel_width',
@@ -708,11 +708,11 @@ def test_readWriteReadMiriad():
     # test exceptions
     # multiple file read-in
     uv_in = UVData()
-    nt.assert_raises(ValueError, uv_in.read_miriad_metadata, [testfile, testfile])
+    nt.assert_raises(ValueError, uv_in.read_miriad, [testfile, testfile], read_data=False)
     # read-in when data already exists
     uv_in = UVData()
     uv_in.read_miriad(testfile)
-    nt.assert_raises(ValueError, uv_in.read_miriad_metadata, testfile)
+    nt.assert_raises(ValueError, uv_in.read_miriad, testfile, read_data=False)
 
     # test load_telescope_coords w/ blank Miriad
     uv_in = Miriad()

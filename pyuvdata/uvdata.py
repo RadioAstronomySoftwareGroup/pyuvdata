@@ -1492,102 +1492,74 @@ class UVData(UVBase):
                     self += uv2
                 del(uv2)
         else:
-            uvfits_obj = uvfits.UVFITS()
-            uvfits_obj.read_uvfits(filename, antenna_nums=antenna_nums,
-                                   antenna_names=antenna_names, ant_str=ant_str,
-                                   bls=bls, frequencies=frequencies,
-                                   freq_chans=freq_chans, times=times,
-                                   polarizations=polarizations, blt_inds=blt_inds,
-                                   read_data=read_data, read_metadata=read_metadata,
-                                   run_check=run_check, check_extra=check_extra,
-                                   run_check_acceptability=run_check_acceptability)
-            self._convert_from_filetype(uvfits_obj)
-            del(uvfits_obj)
+            # work out what function should be called depending on what's
+            # already defined on the object
+            if self.freq_array is not None:
+                hdr_read = True
+            else:
+                hdr_read = False
+            if self.data_array is not None:
+                data_read = True
+            else:
+                data_read = False
 
-    def read_uvfits_metadata(self, filename):
-        """
-        Read in metadata (random parameter info) but not data from a uvfits file
-        (useful for an object that already has the associated header info and
-        full visibility data isn't needed).
+            if not read_data and not read_metadata:
+                # not reading data or metadata, use read_uvfits to get header
+                func = 'read_uvfits'
+            elif not read_data:
+                # reading metadata but not data
+                if hdr_read:
+                    # header already read, use read_uvfits_metadata
+                    # (which will error if the data have already been read)
+                    func = 'read_uvfits_metadata'
+                else:
+                    # header not read, use read_uvfits
+                    func = 'read_uvfits'
+            else:
+                # reading data
+                if hdr_read and not data_read:
+                    # header already read, data not read, use read_uvfits_data
+                    # (which will read metadata if it doesn't exist)
+                    func = 'read_uvfits_data'
+                else:
+                    # header not read or object already fully defined,
+                    # use read_uvfits to get a new object
+                    func = 'read_uvfits'
 
-        Args:
-            filename: The uvfits file to read from.
-        """
-        from . import uvfits
-        if isinstance(filename, (list, tuple)):
-            raise ValueError('A list of files cannot be used when just reading metadata')
+            if func == 'read_uvfits':
+                uvfits_obj = uvfits.UVFITS()
+                uvfits_obj.read_uvfits(filename, antenna_nums=antenna_nums,
+                                       antenna_names=antenna_names, ant_str=ant_str,
+                                       bls=bls, frequencies=frequencies,
+                                       freq_chans=freq_chans, times=times,
+                                       polarizations=polarizations, blt_inds=blt_inds,
+                                       read_data=read_data, read_metadata=read_metadata,
+                                       run_check=run_check, check_extra=check_extra,
+                                       run_check_acceptability=run_check_acceptability)
+                self._convert_from_filetype(uvfits_obj)
+                del(uvfits_obj)
+            elif func == 'read_uvfits_metadata':
+                if isinstance(filename, (list, tuple)):
+                    raise ValueError('A list of files cannot be used when just reading metadata')
 
-        uvfits_obj = self._convert_to_filetype('uvfits')
-        uvfits_obj.read_uvfits_metadata(filename)
-        self._convert_from_filetype(uvfits_obj)
-        del(uvfits_obj)
+                uvfits_obj = self._convert_to_filetype('uvfits')
+                uvfits_obj.read_uvfits_metadata(filename)
+                self._convert_from_filetype(uvfits_obj)
+                del(uvfits_obj)
+            elif func == 'read_uvfits_data':
+                if isinstance(filename, (list, tuple)):
+                    raise ValueError('A list of files cannot be used when just reading data')
 
-    def read_uvfits_data(self, filename, antenna_nums=None, antenna_names=None,
-                         ant_str=None, bls=None, frequencies=None,
-                         freq_chans=None, times=None, polarizations=None,
-                         blt_inds=None, run_check=True, check_extra=True,
-                         run_check_acceptability=True):
-        """
-        Read in data but not header info from a uvfits file
-        (useful for an object that already has the associated header info).
-
-        Args:
-            filename: The uvfits file
-            antenna_nums: The antennas numbers to include when reading data into
-                the object (antenna positions and names for the excluded antennas
-                will be retained). This cannot be provided if antenna_names is
-                also provided.
-            antenna_names: The antennas names to include when reading data into
-                the object (antenna positions and names for the excluded antennas
-                will be retained). This cannot be provided if antenna_nums is
-                also provided.
-            bls: A list of antenna number tuples (e.g. [(0,1), (3,2)]) or a list of
-                baseline 3-tuples (e.g. [(0,1,'xx'), (2,3,'yy')]) specifying baselines
-                to keep in the object. For length-2 tuples, the  ordering of the numbers
-                within the tuple does not matter. For length-3 tuples, the polarization
-                string is in the order of the two antennas. If length-3 tuples are
-                provided, the polarizations argument below must be None.
-            ant_str: A string containing information about what antenna numbers
-                and polarizations to include when reading data into the object.
-                Can be 'auto', 'cross', 'all', or combinations of antenna numbers
-                and polarizations (e.g. '1', '1_2', '1x_2y').
-                See tutorial for more examples of valid strings and
-                the behavior of different forms for ant_str.
-                If '1x_2y,2y_3y' is passed, both polarizations 'xy' and 'yy' will
-                be kept for both baselines (1,2) and (2,3) to return a valid
-                pyuvdata object.
-                An ant_str cannot be passed in addition to any of the above antenna
-                args or the polarizations arg.
-            frequencies: The frequencies to include when reading data into the
-                object.
-            freq_chans: The frequency channel numbers to include when reading
-                data into the object.
-            times: The times to include when reading data into the object.
-            polarizations: The polarizations to include when reading data into
-                the object.
-            blt_inds: The baseline-time indices to include when reading data into
-                the object. This is not commonly used.
-            run_check: Option to check for the existence and proper shapes of
-                parameters after reading in the file. Default is True.
-            check_extra: Option to check optional parameters as well as required
-                ones. Default is True.
-            run_check_acceptability: Option to check acceptable range of the values of
-                parameters after reading in the file. Default is True.
-        """
-        from . import uvfits
-        if isinstance(filename, (list, tuple)):
-            raise ValueError('A list of files cannot be used when just reading data')
-
-        uvfits_obj = self._convert_to_filetype('uvfits')
-        uvfits_obj.read_uvfits_data(filename, antenna_nums=antenna_nums,
-                                    antenna_names=antenna_names, ant_str=ant_str,
-                                    bls=bls, frequencies=frequencies,
-                                    freq_chans=freq_chans, times=times,
-                                    polarizations=polarizations, blt_inds=blt_inds,
-                                    run_check=run_check, check_extra=check_extra,
-                                    run_check_acceptability=run_check_acceptability)
-        self._convert_from_filetype(uvfits_obj)
-        del(uvfits_obj)
+                uvfits_obj = self._convert_to_filetype('uvfits')
+                uvfits_obj.read_uvfits_data(filename, antenna_nums=antenna_nums,
+                                            antenna_names=antenna_names, ant_str=ant_str,
+                                            bls=bls, frequencies=frequencies,
+                                            freq_chans=freq_chans, times=times,
+                                            polarizations=polarizations, blt_inds=blt_inds,
+                                            run_check=run_check, check_extra=check_extra,
+                                            run_check_acceptability=run_check_acceptability)
+                self._convert_from_filetype(uvfits_obj)
+                del(uvfits_obj)
 
     def write_uvfits(self, filename, spoof_nonessential=False,
                      force_phase=False, run_check=True, check_extra=True,
@@ -1706,23 +1678,15 @@ class UVData(UVBase):
             self._convert_from_filetype(fhd_obj)
             del(fhd_obj)
 
-    def read_miriad(self, filepath, correct_lat_lon=True, run_check=True,
-                    check_extra=True, run_check_acceptability=True, phase_type=None,
-                    antenna_nums=None, ant_str=None, bls=None,
-                    polarizations=None, time_range=None):
+    def read_miriad(self, filepath, antenna_nums=None, ant_str=None, bls=None,
+                    polarizations=None, time_range=None, read_data=True,
+                    phase_type=None, correct_lat_lon=True, run_check=True,
+                    check_extra=True, run_check_acceptability=True):
         """
         Read in data from a miriad file.
 
         Args:
             filepath: The miriad file directory or list of directories to read from.
-            correct_lat_lon: flag -- that only matters if altitude is missing --
-                to update the latitude and longitude from the known_telescopes list
-            run_check: Option to check for the existence and proper shapes of
-                parameters after reading in the file. Default is True.
-            check_extra: Option to check optional parameters as well as required
-                ones. Default is True.
-            run_check_acceptability: Option to check acceptable range of the values of
-                parameters after reading in the file. Default is True.
             antenna_nums: The antennas numbers to read into the object.
             bls: A list of antenna number tuples (e.g. [(0,1), (3,2)]) or a list of
                 baseline 3-tuples (e.g. [(0,1,'xx'), (2,3,'yy')]) specifying baselines
@@ -1737,6 +1701,21 @@ class UVData(UVBase):
                 Ex: ['xx', 'yy', ...]
             time_range: len-2 list containing min and max range of times (Julian Date) to read-in.
                 Ex: [2458115.20, 2458115.40]
+            read_data: Read in the visibility and flag data. If set to false,
+                only the basic header info and metadata (if read_metadata is True)
+                will be read in. Results in an incompletely defined object
+                (check will not pass). Default True.
+            phase_type: Either 'drift' meaning zenith drift, 'phased' meaning
+                the data are phased to a single RA/Dec or None and it will be
+                guessed at based on the file. Default None.
+            correct_lat_lon: flag -- that only matters if altitude is missing --
+                to update the latitude and longitude from the known_telescopes list
+            run_check: Option to check for the existence and proper shapes of
+                parameters after reading in the file. Default is True.
+            check_extra: Option to check optional parameters as well as required
+                ones. Default is True.
+            run_check_acceptability: Option to check acceptable range of the values of
+                parameters after reading in the file. Default is True.
         """
         from . import miriad
         if isinstance(filepath, (list, tuple)):
@@ -1758,33 +1737,27 @@ class UVData(UVBase):
                     self += uv2
                 del(uv2)
         else:
-            miriad_obj = miriad.Miriad()
-            miriad_obj.read_miriad(filepath, correct_lat_lon=correct_lat_lon,
-                                   run_check=run_check, check_extra=check_extra,
-                                   run_check_acceptability=run_check_acceptability,
-                                   phase_type=phase_type, antenna_nums=antenna_nums,
-                                   ant_str=ant_str, bls=bls,
-                                   polarizations=polarizations, time_range=time_range)
-            self._convert_from_filetype(miriad_obj)
-            del(miriad_obj)
+            # work out what function should be called
+            if read_data:
+                # reading data, use read_miriad
+                miriad_obj = miriad.Miriad()
+                miriad_obj.read_miriad(filepath, correct_lat_lon=correct_lat_lon,
+                                       run_check=run_check, check_extra=check_extra,
+                                       run_check_acceptability=run_check_acceptability,
+                                       phase_type=phase_type, antenna_nums=antenna_nums,
+                                       ant_str=ant_str, bls=bls,
+                                       polarizations=polarizations, time_range=time_range)
+                self._convert_from_filetype(miriad_obj)
+                del(miriad_obj)
+            else:
+                # not reading data. Will error if data_array is already defined.
+                if isinstance(filepath, (list, tuple)):
+                    raise ValueError('A list of files cannot be used when just reading metadata')
 
-    def read_miriad_metadata(self, filename, correct_lat_lon=True):
-        """
-        Read in metadata (random parameter info) but not data from a miriad file.
-
-        Args:
-            filename: The miriad file to read from.
-            correct_lat_lon: flag -- that only matters if altitude is missing --
-                to update the latitude and longitude from the known_telescopes list
-        """
-        from . import miriad
-        if isinstance(filename, (list, tuple)):
-            raise ValueError('A list of files cannot be used when just reading metadata')
-
-        miriad_obj = self._convert_to_filetype('miriad')
-        miriad_obj.read_miriad_metadata(filename, correct_lat_lon=correct_lat_lon)
-        self._convert_from_filetype(miriad_obj)
-        del(miriad_obj)
+                miriad_obj = self._convert_to_filetype('miriad')
+                miriad_obj.read_miriad_metadata(filepath, correct_lat_lon=correct_lat_lon)
+                self._convert_from_filetype(miriad_obj)
+                del(miriad_obj)
 
     def write_miriad(self, filepath, run_check=True, check_extra=True,
                      run_check_acceptability=True, clobber=False, no_antnums=False):

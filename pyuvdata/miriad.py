@@ -37,15 +37,36 @@ class Miriad(UVData):
                              "polarization_array".format(pol=pol))
         return pol_ind
 
-    def read_miriad(self, filepath, correct_lat_lon=True, run_check=True,
-                    check_extra=True, run_check_acceptability=True, phase_type=None,
-                    antenna_nums=None, ant_str=None, bls=None,
-                    polarizations=None, time_range=None):
+    def read_miriad(self, filepath, antenna_nums=None, ant_str=None, bls=None,
+                    polarizations=None, time_range=None, read_data=True,
+                    phase_type=None, correct_lat_lon=True, run_check=True,
+                    check_extra=True, run_check_acceptability=True):
         """
         Read in data from a miriad file.
 
         Args:
             filepath: The miriad file directory to read from.
+            antenna_nums: The antennas numbers to read into the object.
+            bls: A list of antenna number tuples (e.g. [(0,1), (3,2)]) or a list of
+                baseline 3-tuples (e.g. [(0,1,'xx'), (2,3,'yy')]) specifying baselines
+                to keep in the object. For length-2 tuples, the  ordering of the numbers
+                within the tuple does not matter. For length-3 tuples, the polarization
+                string is in the order of the two antennas. If length-3 tuples are
+                provided, the polarizations argument below must be None.
+            ant_str: A string containing information about what kinds of visibility data
+                to read-in.  Can be 'auto', 'cross', 'all'. Cannot provide ant_str if
+                antenna_nums and/or bls is not None.
+            polarizations: List of polarization integers or strings to read-in.
+                Ex: ['xx', 'yy', ...]
+            time_range: len-2 list containing min and max range of times (Julian Date) to read-in.
+                Ex: [2458115.20, 2458115.40]
+            read_data: Read in the visibility and flag data. If set to false,
+                only the basic header info and metadata (if read_metadata is True)
+                will be read in. Results in an incompletely defined object
+                (check will not pass). Default True.
+            phase_type: Either 'drift' meaning zenith drift, 'phased' meaning
+                the data are phased to a single RA/Dec or None and it will be
+                guessed at based on the file. Default None.
             correct_lat_lon: flag -- that only matters if altitude is missing --
                 to update the latitude and longitude from the known_telescopes list
             run_check: Option to check for the existence and proper shapes of
@@ -54,20 +75,6 @@ class Miriad(UVData):
                 ones. Default is True.
             run_check_acceptability: Option to check acceptable range of the values of
                 parameters after reading in the file. Default is True.
-            antenna_nums: The antennas numbers to only read into the object.
-            bls: A list of antenna number tuples (e.g. [(0,1), (3,2)]) or a list of
-                baseline 3-tuples (e.g. [(0,1,'xx'), (2,3,'yy')]) specifying baselines
-                to keep in the object. For length-2 tuples, the  ordering of the numbers
-                within the tuple does not matter. For length-3 tuples, the polarization
-                string is in the order of the two antennas. If length-3 tuples are provided,
-                the polarizations argument below must be None.
-            ant_str: A string containing information about what kinds of visibility data
-                to read-in.  Can be 'auto', 'cross', 'all'. Cannot provide ant_str if
-                antenna_nums and/or bls is not None.
-            polarizations: List of polarization integers or strings to read-in.
-                Ex: ['xx', 'yy', ...]
-            time_range: len-2 list containing min and max range of times (Julian Date) to read-in.
-                Ex: [2458115.20, 2458115.40]
         """
         if not os.path.exists(filepath):
             raise IOError(filepath + ' not found')
