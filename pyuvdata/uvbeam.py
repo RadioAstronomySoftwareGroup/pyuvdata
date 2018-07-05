@@ -1015,8 +1015,10 @@ class UVBeam(UVBase):
             this = copy.deepcopy(self)
         # Check that both objects are UVBeam and valid
         this.check(check_extra=check_extra, run_check_acceptability=False)
-        if not isinstance(other, this.__class__):
-            raise ValueError('Only UVBeam objects can be added to a UVBeam object')
+        if not issubclass(other.__class__, this.__class__):
+            if not issubclass(this.__class__, other.__class__):
+                raise ValueError('Only UVBeam (or subclass) objects can be added '
+                                 'to a UVBeam (or subclass) object')
         other.check(check_extra=check_extra, run_check_acceptability=False)
 
         # Check objects are compatible
