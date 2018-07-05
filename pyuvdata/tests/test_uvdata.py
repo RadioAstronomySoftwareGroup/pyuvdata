@@ -408,6 +408,8 @@ def test_select_blts():
     nt.assert_raises(ValueError, uv_object.select, blt_inds=np.arange(-10, -5))
     nt.assert_raises(ValueError, uv_object.select, blt_inds=np.arange(
         uv_object.Nblts + 1, uv_object.Nblts + 10))
+    nt.assert_raises(AssertionError, uv_object.select,
+                     blt_inds=np.reshape(np.arange(-10, -5), (1, 5)))
 
 
 def test_select_antennas():
@@ -458,6 +460,7 @@ def test_select_antennas():
     nt.assert_raises(ValueError, uv_object.select, antenna_names='test1')
     nt.assert_raises(ValueError, uv_object.select,
                      antenna_nums=ants_to_keep, antenna_names=ant_names)
+    nt.assert_raises(AssertionError, uv_object.select, antenna_names=[['test1']])
 
 
 def sort_bl(p):
@@ -614,6 +617,7 @@ def test_select_times():
     # check for errors associated with times not included in data
     nt.assert_raises(ValueError, uv_object.select, times=[
                      np.min(unique_times) - uv_object.integration_time])
+    nt.assert_raises(AssertionError, uv_object.select, times=times_to_keep[np.newaxis, :])
 
 
 def test_select_frequencies():
@@ -668,6 +672,7 @@ def test_select_frequencies():
                          message='Selected frequencies are not contiguous')
     nt.assert_raises(ValueError, uv_object2.write_uvfits, write_file_uvfits)
     nt.assert_raises(ValueError, uv_object2.write_miriad, write_file_miriad)
+    nt.assert_raises(AssertionError, uv_object.select, times=freqs_to_keep[np.newaxis, :])
 
 
 def test_select_freq_chans():
@@ -706,6 +711,8 @@ def test_select_freq_chans():
     for f in np.unique(uv_object2.freq_array):
         nt.assert_true(f in uv_object.freq_array[0, all_chans_to_keep])
 
+    nt.assert_raises(AssertionError, uv_object.select, freq_chans=chans_to_keep[np.newaxis, :])
+
 
 def test_select_polarizations():
     uv_object = UVData()
@@ -737,6 +744,7 @@ def test_select_polarizations():
                          message='Selected polarization values are not evenly spaced')
     write_file_uvfits = os.path.join(DATA_PATH, 'test/select_test.uvfits')
     nt.assert_raises(ValueError, uv_object.write_uvfits, write_file_uvfits)
+    nt.assert_raises(AssertionError, uv_object.select, polarizations=[pols_to_keep])
 
 
 def test_select():
