@@ -682,7 +682,7 @@ or read in the header followed by the metadata (both shown below)
   >>> uv.read_uvfits(filename, read_data=False)
 
   >>> uv.read_uvfits(filename, read_data=False, read_metadata=False)
-  >>> uv.read_uvfits_metadata(filename)
+  >>> uv.read_uvfits(filename, read_data=False)
 
   >>> print(uv.time_array.size)
   1360
@@ -692,14 +692,14 @@ or read in the header followed by the metadata (both shown below)
 
   # If the data_array, flag_array or nsample_array are needed later, they can be
   # read into the existing object:
-  >>> uv.read_uvfits_data(filename)
+  >>> uv.read_uvfits(filename)
   >>> print(uv.data_array.shape)
   (1360, 1, 64, 4)
 
 c) Reading only parts of uvfits data
 ***************************************
 The same options that are available for the select function can also be passed to
-read_uvfits or read_uvfits_data to do the select on the read, saving memory and
+read_uvfits to do the select on the read, saving memory and
 time if only a portion of the data are needed.
 ::
 
@@ -712,13 +712,14 @@ time if only a portion of the data are needed.
   (1360, 1, 32, 4)
 
   # Reading in the header and metadata can help with specifying what data to read in
+  >>> uv = UVData()
   >>> uv.read_uvfits(filename, read_data=False)
   >>> unique_times = np.unique(uv.time_array)
   >>> print(unique_times.shape)
   (15,)
 
   >>> times_to_keep = unique_times[[0, 2, 4]]
-  >>> uv.read_uvfits_data(filename, times=times_to_keep)
+  >>> uv.read_uvfits(filename, times=times_to_keep)
   >>> print(uv.data_array.shape)
   (179, 1, 64, 4)
 
