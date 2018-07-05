@@ -404,12 +404,20 @@ def test_select_blts():
 
     nt.assert_true(np.all(selected_data == uv_object2.data_array))
 
+    # check that it also works with higher dimension array
+    uv_object2 = copy.deepcopy(uv_object)
+    uv_object2.select(blt_inds=blt_inds[np.newaxis, :])
+    nt.assert_equal(len(blt_inds), uv_object2.Nblts)
+
+    nt.assert_true(uvutils.check_histories(old_history + '  Downselected to '
+                                           'specific baseline-times using pyuvdata.',
+                                           uv_object2.history))
+    nt.assert_true(np.all(selected_data == uv_object2.data_array))
+
     # check for errors associated with out of bounds indices
     nt.assert_raises(ValueError, uv_object.select, blt_inds=np.arange(-10, -5))
     nt.assert_raises(ValueError, uv_object.select, blt_inds=np.arange(
         uv_object.Nblts + 1, uv_object.Nblts + 10))
-    nt.assert_raises(AssertionError, uv_object.select,
-                     blt_inds=np.reshape(np.arange(-10, -5), (1, 5)))
 
 
 def test_select_antennas():
@@ -442,6 +450,22 @@ def test_select_antennas():
                                            'specific antennas using pyuvdata.',
                                            uv_object2.history))
 
+    # check that it also works with higher dimension array
+    uv_object2 = copy.deepcopy(uv_object)
+    uv_object2.select(antenna_nums=ants_to_keep[np.newaxis, :])
+
+    nt.assert_equal(len(ants_to_keep), uv_object2.Nants_data)
+    nt.assert_equal(Nblts_selected, uv_object2.Nblts)
+    for ant in ants_to_keep:
+        nt.assert_true(
+            ant in uv_object2.ant_1_array or ant in uv_object2.ant_2_array)
+    for ant in np.unique(uv_object2.ant_1_array.tolist() + uv_object2.ant_2_array.tolist()):
+        nt.assert_true(ant in ants_to_keep)
+
+    nt.assert_true(uvutils.check_histories(old_history + '  Downselected to '
+                                           'specific antennas using pyuvdata.',
+                                           uv_object2.history))
+
     # now test using antenna_names to specify antennas to keep
     uv_object3 = copy.deepcopy(uv_object)
     ants_to_keep = np.array(sorted(list(ants_to_keep)))
@@ -454,13 +478,24 @@ def test_select_antennas():
 
     nt.assert_equal(uv_object2, uv_object3)
 
+    # check that it also works with higher dimension array
+    uv_object3 = copy.deepcopy(uv_object)
+    ants_to_keep = np.array(sorted(list(ants_to_keep)))
+    ant_names = []
+    for a in ants_to_keep:
+        ind = np.where(uv_object3.antenna_numbers == a)[0][0]
+        ant_names.append(uv_object3.antenna_names[ind])
+
+    uv_object3.select(antenna_names=[ant_names])
+
+    nt.assert_equal(uv_object2, uv_object3)
+
     # check for errors associated with antennas not included in data, bad names or providing numbers and names
     nt.assert_raises(ValueError, uv_object.select,
                      antenna_nums=np.max(unique_ants) + np.arange(1, 3))
     nt.assert_raises(ValueError, uv_object.select, antenna_names='test1')
     nt.assert_raises(ValueError, uv_object.select,
                      antenna_nums=ants_to_keep, antenna_names=ant_names)
-    nt.assert_raises(AssertionError, uv_object.select, antenna_names=[['test1']])
 
 
 def sort_bl(p):
@@ -613,11 +648,24 @@ def test_select_times():
     nt.assert_true(uvutils.check_histories(old_history + '  Downselected to '
                                            'specific times using pyuvdata.',
                                            uv_object2.history))
+    # check that it also works with higher dimension array
+    uv_object2 = copy.deepcopy(uv_object)
+    uv_object2.select(times=times_to_keep[np.newaxis, :])
+
+    nt.assert_equal(len(times_to_keep), uv_object2.Ntimes)
+    nt.assert_equal(Nblts_selected, uv_object2.Nblts)
+    for t in times_to_keep:
+        nt.assert_true(t in uv_object2.time_array)
+    for t in np.unique(uv_object2.time_array):
+        nt.assert_true(t in times_to_keep)
+
+    nt.assert_true(uvutils.check_histories(old_history + '  Downselected to '
+                                           'specific times using pyuvdata.',
+                                           uv_object2.history))
 
     # check for errors associated with times not included in data
     nt.assert_raises(ValueError, uv_object.select, times=[
                      np.min(unique_times) - uv_object.integration_time])
-    nt.assert_raises(AssertionError, uv_object.select, times=times_to_keep[np.newaxis, :])
 
 
 def test_select_frequencies():
@@ -631,6 +679,20 @@ def test_select_frequencies():
 
     uv_object2 = copy.deepcopy(uv_object)
     uv_object2.select(frequencies=freqs_to_keep)
+
+    nt.assert_equal(len(freqs_to_keep), uv_object2.Nfreqs)
+    for f in freqs_to_keep:
+        nt.assert_true(f in uv_object2.freq_array)
+    for f in np.unique(uv_object2.freq_array):
+        nt.assert_true(f in freqs_to_keep)
+
+    nt.assert_true(uvutils.check_histories(old_history + '  Downselected to '
+                                           'specific frequencies using pyuvdata.',
+                                           uv_object2.history))
+
+    # check that it also works with higher dimension array
+    uv_object2 = copy.deepcopy(uv_object)
+    uv_object2.select(frequencies=freqs_to_keep[np.newaxis, :])
 
     nt.assert_equal(len(freqs_to_keep), uv_object2.Nfreqs)
     for f in freqs_to_keep:
@@ -672,7 +734,6 @@ def test_select_frequencies():
                          message='Selected frequencies are not contiguous')
     nt.assert_raises(ValueError, uv_object2.write_uvfits, write_file_uvfits)
     nt.assert_raises(ValueError, uv_object2.write_miriad, write_file_miriad)
-    nt.assert_raises(AssertionError, uv_object.select, times=freqs_to_keep[np.newaxis, :])
 
 
 def test_select_freq_chans():
@@ -686,6 +747,20 @@ def test_select_freq_chans():
 
     uv_object2 = copy.deepcopy(uv_object)
     uv_object2.select(freq_chans=chans_to_keep)
+
+    nt.assert_equal(len(chans_to_keep), uv_object2.Nfreqs)
+    for chan in chans_to_keep:
+        nt.assert_true(uv_object.freq_array[0, chan] in uv_object2.freq_array)
+    for f in np.unique(uv_object2.freq_array):
+        nt.assert_true(f in uv_object.freq_array[0, chans_to_keep])
+
+    nt.assert_true(uvutils.check_histories(old_history + '  Downselected to '
+                                           'specific frequencies using pyuvdata.',
+                                           uv_object2.history))
+
+    # check that it also works with higher dimension array
+    uv_object2 = copy.deepcopy(uv_object)
+    uv_object2.select(freq_chans=chans_to_keep[np.newaxis, :])
 
     nt.assert_equal(len(chans_to_keep), uv_object2.Nfreqs)
     for chan in chans_to_keep:
@@ -711,8 +786,6 @@ def test_select_freq_chans():
     for f in np.unique(uv_object2.freq_array):
         nt.assert_true(f in uv_object.freq_array[0, all_chans_to_keep])
 
-    nt.assert_raises(AssertionError, uv_object.select, freq_chans=chans_to_keep[np.newaxis, :])
-
 
 def test_select_polarizations():
     uv_object = UVData()
@@ -736,6 +809,20 @@ def test_select_polarizations():
                                            'specific polarizations using pyuvdata.',
                                            uv_object2.history))
 
+    # check that it also works with higher dimension array
+    uv_object2 = copy.deepcopy(uv_object)
+    uv_object2.select(polarizations=[pols_to_keep])
+
+    nt.assert_equal(len(pols_to_keep), uv_object2.Npols)
+    for p in pols_to_keep:
+        nt.assert_true(p in uv_object2.polarization_array)
+    for p in np.unique(uv_object2.polarization_array):
+        nt.assert_true(p in pols_to_keep)
+
+    nt.assert_true(uvutils.check_histories(old_history + '  Downselected to '
+                                           'specific polarizations using pyuvdata.',
+                                           uv_object2.history))
+
     # check for errors associated with polarizations not included in data
     nt.assert_raises(ValueError, uv_object2.select, polarizations=[-3, -4])
 
@@ -744,7 +831,6 @@ def test_select_polarizations():
                          message='Selected polarization values are not evenly spaced')
     write_file_uvfits = os.path.join(DATA_PATH, 'test/select_test.uvfits')
     nt.assert_raises(ValueError, uv_object.write_uvfits, write_file_uvfits)
-    nt.assert_raises(AssertionError, uv_object.select, polarizations=[pols_to_keep])
 
 
 def test_select():
