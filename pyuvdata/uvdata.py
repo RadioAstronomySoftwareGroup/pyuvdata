@@ -628,13 +628,6 @@ class UVData(UVBase):
                     self.uvw_array[bl_ind, :] = ant_uvw[ant2, :] - ant_uvw[ant1, :]
 
             else:
-                if phase_frame == 'icrs':
-                    gcrs_telescope_location = itrs_telescope_location.transform_to('gcrs')
-                    gcrs_telescope_lon = gcrs_telescope_location.ra.rad
-
-                else:
-                    gcrs_telescope_lon = frame_telescope_location.ra.rad
-
                 uvws_use = self.uvw_array[inds, :]
 
                 uvw_rel_positions = uvutils.unphase_uvw(frame_phase_center.ra.rad,
@@ -738,13 +731,6 @@ class UVData(UVBase):
             itrs_lat_lon_alt = self.telescope_location_lat_lon_alt
 
             frame_telescope_location = itrs_telescope_location.transform_to(phase_frame)
-
-            if phase_frame == 'icrs':
-                gcrs_telescope_location = itrs_telescope_location.transform_to('gcrs')
-                gcrs_telescope_lon = gcrs_telescope_location.ra.rad
-
-            else:
-                gcrs_telescope_lon = frame_telescope_location.ra.rad
 
             frame_telescope_location.representation = 'cartesian'
 
