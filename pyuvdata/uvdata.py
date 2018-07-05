@@ -1850,7 +1850,7 @@ class UVData(UVBase):
         from . import uvh5
         if isinstance(filename, (list, tuple)):
             if not read_data and len(filename) > 1:
-                raise ValueError('read_data cannot be False for a list of uvfits files')
+                raise ValueError('read_data cannot be False for a list of uvh5 files')
 
             self.read_uvh5(filename[0], antenna_nums=antenna_nums,
                            antenna_names=antenna_names, ant_str=ant_str, bls=bls,
