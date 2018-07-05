@@ -1828,7 +1828,8 @@ class UVData(UVBase):
                 the data are phased to a single RA/Dec or None and it will be
                 guessed at based on the file. Default None.
             correct_lat_lon: flag -- that only matters if altitude is missing --
-                to update the latitude and longitude from the known_telescopes list
+                to update the latitude and longitude from the known_telescopes list.
+                Default True.
             run_check: Option to check for the existence and proper shapes of
                 parameters after reading in the file. Default is True.
             check_extra: Option to check optional parameters as well as required
@@ -2125,6 +2126,280 @@ class UVData(UVBase):
                                  times=times, polarizations=polarizations,
                                  blt_inds=blt_inds)
         del(uvh5_obj)
+
+    def read(self, filename, file_type=None, antenna_nums=None, antenna_names=None,
+             ant_str=None, bls=None, frequencies=None, freq_chans=None,
+             times=None, polarizations=None, blt_inds=None, time_range=time_range,
+             read_metadata=True, read_data=True, phase_type=None,
+             correct_lat_lon=True, use_model=False, data_column='DATA',
+             pol_order='AIPS', run_check=True, check_extra=True,
+             run_check_acceptability=True):
+        """
+        Read a generic file into a UVData object.
+
+        Args:
+            filename: The file to read.
+            file_type: One of ['uvfits', 'miriad', 'fhd', 'ms', 'uvh5'] or None.
+                If None, guess based on file extension.
+            antenna_nums: The antennas numbers to include when reading data into
+                the object (antenna positions and names for the excluded antennas
+                will be retained). This cannot be provided if antenna_names is
+                also provided. Ignored if read_data is False.
+            antenna_names: The antennas names to include when reading data into
+                the object (antenna positions and names for the excluded antennas
+                will be retained). This cannot be provided if antenna_nums is
+                also provided. Ignored if read_data is False.
+            bls: A list of antenna number tuples (e.g. [(0,1), (3,2)]) or a list of
+                baseline 3-tuples (e.g. [(0,1,'xx'), (2,3,'yy')]) specifying baselines
+                to keep in the object. For length-2 tuples, the  ordering of the numbers
+                within the tuple does not matter. For length-3 tuples, the polarization
+                string is in the order of the two antennas. If length-3 tuples are provided,
+                the polarizations argument below must be None. Ignored if read_data is False.
+            ant_str: A string containing information about what antenna numbers
+                and polarizations to include when reading data into the object.
+                Can be 'auto', 'cross', 'all', or combinations of antenna numbers
+                and polarizations (e.g. '1', '1_2', '1x_2y').
+                See tutorial for more examples of valid strings and
+                the behavior of different forms for ant_str.
+                If '1x_2y,2y_3y' is passed, both polarizations 'xy' and 'yy' will
+                be kept for both baselines (1,2) and (2,3) to return a valid
+                pyuvdata object.
+                An ant_str cannot be passed in addition to any of the above antenna
+                args or the polarizations arg.
+                Ignored if read_data is False.
+            frequencies: The frequencies to include when reading data into the
+                object.  Ignored if read_data is False.
+            freq_chans: The frequency channel numbers to include when reading
+                data into the object. Ignored if read_data is False.
+            times: The times to include when reading data into the object.
+                Ignored if read_data is False.
+            polarizations: The polarizations to include when reading data into
+                the object.  Ignored if read_data is False.
+            time_range: len-2 list containing min and max range of times (Julian Date) to read-in.
+                Ex: [2458115.20, 2458115.40]. Cannot be set with times.
+            blt_inds: The baseline-time indices to include when reading data into
+                the object. This is not commonly used. Ignored if read_data is False.
+            read_metadata: Read in metadata (times, baselines, uvws) as well as
+                basic header info. Only used if file_type is 'uvfits' and read_data is False
+                (metadata will be read if data is read). If both read_data and
+                read_metadata are false, only basic header info is read in. Default True.
+            read_data: Read in the visibility and flag data. If set to false,
+                only the basic header info and metadata (if read_metadata is True)
+                will be read in. Results in an incompletely defined object
+                (check will not pass). Default True.
+            phase_type: Either 'drift' meaning zenith drift, 'phased' meaning
+                the data are phased to a single RA/Dec or None and it will be
+                guessed at based on the file. Only used if file_type is 'miriad'.
+                Default None.
+            correct_lat_lon: flag -- that only matters if altitude is missing --
+                to update the latitude and longitude from the known_telescopes list.
+                Only used if file_type is 'miriad'. Default True.
+            use_model: Option to read in the model visibilities rather than the
+                dirty visibilities. Only used if file_type is 'fhd'. Default is False.
+            data_column: name of CASA data column to read into data_array.
+                'DATA', 'MODEL', or 'CORRECTED_DATA'. Only used if file_type is 'ms'.
+            pol_order: specify whether you want polarizations ordered by
+                'CASA' or 'AIPS' conventions. Only used if file_type is 'ms'.
+            run_check: Option to check for the existence and proper shapes of
+                parameters after reading in the file. Default is True.
+            check_extra: Option to check optional parameters as well as required
+                ones. Default is True.
+            run_check_acceptability: Option to check acceptable range of the values of
+                parameters after reading in the file. Default is True.
+
+        Returns:
+            None
+        """
+        if isinstance(filename, (list, tuple)):
+            # this is either a list of separate files to read or a list of FHD files
+            if isinstance(filename[0], (list, tuple)):
+                # this must be a list of lists for FHD
+                file_type = 'fhd'
+                multi = True
+            else:
+                basename, extension = os.path.splitext(filename[0])
+                if extension == 'sav' or extension == 'txt':
+                    file_type = 'fhd'
+                    multi = False
+                else:
+                    multi = True
+        else:
+            multi = False
+
+        if file_type is None:
+            if multi:
+                file_test = filename[0]
+            else:
+                file_test = filename
+
+            if os.path.isdir(file_test):
+                # it's a directory, so it's either miriad or ms file type
+                if os.path.exists(os.path.join(file_test, 'vartable')):
+                    # It's miriad.
+                    file_type = 'miriad'
+                elif os.path.exists(os.path.join(file_test, 'OBSERVATION')):
+                    # It's a measurement set.
+                    file_type = 'ms'
+            else:
+                basename, extension = os.path.splitext(file_test)
+                if extension == 'uvfits':
+                    file_type = 'uvfits'
+                elif extension == '.h5':
+                    file_type = 'uvh5'
+
+        if file_type is None:
+            raise(ValueError, 'File type could not be determined.')
+
+        if file_type == 'uvfits':
+            if (time_range is not None):
+                if times is not None:
+                    raise ValueError(
+                        'Only one of times and time_range can be provided.')
+
+                select = True
+                warnings.warn('Warning: "time_range" keyword is set which is not '
+                              'supported by read_uvfits. This select will be '
+                              'done after reading the file.')
+            else:
+                select = False
+
+            self.read_uvfits(filename, antenna_nums=antenna_nums,
+                             antenna_names=antenna_names, ant_str=ant_str,
+                             bls=bls, frequencies=frequencies,
+                             freq_chans=freq_chans, times=times,
+                             polarizations=polarizations, blt_inds=blt_inds,
+                             read_data=read_data, read_metadata=read_metadata,
+                             run_check=run_check, check_extra=check_extra,
+                             run_check_acceptability=run_check_acceptability)
+
+            if select:
+                unique_times = np.unique(self.time_array)
+                times_to_keep = unique_times[np.where(unique_times > np.min(time_range)
+                                             and unique_times > np.max(time_range))]
+                self.select(times=times_to_keep, run_check=run_check, check_extra=check_extra,
+                            run_check_acceptability=run_check_acceptability)
+
+        elif file_type == 'miriad':
+            if (antenna_names is not None or frequencies is not None or freq_chans is not None
+                    or times is not None or blt_inds is not None):
+
+                if antenna_names is not None:
+                    if antenna_nums is not None:
+                        raise ValueError(
+                            'Only one of antenna_nums and antenna_names can be provided.')
+
+                if times is not None:
+                    if time_range is not None:
+                        raise ValueError(
+                            'Only one of times and time_range can be provided.')
+
+                if blt_inds is not None:
+                    if (antenna_nums is not None or ant_str is not None
+                            or bls is not None or time_range is not None):
+                        warnings.warn('Warning: blt_inds is set along with select '
+                                      'on read keywords that are supported by '
+                                      'read_miriad and may downselect blts. '
+                                      'This may result in incorrect results '
+                                      'because the select on read will happen '
+                                      'before the blt_inds selection so the '
+                                      'indices may not match the expected locations.')
+
+                select = True
+                warnings.warn('Warning: a select on read keyword is set that is not '
+                              'supported by read_miriad. This select will be '
+                              'done after reading the file.')
+            else:
+                select = False
+
+            self.read_miriad(filepath, antenna_nums=antenna_nums, ant_str=ant_str,
+                             bls=bls, polarizations=polarizations,
+                             time_range=time_range, read_data=read_data,
+                             phase_type=phase_type, correct_lat_lon=correct_lat_lon,
+                             run_check=run_check, check_extra=check_extra,
+                             run_check_acceptability=run_check_acceptability)
+
+            if select:
+                self.select(antenna_names=antenna_names, frequencies=frequencies,
+                            freq_chans=freq_chans, times=times,
+                            blt_inds=blt_inds, run_check=run_check, check_extra=check_extra,
+                            run_check_acceptability=run_check_acceptability)
+
+        elif file_type == 'fhd':
+            if (antenna_nums is not None or antenna_names is not None
+                    or ant_str is not None or bls is not None
+                    or frequencies is not None or freq_chans is not None
+                    or times is not None or polarizations is not None
+                    or blt_inds is not None):
+                select = True
+                warnings.warn('Warning: select on read keyword set, but '
+                              'file_type is "fhd" which does not support select '
+                              'on read. Entire file will be read and then select '
+                              'will be performed')
+            else:
+                select = False
+
+            self.read_fhd(filelist, use_model=use_model, run_check=run_check,
+                          check_extra=check_extra,
+                          run_check_acceptability=run_check_acceptability)
+
+            if select:
+                self.select(antenna_nums=antenna_nums, antenna_names=antenna_names,
+                            ant_str=ant_str, bls=bls, frequencies=frequencies,
+                            freq_chans=freq_chans, times=times,
+                            polarizations=polarizations, blt_inds=blt_inds,
+                            run_check=run_check, check_extra=check_extra,
+                            run_check_acceptability=run_check_acceptability)
+        elif file_type == 'ms':
+            if (antenna_nums is not None or antenna_names is not None
+                    or ant_str is not None or bls is not None
+                    or frequencies is not None or freq_chans is not None
+                    or times is not None or polarizations is not None
+                    or blt_inds is not None):
+                select = True
+                warnings.warn('Warning: select on read keyword set, but '
+                              'file_type is "fhd" which does not support select '
+                              'on read. Entire file will be read and then select '
+                              'will be performed')
+            else:
+                select = False
+
+            self.read_ms(filepath, run_check=run_check, check_extra=check_extra,
+                         run_check_acceptability=run_check_acceptability,
+                         data_column=data_column, pol_order=pol_order)
+
+            if select:
+                self.select(antenna_nums=antenna_nums, antenna_names=antenna_names,
+                            ant_str=ant_str, bls=bls, frequencies=frequencies,
+                            freq_chans=freq_chans, times=times,
+                            polarizations=polarizations, blt_inds=blt_inds,
+                            run_check=run_check, check_extra=check_extra,
+                            run_check_acceptability=run_check_acceptability)
+        elif file_type == 'uvh5':
+            if (time_range is not None):
+                if times is not None:
+                    raise ValueError(
+                        'Only one of times and time_range can be provided.')
+
+                select = True
+                warnings.warn('Warning: "time_range" keyword is set which is not '
+                              'supported by read_uvh5. This select will be '
+                              'done after reading the file.')
+            else:
+                select = False
+
+            self.read_uvh5(filename, antenna_nums=antenna_nums,
+                           antenna_names=antenna_names, ant_str=ant_str, bls=bls,
+                           frequencies=frequencies, freq_chans=freq_chans, times=times,
+                           polarizations=polarizations, blt_inds=blt_inds,
+                           read_data=read_data, run_check=run_check, check_extra=check_extra,
+                           run_check_acceptability=run_check_acceptability)
+
+            if select:
+                unique_times = np.unique(self.time_array)
+                times_to_keep = unique_times[np.where(unique_times > np.min(time_range)
+                                             and unique_times > np.max(time_range))]
+                self.select(times=times_to_keep, run_check=run_check, check_extra=check_extra,
+                            run_check_acceptability=run_check_acceptability)
 
     def reorder_pols(self, order=None, run_check=True, check_extra=True,
                      run_check_acceptability=True):
