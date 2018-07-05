@@ -34,9 +34,9 @@ def test_ReadNRAO():
     nt.assert_equal(expected_extra_keywords.sort(),
                     list(UV2.extra_keywords.keys()).sort())
     nt.assert_raises(ValueError, UV2.check)
-    UV2.read_uvfits_metadata(testfile)
+    UV2.read_uvfits(testfile, read_data=False)
     nt.assert_raises(ValueError, UV2.check)
-    UV2.read_uvfits_data(testfile)
+    UV2.read_uvfits(testfile)
     nt.assert_equal(UV, UV2)
 
     # test reading in header data first, then metadata & data
@@ -46,7 +46,7 @@ def test_ReadNRAO():
     nt.assert_equal(expected_extra_keywords.sort(),
                     list(UV2.extra_keywords.keys()).sort())
     nt.assert_raises(ValueError, UV2.check)
-    UV2.read_uvfits_data(testfile)
+    UV2.read_uvfits(testfile)
     nt.assert_equal(UV, UV2)
 
     del(UV)
@@ -433,15 +433,13 @@ def test_multi_files():
     uv1.history = uv_full.history
     nt.assert_equal(uv1, uv_full)
 
-    # check raises error if read_data is False
+    # check raises error if read_data and read_metadata are False
     nt.assert_raises(ValueError, uv1.read_uvfits, [testfile1, testfile2],
-                     read_data=False)
+                     read_data=False, read_metadata=False)
 
-    # check raises error for read_uvfits_metadata
-    nt.assert_raises(ValueError, uv1.read_uvfits_metadata, [testfile1, testfile2])
-
-    # check raises error for read_uvfits_data
-    nt.assert_raises(ValueError, uv1.read_uvfits_data, [testfile1, testfile2])
+    # check raises error if read_data is False and read_metadata is True
+    nt.assert_raises(ValueError, uv1.read_uvfits, [testfile1, testfile2],
+                     read_data=False, read_metadata=True)
 
 
 def test_readMSWriteUVFits_CASAHistory():

@@ -954,10 +954,8 @@ def test_select_not_inplace():
 def test_reorder_pols():
     # Test function to fix polarization order
     uv1 = UVData()
-    testfile = os.path.join(
-        DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-    uvtest.checkWarnings(
-        uv1.read_uvfits, [testfile], message='Telescope EVLA is not')
+    testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    uvtest.checkWarnings(uv1.read_uvfits, [testfile], message='Telescope EVLA is not')
     uv2 = copy.deepcopy(uv1)
     # reorder uv2 manually
     order = [1, 3, 2, 0]
@@ -969,16 +967,14 @@ def test_reorder_pols():
     nt.assert_equal(uv1, uv2)
 
     # Restore original order
-    uvtest.checkWarnings(
-        uv1.read_uvfits, [testfile], message='Telescope EVLA is not')
+    uvtest.checkWarnings(uv1.read_uvfits, [testfile], message='Telescope EVLA is not')
     uv2.reorder_pols()
     nt.assert_equal(uv1, uv2)
 
 
 def test_add():
     uv_full = UVData()
-    testfile = os.path.join(
-        DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
     uvtest.checkWarnings(uv_full.read_uvfits, [testfile],
                          message='Telescope EVLA is not')
 
