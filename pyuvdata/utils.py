@@ -424,6 +424,35 @@ def jnum2str(jnum):
     return out
 
 
+def conj_pol(pol):
+    """
+    Returns the polarization for the conjugate baselineself.
+    For example, (1, 2, 'XY') = conj(2, 1, 'YX').
+
+    Args:
+        pol: Polarization (str or int)
+
+    Returns:
+        cpol: Polarization as if X and Y are swapped (type matches input)
+    """
+    cpol_dict = {'XX': 'XX', 'YY': 'YY', 'XY': 'YX', 'YX': 'XY',
+                 'JXX': 'jxx', 'JYY': 'jyy', 'JXY': 'jyx', 'JYX': 'jxy',
+                 'RR': 'RR', 'LL': 'LL', 'RL': 'LR', 'LR': 'RL',
+                 'JRR': 'jrr', 'JLL': 'jll', 'JRL': 'jlr', 'JLR': 'jrl',
+                 'I': 'I', 'Q': 'Q', 'U': 'U', 'V': 'V',
+                 'PI': 'pI', 'PQ': 'pQ', 'PU': 'pU', 'PV': 'pV'}
+
+    if isinstance(pol, str):
+        cpol = cpol_dict[pol.upper()]
+    elif isinstance(pol, collections.Iterable):
+        cpol = [conj_pol(p) for p in pol]
+    elif isinstance(pol, six.integer_types + (np.int32, np.int64)):
+        cpol = polstr2num(cpol_dict[polnum2str(pol).upper()])
+    else:
+        raise ValueError('Polarization cannot be conjugated.')
+    return cpol
+
+
 def check_history_version(history, version_string):
     if (version_string.replace(' ', '') in history.replace('\n', '').replace(' ', '')):
         return True

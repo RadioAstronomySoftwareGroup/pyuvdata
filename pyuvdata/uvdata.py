@@ -2159,16 +2159,27 @@ class UVData(UVBase):
         Returns:
             blt_ind1: numpy array with blt indices for antenna pair.
             blt_ind2: numpy array with blt indices for conjugate antenna pair.
-            pol_ind: numpy array with polarization indices
+                      Note if a cross-pol baseline is requested, the polarization will
+                      also be reversed. e.g. (1, 2, 'xy') -> conj(2, 1, 'yx')
+            pol_ind: tuple of numpy arrays with polarization indices for blt_ind1 and blt_ind2
         """
         key = uvutils.get_iterable(key)
         if type(key) is str:
             # Single string given, assume it is polarization
-            pol_ind = np.where(self.polarization_array == uvutils.polstr2num(key))[0]
-            if len(pol_ind) == 0:
-                raise KeyError('Polarization {pol} not found in data.'.format(pol=key))
-            blt_ind1 = np.arange(self.Nblts)
-            blt_ind2 = np.array([], dtype=np.int64)
+            pol_ind1 = np.where(self.polarization_array == uvutils.polstr2num(key))[0]
+            if len(pol_ind1) > 0:
+                blt_ind1 = np.arange(self.Nblts)
+                blt_ind2 = np.array([], dtype=np.int64)
+                pol_ind2 = np.array([], dtype=np.int64)
+            else:
+                pol_ind2 = np.where(self.polarization_array ==
+                                    uvutils.polstr2num(uvutils.conj_pol(key)))[0]
+                if len(pol_ind2) == 0:
+                    raise KeyError('Polarization {pol} not found in data.'.format(pol=key))
+                blt_ind1 = np.array([], dtype=np.int64)
+                blt_ind2 = np.arange(self.Nblts)
+                pol_ind1 = np.array([], dtype=np.int64)
+            pol_ind = (pol_ind1, pol_ind2)
         elif len(key) == 1:
             key = key[0]  # For simplicity
             if isinstance(key, collections.Iterable):
@@ -2176,11 +2187,20 @@ class UVData(UVBase):
                 blt_ind1, blt_ind2, pol_ind = self._key2inds(key)
             elif key < 5:
                 # Small number, assume it is a polarization number a la AIPS memo
-                pol_ind = np.where(self.polarization_array == key)[0]
-                if len(pol_ind) == 0:
-                    raise KeyError('Polarization {pol} not found in data.'.format(pol=key))
-                blt_ind1 = np.arange(self.Nblts)
-                blt_ind2 = np.array([], dtype=np.int64)
+                pol_ind1 = np.where(self.polarization_array == key)[0]
+                if len(pol_ind1) > 0:
+                    blt_ind1 = np.arange(self.Nblts)
+                    blt_ind2 = np.array([], dtype=np.int64)
+                    pol_ind2 = np.array([], dtype=np.int64)
+                else:
+                    pol_ind2 = np.where(self.polarization_array ==
+                                        uvutils.conj_pol(key))[0]
+                    if len(pol_ind2) == 0:
+                        raise KeyError('Polarization {pol} not found in data.'.format(pol=key))
+                    blt_ind2 = np.array([], dtype=np.int64)
+                    blt_ind2 = np.arange(self.Nblts)
+                    pol_ind1 = np.array([], dtype=np.int64)
+                pol_ind = (pol_ind1, pol_ind2)
             else:
                 # Larger number, assume it is a baseline number
                 inv_bl = self.antnums_to_baseline(self.baseline_to_antnums(key)[1],
@@ -2189,14 +2209,14 @@ class UVData(UVBase):
                 blt_ind2 = np.where(self.baseline_array == inv_bl)[0]
                 if len(blt_ind1) + len(blt_ind2) == 0:
                     raise KeyError('Baseline {bl} not found in data.'.format(bl=key))
-                pol_ind = np.arange(self.Npols)
+                pol_ind = (np.arange(self.Npols), np.arange(self.Npols))
         elif len(key) == 2:
             # Key is an antenna pair
             blt_ind1 = self.antpair2ind(key[0], key[1])
             blt_ind2 = self.antpair2ind(key[1], key[0])
             if len(blt_ind1) + len(blt_ind2) == 0:
                 raise KeyError('Antenna pair {pair} not found in data'.format(pair=key))
-            pol_ind = np.arange(self.Npols)
+            pol_ind = (np.arange(self.Npols), np.arange(self.Npols))
         elif len(key) == 3:
             # Key is an antenna pair + pol
             blt_ind1 = self.antpair2ind(key[0], key[1])
@@ -2206,11 +2226,27 @@ class UVData(UVBase):
                                'data'.format(pair=(key[0], key[1])))
             if type(key[2]) is str:
                 # pol is str
-                pol_ind = np.where(self.polarization_array == uvutils.polstr2num(key[2]))[0]
+                if len(blt_ind1) > 0:
+                    pol_ind1 = np.where(self.polarization_array == uvutils.polstr2num(key[2]))[0]
+                else:
+                    pol_ind1 = np.array([], dtype=np.int64)
+                if len(blt_ind2) > 0:
+                    pol_ind2 = np.where(self.polarization_array ==
+                                        uvutils.polstr2num(uvutils.conj_pol(key[2])))[0]
+                else:
+                    pol_ind2 = np.array([], dtype=np.int64)
             else:
                 # polarization number a la AIPS memo
-                pol_ind = np.where(self.polarization_array == key[2])[0]
-            if len(pol_ind) == 0:
+                if len(blt_ind1) > 0:
+                    pol_ind1 = np.where(self.polarization_array == key[2])[0]
+                else:
+                    pol_ind1 = np.array([], dtype=np.int64)
+                if len(blt_ind2) > 0:
+                    pol_ind2 = np.where(self.polarization_array == uvutils.conj_pol(key[2]))[0]
+                else:
+                    pol_ind2 = np.array([], dtype=np.int64)
+            pol_ind = (pol_ind1, pol_ind2)
+            if len(blt_ind1) * len(pol_ind[0]) + len(blt_ind2) * len(pol_ind[1]) == 0:
                 raise KeyError('Polarization {pol} not found in data.'.format(pol=key[2]))
         # Catch autos
         if np.array_equal(blt_ind1, blt_ind2):
@@ -2225,7 +2261,7 @@ class UVData(UVBase):
             data: 4-dimensional array in the format of self.data_array
             ind1: list with blt indices for antenna pair (e.g. from self._key2inds)
             ind2: list with blt indices for conjugate antenna pair. (e.g. from self._key2inds)
-            indp: list with polarization indices (e.g. from self._key2inds)
+            indp: tuple of lists with polarization indices for ind1 and ind2 (e.g. from self._key2inds)
         kwargs:
             squeeze: 'default': squeeze pol and spw dimensions if possible (default)
                      'none': no squeezing of resulting numpy array
@@ -2238,16 +2274,19 @@ class UVData(UVBase):
         force_copy = kwargs.pop('force_copy', False)
         squeeze = kwargs.pop('squeeze', 'default')
 
-        if len(set(np.ediff1d(indp))) <= 1:
-            p_reg_spaced = True
-            p_start = indp[0]
-            p_stop = indp[-1] + 1
-            if len(indp) == 1:
-                dp = 1
-            else:
-                dp = indp[1] - indp[0]
-        else:
-            p_reg_spaced = False
+        p_reg_spaced = [False, False]
+        p_start = [0, 0]
+        p_stop = [0, 0]
+        dp = [1, 1]
+        for i, pi in enumerate(indp):
+            if len(pi) == 0:
+                continue
+            if len(set(np.ediff1d(pi))) <= 1:
+                p_reg_spaced[i] = True
+                p_start[i] = pi[0]
+                p_stop[i] = pi[-1] + 1
+                if len(pi) != 1:
+                    dp[i] = pi[1] - pi[0]
 
         if len(ind2) == 0:
             # only unconjugated baselines
@@ -2258,16 +2297,16 @@ class UVData(UVBase):
                     dblt = 1
                 else:
                     dblt = ind1[1] - ind1[0]
-                if p_reg_spaced:
-                    out = data[blt_start:blt_stop:dblt, :, :, p_start:p_stop:dp]
+                if p_reg_spaced[0]:
+                    out = data[blt_start:blt_stop:dblt, :, :, p_start[0]:p_stop[0]:dp[0]]
                 else:
-                    out = data[blt_start:blt_stop:dblt, :, :, indp]
+                    out = data[blt_start:blt_stop:dblt, :, :, indp[0]]
             else:
                 out = data[ind1, :, :, :]
-                if p_reg_spaced:
-                    out = out[:, :, :, p_start:p_stop:dp]
+                if p_reg_spaced[0]:
+                    out = out[:, :, :, p_start[0]:p_stop[0]:dp[0]]
                 else:
-                    out = out[:, :, :, indp]
+                    out = out[:, :, :, indp[0]]
         elif len(ind1) == 0:
             # only conjugated baselines
             if len(set(np.ediff1d(ind2))) <= 1:
@@ -2277,34 +2316,36 @@ class UVData(UVBase):
                     dblt = 1
                 else:
                     dblt = ind2[1] - ind2[0]
-                if p_reg_spaced:
-                    out = np.conj(data[blt_start:blt_stop:dblt, :, :, p_start:p_stop:dp])
+                if p_reg_spaced[1]:
+                    out = np.conj(data[blt_start:blt_stop:dblt, :, :, p_start[1]:p_stop[1]:dp[1]])
                 else:
-                    out = np.conj(data[blt_start:blt_stop:dblt, :, :, indp])
+                    out = np.conj(data[blt_start:blt_stop:dblt, :, :, indp[1]])
             else:
                 out = data[ind2, :, :, :]
-                if p_reg_spaced:
-                    out = np.conj(out[:, :, :, p_start:p_stop:dp])
+                if p_reg_spaced[1]:
+                    out = np.conj(out[:, :, :, p_start[1]:p_stop[1]:dp[1]])
                 else:
-                    out = np.conj(out[:, :, :, indp])
+                    out = np.conj(out[:, :, :, indp[1]])
         else:
             # both conjugated and unconjugated baselines
-            out = np.append(data[ind1, :, :, :], np.conj(data[ind2, :, :, :]), axis=0)
-            if p_reg_spaced:
-                out = out[:, :, :, p_start:p_stop:dp]
+            out = (data[ind1, :, :, :], np.conj(data[ind2, :, :, :]))
+            if p_reg_spaced[0] and p_reg_spaced[1]:
+                out = np.append(out[0][:, :, :, p_start[0]:p_stop[0]:dp[0]],
+                                out[1][:, :, :, p_start[1]:p_stop[1]:dp[1]], axis=0)
             else:
-                out = out[:, :, :, indp]
+                out = np.append(out[0][:, :, :, indp[0]],
+                                out[1][:, :, :, indp[1]], axis=0)
 
-        if squeeze is 'full':
+        if squeeze == 'full':
             out = np.squeeze(out)
-        elif squeeze is 'default':
+        elif squeeze == 'default':
             if out.shape[3] is 1:
                 # one polarization dimension
                 out = np.squeeze(out, axis=3)
             if out.shape[1] is 1:
                 # one spw dimension
                 out = np.squeeze(out, axis=1)
-        elif squeeze is not 'none':
+        elif squeeze != 'none':
             raise ValueError('"' + str(squeeze) + '" is not a valid option for squeeze.'
                              'Only "default", "none", or "full" are allowed.')
 

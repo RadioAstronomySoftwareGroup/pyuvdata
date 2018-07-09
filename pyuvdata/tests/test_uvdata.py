@@ -1403,64 +1403,64 @@ def test_key2inds():
     ind1, ind2, indp = uv._key2inds((ant1, ant2, pol))
     nt.assert_true(np.array_equal(bltind, ind1))
     nt.assert_true(np.array_equal(np.array([]), ind2))
-    nt.assert_true(np.array_equal([0], indp))
+    nt.assert_true(np.array_equal([0], indp[0]))
     # Any of these inputs can also be a tuple of a tuple, so need to be checked twice.
     ind1, ind2, indp = uv._key2inds(((ant1, ant2, pol)))
     nt.assert_true(np.array_equal(bltind, ind1))
     nt.assert_true(np.array_equal(np.array([]), ind2))
-    nt.assert_true(np.array_equal([0], indp))
+    nt.assert_true(np.array_equal([0], indp[0]))
 
     # Combo with pol as string
     ind1, ind2, indp = uv._key2inds((ant1, ant2, uvutils.polnum2str(pol)))
-    nt.assert_true(np.array_equal([0], indp))
+    nt.assert_true(np.array_equal([0], indp[0]))
     ind1, ind2, indp = uv._key2inds(((ant1, ant2, uvutils.polnum2str(pol))))
-    nt.assert_true(np.array_equal([0], indp))
+    nt.assert_true(np.array_equal([0], indp[0]))
 
     # Check conjugation
     ind1, ind2, indp = uv._key2inds((ant2, ant1, pol))
     nt.assert_true(np.array_equal(bltind, ind2))
     nt.assert_true(np.array_equal(np.array([]), ind1))
-    nt.assert_true(np.array_equal([0], indp))
+    nt.assert_true(np.array_equal([0], indp[1]))
 
     # Antpair only
     ind1, ind2, indp = uv._key2inds((ant1, ant2))
     nt.assert_true(np.array_equal(bltind, ind1))
     nt.assert_true(np.array_equal(np.array([]), ind2))
-    nt.assert_true(np.array_equal(np.arange(uv.Npols), indp))
+    nt.assert_true(np.array_equal(np.arange(uv.Npols), indp[0]))
     ind1, ind2, indp = uv._key2inds(((ant1, ant2)))
     nt.assert_true(np.array_equal(bltind, ind1))
     nt.assert_true(np.array_equal(np.array([]), ind2))
-    nt.assert_true(np.array_equal(np.arange(uv.Npols), indp))
+    nt.assert_true(np.array_equal(np.arange(uv.Npols), indp[0]))
 
     # Baseline number only
     ind1, ind2, indp = uv._key2inds(uv.antnums_to_baseline(ant1, ant2))
     nt.assert_true(np.array_equal(bltind, ind1))
     nt.assert_true(np.array_equal(np.array([]), ind2))
-    nt.assert_true(np.array_equal(np.arange(uv.Npols), indp))
+    nt.assert_true(np.array_equal(np.arange(uv.Npols), indp[0]))
     ind1, ind2, indp = uv._key2inds((uv.antnums_to_baseline(ant1, ant2)))
     nt.assert_true(np.array_equal(bltind, ind1))
     nt.assert_true(np.array_equal(np.array([]), ind2))
-    nt.assert_true(np.array_equal(np.arange(uv.Npols), indp))
+    nt.assert_true(np.array_equal(np.arange(uv.Npols), indp[0]))
 
     # Pol number only
     ind1, ind2, indp = uv._key2inds(pol)
     nt.assert_true(np.array_equal(np.arange(uv.Nblts), ind1))
     nt.assert_true(np.array_equal(np.array([]), ind2))
-    nt.assert_true(np.array_equal(np.array([0]), indp))
+    nt.assert_true(np.array_equal(np.array([0]), indp[0]))
     ind1, ind2, indp = uv._key2inds((pol))
     nt.assert_true(np.array_equal(np.arange(uv.Nblts), ind1))
     nt.assert_true(np.array_equal(np.array([]), ind2))
-    nt.assert_true(np.array_equal(np.array([0]), indp))
+    nt.assert_true(np.array_equal(np.array([0]), indp[0]))
 
     # Pol string only
     ind1, ind2, indp = uv._key2inds('LL')
     nt.assert_true(np.array_equal(np.arange(uv.Nblts), ind1))
     nt.assert_true(np.array_equal(np.array([]), ind2))
-    nt.assert_true(np.array_equal(np.array([1]), indp))
+    nt.assert_true(np.array_equal(np.array([1]), indp[0]))
     ind1, ind2, indp = uv._key2inds(('LL'))
     nt.assert_true(np.array_equal(np.arange(uv.Nblts), ind1))
     nt.assert_true(np.array_equal(np.array([]), ind2))
-    nt.assert_true(np.array_equal(np.array([1]), indp))
+    nt.assert_true(np.array_equal(np.array([1]), indp[0]))
 
     # Test invalid keys
     nt.assert_raises(KeyError, uv._key2inds, 'I')  # pol str not in data
@@ -1489,7 +1489,7 @@ def test_smart_slicing():
     ind1 = 10 * np.arange(9)
     ind2 = []
     indp = [0, 1]
-    d = uv._smart_slicing(uv.data_array, ind1, ind2, indp)
+    d = uv._smart_slicing(uv.data_array, ind1, ind2, (indp, []))
     dcheck = uv.data_array[ind1, :, :, :]
     dcheck = np.squeeze(dcheck[:, :, :, indp])
     nt.assert_true(np.all(d == dcheck))
@@ -1499,7 +1499,7 @@ def test_smart_slicing():
     nt.assert_equal(d[1, 0, 0], uv.data_array[ind1[1], 0, 0, indp[0]])
 
     # force copy
-    d = uv._smart_slicing(uv.data_array, ind1, ind2, indp, force_copy=True)
+    d = uv._smart_slicing(uv.data_array, ind1, ind2, (indp, []), force_copy=True)
     dcheck = uv.data_array[ind1, :, :, :]
     dcheck = np.squeeze(dcheck[:, :, :, indp])
     nt.assert_true(np.all(d == dcheck))
@@ -1512,7 +1512,7 @@ def test_smart_slicing():
     ind1 = 10 * np.arange(9)
     ind2 = []
     indp = [0, 1, 3]
-    d = uv._smart_slicing(uv.data_array, ind1, ind2, indp)
+    d = uv._smart_slicing(uv.data_array, ind1, ind2, (indp, []))
     dcheck = uv.data_array[ind1, :, :, :]
     dcheck = np.squeeze(dcheck[:, :, :, indp])
     nt.assert_true(np.all(d == dcheck))
@@ -1525,7 +1525,7 @@ def test_smart_slicing():
     ind1 = [0, 4, 5]
     ind2 = []
     indp = [0, 1]
-    d = uv._smart_slicing(uv.data_array, ind1, ind2, indp)
+    d = uv._smart_slicing(uv.data_array, ind1, ind2, (indp, []))
     dcheck = uv.data_array[ind1, :, :, :]
     dcheck = np.squeeze(dcheck[:, :, :, indp])
     nt.assert_true(np.all(d == dcheck))
@@ -1538,7 +1538,7 @@ def test_smart_slicing():
     ind1 = [0, 4, 5]
     ind2 = []
     indp = [0, 1, 3]
-    d = uv._smart_slicing(uv.data_array, ind1, ind2, indp)
+    d = uv._smart_slicing(uv.data_array, ind1, ind2, (indp, []))
     dcheck = uv.data_array[ind1, :, :, :]
     dcheck = np.squeeze(dcheck[:, :, :, indp])
     nt.assert_true(np.all(d == dcheck))
@@ -1552,7 +1552,7 @@ def test_smart_slicing():
     ind1 = []
     ind2 = 10 * np.arange(9)
     indp = [0, 1]
-    d = uv._smart_slicing(uv.data_array, ind1, ind2, indp)
+    d = uv._smart_slicing(uv.data_array, ind1, ind2, ([], indp))
     dcheck = uv.data_array[ind2, :, :, :]
     dcheck = np.squeeze(np.conj(dcheck[:, :, :, indp]))
     nt.assert_true(np.all(d == dcheck))
@@ -1561,7 +1561,7 @@ def test_smart_slicing():
     ind1 = []
     ind2 = 10 * np.arange(9)
     indp = [0, 1, 3]
-    d = uv._smart_slicing(uv.data_array, ind1, ind2, indp)
+    d = uv._smart_slicing(uv.data_array, ind1, ind2, ([], indp))
     dcheck = uv.data_array[ind2, :, :, :]
     dcheck = np.squeeze(np.conj(dcheck[:, :, :, indp]))
     nt.assert_true(np.all(d == dcheck))
@@ -1570,7 +1570,7 @@ def test_smart_slicing():
     ind1 = []
     ind2 = [1, 4, 5, 10]
     indp = [0, 1]
-    d = uv._smart_slicing(uv.data_array, ind1, ind2, indp)
+    d = uv._smart_slicing(uv.data_array, ind1, ind2, ([], indp))
     dcheck = uv.data_array[ind2, :, :, :]
     dcheck = np.squeeze(np.conj(dcheck[:, :, :, indp]))
     nt.assert_true(np.all(d == dcheck))
@@ -1579,7 +1579,7 @@ def test_smart_slicing():
     ind1 = []
     ind2 = [1, 4, 5, 10]
     indp = [0, 1, 3]
-    d = uv._smart_slicing(uv.data_array, ind1, ind2, indp)
+    d = uv._smart_slicing(uv.data_array, ind1, ind2, ([], indp))
     dcheck = uv.data_array[ind2, :, :, :]
     dcheck = np.squeeze(np.conj(dcheck[:, :, :, indp]))
     nt.assert_true(np.all(d == dcheck))
@@ -1588,7 +1588,7 @@ def test_smart_slicing():
     ind1 = np.arange(20)
     ind2 = np.arange(30, 40)
     indp = [0, 1]
-    d = uv._smart_slicing(uv.data_array, ind1, ind2, indp)
+    d = uv._smart_slicing(uv.data_array, ind1, ind2, (indp, indp))
     dcheck = np.append(uv.data_array[ind1, :, :, :],
                        np.conj(uv.data_array[ind2, :, :, :]), axis=0)
     dcheck = np.squeeze(dcheck[:, :, :, indp])
@@ -1598,7 +1598,7 @@ def test_smart_slicing():
     ind1 = np.arange(20)
     ind2 = np.arange(30, 40)
     indp = [0, 1, 3]
-    d = uv._smart_slicing(uv.data_array, ind1, ind2, indp)
+    d = uv._smart_slicing(uv.data_array, ind1, ind2, (indp, indp))
     dcheck = np.append(uv.data_array[ind1, :, :, :],
                        np.conj(uv.data_array[ind2, :, :, :]), axis=0)
     dcheck = np.squeeze(dcheck[:, :, :, indp])
@@ -1608,7 +1608,7 @@ def test_smart_slicing():
     ind1 = [45]
     ind2 = []
     indp = [0, 1]
-    d = uv._smart_slicing(uv.data_array, ind1, ind2, indp)
+    d = uv._smart_slicing(uv.data_array, ind1, ind2, (indp, []))
     dcheck = uv.data_array[ind1, :, :, :]
     dcheck = np.squeeze(dcheck[:, :, :, indp], axis=1)
     nt.assert_true(np.all(d == dcheck))
@@ -1617,14 +1617,14 @@ def test_smart_slicing():
     ind1 = []
     ind2 = [45]
     indp = [0, 1]
-    d = uv._smart_slicing(uv.data_array, ind1, ind2, indp)
+    d = uv._smart_slicing(uv.data_array, ind1, ind2, ([], indp))
     nt.assert_true(np.all(d == np.conj(dcheck)))
 
     # Full squeeze
     ind1 = [45]
     ind2 = []
     indp = [0, 1]
-    d = uv._smart_slicing(uv.data_array, ind1, ind2, indp, squeeze='full')
+    d = uv._smart_slicing(uv.data_array, ind1, ind2, (indp, []), squeeze='full')
     dcheck = uv.data_array[ind1, :, :, :]
     dcheck = np.squeeze(dcheck[:, :, :, indp])
     nt.assert_true(np.all(d == dcheck))
@@ -1650,6 +1650,11 @@ def test_get_data():
     # Check conjugation
     d = uv.get_data(ant2, ant1, pol)
     nt.assert_true(np.all(dcheck == np.conj(d)))
+
+    # Check cross pol conjugation
+    d = uv.get_data(ant2, ant1, uv.polarization_array[2])
+    d1 = uv.get_data(ant1, ant2, uv.polarization_array[3])
+    nt.assert_true(np.all(d == np.conj(d1)))
 
     # Antpair only
     dcheck = np.squeeze(uv.data_array[bltind, :, :, :])
