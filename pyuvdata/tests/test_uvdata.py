@@ -1051,6 +1051,7 @@ def test_add():
     ants1 = ants[0:6]
     ants2 = ants[6:12]
     ants3 = ants[12:]
+
     # All blts where ant_1 is in list
     ind1 = [i for i in range(uv1.Nblts) if uv1.ant_1_array[i] in ants1]
     ind2 = [i for i in range(uv2.Nblts) if uv2.ant_1_array[i] in ants2]
@@ -1185,6 +1186,18 @@ def test_add():
     uv1.history = uv_full.history
     nt.assert_equal(uv1, uv_full)
 
+    # test add of autocorr-only and crosscorr-only objects
+    uv_full = UVData()
+    uv_full.read_miriad(os.path.join(DATA_PATH, 'zen.2457698.40355.xx.HH.uvcA'))
+    bls = uv_full.get_antpairs()
+    autos = [bl for bl in bls if bl[0] == bl[1]]
+    cross = sorted(set(bls) - set(autos))
+    uv_auto = uv_full.select(bls=autos, inplace=False)
+    uv_cross = uv_full.select(bls=cross, inplace=False)
+    uv1 = uv_auto + uv_cross
+    nt.assert_equal(uv1.Nbls, uv_auto.Nbls + uv_cross.Nbls)
+    uv2 = uv_cross + uv_auto
+    nt.assert_equal(uv2.Nbls, uv_auto.Nbls + uv_cross.Nbls)
 
 def test_add_drift():
     uv_full = UVData()
