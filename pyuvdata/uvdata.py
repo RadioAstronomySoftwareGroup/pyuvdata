@@ -97,7 +97,7 @@ class UVData(UVBase):
         self._uvw_array = uvp.UVParameter('uvw_array', description=desc,
                                           form=('Nblts', 3),
                                           expected_type=np.float,
-                                          acceptable_range=(1e-3, 1e8), tols=.001)
+                                          acceptable_range=(0.0, 1e8), tols=.001)
 
         desc = ('Array of times, center of integration, shape (Nblts), '
                 'units Julian Date')
@@ -343,10 +343,6 @@ class UVData(UVBase):
                 are acceptable. Default is True.
         """
         # first run the basic check from UVBase
-        if self.ant_1_array is not None and np.all(self.ant_1_array == self.ant_2_array):
-            # Special case of only containing auto correlations, adjust uvw acceptable_range
-            self._uvw_array.acceptable_range = (0.0, 0.0)
-
         # set the phase type based on object's value
         if self.phase_type == 'phased':
             self.set_phased()
