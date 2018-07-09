@@ -189,3 +189,21 @@ def test_jones_num_funcs():
     nt.assert_raises(KeyError, uvutils.jstr2num, 'foo')
     nt.assert_raises(ValueError, uvutils.jstr2num, 1)
     nt.assert_raises(ValueError, uvutils.jnum2str, 7.3)
+
+
+def test_conj_pol():
+    """ Test function to conjugate pols """
+
+    pol_nums = [-8, -7, -6, -5, -4, -3, -2, -1, 1, 2, 3, 4]
+    cpol_nums = [-7, -8, -6, -5, -3, -4, -2, -1, 1, 2, 3, 4]
+    nt.assert_equal(pol_nums, uvutils.conj_pol(cpol_nums))
+    nt.assert_equal(uvutils.conj_pol(pol_nums), cpol_nums)
+    pol_str = ['YX', 'XY', 'YY', 'XX', 'LR', 'RL', 'LL', 'RR', 'pI', 'pQ', 'pU', 'pV']
+    cpol_str = ['XY', 'YX', 'YY', 'XX', 'RL', 'LR', 'LL', 'RR', 'pI', 'pQ', 'pU', 'pV']
+    nt.assert_equal(pol_str, uvutils.conj_pol(cpol_str))
+    nt.assert_equal(uvutils.conj_pol(pol_str), cpol_str)
+    nt.assert_equal([pol_str, pol_nums], uvutils.conj_pol([cpol_str, cpol_nums]))
+    jstr = ['jyx', 'jxy', 'jyy', 'jxx', 'jlr', 'jrl', 'jll', 'jrr']
+    cjstr = ['jxy', 'jyx', 'jyy', 'jxx', 'jrl', 'jlr', 'jll', 'jrr']
+    nt.assert_equal(jstr, uvutils.conj_pol(cjstr))
+    nt.assert_equal(uvutils.conj_pol(jstr), uvutils.conj_pol(jstr))
