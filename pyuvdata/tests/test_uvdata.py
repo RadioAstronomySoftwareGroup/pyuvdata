@@ -1199,6 +1199,7 @@ def test_add():
     uv2 = uv_cross + uv_auto
     nt.assert_equal(uv2.Nbls, uv_auto.Nbls + uv_cross.Nbls)
 
+
 def test_add_drift():
     uv_full = UVData()
     testfile = os.path.join(
