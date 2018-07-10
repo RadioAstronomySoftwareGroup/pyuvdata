@@ -207,3 +207,6 @@ def test_conj_pol():
     cjstr = ['jxy', 'jyx', 'jyy', 'jxx', 'jrl', 'jlr', 'jll', 'jrr']
     nt.assert_equal(jstr, uvutils.conj_pol(cjstr))
     nt.assert_equal(uvutils.conj_pol(jstr), uvutils.conj_pol(jstr))
+
+    # Test invalid pol
+    nt.assert_raises(ValueError, uvutils.conj_pol, 'unpol')
