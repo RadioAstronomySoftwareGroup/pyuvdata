@@ -217,6 +217,22 @@ class TestUVDataBasicMethods(object):
                                                 == self.uv_object.ant_2_array)[0])
         nt.assert_true(self.uv_object.check())
 
+        # test auto and cross corr uvw_array
+        uvd = UVData()
+        uvd.read_miriad(os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcA"))
+        autos = np.isclose(uvd.ant_1_array - uvd.ant_2_array, 0.0)
+        auto_inds = np.where(autos)[0]
+        cross_inds = np.where(~autos)[0]
+
+        # make auto have non-zero uvw coords, assert ValueError
+        uvd.uvw_array[auto_inds[0], 0] = 0.1
+        nt.assert_raises(ValueError, uvd.check)
+
+        # make cross have |uvw| zero, assert ValueError
+        uvd.read_miriad(os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcA"))
+        uvd.uvw_array[cross_inds[0]][:] = 0.0
+        nt.assert_raises(ValueError, uvd.check)
+
     def test_nants_data_telescope(self):
         self.uv_object.Nants_data = self.uv_object.Nants_telescope - 1
         nt.assert_true(self.uv_object.check)
