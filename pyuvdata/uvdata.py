@@ -97,7 +97,7 @@ class UVData(UVBase):
         self._uvw_array = uvp.UVParameter('uvw_array', description=desc,
                                           form=('Nblts', 3),
                                           expected_type=np.float,
-                                          acceptable_range=(0.0, 1e8), tols=.001)
+                                          acceptable_range=(0, 1e8), tols=1e-3)
 
         desc = ('Array of times, center of integration, shape (Nblts), '
                 'units Julian Date')
@@ -383,6 +383,15 @@ class UVData(UVBase):
                 warnings.warn('{key} in extra_keywords is a list, array or dict, '
                               'which will raise an error when writing uvfits or '
                               'miriad file types'.format(key=key))
+
+        # check auto and cross-corrs have sensible uvws
+        autos = np.isclose(self.ant_1_array - self.ant_2_array, 0.0)
+        if not np.all(np.isclose(self.uvw_array[autos], 0.0)):
+            raise ValueError("Some auto-correlations have non-zero "
+                             "uvw_array coordinates.")
+        if np.any(np.isclose([np.linalg.norm(uvw) for uvw in self.uvw_array[~autos]], 0.0)):
+            raise ValueError("Some cross-correlations have near-zero "
+                             "uvw_array magnitudes.")
 
         return True
 
