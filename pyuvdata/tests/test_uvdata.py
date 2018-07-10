@@ -1451,6 +1451,12 @@ def test_key2inds():
     nt.assert_true(np.array_equal(bltind, ind2))
     nt.assert_true(np.array_equal(np.array([]), ind1))
     nt.assert_true(np.array_equal([0], indp[1]))
+    # Conjugation with pol as string
+    ind1, ind2, indp = uv._key2inds((ant2, ant1, uvutils.polnum2str(pol)))
+    nt.assert_true(np.array_equal(bltind, ind2))
+    nt.assert_true(np.array_equal(np.array([]), ind1))
+    nt.assert_true(np.array_equal([0], indp[1]))
+    nt.assert_true(np.array_equal([], indp[0]))
 
     # Antpair only
     ind1, ind2, indp = uv._key2inds((ant1, ant2))
@@ -1658,6 +1664,10 @@ def test_smart_slicing():
     dcheck = uv.data_array[ind1, :, :, :]
     dcheck = np.squeeze(dcheck[:, :, :, indp])
     nt.assert_true(np.all(d == dcheck))
+
+    # Test invalid squeeze
+    nt.assert_raises(ValueError, uv._smart_slicing, uv.data_array, ind1, ind2,
+                     (indp, []), squeeze='notasqueeze')
 
 
 def test_get_data():
