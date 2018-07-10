@@ -2179,15 +2179,9 @@ class UVData(UVBase):
                 blt_ind1 = np.arange(self.Nblts)
                 blt_ind2 = np.array([], dtype=np.int64)
                 pol_ind2 = np.array([], dtype=np.int64)
+                pol_ind = (pol_ind1, pol_ind2)
             else:
-                pol_ind2 = np.where(self.polarization_array
-                                    == uvutils.polstr2num(uvutils.conj_pol(key)))[0]
-                if len(pol_ind2) == 0:
-                    raise KeyError('Polarization {pol} not found in data.'.format(pol=key))
-                blt_ind1 = np.array([], dtype=np.int64)
-                blt_ind2 = np.arange(self.Nblts)
-                pol_ind1 = np.array([], dtype=np.int64)
-            pol_ind = (pol_ind1, pol_ind2)
+                raise KeyError('Polarization {pol} not found in data.'.format(pol=key))
         elif len(key) == 1:
             key = key[0]  # For simplicity
             if isinstance(key, collections.Iterable):
@@ -2200,15 +2194,9 @@ class UVData(UVBase):
                     blt_ind1 = np.arange(self.Nblts)
                     blt_ind2 = np.array([], dtype=np.int64)
                     pol_ind2 = np.array([], dtype=np.int64)
+                    pol_ind = (pol_ind1, pol_ind2)
                 else:
-                    pol_ind2 = np.where(self.polarization_array
-                                        == uvutils.conj_pol(key))[0]
-                    if len(pol_ind2) == 0:
-                        raise KeyError('Polarization {pol} not found in data.'.format(pol=key))
-                    blt_ind2 = np.array([], dtype=np.int64)
-                    blt_ind2 = np.arange(self.Nblts)
-                    pol_ind1 = np.array([], dtype=np.int64)
-                pol_ind = (pol_ind1, pol_ind2)
+                    raise KeyError('Polarization {pol} not found in data.'.format(pol=key))
             else:
                 # Larger number, assume it is a baseline number
                 inv_bl = self.antnums_to_baseline(self.baseline_to_antnums(key)[1],
