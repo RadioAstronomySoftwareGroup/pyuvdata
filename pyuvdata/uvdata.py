@@ -2165,7 +2165,10 @@ class UVData(UVBase):
             blt_ind1: numpy array with blt indices for antenna pair.
             blt_ind2: numpy array with blt indices for conjugate antenna pair.
                       Note if a cross-pol baseline is requested, the polarization will
-                      also be reversed. e.g. (1, 2, 'xy') -> conj(2, 1, 'yx')
+                      also be reversed so the appropriate correlations are returned.
+                      e.g. asking for (1, 2, 'xy') may return conj(2, 1, 'yx'), which
+                      is equivalent to the requesting baseline. See utils.conj_pol() for
+                      complete conjugation mapping.
             pol_ind: tuple of numpy arrays with polarization indices for blt_ind1 and blt_ind2
         """
         key = uvutils.get_iterable(key)

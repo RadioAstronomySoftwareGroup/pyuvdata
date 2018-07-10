@@ -426,14 +426,18 @@ def jnum2str(jnum):
 
 def conj_pol(pol):
     """
-    Returns the polarization for the conjugate baselineself.
+    Returns the polarization for the conjugate baseline.
     For example, (1, 2, 'XY') = conj(2, 1, 'YX').
+    The returned polarization is determined by assuming the antenna pair is reversed
+    in the data, and finding the correct polarization correlation which will yield
+    the requested baseline when conjugated. Note this means changing the polarization
+    for linear cross-pols, but keeping auto-pol (e.g. XX) and Stokes the same.
 
     Args:
         pol: Polarization (str or int)
 
     Returns:
-        cpol: Polarization as if X and Y are swapped (type matches input)
+        cpol: Polarization as if antennas are swapped (type matches input)
     """
     cpol_dict = {'XX': 'XX', 'YY': 'YY', 'XY': 'YX', 'YX': 'XY',
                  'JXX': 'jxx', 'JYY': 'jyy', 'JXY': 'jyx', 'JYX': 'jxy',
