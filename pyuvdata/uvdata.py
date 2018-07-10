@@ -1707,9 +1707,8 @@ class UVData(UVBase):
             time_range: len-2 list containing min and max range of times (Julian Date) to read-in.
                 Ex: [2458115.20, 2458115.40]
             read_data: Read in the visibility and flag data. If set to false,
-                only the basic header info and metadata (if read_metadata is True)
-                will be read in. Results in an incompletely defined object
-                (check will not pass). Default True.
+                only the metadata will be read in. Results in an incompletely
+                defined object (check will not pass). Default True.
             phase_type: Either 'drift' meaning zenith drift, 'phased' meaning
                 the data are phased to a single RA/Dec or None and it will be
                 guessed at based on the file. Default None.
@@ -1834,9 +1833,8 @@ class UVData(UVBase):
             blt_inds: The baseline-time indices to include when reading data into
                 the object. This is not commonly used. Ignored if read_data is False.
             read_data: Read in the visibility and flag data. If set to false,
-                only the basic header info and metadata (if read_metadata is True)
-                will be read in. Results in an incompletely defined object
-                (check will not pass). Default True.
+                only the metadata  will be read in. Results in an incompletely
+                defined object (check will not pass). Default True.
             run_check: Option to check for the existence and proper shapes of
                 parameters after reading in the file. Default is True.
             check_extra: Option to check optional parameters as well as required
