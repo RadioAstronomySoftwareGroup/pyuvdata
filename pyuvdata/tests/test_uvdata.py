@@ -2471,3 +2471,42 @@ def test_select_with_ant_str():
     uv2 = uv.select(ant_str=ant_str, inplace=inplace)
     nt.assert_count_equal(uv2.get_antpairs(), ant_pairs)
     nt.assert_count_equal(uv2.get_pols(), uv.get_pols())
+
+def test_juldate2ephem():
+    # Test select function with ant_str argument
+    uv = UVData()
+    date = 2458099.42105096
+    eph = uv.juldate2ephem(date)
+    jul1 = uv.ephem2juldate(eph)
+    jul2 = uv.ephem2juldate(eph.tuple())
+
+    nt.assert_almost_equals(date, jul1)
+    nt.assert_almost_equals(date, jul2)
+
+
+def test_set_uvws_from_antenna_pos_phased():
+    # Test set_uvws_from_antenna_positions function with phased data
+    uv_object = UVData()
+    testfile = os.path.join(
+        DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    uvtest.checkWarnings(uv_object.read_uvfits, [
+                         testfile], message='Telescope EVLA is not')
+    orig_uvw_array = np.copy(uv_object.uvw_array)
+    nt.assert_raises(ValueError, uv_object.set_uvws_from_antenna_positions)
+    uvtest.checkWarnings(uv_object.set_uvws_from_antenna_positions,
+                         [True], message='Warning: Data will be unphased')
+    for i in range(np.size(orig_uvw_array)):
+        nt.assert_almost_equal(np.ndarray.flatten(orig_uvw_array)[i], np.ndarray.flatten(uv_object.uvw_array)[i])
+
+
+def test_set_uvws_from_antenna_pos_drift():
+    # Test set_uvws_from_antenna_positions function with drift data
+    uv_object = UVData()
+    testfile = os.path.join(
+        DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    uvtest.checkWarnings(uv_object.read_uvfits, [
+                         testfile], message='Telescope EVLA is not')
+    uv_object.unphase_to_drift()
+    orig_uvw_array = np.copy(uv_object.uvw_array)
+    uv_object.set_uvws_from_antenna_positions()
+    nt.assert_almost_equal(orig_uvw_array, uv_object.uvw_array)
