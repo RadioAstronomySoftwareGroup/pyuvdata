@@ -2172,8 +2172,8 @@ class UVData(UVBase):
                 blt_ind2 = np.array([], dtype=np.int64)
                 pol_ind2 = np.array([], dtype=np.int64)
             else:
-                pol_ind2 = np.where(self.polarization_array ==
-                                    uvutils.polstr2num(uvutils.conj_pol(key)))[0]
+                pol_ind2 = np.where(self.polarization_array
+                                    == uvutils.polstr2num(uvutils.conj_pol(key)))[0]
                 if len(pol_ind2) == 0:
                     raise KeyError('Polarization {pol} not found in data.'.format(pol=key))
                 blt_ind1 = np.array([], dtype=np.int64)
@@ -2193,8 +2193,8 @@ class UVData(UVBase):
                     blt_ind2 = np.array([], dtype=np.int64)
                     pol_ind2 = np.array([], dtype=np.int64)
                 else:
-                    pol_ind2 = np.where(self.polarization_array ==
-                                        uvutils.conj_pol(key))[0]
+                    pol_ind2 = np.where(self.polarization_array
+                                        == uvutils.conj_pol(key))[0]
                     if len(pol_ind2) == 0:
                         raise KeyError('Polarization {pol} not found in data.'.format(pol=key))
                     blt_ind2 = np.array([], dtype=np.int64)
@@ -2231,8 +2231,8 @@ class UVData(UVBase):
                 else:
                     pol_ind1 = np.array([], dtype=np.int64)
                 if len(blt_ind2) > 0:
-                    pol_ind2 = np.where(self.polarization_array ==
-                                        uvutils.polstr2num(uvutils.conj_pol(key[2])))[0]
+                    pol_ind2 = np.where(self.polarization_array
+                                        == uvutils.polstr2num(uvutils.conj_pol(key[2])))[0]
                 else:
                     pol_ind2 = np.array([], dtype=np.int64)
             else:
