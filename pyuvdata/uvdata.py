@@ -1495,20 +1495,20 @@ class UVData(UVBase):
             # work out what function should be called depending on what's
             # already defined on the object
             if self.freq_array is not None:
-                hdr_read = True
+                hdr_loaded = True
             else:
-                hdr_read = False
+                hdr_loaded = False
             if self.data_array is not None:
-                data_read = True
+                data_loaded = True
             else:
-                data_read = False
+                data_loaded = False
 
             if not read_data and not read_metadata:
                 # not reading data or metadata, use read_uvfits to get header
                 func = 'read_uvfits'
             elif not read_data:
                 # reading metadata but not data
-                if hdr_read:
+                if hdr_loaded:
                     # header already read, use read_uvfits_metadata
                     # (which will error if the data have already been read)
                     func = 'read_uvfits_metadata'
@@ -1517,7 +1517,7 @@ class UVData(UVBase):
                     func = 'read_uvfits'
             else:
                 # reading data
-                if hdr_read and not data_read:
+                if hdr_loaded and not data_loaded:
                     # header already read, data not read, use read_uvfits_data
                     # (which will read metadata if it doesn't exist)
                     func = 'read_uvfits_data'
