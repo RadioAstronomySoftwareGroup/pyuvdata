@@ -623,12 +623,8 @@ class UVData(UVBase):
                                             self.antenna_positions)
 
                 for bl_ind in inds:
-                    ant1_index = np.where(
-                        self.antenna_numbers == self.ant_1_array[bl_ind]
-                    )[0][0]
-                    ant2_index = np.where(
-                        self.antenna_numbers == self.ant_2_array[bl_ind]
-                    )[0][0]
+                    ant1_index = np.where(self.antenna_numbers == self.ant_1_array[bl_ind])[0][0]
+                    ant2_index = np.where(self.antenna_numbers == self.ant_2_array[bl_ind])[0][0]
                     self.uvw_array[bl_ind, :] = ant_uvw[ant2_index, :] - ant_uvw[ant1_index, :]
 
             else:
@@ -759,9 +755,9 @@ class UVData(UVBase):
                                                   frame_ant_rel)
 
                 for bl_ind in inds:
-                    ant1 = self.ant_1_array[bl_ind]
-                    ant2 = self.ant_2_array[bl_ind]
-                    self.uvw_array[bl_ind, :] = frame_ant_uvw[ant2, :] - frame_ant_uvw[ant1, :]
+                    ant1_index = np.where(self.antenna_numbers == self.ant_1_array[bl_ind])[0][0]
+                    ant2_index = np.where(self.antenna_numbers == self.ant_2_array[bl_ind])[0][0]
+                    self.uvw_array[bl_ind, :] = frame_ant_uvw[ant2_index, :] - frame_ant_uvw[ant1_index, :]
             else:
                 # Also, uvws should be thought of like ENU, not ECEF (or rotated ECEF)
                 # convert them to ECEF to transform between frames
