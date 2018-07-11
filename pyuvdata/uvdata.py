@@ -1778,6 +1778,9 @@ class UVData(UVBase):
         """
         from . import miriad
         if isinstance(filepath, (list, tuple)):
+            if not read_data:
+                raise ValueError('read_data cannot be False for a list of uvfits files')
+
             self.read_miriad(filepath[0], correct_lat_lon=correct_lat_lon,
                              run_check=run_check, check_extra=check_extra,
                              run_check_acceptability=run_check_acceptability,
