@@ -50,7 +50,7 @@ def test_ReadNRAO():
     nt.assert_equal(UV, UV2)
 
     # check error trying to read metadata after data is already present
-    nt.assert_raises(ValueError, UV2.read_uvfits_metadata, testfile)
+    nt.assert_raises(ValueError, UV2.read_uvfits, testfile, {'read_data': False})
 
     del(UV)
 
