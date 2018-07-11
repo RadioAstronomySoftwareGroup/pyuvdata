@@ -527,6 +527,7 @@ def test_readWriteReadMiriad():
     uv_out = UVData()
     testfile = os.path.join(DATA_PATH, 'zen.2456865.60537.xy.uvcRREAA')
     write_file = os.path.join(DATA_PATH, 'test/outtest_miriad.uv')
+    write_file2 = os.path.join(DATA_PATH, 'test/outtest_miriad2.uv')
     uvtest.checkWarnings(uv_in.read_miriad, [testfile], known_warning='miriad')
     uv_in.write_miriad(write_file, clobber=True)
     uv_out.read_miriad(write_file)
@@ -716,7 +717,12 @@ def test_readWriteReadMiriad():
     # test exceptions
     # multiple file read-in
     uv_in = UVData()
-    nt.assert_raises(ValueError, uv_in.read_miriad, [testfile, testfile], read_data=False)
+    uvtest.checkWarnings(uv_in.read_miriad, [testfile], known_warning='miriad')
+    new_uv = uv_in.select(freq_chans=np.arange(5), inplace=False)
+    new_uv.write_miriad(write_file, clobber=True)
+    new_uv = uv_in.select(freq_chans=np.arange(5) + 5, inplace=False)
+    new_uv.write_miriad(write_file2, clobber=True)
+    nt.assert_raises(ValueError, uv_in.read_miriad, [write_file, write_file2], read_data=False)
     # read-in when data already exists
     uv_in = UVData()
     uvtest.checkWarnings(uv_in.read_miriad, [testfile], known_warning='miriad')
