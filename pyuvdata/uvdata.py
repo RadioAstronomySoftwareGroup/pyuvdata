@@ -1528,9 +1528,45 @@ class UVData(UVBase):
                 Ignored if read_data is False.
         """
         from . import uvfits
+        # work out what function should be called depending on what's
+        # already defined on the object
+        if self.freq_array is not None:
+            hdr_loaded = True
+        else:
+            hdr_loaded = False
+        if self.data_array is not None:
+            data_loaded = True
+        else:
+            data_loaded = False
+
+        if not read_data and not read_metadata:
+            # not reading data or metadata, use read_uvfits to get header
+            func = 'read_uvfits'
+        elif not read_data:
+            # reading metadata but not data
+            if hdr_loaded:
+                # header already read, use read_uvfits_metadata
+                # (which will error if the data have already been read)
+                func = 'read_uvfits_metadata'
+            else:
+                # header not read, use read_uvfits
+                func = 'read_uvfits'
+        else:
+            # reading data
+            if hdr_loaded and not data_loaded:
+                # header already read, data not read, use read_uvfits_data
+                # (which will read metadata if it doesn't exist)
+                func = 'read_uvfits_data'
+            else:
+                # header not read or object already fully defined,
+                # use read_uvfits to get a new object
+                func = 'read_uvfits'
+
         if isinstance(filename, (list, tuple)):
             if not read_data:
                 raise ValueError('read_data cannot be False for a list of uvfits files')
+            if func == 'read_uvfits_data':
+                raise ValueError('A list of files cannot be used when just reading data')
 
             self.read_uvfits(filename[0], antenna_nums=antenna_nums,
                              antenna_names=antenna_names, ant_str=ant_str,
@@ -1552,40 +1588,6 @@ class UVData(UVBase):
                     self += uv2
                 del(uv2)
         else:
-            # work out what function should be called depending on what's
-            # already defined on the object
-            if self.freq_array is not None:
-                hdr_loaded = True
-            else:
-                hdr_loaded = False
-            if self.data_array is not None:
-                data_loaded = True
-            else:
-                data_loaded = False
-
-            if not read_data and not read_metadata:
-                # not reading data or metadata, use read_uvfits to get header
-                func = 'read_uvfits'
-            elif not read_data:
-                # reading metadata but not data
-                if hdr_loaded:
-                    # header already read, use read_uvfits_metadata
-                    # (which will error if the data have already been read)
-                    func = 'read_uvfits_metadata'
-                else:
-                    # header not read, use read_uvfits
-                    func = 'read_uvfits'
-            else:
-                # reading data
-                if hdr_loaded and not data_loaded:
-                    # header already read, data not read, use read_uvfits_data
-                    # (which will read metadata if it doesn't exist)
-                    func = 'read_uvfits_data'
-                else:
-                    # header not read or object already fully defined,
-                    # use read_uvfits to get a new object
-                    func = 'read_uvfits'
-
             if func == 'read_uvfits':
                 uvfits_obj = uvfits.UVFITS()
                 uvfits_obj.read_uvfits(filename, antenna_nums=antenna_nums,
@@ -1599,9 +1601,7 @@ class UVData(UVBase):
                 self._convert_from_filetype(uvfits_obj)
                 del(uvfits_obj)
             elif func == 'read_uvfits_metadata':
-                if isinstance(filename, (list, tuple)):
-                    raise ValueError('A list of files cannot be used when just reading metadata')
-
+                # can only be one file, it would have errored earlier because read_data=False
                 uvfits_obj = self._convert_to_filetype('uvfits')
                 uvfits_obj.read_uvfits_metadata(filename)
                 self._convert_from_filetype(uvfits_obj)
