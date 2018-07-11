@@ -1814,9 +1814,6 @@ class UVData(UVBase):
                 del(miriad_obj)
             else:
                 # not reading data. Will error if data_array is already defined.
-                if isinstance(filepath, (list, tuple)):
-                    raise ValueError('A list of files cannot be used when just reading metadata')
-
                 miriad_obj = self._convert_to_filetype('miriad')
                 miriad_obj.read_miriad_metadata(filepath, correct_lat_lon=correct_lat_lon)
                 self._convert_from_filetype(miriad_obj)
