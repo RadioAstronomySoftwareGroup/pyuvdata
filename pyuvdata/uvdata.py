@@ -557,6 +557,7 @@ class UVData(UVBase):
     def unphase_to_drift(self, phase_frame=None, use_ant_pos=False):
         """
         Convert from a phased dataset to a drift dataset.
+        See the phasing memo under docs/references for more documentation.
 
         Args:
             phase_frame: the astropy frame to phase from. Either 'icrs' or 'gcrs'.
@@ -658,8 +659,9 @@ class UVData(UVBase):
     def phase(self, ra, dec, epoch='J2000', phase_frame='icrs', use_ant_pos=False):
         """"
         Phase a drift scan dataset to a single ra/dec at a particular epoch.
-        Tested against MWA_Tools/CONV2UVFITS/convutils.
+        See the phasing memo under docs/references for more documentation.
 
+        Tested against MWA_Tools/CONV2UVFITS/convutils.
         Will not phase already phased data.
 
         Args:
@@ -793,6 +795,7 @@ class UVData(UVBase):
     def phase_to_time(self, time, phase_frame='icrs', use_ant_pos=False):
         """
         Phase a drift scan dataset to the ra/dec of zenith at a particular time.
+        See the phasing memo under docs/references for more documentation.
 
         Args:
             time: The time to phase to, an astropy Time object.
