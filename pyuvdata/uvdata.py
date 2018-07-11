@@ -1608,9 +1608,6 @@ class UVData(UVBase):
                 self._convert_from_filetype(uvfits_obj)
                 del(uvfits_obj)
             elif func == 'read_uvfits_data':
-                if isinstance(filename, (list, tuple)):
-                    raise ValueError('A list of files cannot be used when just reading data')
-
                 uvfits_obj = self._convert_to_filetype('uvfits')
                 uvfits_obj.read_uvfits_data(filename, antenna_nums=antenna_nums,
                                             antenna_names=antenna_names, ant_str=ant_str,
