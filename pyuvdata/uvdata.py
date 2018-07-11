@@ -623,9 +623,13 @@ class UVData(UVBase):
                                             self.antenna_positions)
 
                 for bl_ind in inds:
-                    ant1 = self.ant_1_array[bl_ind]
-                    ant2 = self.ant_2_array[bl_ind]
-                    self.uvw_array[bl_ind, :] = ant_uvw[ant2, :] - ant_uvw[ant1, :]
+                    ant1_index = np.where(
+                        self.antenna_numbers == self.ant_1_array[bl_ind]
+                    )[0][0]
+                    ant2_index = np.where(
+                        self.antenna_numbers == self.ant_2_array[bl_ind]
+                    )[0][0]
+                    self.uvw_array[bl_ind, :] = ant_uvw[ant2_index, :] - ant_uvw[ant1_index, :]
 
             else:
                 uvws_use = self.uvw_array[inds, :]
