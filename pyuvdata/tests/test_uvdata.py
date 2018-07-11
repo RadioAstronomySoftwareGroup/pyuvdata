@@ -369,9 +369,9 @@ def test_phase_unphaseHERA():
     for ind, jd in enumerate(unique_times):
         inds = np.where(UV_raw.time_array == jd)[0]
         for bl_ind in inds:
-            ant1 = UV_raw.ant_1_array[bl_ind]
-            ant2 = UV_raw.ant_2_array[bl_ind]
-            uvw_calc[bl_ind, :] = antenna_enu[ant2, :] - antenna_enu[ant1, :]
+            ant1_index = np.where(UV_raw.antenna_numbers == UV_raw.ant_1_array[bl_ind])[0][0]
+            ant2_index = np.where(UV_raw.antenna_numbers == UV_raw.ant_2_array[bl_ind])[0][0]
+            uvw_calc[bl_ind, :] = antenna_enu[ant2_index, :] - antenna_enu[ant1_index, :]
 
     UV_raw_new = copy.deepcopy(UV_raw)
     UV_raw_new.uvw_array = uvw_calc
