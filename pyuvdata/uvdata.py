@@ -813,7 +813,8 @@ class UVData(UVBase):
                              'Set the phase_type to drift or phased to '
                              'reflect the phasing status of the data')
 
-        assert(isinstance(time, Time))
+        if not isinstance(time, Time):
+            raise(TypeError, "time must be an astropy.time.Time object")
 
         # Generate ra/dec of zenith at time in the phase_frame coordinate system
         # to use for phasing
