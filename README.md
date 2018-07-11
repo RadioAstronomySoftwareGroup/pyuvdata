@@ -36,6 +36,7 @@ pyuvdata has three major user classes:
 * miriad is supported for aipy-style analysis, further testing is required for use in the miriad package
 * uvfits conforms to AIPS memo 117 (as of May 2015).  It is tested against FHD, CASA, and AIPS. However AIPS is limited to <80 antennas and CASA imaging does not seem to support >255 antennas.
 * uvh5 is an HDF5-based file format defined by the HERA collaboration, and will be defined by a memo (coming soon). Note that this is a new format and is very experimental, consider it to be an alpha version.
+It is probably not compatible with other interferometric HDF5 files defined by other groups.
 * FHD (read-only support, tested against MWA and PAPER data)
 * CASA measurement sets (read-only support)
 
@@ -49,7 +50,7 @@ pyuvdata has three major user classes:
 * read support for CST beam text files
 
 ## Under Development
-* UVData: uvh5 file format (alpha version)
+* UVData: uvh5 file format (alpha version), note that this is probably not compatible with other interferometric HDF5 files defined by other groups.
 * UVData: phasing was recently updated to use astropy. It has been tested against MWA files and matches to better than 2 cm (5mm if starting from antenna positions rather than the uvws). See the phasing memo in docs/references for more details.
 * UVCal: object and calfits file format (beta version)
 * UVBeam: object and beamfits file format (alpha version)
