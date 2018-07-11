@@ -446,7 +446,8 @@ def test_phasing():
     uvd2_drift_antpos = copy.deepcopy(uvd2)
     uvd2_drift_antpos.unphase_to_drift(phase_frame='gcrs', use_ant_pos=True)
 
-    # the tolerances here are empirical
+    # the tolerances here are empirical -- based on what was seen in the external
+    # phasing test. See the phasing memo in docs/references for details
     nt.assert_true(np.allclose(uvd1_drift.uvw_array, uvd2_drift.uvw_array, atol=2e-2))
     nt.assert_true(np.allclose(uvd1_drift_antpos.uvw_array, uvd2_drift_antpos.uvw_array))
 
@@ -462,7 +463,8 @@ def test_phasing():
                               phase_frame='gcrs',
                               use_ant_pos=True)
 
-    # the tolerances here are empirical
+    # the tolerances here are empirical -- based on what was seen in the external
+    # phasing test. See the phasing memo in docs/references for details
     nt.assert_true(np.allclose(uvd1.uvw_array, uvd2_rephase.uvw_array, atol=2e-2))
     nt.assert_true(np.allclose(uvd1.uvw_array, uvd2_rephase_antpos.uvw_array, atol=5e-3))
 
@@ -473,7 +475,9 @@ def test_phasing():
                             uvd1.phase_center_epoch, phase_frame='gcrs',
                             use_ant_pos=True)
 
-    # the tolerances here are empirical
+    # the tolerances here are empirical -- caused by one unphase/phase cycle.
+    # the antpos-based phasing differences are based on what was seen in the external
+    # phasing test. See the phasing memo in docs/references for details
     nt.assert_true(np.allclose(uvd1.uvw_array, uvd1_drift.uvw_array, atol=1e-4))
     nt.assert_true(np.allclose(uvd1.uvw_array, uvd1_drift_antpos.uvw_array, atol=5e-3))
 
@@ -483,7 +487,9 @@ def test_phasing():
                             uvd2.phase_center_epoch, phase_frame='gcrs',
                             use_ant_pos=True)
 
-    # the tolerances here are empirical
+    # the tolerances here are empirical -- caused by one unphase/phase cycle.
+    # the antpos-based phasing differences are based on what was seen in the external
+    # phasing test. See the phasing memo in docs/references for details
     nt.assert_true(np.allclose(uvd2.uvw_array, uvd2_drift.uvw_array, atol=1e-4))
     nt.assert_true(np.allclose(uvd2.uvw_array, uvd2_drift_antpos.uvw_array, atol=2e-2))
 
