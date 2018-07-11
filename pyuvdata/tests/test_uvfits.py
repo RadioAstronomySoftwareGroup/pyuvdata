@@ -38,7 +38,6 @@ def test_ReadNRAO():
     nt.assert_raises(ValueError, UV2.check)
     UV2.read_uvfits(testfile)
     nt.assert_equal(UV, UV2)
-
     # test reading in header & metadata first, then data
     UV2 = UVData()
     uvtest.checkWarnings(UV2.read_uvfits, [testfile], {'read_data': False},
@@ -50,8 +49,8 @@ def test_ReadNRAO():
     nt.assert_equal(UV, UV2)
 
     # check error trying to read metadata after data is already present
-    nt.assert_raises(ValueError, UV2.read_uvfits, testfile, {'read_data': False})
-
+    nt.assert_raises(ValueError, uvtest.checkWarnings, UV2.read_uvfits, [testfile],
+                     {'read_data': False}, message='Telescope EVLA is not')
     del(UV)
 
 
@@ -526,6 +525,12 @@ def test_multi_files():
     # check raises error if read_data is False and read_metadata is True
     nt.assert_raises(ValueError, uv1.read_uvfits, [testfile1, testfile2],
                      read_data=False, read_metadata=True)
+
+    # check raises error if only reading data on a list of files
+    uv1 = UVData()
+    uvtest.checkWarnings(uv1.read_uvfits, [uvfits_file], {'read_data': False},
+                         message=['Telescope EVLA is not'])
+    nt.assert_raises(ValueError, uv1.read_uvfits, [testfile1, testfile2])
 
 
 def test_readMSWriteUVFits_CASAHistory():
