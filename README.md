@@ -55,6 +55,7 @@ pyuvdata has three major user classes:
 * UVBeam: object and beamfits file format (alpha version)
 
 ## Known Issues and Planned Improvements
+* UVData: phasing (and the accuracy on the uvw coordinates) is only known to be good to 2cm on a 3km baseline (see the phasing memo in docs/references for more details).
 * UVData: different multiple spectral windows or multiple sources are not currently supported
 * UVData: testing against miriad package (not just aipy derived data sets)
 * UVData: add support for writing CASA measurement sets
