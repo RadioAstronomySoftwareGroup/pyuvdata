@@ -402,6 +402,9 @@ def test_phase_unphaseHERA():
     # it's unclear to me how close this should be...
     nt.assert_true(np.allclose(UV_phase_simple_small.uvw_array, UV_raw_small.uvw_array, atol=1e-2))
 
+    # check error if not passing a Time object to phase_to_time
+    nt.assert_raises(TypeError, UV_raw.phase_to_time, UV_raw.time_array[0])
+
     # check errors when trying to unphase drift or unknown data
     nt.assert_raises(ValueError, UV_raw.unphase_to_drift)
     UV_raw.set_unknown_phase_type()
