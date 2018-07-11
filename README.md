@@ -50,12 +50,12 @@ pyuvdata has three major user classes:
 
 ## Under Development
 * UVData: uvh5 file format (alpha version)
-* UVData: phasing was recently updated to use astropy. It has been tested against MWA files and matches to better than 2 cm (5mm if starting from antenna positions rather than the uvws.)
+* UVData: phasing was recently updated to use astropy. It has been tested against MWA files and matches to better than 2 cm (5mm if starting from antenna positions rather than the uvws). See the phasing memo in docs/references for more details.
 * UVCal: object and calfits file format (beta version)
 * UVBeam: object and beamfits file format (alpha version)
 
 ## Known Issues and Planned Improvements
-* UVData: phasing (and the accuracy on the uvw coordinates) is only known to be good to 2cm on a 3km baseline (see the phasing memo in docs/references for more details).
+* UVData: phasing (and the accuracy on the uvw coordinates) is only known to be good to 2cm on a 3km baseline (this is limited by the accuracy of the test file, see the phasing memo in docs/references for more details).
 * UVData: different multiple spectral windows or multiple sources are not currently supported
 * UVData: testing against miriad package (not just aipy derived data sets)
 * UVData: add support for writing CASA measurement sets
