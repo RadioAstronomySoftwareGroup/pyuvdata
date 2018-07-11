@@ -111,7 +111,7 @@ conda-forge for optionally installing python-casacore and healpy (e.g. ```conda 
 
 * numpy >= 1.14
 * scipy
-* astropy >= 1.2
+* astropy >= 2.0
 * h5py (optional: for reading and writing uvh5 format)
 * python-casacore (optional: for CASA measurement set reading functionality)
 * healpy (optional: working with beams in HEALPix formats)
