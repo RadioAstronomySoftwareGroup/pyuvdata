@@ -82,8 +82,6 @@ def known_telescopes():
     """
     Get list of known telescopes.
 
-    Args:
-
     Returns:
         List of known telescope names.
     """
