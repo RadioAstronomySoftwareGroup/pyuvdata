@@ -2481,13 +2481,21 @@ def test_set_uvws_from_antenna_pos():
     uv_object.read_uvfits(testfile)
     orig_uvw_array = np.copy(uv_object.uvw_array)
     nt.assert_raises(ValueError, uv_object.set_uvws_from_antenna_positions)
-    nt.assert_raises(ValueError, uv_object.set_uvws_from_antenna_positions,
-                     True, 'xyz')
-    nt.assert_raises(ValueError, uv_object.set_uvws_from_antenna_positions,
-                     True, None, 'xyz')
-    uvtest.checkWarnings(uv_object.set_uvws_from_antenna_positions,
-                         [True, 'gcrs', 'gcrs'],
-                         message='Warning: Data will be unphased')
+    uvtest.checkWarnings(
+        nt.assert_raises,
+        [ValueError, uv_object.set_uvws_from_antenna_positions, True, 'xyz'],
+        message='Warning: Data will be unphased'
+    )
+    uvtest.checkWarnings(
+        nt.assert_raises,
+        [ValueError, uv_object.set_uvws_from_antenna_positions, True, 'gcrs', 'xyz'],
+        message='Warning: Data will be unphased'
+    )
+    uvtest.checkWarnings(
+        uv_object.set_uvws_from_antenna_positions,
+        [True, 'gcrs', 'gcrs'],
+        message='Warning: Data will be unphased'
+    )
     max_diff = np.amax(np.absolute(np.subtract(orig_uvw_array,
                                                uv_object.uvw_array)))
     nt.assert_almost_equal(max_diff, 0., 2)
