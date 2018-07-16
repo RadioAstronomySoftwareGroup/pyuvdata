@@ -646,8 +646,8 @@ class UVData(UVBase):
                 itrs_uvw_coord = frame_uvw_coord.transform_to('itrs')
 
                 # now convert them to ENU, which is the space uvws are in
-                self.uvw_array[inds, :] = uvutils.ENU_from_ECEF(itrs_uvw_coord.cartesian.get_xyz().value,
-                                                                *itrs_lat_lon_alt).T
+                self.uvw_array[inds, :] = uvutils.ENU_from_ECEF(itrs_uvw_coord.cartesian.get_xyz().value.T,
+                                                                *itrs_lat_lon_alt)
 
         # remove phase center
         self.phase_center_frame = None
@@ -765,7 +765,7 @@ class UVData(UVBase):
                 # convert them to ECEF to transform between frames
                 uvws_use = self.uvw_array[inds, :]
 
-                uvw_ecef = uvutils.ECEF_from_ENU(uvws_use.T, *itrs_lat_lon_alt).T
+                uvw_ecef = uvutils.ECEF_from_ENU(uvws_use, *itrs_lat_lon_alt)
 
                 itrs_uvw_coord = SkyCoord(x=uvw_ecef[:, 0] * units.m,
                                           y=uvw_ecef[:, 1] * units.m,
@@ -2174,7 +2174,8 @@ class UVData(UVBase):
         antpos : ndarray, antenna positions in TOPO frame and units of meters, shape=(Nants, 3)
         ants : ndarray, antenna numbers matching ordering of antpos, shape=(Nants,)
         """
-        antpos = uvutils.ENU_from_ECEF((self.antenna_positions + self.telescope_location).T, *self.telescope_location_lat_lon_alt).T
+        antpos = uvutils.ENU_from_ECEF((self.antenna_positions + self.telescope_location),
+                                       *self.telescope_location_lat_lon_alt)
         ants = self.antenna_numbers
 
         if pick_data_ants:
