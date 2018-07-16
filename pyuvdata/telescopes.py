@@ -79,7 +79,14 @@ class Telescope(uvbase.UVBase):
 
 
 def known_telescopes():
-    """Get list of known telescopes."""
+    """
+    Get list of known telescopes.
+
+    Args:
+
+    Returns:
+        List of known telescope names.
+    """
     return list(telescopes.keys())
 
 

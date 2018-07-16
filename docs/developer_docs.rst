@@ -6,45 +6,45 @@ won't need to interact with.
 Classes
 -------------
 
-.. autoclass:: parameter.UVParameter
+.. autoclass:: pyuvdata.UVParameter
   :members:
 
-.. autoclass:: parameter.AntPositionParameter
+.. autoclass:: pyuvdata.AntPositionParameter
   :members:
 
-.. autoclass:: parameter.AngleParameter
+.. autoclass:: pyuvdata.AngleParameter
   :members:
 
-.. autoclass:: parameter.LocationParameter
+.. autoclass:: pyuvdata.LocationParameter
   :members:
 
-.. autoclass:: uvbase.UVBase
+.. autoclass:: pyuvdata.UVBase
   :members:
 
-.. autoclass:: uvfits.UVFITS
+.. autoclass:: pyuvdata.UVFITS
   :members:
 
-.. autoclass:: miriad.Miriad
+.. autoclass:: pyuvdata.Miriad
   :members:
 
-.. autoclass:: fhd.FHD
+.. autoclass:: pyuvdata.FHD
   :members:
 
-.. autoclass:: calfits.CALFITS
+.. autoclass:: pyuvdata.CALFITS
   :members:
 
-.. autoclass:: beamfits.BeamFITS
+.. autoclass:: pyuvdata.BeamFITS
   :members:
 
-.. autoclass:: telescopes.Telescope
+.. autoclass:: pyuvdata.Telescope
   :members:
 
 
 Functions
 ----------
-.. autofunction:: telescopes.known_telescopes
+.. autofunction:: pyuvdata.known_telescopes
 
-.. autofunction:: telescopes.get_telescope
+.. autofunction:: pyuvdata.get_telescope
 
 
 Utility Functions
