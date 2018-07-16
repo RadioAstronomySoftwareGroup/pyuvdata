@@ -2473,29 +2473,21 @@ def test_select_with_ant_str():
     nt.assert_count_equal(uv2.get_pols(), uv.get_pols())
 
 
-def test_set_uvws_from_antenna_pos_phased():
+def test_set_uvws_from_antenna_pos():
     # Test set_uvws_from_antenna_positions function with phased data
     uv_object = UVData()
     testfile = os.path.join(
-        DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-    uvtest.checkWarnings(uv_object.read_uvfits, [
-                         testfile], message='Telescope EVLA is not')
+        DATA_PATH, '1133866760.uvfits')
+    uv_object.read_uvfits(testfile)
     orig_uvw_array = np.copy(uv_object.uvw_array)
     nt.assert_raises(ValueError, uv_object.set_uvws_from_antenna_positions)
+    nt.assert_raises(ValueError, uv_object.set_uvws_from_antenna_positions,
+                     True, 'xyz')
+    nt.assert_raises(ValueError, uv_object.set_uvws_from_antenna_positions,
+                     True, None, 'xyz')
     uvtest.checkWarnings(uv_object.set_uvws_from_antenna_positions,
-                         [True], message='Warning: Data will be unphased')
-    for i in range(np.size(orig_uvw_array)):
-        nt.assert_almost_equal(np.ndarray.flatten(orig_uvw_array)[i], np.ndarray.flatten(uv_object.uvw_array)[i])
-
-
-def test_set_uvws_from_antenna_pos_drift():
-    # Test set_uvws_from_antenna_positions function with drift data
-    uv_object = UVData()
-    testfile = os.path.join(
-        DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-    uvtest.checkWarnings(uv_object.read_uvfits, [
-                         testfile], message='Telescope EVLA is not')
-    uv_object.unphase_to_drift()
-    orig_uvw_array = np.copy(uv_object.uvw_array)
-    uv_object.set_uvws_from_antenna_positions()
-    nt.assert_almost_equal(orig_uvw_array, uv_object.uvw_array)
+                         [True, 'gcrs', 'gcrs'],
+                         message='Warning: Data will be unphased')
+    max_diff = np.amax(np.absolute(np.subtract(orig_uvw_array,
+                                               uv_object.uvw_array)))
+    nt.assert_almost_equal(max_diff, 0., 2)
