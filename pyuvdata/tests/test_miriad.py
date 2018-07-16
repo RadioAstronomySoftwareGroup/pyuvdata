@@ -828,9 +828,9 @@ def test_multi_files():
                          message=['Telescope EVLA is not', 'Telescope EVLA is not'])
     # Check history is correct, before replacing and doing a full object check
     nt.assert_true(uvutils._check_histories(uv_full.history + '  Downselected to '
-                                           'specific frequencies using pyuvdata. '
-                                           'Combined data along frequency axis using'
-                                           ' pyuvdata.', uv1.history))
+                                            'specific frequencies using pyuvdata. '
+                                            'Combined data along frequency axis using'
+                                            ' pyuvdata.', uv1.history))
     uv1.history = uv_full.history
     nt.assert_equal(uv1, uv_full)
 
