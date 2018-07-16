@@ -19,16 +19,16 @@ e_prime_squared = 6.73949674228e-3
 
 
 if six.PY2:
-    def str_to_bytes(s):
+    def _str_to_bytes(s):
         return s
 
-    def bytes_to_str(b):
+    def _bytes_to_str(b):
         return b
 else:
-    def str_to_bytes(s):
+    def _str_to_bytes(s):
         return s.encode('utf8')
 
-    def bytes_to_str(b):
+    def _bytes_to_str(b):
         return b.decode('utf8')
 
 
@@ -241,13 +241,16 @@ def ECEF_from_ENU(enu, latitude, longitude, altitude):
 
 def phase_uvw(ra, dec, xyz):
     """
-    This code expects relative xyz locations in the same frame
-    that ra/dec are in (e.g. icrs or gcrs) and returns uvws in the same frame.
+    This code expects xyz locations relative to the telescope location in the
+    same frame that ra/dec are in (e.g. icrs or gcrs) and returns uvws in the
+    same frame.
 
+    Note that this code is nearly identical to ENU_from_ECEF, except that it uses
+    an arbitrary phasing center rather than a coordinate center.
     Args:
         ra: right ascension to phase to in desired frame
         dec: declination to phase to in desired frame
-        xyz: locations relative to the array center in desired frame
+        xyz: locations relative to the array center in desired frame, shape (Nlocs, 3)
 
     Returns:
         uvw array in the same frame as xyz, ra and dec
