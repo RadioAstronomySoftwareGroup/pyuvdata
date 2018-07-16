@@ -542,11 +542,11 @@ def test_select_blts():
     nt.assert_equal(len(blt_inds), uv_object2.Nblts)
 
     # verify that histories are different
-    nt.assert_false(uvutils.check_histories(old_history, uv_object2.history))
+    nt.assert_false(uvutils._check_histories(old_history, uv_object2.history))
 
-    nt.assert_true(uvutils.check_histories(old_history + '  Downselected to '
-                                           'specific baseline-times using pyuvdata.',
-                                           uv_object2.history))
+    nt.assert_true(uvutils._check_histories(old_history + '  Downselected to '
+                                            'specific baseline-times using pyuvdata.',
+                                            uv_object2.history))
 
     nt.assert_true(np.all(selected_data == uv_object2.data_array))
 
@@ -555,9 +555,9 @@ def test_select_blts():
     uv_object2.select(blt_inds=blt_inds[np.newaxis, :])
     nt.assert_equal(len(blt_inds), uv_object2.Nblts)
 
-    nt.assert_true(uvutils.check_histories(old_history + '  Downselected to '
-                                           'specific baseline-times using pyuvdata.',
-                                           uv_object2.history))
+    nt.assert_true(uvutils._check_histories(old_history + '  Downselected to '
+                                            'specific baseline-times using pyuvdata.',
+                                            uv_object2.history))
     nt.assert_true(np.all(selected_data == uv_object2.data_array))
 
     # check for errors associated with out of bounds indices
@@ -592,9 +592,9 @@ def test_select_antennas():
     for ant in np.unique(uv_object2.ant_1_array.tolist() + uv_object2.ant_2_array.tolist()):
         nt.assert_true(ant in ants_to_keep)
 
-    nt.assert_true(uvutils.check_histories(old_history + '  Downselected to '
-                                           'specific antennas using pyuvdata.',
-                                           uv_object2.history))
+    nt.assert_true(uvutils._check_histories(old_history + '  Downselected to '
+                                            'specific antennas using pyuvdata.',
+                                            uv_object2.history))
 
     # check that it also works with higher dimension array
     uv_object2 = copy.deepcopy(uv_object)
@@ -608,9 +608,9 @@ def test_select_antennas():
     for ant in np.unique(uv_object2.ant_1_array.tolist() + uv_object2.ant_2_array.tolist()):
         nt.assert_true(ant in ants_to_keep)
 
-    nt.assert_true(uvutils.check_histories(old_history + '  Downselected to '
-                                           'specific antennas using pyuvdata.',
-                                           uv_object2.history))
+    nt.assert_true(uvutils._check_histories(old_history + '  Downselected to '
+                                            'specific antennas using pyuvdata.',
+                                            uv_object2.history))
 
     # now test using antenna_names to specify antennas to keep
     uv_object3 = copy.deepcopy(uv_object)
@@ -688,9 +688,9 @@ def test_select_bls():
     for pair in sorted_pairs_object2:
         nt.assert_true(pair in sorted_pairs_to_keep)
 
-    nt.assert_true(uvutils.check_histories(old_history + '  Downselected to '
-                                           'specific baselines using pyuvdata.',
-                                           uv_object2.history))
+    nt.assert_true(uvutils._check_histories(old_history + '  Downselected to '
+                                            'specific baselines using pyuvdata.',
+                                            uv_object2.history))
 
     # check select with polarizations
     first_ants = [6, 2, 7, 2, 21, 27, 8]
@@ -724,9 +724,9 @@ def test_select_bls():
     for bl in sorted_pairs_object2:
         nt.assert_true(bl in sorted_bls_to_keep)
 
-    nt.assert_true(uvutils.check_histories(old_history + '  Downselected to '
-                                           'specific baselines, polarizations using pyuvdata.',
-                                           uv_object2.history))
+    nt.assert_true(uvutils._check_histories(old_history + '  Downselected to '
+                                            'specific baselines, polarizations using pyuvdata.',
+                                            uv_object2.history))
 
     # check that you can use numpy integers with out errors:
     first_ants = list(map(np.int32, [6, 2, 7, 2, 21, 27, 8]))
@@ -749,9 +749,9 @@ def test_select_bls():
     for pair in sorted_pairs_object2:
         nt.assert_true(pair in sorted_pairs_to_keep)
 
-    nt.assert_true(uvutils.check_histories(old_history + '  Downselected to '
-                                           'specific baselines using pyuvdata.',
-                                           uv_object2.history))
+    nt.assert_true(uvutils._check_histories(old_history + '  Downselected to '
+                                            'specific baselines using pyuvdata.',
+                                            uv_object2.history))
 
     # check that you can specify a single pair without errors
     uv_object2.select(bls=(0, 6))
@@ -793,9 +793,9 @@ def test_select_times():
     for t in np.unique(uv_object2.time_array):
         nt.assert_true(t in times_to_keep)
 
-    nt.assert_true(uvutils.check_histories(old_history + '  Downselected to '
-                                           'specific times using pyuvdata.',
-                                           uv_object2.history))
+    nt.assert_true(uvutils._check_histories(old_history + '  Downselected to '
+                                            'specific times using pyuvdata.',
+                                            uv_object2.history))
     # check that it also works with higher dimension array
     uv_object2 = copy.deepcopy(uv_object)
     uv_object2.select(times=times_to_keep[np.newaxis, :])
@@ -807,9 +807,9 @@ def test_select_times():
     for t in np.unique(uv_object2.time_array):
         nt.assert_true(t in times_to_keep)
 
-    nt.assert_true(uvutils.check_histories(old_history + '  Downselected to '
-                                           'specific times using pyuvdata.',
-                                           uv_object2.history))
+    nt.assert_true(uvutils._check_histories(old_history + '  Downselected to '
+                                            'specific times using pyuvdata.',
+                                            uv_object2.history))
 
     # check for errors associated with times not included in data
     nt.assert_raises(ValueError, uv_object.select, times=[
@@ -834,9 +834,9 @@ def test_select_frequencies():
     for f in np.unique(uv_object2.freq_array):
         nt.assert_true(f in freqs_to_keep)
 
-    nt.assert_true(uvutils.check_histories(old_history + '  Downselected to '
-                                           'specific frequencies using pyuvdata.',
-                                           uv_object2.history))
+    nt.assert_true(uvutils._check_histories(old_history + '  Downselected to '
+                                            'specific frequencies using pyuvdata.',
+                                            uv_object2.history))
 
     # check that it also works with higher dimension array
     uv_object2 = copy.deepcopy(uv_object)
@@ -848,9 +848,9 @@ def test_select_frequencies():
     for f in np.unique(uv_object2.freq_array):
         nt.assert_true(f in freqs_to_keep)
 
-    nt.assert_true(uvutils.check_histories(old_history + '  Downselected to '
-                                           'specific frequencies using pyuvdata.',
-                                           uv_object2.history))
+    nt.assert_true(uvutils._check_histories(old_history + '  Downselected to '
+                                            'specific frequencies using pyuvdata.',
+                                            uv_object2.history))
 
     # check that selecting one frequency works
     uv_object2 = copy.deepcopy(uv_object)
@@ -860,9 +860,9 @@ def test_select_frequencies():
     for f in uv_object2.freq_array:
         nt.assert_true(f in [freqs_to_keep[0]])
 
-    nt.assert_true(uvutils.check_histories(old_history + '  Downselected to '
-                                           'specific frequencies using pyuvdata.',
-                                           uv_object2.history))
+    nt.assert_true(uvutils._check_histories(old_history + '  Downselected to '
+                                            'specific frequencies using pyuvdata.',
+                                            uv_object2.history))
 
     # check for errors associated with frequencies not included in data
     nt.assert_raises(ValueError, uv_object.select, frequencies=[
@@ -902,9 +902,9 @@ def test_select_freq_chans():
     for f in np.unique(uv_object2.freq_array):
         nt.assert_true(f in uv_object.freq_array[0, chans_to_keep])
 
-    nt.assert_true(uvutils.check_histories(old_history + '  Downselected to '
-                                           'specific frequencies using pyuvdata.',
-                                           uv_object2.history))
+    nt.assert_true(uvutils._check_histories(old_history + '  Downselected to '
+                                            'specific frequencies using pyuvdata.',
+                                            uv_object2.history))
 
     # check that it also works with higher dimension array
     uv_object2 = copy.deepcopy(uv_object)
@@ -916,9 +916,9 @@ def test_select_freq_chans():
     for f in np.unique(uv_object2.freq_array):
         nt.assert_true(f in uv_object.freq_array[0, chans_to_keep])
 
-    nt.assert_true(uvutils.check_histories(old_history + '  Downselected to '
-                                           'specific frequencies using pyuvdata.',
-                                           uv_object2.history))
+    nt.assert_true(uvutils._check_histories(old_history + '  Downselected to '
+                                            'specific frequencies using pyuvdata.',
+                                            uv_object2.history))
 
     # Test selecting both channels and frequencies
     freqs_to_keep = uv_object.freq_array[0, np.arange(
@@ -953,9 +953,9 @@ def test_select_polarizations():
     for p in np.unique(uv_object2.polarization_array):
         nt.assert_true(p in pols_to_keep)
 
-    nt.assert_true(uvutils.check_histories(old_history + '  Downselected to '
-                                           'specific polarizations using pyuvdata.',
-                                           uv_object2.history))
+    nt.assert_true(uvutils._check_histories(old_history + '  Downselected to '
+                                            'specific polarizations using pyuvdata.',
+                                            uv_object2.history))
 
     # check that it also works with higher dimension array
     uv_object2 = copy.deepcopy(uv_object)
@@ -967,9 +967,9 @@ def test_select_polarizations():
     for p in np.unique(uv_object2.polarization_array):
         nt.assert_true(p in pols_to_keep)
 
-    nt.assert_true(uvutils.check_histories(old_history + '  Downselected to '
-                                           'specific polarizations using pyuvdata.',
-                                           uv_object2.history))
+    nt.assert_true(uvutils._check_histories(old_history + '  Downselected to '
+                                            'specific polarizations using pyuvdata.',
+                                            uv_object2.history))
 
     # check for errors associated with polarizations not included in data
     nt.assert_raises(ValueError, uv_object2.select, polarizations=[-3, -4])
@@ -1053,11 +1053,11 @@ def test_select():
     for p in np.unique(uv_object2.polarization_array):
         nt.assert_true(p in pols_to_keep)
 
-    nt.assert_true(uvutils.check_histories(old_history + '  Downselected to '
-                                           'specific baseline-times, antennas, '
-                                           'baselines, times, frequencies, '
-                                           'polarizations using pyuvdata.',
-                                           uv_object2.history))
+    nt.assert_true(uvutils._check_histories(old_history + '  Downselected to '
+                                            'specific baseline-times, antennas, '
+                                            'baselines, times, frequencies, '
+                                            'polarizations using pyuvdata.',
+                                            uv_object2.history))
 
     # test that a ValueError is raised if the selection eliminates all blts
     nt.assert_raises(ValueError, uv_object.select,
@@ -1074,10 +1074,10 @@ def test_select_not_inplace():
     old_history = uv_object.history
     uv1 = uv_object.select(freq_chans=np.arange(32), inplace=False)
     uv1 += uv_object.select(freq_chans=np.arange(32, 64), inplace=False)
-    nt.assert_true(uvutils.check_histories(old_history + '  Downselected to '
-                                           'specific frequencies using pyuvdata. '
-                                           'Combined data along frequency axis '
-                                           'using pyuvdata.', uv1.history))
+    nt.assert_true(uvutils._check_histories(old_history + '  Downselected to '
+                                            'specific frequencies using pyuvdata. '
+                                            'Combined data along frequency axis '
+                                            'using pyuvdata.', uv1.history))
 
     uv1.history = old_history
     nt.assert_equal(uv1, uv_object)
@@ -1117,10 +1117,10 @@ def test_add():
     uv2.select(freq_chans=np.arange(32, 64))
     uv1 += uv2
     # Check history is correct, before replacing and doing a full object check
-    nt.assert_true(uvutils.check_histories(uv_full.history + '  Downselected to '
-                                           'specific frequencies using pyuvdata. '
-                                           'Combined data along frequency axis '
-                                           'using pyuvdata.', uv1.history))
+    nt.assert_true(uvutils._check_histories(uv_full.history + '  Downselected to '
+                                            'specific frequencies using pyuvdata. '
+                                            'Combined data along frequency axis '
+                                            'using pyuvdata.', uv1.history))
 
     uv1.history = uv_full.history
     nt.assert_equal(uv1, uv_full)
@@ -1140,10 +1140,10 @@ def test_add():
     uv1.select(polarizations=uv1.polarization_array[0:2])
     uv2.select(polarizations=uv2.polarization_array[2:4])
     uv1 += uv2
-    nt.assert_true(uvutils.check_histories(uv_full.history + '  Downselected to '
-                                           'specific polarizations using pyuvdata. '
-                                           'Combined data along polarization axis '
-                                           'using pyuvdata.', uv1.history))
+    nt.assert_true(uvutils._check_histories(uv_full.history + '  Downselected to '
+                                            'specific polarizations using pyuvdata. '
+                                            'Combined data along polarization axis '
+                                            'using pyuvdata.', uv1.history))
     uv1.history = uv_full.history
     nt.assert_equal(uv1, uv_full)
 
@@ -1163,10 +1163,10 @@ def test_add():
     uv1.select(times=times[0:len(times) // 2])
     uv2.select(times=times[len(times) // 2:])
     uv1 += uv2
-    nt.assert_true(uvutils.check_histories(uv_full.history + '  Downselected to '
-                                           'specific times using pyuvdata. '
-                                           'Combined data along baseline-time axis '
-                                           'using pyuvdata.', uv1.history))
+    nt.assert_true(uvutils._check_histories(uv_full.history + '  Downselected to '
+                                            'specific times using pyuvdata. '
+                                            'Combined data along baseline-time axis '
+                                            'using pyuvdata.', uv1.history))
     uv1.history = uv_full.history
     nt.assert_equal(uv1, uv_full)
 
@@ -1180,10 +1180,10 @@ def test_add():
     uv1.select(blt_inds=ind1)
     uv2.select(blt_inds=ind2)
     uv1 += uv2
-    nt.assert_true(uvutils.check_histories(uv_full.history + '  Downselected to '
-                                           'specific baseline-times using pyuvdata. '
-                                           'Combined data along baseline-time axis '
-                                           'using pyuvdata.', uv1.history))
+    nt.assert_true(uvutils._check_histories(uv_full.history + '  Downselected to '
+                                            'specific baseline-times using pyuvdata. '
+                                            'Combined data along baseline-time axis '
+                                            'using pyuvdata.', uv1.history))
     uv1.history = uv_full.history
     nt.assert_equal(uv1, uv_full)
 
@@ -1214,12 +1214,12 @@ def test_add():
     uv3.baseline_array = uv3.baseline_array[-1::-1]
     uv1 += uv3
     uv1 += uv2
-    nt.assert_true(uvutils.check_histories(uv_full.history + '  Downselected to '
-                                           'specific baseline-times using pyuvdata. '
-                                           'Combined data along baseline-time axis '
-                                           'using pyuvdata. Combined data along '
-                                           'baseline-time axis using pyuvdata.',
-                                           uv1.history))
+    nt.assert_true(uvutils._check_histories(uv_full.history + '  Downselected to '
+                                            'specific baseline-times using pyuvdata. '
+                                            'Combined data along baseline-time axis '
+                                            'using pyuvdata. Combined data along '
+                                            'baseline-time axis using pyuvdata.',
+                                            uv1.history))
     uv1.history = uv_full.history
     nt.assert_equal(uv1, uv_full)
 
@@ -1233,11 +1233,11 @@ def test_add():
     uv2.select(times=times[len(times) // 2:],
                polarizations=uv2.polarization_array[2:4])
     uv1 += uv2
-    nt.assert_true(uvutils.check_histories(uv_full.history + '  Downselected to '
-                                           'specific times, polarizations using '
-                                           'pyuvdata. Combined data along '
-                                           'baseline-time, polarization axis '
-                                           'using pyuvdata.', uv1.history))
+    nt.assert_true(uvutils._check_histories(uv_full.history + '  Downselected to '
+                                            'specific times, polarizations using '
+                                            'pyuvdata. Combined data along '
+                                            'baseline-time, polarization axis '
+                                            'using pyuvdata.', uv1.history))
     blt_ind1 = np.array([ind for ind in range(uv_full.Nblts) if
                          uv_full.time_array[ind] in times[0:len(times) // 2]])
     blt_ind2 = np.array([ind for ind in range(uv_full.Nblts) if
@@ -1260,11 +1260,11 @@ def test_add():
     uv1.select(times=times[0:len(times) // 2], freq_chans=np.arange(0, 32))
     uv2.select(times=times[len(times) // 2:], freq_chans=np.arange(32, 64))
     uv1 += uv2
-    nt.assert_true(uvutils.check_histories(uv_full.history + '  Downselected to '
-                                           'specific times, frequencies using '
-                                           'pyuvdata. Combined data along '
-                                           'baseline-time, frequency axis using '
-                                           'pyuvdata.', uv1.history))
+    nt.assert_true(uvutils._check_histories(uv_full.history + '  Downselected to '
+                                            'specific times, frequencies using '
+                                            'pyuvdata. Combined data along '
+                                            'baseline-time, frequency axis using '
+                                            'pyuvdata.', uv1.history))
     blt_ind1 = np.array([ind for ind in range(uv_full.Nblts) if
                          uv_full.time_array[ind] in times[0:len(times) // 2]])
     blt_ind2 = np.array([ind for ind in range(uv_full.Nblts) if
@@ -1286,10 +1286,10 @@ def test_add():
     uv1.select(times=times[0:len(times) // 2])
     uv2.select(times=times[len(times) // 2:])
     uv1 = uv1 + uv2
-    nt.assert_true(uvutils.check_histories(uv_full.history + '  Downselected to '
-                                           'specific times using pyuvdata. '
-                                           'Combined data along baseline-time '
-                                           'axis using pyuvdata.', uv1.history))
+    nt.assert_true(uvutils._check_histories(uv_full.history + '  Downselected to '
+                                            'specific times using pyuvdata. '
+                                            'Combined data along baseline-time '
+                                            'axis using pyuvdata.', uv1.history))
     uv1.history = uv_full.history
     nt.assert_equal(uv1, uv_full)
 
@@ -1322,11 +1322,11 @@ def test_add():
     uv2.select(polarizations=uv2.polarization_array[2:4])
     uv2.history += ' testing the history. AIPS WTSCAL = 1.0'
     uv1 += uv2
-    nt.assert_true(uvutils.check_histories(uv_full.history + '  Downselected to '
-                                           'specific polarizations using pyuvdata. '
-                                           'Combined data along polarization '
-                                           'axis using pyuvdata. testing the history.',
-                                           uv1.history))
+    nt.assert_true(uvutils._check_histories(uv_full.history + '  Downselected to '
+                                            'specific polarizations using pyuvdata. '
+                                            'Combined data along polarization '
+                                            'axis using pyuvdata. testing the history.',
+                                            uv1.history))
     uv1.history = uv_full.history
     nt.assert_equal(uv1, uv_full)
 
@@ -1359,10 +1359,10 @@ def test_add_drift():
     uv2.select(freq_chans=np.arange(32, 64))
     uv1 += uv2
     # Check history is correct, before replacing and doing a full object check
-    nt.assert_true(uvutils.check_histories(uv_full.history + '  Downselected to '
-                                           'specific frequencies using pyuvdata. '
-                                           'Combined data along frequency '
-                                           'axis using pyuvdata.', uv1.history))
+    nt.assert_true(uvutils._check_histories(uv_full.history + '  Downselected to '
+                                            'specific frequencies using pyuvdata. '
+                                            'Combined data along frequency '
+                                            'axis using pyuvdata.', uv1.history))
     uv1.history = uv_full.history
     nt.assert_equal(uv1, uv_full)
 
@@ -1372,10 +1372,10 @@ def test_add_drift():
     uv1.select(polarizations=uv1.polarization_array[0:2])
     uv2.select(polarizations=uv2.polarization_array[2:4])
     uv1 += uv2
-    nt.assert_true(uvutils.check_histories(uv_full.history + '  Downselected to '
-                                           'specific polarizations using pyuvdata. '
-                                           'Combined data along polarization '
-                                           'axis using pyuvdata.', uv1.history))
+    nt.assert_true(uvutils._check_histories(uv_full.history + '  Downselected to '
+                                            'specific polarizations using pyuvdata. '
+                                            'Combined data along polarization '
+                                            'axis using pyuvdata.', uv1.history))
     uv1.history = uv_full.history
     nt.assert_equal(uv1, uv_full)
 
@@ -1386,10 +1386,10 @@ def test_add_drift():
     uv1.select(times=times[0:len(times) // 2])
     uv2.select(times=times[len(times) // 2:])
     uv1 += uv2
-    nt.assert_true(uvutils.check_histories(uv_full.history + '  Downselected to '
-                                           'specific times using pyuvdata. '
-                                           'Combined data along baseline-time '
-                                           'axis using pyuvdata.', uv1.history))
+    nt.assert_true(uvutils._check_histories(uv_full.history + '  Downselected to '
+                                            'specific times using pyuvdata. '
+                                            'Combined data along baseline-time '
+                                            'axis using pyuvdata.', uv1.history))
     uv1.history = uv_full.history
     nt.assert_equal(uv1, uv_full)
 
@@ -1403,10 +1403,10 @@ def test_add_drift():
     uv1.select(blt_inds=ind1)
     uv2.select(blt_inds=ind2)
     uv1 += uv2
-    nt.assert_true(uvutils.check_histories(uv_full.history + '  Downselected to '
-                                           'specific baseline-times using pyuvdata. '
-                                           'Combined data along baseline-time '
-                                           'axis using pyuvdata.', uv1.history))
+    nt.assert_true(uvutils._check_histories(uv_full.history + '  Downselected to '
+                                            'specific baseline-times using pyuvdata. '
+                                            'Combined data along baseline-time '
+                                            'axis using pyuvdata.', uv1.history))
     uv1.history = uv_full.history
     nt.assert_equal(uv1, uv_full)
 
@@ -1420,11 +1420,11 @@ def test_add_drift():
     uv2.select(times=times[len(times) // 2:],
                polarizations=uv2.polarization_array[2:4])
     uv1 += uv2
-    nt.assert_true(uvutils.check_histories(uv_full.history + '  Downselected to '
-                                           'specific times, polarizations using '
-                                           'pyuvdata. Combined data along '
-                                           'baseline-time, polarization '
-                                           'axis using pyuvdata.', uv1.history))
+    nt.assert_true(uvutils._check_histories(uv_full.history + '  Downselected to '
+                                            'specific times, polarizations using '
+                                            'pyuvdata. Combined data along '
+                                            'baseline-time, polarization '
+                                            'axis using pyuvdata.', uv1.history))
     blt_ind1 = np.array([ind for ind in range(uv_full.Nblts) if
                          uv_full.time_array[ind] in times[0:len(times) // 2]])
     blt_ind2 = np.array([ind for ind in range(uv_full.Nblts) if
@@ -1447,11 +1447,11 @@ def test_add_drift():
     uv1.select(times=times[0:len(times) // 2], freq_chans=np.arange(0, 32))
     uv2.select(times=times[len(times) // 2:], freq_chans=np.arange(32, 64))
     uv1 += uv2
-    nt.assert_true(uvutils.check_histories(uv_full.history + '  Downselected to '
-                                           'specific times, frequencies using '
-                                           'pyuvdata. Combined data along '
-                                           'baseline-time, frequency '
-                                           'axis using pyuvdata.', uv1.history))
+    nt.assert_true(uvutils._check_histories(uv_full.history + '  Downselected to '
+                                            'specific times, frequencies using '
+                                            'pyuvdata. Combined data along '
+                                            'baseline-time, frequency '
+                                            'axis using pyuvdata.', uv1.history))
     blt_ind1 = np.array([ind for ind in range(uv_full.Nblts) if
                          uv_full.time_array[ind] in times[0:len(times) // 2]])
     blt_ind2 = np.array([ind for ind in range(uv_full.Nblts) if
@@ -1473,10 +1473,10 @@ def test_add_drift():
     uv1.select(times=times[0:len(times) // 2])
     uv2.select(times=times[len(times) // 2:])
     uv1 = uv1 + uv2
-    nt.assert_true(uvutils.check_histories(uv_full.history + '  Downselected to '
-                                           'specific times using pyuvdata. '
-                                           'Combined data along baseline-time '
-                                           'axis using pyuvdata.', uv1.history))
+    nt.assert_true(uvutils._check_histories(uv_full.history + '  Downselected to '
+                                            'specific times using pyuvdata. '
+                                            'Combined data along baseline-time '
+                                            'axis using pyuvdata.', uv1.history))
     uv1.history = uv_full.history
     nt.assert_equal(uv1, uv_full)
 
@@ -1509,11 +1509,11 @@ def test_add_drift():
     uv2.select(polarizations=uv2.polarization_array[2:4])
     uv2.history += ' testing the history. AIPS WTSCAL = 1.0'
     uv1 += uv2
-    nt.assert_true(uvutils.check_histories(uv_full.history + '  Downselected to '
-                                           'specific polarizations using pyuvdata. '
-                                           'Combined data along polarization '
-                                           'axis using pyuvdata. testing the history.',
-                                           uv1.history))
+    nt.assert_true(uvutils._check_histories(uv_full.history + '  Downselected to '
+                                            'specific polarizations using pyuvdata. '
+                                            'Combined data along polarization '
+                                            'axis using pyuvdata. testing the history.',
+                                            uv1.history))
     uv1.history = uv_full.history
     nt.assert_equal(uv1, uv_full)
 

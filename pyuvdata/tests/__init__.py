@@ -85,8 +85,8 @@ def checkWarnings(func, func_args=[], func_kwargs={},
         message = ['Required Antenna frame keyword', 'telescope_location is not set']
         nwarnings = 2
 
-    category = uvutils.get_iterable(category)
-    message = uvutils.get_iterable(message)
+    category = uvutils._get_iterable(category)
+    message = uvutils._get_iterable(message)
 
     clearWarnings()
     with warnings.catch_warnings(record=True) as w:

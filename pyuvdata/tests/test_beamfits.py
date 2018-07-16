@@ -73,7 +73,7 @@ def test_readCST_writereadFITS():
     data = F[0].data
     primary_hdr = F[0].header
     primary_hdr['BTYPE'] = 'Intensity'
-    hdunames = uvutils.fits_indexhdus(F)
+    hdunames = uvutils._fits_indexhdus(F)
     bandpass_hdu = F[hdunames['BANDPARM']]
 
     prihdu = fits.PrimaryHDU(data=data, header=primary_hdr)
@@ -92,7 +92,7 @@ def test_readCST_writereadFITS():
     data = F[0].data
     primary_hdr = F[0].header
     primary_hdr.pop('COORDSYS')
-    hdunames = uvutils.fits_indexhdus(F)
+    hdunames = uvutils._fits_indexhdus(F)
     bandpass_hdu = F[hdunames['BANDPARM']]
 
     prihdu = fits.PrimaryHDU(data=data, header=primary_hdr)
@@ -113,7 +113,7 @@ def test_readCST_writereadFITS():
     primary_hdr['CUNIT3'] = 'MHz'
     primary_hdr['CRVAL3'] = primary_hdr['CRVAL3'] / 1e6
     primary_hdr['CDELT3'] = primary_hdr['CRVAL3'] / 1e6
-    hdunames = uvutils.fits_indexhdus(F)
+    hdunames = uvutils._fits_indexhdus(F)
     bandpass_hdu = F[hdunames['BANDPARM']]
 
     prihdu = fits.PrimaryHDU(data=data, header=primary_hdr)
@@ -185,7 +185,7 @@ def test_writeread_healpix():
     data = F[0].data
     primary_hdr = F[0].header
     primary_hdr.pop('COORDSYS')
-    hdunames = uvutils.fits_indexhdus(F)
+    hdunames = uvutils._fits_indexhdus(F)
     hpx_hdu = F[hdunames['HPX_INDS']]
     bandpass_hdu = F[hdunames['BANDPARM']]
 
@@ -236,7 +236,7 @@ def test_errors():
         F = fits.open(write_file)
         data = F[0].data
         primary_hdr = F[0].header
-        hdunames = uvutils.fits_indexhdus(F)
+        hdunames = uvutils._fits_indexhdus(F)
         basisvec_hdu = F[hdunames['BASISVEC']]
         bandpass_hdu = F[hdunames['BANDPARM']]
 
@@ -278,7 +278,7 @@ def test_errors():
         F = fits.open(write_file)
         data = F[0].data
         primary_hdr = F[0].header
-        hdunames = uvutils.fits_indexhdus(F)
+        hdunames = uvutils._fits_indexhdus(F)
         basisvec_hdu = F[hdunames['BASISVEC']]
         basisvec_hdr = basisvec_hdu.header
         basisvec_data = basisvec_hdu.data
@@ -333,7 +333,7 @@ def test_healpix_errors():
         F = fits.open(write_file)
         data = F[0].data
         primary_hdr = F[0].header
-        hdunames = uvutils.fits_indexhdus(F)
+        hdunames = uvutils._fits_indexhdus(F)
         basisvec_hdu = F[hdunames['BASISVEC']]
         hpx_hdu = F[hdunames['HPX_INDS']]
         bandpass_hdu = F[hdunames['BANDPARM']]
@@ -380,7 +380,7 @@ def test_healpix_errors():
         F = fits.open(write_file)
         data = F[0].data
         primary_hdr = F[0].header
-        hdunames = uvutils.fits_indexhdus(F)
+        hdunames = uvutils._fits_indexhdus(F)
         basisvec_hdu = F[hdunames['BASISVEC']]
         basisvec_hdr = basisvec_hdu.header
         basisvec_data = basisvec_hdu.data
@@ -558,10 +558,10 @@ def test_multi_files():
     beam2.write_beamfits(testfile2, clobber=True)
     beam1.read_beamfits([testfile1, testfile2])
     # Check history is correct, before replacing and doing a full object check
-    nt.assert_true(uvutils.check_histories(beam_full.history + '  Downselected '
-                                           'to specific frequencies using pyuvdata. '
-                                           'Combined data along frequency axis using'
-                                           ' pyuvdata.', beam1.history))
+    nt.assert_true(uvutils._check_histories(beam_full.history + '  Downselected '
+                                            'to specific frequencies using pyuvdata. '
+                                            'Combined data along frequency axis using'
+                                            ' pyuvdata.', beam1.history))
 
     beam1.history = beam_full.history
     nt.assert_equal(beam1, beam_full)

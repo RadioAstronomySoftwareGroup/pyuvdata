@@ -139,9 +139,9 @@ def test_multi_files():
                              message=scipy_warn_list, category=scipy_category_list,
                              nwarnings=n_scipy_warnings)
 
-    nt.assert_true(uvutils.check_histories(fhd_uv2.history + ' Combined data '
-                                           'along polarization axis using pyuvdata.',
-                                           fhd_uv1.history))
+    nt.assert_true(uvutils._check_histories(fhd_uv2.history + ' Combined data '
+                                            'along polarization axis using pyuvdata.',
+                                            fhd_uv1.history))
 
     fhd_uv1.history = fhd_uv2.history
     nt.assert_equal(fhd_uv1, fhd_uv2)

@@ -77,7 +77,7 @@ class CSTBeam(UVBeam):
         self.model_name = model_name
         self.model_version = model_version
         self.history = history
-        if not uvutils.check_history_version(self.history, self.pyuvdata_version_str):
+        if not uvutils._check_history_version(self.history, self.pyuvdata_version_str):
             self.history += self.pyuvdata_version_str
 
         if beam_type is 'power':

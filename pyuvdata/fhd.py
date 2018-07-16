@@ -271,7 +271,7 @@ class FHD(UVData):
         else:
             self.history = ''
 
-        if not uvutils.check_history_version(self.history, self.pyuvdata_version_str):
+        if not uvutils._check_history_version(self.history, self.pyuvdata_version_str):
             self.history += self.pyuvdata_version_str
 
         self.phase_center_epoch = astrometry['EQUINOX'][0]

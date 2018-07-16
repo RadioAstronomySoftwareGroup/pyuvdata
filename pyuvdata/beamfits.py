@@ -53,7 +53,7 @@ class BeamFITS(UVBeam):
         with fits.open(filename) as F:
             primary_hdu = F[0]
             primary_header = primary_hdu.header.copy()
-            hdunames = uvutils.fits_indexhdus(F)  # find the rest of the tables
+            hdunames = uvutils._fits_indexhdus(F)  # find the rest of the tables
 
             data = primary_hdu.data
 
@@ -109,8 +109,8 @@ class BeamFITS(UVBeam):
                 self.Naxes1 = primary_header.pop('NAXIS' + str(ax_nums['img_ax1']))
                 self.Naxes2 = primary_header.pop('NAXIS' + str(ax_nums['img_ax2']))
 
-                self.axis1_array = uvutils.fits_gethduaxis(primary_hdu, ax_nums['img_ax1'])
-                self.axis2_array = uvutils.fits_gethduaxis(primary_hdu, ax_nums['img_ax2'])
+                self.axis1_array = uvutils._fits_gethduaxis(primary_hdu, ax_nums['img_ax1'])
+                self.axis2_array = uvutils._fits_gethduaxis(primary_hdu, ax_nums['img_ax2'])
 
                 # if units aren't defined they are degrees by FITS convention
                 # convert degrees to radians because UVBeam uses radians
@@ -141,8 +141,8 @@ class BeamFITS(UVBeam):
                 if primary_header.pop('CTYPE' + str(ax_nums['feed_pol'])).lower().strip() == 'stokes':
                     self.Npols = primary_header.pop('NAXIS' + str(ax_nums['feed_pol']))
 
-                self.polarization_array = np.int32(uvutils.fits_gethduaxis(primary_hdu,
-                                                                           ax_nums['feed_pol']))
+                self.polarization_array = np.int32(uvutils._fits_gethduaxis(primary_hdu,
+                                                                            ax_nums['feed_pol']))
                 self.set_power()
             elif self.beam_type == 'efield':
                 self.set_efield()
@@ -176,7 +176,7 @@ class BeamFITS(UVBeam):
                 if primary_header.pop('CTYPE' + str(ax_nums['spw'])).lower().strip() == 'if':
                     self.Nspws = primary_header.pop('NAXIS' + str(ax_nums['spw']), None)
                     # subtract 1 to be zero-indexed
-                    self.spw_array = uvutils.fits_gethduaxis(primary_hdu, ax_nums['spw']) - 1
+                    self.spw_array = uvutils._fits_gethduaxis(primary_hdu, ax_nums['spw']) - 1
 
             if n_dimensions > ax_nums['basisvec'] - 1:
                 if primary_header.pop('CTYPE' + str(ax_nums['basisvec'])).lower().strip() == 'vecind':
@@ -193,7 +193,7 @@ class BeamFITS(UVBeam):
                 while len(self.data_array.shape) < n_efield_dims - 1:
                     self.data_array = np.expand_dims(self.data_array, axis=0)
 
-            self.freq_array = uvutils.fits_gethduaxis(primary_hdu, ax_nums['freq'])
+            self.freq_array = uvutils._fits_gethduaxis(primary_hdu, ax_nums['freq'])
             self.freq_array.shape = (self.Nspws,) + self.freq_array.shape
             # default frequency axis is Hz, but check for corresonding CUNIT
             freq_units = primary_header.pop('CUNIT' + str(ax_nums['freq']), 'Hz')
@@ -205,7 +205,7 @@ class BeamFITS(UVBeam):
                     raise ValueError('Frequency units not recognized.')
 
             self.history = str(primary_header.get('HISTORY', ''))
-            if not uvutils.check_history_version(self.history, self.pyuvdata_version_str):
+            if not uvutils._check_history_version(self.history, self.pyuvdata_version_str):
                 self.history += self.pyuvdata_version_str
             while 'HISTORY' in primary_header.keys():
                 primary_header.remove('HISTORY')
@@ -247,10 +247,10 @@ class BeamFITS(UVBeam):
                     basisvec_ax_nums = reg_basisvec_ax_nums
                     basisvec_coord_list = [basisvec_header['CTYPE' + str(basisvec_ax_nums['img_ax1'])].lower(),
                                            basisvec_header['CTYPE' + str(basisvec_ax_nums['img_ax2'])].lower()]
-                    basisvec_axis1_array = uvutils.fits_gethduaxis(basisvec_hdu,
-                                                                   basisvec_ax_nums['img_ax1'])
-                    basisvec_axis2_array = uvutils.fits_gethduaxis(basisvec_hdu,
-                                                                   basisvec_ax_nums['img_ax2'])
+                    basisvec_axis1_array = uvutils._fits_gethduaxis(basisvec_hdu,
+                                                                    basisvec_ax_nums['img_ax1'])
+                    basisvec_axis2_array = uvutils._fits_gethduaxis(basisvec_hdu,
+                                                                    basisvec_ax_nums['img_ax2'])
 
                     # if units aren't defined they are degrees by FITS convention
                     # convert degrees to radians because UVBeam uses radians

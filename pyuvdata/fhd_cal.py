@@ -193,7 +193,7 @@ class FHDCal(UVCal):
             else:
                 self.history += '\n' + extra_history
 
-        if not uvutils.check_history_version(self.history, self.pyuvdata_version_str):
+        if not uvutils._check_history_version(self.history, self.pyuvdata_version_str):
             if self.history.endswith('\n'):
                 self.history += self.pyuvdata_version_str
             else:
