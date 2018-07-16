@@ -1125,7 +1125,6 @@ Calculating pseudo Stokes ('pI', 'pQ', 'pU', 'pV') beam area and beam squared ar
 ::
 
   >>> from pyuvdata import UVBeam
-  >>> import pyuvdata.utils as uvutils
   >>> import numpy as np
   >>> import healpy as hp
   >>> beam = UVBeam()
