@@ -10,10 +10,13 @@ import nose.tools as nt
 from astropy import units
 from astropy.time import Time
 from astropy.coordinates import SkyCoord, Angle
+from astropy.io import fits
 import pyuvdata
 import numpy as np
 from pyuvdata.data import DATA_PATH
 import pyuvdata.utils as uvutils
+import pyuvdata.tests as uvtest
+import pyuvdata.version as uvversion
 
 
 ref_latlonalt = (-26.7 * np.pi / 180.0, 116.7 * np.pi / 180.0, 377.8)
@@ -269,3 +272,34 @@ def test_conj_pol():
 
     # Test invalid pol
     nt.assert_raises(ValueError, uvutils.conj_pol, 2.3)
+
+
+def test_deprecated_funcs():
+    uvtest.checkWarnings(uvutils.get_iterable, [5], category=DeprecationWarning,
+                         message='The get_iterable function is deprecated')
+
+    testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    with fits.open(testfile, memmap=True) as hdu_list:
+        uvtest.checkWarnings(uvutils.fits_indexhdus, [hdu_list],
+                             category=DeprecationWarning,
+                             message='The fits_indexhdus function is deprecated')
+
+        vis_hdu = hdu_list[0]
+        uvtest.checkWarnings(uvutils.fits_gethduaxis, [vis_hdu, 5],
+                             category=DeprecationWarning,
+                             message='The fits_gethduaxis function is deprecated')
+
+    uvtest.checkWarnings(uvutils.check_history_version, ['some random history',
+                                                         uvversion.version],
+                         category=DeprecationWarning,
+                         message='The check_history_version function is deprecated')
+
+    uvtest.checkWarnings(uvutils.check_histories, ['some random history',
+                                                   'some random history'],
+                         category=DeprecationWarning,
+                         message='The check_histories function is deprecated')
+
+    uvtest.checkWarnings(uvutils.combine_histories, ['some random history',
+                                                     uvversion.version],
+                         category=DeprecationWarning,
+                         message='The combine_histories function is deprecated')
