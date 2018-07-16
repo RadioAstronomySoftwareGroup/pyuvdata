@@ -833,15 +833,24 @@ class UVData(UVBase):
         self.phase(zenith_ra, zenith_dec, epoch='J2000', phase_frame=phase_frame,
                    use_ant_pos=use_ant_pos)
 
-    def set_uvws_from_antenna_positions(self, allow_phasing=False):
+    def set_uvws_from_antenna_positions(self, allow_phasing=False,
+                                        orig_phase_frame=None,
+                                        output_phase_frame='icrs'):
         """
         Calculate UVWs based on antenna_positions
 
         Args:
             allow_phasing: Option for phased data. If data is phased and
-            allow_phasing is set, data will be unphased, UVWs will be
-            calculated, and then data will be rephased. Script will error if
-            data is phased and allow_phasing is not set. Default is False
+                allow_phasing is set, data will be unphased, UVWs will be
+                calculated, and then data will be rephased. Script will error
+                if data is phased and allow_phasing is not set. Default is
+                False.
+            orig_phase_frame: The astropy frame to phase from. Either 'icrs' or
+                'gcrs'. Defaults to using the 'phase_center_frame' attribute
+                or 'icrs' if that attribute is None. Applied only if
+                allow_phasing=True.
+            output_phase_frame: The astropy frame to phase to. Either 'icrs' or
+                'gcrs'. Default is 'icrs'. Applied only if allow_phasing=True.
         """
         phase_type = self.phase_type
         if phase_type == 'phased':
@@ -849,10 +858,16 @@ class UVData(UVBase):
                 warnings.warn('Warning: Data will be unphased and rephased '
                               'to calculate UVWs.'
                               )
+                if orig_phase_frame not in [None, 'icrs', 'gcrs']:
+                    raise ValueError('Invalid parameter orig_phase_frame. '
+                                     'Options are "icrs", "gcrs", or None.')
+                if output_phase_frame not in ['icrs', 'gcrs']:
+                    raise ValueError('Invalid parameter output_phase_frame. '
+                                     'Options are "icrs" or "gcrs".')
                 phase_center_ra = self.phase_center_ra
                 phase_center_dec = self.phase_center_dec
                 phase_center_epoch = self.phase_center_epoch
-                self.unphase_to_drift()
+                self.unphase_to_drift(phase_frame=orig_phase_frame)
             else:
                 raise ValueError('UVW calculation requires unphased data. '
                                  'Use unphase_to_drift or set '
@@ -875,7 +890,8 @@ class UVData(UVBase):
                                            - antenna_locs_ENU[ant1_index, :])
         self.uvw_array = uvw_array
         if phase_type == 'phased':
-            self.phase(phase_center_ra, phase_center_dec, phase_center_epoch)
+            self.phase(phase_center_ra, phase_center_dec, phase_center_epoch,
+                       phase_frame=output_phase_frame)
 
     def __add__(self, other, run_check=True, check_extra=True,
                 run_check_acceptability=True, inplace=False):
