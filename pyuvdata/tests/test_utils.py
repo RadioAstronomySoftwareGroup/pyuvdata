@@ -7,12 +7,12 @@ from __future__ import absolute_import, division, print_function
 
 import os
 import nose.tools as nt
+import numpy as np
 from astropy import units
 from astropy.time import Time
 from astropy.coordinates import SkyCoord, Angle
 from astropy.io import fits
 import pyuvdata
-import numpy as np
 from pyuvdata.data import DATA_PATH
 import pyuvdata.utils as uvutils
 import pyuvdata.tests as uvtest
@@ -47,9 +47,15 @@ def test_LatLonAlt_from_XYZ():
     nt.assert_raises(ValueError, pyuvdata.LatLonAlt_from_XYZ, ref_latlonalt)
 
     # test passing multiple values
-    xyz_mult = np.stack((np.array(ref_xyz), np.array(ref_xyz)), axis=1)
+    xyz_mult = np.stack((np.array(ref_xyz), np.array(ref_xyz)))
     lat_vec, lon_vec, alt_vec = pyuvdata.LatLonAlt_from_XYZ(xyz_mult)
     nt.assert_true(np.allclose(ref_latlonalt, (lat_vec[1], lon_vec[1], alt_vec[1]), rtol=0, atol=1e-3))
+    # check warning if array transposed
+    uvtest.checkWarnings(pyuvdata.LatLonAlt_from_XYZ, [xyz_mult.T],
+                         message='The expected shape of ECEF xyz array',
+                         category=PendingDeprecationWarning)
+    # check error if only 2 coordinates
+    nt.assert_raises(ValueError, pyuvdata.LatLonAlt_from_XYZ, xyz_mult[:, 0:2])
 
     # test error checking
     nt.assert_raises(ValueError, pyuvdata.LatLonAlt_from_XYZ, ref_xyz[0:1])
@@ -92,25 +98,41 @@ def test_ENU_tofrom_ECEF():
           -0.02019057, 0.16979185, 0.06945155, -0.64058124]
 
     xyz = pyuvdata.XYZ_from_LatLonAlt(lats, lons, alts)
-    nt.assert_true(np.allclose(np.stack((x, y, z)), xyz, atol=1e-3))
+    nt.assert_true(np.allclose(np.stack((x, y, z), axis=1), xyz, atol=1e-3))
 
     enu = pyuvdata.ENU_from_ECEF(xyz, center_lat, center_lon, center_alt)
-    nt.assert_true(np.allclose(np.stack((east, north, up)), enu, atol=1e-3))
+    nt.assert_true(np.allclose(np.stack((east, north, up), axis=1), enu, atol=1e-3))
+    # check warning if array transposed
+    uvtest.checkWarnings(pyuvdata.ENU_from_ECEF, [xyz.T, center_lat, center_lon,
+                                                  center_alt],
+                         message='The expected shape of ECEF xyz array',
+                         category=PendingDeprecationWarning)
+    # check error if only 2 coordinates
+    nt.assert_raises(ValueError, pyuvdata.ENU_from_ECEF, xyz[:, 0:2],
+                     center_lat, center_lon, center_alt)
 
     # check that a round trip gives the original value.
     xyz_from_enu = pyuvdata.ECEF_from_ENU(enu, center_lat, center_lon, center_alt)
     nt.assert_true(np.allclose(xyz, xyz_from_enu, atol=1e-3))
+    # check warning if array transposed
+    uvtest.checkWarnings(pyuvdata.ECEF_from_ENU, [enu.T, center_lat, center_lon,
+                                                  center_alt],
+                         message='The expected shape the ENU array',
+                         category=PendingDeprecationWarning)
+    # check error if only 2 coordinates
+    nt.assert_raises(ValueError, pyuvdata.ENU_from_ECEF, enu[:, 0:2], center_lat,
+                     center_lon, center_alt)
 
     # check passing a single value
-    enu_single = pyuvdata.ENU_from_ECEF(xyz[:, 0], center_lat, center_lon, center_alt)
-    nt.assert_true(np.allclose(np.stack((east[0], north[0], up[0])), enu[:, 0], atol=1e-3))
+    enu_single = pyuvdata.ENU_from_ECEF(xyz[0, :], center_lat, center_lon, center_alt)
+    nt.assert_true(np.allclose(np.array((east[0], north[0], up[0])), enu[0, :], atol=1e-3))
 
     xyz_from_enu = pyuvdata.ECEF_from_ENU(enu_single, center_lat, center_lon, center_alt)
-    nt.assert_true(np.allclose(xyz[:, 0], xyz_from_enu, atol=1e-3))
+    nt.assert_true(np.allclose(xyz[0, :], xyz_from_enu, atol=1e-3))
 
     # error checking
-    nt.assert_raises(ValueError, pyuvdata.ENU_from_ECEF, xyz[0:1, :], center_lat, center_lon, center_alt)
-    nt.assert_raises(ValueError, pyuvdata.ECEF_from_ENU, enu[0:1, :], center_lat, center_lon, center_alt)
+    nt.assert_raises(ValueError, pyuvdata.ENU_from_ECEF, xyz[:, 0:1], center_lat, center_lon, center_alt)
+    nt.assert_raises(ValueError, pyuvdata.ECEF_from_ENU, enu[:, 0:1], center_lat, center_lon, center_alt)
     nt.assert_raises(ValueError, pyuvdata.ENU_from_ECEF, xyz / 2., center_lat, center_lon, center_alt)
 
 
@@ -140,7 +162,6 @@ def test_mwa_ecef_conversion():
     # transpose these arrays to get them into the right shape
     txt_topo = txt_topo.T
     uvw_topo = uvw_topo.T
-    enh = enh.T
 
     # ARRAYX, ARRAYY, ARRAYZ in ECEF frame from Cotter file
     arrcent = f['arrcent']
@@ -152,7 +173,7 @@ def test_mwa_ecef_conversion():
     # add in array center to get real ECEF
     ecef_xyz = new_xyz + arrcent
 
-    enu = uvutils.ENU_from_ECEF(ecef_xyz.T, lat, lon, alt)
+    enu = uvutils.ENU_from_ECEF(ecef_xyz, lat, lon, alt)
 
     nt.assert_true(np.allclose(enu, enh))
 
@@ -179,7 +200,7 @@ def test_phasing_funcs():
     # in east/north/up frame (relative to array center) in meters: (Nants, 3)
     ants_enu = np.array([-101.94, 0156.41, 0001.24])
 
-    ant_xyz_abs = uvutils.ECEF_from_ENU(ants_enu.T, lat_lon_alt[0], lat_lon_alt[1], lat_lon_alt[2]).T
+    ant_xyz_abs = uvutils.ECEF_from_ENU(ants_enu, lat_lon_alt[0], lat_lon_alt[1], lat_lon_alt[2])
     ant_xyz_rel_itrs = ant_xyz_abs - array_center_xyz
     ant_xyz_rel_rot = uvutils.rotECEF_from_ECEF(ant_xyz_rel_itrs, lat_lon_alt[1])
 

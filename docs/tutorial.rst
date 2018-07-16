@@ -327,7 +327,7 @@ a) Getting antenna positions in topocentric frame in units of meters
   >>> uvd = UVData()
   >>> uvd.read_miriad('pyuvdata/data/new.uvA')
   >>> antpos = uvd.antenna_positions + uvd.telescope_location # get antennas positions in ECEF
-  >>> antpos = uvutils.ENU_from_ECEF(antpos.T, *uvd.telescope_location_lat_lon_alt).T # convert to topo (ENU) coords.
+  >>> antpos = uvutils.ENU_from_ECEF(antpos, *uvd.telescope_location_lat_lon_alt) # convert to topo (ENU) coords.
 
 
 UVData: Selecting data

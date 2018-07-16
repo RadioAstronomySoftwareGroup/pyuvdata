@@ -362,8 +362,8 @@ def test_phase_unphaseHERA():
 
     # check that they match if you phase & unphase using antenna locations
     # first replace the uvws with the right values
-    antenna_enu = uvutils.ENU_from_ECEF((UV_raw.antenna_positions + UV_raw.telescope_location).T,
-                                        *UV_raw.telescope_location_lat_lon_alt).T
+    antenna_enu = uvutils.ENU_from_ECEF((UV_raw.antenna_positions + UV_raw.telescope_location),
+                                        *UV_raw.telescope_location_lat_lon_alt)
     uvw_calc = np.zeros_like(UV_raw.uvw_array)
     unique_times, unique_inds = np.unique(UV_raw.time_array, return_index=True)
     for ind, jd in enumerate(unique_times):
