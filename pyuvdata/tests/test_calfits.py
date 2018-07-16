@@ -104,7 +104,7 @@ def test_errors():
         F = fits.open(write_file)
         data = F[0].data
         primary_hdr = F[0].header
-        hdunames = uvutils.fits_indexhdus(F)
+        hdunames = uvutils._fits_indexhdus(F)
         ant_hdu = F[hdunames['ANTENNAS']]
         flag_hdu = F[hdunames['FLAGS']]
         flag_hdr = flag_hdu.header
@@ -158,7 +158,7 @@ def test_errors():
         F = fits.open(write_file)
         data = F[0].data
         primary_hdr = F[0].header
-        hdunames = uvutils.fits_indexhdus(F)
+        hdunames = uvutils._fits_indexhdus(F)
         ant_hdu = F[hdunames['ANTENNAS']]
         totqualhdu = F[hdunames['TOTQLTY']]
         totqualhdr = totqualhdu.header
@@ -295,7 +295,7 @@ def test_read_oldcalfits():
         F = fits.open(write_file)
         data = F[0].data
         primary_hdr = F[0].header
-        hdunames = uvutils.fits_indexhdus(F)
+        hdunames = uvutils._fits_indexhdus(F)
         ant_hdu = F[hdunames['ANTENNAS']]
         totqualhdu = F[hdunames['TOTQLTY']]
         totqualhdr = totqualhdu.header
@@ -347,7 +347,7 @@ def test_read_oldcalfits():
         F = fits.open(write_file)
         data = F[0].data
         primary_hdr = F[0].header
-        hdunames = uvutils.fits_indexhdus(F)
+        hdunames = uvutils._fits_indexhdus(F)
         ant_hdu = F[hdunames['ANTENNAS']]
         flag_hdu = F[hdunames['FLAGS']]
         flag_hdr = flag_hdu.header

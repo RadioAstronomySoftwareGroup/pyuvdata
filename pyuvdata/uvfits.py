@@ -293,7 +293,7 @@ class UVFITS(UVData):
         with fits.open(filename, memmap=True) as hdu_list:
             vis_hdu = hdu_list[0]  # assumes the visibilities are in the primary hdu
             vis_hdr = vis_hdu.header.copy()
-            hdunames = uvutils.fits_indexhdus(hdu_list)  # find the rest of the tables
+            hdunames = uvutils._fits_indexhdus(hdu_list)  # find the rest of the tables
 
             # First get everything we can out of the header.
             self.set_phased()
@@ -306,7 +306,7 @@ class UVFITS(UVData):
 
                 self.Nspws = vis_hdr.pop('NAXIS5')
 
-                self.spw_array = np.int32(uvutils.fits_gethduaxis(vis_hdu, 5)) - 1
+                self.spw_array = np.int32(uvutils._fits_gethduaxis(vis_hdu, 5)) - 1
 
                 # the axis number for phase center depends on if the spw exists
                 self.phase_center_ra_degrees = np.float(vis_hdr.pop('CRVAL6'))
@@ -324,10 +324,10 @@ class UVFITS(UVData):
             self.Npols = vis_hdr.pop('NAXIS3')
             self.Nblts = vis_hdr.pop('GCOUNT')
 
-            self.freq_array = uvutils.fits_gethduaxis(vis_hdu, 4)
+            self.freq_array = uvutils._fits_gethduaxis(vis_hdu, 4)
             self.freq_array.shape = (self.Nspws,) + self.freq_array.shape
             self.channel_width = vis_hdr.pop('CDELT4')
-            self.polarization_array = np.int32(uvutils.fits_gethduaxis(vis_hdu, 3))
+            self.polarization_array = np.int32(uvutils._fits_gethduaxis(vis_hdu, 3))
 
             # other info -- not required but frequently used
             self.object_name = vis_hdr.pop('OBJECT', None)
@@ -338,7 +338,7 @@ class UVFITS(UVData):
             altitude = vis_hdr.pop('ALT', None)
             self.x_orientation = vis_hdr.pop('XORIENT', None)
             self.history = str(vis_hdr.get('HISTORY', ''))
-            if not uvutils.check_history_version(self.history, self.pyuvdata_version_str):
+            if not uvutils._check_history_version(self.history, self.pyuvdata_version_str):
                 self.history += self.pyuvdata_version_str
 
             while 'HISTORY' in vis_hdr.keys():

@@ -1041,7 +1041,7 @@ class UVData(UVBase):
             history_update_string += ' axis using pyuvdata.'
             this.history += history_update_string
 
-        this.history = uvutils.combine_histories(this.history, other.history)
+        this.history = uvutils._combine_histories(this.history, other.history)
 
         # Check final object is self-consistent
         if run_check:
@@ -1086,7 +1086,7 @@ class UVData(UVBase):
 
         # test for blt_inds presence before adding inds from antennas & times
         if blt_inds is not None:
-            blt_inds = uvutils.get_iterable(blt_inds)
+            blt_inds = uvutils._get_iterable(blt_inds)
             if np.array(blt_inds).ndim > 1:
                 blt_inds = np.array(blt_inds).flatten()
             history_update_string += 'baseline-times'
@@ -1110,7 +1110,7 @@ class UVData(UVBase):
                     np.array(self.antenna_names) == s)][0])
 
         if antenna_nums is not None:
-            antenna_nums = uvutils.get_iterable(antenna_nums)
+            antenna_nums = uvutils._get_iterable(antenna_nums)
             if np.array(antenna_nums).ndim > 1:
                 antenna_nums = np.array(antenna_nums).flatten()
             if n_selects > 0:
@@ -1204,7 +1204,7 @@ class UVData(UVBase):
                 blt_inds = ant_blt_inds
 
         if times is not None:
-            times = uvutils.get_iterable(times)
+            times = uvutils._get_iterable(times)
             if np.array(times).ndim > 1:
                 times = np.array(times).flatten()
             if n_selects > 0:
@@ -1244,18 +1244,18 @@ class UVData(UVBase):
             blt_inds = list(sorted(set(list(blt_inds))))
 
         if freq_chans is not None:
-            freq_chans = uvutils.get_iterable(freq_chans)
+            freq_chans = uvutils._get_iterable(freq_chans)
             if np.array(freq_chans).ndim > 1:
                 freq_chans = np.array(freq_chans).flatten()
             if frequencies is None:
                 frequencies = self.freq_array[0, freq_chans]
             else:
-                frequencies = uvutils.get_iterable(frequencies)
+                frequencies = uvutils._get_iterable(frequencies)
                 frequencies = np.sort(list(set(frequencies)
                                            | set(self.freq_array[0, freq_chans])))
 
         if frequencies is not None:
-            frequencies = uvutils.get_iterable(frequencies)
+            frequencies = uvutils._get_iterable(frequencies)
             if np.array(frequencies).ndim > 1:
                 frequencies = np.array(frequencies).flatten()
             if n_selects > 0:
@@ -1291,7 +1291,7 @@ class UVData(UVBase):
             freq_inds = None
 
         if polarizations is not None:
-            polarizations = uvutils.get_iterable(polarizations)
+            polarizations = uvutils._get_iterable(polarizations)
             if np.array(polarizations).ndim > 1:
                 polarizations = np.array(polarizations).flatten()
             if n_selects > 0:
@@ -2198,7 +2198,7 @@ class UVData(UVBase):
                       complete conjugation mapping.
             pol_ind: tuple of numpy arrays with polarization indices for blt_ind1 and blt_ind2
         """
-        key = uvutils.get_iterable(key)
+        key = uvutils._get_iterable(key)
         if type(key) is str:
             # Single string given, assume it is polarization
             pol_ind1 = np.where(self.polarization_array == uvutils.polstr2num(key))[0]

@@ -400,7 +400,7 @@ class UVCal(UVBase):
             if antenna_nums is not None:
                 raise ValueError('Only one of antenna_nums and antenna_names can be provided.')
 
-            antenna_names = uvutils.get_iterable(antenna_names)
+            antenna_names = uvutils._get_iterable(antenna_names)
             antenna_nums = []
             for s in antenna_names:
                 if s not in cal_object.antenna_names:
@@ -409,7 +409,7 @@ class UVCal(UVBase):
                 antenna_nums.append(cal_object.antenna_numbers[ind])
 
         if antenna_nums is not None:
-            antenna_nums = uvutils.get_iterable(antenna_nums)
+            antenna_nums = uvutils._get_iterable(antenna_nums)
             history_update_string += 'antennas'
             n_selects += 1
 
@@ -440,7 +440,7 @@ class UVCal(UVBase):
                 cal_object.total_quality_array = None
 
         if times is not None:
-            times = uvutils.get_iterable(times)
+            times = uvutils._get_iterable(times)
             if n_selects > 0:
                 history_update_string += ', times'
             else:
@@ -480,16 +480,16 @@ class UVCal(UVBase):
                 cal_object.total_quality_array = cal_object.total_quality_array[:, :, time_inds, :]
 
         if freq_chans is not None:
-            freq_chans = uvutils.get_iterable(freq_chans)
+            freq_chans = uvutils._get_iterable(freq_chans)
             if frequencies is None:
                 frequencies = cal_object.freq_array[0, freq_chans]
             else:
-                frequencies = uvutils.get_iterable(frequencies)
+                frequencies = uvutils._get_iterable(frequencies)
                 frequencies = np.sort(list(set(frequencies)
                                       | set(cal_object.freq_array[0, freq_chans])))
 
         if frequencies is not None:
-            frequencies = uvutils.get_iterable(frequencies)
+            frequencies = uvutils._get_iterable(frequencies)
             if n_selects > 0:
                 history_update_string += ', frequencies'
             else:
@@ -534,7 +534,7 @@ class UVCal(UVBase):
                     cal_object.total_quality_array = cal_object.total_quality_array[:, freq_inds, :, :]
 
         if jones is not None:
-            jones = uvutils.get_iterable(jones)
+            jones = uvutils._get_iterable(jones)
             if n_selects > 0:
                 history_update_string += ', jones polarization terms'
             else:
@@ -1170,7 +1170,7 @@ class UVCal(UVBase):
             history_update_string += ' axis using pyuvdata.'
             this.history += history_update_string
 
-        this.history = uvutils.combine_histories(this.history, other.history)
+        this.history = uvutils._combine_histories(this.history, other.history)
 
         # Check final object is self-consistent
         if run_check:

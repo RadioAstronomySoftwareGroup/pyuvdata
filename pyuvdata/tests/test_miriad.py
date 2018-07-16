@@ -827,7 +827,7 @@ def test_multi_files():
     uvtest.checkWarnings(uv1.read_miriad, [[testfile1, testfile2]], nwarnings=2,
                          message=['Telescope EVLA is not', 'Telescope EVLA is not'])
     # Check history is correct, before replacing and doing a full object check
-    nt.assert_true(uvutils.check_histories(uv_full.history + '  Downselected to '
+    nt.assert_true(uvutils._check_histories(uv_full.history + '  Downselected to '
                                            'specific frequencies using pyuvdata. '
                                            'Combined data along frequency axis using'
                                            ' pyuvdata.', uv1.history))

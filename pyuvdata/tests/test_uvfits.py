@@ -130,7 +130,7 @@ def test_readwriteread():
 
     # check missing telescope_name, timesys vs timsys spelling, xyz_telescope_frame=????
     hdu_list = fits.open(write_file)
-    hdunames = uvutils.fits_indexhdus(hdu_list)
+    hdunames = uvutils._fits_indexhdus(hdu_list)
     vis_hdu = hdu_list[0]
     vis_hdr = vis_hdu.header.copy()
 
@@ -167,7 +167,7 @@ def test_readwriteread():
     uv_singlet.write_uvfits(write_file)
 
     hdu_list = fits.open(write_file)
-    hdunames = uvutils.fits_indexhdus(hdu_list)
+    hdunames = uvutils._fits_indexhdus(hdu_list)
     vis_hdu = hdu_list[0]
     vis_hdr = vis_hdu.header.copy()
     raw_data_array = vis_hdu.data.data
@@ -399,7 +399,7 @@ def test_select_read():
     # select on pols
     # this requires writing a new file because the no spw file we have has only 1 pol
     hdu_list = fits.open(uvfits_file)
-    hdunames = uvutils.fits_indexhdus(hdu_list)
+    hdunames = uvutils._fits_indexhdus(hdu_list)
     vis_hdu = hdu_list[0]
     vis_hdr = vis_hdu.header.copy()
     raw_data_array = vis_hdu.data.data
@@ -510,10 +510,10 @@ def test_multi_files():
     uvtest.checkWarnings(uv1.read_uvfits, [[testfile1, testfile2]], nwarnings=2,
                          message=['Telescope EVLA is not'])
     # Check history is correct, before replacing and doing a full object check
-    nt.assert_true(uvutils.check_histories(uv_full.history + '  Downselected to '
-                                           'specific frequencies using pyuvdata. '
-                                           'Combined data along frequency axis '
-                                           'using pyuvdata.', uv1.history))
+    nt.assert_true(uvutils._check_histories(uv_full.history + '  Downselected to '
+                                            'specific frequencies using pyuvdata. '
+                                            'Combined data along frequency axis '
+                                            'using pyuvdata.', uv1.history))
 
     uv1.history = uv_full.history
     nt.assert_equal(uv1, uv_full)

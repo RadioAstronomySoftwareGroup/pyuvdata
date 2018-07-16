@@ -923,7 +923,7 @@ class Miriad(UVData):
             setattr(self, item, header_value)
 
         self.history = uv['history']
-        if not uvutils.check_history_version(self.history, self.pyuvdata_version_str):
+        if not uvutils._check_history_version(self.history, self.pyuvdata_version_str):
             self.history += self.pyuvdata_version_str
         self.channel_width *= 1e9  # change from GHz to Hz
 

@@ -8,7 +8,6 @@ from __future__ import absolute_import, division, print_function
 import nose.tools as nt
 import os
 from pyuvdata import UVCal
-import pyuvdata.utils as uvutils
 import pyuvdata.tests as uvtest
 from pyuvdata.data import DATA_PATH
 import numpy as np

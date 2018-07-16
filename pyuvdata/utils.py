@@ -301,7 +301,7 @@ def unphase_uvw(ra, dec, uvw):
     return(xyz)
 
 
-def get_iterable(x):
+def _get_iterable(x):
     """Helper function to ensure iterability."""
     if isinstance(x, collections.Iterable):
         return x
@@ -309,7 +309,7 @@ def get_iterable(x):
         return (x,)
 
 
-def fits_gethduaxis(HDU, axis, strict_fits=True):
+def _fits_gethduaxis(HDU, axis, strict_fits=True):
     """
     Helper function for making axis arrays for fits files.
 
@@ -365,7 +365,7 @@ def get_lst_for_time(jd_array, latitude, longitude, altitude):
     return lst_array
 
 
-def fits_indexhdus(hdulist):
+def _fits_indexhdus(hdulist):
     """
     Helper function for fits I/O.
 
@@ -508,21 +508,21 @@ def conj_pol(pol):
     return cpol
 
 
-def check_history_version(history, version_string):
+def _check_history_version(history, version_string):
     if (version_string.replace(' ', '') in history.replace('\n', '').replace(' ', '')):
         return True
     else:
         return False
 
 
-def check_histories(history1, history2):
+def _check_histories(history1, history2):
     if (history1.replace('\n', '').replace(' ', '') == history2.replace('\n', '').replace(' ', '')):
         return True
     else:
         return False
 
 
-def combine_histories(history1, history2):
+def _combine_histories(history1, history2):
     hist2_words = history2.split(' ')
     add_hist = ''
     test_hist1 = ' ' + history1 + ' '

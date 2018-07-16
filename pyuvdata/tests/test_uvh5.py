@@ -166,10 +166,10 @@ def test_UVH5ReadMultiple_files():
     uv2.write_uvh5(testfile2, clobber=True)
     uv1.read_uvh5([testfile1, testfile2])
     # Check history is correct, before replacing and doing a full object check
-    nt.assert_true(uvutils.check_histories(uv_full.history + '  Downselected to '
-                                           'specific frequencies using pyuvdata. '
-                                           'Combined data along frequency axis using'
-                                           ' pyuvdata.', uv1.history))
+    nt.assert_true(uvutils._check_histories(uv_full.history + '  Downselected to '
+                                            'specific frequencies using pyuvdata. '
+                                            'Combined data along frequency axis using'
+                                            ' pyuvdata.', uv1.history))
     uv1.history = uv_full.history
     nt.assert_equal(uv1, uv_full)
 
