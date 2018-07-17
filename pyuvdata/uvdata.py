@@ -2252,7 +2252,7 @@ class UVData(UVBase):
                     file_type = 'uvh5'
 
         if file_type is None:
-            raise(ValueError, 'File type could not be determined.')
+            raise ValueError('File type could not be determined.')
 
         if file_type == 'uvfits':
             if (time_range is not None):
