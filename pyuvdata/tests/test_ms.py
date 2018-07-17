@@ -21,7 +21,7 @@ def test_cotter_ms():
     """Test reading in an ms made from MWA data with cotter (no dysco compression)"""
     UV = UVData()
     testfile = os.path.join(DATA_PATH, '1102865728_small.ms')
-    UV.read_ms(testfile)
+    UV.read(testfile)
 
     del(UV)
 
@@ -32,7 +32,7 @@ def test_readNRAO():
     testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.ms')
     expected_extra_keywords = ['data_column', 'antenna_positions']
 
-    UV.read_ms(testfile)
+    UV.read(testfile)
     nt.assert_equal(expected_extra_keywords.sort(),
                     list(UV.extra_keywords.keys()).sort())
     del(UV)
@@ -43,7 +43,7 @@ def test_noSPW():
     UV = UVData()
     testfile_no_spw = os.path.join(
         DATA_PATH, 'zen.2456865.60537.xy.uvcRREAAM.ms')
-    UV.read_ms(testfile_no_spw)
+    UV.read(testfile_no_spw)
     del(UV)
 
 
@@ -51,7 +51,7 @@ def test_spwnotsupported():
     """Test errors on reading in an ms file with multiple spws."""
     UV = UVData()
     testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1scan.ms')
-    nt.assert_raises(ValueError, UV.read_ms, testfile)
+    nt.assert_raises(ValueError, UV.read, testfile)
     del(UV)
 
 
@@ -70,7 +70,7 @@ def test_readMSreadUVFITS():
         DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
     uvtest.checkWarnings(uvfits_uv.read_uvfits, [uvfits_file],
                          message='Telescope EVLA is not')
-    ms_uv.read_ms(ms_file)
+    ms_uv.read(ms_file)
     # set histories to identical blank strings since we do not expect
     # them to be the same anyways.
     ms_uv.history = ""
@@ -111,7 +111,7 @@ def test_readMSWriteUVFITS():
     uvfits_uv = UVData()
     ms_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.ms')
     testfile = os.path.join(DATA_PATH, 'test/outtest_uvfits')
-    ms_uv.read_ms(ms_file)
+    ms_uv.read(ms_file)
     ms_uv.write_uvfits(testfile, spoof_nonessential=True)
     uvtest.checkWarnings(uvfits_uv.read_uvfits, [testfile],
                          message='Telescope EVLA is not')
@@ -131,7 +131,7 @@ def test_readMSWriteMiriad():
     miriad_uv = UVData()
     ms_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.ms')
     testfile = os.path.join(DATA_PATH, 'test/outtest_miriad')
-    ms_uv.read_ms(ms_file)
+    ms_uv.read(ms_file)
     ms_uv.write_miriad(testfile, clobber=True)
     uvtest.checkWarnings(miriad_uv.read_miriad, [testfile],
                          message='Telescope EVLA is not')
@@ -150,7 +150,7 @@ def test_multi_files():
     uvtest.checkWarnings(uv_full.read_uvfits, [uvfits_file], message='Telescope EVLA is not')
     testfile1 = os.path.join(DATA_PATH, 'multi_1.ms')
     testfile2 = os.path.join(DATA_PATH, 'multi_2.ms')
-    uv_multi.read_ms([testfile1, testfile2])
+    uv_multi.read([testfile1, testfile2])
     # Casa scrambles the history parameter. Replace for now.
     uv_multi.history = uv_full.history
 

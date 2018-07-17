@@ -32,13 +32,13 @@ def test_ReadMiriadWriteUVH5ReadUVH5():
                          nwarnings=1, category=[UserWarning],
                          message=['Altitude is not present'])
     uv_in.write_uvh5(testfile, clobber=True)
-    uv_out.read_uvh5(testfile)
+    uv_out.read(testfile)
     nt.assert_equal(uv_in, uv_out)
 
     # also test round-tripping phased data
     uv_in.phase_to_time(Time(np.mean(uv_in.time_array), format='jd'))
     uv_in.write_uvh5(testfile, clobber=True)
-    uv_out.read_uvh5(testfile)
+    uv_out.read(testfile)
 
     nt.assert_equal(uv_in, uv_out)
 
@@ -58,7 +58,7 @@ def test_ReadUVFITSWriteUVH5ReadUVH5():
     testfile = os.path.join(DATA_PATH, 'test', 'outtest_uvfits.h5')
     uvtest.checkWarnings(uv_in.read_uvfits, [uvfits_file], message='Telescope EVLA is not')
     uv_in.write_uvh5(testfile, clobber=True)
-    uv_out.read_uvh5(testfile)
+    uv_out.read(testfile)
     nt.assert_equal(uv_in, uv_out)
 
     # clean up
@@ -69,12 +69,12 @@ def test_ReadUVFITSWriteUVH5ReadUVH5():
 
 def test_ReadUVH5Errors():
     """
-    Test raising errors in read_uvh5 function
+    Test raising errors in read function
     """
     uv_in = UVData()
     fake_file = os.path.join(DATA_PATH, 'fake_file.hdf5')
-    nt.assert_raises(IOError, uv_in.read_uvh5, fake_file)
-    nt.assert_raises(ValueError, uv_in.read_uvh5, ['list of', 'fake files'], read_data=False)
+    nt.assert_raises(IOError, uv_in.read, fake_file)
+    nt.assert_raises(ValueError, uv_in.read, ['list of', 'fake files'], read_data=False)
 
     return
 
@@ -94,7 +94,7 @@ def test_WriteUVH5Errors():
 
     # use clobber=True to write out anyway
     uv_in.write_uvh5(testfile, clobber=True)
-    uv_out.read_uvh5(testfile)
+    uv_out.read(testfile)
     nt.assert_equal(uv_in, uv_out)
 
     # clean up
@@ -120,7 +120,7 @@ def test_UVH5OptionalParameters():
 
     # write out and read back in
     uv_in.write_uvh5(testfile, clobber=True)
-    uv_out.read_uvh5(testfile)
+    uv_out.read(testfile)
     nt.assert_equal(uv_in, uv_out)
 
     # clean up
@@ -142,7 +142,7 @@ def test_UVH5CompressionOptions():
     # write out and read back in
     uv_in.write_uvh5(testfile, clobber=True, data_compression="lzf",
                      flags_compression=None, nsample_compression=None)
-    uv_out.read_uvh5(testfile)
+    uv_out.read(testfile)
     nt.assert_equal(uv_in, uv_out)
 
     # clean up
@@ -166,7 +166,7 @@ def test_UVH5ReadMultiple_files():
     uv2.select(freq_chans=np.arange(32, 64))
     uv1.write_uvh5(testfile1, clobber=True)
     uv2.write_uvh5(testfile2, clobber=True)
-    uv1.read_uvh5([testfile1, testfile2])
+    uv1.read([testfile1, testfile2])
     # Check history is correct, before replacing and doing a full object check
     nt.assert_true(uvutils._check_histories(uv_full.history + '  Downselected to '
                                             'specific frequencies using pyuvdata. '
@@ -195,41 +195,39 @@ def test_UVH5PartialRead():
 
     # select on antennas
     ants_to_keep = np.array([0, 19, 11, 24, 3, 23, 1, 20, 21])
-    uvh5_uv.read_uvh5(testfile, antenna_nums=ants_to_keep)
-    uvh5_uv2.read_uvh5(testfile)
+    uvh5_uv.read(testfile, antenna_nums=ants_to_keep)
+    uvh5_uv2.read(testfile)
     uvh5_uv2.select(antenna_nums=ants_to_keep)
     nt.assert_equal(uvh5_uv, uvh5_uv2)
 
     # select on frequency channels
     chans_to_keep = np.arange(12, 22)
-    uvh5_uv.read_uvh5(testfile, freq_chans=chans_to_keep)
-    uvh5_uv2.read_uvh5(testfile)
+    uvh5_uv.read(testfile, freq_chans=chans_to_keep)
+    uvh5_uv2.read(testfile)
     uvh5_uv2.select(freq_chans=chans_to_keep)
     nt.assert_equal(uvh5_uv, uvh5_uv2)
 
     # select on pols
     pols_to_keep = [-1, -2]
-    uvh5_uv.read_uvh5(testfile, polarizations=pols_to_keep)
-    uvh5_uv2.read_uvh5(testfile)
+    uvh5_uv.read(testfile, polarizations=pols_to_keep)
+    uvh5_uv2.read(testfile)
     uvh5_uv2.select(polarizations=pols_to_keep)
     nt.assert_equal(uvh5_uv, uvh5_uv2)
 
     # now test selecting on multiple axes
     # frequencies first
-    uvh5_uv.read_uvh5(testfile, antenna_nums=ants_to_keep,
-                      freq_chans=chans_to_keep,
-                      polarizations=pols_to_keep)
-    uvh5_uv2.read_uvh5(testfile)
+    uvh5_uv.read(testfile, antenna_nums=ants_to_keep, freq_chans=chans_to_keep,
+                 polarizations=pols_to_keep)
+    uvh5_uv2.read(testfile)
     uvh5_uv2.select(antenna_nums=ants_to_keep, freq_chans=chans_to_keep,
                     polarizations=pols_to_keep)
     nt.assert_equal(uvh5_uv, uvh5_uv2)
 
     # baselines first
     ants_to_keep = np.array([0, 1])
-    uvh5_uv.read_uvh5(testfile, antenna_nums=ants_to_keep,
-                      freq_chans=chans_to_keep,
-                      polarizations=pols_to_keep)
-    uvh5_uv2.read_uvh5(testfile)
+    uvh5_uv.read(testfile, antenna_nums=ants_to_keep, freq_chans=chans_to_keep,
+                 polarizations=pols_to_keep)
+    uvh5_uv2.read(testfile)
     uvh5_uv2.select(antenna_nums=ants_to_keep, freq_chans=chans_to_keep,
                     polarizations=pols_to_keep)
     nt.assert_equal(uvh5_uv, uvh5_uv2)
@@ -237,10 +235,9 @@ def test_UVH5PartialRead():
     # polarizations first
     ants_to_keep = np.array([0, 1, 2, 3, 6, 7, 8, 11, 14, 18, 19, 20, 21, 22])
     chans_to_keep = np.arange(12, 64)
-    uvh5_uv.read_uvh5(testfile, antenna_nums=ants_to_keep,
-                      freq_chans=chans_to_keep,
-                      polarizations=pols_to_keep)
-    uvh5_uv2.read_uvh5(testfile)
+    uvh5_uv.read(testfile, antenna_nums=ants_to_keep, freq_chans=chans_to_keep,
+                 polarizations=pols_to_keep)
+    uvh5_uv2.read(testfile)
     uvh5_uv2.select(antenna_nums=ants_to_keep, freq_chans=chans_to_keep,
                     polarizations=pols_to_keep)
     nt.assert_equal(uvh5_uv, uvh5_uv2)
@@ -261,7 +258,7 @@ def test_UVH5PartialWrite():
     uvtest.checkWarnings(full_uvh5.read_uvfits, [uvfits_file], message='Telescope EVLA is not')
     testfile = os.path.join(DATA_PATH, 'test', 'outtest.h5')
     full_uvh5.write_uvh5(testfile, clobber=True)
-    full_uvh5.read_uvh5(testfile)
+    full_uvh5.read(testfile)
 
     # delete data arrays in partial file
     partial_uvh5 = copy.deepcopy(full_uvh5)
@@ -283,7 +280,7 @@ def test_UVH5PartialWrite():
                                      bls=key)
 
     # now read in the full file and make sure that it matches the original
-    partial_uvh5.read_uvh5(partial_testfile)
+    partial_uvh5.read(partial_testfile)
     nt.assert_equal(full_uvh5, partial_uvh5)
 
     # start over, and write frequencies
@@ -310,7 +307,7 @@ def test_UVH5PartialWrite():
                                  freq_chans=freqs2)
 
     # read in the full file and make sure it matches
-    partial_uvh5.read_uvh5(partial_testfile)
+    partial_uvh5.read(partial_testfile)
     nt.assert_equal(full_uvh5, partial_uvh5)
 
     # start over, write chunks of blts
@@ -337,7 +334,7 @@ def test_UVH5PartialWrite():
                                  blt_inds=blts2)
 
     # read in the full file and make sure it matches
-    partial_uvh5.read_uvh5(partial_testfile)
+    partial_uvh5.read(partial_testfile)
     nt.assert_equal(full_uvh5, partial_uvh5)
 
     # start over, write groups of pols
@@ -364,7 +361,7 @@ def test_UVH5PartialWrite():
                                  polarizations=full_uvh5.polarization_array[Hpols:])
 
     # read in the full file and make sure it matches
-    partial_uvh5.read_uvh5(partial_testfile)
+    partial_uvh5.read(partial_testfile)
     nt.assert_equal(full_uvh5, partial_uvh5)
 
     # clean up
@@ -403,7 +400,7 @@ def test_UVH5PartialWriteIrregular():
     uvtest.checkWarnings(full_uvh5.read_uvfits, [uvfits_file], message='Telescope EVLA is not')
     testfile = os.path.join(DATA_PATH, 'test', 'outtest.h5')
     full_uvh5.write_uvh5(testfile, clobber=True)
-    full_uvh5.read_uvh5(testfile)
+    full_uvh5.read(testfile)
 
     # delete data arrays in partial file
     partial_uvh5 = copy.deepcopy(full_uvh5)
@@ -434,7 +431,7 @@ def test_UVH5PartialWriteIrregular():
 
     # read in the file and make sure it matches
     partial_uvh5_file = UVData()
-    partial_uvh5_file.read_uvh5(partial_testfile)
+    partial_uvh5_file.read(partial_testfile)
     nt.assert_equal(partial_uvh5_file, partial_uvh5)
 
     # do it again, with a single frequency
@@ -468,7 +465,7 @@ def test_UVH5PartialWriteIrregular():
 
     # read in the file and make sure it matches
     partial_uvh5_file = UVData()
-    partial_uvh5_file.read_uvh5(partial_testfile)
+    partial_uvh5_file.read(partial_testfile)
     nt.assert_equal(partial_uvh5_file, partial_uvh5)
 
     # do it again, with a single polarization
@@ -502,7 +499,7 @@ def test_UVH5PartialWriteIrregular():
 
     # read in the file and make sure it matches
     partial_uvh5_file = UVData()
-    partial_uvh5_file.read_uvh5(partial_testfile)
+    partial_uvh5_file.read(partial_testfile)
     nt.assert_equal(partial_uvh5_file, partial_uvh5)
 
     # test irregularly spaced blts and freqs
@@ -546,7 +543,7 @@ def test_UVH5PartialWriteIrregular():
 
     # read in the file and make sure it matches
     partial_uvh5_file = UVData()
-    partial_uvh5_file.read_uvh5(partial_testfile)
+    partial_uvh5_file.read(partial_testfile)
     nt.assert_equal(partial_uvh5_file, partial_uvh5)
 
     # test irregularly spaced freqs and pols
@@ -591,7 +588,7 @@ def test_UVH5PartialWriteIrregular():
 
     # read in the file and make sure it matches
     partial_uvh5_file = UVData()
-    partial_uvh5_file.read_uvh5(partial_testfile)
+    partial_uvh5_file.read(partial_testfile)
     nt.assert_equal(partial_uvh5_file, partial_uvh5)
 
     # test irregularly spaced blts and pols
@@ -635,7 +632,7 @@ def test_UVH5PartialWriteIrregular():
 
     # read in the file and make sure it matches
     partial_uvh5_file = UVData()
-    partial_uvh5_file.read_uvh5(partial_testfile)
+    partial_uvh5_file.read(partial_testfile)
     nt.assert_equal(partial_uvh5_file, partial_uvh5)
 
     # test irregularly spaced freqs and pols
@@ -680,7 +677,7 @@ def test_UVH5PartialWriteIrregular():
 
     # read in the file and make sure it matches
     partial_uvh5_file = UVData()
-    partial_uvh5_file.read_uvh5(partial_testfile)
+    partial_uvh5_file.read(partial_testfile)
     nt.assert_equal(partial_uvh5_file, partial_uvh5)
 
     # test irregularly spaced everything
@@ -729,7 +726,7 @@ def test_UVH5PartialWriteIrregular():
 
     # read in the file and make sure it matches
     partial_uvh5_file = UVData()
-    partial_uvh5_file.read_uvh5(partial_testfile)
+    partial_uvh5_file.read(partial_testfile)
     nt.assert_equal(partial_uvh5_file, partial_uvh5)
 
     # clean up
@@ -748,7 +745,7 @@ def test_UVH5PartialWriteErrors():
     uvtest.checkWarnings(full_uvh5.read_uvfits, [uvfits_file], message='Telescope EVLA is not')
     testfile = os.path.join(DATA_PATH, 'test', 'outtest.h5')
     full_uvh5.write_uvh5(testfile, clobber=True)
-    full_uvh5.read_uvh5(testfile)
+    full_uvh5.read(testfile)
 
     # get a waterfall
     antpairpols = full_uvh5.get_antpairpols()
@@ -805,7 +802,7 @@ def test_UVH5InitializeFile():
     uvtest.checkWarnings(full_uvh5.read_uvfits, [uvfits_file], message='Telescope EVLA is not')
     testfile = os.path.join(DATA_PATH, 'test', 'outtest.h5')
     full_uvh5.write_uvh5(testfile, clobber=True)
-    full_uvh5.read_uvh5(testfile)
+    full_uvh5.read(testfile)
     full_uvh5.data_array = None
     full_uvh5.flag_array = None
     full_uvh5.nsample_array = None
@@ -816,13 +813,13 @@ def test_UVH5InitializeFile():
     partial_uvh5.initialize_uvh5_file(partial_testfile, clobber=True)
 
     # read it in and make sure that the metadata matches the original
-    partial_uvh5.read_uvh5(partial_testfile, read_data=False)
+    partial_uvh5.read(partial_testfile, read_data=False)
     nt.assert_equal(partial_uvh5, full_uvh5)
 
     # add options for compression
     partial_uvh5.initialize_uvh5_file(partial_testfile, clobber=True, data_compression="lzf",
                                       flags_compression=None, nsample_compression=None)
-    partial_uvh5.read_uvh5(partial_testfile, read_data=False)
+    partial_uvh5.read(partial_testfile, read_data=False)
     nt.assert_equal(partial_uvh5, full_uvh5)
 
     # check that an error is raised then file exists and clobber is False

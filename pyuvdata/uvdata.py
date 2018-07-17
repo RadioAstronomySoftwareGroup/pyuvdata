@@ -2131,7 +2131,7 @@ class UVData(UVBase):
 
     def read(self, filename, file_type=None, antenna_nums=None, antenna_names=None,
              ant_str=None, bls=None, frequencies=None, freq_chans=None,
-             times=None, polarizations=None, blt_inds=None, time_range=time_range,
+             times=None, polarizations=None, blt_inds=None, time_range=None,
              read_metadata=True, read_data=True, phase_type=None,
              correct_lat_lon=True, use_model=False, data_column='DATA',
              pol_order='AIPS', run_check=True, check_extra=True,
@@ -2222,7 +2222,7 @@ class UVData(UVBase):
                 multi = True
             else:
                 basename, extension = os.path.splitext(filename[0])
-                if extension == 'sav' or extension == 'txt':
+                if extension == '.sav' or extension == '.txt':
                     file_type = 'fhd'
                     multi = False
                 else:
@@ -2246,7 +2246,7 @@ class UVData(UVBase):
                     file_type = 'ms'
             else:
                 basename, extension = os.path.splitext(file_test)
-                if extension == 'uvfits':
+                if extension == '.uvfits':
                     file_type = 'uvfits'
                 elif extension == '.h5':
                     file_type = 'uvh5'
@@ -2315,7 +2315,7 @@ class UVData(UVBase):
             else:
                 select = False
 
-            self.read_miriad(filepath, antenna_nums=antenna_nums, ant_str=ant_str,
+            self.read_miriad(filename, antenna_nums=antenna_nums, ant_str=ant_str,
                              bls=bls, polarizations=polarizations,
                              time_range=time_range, read_data=read_data,
                              phase_type=phase_type, correct_lat_lon=correct_lat_lon,
@@ -2342,7 +2342,7 @@ class UVData(UVBase):
             else:
                 select = False
 
-            self.read_fhd(filelist, use_model=use_model, run_check=run_check,
+            self.read_fhd(filename, use_model=use_model, run_check=run_check,
                           check_extra=check_extra,
                           run_check_acceptability=run_check_acceptability)
 
@@ -2367,7 +2367,7 @@ class UVData(UVBase):
             else:
                 select = False
 
-            self.read_ms(filepath, run_check=run_check, check_extra=check_extra,
+            self.read_ms(filename, run_check=run_check, check_extra=check_extra,
                          run_check_acceptability=run_check_acceptability,
                          data_column=data_column, pol_order=pol_order)
 

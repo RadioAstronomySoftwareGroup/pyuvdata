@@ -29,7 +29,7 @@ def test_ReadWriteReadATCA():
     uv_out = UVData()
     atca_file = os.path.join(DATA_PATH, 'atca_miriad')
     testfile = os.path.join(DATA_PATH, 'test/outtest_atca_miriad.uv')
-    uvtest.checkWarnings(uv_in.read_miriad, [atca_file],
+    uvtest.checkWarnings(uv_in.read, [atca_file],
                          nwarnings=4, category=[UserWarning, UserWarning, UserWarning, UserWarning],
                          message=['Altitude is not present in Miriad file, and '
                                   'telescope ATCA is not in known_telescopes. ',
@@ -42,7 +42,7 @@ def test_ReadWriteReadATCA():
                                   'Telescope ATCA is not in known_telescopes.'])
 
     uv_in.write_miriad(testfile, clobber=True)
-    uvtest.checkWarnings(uv_out.read_miriad, [testfile],
+    uvtest.checkWarnings(uv_out.read, [testfile],
                          message='Telescope ATCA is not in known_telescopes.')
     nt.assert_equal(uv_in, uv_out)
 
@@ -56,7 +56,7 @@ def test_ReadNRAOWriteMiriadReadMiriad():
                                'RESTFREQ', 'ORIGIN']
     uvtest.checkWarnings(uvfits_uv.read_uvfits, [testfile], message='Telescope EVLA is not')
     uvfits_uv.write_miriad(testfile + '.uv', clobber=True)
-    uvtest.checkWarnings(miriad_uv.read_miriad, [testfile + '.uv'], message='Telescope EVLA is not')
+    uvtest.checkWarnings(miriad_uv.read, [testfile + '.uv'], message='Telescope EVLA is not')
     nt.assert_equal(uvfits_uv, miriad_uv)
     del(uvfits_uv)
     del(miriad_uv)
@@ -73,33 +73,33 @@ def test_ReadMiriadWriteUVFits():
     uvfits_uv = UVData()
     miriad_file = os.path.join(DATA_PATH, 'zen.2456865.60537.xy.uvcRREAA')
     testfile = os.path.join(DATA_PATH, 'test/outtest_miriad.uvfits')
-    uvtest.checkWarnings(miriad_uv.read_miriad, [miriad_file],
+    uvtest.checkWarnings(miriad_uv.read, [miriad_file],
                          known_warning='miriad')
     miriad_uv.write_uvfits(testfile, spoof_nonessential=True, force_phase=True)
     uvfits_uv.read_uvfits(testfile)
     nt.assert_equal(miriad_uv, uvfits_uv)
 
     # check error if phase_type is wrong and force_phase not set
-    uvtest.checkWarnings(miriad_uv.read_miriad, [miriad_file],
+    uvtest.checkWarnings(miriad_uv.read, [miriad_file],
                          known_warning='miriad')
     nt.assert_raises(ValueError, miriad_uv.write_uvfits, testfile, spoof_nonessential=True)
     miriad_uv.set_unknown_phase_type()
     nt.assert_raises(ValueError, miriad_uv.write_uvfits, testfile, spoof_nonessential=True)
 
     # check error if spoof_nonessential not set
-    uvtest.checkWarnings(miriad_uv.read_miriad, [miriad_file],
+    uvtest.checkWarnings(miriad_uv.read, [miriad_file],
                          known_warning='miriad')
     nt.assert_raises(ValueError, miriad_uv.write_uvfits, testfile, force_phase=True)
 
     # check warning when correct_lat_lon is set to False
-    uvtest.checkWarnings(miriad_uv.read_miriad, [miriad_file],
+    uvtest.checkWarnings(miriad_uv.read, [miriad_file],
                          {'correct_lat_lon': False}, nwarnings=1,
                          message=['Altitude is not present in Miriad file, using known location altitude value for PAPER and lat/lon from file.'])
 
     # check that setting the phase_type to something wrong errors
-    nt.assert_raises(ValueError, uvtest.checkWarnings, miriad_uv.read_miriad,
+    nt.assert_raises(ValueError, uvtest.checkWarnings, miriad_uv.read,
                      [miriad_file], {'phase_type': 'phased'})
-    nt.assert_raises(ValueError, uvtest.checkWarnings, miriad_uv.read_miriad,
+    nt.assert_raises(ValueError, uvtest.checkWarnings, miriad_uv.read,
                      [miriad_file], {'phase_type': 'foo'})
 
     del(miriad_uv)
@@ -123,7 +123,7 @@ def test_wronglatlon():
     latfile = os.path.join(DATA_PATH, 'zen.2456865.60537_wronglat.xy.uvcRREAA')
     lonfile = os.path.join(DATA_PATH, 'zen.2456865.60537_wronglon.xy.uvcRREAA')
     telescopefile = os.path.join(DATA_PATH, 'zen.2456865.60537_wrongtelecope.xy.uvcRREAA')
-    uv_in.read_miriad(miriad_file)
+    uv_in.read(miriad_file)
     uv_in.select(times=uv_in.time_array[0])
     uv_in.select(freq_chans=[0])
 
@@ -131,32 +131,32 @@ def test_wronglatlon():
     lat_wrong = lat + 10 * np.pi / 180.
     uv_in.telescope_location_lat_lon_alt = (lat_wrong, lon, alt)
     uv_in.write_miriad(latfile)
-    uv_out.read_miriad(latfile)
+    uv_out.read(latfile)
 
     lon_wrong = lon + 10 * np.pi / 180.
     uv_in.telescope_location_lat_lon_alt = (lat, lon_wrong, alt)
     uv_in.write_miriad(lonfile)
-    uv_out.read_miriad(lonfile)
+    uv_out.read(lonfile)
 
     uv_in.telescope_location_lat_lon_alt = (lat, lon, alt)
     uv_in.telescope_name = 'foo'
     uv_in.write_miriad(telescopefile)
-    uv_out.read_miriad(telescopefile, run_check=False)
+    uv_out.read(telescopefile, run_check=False)
     """
     uv_in = UVData()
     latfile = os.path.join(DATA_PATH, 'zen.2456865.60537_wronglat.xy.uvcRREAA')
     lonfile = os.path.join(DATA_PATH, 'zen.2456865.60537_wronglon.xy.uvcRREAA')
     telescopefile = os.path.join(DATA_PATH, 'zen.2456865.60537_wrongtelecope.xy.uvcRREAA')
 
-    uvtest.checkWarnings(uv_in.read_miriad, [latfile], nwarnings=3,
+    uvtest.checkWarnings(uv_in.read, [latfile], nwarnings=3,
                          message=['Altitude is not present in file and latitude value does not match',
                                   'This file was written with an old version of pyuvdata',
                                   'This file was written with an old version of pyuvdata'])
-    uvtest.checkWarnings(uv_in.read_miriad, [lonfile], nwarnings=3,
+    uvtest.checkWarnings(uv_in.read, [lonfile], nwarnings=3,
                          message=['Altitude is not present in file and longitude value does not match',
                                   'This file was written with an old version of pyuvdata',
                                   'This file was written with an old version of pyuvdata'])
-    uvtest.checkWarnings(uv_in.read_miriad, [telescopefile], {'run_check': False},
+    uvtest.checkWarnings(uv_in.read, [telescopefile], {'run_check': False},
                          nwarnings=6,
                          message=['Altitude is not present in Miriad file, and telescope',
                                   'Altitude is not present in Miriad file, and telescope',
@@ -180,7 +180,7 @@ def test_miriad_location_handling():
         shutil.rmtree(testfile)
 
     # Test for using antenna positions to get telescope position
-    uvtest.checkWarnings(uv_in.read_miriad, [miriad_file],
+    uvtest.checkWarnings(uv_in.read, [miriad_file],
                          message=['Altitude is not present in Miriad file, using known '
                                   'location values for PAPER.'])
     # extract antenna positions and rotate them for miriad
@@ -211,7 +211,7 @@ def test_miriad_location_handling():
     # close file properly
     del(aipy_uv2)
 
-    uvtest.checkWarnings(uv_out.read_miriad, [testfile], nwarnings=4,
+    uvtest.checkWarnings(uv_out.read, [testfile], nwarnings=4,
                          message=['Altitude is not present in Miriad file, and '
                                   'telescope foo is not in known_telescopes. '
                                   'Telescope location will be set using antenna positions.',
@@ -240,7 +240,7 @@ def test_miriad_location_handling():
     # close file properly
     del(aipy_uv2)
 
-    uvtest.checkWarnings(uv_out.read_miriad, [testfile], nwarnings=5,
+    uvtest.checkWarnings(uv_out.read, [testfile], nwarnings=5,
                          message=['Altitude is not present in Miriad file, and '
                                   'telescope foo is not in known_telescopes. '
                                   'Telescope location will be set using antenna positions.',
@@ -272,7 +272,7 @@ def test_miriad_location_handling():
     # close file properly
     del(aipy_uv2)
 
-    uvtest.checkWarnings(uv_out.read_miriad, [testfile], nwarnings=5,
+    uvtest.checkWarnings(uv_out.read, [testfile], nwarnings=5,
                          message=['Altitude is not present in Miriad file, and '
                                   'telescope foo is not in known_telescopes. '
                                   'Telescope location will be set using antenna positions.',
@@ -303,7 +303,7 @@ def test_miriad_location_handling():
     # close file properly
     del(aipy_uv2)
 
-    uvtest.checkWarnings(uv_out.read_miriad, [testfile], nwarnings=5,
+    uvtest.checkWarnings(uv_out.read, [testfile], nwarnings=5,
                          message=['Altitude is not present in Miriad file, and '
                                   'telescope foo is not in known_telescopes. '
                                   'Telescope location will be set using antenna positions.',
@@ -343,7 +343,7 @@ def test_miriad_location_handling():
     # close file properly
     del(aipy_uv2)
 
-    uvtest.checkWarnings(uv_out.read_miriad, [testfile], nwarnings=4,
+    uvtest.checkWarnings(uv_out.read, [testfile], nwarnings=4,
                          message=['Altitude is not present in Miriad file, and '
                                   'telescope foo is not in known_telescopes. '
                                   'Telescope location will be set using antenna positions.',
@@ -365,20 +365,20 @@ def test_singletimeselect_drift():
     uv_out = UVData()
     miriad_file = os.path.join(DATA_PATH, 'zen.2456865.60537.xy.uvcRREAA')
     testfile = os.path.join(DATA_PATH, 'test/outtest_miriad.uv')
-    uvtest.checkWarnings(uv_in.read_miriad, [miriad_file],
+    uvtest.checkWarnings(uv_in.read, [miriad_file],
                          known_warning='miriad')
 
     uv_in.select(times=uv_in.time_array[0])
     uv_in.write_miriad(testfile, clobber=True)
-    uv_out.read_miriad(testfile)
+    uv_out.read(testfile)
     nt.assert_equal(uv_in, uv_out)
 
     # check that setting the phase_type works
-    uv_out.read_miriad(testfile, phase_type='drift')
+    uv_out.read(testfile, phase_type='drift')
     nt.assert_equal(uv_in, uv_out)
 
     # check again with more than one time but only 1 unflagged time
-    uvtest.checkWarnings(uv_in.read_miriad, [miriad_file],
+    uvtest.checkWarnings(uv_in.read, [miriad_file],
                          known_warning='miriad')
     time_gt0_array = np.where(uv_in.time_array > uv_in.time_array[0])[0]
     uv_in.flag_array[time_gt0_array, :, :, :] = True
@@ -388,18 +388,18 @@ def test_singletimeselect_drift():
     nt.assert_true(np.isclose(np.mean(np.diff(uv_in.time_array[blt_good])), 0.))
 
     uv_in.write_miriad(testfile, clobber=True)
-    uv_out.read_miriad(testfile)
+    uv_out.read(testfile)
     nt.assert_equal(uv_in, uv_out)
 
     # check that setting the phase_type works
-    uv_out.read_miriad(testfile, phase_type='drift')
+    uv_out.read(testfile, phase_type='drift')
     nt.assert_equal(uv_in, uv_out)
 
 
 def test_poltoind():
     miriad_uv = UVData()
     miriad_file = os.path.join(DATA_PATH, 'zen.2456865.60537.xy.uvcRREAA')
-    uvtest.checkWarnings(miriad_uv.read_miriad, [miriad_file], known_warning='miriad')
+    uvtest.checkWarnings(miriad_uv.read, [miriad_file], known_warning='miriad')
     pol_arr = miriad_uv.polarization_array
 
     miriad = miriad_uv._convert_to_filetype('miriad')
@@ -415,7 +415,7 @@ def test_miriad_extra_keywords():
     uv_out = UVData()
     miriad_file = os.path.join(DATA_PATH, 'zen.2456865.60537.xy.uvcRREAA')
     testfile = os.path.join(DATA_PATH, 'test/outtest_miriad.uv')
-    uvtest.checkWarnings(uv_in.read_miriad, [miriad_file],
+    uvtest.checkWarnings(uv_in.read, [miriad_file],
                          known_warning='miriad')
 
     # check for warnings & errors with extra_keywords that are dicts, lists or arrays
@@ -452,7 +452,7 @@ def test_miriad_extra_keywords():
     uv_in.extra_keywords['bool'] = True
     uv_in.extra_keywords['bool2'] = False
     uv_in.write_miriad(testfile, clobber=True)
-    uv_out.read_miriad(testfile)
+    uv_out.read(testfile)
 
     nt.assert_equal(uv_in, uv_out)
     uv_in.extra_keywords.pop('bool')
@@ -462,7 +462,7 @@ def test_miriad_extra_keywords():
     uv_in.extra_keywords['int1'] = np.int(5)
     uv_in.extra_keywords['int2'] = 7
     uv_in.write_miriad(testfile, clobber=True)
-    uv_out.read_miriad(testfile)
+    uv_out.read(testfile)
 
     nt.assert_equal(uv_in, uv_out)
     uv_in.extra_keywords.pop('int1')
@@ -472,7 +472,7 @@ def test_miriad_extra_keywords():
     uv_in.extra_keywords['float1'] = np.int64(5.3)
     uv_in.extra_keywords['float2'] = 6.9
     uv_in.write_miriad(testfile, clobber=True)
-    uv_out.read_miriad(testfile)
+    uv_out.read(testfile)
 
     nt.assert_equal(uv_in, uv_out)
     uv_in.extra_keywords.pop('float1')
@@ -489,32 +489,32 @@ def test_breakReadMiriad():
     """Test Miriad file checking."""
     uv_in = UVData()
     uv_out = UVData()
-    nt.assert_raises(IOError, uv_in.read_miriad, 'foo')
+    nt.assert_raises(IOError, uv_in.read, 'foo', file_type='miriad')
 
     miriad_file = os.path.join(DATA_PATH, 'zen.2456865.60537.xy.uvcRREAA')
     testfile = os.path.join(DATA_PATH, 'test/outtest_miriad.uv')
-    uvtest.checkWarnings(uv_in.read_miriad, [miriad_file],
+    uvtest.checkWarnings(uv_in.read, [miriad_file],
                          known_warning='miriad')
 
-    uvtest.checkWarnings(uv_in.read_miriad, [miriad_file],
+    uvtest.checkWarnings(uv_in.read, [miriad_file],
                          known_warning='miriad')
     uv_in.Nblts += 10
     uv_in.write_miriad(testfile, clobber=True, run_check=False)
-    uvtest.checkWarnings(uv_out.read_miriad, [testfile], {'run_check': False},
+    uvtest.checkWarnings(uv_out.read, [testfile], {'run_check': False},
                          message=['Nblts does not match the number of unique blts in the data'])
 
-    uvtest.checkWarnings(uv_in.read_miriad, [miriad_file],
+    uvtest.checkWarnings(uv_in.read, [miriad_file],
                          known_warning='miriad')
     uv_in.Nbls += 10
     uv_in.write_miriad(testfile, clobber=True, run_check=False)
-    uvtest.checkWarnings(uv_out.read_miriad, [testfile], {'run_check': False},
+    uvtest.checkWarnings(uv_out.read, [testfile], {'run_check': False},
                          message=['Nbls does not match the number of unique baselines in the data'])
 
-    uvtest.checkWarnings(uv_in.read_miriad, [miriad_file],
+    uvtest.checkWarnings(uv_in.read, [miriad_file],
                          known_warning='miriad')
     uv_in.Ntimes += 10
     uv_in.write_miriad(testfile, clobber=True, run_check=False)
-    uvtest.checkWarnings(uv_out.read_miriad, [testfile], {'run_check': False},
+    uvtest.checkWarnings(uv_out.read, [testfile], {'run_check': False},
                          message=['Ntimes does not match the number of unique times in the data'])
 
 
@@ -530,9 +530,9 @@ def test_readWriteReadMiriad():
     testfile = os.path.join(DATA_PATH, 'zen.2456865.60537.xy.uvcRREAA')
     write_file = os.path.join(DATA_PATH, 'test/outtest_miriad.uv')
     write_file2 = os.path.join(DATA_PATH, 'test/outtest_miriad2.uv')
-    uvtest.checkWarnings(uv_in.read_miriad, [testfile], known_warning='miriad')
+    uvtest.checkWarnings(uv_in.read, [testfile], known_warning='miriad')
     uv_in.write_miriad(write_file, clobber=True)
-    uv_out.read_miriad(write_file)
+    uv_out.read(write_file)
 
     nt.assert_equal(uv_in, uv_out)
 
@@ -540,7 +540,7 @@ def test_readWriteReadMiriad():
     uv_in2 = copy.deepcopy(uv_in)
     uv_in2.phase_to_time(Time(np.mean(uv_in2.time_array), format='jd'))
     uv_in2.write_miriad(write_file, clobber=True)
-    uv_out.read_miriad(write_file)
+    uv_out.read(write_file)
 
     nt.assert_equal(uv_in2, uv_out)
 
@@ -550,20 +550,20 @@ def test_readWriteReadMiriad():
     # check that if x_orientation is set, it's read back out properly
     uv_in.x_orientation = 'east'
     uv_in.write_miriad(write_file, clobber=True)
-    uv_out.read_miriad(write_file)
+    uv_out.read(write_file)
     nt.assert_equal(uv_in, uv_out)
 
     # check that if antenna_diameters is set, it's read back out properly
-    uvtest.checkWarnings(uv_in.read_miriad, [testfile], known_warning='miriad')
+    uvtest.checkWarnings(uv_in.read, [testfile], known_warning='miriad')
     uv_in.antenna_diameters = np.zeros((uv_in.Nants_telescope,), dtype=np.float) + 14.0
     uv_in.write_miriad(write_file, clobber=True)
-    uv_out.read_miriad(write_file)
+    uv_out.read(write_file)
     nt.assert_equal(uv_in, uv_out)
 
     # check that antenna diameters get written if not exactly float
     uv_in.antenna_diameters = np.zeros((uv_in.Nants_telescope,), dtype=np.float32) + 14.0
     uv_in.write_miriad(write_file, clobber=True)
-    uv_out.read_miriad(write_file)
+    uv_out.read(write_file)
     nt.assert_equal(uv_in, uv_out)
 
     # check that trying to write a file with unknown phasing raises an error
@@ -572,14 +572,14 @@ def test_readWriteReadMiriad():
 
     # check for backwards compatibility with old keyword 'diameter' for antenna diameters
     testfile_diameters = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.HH.uvcA')
-    uv_in.read_miriad(testfile_diameters)
+    uv_in.read(testfile_diameters)
     uv_in.write_miriad(write_file, clobber=True)
-    uv_out.read_miriad(write_file)
+    uv_out.read(write_file)
     nt.assert_equal(uv_in, uv_out)
 
     # check that variables 'ischan' and 'nschan' were written to new file
     # need to use aipy, since pyuvdata is not currently capturing these variables
-    uv_in.read_miriad(write_file)
+    uv_in.read(write_file)
     uv_aipy = aipy_extracts.UV(write_file)  # on enterprise, this line makes it so you cant delete the file
     nfreqs = uv_in.Nfreqs
     nschan = uv_aipy['nschan']
@@ -590,18 +590,18 @@ def test_readWriteReadMiriad():
 
     # check partial IO selections
     full = UVData()
-    uvtest.checkWarnings(full.read_miriad, [testfile], known_warning='miriad')
+    uvtest.checkWarnings(full.read, [testfile], known_warning='miriad')
     full.write_miriad(write_file, clobber=True)
     uv_in = UVData()
 
     # test only specified bls were read, and that flipped antpair is loaded too
-    uv_in.read_miriad(write_file, bls=[(0, 0), (0, 1), (4, 2)])
+    uv_in.read(write_file, bls=[(0, 0), (0, 1), (4, 2)])
     nt.assert_equal(uv_in.get_antpairs(), [(0, 0), (0, 1), (2, 4)])
     exp_uv = full.select(bls=[(0, 0), (0, 1), (4, 2)], inplace=False)
     nt.assert_equal(uv_in, exp_uv)
 
     # test all bls w/ 0 are loaded
-    uv_in.read_miriad(write_file, antenna_nums=[0])
+    uv_in.read(write_file, antenna_nums=[0])
     diff = set(full.get_antpairs()) - set(uv_in.get_antpairs())
     nt.assert_true(0 not in np.unique(diff))
     exp_uv = full.select(antenna_nums=[0], inplace=False)
@@ -609,96 +609,96 @@ def test_readWriteReadMiriad():
     nt.assert_true(np.max(exp_uv.ant_2_array) == 0)
     nt.assert_equal(uv_in, exp_uv)
 
-    uv_in.read_miriad(write_file, antenna_nums=[0], bls=[(2, 4)])
+    uv_in.read(write_file, antenna_nums=[0], bls=[(2, 4)])
     nt.assert_true(np.array([bl in uv_in.get_antpairs() for bl in [(0, 0), (2, 4)]]).all())
     exp_uv = full.select(antenna_nums=[0], bls=[(2, 4)], inplace=False)
     nt.assert_equal(uv_in, exp_uv)
 
-    uv_in.read_miriad(write_file, bls=[(2, 4, 'xy')])
+    uv_in.read(write_file, bls=[(2, 4, 'xy')])
     nt.assert_true(np.array([bl in uv_in.get_antpairs() for bl in [(2, 4)]]).all())
     exp_uv = full.select(bls=[(2, 4, 'xy')], inplace=False)
     nt.assert_equal(uv_in, exp_uv)
 
-    uv_in.read_miriad(write_file, bls=[(4, 2, 'yx')])
+    uv_in.read(write_file, bls=[(4, 2, 'yx')])
     nt.assert_true(np.array([bl in uv_in.get_antpairs() for bl in [(2, 4)]]).all())
     exp_uv = full.select(bls=[(4, 2, 'yx')], inplace=False)
     nt.assert_equal(uv_in, exp_uv)
 
-    uv_in.read_miriad(write_file, bls=(4, 2, 'yx'))
+    uv_in.read(write_file, bls=(4, 2, 'yx'))
     nt.assert_true(np.array([bl in uv_in.get_antpairs() for bl in [(2, 4)]]).all())
     exp_uv = full.select(bls=[(4, 2, 'yx')], inplace=False)
     nt.assert_equal(uv_in, exp_uv)
 
     # test time loading
-    uv_in.read_miriad(write_file, time_range=[2456865.607, 2456865.609])
+    uv_in.read(write_file, time_range=[2456865.607, 2456865.609])
     full_times = np.unique(full.time_array[(full.time_array > 2456865.607) & (full.time_array < 2456865.609)])
     nt.assert_true(np.isclose(np.unique(uv_in.time_array), full_times).all())
     exp_uv = full.select(times=full_times, inplace=False)
     nt.assert_equal(uv_in, exp_uv)
 
     # test polarization loading
-    uv_in.read_miriad(write_file, polarizations=['xy'])
+    uv_in.read(write_file, polarizations=['xy'])
     nt.assert_equal(full.polarization_array, uv_in.polarization_array)
     exp_uv = full.select(polarizations=['xy'], inplace=False)
     nt.assert_equal(uv_in, exp_uv)
 
-    uv_in.read_miriad(write_file, polarizations=[-7])
+    uv_in.read(write_file, polarizations=[-7])
     nt.assert_equal(full.polarization_array, uv_in.polarization_array)
     exp_uv = full.select(polarizations=[-7], inplace=False)
     nt.assert_equal(uv_in, exp_uv)
 
     # test ant_str
-    uv_in.read_miriad(write_file, ant_str='auto')
+    uv_in.read(write_file, ant_str='auto')
     nt.assert_true(np.array([blp[0] == blp[1] for blp in uv_in.get_antpairs()]).all())
     exp_uv = full.select(ant_str='auto', inplace=False)
     nt.assert_equal(uv_in, exp_uv)
 
-    uv_in.read_miriad(write_file, ant_str='cross')
+    uv_in.read(write_file, ant_str='cross')
     nt.assert_true(np.array([blp[0] != blp[1] for blp in uv_in.get_antpairs()]).all())
     exp_uv = full.select(ant_str='cross', inplace=False)
     nt.assert_equal(uv_in, exp_uv)
 
-    uv_in.read_miriad(write_file, ant_str='all')
+    uv_in.read(write_file, ant_str='all')
     nt.assert_equal(uv_in, full)
-    nt.assert_raises(AssertionError, uv_in.read_miriad, write_file, ant_str='auto', antenna_nums=[0, 1])
+    nt.assert_raises(AssertionError, uv_in.read, write_file, ant_str='auto', antenna_nums=[0, 1])
 
     # assert exceptions
-    nt.assert_raises(ValueError, uv_in.read_miriad, write_file, bls='foo')
-    nt.assert_raises(ValueError, uv_in.read_miriad, write_file, bls=[[0, 1]])
-    nt.assert_raises(ValueError, uv_in.read_miriad, write_file, bls=[('foo', 'bar')])
-    nt.assert_raises(ValueError, uv_in.read_miriad, write_file, bls=[('foo', )])
-    nt.assert_raises(ValueError, uv_in.read_miriad, write_file, bls=[(1, 2), (2, 3, 'xx')])
-    nt.assert_raises(ValueError, uv_in.read_miriad, write_file, bls=[(2, 4, 0)])
-    nt.assert_raises(ValueError, uv_in.read_miriad, write_file, bls=[(2, 4, 'xy')], polarizations=['xy'])
-    nt.assert_raises(AssertionError, uv_in.read_miriad, write_file, antenna_nums=np.array([(0, 10)]))
-    nt.assert_raises(AssertionError, uv_in.read_miriad, write_file, polarizations='xx')
-    nt.assert_raises((AssertionError, ValueError), uv_in.read_miriad, write_file, polarizations=[1.0])
-    nt.assert_raises(ValueError, uv_in.read_miriad, write_file, polarizations=['yy'])
-    nt.assert_raises(AssertionError, uv_in.read_miriad, write_file, time_range='foo')
-    nt.assert_raises(AssertionError, uv_in.read_miriad, write_file, time_range=[1, 2, 3])
-    nt.assert_raises(AssertionError, uv_in.read_miriad, write_file, time_range=['foo', 'bar'])
-    nt.assert_raises(ValueError, uv_in.read_miriad, write_file, time_range=[10.1, 10.2])
-    nt.assert_raises(AssertionError, uv_in.read_miriad, write_file, ant_str=0)
+    nt.assert_raises(ValueError, uv_in.read, write_file, bls='foo')
+    nt.assert_raises(ValueError, uv_in.read, write_file, bls=[[0, 1]])
+    nt.assert_raises(ValueError, uv_in.read, write_file, bls=[('foo', 'bar')])
+    nt.assert_raises(ValueError, uv_in.read, write_file, bls=[('foo', )])
+    nt.assert_raises(ValueError, uv_in.read, write_file, bls=[(1, 2), (2, 3, 'xx')])
+    nt.assert_raises(ValueError, uv_in.read, write_file, bls=[(2, 4, 0)])
+    nt.assert_raises(ValueError, uv_in.read, write_file, bls=[(2, 4, 'xy')], polarizations=['xy'])
+    nt.assert_raises(AssertionError, uv_in.read, write_file, antenna_nums=np.array([(0, 10)]))
+    nt.assert_raises(AssertionError, uv_in.read, write_file, polarizations='xx')
+    nt.assert_raises((AssertionError, ValueError), uv_in.read, write_file, polarizations=[1.0])
+    nt.assert_raises(ValueError, uv_in.read, write_file, polarizations=['yy'])
+    nt.assert_raises(AssertionError, uv_in.read, write_file, time_range='foo')
+    nt.assert_raises(AssertionError, uv_in.read, write_file, time_range=[1, 2, 3])
+    nt.assert_raises(AssertionError, uv_in.read, write_file, time_range=['foo', 'bar'])
+    nt.assert_raises(ValueError, uv_in.read, write_file, time_range=[10.1, 10.2])
+    nt.assert_raises(AssertionError, uv_in.read, write_file, ant_str=0)
 
     # assert partial-read and select are same
-    uv_in.read_miriad(write_file, polarizations=[-7], bls=[(4, 4)])
+    uv_in.read(write_file, polarizations=[-7], bls=[(4, 4)])
     exp_uv = full.select(polarizations=[-7], bls=[(4, 4)], inplace=False)
     nt.assert_equal(uv_in, exp_uv)
 
     # assert partial-read and select are same
-    uv_in.read_miriad(write_file, bls=[(4, 4, 'xy')])
+    uv_in.read(write_file, bls=[(4, 4, 'xy')])
     exp_uv = full.select(bls=[(4, 4, 'xy')], inplace=False)
     nt.assert_equal(uv_in, exp_uv)
 
     # assert partial-read and select are same
     t = np.unique(full.time_array)
-    uv_in.read_miriad(write_file, antenna_nums=[0], time_range=[2456865.607, 2456865.609])
+    uv_in.read(write_file, antenna_nums=[0], time_range=[2456865.607, 2456865.609])
     exp_uv = full.select(antenna_nums=[0], times=t[((t > 2456865.607) & (t < 2456865.609))], inplace=False)
     nt.assert_equal(uv_in, exp_uv)
 
     # assert partial-read and select are same
     t = np.unique(full.time_array)
-    uv_in.read_miriad(write_file, polarizations=[-7], time_range=[2456865.607, 2456865.609])
+    uv_in.read(write_file, polarizations=[-7], time_range=[2456865.607, 2456865.609])
     exp_uv = full.select(polarizations=[-7], times=t[((t > 2456865.607) & (t < 2456865.609))], inplace=False)
     nt.assert_equal(uv_in, exp_uv)
 
@@ -708,7 +708,7 @@ def test_readWriteReadMiriad():
 
     # try metadata only read
     uv_in = UVData()
-    uvtest.checkWarnings(uv_in.read_miriad, [testfile], {'read_data': False}, known_warning='miriad')
+    uvtest.checkWarnings(uv_in.read, [testfile], {'read_data': False}, known_warning='miriad')
     nt.assert_equal(uv_in.time_array, None)
     nt.assert_equal(uv_in.data_array, None)
     metadata = ['antenna_positions', 'antenna_names', 'antenna_positions', 'channel_width',
@@ -719,16 +719,16 @@ def test_readWriteReadMiriad():
     # test exceptions
     # multiple file read-in
     uv_in = UVData()
-    uvtest.checkWarnings(uv_in.read_miriad, [testfile], known_warning='miriad')
+    uvtest.checkWarnings(uv_in.read, [testfile], known_warning='miriad')
     new_uv = uv_in.select(freq_chans=np.arange(5), inplace=False)
     new_uv.write_miriad(write_file, clobber=True)
     new_uv = uv_in.select(freq_chans=np.arange(5) + 5, inplace=False)
     new_uv.write_miriad(write_file2, clobber=True)
-    nt.assert_raises(ValueError, uv_in.read_miriad, [write_file, write_file2], read_data=False)
+    nt.assert_raises(ValueError, uv_in.read, [write_file, write_file2], read_data=False)
     # read-in when data already exists
     uv_in = UVData()
-    uvtest.checkWarnings(uv_in.read_miriad, [testfile], known_warning='miriad')
-    nt.assert_raises(ValueError, uv_in.read_miriad, testfile, read_data=False)
+    uvtest.checkWarnings(uv_in.read, [testfile], known_warning='miriad')
+    nt.assert_raises(ValueError, uv_in.read, testfile, read_data=False)
 
     # test load_telescope_coords w/ blank Miriad
     uv_in = Miriad()
@@ -755,7 +755,7 @@ def test_readMSWriteMiriad_CASAHistory():
                          message='Telescope EVLA is not',
                          nwarnings=0)
     ms_uv.write_miriad(testfile, clobber=True)
-    uvtest.checkWarnings(miriad_uv.read_miriad, [testfile],
+    uvtest.checkWarnings(miriad_uv.read, [testfile],
                          message='Telescope EVLA is not')
 
     nt.assert_equal(miriad_uv, ms_uv)
@@ -772,25 +772,25 @@ def test_rwrMiriad_antpos_issues():
     uv_out = UVData()
     testfile = os.path.join(DATA_PATH, 'zen.2456865.60537.xy.uvcRREAA')
     write_file = os.path.join(DATA_PATH, 'test/outtest_miriad.uv')
-    uvtest.checkWarnings(uv_in.read_miriad, [testfile], known_warning='miriad')
+    uvtest.checkWarnings(uv_in.read, [testfile], known_warning='miriad')
     uv_in.antenna_positions = None
     uv_in.write_miriad(write_file, clobber=True)
-    uvtest.checkWarnings(uv_out.read_miriad, [write_file], nwarnings=2,
+    uvtest.checkWarnings(uv_out.read, [write_file], nwarnings=2,
                          message=['Antenna positions are not present in the file.',
                                   'Antenna positions are not present in the file.'])
 
     nt.assert_equal(uv_in, uv_out)
 
-    uvtest.checkWarnings(uv_in.read_miriad, [testfile], known_warning='miriad')
+    uvtest.checkWarnings(uv_in.read, [testfile], known_warning='miriad')
     ants_with_data = list(set(uv_in.ant_1_array).union(uv_in.ant_2_array))
     ant_ind = np.where(uv_in.antenna_numbers == ants_with_data[0])[0]
     uv_in.antenna_positions[ant_ind, :] = [0, 0, 0]
     uv_in.write_miriad(write_file, clobber=True, no_antnums=True)
-    uvtest.checkWarnings(uv_out.read_miriad, [write_file], message=['antenna number'])
+    uvtest.checkWarnings(uv_out.read, [write_file], message=['antenna number'])
 
     nt.assert_equal(uv_in, uv_out)
 
-    uvtest.checkWarnings(uv_in.read_miriad, [testfile], known_warning='miriad')
+    uvtest.checkWarnings(uv_in.read, [testfile], known_warning='miriad')
     uv_in.antenna_positions = None
     ants_with_data = sorted(list(set(uv_in.ant_1_array).union(uv_in.ant_2_array)))
     new_nums = []
@@ -803,7 +803,7 @@ def test_rwrMiriad_antpos_issues():
     uv_in.antenna_names = new_names
     uv_in.Nants_telescope = len(uv_in.antenna_numbers)
     uv_in.write_miriad(write_file, clobber=True, no_antnums=True)
-    uvtest.checkWarnings(uv_out.read_miriad, [write_file], nwarnings=2,
+    uvtest.checkWarnings(uv_out.read, [write_file], nwarnings=2,
                          message=['Antenna positions are not present in the file.',
                                   'Antenna positions are not present in the file.'])
 
@@ -826,7 +826,7 @@ def test_multi_files():
     uv2.select(freq_chans=np.arange(32, 64))
     uv1.write_miriad(testfile1, clobber=True)
     uv2.write_miriad(testfile2, clobber=True)
-    uvtest.checkWarnings(uv1.read_miriad, [[testfile1, testfile2]], nwarnings=2,
+    uvtest.checkWarnings(uv1.read, [[testfile1, testfile2]], nwarnings=2,
                          message=['Telescope EVLA is not', 'Telescope EVLA is not'])
     # Check history is correct, before replacing and doing a full object check
     nt.assert_true(uvutils._check_histories(uv_full.history + '  Downselected to '
@@ -861,7 +861,7 @@ def test_readMiriadwriteMiraid_check_time_format():
     # test read-in
     fname = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.HH.uvcA')
     uvd = UVData()
-    uvd.read_miriad(fname)
+    uvd.read(fname)
     uvd_t = uvd.time_array.min()
     uvd_l = uvd.lst_array.min()
     uv = aipy_extracts.UV(fname)
