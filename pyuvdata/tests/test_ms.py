@@ -23,6 +23,12 @@ def test_cotter_ms():
     testfile = os.path.join(DATA_PATH, '1102865728_small.ms')
     UV.read(testfile)
 
+    # check that a select on read works
+    UV2 = UVData()
+    uvtest.checkWarnings(UV2.read, [testfile], {'freq_chans': np.arange(2)},
+                         message='Warning: select on read keyword set')
+    UV.select(freq_chans=np.arange(2))
+    nt.assert_equal(UV, UV2)
     del(UV)
 
 

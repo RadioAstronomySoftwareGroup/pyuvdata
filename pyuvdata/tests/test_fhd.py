@@ -50,6 +50,26 @@ def test_ReadFHDWriteReadUVFits():
                         spoof_nonessential=True)
     uvfits_uv.read_uvfits(os.path.join(DATA_PATH, 'test/outtest_FHD_1061316296.uvfits'))
     nt.assert_equal(fhd_uv, uvfits_uv)
+
+    # check that a select on read works
+    fhd_uv2 = UVData()
+    uvtest.checkWarnings(fhd_uv2.read, [testfiles], {'freq_chans': np.arange(2)},
+                         message='Warning: select on read keyword set')
+
+    if not uvtest.scipy_warnings:
+        fhd_uv.read(testfiles)
+    else:
+        # numpy 1.14 introduced a new deprecation warning.
+        # Should be fixed when the next scipy version comes out.
+        # The number of replications of the warning varies some and must be
+        # empirically discovered. It it defaults to the most common number.
+        n_scipy_warnings, scipy_warn_list, scipy_category_list = uvtest.get_scipy_warnings()
+        uvtest.checkWarnings(fhd_uv.read, [testfiles],
+                             message=scipy_warn_list, category=scipy_category_list,
+                             nwarnings=n_scipy_warnings)
+    fhd_uv.select(freq_chans=np.arange(2))
+    nt.assert_equal(fhd_uv, fhd_uv2)
+
     del(fhd_uv)
     del(uvfits_uv)
 
