@@ -57,8 +57,9 @@ It is probably not compatible with other interferometric HDF5 files defined by o
 
 ## Known Issues and Planned Improvements
 * UVData: phasing (and the accuracy on the uvw coordinates) is only known to be good to 2cm on a 3km baseline (this is limited by the accuracy of the test file, see the phasing memo in docs/references for more details).
-* UVData: different multiple spectral windows or multiple sources are not currently supported
-* UVData: testing against miriad package (not just aipy derived data sets)
+* UVData: Multiple spectral windows or multiple sources are not currently supported
+* UVData: Add testing against miriad package (currently only tested against aipy derived files)
+* UVData: Concatenation of multiple datasets is somewhat slow.  (see issue #406 for proposed fix)
 * UVData: add support for writing CASA measurement sets
 * UVBeam: support reading/writing/combining standard HEALPix FITs files (individual files per frequency, polarization and E-field vector)
 * UVBeam: support phased-array antenna beams.
