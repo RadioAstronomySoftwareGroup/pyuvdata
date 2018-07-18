@@ -335,14 +335,11 @@ def test_generic_read():
     nt.assert_raises(ValueError, uv_in.read, uvfits_file, times=unique_times[0:2],
                      time_range=[unique_times[0], unique_times[1]])
 
-    uv_in.read(uvfits_file)
-    uv_in.write_uvh5(uvh_file, clobber=True)
+    nt.assert_raises(ValueError, uv_in.read, uvfits_file,
+                     antenna_nums=uv_in.antenna_numbers[0],
+                     antenna_names=uv_in.antenna_names[1])
 
-    uv_in.read(uvh_file, read_data=False)
-    unique_times = np.unique(uv_in.time_array)
-
-    nt.assert_raises(ValueError, uv_in.read, uvh_file, times=unique_times[0:2],
-                     time_range=[unique_times[0], unique_times[1]])
+    nt.assert_raises(ValueError, uv_in.read, 'foo')
 
 
 def test_phase_unphaseHERA():
