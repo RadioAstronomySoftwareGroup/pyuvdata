@@ -10,6 +10,7 @@ import collections
 import six
 import warnings
 from astropy.time import Time
+from astropy.coordinates import Angle
 
 # parameters for transforming between xyz & lat/lon/alt
 gps_b = 6356752.31424518
@@ -361,9 +362,9 @@ def get_lst_for_time(jd_array, latitude, longitude, altitude):
 
     Args:
         jd_array: an array of JD times to get lst for
-        latitude: latitude of location to get lst for
-        longitude: longitude of location to get lst for
-        altitude: altitude of location to get lst for
+        latitude: latitude of location to get lst for in degrees
+        longitude: longitude of location to get lst for in degrees
+        altitude: altitude of location to get lst for in meters
 
     Returns:
         an array of lst times corresponding to the jd_array
@@ -371,7 +372,8 @@ def get_lst_for_time(jd_array, latitude, longitude, altitude):
     lsts = []
     lst_array = np.zeros_like(jd_array)
     for ind, jd in enumerate(np.unique(jd_array)):
-        t = Time(jd, format='jd', location=(longitude, latitude))
+        t = Time(jd, format='jd', location=(Angle(longitude, unit='deg'),
+                                            Angle(latitude, unit='deg')))
         lst_array[np.where(np.isclose(
             jd, jd_array, atol=1e-6, rtol=1e-12))] = t.sidereal_time('apparent').radian
 
