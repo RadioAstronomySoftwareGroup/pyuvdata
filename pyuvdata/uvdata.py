@@ -877,18 +877,15 @@ class UVData(UVBase):
                                  'allow_phasing=True.'
                                  )
         antenna_locs_ENU = uvutils.ENU_from_ECEF(
-            (self.antenna_positions + self.telescope_location).T,
-            *self.telescope_location_lat_lon_alt
-        ).T
+            (self.antenna_positions + self.telescope_location),
+            *self.telescope_location_lat_lon_alt)
         uvw_array = np.zeros((self.baseline_array.size, 3))
         for baseline in list(set(self.baseline_array)):
             baseline_inds = np.where(self.baseline_array == baseline)[0]
-            ant1_index = np.where(
-                self.antenna_numbers == self.ant_1_array[baseline_inds[0]]
-            )[0][0]
-            ant2_index = np.where(
-                self.antenna_numbers == self.ant_2_array[baseline_inds[0]]
-            )[0][0]
+            ant1_index = np.where(self.antenna_numbers
+                                  == self.ant_1_array[baseline_inds[0]])[0][0]
+            ant2_index = np.where(self.antenna_numbers
+                                  == self.ant_2_array[baseline_inds[0]])[0][0]
             uvw_array[baseline_inds, :] = (antenna_locs_ENU[ant2_index, :]
                                            - antenna_locs_ENU[ant1_index, :])
         self.uvw_array = uvw_array
