@@ -77,18 +77,18 @@ def test_ReadFHDWriteReadUVFits():
 def test_breakReadFHD():
     """Try various cases of incomplete file lists."""
     fhd_uv = UVData()
-    nt.assert_raises(Exception, fhd_uv.read, testfiles[1:])  # Missing flags
+    nt.assert_raises(Exception, fhd_uv.read_fhd, testfiles[1:])  # Missing flags
     del(fhd_uv)
     fhd_uv = UVData()
     subfiles = [item for sublist in [testfiles[0:2], testfiles[3:]] for item in sublist]
-    nt.assert_raises(Exception, fhd_uv.read, subfiles)  # Missing params
+    nt.assert_raises(Exception, fhd_uv.read_fhd, subfiles)  # Missing params
     del(fhd_uv)
     fhd_uv = UVData()
-    nt.assert_raises(Exception, fhd_uv.read, ['foo'])  # No data files
+    nt.assert_raises(Exception, fhd_uv.read_fhd, ['foo'])  # No data files
     del(fhd_uv)
     fhd_uv = UVData()
     if not uvtest.scipy_warnings:
-        uvtest.checkWarnings(fhd_uv.read, [testfiles[:-1]], message=['No settings'])
+        uvtest.checkWarnings(fhd_uv.read_fhd, [testfiles[:-1]], message=['No settings'])
     else:
         # numpy 1.14 introduced a new deprecation warning.
         # Should be fixed when the next scipy version comes out.
@@ -97,7 +97,7 @@ def test_breakReadFHD():
         n_scipy_warnings, scipy_warn_list, scipy_category_list = uvtest.get_scipy_warnings()
         warn_list = ['No settings'] + scipy_warn_list
         category_list = [UserWarning] + scipy_category_list
-        uvtest.checkWarnings(fhd_uv.read, [testfiles[:-1]],
+        uvtest.checkWarnings(fhd_uv.read_fhd, [testfiles[:-1]],
                              message=warn_list, category=category_list,
                              nwarnings=n_scipy_warnings + 1)
     # Check only pyuvdata history with no settings file
