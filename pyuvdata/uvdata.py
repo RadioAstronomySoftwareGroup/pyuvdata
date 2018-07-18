@@ -2254,12 +2254,21 @@ class UVData(UVBase):
         if file_type is None:
             raise ValueError('File type could not be determined.')
 
-        if file_type == 'uvfits':
-            if (time_range is not None):
-                if times is not None:
-                    raise ValueError(
-                        'Only one of times and time_range can be provided.')
+        if (time_range is not None):
+            if times is not None:
+                raise ValueError(
+                    'Only one of times and time_range can be provided.')
+            if file_type == 'uvfits' or file_type == 'uvh5':
+                unique_times = np.unique(self.time_array)
+                times_to_keep = unique_times[np.where((unique_times >= np.min(time_range))
+                                                      & (unique_times <= np.max(time_range)))]
 
+        if antenna_names is not None and antenna_nums is not None:
+            raise ValueError('Only one of antenna_nums and antenna_names can be provided.')
+
+        if file_type == 'uvfits':
+
+            if (time_range is not None):
                 select = True
                 warnings.warn('Warning: "time_range" keyword is set which is not '
                               'supported by read_uvfits. This select will be '
@@ -2277,25 +2286,12 @@ class UVData(UVBase):
                              run_check_acceptability=run_check_acceptability)
 
             if select:
-                unique_times = np.unique(self.time_array)
-                times_to_keep = unique_times[np.where(unique_times > np.min(time_range)
-                                             and unique_times > np.max(time_range))]
                 self.select(times=times_to_keep, run_check=run_check, check_extra=check_extra,
                             run_check_acceptability=run_check_acceptability)
 
         elif file_type == 'miriad':
             if (antenna_names is not None or frequencies is not None or freq_chans is not None
                     or times is not None or blt_inds is not None):
-
-                if antenna_names is not None:
-                    if antenna_nums is not None:
-                        raise ValueError(
-                            'Only one of antenna_nums and antenna_names can be provided.')
-
-                if times is not None:
-                    if time_range is not None:
-                        raise ValueError(
-                            'Only one of times and time_range can be provided.')
 
                 if blt_inds is not None:
                     if (antenna_nums is not None or ant_str is not None
@@ -2307,11 +2303,11 @@ class UVData(UVBase):
                                       'because the select on read will happen '
                                       'before the blt_inds selection so the '
                                       'indices may not match the expected locations.')
-
+                else:
+                    warnings.warn('Warning: a select on read keyword is set that is not '
+                                  'supported by read_miriad. This select will be '
+                                  'done after reading the file.')
                 select = True
-                warnings.warn('Warning: a select on read keyword is set that is not '
-                              'supported by read_miriad. This select will be '
-                              'done after reading the file.')
             else:
                 select = False
 
@@ -2380,10 +2376,6 @@ class UVData(UVBase):
                             run_check_acceptability=run_check_acceptability)
         elif file_type == 'uvh5':
             if (time_range is not None):
-                if times is not None:
-                    raise ValueError(
-                        'Only one of times and time_range can be provided.')
-
                 select = True
                 warnings.warn('Warning: "time_range" keyword is set which is not '
                               'supported by read_uvh5. This select will be '
@@ -2399,9 +2391,6 @@ class UVData(UVBase):
                            run_check_acceptability=run_check_acceptability)
 
             if select:
-                unique_times = np.unique(self.time_array)
-                times_to_keep = unique_times[np.where(unique_times > np.min(time_range)
-                                             and unique_times > np.max(time_range))]
                 self.select(times=times_to_keep, run_check=run_check, check_extra=check_extra,
                             run_check_acceptability=run_check_acceptability)
 

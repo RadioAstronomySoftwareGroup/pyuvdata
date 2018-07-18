@@ -324,6 +324,27 @@ def test_HERA_diameters():
     uv_in.check()
 
 
+def test_generic_read():
+    uv_in = UVData()
+    uvfits_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    uvh_file = os.path.join(DATA_PATH, 'test', 'outtest_uvfits.h5')
+    uvtest.checkWarnings(uv_in.read, [uvfits_file], {'read_data': False},
+                         message='Telescope EVLA is not')
+    unique_times = np.unique(uv_in.time_array)
+
+    nt.assert_raises(ValueError, uv_in.read, uvfits_file, times=unique_times[0:2],
+                     time_range=[unique_times[0], unique_times[1]])
+
+    uv_in.read(uvfits_file)
+    uv_in.write_uvh5(uvh_file, clobber=True)
+
+    uv_in.read(uvh_file, read_data=False)
+    unique_times = np.unique(uv_in.time_array)
+
+    nt.assert_raises(ValueError, uv_in.read, uvh_file, times=unique_times[0:2],
+                     time_range=[unique_times[0], unique_times[1]])
+
+
 def test_phase_unphaseHERA():
     """
     Read in drift data, phase to an RA/DEC, unphase and check for object equality.

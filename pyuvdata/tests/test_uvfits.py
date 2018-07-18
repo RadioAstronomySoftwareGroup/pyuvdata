@@ -335,6 +335,18 @@ def test_select_read():
     uvfits_uv2.select(polarizations=pols_to_keep)
     nt.assert_equal(uvfits_uv, uvfits_uv2)
 
+    # select on read using time_range
+    unique_times = np.unique(uvfits_uv.time_array)
+    uvtest.checkWarnings(uvfits_uv.read, [uvfits_file],
+                         {'time_range': [unique_times[0], unique_times[1]]},
+                         nwarnings=2,
+                         message=['Warning: "time_range" keyword is set',
+                                  'Telescope EVLA is not'])
+    uvtest.checkWarnings(uvfits_uv2.read, [uvfits_file],
+                         message='Telescope EVLA is not')
+    uvfits_uv2.select(times=unique_times[0:2])
+    nt.assert_equal(uvfits_uv, uvfits_uv2)
+
     # now test selecting on multiple axes
     # frequencies first
     uvtest.checkWarnings(uvfits_uv.read, [uvfits_file],
