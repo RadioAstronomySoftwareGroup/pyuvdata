@@ -57,6 +57,12 @@ def LatLonAlt_from_XYZ(xyz):
     else:
         xyz_use = xyz
 
+    if xyz.shape == (3, 3):
+        warnings.warn('The xyz array in LatLonAlt_from_XYZ is being '
+                      'interpreted as (Npts, 3). Historically this function '
+                      'has supported (3, Npts) arrays, please verify that '
+                      'array ordering is as expected.', PendingDeprecationWarning)
+
     if xyz_use.ndim == 1:
         xyz_use = xyz_use[np.newaxis, :]
 
@@ -186,6 +192,12 @@ def ENU_from_ECEF(xyz, latitude, longitude, altitude):
         xyz_in = xyz
         transpose = False
 
+    if xyz.shape == (3, 3):
+        warnings.warn('The xyz array in ENU_from_ECEF is being '
+                      'interpreted as (Npts, 3). Historically this function '
+                      'has supported (3, Npts) arrays, please verify that '
+                      'array ordering is as expected.', PendingDeprecationWarning)
+
     if xyz_in.ndim == 1:
         xyz_in = xyz_in[np.newaxis, :]
 
@@ -247,6 +259,12 @@ def ECEF_from_ENU(enu, latitude, longitude, altitude):
     else:
         enu_use = enu
         transpose = False
+
+    if enu.shape == (3, 3):
+        warnings.warn('The enu array in ECEF_from_ENU is being '
+                      'interpreted as (Npts, 3). Historically this function '
+                      'has supported (3, Npts) arrays, please verify that '
+                      'array ordering is as expected.', PendingDeprecationWarning)
 
     if enu_use.ndim == 1:
         enu_use = enu_use[np.newaxis, :]

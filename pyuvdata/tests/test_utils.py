@@ -54,6 +54,11 @@ def test_LatLonAlt_from_XYZ():
     uvtest.checkWarnings(pyuvdata.LatLonAlt_from_XYZ, [xyz_mult.T],
                          message='The expected shape of ECEF xyz array',
                          category=PendingDeprecationWarning)
+    # check warning if  3 x 3 array
+    xyz_3 = np.stack((np.array(ref_xyz), np.array(ref_xyz), np.array(ref_xyz)))
+    uvtest.checkWarnings(pyuvdata.LatLonAlt_from_XYZ, [xyz_3],
+                         message='The xyz array in LatLonAlt_from_XYZ is',
+                         category=PendingDeprecationWarning)
     # check error if only 2 coordinates
     nt.assert_raises(ValueError, pyuvdata.LatLonAlt_from_XYZ, xyz_mult[:, 0:2])
 
@@ -107,6 +112,11 @@ def test_ENU_tofrom_ECEF():
                                                   center_alt],
                          message='The expected shape of ECEF xyz array',
                          category=PendingDeprecationWarning)
+    # check warning if  3 x 3 array
+    uvtest.checkWarnings(pyuvdata.ENU_from_ECEF, [xyz[0:3], center_lat, center_lon,
+                                                  center_alt],
+                         message='The xyz array in ENU_from_ECEF is',
+                         category=PendingDeprecationWarning)
     # check error if only 2 coordinates
     nt.assert_raises(ValueError, pyuvdata.ENU_from_ECEF, xyz[:, 0:2],
                      center_lat, center_lon, center_alt)
@@ -118,6 +128,11 @@ def test_ENU_tofrom_ECEF():
     uvtest.checkWarnings(pyuvdata.ECEF_from_ENU, [enu.T, center_lat, center_lon,
                                                   center_alt],
                          message='The expected shape the ENU array',
+                         category=PendingDeprecationWarning)
+    # check warning if  3 x 3 array
+    uvtest.checkWarnings(pyuvdata.ECEF_from_ENU, [enu[0:3], center_lat, center_lon,
+                                                  center_alt],
+                         message='The enu array in ECEF_from_ENU is',
                          category=PendingDeprecationWarning)
     # check error if only 2 coordinates
     nt.assert_raises(ValueError, pyuvdata.ENU_from_ECEF, enu[:, 0:2], center_lat,
