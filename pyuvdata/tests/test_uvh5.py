@@ -73,8 +73,8 @@ def test_ReadUVH5Errors():
     """
     uv_in = UVData()
     fake_file = os.path.join(DATA_PATH, 'fake_file.hdf5')
-    nt.assert_raises(IOError, uv_in.read, fake_file, file_type='uvh5')
-    nt.assert_raises(ValueError, uv_in.read, ['list of', 'fake files'], read_data=False)
+    nt.assert_raises(IOError, uv_in.read_uvh5, fake_file)
+    nt.assert_raises(ValueError, uv_in.read_uvh5, ['list of', 'fake files'], read_data=False)
 
     return
 
