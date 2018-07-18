@@ -689,16 +689,32 @@ def test_readWriteReadMiriad():
     nt.assert_equal(uv_in, exp_uv)
 
     # assert partial-read and select are same
-    t = np.unique(full.time_array)
-    uv_in.read(write_file, antenna_nums=[0], time_range=[2456865.607, 2456865.609])
-    exp_uv = full.select(antenna_nums=[0], times=t[((t > 2456865.607) & (t < 2456865.609))], inplace=False)
+    unique_times = np.unique(full.time_array)
+    time_range = [2456865.607, 2456865.609]
+    times_to_keep = unique_times[((unique_times > 2456865.607)
+                                 & (unique_times < 2456865.609))]
+    uv_in.read(write_file, antenna_nums=[0], time_range=time_range)
+    exp_uv = full.select(antenna_nums=[0], times=times_to_keep, inplace=False)
     nt.assert_equal(uv_in, exp_uv)
 
     # assert partial-read and select are same
-    t = np.unique(full.time_array)
-    uv_in.read(write_file, polarizations=[-7], time_range=[2456865.607, 2456865.609])
-    exp_uv = full.select(polarizations=[-7], times=t[((t > 2456865.607) & (t < 2456865.609))], inplace=False)
+    uv_in.read(write_file, polarizations=[-7], time_range=time_range)
+    exp_uv = full.select(polarizations=[-7], times=times_to_keep, inplace=False)
     nt.assert_equal(uv_in, exp_uv)
+
+    # check handling for generic read selections unsupported by read_miriad
+    uvtest.checkWarnings(uv_in.read, [write_file], {'times': times_to_keep},
+                         message=['Warning: a select on read keyword is set'])
+    exp_uv = full.select(times=times_to_keep, inplace=False)
+    nt.assert_equal(uv_in, exp_uv)
+
+    # check handling for generic read selections unsupported by read_miriad
+    blts_select = np.where(full.time_array == unique_times[0])[0]
+    ants_keep = [0, 2, 4]
+    uvtest.checkWarnings(uv_in.read, [write_file], {'blt_inds': blts_select, 'antenna_nums': ants_keep},
+                         message=['Warning: blt_inds is set along with select on read'])
+    exp_uv = full.select(blt_inds=blts_select, antenna_nums=ants_keep, inplace=False)
+    nt.assert_not_equal(uv_in, exp_uv)
 
     del(uv_in)
     del(uv_out)

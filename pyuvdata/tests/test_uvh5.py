@@ -212,6 +212,15 @@ def test_UVH5PartialRead():
     uvh5_uv2.select(polarizations=pols_to_keep)
     nt.assert_equal(uvh5_uv, uvh5_uv2)
 
+    # select on read using time_range
+    unique_times = np.unique(uvh5_uv.time_array)
+    uvtest.checkWarnings(uvh5_uv.read, [testfile],
+                         {'time_range': [unique_times[0], unique_times[1]]},
+                         message=['Warning: "time_range" keyword is set'])
+    uvh5_uv2.read(testfile)
+    uvh5_uv2.select(times=unique_times[0:2])
+    nt.assert_equal(uvh5_uv, uvh5_uv2)
+
     # now test selecting on multiple axes
     # frequencies first
     uvh5_uv.read(testfile, antenna_nums=ants_to_keep, freq_chans=chans_to_keep,
