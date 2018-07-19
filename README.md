@@ -1,7 +1,7 @@
 # pyuvdata
 
-[![Build Status](https://travis-ci.org/HERA-Team/pyuvdata.svg?branch=master)](https://travis-ci.org/HERA-Team/pyuvdata)
-[![Coverage Status](https://coveralls.io/repos/github/HERA-Team/pyuvdata/badge.svg?branch=master)](https://coveralls.io/github/HERA-Team/pyuvdata?branch=master)
+[![Build Status](https://travis-ci.org/RadioAstronomySoftwareGroup/pyuvdata.svg?branch=master)](https://travis-ci.org/RadioAstronomySoftwareGroup/pyuvdata)
+[![Coverage Status](https://coveralls.io/repos/github/RadioAstronomySoftwareGroup/pyuvdata/badge.svg?branch=master)](https://coveralls.io/github/RadioAstronomySoftwareGroup/pyuvdata?branch=master)
 
 pyuvdata defines a pythonic interface to interferometric data sets. Currently pyuvdata supports reading and writing of miriad, uvfits, and uvh5 files and reading of CASA measurement sets and FHD ([Fast Holographic Deconvolution](https://github.com/EoRImaging/FHD)) visibility save files.
 
@@ -41,7 +41,7 @@ It is probably not compatible with other interferometric HDF5 files defined by o
 * CASA measurement sets (read-only support)
 
 ## UVCal file formats
-* calfits: a new format defined in pyuvdata, a detailed memo is available here: [calfits_memo](https://github.com/HERA-Team/pyuvdata/blob/master/docs/references/calfits_memo.pdf). Note that this format was recently defined and may change in coming versions, based on user needs. Consider it to be in a beta version, but we will strive to make future versions backwards compatible with the current format.
+* calfits: a new format defined in pyuvdata, a detailed memo is available here: [calfits_memo](https://github.com/RadioAstronomySoftwareGroup/pyuvdata/blob/master/docs/references/calfits_memo.pdf). Note that this format was recently defined and may change in coming versions, based on user needs. Consider it to be in a beta version, but we will strive to make future versions backwards compatible with the current format.
 * FHD calibration files (read-only support)
 
 ## UVBeam file formats
@@ -64,11 +64,11 @@ It is probably not compatible with other interferometric HDF5 files defined by o
 * UVBeam: support reading/writing/combining standard HEALPix FITs files (individual files per frequency, polarization and E-field vector)
 * UVBeam: support phased-array antenna beams.
 
-For details see the [issue log](https://github.com/HERA-Team/pyuvdata/issues).
+For details see the [issue log](https://github.com/RadioAstronomySoftwareGroup/pyuvdata/issues).
 
 ## Community Guidelines
 Contributions to this package to add new file formats or address any of the
-issues in the [issue log](https://github.com/HERA-Team/pyuvdata/issues) are very welcome.
+issues in the [issue log](https://github.com/RadioAstronomySoftwareGroup/pyuvdata/issues) are very welcome.
 Please submit improvements as pull requests against the repo after verifying that
 the existing tests pass and any new code is well covered by unit tests.
 
@@ -91,7 +91,7 @@ First install the dependencies, see below for package recommendations and
 extra dependencies for HEALPix beams and CASA measurement set functionalities.
 
 Clone the repository using
-```git clone https://github.com/HERA-Team/pyuvdata.git```
+```git clone https://github.com/RadioAstronomySoftwareGroup/pyuvdata.git```
 
 Navigate into the directory and run ```python setup.py install```.
 Note that this will attempt to automatically install any missing dependencies. If you use anaconda or another package manager you might prefer to first install the dependencies as described below.
@@ -139,4 +139,4 @@ From the source pyuvdata directory run ```nosetests pyuvdata```.
 
 # API
 The primary interface to data from python is via the UVData object. It provides import functionality from all supported file formats (UVFITS, Miriad, UVH5, FHD, CASA measurement sets) and export to UVFITS, Miriad, and UVH5 formats and can be interacted with directly. Similarly, the primary calibration and beam interfaces are via the UVCal and UVBeam objects. The attributes of the UVData, UVCal and UVBeam objects are
-described in the uvdata_parameters, uvcal_parameters and uvbeam_parameters descriptions at https://pyuvdata.readthedocs.io or [here](https://github.com/HERA-Team/pyuvdata/blob/master/docs).
+described in the uvdata_parameters, uvcal_parameters and uvbeam_parameters descriptions at https://pyuvdata.readthedocs.io or [here](https://github.com/RadioAstronomySoftwareGroup/pyuvdata/blob/master/docs).
