@@ -21,16 +21,22 @@ data = [version.git_origin, version.git_hash, version.git_description, version.g
 with open(op.join('pyuvdata', 'GIT_INFO'), 'w') as outfile:
     json.dump(data, outfile)
 
+with io.open('README.md', 'r', encoding='utf-8') as readme_file:
+    readme = readme_file.read()
+
+
 global_c_macros = [
     ('NPY_NO_DEPRECATED_API', 'NPY_1_7_API_VERSION'),
 ]
 
 setup_args = {
     'name': 'pyuvdata',
-    'author': 'HERA Team',
-    'url': 'https://github.com/HERA-Team/pyuvdata',
+    'author': 'Radio Astronomy Software Group',
+    'url': 'https://github.com/RadioAstronomySoftwareGroup/pyuvdata',
     'license': 'BSD',
     'description': 'an interface for astronomical interferometeric datasets in python',
+    'long_description': readme,
+    'long_description_content_type': 'text/markdown'
     'package_dir': {'pyuvdata': 'pyuvdata'},
     'packages': ['pyuvdata', 'pyuvdata.tests'],
     'ext_modules': [
@@ -62,6 +68,7 @@ setup_args = {
                     'Intended Audience :: Science/Research',
                     'License :: OSI Approved :: BSD License',
                     'Programming Language :: Python :: 2.7',
+                    'Programming Language :: Python :: 3.6',
                     'Topic :: Scientific/Engineering :: Astronomy'],
     'keywords': 'radio astronomy interferometry'
 }
