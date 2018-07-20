@@ -62,14 +62,6 @@ def test_noSPW():
     del(UV)
 
 
-# this test commented out because the file is too large to include in the repo
-# def test_readRTS():
-#    """Test reading in an RTS UVFITS file."""
-#     UV = UVData()
-#     testfile = os.path.join(DATA_PATH, 'pumav2_SelfCal300_Peel300_01.uvfits')
-#     test = UV.read(testfile)
-#     nt.assert_true(test)
-
 def test_breakReadUVFits():
     """Test errors on reading in a uvfits file with subarrays and other problems."""
     UV = UVData()

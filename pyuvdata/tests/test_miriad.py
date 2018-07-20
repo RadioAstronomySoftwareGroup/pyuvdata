@@ -833,7 +833,9 @@ def test_multi_files():
     testfile1 = os.path.join(DATA_PATH, 'test/uv1')
     testfile2 = os.path.join(DATA_PATH, 'test/uv2')
     uvtest.checkWarnings(uv_full.read_uvfits, [uvfits_file], message='Telescope EVLA is not')
-    uv_full.unphase_to_drift()
+    uvtest.checkWarnings(uv_full.unphase_to_drift, category=PendingDeprecationWarning,
+                         message='The xyz array in ENU_from_ECEF is being '
+                                 'interpreted as (Npts, 3)')
     uv1 = copy.deepcopy(uv_full)
     uv2 = copy.deepcopy(uv_full)
     uv1.select(freq_chans=np.arange(0, 32))

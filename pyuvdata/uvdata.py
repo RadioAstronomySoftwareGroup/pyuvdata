@@ -1910,7 +1910,7 @@ class UVData(UVBase):
         Read a UVH5 file.
 
         Args:
-            filename: The UVH5 file to read.
+            filename: The UVH5 file or list of files to read from.
             antenna_nums: The antennas numbers to include when reading data into
                 the object (antenna positions and names for the excluded antennas
                 will be retained). This cannot be provided if antenna_names is
@@ -2138,9 +2138,14 @@ class UVData(UVBase):
         Read a generic file into a UVData object.
 
         Args:
-            filename: The file to read.
+            filename: The file(s) or list(s) of files to read from.
             file_type: One of ['uvfits', 'miriad', 'fhd', 'ms', 'uvh5'] or None.
-                If None, guess based on file extension.
+                If None, the code attempts to guess what the file type is.
+                For miriad and ms types, this is based on the standard directory
+                structure. For FHD, uvfits and uvh5 files it's based on file
+                extensions (FHD: .sav, .txt; uvfits: .uvfits; uvh5: .uvh5).
+                Note that if a list of datasets is passed, the file type is
+                determined from the first dataset.
             antenna_nums: The antennas numbers to include when reading data into
                 the object (antenna positions and names for the excluded antennas
                 will be retained). This cannot be provided if antenna_names is
@@ -2256,16 +2261,11 @@ class UVData(UVBase):
             if times is not None:
                 raise ValueError(
                     'Only one of times and time_range can be provided.')
-            if file_type == 'uvfits' or file_type == 'uvh5':
-                unique_times = np.unique(self.time_array)
-                times_to_keep = unique_times[np.where((unique_times >= np.min(time_range))
-                                                      & (unique_times <= np.max(time_range)))]
 
         if antenna_names is not None and antenna_nums is not None:
             raise ValueError('Only one of antenna_nums and antenna_names can be provided.')
 
         if file_type == 'uvfits':
-
             if (time_range is not None):
                 select = True
                 warnings.warn('Warning: "time_range" keyword is set which is not '
@@ -2284,6 +2284,9 @@ class UVData(UVBase):
                              run_check_acceptability=run_check_acceptability)
 
             if select:
+                unique_times = np.unique(self.time_array)
+                times_to_keep = unique_times[np.where((unique_times >= np.min(time_range))
+                                                      & (unique_times <= np.max(time_range)))]
                 self.select(times=times_to_keep, run_check=run_check, check_extra=check_extra,
                             run_check_acceptability=run_check_acceptability)
 
@@ -2389,6 +2392,9 @@ class UVData(UVBase):
                            run_check_acceptability=run_check_acceptability)
 
             if select:
+                unique_times = np.unique(self.time_array)
+                times_to_keep = unique_times[np.where((unique_times >= np.min(time_range))
+                                                      & (unique_times <= np.max(time_range)))]
                 self.select(times=times_to_keep, run_check=run_check, check_extra=check_extra,
                             run_check_acceptability=run_check_acceptability)
 
