@@ -36,7 +36,7 @@ setup_args = {
     'license': 'BSD',
     'description': 'an interface for astronomical interferometeric datasets in python',
     'long_description': readme,
-    'long_description_content_type': 'text/markdown'
+    'long_description_content_type': 'text/markdown',
     'package_dir': {'pyuvdata': 'pyuvdata'},
     'packages': ['pyuvdata', 'pyuvdata.tests'],
     'ext_modules': [
