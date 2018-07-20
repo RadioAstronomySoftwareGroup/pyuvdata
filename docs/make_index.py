@@ -25,7 +25,7 @@ def write_index_rst(readme_file=None, write_file=None):
 
     readme_md = pypandoc.convert_file(readme_file, 'md')
 
-    travis_str = 'https://travis-ci.org/HERA-Team/pyuvdata.svg'
+    travis_str = 'https://travis-ci.org/RadioAstronomySoftwareGroup/pyuvdata.svg'
     regex_travis = re.compile(travis_str)
     loc_travis_start = re.search(regex_travis, readme_md).start()
     loc_travis_end = re.search(regex_travis, readme_md).end()
@@ -34,18 +34,18 @@ def write_index_rst(readme_file=None, write_file=None):
     loc_branch_end = re.search(regex_end, readme_md).start()
     branch_str = readme_md[loc_travis_end:loc_branch_end]
 
-    cover_str = 'https://coveralls.io/repos/github/HERA-Team/pyuvdata/badge.svg'
+    cover_str = 'https://coveralls.io/repos/github/RadioAstronomySoftwareGroup/pyuvdata/badge.svg'
     regex_cover = re.compile(cover_str)
     loc_cover_start = re.search(regex_cover, readme_md).start()
     loc_cover_end = re.search(regex_cover, readme_md).end()
 
     readme_text = pypandoc.convert_file(readme_file, 'rst')
 
-    rst_status_badge = '.. image:: ' + travis_str + branch_str + '\n    :target: https://travis-ci.org/HERA-Team/pyuvdata'
+    rst_status_badge = '.. image:: ' + travis_str + branch_str + '\n    :target: https://travis-ci.org/RadioAstronomySoftwareGroup/pyuvdata'
     status_badge_text = '|Build Status|'
     readme_text = readme_text.replace(status_badge_text, rst_status_badge + '\n\n')
 
-    rst_status_badge = '.. image:: ' + cover_str + branch_str + '\n    :target: https://coveralls.io/github/HERA-Team/pyuvdata' + branch_str
+    rst_status_badge = '.. image:: ' + cover_str + branch_str + '\n    :target: https://coveralls.io/github/RadioAstronomySoftwareGroup/pyuvdata' + branch_str
     status_badge_text = '|Coverage Status|'
     readme_text = readme_text.replace(status_badge_text, rst_status_badge)
 

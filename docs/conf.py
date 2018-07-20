@@ -60,8 +60,8 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'pyuvdata'
-copyright = u'2016, HERA Collaboration'
-author = u'HERA Collaboration'
+copyright = u'2018, Radio Astronomy Software Group'
+author = u'Radio Astronomy Software Group'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -245,7 +245,7 @@ latex_elements = {
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
     (master_doc, 'pyuvdata.tex', u'pyuvdata Documentation',
-     u'HERA Collaboration', 'manual'),
+     u'Radio Astronomy Software Group', 'manual'),
 ]
 
 # The name of an image file (relative to this directory) to place at the top of

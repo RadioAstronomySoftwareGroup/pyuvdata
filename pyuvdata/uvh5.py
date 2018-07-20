@@ -1,5 +1,5 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright (c) 2018 The HERA Collaboration
+# Copyright (c) 2018 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 
 """Class for reading and writing UVH5 files.
