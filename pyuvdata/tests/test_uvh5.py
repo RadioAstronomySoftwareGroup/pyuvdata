@@ -25,7 +25,7 @@ def test_ReadMiriadWriteUVH5ReadUVH5():
     uv_in = UVData()
     uv_out = UVData()
     miriad_file = os.path.join(DATA_PATH, 'zen.2456865.60537.xy.uvcRREAA')
-    testfile = os.path.join(DATA_PATH, 'test', 'outtest_miriad.h5')
+    testfile = os.path.join(DATA_PATH, 'test', 'outtest_miriad.uvh5')
     uvtest.checkWarnings(uv_in.read_miriad, [miriad_file],
                          nwarnings=1, category=[UserWarning],
                          message=['Altitude is not present'])
@@ -53,7 +53,7 @@ def test_ReadUVFITSWriteUVH5ReadUVH5():
     uv_in = UVData()
     uv_out = UVData()
     uvfits_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-    testfile = os.path.join(DATA_PATH, 'test', 'outtest_uvfits.h5')
+    testfile = os.path.join(DATA_PATH, 'test', 'outtest_uvfits.uvh5')
     uvtest.checkWarnings(uv_in.read_uvfits, [uvfits_file], message='Telescope EVLA is not')
     uv_in.write_uvh5(testfile, clobber=True)
     uv_out.read(testfile)
@@ -70,7 +70,7 @@ def test_ReadUVH5Errors():
     Test raising errors in read function
     """
     uv_in = UVData()
-    fake_file = os.path.join(DATA_PATH, 'fake_file.hdf5')
+    fake_file = os.path.join(DATA_PATH, 'fake_file.uvh5')
     nt.assert_raises(IOError, uv_in.read_uvh5, fake_file)
     nt.assert_raises(ValueError, uv_in.read_uvh5, ['list of', 'fake files'], read_data=False)
 
@@ -85,7 +85,7 @@ def test_WriteUVH5Errors():
     uv_out = UVData()
     uvfits_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
     uvtest.checkWarnings(uv_in.read_uvfits, [uvfits_file], message='Telescope EVLA is not')
-    testfile = os.path.join(DATA_PATH, 'test', 'outtest_uvfits.h5')
+    testfile = os.path.join(DATA_PATH, 'test', 'outtest_uvfits.uvh5')
     with open(testfile, 'a'):
         os.utime(testfile, None)
     nt.assert_raises(ValueError, uv_in.write_uvh5, testfile)
@@ -109,7 +109,7 @@ def test_UVH5OptionalParameters():
     uv_out = UVData()
     uvfits_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
     uvtest.checkWarnings(uv_in.read_uvfits, [uvfits_file], message='Telescope EVLA is not')
-    testfile = os.path.join(DATA_PATH, 'test', 'outtest_uvfits.h5')
+    testfile = os.path.join(DATA_PATH, 'test', 'outtest_uvfits.uvh5')
 
     # set optional parameters
     uv_in.x_orientation = 'east'
@@ -135,7 +135,7 @@ def test_UVH5CompressionOptions():
     uv_out = UVData()
     uvfits_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
     uvtest.checkWarnings(uv_in.read_uvfits, [uvfits_file], message='Telescope EVLA is not')
-    testfile = os.path.join(DATA_PATH, 'test', 'outtest_uvfits_compression.h5')
+    testfile = os.path.join(DATA_PATH, 'test', 'outtest_uvfits_compression.uvh5')
 
     # write out and read back in
     uv_in.write_uvh5(testfile, clobber=True, data_compression="lzf",
@@ -155,8 +155,8 @@ def test_UVH5ReadMultiple_files():
     """
     uv_full = UVData()
     uvfits_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-    testfile1 = os.path.join(DATA_PATH, 'test/uv1.h5')
-    testfile2 = os.path.join(DATA_PATH, 'test/uv2.h5')
+    testfile1 = os.path.join(DATA_PATH, 'test/uv1.uvh5')
+    testfile2 = os.path.join(DATA_PATH, 'test/uv2.uvh5')
     uvtest.checkWarnings(uv_full.read_uvfits, [uvfits_file], message='Telescope EVLA is not')
     uv1 = copy.deepcopy(uv_full)
     uv2 = copy.deepcopy(uv_full)
@@ -188,7 +188,7 @@ def test_UVH5PartialRead():
     uvh5_uv2 = UVData()
     uvfits_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
     uvtest.checkWarnings(uvh5_uv.read_uvfits, [uvfits_file], message='Telescope EVLA is not')
-    testfile = os.path.join(DATA_PATH, 'test', 'outtest.h5')
+    testfile = os.path.join(DATA_PATH, 'test', 'outtest.uvh5')
     uvh5_uv.write_uvh5(testfile, clobber=True)
 
     # select on antennas
@@ -263,7 +263,7 @@ def test_UVH5PartialWrite():
     partial_uvh5 = UVData()
     uvfits_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
     uvtest.checkWarnings(full_uvh5.read_uvfits, [uvfits_file], message='Telescope EVLA is not')
-    testfile = os.path.join(DATA_PATH, 'test', 'outtest.h5')
+    testfile = os.path.join(DATA_PATH, 'test', 'outtest.uvh5')
     full_uvh5.write_uvh5(testfile, clobber=True)
     full_uvh5.read(testfile)
 
@@ -274,7 +274,7 @@ def test_UVH5PartialWrite():
     partial_uvh5.nsample_array = None
 
     # initialize file on disk
-    partial_testfile = os.path.join(DATA_PATH, 'test', 'outtest_partial.h5')
+    partial_testfile = os.path.join(DATA_PATH, 'test', 'outtest_partial.uvh5')
     partial_uvh5.initialize_uvh5_file(partial_testfile, clobber=True)
 
     # write to file by iterating over antpairpol
@@ -405,7 +405,7 @@ def test_UVH5PartialWriteIrregular():
     partial_uvh5 = UVData()
     uvfits_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
     uvtest.checkWarnings(full_uvh5.read_uvfits, [uvfits_file], message='Telescope EVLA is not')
-    testfile = os.path.join(DATA_PATH, 'test', 'outtest.h5')
+    testfile = os.path.join(DATA_PATH, 'test', 'outtest.uvh5')
     full_uvh5.write_uvh5(testfile, clobber=True)
     full_uvh5.read(testfile)
 
@@ -416,7 +416,7 @@ def test_UVH5PartialWriteIrregular():
     partial_uvh5.nsample_array = None
 
     # initialize file on disk
-    partial_testfile = os.path.join(DATA_PATH, 'test', 'outtest_partial.h5')
+    partial_testfile = os.path.join(DATA_PATH, 'test', 'outtest_partial.uvh5')
     initialize_with_zeros(partial_uvh5, partial_testfile)
 
     # make a mostly empty object in memory to match what we'll write to disk
@@ -449,7 +449,7 @@ def test_UVH5PartialWriteIrregular():
     partial_uvh5.nsample_array = None
 
     # initialize file on disk
-    partial_testfile = os.path.join(DATA_PATH, 'test', 'outtest_partial.h5')
+    partial_testfile = os.path.join(DATA_PATH, 'test', 'outtest_partial.uvh5')
     initialize_with_zeros(partial_uvh5, partial_testfile)
 
     # make a mostly empty object in memory to match what we'll write to disk
@@ -483,7 +483,7 @@ def test_UVH5PartialWriteIrregular():
     partial_uvh5.nsample_array = None
 
     # initialize file on disk
-    partial_testfile = os.path.join(DATA_PATH, 'test', 'outtest_partial.h5')
+    partial_testfile = os.path.join(DATA_PATH, 'test', 'outtest_partial.uvh5')
     initialize_with_zeros(partial_uvh5, partial_testfile)
 
     # make a mostly empty object in memory to match what we'll write to disk
@@ -517,7 +517,7 @@ def test_UVH5PartialWriteIrregular():
     partial_uvh5.nsample_array = None
 
     # initialize file on disk
-    partial_testfile = os.path.join(DATA_PATH, 'test', 'outtest_partial.h5')
+    partial_testfile = os.path.join(DATA_PATH, 'test', 'outtest_partial.uvh5')
     initialize_with_zeros(partial_uvh5, partial_testfile)
 
     # make a mostly empty object in memory to match what we'll write to disk
@@ -561,7 +561,7 @@ def test_UVH5PartialWriteIrregular():
     partial_uvh5.nsample_array = None
 
     # initialize file on disk
-    partial_testfile = os.path.join(DATA_PATH, 'test', 'outtest_partial.h5')
+    partial_testfile = os.path.join(DATA_PATH, 'test', 'outtest_partial.uvh5')
     initialize_with_zeros(partial_uvh5, partial_testfile)
 
     # make a mostly empty object in memory to match what we'll write to disk
@@ -606,7 +606,7 @@ def test_UVH5PartialWriteIrregular():
     partial_uvh5.nsample_array = None
 
     # initialize file on disk
-    partial_testfile = os.path.join(DATA_PATH, 'test', 'outtest_partial.h5')
+    partial_testfile = os.path.join(DATA_PATH, 'test', 'outtest_partial.uvh5')
     initialize_with_zeros(partial_uvh5, partial_testfile)
 
     # make a mostly empty object in memory to match what we'll write to disk
@@ -650,7 +650,7 @@ def test_UVH5PartialWriteIrregular():
     partial_uvh5.nsample_array = None
 
     # initialize file on disk
-    partial_testfile = os.path.join(DATA_PATH, 'test', 'outtest_partial.h5')
+    partial_testfile = os.path.join(DATA_PATH, 'test', 'outtest_partial.uvh5')
     initialize_with_zeros(partial_uvh5, partial_testfile)
 
     # make a mostly empty object in memory to match what we'll write to disk
@@ -695,7 +695,7 @@ def test_UVH5PartialWriteIrregular():
     partial_uvh5.nsample_array = None
 
     # initialize file on disk
-    partial_testfile = os.path.join(DATA_PATH, 'test', 'outtest_partial.h5')
+    partial_testfile = os.path.join(DATA_PATH, 'test', 'outtest_partial.uvh5')
     initialize_with_zeros(partial_uvh5, partial_testfile)
 
     # make a mostly empty object in memory to match what we'll write to disk
@@ -750,7 +750,7 @@ def test_UVH5PartialWriteErrors():
     partial_uvh5 = UVData()
     uvfits_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
     uvtest.checkWarnings(full_uvh5.read_uvfits, [uvfits_file], message='Telescope EVLA is not')
-    testfile = os.path.join(DATA_PATH, 'test', 'outtest.h5')
+    testfile = os.path.join(DATA_PATH, 'test', 'outtest.uvh5')
     full_uvh5.write_uvh5(testfile, clobber=True)
     full_uvh5.read(testfile)
 
@@ -768,7 +768,7 @@ def test_UVH5PartialWriteErrors():
     partial_uvh5.nsample_array = None
 
     # try to write to a file that doesn't exists
-    partial_testfile = os.path.join(DATA_PATH, 'test', 'outtest_partial.h5')
+    partial_testfile = os.path.join(DATA_PATH, 'test', 'outtest_partial.uvh5')
     if os.path.exists(partial_testfile):
         os.remove(partial_testfile)
     nt.assert_raises(AssertionError, partial_uvh5.write_uvh5_part, partial_testfile, data,
@@ -807,7 +807,7 @@ def test_UVH5InitializeFile():
     partial_uvh5 = UVData()
     uvfits_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
     uvtest.checkWarnings(full_uvh5.read_uvfits, [uvfits_file], message='Telescope EVLA is not')
-    testfile = os.path.join(DATA_PATH, 'test', 'outtest.h5')
+    testfile = os.path.join(DATA_PATH, 'test', 'outtest.uvh5')
     full_uvh5.write_uvh5(testfile, clobber=True)
     full_uvh5.read(testfile)
     full_uvh5.data_array = None
@@ -816,7 +816,7 @@ def test_UVH5InitializeFile():
 
     # initialize file
     partial_uvh5 = copy.deepcopy(full_uvh5)
-    partial_testfile = os.path.join(DATA_PATH, 'test', 'outtest_partial.h5')
+    partial_testfile = os.path.join(DATA_PATH, 'test', 'outtest_partial.uvh5')
     partial_uvh5.initialize_uvh5_file(partial_testfile, clobber=True)
 
     # read it in and make sure that the metadata matches the original
