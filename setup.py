@@ -7,8 +7,8 @@ from __future__ import absolute_import, division, print_function
 from setuptools import setup, Extension
 import glob
 import os
-import os.path as op
 from os import listdir
+import io
 import numpy as np
 import json
 
@@ -18,7 +18,7 @@ os.environ['PYUVDATA_IGNORE_EXTMOD_IMPORT_FAIL'] = '1'
 from pyuvdata import version  # noqa (pycodestyle complains about import below code)
 
 data = [version.git_origin, version.git_hash, version.git_description, version.git_branch]
-with open(op.join('pyuvdata', 'GIT_INFO'), 'w') as outfile:
+with open(os.path.join('pyuvdata', 'GIT_INFO'), 'w') as outfile:
     json.dump(data, outfile)
 
 with io.open('README.md', 'r', encoding='utf-8') as readme_file:
