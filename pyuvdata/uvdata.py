@@ -2253,7 +2253,7 @@ class UVData(UVBase):
                 basename, extension = os.path.splitext(file_test)
                 if extension == '.uvfits':
                     file_type = 'uvfits'
-                elif extension == '.h5':
+                elif extension == '.uvh5':
                     file_type = 'uvh5'
 
         if file_type is None:
