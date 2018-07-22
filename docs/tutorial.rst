@@ -785,7 +785,7 @@ UVCal: Reading/writing
 -----------------------
 Calibration files using UVCal.
 
-a) Reading a gain calibration file.
+a) Reading a cal fits gain calibration file.
 *************************************
 ::
 
@@ -816,69 +816,28 @@ a) Reading a gain calibration file.
   >>> print(cal.gain_array.shape)
   (19, 1, 1024, 56, 1)
 
+  # plot abs of all gains for first time and first jones polarization.
   >>> for ant in range(cal.Nants_data): # doctest: +SKIP
-  ...    plt.plot(cal.freq_array.flatten(), np.abs(cal.gain_array[ant, 0, :, 0, 0]))  # plot abs of all gains for first time and first jones polarization.
+  ...    plt.plot(cal.freq_array.flatten(), np.abs(cal.gain_array[ant, 0, :, 0, 0]))
   >>> plt.xlabel('Frequency (Hz)') # doctest: +SKIP
   >>> plt.ylabel('Abs(gains)') # doctest: +SKIP
   >>> plt.show() # doctest: +SKIP
 
 
-b) Writing a gain calibration file.
-******************************************
+b) FHD cal to cal fits
+***********************
 ::
 
   >>> from pyuvdata import UVCal
   >>> import os
-  >>> import numpy as np
-  >>> time_array = 2457698 + np.linspace(.2, .3, 16)  # time_array in JD
-  >>> Ntimes = len(time_array)
-  >>> freq_array = np.linspace(1e6, 2e6, 1024)  # frequency array in Hz
-  >>> Nfreqs = len(freq_array)
-  >>> jones_array = np.array([-5, -6])  #  only 2 jones parameters.
-  >>> Njones = len(jones_array)
-  >>> ant_array = np.arange(19)
-  >>> Nants_data = len(ant_array)
-  >>> antenna_names = np.array(['ant{0}.format(ant)' for ant in ant_array])
-  >>> Nspws = 1  # only 1 spw is supported
+  >>> obs_testfile = 'pyuvdata/data/fhd_cal_data/1061316296_obs.sav'
+  >>> cal_testfile = 'pyuvdata/data/fhd_cal_data/1061316296_cal.sav'
+  >>> settings_testfile = 'pyuvdata/data/fhd_cal_data/1061316296_settings.txt'
 
-  # Generate fake data
-  >>> gains = (np.random.randn(Nants_data, Nspws, Nfreqs, Ntimes, Njones)
-  ...         + 1j*np.random.randn(Nants_data, Nspws, Nfreqs, Ntimes, Njones))
-  >>> flags = np.ones_like(gains, dtype=np.bool)
-  >>> chisq = np.random.randn(Nants_data, Nspws, Nfreqs, Ntimes, Njones)
+  >>> fhd_cal = UVCal()
+  >>> fhd_cal.read_fhd_cal(cal_testfile, obs_testfile, settings_file=settings_testfile)
+  >>> fhd_cal.write_calfits('tutorial_cal.fits', clobber=True)
 
-  >>> cal = UVCal()
-  >>> cal.set_gain()
-  >>> cal.set_redundant()
-  >>> cal.Nfreqs = Nfreqs
-  >>> cal.Njones = Njones
-  >>> cal.Ntimes = Ntimes
-  >>> cal.history = 'This is an example file generated from tutorial 5b of pycaldata.'
-  >>> cal.Nspws = 1
-  >>> cal.spw_array = [0]
-  >>> cal.freq_array = freq_array.reshape(cal.Nspws, -1)
-  >>> cal.freq_range = [freq_array[0], freq_array[-1]]  # valid frequencies for solutions.
-  >>> cal.channel_width = np.diff(freq_array)[0]
-  >>> cal.jones_array = jones_array
-  >>> cal.time_array = time_array
-  >>> cal.integration_time = np.diff(time_array)[0]
-  >>> cal.gain_convention = 'divide'  # Use this operation to apply gain solution.
-  >>> cal.x_orientation = 'east'  # orientation of 1st jones parameter.
-  >>> cal.time_range = [time_array[0], time_array[-1]]
-  >>> cal.telescope_name = 'Fake Telescope'
-  >>> cal.Nants_data = Nants_data
-  >>> cal.Nants_telescope = Nants_data  # have solutions for all antennas in array.
-  >>> cal.ant_array = ant_array
-  >>> cal.antenna_names = antenna_names
-  >>> cal.antenna_numbers = ant_array
-  >>> cal.flag_array = flags
-  >>> cal.gain_array = gains
-  >>> cal.quality_array = chisq
-
-  >>> write_file = 'tutorial.fits'
-  >>> if os.path.exists(write_file):
-  ...    os.remove(write_file)
-  >>> cal.write_calfits(write_file)
 
 UVCal: Selecting data
 -----------------------
@@ -933,6 +892,104 @@ b) Select 3 antennas to keep using the antenna names, also select 5 frequencies 
   # print all the frequencies after the select
   >>> print(cal.freq_array)
   [[1.00000000e+08 1.00097656e+08 1.00195312e+08 1.00292969e+08]]
+
+
+UVCal: Adding data
+-----------------------
+The __add__ method lets you combine UVCal objects along
+the antenna, time, frequency, and/or polarization axis.
+
+a) Add frequencies.
+*********************
+::
+
+  >>> from pyuvdata import UVCal
+  >>> import numpy as np
+  >>> import copy
+  >>> cal1 = UVCal()
+  >>> filename = 'pyuvdata/data/zen.2457698.40355.xx.fitsA'
+  >>> cal1.read_calfits(filename)
+  >>> cal2 = copy.deepcopy(cal1)
+
+  # Downselect frequencies to recombine
+  >>> cal1.select(freq_chans=np.arange(0, 512))
+  >>> cal2.select(freq_chans=np.arange(512, 1024))
+  >>> cal3 = cal1 + cal2
+  >>> print((cal1.Nfreqs, cal2.Nfreqs, cal3.Nfreqs))
+  (512, 512, 1024)
+
+b) Add times.
+****************
+::
+
+  >>> from pyuvdata import UVCal
+  >>> import numpy as np
+  >>> import copy
+  >>> cal1 = UVCal()
+  >>> filename = 'pyuvdata/data/zen.2457698.40355.xx.fitsA'
+  >>> cal1.read_calfits(filename)
+  >>> cal2 = copy.deepcopy(cal1)
+
+  # Downselect times to recombine
+  >>> times = np.unique(cal1.time_array)
+  >>> cal1.select(times=times[0:len(times) // 2])
+  >>> cal2.select(times=times[len(times) // 2:])
+  >>> cal3 = cal1 + cal2
+  >>> print((cal1.Ntimes, cal2.Ntimes, cal3.Ntimes))
+  (28, 28, 56)
+
+c) Adding in place.
+*******************
+The following two commands are equivalent, and act on cal1
+directly without creating a third uvcal object.
+::
+
+  >>> from pyuvdata import UVCal
+  >>> import numpy as np
+  >>> import copy
+  >>> cal1 = UVCal()
+  >>> filename = 'pyuvdata/data/zen.2457698.40355.xx.fitsA'
+  >>> cal1.read_calfits(filename)
+  >>> cal2 = copy.deepcopy(cal1)
+  >>> times = np.unique(cal1.time_array)
+  >>> cal1.select(times=times[0:len(times) // 2])
+  >>> cal2.select(times=times[len(times) // 2:])
+  >>> cal1.__add__(cal2, inplace=True)
+
+  >>> cal1.read_calfits(filename)
+  >>> cal2 = copy.deepcopy(cal1)
+  >>> cal1.select(times=times[0:len(times) // 2])
+  >>> cal2.select(times=times[len(times) // 2:])
+  >>> cal1 += cal2
+
+d) Reading multiple files.
+****************************
+If any of the read methods (read_calfits, read_fhd_cal) are given a list of files,
+each file will be read in succession and added to the previous.
+::
+
+  >>> from pyuvdata import UVCal
+  >>> import numpy as np
+  >>> import copy
+  >>> cal = UVCal()
+  >>> filename = 'pyuvdata/data/zen.2457698.40355.xx.fitsA'
+  >>> cal.read_calfits(filename)
+  >>> cal1 = cal.select(freq_chans=np.arange(0, 20), inplace=False)
+  >>> cal2 = cal.select(freq_chans=np.arange(20, 40), inplace=False)
+  >>> cal3 = cal.select(freq_chans=np.arange(40, 64), inplace=False)
+  >>> cal1.write_calfits('tutorial1.fits')
+  >>> cal2.write_calfits('tutorial2.fits')
+  >>> cal3.write_calfits('tutorial3.fits')
+  >>> filenames = ['tutorial1.fits', 'tutorial2.fits', 'tutorial3.fits']
+  >>> cal.read_calfits(filenames)
+
+  # For FHD cal datasets pass lists for each file type
+  >>> fhd_cal = UVCal()
+  >>> obs_testfiles = ['pyuvdata/data/fhd_cal_data/1061316296_obs.sav', 'pyuvdata/data/fhd_cal_data/set2/1061316296_obs.sav']
+  >>> cal_testfiles = ['pyuvdata/data/fhd_cal_data/1061316296_cal.sav', 'pyuvdata/data/fhd_cal_data/set2/1061316296_cal.sav']
+  >>> settings_testfiles = ['pyuvdata/data/fhd_cal_data/1061316296_settings.txt', 'pyuvdata/data/fhd_cal_data/set2/1061316296_settings.txt']
+  >>> fhd_cal.read_fhd_cal(cal_testfiles, obs_testfiles, settings_file=settings_testfiles)
+  diffuse_model parameter value is a string, values are different
 
 ------
 UVBeam
@@ -1235,8 +1292,10 @@ Tutorial Cleanup
 ::
 
   # delete all written files
-  >>> import shutil, os
-  >>> filelist = ['tutorial' + f for f in ['.uvfits', '1.uvfits', '2.uvfits', '3.uvfits', '.fits', '.h5']]
+  >>> import shutil
+  >>> import os
+  >>> import glob
+  >>> filelist = glob.glob('tutorial*fits') + glob.glob('tutorial*.uvh5')
   >>> for f in filelist:
   ...     os.remove(f)
   >>> shutil.rmtree('tutorial.uv')
