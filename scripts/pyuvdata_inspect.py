@@ -10,13 +10,17 @@ from pyuvdata import UVData, UVBeam, UVCal
 import os
 
 # setup argparse
-a = argparse.ArgumentParser(description="Inspect attributes of pyuvdata objects.\nExample: pyuvdata_inspect.py -a=ant_array.shape,Ntimes zen.xx.HH.omni.calfits zen.yy.HH.uvc",
+a = argparse.ArgumentParser(description=("Inspect attributes of pyuvdata objects.\n"
+                                         "Example: pyuvdata_inspect.py -a=ant_array.shape,"
+                                         "Ntimes zen.xx.HH.omni.calfits zen.yy.HH.uvc"),
                             formatter_class=argparse.RawDescriptionHelpFormatter)
 
 a.add_argument("-a", "--attrs", dest="attrs", type=str, default='',
                help="attribute(s) of object to print. Ex: ant_array.shape,Ntimes")
-a.add_argument("-v", "--verbose", action='store_true', default=False, help="Send feedback to stdout.")
-a.add_argument("-i", "--interactive", action='store_true', default=False, help="Exit into a python interpretor with objects in memory as 'uv'.")
+a.add_argument("-v", "--verbose", action='store_true', default=False,
+               help="Send feedback to stdout.")
+a.add_argument("-i", "--interactive", action='store_true', default=False,
+               help="Exit into a python interpretor with objects in memory as 'uv'.")
 a.add_argument("files", metavar="files", type=str, nargs='*', default=[],
                help="pyuvdata object files to run on")
 
@@ -32,9 +36,9 @@ if len(args.files) == 0:
 # pack data objects, their names, and read functions
 objs = [UVData, UVCal, UVBeam]
 ob_names = ['UVData', 'UVCal', 'UVBeam']
-ob_reads = [['read_miriad', 'read_fhd', 'read_ms', 'read_uvfits'],
-            ['read_calfits'],
-            ['read_beamfits']]
+ob_reads = [['read', 'read_miriad', 'read_fhd', 'read_ms', 'read_uvfits', 'read_uvh5'],
+            ['read_calfits', 'read_fhd_cal'],
+            ['read_beamfits', 'read_cst_beam']]
 
 # iterate through files
 Nfiles = len(args.files)

@@ -262,7 +262,7 @@ f) Convenience functions to ask what antennas, baselines, and pols are in the da
   >>> print(UV.get_antpairpols()[0:5])
   [(0, 1, 'RR'), (0, 1, 'LL'), (0, 1, 'RL'), (0, 1, 'LR'), (0, 2, 'RR')]
 
-g) Quick access to file attributes of a UV* object (UVData, UVCal, UVFITS, etc)
+g) Quick access to file attributes of a UV* object (UVData, UVCal, UVBeam)
 ******************************************************************************************
 ::
 
