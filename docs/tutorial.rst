@@ -19,9 +19,13 @@ a) miriad -> uvfits
   >>> from pyuvdata import UVData
   >>> UV = UVData()
 
-  # This miriad file is known to be a drift scan
+  # This miriad file is known to be a drift scan.
+  # Use either the file type specific read_miriad or the generic read function,
+  # optionally specify the file type
   >>> miriad_file = 'pyuvdata/data/new.uvA'
   >>> UV.read_miriad(miriad_file)
+  >>> UV.read(miriad_file, file_type='miriad')
+  >>> UV.read(miriad_file)
 
   # Write out the uvfits file
   >>> UV.write_uvfits('tutorial.uvfits', force_phase=True, spoof_nonessential=True)
@@ -35,7 +39,12 @@ b) uvfits -> miriad
   >>> import shutil, os
   >>> UV = UVData()
   >>> uvfits_file = 'pyuvdata/data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
+
+  # Use either the file type specific read_uvfits or the generic read function,
+  # optionally specify the file type
   >>> UV.read_uvfits(uvfits_file)
+  >>> UV.read(uvfits_file, file_type='uvfits')
+  >>> UV.read(uvfits_file)
 
   # Write out the miriad file
   >>> write_file = 'tutorial.uv'
@@ -56,7 +65,12 @@ When reading FHD format, we need to point to several files.
   >>> fhd_files = [fhd_prefix + f for f in ['flags.sav', 'vis_XX.sav', 'params.sav',
   ...                                       'vis_YY.sav', 'vis_model_XX.sav',
   ...                                       'vis_model_YY.sav', 'settings.txt']]
+
+  # Use either the file type specific read_fhd or the generic read function,
+  # optionally specify the file type
   >>> UV.read_fhd(fhd_files)
+  >>> UV.read(fhd_files, file_type='fhd')
+  >>> UV.read(fhd_files)
   >>> UV.write_uvfits('tutorial.uvfits', spoof_nonessential=True)
 
 d) FHD -> miriad
@@ -73,7 +87,7 @@ d) FHD -> miriad
   >>> fhd_files = [fhd_prefix + f for f in ['flags.sav', 'vis_XX.sav', 'params.sav',
   ...                                       'vis_YY.sav', 'vis_model_XX.sav',
   ...                                       'vis_model_YY.sav', 'settings.txt']]
-  >>> UV.read_fhd(fhd_files)
+  >>> UV.read(fhd_files)
   >>> write_file = 'tutorial.uv'
   >>> if os.path.exists(write_file):
   ...    shutil.rmtree(write_file)
@@ -86,6 +100,9 @@ e) CASA -> uvfits
   >>> from pyuvdata import UVData
   >>> UV=UVData()
   >>> ms_file = 'pyuvdata/data/day2_TDEM0003_10s_norx_1src_1spw.ms'
+
+  # Use either the file type specific read_ms or the generic read function,
+  # optionally specify the file type
   >>> UV.read_ms(ms_file)
   Successful readonly open of default-locked table pyuvdata/data/day2_TDEM0003_10s_norx_1src_1spw.ms/SPECTRAL_WINDOW: 14 columns, 1 rows
   Successful readonly open of default-locked table pyuvdata/data/day2_TDEM0003_10s_norx_1src_1spw.ms: 23 columns, 1360 rows
@@ -106,7 +123,7 @@ f) CASA -> miriad
   >>> import shutil, os
   >>> UV=UVData()
   >>> ms_file = 'pyuvdata/data/day2_TDEM0003_10s_norx_1src_1spw.ms'
-  >>> UV.read_ms(ms_file)
+  >>> UV.read(ms_file)
   Successful readonly open of default-locked table pyuvdata/data/day2_TDEM0003_10s_norx_1src_1spw.ms/SPECTRAL_WINDOW: 14 columns, 1 rows
   Successful readonly open of default-locked table pyuvdata/data/day2_TDEM0003_10s_norx_1src_1spw.ms: 23 columns, 1360 rows
   Successful readonly open of default-locked table pyuvdata/data/day2_TDEM0003_10s_norx_1src_1spw.ms/POLARIZATION: 4 columns, 1 rows
@@ -128,12 +145,12 @@ g) miriad -> uvh5
   >>> from pyuvdata import UVData
   >>> UV = UVData()
 
-  # This miriad file is known to be a drift scan
+  # This miriad file is known to be a drift scan.
   >>> miriad_file = 'pyuvdata/data/new.uvA'
-  >>> UV.read_miriad(miriad_file)
+  >>> UV.read(miriad_file)
 
   # Write out the uvfits file
-  >>> UV.write_uvh5('tutorial.h5')
+  >>> UV.write_uvh5('tutorial.uvh5')
 
 h) uvfits -> uvh5
 *****************
@@ -143,13 +160,20 @@ h) uvfits -> uvh5
    >>> import os
    >>> UV = UVData()
    >>> uvfits_file = 'pyuvdata/data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
-   >>> UV.read_uvfits(uvfits_file)
+   >>> UV.read(uvfits_file)
 
    # Write out the UVH5 file
-   >>> write_file = 'tutorial.h5'
+   >>> write_file = 'tutorial.uvh5'
    >>> if os.path.exists(write_file):
    ...    os.remove(write_file)
    >>> UV.write_uvh5(write_file)
+
+   # Read the uvh5 file back in. Use either the file type specific read_uvh5 or
+   # the generic read function, optionally specify the file type
+   >>> UV.read_uvh5(write_file)
+   >>> UV.read(write_file, file_type='uvh5')
+   >>> UV.read(write_file)
+
 
 UVData: Quick data access
 --------------------------
@@ -164,7 +188,7 @@ a) Data for single antenna pair / polarization combination.
   >>> import numpy as np
   >>> UV = UVData()
   >>> filename = 'pyuvdata/data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
-  >>> UV.read_uvfits(filename)
+  >>> UV.read(filename)
   >>> data = UV.get_data(1, 2, 'rr')  # data for ant1=1, ant2=2, pol='rr'
   >>> times = UV.get_times(1, 2)  # times corresponding to 0th axis in data
   >>> print(data.shape)
@@ -258,7 +282,7 @@ Phasing/unphasing data
   >>> from astropy.time import Time
   >>> UV = UVData()
   >>> miriad_file = 'pyuvdata/data/new.uvA'
-  >>> UV.read_miriad(miriad_file)
+  >>> UV.read(miriad_file)
   >>> print(UV.phase_type)
   drift
 
@@ -277,7 +301,7 @@ UVData: Plotting
 ------------------
 Making a simple waterfall plot.
 
-Note: there is now support for reading in only part of a uvfits or miriad file
+Note: there is now support for reading in only part of a uvfits, uvh5 or miriad file
 (see :ref:`UVData: Working with large files`), so you need not read in the
 entire file to plot one waterfall.
 ::
@@ -287,7 +311,7 @@ entire file to plot one waterfall.
   >>> import matplotlib.pyplot as plt
   >>> UV = UVData()
   >>> filename = 'pyuvdata/data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
-  >>> UV.read_uvfits(filename)
+  >>> UV.read(filename)
   >>> print(UV.data_array.shape)
   (1360, 1, 64, 4)
   >>> print(UV.Ntimes)
@@ -319,16 +343,19 @@ a) Getting antenna positions in topocentric frame in units of meters
 
   # directly from UVData object
   >>> uvd = UVData()
-  >>> uvd.read_miriad('pyuvdata/data/new.uvA')
+  >>> uvd.read('pyuvdata/data/new.uvA')
   >>> antpos, ants = uvd.get_ENU_antpos()
 
   # using uvutils
   >>> from pyuvdata import uvutils, UVData
   >>> uvd = UVData()
-  >>> uvd.read_miriad('pyuvdata/data/new.uvA')
-  >>> antpos = uvd.antenna_positions + uvd.telescope_location # get antennas positions in ECEF
-  >>> antpos = uvutils.ENU_from_ECEF(antpos, *uvd.telescope_location_lat_lon_alt) # convert to topo (ENU) coords.
+  >>> uvd.read('pyuvdata/data/new.uvA')
 
+  # get antennas positions in ECEF
+  >>> antpos = uvd.antenna_positions + uvd.telescope_location
+
+  # convert to topocentric (East, North, Up or ENU) coords.
+  >>> antpos = uvutils.ENU_from_ECEF(antpos, *uvd.telescope_location_lat_lon_alt)
 
 UVData: Selecting data
 -----------------------
@@ -336,9 +363,9 @@ The select method lets you select specific antennas (by number or name),
 antenna pairs, frequencies (in Hz or by channel number), times or polarizations
 to keep in the object while removing others.
 
-Note: The same select interface is now supported on the read for uvfits files
-(see :ref:`UVData: Working with large files`), so you need not read in the
-entire file before doing the select.
+Note: The same select interface is now supported on the read for uvfits, uvh5
+and miriad files (see :ref:`UVData: Working with large files`), so you need not
+read in the entire file before doing the select.
 
 a) Select 3 antennas to keep using the antenna number.
 ********************************************************
@@ -348,7 +375,7 @@ a) Select 3 antennas to keep using the antenna number.
   >>> import numpy as np
   >>> UV = UVData()
   >>> filename = 'pyuvdata/data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
-  >>> UV.read_uvfits(filename)
+  >>> UV.read(filename)
 
   # print all the antennas numbers with data in the original file
   >>> print(np.unique(UV.ant_1_array.tolist() + UV.ant_2_array.tolist()))
@@ -367,7 +394,7 @@ b) Select 3 antennas to keep using the antenna names, also select 5 frequencies 
   >>> import numpy as np
   >>> UV = UVData()
   >>> filename = 'pyuvdata/data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
-  >>> UV.read_uvfits(filename)
+  >>> UV.read(filename)
 
   # print all the antenna names with data in the original file
   >>> unique_ants = np.unique(UV.ant_1_array.tolist() + UV.ant_2_array.tolist())
@@ -395,7 +422,7 @@ c) Select a few antenna pairs to keep
   >>> from pyuvdata import UVData
   >>> UV = UVData()
   >>> filename = 'pyuvdata/data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
-  >>> UV.read_uvfits(filename)
+  >>> UV.read(filename)
 
   # print how many antenna pairs with data in the original file
   >>> print(len(set(zip(UV.ant_1_array, UV.ant_2_array))))
@@ -425,7 +452,7 @@ ________________________________
   >>> from pyuvdata import UVData
   >>> UV = UVData()
   >>> filename = 'pyuvdata/data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
-  >>> UV.read_uvfits(filename)
+  >>> UV.read(filename)
 
   # Print the number of antenna pairs in the original file
   >>> print(len(UV.get_antpairs()))
@@ -451,7 +478,7 @@ ___________________________
   >>> from pyuvdata import UVData
   >>> UV = UVData()
   >>> filename = 'pyuvdata/data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
-  >>> UV.read_uvfits(filename)
+  >>> UV.read(filename)
 
   # Print the number of antenna pairs in the original file
   >>> print(len(UV.get_antpairs()))
@@ -484,7 +511,7 @@ all antenna pairs kept in the object will retain data for each specified polariz
   >>> from pyuvdata import UVData
   >>> UV = UVData()
   >>> filename = 'pyuvdata/data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
-  >>> UV.read_uvfits(filename)
+  >>> UV.read(filename)
 
   # Print the number of antennas and polarizations with data in the original file
   >>> print((len(UV.get_antpairs()), UV.get_pols()))
@@ -519,7 +546,7 @@ If a minus sign is present in front of an antenna number, it will not be kept in
   >>> from pyuvdata import UVData
   >>> UV = UVData()
   >>> filename = 'pyuvdata/data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
-  >>> UV.read_uvfits(filename)
+  >>> UV.read(filename)
 
   # Print the number of antenna pairs in the original file
   >>> print(len(UV.get_antpairs()))
@@ -540,7 +567,7 @@ e) Select data and return new object (leaving original intact).
   >>> import numpy as np
   >>> UV = UVData()
   >>> filename = 'pyuvdata/data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
-  >>> UV.read_uvfits(filename)
+  >>> UV.read(filename)
   >>> UV2 = UV.select(antenna_nums=[0, 11, 20], inplace=False)
 
   # print all the antennas numbers with data in the original file
@@ -565,7 +592,7 @@ a) Add frequencies.
   >>> import copy
   >>> uv1 = UVData()
   >>> filename = 'pyuvdata/data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
-  >>> uv1.read_uvfits(filename)
+  >>> uv1.read(filename)
   >>> uv2 = copy.deepcopy(uv1)
 
   # Downselect frequencies to recombine
@@ -584,7 +611,7 @@ b) Add times.
   >>> import copy
   >>> uv1 = UVData()
   >>> filename = 'pyuvdata/data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
-  >>> uv1.read_uvfits(filename)
+  >>> uv1.read(filename)
   >>> uv2 = copy.deepcopy(uv1)
 
   # Downselect times to recombine
@@ -608,13 +635,13 @@ directly without creating a third uvdata object.
   >>> import copy
   >>> uv1 = UVData()
   >>> filename = 'pyuvdata/data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
-  >>> uv1.read_uvfits(filename)
+  >>> uv1.read(filename)
   >>> uv2 = copy.deepcopy(uv1)
   >>> uv1.select(times=times[0:len(times) // 2])
   >>> uv2.select(times=times[len(times) // 2:])
   >>> uv1.__add__(uv2, inplace=True)
 
-  >>> uv1.read_uvfits(filename)
+  >>> uv1.read(filename)
   >>> uv2 = copy.deepcopy(uv1)
   >>> uv1.select(times=times[0:len(times) // 2])
   >>> uv2.select(times=times[len(times) // 2:])
@@ -623,14 +650,14 @@ directly without creating a third uvdata object.
 d) Reading multiple files.
 ****************************
 If any of the read methods are given a list of files
-(or list of lists in the case of read_fhd), each file will be read in succession
+(or list of lists for FHD datasets), each file will be read in succession
 and added to the previous.
 ::
 
   >>> from pyuvdata import UVData
   >>> uv = UVData()
   >>> filename = 'pyuvdata/data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
-  >>> uv.read_uvfits(filename)
+  >>> uv.read(filename)
   >>> uv1 = uv.select(freq_chans=np.arange(0, 20), inplace=False)
   >>> uv2 = uv.select(freq_chans=np.arange(20, 40), inplace=False)
   >>> uv3 = uv.select(freq_chans=np.arange(40, 64), inplace=False)
@@ -638,23 +665,27 @@ and added to the previous.
   >>> uv2.write_uvfits('tutorial2.uvfits')
   >>> uv3.write_uvfits('tutorial3.uvfits')
   >>> filenames = ['tutorial1.uvfits', 'tutorial2.uvfits', 'tutorial3.uvfits']
-  >>> uv.read_uvfits(filenames)
+  >>> uv.read(filenames)
 
 UVData: Working with large files
 ----------------------------------------------
-To save on memory and time, pyuvdata supports reading only parts of uvfits and
+To save on memory and time, pyuvdata supports reading only parts of uvfits, uvh5 and
 miriad files.
 
 a) Reading just the header of a uvfits file
-****************************
+******************************************
+This option is only available for uvfits files, which separate the header which
+is very lightweight to read from the metadata which takes a little more memory.
 When only the header info is read in, the UVData object is not fully specified,
-so only some of the expected attributes are filled out
+so only some of the expected attributes are filled out.
+
+The read_metadata keyword is ignored for other file types.
 ::
 
   >>> from pyuvdata import UVData
   >>> uv = UVData()
   >>> filename = 'pyuvdata/data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
-  >>> uv.read_uvfits(filename, read_data=False, read_metadata=False)
+  >>> uv.read(filename, read_data=False, read_metadata=False)
   >>> print((uv.Nblts, uv.Nfreqs, uv.Npols))
   (1360, 64, 4)
 
@@ -667,22 +698,30 @@ so only some of the expected attributes are filled out
   >>> print(uv.data_array)
   None
 
-b) Reading the header and metadata of a uvfits file
+b) Reading the metadata of a uvfits, uvh5 or miriad file
 ******************************************
-The UVData object is still not fully specified, but every attribute except
-the data_array, flag_array and nsample_array are filled out. Either read in the
-metadata at the same time as the header (use read_metadata=True which is the default),
-or read in the header followed by the metadata (both shown below)
+For uvh5 and uvfits files, reading in the metadata results in a UVData object
+that is still not fully specified, but every attribute except the data_array,
+flag_array and nsample_array are filled out. For Miriad files, less of the
+metadata can be read without reading the data, but many of the attributes
+are available. For uvfits files, the metadata can be read in at the same time
+as the header, or you can read in the header followed by the metadata
+(both shown below).
+
+FHD and measurement set (ms) files do not support reading only the metadata
+(the read_data keyword is ignored for these file types).
 ::
 
   >>> from pyuvdata import UVData
   >>> uv = UVData()
   >>> filename = 'pyuvdata/data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
 
-  >>> uv.read_uvfits(filename, read_data=False)
+  # read the header and metadata but not the data
+  >>> uv.read(filename, read_data=False)
 
-  >>> uv.read_uvfits(filename, read_data=False, read_metadata=False)
-  >>> uv.read_uvfits(filename, read_data=False)
+  # read the header first, then the metadata but not the data
+  >>> uv.read(filename, read_data=False, read_metadata=False)
+  >>> uv.read(filename, read_data=False)
 
   >>> print(uv.time_array.size)
   1360
@@ -692,49 +731,51 @@ or read in the header followed by the metadata (both shown below)
 
   # If the data_array, flag_array or nsample_array are needed later, they can be
   # read into the existing object:
-  >>> uv.read_uvfits(filename)
+  >>> uv.read(filename)
   >>> print(uv.data_array.shape)
   (1360, 1, 64, 4)
 
-c) Reading only parts of uvfits data
-***************************************
+c) Reading only parts of uvfits, uvh5 or miriad data
+****************************************************
 The same options that are available for the select function can also be passed to
-read_uvfits to do the select on the read, saving memory and
-time if only a portion of the data are needed.
+the read method to do the select on the read, saving memory and time if only a
+portion of the data are needed.
+
+Note that these keywords can be used for any file type, but for FHD and
+measurement set (ms) files, the select is done after the read, which does not
+save memory. Miriad only supports some of the selections on the read, the
+unsupported ones are done after the read. Note that miriad supports a select on
+read for a time range, while uvfits and uvh5 support a list of times to include.
+Any of the select keywords can be used for any file type, but selects for keywords
+that are not supported by the select on read for a given file type will be
+done after the read, which does not save memory.
 ::
 
   >>> import numpy as np
   >>> from pyuvdata import UVData
   >>> uv = UVData()
   >>> filename = 'pyuvdata/data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
-  >>> uv.read_uvfits(filename, freq_chans=np.arange(32))
+  >>> uv.read(filename, freq_chans=np.arange(32))
   >>> print(uv.data_array.shape)
   (1360, 1, 32, 4)
 
   # Reading in the header and metadata can help with specifying what data to read in
   >>> uv = UVData()
-  >>> uv.read_uvfits(filename, read_data=False)
+  >>> uv.read(filename, read_data=False)
   >>> unique_times = np.unique(uv.time_array)
   >>> print(unique_times.shape)
   (15,)
 
   >>> times_to_keep = unique_times[[0, 2, 4]]
-  >>> uv.read_uvfits(filename, times=times_to_keep)
+  >>> uv.read(filename, times=times_to_keep)
   >>> print(uv.data_array.shape)
   (179, 1, 64, 4)
 
-c) Reading only parts of miriad data
-***************************************
-Many of the same options that are available for the select function can also be
-passed to read_miriad to do the select on the read, saving memory and
-time if only a portion of the data are needed.
-::
->>> from pyuvdata import UVData
->>> uv = UVData()
->>> filename = 'pyuvdata/data/zen.2457698.40355.xx.HH.uvcA'
->>> uv.read_miriad(filename, bls=[(9, 10), (9, 20)])
->>> print(uv.get_antpairs())
-[(9, 10), (9, 20)]
+  # Select a few baselines from a miriad file
+  >>> filename = 'pyuvdata/data/zen.2457698.40355.xx.HH.uvcA'
+  >>> uv.read(filename, bls=[(9, 10), (9, 20)])
+  >>> print(uv.get_antpairs())
+  [(9, 10), (9, 20)]
 
 ------
 UVCal
