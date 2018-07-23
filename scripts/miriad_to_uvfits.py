@@ -14,6 +14,7 @@ import argparse
 import sys
 import os
 import pyuvdata
+from astropy.time import Time
 
 # setup argparse
 a = argparse.ArgumentParser(description="A command-line script for converting a Miriad file to UVFITS format.")
@@ -37,16 +38,16 @@ for filename in args.files:
 
     # read in file
     UV = pyuvdata.UVData()
-    UV.read_miriad(filename, 'miriad')
+    UV.read_miriad(filename)
 
     # phase data
     if args.phase_time is not None:
-        UV.phase_to_time(args.phase_time)
+        UV.phase_to_time(Time(args.phase_time, format='jd', scale='utc'))
         if args.verbose:
             print("phasing {} to time {}".format(filename, args.phase_time))
 
     else:
-        UV.phase_to_time(UV.time_array[0])
+        UV.phase_to_time(Time(UV.time_array[0], format='jd', scale='utc'))
         if args.verbose:
             print("phasing {} to time {}".format(filename, UV.time_array[0]))
 
