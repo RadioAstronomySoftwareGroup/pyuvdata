@@ -123,29 +123,29 @@ def test_readwriteread():
     nt.assert_equal(uv_in, uv_out)
 
     # check missing telescope_name, timesys vs timsys spelling, xyz_telescope_frame=????
-    hdu_list = fits.open(write_file)
-    hdunames = uvutils._fits_indexhdus(hdu_list)
-    vis_hdu = hdu_list[0]
-    vis_hdr = vis_hdu.header.copy()
+    with fits.open(write_file, memmap=True) as hdu_list:
+        hdunames = uvutils._fits_indexhdus(hdu_list)
+        vis_hdu = hdu_list[0]
+        vis_hdr = vis_hdu.header.copy()
 
-    vis_hdr.pop('TELESCOP')
+        vis_hdr.pop('TELESCOP')
 
-    vis_hdu.header = vis_hdr
+        vis_hdu.header = vis_hdr
 
-    ant_hdu = hdu_list[hdunames['AIPS AN']]
-    ant_hdr = ant_hdu.header.copy()
+        ant_hdu = hdu_list[hdunames['AIPS AN']]
+        ant_hdr = ant_hdu.header.copy()
 
-    time_sys = ant_hdr.pop('TIMSYS')
-    ant_hdr['TIMESYS'] = time_sys
-    ant_hdr['FRAME'] = '????'
+        time_sys = ant_hdr.pop('TIMSYS')
+        ant_hdr['TIMESYS'] = time_sys
+        ant_hdr['FRAME'] = '????'
 
-    ant_hdu.header = ant_hdr
+        ant_hdu.header = ant_hdr
 
-    hdulist = fits.HDUList(hdus=[vis_hdu, ant_hdu])
-    if float(astropy.__version__[0:3]) < 1.3:
-        hdulist.writeto(write_file, clobber=True)
-    else:
-        hdulist.writeto(write_file, overwrite=True)
+        hdulist = fits.HDUList(hdus=[vis_hdu, ant_hdu])
+        if float(astropy.__version__[0:3]) < 1.3:
+            hdulist.writeto(write_file, clobber=True)
+        else:
+            hdulist.writeto(write_file, overwrite=True)
     uvtest.checkWarnings(uv_out.read, [write_file], message='Telescope EVLA is not')
     nt.assert_equal(uv_out.telescope_name, 'EVLA')
     nt.assert_equal(uv_out.timesys, time_sys)
@@ -160,30 +160,30 @@ def test_readwriteread():
     uv_singlet = uv_in.select(times=uv_in.time_array[0], inplace=False)
     uv_singlet.write_uvfits(write_file)
 
-    hdu_list = fits.open(write_file)
-    hdunames = uvutils._fits_indexhdus(hdu_list)
-    vis_hdu = hdu_list[0]
-    vis_hdr = vis_hdu.header.copy()
-    raw_data_array = vis_hdu.data.data
+    with fits.open(write_file, memmap=True) as hdu_list:
+        hdunames = uvutils._fits_indexhdus(hdu_list)
+        vis_hdu = hdu_list[0]
+        vis_hdr = vis_hdu.header.copy()
+        raw_data_array = vis_hdu.data.data
 
-    par_names = np.array(vis_hdu.data.parnames)
-    pars_use = np.where(par_names != 'INTTIM')[0]
-    par_names = par_names[pars_use].tolist()
+        par_names = np.array(vis_hdu.data.parnames)
+        pars_use = np.where(par_names != 'INTTIM')[0]
+        par_names = par_names[pars_use].tolist()
 
-    group_parameter_list = [vis_hdu.data.par(name) for name in par_names]
+        group_parameter_list = [vis_hdu.data.par(name) for name in par_names]
 
-    vis_hdu = fits.GroupData(raw_data_array, parnames=par_names,
-                             pardata=group_parameter_list, bitpix=-32)
-    vis_hdu = fits.GroupsHDU(vis_hdu)
-    vis_hdu.header = vis_hdr
+        vis_hdu = fits.GroupData(raw_data_array, parnames=par_names,
+                                 pardata=group_parameter_list, bitpix=-32)
+        vis_hdu = fits.GroupsHDU(vis_hdu)
+        vis_hdu.header = vis_hdr
 
-    ant_hdu = hdu_list[hdunames['AIPS AN']]
+        ant_hdu = hdu_list[hdunames['AIPS AN']]
 
-    hdulist = fits.HDUList(hdus=[vis_hdu, ant_hdu])
-    if float(astropy.__version__[0:3]) < 1.3:
-        hdulist.writeto(write_file, clobber=True)
-    else:
-        hdulist.writeto(write_file, overwrite=True)
+        hdulist = fits.HDUList(hdus=[vis_hdu, ant_hdu])
+        if float(astropy.__version__[0:3]) < 1.3:
+            hdulist.writeto(write_file, clobber=True)
+        else:
+            hdulist.writeto(write_file, overwrite=True)
     uvtest.checkWarnings(nt.assert_raises, [ValueError, uv_out.read, write_file],
                          message=['Telescope EVLA is not',
                                   'ERFA function "utcut1" yielded 1 of "dubious year (Note 3)"',
@@ -404,54 +404,54 @@ def test_select_read():
 
     # select on pols
     # this requires writing a new file because the no spw file we have has only 1 pol
-    hdu_list = fits.open(uvfits_file)
-    hdunames = uvutils._fits_indexhdus(hdu_list)
-    vis_hdu = hdu_list[0]
-    vis_hdr = vis_hdu.header.copy()
-    raw_data_array = vis_hdu.data.data
-    raw_data_array = raw_data_array[:, :, :, 0, :, :, :]
+    with fits.open(uvfits_file, memmap=True) as hdu_list:
+        hdunames = uvutils._fits_indexhdus(hdu_list)
+        vis_hdu = hdu_list[0]
+        vis_hdr = vis_hdu.header.copy()
+        raw_data_array = vis_hdu.data.data
+        raw_data_array = raw_data_array[:, :, :, 0, :, :, :]
 
-    vis_hdr['NAXIS'] = 6
+        vis_hdr['NAXIS'] = 6
 
-    vis_hdr['NAXIS5'] = vis_hdr['NAXIS6']
-    vis_hdr['CTYPE5'] = vis_hdr['CTYPE6']
-    vis_hdr['CRVAL5'] = vis_hdr['CRVAL6']
-    vis_hdr['CDELT5'] = vis_hdr['CDELT6']
-    vis_hdr['CRPIX5'] = vis_hdr['CRPIX6']
-    vis_hdr['CROTA5'] = vis_hdr['CROTA6']
+        vis_hdr['NAXIS5'] = vis_hdr['NAXIS6']
+        vis_hdr['CTYPE5'] = vis_hdr['CTYPE6']
+        vis_hdr['CRVAL5'] = vis_hdr['CRVAL6']
+        vis_hdr['CDELT5'] = vis_hdr['CDELT6']
+        vis_hdr['CRPIX5'] = vis_hdr['CRPIX6']
+        vis_hdr['CROTA5'] = vis_hdr['CROTA6']
 
-    vis_hdr['NAXIS6'] = vis_hdr['NAXIS7']
-    vis_hdr['CTYPE6'] = vis_hdr['CTYPE7']
-    vis_hdr['CRVAL6'] = vis_hdr['CRVAL7']
-    vis_hdr['CDELT6'] = vis_hdr['CDELT7']
-    vis_hdr['CRPIX6'] = vis_hdr['CRPIX7']
-    vis_hdr['CROTA6'] = vis_hdr['CROTA7']
+        vis_hdr['NAXIS6'] = vis_hdr['NAXIS7']
+        vis_hdr['CTYPE6'] = vis_hdr['CTYPE7']
+        vis_hdr['CRVAL6'] = vis_hdr['CRVAL7']
+        vis_hdr['CDELT6'] = vis_hdr['CDELT7']
+        vis_hdr['CRPIX6'] = vis_hdr['CRPIX7']
+        vis_hdr['CROTA6'] = vis_hdr['CROTA7']
 
-    vis_hdr.pop('NAXIS7')
-    vis_hdr.pop('CTYPE7')
-    vis_hdr.pop('CRVAL7')
-    vis_hdr.pop('CDELT7')
-    vis_hdr.pop('CRPIX7')
-    vis_hdr.pop('CROTA7')
+        vis_hdr.pop('NAXIS7')
+        vis_hdr.pop('CTYPE7')
+        vis_hdr.pop('CRVAL7')
+        vis_hdr.pop('CDELT7')
+        vis_hdr.pop('CRPIX7')
+        vis_hdr.pop('CROTA7')
 
-    par_names = vis_hdu.data.parnames
+        par_names = vis_hdu.data.parnames
 
-    group_parameter_list = [vis_hdu.data.par(ind) for
-                            ind in range(len(par_names))]
+        group_parameter_list = [vis_hdu.data.par(ind) for
+                                ind in range(len(par_names))]
 
-    vis_hdu = fits.GroupData(raw_data_array, parnames=par_names,
-                             pardata=group_parameter_list, bitpix=-32)
-    vis_hdu = fits.GroupsHDU(vis_hdu)
-    vis_hdu.header = vis_hdr
+        vis_hdu = fits.GroupData(raw_data_array, parnames=par_names,
+                                 pardata=group_parameter_list, bitpix=-32)
+        vis_hdu = fits.GroupsHDU(vis_hdu)
+        vis_hdu.header = vis_hdr
 
-    ant_hdu = hdu_list[hdunames['AIPS AN']]
+        ant_hdu = hdu_list[hdunames['AIPS AN']]
 
-    write_file = os.path.join(DATA_PATH, 'test/outtest_casa.uvfits')
-    hdulist = fits.HDUList(hdus=[vis_hdu, ant_hdu])
-    if float(astropy.__version__[0:3]) < 1.3:
-        hdulist.writeto(write_file, clobber=True)
-    else:
-        hdulist.writeto(write_file, overwrite=True)
+        write_file = os.path.join(DATA_PATH, 'test/outtest_casa.uvfits')
+        hdulist = fits.HDUList(hdus=[vis_hdu, ant_hdu])
+        if float(astropy.__version__[0:3]) < 1.3:
+            hdulist.writeto(write_file, clobber=True)
+        else:
+            hdulist.writeto(write_file, overwrite=True)
 
     pols_to_keep = [-1, -2]
     uvtest.checkWarnings(uvfits_uv.read, [write_file],
