@@ -40,16 +40,17 @@ for filename in args.files:
     UV = pyuvdata.UVData()
     UV.read_miriad(filename)
 
-    # phase data
-    if args.phase_time is not None:
-        UV.phase_to_time(Time(args.phase_time, format='jd', scale='utc'))
-        if args.verbose:
-            print("phasing {} to time {}".format(filename, args.phase_time))
+    if UV.phase_type == 'drift':
+        # phase data
+        if args.phase_time is not None:
+            UV.phase_to_time(Time(args.phase_time, format='jd', scale='utc'))
+            if args.verbose:
+                print("phasing {} to time {}".format(filename, args.phase_time))
 
-    else:
-        UV.phase_to_time(Time(UV.time_array[0], format='jd', scale='utc'))
-        if args.verbose:
-            print("phasing {} to time {}".format(filename, UV.time_array[0]))
+        else:
+            UV.phase_to_time(Time(UV.time_array[0], format='jd', scale='utc'))
+            if args.verbose:
+                print("phasing {} to time {}".format(filename, UV.time_array[0]))
 
     # write data
     UV.history += history
