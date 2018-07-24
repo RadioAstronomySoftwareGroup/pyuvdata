@@ -3,6 +3,7 @@ include LICENSE
 include pyuvdata/VERSION
 include pyuvdata/GIT_INFO
 include *.bib
+include pyuvdata/src/*
 include scripts/*.pro
 include scripts/*.sh
 recursive-include pyuvdata/data *
