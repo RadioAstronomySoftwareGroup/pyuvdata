@@ -52,7 +52,7 @@ def test_ReadNRAOWriteMiriadReadMiriad():
     uvfits_uv = UVData()
     miriad_uv = UVData()
     testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-    writefile = os.path.join(DATA_PATH, 'test/outtest_miriad.uvfits')
+    writefile = os.path.join(DATA_PATH, 'test/outtest_miriad.uv')
     expected_extra_keywords = ['OBSERVER', 'SORTORD', 'SPECSYS',
                                'RESTFREQ', 'ORIGIN']
     uvtest.checkWarnings(uvfits_uv.read_uvfits, [testfile], message='Telescope EVLA is not')
