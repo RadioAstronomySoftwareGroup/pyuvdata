@@ -381,10 +381,14 @@ class UVData(UVBase):
 
         # check auto and cross-corrs have sensible uvws
         autos = np.isclose(self.ant_1_array - self.ant_2_array, 0.0)
-        if not np.all(np.isclose(self.uvw_array[autos], 0.0)):
+        if not np.all(np.isclose(self.uvw_array[autos], 0.0,
+                                 rtol=self._uvw_array.tols[0],
+                                 atol=self._uvw_array.tols[1])):
             raise ValueError("Some auto-correlations have non-zero "
                              "uvw_array coordinates.")
-        if np.any(np.isclose([np.linalg.norm(uvw) for uvw in self.uvw_array[~autos]], 0.0)):
+        if np.any(np.isclose([np.linalg.norm(uvw) for uvw in self.uvw_array[~autos]], 0.0,
+                             rtol=self._uvw_array.tols[0],
+                             atol=self._uvw_array.tols[1])):
             raise ValueError("Some cross-correlations have near-zero "
                              "uvw_array magnitudes.")
 
