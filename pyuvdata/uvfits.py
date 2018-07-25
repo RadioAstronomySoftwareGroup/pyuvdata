@@ -473,13 +473,13 @@ class UVFITS(UVData):
             filename: The uvfits file to read from.
         """
 
-        hdu_list = fits.open(filename, memmap=True)
-        vis_hdu = hdu_list[0]  # assumes the visibilities are in the primary hdu
-
         if self.data_array is not None:
             raise ValueError('data_array is already defined, cannot read metadata')
 
-        self._get_parameter_data(vis_hdu)
+        with fits.open(filename, memmap=True) as hdu_list:
+            vis_hdu = hdu_list[0]  # assumes the visibilities are in the primary hdu
+
+            self._get_parameter_data(vis_hdu)
 
         del(vis_hdu)
 
@@ -538,13 +538,13 @@ class UVFITS(UVData):
                 parameters after reading in the file. Default is True.
         """
 
-        hdu_list = fits.open(filename, memmap=True)
-        vis_hdu = hdu_list[0]  # assumes the visibilities are in the primary hdu
+        with fits.open(filename, memmap=True) as hdu_list:
+            vis_hdu = hdu_list[0]  # assumes the visibilities are in the primary hdu
 
-        self._get_data(vis_hdu, antenna_nums, antenna_names, ant_str,
-                       bls, frequencies, freq_chans, times, polarizations,
-                       blt_inds, read_metadata, run_check, check_extra,
-                       run_check_acceptability)
+            self._get_data(vis_hdu, antenna_nums, antenna_names, ant_str,
+                           bls, frequencies, freq_chans, times, polarizations,
+                           blt_inds, read_metadata, run_check, check_extra,
+                           run_check_acceptability)
 
         del(vis_hdu)
 
