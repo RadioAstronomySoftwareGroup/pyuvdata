@@ -107,7 +107,7 @@ class UVH5(UVData):
 
         # get time information
         self.time_array = header['time_array'].value
-        self.integration_time = float(header['integration_time'].value)
+        self.integration_time = header['integration_time'].value
         self.lst_array = header['lst_array'].value
 
         # get frequency information

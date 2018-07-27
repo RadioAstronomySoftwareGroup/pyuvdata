@@ -728,8 +728,9 @@ def test_readWriteReadMiriad():
     uvtest.checkWarnings(uv_in.read, [testfile], {'read_data': False}, known_warning='miriad')
     nt.assert_equal(uv_in.time_array, None)
     nt.assert_equal(uv_in.data_array, None)
+    nt.assert_equal(uv_in.integration_time, None)
     metadata = ['antenna_positions', 'antenna_names', 'antenna_positions', 'channel_width',
-                'integration_time', 'history', 'vis_units', 'telescope_location']
+                'history', 'vis_units', 'telescope_location']
     for m in metadata:
         nt.assert_true(getattr(uv_in, m) is not None)
 

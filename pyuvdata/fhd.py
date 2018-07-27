@@ -241,7 +241,12 @@ class FHD(UVData):
         # integrations. This can have limited accuracy, so it can be slightly
         # off the actual value.
         # (e.g. 1.999426... rather than 2)
-        self.integration_time = float(obs['TIME_RES'][0])
+        time_res = obs['TIME_RES']
+        if len(time_res) == 1:
+            self.integration_time = (np.ones_like(self.time_array, dtype=np.float64)
+                                     * time_res[0])
+        else:
+            self.integration_time = time_res
         self.channel_width = float(obs['FREQ_RES'][0])
 
         # # --- observation information ---
