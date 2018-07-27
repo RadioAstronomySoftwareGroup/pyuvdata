@@ -156,6 +156,7 @@ class UVData(UVBase):
 
         self._integration_time = uvp.UVParameter('integration_time',
                                                  description='Length of the integration (s)',
+                                                 form=('Nblts',),
                                                  expected_type=np.float, tols=1e-3)  # 1 ms
         self._channel_width = uvp.UVParameter('channel_width',
                                               description='Width of frequency channels (Hz)',
@@ -930,8 +931,8 @@ class UVData(UVBase):
 
         # Check objects are compatible
         # But phase_center should be the same, even if in drift (empty parameters)
-        compatibility_params = ['_vis_units', '_integration_time', '_channel_width',
-                                '_object_name', '_telescope_name', '_instrument',
+        compatibility_params = ['_vis_units', '_channel_width', '_object_name',
+                                '_telescope_name', '_instrument',
                                 '_telescope_location', '_phase_type',
                                 '_Nants_telescope', '_antenna_names',
                                 '_antenna_numbers', '_antenna_positions',
@@ -1017,6 +1018,8 @@ class UVData(UVBase):
                                              other.uvw_array[bnew_inds, :]], axis=0)[blt_order, :]
             this.time_array = np.concatenate([this.time_array,
                                               other.time_array[bnew_inds]])[blt_order]
+            this.integration_time = np.concatenate([this.integration_time,
+                                                    other.integration_time[bnew_inds]])[blt_order]
             this.lst_array = np.concatenate(
                 [this.lst_array, other.lst_array[bnew_inds]])[blt_order]
             this.ant_1_array = np.concatenate([this.ant_1_array,
@@ -1401,6 +1404,7 @@ class UVData(UVBase):
             self.baseline_array = self.baseline_array[blt_inds]
             self.Nbls = len(np.unique(self.baseline_array))
             self.time_array = self.time_array[blt_inds]
+            self.integration_time = self.integration_time[blt_inds]
             self.lst_array = self.lst_array[blt_inds]
             self.uvw_array = self.uvw_array[blt_inds, :]
 

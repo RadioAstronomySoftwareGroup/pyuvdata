@@ -347,6 +347,10 @@ class Miriad(UVData):
         # UVData.time_array marks center of integration, while Miriad 'time' marks beginning
         self.time_array = t_grid + uv['inttime'] / (24 * 3600.) / 2
 
+        # assume inttime in the header is the same integration time for all records
+        self.integration_time = (uv['inttime']
+                                 * np.ones_like(self.time_array, dtype=np.float64))
+
         self.ant_1_array = ant_i_grid.astype(int)
         self.ant_2_array = ant_j_grid.astype(int)
 
@@ -583,7 +587,7 @@ class Miriad(UVData):
         uv.add_var('nspect', 'i')
         uv['nspect'] = self.Nspws
         uv.add_var('inttime', 'd')
-        uv['inttime'] = self.integration_time
+        uv['inttime'] = self.integration_time[0]
         uv.add_var('sdf', 'd')
         uv['sdf'] = self.channel_width / 1e9  # in GHz
         uv.add_var('source', 'a')
@@ -912,7 +916,6 @@ class Miriad(UVData):
 
         miriad_header_data = {'Nfreqs': 'nchan',
                               'Npols': 'npol',
-                              'integration_time': 'inttime',
                               'channel_width': 'sdf',  # in Ghz!
                               'object_name': 'source',
                               'telescope_name': 'telescop'

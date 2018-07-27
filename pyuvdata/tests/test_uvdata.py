@@ -832,7 +832,7 @@ def test_select_times():
 
     # check for errors associated with times not included in data
     nt.assert_raises(ValueError, uv_object.select, times=[
-                     np.min(unique_times) - uv_object.integration_time])
+                     np.min(unique_times) - uv_object.integration_time[0]])
 
 
 def test_select_frequencies():

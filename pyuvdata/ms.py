@@ -191,10 +191,11 @@ class MS(UVData):
         # self.integration_time=tb.getcol('INTERVAL')[0]
         # for some reason, interval ends up larger than the difference between times...
         if len(times_unique) == 1:
-            self.integration_time = 1.0
+            self.integration_time = np.ones_like(self.time_array, dtype=np.float64)
         else:
-            self.integration_time = float(
-                times_unique[1] - times_unique[0]) * 3600. * 24.
+            # assume that all times in the file are the same size
+            dt = times_unique[1] - times_unique[0]) * 3600. * 24.
+            self.integration_time = np.ones_like(self.time_array, dtype=np.float64) * dt
         # open table with antenna location information
         tbAnt = tables.table(filepath + '/ANTENNA')
         tbObs = tables.table(filepath + '/OBSERVATION')
