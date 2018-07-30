@@ -59,12 +59,7 @@ data_uv.integration_time=data['times'][1]-data['times'][0]
 #convert to Nblt ordering
 data_uv.data_array=np.zeros((data_uv.Nblts,data_uv.Nspws,data_uv.Nfreqs,data_uv.Npols),
                              dtype=complex)
-for tnum in range(data_uv.Ntimes):
-    #print data['data'].shape
-    #print data_uv.data_array.shape
-    #print tnum
-    data_uv.data_array[tnum*data_uv.Nbls:(tnum+1)*data_uv.Nbls,0,:,:]\
-    =data['data'][tnum,:,:,:]
+data_uv.data_array=data['data']
 
 #Translate antenna locations
 my_handle=Handling()
@@ -119,13 +114,9 @@ data_uv.antenna_numbers=np.array(all_antnums).astype(int)
 data_uv.antenna_names=all_antnames
 data_uv.Nants_telescope=len(data_uv.antenna_numbers)
 #create ant_1_array
-data_uv.ant_1_array=\
-np.hstack([data['antenna_pairs'][:,0] for p in range(data_uv.Ntimes)]).flatten()\
-.astype(int)
+data_uv.ant_1_array=data['ant1_array'].astype(int)
 #create ant_2_array
-data_uv.ant_2_array=\
-np.hstack([data['antenna_pairs'][:,1] for p in range(data_uv.Ntimes)]).flatten()\
-.astype(int)
+data_uv.ant_2_array=data['ant2_array'].astype(int)
 
 #print(np.unique(data_uv.ant_1_array))
 #print(np.unique(data_uv.ant_2_array))
@@ -148,9 +139,7 @@ data_uv.baseline_array=\
 
 #create time array, convert to julian days
 jd_times=Time(data['times'],format='unix').jd
-data_uv.time_array=\
-np.hstack([[jd_times[p] for m in range(data_uv.Nbls)]\
-            for p in range(data_uv.Ntimes)])
+data_uv.time_array=jd_times
 data_uv.object_name=config['OBJECT_NAME']
 data_uv.history='Imported data from Snap correlation file.'
 data_uv.phase_type='drift'
