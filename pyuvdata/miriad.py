@@ -231,6 +231,7 @@ class Miriad(UVData):
             ra = uv['ra']
             dec = uv['dec']
             lst = uv['lst']
+            inttime = uv['inttime']
             source = uv['source']
             if source != _source:
                 raise ValueError('This appears to be a multi source file, which is not supported.')
@@ -249,10 +250,10 @@ class Miriad(UVData):
 
             try:
                 data_accumulator[uv['pol']].append([uvw, t, i, j, d, f, cnt,
-                                                    ra, dec])
+                                                    ra, dec, inttime])
             except(KeyError):
                 data_accumulator[uv['pol']] = [[uvw, t, i, j, d, f, cnt,
-                                                ra, dec]]
+                                                ra, dec, inttime]]
                 pol_list.append(uv['pol'])
                 # NB: flag types in miriad are usually ints
 
@@ -305,10 +306,11 @@ class Miriad(UVData):
         for d in data_accumulator.values():
             for k in d:
                 blt = ["{1:.{0}f}".format(prec_t, k[1]).zfill(ndig_t),
-                       str(k[2]).zfill(ndig_ant), str(k[3]).zfill(ndig_ant)]
+                       str(k[2]).zfill(ndig_ant), str(k[3]).zfill(ndig_ant),
+                       str(k[9]).zfill(ndig_ant)]
                 blt = "_".join(blt)
                 blts.append(blt)
-        unique_blts = np.unique(np.array(blts))
+        unique_blts = np.unique(np.array(blts), axis=0)
 
         reverse_inds = dict(zip(unique_blts, range(len(unique_blts))))
         self.Nants_data = len(sorted_unique_ants)
@@ -319,7 +321,7 @@ class Miriad(UVData):
         # form up a grid which indexes time and baselines along the 'long'
         # axis of the visdata array
         tij_grid = np.array([list(map(float, x.split("_"))) for x in unique_blts])
-        t_grid, ant_i_grid, ant_j_grid = tij_grid.T
+        t_grid, ant_i_grid, ant_j_grid, int_grid = tij_grid.T
         # set the data sizes
         if antenna_nums is None and bls is None and ant_str is None and time_range is None:
             try:
@@ -345,11 +347,10 @@ class Miriad(UVData):
             self.Ntimes = len(times)
 
         # UVData.time_array marks center of integration, while Miriad 'time' marks beginning
-        self.time_array = t_grid + uv['inttime'] / (24 * 3600.) / 2
+        # also, int_grid is in units of seconds, so we need to convert to days
+        self.time_array = t_grid + int_grid / (24 * 3600.) / 2
 
-        # assume inttime in the header is the same integration time for all records
-        self.integration_time = (uv['inttime']
-                                 * np.ones_like(self.time_array, dtype=np.float64))
+        self.integration_time = int_grid
 
         self.ant_1_array = ant_i_grid.astype(int)
         self.ant_2_array = ant_j_grid.astype(int)
@@ -394,7 +395,8 @@ class Miriad(UVData):
             pol_ind = self._pol_to_ind(pol)
             for ind, d in enumerate(data):
                 blt = ["{1:.{0}f}".format(prec_t, d[1]).zfill(ndig_t),
-                       str(d[2]).zfill(ndig_ant), str(d[3]).zfill(ndig_ant)]
+                       str(d[2]).zfill(ndig_ant), str(d[3]).zfill(ndig_ant),
+                       str(d[9]).zfill(ndig_ant)]
                 blt = "_".join(blt)
                 blt_index = reverse_inds[blt]
 
@@ -586,8 +588,6 @@ class Miriad(UVData):
         uv['npol'] = self.Npols
         uv.add_var('nspect', 'i')
         uv['nspect'] = self.Nspws
-        uv.add_var('inttime', 'd')
-        uv['inttime'] = self.integration_time[0]
         uv.add_var('sdf', 'd')
         uv['sdf'] = self.channel_width / 1e9  # in GHz
         uv.add_var('source', 'a')
@@ -762,6 +762,7 @@ class Miriad(UVData):
         uv.add_var('cnt', 'd')
         uv.add_var('ra', 'd')
         uv.add_var('dec', 'd')
+        uv.add_var('inttime', 'd')
 
         # write data
         c_ns = const.c.to('m/ns').value
@@ -772,6 +773,7 @@ class Miriad(UVData):
             j = self.ant_2_array[viscnt]
 
             uv['lst'] = miriad_lsts[viscnt]
+            uv['inttime'] = self.integration_time[viscnt]
             if self.phase_type == 'phased':
                 uv['ra'] = self.phase_center_ra
                 uv['dec'] = self.phase_center_dec
