@@ -28,7 +28,7 @@ install:
   - conda info -a
 
   # install dependencies
-  - conda install -c conda-forge numpy scipy astropy nose pip h5py six healpy python-casacore pycodestyle coveralls
+  - conda install numpy scipy astropy nose pip h5py six healpy python-casacore pycodestyle coveralls
   - conda list
 script:
   - python setup.py build_ext --force --inplace
