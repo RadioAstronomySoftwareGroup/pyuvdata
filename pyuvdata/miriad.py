@@ -310,7 +310,7 @@ class Miriad(UVData):
                        str(k[9]).zfill(ndig_t)]
                 blt = "_".join(blt)
                 blts.append(blt)
-        unique_blts = np.unique(np.array(blts), axis=0)
+        unique_blts = np.unique(np.array(blts))
 
         reverse_inds = dict(zip(unique_blts, range(len(unique_blts))))
         self.Nants_data = len(sorted_unique_ants)
