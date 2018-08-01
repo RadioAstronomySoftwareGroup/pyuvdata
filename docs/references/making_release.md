@@ -1,16 +1,16 @@
-How to make a new release on PyPI and conda-forge
+## How to make a new release on PyPI and conda-forge
 
-PyPI:
+### PyPI
 1. iterate the version number. Our version numbering approach is:
-    a. The first number is for very large changes which might happen every couple of years (e.g. 1.0).
-    b. The second number is for regular releases, our goal is to issue these ~3-4 times per year.
-    c. The third number is for small patches to fix issues. These happen as needed to get critical fixes onto PyPI and conda-forge.
+  a. The first number is for very large changes which might happen every couple of years (e.g. 1.0).
+  b. The second number is for regular releases, our goal is to issue these ~3-4 times per year.
+  c. The third number is for small patches to fix issues. These happen as needed to get critical fixes onto PyPI and conda-forge.
 2. make the distribution: python setup.py sdist
 3. upload to test site: twine upload --repository testpypi dist/*
 4. check that it looks good at https://test.pypi.org/
 5. upload to real site: twine upload --repository pypi dist/*
 
-Conda: (do this after the PyPI release)
+### Conda (do this after the PyPI release)
 1. Fork the feedstock repo to your personal github account.
 2. Make a new branch on your fork for the changes
 3. get the new SHA from pypi: Go to the PyPI file listing page, next to each file there's a little link labeled SHA256 that will copy the right value to your clipboard. Or you can just download the file yourself and run `openssl sha256` on it.
