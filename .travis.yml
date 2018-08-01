@@ -27,9 +27,8 @@ install:
   # Useful for debugging any issues with conda
   - conda info -a
 
-  # create environment and install dependencies
-  - conda install numpy scipy astropy nose pip h5py six
-  - conda install -c conda-forge healpy python-casacore pycodestyle coveralls
+  # install dependencies
+  - conda install -c conda-forge numpy scipy astropy nose pip h5py six healpy python-casacore pycodestyle coveralls
   - conda list
 script:
   - python setup.py build_ext --force --inplace
