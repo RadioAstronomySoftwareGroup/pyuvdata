@@ -14,7 +14,9 @@
 1. Fork the feedstock repo to your personal github account.
 2. Make a new branch on your fork for the changes
 3. get the new SHA from pypi: Go to the PyPI file listing page, next to each file there's a little link labeled SHA256 that will copy the right value to your clipboard. Or you can just download the file yourself and run `openssl sha256` on it.
-4. update recipe/meta.yaml: minimally update the version, build & SHA (if it’s a new version, reset the build to zero, otherwise bump the build number). Generally review the whole file for things that should change. **Note:** When the PyPI package is updated, a bot may make a PR that only changes the the version, build and SHA (plus maybe some re-rendering). If these are the only required changes, you can just accept the bot's PR. If there are other needed changes, comment on the PR to stop it being merged by conda-forge admins without the other fixes.
+4. update recipe/meta.yaml: minimally update the version, build & SHA (if it’s a new version, reset the build to zero, otherwise bump the build number). Generally review the whole file for things that should change.
+
+  **Note:** When the PyPI package is updated, a bot may make a PR that only changes the the version, build and SHA (plus maybe some re-rendering). If these are the only required changes, you can just accept the bot's PR. If there are other needed changes, comment on the PR to stop it being merged by conda-forge admins without the other fixes.
 5. push your branch to github
 6. open a  PR against the feedstock repo from your branch.
 7. get a bot to automatically re-render the code by commenting on the PR with `@conda-forge-admin, please rerender`
