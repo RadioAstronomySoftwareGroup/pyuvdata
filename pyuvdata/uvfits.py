@@ -104,19 +104,13 @@ class UVFITS(UVData):
                                  * const.c.to('m/s').value).T
 
         if 'INTTIM' in vis_hdu.data.parnames:
-            inttim = vis_hdu.data.par('INTTIM')
-            if len(inttim) == 1:
-                # assume that all integration times in the file are the same
-                self.integration_time = (np.ones_like(self.time_array, dtype=np.float64)
-                                         * inttim[0])
-            else:
-                self.integration_time = inttim
+            self.integration_time = vis_hdu.data.par('INTTIM')
         else:
             if self.Ntimes > 1:
                 # assume that all integration times in the file are the same
+                int_time = self._calc_single_integration_time()
                 self.integration_time = (np.ones_like(self.time_array, dtype=np.float64)
-                                         * np.diff(np.sort(list(set(self.time_array))))
-                                         [0]) * 86400
+                                         * int_time)
             else:
                 raise ValueError('integration time not specified and only '
                                  'one time present')

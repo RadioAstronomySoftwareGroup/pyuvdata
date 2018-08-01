@@ -3033,3 +3033,19 @@ class UVData(UVBase):
                           .format(p=(',').join(warned_pols).upper()))
 
         return ant_pairs_nums, polarizations
+
+    def _calc_single_integration_time(self):
+        """Calculate a single integration time for a UVData object when not otherwise specified.
+
+        Args:
+            None
+
+        Returns:
+            int_time: integration time to be assigned to all samples in the data.
+
+        Notes:
+            This funciton computes the shortest time difference present in a UVData object's time_array,
+            and returns that as the integration time to be used for all samples. Also, the time_array
+            is in units of days, and integration_time has units of seconds, so we need to convert.
+        """
+        return np.diff(np.sort(list(set(self.time_array))))[0] * 86400

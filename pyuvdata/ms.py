@@ -194,8 +194,8 @@ class MS(UVData):
             self.integration_time = np.ones_like(self.time_array, dtype=np.float64)
         else:
             # assume that all times in the file are the same size
-            dt = (times_unique[1] - times_unique[0]) * 3600. * 24.
-            self.integration_time = np.ones_like(self.time_array, dtype=np.float64) * dt
+            int_time = self._calc_single_integration_time()
+            self.integration_time = np.ones_like(self.time_array, dtype=np.float64) * int_time
         # open table with antenna location information
         tbAnt = tables.table(filepath + '/ANTENNA')
         tbObs = tables.table(filepath + '/OBSERVATION')
