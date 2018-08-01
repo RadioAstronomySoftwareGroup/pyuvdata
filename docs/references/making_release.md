@@ -2,9 +2,9 @@
 
 ### PyPI
 1. iterate the version number. Our version numbering approach is:
-  a. The first number is for very large changes which might happen every couple of years (e.g. 1.0).
-  b. The second number is for regular releases, our goal is to issue these ~3-4 times per year.
-  c. The third number is for small patches to fix issues. These happen as needed to get critical fixes onto PyPI and conda-forge.
+    1. The first number is for very large changes which might happen every couple of years (e.g. 1.0).
+    2. The second number is for regular releases, our goal is to issue these ~3-4 times per year.
+    3. The third number is for small patches to fix issues. These happen as needed to get critical fixes onto PyPI and conda-forge.
 2. make the distribution: python setup.py sdist
 3. upload to test site: twine upload --repository testpypi dist/*
 4. check that it looks good at https://test.pypi.org/
