@@ -307,7 +307,7 @@ class Miriad(UVData):
             for k in d:
                 blt = ["{1:.{0}f}".format(prec_t, k[1]).zfill(ndig_t),
                        str(k[2]).zfill(ndig_ant), str(k[3]).zfill(ndig_ant),
-                       str(k[9]).zfill(ndig_ant)]
+                       str(k[9]).zfill(ndig_t)]
                 blt = "_".join(blt)
                 blts.append(blt)
         unique_blts = np.unique(np.array(blts), axis=0)
@@ -396,7 +396,7 @@ class Miriad(UVData):
             for ind, d in enumerate(data):
                 blt = ["{1:.{0}f}".format(prec_t, d[1]).zfill(ndig_t),
                        str(d[2]).zfill(ndig_ant), str(d[3]).zfill(ndig_ant),
-                       str(d[9]).zfill(ndig_ant)]
+                       str(d[9]).zfill(ndig_t)]
                 blt = "_".join(blt)
                 blt_index = reverse_inds[blt]
 
