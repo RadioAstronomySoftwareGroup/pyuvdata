@@ -5,10 +5,11 @@
     1. The first number is for very large changes which might happen every couple of years (e.g. 1.0).
     2. The second number is for regular releases, our goal is to issue these ~3-4 times per year.
     3. The third number is for small patches to fix issues. These happen as needed to get critical fixes onto PyPI and conda-forge.
-2. make the distribution: python setup.py sdist
-3. upload to test site: twine upload --repository testpypi dist/*
-4. check that it looks good at https://test.pypi.org/
-5. upload to real site: twine upload --repository pypi dist/*
+2. Make a PR for the version change and get it accepted & merged. Only make a PyPI distribution from a clean master branch (no local changes).
+3. make the distribution: python setup.py sdist
+4. upload to test site: twine upload --repository testpypi dist/*
+5. check that it looks good at https://test.pypi.org/
+6. upload to real site: twine upload --repository pypi dist/*
 
 ### Conda (do this after the PyPI release)
 1. Fork the feedstock repo to your personal github account.
