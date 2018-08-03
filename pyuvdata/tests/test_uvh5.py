@@ -839,3 +839,28 @@ def test_UVH5InitializeFile():
     os.remove(partial_testfile)
 
     return
+
+
+def test_UVH5SingleIntegrationTime():
+    """
+    Check backwards compatibility warning for files with a single integration time
+    """
+    uv_in = UVData()
+    uv_out = UVData()
+    uvfits_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    testfile = os.path.join(DATA_PATH, 'test', 'outtest_uvfits.uvh5')
+    uvtest.checkWarnings(uv_in.read_uvfits, [uvfits_file], message='Telescope EVLA is not')
+    uv_in.write_uvh5(testfile, clobber=True)
+
+    # change integration_time in file to be a single number
+    with h5py.File(testfile, 'r+') as f:
+        int_time = f['/Header/integration_time'].value[0]
+        del(f['/Header/integration_time'])
+        f['/Header/integration_time'] = int_time
+    uvtest.checkWarnings(uv_out.read_uvh5, [testfile], message='outtest_uvfits.uvh5 appears to be an old uvh5 format')
+    nt.assert_equal(uv_in, uv_out)
+
+    # clean up
+    os.remove(testfile)
+
+    return
