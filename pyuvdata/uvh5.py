@@ -20,7 +20,7 @@ class UVH5(UVData):
     and write_uvh5 methods on the UVData class.
     """
 
-    def _read_header(self, header):
+    def _read_header(self, header, filename):
         """
         Internal function to read header information from a UVH5 file.
 
@@ -108,6 +108,12 @@ class UVH5(UVData):
         # get time information
         self.time_array = header['time_array'].value
         self.integration_time = header['integration_time'].value
+        if np.array(self.integration_time).size == 1 and int(header['Nblts'].value) > 1:
+            warnings.warn('{file} appears to be an old uvh5 format '
+                          'with a single valued integration_time which has been depricated. '
+                          'Rewrite this file with write_uvh5 to ensure '
+                          'future compatibility.'.format(file=filename))
+            self.integration_time = np.ones_like(self.time_array, dtype=np.float64) * self.integration_time
         self.lst_array = header['lst_array'].value
 
         # get frequency information
@@ -300,7 +306,7 @@ class UVH5(UVData):
         with h5py.File(filename, 'r') as f:
             # extract header information
             header = f['/Header']
-            self._read_header(header)
+            self._read_header(header, filename)
 
             if not read_data:
                 # don't read in the data. This means the object is incomplete,
@@ -565,7 +571,7 @@ class UVH5(UVData):
         uvd_file = UVH5()
         with h5py.File(filename, 'r') as f:
             header = f['/Header']
-            uvd_file._read_header(header)
+            uvd_file._read_header(header, filename)
 
         # temporarily remove data, flag, and nsample arrays, so we only check metadata
         if self.data_array is not None:
