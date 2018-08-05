@@ -1886,6 +1886,7 @@ def test_get_flags():
     # Check conjugation
     d = uv.get_flags(ant2, ant1, pol)
     nt.assert_true(np.all(dcheck == d))
+    nt.assert_equal(d.dtype, np.bool)
 
     # Antpair only
     dcheck = np.squeeze(uv.flag_array[bltind, :, :, :])

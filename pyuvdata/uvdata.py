@@ -2771,7 +2771,7 @@ class UVData(UVBase):
             Numpy array of flags corresponding to key.
         """
         ind1, ind2, indp = self._key2inds(args)
-        out = self._smart_slicing(self.flag_array, ind1, ind2, indp, **kwargs)
+        out = self._smart_slicing(self.flag_array, ind1, ind2, indp, **kwargs).astype(np.bool)
         return out
 
     def get_nsamples(self, *args, **kwargs):
