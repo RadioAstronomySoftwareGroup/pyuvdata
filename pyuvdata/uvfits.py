@@ -104,7 +104,7 @@ class UVFITS(UVData):
                                  * const.c.to('m/s').value).T
 
         if 'INTTIM' in vis_hdu.data.parnames:
-            self.integration_time = vis_hdu.data.par('INTTIM')
+            self.integration_time = np.asarray(vis_hdu.data.par('INTTIM'), dtype=np.float64)
         else:
             if self.Ntimes > 1:
                 # assume that all integration times in the file are the same

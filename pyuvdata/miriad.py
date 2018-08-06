@@ -350,7 +350,7 @@ class Miriad(UVData):
         # also, int_grid is in units of seconds, so we need to convert to days
         self.time_array = t_grid + int_grid / (24 * 3600.) / 2
 
-        self.integration_time = int_grid
+        self.integration_time = np.asarray(int_grid, dtype=np.float64)
 
         self.ant_1_array = ant_i_grid.astype(int)
         self.ant_2_array = ant_j_grid.astype(int)
