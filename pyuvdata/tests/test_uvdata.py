@@ -1931,6 +1931,24 @@ def test_get_nsamples():
     nt.assert_true(np.all(dcheck == d))
 
 
+def test_get_blts_inds():
+    # Test for baseline-time axis indexer
+    uv = UVData()
+    testfile = os.path.join(
+        DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    uvtest.checkWarnings(uv.read_uvfits, [testfile],
+                         message='Telescope EVLA is not')
+
+    # get indices
+    inds = uv.get_blts_inds((20, 24))
+    np.testing.assert_array_equal(inds, np.array([71, 271, 424, 577, 713, 883, 1036, 1189, 1342]))
+    nt.assert_true(inds.dtype == np.int)
+
+    # conjugate
+    inds2 = uv.get_blts_inds((24, 20))
+    np.testing.assert_array_equal(inds, inds2)
+
+
 def test_get_times():
     # Test function for easy access to times, to work in conjunction with get_data
     uv = UVData()
