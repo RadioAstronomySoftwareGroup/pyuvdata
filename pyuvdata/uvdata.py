@@ -929,7 +929,7 @@ class UVData(UVBase):
                                  'added to a UVData (or subclass) object')
         other.check(check_extra=check_extra, run_check_acceptability=run_check_acceptability)
 
-        # Check objects are compatible
+        # Define parameters that must be the same to add objects
         # But phase_center should be the same, even if in drift (empty parameters)
         compatibility_params = ['_vis_units', '_channel_width', '_object_name',
                                 '_telescope_name', '_instrument',
@@ -938,11 +938,6 @@ class UVData(UVBase):
                                 '_antenna_numbers', '_antenna_positions',
                                 '_phase_center_ra', '_phase_center_dec',
                                 '_phase_center_epoch']
-        for a in compatibility_params:
-            if getattr(this, a) != getattr(other, a):
-                msg = 'UVParameter ' + \
-                    a[1:] + ' does not match. Cannot combine objects.'
-                raise ValueError(msg)
 
         # Build up history string
         history_update_string = ' Combined data along '
@@ -978,6 +973,9 @@ class UVData(UVBase):
             n_axes += 1
         else:
             bnew_inds, new_blts = ([], [])
+            # add metadata to be checked to compatibility params
+            extra_params = ['_integration_time', '_uvw_array', '_lst_array']
+            compatibility_params.extend(extra_params)
 
         temp = np.nonzero(
             ~np.in1d(other.freq_array[0, :], this.freq_array[0, :]))[0]
@@ -1004,6 +1002,14 @@ class UVData(UVBase):
             n_axes += 1
         else:
             pnew_inds, new_pols = ([], [])
+
+        # Actually check compatibility parameters
+        for a in compatibility_params:
+            if getattr(this, a) != getattr(other, a):
+                msg = 'UVParameter ' + \
+                    a[1:] + ' does not match. Cannot combine objects.'
+                raise ValueError(msg)
+
         # Pad out self to accommodate new data
         if len(bnew_inds) > 0:
             this_blts = np.concatenate((this_blts, new_blts))
