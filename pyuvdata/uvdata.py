@@ -2514,9 +2514,10 @@ class UVData(UVBase):
         else:
             return list(set(''.join(self.get_pols())))
 
-    def antpair2ind(self, ant1, ant2):
+    def _antpair2ind(self, ant1, ant2):
         """
-        Get blt indices for given (ordered) antenna pair.
+        Get blt indices for given (ordered) antenna pair. See self.get_blts_inds for
+        indices given an unordered pair.
         """
         return np.where((self.ant_1_array == ant1) & (self.ant_2_array == ant2))[0]
 
@@ -2551,7 +2552,7 @@ class UVData(UVBase):
             # Single string given, assume it is polarization
             pol_ind1 = np.where(self.polarization_array == uvutils.polstr2num(key))[0]
             if len(pol_ind1) > 0:
-                blt_ind1 = np.arange(self.Nblts)
+                blt_ind1 = np.arange(self.Nblts, dtype=np.int64)
                 blt_ind2 = np.array([], dtype=np.int64)
                 pol_ind2 = np.array([], dtype=np.int64)
                 pol_ind = (pol_ind1, pol_ind2)
@@ -2583,15 +2584,15 @@ class UVData(UVBase):
                 pol_ind = (np.arange(self.Npols), np.arange(self.Npols))
         elif len(key) == 2:
             # Key is an antenna pair
-            blt_ind1 = self.antpair2ind(key[0], key[1])
-            blt_ind2 = self.antpair2ind(key[1], key[0])
+            blt_ind1 = self._antpair2ind(key[0], key[1])
+            blt_ind2 = self._antpair2ind(key[1], key[0])
             if len(blt_ind1) + len(blt_ind2) == 0:
                 raise KeyError('Antenna pair {pair} not found in data'.format(pair=key))
             pol_ind = (np.arange(self.Npols), np.arange(self.Npols))
         elif len(key) == 3:
             # Key is an antenna pair + pol
-            blt_ind1 = self.antpair2ind(key[0], key[1])
-            blt_ind2 = self.antpair2ind(key[1], key[0])
+            blt_ind1 = self._antpair2ind(key[0], key[1])
+            blt_ind2 = self._antpair2ind(key[1], key[0])
             if len(blt_ind1) + len(blt_ind2) == 0:
                 raise KeyError('Antenna pair {pair} not found in '
                                'data'.format(pair=(key[0], key[1])))
@@ -2621,8 +2622,16 @@ class UVData(UVBase):
                 raise KeyError('Polarization {pol} not found in data.'.format(pol=key[2]))
         # Catch autos
         if np.array_equal(blt_ind1, blt_ind2):
-            blt_ind2 = np.array([])
+            blt_ind2 = np.array([], dtype=np.int64)
         return (blt_ind1, blt_ind2, pol_ind)
+
+    def get_blts_inds(self, key):
+        """
+        Given an unordered antpair key, return indices along baseline-time axis.
+        """
+        ind1, ind2, indp = self._key2inds(key)
+
+        return np.append(ind1, ind2).astype(np.int64)
 
     def _smart_slicing(self, data, ind1, ind2, indp, **kwargs):
         """
@@ -2803,13 +2812,13 @@ class UVData(UVBase):
 
         Args:
             *args: parameters or tuple of parameters defining the key to identify
-                   desired data. See _key2inds for formatting.
+                   desired data. See get_blts_inds for formatting.
 
         Returns:
             Numpy array of times corresonding to key.
         """
-        ind1, ind2, indp = self._key2inds(args)
-        return np.append(self.time_array[ind1], self.time_array[ind2])
+        inds = self.get_blts_inds(args)
+        return self.time_array[inds]
 
     def antpairpol_iter(self, squeeze='default'):
         """
