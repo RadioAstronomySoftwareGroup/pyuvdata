@@ -246,7 +246,7 @@ class FHD(UVData):
             self.integration_time = (np.ones_like(self.time_array, dtype=np.float64)
                                      * time_res[0])
         else:
-            self.integration_time = time_res
+            self.integration_time = np.asarray(time_res, dtype=np.float64)
         self.channel_width = float(obs['FREQ_RES'][0])
 
         # # --- observation information ---
