@@ -595,9 +595,9 @@ class Miriad(UVData):
         uv.add_var('telescop', 'a')
         uv['telescop'] = self.telescope_name
         uv.add_var('latitud', 'd')
-        uv['latitud'] = self.telescope_location_lat_lon_alt[0]
+        uv['latitud'] = self.telescope_location_lat_lon_alt[0].astype(np.double)
         uv.add_var('longitu', 'd')
-        uv['longitu'] = self.telescope_location_lat_lon_alt[1]
+        uv['longitu'] = self.telescope_location_lat_lon_alt[1].astype(np.double)
         uv.add_var('nants', 'i')
         if self.x_orientation is not None:
             uv.add_var('xorient', 'a')
@@ -652,10 +652,10 @@ class Miriad(UVData):
 
             uv.add_var('antpos', 'd')
             # Miriad stores antpos values in units of ns, pyuvdata uses meters.
-            uv['antpos'] = antpos.T.flatten() / const.c.to('m/ns').value
+            uv['antpos'] = (antpos.T.flatten() / const.c.to('m/ns').value).astype(np.double)
 
         uv.add_var('sfreq', 'd')
-        uv['sfreq'] = self.freq_array[0, 0] / 1e9  # first spw; in GHz
+        uv['sfreq'] = (self.freq_array[0, 0] / 1e9).astype(np.double)  # first spw; in GHz
         if self.phase_type == 'phased':
             uv.add_var('epoch', 'r')
             uv['epoch'] = self.phase_center_epoch
@@ -675,7 +675,7 @@ class Miriad(UVData):
         uv.add_var('instrume', 'a')
         uv['instrume'] = self.instrument
         uv.add_var('altitude', 'd')
-        uv['altitude'] = self.telescope_location_lat_lon_alt[2]
+        uv['altitude'] = self.telescope_location_lat_lon_alt[2].astype(np.double)
 
         # optional pyuvdata variables that are not recognized miriad variables
         if self.dut1 is not None:
@@ -772,14 +772,14 @@ class Miriad(UVData):
             i = self.ant_1_array[viscnt]
             j = self.ant_2_array[viscnt]
 
-            uv['lst'] = miriad_lsts[viscnt]
+            uv['lst'] = miriad_lsts[viscnt].astype(np.double)
             uv['inttime'] = self.integration_time[viscnt].astype(np.double)
             if self.phase_type == 'phased':
                 uv['ra'] = self.phase_center_ra
                 uv['dec'] = self.phase_center_dec
             elif self.phase_type == 'drift':
-                uv['ra'] = miriad_lsts[viscnt]
-                uv['dec'] = self.telescope_location_lat_lon_alt[0]
+                uv['ra'] = miriad_lsts[viscnt].astype(np.double)
+                uv['dec'] = self.telescope_location_lat_lon_alt[0].astype(np.double)
             else:
                 raise ValueError('The phasing type of the data is unknown. '
                                  'Set the phase_type to "drift" or "phased" to '
