@@ -1949,6 +1949,7 @@ def test_get_nsamples():
     d = uv.get_nsamples(pol)
     nt.assert_true(np.all(dcheck == d))
 
+
 def test_get_blt_inds():
     # Test for baseline-time axis indexer
     uv = UVData()
@@ -1965,6 +1966,7 @@ def test_get_blt_inds():
     # conjugate (and use key rather than arg expansion)
     inds2 = uv.get_blt_inds((24, 20))
     np.testing.assert_array_equal(inds, inds2)
+
 
 def test_get_times():
     # Test function for easy access to times, to work in conjunction with get_data
