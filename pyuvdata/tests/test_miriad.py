@@ -760,14 +760,13 @@ def test_readWriteReadMiriad():
     nt.assert_true(uv_in.antenna_positions is not None)
 
     # test that changing precision of integraiton_time is okay
+    # tolerance of integration_time (1e-3) is larger than floating point type conversions
     uv_in = UVData()
     uvtest.checkWarnings(uv_in.read, [testfile], known_warning='miriad')
-    integration_time = uv_in.integration_time
-    uv_in.integration_time = integration_time.astype(np.float32)
+    uv_in.integration_time = uv_in.integration_time.astype(np.float32)
     uv_in.write_miriad(write_file, clobber=True)
     new_uv = UVData()
     new_uv.read(write_file)
-    new_uv.integration_time = integration_time
     nt.assert_equal(uv_in, new_uv)
 
 
