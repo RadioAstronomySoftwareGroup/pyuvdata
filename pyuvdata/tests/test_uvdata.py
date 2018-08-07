@@ -1576,6 +1576,25 @@ def test_break_add():
     nt.assert_raises(ValueError, uv1.__iadd__, uv2)
 
 
+def test_antpair2ind():
+    # testing function for the antpair2ind method
+    # most of this is tested indirectly by key2inds
+    # so this just catches what is left-over
+    uv = UVData()
+    testfile = os.path.join(
+        DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    uvtest.checkWarnings(uv.read_uvfits, [testfile],
+                         message='Telescope EVLA is not')
+
+    # test antpair2ind and _antpair2ind agree
+    # TODO: Get rid of this test when antpair2ind is
+    # is deprecated for _antpair2ind
+    inds1 = uvtest.checkWarnings(uv.antpair2ind, [20, 21],
+                                 message="UVData.antpair2ind will soon be moved")
+    inds2 = uv._antpair2ind(20, 21)
+    np.testing.assert_array_equal(inds1, inds2)
+
+
 def test_key2inds():
     # Test function to interpret key as antpair, pol
     uv = UVData()
@@ -1930,8 +1949,7 @@ def test_get_nsamples():
     d = uv.get_nsamples(pol)
     nt.assert_true(np.all(dcheck == d))
 
-
-def test_get_blts_inds():
+def test_get_blt_inds():
     # Test for baseline-time axis indexer
     uv = UVData()
     testfile = os.path.join(
@@ -1940,14 +1958,13 @@ def test_get_blts_inds():
                          message='Telescope EVLA is not')
 
     # get indices
-    inds = uv.get_blts_inds((20, 24))
+    inds = uv.get_blt_inds(20, 24)
     np.testing.assert_array_equal(inds, np.array([71, 271, 424, 577, 713, 883, 1036, 1189, 1342]))
     nt.assert_true(inds.dtype == np.int)
 
-    # conjugate
-    inds2 = uv.get_blts_inds((24, 20))
+    # conjugate (and use key rather than arg expansion)
+    inds2 = uv.get_blt_inds((24, 20))
     np.testing.assert_array_equal(inds, inds2)
-
 
 def test_get_times():
     # Test function for easy access to times, to work in conjunction with get_data

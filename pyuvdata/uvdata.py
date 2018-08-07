@@ -2516,10 +2516,16 @@ class UVData(UVBase):
 
     def _antpair2ind(self, ant1, ant2):
         """
-        Get blt indices for given (ordered) antenna pair. See self.get_blts_inds for
+        Get blt indices for given (ordered) antenna pair. See self.get_blt_inds for
         indices given an unordered pair.
         """
         return np.where((self.ant_1_array == ant1) & (self.ant_2_array == ant2))[0]
+
+    def antpair2ind(self, *args):
+        """ Backwards Compatability method, but will soon be deprecated """
+        warnings.warn("UVData.antpair2ind will soon be moved to UVData._antpair2ind.\n"
+                      "Try using UVData.get_blt_inds() as a replacement function.")
+        return self._antpair2ind(*args)
 
     def _key2inds(self, key):
         """
@@ -2625,10 +2631,25 @@ class UVData(UVBase):
             blt_ind2 = np.array([], dtype=np.int64)
         return (blt_ind1, blt_ind2, pol_ind)
 
-    def get_blts_inds(self, key):
+    def get_blt_inds(self, *args):
         """
-        Given an unordered antpair key, return indices along baseline-time axis.
+        Given an unordered antpair key, return indices along the baseline-time axis.
+        'Unordered' means that both the key and its conjugate are searched for and
+        their indices concatenated and returned.
+
+        Args:
+            args: Either an antenna-pair key, or antenna-pair expanded as arguments.
+                Example: get_blt_inds(10, 20) or get_blt_inds( (10, 20) )
+
+        Returns:
+            inds: int-64 ndarray containing indices of the antpair along the
+                baseline-time axis.
         """
+        # check for expanded antpair, or antpair-key
+        if isinstance(args[0], (int, np.integer)):
+            key = args
+        else:
+            key = args[0]
         ind1, ind2, indp = self._key2inds(key)
 
         return np.append(ind1, ind2).astype(np.int64)
@@ -2812,12 +2833,12 @@ class UVData(UVBase):
 
         Args:
             *args: parameters or tuple of parameters defining the key to identify
-                   desired data. See get_blts_inds for formatting.
+                   desired data. See get_blt_inds for formatting.
 
         Returns:
             Numpy array of times corresonding to key.
         """
-        inds = self.get_blts_inds(args)
+        inds = self.get_blt_inds(args)
         return self.time_array[inds]
 
     def antpairpol_iter(self, squeeze='default'):
