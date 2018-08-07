@@ -1549,6 +1549,7 @@ def test_break_add():
 
     # Wrong class
     uv1 = copy.deepcopy(uv_full)
+    uv1.select(freq_chans=np.arange(0, 32))
     nt.assert_raises(ValueError, uv1.__iadd__, np.zeros(5))
 
     # One phased, one not
@@ -1560,11 +1561,18 @@ def test_break_add():
 
     # Different units
     uv2 = copy.deepcopy(uv_full)
+    uv2.select(freq_chans=np.arange(32, 64))
     uv2.vis_units = "Jy"
     nt.assert_raises(ValueError, uv1.__iadd__, uv2)
 
     # Overlapping data
     uv2 = copy.deepcopy(uv_full)
+    nt.assert_raises(ValueError, uv1.__iadd__, uv2)
+
+    # Different integration_time
+    uv2 = copy.deepcopy(uv_full)
+    uv2.select(freq_chans=np.arange(32, 64))
+    uv2.integration_time *= 2
     nt.assert_raises(ValueError, uv1.__iadd__, uv2)
 
 
