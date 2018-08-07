@@ -773,7 +773,7 @@ class Miriad(UVData):
             j = self.ant_2_array[viscnt]
 
             uv['lst'] = miriad_lsts[viscnt]
-            uv['inttime'] = self.integration_time[viscnt]
+            uv['inttime'] = self.integration_time[viscnt].astype(np.double)
             if self.phase_type == 'phased':
                 uv['ra'] = self.phase_center_ra
                 uv['dec'] = self.phase_center_dec

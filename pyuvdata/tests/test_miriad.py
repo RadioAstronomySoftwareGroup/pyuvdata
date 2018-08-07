@@ -759,6 +759,17 @@ def test_readWriteReadMiriad():
     uvtest.checkWarnings(uv_in._load_antpos, [uv], known_warning='miriad')
     nt.assert_true(uv_in.antenna_positions is not None)
 
+    # test that changing precision of integraiton_time is okay
+    uv_in = UVData()
+    uvtest.checkWarnings(uv_in.read, [testfile], known_warning='miriad')
+    integration_time = uv_in.integration_time
+    uv_in.integration_time = integration_time.astype(np.float32)
+    uv_in.write_miriad(write_file, clobber=True)
+    new_uv = UVData()
+    new_uv.read(write_file)
+    new_uv.integration_time = integration_time
+    nt.assert_equal(uv_in, new_uv)
+
 
 def test_readMSWriteMiriad_CASAHistory():
     """
