@@ -2542,6 +2542,10 @@ class UVData(UVBase):
                 "antpair2ind must be fed an antpair tuple or expand it as arguments"
         assert isinstance(ordered, (bool, np.bool)), "ordered must be a boolean"
 
+        # if getting auto-corr, ordered must be True
+        if ant1 == ant2:
+            ordered = True
+
         # get indices
         inds = np.where((self.ant_1_array == ant1) & (self.ant_2_array == ant2))[0]
         if ordered:

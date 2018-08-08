@@ -1935,20 +1935,29 @@ def test_antpair2ind():
     # Test for baseline-time axis indexer
     uv = UVData()
     testfile = os.path.join(
-        DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-    uvtest.checkWarnings(uv.read_uvfits, [testfile],
-                         message='Telescope EVLA is not')
+        DATA_PATH, 'zen.2456865.60537.xy.uvcRREAA')
+    uvtest.checkWarnings(uv.read_miriad, [testfile],
+                         message='Altitude is not present in Miriad file')
 
     # get indices
-    inds = uv.antpair2ind(20, 24, ordered=False)
-    np.testing.assert_array_equal(inds, np.array([71, 271, 424, 577, 713, 883, 1036, 1189, 1342]))
+    inds = uv.antpair2ind(0, 1, ordered=False)
+    np.testing.assert_array_equal(inds, np.array([1, 22, 43, 64, 85, 106, 127, 148, 169,
+                                                  190, 211, 232, 253, 274, 295, 316,
+                                                  337, 358, 379]))
     nt.assert_true(inds.dtype == np.int)
 
     # conjugate (and use key rather than arg expansion)
-    inds2 = uv.antpair2ind((24, 20), ordered=False)
+    inds2 = uv.antpair2ind((1, 0), ordered=False)
     np.testing.assert_array_equal(inds, inds2)
 
-    # ordered = True is already tested by _key2inds testing
+    # test ordered
+    inds3 = uv.antpair2ind(1, 0, ordered=True)
+    np.testing.assert_array_equal(inds, inds2)
+
+    # test autos w/ and w/o ordered
+    inds4 = uv.antpair2ind(0, 0, ordered=True)
+    inds5 = uv.antpair2ind(0, 0, ordered=False)
+    np.testing.assert_array_equal(inds4, inds5)
 
 
 def test_get_times():
