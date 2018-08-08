@@ -2514,16 +2514,16 @@ class UVData(UVBase):
         else:
             return list(set(''.join(self.get_pols())))
 
-    def antpair2ind(self, ant1, ant2=None, pol=None, ordered=True):
+    def antpair2ind(self, ant1, ant2=None, ordered=True):
         """
-        Given an antenna pair (pol) key, return indices along the baseline-time axis.
+        Given an antenna pair key, return indices along the baseline-time axis.
         This will search for either the key as specified, or the key and its
         conjugate.
 
         Args:
-            ant1, ant2, pol:
-                Either an antenna-pair-pol key, or key expanded as arguments.
-                Example: antpair2ind( (10, 20) ) or antpair2ind(10, 20, 'xx')
+            ant1, ant2:
+                Either an antenna-pair key, or key expanded as arguments.
+                Example: antpair2ind( (10, 20) ) or antpair2ind(10, 20)
             ordered : Boolean, if True, search for antpair as provided, else
                 search for it and it conjugate.
 
@@ -2531,15 +2531,15 @@ class UVData(UVBase):
             inds: int-64 ndarray containing indices of the antpair along the
                 baseline-time axis.
         """
-        # check for expanded antpair-pol, or key
+        # check for expanded antpair or key
         if ant2 is None:
             assert isinstance(ant1, tuple), \
-            "antpair2ind must be fed an antpair tuple or expand it as arguments"
+                "antpair2ind must be fed an antpair tuple or expand it as arguments"
             ant2 = ant1[1]
             ant1 = ant1[0]
         if isinstance(ant1, tuple):
-            assert ant2 is None and pol is None, \
-            "antpair2ind must be fed an antpair tuple or expand it as arguments"
+            assert ant2 is None, \
+                "antpair2ind must be fed an antpair tuple or expand it as arguments"
             ant2 = ant1[1]
             ant1 = ant1[0]
         assert isinstance(ordered, (bool, np.bool)), "ordered must be a boolean"
@@ -2551,7 +2551,7 @@ class UVData(UVBase):
         else:
             ind2 = np.where((self.ant_1_array == ant2) & (self.ant_2_array == ant1))[0]
             inds = np.asarray(np.append(inds, ind2), dtype=np.int64)
-            return inds 
+            return inds
 
     def _key2inds(self, key):
         """

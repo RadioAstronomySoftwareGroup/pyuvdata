@@ -1949,7 +1949,6 @@ def test_antpair2ind():
     np.testing.assert_array_equal(inds, inds2)
 
     # ordered = True is already tested by _key2inds testing
-    
 
 def test_get_times():
     # Test function for easy access to times, to work in conjunction with get_data
