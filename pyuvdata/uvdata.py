@@ -2514,18 +2514,44 @@ class UVData(UVBase):
         else:
             return list(set(''.join(self.get_pols())))
 
-    def _antpair2ind(self, ant1, ant2):
+    def antpair2ind(self, ant1, ant2=None, pol=None, ordered=True):
         """
-        Get blt indices for given (ordered) antenna pair. See self.get_blt_inds for
-        indices given an unordered pair.
-        """
-        return np.where((self.ant_1_array == ant1) & (self.ant_2_array == ant2))[0]
+        Given an antenna pair (pol) key, return indices along the baseline-time axis.
+        This will search for either the key as specified, or the key and its
+        conjugate.
 
-    def antpair2ind(self, *args):
-        """ Backwards Compatability method, but will soon be deprecated """
-        warnings.warn("UVData.antpair2ind will soon be moved to UVData._antpair2ind.\n"
-                      "Try using UVData.get_blt_inds() as a replacement function.")
-        return self._antpair2ind(*args)
+        Args:
+            ant1, ant2, pol:
+                Either an antenna-pair-pol key, or key expanded as arguments.
+                Example: antpair2ind( (10, 20) ) or antpair2ind(10, 20, 'xx')
+            ordered : Boolean, if True, search for antpair as provided, else
+                search for it and it conjugate.
+
+        Returns:
+            inds: int-64 ndarray containing indices of the antpair along the
+                baseline-time axis.
+        """
+        # check for expanded antpair-pol, or key
+        if ant2 is None:
+            assert isinstance(ant1, tuple), \
+            "antpair2ind must be fed an antpair tuple or expand it as arguments"
+            ant2 = ant1[1]
+            ant1 = ant1[0]
+        if isinstance(ant1, tuple):
+            assert ant2 is None and pol is None, \
+            "antpair2ind must be fed an antpair tuple or expand it as arguments"
+            ant2 = ant1[1]
+            ant1 = ant1[0]
+        assert isinstance(ordered, (bool, np.bool)), "ordered must be a boolean"
+
+        # get indices
+        inds = np.where((self.ant_1_array == ant1) & (self.ant_2_array == ant2))[0]
+        if ordered:
+            return inds
+        else:
+            ind2 = np.where((self.ant_1_array == ant2) & (self.ant_2_array == ant1))[0]
+            inds = np.asarray(np.append(inds, ind2), dtype=np.int64)
+            return inds 
 
     def _key2inds(self, key):
         """
@@ -2590,15 +2616,15 @@ class UVData(UVBase):
                 pol_ind = (np.arange(self.Npols), np.arange(self.Npols))
         elif len(key) == 2:
             # Key is an antenna pair
-            blt_ind1 = self._antpair2ind(key[0], key[1])
-            blt_ind2 = self._antpair2ind(key[1], key[0])
+            blt_ind1 = self.antpair2ind(key[0], key[1])
+            blt_ind2 = self.antpair2ind(key[1], key[0])
             if len(blt_ind1) + len(blt_ind2) == 0:
                 raise KeyError('Antenna pair {pair} not found in data'.format(pair=key))
             pol_ind = (np.arange(self.Npols), np.arange(self.Npols))
         elif len(key) == 3:
             # Key is an antenna pair + pol
-            blt_ind1 = self._antpair2ind(key[0], key[1])
-            blt_ind2 = self._antpair2ind(key[1], key[0])
+            blt_ind1 = self.antpair2ind(key[0], key[1])
+            blt_ind2 = self.antpair2ind(key[1], key[0])
             if len(blt_ind1) + len(blt_ind2) == 0:
                 raise KeyError('Antenna pair {pair} not found in '
                                'data'.format(pair=(key[0], key[1])))
@@ -2630,29 +2656,6 @@ class UVData(UVBase):
         if np.array_equal(blt_ind1, blt_ind2):
             blt_ind2 = np.array([], dtype=np.int64)
         return (blt_ind1, blt_ind2, pol_ind)
-
-    def get_blt_inds(self, *args):
-        """
-        Given an unordered antpair key, return indices along the baseline-time axis.
-        'Unordered' means that both the key and its conjugate are searched for and
-        their indices concatenated and returned.
-
-        Args:
-            args: Either an antenna-pair key, or antenna-pair expanded as arguments.
-                Example: get_blt_inds(10, 20) or get_blt_inds( (10, 20) )
-
-        Returns:
-            inds: int-64 ndarray containing indices of the antpair along the
-                baseline-time axis.
-        """
-        # check for expanded antpair, or antpair-key
-        if isinstance(args[0], (int, np.integer)):
-            key = args
-        else:
-            key = args[0]
-        ind1, ind2, indp = self._key2inds(key)
-
-        return np.append(ind1, ind2).astype(np.int64)
 
     def _smart_slicing(self, data, ind1, ind2, indp, **kwargs):
         """
@@ -2832,14 +2835,13 @@ class UVData(UVBase):
         Meant to be used in conjunction with get_data function.
 
         Args:
-            *args: parameters or tuple of parameters defining the key to identify
-                   desired data. See get_blt_inds for formatting.
+            args: antenna-pair(-pol) key expanded as arguments.
 
         Returns:
             Numpy array of times corresonding to key.
         """
-        inds = self.get_blt_inds(args)
-        return self.time_array[inds]
+        inds1, inds2, indp = self._key2inds(args)
+        return self.time_array[np.append(inds1, inds2)]
 
     def antpairpol_iter(self, squeeze='default'):
         """
