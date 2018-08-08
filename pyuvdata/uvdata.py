@@ -2533,14 +2533,17 @@ class UVData(UVBase):
         """
         # check for expanded antpair or key
         if ant2 is None:
-            assert isinstance(ant1, tuple), \
-                "antpair2ind must be fed an antpair tuple or expand it as arguments"
+            if not isinstance(ant1, tuple):
+                raise ValueError("antpair2ind must be fed an antpair tuple " \
+                                 "or expand it as arguments")
             ant2 = ant1[1]
             ant1 = ant1[0]
         else:
-            assert isinstance(ant1, (int, np.integer)), \
-                "antpair2ind must be fed an antpair tuple or expand it as arguments"
-        assert isinstance(ordered, (bool, np.bool)), "ordered must be a boolean"
+            if not isinstance(ant1, (int, np.integer)):
+                raise ValueError("antpair2ind must be fed an antpair tuple or " \
+                                 "expand it as arguments")
+        if not isinstance(ordered, (bool, np.bool)):
+            raise ValueError("ordered must be a boolean")
 
         # if getting auto-corr, ordered must be True
         if ant1 == ant2:
