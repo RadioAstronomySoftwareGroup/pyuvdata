@@ -1959,6 +1959,11 @@ def test_antpair2ind():
     inds5 = uv.antpair2ind(0, 0, ordered=False)
     np.testing.assert_array_equal(inds4, inds5)
 
+    # test exceptions
+    nt.assert_raises(ValueError, uv.antpair2ind, 1)
+    nt.assert_raises(ValueError, uv.antpair2ind, 'bar', 'foo')
+    nt.assert_raises(ValueError, uv.antpair2ind, 0, 1, 'foo')
+    
 
 def test_get_times():
     # Test function for easy access to times, to work in conjunction with get_data
