@@ -2537,11 +2537,9 @@ class UVData(UVBase):
                 "antpair2ind must be fed an antpair tuple or expand it as arguments"
             ant2 = ant1[1]
             ant1 = ant1[0]
-        if isinstance(ant1, tuple):
-            assert ant2 is None, \
+        else:
+            assert isinstance(ant1, (int, np.integer)), \
                 "antpair2ind must be fed an antpair tuple or expand it as arguments"
-            ant2 = ant1[1]
-            ant1 = ant1[0]
         assert isinstance(ordered, (bool, np.bool)), "ordered must be a boolean"
 
         # get indices
