@@ -204,7 +204,8 @@ class CSTBeam(UVBeam):
 
         # get beam
         if self.beam_type is 'power':
-            data_col = np.where(np.array(column_names) == 'abs(v)')[0][0]
+            data_col = np.where(np.logical_or(np.core.defchararray.find(np.lower(np.array(column_names), 'abs(v)')) !=-1,
+                                              np.core.defchararray.find(np.lower(np.array(column_names),'abs(dir.)')) != -1))[0][0]
             power_beam1 = data[:, data_col].reshape((theta_axis.size, phi_axis.size), order='F') ** 2.
 
             self.data_array[0, 0, 0, 0, :, :] = power_beam1
@@ -219,10 +220,14 @@ class CSTBeam(UVBeam):
             self.basis_vector_array[0, 0, :, :] = 1.0
             self.basis_vector_array[1, 1, :, :] = 1.0
 
-            theta_mag_col = np.where(np.array(column_names) == 'abs(theta)')[0][0]
-            theta_phase_col = np.where(np.array(column_names) == 'phase(theta)')[0][0]
-            phi_mag_col = np.where(np.array(column_names) == 'abs(phi)')[0][0]
-            phi_phase_col = np.where(np.array(column_names) == 'phase(phi)')[0][0]
+            theta_mag_col = np.where(np.core.defchararray.find(np.lower(np.array(column_names)), 'abs(theta)') !=-1)[0][0]
+            theta_phase_col = np.where(np.core.defchararray.find(np.lower(np.array(column_names)), 'phase(theta)') != -1)[0][0]
+            phi_mag_col = np.where(np.core.defchararray.find(np.lower(np.array(column_names)), 'abs(phi)') != -1)[0][0]
+            phi_phase_col = np.where(np.core.defcharray.find(np.lower(np.array(column_names)), 'phase(phi)') != -1)[0][0]
+
+            #check if magnitudes are in dBi
+            theta_mag_dbi = 'dbi' in np.lower(column_names)[theta_mag_col]
+            phi_mag_dbi = 'dbi' in np.lower(column_names)[phi_mag_col]
 
             theta_mag = data[:, theta_mag_col].reshape((theta_axis.size, phi_axis.size), order='F')
             phi_mag = data[:, phi_mag_col].reshape((theta_axis.size, phi_axis.size), order='F')
