@@ -160,7 +160,7 @@ def test_read_cst_formats():
                              model_name='E-field pattern - f/D=0.25',
                              model_version='1.0')
 
-                             
+         
 def test_peak_normalize():
     efield_beam = UVBeam()
     efield_beam.read_cst_beam(cst_files, beam_type='efield', frequency=[150e6, 123e6],
