@@ -204,9 +204,17 @@ class CSTBeam(UVBeam):
 
         # get beam
         if self.beam_type is 'power':
-            data_col = np.where(np.logical_or(np.core.defchararray.find(np.lower(np.array(column_names), 'abs(v)')) !=-1,
-                                              np.core.defchararray.find(np.lower(np.array(column_names),'abs(dir.)')) != -1))[0][0]
-            power_beam1 = data[:, data_col].reshape((theta_axis.size, phi_axis.size), order='F') ** 2.
+            data_col = np.where(np.logical_or(np.core.defchararray.find(np.core.defchararray.lower(np.array(column_names)), 'abs(v)') != -1,
+                                              np.core.defchararray.find(np.core.defchararray.lower(np.array(column_names)), 'abs(dir.)') != -1))[0][0]
+            power_beam1 = data[:, data_col].reshape((theta_axis.size, phi_axis.size), order='F')
+
+            mag_dbi = 'dbi' in np.core.defchararray.lower(units)[data_col]
+
+            if mag_dbi:
+                power_beam1 = 10. ** (power_beam1 / 10.)
+
+            if 'abs(v)' in column_names[data_col]:
+                power_beam1 = power_beam1 ** 2.
 
             self.data_array[0, 0, 0, 0, :, :] = power_beam1
 
@@ -220,17 +228,23 @@ class CSTBeam(UVBeam):
             self.basis_vector_array[0, 0, :, :] = 1.0
             self.basis_vector_array[1, 1, :, :] = 1.0
 
-            theta_mag_col = np.where(np.core.defchararray.find(np.lower(np.array(column_names)), 'abs(theta)') !=-1)[0][0]
-            theta_phase_col = np.where(np.core.defchararray.find(np.lower(np.array(column_names)), 'phase(theta)') != -1)[0][0]
-            phi_mag_col = np.where(np.core.defchararray.find(np.lower(np.array(column_names)), 'abs(phi)') != -1)[0][0]
-            phi_phase_col = np.where(np.core.defcharray.find(np.lower(np.array(column_names)), 'phase(phi)') != -1)[0][0]
+            theta_mag_col = np.where(np.core.defchararray.find(np.core.defchararray.lower(np.array(column_names)), 'abs(theta)') != -1)[0][0]
+            theta_phase_col = np.where(np.core.defchararray.find(np.core.defchararray.lower(np.array(column_names)), 'phase(theta)') != -1)[0][0]
+            phi_mag_col = np.where(np.core.defchararray.find(np.core.defchararray.lower(np.array(column_names)), 'abs(phi)') != -1)[0][0]
+            phi_phase_col = np.where(np.core.defchararray.find(np.core.defchararray.lower(np.array(column_names)), 'phase(phi)') != -1)[0][0]
 
-            #check if magnitudes are in dBi
-            theta_mag_dbi = 'dbi' in np.lower(column_names)[theta_mag_col]
-            phi_mag_dbi = 'dbi' in np.lower(column_names)[phi_mag_col]
+            # check if magnitudes are in dBi
+            theta_mag_dbi = 'dbi' in np.core.defchararray.lower(units)[theta_mag_col]
+            phi_mag_dbi = 'dbi' in np.core.defchararray.lower(units)[phi_mag_col]
 
             theta_mag = data[:, theta_mag_col].reshape((theta_axis.size, phi_axis.size), order='F')
             phi_mag = data[:, phi_mag_col].reshape((theta_axis.size, phi_axis.size), order='F')
+
+            if theta_mag_dbi:
+                theta_mag = 10. ** (theta_mag / 10.)
+            if phi_mag_dbi:
+                phi_mag = 10. ** (phi_mag / 10.)
+
             if 'deg' in units[theta_phase_col]:
                 theta_phase = np.radians(data[:, theta_phase_col])
             else:
