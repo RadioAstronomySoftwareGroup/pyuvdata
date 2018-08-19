@@ -244,7 +244,6 @@ class CSTBeam(UVBeam):
             theta_mag = data[:, theta_mag_col].reshape((theta_axis.size, phi_axis.size), order='F')
             phi_mag = data[:, phi_mag_col].reshape((theta_axis.size, phi_axis.size), order='F')
 
-
             if 'deg' in units[theta_phase_col]:
                 theta_phase = np.radians(data[:, theta_phase_col])
             else:
