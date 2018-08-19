@@ -244,12 +244,6 @@ class CSTBeam(UVBeam):
             theta_mag = data[:, theta_mag_col].reshape((theta_axis.size, phi_axis.size), order='F')
             phi_mag = data[:, phi_mag_col].reshape((theta_axis.size, phi_axis.size), order='F')
 
-            if theta_mag_dbi:
-                theta_mag = 10. ** (theta_mag / 20.)
-                theta_phase *= .5
-            if phi_mag_dbi:
-                phi_mag = 10. ** (phi_mag / 20.)
-                phi_phase *= .5
 
             if 'deg' in units[theta_phase_col]:
                 theta_phase = np.radians(data[:, theta_phase_col])
@@ -261,6 +255,13 @@ class CSTBeam(UVBeam):
                 phi_phase = data[:, phi_phase_col]
             theta_phase = theta_phase.reshape((theta_axis.size, phi_axis.size), order='F')
             phi_phase = phi_phase.reshape((theta_axis.size, phi_axis.size), order='F')
+
+            if theta_mag_dbi:
+                theta_mag = 10. ** (theta_mag / 20.)
+                theta_phase *= .5
+            if phi_mag_dbi:
+                phi_mag = 10. ** (phi_mag / 20.)
+                phi_phase *= .5
 
             theta_beam = theta_mag * np.exp(1j * theta_phase)
             phi_beam = phi_mag * np.exp(1j * phi_phase)
