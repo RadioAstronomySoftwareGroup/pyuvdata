@@ -116,7 +116,6 @@ class CSTBeam(UVBeam):
             self.Nfeeds = len(self.feed_array)
             self.set_efield()
 
-        self.data_normalization = 'physical'
         self.antenna_type = 'simple'
 
         self.Nfreqs = 1
@@ -176,6 +175,11 @@ class CSTBeam(UVBeam):
         self.Naxes1 = self.axis1_array.size
         self.axis2_array = theta_axis
         self.Naxes2 = self.axis2_array.size
+
+        if np.any(np.core.defchararray.find(np.core.defchararray.lower(np.array(column_names)), 'abs(dir.)') != -1):
+            self.data_normalization = 'solid_angle'
+        elif np.any(np.core.defchararray.find(np.core.defchararray.lower(np.array(column_names)), 'abs(v)') != -1):
+            self.data_normalization = 'physical'
 
         if self.beam_type == 'power':
             # type depends on whether cross pols are present (if so, complex, else float)
@@ -241,9 +245,11 @@ class CSTBeam(UVBeam):
             phi_mag = data[:, phi_mag_col].reshape((theta_axis.size, phi_axis.size), order='F')
 
             if theta_mag_dbi:
-                theta_mag = 10. ** (theta_mag / 10.)
+                theta_mag = 10. ** (theta_mag / 20.)
+                theta_phase *= .5
             if phi_mag_dbi:
-                phi_mag = 10. ** (phi_mag / 10.)
+                phi_mag = 10. ** (phi_mag / 20.)
+                phi_phase *= .5
 
             if 'deg' in units[theta_phase_col]:
                 theta_phase = np.radians(data[:, theta_phase_col])
