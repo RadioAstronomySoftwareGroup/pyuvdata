@@ -2140,7 +2140,7 @@ def test_parse_ants():
     ant_pairs_nums, polarizations = uvtest.checkWarnings(uv.parse_ants,
                                                          [ant_str], {},
                                                          nwarnings=2,
-                                                         message=['Warning: Antenna','Warning: Polarization'])
+                                                         message=['Warning: Antenna', 'Warning: Polarization'])
     nt.assert_is_instance(ant_pairs_nums, type(None))
     nt.assert_is_instance(polarizations, type(None))
 
