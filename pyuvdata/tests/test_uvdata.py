@@ -2135,6 +2135,16 @@ def test_parse_ants():
     nt.assert_is_instance(ant_pairs_nums, type(None))
     nt.assert_is_instance(polarizations, type(None))
 
+    # Single antenna number with polarization, both not in the data
+    ant_str = '10x'
+    ant_pairs_nums, polarizations = uvtest.checkWarnings(uv.parse_ants,
+                                                         [ant_str], {},
+                                                         nwarnings=2,
+                                                         message=['Warning: Antenna',
+                                                                         'Warning: Polarization'])
+    nt.assert_is_instance(ant_pairs_nums, type(None))
+    nt.assert_is_instance(polarizations, type(None))
+
     # Multiple antenna numbers as list
     ant_str = '22,26'
     ant_pairs_nums, polarizations = uv.parse_ants(ant_str)
@@ -2258,6 +2268,33 @@ def test_parse_ants():
     ant_pairs_nums, polarizations = uv.parse_ants(ant_str)
     ant_pairs_expected = [(1, 3), (1, 6), (2, 3), (2, 6)]
     pols_expected = [2, 1, -1, -2, -3, -4]
+    nt.assert_count_equal(ant_pairs_nums, ant_pairs_expected)
+    nt.assert_count_equal(polarizations, pols_expected)
+
+    # Multiple baselines with multiple polarizations, one pol to be removed
+    ant_str = '1l_2,1l_3,-1l_3r'
+    ant_pairs_nums, polarizations = uv.parse_ants(ant_str)
+    ant_pairs_expected = [(1, 2), (1, 3)]
+    pols_expected = [-2]
+    nt.assert_count_equal(ant_pairs_nums, ant_pairs_expected)
+    nt.assert_count_equal(polarizations, pols_expected)
+
+    # Multiple baselines with multiple polarizations, one pol (not in data) to be removed
+    ant_str = '1l_2,1l_3,-1x_3y'
+    ant_pairs_nums, polarizations = uvtest.checkWarnings(uv.parse_ants,
+                                                         [ant_str], {},
+                                                         nwarnings=1,
+                                                         message='Warning: Polarization')
+    ant_pairs_expected = [(1, 2), (1, 3)]
+    pols_expected = [-2, -4]
+    nt.assert_count_equal(ant_pairs_nums, ant_pairs_expected)
+    nt.assert_count_equal(polarizations, pols_expected)
+
+    # Test print toggle on single baseline with polarization
+    ant_str = '1l_2l'
+    ant_pairs_nums, polarizations = uv.parse_ants(ant_str, print_toggle=True)
+    ant_pairs_expected = [(1, 2)]
+    pols_expected = [-2]
     nt.assert_count_equal(ant_pairs_nums, ant_pairs_expected)
     nt.assert_count_equal(polarizations, pols_expected)
 
