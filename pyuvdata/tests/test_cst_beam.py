@@ -59,18 +59,8 @@ def test_read_cst_formats():
 
     # convert e-field beam to power beam
     efield_beam.efield_to_power(calc_cross_pols=False)
-    # check that power from e-field beam has same normalization as straight to power beam
-    efield_beam.interpolation_function = 'az_za_simple'
-    power_beam.interpolation_function = 'az_za_simple'
-    efield_beam.to_healpix()
-    power_beam.to_healpix()
-    # compare main lobe powers so only compare beams within 0.42 \lambda/D of zenith.
-    # e-field->power and main power beam agree (per-pixel) at the 1% level.
-    theta_array, _ = hp.pix2ang(64, range(hp.nside2npix(64)))
-    select = theta_array < 0.42 * 3e8 / 420e6 / 6.
-    ml_efield = efield_beam.data_array[:, :, :, :, select]
-    ml_power = power_beam.data_array[:, :, :, :, select]
-    nt.assert_true(np.allclose(ml_efield, ml_power, rtol=1e-2))
+    # disagreement between power from efield and power is <1%. 
+    nt.assert_true(np.allclose(efield_beam.data_array, power_beam.data_array, rtol=1e-2))
 
 
 def test_read_power():
