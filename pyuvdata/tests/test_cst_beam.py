@@ -59,7 +59,7 @@ def test_read_cst_formats():
 
     # convert e-field beam to power beam
     efield_beam.efield_to_power(calc_cross_pols=False)
-    # disagreement between power from efield and power is <1%. 
+    # disagreement between power from efield and power is <1%.
     nt.assert_true(np.allclose(efield_beam.data_array, power_beam.data_array, rtol=1e-2))
 
 
