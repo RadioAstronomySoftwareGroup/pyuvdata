@@ -8,6 +8,7 @@ import nose.tools as nt
 import os
 import numpy as np
 import copy
+import healpy as hp
 from pyuvdata.data import DATA_PATH
 from pyuvdata import UVBeam
 from pyuvdata.cst_beam import CSTBeam
@@ -40,6 +41,36 @@ def test_frequencyparse():
     test_files = [os.path.join(test_path, f) for f in test_names]
     parsed_freqs = [beam1.name2freq(f) for f in test_files]
     nt.assert_equal(parsed_freqs, [120.87e3, 120.87e9, 120.87])
+
+
+def test_read_cst_formats():
+    efield_beam = UVBeam()
+    efield_beam.read_cst_beam([os.path.join(DATA_PATH, 'hirax_420_MHz.txt')], beam_type='efield', frequency=[420e6],
+                              telescope_name='TEST', feed_name='bob',
+                              feed_version='0.1', feed_pol=['x'],
+                              model_name='E-field pattern - f/D=0.25',
+                              model_version='1.0')
+    power_beam = UVBeam()
+    power_beam.read_cst_beam([os.path.join(DATA_PATH, 'hirax_420_MHz.txt')], beam_type='power', frequency=[420e6],
+                             telescope_name='TEST', feed_name='bob',
+                             feed_version='0.1', feed_pol=['x'],
+                             model_name='E-field pattern - f/D=0.25',
+                             model_version='1.0')
+
+    # convert e-field beam to power beam
+    efield_beam.efield_to_power(calc_cross_pols=False)
+    # check that power from e-field beam has same normalization as straight to power beam
+    efield_beam.interpolation_function = 'az_za_simple'
+    power_beam.interpolation_function = 'az_za_simple'
+    efield_beam.to_healpix()
+    power_beam.to_healpix()
+    # compare main lobe powers so only compare beams within 0.42 \lambda/D of zenith.
+    # e-field->power and main power beam agree (per-pixel) at the 1% level.
+    theta_array, _ = hp.pix2ang(64, range(hp.nside2npix(64)))
+    select = theta_array < 0.42 * 3e8 / 420e6 / 6.
+    ml_efield = efield_beam.data_array[:, :, :, :, select]
+    ml_power = power_beam.data_array[:, :, :, :, select]
+    nt.assert_true(np.allclose(ml_efield, ml_power, rtol=1e-2))
 
 
 def test_read_power():

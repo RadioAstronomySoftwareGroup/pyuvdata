@@ -146,21 +146,6 @@ def test_errors():
     nt.assert_raises(ValueError, beam_obj._convert_to_filetype, 'foo')
 
 
-def test_read_cst_formats():
-    efield_beam = UVBeam()
-    efield_beam.read_cst_beam([os.path.join(DATA_PATH, 'hirax_420_MHz.txt')], beam_type='efield', frequency=[420e6],
-                              telescope_name='TEST', feed_name='bob',
-                              feed_version='0.1', feed_pol=['x'],
-                              model_name='E-field pattern - f/D=0.25',
-                              model_version='1.0')
-    power_beam = UVBeam()
-    power_beam.read_cst_beam([os.path.join(DATA_PATH, 'hirax_420_MHz.txt')], beam_type='power', frequency=[420e6],
-                             telescope_name='TEST', feed_name='bob',
-                             feed_version='0.1', feed_pol=['x'],
-                             model_name='E-field pattern - f/D=0.25',
-                             model_version='1.0')
-
-
 def test_peak_normalize():
     efield_beam = UVBeam()
     efield_beam.read_cst_beam(cst_files, beam_type='efield', frequency=[150e6, 123e6],
