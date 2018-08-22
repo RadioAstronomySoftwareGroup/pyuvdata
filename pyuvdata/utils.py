@@ -34,6 +34,27 @@ else:
     def _bytes_to_str(b):
         return b.decode('utf8')
 
+# polarization constants
+# XXX is the 'p' capitalized or not?
+POLSTR_LIST = ['YX', 'XY', 'YY', 'XX', 'LR', 'RL', 'LL', 'RR', '', 'pI', 'pQ', 'pU', 'pV']
+POLSTR_DICT = {'PI': 1, 'PQ': 2, 'PU': 3, 'PV': 4,
+           'I': 1, 'Q': 2, 'U': 3, 'V': 4,
+           'RR': -1, 'LL': -2, 'RL': -3, 'LR': -4,
+           'XX': -5, 'YY': -6, 'XY': -7, 'YX': -8}
+
+CPOL_DICT = {'XX': 'XX', 'YY': 'YY', 'XY': 'YX', 'YX': 'XY',
+             'JXX': 'jxx', 'JYY': 'jyy', 'JXY': 'jyx', 'JYX': 'jxy',
+             'RR': 'RR', 'LL': 'LL', 'RL': 'LR', 'LR': 'RL',
+             'JRR': 'jrr', 'JLL': 'jll', 'JRL': 'jlr', 'JLR': 'jrl',
+             'I': 'I', 'Q': 'Q', 'U': 'U', 'V': 'V',
+             'PI': 'pI', 'PQ': 'pQ', 'PU': 'pU', 'PV': 'pV'}
+
+JSTR_LIST = ['jyx', 'jxy', 'jyy', 'jxx', 'jlr', 'jrl', 'jll', 'jrr']
+JSTR_DICT = {'jxx': -5, 'jyy': -6, 'jxy': -7, 'jyx': -8,
+         'xx': -5, 'x': -5, 'yy': -6, 'y': -6, 'xy': -7, 'yx': -8,  # Allow shorthand
+         'jrr': -1, 'jll': -2, 'jrl': -3, 'jlr': -4,
+         'rr': -1, 'r': -1, 'll': -2, 'l': -2, 'rl': -3, 'lr': -4}
+
 
 def LatLonAlt_from_XYZ(xyz):
     """
@@ -473,10 +494,7 @@ def polstr2num(pol):
     """
     # Use all upper case keys to support case in-sensitive handling
     # (cast input string to upper case for key comparison)
-    poldict = {'PI': 1, 'PQ': 2, 'PU': 3, 'PV': 4,
-               'I': 1, 'Q': 2, 'U': 3, 'V': 4,
-               'RR': -1, 'LL': -2, 'RL': -3, 'LR': -4,
-               'XX': -5, 'YY': -6, 'XY': -7, 'YX': -8}
+    poldict = POLSTR_DICT
     if isinstance(pol, str):
         out = poldict[pol.upper()]
     elif isinstance(pol, collections.Iterable):
@@ -497,7 +515,7 @@ def polnum2str(num):
     Returns:
         String corresponding to string
     """
-    str_list = ['YX', 'XY', 'YY', 'XX', 'LR', 'RL', 'LL', 'RR', '', 'pI', 'pQ', 'pU', 'pV']
+    str_list = POLSTR_LIST
     if isinstance(num, six.integer_types + (np.int32, np.int64)):
         out = str_list[num + 8]
     elif isinstance(num, collections.Iterable):
@@ -517,10 +535,7 @@ def jstr2num(jstr):
     Returns:
         Number corresponding to string
     """
-    jdict = {'jxx': -5, 'jyy': -6, 'jxy': -7, 'jyx': -8,
-             'xx': -5, 'x': -5, 'yy': -6, 'y': -6, 'xy': -7, 'yx': -8,  # Allow shorthand
-             'jrr': -1, 'jll': -2, 'jrl': -3, 'jlr': -4,
-             'rr': -1, 'r': -1, 'll': -2, 'l': -2, 'rl': -3, 'lr': -4}
+    jdict = JSTR_DICT
     if isinstance(jstr, str):
         out = jdict[jstr.lower()]
     elif isinstance(jstr, collections.Iterable):
@@ -540,7 +555,7 @@ def jnum2str(jnum):
     Returns:
         String corresponding to string
     """
-    str_list = ['jyx', 'jxy', 'jyy', 'jxx', 'jlr', 'jrl', 'jll', 'jrr']
+    str_list = JSTR_LIST
     if isinstance(jnum, six.integer_types + (np.int32, np.int64)):
         out = str_list[jnum + 8]
     elif isinstance(jnum, collections.Iterable):
@@ -565,12 +580,7 @@ def conj_pol(pol):
     Returns:
         cpol: Polarization as if antennas are swapped (type matches input)
     """
-    cpol_dict = {'XX': 'XX', 'YY': 'YY', 'XY': 'YX', 'YX': 'XY',
-                 'JXX': 'jxx', 'JYY': 'jyy', 'JXY': 'jyx', 'JYX': 'jxy',
-                 'RR': 'RR', 'LL': 'LL', 'RL': 'LR', 'LR': 'RL',
-                 'JRR': 'jrr', 'JLL': 'jll', 'JRL': 'jlr', 'JLR': 'jrl',
-                 'I': 'I', 'Q': 'Q', 'U': 'U', 'V': 'V',
-                 'PI': 'pI', 'PQ': 'pQ', 'PU': 'pU', 'PV': 'pV'}
+    cpol_dict = CPOL_DICT
 
     if isinstance(pol, str):
         cpol = cpol_dict[pol.upper()]
