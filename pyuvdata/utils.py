@@ -38,9 +38,9 @@ else:
 # XXX is the 'p' capitalized or not?
 POLSTR_LIST = ['YX', 'XY', 'YY', 'XX', 'LR', 'RL', 'LL', 'RR', '', 'pI', 'pQ', 'pU', 'pV']
 POLSTR_DICT = {'PI': 1, 'PQ': 2, 'PU': 3, 'PV': 4,
-           'I': 1, 'Q': 2, 'U': 3, 'V': 4,
-           'RR': -1, 'LL': -2, 'RL': -3, 'LR': -4,
-           'XX': -5, 'YY': -6, 'XY': -7, 'YX': -8}
+               'I': 1, 'Q': 2, 'U': 3, 'V': 4,
+               'RR': -1, 'LL': -2, 'RL': -3, 'LR': -4,
+               'XX': -5, 'YY': -6, 'XY': -7, 'YX': -8}
 
 CPOL_DICT = {'XX': 'XX', 'YY': 'YY', 'XY': 'YX', 'YX': 'XY',
              'JXX': 'jxx', 'JYY': 'jyy', 'JXY': 'jyx', 'JYX': 'jxy',
@@ -51,9 +51,9 @@ CPOL_DICT = {'XX': 'XX', 'YY': 'YY', 'XY': 'YX', 'YX': 'XY',
 
 JSTR_LIST = ['jyx', 'jxy', 'jyy', 'jxx', 'jlr', 'jrl', 'jll', 'jrr']
 JSTR_DICT = {'jxx': -5, 'jyy': -6, 'jxy': -7, 'jyx': -8,
-         'xx': -5, 'x': -5, 'yy': -6, 'y': -6, 'xy': -7, 'yx': -8,  # Allow shorthand
-         'jrr': -1, 'jll': -2, 'jrl': -3, 'jlr': -4,
-         'rr': -1, 'r': -1, 'll': -2, 'l': -2, 'rl': -3, 'lr': -4}
+             'xx': -5, 'x': -5, 'yy': -6, 'y': -6, 'xy': -7, 'yx': -8,  # Allow shorthand
+             'jrr': -1, 'jll': -2, 'jrl': -3, 'jlr': -4,
+             'rr': -1, 'r': -1, 'll': -2, 'l': -2, 'rl': -3, 'lr': -4}
 
 
 def LatLonAlt_from_XYZ(xyz):
