@@ -2060,7 +2060,7 @@ def test_get_pols():
     uvtest.checkWarnings(uv.read_uvfits, [testfile],
                          message='Telescope EVLA is not')
     pols = uv.get_pols()
-    pols_data = ['RR', 'LL', 'LR', 'RL']
+    pols_data = ['rr', 'll', 'lr', 'rl']
     nt.assert_count_equal(pols, pols_data)
 
 
@@ -2072,7 +2072,7 @@ def test_get_feedpols():
     uvtest.checkWarnings(uv.read_uvfits, [testfile],
                          message='Telescope EVLA is not')
     pols = uv.get_feedpols()
-    pols_data = ['R', 'L']
+    pols_data = ['r', 'l']
     nt.assert_count_equal(pols, pols_data)
 
     # Test break when pseudo-Stokes visibilities are present
@@ -2170,6 +2170,8 @@ def test_parse_ants():
     ant_pairs_nums, polarizations = uv.parse_ants(ant_str)
     ant_pairs_expected = [(1, 3)]
     pols_expected = [-4]
+    print(ant_pairs_nums)
+    print(polarizations)
     nt.assert_count_equal(ant_pairs_nums, ant_pairs_expected)
     nt.assert_count_equal(polarizations, pols_expected)
 
@@ -2421,7 +2423,7 @@ def test_select_with_ant_str():
     # Single baseline with polarization
     ant_str = '1l_3r'
     ant_pairs = [(1, 3)]
-    pols = ['LR']
+    pols = ['lr']
     uv2 = uv.select(ant_str=ant_str, inplace=inplace)
     nt.assert_count_equal(uv2.get_antpairs(), ant_pairs)
     nt.assert_count_equal(uv2.get_pols(), pols)
@@ -2435,7 +2437,7 @@ def test_select_with_ant_str():
     # with polarizations in data
     ant_str = '1l_3,2_3'
     ant_pairs = [(1, 3), (2, 3)]
-    pols = ['LL', 'LR']
+    pols = ['ll', 'lr']
     uv2 = uv.select(ant_str=ant_str, inplace=inplace)
     nt.assert_count_equal(uv2.get_antpairs(), ant_pairs)
     nt.assert_count_equal(uv2.get_pols(), pols)
@@ -2449,7 +2451,7 @@ def test_select_with_ant_str():
     # with polarizations in data
     ant_str = '1_3l,2_3'
     ant_pairs = [(1, 3), (2, 3)]
-    pols = ['LL', 'RL']
+    pols = ['ll', 'rl']
     uv2 = uv.select(ant_str=ant_str, inplace=inplace)
     nt.assert_count_equal(uv2.get_antpairs(), ant_pairs)
     nt.assert_count_equal(uv2.get_pols(), pols)
@@ -2467,7 +2469,7 @@ def test_select_with_ant_str():
     # Multiples baselines with polarizations as list
     ant_str = '1r_2l,1l_3l,1r_11r'
     ant_pairs = [(1, 2), (1, 3), (1, 11)]
-    pols = ['RR', 'LL', 'RL']
+    pols = ['rr', 'll', 'rl']
     uv2 = uv.select(ant_str=ant_str, inplace=inplace)
     nt.assert_count_equal(uv2.get_antpairs(), ant_pairs)
     nt.assert_count_equal(uv2.get_pols(), pols)
@@ -2489,7 +2491,7 @@ def test_select_with_ant_str():
     # Antenna numbers with polarizations
     ant_str = '(1l,2r)_(3l,6r)'
     ant_pairs = [(1, 3), (1, 6), (2, 3), (2, 6)]
-    pols = ['RR', 'LL', 'RL', 'LR']
+    pols = ['rr', 'll', 'rl', 'lr']
     uv2 = uv.select(ant_str=ant_str, inplace=inplace)
     nt.assert_count_equal(uv2.get_antpairs(), ant_pairs)
     nt.assert_count_equal(uv2.get_pols(), pols)
@@ -2528,7 +2530,7 @@ def test_select_with_ant_str():
     # Antenna numbers with polarizations and - for avoidance
     ant_str = '1l_(-3r,11l)'
     ant_pairs = [(1, 11)]
-    pols = ['LL']
+    pols = ['ll']
     uv2 = uv.select(ant_str=ant_str, inplace=inplace)
     nt.assert_count_equal(uv2.get_antpairs(), ant_pairs)
     nt.assert_count_equal(uv2.get_pols(), pols)

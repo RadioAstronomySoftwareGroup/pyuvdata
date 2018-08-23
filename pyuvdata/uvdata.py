@@ -3012,7 +3012,7 @@ class UVData(UVBase):
                                 warned_ants.append(ant_tuple[1])
                             if pols is not None:
                                 for pol in pols:
-                                    if not (pol.upper() in pols_data
+                                    if not (pol.lower() in pols_data
                                             or pol in warned_pols):
                                         warned_pols.append(pol)
                             continue
@@ -3022,22 +3022,22 @@ class UVData(UVBase):
                                 ant_pairs_nums.append(ant_tuple)
                             if pols is not None:
                                 for pol in pols:
-                                    if (pol.upper() in pols_data
+                                    if (pol.lower() in pols_data
                                             and uvutils.polstr2num(pol) not in polarizations):
                                         polarizations.append(uvutils.polstr2num(pol))
-                                    elif not (pol.upper() in pols_data
+                                    elif not (pol.lower() in pols_data
                                               or pol in warned_pols):
                                         warned_pols.append(pol)
                         else:
                             if pols is not None:
                                 for pol in pols:
-                                    if pol.upper() in pols_data:
+                                    if pol.lower() in pols_data:
                                         if (self.Npols == 1
-                                                and [pol.upper()] == pols_data):
+                                                and [pol.lower()] == pols_data):
                                             ant_pairs_nums.remove(ant_tuple)
                                         if uvutils.polstr2num(pol) in polarizations:
                                             polarizations.remove(uvutils.polstr2num(pol))
-                                    elif not (pol.upper() in pols_data
+                                    elif not (pol.lower() in pols_data
                                               or pol in warned_pols):
                                         warned_pols.append(pol)
                             elif ant_tuple in ant_pairs_nums:

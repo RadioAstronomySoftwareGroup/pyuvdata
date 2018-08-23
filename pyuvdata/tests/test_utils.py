@@ -259,7 +259,7 @@ def test_pol_funcs():
     """ Test utility functions to convert between polarization strings and numbers """
 
     pol_nums = [-8, -7, -6, -5, -4, -3, -2, -1, 1, 2, 3, 4]
-    pol_str = ['YX', 'XY', 'YY', 'XX', 'LR', 'RL', 'LL', 'RR', 'pI', 'pQ', 'pU', 'pV']
+    pol_str = ['yx', 'xy', 'yy', 'xx', 'lr', 'rl', 'll', 'rr', 'pI', 'pQ', 'pU', 'pV']
     nt.assert_equal(pol_nums, uvutils.polstr2num(pol_str))
     nt.assert_equal(pol_str, uvutils.polnum2str(pol_nums))
     # Check individuals
@@ -275,7 +275,7 @@ def test_jones_num_funcs():
     """ Test utility functions to convert between jones polarization strings and numbers """
 
     jnums = [-8, -7, -6, -5, -4, -3, -2, -1]
-    jstr = ['jyx', 'jxy', 'jyy', 'jxx', 'jlr', 'jrl', 'jll', 'jrr']
+    jstr = ['Jyx', 'Jxy', 'Jyy', 'Jxx', 'Jlr', 'Jrl', 'Jll', 'Jrr']
     nt.assert_equal(jnums, uvutils.jstr2num(jstr))
     nt.assert_equal(jstr, uvutils.jnum2str(jnums))
     # Check shorthands
@@ -284,7 +284,7 @@ def test_jones_num_funcs():
     nt.assert_equal(jnums, uvutils.jstr2num(jstr))
     # Check individuals
     nt.assert_equal(-6, uvutils.jstr2num('jyy'))
-    nt.assert_equal('jxy', uvutils.jnum2str(-7))
+    nt.assert_equal('Jxy', uvutils.jnum2str(-7))
     # Check errors
     nt.assert_raises(KeyError, uvutils.jstr2num, 'foo')
     nt.assert_raises(ValueError, uvutils.jstr2num, 1)
@@ -298,15 +298,18 @@ def test_conj_pol():
     cpol_nums = [-7, -8, -6, -5, -3, -4, -2, -1, 1, 2, 3, 4]
     nt.assert_equal(pol_nums, uvutils.conj_pol(cpol_nums))
     nt.assert_equal(uvutils.conj_pol(pol_nums), cpol_nums)
-    pol_str = ['YX', 'XY', 'YY', 'XX', 'LR', 'RL', 'LL', 'RR', 'pI', 'pQ', 'pU', 'pV']
-    cpol_str = ['XY', 'YX', 'YY', 'XX', 'RL', 'LR', 'LL', 'RR', 'pI', 'pQ', 'pU', 'pV']
+    pol_str = ['yx', 'xy', 'yy', 'xx', 'lr', 'rl', 'll', 'rr', 'pI', 'pQ', 'pU', 'pV']
+    cpol_str = ['xy', 'yx', 'yy', 'xx', 'rl', 'lr', 'll', 'rr', 'pI', 'pQ', 'pU', 'pV']
     nt.assert_equal(pol_str, uvutils.conj_pol(cpol_str))
     nt.assert_equal(uvutils.conj_pol(pol_str), cpol_str)
     nt.assert_equal([pol_str, pol_nums], uvutils.conj_pol([cpol_str, cpol_nums]))
-    jstr = ['jyx', 'jxy', 'jyy', 'jxx', 'jlr', 'jrl', 'jll', 'jrr']
-    cjstr = ['jxy', 'jyx', 'jyy', 'jxx', 'jrl', 'jlr', 'jll', 'jrr']
-    nt.assert_equal(jstr, uvutils.conj_pol(cjstr))
-    nt.assert_equal(uvutils.conj_pol(jstr), uvutils.conj_pol(jstr))
+
+    jstr = ['Jyx', 'Jxy', 'Jyy', 'Jxx', 'Jlr', 'Jrl', 'Jll', 'Jrr']
+    cjstr = ['Jxy', 'Jyx', 'Jyy', 'Jxx', 'Jrl', 'Jlr', 'Jll', 'Jrr']
+    conj_cjstr = uvtest.checkWarnings(uvutils.conj_pol, [cjstr], nwarnings=8,
+                                      category=PendingDeprecationWarning,
+                                      message='conj_pol should not be called with jones')
+    nt.assert_equal(jstr, conj_cjstr)
 
     # Test invalid pol
     nt.assert_raises(ValueError, uvutils.conj_pol, 2.3)
