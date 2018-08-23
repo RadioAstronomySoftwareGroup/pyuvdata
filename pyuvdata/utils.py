@@ -35,25 +35,30 @@ else:
         return b.decode('utf8')
 
 # polarization constants
-# XXX is the 'p' capitalized or not?
-POLSTR_LIST = ['YX', 'XY', 'YY', 'XX', 'LR', 'RL', 'LL', 'RR', '', 'pI', 'pQ', 'pU', 'pV']
-POLSTR_DICT = {'PI': 1, 'PQ': 2, 'PU': 3, 'PV': 4,
-               'I': 1, 'Q': 2, 'U': 3, 'V': 4,
-               'RR': -1, 'LL': -2, 'RL': -3, 'LR': -4,
-               'XX': -5, 'YY': -6, 'XY': -7, 'YX': -8}
+#: maps polarization strings to polarization integers
+POL_STR2NUM_DICT = {'pI': 1, 'pQ': 2, 'pU': 3, 'pV': 4,
+                    'I': 1, 'Q': 2, 'U': 3, 'V': 4,  # support straight stokes names
+                    'rr': -1, 'll': -2, 'rl': -3, 'lr': -4,
+                    'xx': -5, 'yy': -6, 'xy': -7, 'yx': -8}
+#: maps polarization integers to polarization strings
+POL_NUM2STR_DICT = {'1': 'pI', '2': 'pQ', '3': 'pU', '4': 'pV',
+                    '-1': 'rr', '-2': 'll', '-3': 'rl', '-4': 'lr',
+                    '-5': 'xx', '-6': 'yy', '-7': 'xy', '-8': 'yx'}
 
-CPOL_DICT = {'XX': 'XX', 'YY': 'YY', 'XY': 'YX', 'YX': 'XY',
-             'JXX': 'jxx', 'JYY': 'jyy', 'JXY': 'jyx', 'JYX': 'jxy',
-             'RR': 'RR', 'LL': 'LL', 'RL': 'LR', 'LR': 'RL',
-             'JRR': 'jrr', 'JLL': 'jll', 'JRL': 'jlr', 'JLR': 'jrl',
-             'I': 'I', 'Q': 'Q', 'U': 'U', 'V': 'V',
-             'PI': 'pI', 'PQ': 'pQ', 'PU': 'pU', 'PV': 'pV'}
+#: maps how polarizations change when antennas are swapped
+CONJ_POL_DICT = {'xx': 'xx', 'yy': 'yy', 'xy': 'yx', 'yx': 'xy',
+                 'rr': 'rr', 'll': 'll', 'rl': 'lr', 'lr': 'rl',
+                 'I': 'I', 'Q': 'Q', 'U': 'U', 'V': 'V',
+                 'pI': 'pI', 'pQ': 'pQ', 'pU': 'pU', 'pV': 'pV'}
 
-JSTR_LIST = ['jyx', 'jxy', 'jyy', 'jxx', 'jlr', 'jrl', 'jll', 'jrr']
-JSTR_DICT = {'jxx': -5, 'jyy': -6, 'jxy': -7, 'jyx': -8,
-             'xx': -5, 'x': -5, 'yy': -6, 'y': -6, 'xy': -7, 'yx': -8,  # Allow shorthand
-             'jrr': -1, 'jll': -2, 'jrl': -3, 'jlr': -4,
-             'rr': -1, 'r': -1, 'll': -2, 'l': -2, 'rl': -3, 'lr': -4}
+#: maps jones matrix element strings to jones integers
+JONES_STR2NUM_DICT = {'Jxx': -5, 'Jyy': -6, 'Jxy': -7, 'Jyx': -8,
+                      'xx': -5, 'x': -5, 'yy': -6, 'y': -6, 'xy': -7, 'yx': -8,  # Allow shorthand
+                      'Jrr': -1, 'Jll': -2, 'Jrl': -3, 'Jlr': -4,
+                      'rr': -1, 'r': -1, 'll': -2, 'l': -2, 'rl': -3, 'lr': -4}
+#: maps jones integers to jones matrix element strings
+JONES_NUM2STR_DICT = {'-1': 'Jrr', '-2': 'Jll', '-3': 'Jrl', '-4': 'Jlr',
+                      '-5': 'Jxx', '-6': 'Jyy', '-7': 'Jxy', '-8': 'Jyx'}
 
 
 def LatLonAlt_from_XYZ(xyz):
@@ -492,13 +497,11 @@ def polstr2num(pol):
     Returns:
         Number corresponding to string
     """
-    # Use all upper case keys to support case in-sensitive handling
-    # (cast input string to upper case for key comparison)
-    poldict = POLSTR_DICT
+    poldict = {k.lower(): v for k, v in six.iteritems(POL_STR2NUM_DICT)}
     if isinstance(pol, str):
-        out = poldict[pol.upper()]
+        out = poldict[pol.lower()]
     elif isinstance(pol, collections.Iterable):
-            out = [poldict[key.upper()] for key in pol]
+            out = [poldict[key.lower()] for key in pol]
     else:
         raise ValueError('Polarization cannot be converted to index.')
     return out
@@ -515,11 +518,10 @@ def polnum2str(num):
     Returns:
         String corresponding to string
     """
-    str_list = POLSTR_LIST
     if isinstance(num, six.integer_types + (np.int32, np.int64)):
-        out = str_list[num + 8]
+        out = POL_NUM2STR_DICT[str(num)]
     elif isinstance(num, collections.Iterable):
-            out = [str_list[i + 8] for i in num]
+            out = [POL_NUM2STR_DICT[str(i)] for i in num]
     else:
         raise ValueError('Polarization cannot be converted to string.')
     return out
@@ -535,7 +537,7 @@ def jstr2num(jstr):
     Returns:
         Number corresponding to string
     """
-    jdict = JSTR_DICT
+    jdict = {k.lower(): v for k, v in six.iteritems(JONES_STR2NUM_DICT)}
     if isinstance(jstr, str):
         out = jdict[jstr.lower()]
     elif isinstance(jstr, collections.Iterable):
@@ -555,11 +557,10 @@ def jnum2str(jnum):
     Returns:
         String corresponding to string
     """
-    str_list = JSTR_LIST
     if isinstance(jnum, six.integer_types + (np.int32, np.int64)):
-        out = str_list[jnum + 8]
+        out = JONES_NUM2STR_DICT[str(jnum)]
     elif isinstance(jnum, collections.Iterable):
-            out = [str_list[i + 8] for i in jnum]
+            out = [JONES_NUM2STR_DICT[str(i)] for i in jnum]
     else:
         raise ValueError('Polarization cannot be converted to string.')
     return out
@@ -568,11 +569,11 @@ def jnum2str(jnum):
 def conj_pol(pol):
     """
     Returns the polarization for the conjugate baseline.
-    For example, (1, 2, 'XY') = conj(2, 1, 'YX').
+    For example, (1, 2, 'xy') = conj(2, 1, 'yx').
     The returned polarization is determined by assuming the antenna pair is reversed
     in the data, and finding the correct polarization correlation which will yield
     the requested baseline when conjugated. Note this means changing the polarization
-    for linear cross-pols, but keeping auto-pol (e.g. XX) and Stokes the same.
+    for linear cross-pols, but keeping auto-pol (e.g. xx) and Stokes the same.
 
     Args:
         pol: Polarization (str or int)
@@ -580,14 +581,24 @@ def conj_pol(pol):
     Returns:
         cpol: Polarization as if antennas are swapped (type matches input)
     """
-    cpol_dict = CPOL_DICT
+
+    deprecated_jones_dict = {'jxx': 'Jxx', 'jyy': 'Jyy', 'jxy': 'Jyx', 'jyx': 'Jxy',
+                             'jrr': 'Jrr', 'jll': 'Jll', 'jrl': 'Jlr', 'jlr': 'Jrl'}
+
+    cpol_dict = {k.lower(): v for k, v in six.iteritems(CONJ_POL_DICT)}
 
     if isinstance(pol, str):
-        cpol = cpol_dict[pol.upper()]
+        if pol.lower().startswith('j'):
+            warnings.warn('conj_pol should not be called with jones matrix elements. '
+                          'Support for the jones matrix elements will go away '
+                          'in a future version.', PendingDeprecationWarning)
+            cpol = deprecated_jones_dict[pol.lower()]
+        else:
+            cpol = cpol_dict[pol.lower()]
     elif isinstance(pol, collections.Iterable):
         cpol = [conj_pol(p) for p in pol]
     elif isinstance(pol, six.integer_types + (np.int32, np.int64)):
-        cpol = polstr2num(cpol_dict[polnum2str(pol).upper()])
+        cpol = polstr2num(cpol_dict[polnum2str(pol).lower()])
     else:
         raise ValueError('Polarization cannot be conjugated.')
     return cpol
