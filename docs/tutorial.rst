@@ -260,7 +260,7 @@ f) Convenience functions to ask what antennas, baselines, and pols are in the da
 
   # Get all antenna pairs and polariations, i.e. keys produced in UV.antpairpol_iter(), print first 5.
   >>> print(UV.get_antpairpols()[0:5])
-  [(0, 1, 'RR'), (0, 1, 'LL'), (0, 1, 'RL'), (0, 1, 'LR'), (0, 2, 'RR')]
+  [(0, 1, 'rr'), (0, 1, 'll'), (0, 1, 'rl'), (0, 1, 'lr'), (0, 2, 'rr')]
 
 g) Quick access to file attributes of a UV* object (UVData, UVCal, UVBeam)
 ******************************************************************************************
@@ -515,14 +515,14 @@ all antenna pairs kept in the object will retain data for each specified polariz
 
   # Print the number of antennas and polarizations with data in the original file
   >>> print((len(UV.get_antpairs()), UV.get_pols()))
-  (153, ['RR', 'LL', 'RL', 'LR'])
+  (153, ['rr', 'll', 'rl', 'lr'])
 
   # Apply select to UV object
   >>> UV.select(ant_str='1r_2l,1l_3l,1r_6r')
 
   # Print all the antennas numbers and polarizations with data after the select
   >>> print((UV.get_antpairs(), UV.get_pols()))
-  ([(1, 2), (1, 3), (1, 6)], ['RR', 'LL', 'RL'])
+  ([(1, 2), (1, 3), (1, 6)], ['rr', 'll', 'rl'])
 
 4. Stokes parameter(s):
 ________________________
