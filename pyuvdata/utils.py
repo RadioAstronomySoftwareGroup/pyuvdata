@@ -41,9 +41,9 @@ POL_STR2NUM_DICT = {'pI': 1, 'pQ': 2, 'pU': 3, 'pV': 4,
                     'rr': -1, 'll': -2, 'rl': -3, 'lr': -4,
                     'xx': -5, 'yy': -6, 'xy': -7, 'yx': -8}
 #: maps polarization integers to polarization strings
-POL_NUM2STR_DICT = {'1': 'pI', '2': 'pQ', '3': 'pU', '4': 'pV',
-                    '-1': 'rr', '-2': 'll', '-3': 'rl', '-4': 'lr',
-                    '-5': 'xx', '-6': 'yy', '-7': 'xy', '-8': 'yx'}
+POL_NUM2STR_DICT = {1: 'pI', 2: 'pQ', 3: 'pU', 4: 'pV',
+                    -1: 'rr', -2: 'll', -3: 'rl', -4: 'lr',
+                    -5: 'xx', -6: 'yy', -7: 'xy', -8: 'yx'}
 
 #: maps how polarizations change when antennas are swapped
 CONJ_POL_DICT = {'xx': 'xx', 'yy': 'yy', 'xy': 'yx', 'yx': 'xy',
@@ -57,8 +57,8 @@ JONES_STR2NUM_DICT = {'Jxx': -5, 'Jyy': -6, 'Jxy': -7, 'Jyx': -8,
                       'Jrr': -1, 'Jll': -2, 'Jrl': -3, 'Jlr': -4,
                       'rr': -1, 'r': -1, 'll': -2, 'l': -2, 'rl': -3, 'lr': -4}
 #: maps jones integers to jones matrix element strings
-JONES_NUM2STR_DICT = {'-1': 'Jrr', '-2': 'Jll', '-3': 'Jrl', '-4': 'Jlr',
-                      '-5': 'Jxx', '-6': 'Jyy', '-7': 'Jxy', '-8': 'Jyx'}
+JONES_NUM2STR_DICT = {-1: 'Jrr', -2: 'Jll', -3: 'Jrl', -4: 'Jlr',
+                      -5: 'Jxx', -6: 'Jyy', -7: 'Jxy', -8: 'Jyx'}
 
 
 def LatLonAlt_from_XYZ(xyz):
@@ -519,9 +519,9 @@ def polnum2str(num):
         String corresponding to string
     """
     if isinstance(num, six.integer_types + (np.int32, np.int64)):
-        out = POL_NUM2STR_DICT[str(num)]
+        out = POL_NUM2STR_DICT[num]
     elif isinstance(num, collections.Iterable):
-            out = [POL_NUM2STR_DICT[str(i)] for i in num]
+            out = [POL_NUM2STR_DICT[i] for i in num]
     else:
         raise ValueError('Polarization cannot be converted to string.')
     return out
@@ -558,9 +558,9 @@ def jnum2str(jnum):
         String corresponding to string
     """
     if isinstance(jnum, six.integer_types + (np.int32, np.int64)):
-        out = JONES_NUM2STR_DICT[str(jnum)]
+        out = JONES_NUM2STR_DICT[jnum]
     elif isinstance(jnum, collections.Iterable):
-            out = [JONES_NUM2STR_DICT[str(i)] for i in jnum]
+            out = [JONES_NUM2STR_DICT[i] for i in jnum]
     else:
         raise ValueError('Polarization cannot be converted to string.')
     return out
