@@ -2170,8 +2170,6 @@ def test_parse_ants():
     ant_pairs_nums, polarizations = uv.parse_ants(ant_str)
     ant_pairs_expected = [(1, 3)]
     pols_expected = [-4]
-    print(ant_pairs_nums)
-    print(polarizations)
     nt.assert_count_equal(ant_pairs_nums, ant_pairs_expected)
     nt.assert_count_equal(polarizations, pols_expected)
 
