@@ -269,6 +269,13 @@ def test_pol_funcs():
     nt.assert_raises(KeyError, uvutils.polstr2num, 'foo')
     nt.assert_raises(ValueError, uvutils.polstr2num, 1)
     nt.assert_raises(ValueError, uvutils.polnum2str, 7.3)
+    # Check parse
+    nt.assert_equal(uvutils.parse_polstr("xX"), 'xx')
+    nt.assert_equal(uvutils.parse_polstr("XX"), 'xx')
+    nt.assert_equal(uvutils.parse_polstr('i'), 'pI')
+    nt.assert_equal(uvutils.parse_jpolstr('x'), 'Jxx')
+    nt.assert_equal(uvutils.parse_jpolstr('xy'), 'Jxy')
+    nt.assert_equal(uvutils.parse_jpolstr('XY'), 'Jxy')
 
 
 def test_jones_num_funcs():

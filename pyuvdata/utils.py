@@ -566,6 +566,34 @@ def jnum2str(jnum):
     return out
 
 
+def parse_polstr(polstr):
+    """
+    Parse a polarization string and return in AIPS Memo 117
+    standard. See utils.POL_STR2NUM_DICT for options.
+
+    Args:
+        polstr: polarization string
+
+    Returns:
+        AIPS Memo 117 standard string
+    """
+    return polnum2str(polstr2num(polstr))
+
+
+def parse_jpolstr(jpolstr):
+    """
+    Parse a Jones polarization string and return in AIPS Memo 117
+    standard. See utils.JONES_STR2NUM_DICT for options.
+
+    Args:
+        jpolstr: Jones polarization string
+
+    Returns:
+        AIPS Memo 117 standard string
+    """
+    return jnum2str(jstr2num(jpolstr))
+
+
 def conj_pol(pol):
     """
     Returns the polarization for the conjugate baseline.
