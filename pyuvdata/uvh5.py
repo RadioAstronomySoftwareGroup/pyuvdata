@@ -115,7 +115,22 @@ class UVH5(UVData):
                           'Rewrite this file with write_uvh5 to ensure '
                           'future compatibility.'.format(file=filename))
             self.integration_time = np.ones_like(self.time_array, dtype=np.float64) * self.integration_time
-        self.lst_array = header['lst_array'].value
+        if 'lst_array' in header:
+            self.lst_array = header['lst_array'].value
+            # check that lst_array in file is self-consistent
+            latitude, longitude, altitude = self.telescope_location_lat_lon_alt_degrees
+            lst_array = uvutils.get_lst_for_time(self.time_array, latitude, longitude,
+                                                 altitude)
+            if not np.all(np.isclose(self.lst_array, lst_array, rtol=self._lst_array.tols[0],
+                                     atol=self._lst_array.tols[1])):
+                warnings.warn("LST values stored in {file} are not self-consistent with time_array "
+                              "and telescope location. Consider recomputing with "
+                              "utils.get_lst_for_time.".format(file=filename))
+        else:
+            # compute lst_array from time_array and telescope location
+            latitude, longitude, altitude = self.telescope_location_lat_lon_alt_degrees
+            self.lst_array = uvutils.get_lst_for_time(self.time_array, latitude, longitude,
+                                                      altitude)
 
         # get frequency information
         self.freq_array = header['freq_array'].value

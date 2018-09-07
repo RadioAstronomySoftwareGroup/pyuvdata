@@ -864,3 +864,37 @@ def test_UVH5SingleIntegrationTime():
     os.remove(testfile)
 
     return
+
+
+def test_UVH5LstArray():
+    """
+    Test different cases of the lst_array
+    """
+    uv_in = UVData()
+    uv_out = UVData()
+    uvfits_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    testfile = os.path.join(DATA_PATH, 'test', 'outtest_uvfits.uvh5')
+    uvtest.checkWarnings(uv_in.read_uvfits, [uvfits_file], message='Telescope EVLA is not')
+    uv_in.write_uvh5(testfile, clobber=True)
+
+    # remove lst_array from file; check that it's correctly computed on read
+    with h5py.File(testfile, 'r+') as f:
+        del(f['/Header/lst_array'])
+    uv_out.read_uvh5(testfile)
+    nt.assert_equal(uv_in, uv_out)
+
+    # now change what's in the file and make sure a warning is raised
+    uv_in.write_uvh5(testfile, clobber=True)
+    with h5py.File(testfile, 'r+') as f:
+        lst_array = f['/Header/lst_array'].value
+        del(f['/Header/lst_array'])
+        f['/Header/lst_array'] = 2 * lst_array
+    uvtest.checkWarnings(uv_out.read_uvh5, [testfile],
+                         message='LST values stored in outtest_uvfits.uvh5 are not self-consistent')
+    uv_out.lst_array = lst_array
+    nt.assert_equal(uv_in, uv_out)
+
+    # clean up
+    os.remove(testfile)
+
+    return
