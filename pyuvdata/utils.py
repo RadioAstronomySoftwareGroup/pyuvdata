@@ -501,7 +501,7 @@ def polstr2num(pol):
     if isinstance(pol, str):
         out = poldict[pol.lower()]
     elif isinstance(pol, collections.Iterable):
-            out = [poldict[key.lower()] for key in pol]
+        out = [poldict[key.lower()] for key in pol]
     else:
         raise ValueError('Polarization cannot be converted to index.')
     return out
@@ -521,7 +521,7 @@ def polnum2str(num):
     if isinstance(num, six.integer_types + (np.int32, np.int64)):
         out = POL_NUM2STR_DICT[num]
     elif isinstance(num, collections.Iterable):
-            out = [POL_NUM2STR_DICT[i] for i in num]
+        out = [POL_NUM2STR_DICT[i] for i in num]
     else:
         raise ValueError('Polarization cannot be converted to string.')
     return out
@@ -541,7 +541,7 @@ def jstr2num(jstr):
     if isinstance(jstr, str):
         out = jdict[jstr.lower()]
     elif isinstance(jstr, collections.Iterable):
-            out = [jdict[key.lower()] for key in jstr]
+        out = [jdict[key.lower()] for key in jstr]
     else:
         raise ValueError('Jones polarization cannot be converted to index.')
     return out
@@ -560,7 +560,7 @@ def jnum2str(jnum):
     if isinstance(jnum, six.integer_types + (np.int32, np.int64)):
         out = JONES_NUM2STR_DICT[jnum]
     elif isinstance(jnum, collections.Iterable):
-            out = [JONES_NUM2STR_DICT[i] for i in jnum]
+        out = [JONES_NUM2STR_DICT[i] for i in jnum]
     else:
         raise ValueError('Polarization cannot be converted to string.')
     return out
@@ -682,3 +682,36 @@ def _combine_histories(history1, history2):
                     keep_going = False
 
     return history1 + add_hist
+
+
+def get_redundancies(baseline_inds, baseline_vecs, bl_error_tol=1.0):
+    """
+    Return redundant baseline groups, and lists of corresponding lengths and vectors
+        baseline_inds = (Nbls,)   Baseline indices
+        baseline_vecs = (Nbls, 3) Baseline vectors in meters
+        bl_error_tol  = (float)   Absolute tolerance of redundancy, in meters.
+
+    """
+    def minmax(arr):
+        return np.min(arr), np.max(arr)
+
+    Nbls = baseline_inds.shape[0]
+
+    if not baseline_vecs.shape == (Nbls, 3):
+        raise ValueError("Baseline vectors must be shape (Nbls, 3)")
+
+    unique_vecs, inv = np.unique(np.around(baseline_vecs / bl_error_tol), return_inverse=True, axis=0)
+    unique_vecs *= bl_error_tol
+
+    N_unique = unique_vecs.shape[0]
+
+    grps = [np.where(inv == i) for i in range(N_unique)]
+    bl_gps = []
+    vec_bin_centers = np.zeros((N_unique, 3))
+    for gi, g in enumerate(grps):
+        bl_gps.append(baseline_inds[g])
+        vec_bin_centers[gi] = np.mean(baseline_vecs[g], axis=0)
+
+    lens = np.sqrt(np.sum(vec_bin_centers**2, axis=1))
+
+    return bl_gps, vec_bin_centers, lens
