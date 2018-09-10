@@ -351,3 +351,27 @@ def test_deprecated_funcs():
                                                      uvversion.version],
                          category=DeprecationWarning,
                          message='The combine_histories function is deprecated')
+
+
+def test_redundancy_finder():
+    """
+        Confirm that get_redundancies returns baselines that have the same length.
+        Should probably check orientation too.
+        Will need a test file that is close to redundant, but not perfectly so.
+    """
+    uvd = pyuvdata.UVData()
+    uvd.read_uvfits(os.path.join(DATA_PATH, 'hera19_8hrs_uncomp_10MHz_000_05.003111-05.033750.uvfits'))
+    uvd.select(times=uvd.time_array[0])
+    uvd.unphase_to_drift()   # uvw_array is now equivalent to baseline
+
+    bl_error_tol = 0.5  # meters
+
+    baseline_groups, vec_bin_centers, lens = uvutils.get_redundancies(uvd.baseline_array, uvd.uvw_array, bl_error_tol=bl_error_tol)
+
+    for gi, gp in enumerate(baseline_groups):
+        for bl in gp:
+            bl_ind = np.where(uvd.baseline_array == bl)
+            bl_vec = uvd.uvw_array[bl_ind]
+
+            print(np.dot(bl_vec, vec_bin_centers[gi]), lens[gi]**2)
+            nt.assert_true(np.isclose(np.sqrt(np.dot(bl_vec, vec_bin_centers[gi])), lens[gi], atol=bl_error_tol))
