@@ -70,6 +70,27 @@ def test_ReadFHDWriteReadUVFits():
     fhd_uv.select(freq_chans=np.arange(2))
     nt.assert_equal(fhd_uv, fhd_uv2)
 
+    # check loopback (and warning) with no layout file
+    if not uvtest.scipy_warnings:
+        uvtest.checkWarnings(fhd_uv.read_fhd, [testfiles[:-2] + [testfiles[-1]]],
+                             message=['No layout file'], category=DeprecationWarning)
+    else:
+        # numpy 1.14 introduced a new deprecation warning.
+        # Should be fixed when the next scipy version comes out.
+        # The number of replications of the warning varies some and must be
+        # empirically discovered. It it defaults to the most common number.
+        n_scipy_warnings, scipy_warn_list, scipy_category_list = uvtest.get_scipy_warnings()
+        warn_list = ['No layout file'] + scipy_warn_list
+        category_list = [DeprecationWarning] + scipy_category_list
+        uvtest.checkWarnings(fhd_uv.read_fhd, [testfiles[:-1]],
+                             message=warn_list, category=category_list,
+                             nwarnings=n_scipy_warnings + 1)
+
+    fhd_uv.write_uvfits(os.path.join(DATA_PATH, 'test/outtest_FHD_1061316296.uvfits'),
+                        spoof_nonessential=True)
+    uvfits_uv.read_uvfits(os.path.join(DATA_PATH, 'test/outtest_FHD_1061316296.uvfits'))
+    nt.assert_equal(fhd_uv, uvfits_uv)
+
     del(fhd_uv)
     del(uvfits_uv)
 
@@ -103,21 +124,6 @@ def test_breakReadFHD():
     # Check only pyuvdata history with no settings file
     nt.assert_equal(fhd_uv.history, fhd_uv.pyuvdata_version_str)  # Check empty history with no settings
     del(fhd_uv)
-    fhd_uv = UVData()
-    if not uvtest.scipy_warnings:
-        uvtest.checkWarnings(fhd_uv.read_fhd, [testfiles[:-2] + [testfiles[-1]]],
-                             message=['No layout file'], category=DeprecationWarning)
-    else:
-        # numpy 1.14 introduced a new deprecation warning.
-        # Should be fixed when the next scipy version comes out.
-        # The number of replications of the warning varies some and must be
-        # empirically discovered. It it defaults to the most common number.
-        n_scipy_warnings, scipy_warn_list, scipy_category_list = uvtest.get_scipy_warnings()
-        warn_list = ['No settings'] + scipy_warn_list
-        category_list = [UserWarning] + scipy_category_list
-        uvtest.checkWarnings(fhd_uv.read_fhd, [testfiles[:-1]],
-                             message=warn_list, category=category_list,
-                             nwarnings=n_scipy_warnings + 1)
 
 
 def test_ReadFHD_model():
