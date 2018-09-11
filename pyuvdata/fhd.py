@@ -82,6 +82,7 @@ class FHD(UVData):
         datafiles = {}
         params_file = None
         flags_file = None
+        layout_file = None
         settings_file = None
         if use_model:
             data_name = '_vis_model_'
@@ -100,6 +101,8 @@ class FHD(UVData):
                 params_file = file
             elif file.lower().endswith('_flags.sav'):
                 flags_file = file
+            elif file.lower().endswith('_layout.sav'):
+                layout_file = file
             elif file.lower().endswith('_settings.txt'):
                 settings_file = file
             else:
@@ -111,12 +114,15 @@ class FHD(UVData):
             raise Exception('No params file included in file list')
         if flags_file is None:
             raise Exception('No flags file included in file list')
+        if layout_file is None:
+            warnings.warn('No layout file included in file list. '
+                          'Support for FHD data without layout files will be '
+                          'deprecated in a future version.', DeprecationWarning)
         if settings_file is None:
             warnings.warn('No settings file included in file list')
 
         # TODO: add checking to make sure params, flags and datafiles are
         # consistent with each other
-
         vis_data = {}
         for pol, file in datafiles.items():
             this_dict = readsav(file, python_dict=True)
@@ -133,7 +139,7 @@ class FHD(UVData):
         astrometry = obs['ASTR'][0]
         fhd_pol_list = []
         for pol in obs['POL_NAMES'][0]:
-            fhd_pol_list.append(pol.decode("utf-8").lower())
+            fhd_pol_list.append(uvutils._bytes_to_str(pol).lower())
 
         params_dict = readsav(params_file, python_dict=True)
         params = params_dict['params']
@@ -213,10 +219,6 @@ class FHD(UVData):
 
         self.Nants_data = int(len(np.unique(self.ant_1_array.tolist() + self.ant_2_array.tolist())))
 
-        self.antenna_names = [uvutils._bytes_to_str(b) for b in bl_info['TILE_NAMES'][0].tolist()]
-        self.Nants_telescope = len(self.antenna_names)
-        self.antenna_numbers = np.arange(self.Nants_telescope)
-
         self.baseline_array = \
             self.antnums_to_baseline(self.ant_1_array,
                                      self.ant_2_array)
@@ -250,7 +252,7 @@ class FHD(UVData):
         self.channel_width = float(obs['FREQ_RES'][0])
 
         # # --- observation information ---
-        self.telescope_name = str(obs['INSTRUMENT'][0].decode())
+        self.telescope_name = uvutils._bytes_to_str(obs['INSTRUMENT'][0])
 
         # This is a bit of a kludge because nothing like object_name exists
         # in FHD files.
@@ -283,19 +285,90 @@ class FHD(UVData):
 
         self.phase_center_epoch = astrometry['EQUINOX'][0]
 
-        # TODO Once FHD starts reading and saving the antenna table info from
-        #    uvfits, that information should be read into the following optional
-        #    parameters:
-        # 'xyz_telescope_frame'
-        # 'x_telescope'
-        # 'y_telescope'
-        # 'z_telescope'
-        # 'antenna_positions'
-        # 'GST0'
-        # 'RDate'
-        # 'earth_omega'
-        # 'DUT1'
-        # 'TIMESYS'
+        # get the stuff FHD read from the antenna table (in layout file)
+        if layout_file is not None:
+            layout_dict = readsav(layout_file, python_dict=True)
+            layout = layout_dict['layout']
+
+            layout_fields = [name.lower() for name in layout.dtype.names]
+            if 'array_center' in layout_fields:
+                arr_center = layout['array_center'][0]
+                layout_fields.remove('array_center')
+            else:
+                arr_center = None
+            if 'coordinate_frame' in layout_fields:
+                xyz_telescope_frame = uvutils._bytes_to_str(layout['coordinate_frame'][0]).lower()
+                layout_fields.remove('coordinate_frame')
+            else:
+                warnings.warn('Required Antenna frame keyword not set, '
+                              'setting to ????')
+                xyz_telescope_frame = '????'
+
+            if xyz_telescope_frame == 'ITRF' and arr_center is not None:
+                self.telescope_location = arr_center
+
+            if 'antenna_coords' in layout_fields:
+                self.antenna_positions = layout['antenna_coords'][0]
+                layout_fields.remove('antenna_coords')
+
+            if 'antenna_names' in layout_fields:
+                self.antenna_names = [uvutils._bytes_to_str(ant).strip() for ant in layout['antenna_names'][0].tolist()]
+                layout_fields.remove('antenna_names')
+            if 'antenna_numbers' in layout_fields:
+                self.antenna_numbers = layout['antenna_numbers'][0]
+                layout_fields.remove('antenna_numbers')
+            if 'n_antenna' in layout_fields:
+                self.Nants_telescope = int(layout['n_antenna'][0])
+                layout_fields.remove('n_antenna')
+
+            # check that these match
+            tile_names = [uvutils._bytes_to_str(ant).strip() for ant in bl_info['TILE_NAMES'][0].tolist()]
+            tile_names = ['Tile' + '0' * (3 - len(ant)) + ant for ant in tile_names]
+            if tile_names != self.antenna_names:
+                warnings.warn('tile_names from obs structure does not match antenna_names from layout')
+
+            if 'gst0' in layout_fields:
+                self.gst0 = float(layout['gst0'][0])
+                layout_fields.remove('gst0')
+            if 'ref_date' in layout_fields:
+                self.rdate = uvutils._bytes_to_str(layout['ref_date'][0]).lower()
+                layout_fields.remove('ref_date')
+            if 'earth_degpd' in layout_fields:
+                self.earth_omega = float(layout['earth_degpd'][0])
+                layout_fields.remove('earth_degpd')
+            if 'dut1' in layout_fields:
+                self.dut1 = float(layout['dut1'][0])
+                layout_fields.remove('dut1')
+            if 'time_system' in layout_fields:
+                self.timesys = uvutils._bytes_to_str(layout['time_system'][0]).upper().strip()
+                layout_fields.remove('time_system')
+            if 'diameters' in layout_fields:
+                self.timesys = uvutils._bytes_to_str(layout['time_system'][0]).upper().strip()
+                layout_fields.remove('time_system')
+            # stick everything else in extra_keywords
+            layout_fields_ignore = ['diff_utc', 'pol_type', 'n_pol_cal_params',
+                                    'mount_type', 'axis_offset',
+                                    'pola', 'pola_orientation', 'pola_cal_params',
+                                    'polb', 'polb_orientation', 'polb_cal_params',
+                                    'beam_fwhm']
+            for field in layout_fields_ignore:
+                if field in layout_fields:
+                    layout_fields.remove(field)
+            for field in layout_fields:
+                keyword = field
+                if len(keyword) > 8:
+                    keyword = field.replace('_', '')
+
+                value = layout[field][0]
+                if isinstance(value, bytes):
+                    value = uvutils._bytes_to_str(value)
+
+                self.extra_keywords[keyword.upper()] = value
+        else:
+            tile_names = [uvutils._bytes_to_str(ant).strip() for ant in bl_info['TILE_NAMES'][0].tolist()]
+            self.antenna_names = ['Tile' + '0' * (3 - len(ant)) + ant for ant in tile_names]
+            self.Nants_telescope = len(self.antenna_names)
+            self.antenna_numbers = np.arange(self.Nants_telescope)
 
         try:
             self.set_telescope_params()
