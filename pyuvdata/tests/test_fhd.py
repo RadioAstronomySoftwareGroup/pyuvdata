@@ -19,7 +19,7 @@ import numpy as np
 testdir = os.path.join(DATA_PATH, 'fhd_vis_data/')
 testfile_prefix = '1061316296_'
 testfile_suffix = ['flags.sav', 'vis_XX.sav', 'params.sav', 'vis_YY.sav',
-                   'vis_model_XX.sav', 'vis_model_YY.sav', 'settings.txt']
+                   'vis_model_XX.sav', 'vis_model_YY.sav', 'layout.sav', 'settings.txt']
 testfiles = []
 for s in testfile_suffix:
     testfiles.append(testdir + testfile_prefix + s)
@@ -103,6 +103,21 @@ def test_breakReadFHD():
     # Check only pyuvdata history with no settings file
     nt.assert_equal(fhd_uv.history, fhd_uv.pyuvdata_version_str)  # Check empty history with no settings
     del(fhd_uv)
+    fhd_uv = UVData()
+    if not uvtest.scipy_warnings:
+        uvtest.checkWarnings(fhd_uv.read_fhd, [testfiles[:-2] + [testfiles[-1]]],
+                             message=['No layout file'], category=DeprecationWarning)
+    else:
+        # numpy 1.14 introduced a new deprecation warning.
+        # Should be fixed when the next scipy version comes out.
+        # The number of replications of the warning varies some and must be
+        # empirically discovered. It it defaults to the most common number.
+        n_scipy_warnings, scipy_warn_list, scipy_category_list = uvtest.get_scipy_warnings()
+        warn_list = ['No settings'] + scipy_warn_list
+        category_list = [UserWarning] + scipy_category_list
+        uvtest.checkWarnings(fhd_uv.read_fhd, [testfiles[:-1]],
+                             message=warn_list, category=category_list,
+                             nwarnings=n_scipy_warnings + 1)
 
 
 def test_ReadFHD_model():
@@ -135,8 +150,8 @@ def test_multi_files():
     """
     fhd_uv1 = UVData()
     fhd_uv2 = UVData()
-    test1 = list(np.array(testfiles)[[0, 1, 2, 4, 6]])
-    test2 = list(np.array(testfiles)[[0, 2, 3, 5, 6]])
+    test1 = list(np.array(testfiles)[[0, 1, 2, 4, 6, 7]])
+    test2 = list(np.array(testfiles)[[0, 2, 3, 5, 6, 7]])
     if not uvtest.scipy_warnings:
         fhd_uv1.read([test1, test2])
     else:
