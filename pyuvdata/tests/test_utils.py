@@ -361,17 +361,42 @@ def test_redundancy_finder():
     """
     uvd = pyuvdata.UVData()
     uvd.read_uvfits(os.path.join(DATA_PATH, 'hera19_8hrs_uncomp_10MHz_000_05.003111-05.033750.uvfits'))
+    #uvd.read_miriad(os.path.join(DATA_PATH, 'zen.2457698.40355.xx.HH.uvcA'))
     uvd.select(times=uvd.time_array[0])
     uvd.unphase_to_drift()   # uvw_array is now equivalent to baseline
 
-    bl_error_tol = 0.5  # meters
+    bl_error_tol = 0.05  # meters
 
-    baseline_groups, vec_bin_centers, lens = uvutils.get_redundancies(uvd.baseline_array, uvd.uvw_array, bl_error_tol=bl_error_tol)
+    bl_positions = uvd.uvw_array
 
+    baseline_groups, vec_bin_centers, lens = uvutils.get_redundancies(uvd.baseline_array, bl_positions, bl_error_tol=bl_error_tol)
+
+#    np.savez('redundancies_uvdata.npz', groups=baseline_groups, vectors=vec_bin_centers, lengths=lens)
     for gi, gp in enumerate(baseline_groups):
         for bl in gp:
             bl_ind = np.where(uvd.baseline_array == bl)
-            bl_vec = uvd.uvw_array[bl_ind]
+            bl_vec = bl_positions[bl_ind]
+            nt.assert_true(np.allclose(np.sqrt(np.dot(bl_vec, vec_bin_centers[gi])), lens[gi], atol=bl_error_tol))
 
-            print(np.dot(bl_vec, vec_bin_centers[gi]), lens[gi]**2)
-            nt.assert_true(np.isclose(np.sqrt(np.dot(bl_vec, vec_bin_centers[gi])), lens[gi], atol=bl_error_tol))
+    # Now jostle the baselines around by up to 0.25m and see if we can recover the same redundancies to that tolerance.
+    bl_error_tol = 0.25  # meters. Less than the smallest baseline in the file.
+    Nbls = uvd.Nbls
+    shift_dists = np.random.uniform(low=0.0, high=bl_error_tol / 2., size=Nbls)
+    shift_angs = np.random.uniform(low=0.0, high=2 * np.pi, size=Nbls)
+    shift_vecs = np.stack((shift_dists * np.cos(shift_angs), shift_dists * np.sin(shift_angs), np.zeros(Nbls))).T
+
+    bl_positions_new = bl_positions + shift_vecs
+
+    baseline_groups_new, vec_bin_centers, lens = uvutils.get_redundancies(uvd.baseline_array, bl_positions_new, bl_error_tol=bl_error_tol)
+
+    for gi, gp in enumerate(baseline_groups_new):
+        for bl in gp:
+            bl_ind = np.where(uvd.baseline_array == bl)
+            bl_vec = bl_positions[bl_ind]
+            nt.assert_true(np.allclose(np.sqrt(np.abs(np.dot(bl_vec, vec_bin_centers[gi]))), lens[gi], atol=bl_error_tol))
+
+    # Compare baseline groups:
+    for c, blg in enumerate(baseline_groups):
+        bl = blg[0]
+        ind = np.sum(np.where([bl in gp for gp in baseline_groups_new]))
+        nt.assert_equal(baseline_groups_new[ind], blg)
