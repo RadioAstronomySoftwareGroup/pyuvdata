@@ -202,6 +202,7 @@ class TestUVDataBasicMethods(object):
         file_list = [testdir + '1061316296_flags.sav',
                      testdir + '1061316296_vis_XX.sav',
                      testdir + '1061316296_params.sav',
+                     testdir + '1061316296_layout.sav',
                      testdir + '1061316296_settings.txt']
 
         if not uvtest.scipy_warnings:
