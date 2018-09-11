@@ -692,25 +692,42 @@ def get_redundancies(baseline_inds, baseline_vecs, bl_error_tol=1.0):
         bl_error_tol  = (float)   Absolute tolerance of redundancy, in meters.
 
     """
-    def minmax(arr):
-        return np.min(arr), np.max(arr)
-
     Nbls = baseline_inds.shape[0]
 
     if not baseline_vecs.shape == (Nbls, 3):
         raise ValueError("Baseline vectors must be shape (Nbls, 3)")
 
-    unique_vecs, inv = np.unique(np.around(baseline_vecs / bl_error_tol), return_inverse=True, axis=0)
-    unique_vecs *= bl_error_tol
+    # This works by finding pairs within the tolerance distance, then identifying cliques in the graph
 
-    N_unique = unique_vecs.shape[0]
+    adj = {}
 
-    grps = [np.where(inv == i) for i in range(N_unique)]
+    for bi, bv0 in enumerate(baseline_vecs):
+        key0 = baseline_inds[bi]
+        adj[key0] = []
+        for bj, bv1 in enumerate(baseline_vecs):
+            dist = np.linalg.norm(bv1 - bv0)
+            if dist < bl_error_tol:
+                key1 = baseline_inds[bj]
+                adj[key0].append(key1)
+
     bl_gps = []
+    used = []
+    for k in adj.keys():
+        a0 = adj[k] + [k, ]
+        group = [k]
+        for a in a0:
+            if set(a0).issubset(adj[a]) and a not in group:
+                group.append(a)
+        group.sort()
+        bl_gps.append(group)
+
+    bl_gps = np.unique(bl_gps)      # Permutations end up in here.
+
+    N_unique = len(bl_gps)
     vec_bin_centers = np.zeros((N_unique, 3))
-    for gi, g in enumerate(grps):
-        bl_gps.append(baseline_inds[g])
-        vec_bin_centers[gi] = np.mean(baseline_vecs[g], axis=0)
+    for gi, gp in enumerate(bl_gps):
+        inds = [np.where(i == baseline_inds)[0] for i in gp]
+        vec_bin_centers[gi] = np.mean(baseline_vecs[inds, :], axis=0)
 
     lens = np.sqrt(np.sum(vec_bin_centers**2, axis=1))
 
