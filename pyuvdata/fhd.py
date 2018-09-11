@@ -304,7 +304,7 @@ class FHD(UVData):
                               'setting to ????')
                 xyz_telescope_frame = '????'
 
-            if xyz_telescope_frame == 'ITRF' and arr_center is not None:
+            if xyz_telescope_frame == 'itrf' and arr_center is not None:
                 self.telescope_location = arr_center
 
             if 'antenna_coords' in layout_fields:
