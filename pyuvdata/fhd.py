@@ -91,20 +91,36 @@ class FHD(UVData):
             data_name = '_vis_'
         for file in filelist:
             if file.lower().endswith(data_name + 'xx.sav'):
+                if 'xx' in list(datafiles.keys()):
+                    raise ValueError('multiple xx datafiles in filelist')
                 datafiles['xx'] = file
             elif file.lower().endswith(data_name + 'yy.sav'):
+                if 'yy' in list(datafiles.keys()):
+                    raise ValueError('multiple yy datafiles in filelist')
                 datafiles['yy'] = file
             elif file.lower().endswith(data_name + 'xy.sav'):
+                if 'xy' in list(datafiles.keys()):
+                    raise ValueError('multiple xy datafiles in filelist')
                 datafiles['xy'] = file
             elif file.lower().endswith(data_name + 'yx.sav'):
+                if 'yx' in list(datafiles.keys()):
+                    raise ValueError('multiple yx datafiles in filelist')
                 datafiles['yx'] = file
             elif file.lower().endswith('_params.sav'):
+                if params_file is not None:
+                    raise ValueError('multiple params files in filelist')
                 params_file = file
             elif file.lower().endswith('_flags.sav'):
+                if flags_file is not None:
+                    raise ValueError('multiple flags files in filelist')
                 flags_file = file
             elif file.lower().endswith('_layout.sav'):
+                if layout_file is not None:
+                    raise ValueError('multiple layout files in filelist')
                 layout_file = file
             elif file.lower().endswith('_settings.txt'):
+                if settings_file is not None:
+                    raise ValueError('multiple settings files in filelist')
                 settings_file = file
             else:
                 continue
