@@ -226,8 +226,6 @@ class FHD(UVData):
         if self.Nbls != len(np.unique(self.baseline_array)):
             warnings.warn('Nbls does not match the number of unique baselines in the data')
 
-        if len(bl_info['FREQ'][0]) != self.Nfreqs:
-            warnings.warn('Nfreqs does not match the number of frequencies in the data')
         self.freq_array = np.zeros((self.Nspws, len(bl_info['FREQ'][0])), dtype=np.float_)
         self.freq_array[0, :] = bl_info['FREQ'][0]
 
