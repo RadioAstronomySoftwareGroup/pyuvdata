@@ -355,7 +355,7 @@ def test_deprecated_funcs():
 
 def test_redundancy_finder():
     """
-        Confirm that get_redundancies returns baselines that have the same length.
+        Confirm that get_baseline_redundancies returns baselines that have the same length.
         Should probably check orientation too.
         Will need a test file that is close to redundant, but not perfectly so.
     """
@@ -365,35 +365,39 @@ def test_redundancy_finder():
     uvd.select(times=uvd.time_array[0])
     uvd.unphase_to_drift()   # uvw_array is now equivalent to baseline
 
-    bl_error_tol = 0.05  # meters
+    tol = 0.05  # meters
 
     bl_positions = uvd.uvw_array
 
-    baseline_groups, vec_bin_centers, lens = uvutils.get_redundancies(uvd.baseline_array, bl_positions, bl_error_tol=bl_error_tol)
+    baseline_groups, vec_bin_centers, lens = uvutils.get_baseline_redundancies(uvd.baseline_array, bl_positions, tol=tol)
 
 #    np.savez('redundancies_uvdata.npz', groups=baseline_groups, vectors=vec_bin_centers, lengths=lens)
     for gi, gp in enumerate(baseline_groups):
         for bl in gp:
             bl_ind = np.where(uvd.baseline_array == bl)
             bl_vec = bl_positions[bl_ind]
-            nt.assert_true(np.allclose(np.sqrt(np.dot(bl_vec, vec_bin_centers[gi])), lens[gi], atol=bl_error_tol))
+            nt.assert_true(np.allclose(np.sqrt(np.dot(bl_vec, vec_bin_centers[gi])), lens[gi], atol=tol))
+
+    # Check that the antenna method returns the same results:
+    bl_gps_ant, vec_bin_centers, lengths = uvutils.get_antenna_redundancies(uvd.antenna_numbers, uvd.antenna_positions, tol=0.5, include_autos=True)
+    nt.assert_true(np.all(bl_gps_ant == baseline_groups))
 
     # Now jostle the baselines around by up to 0.25m and see if we can recover the same redundancies to that tolerance.
-    bl_error_tol = 0.25  # meters. Less than the smallest baseline in the file.
+    tol = 0.25  # meters. Less than the smallest baseline in the file.
     Nbls = uvd.Nbls
-    shift_dists = np.random.uniform(low=0.0, high=bl_error_tol / 2., size=Nbls)
+    shift_dists = np.random.uniform(low=0.0, high=tol / 2., size=Nbls)
     shift_angs = np.random.uniform(low=0.0, high=2 * np.pi, size=Nbls)
     shift_vecs = np.stack((shift_dists * np.cos(shift_angs), shift_dists * np.sin(shift_angs), np.zeros(Nbls))).T
 
     bl_positions_new = bl_positions + shift_vecs
 
-    baseline_groups_new, vec_bin_centers, lens = uvutils.get_redundancies(uvd.baseline_array, bl_positions_new, bl_error_tol=bl_error_tol)
+    baseline_groups_new, vec_bin_centers, lens = uvutils.get_baseline_redundancies(uvd.baseline_array, bl_positions_new, tol=tol)
 
     for gi, gp in enumerate(baseline_groups_new):
         for bl in gp:
             bl_ind = np.where(uvd.baseline_array == bl)
             bl_vec = bl_positions[bl_ind]
-            nt.assert_true(np.allclose(np.sqrt(np.abs(np.dot(bl_vec, vec_bin_centers[gi]))), lens[gi], atol=bl_error_tol))
+            nt.assert_true(np.allclose(np.sqrt(np.abs(np.dot(bl_vec, vec_bin_centers[gi]))), lens[gi], atol=tol))
 
     # Compare baseline groups:
     for c, blg in enumerate(baseline_groups):

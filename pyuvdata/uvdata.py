@@ -1135,7 +1135,6 @@ class UVData(UVBase):
 
     def _select_preprocess(self, antenna_nums, antenna_names, ant_str, bls,
                            frequencies, freq_chans, times, polarizations, blt_inds):
-
         """
         Internal function to build up blt_inds, freq_inds, pol_inds
         and history_update_string for select.
