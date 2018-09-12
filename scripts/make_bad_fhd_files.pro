@@ -1,6 +1,7 @@
 pro make_bad_fhd_files, good_data_file, good_layout_file, good_flag_file
 
   ;; obs comes out of the data file, need to mess it up there.
+  if n_elements(good_data_file) then good_data_file = '1061316296_vis_XX.sav'
   data_root = cgRootName(good_data_file, directory=directory, extension=extension)
   data_start = (strsplit(data_root, 'vis',/extract))[0]
   data_end = 'vis' + (strsplit(data_root, 'vis',/extract))[1]
@@ -19,6 +20,7 @@ pro make_bad_fhd_files, good_data_file, good_layout_file, good_flag_file
   save, file = bad_data_file, obs, vis_ptr
 
 
+  if n_elements(good_layout_file) then good_layout_file = '1061316296_layout.sav'
   layout_root = cgRootName(good_layout_file, directory=directory, extension=extension)
   layout_start = (strsplit(layout_root, 'layout',/extract))[0]
   layout_end = 'layout'
@@ -42,6 +44,7 @@ pro make_bad_fhd_files, good_data_file, good_layout_file, good_flag_file
   save, file = bad_layout_file, layout
 
 
+  if n_elements(good_flag_file) then good_flag_file = '1061316296_flags.sav'
   flag_root = cgRootName(good_flag_file, directory=directory, extension=extension)
   flag_start = (strsplit(layout_root, 'flags',/extract))[0]
   flag_end = 'flags'

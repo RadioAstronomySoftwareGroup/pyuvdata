@@ -9,11 +9,13 @@ from __future__ import absolute_import, division, print_function
 
 import nose.tools as nt
 import os
+import numpy as np
+from shutil import copyfile
+
 from pyuvdata import UVData
 import pyuvdata.utils as uvutils
 import pyuvdata.tests as uvtest
 from pyuvdata.data import DATA_PATH
-import numpy as np
 
 # set up FHD file list
 testdir = os.path.join(DATA_PATH, 'fhd_vis_data/')
@@ -203,6 +205,53 @@ def test_breakReadFHD():
     bad_filelist = testfiles[1:] + [broken_flag_file]
     fhd_uv = UVData()
     nt.assert_raises(ValueError, fhd_uv.read_fhd, bad_filelist)
+
+    # try cases with extra files of each type
+    extra_xx_file = testdir + testfile_prefix + 'extra_vis_XX.sav'
+    copyfile(testfiles[1], extra_xx_file)
+    nt.assert_raises(Exception, fhd_uv.read_fhd, testfiles + [extra_xx_file])
+    os.remove(extra_xx_file)
+
+    extra_yy_file = testdir + testfile_prefix + 'extra_vis_YY.sav'
+    copyfile(testfiles[3], extra_yy_file)
+    nt.assert_raises(Exception, fhd_uv.read_fhd, testfiles + [extra_yy_file])
+    os.remove(extra_yy_file)
+
+    xy_file = testdir + testfile_prefix + 'vis_XY.sav'
+    extra_xy_file = testdir + testfile_prefix + 'extra_vis_XY.sav'
+    copyfile(testfiles[1], xy_file)
+    copyfile(testfiles[1], extra_xy_file)
+    nt.assert_raises(Exception, fhd_uv.read_fhd, testfiles + [xy_file, extra_xy_file])
+    os.remove(xy_file)
+    os.remove(extra_xy_file)
+
+    yx_file = testdir + testfile_prefix + 'vis_YX.sav'
+    extra_yx_file = testdir + testfile_prefix + 'extra_vis_YX.sav'
+    copyfile(testfiles[1], yx_file)
+    copyfile(testfiles[1], extra_yx_file)
+    nt.assert_raises(Exception, fhd_uv.read_fhd, testfiles + [yx_file, extra_yx_file])
+    os.remove(yx_file)
+    os.remove(extra_yx_file)
+
+    extra_params_file = testdir + testfile_prefix + 'extra_params.sav'
+    copyfile(testfiles[2], extra_params_file)
+    nt.assert_raises(Exception, fhd_uv.read_fhd, testfiles + [extra_params_file])
+    os.remove(extra_params_file)
+
+    extra_flags_file = testdir + testfile_prefix + 'extra_flags.sav'
+    copyfile(testfiles[0], extra_flags_file)
+    nt.assert_raises(Exception, fhd_uv.read_fhd, testfiles + [extra_flags_file])
+    os.remove(extra_flags_file)
+
+    extra_layout_file = testdir + testfile_prefix + 'extra_layout.sav'
+    copyfile(testfiles[6], extra_layout_file)
+    nt.assert_raises(Exception, fhd_uv.read_fhd, testfiles + [extra_layout_file])
+    os.remove(extra_layout_file)
+
+    extra_settings_file = testdir + testfile_prefix + 'extra_settings.txt'
+    copyfile(testfiles[7], extra_settings_file)
+    nt.assert_raises(Exception, fhd_uv.read_fhd, testfiles + [extra_settings_file])
+    os.remove(extra_settings_file)
 
 
 def test_ReadFHD_model():
