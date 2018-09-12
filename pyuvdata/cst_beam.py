@@ -176,11 +176,6 @@ class CSTBeam(UVBeam):
         self.axis2_array = theta_axis
         self.Naxes2 = self.axis2_array.size
 
-        if np.any(np.core.defchararray.find(np.core.defchararray.lower(np.array(column_names)), 'abs(dir.)') != -1):
-            self.data_normalization = 'solid_angle'
-        elif np.any(np.core.defchararray.find(np.core.defchararray.lower(np.array(column_names)), 'abs(v)') != -1):
-            self.data_normalization = 'physical'
-
         if self.beam_type == 'power':
             # type depends on whether cross pols are present (if so, complex, else float)
             self.data_array = np.zeros(self._data_array.expected_shape(self), dtype=self._data_array.expected_type)
@@ -213,12 +208,18 @@ class CSTBeam(UVBeam):
             power_beam1 = data[:, data_col].reshape((theta_axis.size, phi_axis.size), order='F')
 
             mag_dbi = 'dbi' in np.core.defchararray.lower(units)[data_col]
+            mag_v = 'v' in np.core.defchararray.lower(units)[data_col]
 
             if mag_dbi:
                 power_beam1 = 10. ** (power_beam1 / 10.)
-
-            if 'abs(v)' in column_names[data_col]:
+                self.data_normalization = 'solid_angle'
+            elif mag_v:
+                # If we are provided with voltage units, we need to
+                # Square to get a power beam.
                 power_beam1 = power_beam1 ** 2.
+                self.data_normalization = 'physical'
+            else:
+                raise ValueError('Invalid Units for power mag. Only "dBi" or "V" are supported.')
 
             self.data_array[0, 0, 0, 0, :, :] = power_beam1
 
@@ -255,12 +256,23 @@ class CSTBeam(UVBeam):
             theta_phase = theta_phase.reshape((theta_axis.size, phi_axis.size), order='F')
             phi_phase = phi_phase.reshape((theta_axis.size, phi_axis.size), order='F')
 
+            theta_mag_v = 'v' in np.core.defchararray.lower(units)[theta_mag_col]
+            phi_mag_v = 'v' in np.core.defchararray.lower(units)[phi_mag_col]
+
             if theta_mag_dbi:
                 theta_mag = 10. ** (theta_mag / 20.)
-                theta_phase *= .5
+                self.data_normalization = 'solid_angle'
+            elif theta_mag_v:
+                self.data_normalization = 'physical'
+            else:
+                raise ValueError('Invalid Units for theta mag. Only "dBi" or "V" are supported.')
             if phi_mag_dbi:
                 phi_mag = 10. ** (phi_mag / 20.)
-                phi_phase *= .5
+                self.data_normalization = 'solid_angle'
+            elif phi_mag_v:
+                self.data_normalization = 'physical'
+            else:
+                raise ValueError('Invalid Units for phi mag. Only "dBi" or "V" are supported.')
 
             theta_beam = theta_mag * np.exp(1j * theta_phase)
             phi_beam = phi_mag * np.exp(1j * phi_phase)
