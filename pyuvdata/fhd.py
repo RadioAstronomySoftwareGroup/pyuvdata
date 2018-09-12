@@ -310,7 +310,7 @@ class FHD(UVData):
                     self.telescope_location = arr_center
                 else:
                     # values from cotter uvfits files for the MWA do not agree
-                    # with eachother to within the tolerances.
+                    # with each other to within the tolerances.
                     # compare with the known_telescopes values
                     telescope_obj = uvtel.get_telescope(self.telescope_name)
 
@@ -319,11 +319,6 @@ class FHD(UVData):
                                'values does not match the location in the layout file.')
 
                     if telescope_obj is not False:
-                        arr_center_known_diff = arr_center - telescope_obj.telescope_location
-                        print(arr_center_known_diff)
-                        latlonalt_known_diff = location_latlonalt - telescope_obj.telescope_location
-                        print(latlonalt_known_diff)
-
                         if np.allclose(location_latlonalt, telescope_obj.telescope_location,
                                        rtol=tols[0], atol=tols[1]):
                             message += (' Value from obs lat/lon/alt matches the '
@@ -387,7 +382,7 @@ class FHD(UVData):
             if 'diameters' in layout_fields:
                 self.timesys = uvutils._bytes_to_str(layout['time_system'][0]).upper().strip()
                 layout_fields.remove('diameters')
-            # stick everything else in extra_keywords
+            # ignore some fields, put everything else in extra_keywords
             layout_fields_ignore = ['diff_utc', 'pol_type', 'n_pol_cal_params',
                                     'mount_type', 'axis_offset',
                                     'pola', 'pola_orientation', 'pola_cal_params',
