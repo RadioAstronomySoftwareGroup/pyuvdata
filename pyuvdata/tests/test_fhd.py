@@ -106,7 +106,7 @@ def test_ReadFHDWriteReadUVFits():
     variant_flag_file = testdir + testfile_prefix + 'variant_flags.sav'
     files_use = testfiles[1:] + [variant_flag_file]
     if not uvtest.scipy_warnings:
-        uvtest.checkWarnings(fhd_uv.read, [testfiles], known_warning='fhd')
+        uvtest.checkWarnings(fhd_uv.read, [files_use], known_warning='fhd')
     else:
         # numpy 1.14 introduced a new deprecation warning.
         # Should be fixed when the next scipy version comes out.
