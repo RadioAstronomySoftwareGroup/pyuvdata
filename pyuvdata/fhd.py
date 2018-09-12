@@ -14,6 +14,7 @@ import numpy as np
 import warnings
 from .uvdata import UVData
 from . import utils as uvutils
+from . import telescopes as uvtel
 
 
 def get_fhd_history(settings_file, return_user=False):
@@ -266,11 +267,9 @@ class FHD(UVData):
                 object_name = 'EoR 0 Field'
 
         self.instrument = self.telescope_name
-        self.telescope_location_lat_lon_alt_degrees = (float(obs['LAT'][0]),
-                                                       float(obs['LON'][0]),
-                                                       float(obs['ALT'][0]))
-
-        self.set_lsts_from_time_array()
+        latitude = np.deg2rad(float(obs['LAT'][0]))
+        longitude = np.deg2rad(float(obs['LON'][0]))
+        altitude = float(obs['ALT'][0])
 
         # history: add the first few lines from the settings file
         if settings_file is not None:
@@ -298,12 +297,57 @@ class FHD(UVData):
                 xyz_telescope_frame = uvutils._bytes_to_str(layout['coordinate_frame'][0]).lower()
                 layout_fields.remove('coordinate_frame')
             else:
-                warnings.warn('Required Antenna frame keyword not set, '
+                warnings.warn('coordinate_frame keyword in layout file not set, '
                               'setting to ????')
                 xyz_telescope_frame = '????'
 
             if xyz_telescope_frame == 'itrf' and arr_center is not None:
-                self.telescope_location = arr_center
+                # compare to lat/lon/alt
+                location_latlonalt = uvutils.XYZ_from_LatLonAlt(latitude, longitude, altitude)
+
+                tols = self._telescope_location.tols
+                if np.allclose(location_latlonalt, arr_center, rtol=tols[0], atol=tols[1]):
+                    self.telescope_location = arr_center
+                else:
+                    # values from cotter uvfits files for the MWA do not agree
+                    # with eachother to within the tolerances.
+                    # compare with the known_telescopes values
+                    telescope_obj = uvtel.get_telescope(self.telescope_name)
+
+                    # start warning message
+                    message = ('Telescope location derived from obs lat/lon/alt '
+                               'values does not match the location in the layout file.')
+
+                    if telescope_obj is not False:
+                        arr_center_known_diff = arr_center - telescope_obj.telescope_location
+                        print(arr_center_known_diff)
+                        latlonalt_known_diff = location_latlonalt - telescope_obj.telescope_location
+                        print(latlonalt_known_diff)
+
+                        if np.allclose(location_latlonalt, telescope_obj.telescope_location,
+                                       rtol=tols[0], atol=tols[1]):
+                            message += (' Value from obs lat/lon/alt matches the '
+                                        'known_telescopes values, using them.')
+                            self.telescope_location = location_latlonalt
+                        elif np.allclose(arr_center, telescope_obj.telescope_location,
+                                         rtol=tols[0], atol=tols[1]):
+                            message += (' Value from the layout file matches the '
+                                        'known_telescopes values, using them.')
+                            self.telescope_location = arr_center
+                        else:
+                            # None of the values match each other. Defaulting to obs values.
+                            message += (' Neither location matches the values '
+                                        'in known_telescopes. Defaulting to '
+                                        'using the obs derived values.')
+                            self.telescope_location = location_latlonalt
+                    else:
+                        message += (' Telescope is not in known_telescopes. '
+                                    'Defaulting to using the obs derived values.')
+                        self.telescope_location = location_latlonalt
+                    # issue warning
+                    warnings.warn(message)
+            else:
+                self.telescope_location_lat_lon_alt = (latitude, longitude, altitude)
 
             if 'antenna_coords' in layout_fields:
                 self.antenna_positions = layout['antenna_coords'][0]
@@ -363,6 +407,7 @@ class FHD(UVData):
 
                 self.extra_keywords[keyword.upper()] = value
         else:
+            self.telescope_location_lat_lon_alt = (latitude, longitude, altitude)
             tile_names = [uvutils._bytes_to_str(ant).strip() for ant in bl_info['TILE_NAMES'][0].tolist()]
             self.antenna_names = ['Tile' + '0' * (3 - len(ant)) + ant for ant in tile_names]
             self.Nants_telescope = len(self.antenna_names)
@@ -372,6 +417,9 @@ class FHD(UVData):
             self.set_telescope_params()
         except ValueError as ve:
             warnings.warn(str(ve))
+
+        # need to make sure telescope location is defined properly before this call
+        self.set_lsts_from_time_array()
 
         # check if object has all required uv_properties set
         if run_check:

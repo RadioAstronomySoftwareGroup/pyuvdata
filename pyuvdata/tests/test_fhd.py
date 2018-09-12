@@ -37,38 +37,46 @@ def test_ReadFHDWriteReadUVFits():
     fhd_uv = UVData()
     uvfits_uv = UVData()
     if not uvtest.scipy_warnings:
-        fhd_uv.read(testfiles)
+        uvtest.checkWarnings(fhd_uv.read, [testfiles], known_warning='fhd')
     else:
         # numpy 1.14 introduced a new deprecation warning.
         # Should be fixed when the next scipy version comes out.
         # The number of replications of the warning varies some and must be
         # empirically discovered. It it defaults to the most common number.
         n_scipy_warnings, scipy_warn_list, scipy_category_list = uvtest.get_scipy_warnings()
+        warn_list = ['Telescope location derived from obs'] + scipy_warn_list
+        category_list = [UserWarning] + scipy_category_list
         uvtest.checkWarnings(fhd_uv.read, [testfiles],
-                             message=scipy_warn_list, category=scipy_category_list,
-                             nwarnings=n_scipy_warnings)
+                             message=warn_list, category=category_list,
+                             nwarnings=n_scipy_warnings + 1)
 
     fhd_uv.write_uvfits(os.path.join(DATA_PATH, 'test/outtest_FHD_1061316296.uvfits'),
                         spoof_nonessential=True)
     uvfits_uv.read_uvfits(os.path.join(DATA_PATH, 'test/outtest_FHD_1061316296.uvfits'))
+
+    diff = fhd_uv.lst_array - uvfits_uv.lst_array
     nt.assert_equal(fhd_uv, uvfits_uv)
 
     # check that a select on read works
     fhd_uv2 = UVData()
     uvtest.checkWarnings(fhd_uv2.read, [testfiles], {'freq_chans': np.arange(2)},
-                         message='Warning: select on read keyword set')
+                         message=['Warning: select on read keyword set',
+                                  'Telescope location derived from obs'],
+                         nwarnings=2)
 
     if not uvtest.scipy_warnings:
-        fhd_uv.read(testfiles)
+        uvtest.checkWarnings(fhd_uv.read, [testfiles], known_warning='fhd')
     else:
         # numpy 1.14 introduced a new deprecation warning.
         # Should be fixed when the next scipy version comes out.
         # The number of replications of the warning varies some and must be
         # empirically discovered. It it defaults to the most common number.
         n_scipy_warnings, scipy_warn_list, scipy_category_list = uvtest.get_scipy_warnings()
+        warn_list = ['Telescope location derived from obs'] + scipy_warn_list
+        category_list = [UserWarning] + scipy_category_list
         uvtest.checkWarnings(fhd_uv.read, [testfiles],
-                             message=scipy_warn_list, category=scipy_category_list,
-                             nwarnings=n_scipy_warnings)
+                             message=warn_list, category=category_list,
+                             nwarnings=n_scipy_warnings + 1)
     fhd_uv.select(freq_chans=np.arange(2))
     nt.assert_equal(fhd_uv, fhd_uv2)
 
@@ -94,20 +102,22 @@ def test_ReadFHDWriteReadUVFits():
     uvfits_uv.read_uvfits(os.path.join(DATA_PATH, 'test/outtest_FHD_1061316296.uvfits'))
     nt.assert_equal(fhd_uv, uvfits_uv)
 
-    # check loopback with vairant flag file
+    # check loopback with variant flag file
     variant_flag_file = testdir + testfile_prefix + 'variant_flags.sav'
     files_use = testfiles[1:] + [variant_flag_file]
     if not uvtest.scipy_warnings:
-        fhd_uv.read(files_use)
+        uvtest.checkWarnings(fhd_uv.read, [testfiles], known_warning='fhd')
     else:
         # numpy 1.14 introduced a new deprecation warning.
         # Should be fixed when the next scipy version comes out.
         # The number of replications of the warning varies some and must be
         # empirically discovered. It it defaults to the most common number.
         n_scipy_warnings, scipy_warn_list, scipy_category_list = uvtest.get_scipy_warnings()
+        warn_list = ['Telescope location derived from obs'] + scipy_warn_list
+        category_list = [UserWarning] + scipy_category_list
         uvtest.checkWarnings(fhd_uv.read, [files_use],
-                             message=scipy_warn_list, category=scipy_category_list,
-                             nwarnings=n_scipy_warnings)
+                             message=warn_list, category=category_list,
+                             nwarnings=n_scipy_warnings + 1)
 
     del(fhd_uv)
     del(uvfits_uv)
@@ -126,19 +136,21 @@ def test_breakReadFHD():
     nt.assert_raises(Exception, fhd_uv.read_fhd, ['foo'])  # No data files
     del(fhd_uv)
     fhd_uv = UVData()
+    messages = ['No settings', 'Telescope location derived from obs']
     if not uvtest.scipy_warnings:
-        uvtest.checkWarnings(fhd_uv.read_fhd, [testfiles[:-2]], message=['No settings'])
+        uvtest.checkWarnings(fhd_uv.read_fhd, [testfiles[:-2]], message=messages,
+                             nwarnings=2)
     else:
         # numpy 1.14 introduced a new deprecation warning.
         # Should be fixed when the next scipy version comes out.
         # The number of replications of the warning varies some and must be
         # empirically discovered. It it defaults to the most common number.
         n_scipy_warnings, scipy_warn_list, scipy_category_list = uvtest.get_scipy_warnings()
-        warn_list = ['No settings'] + scipy_warn_list
-        category_list = [UserWarning] + scipy_category_list
+        warn_list = messages + scipy_warn_list
+        category_list = [UserWarning] * 2 + scipy_category_list
         uvtest.checkWarnings(fhd_uv.read_fhd, [testfiles[:-2]],
                              message=warn_list, category=category_list,
-                             nwarnings=n_scipy_warnings + 1)
+                             nwarnings=n_scipy_warnings + 2)
     # Check only pyuvdata history with no settings file
     nt.assert_equal(fhd_uv.history, fhd_uv.pyuvdata_version_str)  # Check empty history with no settings
     del(fhd_uv)
@@ -149,12 +161,13 @@ def test_breakReadFHD():
                     broken_data_file, testfiles[6], testfiles[7]]
     warn_messages = ['Ntimes does not match', 'Nbls does not match',
                      'These visibilities may have been phased improperly',
+                     'Telescope location derived from obs',
                      'tile_names from obs structure does not match',
                      'Telescope foo is not in known_telescopes.']
     fhd_uv = UVData()
     if not uvtest.scipy_warnings:
         uvtest.checkWarnings(fhd_uv.read_fhd, [bad_filelist], {'run_check': False},
-                             nwarnings=5, message=warn_messages)
+                             nwarnings=6, message=warn_messages)
     else:
         # numpy 1.14 introduced a new deprecation warning.
         # Should be fixed when the next scipy version comes out.
@@ -162,14 +175,14 @@ def test_breakReadFHD():
         # empirically discovered. It it defaults to the most common number.
         n_scipy_warnings, scipy_warn_list, scipy_category_list = uvtest.get_scipy_warnings()
         warn_list = warn_messages + scipy_warn_list
-        category_list = [UserWarning] * 5 + scipy_category_list
+        category_list = [UserWarning] * 6 + scipy_category_list
         uvtest.checkWarnings(fhd_uv.read_fhd, [bad_filelist],
                              message=warn_list, category=category_list,
-                             nwarnings=n_scipy_warnings + 5)
+                             nwarnings=n_scipy_warnings + 6)
 
     broken_layout_file = testdir + testfile_prefix + 'broken_layout.sav'
     bad_filelist = testfiles[0:4] + [broken_layout_file, testfiles[7]]
-    warn_messages = ['Required Antenna frame keyword not set']
+    warn_messages = ['coordinate_frame keyword in layout file not set']
     fhd_uv = UVData()
     if not uvtest.scipy_warnings:
         uvtest.checkWarnings(fhd_uv.read_fhd, [bad_filelist], {'run_check': False},
@@ -181,7 +194,7 @@ def test_breakReadFHD():
         # empirically discovered. It it defaults to the most common number.
         n_scipy_warnings, scipy_warn_list, scipy_category_list = uvtest.get_scipy_warnings()
         warn_list = warn_messages + scipy_warn_list
-        category_list = [UserWarning] * 5 + scipy_category_list
+        category_list = [UserWarning] + scipy_category_list
         uvtest.checkWarnings(fhd_uv.read_fhd, [bad_filelist],
                              message=warn_list, category=category_list,
                              nwarnings=n_scipy_warnings + 1)
@@ -197,16 +210,18 @@ def test_ReadFHD_model():
     fhd_uv = UVData()
     uvfits_uv = UVData()
     if not uvtest.scipy_warnings:
-        fhd_uv.read(testfiles, use_model=True)
+        uvtest.checkWarnings(fhd_uv.read, [testfiles], {'use_model': True}, known_warning='fhd')
     else:
         # numpy 1.14 introduced a new deprecation warning.
         # Should be fixed when the next scipy version comes out.
         # The number of replications of the warning varies some and must be
         # empirically discovered. It it defaults to the most common number.
         n_scipy_warnings, scipy_warn_list, scipy_category_list = uvtest.get_scipy_warnings()
+        warn_list = ['Telescope location derived from obs'] + scipy_warn_list
+        category_list = [UserWarning] + scipy_category_list
         uvtest.checkWarnings(fhd_uv.read, [testfiles], {'use_model': True},
-                             message=scipy_warn_list, category=scipy_category_list,
-                             nwarnings=n_scipy_warnings)
+                             message=warn_list, category=category_list,
+                             nwarnings=n_scipy_warnings + 1)
 
     fhd_uv.write_uvfits(os.path.join(DATA_PATH, 'test/outtest_FHD_1061316296_model.uvfits'),
                         spoof_nonessential=True)
@@ -225,28 +240,34 @@ def test_multi_files():
     test1 = list(np.array(testfiles)[[0, 1, 2, 4, 6, 7]])
     test2 = list(np.array(testfiles)[[0, 2, 3, 5, 6, 7]])
     if not uvtest.scipy_warnings:
-        fhd_uv1.read([test1, test2])
+        uvtest.checkWarnings(fhd_uv1.read, [[test1, test2]], {'use_model': True},
+                             message=['Telescope location derived from obs'],
+                             nwarnings=2)
     else:
         # numpy 1.14 introduced a new deprecation warning.
         # Should be fixed when the next scipy version comes out.
         # The number of replications of the warning varies some and must be
         # empirically discovered. It it defaults to the most common number.
         n_scipy_warnings, scipy_warn_list, scipy_category_list = uvtest.get_scipy_warnings(n_scipy_warnings=1100)
+        warn_list = ['Telescope location derived from obs'] * 2 + scipy_warn_list
+        category_list = [UserWarning] * 2 + scipy_category_list
         uvtest.checkWarnings(fhd_uv1.read, [[test1, test2]],
-                             message=scipy_warn_list, category=scipy_category_list,
-                             nwarnings=n_scipy_warnings)
+                             message=warn_list, category=category_list,
+                             nwarnings=n_scipy_warnings + 2)
 
     if not uvtest.scipy_warnings:
-        fhd_uv2.read(testfiles)
+        uvtest.checkWarnings(fhd_uv2.read, [testfiles], {'use_model': True}, known_warning='fhd')
     else:
         # numpy 1.14 introduced a new deprecation warning.
         # Should be fixed when the next scipy version comes out.
         # The number of replications of the warning varies some and must be
         # empirically discovered. It it defaults to the most common number.
         n_scipy_warnings, scipy_warn_list, scipy_category_list = uvtest.get_scipy_warnings()
+        warn_list = ['Telescope location derived from obs'] + scipy_warn_list
+        category_list = [UserWarning] + scipy_category_list
         uvtest.checkWarnings(fhd_uv2.read, [testfiles],
-                             message=scipy_warn_list, category=scipy_category_list,
-                             nwarnings=n_scipy_warnings)
+                             message=warn_list, category=category_list,
+                             nwarnings=n_scipy_warnings + 1)
 
     nt.assert_true(uvutils._check_histories(fhd_uv2.history + ' Combined data '
                                             'along polarization axis using pyuvdata.',
