@@ -86,6 +86,10 @@ def checkWarnings(func, func_args=[], func_kwargs={},
         category = [UserWarning] * 2
         message = ['Required Antenna frame keyword', 'telescope_location is not set']
         nwarnings = 2
+    elif known_warning == 'fhd':
+        category = [UserWarning]
+        message = ['Telescope location derived from obs']
+        nwarnings = 1
 
     category = uvutils._get_iterable(category)
     message = uvutils._get_iterable(message)
