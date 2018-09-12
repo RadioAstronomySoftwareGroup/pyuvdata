@@ -90,13 +90,13 @@ class FHD(UVData):
             data_name = '_vis_'
         for file in filelist:
             if file.lower().endswith(data_name + 'xx.sav'):
-                datafiles['xx'] = xx_datafile = file
+                datafiles['xx'] = file
             elif file.lower().endswith(data_name + 'yy.sav'):
-                datafiles['yy'] = yy_datafile = file
+                datafiles['yy'] = file
             elif file.lower().endswith(data_name + 'xy.sav'):
-                datafiles['xy'] = xy_datafile = file
+                datafiles['xy'] = file
             elif file.lower().endswith(data_name + 'yx.sav'):
-                datafiles['yx'] = yx_datafile = file
+                datafiles['yx'] = file
             elif file.lower().endswith('_params.sav'):
                 params_file = file
             elif file.lower().endswith('_flags.sav'):
@@ -204,7 +204,7 @@ class FHD(UVData):
             warnings.warn('Ntimes does not match the number of unique times in the data')
         self.time_array = np.zeros(self.Nblts)
         if self.Ntimes == 1:
-            self.time_array.fill(int_times)
+            self.time_array.fill(int_times[0])
         else:
             for ii in range(0, len(int_times)):
                 if ii < (len(int_times) - 1):
@@ -244,11 +244,9 @@ class FHD(UVData):
         # off the actual value.
         # (e.g. 1.999426... rather than 2)
         time_res = obs['TIME_RES']
-        if len(time_res) == 1:
-            self.integration_time = (np.ones_like(self.time_array, dtype=np.float64)
-                                     * time_res[0])
-        else:
-            self.integration_time = np.asarray(time_res, dtype=np.float64)
+        # time_res is constrained to be a scalar currently
+        self.integration_time = (np.ones_like(self.time_array, dtype=np.float64)
+                                 * time_res[0])
         self.channel_width = float(obs['FREQ_RES'][0])
 
         # # --- observation information ---
@@ -344,7 +342,7 @@ class FHD(UVData):
                 layout_fields.remove('time_system')
             if 'diameters' in layout_fields:
                 self.timesys = uvutils._bytes_to_str(layout['time_system'][0]).upper().strip()
-                layout_fields.remove('time_system')
+                layout_fields.remove('diameters')
             # stick everything else in extra_keywords
             layout_fields_ignore = ['diff_utc', 'pol_type', 'n_pol_cal_params',
                                     'mount_type', 'axis_offset',

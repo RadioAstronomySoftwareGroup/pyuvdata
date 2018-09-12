@@ -18,8 +18,10 @@ import numpy as np
 # set up FHD file list
 testdir = os.path.join(DATA_PATH, 'fhd_vis_data/')
 testfile_prefix = '1061316296_'
+# note: 1061316296_obs.sav isn't used -- it's there to test handling of unneeded files
 testfile_suffix = ['flags.sav', 'vis_XX.sav', 'params.sav', 'vis_YY.sav',
-                   'vis_model_XX.sav', 'vis_model_YY.sav', 'layout.sav', 'settings.txt']
+                   'vis_model_XX.sav', 'vis_model_YY.sav', 'layout.sav',
+                   'settings.txt', 'obs.sav']
 testfiles = []
 for s in testfile_suffix:
     testfiles.append(testdir + testfile_prefix + s)
@@ -71,8 +73,9 @@ def test_ReadFHDWriteReadUVFits():
     nt.assert_equal(fhd_uv, fhd_uv2)
 
     # check loopback (and warning) with no layout file
+    files_use = testfiles[:-3] + [testfiles[-2]]
     if not uvtest.scipy_warnings:
-        uvtest.checkWarnings(fhd_uv.read_fhd, [testfiles[:-2] + [testfiles[-1]]],
+        uvtest.checkWarnings(fhd_uv.read_fhd, [files_use],
                              message=['No layout file'], category=DeprecationWarning)
     else:
         # numpy 1.14 introduced a new deprecation warning.
@@ -82,7 +85,7 @@ def test_ReadFHDWriteReadUVFits():
         n_scipy_warnings, scipy_warn_list, scipy_category_list = uvtest.get_scipy_warnings()
         warn_list = ['No layout file'] + scipy_warn_list
         category_list = [DeprecationWarning] + scipy_category_list
-        uvtest.checkWarnings(fhd_uv.read_fhd, [testfiles[:-1]],
+        uvtest.checkWarnings(fhd_uv.read_fhd, [files_use],
                              message=warn_list, category=category_list,
                              nwarnings=n_scipy_warnings + 1)
 
@@ -90,6 +93,21 @@ def test_ReadFHDWriteReadUVFits():
                         spoof_nonessential=True)
     uvfits_uv.read_uvfits(os.path.join(DATA_PATH, 'test/outtest_FHD_1061316296.uvfits'))
     nt.assert_equal(fhd_uv, uvfits_uv)
+
+    # check loopback with vairant flag file
+    variant_flag_file = testdir + testfile_prefix + 'variant_flags.sav'
+    files_use = testfiles[1:] + [variant_flag_file]
+    if not uvtest.scipy_warnings:
+        fhd_uv.read(files_use)
+    else:
+        # numpy 1.14 introduced a new deprecation warning.
+        # Should be fixed when the next scipy version comes out.
+        # The number of replications of the warning varies some and must be
+        # empirically discovered. It it defaults to the most common number.
+        n_scipy_warnings, scipy_warn_list, scipy_category_list = uvtest.get_scipy_warnings()
+        uvtest.checkWarnings(fhd_uv.read, [files_use],
+                             message=scipy_warn_list, category=scipy_category_list,
+                             nwarnings=n_scipy_warnings)
 
     del(fhd_uv)
     del(uvfits_uv)
@@ -109,7 +127,7 @@ def test_breakReadFHD():
     del(fhd_uv)
     fhd_uv = UVData()
     if not uvtest.scipy_warnings:
-        uvtest.checkWarnings(fhd_uv.read_fhd, [testfiles[:-1]], message=['No settings'])
+        uvtest.checkWarnings(fhd_uv.read_fhd, [testfiles[:-2]], message=['No settings'])
     else:
         # numpy 1.14 introduced a new deprecation warning.
         # Should be fixed when the next scipy version comes out.
@@ -118,12 +136,60 @@ def test_breakReadFHD():
         n_scipy_warnings, scipy_warn_list, scipy_category_list = uvtest.get_scipy_warnings()
         warn_list = ['No settings'] + scipy_warn_list
         category_list = [UserWarning] + scipy_category_list
-        uvtest.checkWarnings(fhd_uv.read_fhd, [testfiles[:-1]],
+        uvtest.checkWarnings(fhd_uv.read_fhd, [testfiles[:-2]],
                              message=warn_list, category=category_list,
                              nwarnings=n_scipy_warnings + 1)
     # Check only pyuvdata history with no settings file
     nt.assert_equal(fhd_uv.history, fhd_uv.pyuvdata_version_str)  # Check empty history with no settings
     del(fhd_uv)
+
+    # test with various broken inputs
+    broken_data_file = testdir + testfile_prefix + 'broken_vis_XX.sav'
+    bad_filelist = [testfiles[0], testfiles[2],
+                    broken_data_file, testfiles[6], testfiles[7]]
+    warn_messages = ['Ntimes does not match', 'Nbls does not match',
+                     'These visibilities may have been phased improperly',
+                     'tile_names from obs structure does not match',
+                     'Telescope foo is not in known_telescopes.']
+    fhd_uv = UVData()
+    if not uvtest.scipy_warnings:
+        uvtest.checkWarnings(fhd_uv.read_fhd, [bad_filelist], {'run_check': False},
+                             nwarnings=5, message=warn_messages)
+    else:
+        # numpy 1.14 introduced a new deprecation warning.
+        # Should be fixed when the next scipy version comes out.
+        # The number of replications of the warning varies some and must be
+        # empirically discovered. It it defaults to the most common number.
+        n_scipy_warnings, scipy_warn_list, scipy_category_list = uvtest.get_scipy_warnings()
+        warn_list = warn_messages + scipy_warn_list
+        category_list = [UserWarning] * 5 + scipy_category_list
+        uvtest.checkWarnings(fhd_uv.read_fhd, [bad_filelist],
+                             message=warn_list, category=category_list,
+                             nwarnings=n_scipy_warnings + 5)
+
+    broken_layout_file = testdir + testfile_prefix + 'broken_layout.sav'
+    bad_filelist = testfiles[0:4] + [broken_layout_file, testfiles[7]]
+    warn_messages = ['Required Antenna frame keyword not set']
+    fhd_uv = UVData()
+    if not uvtest.scipy_warnings:
+        uvtest.checkWarnings(fhd_uv.read_fhd, [bad_filelist], {'run_check': False},
+                             nwarnings=1, message=warn_messages)
+    else:
+        # numpy 1.14 introduced a new deprecation warning.
+        # Should be fixed when the next scipy version comes out.
+        # The number of replications of the warning varies some and must be
+        # empirically discovered. It it defaults to the most common number.
+        n_scipy_warnings, scipy_warn_list, scipy_category_list = uvtest.get_scipy_warnings()
+        warn_list = warn_messages + scipy_warn_list
+        category_list = [UserWarning] * 5 + scipy_category_list
+        uvtest.checkWarnings(fhd_uv.read_fhd, [bad_filelist],
+                             message=warn_list, category=category_list,
+                             nwarnings=n_scipy_warnings + 1)
+
+    broken_flag_file = testdir + testfile_prefix + 'broken_flags.sav'
+    bad_filelist = testfiles[1:] + [broken_flag_file]
+    fhd_uv = UVData()
+    nt.assert_raises(ValueError, fhd_uv.read_fhd, bad_filelist)
 
 
 def test_ReadFHD_model():
