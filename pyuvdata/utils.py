@@ -768,11 +768,11 @@ def get_antenna_redundancies(antenna_numbers, antenna_positions, tol=1.0, includ
     def antnum_to_baseline(ant1, ant2):
         return 2048 * (ant1 + 1) + (ant2 + 1) + 2**16
 
-    for ai in xrange(Nants):
+    for ai in range(Nants):
         maxj = ai
         if include_autos:
             maxj = ai + 1
-        for aj in xrange(maxj):
+        for aj in range(maxj):
             bl_inds.append(antnum_to_baseline(ai, aj))
             bl_vecs.append(antenna_positions[ai] - antenna_positions[aj])
     bl_inds = np.array(bl_inds)
