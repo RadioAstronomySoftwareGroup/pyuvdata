@@ -704,9 +704,9 @@ def get_baseline_redundancies(baseline_inds, baseline_vecs, tol=1.0):
     if not baseline_vecs.shape == (Nbls, 3):
         raise ValueError("Baseline vectors must be shape (Nbls, 3)")
 
-    # This works by finding pairs within the tolerance distance, then identifying cliques in the graph
+    # For each baseline, list all others that are within the tolerance distance.
 
-    adj = {}
+    adj = {}   # Adjacency list
 
     for bi, bv0 in enumerate(baseline_vecs):
         key0 = baseline_inds[bi]
@@ -717,8 +717,11 @@ def get_baseline_redundancies(baseline_inds, baseline_vecs, tol=1.0):
                 key1 = baseline_inds[bj]
                 adj[key0].append(key1)
 
+    # The adjacency list defines a set of graph edges.
+    # For each baseline b0, loop over its adjacency list ai \in adj[b0]
+    #   If adj[b0] is a subset of adj[ai], then ai is in a redundant group with b0
+
     bl_gps = []
-    used = []
     for k in adj.keys():
         a0 = adj[k] + [k, ]
         group = [k]
@@ -728,7 +731,8 @@ def get_baseline_redundancies(baseline_inds, baseline_vecs, tol=1.0):
         group.sort()
         bl_gps.append(group)
 
-    bl_gps = np.unique(bl_gps)      # Permutations end up in here.
+    # We end up with multiple copies of each redundant group, so remove duplicates
+    bl_gps = np.unique(bl_gps)
 
     N_unique = len(bl_gps)
     vec_bin_centers = np.zeros((N_unique, 3))
