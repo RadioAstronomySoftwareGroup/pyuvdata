@@ -55,8 +55,6 @@ def test_ReadFHDWriteReadUVFits():
     fhd_uv.write_uvfits(os.path.join(DATA_PATH, 'test/outtest_FHD_1061316296.uvfits'),
                         spoof_nonessential=True)
     uvfits_uv.read_uvfits(os.path.join(DATA_PATH, 'test/outtest_FHD_1061316296.uvfits'))
-
-    diff = fhd_uv.lst_array - uvfits_uv.lst_array
     nt.assert_equal(fhd_uv, uvfits_uv)
 
     # check that a select on read works
@@ -136,7 +134,7 @@ def test_ReadFHDWriteReadUVFits():
                              message=scipy_warn_list, category=scipy_category_list,
                              nwarnings=n_scipy_warnings)
 
-    # check loopback with bad obs location
+    # check loopback with bad obs location, good layout location
     bad_obs_loc_file = testdir + testfile_prefix + 'bad_obs_loc_vis_XX.sav'
     layout_fixed_file = testdir + testfile_prefix + 'fixed_arr_center_layout.sav'
     files_use = [testfiles[0], testfiles[2], bad_obs_loc_file,
@@ -155,7 +153,7 @@ def test_ReadFHDWriteReadUVFits():
                              message=warn_list, category=category_list,
                              nwarnings=n_scipy_warnings + 1)
 
-    # check loopback with bad obs location, good layout location
+    # check loopback with bad obs location & bad layout location
     bad_obs_loc_file = testdir + testfile_prefix + 'bad_obs_loc_vis_XX.sav'
     files_use = [testfiles[0], testfiles[2], bad_obs_loc_file,
                  testfiles[6], testfiles[7]]
