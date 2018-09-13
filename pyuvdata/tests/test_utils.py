@@ -368,6 +368,7 @@ def test_redundancy_finder():
 
     bl_positions = uvd.uvw_array
 
+    nt.assert_raises(ValueError, uvutils.get_baseline_redundancies, uvd.baseline_array, bl_positions[0:2, 0:1])
     baseline_groups, vec_bin_centers, lens = uvutils.get_baseline_redundancies(uvd.baseline_array, bl_positions, tol=tol)
 
     for gi, gp in enumerate(baseline_groups):
