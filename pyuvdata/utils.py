@@ -684,6 +684,29 @@ def _combine_histories(history1, history2):
     return history1 + add_hist
 
 
+def baseline_to_antnums(baseline, Nants_telescope):
+    """
+    Get the antenna numbers corresponding to a given baseline number.
+
+    Args:
+        baseline: integer baseline number
+        Nant_telescope: integer number of antennas
+
+    Returns:
+        tuple with the two antenna numbers corresponding to the baseline.
+    """
+    if Nants_telescope > 2048:
+        raise Exception('error Nants={Nants}>2048 not '
+                        'supported'.format(Nants=Nants_telescope))
+    if np.min(baseline) > 2**16:
+        ant2 = (baseline - 2**16) % 2048 - 1
+        ant1 = (baseline - 2**16 - (ant2 + 1)) / 2048 - 1
+    else:
+        ant2 = (baseline) % 256 - 1
+        ant1 = (baseline - (ant2 + 1)) / 256 - 1
+    return np.int32(ant1), np.int32(ant2)
+
+
 def antnums_to_baseline(ant1, ant2, Nants_telescope, attempt256=False):
     """
     Get the baseline number corresponding to two given antenna numbers.
@@ -691,6 +714,7 @@ def antnums_to_baseline(ant1, ant2, Nants_telescope, attempt256=False):
     Args:
         ant1: first antenna number (integer)
         ant2: second antenna number (integer)
+        Nant_telescope: integer number of antennas
         attempt256: Option to try to use the older 256 standard used in
             many uvfits files (will use 2048 standard if there are more
             than 256 antennas). Default is False.
