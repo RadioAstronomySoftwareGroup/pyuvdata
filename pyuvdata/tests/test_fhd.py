@@ -121,6 +121,57 @@ def test_ReadFHDWriteReadUVFits():
                              message=warn_list, category=category_list,
                              nwarnings=n_scipy_warnings + 1)
 
+    # check loopback with fixed array center layout file -- no warnings!
+    layout_fixed_file = testdir + testfile_prefix + 'fixed_arr_center_layout.sav'
+    files_use = testfiles[0:6] + [layout_fixed_file, testfiles[7]]
+    if not uvtest.scipy_warnings:
+        fhd_uv.read(files_use)
+    else:
+        # numpy 1.14 introduced a new deprecation warning.
+        # Should be fixed when the next scipy version comes out.
+        # The number of replications of the warning varies some and must be
+        # empirically discovered. It it defaults to the most common number.
+        n_scipy_warnings, scipy_warn_list, scipy_category_list = uvtest.get_scipy_warnings()
+        uvtest.checkWarnings(fhd_uv.read, [files_use],
+                             message=scipy_warn_list, category=scipy_category_list,
+                             nwarnings=n_scipy_warnings)
+
+    # check loopback with bad obs location
+    bad_obs_loc_file = testdir + testfile_prefix + 'bad_obs_loc_vis_XX.sav'
+    layout_fixed_file = testdir + testfile_prefix + 'fixed_arr_center_layout.sav'
+    files_use = [testfiles[0], testfiles[2], bad_obs_loc_file,
+                 layout_fixed_file, testfiles[7]]
+    if not uvtest.scipy_warnings:
+        uvtest.checkWarnings(fhd_uv.read, [files_use], known_warning='fhd')
+    else:
+        # numpy 1.14 introduced a new deprecation warning.
+        # Should be fixed when the next scipy version comes out.
+        # The number of replications of the warning varies some and must be
+        # empirically discovered. It it defaults to the most common number.
+        n_scipy_warnings, scipy_warn_list, scipy_category_list = uvtest.get_scipy_warnings()
+        warn_list = ['Telescope location derived from obs'] + scipy_warn_list
+        category_list = [UserWarning] + scipy_category_list
+        uvtest.checkWarnings(fhd_uv.read, [files_use],
+                             message=warn_list, category=category_list,
+                             nwarnings=n_scipy_warnings + 1)
+
+    # check loopback with bad obs location, good layout location
+    bad_obs_loc_file = testdir + testfile_prefix + 'bad_obs_loc_vis_XX.sav'
+    files_use = [testfiles[0], testfiles[2], bad_obs_loc_file,
+                 testfiles[6], testfiles[7]]
+    if not uvtest.scipy_warnings:
+        uvtest.checkWarnings(fhd_uv.read, [files_use], known_warning='fhd')
+    else:
+        # numpy 1.14 introduced a new deprecation warning.
+        # Should be fixed when the next scipy version comes out.
+        # The number of replications of the warning varies some and must be
+        # empirically discovered. It it defaults to the most common number.
+        n_scipy_warnings, scipy_warn_list, scipy_category_list = uvtest.get_scipy_warnings()
+        warn_list = ['Telescope location derived from obs'] + scipy_warn_list
+        category_list = [UserWarning] + scipy_category_list
+        uvtest.checkWarnings(fhd_uv.read, [files_use],
+                             message=warn_list, category=category_list,
+                             nwarnings=n_scipy_warnings + 1)
     del(fhd_uv)
     del(uvfits_uv)
 

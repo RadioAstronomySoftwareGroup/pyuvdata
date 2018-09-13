@@ -63,6 +63,23 @@ class FHD(UVData):
     method on the UVData class.
     """
 
+    def _latlonalt_close(self, latlonalt1, latlonalt2):
+        radian_tols = self._phase_center_ra.tols
+        loc_tols = self._telescope_location.tols
+        latlon_close = np.allclose(np.array(latlonalt1[0:2]),
+                                   np.array(latlonalt2[0:2]),
+                                   rtol=radian_tols[0], atol=radian_tols[1])
+        alt_close = np.isclose(latlonalt1[2], latlonalt2[2],
+                               rtol=loc_tols[0], atol=loc_tols[1])
+        if latlon_close and alt_close:
+            return True
+        else:
+            return False
+
+    def _xyz_close(self, xyz1, xyz2):
+        loc_tols = self._telescope_location.tols
+        return np.allclose(xyz1, xyz2, rtol=loc_tols[0], atol=loc_tols[1])
+
     def read_fhd(self, filelist, use_model=False, run_check=True, check_extra=True,
                  run_check_acceptability=True):
         """
@@ -123,7 +140,10 @@ class FHD(UVData):
                     raise ValueError('multiple settings files in filelist')
                 settings_file = file
             else:
-                continue
+                # this is reached in tests but marked as uncovered because
+                # CPython's peephole optimizer replaces a jump to a continue
+                # with a jump to the top of the loop
+                continue  # pragma: no cover
 
         if len(datafiles) < 1:
             raise Exception('No data files included in file list')
@@ -318,37 +338,39 @@ class FHD(UVData):
             if xyz_telescope_frame == 'itrf' and arr_center is not None:
                 # compare to lat/lon/alt
                 location_latlonalt = uvutils.XYZ_from_LatLonAlt(latitude, longitude, altitude)
+                latlonalt_arr_center = uvutils.LatLonAlt_from_XYZ(arr_center)
 
-                tols = self._telescope_location.tols
-                if np.allclose(location_latlonalt, arr_center, rtol=tols[0], atol=tols[1]):
+                # check both lat/lon/alt and xyz because of subtle differences in tolerances
+                if (self._xyz_close(location_latlonalt, arr_center)
+                        or self._latlonalt_close((latitude, longitude, altitude), latlonalt_arr_center)):
                     self.telescope_location = arr_center
                 else:
-                    # values from cotter uvfits files for the MWA do not agree
-                    # with each other to within the tolerances.
+                    # values do not agree with each other to within the tolerances.
+                    # this is a known issue with FHD runs on cotter uvfits files for the MWA
                     # compare with the known_telescopes values
                     telescope_obj = uvtel.get_telescope(self.telescope_name)
-
                     # start warning message
                     message = ('Telescope location derived from obs lat/lon/alt '
                                'values does not match the location in the layout file.')
 
                     if telescope_obj is not False:
-                        if np.allclose(location_latlonalt, telescope_obj.telescope_location,
-                                       rtol=tols[0], atol=tols[1]):
+                        if self._latlonalt_close((latitude, longitude, altitude),
+                                                 telescope_obj.telescope_location_lat_lon_alt):
+                            # obs lat/lon/alt matches known_telescopes
                             message += (' Value from obs lat/lon/alt matches the '
                                         'known_telescopes values, using them.')
                             self.telescope_location = location_latlonalt
-                        elif np.allclose(arr_center, telescope_obj.telescope_location,
-                                         rtol=tols[0], atol=tols[1]):
+                        elif self._xyz_close(arr_center, telescope_obj.telescope_location):
+                            # layout xyz matches known_telescopes
                             message += (' Value from the layout file matches the '
                                         'known_telescopes values, using them.')
                             self.telescope_location = arr_center
                         else:
-                            # None of the values match each other. Defaulting to obs values.
+                            # None of the values match each other. Defaulting to known_telescopes value.
                             message += (' Neither location matches the values '
                                         'in known_telescopes. Defaulting to '
-                                        'using the obs derived values.')
-                            self.telescope_location = location_latlonalt
+                                        'using the known_telescopes values.')
+                            self.telescope_location = telescope_obj.telescope_location
                     else:
                         message += (' Telescope is not in known_telescopes. '
                                     'Defaulting to using the obs derived values.')
