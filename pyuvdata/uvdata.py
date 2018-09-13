@@ -509,28 +509,7 @@ class UVData(UVBase):
         Returns:
             integer baseline number corresponding to the two antenna numbers.
         """
-        ant1, ant2 = np.int64((ant1, ant2))
-        if self.Nants_telescope is not None and self.Nants_telescope > 2048:
-            raise Exception('cannot convert ant1, ant2 to a baseline index '
-                            'with Nants={Nants}>2048.'
-                            .format(Nants=self.Nants_telescope))
-        if attempt256:
-            if (np.max(ant1) < 255 and np.max(ant2) < 255):
-                return 256 * (ant1 + 1) + (ant2 + 1)
-            else:
-                print('Max antnums are {} and {}'.format(
-                    np.max(ant1), np.max(ant2)))
-                message = 'antnums_to_baseline: found > 256 antennas, using ' \
-                          '2048 baseline indexing. Beware compatibility ' \
-                          'with CASA etc'
-                warnings.warn(message)
-
-        baseline = 2048 * (ant1 + 1) + (ant2 + 1) + 2**16
-
-        if isinstance(baseline, np.ndarray):
-            return np.asarray(baseline, dtype=np.int64)
-        else:
-            return np.int64(baseline)
+        return uvutils.antnums_to_baseline(ant1, ant2, self.Nants_telescope, attempt256=attempt256)
 
     def order_pols(self, order='AIPS'):
         '''

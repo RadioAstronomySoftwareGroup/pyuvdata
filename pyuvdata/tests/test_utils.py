@@ -355,9 +355,8 @@ def test_deprecated_funcs():
 
 def test_redundancy_finder():
     """
-        Confirm that get_baseline_redundancies returns baselines that have the same length.
-        Should probably check orientation too.
-        Will need a test file that is close to redundant, but not perfectly so.
+        Check that get_baseline_redundancies and get_antenna_redundancies return consistent
+        redundant groups for a test file with the HERA19 layout.
     """
     uvd = pyuvdata.UVData()
     uvd.read_uvfits(os.path.join(DATA_PATH, 'hera19_8hrs_uncomp_10MHz_000_05.003111-05.033750.uvfits'))

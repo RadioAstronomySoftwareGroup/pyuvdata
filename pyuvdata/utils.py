@@ -684,6 +684,44 @@ def _combine_histories(history1, history2):
     return history1 + add_hist
 
 
+def antnums_to_baseline(ant1, ant2, Nants_telescope, attempt256=False):
+    """
+    Get the baseline number corresponding to two given antenna numbers.
+
+    Args:
+        ant1: first antenna number (integer)
+        ant2: second antenna number (integer)
+        attempt256: Option to try to use the older 256 standard used in
+            many uvfits files (will use 2048 standard if there are more
+            than 256 antennas). Default is False.
+
+    Returns:
+        integer baseline number corresponding to the two antenna numbers.
+    """
+    ant1, ant2 = np.int64((ant1, ant2))
+    if Nants_telescope is not None and Nants_telescope > 2048:
+        raise Exception('cannot convert ant1, ant2 to a baseline index '
+                        'with Nants={Nants}>2048.'
+                        .format(Nants=Nants_telescope))
+    if attempt256:
+        if (np.max(ant1) < 255 and np.max(ant2) < 255):
+            return 256 * (ant1 + 1) + (ant2 + 1)
+        else:
+            print('Max antnums are {} and {}'.format(
+                np.max(ant1), np.max(ant2)))
+            message = 'antnums_to_baseline: found > 256 antennas, using ' \
+                      '2048 baseline indexing. Beware compatibility ' \
+                      'with CASA etc'
+            warnings.warn(message)
+
+    baseline = 2048 * (ant1 + 1) + (ant2 + 1) + 2**16
+
+    if isinstance(baseline, np.ndarray):
+        return np.asarray(baseline, dtype=np.int64)
+    else:
+        return np.int64(baseline)
+
+
 def get_baseline_redundancies(baseline_inds, baseline_vecs, tol=1.0):
     """
     Return redundant baseline groups, and lists of corresponding lengths and vectors
@@ -706,7 +744,7 @@ def get_baseline_redundancies(baseline_inds, baseline_vecs, tol=1.0):
 
     # For each baseline, list all others that are within the tolerance distance.
 
-    adj = {}   # Adjacency list
+    adj = {}   # Adjacency dictionary
 
     for bi, bv0 in enumerate(baseline_vecs):
         key0 = baseline_inds[bi]
@@ -765,15 +803,12 @@ def get_antenna_redundancies(antenna_numbers, antenna_positions, tol=1.0, includ
     bl_inds = []
     bl_vecs = []
 
-    def antnum_to_baseline(ant1, ant2):
-        return 2048 * (ant1 + 1) + (ant2 + 1) + 2**16
-
     for ai in range(Nants):
         maxj = ai
         if include_autos:
             maxj = ai + 1
         for aj in range(maxj):
-            bl_inds.append(antnum_to_baseline(ai, aj))
+            bl_inds.append(antnums_to_baseline(ai, aj, Nants))
             bl_vecs.append(antenna_positions[ai] - antenna_positions[aj])
     bl_inds = np.array(bl_inds)
     bl_vecs = np.array(bl_vecs)
