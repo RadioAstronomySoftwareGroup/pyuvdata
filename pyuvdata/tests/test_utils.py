@@ -361,7 +361,6 @@ def test_redundancy_finder():
     """
     uvd = pyuvdata.UVData()
     uvd.read_uvfits(os.path.join(DATA_PATH, 'hera19_8hrs_uncomp_10MHz_000_05.003111-05.033750.uvfits'))
-    #uvd.read_miriad(os.path.join(DATA_PATH, 'zen.2457698.40355.xx.HH.uvcA'))
     uvd.select(times=uvd.time_array[0])
     uvd.unphase_to_drift()   # uvw_array is now equivalent to baseline
 
@@ -371,7 +370,6 @@ def test_redundancy_finder():
 
     baseline_groups, vec_bin_centers, lens = uvutils.get_baseline_redundancies(uvd.baseline_array, bl_positions, tol=tol)
 
-#    np.savez('redundancies_uvdata.npz', groups=baseline_groups, vectors=vec_bin_centers, lengths=lens)
     for gi, gp in enumerate(baseline_groups):
         for bl in gp:
             bl_ind = np.where(uvd.baseline_array == bl)
