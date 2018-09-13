@@ -41,4 +41,4 @@ script:
 after_success:
     - coveralls
 notifications:
-  webhooks: https://coveralls.io/webhook?repo_token=RsQW8tkbZdo9XYddTrOUPhtrUF74WDa7X
+  webhooks: https://coveralls.io/webhook?repo_token=$COVERALLS_REPO_TOKEN
