@@ -368,7 +368,7 @@ def test_redundancy_finder():
     bl_positions = uvd.uvw_array
 
     nt.assert_raises(ValueError, uvutils.get_baseline_redundancies, uvd.baseline_array, bl_positions[0:2, 0:1])
-    baseline_groups, vec_bin_centers, lens = uvutils.get_baseline_redundancies(uvd.baseline_array, bl_positions, tol=tol)
+    baseline_groups, vec_bin_centers, lens, conjugates = uvutils.get_baseline_redundancies(uvd.baseline_array, bl_positions, tol=tol)
 
     for gi, gp in enumerate(baseline_groups):
         for bl in gp:
@@ -377,7 +377,7 @@ def test_redundancy_finder():
             nt.assert_true(np.allclose(np.sqrt(np.dot(bl_vec, vec_bin_centers[gi])), lens[gi], atol=tol))
 
     # Check that the antenna method returns the same results:
-    bl_gps_ant, vec_bin_centers, lengths = uvutils.get_antenna_redundancies(uvd.antenna_numbers, uvd.antenna_positions, tol=0.5, include_autos=True)
+    bl_gps_ant, vec_bin_centers, lengths, conjugates = uvutils.get_antenna_redundancies(uvd.antenna_numbers, uvd.antenna_positions, tol=tol, include_autos=True)
     nt.assert_true(np.all(bl_gps_ant == baseline_groups))
 
     # Now jostle the baselines around by up to 0.25m and see if we can recover the same redundancies to that tolerance.
@@ -389,7 +389,7 @@ def test_redundancy_finder():
 
     bl_positions_new = bl_positions + shift_vecs
 
-    baseline_groups_new, vec_bin_centers, lens = uvutils.get_baseline_redundancies(uvd.baseline_array, bl_positions_new, tol=tol)
+    baseline_groups_new, vec_bin_centers, lens, conjugates = uvutils.get_baseline_redundancies(uvd.baseline_array, bl_positions_new, tol=tol)
 
     for gi, gp in enumerate(baseline_groups_new):
         for bl in gp:
@@ -402,3 +402,18 @@ def test_redundancy_finder():
         bl = blg[0]
         ind = np.sum(np.where([bl in gp for gp in baseline_groups_new]))
         nt.assert_equal(baseline_groups_new[ind], blg)
+
+    tol = 0.05
+    # Check with conjugated baseline redundancies included.
+    antpos, antnums = uvd.get_ENU_antpos()
+    baseline_groups, vec_bin_centers, lens, conjugates = uvutils.get_antenna_redundancies(antnums, antpos,
+                                                                                          tol=tol, include_autos=False, with_conjugates=True)
+    bl_vecs = []
+    for gi, gp in enumerate(baseline_groups):
+        for bl in gp:
+            bl_ind = np.where(uvd.baseline_array == bl)
+            bl_vec = bl_positions[bl_ind]
+            if bl in conjugates:
+                bl_vec *= (-1)
+            bl_vecs.append(bl_vec)
+            nt.assert_true(np.isclose(np.sqrt(np.dot(bl_vec, vec_bin_centers[gi])), lens[gi], atol=tol))

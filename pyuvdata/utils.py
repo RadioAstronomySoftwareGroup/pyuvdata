@@ -746,7 +746,7 @@ def antnums_to_baseline(ant1, ant2, Nants_telescope, attempt256=False):
         return np.int64(baseline)
 
 
-def get_baseline_redundancies(baseline_inds, baseline_vecs, tol=1.0):
+def get_baseline_redundancies(baseline_inds, baseline_vecs, tol=1.0, with_conjugates=False):
     """
     Return redundant baseline groups, and lists of corresponding lengths and vectors
 
@@ -754,17 +754,34 @@ def get_baseline_redundancies(baseline_inds, baseline_vecs, tol=1.0):
         baseline_inds = Baseline indices.  (Nbls,), (int)
         baseline_vecs = Baseline vectors in meters. (Nbls, 3), (float)
         tol  = Absolute tolerance of redundancy, in meters. (float)
+        with_conjugates = Include baselines that are redundant when flipped.
 
     Returns:
         baseline_groups: list of arrays of redundant baseline indices
         vec_bin_centers: List of vectors describing redundant group centers
         lengths: List of redundant group baseline lengths in meters
+        baseline_ind_conj: List of baselines that are redundant when reversed
 
     """
     Nbls = baseline_inds.shape[0]
 
     if not baseline_vecs.shape == (Nbls, 3):
         raise ValueError("Baseline vectors must be shape (Nbls, 3)")
+
+    if with_conjugates:
+        conjugates = []
+        for bl in baseline_vecs:
+            if bl[0] == 0:
+                if bl[1] == 0:
+                    conjugates.append(bl[2] < 0)
+                else:
+                    conjugates.append(bl[1] < 0)
+            else:
+                conjugates.append(bl[0] < 0)
+        baseline_vecs[conjugates] *= (-1)
+        baseline_ind_conj = baseline_inds[conjugates]
+        bl_gps, vec_bin_centers, lens, _ = get_baseline_redundancies(baseline_inds, baseline_vecs, tol=tol, with_conjugates=False)
+        return bl_gps, vec_bin_centers, lens, baseline_ind_conj
 
     # For each baseline, list all others that are within the tolerance distance.
 
@@ -804,10 +821,10 @@ def get_baseline_redundancies(baseline_inds, baseline_vecs, tol=1.0):
 
     lens = np.sqrt(np.sum(vec_bin_centers**2, axis=1))
 
-    return bl_gps, vec_bin_centers, lens
+    return bl_gps, vec_bin_centers, lens, []
 
 
-def get_antenna_redundancies(antenna_numbers, antenna_positions, tol=1.0, include_autos=False):
+def get_antenna_redundancies(antenna_numbers, antenna_positions, tol=1.0, include_autos=False, with_conjugates=False):
     """
     Construct baselines from antenna positions and get baseline redundancies.
 
@@ -816,6 +833,7 @@ def get_antenna_redundancies(antenna_numbers, antenna_positions, tol=1.0, includ
         antenna_positions:  Antenna position vectors in meters. Cartesian frame  (float), shape (Nants, 3)
         tol = (float)   Redundancy tolerance in meters. (float)
         include_autos =  Include autocorrelations (bool). Default is false
+        with_conjugates = Include baselines that are redundant if flipped. Default is false.
 
     Returns:
         baseline_groups: list of arrays of redundant baseline indices
@@ -827,13 +845,13 @@ def get_antenna_redundancies(antenna_numbers, antenna_positions, tol=1.0, includ
     bl_inds = []
     bl_vecs = []
 
-    for ai in range(Nants):
-        maxj = ai
+    for aj in range(Nants):
+        mini = aj + 1
         if include_autos:
-            maxj = ai + 1
-        for aj in range(maxj):
+            mini = aj
+        for ai in range(mini, Nants):
             bl_inds.append(antnums_to_baseline(ai, aj, Nants))
             bl_vecs.append(antenna_positions[ai] - antenna_positions[aj])
     bl_inds = np.array(bl_inds)
     bl_vecs = np.array(bl_vecs)
-    return get_baseline_redundancies(bl_inds, bl_vecs, tol=tol)
+    return get_baseline_redundancies(bl_inds, bl_vecs, tol=tol, with_conjugates=with_conjugates)
