@@ -777,6 +777,48 @@ done after the read, which does not save memory.
   >>> print(uv.get_antpairs())
   [(9, 10), (9, 20)]
 
+
+UVData: Finding Redundant Baselines
+-----------------------------------
+uvutils contains functions for finding redundant groups of baselines in an array, either by antenna positions or uvw coordinates. Baselines are considered redundant if they are within a specified tolerance distance (default is 1 meter).
+
+::
+    >>> import numpy as np
+    >>> from pyuvdata import UVData
+    >>> from pyuvdata import utils as uvutils
+    >>> uvd = UVData()
+    # This file contains a HERA19 layout.
+    >>> uvd.read_uvfits("pyuvdata/data/hera19_8hrs_uncomp_10MHz_000_05.003111-05.033750.uvfits")
+    >>> uvd.unphase_to_drift()
+    >>> tol = 0.05  # Tolerance in meters
+    >>> uvd.select(times=uvd.time_array[0])
+
+    # Returned values: list of redundant groups, corresponding mean baseline vectors, baseline lengths, and conjugates list (empty unless with_conjugates is set)
+    >>> baseline_groups, vec_bin_centers, lengths, conjugates = uvutils.get_baseline_redundancies(uvd.baseline_array, uvd.uvw_array, tol=tol)
+    >>> print(len(baseline_groups))
+    52
+
+    # The with_conjugates option includes baselines that are redundant when reversed.
+    # If used, the conjugates list will contain a list of indices of baselines that must be flipped to be redundant.
+    >>> baseline_groups, vec_bin_centers, lengths, conjugates = uvutils.get_baseline_redundancies(uvd.baseline_array, uvd.uvw_array, tol=tol, with_conjugates=True)
+    >>> print(len(baseline_groups))
+    31
+
+    # Alternatively, antenna positions can be used.
+    >>> baseline_groups, vec_bin_centers, lengths, conjugates = uvutils.get_antenna_redundancies(uvd.antenna_numbers, uvd.antenna_positions, tol=tol, include_autos=True)
+    >>> print(len(baseline_groups))
+    52
+
+    # get_antenna_redundancies has the option to ignore autocorrelations.
+    >>> baseline_groups, vec_bin_centers, lengths, conjugates = uvutils.get_antenna_redundancies(uvd.antenna_numbers, uvd.antenna_positions, tol=tol, include_autos=False)
+    >>> print(len(baseline_groups))
+    51
+
+    >>> baseline_groups, vec_bin_centers, lengths, conjugates = uvutils.get_antenna_redundancies(uvd.antenna_numbers, uvd.antenna_positions, tol=tol, include_autos=False, with_conjugates=True)
+    >>> print(len(baseline_groups))
+    30
+
+
 ------
 UVCal
 ------
