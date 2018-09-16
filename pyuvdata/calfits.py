@@ -23,14 +23,14 @@ def _warn_oldcalfits(filename):
 
 def _warn_olddelay(filename):
     warnings.warn('{file} appears to be an old calfits format '
-                  'for delay files which has been depricated. '
+                  'for delay files which has been deprecated. '
                   'Rewrite this file with write_calfits to ensure '
                   'future compatibility.'.format(file=filename))
 
 
 def _warn_oldstyle(filename):
     warnings.warn('{file} appears to be an old calfits format '
-                  'which has been depricated. '
+                  'which has been deprecated. '
                   'Rewrite this file with write_calfits to ensure '
                   'future compatibility.'.format(file=filename))
 
