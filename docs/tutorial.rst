@@ -787,6 +787,7 @@ uvutils contains functions for finding redundant groups of baselines in an array
     >>> from pyuvdata import UVData
     >>> from pyuvdata import utils as uvutils
     >>> uvd = UVData()
+
     # This file contains a HERA19 layout.
     >>> uvd.read_uvfits("pyuvdata/data/hera19_8hrs_uncomp_10MHz_000_05.003111-05.033750.uvfits")
     >>> uvd.unphase_to_drift()

@@ -111,7 +111,7 @@ class UVH5(UVData):
         self.integration_time = header['integration_time'].value
         if np.array(self.integration_time).size == 1 and int(header['Nblts'].value) > 1:
             warnings.warn('{file} appears to be an old uvh5 format '
-                          'with a single valued integration_time which has been depricated. '
+                          'with a single valued integration_time which has been deprecated. '
                           'Rewrite this file with write_uvh5 to ensure '
                           'future compatibility.'.format(file=filename))
             self.integration_time = np.ones_like(self.time_array, dtype=np.float64) * self.integration_time
