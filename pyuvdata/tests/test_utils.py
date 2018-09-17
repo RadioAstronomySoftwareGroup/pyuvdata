@@ -405,6 +405,9 @@ def test_redundancy_finder():
 
     tol = 0.05
     # Check with conjugated baseline redundancies included.
+    baseline_groups, vec_bin_centers, lens, conjugates = uvutils.get_baseline_redundancies(uvd.baseline_array, bl_positions, tol=tol, with_conjugates=True)
+    nt.assert_equal(len(baseline_groups), 31)
+
     antpos, antnums = uvd.get_ENU_antpos()
     baseline_groups, vec_bin_centers, lens, conjugates = uvutils.get_antenna_redundancies(antnums, antpos,
                                                                                           tol=tol, include_autos=False, with_conjugates=True)

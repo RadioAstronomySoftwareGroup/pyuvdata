@@ -11,6 +11,7 @@ import numpy as np
 import collections
 import six
 import warnings
+import copy
 from astropy.time import Time
 from astropy.coordinates import Angle
 
@@ -767,6 +768,9 @@ def get_baseline_redundancies(baseline_inds, baseline_vecs, tol=1.0, with_conjug
 
     if not baseline_vecs.shape == (Nbls, 3):
         raise ValueError("Baseline vectors must be shape (Nbls, 3)")
+
+    baseline_vecs = copy.copy(baseline_vecs)              # Protect the vectors passed in.
+    baseline_vecs = np.around(baseline_vecs, decimals=4)  # Round to nearest 0.1mm, to avoid floating errors from unphasing.
 
     if with_conjugates:
         conjugates = []
