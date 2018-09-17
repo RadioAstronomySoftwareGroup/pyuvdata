@@ -408,6 +408,8 @@ def test_redundancy_finder():
     antpos, antnums = uvd.get_ENU_antpos()
     baseline_groups, vec_bin_centers, lens, conjugates = uvutils.get_antenna_redundancies(antnums, antpos,
                                                                                           tol=tol, include_autos=False, with_conjugates=True)
+    # Under these conditions, should see 30 redundant groups in the file.
+    nt.assert_equal(len(baseline_groups), 30)
     bl_vecs = []
     for gi, gp in enumerate(baseline_groups):
         for bl in gp:
