@@ -770,7 +770,6 @@ def get_baseline_redundancies(baseline_inds, baseline_vecs, tol=1.0, with_conjug
         raise ValueError("Baseline vectors must be shape (Nbls, 3)")
 
     baseline_vecs = copy.copy(baseline_vecs)              # Protect the vectors passed in.
-    baseline_vecs = np.around(baseline_vecs, decimals=4)  # Round to nearest 0.1mm, to avoid floating errors from unphasing.
 
     if with_conjugates:
         conjugates = []
@@ -855,7 +854,7 @@ def get_antenna_redundancies(antenna_numbers, antenna_positions, tol=1.0, includ
             mini = aj
         for ai in range(mini, Nants):
             bl_inds.append(antnums_to_baseline(ai, aj, Nants))
-            bl_vecs.append(antenna_positions[ai] - antenna_positions[aj])
+            bl_vecs.append(antenna_positions[aj] - antenna_positions[ai])
     bl_inds = np.array(bl_inds)
     bl_vecs = np.array(bl_vecs)
     return get_baseline_redundancies(bl_inds, bl_vecs, tol=tol, with_conjugates=with_conjugates)

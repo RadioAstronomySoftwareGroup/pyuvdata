@@ -782,6 +782,10 @@ UVData: Finding Redundant Baselines
 -----------------------------------
 uvutils contains functions for finding redundant groups of baselines in an array, either by antenna positions or uvw coordinates. Baselines are considered redundant if they are within a specified tolerance distance (default is 1 meter).
 
+There are two options for baseline definition: with or without conjugates. The basic function of get_baseline_redundancies is to find groups of baseline vectors that fall within the tolerance distance of each other. When run with the ``with_conjugates`` option, baselines are oriented such that ``u > 0``, or ``v > 0 if u = 0``, or ``w > 0 if u = v = 0``. This is the baseline orientation convention of ``hera_cal``, and ensures baselines which would be redundant if one or the other flipped are counted as redundant. In this case, ``get_baseline_redundancies`` also returns a list of baselines (by baseline index) that were flipped. If adding together visibilities in the data_array by redundancy, for instance, then data from these baselines needs to be complex-conjugated to be comparable to the others in the group.
+
+The get_antenna_redundancies function constructs baselines ``(i,j)`` from the antenna list such that ``i > j``, and then runs ``get_baseline_redundancies``. If run with the ``with_conjugates`` option, it will pass this along.
+
 ::
     >>> import numpy as np
     >>> from pyuvdata import UVData
@@ -790,7 +794,7 @@ uvutils contains functions for finding redundant groups of baselines in an array
 
     # This file contains a HERA19 layout.
     >>> uvd.read_uvfits("pyuvdata/data/hera19_8hrs_uncomp_10MHz_000_05.003111-05.033750.uvfits")
-    >>> uvd.unphase_to_drift()
+    >>> uvd.unphase_to_drift(use_ant_pos=True)
     >>> tol = 0.05  # Tolerance in meters
     >>> uvd.select(times=uvd.time_array[0])
 

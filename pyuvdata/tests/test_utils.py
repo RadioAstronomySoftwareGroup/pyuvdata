@@ -361,7 +361,7 @@ def test_redundancy_finder():
     uvd = pyuvdata.UVData()
     uvd.read_uvfits(os.path.join(DATA_PATH, 'hera19_8hrs_uncomp_10MHz_000_05.003111-05.033750.uvfits'))
     uvd.select(times=uvd.time_array[0])
-    uvd.unphase_to_drift()   # uvw_array is now equivalent to baseline
+    uvd.unphase_to_drift(use_ant_pos=True)   # uvw_array is now equivalent to baseline
 
     tol = 0.05  # meters
 
