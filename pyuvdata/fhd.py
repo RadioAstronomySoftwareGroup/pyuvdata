@@ -322,20 +322,15 @@ class FHD(UVData):
             layout = layout_dict['layout']
 
             layout_fields = [name.lower() for name in layout.dtype.names]
-            if 'array_center' in layout_fields:
-                arr_center = layout['array_center'][0]
-                layout_fields.remove('array_center')
-            else:
-                arr_center = None
-            if 'coordinate_frame' in layout_fields:
-                xyz_telescope_frame = uvutils._bytes_to_str(layout['coordinate_frame'][0]).lower()
-                layout_fields.remove('coordinate_frame')
-            else:
-                warnings.warn('coordinate_frame keyword in layout file not set, '
-                              'setting to ????')
-                xyz_telescope_frame = '????'
+            # Try to get the telescope location from the layout file &
+            # compare it to the position from the obs structure.
+            arr_center = layout['array_center'][0]
+            layout_fields.remove('array_center')
 
-            if xyz_telescope_frame == 'itrf' and arr_center is not None:
+            xyz_telescope_frame = uvutils._bytes_to_str(layout['coordinate_frame'][0]).lower()
+            layout_fields.remove('coordinate_frame')
+
+            if xyz_telescope_frame == 'itrf':
                 # compare to lat/lon/alt
                 location_latlonalt = uvutils.XYZ_from_LatLonAlt(latitude, longitude, altitude)
                 latlonalt_arr_center = uvutils.LatLonAlt_from_XYZ(arr_center)
@@ -380,44 +375,45 @@ class FHD(UVData):
             else:
                 self.telescope_location_lat_lon_alt = (latitude, longitude, altitude)
 
-            if 'antenna_coords' in layout_fields:
-                self.antenna_positions = layout['antenna_coords'][0]
-                layout_fields.remove('antenna_coords')
+            self.antenna_positions = layout['antenna_coords'][0]
+            layout_fields.remove('antenna_coords')
 
-            if 'antenna_names' in layout_fields:
-                self.antenna_names = [uvutils._bytes_to_str(ant).strip() for ant in layout['antenna_names'][0].tolist()]
-                layout_fields.remove('antenna_names')
-            if 'antenna_numbers' in layout_fields:
-                self.antenna_numbers = layout['antenna_numbers'][0]
-                layout_fields.remove('antenna_numbers')
-            if 'n_antenna' in layout_fields:
-                self.Nants_telescope = int(layout['n_antenna'][0])
-                layout_fields.remove('n_antenna')
+            self.antenna_names = [uvutils._bytes_to_str(ant).strip() for ant in layout['antenna_names'][0].tolist()]
+            layout_fields.remove('antenna_names')
+
+            self.antenna_numbers = layout['antenna_numbers'][0]
+            layout_fields.remove('antenna_numbers')
+
+            self.Nants_telescope = int(layout['n_antenna'][0])
+            layout_fields.remove('n_antenna')
 
             # check that these match
-            tile_names = [uvutils._bytes_to_str(ant).strip() for ant in bl_info['TILE_NAMES'][0].tolist()]
-            tile_names = ['Tile' + '0' * (3 - len(ant)) + ant for ant in tile_names]
-            if tile_names != self.antenna_names:
+            obs_ant_names = [uvutils._bytes_to_str(ant).strip() for ant in bl_info['TILE_NAMES'][0].tolist()]
+            if self.telescope_name.lower() == 'mwa':
+                # MWA files have 'Tile' prepended and the number padded with zeros
+                obs_ant_names = ['Tile' + '0' * (3 - len(ant)) + ant for ant in obs_ant_names]
+            if obs_ant_names != self.antenna_names:
                 warnings.warn('tile_names from obs structure does not match antenna_names from layout')
 
-            if 'gst0' in layout_fields:
-                self.gst0 = float(layout['gst0'][0])
-                layout_fields.remove('gst0')
-            if 'ref_date' in layout_fields:
-                self.rdate = uvutils._bytes_to_str(layout['ref_date'][0]).lower()
-                layout_fields.remove('ref_date')
-            if 'earth_degpd' in layout_fields:
-                self.earth_omega = float(layout['earth_degpd'][0])
-                layout_fields.remove('earth_degpd')
-            if 'dut1' in layout_fields:
-                self.dut1 = float(layout['dut1'][0])
-                layout_fields.remove('dut1')
-            if 'time_system' in layout_fields:
-                self.timesys = uvutils._bytes_to_str(layout['time_system'][0]).upper().strip()
-                layout_fields.remove('time_system')
+            self.gst0 = float(layout['gst0'][0])
+            layout_fields.remove('gst0')
+
+            self.rdate = uvutils._bytes_to_str(layout['ref_date'][0]).lower()
+            layout_fields.remove('ref_date')
+
+            self.earth_omega = float(layout['earth_degpd'][0])
+            layout_fields.remove('earth_degpd')
+
+            self.dut1 = float(layout['dut1'][0])
+            layout_fields.remove('dut1')
+
+            self.timesys = uvutils._bytes_to_str(layout['time_system'][0]).upper().strip()
+            layout_fields.remove('time_system')
+
             if 'diameters' in layout_fields:
                 self.timesys = uvutils._bytes_to_str(layout['time_system'][0]).upper().strip()
                 layout_fields.remove('diameters')
+
             # ignore some fields, put everything else in extra_keywords
             layout_fields_ignore = ['diff_utc', 'pol_type', 'n_pol_cal_params',
                                     'mount_type', 'axis_offset',

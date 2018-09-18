@@ -233,21 +233,17 @@ def test_breakReadFHD():
 
     broken_layout_file = testdir + testfile_prefix + 'broken_layout.sav'
     bad_filelist = testfiles[0:4] + [broken_layout_file, testfiles[7]]
-    warn_messages = ['coordinate_frame keyword in layout file not set']
     fhd_uv = UVData()
     if not uvtest.scipy_warnings:
-        uvtest.checkWarnings(fhd_uv.read_fhd, [bad_filelist], {'run_check': False},
-                             nwarnings=1, message=warn_messages)
+        fhd_uv.read_fhd(bad_filelist, run_check=False)
     else:
         # numpy 1.14 introduced a new deprecation warning.
         # Should be fixed when the next scipy version comes out.
         # The number of replications of the warning varies some and must be
         # empirically discovered. It it defaults to the most common number.
         n_scipy_warnings, scipy_warn_list, scipy_category_list = uvtest.get_scipy_warnings()
-        warn_list = warn_messages + scipy_warn_list
-        category_list = [UserWarning] + scipy_category_list
         uvtest.checkWarnings(fhd_uv.read_fhd, [bad_filelist],
-                             message=warn_list, category=category_list,
+                             message=scipy_warn_list, category=scipy_category_list,
                              nwarnings=n_scipy_warnings + 1)
 
     broken_flag_file = testdir + testfile_prefix + 'broken_flags.sav'

@@ -34,19 +34,13 @@ pro make_bad_fhd_files, good_data_file, good_layout_file, good_flag_file
   bad_layout_file = directory + layout_start + 'broken_' + layout_end + '.' + extension
 
   restore, good_layout_file
-  tags = strlowcase(tag_names(layout))
-  wh_keep = where(tags ne 'array_center' and tags ne 'coordinate_frame', count_keep)
-  if count_keep gt 0 then begin
-    new_layout = create_struct(tags[wh_keep[0]], layout.(wh_keep[0]))
-    for i=1, n_elements(tags_to_keep) - 1 do begin
-      new_layout = create_struct(new_layout, tags[wh_keep[i]], layout.(wh_keep[i]))
-    endfor
-  endif
+
+  layout.coordinate_frame = '????'
 
   nants = n_elements(layout.antenna_names)
-  new_layout = create_struct(new_layout, 'diameters', fltarr(nants) + 5.)
-  new_layout = create_struct(new_layout, 'foo', 'bar')
-  layout=new_layout
+  layout = create_struct(layout, 'diameters', fltarr(nants) + 5.)
+
+  layout = create_struct(layout, 'foo', 'bar')
 
   save, file = bad_layout_file, layout
 
