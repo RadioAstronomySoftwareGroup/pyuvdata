@@ -31,39 +31,16 @@ def test_ReadFHDcalWriteReadcalfits():
     """
     fhd_cal = UVCal()
     calfits_cal = UVCal()
-    if not uvtest.scipy_warnings:
-        fhd_cal.read_fhd_cal(cal_testfile, obs_testfile, settings_file=settings_testfile)
-    else:
-        # numpy 1.14 introduced a new deprecation warning.
-        # Should be fixed when the next scipy version comes out.
-        # The number of replications of the warning varies some and must be
-        # empirically discovered. It it defaults to the most common number.
-        n_scipy_warnings, scipy_warn_list, scipy_category_list = \
-            uvtest.get_scipy_warnings(n_scipy_warnings=605)
-        uvtest.checkWarnings(fhd_cal.read_fhd_cal, [cal_testfile, obs_testfile],
-                             {'settings_file': settings_testfile},
-                             message=scipy_warn_list, category=scipy_category_list,
-                             nwarnings=n_scipy_warnings)
+    fhd_cal.read_fhd_cal(cal_testfile, obs_testfile, settings_file=settings_testfile)
+
     outfile = os.path.join(DATA_PATH, 'test/outtest_FHDcal_1061311664.calfits')
     fhd_cal.write_calfits(outfile, clobber=True)
     calfits_cal.read_calfits(outfile)
     nt.assert_equal(fhd_cal, calfits_cal)
 
     # do it again with fit gains (rather than raw)
-    if not uvtest.scipy_warnings:
-        fhd_cal.read_fhd_cal(cal_testfile, obs_testfile,
-                             settings_file=settings_testfile, raw=False)
-    else:
-        # numpy 1.14 introduced a new deprecation warning.
-        # Should be fixed when the next scipy version comes out.
-        # The number of replications of the warning varies some and must be
-        # empirically discovered. It it defaults to the most common number.
-        n_scipy_warnings, scipy_warn_list, scipy_category_list = \
-            uvtest.get_scipy_warnings(n_scipy_warnings=605)
-        uvtest.checkWarnings(fhd_cal.read_fhd_cal, [cal_testfile, obs_testfile],
-                             {'settings_file': settings_testfile, 'raw': False},
-                             message=scipy_warn_list, category=scipy_category_list,
-                             nwarnings=n_scipy_warnings)
+    fhd_cal.read_fhd_cal(cal_testfile, obs_testfile,
+                         settings_file=settings_testfile, raw=False)
     outfile = os.path.join(DATA_PATH, 'test/outtest_FHDcal_1061311664.calfits')
     fhd_cal.write_calfits(outfile, clobber=True)
     calfits_cal.read_calfits(outfile)
@@ -77,22 +54,10 @@ def test_extra_history():
     fhd_cal = UVCal()
     calfits_cal = UVCal()
     extra_history = 'Some extra history for testing\n'
-    if not uvtest.scipy_warnings:
-        fhd_cal.read_fhd_cal(cal_testfile, obs_testfile,
-                             settings_file=settings_testfile,
-                             extra_history=extra_history)
-    else:
-        # numpy 1.14 introduced a new deprecation warning.
-        # Should be fixed when the next scipy version comes out.
-        # The number of replications of the warning varies some and must be
-        # empirically discovered. It it defaults to the most common number.
-        n_scipy_warnings, scipy_warn_list, scipy_category_list = \
-            uvtest.get_scipy_warnings(n_scipy_warnings=605)
-        uvtest.checkWarnings(fhd_cal.read_fhd_cal, [cal_testfile, obs_testfile],
-                             {'settings_file': settings_testfile,
-                              'extra_history': extra_history},
-                             message=scipy_warn_list, category=scipy_category_list,
-                             nwarnings=n_scipy_warnings)
+    fhd_cal.read_fhd_cal(cal_testfile, obs_testfile,
+                         settings_file=settings_testfile,
+                         extra_history=extra_history)
+
     outfile = os.path.join(DATA_PATH, 'test/outtest_FHDcal_1061311664.calfits')
     fhd_cal.write_calfits(outfile, clobber=True)
     calfits_cal.read_calfits(outfile)
@@ -102,22 +67,10 @@ def test_extra_history():
     # try again with a list of history strings
     extra_history = ['Some extra history for testing',
                      'And some more history as well']
-    if not uvtest.scipy_warnings:
-        fhd_cal.read_fhd_cal(cal_testfile, obs_testfile,
-                             settings_file=settings_testfile,
-                             extra_history=extra_history)
-    else:
-        # numpy 1.14 introduced a new deprecation warning.
-        # Should be fixed when the next scipy version comes out.
-        # The number of replications of the warning varies some and must be
-        # empirically discovered. It it defaults to the most common number.
-        n_scipy_warnings, scipy_warn_list, scipy_category_list = \
-            uvtest.get_scipy_warnings(n_scipy_warnings=605)
-        uvtest.checkWarnings(fhd_cal.read_fhd_cal, [cal_testfile, obs_testfile],
-                             {'settings_file': settings_testfile,
-                              'extra_history': extra_history},
-                             message=scipy_warn_list, category=scipy_category_list,
-                             nwarnings=n_scipy_warnings)
+    fhd_cal.read_fhd_cal(cal_testfile, obs_testfile,
+                         settings_file=settings_testfile,
+                         extra_history=extra_history)
+
     outfile = os.path.join(DATA_PATH, 'test/outtest_FHDcal_1061311664.calfits')
     fhd_cal.write_calfits(outfile, clobber=True)
     calfits_cal.read_calfits(outfile)
@@ -137,20 +90,9 @@ def test_flags_galaxy():
 
     fhd_cal = UVCal()
     calfits_cal = UVCal()
-    if not uvtest.scipy_warnings:
-        fhd_cal.read_fhd_cal(cal_testfile_flag, obs_testfile_flag,
-                             settings_file=settings_testfile_flag)
-    else:
-        # numpy 1.14 introduced a new deprecation warning.
-        # Should be fixed when the next scipy version comes out.
-        # The number of replications of the warning varies some and must be
-        # empirically discovered. It it defaults to the most common number.
-        n_scipy_warnings, scipy_warn_list, scipy_category_list = \
-            uvtest.get_scipy_warnings(n_scipy_warnings=602)
-        uvtest.checkWarnings(fhd_cal.read_fhd_cal, [cal_testfile_flag, obs_testfile_flag],
-                             {'settings_file': settings_testfile_flag},
-                             message=scipy_warn_list, category=scipy_category_list,
-                             nwarnings=n_scipy_warnings)
+    fhd_cal.read_fhd_cal(cal_testfile_flag, obs_testfile_flag,
+                         settings_file=settings_testfile_flag)
+
     outfile = os.path.join(DATA_PATH, 'test/outtest_FHDcal_1061311664.calfits')
     fhd_cal.write_calfits(outfile, clobber=True)
     calfits_cal.read_calfits(outfile)
@@ -162,21 +104,9 @@ def test_breakReadFHDcal():
     fhd_cal = UVCal()
     nt.assert_raises(Exception, fhd_cal.read_fhd_cal, cal_testfile)  # Missing obs
 
-    if not uvtest.scipy_warnings:
-        uvtest.checkWarnings(fhd_cal.read_fhd_cal, [cal_testfile, obs_testfile],
-                             message=['No settings file'])
-    else:
-        # numpy 1.14 introduced a new deprecation warning.
-        # Should be fixed when the next scipy version comes out.
-        # The number of replications of the warning varies some and must be
-        # empirically discovered. It it defaults to the most common number.
-        n_scipy_warnings, scipy_warn_list, scipy_category_list = \
-            uvtest.get_scipy_warnings(n_scipy_warnings=605)
-        warn_list = scipy_warn_list + ['No settings file']
-        category_list = scipy_category_list + [UserWarning]
-        uvtest.checkWarnings(fhd_cal.read_fhd_cal, [cal_testfile, obs_testfile],
-                             message=warn_list, category=category_list,
-                             nwarnings=n_scipy_warnings + 1)
+    uvtest.checkWarnings(fhd_cal.read_fhd_cal, [cal_testfile, obs_testfile],
+                         message=['No settings file'])
+
     # Check only pyuvdata version history with no settings file
     nt.assert_equal(fhd_cal.history, '\n' + fhd_cal.pyuvdata_version_str)
 
@@ -190,23 +120,10 @@ def test_read_multi():
 
     fhd_cal = UVCal()
     calfits_cal = UVCal()
-    if not uvtest.scipy_warnings:
-        uvtest.checkWarnings(fhd_cal.read_fhd_cal, [cal_testfile_list, obs_testfile_list],
-                             {'settings_file': settings_testfile_list},
-                             message='UVParameter diffuse_model does not match')
-    else:
-        # numpy 1.14 introduced a new deprecation warning.
-        # Should be fixed when the next scipy version comes out.
-        # The number of replications of the warning varies some and must be
-        # empirically discovered. It it defaults to the most common number.
-        n_scipy_warnings, scipy_warn_list, scipy_category_list = \
-            uvtest.get_scipy_warnings(n_scipy_warnings=1210)
-        warn_list = scipy_warn_list + ['UVParameter diffuse_model does not match']
-        category_list = scipy_category_list + [UserWarning]
-        uvtest.checkWarnings(fhd_cal.read_fhd_cal, [cal_testfile_list, obs_testfile_list],
-                             {'settings_file': settings_testfile_list},
-                             message=warn_list, category=category_list,
-                             nwarnings=n_scipy_warnings + 1)
+    uvtest.checkWarnings(fhd_cal.read_fhd_cal, [cal_testfile_list, obs_testfile_list],
+                         {'settings_file': settings_testfile_list},
+                         message='UVParameter diffuse_model does not match')
+
     outfile = os.path.join(DATA_PATH, 'test/outtest_FHDcal_1061311664.calfits')
     fhd_cal.write_calfits(outfile, clobber=True)
     calfits_cal.read_calfits(outfile)

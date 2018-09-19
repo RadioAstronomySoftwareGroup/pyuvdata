@@ -10,8 +10,6 @@ from __future__ import absolute_import, division, print_function
 import os
 import warnings
 import sys
-import numpy as np
-import scipy
 from pyuvdata.data import DATA_PATH
 import pyuvdata.utils as uvutils
 
@@ -34,28 +32,6 @@ def clearWarnings():
             continue
         if reg:
             reg.clear()
-
-
-# things we need to figure out expected warnings when reading FHD files
-scipy_warnings = (float(np.__version__[0:4]) >= 1.14 and (scipy.__version__ < '1.0.1'))
-
-
-def get_scipy_warnings(n_scipy_warnings=1093):
-    """
-    Function to generate warning information for reading IDL save files.
-
-    numpy 1.14 introduced a new deprecation warning.
-    Should be fixed when the next scipy version comes out.
-    The number of replications of the warning varies some and must be
-    empirically discovered. It it defaults to the most common number.
-    """
-    scipy_warn_str = 'The binary mode of fromstring is deprecated'
-    scipy_warn_list = []
-    scipy_category_list = []
-    for i in range(n_scipy_warnings):
-        scipy_warn_list.append(scipy_warn_str)
-        scipy_category_list.append(DeprecationWarning)
-    return n_scipy_warnings, scipy_warn_list, scipy_category_list
 
 
 def checkWarnings(func, func_args=[], func_kwargs={},
