@@ -205,16 +205,7 @@ class TestUVDataBasicMethods(object):
                      testdir + '1061316296_layout.sav',
                      testdir + '1061316296_settings.txt']
 
-        if not uvtest.scipy_warnings:
-            uvtest.checkWarnings(self.uv_object.read_fhd, [file_list], known_warning='fhd')
-        else:
-            # numpy 1.14 introduced a new deprecation warning
-            n_scipy_warnings, scipy_warn_list, scipy_category_list = uvtest.get_scipy_warnings(n_scipy_warnings=550)
-            warn_list = ['Telescope location derived from obs'] + scipy_warn_list
-            category_list = [UserWarning] + scipy_category_list
-            uvtest.checkWarnings(self.uv_object.read_fhd, [file_list],
-                                 message=warn_list, category=category_list,
-                                 nwarnings=n_scipy_warnings + 1)
+        uvtest.checkWarnings(self.uv_object.read_fhd, [file_list], known_warning='fhd')
 
         self.uv_object.select(blt_inds=np.where(self.uv_object.ant_1_array
                                                 == self.uv_object.ant_2_array)[0])

@@ -13,9 +13,6 @@ pro make_bad_fhd_files, good_data_file, good_layout_file, good_flag_file
   obs.nbaselines = obs.nbaselines / 2.
   obs.obsra = obs.obsra - 10.
 
-  nants = n_elements((*obs.baseline_info).tile_names)
-  (*obs.baseline_info).tile_names = string(indgen(nants))
-
   save, file = bad_data_file, obs, vis_ptr
 
   bad_obs_loc_data_file = directory + data_start + 'bad_obs_loc_' + data_end + '.' + extension
@@ -23,6 +20,9 @@ pro make_bad_fhd_files, good_data_file, good_layout_file, good_flag_file
 
   obs.lat = obs.lat + 10
   obs.lon = obs.lon + 10
+
+  nants = n_elements((*obs.baseline_info).tile_names)
+  (*obs.baseline_info).tile_names = string(indgen(nants))
 
   save, file = bad_obs_loc_data_file, obs, vis_ptr
 

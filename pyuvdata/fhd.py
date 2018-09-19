@@ -381,19 +381,25 @@ class FHD(UVData):
             self.antenna_names = [uvutils._bytes_to_str(ant).strip() for ant in layout['antenna_names'][0].tolist()]
             layout_fields.remove('antenna_names')
 
-            self.antenna_numbers = layout['antenna_numbers'][0]
+            # make these 0-indexed (rather than one indexed)
+            self.antenna_numbers = layout['antenna_numbers'][0] - 1
             layout_fields.remove('antenna_numbers')
 
             self.Nants_telescope = int(layout['n_antenna'][0])
             layout_fields.remove('n_antenna')
 
-            # check that these match
-            obs_ant_names = [uvutils._bytes_to_str(ant).strip() for ant in bl_info['TILE_NAMES'][0].tolist()]
             if self.telescope_name.lower() == 'mwa':
-                # MWA files have 'Tile' prepended and the number padded with zeros
-                obs_ant_names = ['Tile' + '0' * (3 - len(ant)) + ant for ant in obs_ant_names]
-            if obs_ant_names != self.antenna_names:
-                warnings.warn('tile_names from obs structure does not match antenna_names from layout')
+                # check that obs.baseline_info.tile_names match the antenna names
+                # this only applies for MWA because the tile_names come from metafits files
+                obs_tile_names = [uvutils._bytes_to_str(ant).strip() for ant in bl_info['TILE_NAMES'][0].tolist()]
+                obs_tile_names = ['Tile' + '0' * (3 - len(ant)) + ant for ant in obs_tile_names]
+                # tile_names are assumed to be ordered: so their index gives the antenna number
+                # make an comparison array from self.antenna_names ordered this way.
+                ant_names = np.zeros((np.max(self.antenna_numbers) + 1), str).tolist()
+                for index, number in enumerate(self.antenna_numbers):
+                    ant_names[number] = self.antenna_names[index]
+                if obs_tile_names != ant_names:
+                    warnings.warn('tile_names from obs structure does not match antenna_names from layout')
 
             self.gst0 = float(layout['gst0'][0])
             layout_fields.remove('gst0')
