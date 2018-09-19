@@ -441,8 +441,9 @@ class FHD(UVData):
                 self.extra_keywords[keyword.upper()] = value
         else:
             self.telescope_location_lat_lon_alt = (latitude, longitude, altitude)
-            tile_names = [uvutils._bytes_to_str(ant).strip() for ant in bl_info['TILE_NAMES'][0].tolist()]
-            self.antenna_names = ['Tile' + '0' * (3 - len(ant)) + ant for ant in tile_names]
+            self.antenna_names = [uvutils._bytes_to_str(ant).strip() for ant in bl_info['TILE_NAMES'][0].tolist()]
+            if self.telescope_name.lower() == 'mwa':
+                self.antenna_names = ['Tile' + '0' * (3 - len(ant)) + ant for ant in self.antenna_names]
             self.Nants_telescope = len(self.antenna_names)
             self.antenna_numbers = np.arange(self.Nants_telescope)
 
