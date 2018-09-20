@@ -368,17 +368,13 @@ def test_redundancy_finder():
     bl_positions = uvd.uvw_array
 
     nt.assert_raises(ValueError, uvutils.get_baseline_redundancies, uvd.baseline_array, bl_positions[0:2, 0:1])
-    baseline_groups, vec_bin_centers, lens, conjugates = uvutils.get_baseline_redundancies(uvd.baseline_array, bl_positions, tol=tol)
+    baseline_groups, vec_bin_centers, lens = uvutils.get_baseline_redundancies(uvd.baseline_array, bl_positions, tol=tol)
 
     for gi, gp in enumerate(baseline_groups):
         for bl in gp:
             bl_ind = np.where(uvd.baseline_array == bl)
             bl_vec = bl_positions[bl_ind]
             nt.assert_true(np.allclose(np.sqrt(np.dot(bl_vec, vec_bin_centers[gi])), lens[gi], atol=tol))
-
-    # Check that the antenna method returns the same results:
-    bl_gps_ant, vec_bin_centers, lengths, conjugates = uvutils.get_antenna_redundancies(uvd.antenna_numbers, uvd.antenna_positions, tol=tol, include_autos=True)
-    nt.assert_true(np.all(bl_gps_ant == baseline_groups))
 
     # Now jostle the baselines around by up to 0.25m and see if we can recover the same redundancies to that tolerance.
     tol = 0.25  # meters. Less than the smallest baseline in the file.
@@ -389,7 +385,7 @@ def test_redundancy_finder():
 
     bl_positions_new = bl_positions + shift_vecs
 
-    baseline_groups_new, vec_bin_centers, lens, conjugates = uvutils.get_baseline_redundancies(uvd.baseline_array, bl_positions_new, tol=tol)
+    baseline_groups_new, vec_bin_centers, lens = uvutils.get_baseline_redundancies(uvd.baseline_array, bl_positions_new, tol=tol)
 
     for gi, gp in enumerate(baseline_groups_new):
         for bl in gp:
@@ -404,21 +400,33 @@ def test_redundancy_finder():
         nt.assert_equal(baseline_groups_new[ind], blg)
 
     tol = 0.05
-    # Check with conjugated baseline redundancies included.
-    baseline_groups, vec_bin_centers, lens, conjugates = uvutils.get_baseline_redundancies(uvd.baseline_array, bl_positions, tol=tol, with_conjugates=True)
-    nt.assert_equal(len(baseline_groups), 31)
 
     antpos, antnums = uvd.get_ENU_antpos()
-    baseline_groups, vec_bin_centers, lens, conjugates = uvutils.get_antenna_redundancies(antnums, antpos,
-                                                                                          tol=tol, include_autos=False, with_conjugates=True)
-    # Under these conditions, should see 30 redundant groups in the file.
-    nt.assert_equal(len(baseline_groups), 30)
-    bl_vecs = []
+    baseline_groups_ants, vec_bin_centers, lens = uvutils.get_antenna_redundancies(antnums, antpos,
+                                                                                   tol=tol, include_autos=True)
+    # Under these conditions, should see 31 redundant groups in the file.
+    nt.assert_equal(len(baseline_groups_ants), 31)
+
+    # Check with conjugated baseline redundancies returned
+    baseline_groups, vec_bin_centers, lens, conjugates = uvutils.get_baseline_redundancies(uvd.baseline_array, bl_positions, tol=tol, with_conjugates=True)
+    # Should get the same groups as with the antenna method:
+    baseline_groups_flipped = []
+    for bgp in baseline_groups:
+        bgp_new = []
+        for bl in bgp:
+            ai, aj = uvutils.baseline_to_antnums(bl, uvd.Nants_telescope)
+            if bl in conjugates:
+                bgp_new.append(uvutils.antnums_to_baseline(aj, ai, uvd.Nants_telescope))
+            else:
+                bgp_new.append(uvutils.antnums_to_baseline(ai, aj, uvd.Nants_telescope))
+        bgp_new.sort()
+        baseline_groups_flipped.append(bgp_new)
+    baseline_groups = [sorted(bgp) for bgp in baseline_groups]
+    nt.assert_true(np.all(sorted(baseline_groups_ants) == sorted(baseline_groups_flipped)))
     for gi, gp in enumerate(baseline_groups):
         for bl in gp:
             bl_ind = np.where(uvd.baseline_array == bl)
             bl_vec = bl_positions[bl_ind]
             if bl in conjugates:
                 bl_vec *= (-1)
-            bl_vecs.append(bl_vec)
             nt.assert_true(np.isclose(np.sqrt(np.dot(bl_vec, vec_bin_centers[gi])), lens[gi], atol=tol))
