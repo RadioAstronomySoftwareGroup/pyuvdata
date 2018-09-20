@@ -758,10 +758,11 @@ def get_baseline_redundancies(baseline_inds, baseline_vecs, tol=1.0, with_conjug
         with_conjugates = Include baselines that are redundant when flipped.
 
     Returns:
-        baseline_groups: list of arrays of redundant baseline indices
+        baseline_groups: list of lists of redundant baseline indices
         vec_bin_centers: List of vectors describing redundant group centers
         lengths: List of redundant group baseline lengths in meters
-        baseline_ind_conj: List of baselines that are redundant when reversed
+        baseline_ind_conj: List of baselines that are redundant when reversed.
+                           Returned if with_conjugates is True
 
     """
     Nbls = baseline_inds.shape[0]
