@@ -676,17 +676,17 @@ class UVBeam(UVBase):
                     for comp_i in range(2):
                         power_data[0, :, pol_i] += \
                             ((efield_data[0, :, pair[0]]
-                             * np.conj(efield_data[0, :, pair[1]]))
+                              * np.conj(efield_data[0, :, pair[1]]))
                              * beam_object.basis_vector_array[0, comp_i]**2
                              + (efield_data[1, :, pair[0]]
-                             * np.conj(efield_data[1, :, pair[1]]))
+                                * np.conj(efield_data[1, :, pair[1]]))
                              * beam_object.basis_vector_array[1, comp_i]**2
                              + (efield_data[0, :, pair[0]]
-                             * np.conj(efield_data[1, :, pair[1]])
-                             + efield_data[1, :, pair[0]]
-                             * np.conj(efield_data[0, :, pair[1]]))
+                                * np.conj(efield_data[1, :, pair[1]])
+                                + efield_data[1, :, pair[0]]
+                                * np.conj(efield_data[0, :, pair[1]]))
                              * (beam_object.basis_vector_array[0, comp_i]
-                             * beam_object.basis_vector_array[1, comp_i]))
+                                * beam_object.basis_vector_array[1, comp_i]))
                 else:
                     raise ValueError('Conversion to power with 3-vector efields '
                                      'is not currently supported because we have '
@@ -835,6 +835,7 @@ class UVBeam(UVBase):
         else:
             Npol_feeds = self.Nfeeds
         splines_saved = hasattr(self, 'saved_interp_functions')
+
         def get_lambda(real_lut, imag_lut=None):
             if imag_lut is None:
                 return lambda za, az: real_lut(za, az, grid=False)
@@ -851,12 +852,12 @@ class UVBeam(UVBase):
                         elif np.iscomplexobj(input_data_array):
                             # interpolate real and imaginary parts separately
                             real_lut = interpolate.RectBivariateSpline(self.axis2_array,
-                                                                           self.axis1_array,
-                                                                           input_data_array[index0, index1, index2, index3, :].real)
+                                                                       self.axis1_array,
+                                                                       input_data_array[index0, index1, index2, index3, :].real)
                             imag_lut = interpolate.RectBivariateSpline(self.axis2_array,
                                                                        self.axis1_array,
                                                                        input_data_array[index0, index1, index2, index3, :].imag)
-                            lut = get_lambda(real_lut, imag_lut) 
+                            lut = get_lambda(real_lut, imag_lut)
                         else:
                             lut = interpolate.RectBivariateSpline(self.axis2_array,
                                                                   self.axis1_array,
@@ -1167,7 +1168,7 @@ class UVBeam(UVBase):
                 data_zero_pad = np.zeros(data_pad_dims)
 
                 this.pixel_array = np.concatenate([this.pixel_array,
-                                                  other.pixel_array[pix_new_inds]])
+                                                   other.pixel_array[pix_new_inds]])
                 order = np.argsort(this.pixel_array)
                 this.pixel_array = this.pixel_array[order]
 
@@ -1182,7 +1183,7 @@ class UVBeam(UVBase):
                     basisvec_zero_pad = np.zeros(basisvec_pad_dims)
 
                     this.basis_vector_array = np.concatenate([this.basis_vector_array,
-                                                             basisvec_zero_pad],
+                                                              basisvec_zero_pad],
                                                              axis=basisvec_pix_axis)[:, :, order]
         else:
             if len(ax1_new_inds) > 0:
@@ -1294,13 +1295,13 @@ class UVBeam(UVBase):
         if this.beam_type == 'power':
             this.Npols = this.polarization_array.shape[0]
             pol_t2o = np.nonzero(np.in1d(this.polarization_array,
-                                 other.polarization_array))[0]
+                                         other.polarization_array))[0]
         else:
             this.Nfeeds = this.feed_array.shape[0]
             pol_t2o = np.nonzero(np.in1d(this.feed_array, other.feed_array))[0]
 
         freq_t2o = np.nonzero(np.in1d(this.freq_array[0, :],
-                              other.freq_array[0, :]))[0]
+                                      other.freq_array[0, :]))[0]
 
         if this.pixel_coordinate_system == 'healpix':
             this.Npixels = this.pixel_array.shape[0]
@@ -1592,7 +1593,7 @@ class UVBeam(UVBase):
             else:
                 frequencies = uvutils._get_iterable(frequencies)
                 frequencies = np.sort(list(set(frequencies)
-                                      | set(beam_object.freq_array[0, freq_chans])))
+                                           | set(beam_object.freq_array[0, freq_chans])))
 
         if frequencies is not None:
             frequencies = uvutils._get_iterable(frequencies)
