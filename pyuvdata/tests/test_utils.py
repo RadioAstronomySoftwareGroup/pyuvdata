@@ -361,13 +361,15 @@ def test_redundancy_finder():
     uvd = pyuvdata.UVData()
     uvd.read_uvfits(os.path.join(DATA_PATH, 'hera19_8hrs_uncomp_10MHz_000_05.003111-05.033750.uvfits'))
     uvd.select(times=uvd.time_array[0])
-    uvd.unphase_to_drift(use_ant_pos=True)   # uvw_array is now equivalent to baseline
+    uvd.unphase_to_drift(use_ant_pos=True)   # uvw_array is now equivalent to baseline positions
 
     tol = 0.05  # meters
 
     bl_positions = uvd.uvw_array
 
     nt.assert_raises(ValueError, uvutils.get_baseline_redundancies, uvd.baseline_array, bl_positions[0:2, 0:1])
+    baseline_groups, vec_bin_centers, lens = uvutils.get_baseline_redundancies(uvd.baseline_array, bl_positions, tol=tol)
+
     baseline_groups, vec_bin_centers, lens = uvutils.get_baseline_redundancies(uvd.baseline_array, bl_positions, tol=tol)
 
     for gi, gp in enumerate(baseline_groups):
@@ -383,7 +385,7 @@ def test_redundancy_finder():
     shift_angs = np.random.uniform(low=0.0, high=2 * np.pi, size=Nbls)
     shift_vecs = np.stack((shift_dists * np.cos(shift_angs), shift_dists * np.sin(shift_angs), np.zeros(Nbls))).T
 
-    bl_positions_new = bl_positions + shift_vecs
+    bl_positions_new = uvd.uvw_array + shift_vecs
 
     baseline_groups_new, vec_bin_centers, lens = uvutils.get_baseline_redundancies(uvd.baseline_array, bl_positions_new, tol=tol)
 
@@ -408,7 +410,14 @@ def test_redundancy_finder():
     nt.assert_equal(len(baseline_groups_ants), 31)
 
     # Check with conjugated baseline redundancies returned
+    u16_0 = bl_positions[16, 0]
+    bl_positions[16, 0] = 0                 # Ensure at least one baseline has u==0 and v!=0 (for coverage of this case)
     baseline_groups, vec_bin_centers, lens, conjugates = uvutils.get_baseline_redundancies(uvd.baseline_array, bl_positions, tol=tol, with_conjugates=True)
+
+    # restore baseline (16,0) and repeat to get correct groups
+    bl_positions[16, 0] = u16_0
+    baseline_groups, vec_bin_centers, lens, conjugates = uvutils.get_baseline_redundancies(uvd.baseline_array, bl_positions, tol=tol, with_conjugates=True)
+
     # Should get the same groups as with the antenna method:
     baseline_groups_flipped = []
     for bgp in baseline_groups:
