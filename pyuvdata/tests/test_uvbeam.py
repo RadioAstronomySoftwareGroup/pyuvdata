@@ -389,6 +389,18 @@ def test_interpolation():
                                                                za_array=za_interp_vals,
                                                                freq_array=freq_interp_vals)
 
+    # test reusing the spline fit
+    orig_data_array, interp_basis_vector = power_beam.interp(az_array=az_interp_vals,
+                                                             za_array=za_interp_vals,
+                                                             freq_array=freq_interp_vals, reuse_spline=True)
+
+    reused_data_array, interp_basis_vector = power_beam.interp(az_array=az_interp_vals,
+                                                               za_array=za_interp_vals,
+                                                               freq_array=freq_interp_vals, reuse_spline=True)
+
+    nt.assert_true(np.all(reused_data_array == orig_data_array))
+    del power_beam.saved_interp_functions
+
     # test no errors only frequency interpolation
     interp_data_array, interp_basis_vector = power_beam.interp(freq_array=freq_interp_vals)
 
@@ -410,6 +422,18 @@ def test_interpolation():
 
     nt.assert_true(np.allclose(efield_beam.data_array, interp_data_array))
     nt.assert_true(np.allclose(efield_beam.basis_vector_array, interp_basis_vector))
+
+    # test reusing the spline fit
+    orig_data_array, interp_basis_vector = efield_beam.interp(az_array=az_interp_vals,
+                                                              za_array=za_interp_vals,
+                                                              freq_array=freq_interp_vals, reuse_spline=True)
+
+    reused_data_array, interp_basis_vector = efield_beam.interp(az_array=az_interp_vals,
+                                                                za_array=za_interp_vals,
+                                                                freq_array=freq_interp_vals, reuse_spline=True)
+
+    nt.assert_true(np.all(reused_data_array == orig_data_array))
+    del efield_beam.saved_interp_functions
 
     # test no errors using different points
     az_interp_vals = np.array(np.arange(0, 2 * np.pi, np.pi / 9.0).tolist()

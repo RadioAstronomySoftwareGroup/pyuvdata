@@ -676,17 +676,17 @@ class UVBeam(UVBase):
                     for comp_i in range(2):
                         power_data[0, :, pol_i] += \
                             ((efield_data[0, :, pair[0]]
-                             * np.conj(efield_data[0, :, pair[1]]))
+                              * np.conj(efield_data[0, :, pair[1]]))
                              * beam_object.basis_vector_array[0, comp_i]**2
                              + (efield_data[1, :, pair[0]]
-                             * np.conj(efield_data[1, :, pair[1]]))
+                                * np.conj(efield_data[1, :, pair[1]]))
                              * beam_object.basis_vector_array[1, comp_i]**2
                              + (efield_data[0, :, pair[0]]
-                             * np.conj(efield_data[1, :, pair[1]])
-                             + efield_data[1, :, pair[0]]
-                             * np.conj(efield_data[0, :, pair[1]]))
+                                * np.conj(efield_data[1, :, pair[1]])
+                                + efield_data[1, :, pair[0]]
+                                * np.conj(efield_data[0, :, pair[1]]))
                              * (beam_object.basis_vector_array[0, comp_i]
-                             * beam_object.basis_vector_array[1, comp_i]))
+                                * beam_object.basis_vector_array[1, comp_i]))
                 else:
                     raise ValueError('Conversion to power with 3-vector efields '
                                      'is not currently supported because we have '
@@ -756,7 +756,7 @@ class UVBeam(UVBase):
 
         return interp_data
 
-    def _interp_az_za_rect_spline(self, az_array, za_array, freq_array):
+    def _interp_az_za_rect_spline(self, az_array, za_array, freq_array, reuse_spline=False):
         """
         Simple interpolation function for az_za coordinate system.
 
@@ -764,6 +764,7 @@ class UVBeam(UVBase):
             az_array: az values to interpolate to (same length as za_array)
             za_array: za values to interpolate to (same length as az_array)
             freq_array: frequency values to interpolate to
+            reuse_spline: Save the interpolation functions for reuse.
 
         Returns:
             an array of interpolated values, shape: (Naxes_vec, Nspws, Nfeeds or Npols, Nfreqs, az_array.size)
@@ -828,17 +829,27 @@ class UVBeam(UVBase):
         else:
             interp_basis_vector = None
 
+        # Npols is only defined for power beams.  For E-field beams need Nfeeds.
+        if self.beam_type == 'power':
+            Npol_feeds = self.Npols
+        else:
+            Npol_feeds = self.Nfeeds
+        splines_saved = hasattr(self, 'saved_interp_functions')
+
+        def get_lambda(real_lut, imag_lut=None):
+            if imag_lut is None:
+                return lambda za, az: real_lut(za, az, grid=False)
+            else:
+                return lambda za, az: (real_lut(za, az, grid=False) + 1j * imag_lut(za, az, grid=False))
+        if reuse_spline and not splines_saved:
+            luts = np.empty((self.Naxes_vec, self.Nspws, Npol_feeds, input_nfreqs), dtype=object)
         for index0 in range(self.Naxes_vec):
             for index1 in range(self.Nspws):
-                # Npols is only defined for power beams.  For E-field beams need Nfeeds.
-                if self.beam_type == 'power':
-                    Npol_feeds = self.Npols
-                else:
-                    Npol_feeds = self.Nfeeds
                 for index2 in range(Npol_feeds):
                     for index3 in range(input_nfreqs):
-
-                        if np.iscomplexobj(input_data_array):
+                        if splines_saved and reuse_spline:
+                            lut = self.saved_interp_functions[index0, index1, index2, index3]
+                        elif np.iscomplexobj(input_data_array):
                             # interpolate real and imaginary parts separately
                             real_lut = interpolate.RectBivariateSpline(self.axis2_array,
                                                                        self.axis1_array,
@@ -846,10 +857,12 @@ class UVBeam(UVBase):
                             imag_lut = interpolate.RectBivariateSpline(self.axis2_array,
                                                                        self.axis1_array,
                                                                        input_data_array[index0, index1, index2, index3, :].imag)
+                            lut = get_lambda(real_lut, imag_lut)
                         else:
                             lut = interpolate.RectBivariateSpline(self.axis2_array,
                                                                   self.axis1_array,
                                                                   input_data_array[index0, index1, index2, index3, :])
+                            lut = get_lambda(lut)
                         if index0 == 0 and index1 == 0 and index2 == 0 and index3 == 0:
                             for point_i in range(npoints):
                                 pix_dists = np.sqrt((theta_vals - za_array[point_i])**2.
@@ -857,20 +870,15 @@ class UVBeam(UVBase):
                                 if np.min(pix_dists) > (max_axis_diff * 2.0):
                                     raise ValueError('at least one interpolation location is outside of '
                                                      'the UVBeam pixel coverage.')
+                        if reuse_spline and not splines_saved:
+                            luts[index0, index1, index2, index3] = lut
 
-                        if np.iscomplexobj(input_data_array):
-                            # interpolate real and imaginary parts separately
-                            interp_data[index0, index1, index2, index3, :] = \
-                                (real_lut(za_array, az_array, grid=False)
-                                    + 1j * imag_lut(za_array, az_array, grid=False))
-
-                        else:
-                            interp_data[index0, index1, index2, index3, :] = \
-                                lut(za_array, az_array, grid=False)
-
+                        interp_data[index0, index1, index2, index3, :] = lut(za_array, az_array)
+        if reuse_spline and not splines_saved:
+            self.saved_interp_functions = luts
         return interp_data, interp_basis_vector
 
-    def interp(self, az_array=None, za_array=None, freq_array=None):
+    def interp(self, az_array=None, za_array=None, freq_array=None, reuse_spline=False):
         """
         Interpolate beam to given az, za locations (in radians).
 
@@ -893,7 +901,7 @@ class UVBeam(UVBase):
             raise ValueError('interpolation_function must be set on object first')
 
         interp_func = self.interpolation_function_dict[self.interpolation_function]
-        return getattr(self, interp_func)(az_array, za_array, freq_array)
+        return getattr(self, interp_func)(az_array, za_array, freq_array, reuse_spline)
 
     def to_healpix(self, nside=None, run_check=True, check_extra=True,
                    run_check_acceptability=True,
@@ -1160,7 +1168,7 @@ class UVBeam(UVBase):
                 data_zero_pad = np.zeros(data_pad_dims)
 
                 this.pixel_array = np.concatenate([this.pixel_array,
-                                                  other.pixel_array[pix_new_inds]])
+                                                   other.pixel_array[pix_new_inds]])
                 order = np.argsort(this.pixel_array)
                 this.pixel_array = this.pixel_array[order]
 
@@ -1175,7 +1183,7 @@ class UVBeam(UVBase):
                     basisvec_zero_pad = np.zeros(basisvec_pad_dims)
 
                     this.basis_vector_array = np.concatenate([this.basis_vector_array,
-                                                             basisvec_zero_pad],
+                                                              basisvec_zero_pad],
                                                              axis=basisvec_pix_axis)[:, :, order]
         else:
             if len(ax1_new_inds) > 0:
@@ -1287,13 +1295,13 @@ class UVBeam(UVBase):
         if this.beam_type == 'power':
             this.Npols = this.polarization_array.shape[0]
             pol_t2o = np.nonzero(np.in1d(this.polarization_array,
-                                 other.polarization_array))[0]
+                                         other.polarization_array))[0]
         else:
             this.Nfeeds = this.feed_array.shape[0]
             pol_t2o = np.nonzero(np.in1d(this.feed_array, other.feed_array))[0]
 
         freq_t2o = np.nonzero(np.in1d(this.freq_array[0, :],
-                              other.freq_array[0, :]))[0]
+                                      other.freq_array[0, :]))[0]
 
         if this.pixel_coordinate_system == 'healpix':
             this.Npixels = this.pixel_array.shape[0]
@@ -1585,7 +1593,7 @@ class UVBeam(UVBase):
             else:
                 frequencies = uvutils._get_iterable(frequencies)
                 frequencies = np.sort(list(set(frequencies)
-                                      | set(beam_object.freq_array[0, freq_chans])))
+                                           | set(beam_object.freq_array[0, freq_chans])))
 
         if frequencies is not None:
             frequencies = uvutils._get_iterable(frequencies)
