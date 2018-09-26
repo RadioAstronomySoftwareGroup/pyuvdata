@@ -274,7 +274,8 @@ class UVData(UVBase):
         desc = ('Array giving coordinates of antennas relative to '
                 'telescope_location (ITRF frame), shape (Nants_telescope, 3), '
                 'units meters. See the tutorial page in the documentation '
-                'for an example of how to convert this to topocentric frame.')
+                'for an example of how to convert this to topocentric frame.'
+                'Will be a required parameter in a future version.')
         self._antenna_positions = uvp.AntPositionParameter('antenna_positions',
                                                            required=False,
                                                            description=desc,
@@ -379,6 +380,12 @@ class UVData(UVBase):
                 warnings.warn('{key} in extra_keywords is a list, array or dict, '
                               'which will raise an error when writing uvfits or '
                               'miriad file types'.format(key=key))
+
+        # issue deprecation warning if antenna positions are not set
+        if self.antenna_positions is None:
+            warnings.warn('antenna_positions are not defined. '
+                          'antenna_positions will be a required parameter in '
+                          'future versions.', PendingDeprecationWarning)
 
         # check auto and cross-corrs have sensible uvws
         autos = np.isclose(self.ant_1_array - self.ant_2_array, 0.0)
