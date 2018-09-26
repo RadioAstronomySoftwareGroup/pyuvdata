@@ -802,10 +802,14 @@ def test_rwrMiriad_antpos_issues():
     write_file = os.path.join(DATA_PATH, 'test/outtest_miriad.uv')
     uvtest.checkWarnings(uv_in.read, [testfile], known_warning='miriad')
     uv_in.antenna_positions = None
-    uv_in.write_miriad(write_file, clobber=True)
-    uvtest.checkWarnings(uv_out.read, [write_file], nwarnings=2,
+    uvtest.checkWarnings(uv_in.write_miriad, [write_file], {'clobber': True},
+                         message=['antenna_positions are not defined.'],
+                         category=PendingDeprecationWarning)
+    uvtest.checkWarnings(uv_out.read, [write_file], nwarnings=3,
                          message=['Antenna positions are not present in the file.',
-                                  'Antenna positions are not present in the file.'])
+                                  'Antenna positions are not present in the file.',
+                                  'antenna_positions are not defined.'],
+                         category=[UserWarning, UserWarning, PendingDeprecationWarning])
 
     nt.assert_equal(uv_in, uv_out)
 
@@ -830,10 +834,14 @@ def test_rwrMiriad_antpos_issues():
     uv_in.antenna_numbers = np.array(new_nums)
     uv_in.antenna_names = new_names
     uv_in.Nants_telescope = len(uv_in.antenna_numbers)
-    uv_in.write_miriad(write_file, clobber=True, no_antnums=True)
-    uvtest.checkWarnings(uv_out.read, [write_file], nwarnings=2,
+    uvtest.checkWarnings(uv_in.write_miriad, [write_file], {'clobber': True, 'no_antnums': True},
+                         message=['antenna_positions are not defined.'],
+                         category=PendingDeprecationWarning)
+    uvtest.checkWarnings(uv_out.read, [write_file], nwarnings=3,
                          message=['Antenna positions are not present in the file.',
-                                  'Antenna positions are not present in the file.'])
+                                  'Antenna positions are not present in the file.',
+                                  'antenna_positions are not defined.'],
+                         category=[UserWarning, UserWarning, PendingDeprecationWarning])
 
     nt.assert_equal(uv_in, uv_out)
 
