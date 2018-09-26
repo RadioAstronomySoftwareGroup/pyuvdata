@@ -154,7 +154,7 @@ class FHD(UVData):
         if layout_file is None:
             warnings.warn('No layout file included in file list. '
                           'Support for FHD data without layout files will be '
-                          'deprecated in a future version.', DeprecationWarning)
+                          'deprecated in a future version.', PendingDeprecationWarning)
         if settings_file is None:
             warnings.warn('No settings file included in file list')
 
