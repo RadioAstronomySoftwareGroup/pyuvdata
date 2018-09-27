@@ -13,6 +13,7 @@ import os
 import nose.tools as nt
 import astropy
 from astropy.io import fits
+
 from pyuvdata import UVData
 import pyuvdata.utils as uvutils
 import pyuvdata.tests as uvtest
@@ -539,6 +540,7 @@ def test_multi_files():
     nt.assert_raises(ValueError, uv1.read, [testfile1, testfile2])
 
 
+@uvtest.skipIf_no_casa('')
 def test_readMSWriteUVFits_CASAHistory():
     """
     read in .ms file.

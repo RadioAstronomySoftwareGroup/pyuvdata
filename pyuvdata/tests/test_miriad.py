@@ -13,13 +13,13 @@ import copy
 import numpy as np
 import nose.tools as nt
 from astropy.time import Time, TimeDelta
+from astropy import constants as const
+
 from pyuvdata import UVData
 from pyuvdata.miriad import Miriad
 import pyuvdata.utils as uvutils
 import pyuvdata.tests as uvtest
 from pyuvdata.data import DATA_PATH
-from astropy import constants as const
-import warnings
 
 from .. import aipy_extracts
 
@@ -770,6 +770,7 @@ def test_readWriteReadMiriad():
     nt.assert_equal(uv_in, new_uv)
 
 
+@uvtest.skipIf_no_casa('')
 def test_readMSWriteMiriad_CASAHistory():
     """
     read in .ms file.

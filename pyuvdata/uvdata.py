@@ -1716,17 +1716,6 @@ class UVData(UVBase):
             pol_order: specify whether you want polarizations ordered by
                 'CASA' or 'AIPS' conventions.
         """
-
-        # check if casacore is installed
-        try:
-            import casacore
-        except(ImportError):  # pragma: no cover
-            # only import skip if importerror raised
-            # this way, nose import errors aren't raised
-            # unless this errors is already encountered.
-            from nose.plugins.skip import SkipTest
-            raise SkipTest('casacore not detected. casacore'
-                           ' must be installed for measurement set functionality')
         from . import ms
 
         if isinstance(filepath, (list, tuple)):

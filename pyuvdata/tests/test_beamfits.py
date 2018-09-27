@@ -12,6 +12,7 @@ import os
 import numpy as np
 import astropy
 from astropy.io import fits
+
 from pyuvdata import UVBeam
 import pyuvdata.tests as uvtest
 from pyuvdata.data import DATA_PATH
@@ -130,6 +131,7 @@ def test_readCST_writereadFITS():
     nt.assert_equal(beam_in, beam_out)
 
 
+@uvtest.skipIf_no_healpy('')
 def test_writeread_healpix():
     beam_in = UVBeam()
     beam_out = UVBeam()
@@ -311,6 +313,7 @@ def test_errors():
         nt.assert_raises(ValueError, beam_out.read_beamfits, write_file)
 
 
+@uvtest.skipIf_no_healpy('')
 def test_healpix_errors():
     beam_in = UVBeam()
     beam_out = UVBeam()

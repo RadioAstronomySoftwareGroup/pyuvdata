@@ -11,12 +11,18 @@ import nose.tools as nt
 import os
 import numpy as np
 import copy
-import healpy as hp
+
 from pyuvdata import UVBeam
 import pyuvdata.tests as uvtest
 import pyuvdata.utils as uvutils
 import pyuvdata.version as uvversion
 from pyuvdata.data import DATA_PATH
+
+try:
+    import healpy as hp
+    healpy_installed = True
+except(ImportError):
+    healpy_installed = False
 
 filenames = ['HERA_NicCST_150MHz.txt', 'HERA_NicCST_123MHz.txt']
 cst_files = [os.path.join(DATA_PATH, f) for f in filenames]
@@ -188,6 +194,7 @@ def test_stokes_matrix():
     nt.assert_raises(ValueError, beam._stokes_matrix, 5)
 
 
+@uvtest.skipIf_no_healpy('')
 def test_efield_to_pstokes():
     efield_beam = UVBeam()
     efield_beam.read_cst_beam(cst_files, beam_type='efield', frequency=[150e6, 123e6],
@@ -273,10 +280,11 @@ def test_efield_to_power():
 
     nt.assert_equal(new_power_beam, new_power_beam2)
 
-    # check that this raises an error if trying to convert to HEALPix:
-    efield_beam2.interpolation_function = 'az_za_simple'
-    nt.assert_raises(NotImplementedError, efield_beam2.to_healpix,
-                     inplace=False)
+    if healpy_installed:
+        # check that this raises an error if trying to convert to HEALPix:
+        efield_beam2.interpolation_function = 'az_za_simple'
+        nt.assert_raises(NotImplementedError, efield_beam2.to_healpix,
+                         inplace=False)
 
     # now try a different rotation to non-orthogonal basis vectors
     new_basis_vecs = np.zeros_like(efield_beam.basis_vector_array)
@@ -470,6 +478,7 @@ def test_interpolation():
                      za_array=za_interp_vals + np.pi / 2)
 
 
+@uvtest.skipIf_no_healpy('')
 def test_to_healpix():
     power_beam = UVBeam()
     power_beam.read_cst_beam(cst_files[0], beam_type='power', frequency=150e6,
@@ -1204,6 +1213,7 @@ def test_add():
     nt.assert_raises(ValueError, beam1.__iadd__, beam2)
 
 
+@uvtest.skipIf_no_healpy('')
 def test_healpix():
     # put all the testing on healpix in this one function to minimize slow calls
     # to uvbeam.to_healpix()
@@ -1553,14 +1563,15 @@ def test_get_beam_functions():
     nt.assert_raises(ValueError, power_beam.get_beam_area)
     nt.assert_raises(ValueError, power_beam.get_beam_sq_area)
 
-    power_beam = UVBeam()
-    power_beam.read_cst_beam(cst_files[0], beam_type='power', frequency=150e6,
-                             telescope_name='TEST', feed_name='bob',
-                             feed_version='0.1',
-                             model_name='E-field pattern - Rigging height 4.9m',
-                             model_version='1.0')
-    power_beam.interpolation_function = 'az_za_simple'
-    power_beam.to_healpix()
-    power_beam.peak_normalize()
-    power_beam._get_beam('xx')
-    nt.assert_raises(ValueError, power_beam._get_beam, 4)
+    if healpy_installed:
+        power_beam = UVBeam()
+        power_beam.read_cst_beam(cst_files[0], beam_type='power', frequency=150e6,
+                                 telescope_name='TEST', feed_name='bob',
+                                 feed_version='0.1',
+                                 model_name='E-field pattern - Rigging height 4.9m',
+                                 model_version='1.0')
+        power_beam.interpolation_function = 'az_za_simple'
+        power_beam.to_healpix()
+        power_beam.peak_normalize()
+        power_beam._get_beam('xx')
+        nt.assert_raises(ValueError, power_beam._get_beam, 4)
