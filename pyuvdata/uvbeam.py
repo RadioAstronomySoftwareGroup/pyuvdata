@@ -886,8 +886,6 @@ class UVBeam(UVBase):
             an array of interpolated basis vectors (or self.basis_vector_array
                 if az/za_arrays are not passed), shape: (Naxes_vec, Ncomponents_vec,
                 Npixels/(Naxis1, Naxis2) or az_array.size if az/za_arrays are passed)
-            an array of distances from nearest beam pixel (or freq if az/za_arrays aren't passed),
-                shape: (az_array.size or freq_array.size)
         """
         if self.interpolation_function is None:
             raise ValueError('interpolation_function must be set on object first')
