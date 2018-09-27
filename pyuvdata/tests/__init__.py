@@ -10,6 +10,11 @@ from __future__ import absolute_import, division, print_function
 import os
 import warnings
 import sys
+from unittest import SkipTest, TestCase
+import functools
+import types
+import six
+
 from pyuvdata.data import DATA_PATH
 import pyuvdata.utils as uvutils
 
@@ -93,3 +98,66 @@ def checkWarnings(func, func_args=[], func_kwargs={},
                         print('message ' + str(i) + ' was: ', str(w_i.message))
                         assert(False)
         return retval
+
+
+def _id(obj):
+    return obj
+
+
+def skip(reason):
+    """Unconditionally skip a test."""
+    def decorator(test_item):
+        if six.PY2:
+            class_types = (type, types.ClassType)
+            isclass = isinstance(test_item, (type, types.ClassType))
+        else:
+            class_types = (type)
+        if not isinstance(test_item, class_types):
+            @functools.wraps(test_item)
+            def skip_wrapper(*args, **kwargs):
+                raise SkipTest(reason)
+            test_item = skip_wrapper
+        elif issubclass(test_item, TestCase):
+            @classmethod
+            @functools.wraps(test_item.setUpClass)
+            def skip_wrapper(*args, **kwargs):
+                raise SkipTest(reason)
+            test_item.setUpClass = skip_wrapper
+        test_item.__unittest_skip__ = True
+        test_item.__unittest_skip_why__ = reason
+        return test_item
+    return decorator
+
+
+def skipIf(condition, reason):
+    """Skip a test if the condition is true."""
+    if condition:
+        return skip(reason)
+    return _id
+
+
+def skipIf_no_casa(dummy):
+    reason = 'casacore is not installed, skipping tests that require it.'
+    try:
+        import casacore
+    except(ImportError):
+            return skip(reason)
+    return _id
+
+
+def skipIf_no_healpy(dummy):
+    reason = 'healpy is not installed, skipping tests that require it.'
+    try:
+        import healpy
+    except(ImportError):
+            return skip(reason)
+    return _id
+
+
+def skipIf_no_h5py(dummy):
+    reason = 'h5py is not installed, skipping tests that require it.'
+    try:
+        import h5py
+    except(ImportError):
+            return skip(reason)
+    return _id
