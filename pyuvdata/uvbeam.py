@@ -782,9 +782,8 @@ class UVBeam(UVBase):
         if self.pixel_coordinate_system != 'az_za':
             raise ValueError('pixel_coordinate_system must be "az_za"')
 
-        if not hasattr(self, 'saved_interp_functions'):
-            self.saved_interp_functions = []
-            self.saved_interp_freqs = []
+        if reuse_spline and not hasattr(self, 'saved_interp_functions'):
+            self.saved_interp_functions = {}
 
         if freq_array is not None:
             assert(isinstance(freq_array, np.ndarray))
@@ -863,9 +862,8 @@ class UVBeam(UVBase):
                     luts = np.empty((self.Naxes_vec, self.Nspws, Npol_feeds), dtype=object)
                 for index0 in range(self.Naxes_vec):
                     for index2 in range(Npol_feeds):
-                        if reuse_spline and freq in self.saved_interp_freqs:
-                            freq_index = self.saved_interp_freqs.index(freq)
-                            lut = self.saved_interp_functions[freq_index][index0, index1, index2]
+                        if reuse_spline and freq in self.saved_interp_functions.keys():
+                            lut = self.saved_interp_functions[freq][index0, index1, index2]
                         else:
                             if np.iscomplexobj(input_data_array):
                                 # interpolate real and imaginary parts separately
@@ -893,8 +891,7 @@ class UVBeam(UVBase):
                         interp_data[index0, index1, index2, index3, :] = lut(za_array, az_array)
 
             if reuse_spline:
-                self.saved_interp_functions.append(luts)
-                self.saved_interp_freqs.append(freq)
+                self.saved_interp_functions[freq] = luts
 
         return interp_data, interp_basis_vector
 
