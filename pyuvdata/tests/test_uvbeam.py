@@ -400,7 +400,6 @@ def test_interpolation():
 
     nt.assert_true(np.all(reused_data_array == orig_data_array))
     del power_beam.saved_interp_functions
-    del power_beam.saved_interp_freqs
 
     # test no errors only frequency interpolation
     interp_data_array, interp_basis_vector = power_beam.interp(freq_array=freq_interp_vals)
