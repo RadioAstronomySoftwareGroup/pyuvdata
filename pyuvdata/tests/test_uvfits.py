@@ -540,7 +540,7 @@ def test_multi_files():
     nt.assert_raises(ValueError, uv1.read, [testfile1, testfile2])
 
 
-@uvtest.skipIf_no_casa('')
+@uvtest.skipIf_no_casa
 def test_readMSWriteUVFits_CASAHistory():
     """
     read in .ms file.

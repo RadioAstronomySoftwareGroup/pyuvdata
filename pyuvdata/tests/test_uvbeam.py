@@ -194,7 +194,7 @@ def test_stokes_matrix():
     nt.assert_raises(ValueError, beam._stokes_matrix, 5)
 
 
-@uvtest.skipIf_no_healpy('')
+@uvtest.skipIf_no_healpy
 def test_efield_to_pstokes():
     efield_beam = UVBeam()
     efield_beam.read_cst_beam(cst_files, beam_type='efield', frequency=[150e6, 123e6],
@@ -478,7 +478,7 @@ def test_interpolation():
                      za_array=za_interp_vals + np.pi / 2)
 
 
-@uvtest.skipIf_no_healpy('')
+@uvtest.skipIf_no_healpy
 def test_to_healpix():
     power_beam = UVBeam()
     power_beam.read_cst_beam(cst_files[0], beam_type='power', frequency=150e6,
@@ -1213,7 +1213,7 @@ def test_add():
     nt.assert_raises(ValueError, beam1.__iadd__, beam2)
 
 
-@uvtest.skipIf_no_healpy('')
+@uvtest.skipIf_no_healpy
 def test_healpix():
     # put all the testing on healpix in this one function to minimize slow calls
     # to uvbeam.to_healpix()
