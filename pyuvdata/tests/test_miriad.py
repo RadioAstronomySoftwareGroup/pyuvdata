@@ -770,7 +770,7 @@ def test_readWriteReadMiriad():
     nt.assert_equal(uv_in, new_uv)
 
 
-@uvtest.skipIf_no_casa('')
+@uvtest.skipIf_no_casa
 def test_readMSWriteMiriad_CASAHistory():
     """
     read in .ms file.

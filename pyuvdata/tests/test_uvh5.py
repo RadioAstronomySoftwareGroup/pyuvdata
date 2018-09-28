@@ -24,7 +24,7 @@ except(ImportError):
     pass
 
 
-@uvtest.skipIf_no_h5py('')
+@uvtest.skipIf_no_h5py
 def test_ReadMiriadWriteUVH5ReadUVH5():
     """
     Miriad round trip test
@@ -53,7 +53,7 @@ def test_ReadMiriadWriteUVH5ReadUVH5():
     return
 
 
-@uvtest.skipIf_no_h5py('')
+@uvtest.skipIf_no_h5py
 def test_ReadUVFITSWriteUVH5ReadUVH5():
     """
     UVFITS round trip test
@@ -73,7 +73,7 @@ def test_ReadUVFITSWriteUVH5ReadUVH5():
     return
 
 
-@uvtest.skipIf_no_h5py('')
+@uvtest.skipIf_no_h5py
 def test_ReadUVH5Errors():
     """
     Test raising errors in read function
@@ -86,7 +86,7 @@ def test_ReadUVH5Errors():
     return
 
 
-@uvtest.skipIf_no_h5py('')
+@uvtest.skipIf_no_h5py
 def test_WriteUVH5Errors():
     """
     Test raising errors in write_uvh5 function
@@ -111,7 +111,7 @@ def test_WriteUVH5Errors():
     return
 
 
-@uvtest.skipIf_no_h5py('')
+@uvtest.skipIf_no_h5py
 def test_UVH5OptionalParameters():
     """
     Test reading and writing optional parameters not in sample files
@@ -138,7 +138,7 @@ def test_UVH5OptionalParameters():
     return
 
 
-@uvtest.skipIf_no_h5py('')
+@uvtest.skipIf_no_h5py
 def test_UVH5CompressionOptions():
     """
     Test writing data with compression filters
@@ -161,7 +161,7 @@ def test_UVH5CompressionOptions():
     return
 
 
-@uvtest.skipIf_no_h5py('')
+@uvtest.skipIf_no_h5py
 def test_UVH5ReadMultiple_files():
     """
     Test reading multiple uvh5 files
@@ -193,7 +193,7 @@ def test_UVH5ReadMultiple_files():
     return
 
 
-@uvtest.skipIf_no_h5py('')
+@uvtest.skipIf_no_h5py
 def test_UVH5PartialRead():
     """
     Test reading in only part of a dataset from disk
@@ -269,7 +269,7 @@ def test_UVH5PartialRead():
     return
 
 
-@uvtest.skipIf_no_h5py('')
+@uvtest.skipIf_no_h5py
 def test_UVH5PartialWrite():
     """
     Test writing an entire UVH5 file in pieces
@@ -393,7 +393,7 @@ def test_UVH5PartialWrite():
     return
 
 
-@uvtest.skipIf_no_h5py('')
+@uvtest.skipIf_no_h5py
 def test_UVH5PartialWriteIrregular():
     """
     Test writing a uvh5 file using irregular intervals
@@ -758,7 +758,7 @@ def test_UVH5PartialWriteIrregular():
     return
 
 
-@uvtest.skipIf_no_h5py('')
+@uvtest.skipIf_no_h5py
 def test_UVH5PartialWriteErrors():
     """
     Test errors in uvh5_write_part method
@@ -816,7 +816,7 @@ def test_UVH5PartialWriteErrors():
     return
 
 
-@uvtest.skipIf_no_h5py('')
+@uvtest.skipIf_no_h5py
 def test_UVH5InitializeFile():
     """
     Test initializing a UVH5 file on disk
@@ -857,7 +857,7 @@ def test_UVH5InitializeFile():
     return
 
 
-@uvtest.skipIf_no_h5py('')
+@uvtest.skipIf_no_h5py
 def test_UVH5SingleIntegrationTime():
     """
     Check backwards compatibility warning for files with a single integration time
@@ -883,7 +883,7 @@ def test_UVH5SingleIntegrationTime():
     return
 
 
-@uvtest.skipIf_no_h5py('')
+@uvtest.skipIf_no_h5py
 def test_UVH5LstArray():
     """
     Test different cases of the lst_array

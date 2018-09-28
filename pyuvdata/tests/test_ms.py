@@ -18,7 +18,7 @@ import pyuvdata.tests as uvtest
 from pyuvdata import UVFITS
 
 
-@uvtest.skipIf_no_casa('')
+@uvtest.skipIf_no_casa
 def test_cotter_ms():
     """Test reading in an ms made from MWA data with cotter (no dysco compression)"""
     UV = UVData()
@@ -34,7 +34,7 @@ def test_cotter_ms():
     del(UV)
 
 
-@uvtest.skipIf_no_casa('')
+@uvtest.skipIf_no_casa
 def test_readNRAO():
     """Test reading in a CASA tutorial ms file."""
     UV = UVData()
@@ -47,7 +47,7 @@ def test_readNRAO():
     del(UV)
 
 
-@uvtest.skipIf_no_casa('')
+@uvtest.skipIf_no_casa
 def test_noSPW():
     """Test reading in a PAPER ms convertes by CASA from a uvfits with no spw axis."""
     UV = UVData()
@@ -57,7 +57,7 @@ def test_noSPW():
     del(UV)
 
 
-@uvtest.skipIf_no_casa('')
+@uvtest.skipIf_no_casa
 def test_spwnotsupported():
     """Test errors on reading in an ms file with multiple spws."""
     UV = UVData()
@@ -66,7 +66,7 @@ def test_spwnotsupported():
     del(UV)
 
 
-@uvtest.skipIf_no_casa('')
+@uvtest.skipIf_no_casa
 def test_readMSreadUVFITS():
     """
     Test that a uvdata object instantiated from an ms file created with CASA's
@@ -113,7 +113,7 @@ def test_readMSreadUVFITS():
     del(uvfits_uv)
 
 
-@uvtest.skipIf_no_casa('')
+@uvtest.skipIf_no_casa
 def test_readMSWriteUVFITS():
     """
     read ms, write uvfits test.
@@ -134,7 +134,7 @@ def test_readMSWriteUVFITS():
     del(uvfits_uv)
 
 
-@uvtest.skipIf_no_casa('')
+@uvtest.skipIf_no_casa
 def test_readMSWriteMiriad():
     """
     read ms, write miriad test.
@@ -153,7 +153,7 @@ def test_readMSWriteMiriad():
     nt.assert_equal(miriad_uv, ms_uv)
 
 
-@uvtest.skipIf_no_casa('')
+@uvtest.skipIf_no_casa
 def test_multi_files():
     """
     Reading multiple files at once.

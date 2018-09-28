@@ -136,28 +136,28 @@ def skipIf(condition, reason):
     return _id
 
 
-def skipIf_no_casa(dummy):
+def skipIf_no_casa(test_func):
     reason = 'casacore is not installed, skipping tests that require it.'
     try:
         import casacore
     except(ImportError):
-            return skip(reason)
-    return _id
+            return skip(reason)(test_func)
+    return test_func
 
 
-def skipIf_no_healpy(dummy):
+def skipIf_no_healpy(test_func):
     reason = 'healpy is not installed, skipping tests that require it.'
     try:
         import healpy
     except(ImportError):
-            return skip(reason)
-    return _id
+            return skip(reason)(test_func)
+    return test_func
 
 
-def skipIf_no_h5py(dummy):
+def skipIf_no_h5py(test_func):
     reason = 'h5py is not installed, skipping tests that require it.'
     try:
         import h5py
     except(ImportError):
-            return skip(reason)
-    return _id
+            return skip(reason)(test_func)
+    return test_func
