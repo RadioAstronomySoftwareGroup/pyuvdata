@@ -389,7 +389,7 @@ def test_interpolation():
                                                                za_array=za_interp_vals,
                                                                freq_array=freq_interp_vals)
 
-    # test reusing the spline fit
+    # test reusing the spline fit.
     orig_data_array, interp_basis_vector = power_beam.interp(az_array=az_interp_vals,
                                                              za_array=za_interp_vals,
                                                              freq_array=freq_interp_vals, reuse_spline=True)
@@ -400,6 +400,7 @@ def test_interpolation():
 
     nt.assert_true(np.all(reused_data_array == orig_data_array))
     del power_beam.saved_interp_functions
+    del power_beam.saved_interp_freqs
 
     # test no errors only frequency interpolation
     interp_data_array, interp_basis_vector = power_beam.interp(freq_array=freq_interp_vals)
@@ -433,6 +434,15 @@ def test_interpolation():
                                                                 freq_array=freq_interp_vals, reuse_spline=True)
 
     nt.assert_true(np.all(reused_data_array == orig_data_array))
+
+    select_data_array_orig, interp_basis_vector = efield_beam.interp(az_array=az_interp_vals[0:1],
+                                                                     za_array=za_interp_vals[0:1],
+                                                                     freq_array=np.array([127e6]))
+
+    select_data_array_reused, interp_basis_vector = efield_beam.interp(az_array=az_interp_vals[0:1],
+                                                                       za_array=za_interp_vals[0:1],
+                                                                       freq_array=np.array([127e6]), reuse_spline=True)
+    nt.assert_true(np.allclose(select_data_array_orig, select_data_array_reused))
     del efield_beam.saved_interp_functions
 
     # test no errors using different points

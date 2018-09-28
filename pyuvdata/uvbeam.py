@@ -745,14 +745,23 @@ class UVBeam(UVBase):
             raise ValueError('at least one interpolation frequency is outside of '
                              'the UVBeam freq_array range.')
 
+        def get_lambda(real_lut, imag_lut=None):
+                # Returns function objects for interpolation reuse
+            if imag_lut is None:
+                return lambda freqs: real_lut(freqs)
+            else:
+                return lambda freqs: (real_lut(freqs) + 1j * imag_lut(freqs))
+
         if np.iscomplexobj(self.data_array):
             # interpolate real and imaginary parts separately
             real_lut = interpolate.interp1d(self.freq_array[0, :], self.data_array.real, axis=3)
             imag_lut = interpolate.interp1d(self.freq_array[0, :], self.data_array.imag, axis=3)
-            interp_data = (real_lut(freq_array) + 1j * imag_lut(freq_array))
+            lut = get_lambda(real_lut, imag_lut)
         else:
             lut = interpolate.interp1d(self.freq_array[0, :], self.data_array, axis=3)
-            interp_data = lut(freq_array)
+            lut = get_lambda(lut)
+
+        interp_data = lut(freq_array)
 
         return interp_data
 
@@ -773,6 +782,10 @@ class UVBeam(UVBase):
         if self.pixel_coordinate_system != 'az_za':
             raise ValueError('pixel_coordinate_system must be "az_za"')
 
+        if not hasattr(self, 'saved_interp_functions'):
+            self.saved_interp_functions = []
+            self.saved_interp_freqs = []
+
         if freq_array is not None:
             assert(isinstance(freq_array, np.ndarray))
             input_data_array = self._interp_freq(freq_array)
@@ -780,6 +793,7 @@ class UVBeam(UVBase):
         else:
             input_data_array = self.data_array
             input_nfreqs = self.Nfreqs
+            freq_array = self.freq_array[0]
         if az_array is None:
             return input_data_array, self.basis_vector_array
 
@@ -829,40 +843,46 @@ class UVBeam(UVBase):
         else:
             interp_basis_vector = None
 
+        def get_lambda(real_lut, imag_lut=None):
+                # Returns function objects for interpolation reuse
+            if imag_lut is None:
+                return lambda za, az: real_lut(za, az, grid=False)
+            else:
+                return lambda za, az: (real_lut(za, az, grid=False) + 1j * imag_lut(za, az, grid=False))
+
         # Npols is only defined for power beams.  For E-field beams need Nfeeds.
         if self.beam_type == 'power':
             Npol_feeds = self.Npols
         else:
             Npol_feeds = self.Nfeeds
-        splines_saved = hasattr(self, 'saved_interp_functions')
 
-        def get_lambda(real_lut, imag_lut=None):
-            if imag_lut is None:
-                return lambda za, az: real_lut(za, az, grid=False)
-            else:
-                return lambda za, az: (real_lut(za, az, grid=False) + 1j * imag_lut(za, az, grid=False))
-        if reuse_spline and not splines_saved:
-            luts = np.empty((self.Naxes_vec, self.Nspws, Npol_feeds, input_nfreqs), dtype=object)
-        for index0 in range(self.Naxes_vec):
-            for index1 in range(self.Nspws):
-                for index2 in range(Npol_feeds):
-                    for index3 in range(input_nfreqs):
-                        if splines_saved and reuse_spline:
-                            lut = self.saved_interp_functions[index0, index1, index2, index3]
-                        elif np.iscomplexobj(input_data_array):
-                            # interpolate real and imaginary parts separately
-                            real_lut = interpolate.RectBivariateSpline(self.axis2_array,
-                                                                       self.axis1_array,
-                                                                       input_data_array[index0, index1, index2, index3, :].real)
-                            imag_lut = interpolate.RectBivariateSpline(self.axis2_array,
-                                                                       self.axis1_array,
-                                                                       input_data_array[index0, index1, index2, index3, :].imag)
-                            lut = get_lambda(real_lut, imag_lut)
+        for index1 in range(self.Nspws):
+            for index3 in range(input_nfreqs):
+                freq = freq_array[index3]
+                if reuse_spline:
+                    luts = np.empty((self.Naxes_vec, self.Nspws, Npol_feeds), dtype=object)
+                for index0 in range(self.Naxes_vec):
+                    for index2 in range(Npol_feeds):
+                        if reuse_spline and freq in self.saved_interp_freqs:
+                            freq_index = self.saved_interp_freqs.index(freq)
+                            lut = self.saved_interp_functions[freq_index][index0, index1, index2]
                         else:
-                            lut = interpolate.RectBivariateSpline(self.axis2_array,
-                                                                  self.axis1_array,
-                                                                  input_data_array[index0, index1, index2, index3, :])
-                            lut = get_lambda(lut)
+                            if np.iscomplexobj(input_data_array):
+                                # interpolate real and imaginary parts separately
+                                real_lut = interpolate.RectBivariateSpline(self.axis2_array,
+                                                                           self.axis1_array,
+                                                                           input_data_array[index0, index1, index2, index3, :].real)
+                                imag_lut = interpolate.RectBivariateSpline(self.axis2_array,
+                                                                           self.axis1_array,
+                                                                           input_data_array[index0, index1, index2, index3, :].imag)
+                                lut = get_lambda(real_lut, imag_lut)
+                            else:
+                                lut = interpolate.RectBivariateSpline(self.axis2_array,
+                                                                      self.axis1_array,
+                                                                      input_data_array[index0, index1, index2, index3, :])
+                                lut = get_lambda(lut)
+                        if reuse_spline:
+                            luts[index0, index1, index2] = lut
                         if index0 == 0 and index1 == 0 and index2 == 0 and index3 == 0:
                             for point_i in range(npoints):
                                 pix_dists = np.sqrt((theta_vals - za_array[point_i])**2.
@@ -870,12 +890,12 @@ class UVBeam(UVBase):
                                 if np.min(pix_dists) > (max_axis_diff * 2.0):
                                     raise ValueError('at least one interpolation location is outside of '
                                                      'the UVBeam pixel coverage.')
-                        if reuse_spline and not splines_saved:
-                            luts[index0, index1, index2, index3] = lut
-
                         interp_data[index0, index1, index2, index3, :] = lut(za_array, az_array)
-        if reuse_spline and not splines_saved:
-            self.saved_interp_functions = luts
+
+            if reuse_spline:
+                self.saved_interp_functions.append(luts)
+                self.saved_interp_freqs.append(freq)
+
         return interp_data, interp_basis_vector
 
     def interp(self, az_array=None, za_array=None, freq_array=None, reuse_spline=False):
