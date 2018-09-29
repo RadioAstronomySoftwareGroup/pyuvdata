@@ -208,15 +208,28 @@ def test_efield_to_pstokes():
     pstokes_beam.to_healpix()
     pstokes_beam.efield_to_pstokes()
 
+    pstokes_beam_2 = copy.deepcopy(efield_beam)
+    pstokes_beam_2.interpolation_function = 'az_za_simple'
+    pstokes_beam_2.to_healpix()
+    beam_return = pstokes_beam_2.efield_to_pstokes(inplace=False)
+
+#    nt.assert_equal(beam_return, pstokes_beam)
+
     pstokes_beam = copy.deepcopy(efield_beam)
+
     pstokes_beam.interpolation_function = 'az_za_simple'
+    pstokes_beam.efield_to_pstokes()
     pstokes_beam.to_healpix()
-    beam_return = pstokes_beam.efield_to_pstokes(inplace=False)
 
-    pstokes_beam = copy.deepcopy(efield_beam)
-    nt.assert_raises(ValueError, pstokes_beam.efield_to_pstokes)
+    # beam_return = to_healpix() -> efield_to_pstokes()    (interpolation of efield)
+    # pstokes_beam = efield_to_pstokes() -> to_healpix()   (interpolation of pstokes)
 
-    pstokes_beam = copy.deepcopy(efield_beam)
+    pstokes_beam.peak_normalize()
+    beam_return.peak_normalize()
+
+    # NOTE:  So far, the following doesn't hold unless the beams are peak_normalized again.
+    #        This seems to be the fault of interpolation
+    nt.assert_true(np.allclose(pstokes_beam.data_array, beam_return.data_array, atol=1e-2))
 
     power_beam = UVBeam()
     power_beam.read_cst_beam(cst_files, beam_type='power', frequency=[150e6, 123e6],

@@ -567,13 +567,18 @@ class UVBeam(UVBase):
         if beam_object.beam_type != 'efield':
             raise ValueError('beam_type must be efield.')
 
-        if self.pixel_coordinate_system != 'healpix':
-            raise ValueError('Currently only healpix format is supported')
-
-        # construct jones matrix containing the electric field
+        efield_data = beam_object.data_array
         _sh = beam_object.data_array.shape
         efield_data = beam_object.data_array
         Nfreqs = beam_object.Nfreqs
+
+        if self.pixel_coordinate_system != 'healpix':
+            Naxes2, Naxes1 = beam_object.Naxes2, beam_object.Naxes1
+            npix = Naxes1 * Naxes2
+            efield_data = efield_data.reshape(efield_data.shape[:-2] + (npix,))
+            _sh = efield_data.shape
+
+        # construct jones matrix containing the electric field
 
         pol_strings = ['pI', 'pQ', 'pU', 'pV']
         power_data = np.zeros((1, 1, len(pol_strings), _sh[-2], _sh[-1]), dtype=np.complex)
@@ -590,6 +595,8 @@ class UVBeam(UVBase):
             for pol_i in range(len(pol_strings)):
                 power_data[:, :, pol_i, fq_i, :] = self._construct_mueller(jones, pol_i, pol_i)
 
+        if self.pixel_coordinate_system != 'healpix':
+            power_data = power_data.reshape(power_data.shape[:-1] + (Naxes2, Naxes1))
         beam_object.data_array = power_data
         beam_object.polarization_array = np.array([uvutils.polstr2num(ps.upper()) for ps in pol_strings])
         beam_object.Naxes_vec = 1
