@@ -125,7 +125,7 @@ class MS(UVData):
         # limit length of extra_keywords keys to 8 characters to match uvfits & miriad
         self.extra_keywords['DATA_COL'] = data_column
         # get frequency information from spectral window table
-        tb_spws = tables.table(filepath + '/SPECTRAL_WINDOW')
+        tb_spws = tables.table(filepath + '/SPECTRAL_WINDOW', ack=False)
         freqs = tb_spws.getcol('CHAN_FREQ')
         self.freq_array = freqs
         self.Nfreqs = int(freqs.shape[1])
@@ -139,7 +139,7 @@ class MS(UVData):
         self.spw_array = np.arange(self.Nspws)
         tb_spws.close()
         # now get the data
-        tb = tables.table(filepath)
+        tb = tables.table(filepath, ack=False)
         # check for multiple subarrays. importuvfits does not appear to preserve subarray information!
         subarray = np.unique(np.int32(tb.getcol('ARRAY_ID')) - 1)
         if len(set(subarray)) > 1:
@@ -179,7 +179,7 @@ class MS(UVData):
         self.time_array = time.Time(
             tb.getcol('TIME') / (3600. * 24.), format='mjd').jd
         # Polarization array
-        tbPol = tables.table(filepath + '/POLARIZATION')
+        tbPol = tables.table(filepath + '/POLARIZATION', ack=False)
         # list of lists, probably with each list corresponding to SPW.
         polList = tbPol.getcol('CORR_TYPE')[0]
         self.polarization_array = np.zeros(len(polList), dtype=np.int32)
@@ -197,8 +197,8 @@ class MS(UVData):
             int_time = self._calc_single_integration_time()
             self.integration_time = np.ones_like(self.time_array, dtype=np.float64) * int_time
         # open table with antenna location information
-        tbAnt = tables.table(filepath + '/ANTENNA')
-        tbObs = tables.table(filepath + '/OBSERVATION')
+        tbAnt = tables.table(filepath + '/ANTENNA', ack=False)
+        tbObs = tables.table(filepath + '/OBSERVATION', ack=False)
         self.telescope_name = tbObs.getcol('TELESCOPE_NAME')[0]
         self.instrument = tbObs.getcol('TELESCOPE_NAME')[0]
         tbObs.close()
@@ -252,7 +252,7 @@ class MS(UVData):
         self.antenna_positions = relative_positions[np.invert(antFlags), :]
 
         tbAnt.close()
-        tbField = tables.table(filepath + '/FIELD')
+        tbField = tables.table(filepath + '/FIELD', ack=False)
         if(tbField.getcol('PHASE_DIR').shape[1] == 2):
             self.phase_type = 'drift'
             self.set_drift()
@@ -272,7 +272,8 @@ class MS(UVData):
         # set LST array from times and itrf
         self.set_lsts_from_time_array()
         # set the history parameter
-        _, self.history = self._ms_hist_to_string(tables.table(filepath + '/HISTORY'))
+        _, self.history = self._ms_hist_to_string(tables.table(filepath + '/HISTORY',
+                                                               ack=False))
         # CASA weights column keeps track of number of data points averaged.
 
         if not uvutils._check_history_version(self.history, self.pyuvdata_version_str):
