@@ -54,7 +54,7 @@ class MS(UVData):
         antenna_table.putcol("NAME", self.antenna_names)
         antenna_table.putcol("POSITION", self.antenna_positions
                              + self.telescope_location.reshape(1, 3))
-        if self.antenna_diameters:
+        if self.antenna_diameters is not None:
             antenna_table.putcol("DISH_DIAMETER", self.antenna_diameters)
         antenna_table.done()
 
@@ -169,6 +169,7 @@ class MS(UVData):
         nrow = len(self.data_array)
 
         datacoldesc = tables.makearrcoldesc("DATA", 0. + 0.j,
+                                            valuetype='complex',
                                             shape=[nchan, npol])
         weightcoldesc = tables.makearrcoldesc("WEIGHT_SPECTRUM", 0.,
                                               valuetype='float',
