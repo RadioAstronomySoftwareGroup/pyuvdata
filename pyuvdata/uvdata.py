@@ -1503,8 +1503,11 @@ class UVData(UVBase):
         elif filetype is 'uvh5':
             from . import uvh5
             other_obj = uvh5.UVH5()
+        elif filetype is 'ms':
+            from . import ms
+            other_obj = ms.MS()
         else:
-            raise ValueError('filetype must be uvfits, miriad, fhd, or uvh5')
+            raise ValueError('filetype must be uvfits, miriad, fhd, ms or uvh5')
         for p in self:
             param = getattr(self, p)
             setattr(other_obj, p, param)
@@ -1741,6 +1744,19 @@ class UVData(UVBase):
                            data_column=data_column, pol_order=pol_order)
             self._convert_from_filetype(ms_obj)
             del(ms_obj)
+
+
+    def write_ms(self, filepath, run_check=True, check_extra=True,
+                 run_check_acceptability=True, clobber=False, no_antnums=False):
+        """
+        Write the data to a Measurement Set (MS)
+
+        Args:
+            filename: The MS file to write to.
+        """
+        ms_obj = self._convert_to_filetype('ms')
+        ms_obj.write_ms(filepath)
+        del(ms_obj)
 
     def read_fhd(self, filelist, use_model=False, run_check=True, check_extra=True,
                  run_check_acceptability=True):

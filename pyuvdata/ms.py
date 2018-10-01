@@ -15,6 +15,9 @@ import os
 import warnings
 from pyuvdata import UVData
 from . import parameter as uvp
+import six
+import casacore
+from distutils.version import LooseVersion
 import casacore.tables as tables
 from . import telescopes
 import re
@@ -24,11 +27,13 @@ from . import utils as uvutils
 This dictionary defines the mapping between CASA polarization numbers and
 AIPS polarization numbers
 """
-polDict = {1: 1, 2: 2, 3: 3, 4: 4, 5: -1, 6: -3,
-           7: -4, 8: -2, 9: -5, 10: -7, 11: -8, 12: -6}
+POL_CASA2AIPS_DICT = {1: 1, 2: 2, 3: 3, 4: 4, 5: -1, 6: -3,
+                      7: -4, 8: -2, 9: -5, 10: -7, 11: -8, 12: -6}
+POL_AIPS2CASA_DICT = {aipspol: casapol for casapol, aipspol in
+                      six.iteritems(POL_CASA2AIPS_DICT)}
+
 
 # convert from casa polarization integers to pyuvdata
-
 
 class MS(UVData):
     """
@@ -37,6 +42,69 @@ class MS(UVData):
       ms_required_extra: Names of optional MSParameters that are required for casa ms
     """
     ms_required_extra = ['datacolumn', 'antenna_positions']  # ,'casa_history']
+
+    def _write_ms_antenna(self, filepath):
+        '''
+        Write out the antenna information into a CASA table
+
+        filepath: path to MS (without ANTENNA suffix)
+        '''
+        antenna_table = tables.table(filepath + "::ANTENNA", ack=False, readonly=False)
+        antenna_table.addrows(self.Nants_data)
+        antenna_table.putcol("NAME", self.antenna_names)
+        antenna_table.putcol("POSITION", self.antenna_positions
+                             + self.telescope_location.reshape(1, 3))
+        if self.antenna_diameters:
+            antenna_table.putcol("DISH_DIAMETER", self.antenna_diameters)
+        antenna_table.done()
+
+    def _write_ms_field(self, filepath):
+        '''
+        Write out the field information into a CASA table
+
+        filepath: path to MS (without FIELD suffix)
+        '''
+        field_table = tables.table(filepath + "::FIELD", ack=False, readonly=False)
+        field_table.addrows()
+        phasedir = np.array([[self.phase_center_ra, self.phase_center_dec]])
+        assert (self.phase_center_epoch == 2000.)
+        field_table.putcell("DELAY_DIR", 0, phasedir)
+        field_table.putcell("PHASE_DIR", 0, phasedir)
+        field_table.putcell("REFERENCE_DIR", 0, phasedir)
+
+    def _write_ms_spectralwindow(self, filepath):
+        '''
+        Write out the spectral information into a CASA table
+
+        filepath: path to MS (without SPECTRAL_WINDOW suffix)
+        '''
+        tables.taql("insert into {}::DATA_DESCRIPTION SET FLAG_ROW=False, "
+                    "POLARIZATION_ID=0, SPECTRAL_WINDOW_ID=0".format(filepath))
+
+        sw_table = tables.table(filepath + "::SPECTRAL_WINDOW",
+                                ack=False, readonly=False)
+
+        sw_table.addrows()
+        sw_table.putcell("CHAN_FREQ", 0, self.freq_array[0])
+        sw_table.putcell("CHAN_WIDTH", 0,
+                         np.ones_like(self.freq_array[0]) * self.channel_width)
+        sw_table.putcell("EFFECTIVE_BW", 0,
+                         np.ones_like(self.freq_array[0]) * self.channel_width)
+        sw_table.putcell("NUM_CHAN", 0, self.Nfreqs)
+
+    def _write_ms_polarization(self, filepath):
+        '''
+        Write out the polarization information into a CASA table
+
+        filepath: path to MS (without POLARIZATION suffix)
+        '''
+        pol_table = tables.table(filepath + "::POLARIZATION",
+                                 ack=False, readonly=False)
+        pol_table.addrows()
+        pol_table.putcell("CORR_TYPE", 0,
+                          np.array([POL_AIPS2CASA_DICT[aipspol]
+                                    for aipspol in self.polarization_array]))
+        pol_table.putcell("NUM_CORR", 0, self.Npols)
 
     def _ms_hist_to_string(self, history_table):
         '''
@@ -88,11 +156,40 @@ class MS(UVData):
             return output
         return message_str, history_str
 
-    # ms write functionality to be added later.
-    def write_ms(self):
+    def write_ms(self, filepath, **kwargs):
         '''
         writing ms is not yet supported
         '''
+        if LooseVersion(casacore.__version__) < LooseVersion('2.2.0'):
+            raise RuntimeError("For writing MS, python-casacore >= 2.2.0 is "
+                               "needed; you have {}".format(casacore.__version__))
+
+        nchan = self.freq_array.shape[1]
+        npol = len(self.polarization_array)
+        nrow = len(self.data_array)
+
+        datacoldesc = tables.makearrcoldesc("DATA", 0. + 0.j,
+                                            shape=[nchan, npol])
+        weightcoldesc = tables.makearrcoldesc("WEIGHT_SPECTRUM", 0.,
+                                              shape=[nchan, npol])
+
+        ms = tables.default_ms(filepath,
+                               tables.maketabdesc([datacoldesc,
+                                                   weightcoldesc]))
+        ms.addrows(nrow)
+
+        ms.putcol("DATA", np.squeeze(self.data_array, axis=1))
+        ms.putcol("WEIGHT_SPECTRUM", np.squeeze(self.nsample_array, axis=1))
+
+        ms.putcol("TIME", time.Time(self.time_array, format='jd').mjd * 3600. * 24.)
+        ms.putcol("UVW", -self.uvw_array)
+        ms.putcol("FLAG", np.squeeze(self.flag_array, axis=1))
+        ms.done()
+
+        self._write_ms_antenna(filepath)
+        self._write_ms_field(filepath)
+        self._write_ms_spectralwindow(filepath)
+        self._write_ms_polarization(filepath)
 
     def read_ms(self, filepath, run_check=True, check_extra=True,
                 run_check_acceptability=True,
@@ -185,8 +282,8 @@ class MS(UVData):
         # list of lists, probably with each list corresponding to SPW.
         polList = tbPol.getcol('CORR_TYPE')[0]
         self.polarization_array = np.zeros(len(polList), dtype=np.int32)
-        for polnum in range(len(polList)):
-            self.polarization_array[polnum] = int(polDict[polList[polnum]])
+        for polnum, casapol in enumerate(polList):
+            self.polarization_array[polnum] = POL_CASA2AIPS_DICT[casapol]
         tbPol.close()
         # Integration time
         # use first interval and assume rest are constant (though measurement set has all integration times for each Nblt )
