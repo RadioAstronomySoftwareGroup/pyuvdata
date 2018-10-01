@@ -49,17 +49,19 @@ class MS(UVData):
         message_str = ''  # string to store usual uvdata history
         history_str = 'APP_PARAMS;CLI_COMMAND;APPLICATION;MESSAGE;OBJECT_ID;OBSERVATION_ID;ORIGIN;PRIORITY;TIME\n'
         # string to store special casa history
+        times = history_table.getcol('TIME')
+        ntimes = len(times)
         app_params = history_table.getcol('APP_PARAMS')['array']
         cli_command = history_table.getcol('CLI_COMMAND')['array']
+        if cli_command == []:
+            cli_command = np.array([], dtype=str).reshape(ntimes, 0)
         application = history_table.getcol('APPLICATION')
         message = history_table.getcol('MESSAGE')
         obj_id = history_table.getcol('OBJECT_ID')
         obs_id = history_table.getcol('OBSERVATION_ID')
         origin = history_table.getcol('ORIGIN')
         priority = history_table.getcol('PRIORITY')
-        times = history_table.getcol('TIME')
         # Now loop through columns and generate history string
-        ntimes = len(times)
         for tbrow in range(ntimes):
             message_str += str(message[tbrow])
             newline = str(app_params[tbrow]) \
