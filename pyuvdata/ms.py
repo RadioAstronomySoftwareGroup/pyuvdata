@@ -86,10 +86,10 @@ class MS(UVData):
 
         sw_table.addrows()
         sw_table.putcell("CHAN_FREQ", 0, self.freq_array[0])
-        sw_table.putcell("CHAN_WIDTH", 0,
-                         np.ones_like(self.freq_array[0]) * self.channel_width)
-        sw_table.putcell("EFFECTIVE_BW", 0,
-                         np.ones_like(self.freq_array[0]) * self.channel_width)
+        chanwidths = np.ones_like(self.freq_array[0]) * self.channel_width
+        sw_table.putcell("CHAN_WIDTH", 0, chanwidths)
+        sw_table.putcell("EFFECTIVE_BW", 0, chanwidths)
+        sw_table.putcell("RESOLUTION", 0, chanwidths)
         sw_table.putcell("NUM_CHAN", 0, self.Nfreqs)
 
     def _write_ms_polarization(self, filepath):
@@ -182,6 +182,9 @@ class MS(UVData):
 
         ms.putcol("DATA", np.squeeze(self.data_array, axis=1))
         ms.putcol("WEIGHT_SPECTRUM", np.squeeze(self.nsample_array, axis=1))
+        ms.putcol("ANTENNA1", self.ant_1_array)
+        ms.putcol("ANTENNA2", self.ant_2_array)
+        ms.putcol("INTERVAL", self.integration_time)
 
         ms.putcol("TIME", time.Time(self.time_array, format='jd').mjd * 3600. * 24.)
         ms.putcol("UVW", -self.uvw_array)
