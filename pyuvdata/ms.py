@@ -171,6 +171,7 @@ class MS(UVData):
         datacoldesc = tables.makearrcoldesc("DATA", 0. + 0.j,
                                             shape=[nchan, npol])
         weightcoldesc = tables.makearrcoldesc("WEIGHT_SPECTRUM", 0.,
+                                              valuetype='float',
                                               shape=[nchan, npol])
 
         ms = tables.default_ms(filepath,
