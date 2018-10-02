@@ -11,6 +11,7 @@ import numpy as np
 import warnings
 import copy
 from scipy import interpolate
+
 from .uvbase import UVBase
 from . import parameter as uvp
 import pyuvdata.utils as uvutils
@@ -943,7 +944,11 @@ class UVBeam(UVBase):
             inplace: Option to perform the select directly on self (True, default) or return
                 a new UVBeam object, which is a subselection of self (False)
         """
-        import healpy as hp
+        try:
+            import healpy as hp
+        except ImportError:  # pragma: no cover
+            raise ImportError('healpy is not installed but is required for '
+                              'healpix functionality')
 
         if inplace:
             beam_object = self

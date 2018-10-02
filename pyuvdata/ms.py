@@ -8,17 +8,23 @@ Requires casacore.
 """
 from __future__ import absolute_import, division, print_function
 
-from astropy import constants as const
-import astropy.time as time
 import numpy as np
 import os
-import warnings
-from pyuvdata import UVData
-from . import parameter as uvp
-import casacore.tables as tables
-from . import telescopes
 import re
+import warnings
+from astropy import constants as const
+import astropy.time as time
+
+from . import UVData
+from . import parameter as uvp
+from . import telescopes
 from . import utils as uvutils
+
+try:
+    import casacore.tables as tables
+except ImportError:  # pragma: no cover
+    raise ImportError('casacore is not installed but is required for '
+                      'measurement set functionality')
 
 """
 This dictionary defines the mapping between CASA polarization numbers and
