@@ -105,11 +105,16 @@ def _id(obj):
 
 
 def skip(reason):
-    """Unconditionally skip a test."""
+    """
+    Defines a decorator to unconditionally skip a test. Called by conditional
+    skip wrappers to skip tests that require optional dependencies.
+
+    Args:
+        reason: String describing the reason for skipping a test.
+    """
     def decorator(test_item):
         if six.PY2:
             class_types = (type, types.ClassType)
-            isclass = isinstance(test_item, (type, types.ClassType))
         else:
             class_types = (type)
         if not isinstance(test_item, class_types):
@@ -129,14 +134,8 @@ def skip(reason):
     return decorator
 
 
-def skipIf(condition, reason):
-    """Skip a test if the condition is true."""
-    if condition:
-        return skip(reason)
-    return _id
-
-
 def skipIf_no_casa(test_func):
+    """defines a decorator to skip tests that require casacore."""
     reason = 'casacore is not installed, skipping tests that require it.'
     try:
         import casacore
@@ -146,6 +145,7 @@ def skipIf_no_casa(test_func):
 
 
 def skipIf_no_healpy(test_func):
+    """defines a decorator to skip tests that require healpy."""
     reason = 'healpy is not installed, skipping tests that require it.'
     try:
         import healpy
@@ -155,6 +155,7 @@ def skipIf_no_healpy(test_func):
 
 
 def skipIf_no_h5py(test_func):
+    """defines a decorator to skip tests that require h5py."""
     reason = 'h5py is not installed, skipping tests that require it.'
     try:
         import h5py
