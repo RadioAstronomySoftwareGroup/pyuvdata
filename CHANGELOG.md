@@ -45,8 +45,8 @@ All notable changes to this project will be documented in this file.
 - support for reading FHD calibrations into UVCal objects
 - support for sky-based calibration metadata in UVCal and the calfits file format
 - method to convert E-field beams to power beams
-- added `UVData.get_ENU_antpos` method to get ENU coordinates from antenna positions
-- added support for `extra_keywords` on UVCal objects
+- `UVData.get_ENU_antpos` method to get ENU coordinates from antenna positions
+- support for `extra_keywords` on UVCal objects
 
 ### Changed
 - Major overhaul of phasing code, see the phasing memo in docs/references for more details
