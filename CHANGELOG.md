@@ -45,6 +45,8 @@ All notable changes to this project will be documented in this file.
 - support for reading FHD calibrations into UVCal objects
 - support for sky-based calibration metadata in UVCal and the calfits file format
 - method to convert E-field beams to power beams
+- added `UVData.get_ENU_antpos` method to get ENU coordinates from antenna positions
+- added support for `extra_keywords` on UVCal objects
 
 ### Changed
 - Major overhaul of phasing code, see the phasing memo in docs/references for more details
@@ -70,4 +72,38 @@ All notable changes to this project will be documented in this file.
 - Fixed a bug in parsing frequencies from CST file names
 
 ## [1.2] - 2018-11-08
+### Added
+- support doctest in the tutorial
+- utility functions for converting between Jones numbers and polarization strings
+- support for `antdiam` variable in miriad files
+- module for reading a CST file into a UVBeam object
+- utility functions for converting to rotated ECEF coordinates from ECEF coordinates
+- support reading in a list of calfits files
+- include `extra_keywords` to miriad files
+- `__add__` method for UVCal objects
+- `antenna_diameters` value to UVData objects
+- `parse_ants` method on UVData objects
+- `x_orientation` value to UVData objects
+- "smart slicing" functionality to UVData objects
+- convenience methods on UVData objects for easily getting data and metadata
+- UVBeam object
+- in-place selection for UVData objects
+- `total_quality_array` value on UVCal objects
+- `__add__` method for UVData objects
+- utility functions for converting to local ENU coordinates from ECEF coordinates
+- `convert_to_gain` method on UVCal delay-type objects
+- read-only support for CASA measurement sets into UVData objects
+- `select` method on UVCal objects
+
+### Changed
+- antenna names in miriad saved as strings instead of arrays of ASCII hex values
+
+### Fixed
+- baseline-time axis mis-ordering in add function
+- handling of antenna positions in miriad and uvfits files
+- selecting autocorrelation data from UVData objects
+- indexing of spectral windows in calfits files
+- handling of `total_quality_array` in UVCal objects when selecting a subset of data
+
+## [1.1] - 2017-04-14
 (historical information needs to be filled in)
