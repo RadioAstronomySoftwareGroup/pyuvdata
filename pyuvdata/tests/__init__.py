@@ -109,6 +109,8 @@ def skip(reason):
     Defines a decorator to unconditionally skip a test. Called by conditional
     skip wrappers to skip tests that require optional dependencies.
 
+    This is needed because nose doesn't respect unittest skip_if decorators.
+    Based on: https://stackoverflow.com/questions/21936292/conditional-skip-testcase-decorator-in-nosetests
     Args:
         reason: String describing the reason for skipping a test.
     """
