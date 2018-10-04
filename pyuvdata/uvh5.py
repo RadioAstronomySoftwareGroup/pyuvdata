@@ -13,11 +13,13 @@ import warnings
 from .uvdata import UVData
 from . import utils as uvutils
 
-try:
-    import h5py
-except ImportError:  # pragma: no cover
-    raise ImportError('h5py is not installed but is required for '
-                      'uvh5 functionality')
+
+def _import_h5py():
+    try:
+        import h5py
+    except ImportError:  # pragma: no cover
+        raise ImportError('h5py is not installed but is required for '
+                          'uvh5 functionality')
 
 
 class UVH5(UVData):
@@ -317,6 +319,7 @@ class UVH5(UVData):
         Returns:
             None
         """
+        _import_h5py()
         if not os.path.exists(filename):
             raise IOError(filename + ' not found')
 
@@ -456,6 +459,7 @@ class UVH5(UVData):
             on the system in a way that h5py can find it, no action needs to be taken to _read_ a
             data_array encoded with bitshuffle (or an error will be raised).
         """
+        _import_h5py()
         if run_check:
             self.check(check_extra=check_extra,
                        run_check_acceptability=run_check_acceptability)
@@ -533,6 +537,7 @@ class UVH5(UVData):
             on the system in a way that h5py can find it, no action needs to be taken to _read_ a
             data_array encoded with bitshuffle (or an error will be raised).
         """
+        _import_h5py()
         if os.path.exists(filename):
             if clobber:
                 print("File exists; clobbering")
@@ -584,6 +589,7 @@ class UVH5(UVData):
             on disk to compare with the object in memory. Note that this adds some small
             memory overhead, but this amount is typically much smaller than the size of the data.
         """
+        _import_h5py()
         uvd_file = UVH5()
         with h5py.File(filename, 'r') as f:
             header = f['/Header']
@@ -684,6 +690,7 @@ class UVH5(UVData):
             that the object's metadata in-memory matches the header on-disk. See the tutorial for a
             worked example.
         """
+        _import_h5py()
         # check that the file already exists
         if not os.path.exists(filename):
             raise AssertionError("{0} does not exists; please first initialize it with initialize_uvh5_file".format(
