@@ -7,13 +7,14 @@
 """
 from __future__ import absolute_import, division, print_function
 
-from astropy import constants as const
-import astropy
-from astropy.time import Time
-from astropy.io import fits
 import numpy as np
 import warnings
-from .uvdata import UVData
+import astropy
+from astropy import constants as const
+from astropy.time import Time
+from astropy.io import fits
+
+from . import UVData
 from . import parameter as uvp
 from . import utils as uvutils
 

@@ -7,21 +7,22 @@
 """
 from __future__ import absolute_import, division, print_function
 
+import os
+import copy
+import collections
+import re
+import numpy as np
+import six
+import warnings
 from astropy import constants as const
 import astropy.units as units
 from astropy.time import Time
 from astropy.coordinates import SkyCoord, EarthLocation, FK5, Angle
-import os
-import numpy as np
-import six
-import warnings
+
 from .uvbase import UVBase
 from . import parameter as uvp
 from . import telescopes as uvtel
 from . import utils as uvutils
-import copy
-import collections
-import re
 
 
 class UVData(UVBase):

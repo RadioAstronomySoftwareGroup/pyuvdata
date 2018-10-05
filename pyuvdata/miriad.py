@@ -7,18 +7,19 @@
 """
 from __future__ import absolute_import, division, print_function
 
-from astropy import constants as const
-from astropy.coordinates import Angle, SkyCoord
 import os
 import shutil
 import numpy as np
 import copy
+import itertools
 import six
 import warnings
-from .uvdata import UVData
+from astropy import constants as const
+from astropy.coordinates import Angle, SkyCoord
+
+from . import UVData
 from . import telescopes as uvtel
 from . import utils as uvutils
-import itertools
 
 from . import aipy_extracts
 

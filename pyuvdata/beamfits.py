@@ -8,10 +8,11 @@
 from __future__ import absolute_import, division, print_function
 
 import numpy as np
+import warnings
 import astropy
 from astropy.io import fits
-import warnings
-from .uvbeam import UVBeam
+
+from . import UVBeam
 from . import utils as uvutils
 
 hpx_primary_ax_nums = {'pixel': 1, 'freq': 2, 'feed_pol': 3, 'spw': 4,
