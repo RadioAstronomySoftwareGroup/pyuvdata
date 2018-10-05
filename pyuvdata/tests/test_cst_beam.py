@@ -8,6 +8,7 @@ import nose.tools as nt
 import os
 import numpy as np
 import copy
+
 from pyuvdata.data import DATA_PATH
 from pyuvdata import UVBeam
 from pyuvdata.cst_beam import CSTBeam

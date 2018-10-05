@@ -11,7 +11,8 @@ import nose.tools as nt
 import os
 import numpy as np
 import copy
-from pyuvdata.uvcal import UVCal
+
+from pyuvdata import UVCal
 import pyuvdata.utils as uvutils
 import pyuvdata.tests as uvtest
 from pyuvdata.data import DATA_PATH

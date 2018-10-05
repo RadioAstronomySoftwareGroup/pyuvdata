@@ -9,13 +9,14 @@ from __future__ import absolute_import, division, print_function
 
 import nose.tools as nt
 import os
+import numpy as np
 import astropy
 from astropy.io import fits
-from pyuvdata.uvcal import UVCal
+
+from pyuvdata import UVCal
 import pyuvdata.tests as uvtest
 from pyuvdata.data import DATA_PATH
 import pyuvdata.utils as uvutils
-import numpy as np
 
 
 def test_readwriteread():

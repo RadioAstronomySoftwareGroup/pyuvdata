@@ -14,6 +14,7 @@ from astropy import units
 from astropy.time import Time
 from astropy.coordinates import SkyCoord, Angle
 from astropy.io import fits
+
 import pyuvdata
 from pyuvdata.data import DATA_PATH
 import pyuvdata.utils as uvutils

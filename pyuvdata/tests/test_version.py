@@ -11,9 +11,9 @@ import nose.tools as nt
 import sys
 import os
 import six
-from six import StringIO
 import subprocess
 import json
+
 import pyuvdata
 
 
@@ -82,7 +82,7 @@ def test_main():
 
     saved_stdout = sys.stdout
     try:
-        out = StringIO()
+        out = six.StringIO()
         sys.stdout = out
         pyuvdata.version.main()
         output = out.getvalue()
