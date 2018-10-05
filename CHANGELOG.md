@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 ### Added
 - option to save splines for reuse in UVBeam.interp function
 
+### Changed
+- changed top-level import structure to exclude file-specific and base classes
+
 ### Deprecated
 - Support for UVData objects without antenna_positions. Antenna positions will be required in a future version.
 
