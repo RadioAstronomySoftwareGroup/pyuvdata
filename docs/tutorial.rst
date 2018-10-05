@@ -36,7 +36,8 @@ b) uvfits -> miriad
 ::
 
   >>> from pyuvdata import UVData
-  >>> import shutil, os
+  >>> import shutil
+  >>> import os
   >>> UV = UVData()
   >>> uvfits_file = 'pyuvdata/data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
 
@@ -78,7 +79,8 @@ d) FHD -> miriad
 ::
 
   >>> from pyuvdata import UVData
-  >>> import shutil, os
+  >>> import shutil
+  >>> import os
   >>> UV = UVData()
   >>> fhd_prefix = 'pyuvdata/data/fhd_vis_data/1061316296_'
 
@@ -98,11 +100,12 @@ e) CASA -> uvfits
 ::
 
   >>> from pyuvdata import UVData
-  >>> UV=UVData()
+  >>> UV = UVData()
   >>> ms_file = 'pyuvdata/data/day2_TDEM0003_10s_norx_1src_1spw.ms'
 
   # Use either the file type specific read_ms or the generic read function,
   # optionally specify the file type
+  # note that reading CASA measurement sets requires casacore to be installed
   >>> UV.read_ms(ms_file)
   Successful readonly open of default-locked table pyuvdata/data/day2_TDEM0003_10s_norx_1src_1spw.ms/SPECTRAL_WINDOW: 14 columns, 1 rows
   Successful readonly open of default-locked table pyuvdata/data/day2_TDEM0003_10s_norx_1src_1spw.ms: 23 columns, 1360 rows
@@ -120,9 +123,12 @@ f) CASA -> miriad
 ::
 
   >>> from pyuvdata import UVData
-  >>> import shutil, os
+  >>> import shutil
+  >>> import os
   >>> UV=UVData()
   >>> ms_file = 'pyuvdata/data/day2_TDEM0003_10s_norx_1src_1spw.ms'
+
+  # note that reading CASA measurement sets requires casacore to be installed
   >>> UV.read(ms_file)
   Successful readonly open of default-locked table pyuvdata/data/day2_TDEM0003_10s_norx_1src_1spw.ms/SPECTRAL_WINDOW: 14 columns, 1 rows
   Successful readonly open of default-locked table pyuvdata/data/day2_TDEM0003_10s_norx_1src_1spw.ms: 23 columns, 1360 rows
@@ -149,7 +155,8 @@ g) miriad -> uvh5
   >>> miriad_file = 'pyuvdata/data/new.uvA'
   >>> UV.read(miriad_file)
 
-  # Write out the uvfits file
+  # Write out the uvh5 file
+  # note that writing uvh5 files requires h5py to be installed
   >>> UV.write_uvh5('tutorial.uvh5')
 
 h) uvfits -> uvh5
@@ -162,7 +169,8 @@ h) uvfits -> uvh5
    >>> uvfits_file = 'pyuvdata/data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
    >>> UV.read(uvfits_file)
 
-   # Write out the UVH5 file
+   # Write out the uvh5 file
+   # note that writing uvh5 files requires h5py to be installed
    >>> write_file = 'tutorial.uvh5'
    >>> if os.path.exists(write_file):
    ...    os.remove(write_file)
@@ -342,12 +350,13 @@ a) Getting antenna positions in topocentric frame in units of meters
 ::
 
   # directly from UVData object
+  >>> from pyuvdata import UVData
   >>> uvd = UVData()
   >>> uvd.read('pyuvdata/data/new.uvA')
   >>> antpos, ants = uvd.get_ENU_antpos()
 
-  # using uvutils
-  >>> from pyuvdata import uvutils, UVData
+  # using utils
+  >>> from pyuvdata import utils
   >>> uvd = UVData()
   >>> uvd.read('pyuvdata/data/new.uvA')
 
@@ -355,7 +364,7 @@ a) Getting antenna positions in topocentric frame in units of meters
   >>> antpos = uvd.antenna_positions + uvd.telescope_location
 
   # convert to topocentric (East, North, Up or ENU) coords.
-  >>> antpos = uvutils.ENU_from_ECEF(antpos, *uvd.telescope_location_lat_lon_alt)
+  >>> antpos = utils.ENU_from_ECEF(antpos, *uvd.telescope_location_lat_lon_alt)
 
 UVData: Selecting data
 -----------------------
@@ -780,7 +789,7 @@ done after the read, which does not save memory.
 
 UVData: Finding Redundant Baselines
 -----------------------------------
-uvutils contains functions for finding redundant groups of baselines in an array, either by antenna positions or uvw coordinates. Baselines are considered redundant if they are within a specified tolerance distance (default is 1 meter).
+pyuvdata.utils contains functions for finding redundant groups of baselines in an array, either by antenna positions or uvw coordinates. Baselines are considered redundant if they are within a specified tolerance distance (default is 1 meter).
 
 The ``get_baseline_redundancies`` function accepts an array of baseline indices and an array of baseline vectors (ie, uvw coordinates) as input, and finds redundancies among the vectors as given. If the ``with_conjugates`` option is selected, it will flip baselines such that ``u > 0``, or ``v > 0 if u = 0``, or ``w > 0 if u = v = 0``. In this case, a list of ``conjugates`` is returned as well, which contains indices for the baselines that were flipped for the redundant groups. In either mode of operation, this will only return baseline indices that are in the list passed in.
 
@@ -1138,6 +1147,8 @@ d) Writing a HEALPix beam FITS file
 
   # have to specify which interpolation function to use
   >>> beam.interpolation_function = 'az_za_simple'
+
+  # note that the `to_healpix` method requires healpy to be installed
   >>> beam.to_healpix()
   >>> beam.write_beamfits('tutorial.fits', clobber=True)
 
@@ -1242,7 +1253,7 @@ Generating pseudo Stokes ('pI', 'pQ', 'pU', 'pV') beams
 ::
 
   >>> from pyuvdata import UVBeam
-  >>> import pyuvdata.utils as uvutils
+  >>> from pyuvdata import utils as uvutils
   >>> import numpy as np
   >>> import healpy as hp
   >>> beam = UVBeam()
@@ -1268,7 +1279,6 @@ Calculating pseudo Stokes ('pI', 'pQ', 'pU', 'pV') beam area and beam squared ar
 
   >>> from pyuvdata import UVBeam
   >>> import numpy as np
-  >>> import healpy as hp
   >>> beam = UVBeam()
   >>> filenames = ['pyuvdata/data/HERA_NicCST_150MHz.txt', 'pyuvdata/data/HERA_NicCST_123MHz.txt']
   >>> beam.read_cst_beam(filenames, beam_type='efield', telescope_name='HERA',
@@ -1276,6 +1286,8 @@ Calculating pseudo Stokes ('pI', 'pQ', 'pU', 'pV') beam area and beam squared ar
   ...                    model_name='E-field pattern - Rigging height 4.9m',
   ...                    model_version='1.0')
   >>> beam.interpolation_function = 'az_za_simple'
+
+  # note that the `to_healpix` method requires healpy to be installed
   >>> pstokes_beam = beam.to_healpix(inplace=False)
   >>> pstokes_beam.efield_to_pstokes()
   >>> pstokes_beam.peak_normalize()
