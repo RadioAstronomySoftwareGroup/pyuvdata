@@ -10,7 +10,8 @@ from __future__ import absolute_import, division, print_function
 import nose.tools as nt
 import numpy as np
 import copy
-from pyuvdata import UVBase
+
+from pyuvdata.uvbase import UVBase
 from pyuvdata import parameter as uvp
 
 

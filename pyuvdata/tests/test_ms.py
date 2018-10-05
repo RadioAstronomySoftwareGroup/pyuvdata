@@ -15,7 +15,7 @@ import numpy as np
 from pyuvdata import UVData
 from pyuvdata.data import DATA_PATH
 import pyuvdata.tests as uvtest
-from pyuvdata import UVFITS
+from pyuvdata.uvfits import UVFITS
 
 
 @uvtest.skipIf_no_casa

@@ -6,8 +6,9 @@ from __future__ import absolute_import, division, print_function
 
 import nose.tools as nt
 import numpy as np
+
 from pyuvdata import parameter as uvp
-from pyuvdata import UVBase
+from pyuvdata.uvbase import UVBase
 
 
 def test_class_inequality():
