@@ -9,10 +9,11 @@ from __future__ import absolute_import, division, print_function
 
 import nose.tools as nt
 import os
+import numpy as np
+
 from pyuvdata import UVCal
 import pyuvdata.tests as uvtest
 from pyuvdata.data import DATA_PATH
-import numpy as np
 
 # set up FHD file list
 testdir = os.path.join(DATA_PATH, 'fhd_cal_data/')

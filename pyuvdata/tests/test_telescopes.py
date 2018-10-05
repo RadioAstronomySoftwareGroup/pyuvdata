@@ -9,6 +9,7 @@ from __future__ import absolute_import, division, print_function
 
 import numpy as np
 import nose.tools as nt
+
 import pyuvdata
 
 required_parameters = ['_telescope_name', '_telescope_location']

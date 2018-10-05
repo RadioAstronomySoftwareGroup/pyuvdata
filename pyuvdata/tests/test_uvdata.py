@@ -14,6 +14,7 @@ import copy
 import six
 from astropy.time import Time
 from astropy.coordinates import Angle
+
 from pyuvdata import UVData
 import pyuvdata.utils as uvutils
 import pyuvdata.tests as uvtest
