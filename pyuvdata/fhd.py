@@ -7,12 +7,13 @@
 """
 from __future__ import absolute_import, division, print_function
 
-from astropy import constants as const
-from scipy.io.idl import readsav
 from itertools import islice
 import numpy as np
 import warnings
-from .uvdata import UVData
+from scipy.io.idl import readsav
+from astropy import constants as const
+
+from . import UVData
 from . import utils as uvutils
 from . import telescopes as uvtel
 

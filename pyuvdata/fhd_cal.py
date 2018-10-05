@@ -4,12 +4,13 @@
 
 from __future__ import absolute_import, division, print_function
 
-from scipy.io.idl import readsav
 import os
 import numpy as np
 import six
 import warnings
-from .uvcal import UVCal
+from scipy.io.idl import readsav
+
+from . import UVCal
 from . import utils as uvutils
 from .fhd import get_fhd_history
 

@@ -14,7 +14,7 @@ from scipy import interpolate
 
 from .uvbase import UVBase
 from . import parameter as uvp
-import pyuvdata.utils as uvutils
+from . import utils as uvutils
 
 
 class UVBeam(UVBase):
