@@ -92,6 +92,17 @@ class MS(UVData):
         sw_table.putcell("RESOLUTION", 0, chanwidths)
         sw_table.putcell("NUM_CHAN", 0, self.Nfreqs)
 
+    def _write_ms_observation(self, filepath):
+        '''
+        Write out the observation information into a CASA table
+
+        filepath: path to MS (without OBSERVATION suffix)
+        '''
+        antenna_table = tables.table(filepath + "::OBSERVATION", ack=False, readonly=False)
+        antenna_table.addrows()
+        antenna_table.putcell("TELESCOPE_NAME", 0, self.telescope_name)
+        antenna_table.putcell("OBSERVER", 0, self.telescope_name)
+
     def _write_ms_polarization(self, filepath):
         '''
         Write out the polarization information into a CASA table
@@ -170,14 +181,30 @@ class MS(UVData):
 
         datacoldesc = tables.makearrcoldesc("DATA", 0. + 0.j,
                                             valuetype='complex',
-                                            shape=[nchan, npol])
+                                            shape=[nchan, npol],
+                                            datamanagertype="TiledColumnStMan",
+                                            datamanagergroup="TiledData"
+                                            )
         weightcoldesc = tables.makearrcoldesc("WEIGHT_SPECTRUM", 0.,
                                               valuetype='float',
-                                              shape=[nchan, npol])
+                                              shape=[nchan, npol],
+                                              datamanagertype="TiledColumnStMan",
+                                              datamanagergroup="TiledData"
+                                              )
 
-        ms = tables.default_ms(filepath,
-                               tables.maketabdesc([datacoldesc,
-                                                   weightcoldesc]))
+        ms_desc = tables.required_ms_desc("MAIN")
+        ms_desc["FLAG"].update(
+                               dataManagerType="TiledColumnStMan",
+                               shape=[nchan,npol],
+                               dataManagerGroup="TiledFlag",
+                               cellShape=[nchan,npol],
+                               option=4
+                              )
+        ms_desc.update(tables.maketabdesc(datacoldesc))
+        ms_desc.update(tables.maketabdesc(weightcoldesc))
+
+        ms = tables.default_ms(filepath, ms_desc,
+                               tables.makedminfo(ms_desc))
         ms.addrows(nrow)
 
         ms.putcol("DATA", np.squeeze(self.data_array, axis=1))
@@ -195,6 +222,7 @@ class MS(UVData):
         self._write_ms_field(filepath)
         self._write_ms_spectralwindow(filepath)
         self._write_ms_polarization(filepath)
+        self._write_ms_observation(filepath)
 
     def read_ms(self, filepath, run_check=True, check_extra=True,
                 run_check_acceptability=True,
