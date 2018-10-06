@@ -49,6 +49,35 @@ def _read_uvh5_string(dataset, filename):
         return uvutils._bytes_to_str(dataset.value.tostring())
 
 
+# define HDF5 type for interpreting HERA correlator outputs (integers) as compelx floats
+hera_corr_dtype = np.dtype([('r', np.int32), ('i', np.int32)])
+
+
+def _unpack_to_complex(dset, dtype_in, dtype_out=np.complex64):
+    """
+    Unpack the given data set of a specified type to floating point complex data.
+
+    Arguments:
+        dset: reference to an HDF5 dataset on disk
+        dtype_in: the compound datatype for interpreting the input data. Assumes there
+            is an 'r' field and 'i' field, for casting to complex numbers.
+        dtype_out: the datatype of the output array. One of (complex, np.complex64, np.complex128).
+
+    Returns:
+        output_array: array referenced in the dataset cast to complex values
+    """
+    if dtype_out not in (complex, np.complex64, np.complex128):
+        raise ValueError("output datatype must be one of (complex, np.complex64, np.complex128)")
+    array_shape = dset.shape
+    output_array = np.empty(array_shape, dtype=dtype_out)
+    data = dset.astype(dtype_in)
+    output_array.real = data['r']
+    output_array.imag = data['i']
+    del(data)
+
+    return output_array
+
+
 class UVH5(UVData):
     """
     Defines an HDF5-specific subclass of UVData for reading and writing uvh5 files.
@@ -235,9 +264,30 @@ class UVH5(UVData):
 
         min_frac = np.min([blt_frac, freq_frac, pol_frac])
 
+        # get the fundamental datatype of the visdata; if integers, we need to cast to floats
+        visdata_dtype = dgrp['visdata'].dtype
+        try:
+            rtype = visdata_dtype['r'].kind
+            itype = visdata_dtype['i'].kind
+        except KeyError:
+            raise ValueError("the visibility datatype in the uvh5 file is not recognized; must be a compound "
+                             "datatype with an 'r' field and 'i' field. See the uvh5 memo for more details.")
+        if rtype != itype:
+            raise ValueError("the 'r' and 'i' fields in the uvh5 visdata field must be the same datatype")
+        if rtype not in ['f', 'i', 'd']:
+            raise ValueError("only integer, float, and double datatypes are supported for uvh5 visibility data")
+        if rtype == 'i':
+            # need to unpack integers as floats
+            unpack_ints = True
+        else:
+            unpack_ints = False
+
         if min_frac == 1:
             # no select, read in all the data
-            self.data_array = dgrp['visdata'].value
+            if unpack_ints:
+                self.data_array = _unpack_to_complex(dgrp['visdata'], hera_corr_type, np.complex64)
+            else:
+                self.data_array = dgrp['visdata'].value
             self.flag_array = dgrp['flags'].value
             self.nsample_array = dgrp['nsamples'].value
         else:
@@ -251,7 +301,10 @@ class UVH5(UVData):
 
             # just read in the right portions of the data and flag arrays
             if blt_frac == min_frac:
-                visdata = visdata_dset[blt_inds, :, :, :]
+                if unpack_ints:
+                    visdata = _unpack_to_complex(visdata_dset[blt_inds, :, :, :], hera_corr_type, np.complex64)
+                else:
+                    visdata = visdata_dset[blt_inds, :, :, :]
                 flags = flags_dset[blt_inds, :, :, :]
                 nsamples = nsamples_dset[blt_inds, :, :, :]
 
@@ -266,7 +319,10 @@ class UVH5(UVData):
                     flags = flags[:, :, :, pol_inds]
                     nsamples = nsamples[:, :, :, pol_inds]
             elif freq_frac == min_frac:
-                visdata = visdata_dset[:, :, freq_inds, :]
+                if unpack_ints:
+                    visdata = _unpack_to_complex(visdata_dset[:, :, freq_inds, :], hera_corr_type, np.complex64)
+                else:
+                    visdata = visdata_dset[:, :, freq_inds, :]
                 flags = flags_dset[:, :, freq_inds, :]
                 nsamples = nsamples_dset[:, :, freq_inds, :]
 
@@ -279,7 +335,10 @@ class UVH5(UVData):
                     flags = flags[:, :, :, pol_inds]
                     nsamples = nsamples[:, :, :, pol_inds]
             else:
-                visdata = visdata_dset[:, :, :, pol_inds]
+                if unpack_ints:
+                    visdata = _unpack_to_complex(visdata_dset[:, :, :, pol_inds], hera_corr_type, np.complex64)
+                else:
+                    visdata = visdata_dset[:, :, :, pol_inds]
                 flags = flags_dset[:, :, :, pol_inds]
                 nsamples = nsamples_dset[:, :, :, pol_inds]
 
@@ -530,27 +589,15 @@ class UVH5(UVData):
 
             # write out data, flags, and nsample arrays
             dgrp = f.create_group("Data")
-            if data_compression is not None:
-                visdata = dgrp.create_dataset("visdata", chunks=True,
-                                              data=self.data_array.astype(np.complex64),
-                                              compression=data_compression)
-            else:
-                visdata = dgrp.create_dataset("visdata", chunks=True,
-                                              data=self.data_array.astype(np.complex64))
-            if flags_compression is not None:
-                flags = dgrp.create_dataset("flags", chunks=True,
-                                            data=self.flag_array,
-                                            compression=flags_compression)
-            else:
-                flags = dgrp.create_dataset("flags", chunks=True,
-                                            data=self.flag_array)
-            if nsample_compression is not None:
-                nsample_array = dgrp.create_dataset("nsamples", chunks=True,
-                                                    data=self.nsample_array.astype(np.float32),
-                                                    compression=nsample_compression)
-            else:
-                nsample_array = dgrp.create_dataset("nsamples", chunks=True,
-                                                    data=self.nsample_array.astype(np.float32))
+            visdata = dgrp.create_dataset("visdata", chunks=True,
+                                          data=self.data_array.astype(np.complex64),
+                                          compression=data_compression)
+            flags = dgrp.create_dataset("flags", chunks=True,
+                                        data=self.flag_array,
+                                        compression=flags_compression)
+            nsample_array = dgrp.create_dataset("nsamples", chunks=True,
+                                                data=self.nsample_array.astype(np.float32),
+                                                compression=nsample_compression)
 
         return
 
@@ -604,24 +651,12 @@ class UVH5(UVData):
             # initialize the data groups on disk
             data_size = (self.Nblts, self.Nspws, self.Nfreqs, self.Npols)
             dgrp = f.create_group("Data")
-            if data_compression is not None:
-                visdata = dgrp.create_dataset("visdata", data_size, chunks=True,
-                                              dtype='c8', compression=data_compression)
-            else:
-                visdata = dgrp.create_dataset("visdata", data_size, chunks=True,
-                                              dtype='c8')
-            if flags_compression is not None:
-                flags = dgrp.create_dataset("flags", data_size, chunks=True,
-                                            dtype='b1', compression=flags_compression)
-            else:
-                flags = dgrp.create_dataset("flags", data_size, chunks=True,
-                                            dtype='b1')
-            if nsample_compression is not None:
-                nsample_array = dgrp.create_dataset("nsamples", data_size, chunks=True,
-                                                    dtype='f4', compression=nsample_compression)
-            else:
-                nsample_array = dgrp.create_dataset("nsamples", data_size, chunks=True,
-                                                    dtype='f4')
+            visdata = dgrp.create_dataset("visdata", data_size, chunks=True,
+                                          dtype='c8', compression=data_compression)
+            flags = dgrp.create_dataset("flags", data_size, chunks=True,
+                                        dtype='b1', compression=flags_compression)
+            nsample_array = dgrp.create_dataset("nsamples", data_size, chunks=True,
+                                                dtype='f4', compression=nsample_compression)
 
         return
 
