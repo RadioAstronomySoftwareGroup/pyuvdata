@@ -23,8 +23,8 @@ from . import utils as uvutils
 try:
     import casacore.tables as tables
 except ImportError:  # pragma: no cover
-    from . import reraise_context
-    reraise_context('casacore is not installed but is required for measurement set functionality')
+    uvutils.reraise_context('casacore is not installed but is required for '
+                            'measurement set functionality')
 
 
 """
