@@ -71,7 +71,18 @@ class UVData(UVBase):
                                           acceptable_vals=["uncalib", "Jy", "K str"])
 
         desc = ('Number of data points averaged into each data element, '
-                'NOT required to be an integer. type = float, same shape as data_array')
+                'NOT required to be an integer, type = float, same shape as data_array.'
+                'The product of the integration_time and the nsample_array '
+                'value for a visibility reflects the total amount of time '
+                'that went into the visibility. Best practice is for the '
+                'nsample_array to be used track flagging within an integration_time '
+                '(leading to a decrease of the nsample array value below 1) and '
+                'LST averaging (leading to an increase in the nsample array '
+                'value). So datasets that have not been LST averaged should '
+                'have nsample array values less than or equal to 1.'
+                'Note that many files do not follow this convention, but it is '
+                'safe to assume that the product of the integration_time and '
+                'the nsample_array is total amount of time included in a visibility.')
         self._nsample_array = uvp.UVParameter('nsample_array', description=desc,
                                               form=('Nblts', 'Nspws',
                                                     'Nfreqs', 'Npols'),
@@ -154,8 +165,19 @@ class UVData(UVBase):
                                                        np.arange(-8, 0)) + list(np.arange(1, 5)),
                                                    form=('Npols',))
 
+        desc = ('Length of the integration in seconds, shape (NBlts). '
+                'The product of the integration_time and the nsample_array '
+                'value for a visibility reflects the total amount of time '
+                'that went into the visibility. Best practice is for the '
+                'integration_time to reflect the length of time a visibility '
+                'was integrated over (so it should vary in the case of '
+                'baseline-dependent averaging and be a way to do selections '
+                'for differently integrated baselines).'
+                'Note that many files do not follow this convention, but it is '
+                'safe to assume that the product of the integration_time and '
+                'the nsample_array is total amount of time included in a visibility.')
         self._integration_time = uvp.UVParameter('integration_time',
-                                                 description='Length of the integration (s)',
+                                                 description=desc,
                                                  form=('Nblts',),
                                                  expected_type=np.float, tols=1e-3)  # 1 ms
         self._channel_width = uvp.UVParameter('channel_width',
