@@ -23,8 +23,9 @@ from . import utils as uvutils
 try:
     import casacore.tables as tables
 except ImportError:  # pragma: no cover
-    print('casacore is not installed but is required for measurement set functionality')
-    raise
+    from . import reraise_context
+    reraise_context('casacore is not installed but is required for measurement set functionality')
+
 
 """
 This dictionary defines the mapping between CASA polarization numbers and
