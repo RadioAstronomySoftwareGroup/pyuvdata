@@ -82,7 +82,7 @@ class UVData(UVBase):
                 'have nsample array values less than or equal to 1.'
                 'Note that many files do not follow this convention, but it is '
                 'safe to assume that the product of the integration_time and '
-                'the nsample_array is total amount of time included in a visibility.')
+                'the nsample_array is the total amount of time included in a visibility.')
         self._nsample_array = uvp.UVParameter('nsample_array', description=desc,
                                               form=('Nblts', 'Nspws',
                                                     'Nfreqs', 'Npols'),
@@ -175,7 +175,7 @@ class UVData(UVBase):
                 'for differently integrated baselines).'
                 'Note that many files do not follow this convention, but it is '
                 'safe to assume that the product of the integration_time and '
-                'the nsample_array is total amount of time included in a visibility.')
+                'the nsample_array is the total amount of time included in a visibility.')
         self._integration_time = uvp.UVParameter('integration_time',
                                                  description=desc,
                                                  form=('Nblts',),
