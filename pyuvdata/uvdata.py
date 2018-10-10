@@ -75,7 +75,7 @@ class UVData(UVBase):
                 'The product of the integration_time and the nsample_array '
                 'value for a visibility reflects the total amount of time '
                 'that went into the visibility. Best practice is for the '
-                'nsample_array to be used track flagging within an integration_time '
+                'nsample_array to be used to track flagging within an integration_time '
                 '(leading to a decrease of the nsample array value below 1) and '
                 'LST averaging (leading to an increase in the nsample array '
                 'value). So datasets that have not been LST averaged should '
