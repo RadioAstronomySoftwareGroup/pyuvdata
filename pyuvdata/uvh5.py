@@ -68,8 +68,7 @@ def _unpack_to_complex(dset, dtype_in, dtype_out=np.complex64):
     """
     if dtype_out not in (complex, np.complex64, np.complex128):
         raise ValueError("output datatype must be one of (complex, np.complex64, np.complex128)")
-    array_shape = dset.shape
-    output_array = np.empty(array_shape, dtype=dtype_out)
+    output_array = np.empty(dset.shape, dtype=dtype_out)
     data = dset.astype(dtype_in)
     output_array.real = data['r']
     output_array.imag = data['i']
@@ -266,19 +265,22 @@ class UVH5(UVData):
 
         # get the fundamental datatype of the visdata; if integers, we need to cast to floats
         visdata_dtype = dgrp['visdata'].dtype
-        try:
-            rtype = visdata_dtype['r'].kind
-            itype = visdata_dtype['i'].kind
-        except KeyError:
-            raise ValueError("the visibility datatype in the uvh5 file is not recognized; must be a compound "
-                             "datatype with an 'r' field and 'i' field. See the uvh5 memo for more details.")
-        if rtype != itype:
-            raise ValueError("the 'r' and 'i' fields in the uvh5 visdata field must be the same datatype")
-        if rtype not in ['f', 'i', 'd']:
-            raise ValueError("only integer, float, and double datatypes are supported for uvh5 visibility data")
-        if rtype == 'i':
-            # need to unpack integers as floats
-            unpack_ints = True
+        if visdata_dtype not in ('complex64', 'complex128'):
+            try:
+                rtype = visdata_dtype['r'].kind
+                itype = visdata_dtype['i'].kind
+            except KeyError:
+                raise ValueError("the visibility datatype in the uvh5 file is not recognized; must be a compound "
+                                 "datatype with an 'r' field and 'i' field. See the uvh5 memo for more details.")
+            if rtype != itype:
+                raise ValueError("the 'r' and 'i' fields in the uvh5 visdata field must be the same datatype")
+            if rtype not in ['f', 'i', 'd']:
+                raise ValueError("only integer, float, and double datatypes are supported for uvh5 visibility data")
+            if rtype == 'i':
+                # need to unpack integers as floats
+                unpack_ints = True
+            else:
+                unpack_ints = False
         else:
             unpack_ints = False
 
