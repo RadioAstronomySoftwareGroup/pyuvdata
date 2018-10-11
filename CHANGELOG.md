@@ -6,7 +6,7 @@ All notable changes to this project will be documented in this file.
 - option to save splines for reuse in UVBeam.interp function
 
 ### Changed
-- changed top-level import structure to exclude file-specific and base classes
+- changed top-level import structure to exclude file-specific class (e.g. `UVFITS`, `CALFITS`) and base classes (`UVBase`, `UVParameter`) and to not import utility functions into the top-level namespace
 
 ### Deprecated
 - Support for UVData objects without antenna_positions. Antenna positions will be required in a future version.
