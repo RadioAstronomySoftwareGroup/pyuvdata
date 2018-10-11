@@ -42,10 +42,11 @@ def test_get_gitinfo_file():
     test_file_info = {'git_origin': git_origin, 'git_hash': git_hash,
                       'git_description': git_description, 'git_branch': git_branch}
 
-    file_info = pyuvdata.version._get_gitinfo_file(git_file=git_file)
-
     if 'temp_git_file' in locals():
+        file_info = pyuvdata.version._get_gitinfo_file(git_file=temp_git_file)
         os.remove(temp_git_file)
+    else:
+        file_info = pyuvdata.version._get_gitinfo_file()
 
     nt.assert_equal(file_info, test_file_info)
 
