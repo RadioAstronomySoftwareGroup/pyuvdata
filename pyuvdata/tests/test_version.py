@@ -24,12 +24,13 @@ def test_get_gitinfo_file():
     git_file = os.path.join(pyuvdata_dir, 'GIT_INFO')
     if not os.path.exists(git_file):
         # write a file to read in
-        git_file = os.path.join(DATA_PATH, 'test/GIT_INFO')
+        temp_git_file = os.path.join(DATA_PATH, 'test/GIT_INFO')
         version_info = pyuvdata.version.construct_version_info()
-        data = [version_info.git_origin, version_info.git_hash,
-                version_info.git_description, version_info.git_branch]
-        with open(git_file, 'w') as outfile:
+        data = [version_info['git_origin'], version_info['git_origin'],
+                version_info['git_origin'], version_info['git_origin']]
+        with open(temp_git_file, 'w') as outfile:
             json.dump(data, outfile)
+        git_file = temp_git_file
 
     with open(git_file) as data_file:
         data = [pyuvdata.version._unicode_to_str(x) for x in json.loads(data_file.read().strip())]
@@ -41,7 +42,10 @@ def test_get_gitinfo_file():
     test_file_info = {'git_origin': git_origin, 'git_hash': git_hash,
                       'git_description': git_description, 'git_branch': git_branch}
 
-    file_info = pyuvdata.version._get_gitinfo_file()
+    file_info = pyuvdata.version._get_gitinfo_file(git_file=git_file)
+
+    if 'temp_git_file' in locals():
+        os.remove(temp_git_file)
 
     nt.assert_equal(file_info, test_file_info)
 
