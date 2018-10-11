@@ -314,8 +314,8 @@ class UVH5(UVData):
         try:
             import h5py
         except ImportError:  # pragma: no cover
-            uvutils.reraise_context('h5py is not installed but is required for '
-                                    'uvh5 functionality')
+            uvutils._reraise_context('h5py is not installed but is required for '
+                                     'uvh5 functionality')
 
         if not os.path.exists(filename):
             raise IOError(filename + ' not found')
@@ -459,9 +459,8 @@ class UVH5(UVData):
         try:
             import h5py
         except ImportError:  # pragma: no cover
-            from . import reraise_context
-            reraise_context('h5py is not installed but is required for '
-                            'uvh5 functionality')
+            uvutils._reraise_context('h5py is not installed but is required for '
+                                     'uvh5 functionality')
 
         if run_check:
             self.check(check_extra=check_extra,
@@ -543,9 +542,8 @@ class UVH5(UVData):
         try:
             import h5py
         except ImportError:  # pragma: no cover
-            from . import reraise_context
-            reraise_context('h5py is not installed but is required for '
-                            'uvh5 functionality')
+            uvutils._reraise_context('h5py is not installed but is required for '
+                                     'uvh5 functionality')
 
         if os.path.exists(filename):
             if clobber:
@@ -601,9 +599,8 @@ class UVH5(UVData):
         try:
             import h5py
         except ImportError:  # pragma: no cover
-            from . import reraise_context
-            reraise_context('h5py is not installed but is required for '
-                            'uvh5 functionality')
+            uvutils._reraise_context('h5py is not installed but is required for '
+                                     'uvh5 functionality')
 
         uvd_file = UVH5()
         with h5py.File(filename, 'r') as f:
@@ -708,9 +705,8 @@ class UVH5(UVData):
         try:
             import h5py
         except ImportError:  # pragma: no cover
-            from . import reraise_context
-            reraise_context('h5py is not installed but is required for '
-                            'uvh5 functionality')
+            uvutils._reraise_context('h5py is not installed but is required for '
+                                     'uvh5 functionality')
 
         # check that the file already exists
         if not os.path.exists(filename):

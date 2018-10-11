@@ -446,7 +446,7 @@ def test_reraise_context():
         try:
             uvutils.LatLonAlt_from_XYZ(ref_xyz[0:1])
         except ValueError:
-            uvutils.reraise_context('Add some info')
+            uvutils._reraise_context('Add some info')
     ex = cm.exception
     nt.assert_equal(ex.args[0], 'Add some info: xyz values should be ECEF x, y, z coordinates in meters')
 
@@ -454,7 +454,7 @@ def test_reraise_context():
         try:
             uvutils.LatLonAlt_from_XYZ(ref_xyz[0:1])
         except ValueError:
-            uvutils.reraise_context('Add some info %s', 'and then more')
+            uvutils._reraise_context('Add some info %s', 'and then more')
     ex = cm.exception
     nt.assert_equal(ex.args[0], 'Add some info and then more: xyz values should be ECEF x, y, z coordinates in meters')
 
@@ -462,6 +462,6 @@ def test_reraise_context():
         try:
             raise EnvironmentError(1, 'some bad problem')
         except EnvironmentError:
-            uvutils.reraise_context('Add some info')
+            uvutils._reraise_context('Add some info')
     ex = cm.exception
     nt.assert_equal(ex.args[1], 'Add some info: some bad problem')

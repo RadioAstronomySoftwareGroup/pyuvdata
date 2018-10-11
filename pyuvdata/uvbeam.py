@@ -947,8 +947,8 @@ class UVBeam(UVBase):
         try:
             import healpy as hp
         except ImportError:  # pragma: no cover
-            uvutils.reraise_context('healpy is not installed but is required for '
-                                    'healpix functionality')
+            uvutils._reraise_context('healpy is not installed but is required for '
+                                     'healpix functionality')
 
         if inplace:
             beam_object = self
