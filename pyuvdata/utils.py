@@ -866,9 +866,9 @@ def get_antenna_redundancies(antenna_numbers, antenna_positions, tol=1.0, includ
     return get_baseline_redundancies(bl_inds, bl_vecs, tol=tol, with_conjugates=False)
 
 
-def reraise_context(fmt, *args):
-    """Reraise an exception with its message modified to specify additional
-    context.
+def _reraise_context(fmt, *args):
+    """Reraise an exception with its message modified to specify additional context.
+
     This function tries to help provide context when a piece of code
     encounters an exception while trying to get something done, and it wishes
     to propagate contextual information farther up the call stack. It is a
@@ -876,18 +876,17 @@ def reraise_context(fmt, *args):
     provide Python 3’s `exception chaining <https://www.python.org/dev/peps/pep-3134/>`_ functionality.
     Instead of that more sophisticated infrastructure, this function just
     modifies the textual message associated with the exception being raised.
-    If only a single argument is supplied, the exception text prepended with
+    If only a single argument is supplied, the exception text is prepended with
     the stringification of that argument. If multiple arguments are supplied,
     the first argument is treated as an old-fashioned ``printf``-type
     (``%``-based) format string, and the remaining arguments are the formatted
     values.
     Borrowed from pwkit (https://github.com/pkgw/pwkit/blob/master/pwkit/__init__.py)
     Example usage::
-      from pwkit import reraise_context
-      from pwkit.io import Path
+      from pyuvdata.utils import reraise_context
       filename = 'my-filename.txt'
       try:
-        f = Path(filename).open('rt')
+        f = filename.open('rt')
         for line in f.readlines():
           # do stuff ...
       except Exception as e:
