@@ -30,9 +30,11 @@ def _get_git_output(args, capture_stderr=False):
     return data.decode('utf8')
 
 
-def _get_gitinfo_file():
+def _get_gitinfo_file(git_file=None):
     """Get saved info from GIT_INFO file that was created when installing package"""
-    git_file = os.path.join(pyuvdata_dir, 'GIT_INFO')
+    if git_file is None:
+        git_file = os.path.join(pyuvdata_dir, 'GIT_INFO')
+
     with open(git_file) as data_file:
         data = [_unicode_to_str(x) for x in json.loads(data_file.read().strip())]
         git_origin = data[0]
