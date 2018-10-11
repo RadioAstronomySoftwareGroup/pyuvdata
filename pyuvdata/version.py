@@ -9,61 +9,73 @@ import six
 import subprocess
 import json
 
+pyuvdata_dir = os.path.dirname(os.path.realpath(__file__))
+
+
+def _get_git_output(args, capture_stderr=False):
+    """Get output from Git, ensuring that it is of the ``str`` type,
+    not bytes."""
+
+    argv = ['git', '-C', pyuvdata_dir] + args
+
+    if capture_stderr:
+        data = subprocess.check_output(argv, stderr=subprocess.STDOUT)
+    else:
+        data = subprocess.check_output(argv)
+
+    data = data.strip()
+
+    if six.PY2:
+        return data
+    return data.decode('utf8')
+
+
+def _get_gitinfo_file():
+    """Get saved info from GIT_INFO file that was created when installing package"""
+    git_file = os.path.join(pyuvdata_dir, 'GIT_INFO')
+    with open(git_file) as data_file:
+        data = [_unicode_to_str(x) for x in json.loads(data_file.read().strip())]
+        git_origin = data[0]
+        git_hash = data[1]
+        git_description = data[2]
+        git_branch = data[3]
+
+    return {'git_origin': git_origin, 'git_hash': git_hash,
+            'git_description': git_description, 'git_branch': git_branch}
+
+
+def _unicode_to_str(u):
+    if six.PY2:
+        return u.encode('utf8')
+    return u
+
 
 def construct_version_info():
-    pyuvdata_dir = os.path.dirname(os.path.realpath(__file__))
-
-    def get_git_output(args, capture_stderr=False):
-        """Get output from Git, ensuring that it is of the ``str`` type,
-        not bytes."""
-
-        argv = ['git', '-C', pyuvdata_dir] + args
-
-        if capture_stderr:
-            data = subprocess.check_output(argv, stderr=subprocess.STDOUT)
-        else:
-            data = subprocess.check_output(argv)
-
-        data = data.strip()
-
-        if six.PY2:
-            return data
-        return data.decode('utf8')
-
-    def unicode_to_str(u):
-        if six.PY2:
-            return u.encode('utf8')
-        return u
 
     version_file = os.path.join(pyuvdata_dir, 'VERSION')
     with open(version_file) as f:
         version = f.read().strip()
 
+    git_origin = ''
+    git_hash = ''
+    git_description = ''
+    git_branch = ''
+
+    version_info = {'version': version, 'git_origin': '', 'git_hash': '',
+                    'git_description': '', 'git_branch': ''}
+
     try:
-        git_origin = get_git_output(['config', '--get', 'remote.origin.url'], capture_stderr=True)
-        git_hash = get_git_output(['rev-parse', 'HEAD'], capture_stderr=True)
-        git_description = get_git_output(['describe', '--dirty', '--tag', '--always'])
-        git_branch = get_git_output(['rev-parse', '--abbrev-ref', 'HEAD'], capture_stderr=True)
-        git_version = get_git_output(['describe', '--tags', '--abbrev=0'])
-    except subprocess.CalledProcessError:
+        version_info['git_origin'] = _get_git_output(['config', '--get', 'remote.origin.url'], capture_stderr=True)
+        version_info['git_hash'] = _get_git_output(['rev-parse', 'HEAD'], capture_stderr=True)
+        version_info['git_description'] = _get_git_output(['describe', '--dirty', '--tag', '--always'])
+        version_info['git_branch'] = _get_git_output(['rev-parse', '--abbrev-ref', 'HEAD'], capture_stderr=True)
+    except subprocess.CalledProcessError:  # pragma: no cover
         try:
             # Check if a GIT_INFO file was created when installing package
-            git_file = os.path.join(pyuvdata_dir, 'GIT_INFO')
-            with open(git_file) as data_file:
-                data = [unicode_to_str(x) for x in json.loads(data_file.read().strip())]
-                git_origin = data[0]
-                git_hash = data[1]
-                git_description = data[2]
-                git_branch = data[3]
+            version_info.upate(_get_gitinfo_file())
         except (IOError, OSError):
-            git_origin = ''
-            git_hash = ''
-            git_description = ''
-            git_branch = ''
+            pass
 
-    version_info = {'version': version, 'git_origin': git_origin,
-                    'git_hash': git_hash, 'git_description': git_description,
-                    'git_branch': git_branch}
     return version_info
 
 
@@ -82,5 +94,5 @@ def main():
     print('git description = {0}'.format(git_description))
 
 
-if __name__ == '__main__':
+if __name__ == '__main__':  # pragma: no cover
     main()
