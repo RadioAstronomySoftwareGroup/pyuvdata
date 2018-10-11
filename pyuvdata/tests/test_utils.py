@@ -28,45 +28,45 @@ ref_xyz = (-2562123.42683, 5094215.40141, -2848728.58869)
 
 def test_XYZ_from_LatLonAlt():
     """Test conversion from lat/lon/alt to ECEF xyz with reference values."""
-    out_xyz = pyuvdata.XYZ_from_LatLonAlt(ref_latlonalt[0], ref_latlonalt[1],
-                                          ref_latlonalt[2])
+    out_xyz = uvutils.XYZ_from_LatLonAlt(ref_latlonalt[0], ref_latlonalt[1],
+                                         ref_latlonalt[2])
     # Got reference by forcing http://www.oc.nps.edu/oc2902w/coord/llhxyz.htm
     # to give additional precision.
     nt.assert_true(np.allclose(ref_xyz, out_xyz, rtol=0, atol=1e-3))
 
     # test error checking
-    nt.assert_raises(ValueError, pyuvdata.XYZ_from_LatLonAlt, ref_latlonalt[0],
+    nt.assert_raises(ValueError, uvutils.XYZ_from_LatLonAlt, ref_latlonalt[0],
                      ref_latlonalt[1], np.array([ref_latlonalt[2], ref_latlonalt[2]]))
-    nt.assert_raises(ValueError, pyuvdata.XYZ_from_LatLonAlt, ref_latlonalt[0],
+    nt.assert_raises(ValueError, uvutils.XYZ_from_LatLonAlt, ref_latlonalt[0],
                      np.array([ref_latlonalt[1], ref_latlonalt[1]]), ref_latlonalt[2])
 
 
 def test_LatLonAlt_from_XYZ():
     """Test conversion from ECEF xyz to lat/lon/alt with reference values."""
-    out_latlonalt = pyuvdata.LatLonAlt_from_XYZ(ref_xyz)
+    out_latlonalt = uvutils.LatLonAlt_from_XYZ(ref_xyz)
     # Got reference by forcing http://www.oc.nps.edu/oc2902w/coord/llhxyz.htm
     # to give additional precision.
     nt.assert_true(np.allclose(ref_latlonalt, out_latlonalt, rtol=0, atol=1e-3))
-    nt.assert_raises(ValueError, pyuvdata.LatLonAlt_from_XYZ, ref_latlonalt)
+    nt.assert_raises(ValueError, uvutils.LatLonAlt_from_XYZ, ref_latlonalt)
 
     # test passing multiple values
     xyz_mult = np.stack((np.array(ref_xyz), np.array(ref_xyz)))
-    lat_vec, lon_vec, alt_vec = pyuvdata.LatLonAlt_from_XYZ(xyz_mult)
+    lat_vec, lon_vec, alt_vec = uvutils.LatLonAlt_from_XYZ(xyz_mult)
     nt.assert_true(np.allclose(ref_latlonalt, (lat_vec[1], lon_vec[1], alt_vec[1]), rtol=0, atol=1e-3))
     # check warning if array transposed
-    uvtest.checkWarnings(pyuvdata.LatLonAlt_from_XYZ, [xyz_mult.T],
+    uvtest.checkWarnings(uvutils.LatLonAlt_from_XYZ, [xyz_mult.T],
                          message='The expected shape of ECEF xyz array',
                          category=PendingDeprecationWarning)
     # check warning if  3 x 3 array
     xyz_3 = np.stack((np.array(ref_xyz), np.array(ref_xyz), np.array(ref_xyz)))
-    uvtest.checkWarnings(pyuvdata.LatLonAlt_from_XYZ, [xyz_3],
+    uvtest.checkWarnings(uvutils.LatLonAlt_from_XYZ, [xyz_3],
                          message='The xyz array in LatLonAlt_from_XYZ is',
                          category=PendingDeprecationWarning)
     # check error if only 2 coordinates
-    nt.assert_raises(ValueError, pyuvdata.LatLonAlt_from_XYZ, xyz_mult[:, 0:2])
+    nt.assert_raises(ValueError, uvutils.LatLonAlt_from_XYZ, xyz_mult[:, 0:2])
 
     # test error checking
-    nt.assert_raises(ValueError, pyuvdata.LatLonAlt_from_XYZ, ref_xyz[0:1])
+    nt.assert_raises(ValueError, uvutils.LatLonAlt_from_XYZ, ref_xyz[0:1])
 
 
 def test_ENU_tofrom_ECEF():
@@ -105,53 +105,53 @@ def test_ENU_tofrom_ECEF():
     up = [0.54883333, -0.35004539, -0.50007736, -0.70035299, -0.25148791, 0.33916067,
           -0.02019057, 0.16979185, 0.06945155, -0.64058124]
 
-    xyz = pyuvdata.XYZ_from_LatLonAlt(lats, lons, alts)
+    xyz = uvutils.XYZ_from_LatLonAlt(lats, lons, alts)
     nt.assert_true(np.allclose(np.stack((x, y, z), axis=1), xyz, atol=1e-3))
 
-    enu = pyuvdata.ENU_from_ECEF(xyz, center_lat, center_lon, center_alt)
+    enu = uvutils.ENU_from_ECEF(xyz, center_lat, center_lon, center_alt)
     nt.assert_true(np.allclose(np.stack((east, north, up), axis=1), enu, atol=1e-3))
     # check warning if array transposed
-    uvtest.checkWarnings(pyuvdata.ENU_from_ECEF, [xyz.T, center_lat, center_lon,
-                                                  center_alt],
+    uvtest.checkWarnings(uvutils.ENU_from_ECEF, [xyz.T, center_lat, center_lon,
+                                                 center_alt],
                          message='The expected shape of ECEF xyz array',
                          category=PendingDeprecationWarning)
     # check warning if  3 x 3 array
-    uvtest.checkWarnings(pyuvdata.ENU_from_ECEF, [xyz[0:3], center_lat, center_lon,
-                                                  center_alt],
+    uvtest.checkWarnings(uvutils.ENU_from_ECEF, [xyz[0:3], center_lat, center_lon,
+                                                 center_alt],
                          message='The xyz array in ENU_from_ECEF is',
                          category=PendingDeprecationWarning)
     # check error if only 2 coordinates
-    nt.assert_raises(ValueError, pyuvdata.ENU_from_ECEF, xyz[:, 0:2],
+    nt.assert_raises(ValueError, uvutils.ENU_from_ECEF, xyz[:, 0:2],
                      center_lat, center_lon, center_alt)
 
     # check that a round trip gives the original value.
-    xyz_from_enu = pyuvdata.ECEF_from_ENU(enu, center_lat, center_lon, center_alt)
+    xyz_from_enu = uvutils.ECEF_from_ENU(enu, center_lat, center_lon, center_alt)
     nt.assert_true(np.allclose(xyz, xyz_from_enu, atol=1e-3))
     # check warning if array transposed
-    uvtest.checkWarnings(pyuvdata.ECEF_from_ENU, [enu.T, center_lat, center_lon,
-                                                  center_alt],
+    uvtest.checkWarnings(uvutils.ECEF_from_ENU, [enu.T, center_lat, center_lon,
+                                                 center_alt],
                          message='The expected shape the ENU array',
                          category=PendingDeprecationWarning)
     # check warning if  3 x 3 array
-    uvtest.checkWarnings(pyuvdata.ECEF_from_ENU, [enu[0:3], center_lat, center_lon,
-                                                  center_alt],
+    uvtest.checkWarnings(uvutils.ECEF_from_ENU, [enu[0:3], center_lat, center_lon,
+                                                 center_alt],
                          message='The enu array in ECEF_from_ENU is',
                          category=PendingDeprecationWarning)
     # check error if only 2 coordinates
-    nt.assert_raises(ValueError, pyuvdata.ENU_from_ECEF, enu[:, 0:2], center_lat,
+    nt.assert_raises(ValueError, uvutils.ENU_from_ECEF, enu[:, 0:2], center_lat,
                      center_lon, center_alt)
 
     # check passing a single value
-    enu_single = pyuvdata.ENU_from_ECEF(xyz[0, :], center_lat, center_lon, center_alt)
+    enu_single = uvutils.ENU_from_ECEF(xyz[0, :], center_lat, center_lon, center_alt)
     nt.assert_true(np.allclose(np.array((east[0], north[0], up[0])), enu[0, :], atol=1e-3))
 
-    xyz_from_enu = pyuvdata.ECEF_from_ENU(enu_single, center_lat, center_lon, center_alt)
+    xyz_from_enu = uvutils.ECEF_from_ENU(enu_single, center_lat, center_lon, center_alt)
     nt.assert_true(np.allclose(xyz[0, :], xyz_from_enu, atol=1e-3))
 
     # error checking
-    nt.assert_raises(ValueError, pyuvdata.ENU_from_ECEF, xyz[:, 0:1], center_lat, center_lon, center_alt)
-    nt.assert_raises(ValueError, pyuvdata.ECEF_from_ENU, enu[:, 0:1], center_lat, center_lon, center_alt)
-    nt.assert_raises(ValueError, pyuvdata.ENU_from_ECEF, xyz / 2., center_lat, center_lon, center_alt)
+    nt.assert_raises(ValueError, uvutils.ENU_from_ECEF, xyz[:, 0:1], center_lat, center_lon, center_alt)
+    nt.assert_raises(ValueError, uvutils.ECEF_from_ENU, enu[:, 0:1], center_lat, center_lon, center_alt)
+    nt.assert_raises(ValueError, uvutils.ENU_from_ECEF, xyz / 2., center_lat, center_lon, center_alt)
 
 
 def test_mwa_ecef_conversion():

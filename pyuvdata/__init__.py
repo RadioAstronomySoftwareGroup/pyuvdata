@@ -11,7 +11,6 @@ from .uvdata import *
 from .telescopes import *
 from .uvcal import *
 from .uvbeam import *
-from .utils import *  # consider removing this import
 from . import version
 
 __version__ = version.version
