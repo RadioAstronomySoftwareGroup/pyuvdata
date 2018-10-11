@@ -77,7 +77,7 @@ issue log after verifying that the issue does not already exist.
 Comments on existing issues are also welcome.
 
 # Versioning
-We use a `generation.major.minor` version number format, and do not follow semantic versioning. Instead, we use the `generation` number to ideological changes, very significant improvements or major rewrites, the `major` number to indicate substantial package changes and the `minor` number to release smaller incremental updates. We do our best to provide a significant period of deprecation warnings for all breaking changes to the API. We track all changes in our [changelog](https://github.com/RadioAstronomySoftwareGroup/pyuvdata/blob/master/CHANGELOG.md).
+We use a `generation.major.minor` version number format, and do not follow semantic versioning. Instead, we use the `generation` number for very significant improvements or major rewrites, the `major` number to indicate substantial package changes and the `minor` number to release smaller incremental updates (which usually do not include breaking API changes). We do our best to provide a significant period of deprecation warnings for all breaking changes to the API. We track all changes in our [changelog](https://github.com/RadioAstronomySoftwareGroup/pyuvdata/blob/master/CHANGELOG.md).
 
 # Documentation
 A tutorial with example usage and developer API documentation is hosted on [ReadTheDocs](https://pyuvdata.readthedocs.io).
