@@ -15,13 +15,41 @@ import subprocess
 import json
 
 import pyuvdata
+from pyuvdata.data import DATA_PATH
+
+
+def test_get_gitinfo_file():
+    pyuvdata_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+
+    git_file = os.path.join(pyuvdata_dir, 'GIT_INFO')
+    if not os.path.exists(git_file):
+        # write a file to read in
+        git_file = os.path.join(DATA_PATH, 'test/GIT_INFO')
+        version_info = pyuvdata.version.construct_version_info()
+        data = [version_info.git_origin, version_info.git_hash,
+                version_info.git_description, version_info.git_branch]
+        with open(git_file, 'w') as outfile:
+            json.dump(data, outfile)
+
+    with open(git_file) as data_file:
+        data = [pyuvdata.version._unicode_to_str(x) for x in json.loads(data_file.read().strip())]
+        git_origin = data[0]
+        git_hash = data[1]
+        git_description = data[2]
+        git_branch = data[3]
+
+    test_file_info = {'git_origin': git_origin, 'git_hash': git_hash,
+                      'git_description': git_description, 'git_branch': git_branch}
+
+    file_info = pyuvdata.version._get_gitinfo_file()
+
+    nt.assert_equal(file_info, test_file_info)
 
 
 def test_construct_version_info():
     # this test is a bit silly because it uses the nearly the same code as the original,
     # but it will detect accidental changes that could cause problems.
     # It does test that the __version__ attribute is set on pyuvdata.
-    # I can't figure out how to test the except clause in construct_version_info.
 
     # this line is modified from the main implementation since we're in pyuvdata/tests/
     pyuvdata_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
