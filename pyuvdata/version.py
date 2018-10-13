@@ -74,7 +74,7 @@ def construct_version_info():
     except subprocess.CalledProcessError:  # pragma: no cover
         try:
             # Check if a GIT_INFO file was created when installing package
-            version_info.upate(_get_gitinfo_file())
+            version_info.update(_get_gitinfo_file())
         except (IOError, OSError):
             pass
 
