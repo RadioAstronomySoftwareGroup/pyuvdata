@@ -56,31 +56,34 @@ class MS(UVData):
         message_str = ''  # string to store usual uvdata history
         history_str = 'APP_PARAMS;CLI_COMMAND;APPLICATION;MESSAGE;OBJECT_ID;OBSERVATION_ID;ORIGIN;PRIORITY;TIME\n'
         # string to store special casa history
-        app_params = history_table.getcol('APP_PARAMS')['array']
-        cli_command = history_table.getcol('CLI_COMMAND')['array']
-        application = history_table.getcol('APPLICATION')
-        message = history_table.getcol('MESSAGE')
-        obj_id = history_table.getcol('OBJECT_ID')
-        obs_id = history_table.getcol('OBSERVATION_ID')
-        origin = history_table.getcol('ORIGIN')
-        priority = history_table.getcol('PRIORITY')
-        times = history_table.getcol('TIME')
-        # Now loop through columns and generate history string
-        ntimes = len(times)
-        for tbrow in range(ntimes):
-            message_str += str(message[tbrow])
-            newline = str(app_params[tbrow]) \
-                + ';' + str(cli_command[tbrow]) \
-                + ';' + str(application[tbrow]) \
-                + ';' + str(message[tbrow]) \
-                + ';' + str(obj_id[tbrow]) \
-                + ';' + str(obs_id[tbrow]) \
-                + ';' + str(origin[tbrow]) \
-                + ';' + str(priority[tbrow]) \
-                + ';' + str(times[tbrow]) + '\n'
-            history_str += newline
-            if tbrow < ntimes - 1:
-                message_str += '\n'
+
+        # Do not touch the history table if it has no information
+        if history_table.nrows() > 0:
+            app_params = history_table.getcol('APP_PARAMS')['array']
+            cli_command = history_table.getcol('CLI_COMMAND')['array']
+            application = history_table.getcol('APPLICATION')
+            message = history_table.getcol('MESSAGE')
+            obj_id = history_table.getcol('OBJECT_ID')
+            obs_id = history_table.getcol('OBSERVATION_ID')
+            origin = history_table.getcol('ORIGIN')
+            priority = history_table.getcol('PRIORITY')
+            times = history_table.getcol('TIME')
+            # Now loop through columns and generate history string
+            ntimes = len(times)
+            for tbrow in range(ntimes):
+                message_str += str(message[tbrow])
+                newline = str(app_params[tbrow]) \
+                    + ';' + str(cli_command[tbrow]) \
+                    + ';' + str(application[tbrow]) \
+                    + ';' + str(message[tbrow]) \
+                    + ';' + str(obj_id[tbrow]) \
+                    + ';' + str(obs_id[tbrow]) \
+                    + ';' + str(origin[tbrow]) \
+                    + ';' + str(priority[tbrow]) \
+                    + ';' + str(times[tbrow]) + '\n'
+                history_str += newline
+                if tbrow < ntimes - 1:
+                    message_str += '\n'
 
         def is_not_ascii(s):
             return any(ord(c) >= 128 for c in s)
@@ -284,7 +287,13 @@ class MS(UVData):
 
         if not uvutils._check_history_version(self.history, self.pyuvdata_version_str):
             self.history += self.pyuvdata_version_str
-        self.nsample_array = tb.getcol('WEIGHT_SPECTRUM')
+        # 'WEIGHT_SPECTRUM' is optional - some files may not have per-channel values
+        if 'WEIGHT_SPECTRUM' in tb.colnames():
+            self.nsample_array = tb.getcol('WEIGHT_SPECTRUM')
+        else:
+            self.nsample_array = tb.getcol('WEIGHT')
+            # Propagate the weights in frequency
+            self.nsample_array = np.stack([self.nsample_array for chan in range(self.Nfreqs)], axis=1)
         if(len(self.nsample_array.shape) == 3):
             self.nsample_array = np.expand_dims(self.nsample_array, axis=1)
         self.object_name = tbField.getcol('NAME')[0]
