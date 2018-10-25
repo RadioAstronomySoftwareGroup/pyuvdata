@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 - option to save splines for reuse in UVBeam.interp function
 
 ### Changed
+- improve string handling for uvh5 files
 - changed top-level import structure to exclude file-specific class (e.g. `UVFITS`, `CALFITS`) and base classes (`UVBase`, `UVParameter`) and to not import utility functions into the top-level namespace
 
 ### Deprecated
