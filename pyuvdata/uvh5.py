@@ -22,6 +22,29 @@ except ImportError:  # pragma: no cover
                              'uvh5 functionality')
 
 
+def _read_uvh5_string(dataset, filename):
+    """
+    Handle backwards compatibility of string types for legacy uvh5 files.
+
+    Args:
+        dataset: HDF5 dataset containing string-like data
+        filename: name of uvh5 file
+
+    Returns:
+        string: string of type <str> corresponding to data saved in dataset
+
+    Notes:
+        This function is only designed to work on scalar datasets. Arrays of strings should be
+        handled differently. (See how antenna_names are handled below for an example.)
+    """
+    if dataset.dtype.type is np.object_:
+        warnings.warn("Strings in metadata of {file} are not the correct type; rewrite with "
+                      "write_uvh5 to ensure future compatibility".format(file=filename))
+        return uvutils._bytes_to_str(dataset.value)
+    else:
+        return uvutils._bytes_to_str(dataset.value.tostring())
+
+
 class UVH5(UVData):
     """
     Defines an HDF5-specific subclass of UVData for reading and writing uvh5 files.
@@ -44,19 +67,19 @@ class UVH5(UVData):
         longitude = header['longitude'].value
         altitude = header['altitude'].value
         self.telescope_location_lat_lon_alt = (latitude, longitude, altitude)
-        self.instrument = uvutils._bytes_to_str(header['instrument'].value.tostring())
+        self.instrument = _read_uvh5_string(header['instrument'], filename)
 
         # get source information
-        self.object_name = uvutils._bytes_to_str(header['object_name'].value.tostring())
+        self.object_name = _read_uvh5_string(header['object_name'], filename)
 
         # set history appropriately
-        self.history = uvutils._bytes_to_str(header['history'].value.tostring())
+        self.history = _read_uvh5_string(header['history'], filename)
         if not uvutils._check_history_version(self.history, self.pyuvdata_version_str):
             self.history += self.pyuvdata_version_str
 
         # check for vis_units
         if 'vis_units' in header:
-            self.vis_units = uvutils._bytes_to_str(header['vis_units'].value.tostring())
+            self.vis_units = _read_uvh5_string(header['vis_units'], filename)
         else:
             # default to uncalibrated data
             self.vis_units = 'UNCALIB'
@@ -69,13 +92,13 @@ class UVH5(UVData):
         if 'gst0' in header:
             self.gst0 = float(header['gst0'].value)
         if 'rdate' in header:
-            self.rdate = uvutils._bytes_to_str(header['rdate'].value.tostring())
+            self.rdate = _read_uvh5_string(header['rdate'], filename)
         if 'timesys' in header:
-            self.timesys = uvutils._bytes_to_str(header['timesys'].value.tostring())
+            self.timesys = _read_uvh5_string(header['timesys'], filename)
         if 'x_orientation' in header:
-            self.x_orientation = uvutils._bytes_to_str(header['x_orientation'].value.tostring())
+            self.x_orientation = _read_uvh5_string(header['x_orientation'], filename)
         if 'telescope_name' in header:
-            self.telescope_name = uvutils._bytes_to_str(header['telescope_name'].value.tostring())
+            self.telescope_name = _read_uvh5_string(header['telescope_name'], filename)
         if 'antenna_positions' in header:
             self.antenna_positions = header['antenna_positions'].value
         if 'antenna_diameters' in header:
@@ -84,14 +107,14 @@ class UVH5(UVData):
             self.uvplane_reference_time = int(header['uvplane_reference_time'].value)
 
         # check for phasing information
-        self.phase_type = uvutils._bytes_to_str(header['phase_type'].value.tostring())
+        self.phase_type = _read_uvh5_string(header['phase_type'], filename)
         if self.phase_type == 'phased':
             self.set_phased()
             self.phase_center_ra = float(header['phase_center_ra'].value)
             self.phase_center_dec = float(header['phase_center_dec'].value)
             self.phase_center_epoch = float(header['phase_center_epoch'].value)
             if 'phase_center_frame' in header:
-                self.phase_center_frame = uvutils._bytes_to_str(header['phase_center_frame'].value.tostring())
+                self.phase_center_frame = _read_uvh5_string(header['phase_center_frame'], filename)
         elif self.phase_type == 'drift':
             self.set_drift()
         else:
@@ -160,7 +183,7 @@ class UVH5(UVData):
             self.extra_keywords = {}
             for key in header["extra_keywords"].keys():
                 if header["extra_keywords"][key].dtype.type is np.string_:
-                    self.extra_keywords[key] = uvutils._bytes_to_str(header["extra_keywords"][key].value.tostring())
+                    self.extra_keywords[key] = _read_uvh5_string(header["extra_keywords"][key], filename)
                 else:
                     self.extra_keywords[key] = header["extra_keywords"][key].value
 
