@@ -23,7 +23,7 @@ install:
   - export PATH="$HOME/miniconda/bin:$PATH"
   - hash -r
   - conda config --set always_yes yes --set changeps1 no
-  - conda install -c anaconda -y 'libgfortran-ng =7.2.0'
+  - conda install -c defaults -y 'libgfortran =3.0.0' 'libgfortran-ng =7.2.0'
   - conda config --remove channels defaults && conda config --add channels conda-forge
   - conda update -q conda
   # Useful for debugging any issues with conda
