@@ -451,7 +451,7 @@ class UVH5(UVData):
         if self.extra_keywords:
             extra_keywords = header.create_group("extra_keywords")
             for k in self.extra_keywords.keys():
-                if isinstance(self.extra_keywords[k], six.text_type):
+                if isinstance(self.extra_keywords[k], str):
                     extra_keywords[k] = np.string_(self.extra_keywords[k])
                 else:
                     extra_keywords[k] = self.extra_keywords[k]
