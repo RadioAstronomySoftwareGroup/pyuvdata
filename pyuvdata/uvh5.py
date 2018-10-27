@@ -186,7 +186,7 @@ class UVH5(UVData):
         if "extra_keywords" in header:
             self.extra_keywords = {}
             for key in header["extra_keywords"].keys():
-                if header["extra_keywords"][key].dtype.type is np.string_:
+                if header["extra_keywords"][key].dtype.type in (np.string_, np.object_):
                     self.extra_keywords[key] = _read_uvh5_string(header["extra_keywords"][key], filename)
                 else:
                     self.extra_keywords[key] = header["extra_keywords"][key].value
