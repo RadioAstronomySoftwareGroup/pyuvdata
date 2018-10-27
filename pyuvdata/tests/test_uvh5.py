@@ -916,3 +916,65 @@ def test_UVH5LstArray():
     os.remove(testfile)
 
     return
+
+
+@uvtest.skipIf_no_h5py
+def test_UVH5StringBackCompat():
+    """
+    Test backwards compatibility handling of strings
+    """
+    uv_in = UVData()
+    uv_out = UVData()
+    uvfits_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    testfile = os.path.join(DATA_PATH, 'test', 'outtest_uvfits.uvh5')
+    uvtest.checkWarnings(uv_in.read_uvfits, [uvfits_file], message='Telescope EVLA is not')
+    uv_in.write_uvh5(testfile, clobber=True)
+
+    # write a string-type data as-is, without casting to np.string_
+    with h5py.File(testfile, 'r+') as f:
+        del(f['Header/instrument'])
+        f['Header/instrument'] = uv_in.instrument
+    uvtest.checkWarnings(uv_out.read_uvh5, [testfile],
+                         message='Strings in metadata of outtest_uvfits.uvh5 are not the correct type')
+    nt.assert_equal(uv_in, uv_out)
+
+    # clean up
+    os.remove(testfile)
+
+    return
+
+
+@uvtest.skipIf_no_h5py
+def test_UVH5ReadHeaderSpecialCases():
+    """
+    Test special cases values when reading files
+    """
+    uv_in = UVData()
+    uv_out = UVData()
+    uvfits_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    testfile = os.path.join(DATA_PATH, 'test', 'outtest_uvfits.uvh5')
+    uvtest.checkWarnings(uv_in.read_uvfits, [uvfits_file], message='Telescope EVLA is not')
+    uv_in.write_uvh5(testfile, clobber=True)
+
+    # change some of the metadata to trip certain if/else clauses
+    with h5py.File(testfile, 'r+') as f:
+        del(f['Header/history'])
+        del(f['Header/vis_units'])
+        del(f['Header/phase_type'])
+        f['Header/history'] = np.string_('blank history')
+        f['Header/phase_type'] = np.string_('blah')
+    uv_out.read_uvh5(testfile)
+
+    # make input and output values match now
+    uv_in.history = uv_out.history
+    uv_in.set_unknown_phase_type()
+    uv_in.phase_center_ra = None
+    uv_in.phase_center_dec = None
+    uv_in.phase_center_epoch = None
+    uv_in.vis_units = 'UNCALIB'
+    nt.assert_equal(uv_in, uv_out)
+
+    # clean up
+    os.remove(testfile)
+
+    return

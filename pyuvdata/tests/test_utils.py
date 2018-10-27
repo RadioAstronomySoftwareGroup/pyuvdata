@@ -10,6 +10,7 @@ from __future__ import absolute_import, division, print_function
 import os
 import nose.tools as nt
 import numpy as np
+import six
 from astropy import units
 from astropy.time import Time
 from astropy.coordinates import SkyCoord, Angle
@@ -466,3 +467,19 @@ def test_reraise_context():
             uvutils._reraise_context('Add some info')
     ex = cm.exception
     nt.assert_equal(ex.args[1], 'Add some info: some bad problem')
+
+
+def test_str_to_bytes():
+    test_str = 'HERA'
+    test_bytes = uvutils._str_to_bytes(test_str)
+    nt.assert_equal(type(test_bytes), six.binary_type)
+    nt.assert_equal(test_bytes, b'\x48\x45\x52\x41')
+    return
+
+
+def test_bytes_to_str():
+    test_bytes = b'\x48\x45\x52\x41'
+    test_str = uvutils._bytes_to_str(test_bytes)
+    nt.assert_equal(type(test_str), str)
+    nt.assert_equal(test_str, 'HERA')
+    return

@@ -40,7 +40,11 @@ def _read_uvh5_string(dataset, filename):
     if dataset.dtype.type is np.object_:
         warnings.warn("Strings in metadata of {file} are not the correct type; rewrite with "
                       "write_uvh5 to ensure future compatibility".format(file=filename))
-        return uvutils._bytes_to_str(dataset.value)
+        try:
+            return uvutils._bytes_to_str(dataset.value)
+        except AttributeError:
+            # dataset.value is already <str> type, and doesn't need to be decoded
+            return dataset.value
     else:
         return uvutils._bytes_to_str(dataset.value.tostring())
 
