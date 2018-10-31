@@ -50,7 +50,7 @@ def _read_uvh5_string(dataset, filename):
 
 
 # define HDF5 type for interpreting HERA correlator outputs (integers) as compelx floats
-hera_corr_dtype = np.dtype([('r', np.int32), ('i', np.int32)])
+_hera_corr_dtype = np.dtype([('r', np.int32), ('i', np.int32)])
 
 
 def _unpack_to_complex(dset, dtype_in, dtype_out=np.complex64):
@@ -69,10 +69,9 @@ def _unpack_to_complex(dset, dtype_in, dtype_out=np.complex64):
     if dtype_out not in (complex, np.complex64, np.complex128):
         raise ValueError("output datatype must be one of (complex, np.complex64, np.complex128)")
     output_array = np.empty(dset.shape, dtype=dtype_out)
-    data = dset.astype(dtype_in)
-    output_array.real = data['r']
-    output_array.imag = data['i']
-    del(data)
+    with dset.astype(dtype_in):
+        output_array.real = dset['r']
+        output_array.imag = dset['i']
 
     return output_array
 
@@ -287,7 +286,7 @@ class UVH5(UVData):
         if min_frac == 1:
             # no select, read in all the data
             if unpack_ints:
-                self.data_array = _unpack_to_complex(dgrp['visdata'], hera_corr_type, np.complex64)
+                self.data_array = _unpack_to_complex(dgrp['visdata'], _hera_corr_dtype, np.complex64)
             else:
                 self.data_array = dgrp['visdata'].value
             self.flag_array = dgrp['flags'].value
