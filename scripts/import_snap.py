@@ -35,7 +35,7 @@ data=np.load(args.data)
 #instatiate uvdata object
 data_uv=UVData()
 data_uv.Ntimes=len(data['times'])
-data_uv.Nbls=len(data['antenna_pairs'])
+data_uv.Nbls=len(data['ant1_array'])
 data_uv.Nblts=data_uv.Ntimes*data_uv.Nbls
 data_uv.Nfreqs=len(data['frequencies'])
 data_uv.Npols=len(data['polarizations'])
@@ -63,6 +63,7 @@ data_uv.data_array=data['data']
 
 #Translate antenna locations
 my_handle=Handling()
+#print(data['times'][0])
 begintime=Time(data['times'][0],format='unix')
 antenna_configuration=my_handle.get_all_fully_connected_at_date(begintime)
 #get antenna numbers
@@ -81,21 +82,28 @@ all_antennas_xyz=[]
 
 enu_datum=['WGS84']
 for connection in antenna_configuration:
-    antnum=connection['antenna_number']
-    antname=connection['station_name']
-    ant_lla=(np.radians(connection['latitude']),
-             np.radians(connection['longitude']),
-              connection['elevation'])
+    #print('connection')
+    #print(connection.antenna_number)
+    #antnum=connection['antenna_number']
+    antnum = connection.antenna_number
+    #antname=connection['station_name']
+    antname = connection.station_name
+    #ant_lla=(np.radians(connection['latitude']),
+    #         np.radians(connection['longitude']),
+    #        connection['elevation'])
+    ant_lla=(np.radians(connection.lat),
+             np.radians(connection.lon),
+            connection.elevation)
     ant_xyz=utils.XYZ_from_LatLonAlt(ant_lla[0],ant_lla[1],ant_lla[2])
-    ant_enu=(connection['easting'],
-             connection['northing'],
-             connection['elevation'])
+    ant_enu=(connection.easting,
+             connection.northing,
+             connection.elevation)
     all_antnums.append(antnum)
     all_antnames.append(antname)
     all_antennas_lla[antnum]=np.array(ant_lla)
     all_antennas_enu[antnum]=np.array(ant_enu)
     all_antennas_xyz.append(np.array(ant_xyz))
-    if connection['antenna_number'] in config['ANTENNA_NUMBERS']:
+    if connection.antenna_number in config['ANTENNA_NUMBERS']:
         data_antnums.append(antnum)
         data_antnames.append(antname)
         data_antennas_lla.append(ant_lla)
@@ -143,6 +151,7 @@ data_uv.time_array=jd_times
 data_uv.object_name=config['OBJECT_NAME']
 data_uv.history='Imported data from Snap correlation file.'
 data_uv.phase_type='drift'
+#print(data_uv.time_array)
 data_uv.set_lsts_from_time_array()
 lat,lon,alt = data_uv.telescope_location_lat_lon_alt_degrees
 observatory=EarthLocation(lat=lat * u.degree,lon=lon * u.degree,height=alt * u.m)
