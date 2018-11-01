@@ -5,6 +5,7 @@
     1. The first number is for very large changes which might happen every couple of years (e.g. 1.0).
     2. The second number is for regular releases, our goal is to issue these ~3-4 times per year.
     3. The third number is for small patches to fix issues. These happen as needed to get critical fixes onto PyPI and conda-forge.
+2. update the changelog to put all the unreleased changes under the new version (leaving the unreleased section empty).
 2. Make a PR for the version change and get it accepted & merged. Only make a PyPI distribution from a clean master branch (no local changes).
 3. make the distribution: python setup.py sdist
 4. upload to test site: twine upload --repository testpypi dist/*

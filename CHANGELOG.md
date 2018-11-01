@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
+
+## [1.3.3] - 2018-11-01
 ### Added
 - option to save splines for reuse in UVBeam.interp function
 
