@@ -633,6 +633,33 @@ def conj_pol(pol):
     return cpol
 
 
+def reorder_conj_pols(pols):
+    """
+    Reorders a list of pols, swapping pols that are conjugates of one another.
+    For example ('xx', 'xy', 'yx', 'yy') -> ('xx', 'yx', 'xy', 'yy')
+    This is useful for the _key2inds function in the case where an antenna
+    pair is specified but the conjugate pair exists in the data. The conjugated
+    data should be returned in the order of the polarization axis, so after conjugating
+    the data, the pols need to be reordered.
+    For example, if a file contains antpair (0, 1) and pols 'xy' and 'yx', but
+    the user requests antpair (1, 0), they should get:
+    [(1x, 0y), (1y, 0x)] = [conj(0y, 1x), conj(0x, 1y)]
+
+    Args:
+        pols: Polarization array (strings or ints)
+
+    Returns:
+        conj_order: Indices to reorder polarization axis
+    """
+    if not isinstance(pols, collections.Iterable):
+        raise ValueError('reorder_conj_pols must be given an array of polarizations.')
+    cpols = np.array([conj_pol(p) for p in pols])  # Array needed for np.where
+    conj_order = [np.where(cpols == p)[0][0] if p in cpols else -1 for p in pols]
+    if -1 in conj_order:
+        raise ValueError('Not all conjugate pols exist in the polarization array provided.')
+    return conj_order
+
+
 def check_history_version(history, version_string):
     warnings.warn('The check_history_version function is deprecated in favor of '
                   '_check_history_version because it is not API level code', DeprecationWarning)
