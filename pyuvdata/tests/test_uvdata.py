@@ -1667,6 +1667,41 @@ def test_key2inds():
     nt.assert_true(np.array_equal(ind2, []))
 
 
+def test_key2inds_conj_all_pols():
+    # Test function to interpret key as antpair, pol
+    uv = UVData()
+    testfile = os.path.join(
+        DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    uvtest.checkWarnings(uv.read_uvfits, [testfile],
+                         message='Telescope EVLA is not')
+
+    ant1 = uv.ant_1_array[0]
+    ant2 = uv.ant_2_array[0]
+    bltind = np.where((uv.ant_1_array == ant1) & (uv.ant_2_array == ant2))[0]
+    ind1, ind2, indp = uv._key2inds((ant2, ant1))
+
+    # Pols in data are 'rr', 'll', 'rl', 'lr'
+    # So conjugated order should be [0, 1, 3, 2]
+    nt.assert_true(np.array_equal(bltind, ind2))
+    nt.assert_true(np.array_equal(np.array([]), ind1))
+    nt.assert_true(np.array_equal(np.array([]), indp[0]))
+    nt.assert_true(np.array_equal([0, 1, 3, 2], indp[1]))
+
+
+def test_key2inds_conj_all_pols_missing_data():
+    # Test function to interpret key as antpair, pol
+    uv = UVData()
+    testfile = os.path.join(
+        DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    uvtest.checkWarnings(uv.read_uvfits, [testfile],
+                         message='Telescope EVLA is not')
+    uv.select(polarizations=['rl'])
+    ant1 = uv.ant_1_array[0]
+    ant2 = uv.ant_2_array[0]
+
+    nt.assert_raises(KeyError, uv._key2inds, (ant2, ant1))
+
+
 def test_smart_slicing():
     # Test function to slice data
     uv = UVData()
