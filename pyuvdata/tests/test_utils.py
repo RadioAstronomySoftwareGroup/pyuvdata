@@ -483,3 +483,24 @@ def test_bytes_to_str():
     nt.assert_equal(type(test_str), str)
     nt.assert_equal(test_str, 'HERA')
     return
+
+
+def test_reorder_conj_pols_non_list():
+    nt.assert_raises(ValueError, uvutils.reorder_conj_pols, 4)
+
+
+def test_reorder_conj_pols_strings():
+    pols = ['xx', 'xy', 'yx']
+    corder = uvutils.reorder_conj_pols(pols)
+    nt.assert_true(np.array_equal(corder, [0, 2, 1]))
+
+
+def test_reorder_conj_pols_ints():
+    pols = [-5, -7, -8]  # 'xx', 'xy', 'yx'
+    corder = uvutils.reorder_conj_pols(pols)
+    nt.assert_true(np.array_equal(corder, [0, 2, 1]))
+
+
+def test_reorder_conj_pols_missing_conj():
+    pols = ['xx', 'xy']  # Missing 'yx'
+    nt.assert_raises(ValueError, uvutils.reorder_conj_pols, pols)
