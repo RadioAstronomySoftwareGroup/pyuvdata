@@ -2619,6 +2619,7 @@ class UVData(UVBase):
                                            + ' array in data.'.format(bl=key))
                         else:
                             pol_ind2 = np.array([], dtype=np.int64)
+                            blt_ind2 = np.array([], dtype=np.int64)
                 else:
                     pol_ind2 = np.array([], dtype=np.int64)
                 pol_ind = (pol_ind1, pol_ind2)
@@ -2641,6 +2642,7 @@ class UVData(UVBase):
                                        + ' array in data.'.format(bl=key))
                     else:
                         pol_ind2 = np.array([], dtype=np.int64)
+                        blt_ind2 = np.array([], dtype=np.int64)
             else:
                 pol_ind2 = np.array([], dtype=np.int64)
             pol_ind = (pol_ind1, pol_ind2)
