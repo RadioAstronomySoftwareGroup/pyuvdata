@@ -2606,14 +2606,44 @@ class UVData(UVBase):
                 blt_ind2 = np.where(self.baseline_array == inv_bl)[0]
                 if len(blt_ind1) + len(blt_ind2) == 0:
                     raise KeyError('Baseline {bl} not found in data.'.format(bl=key))
-                pol_ind = (np.arange(self.Npols), np.arange(self.Npols))
+                if len(blt_ind1) > 0:
+                    pol_ind1 = np.arange(self.Npols)
+                else:
+                    pol_ind1 = np.array([], dtype=np.int64)
+                if len(blt_ind2) > 0:
+                    try:
+                        pol_ind2 = uvutils.reorder_conj_pols(self.polarization_array)
+                    except ValueError:
+                        if len(blt_ind1) == 0:
+                            raise KeyError('Baseline {bl} not found for polarization'
+                                           + ' array in data.'.format(bl=key))
+                        else:
+                            pol_ind2 = np.array([], dtype=np.int64)
+                else:
+                    pol_ind2 = np.array([], dtype=np.int64)
+                pol_ind = (pol_ind1, pol_ind2)
         elif len(key) == 2:
             # Key is an antenna pair
             blt_ind1 = self.antpair2ind(key[0], key[1])
             blt_ind2 = self.antpair2ind(key[1], key[0])
             if len(blt_ind1) + len(blt_ind2) == 0:
                 raise KeyError('Antenna pair {pair} not found in data'.format(pair=key))
-            pol_ind = (np.arange(self.Npols), np.arange(self.Npols))
+            if len(blt_ind1) > 0:
+                pol_ind1 = np.arange(self.Npols)
+            else:
+                pol_ind1 = np.array([], dtype=np.int64)
+            if len(blt_ind2) > 0:
+                try:
+                    pol_ind2 = uvutils.reorder_conj_pols(self.polarization_array)
+                except ValueError:
+                    if len(blt_ind1) == 0:
+                        raise KeyError('Baseline {bl} not found for polarization'
+                                       + ' array in data.'.format(bl=key))
+                    else:
+                        pol_ind2 = np.array([], dtype=np.int64)
+            else:
+                pol_ind2 = np.array([], dtype=np.int64)
+            pol_ind = (pol_ind1, pol_ind2)
         elif len(key) == 3:
             # Key is an antenna pair + pol
             blt_ind1 = self.antpair2ind(key[0], key[1])
