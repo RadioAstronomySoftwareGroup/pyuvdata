@@ -7,7 +7,7 @@ import numpy as np
 import yaml
 import argparse
 from pyuvdata import UVData
-from pyuvdata import polstr2num
+from pyuvdata.utils import polstr2num
 import pyuvdata.utils as utils
 from astropy.time import Time
 import copy
@@ -34,9 +34,8 @@ data=np.load(args.data)
 
 #instatiate uvdata object
 data_uv=UVData()
-data_uv.Ntimes=len(data['times'])
-data_uv.Nbls=len(data['ant1_array'])
-data_uv.Nblts=data_uv.Ntimes*data_uv.Nbls
+data_uv.Ntimes=len(data['times'][::4])
+data_uv.Nblts = len(data['ant1_array'])
 data_uv.Nfreqs=len(data['frequencies'])
 data_uv.Npols=len(data['polarizations'])
 data_uv.vis_units='uncalib'
@@ -55,12 +54,12 @@ data_uv.freq_array[0,:]=data['frequencies']
 #channel width
 data_uv.channel_width=data_uv.freq_array[0,1]-data_uv.freq_array[0,0]
 #!!!Does the snap board have a 100% duty cycle? Probably not quite...
-data_uv.integration_time=data['times'][1]-data['times'][0]
+data_uv.integration_time=data['times'][1::4]-data['times'][0::4]
 #convert to Nblt ordering
 data_uv.data_array=np.zeros((data_uv.Nblts,data_uv.Nspws,data_uv.Nfreqs,data_uv.Npols),
                              dtype=complex)
-data_uv.data_array=data['data']
-
+for nblt in range(data_uv.Nblts):
+    data_uv.data_array[nblt,0,:,:] = data['data'][nblt,:,:]
 #Translate antenna locations
 my_handle=Handling()
 #print(data['times'][0])
@@ -99,13 +98,13 @@ for connection in antenna_configuration:
              connection.northing,
              connection.elevation)
     all_antnums.append(antnum)
-    all_antnames.append(antname)
+    all_antnames.append(str(antname))
     all_antennas_lla[antnum]=np.array(ant_lla)
     all_antennas_enu[antnum]=np.array(ant_enu)
     all_antennas_xyz.append(np.array(ant_xyz))
     if connection.antenna_number in config['ANTENNA_NUMBERS']:
         data_antnums.append(antnum)
-        data_antnames.append(antname)
+        data_antnames.append(str(antname))
         data_antennas_lla.append(ant_lla)
         data_antennas_enu.append(ant_enu)
         data_antennas_xyz.append(ant_xyz)
@@ -141,13 +140,13 @@ for ai,ant1,ant2 in zip(range(data_uv.Nblts),
     data_uv.uvw_array[ai]=all_antennas_enu[ant2]-all_antennas_enu[ant1]
 data_uv.baseline_array=\
 (2048*(data_uv.ant_1_array+1)+(data_uv.ant_2_array+1)+2**16).astype(np.int64)
+data_uv.Nbls = len(np.unique(data_uv.baseline_array))
 #print(data_uv.Nants_data)
 #print(np.unique(data_uv.ant_1_array))
 #print(np.unique(data_uv.ant_2_array))
-
 #create time array, convert to julian days
 jd_times=Time(data['times'],format='unix').jd
-data_uv.time_array=jd_times
+data_uv.time_array=jd_times[::4]
 data_uv.object_name=config['OBJECT_NAME']
 data_uv.history='Imported data from Snap correlation file.'
 data_uv.phase_type='drift'
