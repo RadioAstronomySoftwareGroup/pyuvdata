@@ -479,6 +479,14 @@ def test_miriad_extra_keywords():
     uv_in.extra_keywords.pop('float1')
     uv_in.extra_keywords.pop('float2')
 
+    # check handling of very long strings
+    long_string = 'this is a very long string ' * 1000
+    uv_in.extra_keywords['longstr'] = long_string
+    uv_in.write_miriad(testfile, clobber=True)
+    uv_out.read(testfile)
+    nt.assert_equal(uv_in, uv_out)
+    uv_in.extra_keywords.pop('longstr')
+
     # check handling of complex-like keywords
     # currently they are NOT supported
     uv_in.extra_keywords['complex1'] = np.complex64(5.3 + 1.2j)
