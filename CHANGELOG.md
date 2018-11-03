@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
+### Fixed
+- long strings are saved correctly in miriad files from python3
 
 ## [1.3.3] - 2018-11-01
 ### Added
