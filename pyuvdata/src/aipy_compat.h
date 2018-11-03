@@ -12,23 +12,7 @@
 # define PyString_Check PyUnicode_Check
 # define PyString_Size PyUnicode_GET_LENGTH
 # define PyString_FromStringAndSize PyUnicode_FromStringAndSize
-
-static char *
-PyString_AsString(PyObject *ob)
-{
-    PyObject *enc;
-    char *cstr;
-
-    enc = PyUnicode_AsEncodedString(ob, "utf-8", "Error");
-    if (enc == NULL) {
-        PyErr_Format(PyExc_ValueError, "Cannot encode string");
-        return NULL;
-    }
-
-    cstr = PyBytes_AsString(enc);
-    Py_XDECREF(enc);
-    return cstr;
-}
+# define PyString_AsString PyUnicode_AsUTF8
 #endif
 
 #ifndef PyMODINIT_FUNC
