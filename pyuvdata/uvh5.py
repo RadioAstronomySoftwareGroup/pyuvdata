@@ -21,6 +21,9 @@ except ImportError:  # pragma: no cover
     uvutils._reraise_context('h5py is not installed but is required for '
                              'uvh5 functionality')
 
+# define HDF5 type for interpreting HERA correlator outputs (integers) as compelx floats
+_hera_corr_dtype = np.dtype([('r', np.int32), ('i', np.int32)])
+
 
 def _read_uvh5_string(dataset, filename):
     """
@@ -47,10 +50,6 @@ def _read_uvh5_string(dataset, filename):
             return dataset.value
     else:
         return uvutils._bytes_to_str(dataset.value.tostring())
-
-
-# define HDF5 type for interpreting HERA correlator outputs (integers) as compelx floats
-_hera_corr_dtype = np.dtype([('r', np.int32), ('i', np.int32)])
 
 
 def _unpack_to_complex(dset, dtype_in, dtype_out=np.complex64):
@@ -303,7 +302,7 @@ class UVH5(UVData):
             # just read in the right portions of the data and flag arrays
             if blt_frac == min_frac:
                 if unpack_ints:
-                    visdata = _unpack_to_complex(visdata_dset[blt_inds, :, :, :], hera_corr_type, np.complex64)
+                    visdata = _unpack_to_complex(visdata_dset[blt_inds, :, :, :], _hera_corr_dtype, np.complex64)
                 else:
                     visdata = visdata_dset[blt_inds, :, :, :]
                 flags = flags_dset[blt_inds, :, :, :]
@@ -321,7 +320,7 @@ class UVH5(UVData):
                     nsamples = nsamples[:, :, :, pol_inds]
             elif freq_frac == min_frac:
                 if unpack_ints:
-                    visdata = _unpack_to_complex(visdata_dset[:, :, freq_inds, :], hera_corr_type, np.complex64)
+                    visdata = _unpack_to_complex(visdata_dset[:, :, freq_inds, :], _hera_corr_dtype, np.complex64)
                 else:
                     visdata = visdata_dset[:, :, freq_inds, :]
                 flags = flags_dset[:, :, freq_inds, :]
@@ -337,7 +336,7 @@ class UVH5(UVData):
                     nsamples = nsamples[:, :, :, pol_inds]
             else:
                 if unpack_ints:
-                    visdata = _unpack_to_complex(visdata_dset[:, :, :, pol_inds], hera_corr_type, np.complex64)
+                    visdata = _unpack_to_complex(visdata_dset[:, :, :, pol_inds], _hera_corr_dtype, np.complex64)
                 else:
                     visdata = visdata_dset[:, :, :, pol_inds]
                 flags = flags_dset[:, :, :, pol_inds]
