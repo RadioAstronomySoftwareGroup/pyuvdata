@@ -574,6 +574,16 @@ def test_select_blts():
                                             uv_object2.history))
     nt.assert_true(np.all(selected_data == uv_object2.data_array))
 
+    # check that it just doing the metadata works properly
+    uv_object3 = copy.deepcopy(uv_object)
+    uv_object3.select(blt_inds=blt_inds, metadata_only=True)
+    for param in uv_object3:
+        param_name = getattr(uv_object3, param).name
+        if param_name not in ['data_array', 'flag_array', 'nsample_array']:
+            nt.assert_equal(getattr(uv_object3, param), getattr(uv_object2, param))
+        else:
+            nt.assert_equal(getattr(uv_object3, param), getattr(uv_object, param))
+
     # check for errors associated with out of bounds indices
     nt.assert_raises(ValueError, uv_object.select, blt_inds=np.arange(-10, -5))
     nt.assert_raises(ValueError, uv_object.select, blt_inds=np.arange(

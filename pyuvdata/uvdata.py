@@ -1433,7 +1433,8 @@ class UVData(UVBase):
     def select(self, antenna_nums=None, antenna_names=None, ant_str=None,
                bls=None, frequencies=None, freq_chans=None,
                times=None, polarizations=None, blt_inds=None, run_check=True,
-               check_extra=True, run_check_acceptability=True, inplace=True):
+               check_extra=True, run_check_acceptability=True, inplace=True,
+               metadata_only=False):
         """
         Select specific antennas, antenna pairs, frequencies, times and
         polarizations to keep in the object while discarding others.
@@ -1479,6 +1480,8 @@ class UVData(UVBase):
                 parameters after downselecting data on this object. Default is True.
             inplace: Option to perform the select directly on self (True, default) or return
                 a new UVData object, which is a subselection of self (False)
+            metadata_only: Option to only do the select on the metadata --
+                everything other than the data_array, flag_array and nsample_array. (False)
         """
         if inplace:
             uv_object = self
@@ -1491,6 +1494,12 @@ class UVData(UVBase):
 
         # do select operations on everything except data_array, flag_array and nsample_array
         uv_object._select_metadata(blt_inds, freq_inds, pol_inds, history_update_string)
+
+        if metadata_only is True:
+            if not inplace:
+                return uv_object
+            else:
+                return
 
         if blt_inds is not None:
             uv_object.data_array = uv_object.data_array[blt_inds, :, :, :]
