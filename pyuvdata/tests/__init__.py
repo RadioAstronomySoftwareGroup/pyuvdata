@@ -78,6 +78,8 @@ def checkWarnings(func, func_args=[], func_kwargs={},
     clearWarnings()
     with warnings.catch_warnings(record=True) as w:
         warnings.simplefilter("always")  # All warnings triggered
+        warnings.filterwarnings("ignore", message="numpy.dtype size changed")
+        warnings.filterwarnings("ignore", message="numpy.ufunc size changed")
         retval = func(*func_args, **func_kwargs)  # Run function
         # Verify
         if len(w) != nwarnings:
