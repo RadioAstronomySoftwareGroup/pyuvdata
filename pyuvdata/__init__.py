@@ -13,4 +13,9 @@ from .uvcal import *
 from .uvbeam import *
 from . import version
 
+# Filter annoying Cython warnings that serve no good purpose. see numpy#432
+import warnings
+warnings.filterwarnings("ignore", message="numpy.dtype size changed")
+warnings.filterwarnings("ignore", message="numpy.ufunc size changed")
+
 __version__ = version.version
