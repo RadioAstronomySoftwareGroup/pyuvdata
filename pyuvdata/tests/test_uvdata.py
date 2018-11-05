@@ -574,7 +574,7 @@ def test_select_blts():
                                             uv_object2.history))
     nt.assert_true(np.all(selected_data == uv_object2.data_array))
 
-    # check that it just doing the metadata works properly
+    # check that just doing the metadata works properly
     uv_object3 = copy.deepcopy(uv_object)
     uv_object3.select(blt_inds=blt_inds, metadata_only=True)
     for param in uv_object3:
