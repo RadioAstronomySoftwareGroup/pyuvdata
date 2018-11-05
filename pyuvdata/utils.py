@@ -504,7 +504,7 @@ def polstr2num(pol):
     elif isinstance(pol, collections.Iterable):
         out = [poldict[key.lower()] for key in pol]
     else:
-        raise ValueError('Polarization cannot be converted to index.')
+        raise ValueError('Polarization {p} cannot be converted to index.'.format(p=pol))
     return out
 
 
@@ -524,7 +524,7 @@ def polnum2str(num):
     elif isinstance(num, collections.Iterable):
         out = [POL_NUM2STR_DICT[i] for i in num]
     else:
-        raise ValueError('Polarization cannot be converted to string.')
+        raise ValueError('Polarization {p} cannot be converted to string.'.format(p=num))
     return out
 
 
@@ -544,7 +544,7 @@ def jstr2num(jstr):
     elif isinstance(jstr, collections.Iterable):
         out = [jdict[key.lower()] for key in jstr]
     else:
-        raise ValueError('Jones polarization cannot be converted to index.')
+        raise ValueError('Jones polarization {j} cannot be converted to index.'.format(j=jstr))
     return out
 
 
@@ -563,7 +563,7 @@ def jnum2str(jnum):
     elif isinstance(jnum, collections.Iterable):
         out = [JONES_NUM2STR_DICT[i] for i in jnum]
     else:
-        raise ValueError('Polarization cannot be converted to string.')
+        raise ValueError('Jones polarization {j} cannot be converted to string.'.format(j=jnum))
     return out
 
 
