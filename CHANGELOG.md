@@ -12,6 +12,9 @@ All notable changes to this project will be documented in this file.
 - `_key2inds` now properly reorders polarization axis for conjugated visibilities. This also effects the `get_data` function.
 - long strings are saved correctly in miriad files from python3
 
+### Added
+- Option to only do the select on the metadata. This is useful for partially defined objects as in pyuvsim setup or after reading only the metadata from a file.
+
 ## [1.3.3] - 2018-11-01
 ### Added
 - option to save splines for reuse in UVBeam.interp function
