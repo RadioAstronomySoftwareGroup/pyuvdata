@@ -786,6 +786,55 @@ done after the read, which does not save memory.
   >>> print(uv.get_antpairs())
   [(9, 10), (9, 20)]
 
+  # Select certain frequencies from a uvh5 file
+  >>> filename = 'pyuvdata/data/zen.<JD>.uvh5'
+  >>> uv.read(filename, freq_chans=np.arange(32))
+  >>> print(uv.data_array.shape)
+  (105, 1, 32, 4)
+
+d) Writing to a uvh5 file in parts
+**********************************
+
+It is possible to write to a uvh5 file in parts, so not all of the file needs to
+be in memory at once. This is very useful when combined with partial reading
+described above, so that operations that in principle require all of the data,
+such as applying calibration solutions, can be performed even in situations where
+the available memory is smaller than the size of the file.
+
+Partial writing requires two steps: initializing an empty file on disk with the
+correct metadata for the final object, and then subsequently writing the data in
+stages to that same file. In this latter stage, the same syntax for performing a
+selective read operation is used, so that the user can precisely specify which
+parts of the data, flags, and nsample arrays should be written to. The user then
+also provides the data, flags, and nsample arrays of the proper size, and they
+are written to the appropriate parts of the file on disk.
+::
+
+   >>> import numpy as np
+   >>> from pyuvdata import UVData
+   >>> uv = UVData()
+   >>> filename = 'pyuvdata/data/zen.<JD>.uvh5'
+   >>> uv.read(filename, read_data=False)
+   >>> partfile = 'tutorial_partial_io.uvh5'
+   >>> uv.initialize_uvh5_file(partfile, clobber=True)
+
+   # read in the lower and upper halves of the band separately, and apply different scalings
+   >>> Nfreqs = uv.Nfreqs
+   >>> Hfreqs = Nfreqs // 2
+   >>> freq_inds1 = np.arange(Hfreqs)
+   >>> freq_inds2 = np.arange(Hfreqs, Nfreqs)
+   >>> uv2 = UVData()
+   >>> uv2.read(filename, freq_chans=freq_inds1)
+   >>> data_array = 0.5 * uv2.data_array
+   >>> flag_array = uv2.flag_array
+   >>> nsample_array = uv2.nsample_array
+   >>> uv.write_uvh5_part(partfile, data_array, freq_array, nsample_array, freq_chans=freq_inds1)
+
+   >>> uv2.read(filename, freq_chans=freq_inds2)
+   >>> data_array = 2.0 * uv2.data_array
+   >>> flag_array = uv2.flag_array
+   >>> nsample_array = uv2.nsample_array
+   >>> uv.write_uvh5_part(partfile, data_array, freq_array, nsample_array, freq_chans=freq_inds2)
 
 UVData: Finding Redundant Baselines
 -----------------------------------
