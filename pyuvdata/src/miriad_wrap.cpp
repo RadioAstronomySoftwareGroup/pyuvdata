@@ -332,7 +332,7 @@ PyObject * UVObject_wrvr(UVObject *self, PyObject *args) {
         switch (type[0]) {
             case 'a':
                 CHK_STRING(wr_val);
-                st = PyString_AsString(wr_val);
+                st = const_cast<char*>(PyString_AsString(wr_val));
                 uvputvr_c(self->tno,H_BYTE,name, st, PyString_Size(wr_val)+1);
                 break;
             case 'j':
@@ -507,7 +507,7 @@ PyObject * WRAP_hwrite(PyObject *self, PyObject *args) {
         switch (type[0]) {
             case 'a':
                 CHK_STRING(val);
-                st = PyString_AsString(val);
+                st = const_cast<char*>(PyString_AsString(val));
                 in = PyString_Size(val); // # bytes to write
                 hwriteb_c(item_hdl, st, offset, in, &iostat);
                 CHK_IO(iostat);
