@@ -2,6 +2,9 @@
 All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
+### Added
+- support for python3.7
+
 ### Fixed
 - `_key2inds` now properly reorders polarization axis for conjugated visibilities. This also effects the `get_data` function.
 - long strings are saved correctly in miriad files from python3
