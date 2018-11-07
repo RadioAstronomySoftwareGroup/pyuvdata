@@ -29,6 +29,8 @@ install:
   - hash -r
   - conda config --set always_yes yes --set changeps1 no
   - conda update -q conda
+  - conda create -q -n testenv python="$TRAVIS_PYTHON_VERSION"
+  - source activate testenv
   - conda install -c defaults -y 'libgfortran =3.0.0' 'libgfortran-ng =7.2.0'
   - conda config --remove channels defaults && conda config --add channels conda-forge
   # Useful for debugging any issues with conda
@@ -37,6 +39,7 @@ install:
   # install dependencies
   - conda install numpy scipy astropy nose pip h5py six healpy python-casacore pycodestyle coveralls
   - conda list
+  - python --version
 script:
   - python setup.py build_ext --force --inplace
   - nosetests pyuvdata --with-coverage --cover-package=pyuvdata
