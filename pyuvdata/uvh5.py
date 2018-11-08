@@ -70,7 +70,14 @@ class UVH5(UVData):
         latitude = header['latitude'].value
         longitude = header['longitude'].value
         altitude = header['altitude'].value
-        self.telescope_location_lat_lon_alt = (latitude, longitude, altitude)
+        if np.abs(latitude) <= np.pi and np.abs(longitude) <= np.pi:
+            warnings.warn("It seems that the latitude and longitude are in radians; "
+                          "support for interpreting these quantities in radians will "
+                          "not be supported in future versions. Rewrite with write_uvh5 "
+                          "to ensure future compatibility.")
+            self.telescope_location_lat_lon_alt = (latitude, longitude, altitude)
+        else:
+            self.telescope_location_lat_lon_alt_degrees = (latitude, longitude, altitude)
         self.instrument = _read_uvh5_string(header['instrument'], filename)
 
         # get source information
@@ -132,6 +139,12 @@ class UVH5(UVData):
         self.ant_2_array = header['ant_2_array'].value
         self.antenna_names = [uvutils._bytes_to_str(n.tostring()) for n in header['antenna_names'].value]
         self.antenna_numbers = header['antenna_numbers'].value
+
+        # set telescope params
+        try:
+            self.set_telescope_params()
+        except ValueError as ve:
+            warnings.warn(str(ve))
 
         # get baseline array
         self.baseline_array = self.antnums_to_baseline(self.ant_1_array,
@@ -378,9 +391,9 @@ class UVH5(UVData):
         """Internal function to write uvh5 header information.
         """
         # write out telescope and source information
-        header['latitude'] = self.telescope_location_lat_lon_alt[0]
-        header['longitude'] = self.telescope_location_lat_lon_alt[1]
-        header['altitude'] = self.telescope_location_lat_lon_alt[2]
+        header['latitude'] = self.telescope_location_lat_lon_alt_degrees[0]
+        header['longitude'] = self.telescope_location_lat_lon_alt_degrees[1]
+        header['altitude'] = self.telescope_location_lat_lon_alt_degrees[2]
         header['telescope_name'] = np.string_(self.telescope_name)
         header['instrument'] = np.string_(self.instrument)
         header['object_name'] = np.string_(self.object_name)

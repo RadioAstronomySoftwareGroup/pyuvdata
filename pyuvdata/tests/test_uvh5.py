@@ -64,7 +64,7 @@ def test_ReadUVFITSWriteUVH5ReadUVH5():
     testfile = os.path.join(DATA_PATH, 'test', 'outtest_uvfits.uvh5')
     uvtest.checkWarnings(uv_in.read_uvfits, [uvfits_file], message='Telescope EVLA is not')
     uv_in.write_uvh5(testfile, clobber=True)
-    uv_out.read(testfile)
+    uvtest.checkWarnings(uv_out.read, [testfile], message='Telescope EVLA is not')
     nt.assert_equal(uv_in, uv_out)
 
     # clean up
@@ -102,7 +102,7 @@ def test_WriteUVH5Errors():
 
     # use clobber=True to write out anyway
     uv_in.write_uvh5(testfile, clobber=True)
-    uv_out.read(testfile)
+    uvtest.checkWarnings(uv_out.read, [testfile], message='Telescope EVLA is not')
     nt.assert_equal(uv_in, uv_out)
 
     # clean up
@@ -129,7 +129,7 @@ def test_UVH5OptionalParameters():
 
     # write out and read back in
     uv_in.write_uvh5(testfile, clobber=True)
-    uv_out.read(testfile)
+    uvtest.checkWarnings(uv_out.read, [testfile], message='Telescope EVLA is not')
     nt.assert_equal(uv_in, uv_out)
 
     # clean up
@@ -152,7 +152,7 @@ def test_UVH5CompressionOptions():
     # write out and read back in
     uv_in.write_uvh5(testfile, clobber=True, data_compression="lzf",
                      flags_compression=None, nsample_compression=None)
-    uv_out.read(testfile)
+    uvtest.checkWarnings(uv_out.read, [testfile], message='Telescope EVLA is not')
     nt.assert_equal(uv_in, uv_out)
 
     # clean up
@@ -177,7 +177,8 @@ def test_UVH5ReadMultiple_files():
     uv2.select(freq_chans=np.arange(32, 64))
     uv1.write_uvh5(testfile1, clobber=True)
     uv2.write_uvh5(testfile2, clobber=True)
-    uv1.read([testfile1, testfile2])
+    uvtest.checkWarnings(uv1.read, [[testfile1, testfile2]], nwarnings=2,
+                         message='Telescope EVLA is not')
     # Check history is correct, before replacing and doing a full object check
     nt.assert_true(uvutils._check_histories(uv_full.history + '  Downselected to '
                                             'specific frequencies using pyuvdata. '
@@ -203,6 +204,7 @@ def test_UVH5PartialRead():
     uvfits_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
     uvtest.checkWarnings(uvh5_uv.read_uvfits, [uvfits_file], message='Telescope EVLA is not')
     testfile = os.path.join(DATA_PATH, 'test', 'outtest.uvh5')
+    uvh5_uv.telescope_name = 'PAPER'
     uvh5_uv.write_uvh5(testfile, clobber=True)
 
     # select on antennas
@@ -279,6 +281,7 @@ def test_UVH5PartialWrite():
     uvfits_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
     uvtest.checkWarnings(full_uvh5.read_uvfits, [uvfits_file], message='Telescope EVLA is not')
     testfile = os.path.join(DATA_PATH, 'test', 'outtest.uvh5')
+    full_uvh5.telescope_name = "PAPER"
     full_uvh5.write_uvh5(testfile, clobber=True)
     full_uvh5.read(testfile)
 
@@ -422,6 +425,7 @@ def test_UVH5PartialWriteIrregular():
     uvfits_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
     uvtest.checkWarnings(full_uvh5.read_uvfits, [uvfits_file], message='Telescope EVLA is not')
     testfile = os.path.join(DATA_PATH, 'test', 'outtest.uvh5')
+    full_uvh5.telescope_name = "PAPER"
     full_uvh5.write_uvh5(testfile, clobber=True)
     full_uvh5.read(testfile)
 
@@ -768,6 +772,7 @@ def test_UVH5PartialWriteErrors():
     uvfits_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
     uvtest.checkWarnings(full_uvh5.read_uvfits, [uvfits_file], message='Telescope EVLA is not')
     testfile = os.path.join(DATA_PATH, 'test', 'outtest.uvh5')
+    full_uvh5.telescope_name = "PAPER"
     full_uvh5.write_uvh5(testfile, clobber=True)
     full_uvh5.read(testfile)
 
@@ -826,6 +831,7 @@ def test_UVH5InitializeFile():
     uvfits_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
     uvtest.checkWarnings(full_uvh5.read_uvfits, [uvfits_file], message='Telescope EVLA is not')
     testfile = os.path.join(DATA_PATH, 'test', 'outtest.uvh5')
+    full_uvh5.telescope_name = "PAPER"
     full_uvh5.write_uvh5(testfile, clobber=True)
     full_uvh5.read(testfile)
     full_uvh5.data_array = None
@@ -867,6 +873,7 @@ def test_UVH5SingleIntegrationTime():
     uvfits_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
     testfile = os.path.join(DATA_PATH, 'test', 'outtest_uvfits.uvh5')
     uvtest.checkWarnings(uv_in.read_uvfits, [uvfits_file], message='Telescope EVLA is not')
+    uv_in.telescope_name = "PAPER"
     uv_in.write_uvh5(testfile, clobber=True)
 
     # change integration_time in file to be a single number
@@ -893,6 +900,7 @@ def test_UVH5LstArray():
     uvfits_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
     testfile = os.path.join(DATA_PATH, 'test', 'outtest_uvfits.uvh5')
     uvtest.checkWarnings(uv_in.read_uvfits, [uvfits_file], message='Telescope EVLA is not')
+    uv_in.telescope_name = "PAPER"
     uv_in.write_uvh5(testfile, clobber=True)
 
     # remove lst_array from file; check that it's correctly computed on read
@@ -928,6 +936,7 @@ def test_UVH5StringBackCompat():
     uvfits_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
     testfile = os.path.join(DATA_PATH, 'test', 'outtest_uvfits.uvh5')
     uvtest.checkWarnings(uv_in.read_uvfits, [uvfits_file], message='Telescope EVLA is not')
+    uv_in.telescope_name = "PAPER"
     uv_in.write_uvh5(testfile, clobber=True)
 
     # write a string-type data as-is, without casting to np.string_
@@ -954,6 +963,7 @@ def test_UVH5ReadHeaderSpecialCases():
     uvfits_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
     testfile = os.path.join(DATA_PATH, 'test', 'outtest_uvfits.uvh5')
     uvtest.checkWarnings(uv_in.read_uvfits, [uvfits_file], message='Telescope EVLA is not')
+    uv_in.telescope_name = "PAPER"
     uv_in.write_uvh5(testfile, clobber=True)
 
     # change some of the metadata to trip certain if/else clauses
@@ -961,9 +971,14 @@ def test_UVH5ReadHeaderSpecialCases():
         del(f['Header/history'])
         del(f['Header/vis_units'])
         del(f['Header/phase_type'])
+        del(f['Header/latitude'])
+        del(f['Header/longitude'])
         f['Header/history'] = np.string_('blank history')
         f['Header/phase_type'] = np.string_('blah')
-    uv_out.read_uvh5(testfile)
+        f['Header/latitude'] = uv_in.telescope_location_lat_lon_alt[0]
+        f['Header/longitude'] = uv_in.telescope_location_lat_lon_alt[1]
+    uvtest.checkWarnings(uv_out.read_uvh5, [testfile],
+                         message='It seems that the latitude and longitude are in radians')
 
     # make input and output values match now
     uv_in.history = uv_out.history
