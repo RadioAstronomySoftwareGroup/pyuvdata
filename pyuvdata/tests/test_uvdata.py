@@ -584,6 +584,10 @@ def test_select_blts():
         else:
             nt.assert_equal(getattr(uv_object3, param), getattr(uv_object, param))
 
+    # also check with inplace=False
+    uv_object4 = uv_object.select(blt_inds=blt_inds, metadata_only=True, inplace=False)
+    nt.assert_equal(uv_object3, uv_object4)
+
     # check for errors associated with out of bounds indices
     nt.assert_raises(ValueError, uv_object.select, blt_inds=np.arange(-10, -5))
     nt.assert_raises(ValueError, uv_object.select, blt_inds=np.arange(
