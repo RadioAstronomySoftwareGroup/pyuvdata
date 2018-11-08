@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 ### Added
 - support for python3.7
 
+### Changed
+- latitude and longitude in uvh5 files are written in degrees instead of radians.
+
 ### Fixed
 - `_key2inds` now properly reorders polarization axis for conjugated visibilities. This also effects the `get_data` function.
 - long strings are saved correctly in miriad files from python3
