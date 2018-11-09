@@ -74,7 +74,7 @@ class UVH5(UVData):
             warnings.warn("It seems that the latitude and longitude are in radians; "
                           "support for interpreting these quantities in radians will "
                           "not be supported in future versions. Rewrite with write_uvh5 "
-                          "to ensure future compatibility.")
+                          "to ensure future compatibility.", DeprecationWarning)
             self.telescope_location_lat_lon_alt = (latitude, longitude, altitude)
         else:
             self.telescope_location_lat_lon_alt_degrees = (latitude, longitude, altitude)
