@@ -977,7 +977,7 @@ def test_UVH5ReadHeaderSpecialCases():
         f['Header/phase_type'] = np.string_('blah')
         f['Header/latitude'] = uv_in.telescope_location_lat_lon_alt[0]
         f['Header/longitude'] = uv_in.telescope_location_lat_lon_alt[1]
-    uvtest.checkWarnings(uv_out.read_uvh5, [testfile],
+    uvtest.checkWarnings(uv_out.read_uvh5, [testfile], category=DeprecationWarning,
                          message='It seems that the latitude and longitude are in radians')
 
     # make input and output values match now
