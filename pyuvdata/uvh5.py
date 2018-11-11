@@ -52,12 +52,13 @@ def _read_uvh5_string(dataset, filename):
         return uvutils._bytes_to_str(dataset.value.tostring())
 
 
-def _unpack_to_complex(dset, dtype_in, dtype_out=np.complex64):
+def _unpack_to_complex(dset, indices, dtype_in, dtype_out=np.complex64):
     """
     Unpack the given data set of a specified type to floating point complex data.
 
     Arguments:
         dset: reference to an HDF5 dataset on disk
+        indices: tuple representing indices to extract
         dtype_in: the compound datatype for interpreting the input data. Assumes there
             is an 'r' field and 'i' field, for casting to complex numbers.
         dtype_out: the datatype of the output array. One of (complex, np.complex64, np.complex128).
@@ -67,10 +68,16 @@ def _unpack_to_complex(dset, dtype_in, dtype_out=np.complex64):
     """
     if dtype_out not in (complex, np.complex64, np.complex128):
         raise ValueError("output datatype must be one of (complex, np.complex64, np.complex128)")
-    output_array = np.empty(dset.shape, dtype=dtype_out)
+    dset_shape = [0, 0, 0, 0]
+    for i in range(len(dset_shape)):
+        if indices[i] == np.s_[:]:
+            dset_shape[i] = dset.shape[i]
+        else:
+            dset_shape[i] = len(indices[i])
+    output_array = np.empty(dset_shape, dtype=dtype_out)
     with dset.astype(dtype_in):
-        output_array.real = dset['r']
-        output_array.imag = dset['i']
+        output_array.real = dset['r'][indices]
+        output_array.imag = dset['i'][indices]
 
     return output_array
 
@@ -285,7 +292,8 @@ class UVH5(UVData):
         if min_frac == 1:
             # no select, read in all the data
             if unpack_ints:
-                self.data_array = _unpack_to_complex(dgrp['visdata'], _hera_corr_dtype, np.complex64)
+                inds = (np.s_[:], np.s_[:], np.s_[:], np.s_[:])
+                self.data_array = _unpack_to_complex(dgrp['visdata'], inds, _hera_corr_dtype, np.complex64)
             else:
                 self.data_array = dgrp['visdata'].value
             self.flag_array = dgrp['flags'].value
@@ -302,7 +310,8 @@ class UVH5(UVData):
             # just read in the right portions of the data and flag arrays
             if blt_frac == min_frac:
                 if unpack_ints:
-                    visdata = _unpack_to_complex(visdata_dset[blt_inds, :, :, :], _hera_corr_dtype, np.complex64)
+                    inds = (blt_inds, np.s_[:], np.s_[:], np.s_[:])
+                    visdata = _unpack_to_complex(visdata_dset, inds, _hera_corr_dtype, np.complex64)
                 else:
                     visdata = visdata_dset[blt_inds, :, :, :]
                 flags = flags_dset[blt_inds, :, :, :]
@@ -320,7 +329,8 @@ class UVH5(UVData):
                     nsamples = nsamples[:, :, :, pol_inds]
             elif freq_frac == min_frac:
                 if unpack_ints:
-                    visdata = _unpack_to_complex(visdata_dset[:, :, freq_inds, :], _hera_corr_dtype, np.complex64)
+                    inds = (np.s_[:], np.s_[:], freq_inds, np.s_[:])
+                    visdata = _unpack_to_complex(visdata_dset, inds, _hera_corr_dtype, np.complex64)
                 else:
                     visdata = visdata_dset[:, :, freq_inds, :]
                 flags = flags_dset[:, :, freq_inds, :]
@@ -336,7 +346,8 @@ class UVH5(UVData):
                     nsamples = nsamples[:, :, :, pol_inds]
             else:
                 if unpack_ints:
-                    visdata = _unpack_to_complex(visdata_dset[:, :, :, pol_inds], _hera_corr_dtype, np.complex64)
+                    inds = (np.s_[:], np.s_[:], np.s_[:], pol_inds)
+                    visdata = _unpack_to_complex(visdata_dset, inds, _hera_corr_dtype, np.complex64)
                 else:
                     visdata = visdata_dset[:, :, :, pol_inds]
                 flags = flags_dset[:, :, :, pol_inds]
