@@ -1480,9 +1480,15 @@ class UVData(UVBase):
                 parameters after downselecting data on this object. Default is True.
             inplace: Option to perform the select directly on self (True, default) or return
                 a new UVData object, which is a subselection of self (False)
-            metadata_only: Option to only do the select on the metadata --
-                everything other than the data_array, flag_array and nsample_array. (False)
+            metadata_only: Option to only do the select on the metadata. Not allowed
+                if the data_array, flag_array or nsample_array is not None. (False)
         """
+        if metadata_only is True and (self.data_array is not None
+                                      or self.flag_array is not None
+                                      or self.nsample_array is not None):
+                raise ValueError('metadata_only option cannot be used if data_array, '
+                                 'flag_array or nsample_array is not None')
+
         if inplace:
             uv_object = self
         else:
