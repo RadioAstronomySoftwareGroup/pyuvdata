@@ -576,16 +576,22 @@ def test_select_blts():
 
     # check that just doing the metadata works properly
     uv_object3 = copy.deepcopy(uv_object)
-    uv_object3.select(blt_inds=blt_inds, metadata_only=True)
-    for param in uv_object3:
-        param_name = getattr(uv_object3, param).name
+    nt.assert_raises(ValueError, uv_object3.select, blt_inds=blt_inds, metadata_only=True)
+    uv_object3.data_array = None
+    nt.assert_raises(ValueError, uv_object3.select, blt_inds=blt_inds, metadata_only=True)
+    uv_object3.flag_array = None
+    nt.assert_raises(ValueError, uv_object3.select, blt_inds=blt_inds, metadata_only=True)
+    uv_object3.nsample_array = None
+    uv_object4 = uv_object3.select(blt_inds=blt_inds, metadata_only=True, inplace=False)
+    for param in uv_object4:
+        param_name = getattr(uv_object4, param).name
         if param_name not in ['data_array', 'flag_array', 'nsample_array']:
-            nt.assert_equal(getattr(uv_object3, param), getattr(uv_object2, param))
+            nt.assert_equal(getattr(uv_object4, param), getattr(uv_object2, param))
         else:
-            nt.assert_equal(getattr(uv_object3, param), getattr(uv_object, param))
+            nt.assert_true(getattr(uv_object4, param_name) is None)
 
-    # also check with inplace=False
-    uv_object4 = uv_object.select(blt_inds=blt_inds, metadata_only=True, inplace=False)
+    # also check with inplace=True
+    uv_object3.select(blt_inds=blt_inds, metadata_only=True)
     nt.assert_equal(uv_object3, uv_object4)
 
     # check for errors associated with out of bounds indices
