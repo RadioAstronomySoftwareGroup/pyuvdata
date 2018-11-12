@@ -3,6 +3,7 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 ### Added
+- read/write support for uvh5 files with integer datatypes for visibilities
 - support for python3.7
 
 ### Changed
