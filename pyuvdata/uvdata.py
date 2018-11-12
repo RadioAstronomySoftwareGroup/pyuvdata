@@ -2003,7 +2003,7 @@ class UVData(UVBase):
     def write_uvh5(self, filename, run_check=True, check_extra=True,
                    run_check_acceptability=True, clobber=False,
                    data_compression=None, flags_compression="lzf",
-                   nsample_compression="lzf"):
+                   nsample_compression="lzf", data_write_type='c8'):
         """
         Write a completely in-memory UVData object to a UVH5 file.
 
@@ -2022,6 +2022,11 @@ class UVData(UVBase):
                 the LZF filter.
             nsample_compression: HDF5 filter to apply when writing the nsample_array. Deafult is
                 the LZF filter.
+            data_write_type: datatype of output visibility data. Default is 'c8' for single-precision
+                floating point complex data. If not 'c8' or 'c16' (double precision floating point),
+                a numpy dtype object must be specified with an 'r' field and an 'i' field for real
+                and imaginary parts, respectively. See uvh5.py for an example of defining such a
+                datatype.
 
         Returns:
             None
@@ -2032,11 +2037,13 @@ class UVData(UVBase):
                             run_check_acceptability=run_check_acceptability,
                             clobber=clobber, data_compression=data_compression,
                             flags_compression=flags_compression,
-                            nsample_compression=nsample_compression)
+                            nsample_compression=nsample_compression,
+                            data_write_type=data_write_type)
         del(uvh5_obj)
 
     def initialize_uvh5_file(self, filename, clobber=False, data_compression=None,
-                             flags_compression="lzf", nsample_compression="lzf"):
+                             flags_compression="lzf", nsample_compression="lzf",
+                             data_write_type='c8'):
         """
         Initialize a UVH5 file on disk with the header metadata and empty data arrays.
 
@@ -2049,6 +2056,11 @@ class UVData(UVBase):
                 the LZF filter.
             nsample_compression: HDF5 filter to apply when writing the nsample_array. Default is
                 the LZF filter.
+            data_write_type: datatype of output visibility data. Default is 'c8' for single-precision
+                floating point complex data. If not 'c8' or 'c16' (double precision floating point),
+                a numpy dtype object must be specified with an 'r' field and an 'i' field for real
+                and imaginary parts, respectively. See uvh5.py for an example of defining such a
+                datatype.
 
         Returns:
             None
@@ -2063,7 +2075,8 @@ class UVData(UVBase):
         uvh5_obj.initialize_uvh5_file(filename, clobber=clobber,
                                       data_compression=data_compression,
                                       flags_compression=flags_compression,
-                                      nsample_compression=nsample_compression)
+                                      nsample_compression=nsample_compression,
+                                      data_write_type=data_write_type)
         del(uvh5_obj)
 
     def write_uvh5_part(self, filename, data_array, flags_array, nsample_array, check_header=True,

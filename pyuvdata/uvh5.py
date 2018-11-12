@@ -21,8 +21,8 @@ except ImportError:  # pragma: no cover
     uvutils._reraise_context('h5py is not installed but is required for '
                              'uvh5 functionality')
 
-# define HDF5 type for interpreting HERA correlator outputs (integers) as compelx floats
-_hera_corr_dtype = np.dtype([('r', np.int32), ('i', np.int32)])
+# define HDF5 type for interpreting HERA correlator outputs (integers) as complex numbers
+_hera_corr_dtype = np.dtype([('r', '<i4'), ('i', '<i4')])
 
 
 def _read_uvh5_string(dataset, filename):
@@ -52,9 +52,9 @@ def _read_uvh5_string(dataset, filename):
         return uvutils._bytes_to_str(dataset.value.tostring())
 
 
-def _unpack_to_complex(dset, indices, dtype_in, dtype_out=np.complex64):
+def _read_complex_astype(dset, indices, dtype_in, dtype_out=np.complex64):
     """
-    Unpack the given data set of a specified type to floating point complex data.
+    Read the given data set of a specified type to floating point complex data.
 
     Arguments:
         dset: reference to an HDF5 dataset on disk
@@ -80,6 +80,31 @@ def _unpack_to_complex(dset, indices, dtype_in, dtype_out=np.complex64):
         output_array.imag = dset['i'][indices]
 
     return output_array
+
+
+def _write_complex_astype(data, dset, indices, dtype_out=_hera_corr_dtype):
+    """
+    Write floating point complex data as a specified type.
+
+    Arguments:
+        data: data array to write out. Should be a complex-valued array that supports
+            the .real and .imag attributes for accessing real and imaginary components.
+        dset: reference to an HDF5 dataset on disk
+        indices: 4-tuple representing indices to write data to
+        dtype_out: the compound datatype for writing the output data. Assumes there
+            is an 'r' field and 'i' field, for writing out complex numbers.
+
+    Returns:
+        None
+    """
+    if not isinstance(dtype_out, np.dtype):
+        raise ValueError("dtype_out must be a numpy dtype")
+    if 'r' not in dtype_out.names or 'i' not in dtype_out.names:
+        raise ValueError("output datatype must be a compound datatype with an 'r' field and an 'i' field")
+    with dset.astype(dtype_out):
+        dset[indices[0], indices[1], indices[2], indices[3], 'r'] = data.real
+        dset[indices[0], indices[1], indices[2], indices[3], 'i'] = data.imag
+    return
 
 
 class UVH5(UVData):
@@ -282,18 +307,18 @@ class UVH5(UVData):
             if rtype not in ['f', 'i', 'd']:
                 raise ValueError("only integer, float, and double datatypes are supported for uvh5 visibility data")
             if rtype == 'i':
-                # need to unpack integers as floats
-                unpack_ints = True
+                # need to convert integers to floats
+                read_ints = True
             else:
-                unpack_ints = False
+                read_ints = False
         else:
-            unpack_ints = False
+            read_ints = False
 
         if min_frac == 1:
             # no select, read in all the data
-            if unpack_ints:
+            if read_ints:
                 inds = (np.s_[:], np.s_[:], np.s_[:], np.s_[:])
-                self.data_array = _unpack_to_complex(dgrp['visdata'], inds, _hera_corr_dtype, np.complex64)
+                self.data_array = _read_complex_astype(dgrp['visdata'], inds, _hera_corr_dtype, np.complex64)
             else:
                 self.data_array = dgrp['visdata'].value
             self.flag_array = dgrp['flags'].value
@@ -309,9 +334,9 @@ class UVH5(UVData):
 
             # just read in the right portions of the data and flag arrays
             if blt_frac == min_frac:
-                if unpack_ints:
+                if read_ints:
                     inds = (blt_inds, np.s_[:], np.s_[:], np.s_[:])
-                    visdata = _unpack_to_complex(visdata_dset, inds, _hera_corr_dtype, np.complex64)
+                    visdata = _read_complex_astype(visdata_dset, inds, _hera_corr_dtype, np.complex64)
                 else:
                     visdata = visdata_dset[blt_inds, :, :, :]
                 flags = flags_dset[blt_inds, :, :, :]
@@ -328,9 +353,9 @@ class UVH5(UVData):
                     flags = flags[:, :, :, pol_inds]
                     nsamples = nsamples[:, :, :, pol_inds]
             elif freq_frac == min_frac:
-                if unpack_ints:
+                if read_ints:
                     inds = (np.s_[:], np.s_[:], freq_inds, np.s_[:])
-                    visdata = _unpack_to_complex(visdata_dset, inds, _hera_corr_dtype, np.complex64)
+                    visdata = _read_complex_astype(visdata_dset, inds, _hera_corr_dtype, np.complex64)
                 else:
                     visdata = visdata_dset[:, :, freq_inds, :]
                 flags = flags_dset[:, :, freq_inds, :]
@@ -345,9 +370,9 @@ class UVH5(UVData):
                     flags = flags[:, :, :, pol_inds]
                     nsamples = nsamples[:, :, :, pol_inds]
             else:
-                if unpack_ints:
+                if read_ints:
                     inds = (np.s_[:], np.s_[:], np.s_[:], pol_inds)
-                    visdata = _unpack_to_complex(visdata_dset, inds, _hera_corr_dtype, np.complex64)
+                    visdata = _read_complex_astype(visdata_dset, inds, _hera_corr_dtype, np.complex64)
                 else:
                     visdata = visdata_dset[:, :, :, pol_inds]
                 flags = flags_dset[:, :, :, pol_inds]
@@ -546,7 +571,8 @@ class UVH5(UVData):
 
     def write_uvh5(self, filename, run_check=True, check_extra=True,
                    run_check_acceptability=True, clobber=False,
-                   data_compression=None, flags_compression="lzf", nsample_compression="lzf"):
+                   data_compression=None, flags_compression="lzf", nsample_compression="lzf",
+                   data_write_type='c8'):
         """
         Write an in-memory UVData object to a UVH5 file.
 
@@ -565,6 +591,11 @@ class UVH5(UVData):
                  the LZF filter.
             nsample_compression: HDF5 filter to apply when writing the nsample_array. Default is
                  the LZF filter.
+            data_write_type: datatype of output visibility data. Default is 'c8' for single-precision
+                floating point complex data. If not 'c8' or 'c16' (double precision floating point),
+                a numpy dtype object must be specified with an 'r' field and an 'i' field for real
+                and imaginary parts, respectively. See above for an example of defining such a
+                datatype.
 
         Returns:
             None
@@ -600,9 +631,20 @@ class UVH5(UVData):
 
             # write out data, flags, and nsample arrays
             dgrp = f.create_group("Data")
-            visdata = dgrp.create_dataset("visdata", chunks=True,
-                                          data=self.data_array.astype(np.complex64),
-                                          compression=data_compression)
+            if data_write_type == 'c8':
+                visdata = dgrp.create_dataset("visdata", chunks=True,
+                                              data=self.data_array.astype(np.complex64),
+                                              compression=data_compression)
+            elif data_write_type == 'c16':
+                visdata = dtrp.create_dataset("visdata", chunks=True,
+                                              data=self.data_array.astype(np.complex128),
+                                              compression=data_compression)
+            else:
+                visdata = dgrp.create_dataset("visdata", self.data_array.shape, chunks=True,
+                                              compression=data_compression,
+                                              dtype=data_write_type)
+                indices = (np.s_[:], np.s_[:], np.s_[:], np.s_[:])
+                _write_complex_astype(self.data_array, visdata, indices, data_write_type)
             flags = dgrp.create_dataset("flags", chunks=True,
                                         data=self.flag_array,
                                         compression=flags_compression)
@@ -613,7 +655,8 @@ class UVH5(UVData):
         return
 
     def initialize_uvh5_file(self, filename, clobber=False, data_compression=None,
-                             flags_compression="lzf", nsample_compression="lzf"):
+                             flags_compression="lzf", nsample_compression="lzf",
+                             data_write_type='c8'):
         """Initialize a UVH5 file on disk to be written to in parts.
 
         Args:
@@ -625,6 +668,11 @@ class UVH5(UVData):
                  the LZF filter.
             nsample_compression: HDF5 filter to apply when writing the nsample_array. Default is
                  the LZF filter.
+            data_write_type: datatype of output visibility data. Default is 'c8' for single-precision
+                floating point complex data. If not 'c8' or 'c16' (double precision floating point),
+                a numpy dtype object must be specified with an 'r' field and an 'i' field for real
+                and imaginary parts, respectively. See above for an example of defining such a
+                datatype.
 
         Returns:
             None
@@ -663,7 +711,7 @@ class UVH5(UVData):
             data_size = (self.Nblts, self.Nspws, self.Nfreqs, self.Npols)
             dgrp = f.create_group("Data")
             visdata = dgrp.create_dataset("visdata", data_size, chunks=True,
-                                          dtype='c8', compression=data_compression)
+                                          dtype=data_write_type, compression=data_compression)
             flags = dgrp.create_dataset("flags", data_size, chunks=True,
                                         dtype='b1', compression=flags_compression)
             nsample_array = dgrp.create_dataset("nsamples", data_size, chunks=True,
@@ -877,12 +925,21 @@ class UVH5(UVData):
             visdata_dset = dgrp['visdata']
             flags_dset = dgrp['flags']
             nsamples_dset = dgrp['nsamples']
+            visdata_dtype = visdata_dset.dtype
+            if visdata_dtype not in ('complex64', 'complex128'):
+                custom_dtype = True
+            else:
+                custom_dtype = False
 
             # check if we can do fancy indexing
             # as long as at least 2 out of 3 axes can be written as slices, we can be fancy
             n_reg_spaced = np.count_nonzero([blt_reg_spaced, freq_reg_spaced, pol_reg_spaced])
             if n_reg_spaced >= 2:
-                visdata_dset[blt_inds, :, freq_inds, pol_inds] = data_array
+                if custom_dtype:
+                    indices = (blt_inds, np.s_[:], freq_inds, pol_inds)
+                    _write_complex_astype(data_array, visdata_dset, indices, visdata_dtype)
+                else:
+                    visdata_dset[blt_inds, :, freq_inds, pol_inds] = data_array
                 flags_dset[blt_inds, :, freq_inds, pol_inds] = flags_array
                 nsamples_dset[blt_inds, :, freq_inds, pol_inds] = nsample_array
             elif n_reg_spaced == 1:
@@ -890,19 +947,31 @@ class UVH5(UVData):
                 if blt_reg_spaced:
                     for ifreq, freq_idx in enumerate(freq_inds):
                         for ipol, pol_idx in enumerate(pol_inds):
-                            visdata_dset[blt_inds, :, freq_idx, pol_idx] = data_array[:, :, ifreq, ipol]
+                            if custom_dtype:
+                                indices = (blt_inds, np.s_[:], freq_idx, pol_idx)
+                                _write_complex_astype(data_array, visdata_dset, indices, visdata_dtype)
+                            else:
+                                visdata_dset[blt_inds, :, freq_idx, pol_idx] = data_array[:, :, ifreq, ipol]
                             flags_dset[blt_inds, :, freq_idx, pol_idx] = flags_array[:, :, ifreq, ipol]
                             nsamples_dset[blt_inds, :, freq_idx, pol_idx] = nsample_array[:, :, ifreq, ipol]
                 elif freq_reg_spaced:
                     for iblt, blt_idx in enumerate(blt_inds):
                         for ipol, pol_idx in enumerate(pol_inds):
-                            visdata_dset[blt_idx, :, freq_inds, pol_idx] = data_array[iblt, :, :, ipol]
+                            if custom_dtype:
+                                indices = (blt_idx, np.s_[:], freq_inds, pol_idx)
+                                _write_complex_astype(data_array, visdata_dset, indices, visdata_dtype)
+                            else:
+                                visdata_dset[blt_idx, :, freq_inds, pol_idx] = data_array[iblt, :, :, ipol]
                             flags_dset[blt_idx, :, freq_inds, pol_idx] = flags_array[iblt, :, :, ipol]
                             nsamples_dset[blt_idx, :, freq_inds, pol_idx] = nsample_array[iblt, :, :, ipol]
                 else:  # pol_reg_spaced
                     for iblt, blt_idx in enumerate(blt_inds):
                         for ifreq, freq_idx in enumerate(freq_inds):
-                            visdata_dset[blt_idx, :, freq_idx, pol_inds] = data_array[iblt, :, ifreq, :]
+                            if custom_dtype:
+                                indices = (blt_idx, np.s_[:], freq_idx, pol_inds)
+                                _write_complex_astype(data_array, visdata_dset, indices, visdata_dtype)
+                            else:
+                                visdata_dset[blt_idx, :, freq_idx, pol_inds] = data_array[iblt, :, ifreq, :]
                             flags_dset[blt_idx, :, freq_idx, pol_inds] = flags_array[iblt, :, ifreq, :]
                             nsamples_dset[blt_idx, :, freq_idx, pol_inds] = nsample_array[iblt, :, ifreq, :]
             else:
@@ -911,7 +980,11 @@ class UVH5(UVData):
                 for iblt, blt_idx in enumerate(blt_inds):
                     for ifreq, freq_idx in enumerate(freq_inds):
                         for ipol, pol_idx in enumerate(pol_inds):
-                            visdata_dset[blt_idx, :, freq_idx, pol_idx] = data_array[iblt, :, ifreq, ipol]
+                            if custom_dtype:
+                                indices = (blt_idx, np.s_[:], freq_idx, pol_idx)
+                                _write_complex_astype(data_array, visdata_dset, indices, visdata_dtype)
+                            else:
+                                visdata_dset[blt_idx, :, freq_idx, pol_idx] = data_array[iblt, :, ifreq, ipol]
                             flags_dset[blt_idx, :, freq_idx, pol_idx] = flags_array[iblt, :, ifreq, ipol]
                             nsamples_dset[blt_idx, :, freq_idx, pol_idx] = nsample_array[iblt, :, ifreq, ipol]
 
