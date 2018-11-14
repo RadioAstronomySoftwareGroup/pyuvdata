@@ -1124,6 +1124,7 @@ def test_UVH5PartialReadInts():
     return
 
 
+@uvtest.skipIf_no_h5py
 def test_UVH5PartialWriteInts():
     """
     Test writing an entire UVH5 file in pieces with integer outputs
@@ -1247,6 +1248,7 @@ def test_UVH5PartialWriteInts():
     return
 
 
+@uvtest.skipIf_no_h5py
 def test_read_complex_astype():
     # make a testfile with a test dataset
     test_file = os.path.join(DATA_PATH, 'test', 'test_file.h5')
@@ -1282,6 +1284,7 @@ def test_read_complex_astype():
     return
 
 
+@uvtest.skipIf_no_h5py
 def test_write_complex_astype():
     # make sure we can write data out
     test_file = os.path.join(DATA_PATH, 'test', 'test_file.h5')
@@ -1309,6 +1312,7 @@ def test_write_complex_astype():
     return
 
 
+@uvtest.skipIf_no_h5py
 def test_check_uvh5_dtype_errors():
     # test passing in something that's not a dtype
     nt.assert_raises(ValueError, uvh5._check_uvh5_dtype, 'hi')
