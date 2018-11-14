@@ -14,9 +14,11 @@ import nose.tools as nt
 from astropy.time import Time
 
 from pyuvdata import UVData
+from pyuvdata import uvh5
 import pyuvdata.utils as uvutils
 from pyuvdata.data import DATA_PATH
 import pyuvdata.tests as uvtest
+from pyuvdata.uvh5 import _hera_corr_dtype
 
 try:
     import h5py
@@ -991,5 +993,332 @@ def test_UVH5ReadHeaderSpecialCases():
 
     # clean up
     os.remove(testfile)
+
+    return
+
+
+@uvtest.skipIf_no_h5py
+def test_UVH5ReadInts():
+    """
+    Test reading visibility data saved as integers
+    """
+    uv_in = UVData()
+    uv_out = UVData()
+    uvh5_file = os.path.join(DATA_PATH, 'zen.2458432.34569.uvh5')
+    testfile = os.path.join(DATA_PATH, 'test', 'outtest.uvh5')
+    uv_in.read_uvh5(uvh5_file)
+    uv_in.write_uvh5(testfile, clobber=True)
+
+    # read it back in to make sure data is the same
+    uv_out.read_uvh5(testfile)
+    nt.assert_equal(uv_in, uv_out)
+
+    # now read in as np.complex128
+    uv_in.read_uvh5(uvh5_file, data_array_dtype=np.complex128)
+    nt.assert_equal(uv_in, uv_out)
+    nt.assert_equal(uv_in.data_array.dtype, np.dtype(np.complex128))
+
+    # clean up
+    os.remove(testfile)
+
+    return
+
+
+@uvtest.skipIf_no_h5py
+def test_UVH5WriteInts():
+    """
+    Test writing visibility data as integers
+    """
+    uv_in = UVData()
+    uv_out = UVData()
+    uvh5_file = os.path.join(DATA_PATH, 'zen.2458432.34569.uvh5')
+    testfile = os.path.join(DATA_PATH, 'test', 'outtest.uvh5')
+    uv_in.read_uvh5(uvh5_file)
+    uv_in.write_uvh5(testfile, clobber=True, data_write_dtype=_hera_corr_dtype)
+
+    # read it back in to make sure data is the same
+    uv_out.read_uvh5(testfile)
+    nt.assert_equal(uv_in, uv_out)
+
+    # also check that the datatype on disk is the right type
+    with h5py.File(testfile, 'r') as f:
+        visdata_dtype = f['Data/visdata'].dtype
+        nt.assert_true('r' in visdata_dtype.names)
+        nt.assert_true('i' in visdata_dtype.names)
+        nt.assert_true(visdata_dtype['r'].kind == 'i')
+        nt.assert_true(visdata_dtype['i'].kind == 'i')
+
+    # clean up
+    os.remove(testfile)
+
+    return
+
+
+@uvtest.skipIf_no_h5py
+def test_UVH5PartialReadInts():
+    """
+    Test reading in only part of a dataset from disk
+    """
+    uvh5_uv = UVData()
+    uvh5_uv2 = UVData()
+    uvh5_file = os.path.join(DATA_PATH, 'zen.2458432.34569.uvh5')
+
+    # select on antennas
+    ants_to_keep = np.array([0, 1])
+    uvh5_uv.read(uvh5_file, antenna_nums=ants_to_keep)
+    uvh5_uv2.read(uvh5_file)
+    uvh5_uv2.select(antenna_nums=ants_to_keep)
+    nt.assert_equal(uvh5_uv, uvh5_uv2)
+
+    # select on frequency channels
+    chans_to_keep = np.arange(12, 22)
+    uvh5_uv.read(uvh5_file, freq_chans=chans_to_keep)
+    uvh5_uv2.read(uvh5_file)
+    uvh5_uv2.select(freq_chans=chans_to_keep)
+    nt.assert_equal(uvh5_uv, uvh5_uv2)
+
+    # select on pols
+    pols_to_keep = [-5, -6]
+    uvh5_uv.read(uvh5_file, polarizations=pols_to_keep)
+    uvh5_uv2.read(uvh5_file)
+    uvh5_uv2.select(polarizations=pols_to_keep)
+    nt.assert_equal(uvh5_uv, uvh5_uv2)
+
+    # select on read using time_range
+    unique_times = np.unique(uvh5_uv.time_array)
+    uvtest.checkWarnings(uvh5_uv.read, [uvh5_file],
+                         {'time_range': [unique_times[0], unique_times[1]]},
+                         message=['Warning: "time_range" keyword is set'])
+    uvh5_uv2.read(uvh5_file)
+    uvh5_uv2.select(times=unique_times[0:2])
+    nt.assert_equal(uvh5_uv, uvh5_uv2)
+
+    # now test selecting on multiple axes
+    # frequencies first
+    uvh5_uv.read(uvh5_file, antenna_nums=ants_to_keep, freq_chans=chans_to_keep,
+                 polarizations=pols_to_keep)
+    uvh5_uv2.read(uvh5_file)
+    uvh5_uv2.select(antenna_nums=ants_to_keep, freq_chans=chans_to_keep,
+                    polarizations=pols_to_keep)
+    nt.assert_equal(uvh5_uv, uvh5_uv2)
+
+    # baselines first
+    ants_to_keep = np.array([0, 1])
+    uvh5_uv.read(uvh5_file, antenna_nums=ants_to_keep, freq_chans=chans_to_keep,
+                 polarizations=pols_to_keep)
+    uvh5_uv2.read(uvh5_file)
+    uvh5_uv2.select(antenna_nums=ants_to_keep, freq_chans=chans_to_keep,
+                    polarizations=pols_to_keep)
+    nt.assert_equal(uvh5_uv, uvh5_uv2)
+
+    # polarizations first
+    ants_to_keep = np.array([0, 1])
+    chans_to_keep = np.arange(12, 64)
+    uvh5_uv.read(uvh5_file, antenna_nums=ants_to_keep, freq_chans=chans_to_keep,
+                 polarizations=pols_to_keep)
+    uvh5_uv2.read(uvh5_file)
+    uvh5_uv2.select(antenna_nums=ants_to_keep, freq_chans=chans_to_keep,
+                    polarizations=pols_to_keep)
+    nt.assert_equal(uvh5_uv, uvh5_uv2)
+
+    return
+
+
+def test_UVH5PartialWriteInts():
+    """
+    Test writing an entire UVH5 file in pieces with integer outputs
+    """
+    full_uvh5 = UVData()
+    partial_uvh5 = UVData()
+    uvh5_file = os.path.join(DATA_PATH, 'zen.2458432.34569.uvh5')
+    full_uvh5.read_uvh5(uvh5_file)
+
+    # delete data arrays in partial file
+    partial_uvh5 = copy.deepcopy(full_uvh5)
+    partial_uvh5.data_array = None
+    partial_uvh5.flag_array = None
+    partial_uvh5.nsample_array = None
+
+    # initialize file on disk
+    partial_testfile = os.path.join(DATA_PATH, 'test', 'outtest_partial.uvh5')
+    partial_uvh5.initialize_uvh5_file(partial_testfile, clobber=True,
+                                      data_write_dtype=_hera_corr_dtype)
+
+    # write to file by iterating over antpairpol
+    antpairpols = full_uvh5.get_antpairpols()
+    for key in antpairpols:
+        data = full_uvh5.get_data(key, squeeze='none')
+        flags = full_uvh5.get_flags(key, squeeze='none')
+        nsamples = full_uvh5.get_nsamples(key, squeeze='none')
+        partial_uvh5.write_uvh5_part(partial_testfile, data, flags, nsamples,
+                                     bls=key)
+
+    # now read in the full file and make sure that it matches the original
+    partial_uvh5.read(partial_testfile)
+    nt.assert_equal(full_uvh5, partial_uvh5)
+
+    # start over, and write frequencies
+    partial_uvh5 = copy.deepcopy(full_uvh5)
+    partial_uvh5.data_array = None
+    partial_uvh5.flag_array = None
+    partial_uvh5.nsample_array = None
+
+    # initialize file on disk
+    partial_uvh5.initialize_uvh5_file(partial_testfile, clobber=True,
+                                      data_write_dtype=_hera_corr_dtype)
+    Nfreqs = full_uvh5.Nfreqs
+    Hfreqs = Nfreqs // 2
+    freqs1 = np.arange(Hfreqs)
+    freqs2 = np.arange(Hfreqs, Nfreqs)
+    data = full_uvh5.data_array[:, :, freqs1, :]
+    flags = full_uvh5.flag_array[:, :, freqs1, :]
+    nsamples = full_uvh5.nsample_array[:, :, freqs1, :]
+    partial_uvh5.write_uvh5_part(partial_testfile, data, flags, nsamples,
+                                 freq_chans=freqs1)
+    data = full_uvh5.data_array[:, :, freqs2, :]
+    flags = full_uvh5.flag_array[:, :, freqs2, :]
+    nsamples = full_uvh5.nsample_array[:, :, freqs2, :]
+    partial_uvh5.write_uvh5_part(partial_testfile, data, flags, nsamples,
+                                 freq_chans=freqs2)
+
+    # read in the full file and make sure it matches
+    partial_uvh5.read(partial_testfile)
+    nt.assert_equal(full_uvh5, partial_uvh5)
+
+    # start over, write chunks of blts
+    partial_uvh5 = copy.deepcopy(full_uvh5)
+    partial_uvh5.data_array = None
+    partial_uvh5.flag_array = None
+    partial_uvh5.nsample_array = None
+
+    # initialize file on disk
+    partial_uvh5.initialize_uvh5_file(partial_testfile, clobber=True,
+                                      data_write_dtype=_hera_corr_dtype)
+    Nblts = full_uvh5.Nblts
+    Hblts = Nblts // 2
+    blts1 = np.arange(Hblts)
+    blts2 = np.arange(Hblts, Nblts)
+    data = full_uvh5.data_array[blts1, :, :, :]
+    flags = full_uvh5.flag_array[blts1, :, :, :]
+    nsamples = full_uvh5.nsample_array[blts1, :, :, :]
+    partial_uvh5.write_uvh5_part(partial_testfile, data, flags, nsamples,
+                                 blt_inds=blts1)
+    data = full_uvh5.data_array[blts2, :, :, :]
+    flags = full_uvh5.flag_array[blts2, :, :, :]
+    nsamples = full_uvh5.nsample_array[blts2, :, :, :]
+    partial_uvh5.write_uvh5_part(partial_testfile, data, flags, nsamples,
+                                 blt_inds=blts2)
+
+    # read in the full file and make sure it matches
+    partial_uvh5.read(partial_testfile)
+    nt.assert_equal(full_uvh5, partial_uvh5)
+
+    # start over, write groups of pols
+    partial_uvh5 = copy.deepcopy(full_uvh5)
+    partial_uvh5.data_array = None
+    partial_uvh5.flag_array = None
+    partial_uvh5.nsample_array = None
+
+    # initialize file on disk
+    partial_uvh5.initialize_uvh5_file(partial_testfile, clobber=True,
+                                      data_write_dtype=_hera_corr_dtype)
+    Npols = full_uvh5.Npols
+    Hpols = Npols // 2
+    pols1 = np.arange(Hpols)
+    pols2 = np.arange(Hpols, Npols)
+    data = full_uvh5.data_array[:, :, :, pols1]
+    flags = full_uvh5.flag_array[:, :, :, pols1]
+    nsamples = full_uvh5.nsample_array[:, :, :, pols1]
+    partial_uvh5.write_uvh5_part(partial_testfile, data, flags, nsamples,
+                                 polarizations=full_uvh5.polarization_array[:Hpols])
+    data = full_uvh5.data_array[:, :, :, pols2]
+    flags = full_uvh5.flag_array[:, :, :, pols2]
+    nsamples = full_uvh5.nsample_array[:, :, :, pols2]
+    partial_uvh5.write_uvh5_part(partial_testfile, data, flags, nsamples,
+                                 polarizations=full_uvh5.polarization_array[Hpols:])
+
+    # read in the full file and make sure it matches
+    partial_uvh5.read(partial_testfile)
+    nt.assert_equal(full_uvh5, partial_uvh5)
+
+    # clean up
+    os.remove(partial_testfile)
+
+    return
+
+
+def test_read_complex_astype():
+    # make a testfile with a test dataset
+    test_file = os.path.join(DATA_PATH, 'test', 'test_file.h5')
+    test_data_shape = (2, 3, 4, 5)
+    test_data = np.zeros(test_data_shape, dtype=np.complex64)
+    test_data.real = 1.
+    test_data.imag = 2.
+    with h5py.File(test_file, 'w') as f:
+        dgrp = f.create_group('Data')
+        dset = dgrp.create_dataset('testdata', test_data_shape,
+                                   dtype=_hera_corr_dtype)
+        with dset.astype(_hera_corr_dtype):
+            dset[:, :, :, :, 'r'] = test_data.real
+            dset[:, :, :, :, 'i'] = test_data.imag
+
+    # test that reading the data back in works as expected
+    indices = (np.s_[:], np.s_[:], np.s_[:], np.s_[:])
+    with h5py.File(test_file, 'r') as f:
+        dset = f['Data/testdata']
+        file_data = uvh5._read_complex_astype(dset, indices, np.complex64)
+
+    nt.assert_true(np.allclose(file_data, test_data))
+
+    # test errors
+    # test passing in a forbidden output datatype
+    with h5py.File(test_file, 'r') as f:
+        dset = f['Data/testdata']
+        nt.assert_raises(ValueError, uvh5._read_complex_astype, dset, indices, np.int32)
+
+    # clean up
+    os.remove(test_file)
+
+    return
+
+
+def test_write_complex_astype():
+    # make sure we can write data out
+    test_file = os.path.join(DATA_PATH, 'test', 'test_file.h5')
+    test_data_shape = (2, 3, 4, 5)
+    test_data = np.zeros(test_data_shape, dtype=np.complex64)
+    test_data.real = 1.
+    test_data.imag = 2.
+    with h5py.File(test_file, 'w') as f:
+        dgrp = f.create_group('Data')
+        dset = dgrp.create_dataset('testdata', test_data_shape,
+                                   dtype=_hera_corr_dtype)
+        inds = (np.s_[:], np.s_[:], np.s_[:], np.s_[:])
+        uvh5._write_complex_astype(test_data, dset, inds)
+
+    # read the data back in to confirm it's right
+    with h5py.File(test_file, 'r') as f:
+        dset = f['Data/testdata']
+        file_data = np.zeros(test_data_shape, dtype=np.complex64)
+        with dset.astype(_hera_corr_dtype):
+            file_data.real = dset['r'][:, :, :, :]
+            file_data.imag = dset['i'][:, :, :, :]
+
+    nt.assert_true(np.allclose(file_data, test_data))
+
+    return
+
+
+def test_check_uvh5_dtype_errors():
+    # test passing in something that's not a dtype
+    nt.assert_raises(ValueError, uvh5._check_uvh5_dtype, 'hi')
+
+    # test using a dtype with bad field names
+    dtype = np.dtype([('a', '<i4'), ('b', '<i4')])
+    nt.assert_raises(ValueError, uvh5._check_uvh5_dtype, dtype)
+
+    # test having different types for 'r' and 'i' fields
+    dtype = np.dtype([('r', '<i4'), ('i', '<f4')])
+    nt.assert_raises(ValueError, uvh5._check_uvh5_dtype, dtype)
 
     return
