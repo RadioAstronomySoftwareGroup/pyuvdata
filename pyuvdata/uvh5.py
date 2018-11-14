@@ -82,6 +82,7 @@ def _read_complex_astype(dset, indices, dtype_out=np.complex64):
         indices: tuple representing indices to extract. Should be either lists of indices or
             numpy slice objects.
         dtype_out: the datatype of the output array. One of (complex, np.complex64, np.complex128).
+            Default is np.complex64 (single-precision real and imaginary floats).
 
     Returns:
         output_array: array referenced in the dataset cast to complex values
@@ -650,7 +651,7 @@ class UVH5(UVData):
             if data_write_dtype not in ('c8', 'c16'):
                 _check_uvh5_dtype(data_write_dtype)
                 visdata = dgrp.create_dataset("visdata", self.data_array.shape, chunks=True,
-                                              compression=data_compression)
+                                              compression=data_compression, dtype=data_write_dtype)
                 indices = (np.s_[:], np.s_[:], np.s_[:], np.s_[:])
                 _write_complex_astype(self.data_array, visdata, indices)
             else:
@@ -723,9 +724,9 @@ class UVH5(UVData):
             # initialize the data groups on disk
             data_size = (self.Nblts, self.Nspws, self.Nfreqs, self.Npols)
             dgrp = f.create_group("Data")
-            if data_write_type not in ('c8', 'c16'):
+            if data_write_dtype not in ('c8', 'c16'):
                 # make sure the data type is correct
-                _check_uvh5_dtype(data_write_type)
+                _check_uvh5_dtype(data_write_dtype)
             visdata = dgrp.create_dataset("visdata", data_size, chunks=True,
                                           dtype=data_write_dtype, compression=data_compression)
             flags = dgrp.create_dataset("flags", data_size, chunks=True,
