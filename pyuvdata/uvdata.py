@@ -1301,7 +1301,6 @@ class UVData(UVBase):
                 blt_inds = time_blt_inds
 
         if blt_inds is not None:
-
             if len(blt_inds) == 0:
                 raise ValueError(
                     'No baseline-times were found that match criteria')
@@ -1309,7 +1308,6 @@ class UVData(UVBase):
                 raise ValueError(
                     'blt_inds contains indices that are too large')
             if min(blt_inds) < 0:
-                print(blt_inds)
                 raise ValueError('blt_inds contains indices that are negative')
 
             blt_inds = list(sorted(set(list(blt_inds))))
@@ -1909,7 +1907,8 @@ class UVData(UVBase):
     def read_uvh5(self, filename, antenna_nums=None, antenna_names=None,
                   ant_str=None, bls=None, frequencies=None, freq_chans=None,
                   times=None, polarizations=None, blt_inds=None, read_data=True,
-                  run_check=True, check_extra=True, run_check_acceptability=True):
+                  run_check=True, check_extra=True, run_check_acceptability=True,
+                  data_array_dtype=np.complex64):
         """
         Read a UVH5 file.
 
@@ -1961,6 +1960,10 @@ class UVData(UVBase):
                 ones. Default is True.
             run_check_acceptability: Option to check acceptable range of the values of
                 parameters after reading in the file. Default is True.
+            data_array_dtype: Datatype to store the output data_array as. Must be either
+                np.complex64 (single-precision real and imaginary) or np.complex128 (double-
+                precision real and imaginary). Only used if the datatype of the visibility
+                data on-disk is not 'c8' or 'c16'. Default is np.complex64.
 
         Returns:
             None
@@ -1976,7 +1979,8 @@ class UVData(UVBase):
                            polarizations=polarizations, blt_inds=blt_inds,
                            read_data=read_data, run_check=run_check,
                            check_extra=check_extra,
-                           run_check_acceptability=run_check_acceptability)
+                           run_check_acceptability=run_check_acceptability,
+                           data_array_dtype=data_array_dtype)
             if len(filename) > 1:
                 for f in filename[1:]:
                     uv2 = UVData()
@@ -1986,7 +1990,8 @@ class UVData(UVBase):
                                   times=times, polarizations=polarizations,
                                   blt_inds=blt_inds, read_data=read_data,
                                   run_check=run_check, check_extra=check_extra,
-                                  run_check_acceptability=run_check_acceptability)
+                                  run_check_acceptability=run_check_acceptability,
+                                  data_array_dtype=data_array_dtype)
                     self += uv2
                 del(uv2)
         else:
@@ -1996,14 +2001,15 @@ class UVData(UVBase):
                                frequencies=frequencies, freq_chans=freq_chans, times=times,
                                polarizations=polarizations, blt_inds=blt_inds,
                                read_data=read_data, run_check=run_check, check_extra=check_extra,
-                               run_check_acceptability=run_check_acceptability)
+                               run_check_acceptability=run_check_acceptability,
+                               data_array_dtype=data_array_dtype)
             self._convert_from_filetype(uvh5_obj)
             del(uvh5_obj)
 
     def write_uvh5(self, filename, run_check=True, check_extra=True,
                    run_check_acceptability=True, clobber=False,
                    data_compression=None, flags_compression="lzf",
-                   nsample_compression="lzf", data_write_type='c8'):
+                   nsample_compression="lzf", data_write_dtype='c8'):
         """
         Write a completely in-memory UVData object to a UVH5 file.
 
@@ -2022,7 +2028,7 @@ class UVData(UVBase):
                 the LZF filter.
             nsample_compression: HDF5 filter to apply when writing the nsample_array. Deafult is
                 the LZF filter.
-            data_write_type: datatype of output visibility data. Default is 'c8' for single-precision
+            data_write_dtype: datatype of output visibility data. Default is 'c8' for single-precision
                 floating point complex data. If not 'c8' or 'c16' (double precision floating point),
                 a numpy dtype object must be specified with an 'r' field and an 'i' field for real
                 and imaginary parts, respectively. See uvh5.py for an example of defining such a
@@ -2038,12 +2044,12 @@ class UVData(UVBase):
                             clobber=clobber, data_compression=data_compression,
                             flags_compression=flags_compression,
                             nsample_compression=nsample_compression,
-                            data_write_type=data_write_type)
+                            data_write_dtype=data_write_dtype)
         del(uvh5_obj)
 
     def initialize_uvh5_file(self, filename, clobber=False, data_compression=None,
                              flags_compression="lzf", nsample_compression="lzf",
-                             data_write_type='c8'):
+                             data_write_dtype='c8'):
         """
         Initialize a UVH5 file on disk with the header metadata and empty data arrays.
 
@@ -2056,7 +2062,7 @@ class UVData(UVBase):
                 the LZF filter.
             nsample_compression: HDF5 filter to apply when writing the nsample_array. Default is
                 the LZF filter.
-            data_write_type: datatype of output visibility data. Default is 'c8' for single-precision
+            data_write_dtype: datatype of output visibility data. Default is 'c8' for single-precision
                 floating point complex data. If not 'c8' or 'c16' (double precision floating point),
                 a numpy dtype object must be specified with an 'r' field and an 'i' field for real
                 and imaginary parts, respectively. See uvh5.py for an example of defining such a
@@ -2076,7 +2082,7 @@ class UVData(UVBase):
                                       data_compression=data_compression,
                                       flags_compression=flags_compression,
                                       nsample_compression=nsample_compression,
-                                      data_write_type=data_write_type)
+                                      data_write_dtype=data_write_dtype)
         del(uvh5_obj)
 
     def write_uvh5_part(self, filename, data_array, flags_array, nsample_array, check_header=True,
@@ -2150,7 +2156,7 @@ class UVData(UVBase):
              read_metadata=True, read_data=True, phase_type=None,
              correct_lat_lon=True, use_model=False, data_column='DATA',
              pol_order='AIPS', run_check=True, check_extra=True,
-             run_check_acceptability=True):
+             run_check_acceptability=True, data_array_dtype=np.complex64):
         """
         Read a generic file into a UVData object.
 
@@ -2230,6 +2236,10 @@ class UVData(UVBase):
                 ones. Default is True.
             run_check_acceptability: Option to check acceptable range of the values of
                 parameters after reading in the file. Default is True.
+            data_array_dtype: Datatype to store the output data_array as when reading uvh5
+                files. Must be either np.complex64 (single-precision real and imaginary) or
+                np.complex128 (double-precision real and imaginary). Only used if the datatype
+                of the visibility data on-disk is not 'c8' or 'c16'. Default is np.complex64.
 
         Returns:
             None
@@ -2406,7 +2416,8 @@ class UVData(UVBase):
                            frequencies=frequencies, freq_chans=freq_chans, times=times,
                            polarizations=polarizations, blt_inds=blt_inds,
                            read_data=read_data, run_check=run_check, check_extra=check_extra,
-                           run_check_acceptability=run_check_acceptability)
+                           run_check_acceptability=run_check_acceptability,
+                           data_array_dtype=data_array_dtype)
 
             if select:
                 unique_times = np.unique(self.time_array)
