@@ -1,10 +1,15 @@
+% This is uvh5_memo.tex, a memo on the uvh5 format
+% The minted package is used for syntax highlighting of code, and requires the
+% pygments package to be installed. pdflatex also needs to be invoked with the
+% -shell-escape option. To compile this document:
+%   $ pdflatex -shell-escape uvh5_memo.tex
+% This should compile the document into uvh5_memo.pdf
+
 \documentclass[11pt, oneside]{article}
 \usepackage{geometry}
 \geometry{letterpaper}
-%\geometry{landscape}
-%\usepackage[parfill]{parskip}
-\usepackage{graphicx}			
-							
+\usepackage{graphicx}
+\usepackage[titletoc,toc,title]{appendix}							
 \usepackage{amssymb}
 
 \usepackage{hyperref} 
@@ -14,6 +19,7 @@
 
 \usepackage{cleveref}
 \crefformat{footnote}{#2\footnotemark[#1]#3}
+\usepackage{minted}
 
 \title{Memo: UVH5 file format}
 \author{Paul La Plante, and the pyuvdata team}
@@ -21,23 +27,34 @@
 
 \begin{document}
 \maketitle
+\tableofcontents
 \section{Introduction}
+\label{sec:intro}
 This memo introduces a new HDF5\footnote{\url{https://www.hdfgroup.org/}}-based
 file format of a UVData object in
-pyuvdata\footnote{\url{https://github.com/HERA-Team/pyuvdata}}, a python package
-that provides an interface to interferometric data. Here, we describe the
-required and optional elements and the structure of this file format, called
+\verb+pyuvdata+\footnote{\url{https://github.com/HERA-Team/pyuvdata}}, a python
+package that provides an interface to interferometric data. Here, we describe
+the required and optional elements and the structure of this file format, called
 \textit{UVH5}.
 
-We assume that the user has a working knowledge of HDF5, as well as UVData
-objects in pyuvdata. For more information about HDF5, please visit
-\url{https://portal.hdfgroup.org/display/HDF5/HDF5}. For more information about
-the parameters present in a UVData object, please visit
+Note that this file format is specifically designed to represent UVData
+objects. Other HDF5-based datasets for radio interferometers, such as
+katdal\footnote{\url{https://github.com/ska-sa/katdal}} or
+HDFITS\footnote{\url{https://github.com/telegraphic/fits2hdf}} \textit{are not
+  compatible} with the standard as defined here. We refer the reader to the
+documentation of those other formats to find out more about them.
+
+We assume that the user has a working knowledge of HDF5 and the associated
+python bindings in the package \verb+h5py+\footnote{\url{https://www.h5py.org/}}, as
+well as UVData objects in pyuvdata. For more information about HDF5, please
+visit \url{https://portal.hdfgroup.org/display/HDF5/HDF5}. For more information
+about the parameters present in a UVData object, please visit
 \url{http://pyuvdata.readthedocs.io/en/latest/uvdata_parameters.html}. An
 example for how to interact with UVData objects in pyuvdata is available at
 \url{http://pyuvdata.readthedocs.io/en/latest/tutorial.html}.
 
 \section{Overview}
+\label{sec:overview}
 A UVH5 object contains the interferometric data from a radio telescope, as well
 as the associated metadata necessary to interpret it. A UVH5 file contains two
 primary HDF5 groups: the \verb+Header+ group, which contains the metadata, and
@@ -58,6 +75,7 @@ object. Note that in nearly all cases, the names are coincident, to make things
 as transparent as possible to the user.
 
 \section{Header}
+\label{sec:header}
 The \verb+Header+ group of the file contains the metadata necessary to interpret
 the data. We begin with the required parameters, then continue to optional
 ones. Unless otherwise noted, all datasets are scalars (i.e., not arrays). The
@@ -65,44 +83,55 @@ preceision of the data type is also not specified as part of the format, because
 in general the user is free to set it according to the desired use case (and
 HDF5 records the precision and endianness when generating datasets). When using
 the standard \verb+h5py+-based implementation in pyuvdata, this typically
-results in 32-bit integers and double precision floating point numbers.
+results in 32-bit integers and double precision floating point numbers. Each
+entry in the list contains \textbf{(1)} the exact name of the dataset in the
+HDF5 file, in boldface, \textbf{(2)} the expected datatype of the dataset, in
+italics, \textbf{(3)} a brief description of the data, and \textbf{(4)} the name
+of the corresponding attribute on a UVData object. Note that unlike in other
+formats, names of HDF5 datasets can be quite long, and so in most cases the name
+of the dataset corresponds to the name of the UVData attribute.
+
+Note that string datatypes should be handled with care. See
+Appendix~\ref{appendix:strings} for appropriately defining them for
+interoperability between different HDF5 implementations.
 
 \subsection{Required Parameters}
+\label{sec:req_params}
 \begin{itemize}
-\item \textbf{latitude}: \textit{float} the latitude of the telescope site, in
-  radians. (\textit{latitude})
-\item \textbf{longitude}: \textit{float} the longitude of the telescope site, in
-  radians. (\textit{longitude})
-\item \textbf{altitude}: \textit{float} the altitude of the telescope site, in
+\item \textbf{latitude}: \textit{float} The latitude of the telescope site, in
+  degrees. (\textit{latitude})
+\item \textbf{longitude}: \textit{float} The longitude of the telescope site, in
+  degrees. (\textit{longitude})
+\item \textbf{altitude}: \textit{float} The altitude of the telescope site, in
   meters. (\textit{altitude})
-\item \textbf{instrument}: \textit{string} the name of the instrument, typically
-  the elescope name. (\textit{instrument})
-\item \textbf{object_name}: \textit{string} the name of the object tracked by
+\item \textbf{instrument}: \textit{string} The name of the instrument, typically
+  the telescope name. (\textit{instrument})
+\item \textbf{object\_name}: \textit{string} The name of the object tracked by
   the telescope. For a drift-scan antenna, this is typically
-  ``zenith''. (\textit{object_name})
-\item \textbf{history}: \textit{string} the history of the data
+  ``zenith''. (\textit{object\_name})
+\item \textbf{history}: \textit{string} The history of the data
   file. (\textit{history})
-\item \textbf{phase_type}: \textit{string} the phase type of the
+\item \textbf{phase\_type}: \textit{string} The phase type of the
   observation. Should be ``phased'' or ``drift''. Any other value is treated as
-  an unrecognized type. (\textit{phase_type})
-\item \textbf{Nants_data}: \textit{int} the number of antennas that data in the
+  an unrecognized type. (\textit{phase\_type})
+\item \textbf{Nants\_data}: \textit{int} The number of antennas that data in the
   file corresponds to. May be smaller than the number of antennas in the
-  array. (\textit{Nants_data})
-\item \textbf{Nants_telescope}: \textit{int} the number of antennas in the
+  array. (\textit{Nants\_data})
+\item \textbf{Nants\_telescope}: \textit{int} The number of antennas in the
   array. May be larger than the number of antennas with data corresponding to
-  them. (\textit{Nants_telescope})
-\item \textbf{ant_1_array}: \textit{int} an array of the first antenna indices
+  them. (\textit{Nants\_telescope})
+\item \textbf{ant\_1\_array}: \textit{int} An array of the first antenna indices
   corresponding to baselines present in the data. This is a one-dimensional
-  array of size Nblts. (\textit{ant_1_array})
-\item \textbf{ant_2_array}: \textit{int} an array of the second antenna indices
+  array of size Nblts. (\textit{ant\_1\_array})
+\item \textbf{ant\_2\_array}: \textit{int} An array of the second antenna indices
   corresponding to baselines present in the data. This is a one-dimensional
-  array of size Nblts. (\textit{ant_2_array})
-\item \textbf{antenna_names}: \textit{string} an array of the names of antennas
+  array of size Nblts. (\textit{ant\_2\_array})
+\item \textbf{antenna\_names}: \textit{string} An array of the names of antennas
   present in the array. This is a one-dimensional array of size
-  Nants_telescope. Note there must be one entry for every unique antenna in
-  ant_1_array and ant_2_array, but there may be additional
-  entries. (\textit{antenna_names})
-\item \textbf{baseline_array}: \textit{int} an array of baseline indices
+  Nants\_telescope. Note there must be one entry for every unique antenna in
+  ant\_1\_array and ant\_2\_array, but there may be additional
+  entries. (\textit{antenna\_names})
+\item \textbf{baseline\_array}: \textit{int} An array of baseline indices
   corresponding to the data. This is a one-dimensional array of size Nblts. The
   baseline index is calculated as:
   \[
@@ -111,10 +140,10 @@ results in 32-bit integers and double precision floating point numbers.
   For current implementations, 32-bit integers (an ``int'' type in C) are
   sufficient. However, for arrays with a very large number of antennas
   ($\mathcal{O}(10^6)$), 64-bit integers (a ``long'' type in C) may be
-  required. (\textit{baseline_array})
+  required. (\textit{baseline\_array})
 \item \textbf{Nbls}: \textit{int} the number of baselines present in the
   data. For full cross-correlation data (including auto-correlations), this
-  should be Nants_data*(Nants_data+1)/2. (\textit{Nbls})
+  should be Nants\_data*(Nants\_data+1)/2. (\textit{Nbls})
 \item \textbf{Nblts}: \textit{int} The number of baseline-times (i.e., the
   number of spectra) present in the data. Note that this value need not be equal
   to Nbls * Ntimes. (\textit{Nblts})
@@ -126,11 +155,297 @@ results in 32-bit integers and double precision floating point numbers.
   data. (\textit{Ntimes})
 \item \textbf{Nspws}: \textit{int} The number of spectral windows present in the
   data. (\textit{Nspws})
-\item \textbf{}
+\item \textbf{uvw\_array}: \textit{float} An array of the uvw-coordinates
+  corresponding to each observation in the data. This is a two-dimensional array of
+  size (Nblts, 3). (\textit{uvw\_array})
+\item \textbf{time\_array}: \textit{float} An array of the Julian Date
+  corresponding to the center of an integration. This is a one-dimensional array
+  of size Nblts. (\textit{time\_array})
+\item \textbf{integration\_time}: \textit{float} An array of the length of time
+  in seconds of an integration. This is a one-dimensional array of size
+  Nblts. (\textit{time\_array})
+\item \textbf{freq\_array}: \textit{float} An array of the frequencies stored in
+  the file in Hertz. This is a two-dimensional array of size (Nspws,
+  Nfreqs). (\textit{freq\_array})
+\item \textbf{channel\_width}: \textit{float} The width of frequency channels in
+  the file in Hertz. (\textit{channel\_width})
+\item \textbf{spw\_array}: \textit{int} An array of the spectral windows in the
+  file. This is a one-dimensional array of size Nspws. (\textit{spw\_array})
+\item \textbf{polarization\_array}: \textit{int} An array of the polarizations
+  contained in the file. This is a one-dimensional array of size Npols. Note
+  that the polarizations should be stored as an integer, and use the convention
+  defined in AIPS Memo 117. (\textit{polarization\_array})
 \end{itemize}
 
+\subsection{Optional Parameters}
+\label{sec:opt_params}
+\begin{itemize}
+\item \textbf{dut1}: \textit{float} DUT1 (google it). AIPS 117 calls it
+  ``UT1UTC''. (\textit{dut1})
+\item \textbf{earth\_omega}: \textit{float} Earth's rotation rate in degrees per
+  day. (\textit{earth\_omega})
+\item \textbf{gst0}: \textit{float} Greenwich sidereal time at midnight on
+  reference date. (\textit{gst0})
+\item \textbf{rdate}: \textit{string} Date for which GST0 (or whichever time
+  saved in that field) applies. (\textit{rdate})
+\item \textbf{timesys}: \textit{string} Time system. pyuvdata currently only
+  supports UTC. (\textit{timesys})
+\item \textbf{x\_orientation}: \textit{string} The orientation of the x-arm of a
+  dipole antenna. It is assumed to be the same for all antennas in the
+  dataset. For instance, ``E'' or ``East'' may be
+  used. (\textit{x\_orientation}).
+\item \textbf{telescope\_name}: \textit{string} The name of the telescope used
+  to take the data. The value is used to check that metadata is self-consistent
+  for known telescopes in pyuvdata. (\textit{telescope\_name})
+\item \textbf{antenna\_positions}: \textit{float} An array of the antenna
+  coordinates relative to the \textit{telescope\_location} (in the ITRF
+  frame). This is a two-dimensional array of size (Nants\_telescope,
+  3). (\textit{antenna\_positions})
+\item \textbf{antenna\_diameters}: \textit{float} An array of the diameters of
+  the antennas in meters. This is a one-dimensional array of size
+  (Nants\_telescope). (\textit{Nants\_telescope})
+\item \textbf{uvplane\_reference\_time}: \textit{int} The time at which the
+  phase center is normal to the chosen UV plane for phasing. Used for
+  interoperability with the FHD
+  package\footnote{\url{https://github.com/EoRImaging/FHD}}.
+\item \textbf{phase\_center\_ra}: \textit{float} The right ascension of the
+  phase center of the observation in radians. Required if phase\_type is
+  ``phased''. (\textit{phase\_center\_ra})
+\item \textbf{phase\_center\_dec}: \textit{float} The declination of the phase
+  center of the observation in radians. Required if phase\_type is
+  ``phased''. (\textit{phase\_center\_dec}).
+\item \textbf{phase\_center\_epoch}: \textit{float} The epoch year of the phase
+  applied to the data (\textit{e.g.}, 2000.). Required if phase\_type is
+  ``phased''. (\textit{phase\_center\_epoch})
+\item \textbf{phase\_center\_frame}: \textit{string} The frame the data and
+  uvw\_array are phased to. Options are ``gcrs'' and ``icrs'', with default
+  ``icrs''. (\textit{phase\_center\_frame})
+\item \textbf{lst\_array}: \textit{float} An array corresponding to the local
+  sidereal time of the center of each observation in the data in units of
+  radians. If it is not specified, it is calculated from the latitude/longitude
+  and the time\_array. (\textit{lst\_array})
+\end{itemize}
+
+\subsection{Extra Keywords}
+\label{sec:extra_keywords}
+UVData objects support ``extra keywords'', which are additional bits of
+arbitrary metadata useful to carry around with the data but which are not
+formally supported as a reserved keyword in the \verb+Header+. In a UVH5 file,
+extra keywords are handled by creating a datagroup called \verb+extra_keywords+
+inside the \verb+Header+ datagroup. In a UVData object, extra keywords are
+expected to be scalars, but UVH5 makes no formal restriction on this. Inside of
+the extra\_keywords datagroup, each extra keyword is saved as a key-value pair
+using a dataset, where the name of the extra keyword is the name of the dataset
+and its corresponding value is saved in the dataset. Though the use of HDF5
+attributes can also be used to save additional metadata, it is not recommended,
+due to the lack of support inside of pyuvdata for ensuring the attributes are
+properly saved when writing out.
+
+
+\section{Data}
+\label{sec:data}
+In addition to the \verb+Header+ datagroup in the root namespace, there must be
+one called \verb+Data+. This datagroup saves the visibility data, flags, and
+number of samples corresponding to each entry. All three datasets must be
+present in a valid UVH5 file. They are also all expected to be the same shape:
+(Nblts, Nspws, Nfreqs, Npols). Note that due to the intermixing of the baseline
+and time axes, it is \textit{not} required for data to exist for every baseline
+and time in the file. This behavior is similar to UVFITS and MIRIAD file
+formats. Also note that there is no explicit ordering required for the
+baseline-time axis. A common ordering is to write the data in ``correlator
+order'', and have all baselines for a single time $t_i$, followed by all
+baselines for the next time $t_{i+1}$, etc. However, this is merely a
+convention, and is not explicitly required for the UVH5 format.
+
+\subsection{Visdata Dataset}
+\label{sec:visdata}
+The visibility data is saved as a dataset named \verb+visdata+. It should be a
+4-dimensional, complex-type dataset with shape (Nblts, Nspws, Nfreqs,
+Npols). Most commonly this is saved as an 8-byte complex number (a 4-byte float
+for the real and imaginary parts), though some flexibility is possible. 16-byte
+complex floating point numbers (composed of two 8-byte floats), as well as
+8-byte complex integers (two 4-byte signed integers). In all cases, a compound
+datatype is defined, with an \verb+`r'+ field and an \verb+`i'+ field,
+corresponding to the real and imaginary parts, respectively.
+
+Using \verb+h5py+, the datatype for \verb+visdata+ can be specified as
+\verb+`c8'+ (8-byte complex numbers, corresponding to the \verb+np.complex64+
+datatype) or \verb+`c16'+ (16-byte complex numbers, corresponding to the
+\verb+np.complex128+ datatype) out-of-the-box, with no special handling by the
+user. \verb+h5py+ transparently handles the definition of the compound
+datatype. For examples of how to handle complex integer datatypes in
+\verb+h5py+, see Appendix~\ref{appendix:integers}.
+
+
+\subsection{Flags Dataset}
+\label{sec:flags}
+The flags corresponding to the data are saved as a dataset named
+\verb+flags+. It is a 4-dimensional, boolean-type dataset with shape (Nblts,
+Nspws, Nfreqs, Npols). Values of True correspond to instances of flagged data,
+and False is non-flagged. Note that the boolean type of the data is \textit{not}
+the HDF5-provided \verb+H5T_NATIVE_HBOOL+, and instead is defined to conform to
+the \verb+h5py+ implementation of the numpy boolean type. When creating this
+dataset from \verb+h5py+, one can specify the datatype as \verb+np.bool+. Behind
+the scenes, this defines an HDF5 enum datatype. See
+Appendix~\ref{appendix:boolean} for an example of how to write a compatible
+dataset from C.
+
+As with the nsamples dataset discussed below, compression is typically applied
+to the flags dataset. The LZF filter (included in all HDF5 libraries) provides a
+good compromise between speed and compression. In the special cases of
+single-valued arrays, the dataset occupies virtually no disk space.
+
+\subsection{Nsamples Dataset}
+\label{sec:nsamples}
+The number of data points averaged into each data entry is saved as a dataset
+named \verb+nsamples+. It is a 4-dimensional, floating-point type dataset with
+shape (Nblts, Nspws, Nfreqs, Npols). Note that it is \textit{not} required to be
+an integer, and should \textit{not} be saved as an integer type. The product of
+the integration\_time array and the data in the nsample array reflects the total
+amount of time that went into a visibility. The best practice is for the
+nsamples dataset to track flagging within an integration time (leading to a
+decrease of the nsamples array value to be less than 1) and LST averaging
+(leading to an increase in the nsamples array value). Datasets that have not
+been LST averaged should have values in nsamples that are less than or equal to
+1. Although this convention is not adhered to by all data formats serviced by
+\verb+pyuvdata+, it is recommended to follow it as closely as possible in UVH5
+files. What \textit{should} be true is the product of the integration\_time
+array and nsamples array corresponding to the total amount of time included in a
+visibility.
+
+\newpage
+
+\begin{appendices}
+\section{Writing Strings from h5py}
+\label{appendix:strings}
+String datatypes are finicky, and require special handling to ensure that they
+are compatible with the HDF5 bindings in various languages. This is especially
+true for files written from \verb+h5py+, which handles strings differently
+between python2 and python3. Though python2 is nearing its end-of-life, UVH5
+should be backwards compatible with older versions of \verb+h5py+ as much as
+possible. To help service this, all string-type metadata in UVH5 files
+\textit{must} be fixed-length ASCII type. Not only does this allow for
+interoperability between different \verb+h5py+ versions, but it also ensures
+that strings can be round-tripped through other HDF5 bindings, such as those in
+C, MATLAB, IDL, Fortran\footnote{Strings in Fortran are not null-terminated, so
+  these require special handling.}, etc. Note that the string should use one
+byte per character, and be null-terminated. This corresponds to the numpy
+\verb+S+ datatype in both versions of python2 and python3.
+
+When writing a string-like dataset from \verb+h5py+, scalar data should be
+written by casting a string to a \verb+numpy.string_+ object. Array data should
+be written as a \verb+S<n>+ dataset, where \verb+<n>+ represents the length of
+the strings to be saved. Upon reading, strings can be cast to bytes using the
+\verb+tostring()+ method, at which point the data is \verb+<str>+-type (python2)
+or can be decoded as UTF-8 to become \verb+<str>+-type (python3).
+
+Below is an example for how to read and write string scalar and array-type
+datasets using \verb+h5py+ in python2 and python3.
+
+\subsection{python2}
+\begin{minted}{python}
+import numpy as np
+import h5py
+# open file and write string datasets
+with h5py.File('test_file.uvh5', 'w') as f:
+    header = f.create_group('Header')
+    # scalar dataset
+    header['scalar_string'] = np.string_('Hello world!')
+
+    # array dataset
+    str_array = np.array(['hello', 'world'])
+    n_words = len(str_array)
+    max_len_words = np.amax([len(n) for n in str_array])
+    dtype = "S{:d}".format(max_len_words)
+    header.create_dataset('array_string', (n_words,), dtype=dtype,
+                          data=str_array)
+
+# read the data back in again
+with h5py.File('test_file.uvh5', 'r') as f:
+    header = f['Header']
+    # read scalar dataset
+    scalar_string = header['scalar_string'].value.tostring()
+    assert scalar_string == 'Hello world!'
+
+    # read array dataset
+    str_array_file = [n.tostring() for n in header['array_string'].value]
+    assert str_array_file == str_array
+\end{minted}
+
+\subsection{python3}
+\begin{minted}{python}
+import numpy as np
+import h5py
+# open file and write string datasets
+with h5py.File('test_file.uvh5', 'w') as f:
+    header = f.create_group('Header')
+    # scalar dataset
+    header['scalar_string'] = np.string_('Hello world!')
+
+    # array dataset
+    str_array = np.array(['hello', 'world'])
+    header['array_string'] = np.string_(str_array)
+
+# read the data back in again
+with h5py.File('test_file.uvh5', 'r') as f:
+    header = f['Header']
+    # read scalar dataset
+    scalar_string = header['scalar_string'].value.tostring().decode('UTF-8')
+    assert scalar_string == 'Hello world!'
+
+    # read array dataset
+    str_array_file = [n.tostring().decode('UTF-8')
+                      for n in header['array_string'].value]
+    assert str_array_file == str_array
+\end{minted}
+
+
+\section{Defining numpy Boolean Arrays in C}
+\label{appendix:boolean}
+As mentioned in Sec.~\ref{sec:flags}, the flags array in a UVH5 file uses an
+HDF5 enum datatype to encode the numpy boolean type. When creating such a
+datatype using \verb+h5py+, the user simply needs to ensure the datatype is
+\verb+np.bool+. The building of the enum is transparent. When building the enum
+from a different language, the precise specification is necessary to ensure
+compatibility. The following code is a template for how to build the appropriate
+datatype using C. The construction in other languages, such as Fortran, should
+follow analogously.
+\begin{minted}{c}
+#include <hdf5.h>
+
+typedef enum {
+  FALSE,
+  TRUE
+} bool_t;
+
+int main() {
+  bool_t val;
+  static hid_t boolenumtype;
+  hid_t data_id;
+
+  // define enum type
+  boolenumtype = H5Tcreate(H5T_ENUM, sizeof(bool_t));
+  H5Tenum_insert(boolenumtype, "FALSE", CPTR(val, FALSE ));
+  H5Tenum_insert(boolenumtype, "TRUE",  CPTR(val, TRUE  ));
+
+  // make a dataset in the file
+  hsize_t dims[4] = {Nblts, Nspws, Nfreqs, Npols};
+  hid_t file_space = H5Screate_simple(4, dims, dims);
+  hid_t plist = H5Pcreate(H5P_DATASET_CREATE);
+  hid_t flags_did = H5Dcreate(data_id, "flags", boolenumtype, file_space,
+                              H5P_DEFAULT, plist, H5P_DEFAULT);
+  H5Pclose(plist);
+  H5Sclose(file_space);
+
+  return 0;
+}
+\end{minted}
 
 
 
+\section{Integer Datatype Support for Visibility Data}
+\label{appendix:integers}
+
+\end{appendices}
 
 \end{document}
