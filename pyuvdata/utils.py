@@ -808,6 +808,7 @@ def get_baseline_redundancies(baseline_inds, baseline_vecs, tol=1.0, with_conjug
                     conjugates.append(bl[1] < 0)
             else:
                 conjugates.append(bl[0] < 0)
+        conjugates = np.array(conjugates, dtype=bool)
         baseline_vecs[conjugates] *= (-1)
         baseline_ind_conj = baseline_inds[conjugates]
         bl_gps, vec_bin_centers, lens = get_baseline_redundancies(baseline_inds, baseline_vecs, tol=tol, with_conjugates=False)
@@ -842,7 +843,6 @@ def get_baseline_redundancies(baseline_inds, baseline_vecs, tol=1.0, with_conjug
 
     # We end up with multiple copies of each redundant group, so remove duplicates
     bl_gps = np.unique(bl_gps).tolist()
-
     N_unique = len(bl_gps)
     vec_bin_centers = np.zeros((N_unique, 3))
     for gi, gp in enumerate(bl_gps):
