@@ -320,7 +320,7 @@ class UVH5(UVData):
         if visdata_dtype not in ('complex64', 'complex128'):
             _check_uvh5_dtype(visdata_dtype)
             if data_array_dtype not in (np.complex64, np.complex128):
-                raise ValueError("data_array_type must be np.complex64 or np.complex128")
+                raise ValueError("data_array_dtype must be np.complex64 or np.complex128")
             custom_dtype = True
         else:
             custom_dtype = False
@@ -966,7 +966,7 @@ class UVH5(UVData):
                         for ipol, pol_idx in enumerate(pol_inds):
                             if custom_dtype:
                                 indices = (blt_inds, np.s_[:], freq_idx, pol_idx)
-                                _write_complex_astype(data_array, visdata_dset, indices)
+                                _write_complex_astype(data_array[:, :, ifreq, ipol], visdata_dset, indices)
                             else:
                                 visdata_dset[blt_inds, :, freq_idx, pol_idx] = data_array[:, :, ifreq, ipol]
                             flags_dset[blt_inds, :, freq_idx, pol_idx] = flags_array[:, :, ifreq, ipol]
@@ -976,7 +976,7 @@ class UVH5(UVData):
                         for ipol, pol_idx in enumerate(pol_inds):
                             if custom_dtype:
                                 indices = (blt_idx, np.s_[:], freq_inds, pol_idx)
-                                _write_complex_astype(data_array, visdata_dset, indices)
+                                _write_complex_astype(data_array[iblt, :, :, ipol], visdata_dset, indices)
                             else:
                                 visdata_dset[blt_idx, :, freq_inds, pol_idx] = data_array[iblt, :, :, ipol]
                             flags_dset[blt_idx, :, freq_inds, pol_idx] = flags_array[iblt, :, :, ipol]
@@ -986,7 +986,7 @@ class UVH5(UVData):
                         for ifreq, freq_idx in enumerate(freq_inds):
                             if custom_dtype:
                                 indices = (blt_idx, np.s_[:], freq_idx, pol_inds)
-                                _write_complex_astype(data_array, visdata_dset, indices)
+                                _write_complex_astype(data_array[iblt, :, ifreq, :], visdata_dset, indices)
                             else:
                                 visdata_dset[blt_idx, :, freq_idx, pol_inds] = data_array[iblt, :, ifreq, :]
                             flags_dset[blt_idx, :, freq_idx, pol_inds] = flags_array[iblt, :, ifreq, :]
@@ -999,7 +999,7 @@ class UVH5(UVData):
                         for ipol, pol_idx in enumerate(pol_inds):
                             if custom_dtype:
                                 indices = (blt_idx, np.s_[:], freq_idx, pol_idx)
-                                _write_complex_astype(data_array, visdata_dset, indices)
+                                _write_complex_astype(data_array[iblt, :, ifreq, ipol], visdata_dset, indices)
                             else:
                                 visdata_dset[blt_idx, :, freq_idx, pol_idx] = data_array[iblt, :, ifreq, ipol]
                             flags_dset[blt_idx, :, freq_idx, pol_idx] = flags_array[iblt, :, ifreq, ipol]
