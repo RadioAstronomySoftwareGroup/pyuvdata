@@ -39,12 +39,32 @@ def test_readNRAO():
     """Test reading in a CASA tutorial ms file."""
     UV = UVData()
     testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.ms')
-    expected_extra_keywords = ['data_column', 'antenna_positions']
+    expected_extra_keywords = ['DATA_COL']
 
     UV.read(testfile)
-    nt.assert_equal(expected_extra_keywords.sort(),
-                    list(UV.extra_keywords.keys()).sort())
-    del(UV)
+    nt.assert_equal(sorted(expected_extra_keywords),
+                    sorted(list(UV.extra_keywords.keys())))
+
+
+@uvtest.skipIf_no_casa
+def test_read_LWA():
+    """Test reading in an LWA ms file."""
+    UV = UVData()
+    testfile = os.path.join(DATA_PATH, 'lwasv_cor_58342_05_00_14.ms.tar.gz')
+    expected_extra_keywords = ['DATA_COL']
+
+    import tarfile
+    with tarfile.open(testfile) as tf:
+        new_filename = os.path.join(DATA_PATH, tf.getnames()[0])
+        tf.extractall(path=DATA_PATH)
+
+    UV.read(new_filename, file_type='ms')
+    nt.assert_equal(sorted(expected_extra_keywords),
+                    sorted(list(UV.extra_keywords.keys())))
+
+    history = ('APP_PARAMS;CLI_COMMAND;APPLICATION;MESSAGE;OBJECT_ID;OBSERVATION_ID;ORIGIN;PRIORITY;TIME'
+               + '\n' + UV.pyuvdata_version_str)
+    nt.assert_equal(UV.history, history)
 
 
 @uvtest.skipIf_no_casa
