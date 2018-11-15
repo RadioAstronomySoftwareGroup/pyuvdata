@@ -9,6 +9,7 @@ from __future__ import absolute_import, division, print_function
 
 import nose.tools as nt
 import os
+import shutil
 import copy
 import numpy as np
 
@@ -63,6 +64,9 @@ def test_read_LWA():
                     sorted(list(UV.extra_keywords.keys())))
 
     nt.assert_equal(UV.history, UV.pyuvdata_version_str)
+
+    # delete the untarred folder
+    shutil.rmtree(new_filename)
 
 
 @uvtest.skipIf_no_casa
