@@ -62,9 +62,7 @@ def test_read_LWA():
     nt.assert_equal(sorted(expected_extra_keywords),
                     sorted(list(UV.extra_keywords.keys())))
 
-    history = ('APP_PARAMS;CLI_COMMAND;APPLICATION;MESSAGE;OBJECT_ID;OBSERVATION_ID;ORIGIN;PRIORITY;TIME'
-               + '\n' + UV.pyuvdata_version_str)
-    nt.assert_equal(UV.history, history)
+    nt.assert_equal(UV.history, UV.pyuvdata_version_str)
 
 
 @uvtest.skipIf_no_casa
