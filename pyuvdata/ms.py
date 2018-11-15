@@ -43,7 +43,7 @@ class MS(UVData):
     Attributs:
       ms_required_extra: Names of optional MSParameters that are required for casa ms
     """
-    ms_required_extra = ['datacolumn', 'antenna_positions']  # ,'casa_history']
+    ms_required_extra = ['datacolumn', 'antenna_positions']
 
     def _ms_hist_to_string(self, history_table):
         '''
@@ -53,12 +53,15 @@ class MS(UVData):
         Returns: string containing only message column (consistent with other UVDATA history strings)
                  string enconding complete casa history table converted with \n denoting rows and ';' denoting column breaks
         '''
-        message_str = ''  # string to store usual uvdata history
-        history_str = 'APP_PARAMS;CLI_COMMAND;APPLICATION;MESSAGE;OBJECT_ID;OBSERVATION_ID;ORIGIN;PRIORITY;TIME\n'
-        # string to store special casa history
+        # string to store just the usual uvdata history
+        message_str = ''
+        # string to store all the casa history info
+        history_str = ''
 
         # Do not touch the history table if it has no information
         if history_table.nrows() > 0:
+            history_str = 'APP_PARAMS;CLI_COMMAND;APPLICATION;MESSAGE;OBJECT_ID;OBSERVATION_ID;ORIGIN;PRIORITY;TIME\n'
+
             app_params = history_table.getcol('APP_PARAMS')['array']
             cli_command = history_table.getcol('CLI_COMMAND')['array']
             application = history_table.getcol('APPLICATION')
