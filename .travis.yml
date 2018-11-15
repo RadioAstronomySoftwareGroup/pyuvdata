@@ -1,23 +1,20 @@
 sudo: required
 dist: trusty
-language: python
-python:
-  # We don't actually use the Travis Python, but this keeps it organized.
-  - "2.7"
-  - "3.6"
-  - "3.7"
-# matrix:
-#   include:
-#     - python: 3.7
-#       dist: xenial
-#       sudo: true
 os:
   - linux
   - osx
-
 env:
   global:
     - COVERALLS_PARALLEL=true
+  matrix:
+  - PYTHON_VERSION=2.7
+  - PYTHON_VERSION=3.6
+  - PYTHON_VERSION=3.7
+matrix:
+  include:
+    - python: 3.7
+      dist: xenial
+      sudo: true
 
 install:
   # ensure that we have the full tag information available for version.py
