@@ -16,7 +16,7 @@ install:
   - git fetch --unshallow --tags
   # only call apt-get update on linux
   - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then
-      sudo apt-get update
+      sudo apt-get update;
     fi
   # We do this conditionally because it saves us some downloading if the
   # version is the same.
