@@ -69,6 +69,12 @@ def test_ReadUVFITSWriteUVH5ReadUVH5():
     uvtest.checkWarnings(uv_out.read, [testfile], message='Telescope EVLA is not')
     nt.assert_equal(uv_in, uv_out)
 
+    # also test writing double-precision data_array
+    uv_in.data_array = uv_in.data_array.astype(np.complex128)
+    uv_in.write_uvh5(testfile, clobber=True)
+    uvtest.checkWarnings(uv_out.read, [testfile], message='Telescope EVLA is not')
+    nt.assert_equal(uv_in, uv_out)
+
     # clean up
     os.remove(testfile)
 

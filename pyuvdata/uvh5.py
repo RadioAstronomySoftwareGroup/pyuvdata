@@ -589,7 +589,7 @@ class UVH5(UVData):
     def write_uvh5(self, filename, run_check=True, check_extra=True,
                    run_check_acceptability=True, clobber=False,
                    data_compression=None, flags_compression="lzf", nsample_compression="lzf",
-                   data_write_dtype='c8'):
+                   data_write_dtype=None):
         """
         Write an in-memory UVData object to a UVH5 file.
 
@@ -608,11 +608,10 @@ class UVH5(UVData):
                  the LZF filter.
             nsample_compression: HDF5 filter to apply when writing the nsample_array. Default is
                  the LZF filter.
-            data_write_dtype: datatype of output visibility data. Default is 'c8' for single-precision
-                floating point complex data. If not 'c8' or 'c16' (double precision floating point),
-                a numpy dtype object must be specified with an 'r' field and an 'i' field for real
-                and imaginary parts, respectively. See above for an example of defining such a
-                datatype.
+            data_write_dtype: datatype of output visibility data. If 'None', then the same datatype
+                as data_array will be used. Otherwise, a numpy dtype object must be specified with
+                an 'r' field and an 'i' field for real and imaginary parts, respectively. See
+                uvh5.py for an example of defining such a datatype. Default is None.
 
         Returns:
             None
@@ -648,6 +647,11 @@ class UVH5(UVData):
 
             # write out data, flags, and nsample arrays
             dgrp = f.create_group("Data")
+            if data_write_dtype is None:
+                if self.data_array.dtype == 'complex64':
+                    data_write_dtype = 'c8'
+                else:
+                    data_write_dtype = 'c16'
             if data_write_dtype not in ('c8', 'c16'):
                 _check_uvh5_dtype(data_write_dtype)
                 visdata = dgrp.create_dataset("visdata", self.data_array.shape, chunks=True,
@@ -670,7 +674,7 @@ class UVH5(UVData):
 
     def initialize_uvh5_file(self, filename, clobber=False, data_compression=None,
                              flags_compression="lzf", nsample_compression="lzf",
-                             data_write_dtype='c8'):
+                             data_write_dtype=None):
         """Initialize a UVH5 file on disk to be written to in parts.
 
         Args:
@@ -682,11 +686,11 @@ class UVH5(UVData):
                  the LZF filter.
             nsample_compression: HDF5 filter to apply when writing the nsample_array. Default is
                  the LZF filter.
-            data_write_dtype: datatype of output visibility data. Default is 'c8' for single-precision
-                floating point complex data. If not 'c8' or 'c16' (double precision floating point),
-                a numpy dtype object must be specified with an 'r' field and an 'i' field for real
-                and imaginary parts, respectively. See above for an example of defining such a
-                datatype.
+            data_write_dtype: datatype of output visibility data. If 'None', then double-precision
+                floats will be used. The user may specify 'c8' for single-precision floats or 'c16'
+                for double-presicion. Otherwise, a numpy dtype object must be specified with
+                an 'r' field and an 'i' field for real and imaginary parts, respectively. See
+                uvh5.py for an example of defining such a datatype. Default is None.
 
         Returns:
             None
@@ -724,6 +728,9 @@ class UVH5(UVData):
             # initialize the data groups on disk
             data_size = (self.Nblts, self.Nspws, self.Nfreqs, self.Npols)
             dgrp = f.create_group("Data")
+            if data_write_dtype is None:
+                # we don't know what kind of data we'll get--default to double-precision
+                data_write_dtype = 'c16'
             if data_write_dtype not in ('c8', 'c16'):
                 # make sure the data type is correct
                 _check_uvh5_dtype(data_write_dtype)
