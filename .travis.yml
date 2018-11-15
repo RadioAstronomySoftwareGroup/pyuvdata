@@ -14,16 +14,22 @@ env:
 install:
   # ensure that we have the full tag information available for version.py
   - git fetch --unshallow --tags
-  # only call apt-get update on linux
+  # We need to get the right miniconda per os and python version
+  # (using the right python version saves us some downloading time)
   - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then
+    # only call apt-get update on linux
       sudo apt-get update;
-    fi
-  # We do this conditionally because it saves us some downloading if the
-  # version is the same.
-  - if [[ "$PYTHON_VERSION" == "2.7" ]]; then
-      wget https://repo.continuum.io/miniconda/Miniconda2-4.3.21-Linux-x86_64.sh -O miniconda.sh;
+      if [[ "$PYTHON_VERSION" == "2.7" ]]; then
+        wget https://repo.continuum.io/miniconda/Miniconda2-latest-Linux-x86_64.sh -O miniconda.sh;
+      else
+        wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh;
+      fi
     else
-      wget https://repo.continuum.io/miniconda/Miniconda3-4.3.21-Linux-x86_64.sh -O miniconda.sh;
+      if [[ "$PYTHON_VERSION" == "2.7" ]]; then
+        wget https://repo.anaconda.com/miniconda/Miniconda2-latest-MacOSX-x86_64.sh -O miniconda.sh;
+      else
+        wget https://repo.anaconda.com/miniconda/Miniconda3-latest-MacOSX-x86_64.sh -O miniconda.sh;
+      fi
     fi
   - bash miniconda.sh -b -p $HOME/miniconda
   - export PATH="$HOME/miniconda/bin:$PATH"
