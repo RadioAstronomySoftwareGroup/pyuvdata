@@ -17,7 +17,6 @@ install:
   # We need to get the right miniconda per os and python version
   # (using the right python version saves us some downloading time)
   - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then
-    # only call apt-get update on linux
       sudo apt-get update;
       if [[ "$PYTHON_VERSION" == "2.7" ]]; then
         wget https://repo.continuum.io/miniconda/Miniconda2-latest-Linux-x86_64.sh -O miniconda.sh;
