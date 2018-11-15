@@ -1908,7 +1908,7 @@ class UVData(UVBase):
                   ant_str=None, bls=None, frequencies=None, freq_chans=None,
                   times=None, polarizations=None, blt_inds=None, read_data=True,
                   run_check=True, check_extra=True, run_check_acceptability=True,
-                  data_array_dtype=np.complex64):
+                  data_array_dtype=np.complex128):
         """
         Read a UVH5 file.
 
@@ -1963,7 +1963,7 @@ class UVData(UVBase):
             data_array_dtype: Datatype to store the output data_array as. Must be either
                 np.complex64 (single-precision real and imaginary) or np.complex128 (double-
                 precision real and imaginary). Only used if the datatype of the visibility
-                data on-disk is not 'c8' or 'c16'. Default is np.complex64.
+                data on-disk is not 'c8' or 'c16'. Default is np.complex128.
 
         Returns:
             None
@@ -2155,7 +2155,7 @@ class UVData(UVBase):
              read_metadata=True, read_data=True, phase_type=None,
              correct_lat_lon=True, use_model=False, data_column='DATA',
              pol_order='AIPS', run_check=True, check_extra=True,
-             run_check_acceptability=True, data_array_dtype=np.complex64):
+             run_check_acceptability=True, data_array_dtype=np.complex128):
         """
         Read a generic file into a UVData object.
 
@@ -2238,7 +2238,7 @@ class UVData(UVBase):
             data_array_dtype: Datatype to store the output data_array as when reading uvh5
                 files. Must be either np.complex64 (single-precision real and imaginary) or
                 np.complex128 (double-precision real and imaginary). Only used if the datatype
-                of the visibility data on-disk is not 'c8' or 'c16'. Default is np.complex64.
+                of the visibility data on-disk is not 'c8' or 'c16'. Default is np.complex128.
 
         Returns:
             None

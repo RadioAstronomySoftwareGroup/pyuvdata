@@ -414,7 +414,7 @@ class UVH5(UVData):
                   ant_str=None, bls=None, frequencies=None, freq_chans=None,
                   times=None, polarizations=None, blt_inds=None, read_data=True,
                   run_check=True, check_extra=True, run_check_acceptability=True,
-                  data_array_dtype=np.complex64):
+                  data_array_dtype=np.complex128):
         """
         Read in data from a UVH5 file.
 
@@ -468,7 +468,7 @@ class UVH5(UVData):
             data_array_dtype: Datatype to store the output data_array as. Must be either
                 np.complex64 (single-precision real and imaginary) or np.complex128 (double-
                 precision real and imaginary). Only used if the datatype of the visibility
-                data on-disk is not 'c8' or 'c16'. Default is np.complex64.
+                data on-disk is not 'c8' or 'c16'. Default is np.complex128.
 
         Returns:
             None
