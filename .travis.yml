@@ -37,7 +37,11 @@ install:
   - conda update -q conda
   - conda create -q -n testenv python="$PYTHON_VERSION"
   - source activate testenv
-  - conda install -c defaults -y 'libgfortran =3.0.0' 'libgfortran-ng =7.2.0'
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then
+      conda install -c defaults -y 'libgfortran =3.0.0' 'libgfortran-ng =7.2.0';
+    else
+      conda install -c defaults -y 'libgfortran =3.0.0' libgfortran-ng;
+    fi
   - conda config --remove channels defaults && conda config --add channels conda-forge
   # Useful for debugging any issues with conda
   - conda info -a
