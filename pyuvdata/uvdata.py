@@ -3156,7 +3156,7 @@ class UVData(UVBase):
         Convenience method for getting baseline redundancies to a given tolerance
         from antenna positions.
 
-        Note that the baseline numbers returned will only correspond with those in the file under the 
+        Note that the baseline numbers returned will only correspond with those in the file under the
         u-positive convention.
 
         Args:
