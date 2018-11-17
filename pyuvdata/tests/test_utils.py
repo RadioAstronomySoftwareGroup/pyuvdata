@@ -443,6 +443,30 @@ def test_redundancy_finder():
             nt.assert_true(np.isclose(np.sqrt(np.dot(bl_vec, vec_bin_centers[gi])), lens[gi], atol=tol))
 
 
+def test_redundancy_conjugates():
+    # Check that the correct baselines are flipped when returning redundancies with conjugates.
+
+    Nants = 10
+    tol = 0.5
+    ant1_arr = np.tile(np.arange(Nants), Nants)
+    ant2_arr = np.repeat(np.arange(Nants), Nants)
+    Nbls = ant1_arr.size
+    bl_inds = uvutils.antnums_to_baseline(ant1_arr, ant2_arr, Nants)
+
+    maxbl = 100.
+    bl_vecs = np.random.uniform(-maxbl, maxbl, (Nbls, 3))
+    bl_vecs[0, 0] = 0
+    bl_vecs[1, 0:2] = 0
+
+    expected_conjugates = []
+    for i, (u, v, w) in enumerate(bl_vecs):
+        if (u < 0) or (v < 0 and u == 0) or (w < 0 and u == v == 0):
+            expected_conjugates.append(bl_inds[i])
+    bl_gps, vecs, lens, conjugates = uvutils.get_baseline_redundancies(bl_inds, bl_vecs, tol=tol, with_conjugates=True)
+
+    nt.assert_equal(sorted(conjugates), sorted(expected_conjugates))
+
+
 def test_reraise_context():
     with nt.assert_raises(ValueError) as cm:
         try:

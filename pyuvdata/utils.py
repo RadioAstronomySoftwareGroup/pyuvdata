@@ -843,6 +843,11 @@ def get_baseline_redundancies(baseline_inds, baseline_vecs, tol=1.0, with_conjug
 
     # We end up with multiple copies of each redundant group, so remove duplicates
     bl_gps = np.unique(bl_gps).tolist()
+
+    # If all groups are one-element, the unique will flatten the list.
+    if isinstance(bl_gps[0], int):
+        bl_gps = map(lambda x: [x], bl_gps)
+
     N_unique = len(bl_gps)
     vec_bin_centers = np.zeros((N_unique, 3))
     for gi, gp in enumerate(bl_gps):
