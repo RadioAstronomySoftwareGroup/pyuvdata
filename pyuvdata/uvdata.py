@@ -1484,8 +1484,8 @@ class UVData(UVBase):
         if metadata_only is True and (self.data_array is not None
                                       or self.flag_array is not None
                                       or self.nsample_array is not None):
-                raise ValueError('metadata_only option cannot be used if data_array, '
-                                 'flag_array or nsample_array is not None')
+            raise ValueError('metadata_only option cannot be used if data_array, '
+                             'flag_array or nsample_array is not None')
 
         if inplace:
             uv_object = self
@@ -3151,18 +3151,33 @@ class UVData(UVBase):
         """
         return np.diff(np.sort(list(set(self.time_array))))[0] * 86400
 
-    def get_redundant_baselines(self, tol=1.0):
+    def get_antenna_redundancies(self, tol=1.0, include_autos=True):
         """
-        Convenience method for getting redundancies to a given tolerance.
+        Convenience method for getting baseline redundancies to a given tolerance
+        from antenna positions.
+
+        Note that the baseline numbers returned will only correspond with those in the file under the 
+        u-positive convention.
+
+        Args:
+            tol: Redundancy tolerance in meters (default 1m)
+            include_autos: Include autocorrelations in the full redundancy list (default True)
+
+        Returns the output of utils.get_antenna_redundancies.
+        """
+        antpos, numbers = self.get_ENU_antpos(center=False)
+        return uvutils.get_antenna_redundancies(numbers, antpos, tol=tol, include_autos=include_autos)
+
+    def get_baseline_redundancies(self, tol=1.0):
+        """
+        Convenience method for getting baseline redundancies to a given tolerance.
 
         Returns the output of utils.get_baseline_redundancies.
-
         """
         baseline_vecs = self.uvw_array[:self.Nbls]
         baseline_inds = self.baseline_array[:self.Nbls]
 
         return uvutils.get_baseline_redundancies(baseline_inds, baseline_vecs, tol=tol, with_conjugates=True)
-
 
     def compress_by_redundancy(self, tol=1.0, inplace=True):
         """
@@ -3175,59 +3190,74 @@ class UVData(UVBase):
             UVData: if not inplace, returns the compressed UVData object
         """
 
-        red_gps, centers, lengths, conjugates = self.get_redundant_baselines(tol)
-        red_inds = np.array([ i for i,gp in enumerate(red_gps) for bl in range(len(gp))])
-        red_bls = np.array([bl for gp in red_gps for bl in gp])
-        order_inds = np.argsort(np.argsort(self.baseline_array[:self.Nbls]))   # This index array takes a sorted baseline array and
-                                                                               # restores the original baseline order.
-        original_baselines = np.copy(self.baseline_array[:self.Nbls])
-        srt_inds = np.argsort(red_bls)
-        red_inds = red_inds[srt_inds][order_inds]   # Sort group indices by corresponding baseline number, then resort into the original baseline order
-                                                    # (Nbls,) array indicating which redundant value to unpack to each original baseline.
+        red_gps, centers, lengths, conjugates = self.get_baseline_redundancies(tol)
+
         bl_ants = [self.baseline_to_antnums(gp[0]) for gp in red_gps]
-        result = self.select(bls = bl_ants, inplace=inplace)
-        uv = result
-        if inplace:
-            uv = self
-        uv._redundant_inflate_inds = red_inds
-        import IPython; IPython.embed()
-        uv.uvw_array = np.tile(centers.T, self.Ntimes).T  # Replace baseline positions with the centers of redundant groups.
-        uv.redundancy_parameters = {'tolerance': tol, 'conjugates': conjugates, 'original_baselines': original_baselines }
-        return result
+        return self.select(bls=bl_ants, inplace=inplace)
 
-
-    def inflate_by_redundancy(self):
+    def _set_u_positive(self):
         """
-        If compressed by redundancies, restore the full dimensions of the UVData object
-        by copying visibilities by redundant group.
+        Flip and conjugate data/baselines to follow the u-positive convention.
         """
-        try:
-            assert hasattr(self, '_redundant_inflate_inds')
-        except AssertionError:
-            warnings.warn('No redundancy compression found. Doing nothing.')
-            return
+        for i, bl in enumerate(self.baseline_array):
+            a1, a2 = self.ant_1_array[i], self.ant_2_array[i]
+            u, v, w = self.uvw_array[i]
+            flip_bl = (u < 0) or (v < 0 and u == 0) or (w < 0 and u == v == 0)
+            if flip_bl:
+                self.uvw_array[i] *= (-1)
+                self.data_array[i] = np.conj(self.data_array[i])
+                self.ant_1_array[i] = a2
+                self.ant_2_array[i] = a1
+                self.baseline_array[i] = self.antnums_to_baseline(a2, a1)
 
-        # Baseline = fast, time = slow indices
-        restore_inds = np.tile(self._redundant_inflate_inds, self.Ntimes)       # Repeat a length Nbls array Ntimes times
-        original_bls = self.redundancy_parameters['original_baselines']
-        conjugates = self.redundancy_parameters['conjugates']
-        conjugate_mask = np.array([ bl in conjugates for bl in original_bls])
+    def inflate_by_redundancy(self, tol=1.0):
+        """
+        Expand data to full size, copying data among redundant baselines.
 
-        self.Nbls = self._redundant_inflate_inds.size
-        self.Nblts = self.Nbls * self.Ntimes
+        Args:
+            tol = Redundancy tolerance in meters (default 1.0m)
+        """
 
-        self.data_array = self.data_array[restore_inds, ...]
-        self.data_array[conjugate_mask] = self.data_array[conjugate_mask].conj()
-        self.nsample_array = self.nsample_array[restore_inds, ...]
-        self.flag_array = self.flag_array[restore_inds, ...]
+        # get_antenna_redundancies method gives baselines under the u-positive convention (u>0, v>0 if u==0, w>0 if u==v==0)
+        self._set_u_positive()
 
-        time_restore_inds = np.repeat(range(self.Ntimes), self.Nbls)            # Repeat each entry of time_array Nbls times
-        self.time_array = np.unique(self.time_array)[time_restore_inds]
-        self.lst_array = np.unique(self.lst_array)[time_restore_inds]
-        self.integration_time = self.integration_time[restore_inds]   # TODO Check this
+        red_gps, centers, lengths = self.get_antenna_redundancies(tol=tol)
+        Ngps = len(red_gps)
 
-        self.baseline_array = np.tile(original_bls, self.Ntimes)
+        # Stack redundant groups into one array.
+        group_index, bl_array_full = zip(*[(i, bl) for i, gp in enumerate(red_gps) for bl in gp])
+
+        # Map group index to blt indices in the compressed array.
+        bl_array_comp = self.baseline_array
+        uniq_bl, bl_inv = np.unique(bl_array_comp, return_inverse=True)
+
+        group_blti = {}
+        for i, gp in enumerate(red_gps):
+            for bl in gp:
+                # First baseline in the group that is also in the compressed baseline array.
+                if bl in uniq_bl:
+                    group_blti[i] = np.where(bl == bl_array_comp)[0]
+                    break
+
+        group_index = np.tile(group_index, self.Ntimes)
+        Nbls_full = len(bl_array_full)
+
+        # For each redundant group
+
+        for i, gi in enumerate(group_index[:Nbls_full]):
+            group_index[i::Nbls_full] = group_blti[gi]
+
+        # group_index now maps compressed blti indices to uncompressed
+        self.data_array = self.data_array[group_index, ...]
+        self.nsample_array = self.nsample_array[group_index, ...]
+        self.flag_array = self.flag_array[group_index, ...]
+
+        self.baseline_array = np.tile(bl_array_full, self.Ntimes)
         self.ant_1_array, self.ant_2_array = self.baseline_to_antnums(self.baseline_array)
-        self.uvw_array = self.uvw_array[restore_inds, ...]
-
+        self.Nbls = len(bl_array_full)
+        self.Nblts = self.Nbls * self.Ntimes
+        self.time_array = np.repeat(np.unique(self.time_array), self.Nbls)
+        self.lst_array = np.repeat(np.unique(self.lst_array), self.Nbls)
+        self.integration_time = self.integration_time[group_index]  # TODO Check this
+        self.uvw_array = self.uvw_array[group_index, ...]
         self.check()
