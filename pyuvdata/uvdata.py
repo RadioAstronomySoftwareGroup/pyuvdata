@@ -3222,7 +3222,6 @@ class UVData(UVBase):
         self._set_u_positive()
 
         red_gps, centers, lengths = self.get_antenna_redundancies(tol=tol)
-        Ngps = len(red_gps)
 
         # Stack redundant groups into one array.
         group_index, bl_array_full = zip(*[(i, bl) for i, gp in enumerate(red_gps) for bl in gp])
@@ -3239,25 +3238,34 @@ class UVData(UVBase):
                     group_blti[i] = np.where(bl == bl_array_comp)[0]
                     break
 
-        group_index = np.tile(group_index, self.Ntimes)
         Nbls_full = len(bl_array_full)
 
-        # For each redundant group
+        blt_map = np.zeros(Nbls_full * self.Ntimes, dtype=int)
+        missing = np.zeros(Nbls_full * self.Ntimes).astype(bool)
+        for i, gi in enumerate(group_index):
+            try:
+                blt_map[i::Nbls_full] = group_blti[gi]
+            except KeyError:
+                missing[i::Nbls_full] = True
+                pass
+        if np.any(missing):
+            warnings.warn("Missing some redundant groups. Filling in available data.")
+            blt_map = blt_map[~missing]
+            bl_array_full = np.array(bl_array_full)[~missing[:Nbls_full]]
 
-        for i, gi in enumerate(group_index[:Nbls_full]):
-            group_index[i::Nbls_full] = group_blti[gi]
-
-        # group_index now maps compressed blti indices to uncompressed
-        self.data_array = self.data_array[group_index, ...]
-        self.nsample_array = self.nsample_array[group_index, ...]
-        self.flag_array = self.flag_array[group_index, ...]
+        # blt_map is an index array mapping compressed blti indices to uncompressed
+        self.data_array = self.data_array[blt_map, ...]
+        self.nsample_array = self.nsample_array[blt_map, ...]
+        self.flag_array = self.flag_array[blt_map, ...]
 
         self.baseline_array = np.tile(bl_array_full, self.Ntimes)
         self.ant_1_array, self.ant_2_array = self.baseline_to_antnums(self.baseline_array)
+        if np.any(missing):
+            self.Nants_data = np.unique(self.ant_1_array.tolist() + self.ant_2_array.tolist()).size
         self.Nbls = len(bl_array_full)
         self.Nblts = self.Nbls * self.Ntimes
         self.time_array = np.repeat(np.unique(self.time_array), self.Nbls)
         self.lst_array = np.repeat(np.unique(self.lst_array), self.Nbls)
-        self.integration_time = self.integration_time[group_index]  # TODO Check this
-        self.uvw_array = self.uvw_array[group_index, ...]
+        self.integration_time = self.integration_time[blt_map]  # TODO Check this
+        self.uvw_array = self.uvw_array[blt_map, ...]
         self.check()

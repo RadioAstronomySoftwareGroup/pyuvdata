@@ -2759,3 +2759,35 @@ def test_redundancy_contract_expand():
     # Confirm that we get the same result looping inflate -> compress -> inflate.
     uv2.history = uv3.history
     nt.assert_equal(uv2, uv3)
+
+
+def test_redundancy_missing_groups():
+    # Check that if I try to inflate a compressed UVData that is missing redundant groups, it will
+    # raise the right warnings and fill only what data are available.
+
+    uv0 = UVData()
+    uv0.read_uvfits(os.path.join(DATA_PATH, 'hera19_8hrs_uncomp_10MHz_000_05.003111-05.033750.uvfits'))
+    tol = 0.01
+    Nselect = 20
+
+    uv0.compress_by_redundancy(tol=tol)
+    fname = 'temp_hera19_missingreds.uvfits'
+
+    bls = np.unique(uv0.baseline_array)[:Nselect]         # First twenty baseline groups
+    uv0.select(bls=[uv0.baseline_to_antnums(bl) for bl in bls])
+    uv0.write_uvfits(fname)
+    uv1 = UVData()
+    uv1.read_uvfits(fname)
+    os.remove(fname)
+
+    nt.assert_equal(uv0, uv1)  # Check that writing compressed files causes no issues.
+
+    uvtest.checkWarnings(
+        uv1.inflate_by_redundancy,
+        [tol],
+        message="Missing some redundant groups. Filling in available data."
+    )
+
+    uv2 = uv1.compress_by_redundancy(tol=tol, inplace=False)
+
+    nt.assert_equal(np.unique(uv2.baseline_array).size, Nselect)
