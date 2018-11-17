@@ -878,6 +878,33 @@ The ``get_antenna_redundancies`` function accepts an array of antenna indices an
     >>> print(len(baseline_groups))
     30
 
+UVData: Compressing/inflating on Redundant Baselines
+----------------------------------------------------
+Since redundant baselines should have similar visibilities, some level of data compression can be achieved by only keeping one out of a set of redundant baselines. The function ``compress_by_redundancies`` will find groups of baselines that are redundant to a given tolerance, choose one baseline from each group, and use the ``select`` function to choose those baselines only. This action is (almost) inverted by the ``inflate_by_redundancies`` function, which finds all possible baselines from the antenna positions and fills in the full data array based on redundancy.
+
+::
+    >>> from pyuvdata import UVData
+    >>> import copy
+    >>> import numpy as np
+    >>> uv0 = UVData()
+    >>> uv0.read_uvfits("pyuvdata/data/hera19_8hrs_uncomp_10MHz_000_05.003111-05.033750.uvfits")
+    >>> tol = 0.01   # In meters
+
+    # Compression can be run in-place or return a separate UVData object.
+    >>> uv2 = uv0.compress_by_redundancy(tol=tol, inplace=False)
+    >>> uv_backup = copy.deepcopy(uv0)
+    >>> uv0.compress_by_redundancy(tol=tol)
+    >>> uv2 == uv0
+    True
+    
+    # Note -- Compressing and inflating changes the baseline order, so the inflated object may be different.
+    >>> uv0.inflate_by_redundancy(tol=tol)
+    >>> np.all(uv0.baseline_array == uv_backup.baseline_array)
+    False
+
+    >>> uv2.inflate_by_redundancy(tol=tol)
+    >>> uv2 == uv0
+    True
 
 ------
 UVCal
