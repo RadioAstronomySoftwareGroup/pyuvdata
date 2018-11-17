@@ -8,6 +8,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 - latitude and longitude in uvh5 files are written in degrees instead of radians.
+- Fixes a bug in redundancy methods for when there are no redundant baselines.
 
 ### Fixed
 - `_key2inds` now properly reorders polarization axis for conjugated visibilities. This also effects the `get_data` function.
