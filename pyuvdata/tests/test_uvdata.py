@@ -2730,3 +2730,32 @@ def test_set_uvws_from_antenna_pos():
     max_diff = np.amax(np.absolute(np.subtract(orig_uvw_array,
                                                uv_object.uvw_array)))
     nt.assert_almost_equal(max_diff, 0., 2)
+
+
+def test_redundancy_contract_expand():
+    # Test that a UVData object can be reduced to one baseline from each redundant group
+    # and restored to its original form.
+
+    uv0 = UVData()
+    uv0.read_uvfits(os.path.join(DATA_PATH, 'hera19_8hrs_uncomp_10MHz_000_05.003111-05.033750.uvfits'))
+    tol = 0.01
+
+    # Assign identical data to each redundant group:
+    uv0._set_u_positive()
+    red_gps, centers, lengths = uv0.get_antenna_redundancies(tol=tol)
+    for i, gp in enumerate(red_gps):
+        for bl in gp:
+            inds = np.where(bl == uv0.baseline_array)
+            uv0.data_array[inds] *= 0
+            uv0.data_array[inds] += complex(i)
+
+    uv2 = uv0.compress_by_redundancy(tol=tol, inplace=False)
+    uv0.compress_by_redundancy(tol=tol)
+    nt.assert_equal(uv0, uv2)  # Compare in-place to separated compression.
+    uv2.inflate_by_redundancy(tol=tol)
+    uv3 = uv2.compress_by_redundancy(tol=tol, inplace=False)
+    uv3.inflate_by_redundancy(tol=tol)
+    # Inflation changes the baseline ordering into the order of the redundant groups.
+    # Confirm that we get the same result looping inflate -> compress -> inflate.
+    uv2.history = uv3.history
+    nt.assert_equal(uv2, uv3)
