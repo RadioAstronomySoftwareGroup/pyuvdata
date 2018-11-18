@@ -213,8 +213,6 @@ def test_efield_to_pstokes():
     pstokes_beam_2.to_healpix()
     beam_return = pstokes_beam_2.efield_to_pstokes(inplace=False)
 
-#    nt.assert_equal(beam_return, pstokes_beam)
-
     pstokes_beam = copy.deepcopy(efield_beam)
 
     pstokes_beam.interpolation_function = 'az_za_simple'
@@ -237,8 +235,6 @@ def test_efield_to_pstokes():
                              feed_version='0.1', feed_pol=['x'],
                              model_name='E-field pattern - Rigging height 4.9m',
                              model_version='1.0')
-    nt.assert_raises(ValueError, power_beam.efield_to_pstokes)
-
     nt.assert_raises(ValueError, power_beam.efield_to_pstokes)
 
 
@@ -1533,8 +1529,6 @@ def test_healpix():
                               feed_version='0.1',
                               model_name='E-field pattern - Rigging height 4.9m',
                               model_version='1.0')
-
-    nt.assert_raises(ValueError, efield_beam.efield_to_pstokes, 'pI')
 
     efield_beam.interpolation_function = 'az_za_simple'
     efield_beam.to_healpix()
