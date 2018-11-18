@@ -569,7 +569,6 @@ class UVBeam(UVBase):
 
         efield_data = beam_object.data_array
         _sh = beam_object.data_array.shape
-        efield_data = beam_object.data_array
         Nfreqs = beam_object.Nfreqs
 
         if self.pixel_coordinate_system != 'healpix':
