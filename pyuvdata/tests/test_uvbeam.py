@@ -211,16 +211,15 @@ def test_efield_to_pstokes():
     pstokes_beam_2 = copy.deepcopy(efield_beam)
     pstokes_beam_2.interpolation_function = 'az_za_simple'
     pstokes_beam_2.to_healpix()
+    # convert to pstokes after interpolating
     beam_return = pstokes_beam_2.efield_to_pstokes(inplace=False)
 
     pstokes_beam = copy.deepcopy(efield_beam)
 
+    # interpolate after converting to pstokes
     pstokes_beam.interpolation_function = 'az_za_simple'
     pstokes_beam.efield_to_pstokes()
     pstokes_beam.to_healpix()
-
-    # beam_return = to_healpix() -> efield_to_pstokes()    (interpolation of efield)
-    # pstokes_beam = efield_to_pstokes() -> to_healpix()   (interpolation of pstokes)
 
     pstokes_beam.peak_normalize()
     beam_return.peak_normalize()
