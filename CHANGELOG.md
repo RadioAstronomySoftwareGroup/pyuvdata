@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 ### Added
 - read/write support for uvh5 files with integer datatypes for visibilities
 - support for python3.7
+- UVBeam.efield_to_pstokes() enabled in az/za coordinates
 
 ### Changed
 - latitude and longitude in uvh5 files are written in degrees instead of radians.
