@@ -787,10 +787,10 @@ done after the read, which does not save memory.
   [(9, 10), (9, 20)]
 
   # Select certain frequencies from a uvh5 file
-  >>> filename = 'pyuvdata/data/zen.<JD>.uvh5'
+  >>> filename = 'pyuvdata/data/zen.2458432.34569.uvh5'
   >>> uv.read(filename, freq_chans=np.arange(32))
   >>> print(uv.data_array.shape)
-  (105, 1, 32, 4)
+  (80, 1, 32, 4)
 
 d) Writing to a uvh5 file in parts
 **********************************
@@ -813,7 +813,7 @@ are written to the appropriate parts of the file on disk.
    >>> import numpy as np
    >>> from pyuvdata import UVData
    >>> uv = UVData()
-   >>> filename = 'pyuvdata/data/zen.<JD>.uvh5'
+   >>> filename = 'pyuvdata/data/zen.2458432.34569.uvh5'
    >>> uv.read(filename, read_data=False)
    >>> partfile = 'tutorial_partial_io.uvh5'
    >>> uv.initialize_uvh5_file(partfile, clobber=True)
@@ -828,13 +828,13 @@ are written to the appropriate parts of the file on disk.
    >>> data_array = 0.5 * uv2.data_array
    >>> flag_array = uv2.flag_array
    >>> nsample_array = uv2.nsample_array
-   >>> uv.write_uvh5_part(partfile, data_array, freq_array, nsample_array, freq_chans=freq_inds1)
+   >>> uv.write_uvh5_part(partfile, data_array, flag_array, nsample_array, freq_chans=freq_inds1)
 
    >>> uv2.read(filename, freq_chans=freq_inds2)
    >>> data_array = 2.0 * uv2.data_array
    >>> flag_array = uv2.flag_array
    >>> nsample_array = uv2.nsample_array
-   >>> uv.write_uvh5_part(partfile, data_array, freq_array, nsample_array, freq_chans=freq_inds2)
+   >>> uv.write_uvh5_part(partfile, data_array, flag_array, nsample_array, freq_chans=freq_inds2)
 
 UVData: Finding Redundant Baselines
 -----------------------------------
