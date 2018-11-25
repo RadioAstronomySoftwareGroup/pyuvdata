@@ -137,16 +137,16 @@ interoperability between different HDF5 implementations.
   \[
     \mathtt{baseline} = 2048*(\mathtt{ant2}+1)+(\mathtt{ant1}+1) + 2^{16}.
   \]
-  For current implementations, 32-bit integers (an ``int'' type in C) are
+  For current implementations, 32-bit integers (an \verb+int+ type in C) are
   sufficient. However, for arrays with a very large number of antennas
-  ($\mathcal{O}(10^6)$), 64-bit integers (a ``long'' type in C) may be
+  ($\mathcal{O}(10^6)$), 64-bit integers (a \verb+long+ type in C) may be
   required. (\textit{baseline\_array})
 \item \textbf{Nbls}: \textit{int} the number of baselines present in the
   data. For full cross-correlation data (including auto-correlations), this
-  should be Nants\_data*(Nants\_data+1)/2. (\textit{Nbls})
+  should be Nants\_data$\times$(Nants\_data+1)/2. (\textit{Nbls})
 \item \textbf{Nblts}: \textit{int} The number of baseline-times (i.e., the
   number of spectra) present in the data. Note that this value need not be equal
-  to Nbls * Ntimes. (\textit{Nblts})
+  to Nbls $\times$ Ntimes. (\textit{Nblts})
 \item \textbf{Nfreqs}: \textit{int} The number of frequency channels in the
   data. (\textit{Nfreqs})
 \item \textbf{Npols}: \textit{int} The number of polarization products in the
@@ -266,7 +266,10 @@ for the real and imaginary parts), though some flexibility is possible. 16-byte
 complex floating point numbers (composed of two 8-byte floats), as well as
 8-byte complex integers (two 4-byte signed integers). In all cases, a compound
 datatype is defined, with an \verb+`r'+ field and an \verb+`i'+ field,
-corresponding to the real and imaginary parts, respectively.
+corresponding to the real and imaginary parts, respectively. The real and
+imaginary types must also be the same datatype. For instance, they should both
+be 8-byte floating point numbers, or 32-bit (4-byte) integers. Mixing datatypes
+between the real and imaginary parts is not allowed.
 
 Using \verb+h5py+, the datatype for \verb+visdata+ can be specified as
 \verb+`c8'+ (8-byte complex numbers, corresponding to the \verb+np.complex64+
@@ -369,7 +372,7 @@ with h5py.File('test_file.uvh5', 'r') as f:
 
     # read array dataset
     str_array_file = [n.tostring() for n in header['array_string'].value]
-    assert str_array_file == str_array
+    assert np.all(str_array_file == str_array)
 \end{minted}
 
 \subsection{python3}
@@ -383,7 +386,7 @@ with h5py.File('test_file.uvh5', 'w') as f:
     header['scalar_string'] = np.string_('Hello world!')
 
     # array dataset
-    str_array = np.array(['hello', 'world'])
+    str_array = ['hello', 'world']
     header['array_string'] = np.string_(str_array)
 
 # read the data back in again
@@ -396,11 +399,37 @@ with h5py.File('test_file.uvh5', 'r') as f:
     # read array dataset
     str_array_file = [n.tostring().decode('UTF-8')
                       for n in header['array_string'].value]
-    assert str_array_file == str_array
+    assert np.all(str_array_file == str_array)
 \end{minted}
 
 
-\section{Defining numpy Boolean Arrays in C}
+\section{Integer Datatype Support for Visibility Data}
+\label{appendix:integers}
+The HERA correlator writes datasets which have 32-bit integer real and imaginary
+components. Due to the self-describing nature of HDF5 datasets, this information
+is captured by the file format. Nevertheless, special handling must be used to
+interpret these datasets as complex numbers. The \verb+astype+ context manager
+in \verb+h5py+ is used to convert the datatype on the fly from integers to
+complex numbers. Below is an example of how to do this.
+
+\begin{minted}{python}
+import numpy as np
+import h5py
+# define integer datatype
+int_dtype = np.dtype([('r', '<i4'), ('i', '<i4')])
+
+# open file and read in the dataset
+with h5py.File('test_file.uvh5', 'r') as f:
+    visdata = f['Data/visdata']
+    dshape = visdata.shape
+    data = np.empty(dshape, dtype=np.complex128)
+    with visdata.astype(int_dtype):
+        data.real = visdata['r'][:, :, :, :]
+        data.imag = visdata['i'][:, :, :, :]
+\end{minted}
+
+
+\section{Defining \texttt{numpy} Boolean Arrays in C}
 \label{appendix:boolean}
 As mentioned in Sec.~\ref{sec:flags}, the flags array in a UVH5 file uses an
 HDF5 enum datatype to encode the numpy boolean type. When creating such a
@@ -413,6 +442,8 @@ follow analogously.
 \begin{minted}{c}
 #include <hdf5.h>
 
+#define CPTR(VAR,CONST) ((VAR)=(CONST),&(VAR))
+
 typedef enum {
   FALSE,
   TRUE
@@ -421,31 +452,58 @@ typedef enum {
 int main() {
   bool_t val;
   static hid_t boolenumtype;
-  hid_t data_id;
+  hid_t file_id, dspace_id, flags_id;
+  herr_t status;
 
-  // define enum type
+  /* define enum type */
   boolenumtype = H5Tcreate(H5T_ENUM, sizeof(bool_t));
   H5Tenum_insert(boolenumtype, "FALSE", CPTR(val, FALSE ));
-  H5Tenum_insert(boolenumtype, "TRUE",  CPTR(val, TRUE  ));
+  H5Tenum_insert(boolenumtype, "TRUE" , CPTR(val, TRUE  ));
 
-  // make a dataset in the file
+  /* open a new file */
+  file_id = H5Fcreate("test_file.h5", H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+
+  /* define array dimensions */
+  int Nblts = 10;
+  int Nspws = 1;
+  int Nfreqs = 16;
+  int Npols = 4;
   hsize_t dims[4] = {Nblts, Nspws, Nfreqs, Npols};
-  hid_t file_space = H5Screate_simple(4, dims, dims);
-  hid_t plist = H5Pcreate(H5P_DATASET_CREATE);
-  hid_t flags_did = H5Dcreate(data_id, "flags", boolenumtype, file_space,
-                              H5P_DEFAULT, plist, H5P_DEFAULT);
-  H5Pclose(plist);
-  H5Sclose(file_space);
+
+  /* initialize data array with FALSE values */
+  bool_t data[Nblts][Nspws][Nfreqs][Npols];
+  for (int i=0; i<Nblts; i++) {
+    for (int j=0; j<Nspws; j++) {
+      for (int k=0; k<Nfreqs; k++) {
+        for (int l=0; l<Npols; l++) {
+          data[i][j][k][l] = FALSE;
+        }
+      }
+    }
+  }
+
+  /* make dataspace and write out data */
+  dspace_id = H5Screate_simple(4, dims, dims);
+  flags_id = H5Dcreate(file_id, "flags", boolenumtype, dspace_id,
+                       H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+  status = H5Dwrite(flags_id, boolenumtype, H5S_ALL, H5S_ALL,
+                    H5P_DEFAULT, data);
+
+  /* close down */
+  H5Dclose(flags_id);
+  H5Sclose(dspace_id);
+  H5Fclose(file_id);
 
   return 0;
 }
 \end{minted}
 
 
-
-\section{Integer Datatype Support for Visibility Data}
-\label{appendix:integers}
-
 \end{appendices}
 
 \end{document}
+
+
+% Local Variables:
+% TeX-command-extra-options: "-shell-escape"
+% End:
