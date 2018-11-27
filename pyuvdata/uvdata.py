@@ -3156,14 +3156,18 @@ class UVData(UVBase):
         Convenience method for getting baseline redundancies to a given tolerance
         from antenna positions.
 
-        Note that the baseline numbers returned will only correspond with those in the file under the
-        u-positive convention.
+        Note that the baseline numbers returned will only correspond with those in the baseline_array under the
+        u-positive convention. The function UVData._set_u_positive will flip all baselines in the UVData object
+        to follow this.
 
         Args:
             tol: Redundancy tolerance in meters (default 1m)
             include_autos: Include autocorrelations in the full redundancy list (default True)
 
-        Returns the output of utils.get_antenna_redundancies.
+        Returns:
+            baseline_groups: list of lists of redundant baseline indices
+            vec_bin_centers: List of vectors describing redundant group centers
+            lengths: List of redundant group baseline lengths in meters
         """
         antpos, numbers = self.get_ENU_antpos(center=False)
         return uvutils.get_antenna_redundancies(numbers, antpos, tol=tol, include_autos=include_autos)
@@ -3172,7 +3176,14 @@ class UVData(UVBase):
         """
         Convenience method for getting baseline redundancies to a given tolerance.
 
-        Returns the output of utils.get_baseline_redundancies.
+        Args:
+            tol: Redundancy tolerance in meters (default 1m)
+
+        Returns:
+            baseline_groups: list of lists of redundant baseline indices
+            vec_bin_centers: List of vectors describing redundant group centers
+            lengths: List of redundant group baseline lengths in meters
+            baseline_ind_conj: List of baselines that are redundant when reversed. (Only returned if with_conjugates is True)
         """
         baseline_vecs = self.uvw_array[:self.Nbls]
         baseline_inds = self.baseline_array[:self.Nbls]
