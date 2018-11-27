@@ -23,7 +23,7 @@
 
 \title{Memo: UVH5 file format}
 \author{Paul La Plante, and the pyuvdata team}
-\date{\today}
+\date{November 27, 2018}
 
 \begin{document}
 \maketitle
@@ -79,7 +79,7 @@ as transparent as possible to the user.
 The \verb+Header+ group of the file contains the metadata necessary to interpret
 the data. We begin with the required parameters, then continue to optional
 ones. Unless otherwise noted, all datasets are scalars (i.e., not arrays). The
-preceision of the data type is also not specified as part of the format, because
+precision of the data type is also not specified as part of the format, because
 in general the user is free to set it according to the desired use case (and
 HDF5 records the precision and endianness when generating datasets). When using
 the standard \verb+h5py+-based implementation in pyuvdata, this typically
@@ -493,7 +493,6 @@ int main() {
   H5Dclose(flags_id);
   H5Sclose(dspace_id);
   H5Fclose(file_id);
-
   return 0;
 }
 \end{minted}
