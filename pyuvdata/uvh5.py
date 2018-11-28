@@ -158,6 +158,7 @@ class UVH5(UVData):
         else:
             self.telescope_location_lat_lon_alt_degrees = (latitude, longitude, altitude)
         self.instrument = _read_uvh5_string(header['instrument'], filename)
+        self.telescope_name = _read_uvh5_string(header['telescope_name'], filename)
 
         # get source information
         self.object_name = _read_uvh5_string(header['object_name'], filename)
@@ -187,10 +188,6 @@ class UVH5(UVData):
             self.timesys = _read_uvh5_string(header['timesys'], filename)
         if 'x_orientation' in header:
             self.x_orientation = _read_uvh5_string(header['x_orientation'], filename)
-        if 'telescope_name' in header:
-            self.telescope_name = _read_uvh5_string(header['telescope_name'], filename)
-        if 'antenna_positions' in header:
-            self.antenna_positions = header['antenna_positions'].value
         if 'antenna_diameters' in header:
             self.antenna_diameters = header['antenna_diameters'].value
         if 'uvplane_reference_time' in header:
@@ -218,6 +215,7 @@ class UVH5(UVData):
         self.ant_2_array = header['ant_2_array'].value
         self.antenna_names = [uvutils._bytes_to_str(n.tostring()) for n in header['antenna_names'].value]
         self.antenna_numbers = header['antenna_numbers'].value
+        self.antenna_positions = header['antenna_positions'].value
 
         # set telescope params
         try:
@@ -531,6 +529,7 @@ class UVH5(UVData):
         header['spw_array'] = self.spw_array
         header['ant_1_array'] = self.ant_1_array
         header['ant_2_array'] = self.ant_2_array
+        header['antenna_positions'] = self.antenna_positions
 
         # handle antenna_names
         if six.PY2:
@@ -553,8 +552,6 @@ class UVH5(UVData):
             header['phase_center_frame'] = np.string_(self.phase_center_frame)
 
         # write out optional parameters
-        if self.antenna_positions is not None:
-            header['antenna_positions'] = self.antenna_positions
         if self.dut1 is not None:
             header['dut1'] = self.dut1
         if self.earth_omega is not None:
