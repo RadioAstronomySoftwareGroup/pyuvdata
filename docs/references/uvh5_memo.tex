@@ -131,16 +131,6 @@ interoperability between different HDF5 implementations.
   Nants\_telescope. Note there must be one entry for every unique antenna in
   ant\_1\_array and ant\_2\_array, but there may be additional
   entries. (\textit{antenna\_names})
-\item \textbf{baseline\_array}: \textit{int} An array of baseline indices
-  corresponding to the data. This is a one-dimensional array of size Nblts. The
-  baseline index is calculated as:
-  \[
-    \mathtt{baseline} = 2048*(\mathtt{ant2}+1)+(\mathtt{ant1}+1) + 2^{16}.
-  \]
-  For current implementations, 32-bit integers (an \verb+int+ type in C) are
-  sufficient. However, for arrays with a very large number of antennas
-  ($\mathcal{O}(10^6)$), 64-bit integers (a \verb+long+ type in C) may be
-  required. (\textit{baseline\_array})
 \item \textbf{Nbls}: \textit{int} the number of baselines present in the
   data. For full cross-correlation data (including auto-correlations), this
   should be Nants\_data$\times$(Nants\_data+1)/2. (\textit{Nbls})
@@ -175,6 +165,10 @@ interoperability between different HDF5 implementations.
   contained in the file. This is a one-dimensional array of size Npols. Note
   that the polarizations should be stored as an integer, and use the convention
   defined in AIPS Memo 117. (\textit{polarization\_array})
+\item \textbf{antenna\_positions}: \textit{float} An array of the antenna
+  coordinates relative to the \textit{telescope\_location} (in the ITRF
+  frame). This is a two-dimensional array of size (Nants\_telescope,
+  3). (\textit{antenna\_positions})
 \end{itemize}
 
 \subsection{Optional Parameters}
@@ -197,10 +191,6 @@ interoperability between different HDF5 implementations.
 \item \textbf{telescope\_name}: \textit{string} The name of the telescope used
   to take the data. The value is used to check that metadata is self-consistent
   for known telescopes in pyuvdata. (\textit{telescope\_name})
-\item \textbf{antenna\_positions}: \textit{float} An array of the antenna
-  coordinates relative to the \textit{telescope\_location} (in the ITRF
-  frame). This is a two-dimensional array of size (Nants\_telescope,
-  3). (\textit{antenna\_positions})
 \item \textbf{antenna\_diameters}: \textit{float} An array of the diameters of
   the antennas in meters. This is a one-dimensional array of size
   (Nants\_telescope). (\textit{Nants\_telescope})
