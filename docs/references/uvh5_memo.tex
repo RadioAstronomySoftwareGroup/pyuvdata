@@ -23,7 +23,7 @@
 
 \title{Memo: UVH5 file format}
 \author{Paul La Plante, and the pyuvdata team}
-\date{November 27, 2018}
+\date{November 28, 2018}
 
 \begin{document}
 \maketitle
@@ -104,6 +104,9 @@ interoperability between different HDF5 implementations.
   degrees. (\textit{longitude})
 \item \textbf{altitude}: \textit{float} The altitude of the telescope site, in
   meters. (\textit{altitude})
+\item \textbf{telescope\_name}: \textit{string} The name of the telescope used
+  to take the data. The value is used to check that metadata is self-consistent
+  for known telescopes in pyuvdata. (\textit{telescope\_name})
 \item \textbf{instrument}: \textit{string} The name of the instrument, typically
   the telescope name. (\textit{instrument})
 \item \textbf{object\_name}: \textit{string} The name of the object tracked by
@@ -188,9 +191,6 @@ interoperability between different HDF5 implementations.
   dipole antenna. It is assumed to be the same for all antennas in the
   dataset. For instance, ``E'' or ``East'' may be
   used. (\textit{x\_orientation}).
-\item \textbf{telescope\_name}: \textit{string} The name of the telescope used
-  to take the data. The value is used to check that metadata is self-consistent
-  for known telescopes in pyuvdata. (\textit{telescope\_name})
 \item \textbf{antenna\_diameters}: \textit{float} An array of the diameters of
   the antennas in meters. This is a one-dimensional array of size
   (Nants\_telescope). (\textit{Nants\_telescope})
