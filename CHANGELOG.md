@@ -4,10 +4,10 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 ### Added
 - memo describing the UVH5 format
+- Methods on UVData objects to compress/inflate data by redundant baselines.
+- Convenience functions on UVData for finding redundant baselines (calling the corresponding utils functions)
 - read/write support for uvh5 files with integer datatypes for visibilities
 - support for python3.7
-- Compress/inflate data by redundant baselines.
-- Convenience functions in uvdata for finding redundant baselines (calling the corresponding utils functions)
 
 ### Changed
 - UVBeam.efield_to_pstokes() no longer restricted to healpix coordinates
