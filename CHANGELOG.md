@@ -3,9 +3,9 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 ### Added
-- memo describing the UVH5 format
 - Methods on UVData objects to compress/inflate data by redundant baselines.
 - Convenience functions on UVData for finding redundant baselines (calling the corresponding utils functions)
+- memo describing the UVH5 format
 - read/write support for uvh5 files with integer datatypes for visibilities
 - support for python3.7
 
