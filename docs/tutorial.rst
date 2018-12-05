@@ -896,7 +896,7 @@ Since redundant baselines should have similar visibilities, some level of data c
     >>> uv0.compress_by_redundancy(tol=tol)
     >>> uv2 == uv0
     True
-    
+
     # Note -- Compressing and inflating changes the baseline order, so the inflated object may be different.
     >>> uv0.inflate_by_redundancy(tol=tol)
     >>> np.all(uv0.baseline_array == uv_backup.baseline_array)
@@ -922,7 +922,7 @@ a) Reading a cal fits gain calibration file.
   >>> import numpy as np
   >>> import matplotlib.pyplot as plt
   >>> cal = UVCal()
-  >>> filename = 'pyuvdata/data/zen.2457698.40355.xx.fitsA'
+  >>> filename = 'pyuvdata/data/zen.2457698.40355.xx.gain.calfits'
   >>> cal.read_calfits(filename)
 
   # Cal type:
@@ -939,11 +939,11 @@ a) Reading a cal fits gain calibration file.
 
   # Number of frequencies
   >>> print(cal.Nfreqs)
-  1024
+  10
 
   # Shape of the gain_array
   >>> print(cal.gain_array.shape)
-  (19, 1, 1024, 56, 1)
+  (19, 1, 10, 5, 1)
 
   # plot abs of all gains for first time and first jones polarization.
   >>> for ant in range(cal.Nants_data): # doctest: +SKIP
@@ -981,7 +981,7 @@ a) Select 3 antennas to keep using the antenna number.
   >>> from pyuvdata import UVCal
   >>> import numpy as np
   >>> cal = UVCal()
-  >>> filename = 'pyuvdata/data/zen.2457698.40355.xx.fitsA'
+  >>> filename = 'pyuvdata/data/zen.2457698.40355.xx.gain.calfits'
   >>> cal.read_calfits(filename)
 
   # print all the antennas numbers with data in the original file
@@ -1001,7 +1001,7 @@ b) Select 3 antennas to keep using the antenna names, also select 5 frequencies 
   >>> from pyuvdata import UVCal
   >>> import numpy as np
   >>> cal = UVCal()
-  >>> filename = 'pyuvdata/data/zen.2457698.40355.xx.fitsA'
+  >>> filename = 'pyuvdata/data/zen.2457698.40355.xx.gain.calfits'
   >>> cal.read_calfits(filename)
 
   # print all the antenna names with data in the original file
@@ -1010,8 +1010,9 @@ b) Select 3 antennas to keep using the antenna names, also select 5 frequencies 
 
   # print all the frequencies in the original file
   >>> print(cal.freq_array)
-  [[1.00000000e+08 1.00097656e+08 1.00195312e+08 ... 1.99707031e+08
-    1.99804688e+08 1.99902344e+08]]
+  [[1.00000000e+08 1.00097656e+08 1.00195312e+08 1.00292969e+08
+    1.00390625e+08 1.00488281e+08 1.00585938e+08 1.00683594e+08
+    1.00781250e+08 1.00878906e+08]]
   >>> cal.select(antenna_names=['ant31', 'ant81', 'ant104'], freq_chans=np.arange(0, 4))
 
   # print all the antenna names with data after the select
@@ -1036,16 +1037,16 @@ a) Add frequencies.
   >>> import numpy as np
   >>> import copy
   >>> cal1 = UVCal()
-  >>> filename = 'pyuvdata/data/zen.2457698.40355.xx.fitsA'
+  >>> filename = 'pyuvdata/data/zen.2457698.40355.xx.gain.calfits'
   >>> cal1.read_calfits(filename)
   >>> cal2 = copy.deepcopy(cal1)
 
   # Downselect frequencies to recombine
-  >>> cal1.select(freq_chans=np.arange(0, 512))
-  >>> cal2.select(freq_chans=np.arange(512, 1024))
+  >>> cal1.select(freq_chans=np.arange(0, 5))
+  >>> cal2.select(freq_chans=np.arange(5, 10))
   >>> cal3 = cal1 + cal2
   >>> print((cal1.Nfreqs, cal2.Nfreqs, cal3.Nfreqs))
-  (512, 512, 1024)
+  (5, 5, 10)
 
 b) Add times.
 ****************
@@ -1055,7 +1056,7 @@ b) Add times.
   >>> import numpy as np
   >>> import copy
   >>> cal1 = UVCal()
-  >>> filename = 'pyuvdata/data/zen.2457698.40355.xx.fitsA'
+  >>> filename = 'pyuvdata/data/zen.2457698.40355.xx.gain.calfits'
   >>> cal1.read_calfits(filename)
   >>> cal2 = copy.deepcopy(cal1)
 
@@ -1065,7 +1066,7 @@ b) Add times.
   >>> cal2.select(times=times[len(times) // 2:])
   >>> cal3 = cal1 + cal2
   >>> print((cal1.Ntimes, cal2.Ntimes, cal3.Ntimes))
-  (28, 28, 56)
+  (2, 3, 5)
 
 c) Adding in place.
 *******************
@@ -1077,7 +1078,7 @@ directly without creating a third uvcal object.
   >>> import numpy as np
   >>> import copy
   >>> cal1 = UVCal()
-  >>> filename = 'pyuvdata/data/zen.2457698.40355.xx.fitsA'
+  >>> filename = 'pyuvdata/data/zen.2457698.40355.xx.gain.calfits'
   >>> cal1.read_calfits(filename)
   >>> cal2 = copy.deepcopy(cal1)
   >>> times = np.unique(cal1.time_array)
@@ -1101,11 +1102,11 @@ each file will be read in succession and added to the previous.
   >>> import numpy as np
   >>> import copy
   >>> cal = UVCal()
-  >>> filename = 'pyuvdata/data/zen.2457698.40355.xx.fitsA'
+  >>> filename = 'pyuvdata/data/zen.2457698.40355.xx.gain.calfits'
   >>> cal.read_calfits(filename)
-  >>> cal1 = cal.select(freq_chans=np.arange(0, 20), inplace=False)
-  >>> cal2 = cal.select(freq_chans=np.arange(20, 40), inplace=False)
-  >>> cal3 = cal.select(freq_chans=np.arange(40, 64), inplace=False)
+  >>> cal1 = cal.select(freq_chans=np.arange(0, 2), inplace=False)
+  >>> cal2 = cal.select(freq_chans=np.arange(2, 4), inplace=False)
+  >>> cal3 = cal.select(freq_chans=np.arange(4, 7), inplace=False)
   >>> cal1.write_calfits('tutorial1.fits')
   >>> cal2.write_calfits('tutorial2.fits')
   >>> cal3.write_calfits('tutorial3.fits')
