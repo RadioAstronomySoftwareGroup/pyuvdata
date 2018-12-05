@@ -47,7 +47,7 @@ install:
   - conda info -a
 
   # install dependencies
-  - conda install numpy scipy astropy nose pip h5py six healpy python-casacore pycodestyle coveralls
+  - conda install numpy scipy astropy nose pip h5py six healpy python-casacore pycodestyle coveralls python="$PYTHON_VERSION"
   - conda list
   - python --version
   - PYVER=`python -c "from __future__ import print_function; import sys; print('{:d}.{:d}'.format(sys.version_info.major, sys.version_info.minor))"`
