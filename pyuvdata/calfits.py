@@ -388,10 +388,10 @@ class CALFITS(UVCal):
             self.history = str(hdr.get('HISTORY', ''))
 
             if not uvutils._check_history_version(self.history, self.pyuvdata_version_str):
-                if self.history.endswith('\n'):
-                    self.history += self.pyuvdata_version_str
-                else:
-                    self.history += '\n' + self.pyuvdata_version_str
+                if not self.history.endswith('\n'):
+                    self.history += '\n'
+
+                self.history += self.pyuvdata_version_str
 
             while 'HISTORY' in hdr.keys():
                 hdr.remove('HISTORY')
