@@ -284,7 +284,12 @@ class TestUVCalSelectGain(object):
 
         # check that write_calfits works with Nants_data < Nants_telescope
         write_file_calfits = os.path.join(DATA_PATH, 'test/select_test.calfits')
-        status = self.gain_object2.write_calfits(write_file_calfits, clobber=True)
+        self.gain_object2.write_calfits(write_file_calfits, clobber=True)
+
+        # check that reading it back in works too
+        new_gain_object = UVCal()
+        new_gain_object.read_calfits(write_file_calfits)
+        nt.assert_equal(self.gain_object2, new_gain_object)
 
         # check that total_quality_array is handled properly when present
         self.gain_object.total_quality_array = np.zeros(
