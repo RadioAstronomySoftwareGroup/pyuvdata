@@ -680,14 +680,15 @@ def test_spw_zero_indexed_delay():
     nt.assert_equal(cal_in, cal_out)
 
 
-def test_write_rounded_freq_calfits():
+def test_write_freq_spacing_not_channel_width():
     cal_in = UVCal()
     cal_out = UVCal()
     testfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.gain.calfits')
     write_file = os.path.join(DATA_PATH, 'test/outtest_omnical.fits')
     cal_in.read_calfits(testfile)
 
-    cal_in.freq_array[:, 2] = cal_in.freq_array[:, 2] - cal_in._freq_array.tols[1] * 0.5
+    # select every other frequency -- then evenly spaced but doesn't match channel width
+    cal_in.select(freq_chans=np.arange(0, 10, 2))
 
     cal_in.write_calfits(write_file, clobber=True)
     cal_out.read_calfits(write_file)
