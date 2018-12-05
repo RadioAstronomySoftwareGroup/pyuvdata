@@ -10,7 +10,6 @@ from __future__ import absolute_import, division, print_function
 import nose.tools as nt
 import os
 import numpy as np
-import astropy
 from astropy.io import fits
 
 from pyuvdata import UVCal
@@ -126,10 +125,7 @@ def test_errors():
         totqualhdu = fits.ImageHDU(data=totqualhdu.data, header=totqualhdr)
         hdulist.append(totqualhdu)
 
-        if float(astropy.__version__[0:3]) < 1.3:
-            hdulist.writeto(write_file, clobber=True)
-        else:
-            hdulist.writeto(write_file, overwrite=True)
+        hdulist.writeto(write_file, overwrite=True)
 
         nt.assert_raises(ValueError, cal_out.read_calfits, write_file, strict_fits=True)
 
@@ -174,10 +170,7 @@ def test_errors():
         totqualhdu = fits.ImageHDU(data=totqualhdu.data, header=totqualhdr)
         hdulist.append(totqualhdu)
 
-        if float(astropy.__version__[0:3]) < 1.3:
-            hdulist.writeto(write_file, clobber=True)
-        else:
-            hdulist.writeto(write_file, overwrite=True)
+        hdulist.writeto(write_file, overwrite=True)
 
         nt.assert_raises(ValueError, cal_out.read_calfits, write_file, strict_fits=True)
 
@@ -313,10 +306,7 @@ def test_read_oldcalfits():
         totqualhdu = fits.ImageHDU(data=totqualhdu.data, header=totqualhdr)
         hdulist.append(totqualhdu)
 
-        if float(astropy.__version__[0:3]) < 1.3:
-            hdulist.writeto(write_file, clobber=True)
-        else:
-            hdulist.writeto(write_file, overwrite=True)
+        hdulist.writeto(write_file, overwrite=True)
 
         uvtest.checkWarnings(cal_out.read_calfits, [write_file], message=messages[i])
         nt.assert_equal(cal_in, cal_out)
@@ -371,10 +361,7 @@ def test_read_oldcalfits():
         totqualhdu = fits.ImageHDU(data=totqualhdu.data, header=totqualhdr)
         hdulist.append(totqualhdu)
 
-        if float(astropy.__version__[0:3]) < 1.3:
-            hdulist.writeto(write_file, clobber=True)
-        else:
-            hdulist.writeto(write_file, overwrite=True)
+        hdulist.writeto(write_file, overwrite=True)
 
         uvtest.checkWarnings(cal_out.read_calfits, [write_file], message=messages[i])
         nt.assert_equal(cal_in, cal_out)

@@ -9,7 +9,6 @@ from __future__ import absolute_import, division, print_function
 
 import numpy as np
 import warnings
-import astropy
 from astropy.io import fits
 
 from . import UVBeam
@@ -644,7 +643,4 @@ class BeamFITS(UVBeam):
             bandpass_hdu.header['refzout'] = self.reference_output_impedance
         hdulist.append(bandpass_hdu)
 
-        if float(astropy.__version__[0:3]) < 1.3:  # pragma: no cover
-            hdulist.writeto(filename, clobber=clobber)
-        else:
-            hdulist.writeto(filename, overwrite=clobber)
+        hdulist.writeto(filename, overwrite=clobber)
