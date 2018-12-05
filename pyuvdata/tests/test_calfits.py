@@ -566,3 +566,116 @@ def test_write_time_precision():
     cal_in.write_calfits(write_file, clobber=True)
     cal_out.read_calfits(write_file)
     nt.assert_equal(cal_in, cal_out)
+
+
+def test_read_noversion_history():
+    """
+    Test that version info gets added to the history if it's missing
+    """
+    cal_in = UVCal()
+    cal_out = UVCal()
+    testfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.gain.calfits')
+    write_file = os.path.join(DATA_PATH, 'test/outtest_omnical.fits')
+    cal_in.read_calfits(testfile)
+
+    cal_in.write_calfits(write_file, clobber=True)
+
+    F = fits.open(write_file)
+    data = F[0].data
+    primary_hdr = F[0].header
+    hdunames = uvutils._fits_indexhdus(F)
+    ant_hdu = F[hdunames['ANTENNAS']]
+
+    primary_hdr['HISTORY'] = ''
+
+    prihdu = fits.PrimaryHDU(data=data, header=primary_hdr)
+    hdulist = fits.HDUList([prihdu, ant_hdu])
+
+    if float(astropy.__version__[0:3]) < 1.3:
+        hdulist.writeto(write_file, clobber=True)
+    else:
+        hdulist.writeto(write_file, overwrite=True)
+
+    cal_out.read_calfits(write_file)
+    nt.assert_equal(cal_in, cal_out)
+
+
+def test_spw_zero_indexed_gain():
+    """
+    Test that old files with zero-indexed spw array are read correctly for gain-type
+    """
+    cal_in = UVCal()
+    cal_out = UVCal()
+    testfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.gain.calfits')
+    write_file = os.path.join(DATA_PATH, 'test/outtest_omnical.fits')
+    cal_in.read_calfits(testfile)
+
+    cal_in.write_calfits(write_file, clobber=True)
+
+    F = fits.open(write_file)
+    data = F[0].data
+    primary_hdr = F[0].header
+    hdunames = uvutils._fits_indexhdus(F)
+    ant_hdu = F[hdunames['ANTENNAS']]
+
+    primary_hdr['CRVAL5'] = 0
+
+    prihdu = fits.PrimaryHDU(data=data, header=primary_hdr)
+    hdulist = fits.HDUList([prihdu, ant_hdu])
+
+    if float(astropy.__version__[0:3]) < 1.3:
+        hdulist.writeto(write_file, clobber=True)
+    else:
+        hdulist.writeto(write_file, overwrite=True)
+
+    cal_out.read_calfits(write_file)
+    nt.assert_equal(cal_in, cal_out)
+
+
+def test_spw_zero_indexed_delay():
+    """
+    Test that old files with zero-indexed spw array are read correctly for delay-type
+    """
+    cal_in = UVCal()
+    cal_out = UVCal()
+    testfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.delay.calfits')
+    write_file = os.path.join(DATA_PATH, 'test/outtest_firstcal.fits')
+    cal_in.read_calfits(testfile)
+
+    cal_in.write_calfits(write_file, clobber=True)
+    F = fits.open(write_file)
+    data = F[0].data
+    primary_hdr = F[0].header
+    hdunames = uvutils._fits_indexhdus(F)
+    ant_hdu = F[hdunames['ANTENNAS']]
+    flag_hdu = F[hdunames['FLAGS']]
+    flag_hdr = flag_hdu.header
+
+    primary_hdr['CRVAL5'] = 0
+
+    prihdu = fits.PrimaryHDU(data=data, header=primary_hdr)
+    hdulist = fits.HDUList([prihdu, ant_hdu])
+    flag_hdu = fits.ImageHDU(data=flag_hdu.data, header=flag_hdr)
+    hdulist.append(flag_hdu)
+
+    if float(astropy.__version__[0:3]) < 1.3:
+        hdulist.writeto(write_file, clobber=True)
+    else:
+        hdulist.writeto(write_file, overwrite=True)
+
+    cal_out.read_calfits(write_file)
+    nt.assert_equal(cal_in, cal_out)
+
+
+def test_write_rounded_freq_calfits():
+    cal_in = UVCal()
+    cal_out = UVCal()
+    testfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.gain.calfits')
+    write_file = os.path.join(DATA_PATH, 'test/outtest_omnical.fits')
+    cal_in.read_calfits(testfile)
+
+    cal_in.freq_array[:, 2] = cal_in.freq_array[:, 2] - cal_in._freq_array.tols[1] * 0.5
+
+    cal_in.write_calfits(write_file, clobber=True)
+    cal_out.read_calfits(write_file)
+    nt.assert_equal(cal_in, cal_out)
