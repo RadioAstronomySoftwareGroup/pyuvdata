@@ -28,10 +28,9 @@ def test_readwriteread():
     """
     cal_in = UVCal()
     cal_out = UVCal()
-    testfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.fitsA')
+    testfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.gain.calfits')
     write_file = os.path.join(DATA_PATH, 'test/outtest_omnical.fits')
-    message = testfile + ' appears to be an old calfits format which'
-    uvtest.checkWarnings(cal_in.read_calfits, [testfile], message=message)
+    cal_in.read_calfits(testfile)
     cal_in.write_calfits(write_file, clobber=True)
     cal_out.read_calfits(write_file)
     nt.assert_equal(cal_in, cal_out)
@@ -52,12 +51,9 @@ def test_readwriteread_delays():
     """
     cal_in = UVCal()
     cal_out = UVCal()
-    testfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.HH.uvc.fits')
+    testfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.delay.calfits')
     write_file = os.path.join(DATA_PATH, 'test/outtest_firstcal.fits')
-    message = [testfile + ' appears to be an old calfits format which',
-               testfile + ' appears to be an old calfits format for delay files']
-    uvtest.checkWarnings(cal_in.read_calfits, [testfile], message=message,
-                         nwarnings=2)
+    cal_in.read_calfits(testfile)
     cal_in.write_calfits(write_file, clobber=True)
     cal_out.read_calfits(write_file)
     nt.assert_equal(cal_in, cal_out)
@@ -72,19 +68,15 @@ def test_errors():
     """
     cal_in = UVCal()
     cal_out = UVCal()
-    testfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.HH.uvc.fits')
+    testfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.delay.calfits')
     write_file = os.path.join(DATA_PATH, 'test/outtest_firstcal.fits')
-    message = [testfile + ' appears to be an old calfits format which',
-               testfile + ' appears to be an old calfits format for delay files']
-    uvtest.checkWarnings(cal_in.read_calfits, [testfile], message=message,
-                         nwarnings=2)
+    cal_in.read_calfits(testfile)
 
     cal_in.set_unknown_cal_type()
     nt.assert_raises(ValueError, cal_in.write_calfits, write_file, run_check=False, clobber=True)
 
     # change values for various axes in flag and total quality hdus to not match primary hdu
-    uvtest.checkWarnings(cal_in.read_calfits, [testfile], message=message,
-                         nwarnings=2)
+    cal_in.read_calfits(testfile)
     # Create filler jones info
     cal_in.jones_array = np.array([-5, -6, -7, -8])
     cal_in.Njones = 4
@@ -134,10 +126,9 @@ def test_errors():
         nt.assert_raises(ValueError, cal_out.read_calfits, write_file, strict_fits=True)
 
     # repeat for gain type file
-    testfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.fitsA')
+    testfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.gain.calfits')
     write_file = os.path.join(DATA_PATH, 'test/outtest_omnical.fits')
-    message = testfile + ' appears to be an old calfits format which'
-    uvtest.checkWarnings(cal_in.read_calfits, [testfile], message=message)
+    cal_in.read_calfits(testfile)
 
     # Create filler jones info
     cal_in.jones_array = np.array([-5, -6, -7, -8])
@@ -185,10 +176,9 @@ def test_errors():
 def test_extra_keywords():
     cal_in = UVCal()
     cal_out = UVCal()
-    calfits_file = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.fitsA')
+    calfits_file = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.gain.calfits')
     testfile = os.path.join(DATA_PATH, 'test/outtest_omnical.fits')
-    message = calfits_file + ' appears to be an old calfits format which'
-    uvtest.checkWarnings(cal_in.read_calfits, [calfits_file], message=message)
+    cal_in.read_calfits(calfits_file)
 
     # check for warnings & errors with extra_keywords that are dicts, lists or arrays
     cal_in.extra_keywords['testdict'] = {'testkey': 23}
@@ -275,10 +265,9 @@ def test_read_oldcalfits():
     # start with gain type files
     cal_in = UVCal()
     cal_out = UVCal()
-    testfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.fitsA')
+    testfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.gain.calfits')
     write_file = os.path.join(DATA_PATH, 'test/outtest_omnical.fits')
-    message = testfile + ' appears to be an old calfits format which'
-    uvtest.checkWarnings(cal_in.read_calfits, [testfile], message=message)
+    cal_in.read_calfits(testfile)
 
     # add total_quality_array so that can be tested as well
     cal_in.total_quality_array = np.zeros(cal_in._total_quality_array.expected_shape(cal_in))
@@ -325,12 +314,9 @@ def test_read_oldcalfits():
     # now with delay type files
     cal_in = UVCal()
     cal_out = UVCal()
-    testfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.HH.uvc.fits')
+    testfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.delay.calfits')
     write_file = os.path.join(DATA_PATH, 'test/outtest_firstcal.fits')
-    message = [testfile + ' appears to be an old calfits format which',
-               testfile + ' appears to be an old calfits format for delay files']
-    uvtest.checkWarnings(cal_in.read_calfits, [testfile], message=message,
-                         nwarnings=2)
+    cal_in.read_calfits(testfile)
 
     # add total_quality_array so that can be tested as well
     cal_in.total_quality_array = np.zeros(cal_in._total_quality_array.expected_shape(cal_in))
@@ -390,21 +376,17 @@ def test_input_flag_array():
     """
     cal_in = UVCal()
     cal_out = UVCal()
-    testfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.fitsA')
+    testfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.gain.calfits')
     write_file = os.path.join(DATA_PATH, 'test/outtest_input_flags.fits')
-    message = testfile + ' appears to be an old calfits format which'
-    uvtest.checkWarnings(cal_in.read_calfits, [testfile], message=message)
+    cal_in.read_calfits(testfile)
     cal_in.input_flag_array = np.zeros(cal_in._input_flag_array.expected_shape(cal_in), dtype=bool)
     cal_in.write_calfits(write_file, clobber=True)
     cal_out.read_calfits(write_file)
     nt.assert_equal(cal_in, cal_out)
 
     # Repeat for delay version
-    testfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.HH.uvc.fits')
-    message = [testfile + ' appears to be an old calfits format which',
-               testfile + ' appears to be an old calfits format for delay files']
-    uvtest.checkWarnings(cal_in.read_calfits, [testfile], message=message,
-                         nwarnings=2)
+    testfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.delay.calfits')
+    cal_in.read_calfits(testfile)
     cal_in.input_flag_array = np.zeros(cal_in._input_flag_array.expected_shape(cal_in), dtype=bool)
     cal_in.write_calfits(write_file, clobber=True)
     cal_out.read_calfits(write_file)
@@ -422,10 +404,9 @@ def test_jones():
     """
     cal_in = UVCal()
     cal_out = UVCal()
-    testfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.fitsA')
+    testfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.gain.calfits')
     write_file = os.path.join(DATA_PATH, 'test/outtest_jones.fits')
-    message = testfile + ' appears to be an old calfits format which'
-    uvtest.checkWarnings(cal_in.read_calfits, [testfile], message=message)
+    cal_in.read_calfits(testfile)
 
     # Create filler jones info
     cal_in.jones_array = np.array([-5, -6, -7, -8])
@@ -439,11 +420,8 @@ def test_jones():
     nt.assert_equal(cal_in, cal_out)
 
     # Repeat for delay version
-    testfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.HH.uvc.fits')
-    message = [testfile + ' appears to be an old calfits format which',
-               testfile + ' appears to be an old calfits format for delay files']
-    uvtest.checkWarnings(cal_in.read_calfits, [testfile], message=message,
-                         nwarnings=2)
+    testfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.delay.calfits')
+    cal_in.read_calfits(testfile)
 
     # Create filler jones info
     cal_in.jones_array = np.array([-5, -6, -7, -8])
@@ -468,10 +446,9 @@ def test_readwriteread_total_quality_array():
     """
     cal_in = UVCal()
     cal_out = UVCal()
-    testfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.fitsA')
+    testfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.gain.calfits')
     write_file = os.path.join(DATA_PATH, 'test/outtest_total_quality_array.fits')
-    message = testfile + ' appears to be an old calfits format which'
-    uvtest.checkWarnings(cal_in.read_calfits, [testfile], message=message)
+    cal_in.read_calfits(testfile)
 
     # Create filler total quality array
     cal_in.total_quality_array = np.zeros(cal_in._total_quality_array.expected_shape(cal_in))
@@ -485,12 +462,9 @@ def test_readwriteread_total_quality_array():
     # also test delay-type calibrations
     cal_in = UVCal()
     cal_out = UVCal()
-    testfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.HH.uvc.fits')
+    testfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.delay.calfits')
     write_file = os.path.join(DATA_PATH, 'test/outtest_total_quality_array_delays.fits')
-    message = [testfile + ' appears to be an old calfits format which',
-               testfile + ' appears to be an old calfits format for delay files']
-    uvtest.checkWarnings(cal_in.read_calfits, [testfile], message=message,
-                         nwarnings=2)
+    cal_in.read_calfits(testfile)
 
     cal_in.total_quality_array = np.zeros(cal_in._total_quality_array.expected_shape(cal_in))
 
@@ -508,9 +482,8 @@ def test_total_quality_array_size():
 
     cal_in = UVCal()
     cal_out = UVCal()
-    testfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.fitsA')
-    message = testfile + ' appears to be an old calfits format which'
-    uvtest.checkWarnings(cal_in.read_calfits, [testfile], message=message)
+    testfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.gain.calfits')
+    cal_in.read_calfits(testfile)
 
     # Create filler total quality array
     cal_in.total_quality_array = np.zeros(cal_in._total_quality_array.expected_shape(cal_in))
@@ -521,11 +494,8 @@ def test_total_quality_array_size():
 
     # also test delay-type calibrations
     cal_in = UVCal()
-    testfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.HH.uvc.fits')
-    message = [testfile + ' appears to be an old calfits format which',
-               testfile + ' appears to be an old calfits format for delay files']
-    uvtest.checkWarnings(cal_in.read_calfits, [testfile], message=message,
-                         nwarnings=2)
+    testfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.delay.calfits')
+    cal_in.read_calfits(testfile)
 
     cal_in.total_quality_array = np.zeros(cal_in._total_quality_array.expected_shape(cal_in))
 
@@ -540,10 +510,9 @@ def test_write_time_precision():
     """
     cal_in = UVCal()
     cal_out = UVCal()
-    testfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.fitsA')
+    testfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.gain.calfits')
     write_file = os.path.join(DATA_PATH, 'test/outtest_omnical.fits')
-    message = testfile + ' appears to be an old calfits format which'
-    uvtest.checkWarnings(cal_in.read_calfits, [testfile], message=message)
+    cal_in.read_calfits(testfile)
     # overwrite time array to break old code
     dt = cal_in.integration_time / (24. * 60. * 60.)
     cal_in.time_array = dt * np.arange(cal_in.Ntimes)

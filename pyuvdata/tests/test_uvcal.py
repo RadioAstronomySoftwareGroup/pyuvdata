@@ -123,17 +123,13 @@ class TestUVCalBasicMethods(object):
     def setUp(self):
         """Set up test"""
         self.gain_object = UVCal()
-        gainfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.fitsA')
-        message = [gainfile + ' appears to be an old calfits format which']
-        uvtest.checkWarnings(self.gain_object.read_calfits, [gainfile], message=message)
+        gainfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.gain.calfits')
+        self.gain_object.read_calfits(gainfile)
 
         self.gain_object2 = copy.deepcopy(self.gain_object)
         self.delay_object = UVCal()
-        delayfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.HH.uvc.fits')
-        message = [delayfile + ' appears to be an old calfits format which',
-                   delayfile + ' appears to be an old calfits format for delay files']
-        uvtest.checkWarnings(self.delay_object.read_calfits, [delayfile],
-                             message=message, nwarnings=2)
+        delayfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.delay.calfits')
+        self.delay_object.read_calfits(delayfile)
 
     def teardown(self):
         """Tear down test"""
@@ -244,9 +240,8 @@ class TestUVCalSelectGain(object):
     def setUp(self):
         """Set up test"""
         self.gain_object = UVCal()
-        gainfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.fitsA')
-        message = [gainfile + ' appears to be an old calfits format which']
-        uvtest.checkWarnings(self.gain_object.read_calfits, [gainfile], message=message)
+        gainfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.gain.calfits')
+        self.gain_object.read_calfits(gainfile)
         self.gain_object2 = copy.deepcopy(self.gain_object)
 
     def teardown(self):
@@ -300,26 +295,10 @@ class TestUVCalSelectGain(object):
         nt.assert_equal(self.gain_object.total_quality_array, None)
 
     def test_select_times(self):
-        # add another time to allow for better testing of selections
-        new_time = np.max(self.gain_object.time_array) + self.gain_object.integration_time
-        self.gain_object.time_array = np.append(self.gain_object.time_array, new_time)
-        self.gain_object.Ntimes += 1
-        self.gain_object.flag_array = np.concatenate((self.gain_object.flag_array,
-                                                      self.gain_object.flag_array[:, :, :, [-1], :]),
-                                                     axis=3)
-        self.gain_object.gain_array = np.concatenate((self.gain_object.gain_array,
-                                                      self.gain_object.gain_array[:, :, :, [-1], :]),
-                                                     axis=3)
-        self.gain_object.quality_array = np.concatenate((self.gain_object.quality_array,
-                                                         self.gain_object.quality_array[:, :, :, [-1], :]),
-                                                        axis=3)
-        self.gain_object.total_quality_array = np.zeros(
-            self.gain_object._total_quality_array.expected_shape(self.gain_object))
-        nt.assert_true(self.gain_object.check())
         self.gain_object2 = copy.deepcopy(self.gain_object)
 
         old_history = self.gain_object.history
-        times_to_keep = self.gain_object.time_array[[2, 0]]
+        times_to_keep = self.gain_object.time_array[2:5]
 
         self.gain_object2.select(times=times_to_keep)
 
@@ -352,7 +331,7 @@ class TestUVCalSelectGain(object):
 
     def test_select_frequencies(self):
         old_history = self.gain_object.history
-        freqs_to_keep = self.gain_object.freq_array[0, np.arange(73, 944)]
+        freqs_to_keep = self.gain_object.freq_array[0, np.arange(4, 8)]
 
         # add dummy total_quality_array
         self.gain_object.total_quality_array = np.zeros(
@@ -375,7 +354,7 @@ class TestUVCalSelectGain(object):
         write_file_calfits = os.path.join(DATA_PATH, 'test/select_test.calfits')
         # test writing calfits with only one frequency
         self.gain_object2 = copy.deepcopy(self.gain_object)
-        freqs_to_keep = self.gain_object.freq_array[0, 51]
+        freqs_to_keep = self.gain_object.freq_array[0, 5]
         self.gain_object2.select(frequencies=freqs_to_keep)
         self.gain_object2.write_calfits(write_file_calfits, clobber=True)
 
@@ -390,7 +369,7 @@ class TestUVCalSelectGain(object):
 
     def test_select_freq_chans(self):
         old_history = self.gain_object.history
-        chans_to_keep = np.arange(73, 944)
+        chans_to_keep = np.arange(4, 8)
 
         # add dummy total_quality_array
         self.gain_object.total_quality_array = np.zeros(
@@ -411,8 +390,8 @@ class TestUVCalSelectGain(object):
                                                 self.gain_object2.history))
 
         # Test selecting both channels and frequencies
-        freqs_to_keep = self.gain_object.freq_array[0, np.arange(930, 1000)]  # Overlaps with chans
-        all_chans_to_keep = np.arange(73, 1000)
+        freqs_to_keep = self.gain_object.freq_array[0, np.arange(7, 10)]  # Overlaps with chans
+        all_chans_to_keep = np.arange(4, 10)
 
         self.gain_object2 = copy.deepcopy(self.gain_object)
         self.gain_object2.select(frequencies=freqs_to_keep, freq_chans=chans_to_keep)
@@ -475,7 +454,7 @@ class TestUVCalSelectGain(object):
         old_history = self.gain_object.history
 
         ants_to_keep = np.array([10, 89, 43, 9, 80, 96, 64])
-        freqs_to_keep = self.gain_object.freq_array[0, np.arange(31, 56)]
+        freqs_to_keep = self.gain_object.freq_array[0, np.arange(2, 5)]
         times_to_keep = self.gain_object.time_array[[1, 2]]
         jones_to_keep = [-5]
 
@@ -517,15 +496,12 @@ class TestUVCalSelectDelay(object):
     def setUp(self):
         """Set up test"""
         self.delay_object = UVCal()
-        delayfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.HH.uvc.fits')
+        delayfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.delay.calfits')
 
         # add an input flag array to the file to test for that.
         write_file = os.path.join(DATA_PATH, 'test/outtest_input_flags.fits')
         uv_in = UVCal()
-        message = [delayfile + ' appears to be an old calfits format which',
-                   delayfile + ' appears to be an old calfits format for delay files']
-        uvtest.checkWarnings(uv_in.read_calfits, [delayfile], message=message,
-                             nwarnings=2)
+        uv_in.read_calfits(delayfile)
         uv_in.input_flag_array = np.zeros(uv_in._input_flag_array.expected_shape(uv_in), dtype=bool)
         uv_in.write_calfits(write_file, clobber=True)
 
@@ -580,29 +556,8 @@ class TestUVCalSelectDelay(object):
         nt.assert_equal(self.delay_object.total_quality_array, None)
 
     def test_select_times(self):
-        # add another time to allow for better testing of selections
-        new_time = np.max(self.delay_object.time_array) + self.delay_object.integration_time
-        self.delay_object.time_array = np.append(self.delay_object.time_array, new_time)
-        self.delay_object.Ntimes += 1
-        self.delay_object.flag_array = np.concatenate((self.delay_object.flag_array,
-                                                       self.delay_object.flag_array[:, :, :, [-1], :]),
-                                                      axis=3)
-        self.delay_object.input_flag_array = np.concatenate((self.delay_object.input_flag_array,
-                                                             self.delay_object.input_flag_array[:, :, :, [-1], :]),
-                                                            axis=3)
-        self.delay_object.delay_array = np.concatenate((self.delay_object.delay_array,
-                                                        self.delay_object.delay_array[:, :, :, [-1], :]),
-                                                       axis=3)
-        self.delay_object.quality_array = np.concatenate((self.delay_object.quality_array,
-                                                          self.delay_object.quality_array[:, :, :, [-1], :]),
-                                                         axis=3)
-        self.delay_object.total_quality_array = np.zeros(
-            self.delay_object._total_quality_array.expected_shape(self.delay_object))
-        nt.assert_true(self.delay_object.check())
-        self.delay_object2 = copy.deepcopy(self.delay_object)
-
         old_history = self.delay_object.history
-        times_to_keep = self.delay_object.time_array[[2, 0]]
+        times_to_keep = self.delay_object.time_array[2:5]
 
         self.delay_object2.select(times=times_to_keep)
 
@@ -790,9 +745,8 @@ class TestUVCalAddGain(object):
     def setUp(self):
         """Set up test"""
         self.gain_object = UVCal()
-        gainfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.fitsA')
-        message = [gainfile + ' appears to be an old calfits format which']
-        uvtest.checkWarnings(self.gain_object.read_calfits, [gainfile], message=message)
+        gainfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.gain.calfits')
+        self.gain_object.read_calfits(gainfile)
         self.gain_object2 = copy.deepcopy(self.gain_object)
 
     def teardown(self):
@@ -828,8 +782,8 @@ class TestUVCalAddGain(object):
     def test_add_frequencies(self):
         """Test adding frequencies between two UVCal objects"""
         gain_object_full = copy.deepcopy(self.gain_object)
-        freqs1 = self.gain_object.freq_array[0, np.arange(0, 512)]
-        freqs2 = self.gain_object2.freq_array[0, np.arange(512, 1024)]
+        freqs1 = self.gain_object.freq_array[0, np.arange(0, 5)]
+        freqs2 = self.gain_object2.freq_array[0, np.arange(5, 10)]
         self.gain_object.select(frequencies=freqs1)
         self.gain_object2.select(frequencies=freqs2)
         self.gain_object += self.gain_object2
@@ -1037,8 +991,8 @@ class TestUVCalAddGain(object):
         """Test addition along multiple axes"""
         ants1 = np.array([9, 10, 20, 22, 31, 43, 53, 64, 65, 72])
         ants2 = np.array([80, 81, 88, 89, 96, 97, 104, 105, 112])
-        freqs1 = self.gain_object.freq_array[0, np.arange(0, 512)]
-        freqs2 = self.gain_object2.freq_array[0, np.arange(512, 1024)]
+        freqs1 = self.gain_object.freq_array[0, np.arange(0, 5)]
+        freqs2 = self.gain_object2.freq_array[0, np.arange(5, 10)]
         Nt2 = self.gain_object.Ntimes // 2
         times1 = self.gain_object.time_array[:Nt2]
         times2 = self.gain_object.time_array[Nt2:]
@@ -1055,8 +1009,8 @@ class TestUVCalAddGain(object):
 
         # check resulting dimensionality
         nt.assert_equal(len(self.gain_object.ant_array), 19)
-        nt.assert_equal(len(self.gain_object.freq_array[0, :]), 1024)
-        nt.assert_equal(len(self.gain_object.time_array), Nt2 * 2)
+        nt.assert_equal(len(self.gain_object.freq_array[0, :]), 10)
+        nt.assert_equal(len(self.gain_object.time_array), self.gain_object.Ntimes)
         nt.assert_equal(len(self.gain_object.jones_array), 2)
 
     def test_add_errors(self):
@@ -1086,8 +1040,8 @@ class TestUVCalAddGain(object):
         # test having unevenly spaced frequency separations
         go1 = copy.deepcopy(self.gain_object)
         go2 = copy.deepcopy(self.gain_object2)
-        freqs1 = self.gain_object.freq_array[0, np.arange(0, 512)]
-        freqs2 = self.gain_object2.freq_array[0, np.arange(512, 1024)]
+        freqs1 = self.gain_object.freq_array[0, np.arange(0, 5)]
+        freqs2 = self.gain_object2.freq_array[0, np.arange(5, 10)]
         self.gain_object.select(frequencies=freqs1)
         self.gain_object2.select(frequencies=freqs2)
 
@@ -1101,8 +1055,8 @@ class TestUVCalAddGain(object):
         # now check having "non-contiguous" frequencies
         self.gain_object = copy.deepcopy(go1)
         self.gain_object2 = copy.deepcopy(go2)
-        freqs1 = self.gain_object.freq_array[0, np.arange(0, 512)]
-        freqs2 = self.gain_object2.freq_array[0, np.arange(512, 1024)]
+        freqs1 = self.gain_object.freq_array[0, np.arange(0, 5)]
+        freqs2 = self.gain_object2.freq_array[0, np.arange(5, 10)]
         self.gain_object.select(frequencies=freqs1)
         self.gain_object2.select(frequencies=freqs2)
 
@@ -1122,8 +1076,8 @@ class TestUVCalAddGain(object):
         """Test changing a parameter that will raise a warning"""
         # change observer and select frequencies
         self.gain_object2.observer = 'mystery_person'
-        freqs1 = self.gain_object.freq_array[0, np.arange(0, 512)]
-        freqs2 = self.gain_object2.freq_array[0, np.arange(512, 1024)]
+        freqs1 = self.gain_object.freq_array[0, np.arange(0, 5)]
+        freqs2 = self.gain_object2.freq_array[0, np.arange(5, 10)]
         self.gain_object.select(frequencies=freqs1)
         self.gain_object2.select(frequencies=freqs2)
         uvtest.checkWarnings(self.gain_object.__iadd__, [self.gain_object2],
@@ -1162,15 +1116,12 @@ class TestUVCalAddDelay(object):
     def setUp(self):
         """Set up test"""
         self.delay_object = UVCal()
-        delayfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.HH.uvc.fits')
+        delayfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.delay.calfits')
 
         # add an input flag array to the file to test for that.
         write_file = os.path.join(DATA_PATH, 'test/outtest_input_flags.fits')
         uv_in = UVCal()
-        message = [delayfile + ' appears to be an old calfits format which',
-                   delayfile + ' appears to be an old calfits format for delay files']
-        uvtest.checkWarnings(uv_in.read_calfits, [delayfile], message=message,
-                             nwarnings=2)
+        uv_in.read_calfits(delayfile)
         uv_in.input_flag_array = np.zeros(uv_in._input_flag_array.expected_shape(uv_in), dtype=bool)
         uv_in.write_calfits(write_file, clobber=True)
 
