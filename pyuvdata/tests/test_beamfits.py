@@ -10,7 +10,6 @@ from __future__ import absolute_import, division, print_function
 import nose.tools as nt
 import os
 import numpy as np
-import astropy
 from astropy.io import fits
 
 from pyuvdata import UVBeam
@@ -82,10 +81,7 @@ def test_readCST_writereadFITS():
     prihdu = fits.PrimaryHDU(data=data, header=primary_hdr)
     hdulist = fits.HDUList([prihdu, bandpass_hdu])
 
-    if float(astropy.__version__[0:3]) < 1.3:
-        hdulist.writeto(write_file, clobber=True)
-    else:
-        hdulist.writeto(write_file, overwrite=True)
+    hdulist.writeto(write_file, overwrite=True)
 
     beam_out.read_beamfits(write_file)
     nt.assert_equal(beam_in, beam_out)
@@ -101,10 +97,7 @@ def test_readCST_writereadFITS():
     prihdu = fits.PrimaryHDU(data=data, header=primary_hdr)
     hdulist = fits.HDUList([prihdu, bandpass_hdu])
 
-    if float(astropy.__version__[0:3]) < 1.3:
-        hdulist.writeto(write_file, clobber=True)
-    else:
-        hdulist.writeto(write_file, overwrite=True)
+    hdulist.writeto(write_file, overwrite=True)
 
     beam_out.read_beamfits(write_file)
     nt.assert_equal(beam_in, beam_out)
@@ -122,10 +115,7 @@ def test_readCST_writereadFITS():
     prihdu = fits.PrimaryHDU(data=data, header=primary_hdr)
     hdulist = fits.HDUList([prihdu, bandpass_hdu])
 
-    if float(astropy.__version__[0:3]) < 1.3:
-        hdulist.writeto(write_file, clobber=True)
-    else:
-        hdulist.writeto(write_file, overwrite=True)
+    hdulist.writeto(write_file, overwrite=True)
 
     beam_out.read_beamfits(write_file)
     nt.assert_equal(beam_in, beam_out)
@@ -196,10 +186,7 @@ def test_writeread_healpix():
     prihdu = fits.PrimaryHDU(data=data, header=primary_hdr)
     hdulist = fits.HDUList([prihdu, hpx_hdu, bandpass_hdu])
 
-    if float(astropy.__version__[0:3]) < 1.3:
-        hdulist.writeto(write_file, clobber=True)
-    else:
-        hdulist.writeto(write_file, overwrite=True)
+    hdulist.writeto(write_file, overwrite=True)
 
     beam_out.read_beamfits(write_file)
     nt.assert_equal(beam_in, beam_out)
@@ -260,10 +247,7 @@ def test_errors():
         prihdu = fits.PrimaryHDU(data=data, header=primary_hdr)
         hdulist = fits.HDUList([prihdu, basisvec_hdu, bandpass_hdu])
 
-        if float(astropy.__version__[0:3]) < 1.3:
-            hdulist.writeto(write_file, clobber=True)
-        else:
-            hdulist.writeto(write_file, overwrite=True)
+        hdulist.writeto(write_file, overwrite=True)
 
         nt.assert_raises(ValueError, beam_out.read_beamfits, write_file)
 
@@ -305,10 +289,7 @@ def test_errors():
         basisvec_hdu = fits.ImageHDU(data=basisvec_data, header=basisvec_hdr)
         hdulist = fits.HDUList([prihdu, basisvec_hdu, bandpass_hdu])
 
-        if float(astropy.__version__[0:3]) < 1.3:
-            hdulist.writeto(write_file, clobber=True)
-        else:
-            hdulist.writeto(write_file, overwrite=True)
+        hdulist.writeto(write_file, overwrite=True)
 
         nt.assert_raises(ValueError, beam_out.read_beamfits, write_file)
 
@@ -359,10 +340,7 @@ def test_healpix_errors():
         prihdu = fits.PrimaryHDU(data=data, header=primary_hdr)
         hdulist = fits.HDUList([prihdu, basisvec_hdu, hpx_hdu, bandpass_hdu])
 
-        if float(astropy.__version__[0:3]) < 1.3:
-            hdulist.writeto(write_file, clobber=True)
-        else:
-            hdulist.writeto(write_file, overwrite=True)
+        hdulist.writeto(write_file, overwrite=True)
 
         nt.assert_raises(ValueError, beam_out.read_beamfits, write_file)
 
@@ -409,10 +387,7 @@ def test_healpix_errors():
         basisvec_hdu = fits.ImageHDU(data=basisvec_data, header=basisvec_hdr)
         hdulist = fits.HDUList([prihdu, basisvec_hdu, hpx_hdu, bandpass_hdu])
 
-        if float(astropy.__version__[0:3]) < 1.3:
-            hdulist.writeto(write_file, clobber=True)
-        else:
-            hdulist.writeto(write_file, overwrite=True)
+        hdulist.writeto(write_file, overwrite=True)
 
         nt.assert_raises(ValueError, beam_out.read_beamfits, write_file)
 

@@ -9,7 +9,6 @@ from __future__ import absolute_import, division, print_function
 
 import numpy as np
 import warnings
-import astropy
 from astropy import constants as const
 from astropy.time import Time
 from astropy.io import fits
@@ -882,7 +881,4 @@ class UVFITS(UVData):
 
         # write the file
         hdulist = fits.HDUList(hdus=[hdu, ant_hdu])
-        if float(astropy.__version__[0:3]) < 1.3:  # pragma: no cover
-            hdulist.writeto(filename, clobber=True)
-        else:
-            hdulist.writeto(filename, overwrite=True)
+        hdulist.writeto(filename, overwrite=True)

@@ -6,7 +6,6 @@ from __future__ import absolute_import, division, print_function
 
 import numpy as np
 import warnings
-import astropy
 from astropy.io import fits
 
 from . import UVCal
@@ -344,10 +343,7 @@ class CALFITS(UVCal):
             totqualhdu = fits.ImageHDU(data=totqualdata, header=totqualhdr)
             hdulist.append(totqualhdu)
 
-        if float(astropy.__version__[0:3]) < 1.3:
-            hdulist.writeto(filename, clobber=clobber)
-        else:
-            hdulist.writeto(filename, overwrite=clobber)
+        hdulist.writeto(filename, overwrite=clobber)
 
     def read_calfits(self, filename, run_check=True, check_extra=True,
                      run_check_acceptability=True, strict_fits=False):

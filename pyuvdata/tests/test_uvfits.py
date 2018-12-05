@@ -11,7 +11,6 @@ import numpy as np
 import copy
 import os
 import nose.tools as nt
-import astropy
 from astropy.io import fits
 
 from pyuvdata import UVData
@@ -143,10 +142,8 @@ def test_readwriteread():
         ant_hdu.header = ant_hdr
 
         hdulist = fits.HDUList(hdus=[vis_hdu, ant_hdu])
-        if float(astropy.__version__[0:3]) < 1.3:
-            hdulist.writeto(write_file, clobber=True)
-        else:
-            hdulist.writeto(write_file, overwrite=True)
+        hdulist.writeto(write_file, overwrite=True)
+
     uvtest.checkWarnings(uv_out.read, [write_file], message='Telescope EVLA is not')
     nt.assert_equal(uv_out.telescope_name, 'EVLA')
     nt.assert_equal(uv_out.timesys, time_sys)
@@ -181,10 +178,8 @@ def test_readwriteread():
         ant_hdu = hdu_list[hdunames['AIPS AN']]
 
         hdulist = fits.HDUList(hdus=[vis_hdu, ant_hdu])
-        if float(astropy.__version__[0:3]) < 1.3:
-            hdulist.writeto(write_file, clobber=True)
-        else:
-            hdulist.writeto(write_file, overwrite=True)
+        hdulist.writeto(write_file, overwrite=True)
+
     uvtest.checkWarnings(nt.assert_raises, [ValueError, uv_out.read, write_file],
                          message=['Telescope EVLA is not',
                                   'ERFA function "utcut1" yielded 1 of "dubious year (Note 3)"',
@@ -449,10 +444,7 @@ def test_select_read():
 
         write_file = os.path.join(DATA_PATH, 'test/outtest_casa.uvfits')
         hdulist = fits.HDUList(hdus=[vis_hdu, ant_hdu])
-        if float(astropy.__version__[0:3]) < 1.3:
-            hdulist.writeto(write_file, clobber=True)
-        else:
-            hdulist.writeto(write_file, overwrite=True)
+        hdulist.writeto(write_file, overwrite=True)
 
     pols_to_keep = [-1, -2]
     uvtest.checkWarnings(uvfits_uv.read, [write_file],
