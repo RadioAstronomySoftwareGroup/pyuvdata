@@ -11,6 +11,7 @@ import numpy as np
 import copy
 import os
 import nose.tools as nt
+import astropy
 from astropy.io import fits
 
 from pyuvdata import UVData
