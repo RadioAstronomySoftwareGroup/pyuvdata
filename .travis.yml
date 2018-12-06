@@ -42,7 +42,7 @@ install:
     else
       conda install -c defaults -y 'libgfortran =3.0.0' libgfortran-ng;
     fi
-  - conda config --remove channels defaults && conda config --add channels conda-forge
+  - conda config --add channels conda-forge
   # Useful for debugging any issues with conda
   - conda info -a
 
@@ -50,14 +50,12 @@ install:
   - conda install numpy scipy astropy nose pip h5py six healpy python-casacore pycodestyle coveralls python="$PYTHON_VERSION"
   - conda list
   - python --version
-  - PYVER=`python -c "from __future__ import print_function; import sys; print('{:d}.{:d}'.format(sys.version_info.major, sys.version_info.minor))"`
-script:
   # check that the python version matches the desired one; exit immediately if not
-  - set -e
+  - PYVER=`python -c "from __future__ import print_function; import sys; print('{:d}.{:d}'.format(sys.version_info.major, sys.version_info.minor))"`
   - if [[ $PYVER != $PYTHON_VERSION ]]; then
       exit 1;
     fi
-  - set +e
+script:
   - python setup.py build_ext --force --inplace
   - nosetests pyuvdata --with-coverage --cover-package=pyuvdata
   - python -m doctest docs/tutorial.rst
