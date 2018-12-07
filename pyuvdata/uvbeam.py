@@ -257,7 +257,7 @@ class UVBeam(UVBase):
         self._element_location_array = uvp.UVParameter('element_location_array',
                                                        required=False,
                                                        description=desc,
-                                                       form=('2', 'Nelements'),
+                                                       form=(2, 'Nelements'),
                                                        expected_type=np.float)
 
         desc = ('Required if antenna_type = "phased_array". Array of element '

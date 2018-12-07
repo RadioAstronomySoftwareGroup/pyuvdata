@@ -94,3 +94,44 @@ def test_properties():
 def test_known_telescopes():
     """Test known_telescopes function returns expected results."""
     nt.assert_equal(pyuvdata.known_telescopes().sort(), expected_known_telescopes.sort())
+
+
+def test_get_telescope():
+    for inst in pyuvdata.known_telescopes():
+        telescope_obj = pyuvdata.get_telescope(inst)
+        nt.assert_equal(telescope_obj.telescope_name, inst)
+
+
+def test_get_telescope_center_xyz():
+    ref_xyz = (-2562123.42683, 5094215.40141, -2848728.58869)
+    ref_latlonalt = (-26.7 * np.pi / 180.0, 116.7 * np.pi / 180.0, 377.8)
+    test_telescope_dict = {'test': {'center_xyz': ref_xyz,
+                                    'latitude': None,
+                                    'longitude': None,
+                                    'altitude': None,
+                                    'citation': ''},
+                           'test2': {'center_xyz': ref_xyz,
+                                     'latitude': ref_latlonalt[0],
+                                     'longitude': ref_latlonalt[1],
+                                     'altitude': ref_latlonalt[2],
+                                     'citation': ''}}
+    telescope_obj = pyuvdata.get_telescope('test', telescope_dict_in=test_telescope_dict)
+    telescope_obj_ext = pyuvdata.Telescope()
+    telescope_obj_ext.citation = ''
+    telescope_obj_ext.telescope_name = 'test'
+    telescope_obj_ext.telescope_location = ref_xyz
+
+    nt.assert_equal(telescope_obj, telescope_obj_ext)
+
+    telescope_obj_ext.telescope_name = 'test2'
+    telescope_obj2 = pyuvdata.get_telescope('test2', telescope_dict_in=test_telescope_dict)
+    nt.assert_equal(telescope_obj2, telescope_obj_ext)
+
+
+def test_get_telescope_no_loc():
+    test_telescope_dict = {'test': {'center_xyz': None,
+                                    'latitude': None,
+                                    'longitude': None,
+                                    'altitude': None,
+                                    'citation': ''}}
+    nt.assert_raises(ValueError, pyuvdata.get_telescope, 'test', telescope_dict_in=test_telescope_dict)

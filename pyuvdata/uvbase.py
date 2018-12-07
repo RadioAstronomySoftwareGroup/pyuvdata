@@ -249,11 +249,10 @@ class UVBase(object):
                 # Check parameter shape
                 eshape = param.expected_shape(self)
                 # default value of eshape is ()
-
-                if eshape == 'str':
+                if eshape == 'str' or (eshape == () and param.expected_type == 'str'):
                     # Check that it's a string
                     if not isinstance(param.value, str):
-                        raise ValueError('UVParameter ' + p + 'expected to be '
+                        raise ValueError('UVParameter ' + p + ' expected to be '
                                          'string, but is not')
                 else:
                     # Check the shape of the parameter value. Note that np.shape

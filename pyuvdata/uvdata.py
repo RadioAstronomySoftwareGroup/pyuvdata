@@ -485,16 +485,18 @@ class UVData(UVBase):
                         # expected shapes aren't equal. This can happen e.g. with diameters,
                         # which is a single value on the telescope object but is
                         # an array of length Nants_telescope on the UVData object
-                        if telescope_shape == () and self_shape != 'str':
-                            array_val = np.zeros(self_shape,
-                                                 dtype=telescope_param.expected_type) + telescope_param.value
-                            params_set.append(self_param.name)
-                            prop_name = self_param.name
-                            setattr(self, prop_name, array_val)
-                        else:
-                            raise ValueError('parameter {p} on the telescope '
-                                             'object does not have a compatible '
-                                             'expected shape.')
+
+                        # use an assert here because we want an error if this condition
+                        # isn't true, but it's really an intenal consistency check.
+                        # This will error if there are changes to the Telescope
+                        # object definition, but nothing that a normal user does will cause an error
+                        assert(telescope_shape == () and self_shape != 'str')
+                        array_val = np.zeros(self_shape,
+                                             dtype=telescope_param.expected_type) + telescope_param.value
+                        params_set.append(self_param.name)
+                        prop_name = self_param.name
+                        setattr(self, prop_name, array_val)
+
             if len(params_set) > 0:
                 params_set_str = ', '.join(params_set)
                 warnings.warn('{params} is not set. Using known values '

@@ -114,8 +114,9 @@ class UVParameter(object):
                         if not np.allclose(np.array(self.value),
                                            np.array(other.value),
                                            rtol=self.tols[0], atol=self.tols[1]):
-                            print('{name} parameter value is not a string. '
-                                  'The values are not close'.format(name=self.name))
+                            print('{name} parameter value can be cast to an array'
+                                  ' and tested with np.allclose. The values are '
+                                  'not close'.format(name=self.name))
                             return False
                     except(TypeError):
                         if self.value != other.value:
@@ -198,7 +199,7 @@ class UVParameter(object):
             return self.form
         elif isinstance(self.form, np.int):
             # Fixed shape, just return the form
-            return self.form
+            return (self.form, )
         else:
             # Given by other attributes, look up values
             eshape = ()
@@ -312,7 +313,7 @@ class LocationParameter(UVParameter):
     def __init__(self, name, required=True, value=None, spoof_val=None, description='',
                  acceptable_range=(6.35e6, 6.39e6), tols=1e-3):
         super(LocationParameter, self).__init__(name, required=required, value=value,
-                                                spoof_val=spoof_val, form=(3,),
+                                                spoof_val=spoof_val, form=3,
                                                 description=description,
                                                 expected_type=np.float,
                                                 acceptable_range=acceptable_range, tols=tols)

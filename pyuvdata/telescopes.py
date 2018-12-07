@@ -91,25 +91,27 @@ def known_telescopes():
     return list(telescopes.keys())
 
 
-def get_telescope(telescope_name):
+def get_telescope(telescope_name, telescope_dict_in=telescopes):
     """
-    Get Telescope object for a telescope in known_telescopes().
+    Get Telescope object for a telescope in telescope_dict.
 
     Args:
         telescope_name: string name of a telescope, must be in known_telescopes().
+        telescope_dict_in: dict with telescope info (only use non-default for testing)
 
     Returns:
         The Telescope object associated with telescope_name.
     """
-    if telescope_name.upper() in (name.upper() for name in telescopes.keys()):
-        uc_telescope_list = [item.upper() for item in telescopes.keys()]
+    telescope_list = list(telescope_dict_in.keys())
+    uc_telescope_list = [item.upper() for item in telescope_list]
+    if telescope_name.upper() in uc_telescope_list:
         telescope_index = uc_telescope_list.index(telescope_name.upper())
-        telescope_dict = telescopes[uc_telescope_list[telescope_index]]
+        telescope_dict = telescope_dict_in[telescope_list[telescope_index]]
         obj = Telescope()
         obj.citation = telescope_dict['citation']
-        obj.telescope_name = uc_telescope_list[telescope_index]
+        obj.telescope_name = telescope_list[telescope_index]
         if telescope_dict['center_xyz'] is not None:
-            obj.telescope_location = center_xyz
+            obj.telescope_location = telescope_dict['center_xyz']
         else:
             if (telescope_dict['latitude'] is None or telescope_dict['longitude'] is
                     None or telescope_dict['altitude'] is None):
