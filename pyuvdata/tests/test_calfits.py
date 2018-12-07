@@ -404,10 +404,7 @@ def test_read_oldcalfits_delay_nofreqaxis():
     totqualhdu = fits.ImageHDU(data=totqualhdu.data, header=totqualhdr)
     hdulist.append(totqualhdu)
 
-    if float(astropy.__version__[0:3]) < 1.3:
-        hdulist.writeto(write_file, clobber=True)
-    else:
-        hdulist.writeto(write_file, overwrite=True)
+    hdulist.writeto(write_file, overwrite=True)
 
     message = write_file + ' appears to be an old calfits format'
     uvtest.checkWarnings(cal_out.read_calfits, [write_file], message=message)
@@ -591,10 +588,7 @@ def test_read_noversion_history():
     prihdu = fits.PrimaryHDU(data=data, header=primary_hdr)
     hdulist = fits.HDUList([prihdu, ant_hdu])
 
-    if float(astropy.__version__[0:3]) < 1.3:
-        hdulist.writeto(write_file, clobber=True)
-    else:
-        hdulist.writeto(write_file, overwrite=True)
+    hdulist.writeto(write_file, overwrite=True)
 
     cal_out.read_calfits(write_file)
     nt.assert_equal(cal_in, cal_out)
@@ -623,10 +617,7 @@ def test_spw_zero_indexed_gain():
     prihdu = fits.PrimaryHDU(data=data, header=primary_hdr)
     hdulist = fits.HDUList([prihdu, ant_hdu])
 
-    if float(astropy.__version__[0:3]) < 1.3:
-        hdulist.writeto(write_file, clobber=True)
-    else:
-        hdulist.writeto(write_file, overwrite=True)
+    hdulist.writeto(write_file, overwrite=True)
 
     cal_out.read_calfits(write_file)
     nt.assert_equal(cal_in, cal_out)
@@ -658,10 +649,7 @@ def test_spw_zero_indexed_delay():
     flag_hdu = fits.ImageHDU(data=flag_hdu.data, header=flag_hdr)
     hdulist.append(flag_hdu)
 
-    if float(astropy.__version__[0:3]) < 1.3:
-        hdulist.writeto(write_file, clobber=True)
-    else:
-        hdulist.writeto(write_file, overwrite=True)
+    hdulist.writeto(write_file, overwrite=True)
 
     cal_out.read_calfits(write_file)
     nt.assert_equal(cal_in, cal_out)
