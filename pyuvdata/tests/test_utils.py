@@ -226,13 +226,13 @@ def test_phasing_funcs():
     array_center_coord = SkyCoord(x=array_center_xyz[0] * units.m,
                                   y=array_center_xyz[1] * units.m,
                                   z=array_center_xyz[2] * units.m,
-                                  representation_type='cartesian', frame='itrs',
+                                  frame='itrs',
                                   obstime=obs_time)
 
     itrs_coord = SkyCoord(x=ant_xyz_abs[0] * units.m,
                           y=ant_xyz_abs[1] * units.m,
                           z=ant_xyz_abs[2] * units.m,
-                          representation_type='cartesian', frame='itrs',
+                          frame='itrs',
                           obstime=obs_time)
 
     gcrs_array_center = array_center_coord.transform_to('gcrs')

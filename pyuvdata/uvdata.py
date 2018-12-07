@@ -620,7 +620,6 @@ class UVData(UVBase):
             itrs_telescope_location = SkyCoord(x=self.telescope_location[0] * units.m,
                                                y=self.telescope_location[1] * units.m,
                                                z=self.telescope_location[2] * units.m,
-                                               representation_type='cartesian',
                                                frame='itrs', obstime=obs_time)
             frame_telescope_location = itrs_telescope_location.transform_to(phase_frame)
             itrs_lat_lon_alt = self.telescope_location_lat_lon_alt
@@ -642,13 +641,20 @@ class UVData(UVBase):
                                                         frame_phase_center.dec.rad,
                                                         uvws_use)
 
-                frame_telescope_location.representation_type = 'cartesian'
+                # astropy 2 vs 3 use a different keyword name
+                if six.PY2:
+                    rep_keyword = 'representation'
+                else:
+                    rep_keyword = 'representation_type'
+                setattr(frame_telescope_location, rep_keyword, 'cartesian')
 
+                rep_dict = {}
+                rep_dict[rep_keyword] = 'cartesian'
                 frame_uvw_coord = SkyCoord(x=uvw_rel_positions[:, 0] * units.m + frame_telescope_location.x,
                                            y=uvw_rel_positions[:, 1] * units.m + frame_telescope_location.y,
                                            z=uvw_rel_positions[:, 2] * units.m + frame_telescope_location.z,
-                                           representation_type='cartesian',
-                                           frame=phase_frame, obstime=obs_time)
+                                           frame=phase_frame, obstime=obs_time,
+                                           **rep_dict)
 
                 itrs_uvw_coord = frame_uvw_coord.transform_to('itrs')
 
@@ -735,13 +741,17 @@ class UVData(UVBase):
             itrs_telescope_location = SkyCoord(x=self.telescope_location[0] * units.m,
                                                y=self.telescope_location[1] * units.m,
                                                z=self.telescope_location[2] * units.m,
-                                               representation_type='cartesian',
                                                frame='itrs', obstime=obs_time)
             itrs_lat_lon_alt = self.telescope_location_lat_lon_alt
 
             frame_telescope_location = itrs_telescope_location.transform_to(phase_frame)
 
-            frame_telescope_location.representation_type = 'cartesian'
+            # astropy 2 vs 3 use a different keyword name
+            if six.PY2:
+                rep_keyword = 'representation'
+            else:
+                rep_keyword = 'representation_type'
+            setattr(frame_telescope_location, rep_keyword, 'cartesian')
 
             if use_ant_pos:
                 # This promotion is REQUIRED to get the right answer when we
@@ -751,7 +761,6 @@ class UVData(UVBase):
                 itrs_ant_coord = SkyCoord(x=ecef_ant_pos[:, 0] * units.m,
                                           y=ecef_ant_pos[:, 1] * units.m,
                                           z=ecef_ant_pos[:, 2] * units.m,
-                                          representation_type='cartesian',
                                           frame='itrs', obstime=obs_time)
 
                 frame_ant_coord = itrs_ant_coord.transform_to(phase_frame)
@@ -777,7 +786,6 @@ class UVData(UVBase):
                 itrs_uvw_coord = SkyCoord(x=uvw_ecef[:, 0] * units.m,
                                           y=uvw_ecef[:, 1] * units.m,
                                           z=uvw_ecef[:, 2] * units.m,
-                                          representation_type='cartesian',
                                           frame='itrs', obstime=obs_time)
                 frame_uvw_coord = itrs_uvw_coord.transform_to(phase_frame)
 
