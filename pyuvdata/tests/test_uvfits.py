@@ -73,6 +73,8 @@ def test_breakReadUVFits():
                          message='Telescope EVLA is not')
 
     del(UV)
+
+
 def test_source_group_params():
     # make a file with a single source to test that it works
     uv_in = UVData()
