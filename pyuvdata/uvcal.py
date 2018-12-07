@@ -49,10 +49,8 @@ class UVCal(UVBase):
 
         desc = ('Time range (in JD) that cal solutions are valid for.'
                 'list: [start_time, end_time] in JD.')
-        self._time_range = uvp.UVParameter('time_range',
-                                           description=desc,
-                                           form=(2,),
-                                           expected_type=float)
+        self._time_range = uvp.UVParameter('time_range', description=desc,
+                                           form=2, expected_type=float)
 
         desc = ('Name of telescope. e.g. HERA. String.')
         self._telescope_name = uvp.UVParameter('telescope_name',
@@ -194,7 +192,7 @@ class UVCal(UVBase):
         desc = ('Required if cal_type = "delay". Frequency range that solutions are valid for.'
                 'list: [start_frequency, end_frequency] in Hz.')
         self._freq_range = uvp.UVParameter('freq_range', required=False,
-                                           description=desc, form=(2,),
+                                           description=desc, form=2,
                                            expected_type=float, tols=1e-3)
 
         # --- cal_style parameters ---
@@ -223,7 +221,7 @@ class UVCal(UVBase):
                                          expected_type=np.int, description=desc)
 
         desc = ('Range of baselines used for calibration.')
-        self._baseline_range = uvp.UVParameter('baseline_range', form=(2,),
+        self._baseline_range = uvp.UVParameter('baseline_range', form=2,
                                                required=False,
                                                expected_type=np.float, description=desc)
 

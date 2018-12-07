@@ -73,6 +73,81 @@ def test_breakReadUVFits():
                          message='Telescope EVLA is not')
 
     del(UV)
+def test_source_group_params():
+    # make a file with a single source to test that it works
+    uv_in = UVData()
+    testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    write_file = os.path.join(DATA_PATH, 'test/outtest_casa.uvfits')
+    uvtest.checkWarnings(uv_in.read, [testfile], message='Telescope EVLA is not')
+    uv_in.write_uvfits(write_file)
+
+    with fits.open(write_file, memmap=True) as hdu_list:
+        hdunames = uvutils._fits_indexhdus(hdu_list)
+        vis_hdu = hdu_list[0]
+        vis_hdr = vis_hdu.header.copy()
+        raw_data_array = vis_hdu.data.data
+
+        par_names = vis_hdu.data.parnames
+        group_parameter_list = []
+        # need to account for PZERO values
+        for index, name in enumerate(par_names):
+            group_parameter_list.append(vis_hdu.data.par(name) - vis_hdr['PZERO' + str(index + 1)])
+
+        par_names.append('SOURCE')
+        source_array = np.ones_like(vis_hdu.data.par('BASELINE'))
+        group_parameter_list.append(source_array)
+
+        vis_hdu = fits.GroupData(raw_data_array, parnames=par_names,
+                                 pardata=group_parameter_list, bitpix=-32)
+        vis_hdu = fits.GroupsHDU(vis_hdu)
+        vis_hdu.header = vis_hdr
+        ant_hdu = hdu_list[hdunames['AIPS AN']]
+
+        hdulist = fits.HDUList(hdus=[vis_hdu, ant_hdu])
+        hdulist.writeto(write_file, overwrite=True)
+
+    uv_out = UVData()
+    uvtest.checkWarnings(uv_out.read, [write_file], message='Telescope EVLA is not')
+    nt.assert_equal(uv_in, uv_out)
+
+
+def test_multisource_error():
+    # make a file with multiple sources to test error condition
+    uv_in = UVData()
+    testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    write_file = os.path.join(DATA_PATH, 'test/outtest_casa.uvfits')
+    uvtest.checkWarnings(uv_in.read, [testfile], message='Telescope EVLA is not')
+    uv_in.write_uvfits(write_file)
+
+    with fits.open(write_file, memmap=True) as hdu_list:
+        hdunames = uvutils._fits_indexhdus(hdu_list)
+        vis_hdu = hdu_list[0]
+        vis_hdr = vis_hdu.header.copy()
+        raw_data_array = vis_hdu.data.data
+
+        par_names = vis_hdu.data.parnames
+        group_parameter_list = []
+        # need to account for PZERO values
+        for index, name in enumerate(par_names):
+            group_parameter_list.append(vis_hdu.data.par(name) - vis_hdr['PZERO' + str(index + 1)])
+
+        par_names.append('SOURCE')
+        source_array = np.ones_like(vis_hdu.data.par('BASELINE'))
+        mid_index = source_array.shape[0] // 2
+        source_array[mid_index:] = source_array[mid_index:] * 2
+        group_parameter_list.append(source_array)
+
+        vis_hdu = fits.GroupData(raw_data_array, parnames=par_names,
+                                 pardata=group_parameter_list, bitpix=-32)
+        vis_hdu = fits.GroupsHDU(vis_hdu)
+        vis_hdu.header = vis_hdr
+        ant_hdu = hdu_list[hdunames['AIPS AN']]
+
+        hdulist = fits.HDUList(hdus=[vis_hdu, ant_hdu])
+        hdulist.writeto(write_file, overwrite=True)
+
+    uvtest.checkWarnings(nt.assert_raises, [ValueError, uv_in.read, write_file],
+                         message='Telescope EVLA is not')
 
 
 def test_spwnotsupported():
