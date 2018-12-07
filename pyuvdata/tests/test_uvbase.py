@@ -156,7 +156,7 @@ def test_check_array_type():
     nt.assert_raises(ValueError, test_obj.check)
 
 
-def test_check_array_type():
+def test_check_array_shape():
     """Test check function with wrong array dimensions."""
     test_obj = UVTest()
     test_obj.floatarr = np.array([4, 5, 6], dtype=np.float)
