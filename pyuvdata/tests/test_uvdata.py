@@ -2761,6 +2761,33 @@ def test_redundancy_contract_expand():
     nt.assert_equal(uv2, uv3)
 
 
+def test_compress_redundancy_metadata_only():
+    uv0 = UVData()
+    uv0.read_uvfits(os.path.join(DATA_PATH, 'hera19_8hrs_uncomp_10MHz_000_05.003111-05.033750.uvfits'))
+    tol = 0.01
+
+    # Assign identical data to each redundant group:
+    uv0._set_u_positive()
+    red_gps, centers, lengths = uv0.get_antenna_redundancies(tol=tol)
+    for i, gp in enumerate(red_gps):
+        for bl in gp:
+            inds = np.where(bl == uv0.baseline_array)
+            uv0.data_array[inds] *= 0
+            uv0.data_array[inds] += complex(i)
+
+    uv2 = copy.deepcopy(uv0)
+    uv2.data_array = None
+    uv2.flag_array = None
+    uv2.nsample_array = None
+    uv2.compress_by_redundancy(tol=tol, inplace=True, metadata_only=True)
+
+    uv0.compress_by_redundancy(tol=tol)
+    uv0.data_array = None
+    uv0.flag_array = None
+    uv0.nsample_array = None
+    nt.assert_equal(uv0, uv2)
+
+
 def test_redundancy_missing_groups():
     # Check that if I try to inflate a compressed UVData that is missing redundant groups, it will
     # raise the right warnings and fill only what data are available.
