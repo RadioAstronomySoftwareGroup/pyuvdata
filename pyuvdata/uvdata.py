@@ -3198,21 +3198,23 @@ class UVData(UVBase):
 
         return uvutils.get_baseline_redundancies(baseline_inds, baseline_vecs, tol=tol, with_conjugates=True)
 
-    def compress_by_redundancy(self, tol=1.0, inplace=True):
+    def compress_by_redundancy(self, tol=1.0, inplace=True, metadata_only=False):
         """
         Uses utility functions to find redundant baselines to the given tolerance, then select on those.
 
         Args:
             tol: Redundancy tolerance in meters (default 1m)
             inplace: Do selection on current object.
-        Returns:
+            metadata_only: Option to only do the select on the metadata. Not allowed
+                if the data_array, flag_array or nsample_array is not None. (False)
+    Returns:
             UVData: if not inplace, returns the compressed UVData object
         """
 
         red_gps, centers, lengths, conjugates = self.get_baseline_redundancies(tol)
 
         bl_ants = [self.baseline_to_antnums(gp[0]) for gp in red_gps]
-        return self.select(bls=bl_ants, inplace=inplace)
+        return self.select(bls=bl_ants, inplace=inplace, metadata_only=metadata_only)
 
     def _set_u_positive(self):
         """
