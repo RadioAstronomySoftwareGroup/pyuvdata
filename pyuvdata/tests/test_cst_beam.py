@@ -46,6 +46,9 @@ def test_frequencyparse_nicf_path():
 
 def test_frequencyparse_decimal_nonMHz():
     beam1 = CSTBeam()
+    test_path = os.path.join('Simulations', 'Radiation_patterns',
+                             'E-field pattern-Rigging height4.9m',
+                             'HERA_4.9m_E-pattern_100-200MHz')
     test_names = ['HERA_Sim_120.87kHz.txt', 'HERA_Sim_120.87GHz.txt', 'HERA_Sim_120.87Hz.txt']
     test_files = [os.path.join(test_path, f) for f in test_names]
     parsed_freqs = [beam1.name2freq(f) for f in test_files]
