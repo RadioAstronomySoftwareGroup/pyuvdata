@@ -3209,7 +3209,7 @@ class UVData(UVBase):
             inplace: Do selection on current object.
             metadata_only: Option to only do the select on the metadata. Not allowed
                 if the data_array, flag_array or nsample_array is not None. (False)
-    Returns:
+        Returns:
             UVData: if not inplace, returns the compressed UVData object
         """
 
