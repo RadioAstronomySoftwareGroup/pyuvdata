@@ -278,6 +278,19 @@ def test_no_deg_units():
     for col in new_column_headers:
         new_header += '{:12}'.format(col)
 
+    beam1 = UVBeam()
+    beam2 = UVBeam()
+
+    # format to match existing file
+    existing_format = ['%8.3f', '%15.3f', '%20.3e', '%19.3e', '%19.3f', '%19.3e', '%19.3f', '%19.3e']
+    np.savetxt(testfile, data, fmt=existing_format, header=new_header + '\n' + line2, comments='')
+    # this errors because the phi 2pi rotation doesn't work (because they are degrees but the code thinks they're radians)
+    nt.assert_raises(ValueError, beam1.read_cst_beam, testfile, beam_type='efield',
+                     frequency=np.array([150e6]), feed_pol='y',
+                     telescope_name='TEST', feed_name='bob', feed_version='0.1',
+                     model_name='E-field pattern - Rigging height 4.9m',
+                     model_version='1.0')
+
     theta_col = np.where(np.array(column_names_simple) == 'theta')[0][0]
     phi_col = np.where(np.array(column_names_simple) == 'phi')[0][0]
     theta_phase_col = np.where(np.array(column_names_simple) == 'phase(theta)')[0][0]
@@ -288,14 +301,10 @@ def test_no_deg_units():
     data[:, theta_phase_col] = np.radians(data[:, theta_phase_col])
     data[:, phi_phase_col] = np.radians(data[:, phi_phase_col])
 
-    beam1 = UVBeam()
-    beam2 = UVBeam()
-
-    # format to match existing file
-    existing_format = ['%8.3f', '%15.3f', '%20.3e', '%19.3e', '%19.3f', '%19.3e', '%19.3f', '%19.3e']
     np.savetxt(testfile, data, fmt=existing_format, header=new_header + '\n' + line2, comments='')
+    # this errors because theta isn't regularly gridded (too few sig figs)
     nt.assert_raises(ValueError, beam1.read_cst_beam, testfile, beam_type='efield',
-                     frequency=np.array([150e6, 123e6]), feed_pol='y',
+                     frequency=np.array([150e6]), feed_pol='y',
                      telescope_name='TEST', feed_name='bob', feed_version='0.1',
                      model_name='E-field pattern - Rigging height 4.9m',
                      model_version='1.0')
@@ -303,8 +312,9 @@ def test_no_deg_units():
     # use more decimal places for theta so that it is regularly gridded
     new_format = ['%15.12e', '%15.3e', '%20.3e', '%19.3e', '%19.3f', '%19.3e', '%19.3f', '%19.3e']
     np.savetxt(testfile, data, fmt=new_format, header=new_header + '\n' + line2, comments='')
+    # this errors because phi isn't regularly gridded (too few sig figs)
     nt.assert_raises(ValueError, beam1.read_cst_beam, testfile, beam_type='efield',
-                     frequency=np.array([150e6, 123e6]), feed_pol='y',
+                     frequency=np.array([150e6]), feed_pol='y',
                      telescope_name='TEST', feed_name='bob', feed_version='0.1',
                      model_name='E-field pattern - Rigging height 4.9m',
                      model_version='1.0')
@@ -326,3 +336,15 @@ def test_no_deg_units():
                          message='No frequency provided. Detected frequency is')
 
     nt.assert_equal(beam1, beam2)
+
+    # remove a row to make data not on a grid to catch that error
+    data = data[1:, :]
+
+    new_format = ['%15.12e', '%15.12e', '%20.3e', '%19.3e', '%19.12f', '%19.3e', '%19.12f', '%19.3e']
+    np.savetxt(testfile, data, fmt=new_format, header=new_header + '\n' + line2, comments='')
+    # this errors because theta & phi aren't on a strict grid
+    nt.assert_raises(ValueError, beam1.read_cst_beam, testfile, beam_type='efield',
+                     frequency=np.array([150e6]), feed_pol='y',
+                     telescope_name='TEST', feed_name='bob', feed_version='0.1',
+                     model_name='E-field pattern - Rigging height 4.9m',
+                     model_version='1.0')

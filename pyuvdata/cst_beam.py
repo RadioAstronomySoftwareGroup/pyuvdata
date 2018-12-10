@@ -197,11 +197,8 @@ class CSTBeam(UVBeam):
             if not np.allclose(roll_rot_phi, phi_data):
                 raise ValueError('Rotating by pi/2 failed')
 
-            # theta should not be affected by the rotation
+            # theta is not affected by the rotation
             rot_theta = theta_data
-            roll_rot_theta = np.roll(rot_theta, int((np.pi / 2) / delta_phi), axis=1)
-            if not np.allclose(roll_rot_theta, theta_data):
-                raise ValueError('Rotating by pi/2 failed')
 
         # get beam
         if self.beam_type is 'power':
