@@ -2172,6 +2172,11 @@ def test_get_ENU_antpos():
     nt.assert_equal(len(ants), 113)
     nt.assert_almost_equal(antpos[0, 0], 19.340211050751535)
     nt.assert_equal(ants[0], 0)
+    # test default behavior
+    antpos2, ants = uvtest.checkWarnings(uvd.get_ENU_antpos, category=DeprecationWarning,
+                                         message='The default for the `center` '
+                                                 'keyword has changed')
+    nt.assert_true(np.all(antpos == antpos2))
     # center
     antpos, ants = uvd.get_ENU_antpos(center=True, pick_data_ants=False)
     nt.assert_almost_equal(antpos[0, 0], 22.472442651767714)
