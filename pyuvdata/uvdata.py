@@ -2498,7 +2498,7 @@ class UVData(UVBase):
         if center is None:
             center = False
             warnings.warn('The default for the `center` keyword has changed. '
-                          'Previously it defaulted to True, using the mean '
+                          'Previously it defaulted to True, using the median '
                           'antennna location; now it defaults to False, '
                           'using the telescope_location.', DeprecationWarning)
 
