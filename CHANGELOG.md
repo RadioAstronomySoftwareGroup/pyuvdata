@@ -10,6 +10,7 @@ All notable changes to this project will be documented in this file.
 - support for python3.7
 
 ### Changed
+- UVdata.get_ENU_antpos() now defaults to using the telescope_location as the center rather than the mean antenna position.
 - UVBeam.efield_to_pstokes() no longer restricted to healpix coordinates
 - latitude and longitude in uvh5 files are written in degrees instead of radians.
 - Fixes a bug in redundancy methods for when there are no redundant baselines.

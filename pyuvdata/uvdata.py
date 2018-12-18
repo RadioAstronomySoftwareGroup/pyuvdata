@@ -2481,7 +2481,7 @@ class UVData(UVBase):
         """
         return np.unique(np.append(self.ant_1_array, self.ant_2_array))
 
-    def get_ENU_antpos(self, center=True, pick_data_ants=False):
+    def get_ENU_antpos(self, center=None, pick_data_ants=False):
         """
         Returns antenna positions in ENU (topocentric) coordinates in units of meters.
 
@@ -2495,6 +2495,13 @@ class UVData(UVBase):
         antpos : ndarray, antenna positions in TOPO frame and units of meters, shape=(Nants, 3)
         ants : ndarray, antenna numbers matching ordering of antpos, shape=(Nants,)
         """
+        if center is None:
+            center = False
+            warnings.warn('The default for the `center` keyword has changed. '
+                          'Previously it defaulted to True, using the mean '
+                          'antennna location; now it defaults to False, '
+                          'using the telescope_location.', DeprecationWarning)
+
         antpos = uvutils.ENU_from_ECEF((self.antenna_positions + self.telescope_location),
                                        *self.telescope_location_lat_lon_alt)
         ants = self.antenna_numbers

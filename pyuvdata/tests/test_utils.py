@@ -405,7 +405,9 @@ def test_redundancy_finder():
 
     tol = 0.05
 
-    antpos, antnums = uvd.get_ENU_antpos()
+    antpos, antnums = uvtest.checkWarnings(uvd.get_ENU_antpos, category=DeprecationWarning,
+                                           message='The default for the `center` '
+                                                   'keyword has changed')
     baseline_groups_ants, vec_bin_centers, lens = uvutils.get_antenna_redundancies(antnums, antpos,
                                                                                    tol=tol, include_autos=True)
     # Under these conditions, should see 31 redundant groups in the file.
