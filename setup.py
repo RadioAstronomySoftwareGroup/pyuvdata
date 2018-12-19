@@ -7,7 +7,6 @@ from __future__ import absolute_import, division, print_function
 from setuptools import setup, Extension
 import glob
 import os
-from os import listdir
 import io
 import numpy as np
 import json

@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
+
+## [1.3.4] - 2018-12-19
 ### Added
 - Methods on UVData objects to compress/inflate data by redundant baselines.
 - Convenience functions on UVData for finding redundant baselines (calling the corresponding utils functions)
