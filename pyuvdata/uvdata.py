@@ -487,7 +487,7 @@ class UVData(UVBase):
                         # an array of length Nants_telescope on the UVData object
 
                         # use an assert here because we want an error if this condition
-                        # isn't true, but it's really an intenal consistency check.
+                        # isn't true, but it's really an internal consistency check.
                         # This will error if there are changes to the Telescope
                         # object definition, but nothing that a normal user does will cause an error
                         assert(telescope_shape == () and self_shape != 'str')
