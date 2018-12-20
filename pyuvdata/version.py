@@ -67,11 +67,16 @@ def construct_version_info():
                     'git_description': '', 'git_branch': ''}
 
     try:
-        version_info['git_origin'] = _get_git_output(['config', '--get', 'remote.origin.url'], capture_stderr=True)
+        git_origin = _get_git_output(['config', '--get', 'remote.origin.url'], capture_stderr=True)
+        if git_origin.split('/')[-1] != 'pyuvdata.git':  # pragma: no cover
+            # this is version info for a non-pyuvdata repo, don't use it
+            raise ValueError('This is not a pyuvdata repo')
+
+        version_info['git_origin'] = git_origin
         version_info['git_hash'] = _get_git_output(['rev-parse', 'HEAD'], capture_stderr=True)
         version_info['git_description'] = _get_git_output(['describe', '--dirty', '--tag', '--always'])
         version_info['git_branch'] = _get_git_output(['rev-parse', '--abbrev-ref', 'HEAD'], capture_stderr=True)
-    except subprocess.CalledProcessError:  # pragma: no cover
+    except (subprocess.CalledProcessError, ValueError):  # pragma: no cover
         try:
             # Check if a GIT_INFO file was created when installing package
             version_info.update(_get_gitinfo_file())
