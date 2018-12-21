@@ -55,8 +55,6 @@ install:
   - if [[ $PYVER != $PYTHON_VERSION ]]; then
       exit 1;
     fi
-  # turn off automatic downloading of the IERS table
-  - python -c "from astropy.utils import iers; iers.conf.auto_download = False"
 script:
   - python setup.py build_ext --force --inplace
   - nosetests pyuvdata --with-coverage --cover-package=pyuvdata
