@@ -30,15 +30,15 @@ def setup_package():
         os.mkdir(testdir)
 
     # try to download the iers table. If it fails, turn off auto downloading for the tests
-    # and turn it back on in teardown_package
+    # and turn it back on in teardown_package (done by extending auto_max_age)
     try:
         iers_a = iers.IERS_A.open(iers.IERS_A_URL)
     except(urllib.error.URLError):
-        iers.conf.auto_download = False
+        iers.conf.auto_max_age = None
 
 
 def teardown_package():
-    iers.conf.auto_download = True
+    iers.conf.auto_max_age = 30
 
 
 # Functions that are useful for testing:
