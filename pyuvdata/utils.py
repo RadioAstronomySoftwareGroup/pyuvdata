@@ -884,13 +884,14 @@ def get_antenna_redundancies(antenna_numbers, antenna_positions, tol=1.0, includ
         if include_autos:
             mini = aj
         for ai in range(mini, Nants):
-            bidx = antnums_to_baseline(ai, aj, Nants)
+            anti, antj = antenna_numbers[ai], antenna_numbers[aj]
+            bidx = antnums_to_baseline(anti, antj, Nants)
             bv = antenna_positions[aj] - antenna_positions[ai]
             # Enforce u-positive orientation
             if (bv[0] < 0 or ((bv[0] == 0) and bv[1] < 0)
                or ((bv[0] == 0) and (bv[1] == 0) and bv[2] < 0)):
                 bv *= (-1)
-                bidx = antnums_to_baseline(aj, ai, Nants)
+                bidx = antnums_to_baseline(antj, anti, Nants)
             bl_vecs.append(bv)
             bl_inds.append(bidx)
     bl_inds = np.array(bl_inds)
