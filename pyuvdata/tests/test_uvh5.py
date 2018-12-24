@@ -891,7 +891,7 @@ def test_UVH5SingleIntegrationTime():
 
     # change integration_time in file to be a single number
     with h5py.File(testfile, 'r+') as f:
-        int_time = f['/Header/integration_time'].value[0]
+        int_time = f['/Header/integration_time'][0]
         del(f['/Header/integration_time'])
         f['/Header/integration_time'] = int_time
     uvtest.checkWarnings(uv_out.read_uvh5, [testfile], message='outtest_uvfits.uvh5 appears to be an old uvh5 format')
@@ -925,7 +925,7 @@ def test_UVH5LstArray():
     # now change what's in the file and make sure a warning is raised
     uv_in.write_uvh5(testfile, clobber=True)
     with h5py.File(testfile, 'r+') as f:
-        lst_array = f['/Header/lst_array'].value
+        lst_array = f['/Header/lst_array'][:]
         del(f['/Header/lst_array'])
         f['/Header/lst_array'] = 2 * lst_array
     uvtest.checkWarnings(uv_out.read_uvh5, [testfile],
