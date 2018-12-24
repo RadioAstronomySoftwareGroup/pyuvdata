@@ -44,12 +44,12 @@ def _read_uvh5_string(dataset, filename):
         warnings.warn("Strings in metadata of {file} are not the correct type; rewrite with "
                       "write_uvh5 to ensure future compatibility".format(file=filename))
         try:
-            return uvutils._bytes_to_str(dataset.value)
+            return uvutils._bytes_to_str(dataset[()])
         except AttributeError:
-            # dataset.value is already <str> type, and doesn't need to be decoded
-            return dataset.value
+            # dataset[()] is already <str> type, and doesn't need to be decoded
+            return dataset[()]
     else:
-        return uvutils._bytes_to_str(dataset.value.tostring())
+        return uvutils._bytes_to_str(dataset[()].tostring())
 
 
 def _check_uvh5_dtype(dtype):
@@ -146,9 +146,9 @@ class UVH5(UVData):
             None
         """
         # get telescope information
-        latitude = header['latitude'].value
-        longitude = header['longitude'].value
-        altitude = header['altitude'].value
+        latitude = header['latitude'][()]
+        longitude = header['longitude'][()]
+        altitude = header['altitude'][()]
         if np.abs(latitude) <= np.pi and np.abs(longitude) <= np.pi:
             warnings.warn("It seems that the latitude and longitude are in radians; "
                           "support for interpreting these quantities in radians will "
@@ -177,11 +177,11 @@ class UVH5(UVData):
 
         # check for optional values
         if 'dut1' in header:
-            self.dut1 = float(header['dut1'].value)
+            self.dut1 = float(header['dut1'][()])
         if 'earth_omega' in header:
-            self.earth_omega = float(header['earth_omega'].value)
+            self.earth_omega = float(header['earth_omega'][()])
         if 'gst0' in header:
-            self.gst0 = float(header['gst0'].value)
+            self.gst0 = float(header['gst0'][()])
         if 'rdate' in header:
             self.rdate = _read_uvh5_string(header['rdate'], filename)
         if 'timesys' in header:
@@ -189,17 +189,17 @@ class UVH5(UVData):
         if 'x_orientation' in header:
             self.x_orientation = _read_uvh5_string(header['x_orientation'], filename)
         if 'antenna_diameters' in header:
-            self.antenna_diameters = header['antenna_diameters'].value
+            self.antenna_diameters = header['antenna_diameters'][()]
         if 'uvplane_reference_time' in header:
-            self.uvplane_reference_time = int(header['uvplane_reference_time'].value)
+            self.uvplane_reference_time = int(header['uvplane_reference_time'][()])
 
         # check for phasing information
         self.phase_type = _read_uvh5_string(header['phase_type'], filename)
         if self.phase_type == 'phased':
             self.set_phased()
-            self.phase_center_ra = float(header['phase_center_ra'].value)
-            self.phase_center_dec = float(header['phase_center_dec'].value)
-            self.phase_center_epoch = float(header['phase_center_epoch'].value)
+            self.phase_center_ra = float(header['phase_center_ra'][()])
+            self.phase_center_dec = float(header['phase_center_dec'][()])
+            self.phase_center_epoch = float(header['phase_center_epoch'][()])
             if 'phase_center_frame' in header:
                 self.phase_center_frame = _read_uvh5_string(header['phase_center_frame'], filename)
         elif self.phase_type == 'drift':
@@ -209,13 +209,13 @@ class UVH5(UVData):
 
         # get antenna arrays
         # cast to native python int type
-        self.Nants_data = int(header['Nants_data'].value)
-        self.Nants_telescope = int(header['Nants_telescope'].value)
-        self.ant_1_array = header['ant_1_array'].value
-        self.ant_2_array = header['ant_2_array'].value
-        self.antenna_names = [uvutils._bytes_to_str(n.tostring()) for n in header['antenna_names'].value]
-        self.antenna_numbers = header['antenna_numbers'].value
-        self.antenna_positions = header['antenna_positions'].value
+        self.Nants_data = int(header['Nants_data'][()])
+        self.Nants_telescope = int(header['Nants_telescope'][()])
+        self.ant_1_array = header['ant_1_array'][:]
+        self.ant_2_array = header['ant_2_array'][:]
+        self.antenna_names = [uvutils._bytes_to_str(n.tostring()) for n in header['antenna_names'][:]]
+        self.antenna_numbers = header['antenna_numbers'][:]
+        self.antenna_positions = header['antenna_positions'][:]
 
         # set telescope params
         try:
@@ -229,19 +229,21 @@ class UVH5(UVData):
         self.Nbls = len(np.unique(self.baseline_array))
 
         # get uvw array
-        self.uvw_array = header['uvw_array'].value
+        self.uvw_array = header['uvw_array'][:, :]
 
         # get time information
-        self.time_array = header['time_array'].value
-        self.integration_time = header['integration_time'].value
-        if np.array(self.integration_time).size == 1 and int(header['Nblts'].value) > 1:
+        self.time_array = header['time_array'][:]
+        integration_time = header['integration_time']
+        if integration_time.size == 1 and int(header['Nblts'][()]) > 1:
             warnings.warn('{file} appears to be an old uvh5 format '
                           'with a single valued integration_time which has been deprecated. '
                           'Rewrite this file with write_uvh5 to ensure '
                           'future compatibility.'.format(file=filename))
-            self.integration_time = np.ones_like(self.time_array, dtype=np.float64) * self.integration_time
+            self.integration_time = np.ones_like(self.time_array, dtype=np.float64) * integration_time[()]
+        else:
+            self.integration_time = integration_time[:]
         if 'lst_array' in header:
-            self.lst_array = header['lst_array'].value
+            self.lst_array = header['lst_array'][:]
             # check that lst_array in file is self-consistent
             latitude, longitude, altitude = self.telescope_location_lat_lon_alt_degrees
             lst_array = uvutils.get_lst_for_time(self.time_array, latitude, longitude,
@@ -258,19 +260,19 @@ class UVH5(UVData):
                                                       altitude)
 
         # get frequency information
-        self.freq_array = header['freq_array'].value
-        self.channel_width = float(header['channel_width'].value)
-        self.spw_array = header['spw_array'].value
+        self.freq_array = header['freq_array'][:, :]
+        self.channel_width = float(header['channel_width'][()])
+        self.spw_array = header['spw_array'][:]
 
         # get polarization information
-        self.polarization_array = header['polarization_array'].value
+        self.polarization_array = header['polarization_array'][:]
 
         # get data shapes
-        self.Nfreqs = int(header['Nfreqs'].value)
-        self.Npols = int(header['Npols'].value)
-        self.Ntimes = int(header['Ntimes'].value)
-        self.Nblts = int(header['Nblts'].value)
-        self.Nspws = int(header['Nspws'].value)
+        self.Nfreqs = int(header['Nfreqs'][()])
+        self.Npols = int(header['Npols'][()])
+        self.Ntimes = int(header['Ntimes'][()])
+        self.Nblts = int(header['Nblts'][()])
+        self.Nspws = int(header['Nspws'][()])
 
         # get extra_keywords
         if "extra_keywords" in header:
@@ -279,7 +281,7 @@ class UVH5(UVData):
                 if header["extra_keywords"][key].dtype.type in (np.string_, np.object_):
                     self.extra_keywords[key] = _read_uvh5_string(header["extra_keywords"][key], filename)
                 else:
-                    self.extra_keywords[key] = header["extra_keywords"][key].value
+                    self.extra_keywords[key] = header["extra_keywords"][key][()]
 
         return
 
@@ -329,9 +331,9 @@ class UVH5(UVData):
                 inds = (np.s_[:], np.s_[:], np.s_[:], np.s_[:])
                 self.data_array = _read_complex_astype(dgrp['visdata'], inds, data_array_dtype)
             else:
-                self.data_array = dgrp['visdata'].value
-            self.flag_array = dgrp['flags'].value
-            self.nsample_array = dgrp['nsamples'].value
+                self.data_array = dgrp['visdata'][:, :, :, :]
+            self.flag_array = dgrp['flags'][:, :, :, :]
+            self.nsample_array = dgrp['nsamples'][:, :, :, :]
         else:
             # do select operations on everything except data_array, flag_array and nsample_array
             self._select_metadata(blt_inds, freq_inds, pol_inds, history_update_string)

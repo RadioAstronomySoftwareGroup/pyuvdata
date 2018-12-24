@@ -290,6 +290,10 @@ def test_UVH5PartialWrite():
     uvtest.checkWarnings(full_uvh5.read_uvfits, [uvfits_file], message='Telescope EVLA is not')
     testfile = os.path.join(DATA_PATH, 'test', 'outtest.uvh5')
     full_uvh5.telescope_name = "PAPER"
+    # cut down the file size to decrease testing time
+    full_uvh5.select(antenna_nums=[3, 7, 24])
+    full_uvh5.lst_array = uvutils.get_lst_for_time(full_uvh5.time_array,
+                                                   *full_uvh5.telescope_location_lat_lon_alt_degrees)
     full_uvh5.write_uvh5(testfile, clobber=True)
     full_uvh5.read(testfile)
 
