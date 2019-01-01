@@ -135,12 +135,14 @@ class UVH5(UVData):
     and write_uvh5 methods on the UVData class.
     """
 
-    def _read_header(self, header, filename):
+    def _read_header(self, header, filename, run_check_acceptability=True):
         """
         Internal function to read header information from a UVH5 file.
 
         Args:
             header: reference to an h5py data group that contains the header information.
+            run_check_acceptability: Option to check acceptable range of the values of
+                parameters after reading in the file. Default is True.
 
         Returns:
             None
@@ -245,14 +247,15 @@ class UVH5(UVData):
         if 'lst_array' in header:
             self.lst_array = header['lst_array'][:]
             # check that lst_array in file is self-consistent
-            latitude, longitude, altitude = self.telescope_location_lat_lon_alt_degrees
-            lst_array = uvutils.get_lst_for_time(self.time_array, latitude, longitude,
-                                                 altitude)
-            if not np.all(np.isclose(self.lst_array, lst_array, rtol=self._lst_array.tols[0],
-                                     atol=self._lst_array.tols[1])):
-                warnings.warn("LST values stored in {file} are not self-consistent with time_array "
-                              "and telescope location. Consider recomputing with "
-                              "utils.get_lst_for_time.".format(file=filename))
+            if run_check_acceptability:
+                latitude, longitude, altitude = self.telescope_location_lat_lon_alt_degrees
+                lst_array = uvutils.get_lst_for_time(self.time_array, latitude, longitude,
+                                                     altitude)
+                if not np.all(np.isclose(self.lst_array, lst_array, rtol=self._lst_array.tols[0],
+                                         atol=self._lst_array.tols[1])):
+                    warnings.warn("LST values stored in {file} are not self-consistent with time_array "
+                                  "and telescope location. Consider recomputing with "
+                                  "utils.get_lst_for_time.".format(file=filename))
         else:
             # compute lst_array from time_array and telescope location
             latitude, longitude, altitude = self.telescope_location_lat_lon_alt_degrees
@@ -483,7 +486,7 @@ class UVH5(UVData):
         with h5py.File(filename, 'r') as f:
             # extract header information
             header = f['/Header']
-            self._read_header(header, filename)
+            self._read_header(header, filename, run_check_acceptability=run_check_acceptability)
 
             if not read_data:
                 # don't read in the data. This means the object is incomplete,
@@ -742,12 +745,14 @@ class UVH5(UVData):
 
         return
 
-    def _check_header(self, filename):
+    def _check_header(self, filename, run_check_acceptability=True):
         """
         Check that the metadata present in a file header matches the object's metadata.
 
         Args:
             header: reference to an h5py data group that contains the header information.
+            run_check_acceptability: Option to check acceptable range of the values of
+                parameters after reading in the file. Default is True.
 
         Returns:
             None
@@ -760,7 +765,7 @@ class UVH5(UVData):
         uvd_file = UVH5()
         with h5py.File(filename, 'r') as f:
             header = f['/Header']
-            uvd_file._read_header(header, filename)
+            uvd_file._read_header(header, filename, run_check_acceptability=run_check_acceptability)
 
         # temporarily remove data, flag, and nsample arrays, so we only check metadata
         if self.data_array is not None:
@@ -798,7 +803,7 @@ class UVH5(UVData):
     def write_uvh5_part(self, filename, data_array, flags_array, nsample_array, check_header=True,
                         antenna_nums=None, antenna_names=None, ant_str=None, bls=None,
                         frequencies=None, freq_chans=None, times=None, polarizations=None,
-                        blt_inds=None):
+                        blt_inds=None, run_check_acceptability=True):
         """
         Write out a part of a UVH5 file that has been previously initialized.
 
@@ -816,6 +821,9 @@ class UVH5(UVData):
                 by the "selection" arguments.
             check_header: option to check that the metadata present in the header
                 on disk matches that in the object. Default is True.
+            run_check_acceptability: If check_header, additional option to check
+                acceptable range of the values of parameters after reading in the file.
+                Default is True.
             antenna_nums: The antennas numbers to include when writing data into
                 the object (antenna positions and names for the excluded antennas
                 will be retained). This cannot be provided if antenna_names is
@@ -863,7 +871,7 @@ class UVH5(UVData):
                 filename))
 
         if check_header:
-            self._check_header(filename)
+            self._check_header(filename, run_check_acceptability=run_check_acceptability)
 
         # figure out which "full file" indices to write data to
         blt_inds, freq_inds, pol_inds, _ = self._select_preprocess(
