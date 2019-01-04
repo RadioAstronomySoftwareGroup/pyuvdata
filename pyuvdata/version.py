@@ -76,7 +76,7 @@ def construct_version_info():
         version_info['git_hash'] = _get_git_output(['rev-parse', 'HEAD'], capture_stderr=True)
         version_info['git_description'] = _get_git_output(['describe', '--dirty', '--tag', '--always'])
         version_info['git_branch'] = _get_git_output(['rev-parse', '--abbrev-ref', 'HEAD'], capture_stderr=True)
-    except (subprocess.CalledProcessError, ValueError):  # pragma: no cover
+    except (subprocess.CalledProcessError, ValueError, OSError):  # pragma: no cover
         try:
             # Check if a GIT_INFO file was created when installing package
             version_info.update(_get_gitinfo_file())
