@@ -2112,7 +2112,7 @@ class UVData(UVBase):
     def write_uvh5_part(self, filename, data_array, flags_array, nsample_array, check_header=True,
                         antenna_nums=None, antenna_names=None, ant_str=None, bls=None,
                         frequencies=None, freq_chans=None, times=None, polarizations=None,
-                        blt_inds=None):
+                        blt_inds=None, run_check_acceptability=True):
         """
         Write data to a UVH5 file that has already been initialized.
 
@@ -2161,6 +2161,8 @@ class UVData(UVBase):
             polarizations: The polarizations to include when writing data to the file.
             blt_inds: The baseline-time indices to include when writing data to the file.
                 This is not commonly used.
+            run_check_acceptability: Option to check acceptable range of the values of
+                parameters before writing the file. Default is True.
 
         Returns:
             None
@@ -2171,7 +2173,8 @@ class UVData(UVBase):
                                  antenna_names=antenna_names, bls=bls, ant_str=ant_str,
                                  frequencies=frequencies, freq_chans=freq_chans,
                                  times=times, polarizations=polarizations,
-                                 blt_inds=blt_inds)
+                                 blt_inds=blt_inds,
+                                 run_check_acceptability=run_check_acceptability)
         del(uvh5_obj)
 
     def read(self, filename, file_type=None, antenna_nums=None, antenna_names=None,

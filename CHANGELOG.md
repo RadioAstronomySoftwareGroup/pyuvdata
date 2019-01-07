@@ -7,6 +7,8 @@ All notable changes to this project will be documented in this file.
 - Antenna numbering bug in redundancy methods. It wasn't using the correct antenna numbers to make baseline indices.
 
 ## [1.3.5] - 2018-12-20
+### Changed
+- Extends `run_acceptability_check` for UVH5 metadata in `check_header` function.
 
 ## [1.3.4] - 2018-12-19
 ### Added
