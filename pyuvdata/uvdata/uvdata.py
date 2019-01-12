@@ -908,6 +908,25 @@ class UVData(UVBase):
                     "miriad file types".format(key=key)
                 )
 
+        # check that the uvws make sense given the antenna positions
+        # first, make a copy of this object with just the metadata
+        # new_obj = UVData()
+        # for param_name in self:
+        #     if param_name not in ['data_array', 'flag_array', 'nsample_array']:
+        #         setattr(new_obj, param_name, getattr(self, param_name))
+        new_obj = copy.deepcopy(self)
+        new_obj.data_array = None
+        new_obj.flag_array = None
+        new_obj.nsample_array = None
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            new_obj.set_uvws_from_antenna_positions(allow_phasing=True, metadata_only=True)
+
+        if new_obj._uvw_array != self._uvw_array:
+            print(np.max(np.abs(new_obj.uvw_array - self.uvw_array)))
+            raise ValueError('uvw_array does not match the expected values '
+                             'given the antenna positions.')
+
         # check auto and cross-corrs have sensible uvws
         autos = np.isclose(self.ant_1_array - self.ant_2_array, 0.0)
         if not np.all(
