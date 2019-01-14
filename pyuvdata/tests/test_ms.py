@@ -89,6 +89,17 @@ def test_spwnotsupported():
 
 
 @uvtest.skipIf_no_casa
+def test_multi_len_spw():
+    """Test errors on reading in an ms file with multiple spws with variable lenghth."""
+    UV = UVData()
+    testfile = os.path.join(DATA_PATH, 'multi_len_spw.ms')
+    with nt.assert_raises(ValueError) as cm:
+        UV.read(testfile)
+    ex = cm.exception  # raised exception is available through exception property of context
+    nt.assert_true(ex.args[0].startswith('Sorry.  Files with more than one spectral'))
+
+
+@uvtest.skipIf_no_casa
 def test_readMSreadUVFITS():
     """
     Test that a uvdata object instantiated from an ms file created with CASA's
