@@ -139,15 +139,17 @@ class MS(UVData):
         self.extra_keywords['DATA_COL'] = data_column
         # get frequency information from spectral window table
         tb_spws = tables.table(filepath + '/SPECTRAL_WINDOW')
+        spw_names = tb_spws.getcol('NAME')
+        self.Nspws = len(spw_names)
+        if self.Nspws > 1:
+            raise ValueError('Sorry.  Files with more than one spectral'
+                             'window (spw) are not yet supported. A '
+                             'great project for the interested student!')
         freqs = tb_spws.getcol('CHAN_FREQ')
         self.freq_array = freqs
         self.Nfreqs = int(freqs.shape[1])
         self.channel_width = float(tb_spws.getcol('CHAN_WIDTH')[0, 0])
         self.Nspws = int(freqs.shape[0])
-        if self.Nspws > 1:
-            raise ValueError('Sorry.  Files with more than one spectral'
-                             'window (spw) are not yet supported. A '
-                             'great project for the interested student!')
 
         self.spw_array = np.arange(self.Nspws)
         tb_spws.close()
