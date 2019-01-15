@@ -924,14 +924,18 @@ class UVData(UVBase):
             # for param_name in self:
             #     if param_name not in ['data_array', 'flag_array', 'nsample_array']:
             #         setattr(new_obj, param_name, getattr(self, param_name))
-            new_obj = copy.deepcopy(self)
-            new_obj.data_array = None
-            new_obj.flag_array = None
-            new_obj.nsample_array = None
+            new_obj = UVData()
+            for param in new_obj:
+                param_obj = getattr(new_obj, param)
+                param_name = param_obj.name
+                if param_name not in ['data_array', 'flag_array', 'nsample_array']:
+                    setattr(new_obj, param_name, getattr(self, param_name))
+
             if new_obj.phase_center_frame is not None:
                 output_phase_frame = new_obj.phase_center_frame
             else:
                 output_phase_frame = 'icrs'
+
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
                 new_obj.set_uvws_from_antenna_positions(allow_phasing=True,
