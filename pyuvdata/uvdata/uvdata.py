@@ -824,7 +824,10 @@ class UVData(UVBase):
         )
 
     def check(
-        self, check_extra=True, run_check_acceptability=True, check_freq_spacing=False
+        self, check_extra=True,
+        run_check_acceptability=True,
+        check_freq_spacing=False,
+        run_check_uvw_antpos=None,
     ):
         """
         Add some extra checks on top of checks on UVBase class.
@@ -838,6 +841,9 @@ class UVData(UVBase):
             If true, check all parameters, otherwise only check required parameters.
         run_check_acceptability : bool
             Option to check if values in parameters are acceptable.
+        run_check_uvw_antpos : bool
+            Option to check if uvws match the expected values given the antenna
+            positions. Default is to have be the same as run_check_acceptability.
 
         Returns
         -------
@@ -850,6 +856,9 @@ class UVData(UVBase):
             if parameter shapes or types are wrong or do not have acceptable
             values (if run_check_acceptability is True)
         """
+        if run_check_uvw_antpos is None:
+            run_check_uvw_antpos = run_check_acceptability
+
         # first run the basic check from UVBase
         # set the phase type based on object's value
         if self.phase_type == "phased":
@@ -908,56 +917,64 @@ class UVData(UVBase):
                     "miriad file types".format(key=key)
                 )
 
-        # check that the uvws make sense given the antenna positions
-        # first, make a copy of this object with just the metadata
-        # new_obj = UVData()
-        # for param_name in self:
-        #     if param_name not in ['data_array', 'flag_array', 'nsample_array']:
-        #         setattr(new_obj, param_name, getattr(self, param_name))
-        new_obj = copy.deepcopy(self)
-        new_obj.data_array = None
-        new_obj.flag_array = None
-        new_obj.nsample_array = None
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            new_obj.set_uvws_from_antenna_positions(allow_phasing=True, metadata_only=True)
+        if run_check_uvw_antpos:
+            # check that the uvws make sense given the antenna positions
+            # first, make a copy of this object with just the metadata
+            # new_obj = UVData()
+            # for param_name in self:
+            #     if param_name not in ['data_array', 'flag_array', 'nsample_array']:
+            #         setattr(new_obj, param_name, getattr(self, param_name))
+            new_obj = copy.deepcopy(self)
+            new_obj.data_array = None
+            new_obj.flag_array = None
+            new_obj.nsample_array = None
+            if new_obj.phase_center_frame is not None:
+                output_phase_frame = new_obj.phase_center_frame
+            else:
+                output_phase_frame = 'icrs'
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                new_obj.set_uvws_from_antenna_positions(allow_phasing=True,
+                                                        output_phase_frame=output_phase_frame,
+                                                        metadata_only=True)
 
-        if new_obj._uvw_array != self._uvw_array:
-            print(np.max(np.abs(new_obj.uvw_array - self.uvw_array)))
-            raise ValueError('uvw_array does not match the expected values '
-                             'given the antenna positions.')
+            if not np.allclose(new_obj.uvw_array, self.uvw_array, atol=1):
+                print(np.max(np.abs(new_obj.uvw_array - self.uvw_array)))
+                raise ValueError('uvw_array does not match the expected values '
+                                 'given the antenna positions.')
 
         # check auto and cross-corrs have sensible uvws
-        autos = np.isclose(self.ant_1_array - self.ant_2_array, 0.0)
-        if not np.all(
-            np.isclose(
-                self.uvw_array[autos],
-                0.0,
-                rtol=self._uvw_array.tols[0],
-                atol=self._uvw_array.tols[1],
-            )
-        ):
-            raise ValueError(
-                "Some auto-correlations have non-zero " "uvw_array coordinates."
-            )
-        if np.any(
-            np.isclose(
-                # this line used to use np.linalg.norm but it turns out
-                # squaring and sqrt is slightly more efficient unless the array
-                # is "very large".
-                np.sqrt(
-                    self.uvw_array[~autos, 0] ** 2
-                    + self.uvw_array[~autos, 1] ** 2
-                    + self.uvw_array[~autos, 2] ** 2
-                ),
-                0.0,
-                rtol=self._uvw_array.tols[0],
-                atol=self._uvw_array.tols[1],
-            )
-        ):
-            raise ValueError(
-                "Some cross-correlations have near-zero " "uvw_array magnitudes."
-            )
+        if run_check_acceptability:
+            autos = np.isclose(self.ant_1_array - self.ant_2_array, 0.0)
+            if not np.all(
+                np.isclose(
+                    self.uvw_array[autos],
+                    0.0,
+                    rtol=self._uvw_array.tols[0],
+                    atol=self._uvw_array.tols[1],
+                )
+            ):
+                raise ValueError(
+                    "Some auto-correlations have non-zero " "uvw_array coordinates."
+                )
+            if np.any(
+                np.isclose(
+                    # this line used to use np.linalg.norm but it turns out
+                    # squaring and sqrt is slightly more efficient unless the array
+                    # is "very large".
+                    np.sqrt(
+                        self.uvw_array[~autos, 0] ** 2
+                        + self.uvw_array[~autos, 1] ** 2
+                        + self.uvw_array[~autos, 2] ** 2
+                    ),
+                    0.0,
+                    rtol=self._uvw_array.tols[0],
+                    atol=self._uvw_array.tols[1],
+                )
+            ):
+                raise ValueError(
+                    "Some cross-correlations have near-zero " "uvw_array magnitudes."
+                )
 
         if check_freq_spacing:
             self._check_freq_spacing()
