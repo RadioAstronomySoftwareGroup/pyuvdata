@@ -163,6 +163,14 @@ class MS(UVData):
                              'supported.')
         times_unique = time.Time(
             np.unique(tb.getcol('TIME') / (3600. * 24.)), format='mjd').jd
+
+        # check for multiple data description ids (combination of spw id & pol id)
+        data_desc_id = np.unique(np.int32(tb.getcol('DATA_DESC_ID') - 1))
+        if len(set(data_desc_id)) > 1:
+            raise ValueError('This file appears to have multiple data description ID '
+                             'values; only files with one data description ID are '
+                             'supported.')
+
         self.Ntimes = int(len(times_unique))
         # FITS uvw direction convention is opposite ours and Miriad's.
         # CASA's convention is unclear: the docs contradict themselves,
@@ -193,14 +201,27 @@ class MS(UVData):
         # Get times. MS from cotter are modified Julian dates in seconds (thanks to Danny Jacobs for figuring out the proper conversion)
         self.time_array = time.Time(
             tb.getcol('TIME') / (3600. * 24.), format='mjd').jd
+
         # Polarization array
         tbPol = tables.table(filepath + '/POLARIZATION')
-        # list of lists, probably with each list corresponding to SPW.
-        polList = tbPol.getcol('CORR_TYPE')[0]
+        num_pols = tbPol.getcol('NUM_CORR')
+        # get pol setup ID from data description table
+        tb_data_desc = tables.table(filepath + '/DATA_DESCRIPTION')
+        pol_id = tb_data_desc.getcol('POLARIZATION_ID')[0]
+        # use an assert because I don't think it's possible to make a file that fails this, but I'm not sure
+        assert(num_pols[pol_id] == self.Npols)
+
+        if np.unique(num_pols).size > 1:
+            # use getvarcol method, which returns a dict
+            polList = tbPol.getvarcol('CORR_TYPE')['r' + str(pol_id + 1)][0].tolist()
+        else:
+            # list of lists, probably with each list corresponding to SPW.
+            polList = tbPol.getcol('CORR_TYPE')[pol_id]
         self.polarization_array = np.zeros(len(polList), dtype=np.int32)
         for polnum in range(len(polList)):
             self.polarization_array[polnum] = int(polDict[polList[polnum]])
         tbPol.close()
+
         # Integration time
         # use first interval and assume rest are constant (though measurement set has all integration times for each Nblt )
         # self.integration_time=tb.getcol('INTERVAL')[0]
