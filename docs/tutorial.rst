@@ -107,13 +107,6 @@ e) CASA -> uvfits
   # optionally specify the file type
   # note that reading CASA measurement sets requires casacore to be installed
   >>> UV.read_ms(ms_file)
-  Successful readonly open of default-locked table pyuvdata/data/day2_TDEM0003_10s_norx_1src_1spw.ms/SPECTRAL_WINDOW: 14 columns, 1 rows
-  Successful readonly open of default-locked table pyuvdata/data/day2_TDEM0003_10s_norx_1src_1spw.ms: 23 columns, 1360 rows
-  Successful readonly open of default-locked table pyuvdata/data/day2_TDEM0003_10s_norx_1src_1spw.ms/POLARIZATION: 4 columns, 1 rows
-  Successful readonly open of default-locked table pyuvdata/data/day2_TDEM0003_10s_norx_1src_1spw.ms/ANTENNA: 8 columns, 28 rows
-  Successful readonly open of default-locked table pyuvdata/data/day2_TDEM0003_10s_norx_1src_1spw.ms/OBSERVATION: 9 columns, 1 rows
-  Successful readonly open of default-locked table pyuvdata/data/day2_TDEM0003_10s_norx_1src_1spw.ms/FIELD: 9 columns, 1 rows
-  Successful readonly open of default-locked table pyuvdata/data/day2_TDEM0003_10s_norx_1src_1spw.ms/HISTORY: 9 columns, 6 rows
 
   # Write out uvfits file
   >>> UV.write_uvfits('tutorial.uvfits', spoof_nonessential=True)
@@ -130,13 +123,6 @@ f) CASA -> miriad
 
   # note that reading CASA measurement sets requires casacore to be installed
   >>> UV.read(ms_file)
-  Successful readonly open of default-locked table pyuvdata/data/day2_TDEM0003_10s_norx_1src_1spw.ms/SPECTRAL_WINDOW: 14 columns, 1 rows
-  Successful readonly open of default-locked table pyuvdata/data/day2_TDEM0003_10s_norx_1src_1spw.ms: 23 columns, 1360 rows
-  Successful readonly open of default-locked table pyuvdata/data/day2_TDEM0003_10s_norx_1src_1spw.ms/POLARIZATION: 4 columns, 1 rows
-  Successful readonly open of default-locked table pyuvdata/data/day2_TDEM0003_10s_norx_1src_1spw.ms/ANTENNA: 8 columns, 28 rows
-  Successful readonly open of default-locked table pyuvdata/data/day2_TDEM0003_10s_norx_1src_1spw.ms/OBSERVATION: 9 columns, 1 rows
-  Successful readonly open of default-locked table pyuvdata/data/day2_TDEM0003_10s_norx_1src_1spw.ms/FIELD: 9 columns, 1 rows
-  Successful readonly open of default-locked table pyuvdata/data/day2_TDEM0003_10s_norx_1src_1spw.ms/HISTORY: 9 columns, 6 rows
 
   # Write out Miriad file
   >>> write_file = 'tutorial.uv'
