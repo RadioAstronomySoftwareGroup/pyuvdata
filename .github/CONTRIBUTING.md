@@ -4,7 +4,7 @@ Thank you for considering contributing to pyuvdata! It's our community of users 
 
 pyuvdata is an open source project, driven by our community of contributors. There are many ways to contribute, including writing tutorials, improving the documentation, submitting bug reports and feature requests or writing code which can be incorporated into pyuvdata itself. Following the guidelines and patterns suggested below helps us maintain a high quality code base and review your contributions faster.
 
-Please note we have a code of conduct, please follow it in all your interactions with the project.
+Please note we have a [code of conduct](CODE_OF_CONDUCT.md), please follow it in all your interactions with the project.
 
 ## How to report a bug
 First check the issues to see if your bug already exists. Feel free to comment on the existing issue to provide more context or just to note that it is affecting you as well. If your bug is not in the issue list, make a new issue.
@@ -38,7 +38,7 @@ When making a feature request, try to provide as much context as possible. Feel 
 Contributing for the first time can seem daunting, but we value contributions from our user community and we will do our best to help you through the process. Here’s some advice to help make your work on pyuvdata more useful and rewarding.
 
 * Use issue labels to guide you
- - Unsure where to begin contributing to pyuvdata? You can start by looking through issues labeled `good first issue` and `help wanted` issues.
+  - Unsure where to begin contributing to pyuvdata? You can start by looking through issues labeled `good first issue` and `help wanted` issues.
 
 * Pick a subject area that you care about, that you are familiar with, or that you want to learn about
   - Some of the feature request issues involve file formats that the core developers may not be very familiar with. If you know about those formats, consider helping on those issues. If you're most interested, for example, in representations of beams for simulation, consider focusing on issues labeled with `beam`.
@@ -63,11 +63,11 @@ http://makeapullrequest.com/ and http://www.firsttimersonly.com/. If you have mo
 1. Create your own fork of the code
 2. Do the changes in your fork
 3. If you like the change and think the project could use it:
-  * If you're fixing a bug, include a new test that breaks as a result of the bug (if possible)
-  * Ensure that all your new code is covered by tests and that the existing tests pass.
-  * Ensure that your code meets the PEP8 style guidelines. You can check that your code will pass our linting tests by running `pycodestyle . --ignore=E501,W503` in the top-level pyuvdata directory.
-  * Ensure that you fully document any new features via docstrings and in the [tutorial](docs/tutorial.rst)
-  * You can see the full pull request checklist [here](PULL_REQUEST_TEMPLATE.md)
+  - If you're fixing a bug, include a new test that breaks as a result of the bug (if possible)
+  - Ensure that all your new code is covered by tests and that the existing tests pass.
+  - Ensure that your code meets the PEP8 style guidelines. You can check that your code will pass our linting tests by running `pycodestyle . --ignore=E501,W503` in the top-level pyuvdata directory.
+  - Ensure that you fully document any new features via docstrings and in the [tutorial](docs/tutorial.rst)
+  - You can see the full pull request checklist [here](PULL_REQUEST_TEMPLATE.md)
 
 ### Code review process
 
