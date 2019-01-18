@@ -147,4 +147,5 @@ pyuvdata is maintained by the RASG Managers, which currently include:
  - Daniel Jacobs
  - Paul LaPlante
  - Jonathon Pober
-Please us the channels discussed in the [guide on contributing](.github/CONTRIBUTING.md) for code-related discussions. You can contact us privately if needed at rasgmanagers@gmail.com.
+
+Please use the channels discussed in the [guide on contributing](.github/CONTRIBUTING.md) for code-related discussions. You can contact us privately if needed at rasgmanagers@gmail.com.
