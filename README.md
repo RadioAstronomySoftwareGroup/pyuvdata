@@ -138,3 +138,13 @@ From the source pyuvdata directory run ```nosetests pyuvdata```.
 # API
 The primary interface to data from python is via the UVData object. It provides import functionality from all supported file formats (UVFITS, Miriad, UVH5, FHD, CASA measurement sets) and export to UVFITS, Miriad, and UVH5 formats and can be interacted with directly. Similarly, the primary calibration and beam interfaces are via the UVCal and UVBeam objects. The attributes of the UVData, UVCal and UVBeam objects are
 described in the uvdata_parameters, uvcal_parameters and uvbeam_parameters descriptions at https://pyuvdata.readthedocs.io or [here](https://github.com/RadioAstronomySoftwareGroup/pyuvdata/blob/master/docs).
+
+
+# Maintainers
+pyuvdata is maintained by the RASG Managers, which currently include:
+ - Adam Beardsley
+ - Bryna Hazelton
+ - Daniel Jacobs
+ - Paul LaPlante
+ - Jonathon Pober
+Please us the channels discussed in the [guide on contributing](.github/CONTRIBUTING.md) for code-related discussions. You can contact us privately if needed at rasgmanagers@gmail.com.

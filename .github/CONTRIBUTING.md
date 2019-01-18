@@ -74,4 +74,4 @@ http://makeapullrequest.com/ and http://www.firsttimersonly.com/. If you have mo
 The core team looks at pull requests on a regular basis and tries to provide feedback as quickly as possible. Larger pull requests generally require more time for review and may require discussion among the core team.
 
 # Community
-In addition to conversations on github, we also communicate via Slack and on monthly telecons. We welcome contributors who want to join those discussions, [contact us](INSERT EMAIL HERE) if you'd like to be invited to join them.
+In addition to conversations on github, we also communicate via Slack and on monthly telecons. We welcome contributors who want to join those discussions, [contact the RASG managers](rasgmanagers@gmail.com) if you'd like to be invited to join them.
