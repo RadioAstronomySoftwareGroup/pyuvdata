@@ -19,12 +19,12 @@
 - [ ] I have read the **CONTRIBUTING** document.
 - [ ] My code follows the code style of this project.
 - [ ] My change requires a change to the documentation.
-- [ ] I have updated the documentation accordingly.
+  - [ ] I have updated the documentation accordingly.
 - [ ] My change introduces new functionality that should be highlighted in the tutorial.
-- [ ] I have updated the tutorial accordingly.
+  - [ ] I have updated the tutorial accordingly.
 - [ ] If this is a bug fix, it includes a new test that breaks as a result of the bug (if possible)
 - [ ] If this is a breaking change, it includes backwards compatibility and deprecation warnings (if possible)
 - [ ] I have added tests to cover my changes.
 - [ ] All new and existing tests passed.
 - [ ] My change requires an update to the **CHANGELOG**.
-- [ ] I have updated the **CHANGELOG** accordingly.
+  - [ ] I have updated the **CHANGELOG** accordingly.
