@@ -18,10 +18,10 @@ jobs:
             conda create -q -n ${ENV_NAME} python=$PYTHON
             source activate ${ENV_NAME}
             conda install numpy scipy astropy nose pip matplotlib coverage pandas scikit-learn h5py six healpy aipy
+            pip install .
             pip install git+https://github.com/HERA-Team/linsolve.git
             pip install git+https://github.com/HERA-Team/hera_qm.git
             pip install git+https://github.com/HERA-Team/uvtools.git
-            pip install .
       - run:
           command: |
             source activate ${ENV_NAME}
