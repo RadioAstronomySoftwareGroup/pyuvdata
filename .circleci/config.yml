@@ -8,8 +8,6 @@ jobs:
       ENV_NAME: "hera_cal-test"
     steps:
       - checkout
-      - restore_cache:
-          key: deps-{{ .Branch }}-3.6-{{ checksum "ci/environment-3.6.yml" }}
       - run:
           command: |
             conda config --set always_yes yes --set changeps1 no
@@ -32,10 +30,6 @@ jobs:
             cd hera_cal
             mkdir test-reports
             nosetests hera_cal --with-xunit --xunit-file=test-reports/xunit.xml
-      - save_cache:
-          key: deps-{{ .Branch }}-3.6-{{ checksum "ci/environment-3.6.yml" }}
-          paths:
-            - "/opt/conda/envs/${ENV_NAME}/"
       - store_test_results:
           path: hera_cal/test-reports
       - store_artifacts:
