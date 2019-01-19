@@ -18,7 +18,7 @@ jobs:
             conda info -a
             conda create -q -n ${ENV_NAME} python=$PYTHON
             source activate ${ENV_NAME}
-            conda install numpy scipy astropy nose pip matplotlib coverage pandas scikit-learn h5py six healpy aipy
+            conda install numpy scipy astropy nose pip matplotlib pandas scikit-learn h5py six healpy aipy
             apt-get install -y gcc g++
             pip install .
             pip install git+https://github.com/HERA-Team/linsolve.git
@@ -38,9 +38,48 @@ jobs:
       - store_artifacts:
           path: hera_cal/test-reports
 
+  hera_qm:
+    docker:
+      - image: continuumio/miniconda:latest
+    environment:
+      PYTHON: "3.6"
+      ENV_NAME: "hera_qm-test"
+    steps:
+      - checkout
+      - run:
+          name: configure conda environment
+          command: |
+            conda config --set always_yes yes --set changeps1 no
+            conda install -q conda
+            conda update -q conda
+            conda config --add channels conda-forge
+            conda info -a
+            conda create -q -n ${ENV_NAME} python=$PYTHON
+            source activate ${ENV_NAME}
+            conda install numpy scipy astropy nose pip matplotlib scikit-learn h5py six healpy aipy
+            apt-get install -y gcc g++
+            pip install .
+            pip install git+https://github.com/HERA-Team/omnical.git
+            pip install git+https://github.com/HERA-Team/linsolve.git
+            pip install git+https://github.com/HERA-Team/uvtools.git
+            pip install git+https://github.com/HERA-Team/hera_cal.git
+      - run:
+          name: run hera_qm tests
+          command: |
+            source activate ${ENV_NAME}
+            cd ../
+            git clone git@github.com:HERA-Team/hera_qm.git
+            cd hera_qm
+            mkdir test-reports
+            nosetests hera_qm --with-xunit --xunit-file=test-reports/xunit.xml
+      - store_test_results:
+          path: hera_qm/test-reports
+      - store_artifacts:
+          path: hera_qm/test-reports
 
 workflows:
   version: 2
   build_and_test:
     jobs:
       - hera_cal
+      - hera_qm
