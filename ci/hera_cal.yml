@@ -15,7 +15,7 @@ dependencies:
   - scipy
   - six
   - pip:
-    - .
+    - ~/project/
     - git+https://github.com/HERA-Team/linsolve.git
     - git+https://github.com/HERA-Team/hera_qm.git
     - git+https://github.com/HERA-Team/uvtools.git
