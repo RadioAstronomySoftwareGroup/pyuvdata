@@ -9,7 +9,7 @@ jobs:
     steps:
       - checkout
       - restore_cache:
-          key: deps-{{ .Branch }}-3.6-{{ checksum "ci/{ENV_NAME}.yml" }}
+          key: deps-{{ .Branch }}-{{ checksum "ci/hera_cal.yml" }}
       - run:
           name: configure conda environment
           command: ./ci/install-circle.sh
@@ -23,7 +23,7 @@ jobs:
             mkdir test-reports
             nosetests hera_cal --with-xunit --xunit-file=test-reports/xunit.xml
       - save_cache:
-          key: deps-{{ .Branch }}-3.6-{{ checksum "ci/{ENV_NAME}.yml" }}
+          key: deps-{{ .Branch }}-{{ checksum "ci/hera_cal.yml" }}
           paths:
             - "/opt/conda/envs/${ENV_NAME}/"
       - store_test_results:
