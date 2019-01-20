@@ -16,6 +16,7 @@ jobs:
       - run:
           name: install related repos
           command: |
+            source activate ${ENV_NAME}
             pip install .
             pip install git+https://github.com/HERA-Team/linsolve.git
             pip install git+https://github.com/HERA-Team/hera_qm.git
@@ -54,6 +55,7 @@ jobs:
       - run:
           name: install related repos
           command: |
+            source activate ${ENV_NAME}
             pip install .
             pip install git+https://github.com/HERA-Team/linsolve.git
             pip install git+https://github.com/HERA-Team/hera_qm.git
