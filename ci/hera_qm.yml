@@ -1,4 +1,4 @@
-name: hera_cal
+name: hera_qm
 channels:
   - defaults
   - conda-forge
@@ -10,7 +10,6 @@ dependencies:
   - matplotlib
   - nose
   - numpy
-  - pandas
   - scikit-learn
   - scipy
   - six

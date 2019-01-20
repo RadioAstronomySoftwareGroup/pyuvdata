@@ -14,6 +14,13 @@ jobs:
           name: configure conda environment
           command: ./ci/install-circle.sh
       - run:
+          name: install related repos
+          command: |
+            pip install .
+            pip install git+https://github.com/HERA-Team/linsolve.git
+            pip install git+https://github.com/HERA-Team/hera_qm.git
+            pip install git+https://github.com/HERA-Team/uvtools.git
+      - run:
           name: run hera_cal tests
           command: |
             source activate ${ENV_NAME}
@@ -39,23 +46,18 @@ jobs:
       ENV_NAME: "hera_qm"
     steps:
       - checkout
+      - restore_cache:
+          key: deps-{{ .Branch }}-{{ checksum "ci/hera_qm.yml" }}
       - run:
           name: configure conda environment
+          command: ./ci/install-circle.sh
+      - run:
+          name: install related repos
           command: |
-            conda config --set always_yes yes --set changeps1 no
-            conda install -q conda
-            conda update -q conda
-            conda config --add channels conda-forge
-            conda info -a
-            conda create -q -n ${ENV_NAME} python=$PYTHON
-            source activate ${ENV_NAME}
-            conda install numpy scipy astropy nose pip matplotlib scikit-learn h5py six healpy aipy
-            apt-get install -y gcc g++
             pip install .
-            pip install git+https://github.com/HERA-Team/omnical.git
             pip install git+https://github.com/HERA-Team/linsolve.git
+            pip install git+https://github.com/HERA-Team/hera_qm.git
             pip install git+https://github.com/HERA-Team/uvtools.git
-            pip install git+https://github.com/HERA-Team/hera_cal.git
       - run:
           name: run hera_qm tests
           command: |
@@ -65,6 +67,10 @@ jobs:
             cd hera_qm
             mkdir test-reports
             nosetests hera_qm --with-xunit --xunit-file=test-reports/xunit.xml
+      - save_cache:
+          key: deps-{{ .Branch }}-{{ checksum "ci/hera_qm.yml" }}
+          paths:
+            - "/opt/conda/envs/${ENV_NAME}/"
       - store_test_results:
           path: hera_qm/test-reports
       - store_artifacts:
