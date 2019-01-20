@@ -110,7 +110,7 @@ class UVFITS(UVData):
     def _get_data(self, vis_hdu, antenna_nums, antenna_names, ant_str,
                   bls, frequencies, freq_chans, times, polarizations,
                   blt_inds, read_metadata, run_check, check_extra,
-                  run_check_acceptability):
+                  run_check_acceptability, keep_missing_antennas):
         """
         Internal function to read just the visibility and flag data of the uvfits file.
         Separated from full read so that header, metadata and data can be read independently.
@@ -155,7 +155,8 @@ class UVFITS(UVData):
                 raw_data_array = raw_data_array[:, np.newaxis, :, :]
         else:
             # do select operations on everything except data_array, flag_array and nsample_array
-            self._select_metadata(blt_inds, freq_inds, pol_inds, history_update_string)
+            self._select_metadata(blt_inds, freq_inds, pol_inds, history_update_string,
+                                  keep_missing_antennas)
 
             # just read in the right portions of the data and flag arrays
             if blt_frac == min_frac:
@@ -222,7 +223,8 @@ class UVFITS(UVData):
                     ant_str=None, bls=None, frequencies=None,
                     freq_chans=None, times=None, polarizations=None, blt_inds=None,
                     read_data=True, read_metadata=True,
-                    run_check=True, check_extra=True, run_check_acceptability=True):
+                    run_check=True, check_extra=True, run_check_acceptability=True,
+                    keep_missing_antennas=True):
         """
         Read in header, metadata and data from a uvfits file. Supports reading
         only selected portions of the data.
@@ -281,6 +283,8 @@ class UVFITS(UVData):
             run_check_acceptability: Option to check acceptable range of the values of
                 parameters after reading in the file. Default is True.
                 Ignored if read_data is False.
+            keep_missing_antennas: Option to keep all the metadata associated with antennas,
+                even those that do not remain after the select option. Default is True.
         """
         if not read_data:
             run_check = False
@@ -454,7 +458,8 @@ class UVFITS(UVData):
             # Now read in the data
             self._get_data(vis_hdu, antenna_nums, antenna_names, ant_str,
                            bls, frequencies, freq_chans, times, polarizations,
-                           blt_inds, False, run_check, check_extra, run_check_acceptability)
+                           blt_inds, False, run_check, check_extra, run_check_acceptability,
+                           keep_missing_antennas)
 
     def read_uvfits_metadata(self, filename):
         """
@@ -480,7 +485,8 @@ class UVFITS(UVData):
                          ant_str=None, bls=None, frequencies=None,
                          freq_chans=None, times=None, polarizations=None,
                          blt_inds=None, read_metadata=True, run_check=True,
-                         check_extra=True, run_check_acceptability=True):
+                         check_extra=True, run_check_acceptability=True,
+                         keep_missing_antennas=True):
         """
         Read in data but not header info from a uvfits file
         (useful for an object that already has the associated header info).
@@ -529,6 +535,8 @@ class UVFITS(UVData):
                 ones. Default is True.
             run_check_acceptability: Option to check acceptable range of the values of
                 parameters after reading in the file. Default is True.
+            keep_missing_antennas: Option to keep all the metadata associated with antennas,
+                even those that do not remain after the select option. Default is True.
         """
 
         with fits.open(filename, memmap=True) as hdu_list:
@@ -537,7 +545,7 @@ class UVFITS(UVData):
             self._get_data(vis_hdu, antenna_nums, antenna_names, ant_str,
                            bls, frequencies, freq_chans, times, polarizations,
                            blt_inds, read_metadata, run_check, check_extra,
-                           run_check_acceptability)
+                           run_check_acceptability, keep_missing_antennas)
 
         del(vis_hdu)
 

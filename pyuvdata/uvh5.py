@@ -291,7 +291,7 @@ class UVH5(UVData):
     def _get_data(self, dgrp, antenna_nums, antenna_names, ant_str,
                   bls, frequencies, freq_chans, times, polarizations,
                   blt_inds, run_check, check_extra, run_check_acceptability,
-                  data_array_dtype):
+                  data_array_dtype, keep_missing_antennas):
         """
         Internal function to read just the visibility, flag, and nsample data of the uvh5 file.
         Separated from full read so that header/metadata and data can be read independently.
@@ -339,7 +339,8 @@ class UVH5(UVData):
             self.nsample_array = dgrp['nsamples'][:, :, :, :]
         else:
             # do select operations on everything except data_array, flag_array and nsample_array
-            self._select_metadata(blt_inds, freq_inds, pol_inds, history_update_string)
+            self._select_metadata(blt_inds, freq_inds, pol_inds, history_update_string,
+                                  keep_missing_antennas)
 
             # open references to datasets
             visdata_dset = dgrp['visdata']
@@ -417,7 +418,7 @@ class UVH5(UVData):
                   ant_str=None, bls=None, frequencies=None, freq_chans=None,
                   times=None, polarizations=None, blt_inds=None, read_data=True,
                   run_check=True, check_extra=True, run_check_acceptability=True,
-                  data_array_dtype=np.complex128):
+                  data_array_dtype=np.complex128, keep_missing_antennas=True):
         """
         Read in data from a UVH5 file.
 
@@ -472,6 +473,8 @@ class UVH5(UVData):
                 np.complex64 (single-precision real and imaginary) or np.complex128 (double-
                 precision real and imaginary). Only used if the datatype of the visibility
                 data on-disk is not 'c8' or 'c16'. Default is np.complex128.
+            keep_missing_antennas: Option to keep all the metadata associated with antennas,
+                even those that do not remain after the select option. Default is True.
 
         Returns:
             None
@@ -498,7 +501,7 @@ class UVH5(UVData):
             self._get_data(dgrp, antenna_nums, antenna_names, ant_str,
                            bls, frequencies, freq_chans, times, polarizations,
                            blt_inds, run_check, check_extra, run_check_acceptability,
-                           data_array_dtype)
+                           data_array_dtype, keep_missing_antennas)
 
         return
 

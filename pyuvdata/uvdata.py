@@ -1407,10 +1407,18 @@ class UVData(UVBase):
 
         return blt_inds, freq_inds, pol_inds, history_update_string
 
-    def _select_metadata(self, blt_inds, freq_inds, pol_inds, history_update_string):
+    def _select_metadata(self, blt_inds, freq_inds, pol_inds, history_update_string,
+                         keep_missing_antennas=True):
         """
-        Internal function to perform select on everything except the data_array,
-        flag_array and nsample_array to allow for re-use in uvfits reading
+        Internal function to perform select on everything except the data-sized arrays.
+
+        Args:
+            blt_inds: list of baseline-time indices to keep. Can be None (to keep everything).
+            freq_inds: list of frequency indices to keep. Can be None (to keep everything).
+            pol_inds: list of polarization indices to keep. Can be None (to keep everything).
+            history_update_string: string to append to the end of the history.
+            keep_antennas: whether to keep metadata for antennas that are no longer in the dataset.
+                Defaults to True.
         """
         if blt_inds is not None:
             self.Nblts = len(blt_inds)
@@ -1427,6 +1435,15 @@ class UVData(UVBase):
                 len(set(self.ant_1_array.tolist() + self.ant_2_array.tolist())))
 
             self.Ntimes = len(np.unique(self.time_array))
+            if not keep_missing_antennas:
+                ants_to_keep = set(self.ant_1_array.tolist() + self.ant_2_array.tolist())
+                inds_to_keep = [self.antenna_numbers.tolist().index(ant) for ant in ants_to_keep]
+                self.antenna_names = [self.antenna_names[ind] for ind in inds_to_keep]
+                self.antenna_numbers = self.antenna_numbers[inds_to_keep]
+                self.antenna_positions = self.antenna_positions[inds_to_keep, :]
+                if self.antenna_diameters is not None:
+                    self.antenna_diameters = self.antenna_diameters[inds_to_keep]
+                self.Nants_telescope = int(len(ants_to_keep))
 
         if freq_inds is not None:
             self.Nfreqs = len(freq_inds)
@@ -1442,7 +1459,7 @@ class UVData(UVBase):
                bls=None, frequencies=None, freq_chans=None,
                times=None, polarizations=None, blt_inds=None, run_check=True,
                check_extra=True, run_check_acceptability=True, inplace=True,
-               metadata_only=False):
+               metadata_only=False, keep_missing_antennas=True):
         """
         Select specific antennas, antenna pairs, frequencies, times and
         polarizations to keep in the object while discarding others.
@@ -1490,6 +1507,8 @@ class UVData(UVBase):
                 a new UVData object, which is a subselection of self (False)
             metadata_only: Option to only do the select on the metadata. Not allowed
                 if the data_array, flag_array or nsample_array is not None. (False)
+            keep_missing_antennas: Option to keep all the metadata associated with antennas,
+                even those that do not remain after the select option. (True)
         """
         if metadata_only is True and (self.data_array is not None
                                       or self.flag_array is not None
@@ -1507,7 +1526,8 @@ class UVData(UVBase):
                                          frequencies, freq_chans, times, polarizations, blt_inds)
 
         # do select operations on everything except data_array, flag_array and nsample_array
-        uv_object._select_metadata(blt_inds, freq_inds, pol_inds, history_update_string)
+        uv_object._select_metadata(blt_inds, freq_inds, pol_inds, history_update_string,
+                                   keep_missing_antennas)
 
         if metadata_only is True:
             if not inplace:
@@ -1567,7 +1587,8 @@ class UVData(UVBase):
                     ant_str=None, bls=None, frequencies=None,
                     freq_chans=None, times=None, polarizations=None, blt_inds=None,
                     read_data=True, read_metadata=True, run_check=True,
-                    check_extra=True, run_check_acceptability=True):
+                    check_extra=True, run_check_acceptability=True,
+                    keep_missing_antennas=True):
         """
         Read in header, metadata and data from uvfits file(s).
 
@@ -1625,6 +1646,8 @@ class UVData(UVBase):
             run_check_acceptability: Option to check acceptable range of the values of
                 parameters after reading in the file. Default is True.
                 Ignored if read_data is False.
+            keep_missing_antennas: Option to keep all the metadata associated with antennas,
+                even those that do not remain after the select option. Default is True.
         """
         from . import uvfits
         # work out what function should be called depending on what's
@@ -1673,7 +1696,8 @@ class UVData(UVBase):
                              freq_chans=freq_chans, times=times,
                              polarizations=polarizations, blt_inds=blt_inds,
                              run_check=run_check, check_extra=check_extra,
-                             run_check_acceptability=run_check_acceptability)
+                             run_check_acceptability=run_check_acceptability,
+                             keep_missing_antennas=keep_missing_antennas)
             if len(filename) > 1:
                 for f in filename[1:]:
                     uv2 = UVData()
@@ -1683,7 +1707,8 @@ class UVData(UVBase):
                                     freq_chans=freq_chans, times=times,
                                     polarizations=polarizations, blt_inds=blt_inds,
                                     run_check=run_check, check_extra=check_extra,
-                                    run_check_acceptability=run_check_acceptability)
+                                    run_check_acceptability=run_check_acceptability,
+                                    keep_missing_antennas=keep_missing_antennas)
                     self += uv2
                 del(uv2)
         else:
@@ -1696,7 +1721,8 @@ class UVData(UVBase):
                                        polarizations=polarizations, blt_inds=blt_inds,
                                        read_data=read_data, read_metadata=read_metadata,
                                        run_check=run_check, check_extra=check_extra,
-                                       run_check_acceptability=run_check_acceptability)
+                                       run_check_acceptability=run_check_acceptability,
+                                       keep_missing_antennas=keep_missing_antennas)
                 self._convert_from_filetype(uvfits_obj)
                 del(uvfits_obj)
             elif func == 'read_uvfits_metadata':
@@ -1713,7 +1739,8 @@ class UVData(UVBase):
                                             freq_chans=freq_chans, times=times,
                                             polarizations=polarizations, blt_inds=blt_inds,
                                             run_check=run_check, check_extra=check_extra,
-                                            run_check_acceptability=run_check_acceptability)
+                                            run_check_acceptability=run_check_acceptability,
+                                            keep_missing_antennas=keep_missing_antennas)
                 self._convert_from_filetype(uvfits_obj)
                 del(uvfits_obj)
 
@@ -1933,7 +1960,7 @@ class UVData(UVBase):
                   ant_str=None, bls=None, frequencies=None, freq_chans=None,
                   times=None, polarizations=None, blt_inds=None, read_data=True,
                   run_check=True, check_extra=True, run_check_acceptability=True,
-                  data_array_dtype=np.complex128):
+                  data_array_dtype=np.complex128, keep_missing_antennas=True):
         """
         Read a UVH5 file.
 
@@ -1989,6 +2016,8 @@ class UVData(UVBase):
                 np.complex64 (single-precision real and imaginary) or np.complex128 (double-
                 precision real and imaginary). Only used if the datatype of the visibility
                 data on-disk is not 'c8' or 'c16'. Default is np.complex128.
+            keep_missing_antennas: Option to keep all the metadata associated with antennas,
+                even those that do not remain after the select option. Default is True.
 
         Returns:
             None
@@ -2005,7 +2034,8 @@ class UVData(UVBase):
                            read_data=read_data, run_check=run_check,
                            check_extra=check_extra,
                            run_check_acceptability=run_check_acceptability,
-                           data_array_dtype=data_array_dtype)
+                           data_array_dtype=data_array_dtype,
+                           keep_missing_antennas=keep_missing_antennas)
             if len(filename) > 1:
                 for f in filename[1:]:
                     uv2 = UVData()
@@ -2016,7 +2046,8 @@ class UVData(UVBase):
                                   blt_inds=blt_inds, read_data=read_data,
                                   run_check=run_check, check_extra=check_extra,
                                   run_check_acceptability=run_check_acceptability,
-                                  data_array_dtype=data_array_dtype)
+                                  data_array_dtype=data_array_dtype,
+                                  keep_missing_antennas=keep_missing_antennas)
                     self += uv2
                 del(uv2)
         else:
@@ -2027,7 +2058,8 @@ class UVData(UVBase):
                                polarizations=polarizations, blt_inds=blt_inds,
                                read_data=read_data, run_check=run_check, check_extra=check_extra,
                                run_check_acceptability=run_check_acceptability,
-                               data_array_dtype=data_array_dtype)
+                               data_array_dtype=data_array_dtype,
+                               keep_missing_antennas=keep_missing_antennas)
             self._convert_from_filetype(uvh5_obj)
             del(uvh5_obj)
 
@@ -2183,7 +2215,8 @@ class UVData(UVBase):
              read_metadata=True, read_data=True, phase_type=None,
              correct_lat_lon=True, use_model=False, data_column='DATA',
              pol_order='AIPS', run_check=True, check_extra=True,
-             run_check_acceptability=True, data_array_dtype=np.complex128):
+             run_check_acceptability=True, data_array_dtype=np.complex128,
+             keep_missing_antennas=True):
         """
         Read a generic file into a UVData object.
 
@@ -2267,6 +2300,8 @@ class UVData(UVBase):
                 files. Must be either np.complex64 (single-precision real and imaginary) or
                 np.complex128 (double-precision real and imaginary). Only used if the datatype
                 of the visibility data on-disk is not 'c8' or 'c16'. Default is np.complex128.
+            keep_missing_antennas: Option to keep all the metadata associated with antennas,
+                even those that do not remain after the select option. Default is True.
 
         Returns:
             None
@@ -2335,14 +2370,16 @@ class UVData(UVBase):
                              polarizations=polarizations, blt_inds=blt_inds,
                              read_data=read_data, read_metadata=read_metadata,
                              run_check=run_check, check_extra=check_extra,
-                             run_check_acceptability=run_check_acceptability)
+                             run_check_acceptability=run_check_acceptability,
+                             keep_missing_antennas=keep_missing_antennas)
 
             if select:
                 unique_times = np.unique(self.time_array)
                 times_to_keep = unique_times[np.where((unique_times >= np.min(time_range))
                                                       & (unique_times <= np.max(time_range)))]
                 self.select(times=times_to_keep, run_check=run_check, check_extra=check_extra,
-                            run_check_acceptability=run_check_acceptability)
+                            run_check_acceptability=run_check_acceptability,
+                            keep_missing_antennas=keep_missing_antennas)
 
         elif file_type == 'miriad':
             if (antenna_names is not None or frequencies is not None or freq_chans is not None
@@ -2377,7 +2414,8 @@ class UVData(UVBase):
                 self.select(antenna_names=antenna_names, frequencies=frequencies,
                             freq_chans=freq_chans, times=times,
                             blt_inds=blt_inds, run_check=run_check, check_extra=check_extra,
-                            run_check_acceptability=run_check_acceptability)
+                            run_check_acceptability=run_check_acceptability,
+                            keep_missing_antennas=keep_missing_antennas)
 
         elif file_type == 'fhd':
             if (antenna_nums is not None or antenna_names is not None
@@ -2403,7 +2441,8 @@ class UVData(UVBase):
                             freq_chans=freq_chans, times=times,
                             polarizations=polarizations, blt_inds=blt_inds,
                             run_check=run_check, check_extra=check_extra,
-                            run_check_acceptability=run_check_acceptability)
+                            run_check_acceptability=run_check_acceptability,
+                            keep_missing_antennas=keep_missing_antennas)
         elif file_type == 'ms':
             if (antenna_nums is not None or antenna_names is not None
                     or ant_str is not None or bls is not None
@@ -2428,7 +2467,8 @@ class UVData(UVBase):
                             freq_chans=freq_chans, times=times,
                             polarizations=polarizations, blt_inds=blt_inds,
                             run_check=run_check, check_extra=check_extra,
-                            run_check_acceptability=run_check_acceptability)
+                            run_check_acceptability=run_check_acceptability,
+                            keep_missing_antennas=keep_missing_antennas)
         elif file_type == 'uvh5':
             if (time_range is not None):
                 select = True
@@ -2444,14 +2484,16 @@ class UVData(UVBase):
                            polarizations=polarizations, blt_inds=blt_inds,
                            read_data=read_data, run_check=run_check, check_extra=check_extra,
                            run_check_acceptability=run_check_acceptability,
-                           data_array_dtype=data_array_dtype)
+                           data_array_dtype=data_array_dtype,
+                           keep_missing_antennas=keep_missing_antennas)
 
             if select:
                 unique_times = np.unique(self.time_array)
                 times_to_keep = unique_times[np.where((unique_times >= np.min(time_range))
                                                       & (unique_times <= np.max(time_range)))]
                 self.select(times=times_to_keep, run_check=run_check, check_extra=check_extra,
-                            run_check_acceptability=run_check_acceptability)
+                            run_check_acceptability=run_check_acceptability,
+                            keep_missing_antennas=keep_missing_antennas)
 
     def reorder_pols(self, order=None, run_check=True, check_extra=True,
                      run_check_acceptability=True):
@@ -3210,7 +3252,8 @@ class UVData(UVBase):
 
         return uvutils.get_baseline_redundancies(baseline_inds, baseline_vecs, tol=tol, with_conjugates=True)
 
-    def compress_by_redundancy(self, tol=1.0, inplace=True, metadata_only=False):
+    def compress_by_redundancy(self, tol=1.0, inplace=True, metadata_only=False,
+                               keep_missing_antennas=True):
         """
         Uses utility functions to find redundant baselines to the given tolerance, then select on those.
 
@@ -3219,6 +3262,8 @@ class UVData(UVBase):
             inplace: Do selection on current object.
             metadata_only: Option to only do the select on the metadata. Not allowed
                 if the data_array, flag_array or nsample_array is not None. (False)
+            keep_missing_antennas: Option to keep all the metadata associated with antennas,
+                even those that do not remain after the select option. (True)
         Returns:
             UVData: if not inplace, returns the compressed UVData object
         """
@@ -3226,7 +3271,8 @@ class UVData(UVBase):
         red_gps, centers, lengths, conjugates = self.get_baseline_redundancies(tol)
 
         bl_ants = [self.baseline_to_antnums(gp[0]) for gp in red_gps]
-        return self.select(bls=bl_ants, inplace=inplace, metadata_only=metadata_only)
+        return self.select(bls=bl_ants, inplace=inplace, metadata_only=metadata_only,
+                           keep_missing_antennas=keep_missing_antennas)
 
     def _set_u_positive(self):
         """

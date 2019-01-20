@@ -670,6 +670,26 @@ def test_select_antennas():
 
     nt.assert_equal(uv_object2, uv_object3)
 
+    # test removing metadata associated with antennas that are no longer present
+    # also add (different) antenna_diameters to test downselection
+    uv_object.antenna_diameters = 1. * np.ones((uv_object.Nants_telescope,), dtype=np.float)
+    for i in range(uv_object.Nants_telescope):
+        uv_object.antenna_diameters += i
+    uv_object4 = copy.deepcopy(uv_object)
+    uv_object4.select(antenna_nums=ants_to_keep, keep_missing_antennas=False)
+    nt.assert_equal(uv_object4.Nants_telescope, 9)
+    nt.assert_equal(set(uv_object4.antenna_numbers), set(ants_to_keep))
+    for a in ants_to_keep:
+        idx1 = uv_object.antenna_numbers.tolist().index(a)
+        idx2 = uv_object4.antenna_numbers.tolist().index(a)
+        nt.assert_equal(uv_object.antenna_names[idx1], uv_object4.antenna_names[idx2])
+        nt.assert_true(np.allclose(uv_object.antenna_positions[idx1, :],
+                                   uv_object4.antenna_positions[idx2, :]))
+        nt.assert_equal(uv_object.antenna_diameters[idx1], uv_object4.antenna_diameters[idx2])
+
+    # remove antenna_diameters from object
+    uv_object.antenna_diameters = None
+
     # check for errors associated with antennas not included in data, bad names or providing numbers and names
     nt.assert_raises(ValueError, uv_object.select,
                      antenna_nums=np.max(unique_ants) + np.arange(1, 3))
