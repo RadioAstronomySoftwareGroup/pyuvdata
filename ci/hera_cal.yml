@@ -1,0 +1,21 @@
+name: hera_cal
+channels:
+  - defaults
+  - conda-forge
+dependencies:
+  - aipy
+  - astropy
+  - h5py
+  - healpy
+  - matplotlib
+  - nose
+  - numpy
+  - pandas
+  - scikit-learn
+  - scipy
+  - six
+  - pip:
+    - .
+    - git+https://github.com/HERA-Team/linsolve.git
+    - git+https://github.com/HERA-Team/hera_qm.git
+    - git+https://github.com/HERA-Team/uvtools.git
