@@ -676,7 +676,7 @@ def test_select_antennas():
     for i in range(uv_object.Nants_telescope):
         uv_object.antenna_diameters += i
     uv_object4 = copy.deepcopy(uv_object)
-    uv_object4.select(antenna_nums=ants_to_keep, keep_missing_antennas=False)
+    uv_object4.select(antenna_nums=ants_to_keep, keep_all_metadata=False)
     nt.assert_equal(uv_object4.Nants_telescope, 9)
     nt.assert_equal(set(uv_object4.antenna_numbers), set(ants_to_keep))
     for a in ants_to_keep:

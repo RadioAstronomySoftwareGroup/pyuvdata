@@ -3,7 +3,7 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 ### Added
-- `keep_missing_antennas` keyword for optionally discarding unused antenna data when performing a select operation.
+- `keep_all_metadata` keyword for optionally discarding unused metadata when performing a select operation.
 
 ### Changed
 - Extends `run_acceptability_check` for UVH5 metadata in `check_header` function.
