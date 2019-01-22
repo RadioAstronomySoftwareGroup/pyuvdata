@@ -55,15 +55,18 @@ further defined and clarified by project maintainers.
 ## Enforcement
 
 Instances of abusive, harassing, or otherwise unacceptable behavior may be
-reported by contacting the RASG managers at rasgmanagers@gmail.com. All
-complaints will be reviewed and investigated and will result in a response that
+reported by contacting the RASG managers at `rasgmanagers@gmail.com
+<mailto:rasgmanagers@gmail.com>`. The list of managers who will receive the
+email is in the [readme](README.md). To report an issue involving any of the
+managers, you can email any subset of the managers directly.
+
+All complaints will be reviewed and investigated and will result in a response that
 is deemed necessary and appropriate to the circumstances. The RASG managers are
 obligated to maintain confidentiality with regard to the reporter of an incident.
-Further details of specific enforcement policies may be posted separately.
 
-Project maintainers who do not follow or enforce the Code of Conduct in good
-faith may face temporary or permanent repercussions as determined by other
-members of the project's leadership.
+Project maintainers or contributors who do not follow or enforce the Code of
+Conduct in good faith may be temporary or permanently removed from the project
+team or blocked from RASG repositories, Slack channels or telecons.
 
 ## Attribution
 
