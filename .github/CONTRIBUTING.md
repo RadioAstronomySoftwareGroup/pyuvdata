@@ -64,7 +64,7 @@ http://makeapullrequest.com/ and http://www.firsttimersonly.com/. If you have mo
 2. Do the changes in your fork
 3. If you like the change and think the project could use it:
   - If you're fixing a bug, include a new test that breaks as a result of the bug (if possible)
-  - Ensure that all your new code is covered by tests and that the existing tests pass.
+  - Ensure that all your new code is covered by tests and that the existing tests pass in both python 2 and 3.
   - Ensure that your code meets the PEP8 style guidelines. You can check that your code will pass our linting tests by running `pycodestyle . --ignore=E501,W503` in the top-level pyuvdata directory.
   - Ensure that you fully document any new features via docstrings and in the [tutorial](docs/tutorial.rst)
   - You can see the full pull request checklist [here](PULL_REQUEST_TEMPLATE.md)

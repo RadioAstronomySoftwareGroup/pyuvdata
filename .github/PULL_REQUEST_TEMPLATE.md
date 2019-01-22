@@ -25,6 +25,6 @@
 - [ ] If this is a bug fix, it includes a new test that breaks as a result of the bug (if possible)
 - [ ] If this is a breaking change, it includes backwards compatibility and deprecation warnings (if possible)
 - [ ] I have added tests to cover my changes.
-- [ ] All new and existing tests passed.
+- [ ] All new and existing tests pass in both python 2 and python 3.
 - [ ] My change requires an update to the [CHANGELOG](CHANGELOG.md).
   - [ ] I have updated the [CHANGELOG](CHANGELOG.md) accordingly.
