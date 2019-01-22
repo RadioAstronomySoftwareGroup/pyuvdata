@@ -142,10 +142,10 @@ described in the uvdata_parameters, uvcal_parameters and uvbeam_parameters descr
 
 # Maintainers
 pyuvdata is maintained by the RASG Managers, which currently include:
- - Adam Beardsley
- - Bryna Hazelton
- - Daniel Jacobs
- - Paul La Plante
- - Jonathon Pober
+ - Adam Beardsley (Arizona State University)
+ - Bryna Hazelton (University of Washington)
+ - Daniel Jacobs (Arizona State University)
+ - Paul La Plante (University of Pennsylvania)
+ - Jonathon Pober (Brown University)
 
 Please use the channels discussed in the [guide on contributing](.github/CONTRIBUTING.md) for code-related discussions. You can contact us privately if needed at rasgmanagers@gmail.com.
