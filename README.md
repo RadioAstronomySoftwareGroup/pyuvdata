@@ -146,6 +146,6 @@ pyuvdata is maintained by the RASG Managers, which currently include:
  - Bryna Hazelton (University of Washington)
  - Daniel Jacobs (Arizona State University)
  - Paul La Plante (University of Pennsylvania)
- - Jonathon Pober (Brown University)
+ - Jonathan Pober (Brown University)
 
 Please use the channels discussed in the [guide on contributing](.github/CONTRIBUTING.md) for code-related discussions. You can contact us privately if needed at [rasgmanagers@gmail.com](mailto:rasgmanagers@gmail.com).
