@@ -55,10 +55,9 @@ further defined and clarified by project maintainers.
 ## Enforcement
 
 Instances of abusive, harassing, or otherwise unacceptable behavior may be
-reported by contacting the RASG managers at `rasgmanagers@gmail.com
-<mailto:rasgmanagers@gmail.com>`. The list of managers who will receive the
-email is in the [readme](README.md). To report an issue involving any of the
-managers, you can email any subset of the managers directly.
+reported by contacting the RASG managers at [rasgmanagers@gmail.com](mailto:rasgmanagers@gmail.com).
+The list of managers who will receive the email is in the [readme](README.md).
+To report an issue involving any of the managers, you can email any subset of the managers directly.
 
 All complaints will be reviewed and investigated and will result in a response that
 is deemed necessary and appropriate to the circumstances. The RASG managers are
