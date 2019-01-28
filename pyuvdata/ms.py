@@ -138,17 +138,13 @@ class MS(UVData):
         # limit length of extra_keywords keys to 8 characters to match uvfits & miriad
         self.extra_keywords['DATA_COL'] = data_column
         # get frequency information from spectral window table
-<<<<<<< HEAD
-        tb_spws = tables.table(filepath + '/SPECTRAL_WINDOW')
+        tb_spws = tables.table(filepath + '/SPECTRAL_WINDOW', ack=False)
         spw_names = tb_spws.getcol('NAME')
         self.Nspws = len(spw_names)
         if self.Nspws > 1:
             raise ValueError('Sorry.  Files with more than one spectral'
                              'window (spw) are not yet supported. A '
                              'great project for the interested student!')
-=======
-        tb_spws = tables.table(filepath + '/SPECTRAL_WINDOW', ack=False)
->>>>>>> remove the annoying print statements about successfully reading tables
         freqs = tb_spws.getcol('CHAN_FREQ')
         self.freq_array = freqs
         self.Nfreqs = int(freqs.shape[1])
