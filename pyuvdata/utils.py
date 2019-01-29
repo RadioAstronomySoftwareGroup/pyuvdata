@@ -842,7 +842,7 @@ def get_baseline_redundancies(baseline_inds, baseline_vecs, tol=1.0, with_conjug
         bl_gps.append(group)
 
     # Groups can be different lengths, but we need to take a unique over an axis
-    # to properly identity unique groups
+    # to properly identify unique groups
     # Pad out all the sub-lists to be the same length
     pad = len(max(bl_gps, key=len))
     bl_gps = np.array([i + [-1] * (pad - len(i)) for i in bl_gps])
