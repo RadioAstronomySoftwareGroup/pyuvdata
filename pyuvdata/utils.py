@@ -455,6 +455,15 @@ def get_lst_for_time(jd_array, latitude, longitude, altitude):
     for ind, jd in enumerate(np.unique(jd_array)):
         t = Time(jd, format='jd', location=(Angle(longitude, unit='deg'),
                                             Angle(latitude, unit='deg')))
+
+        # avoid errors if iers.conf.auto_max_age is set to None, as we do in testing if the iers url is down
+        from astropy.utils import iers
+        delta, status = t.get_delta_ut1_utc(return_status=True)
+        if (((status == iers.TIME_BEFORE_IERS_RANGE) or (status == iers.TIME_BEYOND_IERS_RANGE))
+                and iers.conf.auto_max_age is None):  # pragma: no cover
+            warnings.warn('time is out of IERS range, setting delta ut1 utc to extrapolated value')
+            t.delta_ut1_utc = delta
+
         lst_array[np.where(np.isclose(
             jd, jd_array, atol=1e-6, rtol=1e-12))] = t.sidereal_time('apparent').radian
 
