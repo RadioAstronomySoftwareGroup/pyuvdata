@@ -94,6 +94,25 @@ def checkWarnings(func, func_args=[], func_kwargs={},
         warnings.simplefilter("always")  # All warnings triggered
         warnings.filterwarnings("ignore", message="numpy.dtype size changed")
         warnings.filterwarnings("ignore", message="numpy.ufunc size changed")
+
+        # filter iers warnings if iers.conf.auto_max_age is set to None, as we do in testing if the iers url is down
+        from astropy.utils import iers
+        if iers.conf.auto_max_age is None:
+            warnings.filterwarnings("ignore", message="failed to download")
+            warnings.filterwarnings("ignore", message="time is out of IERS range")
+
+            if isinstance(message, six.string_types):
+                test_message = [message.startswith("LST values stored in ")]
+            else:
+                test_message = []
+                for m in message:
+                    if m is None:
+                        test_message.append(False)
+                    else:
+                        test_message.append(m.startswith("LST values stored in "))
+            if not any(test_message):
+                warnings.filterwarnings("ignore", message="LST values stored in ")
+
         retval = func(*func_args, **func_kwargs)  # Run function
         # Verify
         if len(w) != nwarnings:
