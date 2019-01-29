@@ -10,6 +10,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 - Antenna numbering bug in redundancy methods. It wasn't using the correct antenna numbers to make baseline indices.
+- Redundancy code returns one group if all baselines are redundant. Previously returned each baseline as a separate group
 
 ## [1.3.5] - 2018-12-20
 
