@@ -841,8 +841,15 @@ def get_baseline_redundancies(baseline_inds, baseline_vecs, tol=1.0, with_conjug
         group.sort()
         bl_gps.append(group)
 
+    # Groups can be different lengths, but we need to take a unique over an axis
+    # to properly identity unique groups
+    # Pad out all the sub-lists to be the same length
+    pad = len(max(bl_gps, key=len))
+    bl_gps = np.array([i + [-1] * (pad - len(i)) for i in bl_gps])
     # We end up with multiple copies of each redundant group, so remove duplicates
-    bl_gps = np.unique(bl_gps).tolist()
+    bl_gps = np.unique(bl_gps, axis=0).tolist()
+    # remove the dummy pad baselines from each list
+    bl_gps = [[bl for bl in gp if bl != -1] for gp in bl_gps]
 
     # If all groups are one-element, the unique will flatten the list.
     if isinstance(bl_gps[0], int):

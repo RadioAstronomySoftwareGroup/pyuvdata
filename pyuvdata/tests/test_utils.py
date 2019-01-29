@@ -469,6 +469,23 @@ def test_redundancy_conjugates():
     nt.assert_equal(sorted(conjugates), sorted(expected_conjugates))
 
 
+def test_redundancy_finder_fully_redundant_array():
+    """Test the redundancy finder only returns one baseline group for fully redundant array."""
+    uvd = pyuvdata.UVData()
+    uvd.read_uvh5(os.path.join(DATA_PATH, 'test_redundant_array.uvh5'))
+    uvd.select(times=uvd.time_array[0])
+
+    tol = 1  # meters
+    bl_positions = uvd.uvw_array
+
+    baseline_groups, vec_bin_centers, lens, conjugates = uvutils.get_baseline_redundancies(uvd.baseline_array, bl_positions, tol=tol, with_conjugates=True)
+
+    # Only 1 set of redundant baselines
+    nt.assert_equal(len(baseline_groups), 1)
+    #  Should return the input baselines
+    nt.assert_equal(baseline_groups[0].sort(), np.unique(uvd.baseline_array).sort())
+
+
 def test_reraise_context():
     with nt.assert_raises(ValueError) as cm:
         try:
