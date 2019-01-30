@@ -851,10 +851,6 @@ def get_baseline_redundancies(baseline_inds, baseline_vecs, tol=1.0, with_conjug
     # remove the dummy pad baselines from each list
     bl_gps = [[bl for bl in gp if bl != -1] for gp in bl_gps]
 
-    # If all groups are one-element, the unique will flatten the list.
-    if isinstance(bl_gps[0], int):
-        bl_gps = list(map(lambda x: [x], bl_gps))
-
     N_unique = len(bl_gps)
     vec_bin_centers = np.zeros((N_unique, 3))
     for gi, gp in enumerate(bl_gps):
