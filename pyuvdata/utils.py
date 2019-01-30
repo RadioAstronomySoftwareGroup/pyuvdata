@@ -14,6 +14,7 @@ import warnings
 import copy
 from astropy.time import Time
 from astropy.coordinates import Angle
+from astropy.utils import iers
 
 # parameters for transforming between xyz & lat/lon/alt
 gps_b = 6356752.31424518
@@ -457,7 +458,6 @@ def get_lst_for_time(jd_array, latitude, longitude, altitude):
                                             Angle(latitude, unit='deg')))
 
         # avoid errors if iers.conf.auto_max_age is set to None, as we do in testing if the iers url is down
-        from astropy.utils import iers
         if iers.conf.auto_max_age is None:  # pragma: no cover
             delta, status = t.get_delta_ut1_utc(return_status=True)
             if ((status == iers.TIME_BEFORE_IERS_RANGE) or (status == iers.TIME_BEYOND_IERS_RANGE)):
