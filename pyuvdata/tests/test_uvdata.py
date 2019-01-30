@@ -2843,3 +2843,79 @@ def test_redundancy_missing_groups():
     uv2 = uv1.compress_by_redundancy(tol=tol, inplace=False)
 
     nt.assert_equal(np.unique(uv2.baseline_array).size, Nselect)
+
+
+def test_quick_redundant_vs_redundant_test_array():
+    """Verify the quick redundancy calc returns the same groups as a known array."""
+    uv = UVData()
+    uv.read_uvfits(os.path.join(DATA_PATH, 'hera19_8hrs_uncomp_10MHz_000_05.003111-05.033750.uvfits'))
+    uv.select(times=uv.time_array[0])
+    uv.unphase_to_drift(use_ant_pos=True)
+    uv._set_u_positive()
+    tol = 0.05
+    # a quick and dirty redundancy calculation
+    unique_bls, baseline_inds = np.unique(uv.baseline_array, return_index=True)
+    uvw_vectors = np.take(uv.uvw_array, baseline_inds, axis=0)
+    uvw_diffs = np.expand_dims(uvw_vectors, axis=0) - np.expand_dims(uvw_vectors, axis=1)
+    uvw_diffs = np.linalg.norm(uvw_diffs, axis=2)
+
+    reds = np.where(uvw_diffs < tol, unique_bls, 0)
+    reds = np.ma.masked_where(reds == 0, reds)
+    groups = []
+    for bl in reds:
+        grp = []
+        grp.extend(bl.compressed())
+        for other_bls in reds:
+            if set(reds.compressed()).issubset(other_bls.compressed()):
+                grp.extend(other_bls.compressed())
+        grp = np.unique(grp).tolist()
+        groups.append(grp)
+
+    pad = len(max(groups, key=len))
+    groups = np.array([i + [-1] * (pad - len(i)) for i in groups])
+    groups = np.unique(groups, axis=0)
+    groups = [[bl for bl in grp if bl != -1] for grp in groups]
+    groups.sort(key=len)
+
+    redundant_groups, centers, lengths, conj_inds = uv.get_baseline_redundancies(tol=tol)
+    redundant_groups.sort(key=len)
+    nt.assert_equal(groups, redundant_groups)
+
+
+def test_redundancy_finder_when_nblts_not_nbls_times_ntimes():
+    """Test the redundancy finder functions when Nblts != Nbls * Ntimes."""
+    tol = 1  # meter
+    uv = UVData()
+    testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    uvtest.checkWarnings(uv.read_uvfits, [testfile], message='Telescope EVLA is not')
+    uv._set_u_positive()
+    # check that Nblts != Nbls * Ntimes
+    nt.assert_not_equal(uv.Nblts, uv.Nbls * uv.Ntimes)
+
+    # a quick and dirty redundancy calculation
+    unique_bls, baseline_inds = np.unique(uv.baseline_array, return_index=True)
+    uvw_vectors = np.take(uv.uvw_array, baseline_inds, axis=0)
+    uvw_diffs = np.expand_dims(uvw_vectors, axis=0) - np.expand_dims(uvw_vectors, axis=1)
+    uvw_diffs = np.linalg.norm(uvw_diffs, axis=2)
+
+    reds = np.where(uvw_diffs < tol, unique_bls, 0)
+    reds = np.ma.masked_where(reds == 0, reds)
+    groups = []
+    for bl in reds:
+        grp = []
+        grp.extend(bl.compressed())
+        for other_bls in reds:
+            if set(reds.compressed()).issubset(other_bls.compressed()):
+                grp.extend(other_bls.compressed())
+        grp = np.unique(grp).tolist()
+        groups.append(grp)
+
+    pad = len(max(groups, key=len))
+    groups = np.array([i + [-1] * (pad - len(i)) for i in groups])
+    groups = np.unique(groups, axis=0)
+    groups = [[bl for bl in grp if bl != -1] for grp in groups]
+    groups.sort(key=len)
+
+    redundant_groups, centers, lengths, conj_inds = uv.get_baseline_redundancies(tol=tol)
+
+    nt.assert_equal(groups, redundant_groups.sort(key=len))
