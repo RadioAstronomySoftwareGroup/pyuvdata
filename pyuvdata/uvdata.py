@@ -3247,8 +3247,10 @@ class UVData(UVBase):
             lengths: List of redundant group baseline lengths in meters
             baseline_ind_conj: List of baselines that are redundant when reversed. (Only returned if with_conjugates is True)
         """
-        baseline_vecs = self.uvw_array[:self.Nbls]
-        baseline_inds = self.baseline_array[:self.Nbls]
+        _, unique_inds = np.unique(self.baseline_array, return_index=True)
+        unique_inds.sort()
+        baseline_vecs = np.take(self.uvw_array, unique_inds, axis=0)
+        baseline_inds = np.take(self.baseline_array, unique_inds)
 
         return uvutils.get_baseline_redundancies(baseline_inds, baseline_vecs, tol=tol, with_conjugates=True)
 
