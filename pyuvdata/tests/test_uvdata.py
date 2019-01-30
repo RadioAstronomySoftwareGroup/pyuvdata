@@ -2917,5 +2917,5 @@ def test_redundancy_finder_when_nblts_not_nbls_times_ntimes():
     groups.sort(key=len)
 
     redundant_groups, centers, lengths, conj_inds = uv.get_baseline_redundancies(tol=tol)
-
-    nt.assert_equal(groups, redundant_groups.sort(key=len))
+    redundant_groups.sort(key=len)
+    nt.assert_equal(groups, redundant_groups)
