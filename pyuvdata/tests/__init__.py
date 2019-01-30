@@ -144,7 +144,7 @@ def skipIf_no_casa(test_func):
     try:
         import casacore
     except(ImportError):
-            return skip(reason)(test_func)
+        return skip(reason)(test_func)
     return test_func
 
 
@@ -154,7 +154,7 @@ def skipIf_no_healpy(test_func):
     try:
         import healpy
     except(ImportError):
-            return skip(reason)(test_func)
+        return skip(reason)(test_func)
     return test_func
 
 
@@ -164,5 +164,5 @@ def skipIf_no_h5py(test_func):
     try:
         import h5py
     except(ImportError):
-            return skip(reason)(test_func)
+        return skip(reason)(test_func)
     return test_func
