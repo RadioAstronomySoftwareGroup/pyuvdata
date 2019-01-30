@@ -753,7 +753,7 @@ class UVBeam(UVBase):
                              'the UVBeam freq_array range.')
 
         def get_lambda(real_lut, imag_lut=None):
-                # Returns function objects for interpolation reuse
+            # Returns function objects for interpolation reuse
             if imag_lut is None:
                 return lambda freqs: real_lut(freqs)
             else:
@@ -850,7 +850,7 @@ class UVBeam(UVBase):
             interp_basis_vector = None
 
         def get_lambda(real_lut, imag_lut=None):
-                # Returns function objects for interpolation reuse
+            # Returns function objects for interpolation reuse
             if imag_lut is None:
                 return lambda za, az: real_lut(za, az, grid=False)
             else:
