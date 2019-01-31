@@ -3024,7 +3024,6 @@ class UVData(UVBase):
         pols_data = self.get_pols()
         warned_ants = []
         warned_pols = []
-        warnings.simplefilter('always')
 
         if ant_str.startswith('-'):
             ant_str = 'all,' + ant_str
