@@ -12,6 +12,7 @@ import numpy as np
 import copy
 
 from pyuvdata.uvbase import UVBase
+from pyuvdata.uvbase import _warning
 from pyuvdata import parameter as uvp
 
 ref_latlonalt = (-26.7 * np.pi / 180.0, 116.7 * np.pi / 180.0, 377.8)
@@ -224,3 +225,8 @@ def test_location_degree_none():
     test_obj.location = None
     test_obj2.location_lat_lon_alt_degrees = None
     nt.assert_equal(test_obj, test_obj2)
+
+
+def test_warning():
+    output = _warning("hello world")
+    nt.assert_equal(output, "hello world\n")
