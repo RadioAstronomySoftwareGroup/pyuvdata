@@ -100,6 +100,23 @@ def test_multi_len_spw():
 
 
 @uvtest.skipIf_no_casa
+def test_extra_pol_setup():
+    """Test reading in an ms file with extra polarization setups (not used in data)."""
+    UV = UVData()
+    testfile = os.path.join(DATA_PATH, 'X5707_1spw_1scan_10chan_1time_1bl_noatm.ms.tar.gz')
+
+    import tarfile
+    with tarfile.open(testfile) as tf:
+        new_filename = os.path.join(DATA_PATH, tf.getnames()[0])
+        tf.extractall(path=DATA_PATH)
+
+    UV.read(new_filename, file_type='ms')
+
+    # delete the untarred folder
+    shutil.rmtree(new_filename)
+
+
+@uvtest.skipIf_no_casa
 def test_readMSreadUVFITS():
     """
     Test that a uvdata object instantiated from an ms file created with CASA's
