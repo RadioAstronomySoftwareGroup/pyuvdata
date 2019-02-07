@@ -31,7 +31,11 @@ history = ' '.join(sys.argv)
 for filename in args.files:
 
     # check output
-    outfilename = filename + '.uvfits'
+    splitext = os.path.splitext(filename)[1]
+    if splitext[1] == '.uvh5':
+        outfilename = splitext[0] + '.uvfits'
+    else:
+        outfilename = filename + '.uvfits'
     if os.path.exists(outfilename) and args.overwrite is False:
         print("{} exists, not overwriting...".format(outfilename))
         continue
