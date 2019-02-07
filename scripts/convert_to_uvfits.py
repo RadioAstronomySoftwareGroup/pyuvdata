@@ -5,7 +5,7 @@
 
 """
 A command-line script for converting
-a Miriad file to UVFITS format
+any pyuvdata compatible file to UVFITS format
 """
 
 from __future__ import absolute_import, division, print_function
@@ -17,8 +17,8 @@ import pyuvdata
 from astropy.time import Time
 
 # setup argparse
-a = argparse.ArgumentParser(description="A command-line script for converting a Miriad file to UVFITS format.")
-a.add_argument("files", type=str, nargs='*', help="Miriad files to convert to uvfits.")
+a = argparse.ArgumentParser(description="A command-line script for converting file(s) to UVFITS format.")
+a.add_argument("files", type=str, nargs='*', help="pyuvdata-compatible file(s) to convert to uvfits.")
 a.add_argument("--phase_time", type=float, default=None, help="Julian Date to phase data to. Default is the first integration of the file.")
 a.add_argument("--overwrite", default=False, action='store_true', help="overwrite output file if it already exists.")
 a.add_argument("--verbose", default=False, action='store_true', help="report feedback to stdout.")
@@ -38,7 +38,7 @@ for filename in args.files:
 
     # read in file
     UV = pyuvdata.UVData()
-    UV.read_miriad(filename)
+    UV.read(filename)
 
     if UV.phase_type == 'drift':
         # phase data
