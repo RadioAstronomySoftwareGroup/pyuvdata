@@ -91,11 +91,10 @@ extra dependencies for HEALPix beams and CASA measurement set functionalities.
 Clone the repository using
 ```git clone https://github.com/RadioAstronomySoftwareGroup/pyuvdata.git```
 
-Navigate into the directory and run ```python setup.py install```.
+Navigate into the directory and run `pip install .`.
 Note that this will attempt to automatically install any missing dependencies. If you use anaconda or another package manager you might prefer to first install the dependencies as described below.
 
-To install without dependencies, run
-```python setup.py develop --no-deps``` or ```pip install --no-deps```
+To install without dependencies, run `pip install --no-deps`
 
 To compile the binary extension modules such that you can successfully run `import pyuvdata` from the top-level directory of your Git checkout, run:
 
@@ -127,7 +126,10 @@ If you do not want to use conda, the casacore c++ libraries are available for ub
 
 ### For working with beams in HEALPix formats, install healpy
 To install via conda,  run
-```conda install -c conda-forge healpy```
+
+`conda config --add channels conda-forge`
+
+`conda install healpy`
 
 
 ## Tests
