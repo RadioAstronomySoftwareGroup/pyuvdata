@@ -10,10 +10,12 @@ from __future__ import absolute_import, division, print_function
 import os
 import shutil
 import copy
+import six
 import numpy as np
 import nose.tools as nt
 from astropy.time import Time, TimeDelta
 from astropy import constants as const
+from astropy.utils import iers
 
 from pyuvdata import UVData
 from pyuvdata.miriad import Miriad
@@ -923,13 +925,19 @@ def test_readMiriadwriteMiraid_check_time_format():
 
     # assert starting time array and lst array are shifted by half integration
     nt.assert_almost_equal(uvd_t, uv_t)
-    nt.assert_almost_equal(uvd_l, uv_l, delta=1e-8)
+
+    # avoid errors if IERS table is too old (if the iers url is down)
+    if iers.conf.auto_max_age is None and six.PY2:
+        tolerance = 2e-5
+    else:
+        tolerance = 1e-8
+    nt.assert_almost_equal(uvd_l, uv_l, delta=tolerance)
     # test write-out
     fout = os.path.join(DATA_PATH, 'ex_miriad')
     uvd.write_miriad(fout, clobber=True)
     # assert equal to original miriad time
     uv2 = aipy_extracts.UV(fout)
     nt.assert_almost_equal(uv['time'], uv2['time'])
-    nt.assert_almost_equal(uv['lst'], uv2['lst'])
+    nt.assert_almost_equal(uv['lst'], uv2['lst'], delta=tolerance)
     if os.path.exists(fout):
         shutil.rmtree(fout)
