@@ -242,3 +242,17 @@ def test_multi_files():
     nt.assert_equal(uv_multi, uv_full)
     del(uv_full)
     del(uv_multi)
+
+
+@uvtest.skipIf_no_casa
+def test_bad_col_name():
+    """
+    Test error with invalid column name.
+    """
+    UV = UVData()
+    testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.ms')
+
+    with nt.assert_raises(ValueError) as cm:
+        UV.read_ms(testfile, data_column='FOO')
+    ex = cm.exception  # raised exception is available through exception property of context
+    nt.assert_true(ex.args[0].startswith('Invalid data_column value supplied'))
