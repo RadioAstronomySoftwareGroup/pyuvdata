@@ -903,7 +903,7 @@ def test_antpos_units():
     nt.assert_true(np.allclose(aantpos, uv.antenna_positions))
 
 
-def test_readMiriadwriteMiraid_check_time_format():
+def test_readMiriadwriteMiriad_check_time_format():
     """
     test time_array is converted properly from Miriad format
     """
@@ -920,7 +920,8 @@ def test_readMiriadwriteMiraid_check_time_format():
     t1 = Time(uv['time'], format='jd', location=(lon, lat))
     dt = TimeDelta(uv['inttime'] / 2, format='sec')
     t2 = t1 + dt
-    delta_lst = t2.sidereal_time('apparent').radian - t1.sidereal_time('apparent').radian
+    lsts = uvutils.get_lst_for_time(np.array([t1.jd, t2.jd]), lat, lon, alt)
+    delta_lst = lsts[1] - lsts[0]
     uv_l = uv['lst'] + delta_lst
 
     # assert starting time array and lst array are shifted by half integration
