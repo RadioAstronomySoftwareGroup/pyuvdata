@@ -19,9 +19,11 @@ from astropy.time import Time
 # setup argparse
 a = argparse.ArgumentParser(description="A command-line script for converting file(s) to UVFITS format.")
 a.add_argument("files", type=str, nargs='*', help="pyuvdata-compatible file(s) to convert to uvfits.")
+a.add_argument("--output_filename", type=str, default=None, help="Filepath of output file. Default is input with suffix replaced by .uvfits")
 a.add_argument("--phase_time", type=float, default=None, help="Julian Date to phase data to. Default is the first integration of the file.")
 a.add_argument("--overwrite", default=False, action='store_true', help="overwrite output file if it already exists.")
 a.add_argument("--verbose", default=False, action='store_true', help="report feedback to stdout.")
+
 
 # get args
 args = a.parse_args()
@@ -31,11 +33,18 @@ history = ' '.join(sys.argv)
 for filename in args.files:
 
     # check output
-    splitext = os.path.splitext(filename)[1]
-    if splitext[1] == '.uvh5':
-        outfilename = splitext[0] + '.uvfits'
+    if args.output_filename is None:
+        splitext = os.path.splitext(filename)[1]
+        if splitext[1] == '.uvh5':
+            outfilename = splitext[0] + '.uvfits'
+        elif splitext[1] in ['.ms', '.MS']:
+            outfilename = splitext[0] + '.uvfits'
+        elif splitext[1] == '.sav':
+            outfilename = splitext[0] + '.uvfits'
+        else:
+            outfilename = filename + '.uvfits'
     else:
-        outfilename = filename + '.uvfits'
+        outfilename = args.output_filename
     if os.path.exists(outfilename) and args.overwrite is False:
         print("{} exists, not overwriting...".format(outfilename))
         continue
