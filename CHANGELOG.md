@@ -2,6 +2,9 @@
 All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
+
+## [1.3.6] - 2019-02-15
+
 ### Added
 - `keep_all_metadata` keyword for optionally discarding unused metadata when performing a select operation.
 
