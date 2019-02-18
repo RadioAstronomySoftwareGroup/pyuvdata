@@ -2837,7 +2837,10 @@ def test_redundancy_missing_groups():
     uvtest.checkWarnings(
         uv1.inflate_by_redundancy,
         [tol],
-        message="Missing some redundant groups. Filling in available data."
+        nwarnings=2,
+        category=[DeprecationWarning, UserWarning],
+        message=['The default for the `center` keyword has changed.',
+                 'Missing some redundant groups. Filling in available data.']
     )
 
     uv2 = uv1.compress_by_redundancy(tol=tol, inplace=False)
