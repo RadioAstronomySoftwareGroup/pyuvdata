@@ -3285,7 +3285,7 @@ class UVData(UVBase):
         for i, bl in enumerate(self.baseline_array):
             a1, a2 = self.ant_1_array[i], self.ant_2_array[i]
             i1, i2 = anum.index(a1), anum.index(a2)
-            u,v,w = enu[i2] - enu[i1]
+            u, v, w = enu[i2] - enu[i1]
             flip_bl = (u < 0) or (v < 0 and u == 0) or (w < 0 and u == v == 0)
             if flip_bl:
                 self.uvw_array[i] *= (-1)
