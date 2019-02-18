@@ -15,6 +15,7 @@ All notable changes to this project will be documented in this file.
 - Antenna numbering bug in redundancy methods. It wasn't using the correct antenna numbers to make baseline indices.
 - Redundancy code returns one group if all baselines are redundant. Previously returned each baseline as a separate group
 - Redundancy code finds unique baselines along baseline_array without assuming Nblts = Nbls \* Ntimes. Previously assumed Nblts = Nbls \* Ntimes and attempted to slice array.
+- "inflate_by_redundancy" method errored when phase_type == phased, due to _set_u_positive using phased uvw coordinates. It now uses ENU frame uvw coordinates.
 
 ## [1.3.5] - 2018-12-20
 
