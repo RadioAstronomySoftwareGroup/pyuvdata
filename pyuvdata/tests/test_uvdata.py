@@ -2762,7 +2762,7 @@ def test_redundancy_contract_expand():
     # and restored to its original form.
 
     uv0 = UVData()
-    uv0.read_uvfits(os.path.join(DATA_PATH, 'hera19_8hrs_uncomp_10MHz_000_05.003111-05.033750.uvfits'))
+    uv0.read_uvh5(os.path.join(DATA_PATH, 'fewant_randsrc_airybeam_Nsrc100_10MHz.uvh5'))
     tol = 0.01
 
     # Assign identical data to each redundant group:
