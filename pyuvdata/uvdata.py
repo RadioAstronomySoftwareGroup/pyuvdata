@@ -3277,11 +3277,15 @@ class UVData(UVBase):
 
     def _set_u_positive(self):
         """
-        Flip and conjugate data/baselines to follow the u-positive convention.
+        Flip and conjugate data/baselines to follow the u-positive convention:
+            In ENU frame,  u>0, v>0 if u==0, and w>0 if u==v==0.
         """
+        enu, anum = self.get_ENU_antpos()
+        anum = anum.tolist()
         for i, bl in enumerate(self.baseline_array):
             a1, a2 = self.ant_1_array[i], self.ant_2_array[i]
-            u, v, w = self.uvw_array[i]
+            i1, i2 = anum.index(a1), anum.index(a2)
+            u,v,w = enu[i2] - enu[i1]
             flip_bl = (u < 0) or (v < 0 and u == 0) or (w < 0 and u == v == 0)
             if flip_bl:
                 self.uvw_array[i] *= (-1)
@@ -3319,7 +3323,6 @@ class UVData(UVBase):
                     break
 
         Nbls_full = len(bl_array_full)
-
         blt_map = np.zeros(Nbls_full * self.Ntimes, dtype=int)
         missing = np.zeros(Nbls_full * self.Ntimes).astype(bool)
         for i, gi in enumerate(group_index):
@@ -3346,6 +3349,7 @@ class UVData(UVBase):
         self.Nblts = self.Nbls * self.Ntimes
         self.time_array = np.repeat(np.unique(self.time_array), self.Nbls)
         self.lst_array = np.repeat(np.unique(self.lst_array), self.Nbls)
-        self.integration_time = self.integration_time[blt_map]  # TODO Check this
+        self.integration_time = self.integration_time[blt_map]
         self.uvw_array = self.uvw_array[blt_map, ...]
+
         self.check()
