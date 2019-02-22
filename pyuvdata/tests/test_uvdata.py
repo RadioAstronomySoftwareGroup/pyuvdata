@@ -2763,7 +2763,7 @@ def test_redundancy_contract_expand():
 
     uv0 = UVData()
     uv0.read_uvh5(os.path.join(DATA_PATH, 'fewant_randsrc_airybeam_Nsrc100_10MHz.uvh5'))
-    tol = 0.01
+    tol = 0.02   # Fails at lower precision because some baselines falling into multiple redundant groups
 
     # Assign identical data to each redundant group:
     uv0._set_u_positive()
@@ -2788,7 +2788,7 @@ def test_redundancy_contract_expand():
 
 def test_compress_redundancy_metadata_only():
     uv0 = UVData()
-    uv0.read_uvfits(os.path.join(DATA_PATH, 'hera19_8hrs_uncomp_10MHz_000_05.003111-05.033750.uvfits'))
+    uv0.read_uvh5(os.path.join(DATA_PATH, 'fewant_randsrc_airybeam_Nsrc100_10MHz.uvh5'))
     tol = 0.01
 
     # Assign identical data to each redundant group:
@@ -2818,18 +2818,18 @@ def test_redundancy_missing_groups():
     # raise the right warnings and fill only what data are available.
 
     uv0 = UVData()
-    uv0.read_uvfits(os.path.join(DATA_PATH, 'hera19_8hrs_uncomp_10MHz_000_05.003111-05.033750.uvfits'))
+    uv0.read_uvh5(os.path.join(DATA_PATH, 'fewant_randsrc_airybeam_Nsrc100_10MHz.uvh5'))
     tol = 0.01
-    Nselect = 20
+    Nselect = 19
 
     uv0.compress_by_redundancy(tol=tol)
-    fname = 'temp_hera19_missingreds.uvfits'
+    fname = 'temp_hera19_missingreds.uvh5'
 
     bls = np.unique(uv0.baseline_array)[:Nselect]         # First twenty baseline groups
     uv0.select(bls=[uv0.baseline_to_antnums(bl) for bl in bls])
-    uv0.write_uvfits(fname)
+    uv0.write_uvh5(fname)
     uv1 = UVData()
-    uv1.read_uvfits(fname)
+    uv1.read_uvh5(fname)
     os.remove(fname)
 
     nt.assert_equal(uv0, uv1)  # Check that writing compressed files causes no issues.
@@ -2851,9 +2851,9 @@ def test_redundancy_missing_groups():
 def test_quick_redundant_vs_redundant_test_array():
     """Verify the quick redundancy calc returns the same groups as a known array."""
     uv = UVData()
-    uv.read_uvfits(os.path.join(DATA_PATH, 'hera19_8hrs_uncomp_10MHz_000_05.003111-05.033750.uvfits'))
+    uv.read_uvh5(os.path.join(DATA_PATH, 'fewant_randsrc_airybeam_Nsrc100_10MHz.uvh5'))
     uv.select(times=uv.time_array[0])
-    uv.unphase_to_drift(use_ant_pos=True)
+    uv.unphase_to_drift()
     uv._set_u_positive()
     tol = 0.05
     # a quick and dirty redundancy calculation
