@@ -361,9 +361,11 @@ def test_redundancy_finder():
         redundant groups for a test file with the HERA19 layout.
     """
     uvd = pyuvdata.UVData()
-    uvd.read_uvfits(os.path.join(DATA_PATH, 'hera19_8hrs_uncomp_10MHz_000_05.003111-05.033750.uvfits'))
+    uvd.read_uvh5(os.path.join(DATA_PATH, 'fewant_randsrc_airybeam_Nsrc100_10MHz.uvh5'))
+
     uvd.select(times=uvd.time_array[0])
-    uvd.unphase_to_drift(use_ant_pos=True)   # uvw_array is now equivalent to baseline positions
+    uvd.unphase_to_drift()   # uvw_array is now equivalent to baseline positions
+    uvd._set_u_positive()
 
     tol = 0.05  # meters
 
@@ -409,9 +411,9 @@ def test_redundancy_finder():
                                            message='The default for the `center` '
                                                    'keyword has changed')
     baseline_groups_ants, vec_bin_centers, lens = uvutils.get_antenna_redundancies(antnums, antpos,
-                                                                                   tol=tol, include_autos=True)
-    # Under these conditions, should see 31 redundant groups in the file.
-    nt.assert_equal(len(baseline_groups_ants), 31)
+                                                                                   tol=tol, include_autos=False)
+    # Under these conditions, should see 19 redundant groups in the file.
+    nt.assert_equal(len(baseline_groups_ants), 19)
 
     # Check with conjugated baseline redundancies returned
     u16_0 = bl_positions[16, 0]
