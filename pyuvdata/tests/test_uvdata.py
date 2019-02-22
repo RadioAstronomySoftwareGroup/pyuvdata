@@ -2819,7 +2819,7 @@ def test_redundancy_missing_groups():
 
     uv0 = UVData()
     uv0.read_uvh5(os.path.join(DATA_PATH, 'fewant_randsrc_airybeam_Nsrc100_10MHz.uvh5'))
-    tol = 0.01
+    tol = 0.02
     Nselect = 19
 
     uv0.compress_by_redundancy(tol=tol)
