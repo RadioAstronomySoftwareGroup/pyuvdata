@@ -837,7 +837,7 @@ The ``get_antenna_redundancies`` function accepts an array of antenna indices an
     >>> uvd = UVData()
 
     # This file contains a HERA19 layout.
-    >>> uvd.read_uvfits("pyuvdata/data/hera19_8hrs_uncomp_10MHz_000_05.003111-05.033750.uvfits")
+    >>> uvd.read_uvh5("pyuvdata/data/fewant_randsrc_airybeam_Nsrc100_10MHz.uvh5")
     >>> uvd.unphase_to_drift(use_ant_pos=True)
     >>> tol = 0.05  # Tolerance in meters
     >>> uvd.select(times=uvd.time_array[0])
@@ -845,24 +845,24 @@ The ``get_antenna_redundancies`` function accepts an array of antenna indices an
     # Returned values: list of redundant groups, corresponding mean baseline vectors, baseline lengths.
     >>> baseline_groups, vec_bin_centers, lengths = uvutils.get_baseline_redundancies(uvd.baseline_array, uvd.uvw_array, tol=tol)
     >>> print(len(baseline_groups))
-    52
+    19
 
     # The with_conjugates option includes baselines that are redundant when reversed.
     # If used, the conjugates list will contain a list of indices of baselines that must be flipped to be redundant.
     >>> baseline_groups, vec_bin_centers, lengths, conjugates = uvutils.get_baseline_redundancies(uvd.baseline_array, uvd.uvw_array, tol=tol, with_conjugates=True)
     >>> print(len(baseline_groups))
-    31
+    19
 
     # Using antenna positions instead
     >>> antpos, antnums = uvd.get_ENU_antpos()
     >>> baseline_groups, vec_bin_centers, lengths = uvutils.get_antenna_redundancies(antnums, antpos, tol=tol, include_autos=True)
     >>> print(len(baseline_groups))
-    31
+    20
 
     # get_antenna_redundancies has the option to ignore autocorrelations.
     >>> baseline_groups, vec_bin_centers, lengths = uvutils.get_antenna_redundancies(antnums, antpos, tol=tol, include_autos=False)
     >>> print(len(baseline_groups))
-    30
+    19
 
 UVData: Compressing/inflating on Redundant Baselines
 ----------------------------------------------------
@@ -873,8 +873,8 @@ Since redundant baselines should have similar visibilities, some level of data c
     >>> import copy
     >>> import numpy as np
     >>> uv0 = UVData()
-    >>> uv0.read_uvfits("pyuvdata/data/hera19_8hrs_uncomp_10MHz_000_05.003111-05.033750.uvfits")
-    >>> tol = 0.01   # In meters
+    >>> uv0.read_uvh5("pyuvdata/data/fewant_randsrc_airybeam_Nsrc100_10MHz.uvh5")
+    >>> tol = 0.02   # In meters
 
     # Compression can be run in-place or return a separate UVData object.
     >>> uv2 = uv0.compress_by_redundancy(tol=tol, inplace=False)
