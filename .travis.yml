@@ -48,6 +48,9 @@ install:
 
   # install dependencies
   - conda install numpy scipy astropy nose pip h5py six healpy python-casacore pycodestyle coveralls python="$PYTHON_VERSION"
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then
+      conda install gcc_linux-64 gxx_linux-64;
+    fi
   - conda list
   - python --version
   # check that the python version matches the desired one; exit immediately if not
