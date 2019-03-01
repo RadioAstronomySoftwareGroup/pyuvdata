@@ -7,6 +7,7 @@
 """
 from __future__ import absolute_import, division, print_function
 
+import os
 import numpy as np
 import warnings
 import copy
@@ -1817,34 +1818,66 @@ class UVBeam(UVBase):
                                     clobber=clobber)
         del(beamfits_obj)
 
-    def read_cst_beam(self, filename, beam_type='power', feed_pol='x', rotate_pol=None,
+    def _read_cst_beam_yaml(self, filename):
+        import yaml
+
+        with open(filename, 'r') as file:
+            settings_dict = yaml.safe_load(file)
+
+        required_keys = ['telescope_name', 'feed_name', 'feed_version',
+                         'model_name', 'model_version', 'history', 'frequencies',
+                         'filenames', 'feed_pol']
+
+        for key in required_keys:
+            if key not in settings_dict:
+                raise ValueError('{key} is a required key in CST settings files '
+                                 'but is not present.'.format(key=key))
+
+        return settings_dict
+
+    def read_cst_beam(self, filename, beam_type='power', feed_pol=None, rotate_pol=None,
                       frequency=None, telescope_name=None, feed_name=None,
                       feed_version=None, model_name=None, model_version=None,
-                      history='', run_check=True, check_extra=True,
+                      history=None, frequency_select=None, run_check=True, check_extra=True,
                       run_check_acceptability=True):
         """
         Read in data from a cst file.
 
         Args:
-            filename: The cst file or list of files to read from. If a list is passed,
+            filename (str): Either a settings yaml file or a cst text file or
+                list of cst text files to read from. If a list is passed,
                 the files are combined along the appropriate axes.
-            beam_type: what beam_type to read in ('power' or 'efield'). Defaults to 'power'.
-            feed_pol: the feed or polarization or list of feeds or polarizations the files correspond to.
+                Settings yaml files must include the following:
+                    |  telescope_name (str)
+                    |  feed_name (str)
+                    |  feed_version (str)
+                    |  model_name (str)
+                    |  model_version (str)
+                    |  history (str)
+                    |  frequencies (list(float))
+                    |  cst text filenames (list(str)) -- path relative to yaml file location
+                    |  feed_pol (str) or (list(str))
+                Specifying any of the associated keywords to this function will
+                override the values in the settings file.
+            beam_type (str): what beam_type to read in ('power' or 'efield'). Defaults to 'power'.
+            feed_pol (str): the feed or polarization or list of feeds or polarizations the files correspond to.
                 Defaults to 'x' (meaning x for efield or xx for power beams).
-            rotate_pol: If True, assume the structure in the simulation is symmetric under
+            rotate_pol (bool): If True, assume the structure in the simulation is symmetric under
                 90 degree rotations about the z-axis (so that the y polarization can be
                 constructed by rotating the x polarization or vice versa).
                 Default: True if feed_pol is a single value, False if it is a list.
-            frequency: the frequency or list of frequencies corresponding to the filename(s).
-                This is assumed to be in the same order as the files, so if it's used,
-                make sure the files are an ordered datatype.
+            frequency (list(float)): the frequency or list of frequencies corresponding to the filename(s).
+                This is assumed to be in the same order as the files.
                 If not passed, the code attempts to parse it from the filenames.
-            telescope_name: the name of the telescope corresponding to the filename(s).
-            feed_name: the name of the feed corresponding to the filename(s).
-            feed_version: the version of the feed corresponding to the filename(s).
-            model_name: the name of the model corresponding to the filename(s).
-            model_version: the version of the model corresponding to the filename(s).
-            history: A string detailing the history of the filename(s).
+            telescope_name (str): the name of the telescope corresponding to the filename(s).
+            feed_name (str): the name of the feed corresponding to the filename(s).
+            feed_version (str): the version of the feed corresponding to the filename(s).
+            model_name (str): the name of the model corresponding to the filename(s).
+            model_version (str): the version of the model corresponding to the filename(s).
+            history (str): A string detailing the history of the filename(s).
+            frequency_select (list(float)):
+                Only used if the file is a yaml file. Indicates which frequencies
+                to include (only read in files for those frequencies)
             run_check: Option to check for the existence and proper shapes of
                 required parameters after reading in the file. Default is True.
             check_extra: Option to check optional parameters as well as
@@ -1860,6 +1893,53 @@ class UVBeam(UVBase):
         if isinstance(filename, (list, tuple)):
             if len(filename) == 1:
                 filename = filename[0]
+
+        if not isinstance(filename, (list, tuple)) and filename.endswith('yaml'):
+            settings_dict = self._read_cst_beam_yaml(filename)
+            yaml_dir = os.path.dirname(filename)
+            cst_filename = [os.path.join(yaml_dir, f) for f in settings_dict['filenames']]
+            if feed_pol is None:
+                feed_pol = settings_dict['feed_pol']
+            if frequency is None:
+                frequency = settings_dict['frequencies']
+            if telescope_name is None:
+                telescope_name = settings_dict['telescope_name']
+            if feed_name is None:
+                feed_name = settings_dict['feed_name']
+            if feed_version is None:
+                feed_version = str(settings_dict['feed_version'])
+            if model_name is None:
+                model_name = settings_dict['model_name']
+            if model_version is None:
+                model_version = str(settings_dict['model_version'])
+            if history is None:
+                history = settings_dict['history']
+
+            if frequency_select is not None:
+                freq_inds = []
+                for freq in frequency_select:
+                    freq_array = np.array(frequency, dtype=np.float64)
+                    closest_ind = (np.abs(freq_array - freq)).argmin()
+                    if np.isclose(freq_array[closest_ind], freq,
+                                  rtol=self._freq_array.tols[0],
+                                  atol=self._freq_array.tols[1]):
+                        freq_inds.append(closest_ind)
+                    else:
+                        raise ValueError('frequency {f} not in frequency list'.format(f=freq))
+                freq_inds = np.array(freq_inds)
+                frequency = freq_array[freq_inds].tolist()
+                cst_filename = np.array(cst_filename)[freq_inds].tolist()
+                if len(cst_filename) == 1:
+                    cst_filename = cst_filename[0]
+        else:
+            cst_filename = filename
+
+        if feed_pol is None:
+            # default to x (done here in case it's specified in a yaml file)
+            feed_pol = 'x'
+        if history is None:
+            # default to empty (done here in case it's specified in a yaml file)
+            history = ''
 
         if isinstance(frequency, np.ndarray):
             if len(frequency.shape) > 1:
@@ -1877,10 +1957,10 @@ class UVBeam(UVBase):
             if len(feed_pol) == 1:
                 feed_pol = feed_pol[0]
 
-        if isinstance(filename, (list, tuple)):
+        if isinstance(cst_filename, (list, tuple)):
             if frequency is not None:
                 if isinstance(frequency, (list, tuple)):
-                    if not len(frequency) == len(filename):
+                    if not len(frequency) == len(cst_filename):
                         raise ValueError('If frequency and filename are both '
                                          'lists they need to be the same length')
                     freq = frequency[0]
@@ -1890,7 +1970,7 @@ class UVBeam(UVBase):
                 freq = None
 
             if isinstance(feed_pol, (list, tuple)):
-                if not len(feed_pol) == len(filename):
+                if not len(feed_pol) == len(cst_filename):
                     raise ValueError('If feed_pol and filename are both '
                                      'lists they need to be the same length')
                 pol = feed_pol[0]
@@ -1904,7 +1984,7 @@ class UVBeam(UVBase):
                 raise ValueError('frequency can not be a nested list')
             if isinstance(pol, (list, tuple)):
                 raise ValueError('feed_pol can not be a nested list')
-            self.read_cst_beam(filename[0], beam_type=beam_type,
+            self.read_cst_beam(cst_filename[0], beam_type=beam_type,
                                feed_pol=pol, rotate_pol=rotate_pol,
                                frequency=freq,
                                telescope_name=telescope_name,
@@ -1915,7 +1995,7 @@ class UVBeam(UVBase):
                                history=history, run_check=run_check,
                                check_extra=check_extra,
                                run_check_acceptability=run_check_acceptability)
-            for file_i, f in enumerate(filename[1:]):
+            for file_i, f in enumerate(cst_filename[1:]):
                 if isinstance(f, (list, tuple)):
                     raise ValueError('filename can not be a nested list')
 
@@ -1951,7 +2031,7 @@ class UVBeam(UVBase):
             if rotate_pol is None:
                 rotate_pol = True
             cst_beam_obj = cst_beam.CSTBeam()
-            cst_beam_obj.read_cst_beam(filename, beam_type=beam_type,
+            cst_beam_obj.read_cst_beam(cst_filename, beam_type=beam_type,
                                        feed_pol=feed_pol, rotate_pol=rotate_pol,
                                        frequency=frequency,
                                        telescope_name=telescope_name,

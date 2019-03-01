@@ -15,7 +15,9 @@ from pyuvdata.cst_beam import CSTBeam
 import pyuvdata.tests as uvtest
 
 filenames = ['HERA_NicCST_150MHz.txt', 'HERA_NicCST_123MHz.txt']
-cst_files = [os.path.join(DATA_PATH, f) for f in filenames]
+cst_folder = 'NicCSTbeams'
+cst_files = [os.path.join(DATA_PATH, cst_folder, f) for f in filenames]
+cst_yaml_file = os.path.join(DATA_PATH, cst_folder, 'NicCSTbeams.yaml')
 
 
 def test_basic_frequencyparse():
@@ -53,6 +55,40 @@ def test_frequencyparse_decimal_nonMHz():
     test_files = [os.path.join(test_path, f) for f in test_names]
     parsed_freqs = [beam1.name2freq(f) for f in test_files]
     nt.assert_equal(parsed_freqs, [120.87e3, 120.87e9, 120.87])
+
+
+@uvtest.skipIf_no_yaml
+def test_read_yaml():
+    beam1 = UVBeam()
+    beam2 = UVBeam()
+
+    uvtest.checkWarnings(beam1.read_cst_beam, [cst_files],
+                         {'beam_type': 'efield', 'telescope_name': 'HERA', 'feed_name': 'Dipole',
+                          'feed_version': '1.0', 'model_name': 'Dipole - Rigging height 4.9 m',
+                          'model_version': '1.0',
+                          'history': 'Derived from https://github.com/Nicolas-Fagnoni/Simulations.'
+                          '\nOnly 2 files included to keep test data volume low.'},
+                         nwarnings=2, message='No frequency provided. Detected frequency is')
+
+    beam2.read_cst_beam(cst_yaml_file, beam_type='efield')
+    nt.assert_equal(beam1, beam2)
+
+    # test frequency_select
+    beam2.read_cst_beam(cst_yaml_file, beam_type='efield', frequency_select=[150e6])
+
+    uvtest.checkWarnings(beam1.read_cst_beam, [cst_files[0]],
+                         {'beam_type': 'efield', 'telescope_name': 'HERA', 'feed_name': 'Dipole',
+                          'feed_version': '1.0', 'model_name': 'Dipole - Rigging height 4.9 m',
+                          'model_version': '1.0',
+                          'history': 'Derived from https://github.com/Nicolas-Fagnoni/Simulations.'
+                          '\nOnly 2 files included to keep test data volume low.'},
+                         nwarnings=1, message='No frequency provided. Detected frequency is')
+
+    nt.assert_equal(beam1, beam2)
+
+    # test error with using frequency_select where no such frequency
+    nt.assert_raises(ValueError, beam2.read_cst_beam, cst_yaml_file,
+                     beam_type='power', frequency_select=[180e6])
 
 
 def test_read_power():

@@ -1127,17 +1127,32 @@ a) Reading a CST power beam file
 
   # you can pass several filenames and the objects from each file will be
   # combined across the appropriate axis -- in this case frequency
-  >>> filenames = ['pyuvdata/data/HERA_NicCST_150MHz.txt', 'pyuvdata/data/HERA_NicCST_123MHz.txt']
+  >>> filenames = ['pyuvdata/data/NicCSTbeams/HERA_NicCST_150MHz.txt',
+                   'pyuvdata/data/NicCSTbeams/HERA_NicCST_123MHz.txt']
 
-  # have to specify the telescope_name, feed_name, feed_version, model_name
-  # and model_version because they are not included in the file
-  # specify the polarization that the file represents and set rotate_pol to
-  # generate the other polarization by rotating by 90 degrees.
+  # You have to specify the telescope_name, feed_name, feed_version, model_name
+  # and model_version because they are not included in the file.
+  # You should also specify the polarization that the file represents and you can
+  # set rotate_pol to generate the other polarization by rotating by 90 degrees.
+  # The feed_pol defaults to 'x' and rotate_pol defaults to True.
   >>> beam.read_cst_beam(filenames, beam_type='power', frequency=[150e6, 123e6],
   ...                    feed_pol='x', rotate_pol=True, telescope_name='HERA',
   ...                    feed_name='PAPER_dipole', feed_version='0.1',
   ...                    model_name='E-field pattern - Rigging height 4.9m',
   ...                    model_version='1.0')
+  >>> print(beam.beam_type)
+  power
+  >>> print(beam.pixel_coordinate_system)
+  az_za
+  >>> print(beam.data_normalization)
+  physical
+
+  # You can also use a yaml settings file to specify the telescope_name,
+  # feed_name, feed_version, model_name, model_version, history, feed_pol,
+  # frequencies and filenames and then pass in that yaml file as the filename.
+  # Note that using a yaml file requires that pyyaml is installed
+  >>> settings_file = 'pyuvdata/data/NicCSTbeams/NicCSTbeams.yaml'
+  >>> beam.read_cst_beam(settings_file, beam_type='power')
   >>> print(beam.beam_type)
   power
   >>> print(beam.pixel_coordinate_system)
@@ -1168,16 +1183,9 @@ b) Reading a CST E-field beam file
   >>> import numpy as np
   >>> beam = UVBeam()
 
-  # you can pass several filenames and the objects from each file will be
-  # combined across the appropriate axis -- in this case frequency
-  >>> filenames = ['pyuvdata/data/HERA_NicCST_150MHz.txt', 'pyuvdata/data/HERA_NicCST_123MHz.txt']
-
-  # have to specify the telescope_name, feed_name, feed_version, model_name
-  # and model_version because they are not included in the file
-  >>> beam.read_cst_beam(filenames, beam_type='efield', telescope_name='HERA',
-  ...                    feed_name='PAPER_dipole', feed_version='0.1',
-  ...                    model_name='E-field pattern - Rigging height 4.9m',
-  ...                    model_version='1.0')
+  # the same interface as for power beams, just specify beam_type = 'efield'
+  >>> settings_file = 'pyuvdata/data/NicCSTbeams/NicCSTbeams.yaml'
+  >>> beam.read_cst_beam(settings_file, beam_type='efield')
   >>> print(beam.beam_type)
   efield
 
@@ -1188,11 +1196,8 @@ c) Writing a regularly gridded beam FITS file
   >>> from pyuvdata import UVBeam
   >>> import numpy as np
   >>> beam = UVBeam()
-  >>> filenames = ['pyuvdata/data/HERA_NicCST_150MHz.txt', 'pyuvdata/data/HERA_NicCST_123MHz.txt']
-  >>> beam.read_cst_beam(filenames, beam_type='power', telescope_name='HERA',
-  ...                    feed_name='PAPER_dipole', feed_version='0.1',
-  ...                    model_name='E-field pattern - Rigging height 4.9m',
-  ...                    model_version='1.0')
+  >>> settings_file = 'pyuvdata/data/NicCSTbeams/NicCSTbeams.yaml'
+  >>> beam.read_cst_beam(settings_file, beam_type='power')
   >>> beam.write_beamfits('tutorial.fits', clobber=True)
 
 d) Writing a HEALPix beam FITS file
@@ -1202,11 +1207,8 @@ d) Writing a HEALPix beam FITS file
   >>> from pyuvdata import UVBeam
   >>> import numpy as np
   >>> beam = UVBeam()
-  >>> filenames = ['pyuvdata/data/HERA_NicCST_150MHz.txt', 'pyuvdata/data/HERA_NicCST_123MHz.txt']
-  >>> beam.read_cst_beam(filenames, beam_type='power', telescope_name='HERA',
-  ...                    feed_name='PAPER_dipole', feed_version='0.1',
-  ...                    model_name='E-field pattern - Rigging height 4.9m',
-  ...                    model_version='1.0')
+  >>> settings_file = 'pyuvdata/data/NicCSTbeams/NicCSTbeams.yaml'
+  >>> beam.read_cst_beam(settings_file, beam_type='power')
 
   # have to specify which interpolation function to use
   >>> beam.interpolation_function = 'az_za_simple'
@@ -1229,11 +1231,8 @@ a) Selecting a range of Zenith Angles
   >>> import numpy as np
   >>> import matplotlib.pyplot as plt
   >>> beam = UVBeam()
-  >>> filenames = ['pyuvdata/data/HERA_NicCST_150MHz.txt', 'pyuvdata/data/HERA_NicCST_123MHz.txt']
-  >>> beam.read_cst_beam(filenames, beam_type='power', telescope_name='HERA',
-  ...                    feed_name='PAPER_dipole', feed_version='0.1',
-  ...                    model_name='E-field pattern - Rigging height 4.9m',
-  ...                    model_version='1.0')
+  >>> settings_file = 'pyuvdata/data/NicCSTbeams/NicCSTbeams.yaml'
+  >>> beam.read_cst_beam(settings_file, beam_type='power')
   >>> new_beam = beam.select(axis2_inds=np.arange(0, 20), inplace=False)
 
   # plot zenith angle cut through beams
@@ -1255,11 +1254,8 @@ a) Convert a regularly gridded az_za power beam to HEALpix (leaving original int
   >>> import numpy as np
   >>> import healpy as hp
   >>> beam = UVBeam()
-  >>> filenames = ['pyuvdata/data/HERA_NicCST_150MHz.txt', 'pyuvdata/data/HERA_NicCST_123MHz.txt']
-  >>> beam.read_cst_beam(filenames, beam_type='power', telescope_name='HERA',
-  ...                    feed_name='PAPER_dipole', feed_version='0.1',
-  ...                    model_name='E-field pattern - Rigging height 4.9m',
-  ...                    model_version='1.0')
+  >>> settings_file = 'pyuvdata/data/NicCSTbeams/NicCSTbeams.yaml'
+  >>> beam.read_cst_beam(settings_file, beam_type='power')
 
   # have to specify which interpolation function to use
   >>> beam.interpolation_function = 'az_za_simple'
@@ -1274,11 +1270,8 @@ b) Convert a regularly gridded az_za efield beam to HEALpix (leaving original in
   >>> import numpy as np
   >>> import healpy as hp
   >>> beam = UVBeam()
-  >>> filenames = ['pyuvdata/data/HERA_NicCST_150MHz.txt', 'pyuvdata/data/HERA_NicCST_123MHz.txt']
-  >>> beam.read_cst_beam(filenames, beam_type='efield', telescope_name='HERA',
-  ...                    feed_name='PAPER_dipole', feed_version='0.1',
-  ...                    model_name='E-field pattern - Rigging height 4.9m',
-  ...                    model_version='1.0')
+  >>> settings_file = 'pyuvdata/data/NicCSTbeams/NicCSTbeams.yaml'
+  >>> beam.read_cst_beam(settings_file, beam_type='efield')
 
   # have to specify which interpolation function to use
   >>> beam.interpolation_function = 'az_za_simple'
@@ -1295,11 +1288,8 @@ c) Convert a regularly gridded efield beam to a power beam (leaving original int
   >>> import numpy as np
   >>> import matplotlib.pyplot as plt
   >>> beam = UVBeam()
-  >>> filenames = ['pyuvdata/data/HERA_NicCST_150MHz.txt', 'pyuvdata/data/HERA_NicCST_123MHz.txt']
-  >>> beam.read_cst_beam(filenames, beam_type='efield', telescope_name='HERA',
-  ...                    feed_name='PAPER_dipole', feed_version='0.1',
-  ...                    model_name='E-field pattern - Rigging height 4.9m',
-  ...                    model_version='1.0')
+  >>> settings_file = 'pyuvdata/data/NicCSTbeams/NicCSTbeams.yaml'
+  >>> beam.read_cst_beam(settings_file, beam_type='efield')
   >>> new_beam = beam.efield_to_power(inplace=False)
 
   # plot zenith angle cut through the beams
@@ -1320,11 +1310,8 @@ Generating pseudo Stokes ('pI', 'pQ', 'pU', 'pV') beams
   >>> import numpy as np
   >>> import healpy as hp
   >>> beam = UVBeam()
-  >>> filenames = ['pyuvdata/data/HERA_NicCST_150MHz.txt', 'pyuvdata/data/HERA_NicCST_123MHz.txt']
-  >>> beam.read_cst_beam(filenames, beam_type='efield', telescope_name='HERA',
-  ...                    feed_name='PAPER_dipole', feed_version='0.1',
-  ...                    model_name='E-field pattern - Rigging height 4.9m',
-  ...                    model_version='1.0')
+  >>> settings_file = 'pyuvdata/data/NicCSTbeams/NicCSTbeams.yaml'
+  >>> beam.read_cst_beam(settings_file, beam_type='efield')
   >>> beam.interpolation_function = 'az_za_simple'
   >>> pstokes_beam = beam.to_healpix(inplace=False)
   >>> pstokes_beam.efield_to_pstokes()
@@ -1343,11 +1330,8 @@ Calculating pseudo Stokes ('pI', 'pQ', 'pU', 'pV') beam area and beam squared ar
   >>> from pyuvdata import UVBeam
   >>> import numpy as np
   >>> beam = UVBeam()
-  >>> filenames = ['pyuvdata/data/HERA_NicCST_150MHz.txt', 'pyuvdata/data/HERA_NicCST_123MHz.txt']
-  >>> beam.read_cst_beam(filenames, beam_type='efield', telescope_name='HERA',
-  ...                    feed_name='PAPER_dipole', feed_version='0.1',
-  ...                    model_name='E-field pattern - Rigging height 4.9m',
-  ...                    model_version='1.0')
+  >>> settings_file = 'pyuvdata/data/NicCSTbeams/NicCSTbeams.yaml'
+  >>> beam.read_cst_beam(settings_file, beam_type='efield')
   >>> beam.interpolation_function = 'az_za_simple'
 
   # note that the `to_healpix` method requires healpy to be installed

@@ -25,7 +25,8 @@ except(ImportError):
     healpy_installed = False
 
 filenames = ['HERA_NicCST_150MHz.txt', 'HERA_NicCST_123MHz.txt']
-cst_files = [os.path.join(DATA_PATH, f) for f in filenames]
+cst_folder = 'NicCSTbeams'
+cst_files = [os.path.join(DATA_PATH, cst_folder, f) for f in filenames]
 
 
 class TestUVBeamInit(object):
