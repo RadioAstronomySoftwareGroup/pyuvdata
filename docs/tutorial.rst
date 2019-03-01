@@ -1128,7 +1128,7 @@ a) Reading a CST power beam file
   # you can pass several filenames and the objects from each file will be
   # combined across the appropriate axis -- in this case frequency
   >>> filenames = ['pyuvdata/data/NicCSTbeams/HERA_NicCST_150MHz.txt',
-                   'pyuvdata/data/NicCSTbeams/HERA_NicCST_123MHz.txt']
+  ...              'pyuvdata/data/NicCSTbeams/HERA_NicCST_123MHz.txt']
 
   # You have to specify the telescope_name, feed_name, feed_version, model_name
   # and model_version because they are not included in the file.
