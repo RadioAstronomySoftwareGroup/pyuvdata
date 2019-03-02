@@ -83,12 +83,12 @@ class CSTBeam(UVBeam):
         if not uvutils._check_history_version(self.history, self.pyuvdata_version_str):
             self.history += self.pyuvdata_version_str
 
-        if beam_type is 'power':
+        if beam_type == 'power':
             self.Naxes_vec = 1
 
-            if feed_pol is 'x':
+            if feed_pol == 'x':
                 feed_pol = 'xx'
-            elif feed_pol is 'y':
+            elif feed_pol == 'y':
                 feed_pol = 'yy'
 
             if rotate_pol:
@@ -105,12 +105,12 @@ class CSTBeam(UVBeam):
             self.Naxes_vec = 2
             self.Ncomponents_vec = 2
             if rotate_pol:
-                if feed_pol is 'x':
+                if feed_pol == 'x':
                     self.feed_array = np.array(['x', 'y'])
                 else:
                     self.feed_array = np.array(['y', 'x'])
             else:
-                if feed_pol is 'x':
+                if feed_pol == 'x':
                     self.feed_array = np.array(['x'])
                 else:
                     self.feed_array = np.array(['y'])
@@ -201,7 +201,7 @@ class CSTBeam(UVBeam):
             rot_theta = theta_data
 
         # get beam
-        if self.beam_type is 'power':
+        if self.beam_type == 'power':
             data_col = np.where(np.array(column_names) == 'abs(v)')[0][0]
             power_beam1 = data[:, data_col].reshape((theta_axis.size, phi_axis.size), order='F') ** 2.
 
