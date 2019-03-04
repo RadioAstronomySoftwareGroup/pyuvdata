@@ -62,16 +62,23 @@ def test_read_yaml():
     beam1 = UVBeam()
     beam2 = UVBeam()
 
+    extra_keywords = {'software': 'CST 2016', 'sim_type': 'E-farfield',
+                      'layout': '1 antenna', 'port_num': 1}
+
     uvtest.checkWarnings(beam1.read_cst_beam, [cst_files],
                          {'beam_type': 'efield', 'telescope_name': 'HERA', 'feed_name': 'Dipole',
                           'feed_version': '1.0', 'model_name': 'Dipole - Rigging height 4.9 m',
-                          'model_version': '1.0',
+                          'model_version': '1.0', 'reference_impedance': 100,
                           'history': 'Derived from https://github.com/Nicolas-Fagnoni/Simulations.'
-                          '\nOnly 2 files included to keep test data volume low.'},
+                          '\nOnly 2 files included to keep test data volume low.',
+                          'extra_keywords': extra_keywords},
                          nwarnings=2, message='No frequency provided. Detected frequency is')
 
     beam2.read_cst_beam(cst_yaml_file, beam_type='efield')
     nt.assert_equal(beam1, beam2)
+
+    nt.assert_equal(beam2.reference_impedance, 100)
+    nt.assert_equal(beam2.extra_keywords, extra_keywords)
 
     # test frequency_select
     beam2.read_cst_beam(cst_yaml_file, beam_type='efield', frequency_select=[150e6])
@@ -79,12 +86,14 @@ def test_read_yaml():
     uvtest.checkWarnings(beam1.read_cst_beam, [cst_files[0]],
                          {'beam_type': 'efield', 'telescope_name': 'HERA', 'feed_name': 'Dipole',
                           'feed_version': '1.0', 'model_name': 'Dipole - Rigging height 4.9 m',
-                          'model_version': '1.0',
+                          'model_version': '1.0', 'reference_impedance': 100,
                           'history': 'Derived from https://github.com/Nicolas-Fagnoni/Simulations.'
-                          '\nOnly 2 files included to keep test data volume low.'},
+                          '\nOnly 2 files included to keep test data volume low.',
+                          'extra_keywords': extra_keywords},
                          nwarnings=1, message='No frequency provided. Detected frequency is')
 
     nt.assert_equal(beam1, beam2)
+    nt.assert_equal(beam2.extra_keywords, extra_keywords)
 
     # test error with using frequency_select where no such frequency
     nt.assert_raises(ValueError, beam2.read_cst_beam, cst_yaml_file,
