@@ -2777,9 +2777,23 @@ def test_redundancy_contract_expand():
     uv2 = uv0.compress_by_redundancy(tol=tol, inplace=False)
     uv0.compress_by_redundancy(tol=tol)
     nt.assert_equal(uv0, uv2)  # Compare in-place to separated compression.
-    uv2.inflate_by_redundancy(tol=tol)
+    uvtest.checkWarnings(
+        uv2.inflate_by_redundancy,
+        [tol],
+        nwarnings=2,
+        category=[DeprecationWarning, UserWarning],
+        message=['The default for the `center` keyword has changed.',
+                 'Missing some redundant groups. Filling in available data.']
+    )
     uv3 = uv2.compress_by_redundancy(tol=tol, inplace=False)
-    uv3.inflate_by_redundancy(tol=tol)
+    uvtest.checkWarnings(
+        uv3.inflate_by_redundancy,
+        [tol],
+        nwarnings=2,
+        category=[DeprecationWarning, UserWarning],
+        message=['The default for the `center` keyword has changed.',
+                 'Missing some redundant groups. Filling in available data.']
+    )
     # Inflation changes the baseline ordering into the order of the redundant groups.
     # Confirm that we get the same result looping inflate -> compress -> inflate.
     uv2.history = uv3.history
