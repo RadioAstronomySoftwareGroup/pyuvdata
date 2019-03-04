@@ -46,7 +46,8 @@ class CSTBeam(UVBeam):
     def read_cst_beam(self, filename, beam_type='power', feed_pol='x',
                       rotate_pol=True, frequency=None, telescope_name=None,
                       feed_name=None, feed_version=None, model_name=None, model_version=None,
-                      history='', run_check=True, check_extra=True, run_check_acceptability=True):
+                      history='', reference_impedance=None, extra_keywords=None,
+                      run_check=True, check_extra=True, run_check_acceptability=True):
 
         """
         Read in data from a cst file.
@@ -67,6 +68,8 @@ class CSTBeam(UVBeam):
             model_name: the name of the model corresponding to the filename.
             model_version: the version of the model corresponding to the filename.
             history: A string detailing the history of the filename.
+            reference_impedance (float): The reference impedance of the model(s).
+            extra_keywords (dict): a dictionary containing any extra_keywords.
             run_check: Option to check for the existence and proper shapes of
                 required parameters after reading in the file. Default is True.
             check_extra: Option to check optional parameters as well as required
@@ -82,6 +85,11 @@ class CSTBeam(UVBeam):
         self.history = history
         if not uvutils._check_history_version(self.history, self.pyuvdata_version_str):
             self.history += self.pyuvdata_version_str
+
+        if reference_impedance is not None:
+            self.reference_impedance = float(reference_impedance)
+        if extra_keywords is not None:
+            self.extra_keywords = extra_keywords
 
         if beam_type == 'power':
             self.Naxes_vec = 1

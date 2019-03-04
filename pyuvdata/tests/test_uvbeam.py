@@ -62,7 +62,7 @@ class TestUVBeamInit(object):
                                  '_element_location_array', '_delay_array',
                                  '_interpolation_function',
                                  '_gain_array', '_coupling_matrix',
-                                 '_reference_input_impedance', '_reference_output_impedance',
+                                 '_reference_impedance',
                                  '_receiver_temperature_array',
                                  '_loss_array', '_mismatch_array',
                                  '_s_parameters']
@@ -76,7 +76,7 @@ class TestUVBeamInit(object):
                                  'element_location_array', 'delay_array',
                                  'interpolation_function',
                                  'gain_array', 'coupling_matrix',
-                                 'reference_input_impedance', 'reference_output_impedance',
+                                 'reference_impedance',
                                  'receiver_temperature_array',
                                  'loss_array', 'mismatch_array',
                                  's_parameters']
@@ -569,8 +569,7 @@ def test_select_axis():
 
     # add optional parameters for testing purposes
     power_beam.extra_keywords = {'KEY1': 'test_keyword'}
-    power_beam.reference_input_impedance = 340.
-    power_beam.reference_output_impedance = 50.
+    power_beam.reference_impedance = 340.
     power_beam.receiver_temperature_array = np.random.normal(50.0, 5, size=(power_beam.Nspws, power_beam.Nfreqs))
     power_beam.loss_array = np.random.normal(50.0, 5, size=(power_beam.Nspws, power_beam.Nfreqs))
     power_beam.mismatch_array = np.random.normal(0.0, 1.0, size=(power_beam.Nspws, power_beam.Nfreqs))
@@ -656,8 +655,7 @@ def test_select_frequencies():
 
     # add optional parameters for testing purposes
     power_beam.extra_keywords = {'KEY1': 'test_keyword'}
-    power_beam.reference_input_impedance = 340.
-    power_beam.reference_output_impedance = 50.
+    power_beam.reference_impedance = 340.
     power_beam.receiver_temperature_array = np.random.normal(50.0, 5, size=(power_beam.Nspws, power_beam.Nfreqs))
     power_beam.loss_array = np.random.normal(50.0, 5, size=(power_beam.Nspws, power_beam.Nfreqs))
     power_beam.mismatch_array = np.random.normal(0.0, 1.0, size=(power_beam.Nspws, power_beam.Nfreqs))
@@ -735,8 +733,7 @@ def test_select_feeds():
 
     # add optional parameters for testing purposes
     efield_beam.extra_keywords = {'KEY1': 'test_keyword'}
-    efield_beam.reference_input_impedance = 340.
-    efield_beam.reference_output_impedance = 50.
+    efield_beam.reference_impedance = 340.
     efield_beam.receiver_temperature_array = np.random.normal(50.0, 5, size=(efield_beam.Nspws, efield_beam.Nfreqs))
     efield_beam.loss_array = np.random.normal(50.0, 5, size=(efield_beam.Nspws, efield_beam.Nfreqs))
     efield_beam.mismatch_array = np.random.normal(0.0, 1.0, size=(efield_beam.Nspws, efield_beam.Nfreqs))
@@ -791,8 +788,7 @@ def test_select_polarizations():
 
     # add optional parameters for testing purposes
     power_beam.extra_keywords = {'KEY1': 'test_keyword'}
-    power_beam.reference_input_impedance = 340.
-    power_beam.reference_output_impedance = 50.
+    power_beam.reference_impedance = 340.
     power_beam.receiver_temperature_array = np.random.normal(50.0, 5, size=(power_beam.Nspws, power_beam.Nfreqs))
     power_beam.loss_array = np.random.normal(50.0, 5, size=(power_beam.Nspws, power_beam.Nfreqs))
     power_beam.mismatch_array = np.random.normal(0.0, 1.0, size=(power_beam.Nspws, power_beam.Nfreqs))
@@ -842,8 +838,7 @@ def test_select():
 
     # add optional parameters for testing purposes
     power_beam.extra_keywords = {'KEY1': 'test_keyword'}
-    power_beam.reference_input_impedance = 340.
-    power_beam.reference_output_impedance = 50.
+    power_beam.reference_impedance = 340.
     power_beam.receiver_temperature_array = np.random.normal(50.0, 5, size=(power_beam.Nspws, power_beam.Nfreqs))
     power_beam.loss_array = np.random.normal(50.0, 5, size=(power_beam.Nspws, power_beam.Nfreqs))
     power_beam.mismatch_array = np.random.normal(0.0, 1.0, size=(power_beam.Nspws, power_beam.Nfreqs))
@@ -907,8 +902,7 @@ def test_select():
 
     # add optional parameters for testing purposes
     efield_beam.extra_keywords = {'KEY1': 'test_keyword'}
-    efield_beam.reference_input_impedance = 340.
-    efield_beam.reference_output_impedance = 50.
+    efield_beam.reference_impedance = 340.
     efield_beam.receiver_temperature_array = np.random.normal(50.0, 5, size=(efield_beam.Nspws, efield_beam.Nfreqs))
     efield_beam.loss_array = np.random.normal(50.0, 5, size=(efield_beam.Nspws, efield_beam.Nfreqs))
     efield_beam.mismatch_array = np.random.normal(0.0, 1.0, size=(efield_beam.Nspws, efield_beam.Nfreqs))
@@ -968,8 +962,7 @@ def test_add():
 
     # add optional parameters for testing purposes
     power_beam.extra_keywords = {'KEY1': 'test_keyword'}
-    power_beam.reference_input_impedance = 340.
-    power_beam.reference_output_impedance = 50.
+    power_beam.reference_impedance = 340.
     power_beam.receiver_temperature_array = np.random.normal(50.0, 5, size=(power_beam.Nspws, power_beam.Nfreqs))
     power_beam.loss_array = np.random.normal(50.0, 5, size=(power_beam.Nspws, power_beam.Nfreqs))
     power_beam.mismatch_array = np.random.normal(0.0, 1.0, size=(power_beam.Nspws, power_beam.Nfreqs))
@@ -1068,8 +1061,7 @@ def test_add():
 
     # add optional parameters for testing purposes
     efield_beam.extra_keywords = {'KEY1': 'test_keyword'}
-    efield_beam.reference_input_impedance = 340.
-    efield_beam.reference_output_impedance = 50.
+    efield_beam.reference_impedance = 340.
     efield_beam.receiver_temperature_array = np.random.normal(50.0, 5, size=(efield_beam.Nspws, efield_beam.Nfreqs))
     efield_beam.loss_array = np.random.normal(50.0, 5, size=(efield_beam.Nspws, efield_beam.Nfreqs))
     efield_beam.mismatch_array = np.random.normal(0.0, 1.0, size=(efield_beam.Nspws, efield_beam.Nfreqs))
@@ -1240,8 +1232,7 @@ def test_healpix():
 
     # add optional parameters for testing purposes
     power_beam.extra_keywords = {'KEY1': 'test_keyword'}
-    power_beam.reference_input_impedance = 340.
-    power_beam.reference_output_impedance = 50.
+    power_beam.reference_impedance = 340.
     power_beam.receiver_temperature_array = np.random.normal(50.0, 5, size=(power_beam.Nspws, power_beam.Nfreqs))
     power_beam.loss_array = np.random.normal(50.0, 5, size=(power_beam.Nspws, power_beam.Nfreqs))
     power_beam.mismatch_array = np.random.normal(0.0, 1.0, size=(power_beam.Nspws, power_beam.Nfreqs))

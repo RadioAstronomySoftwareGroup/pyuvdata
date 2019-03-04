@@ -293,8 +293,7 @@ class BeamFITS(UVBeam):
             if 'BANDPARM' in hdunames:
                 bandpass_hdu = F[hdunames['BANDPARM']]
                 bandpass_header = bandpass_hdu.header.copy()
-                self.reference_input_impedance = bandpass_header.pop('refzin', None)
-                self.reference_output_impedance = bandpass_header.pop('refzout', None)
+                self.reference_impedance = bandpass_header.pop('ref_imp', None)
 
                 freq_data = bandpass_hdu.data
                 columns = [c.name for c in freq_data.columns]
@@ -637,10 +636,8 @@ class BeamFITS(UVBeam):
         coldefs = fits.ColDefs(col_list)
         bandpass_hdu = fits.BinTableHDU.from_columns(coldefs)
         bandpass_hdu.header['EXTNAME'] = 'BANDPARM'
-        if self.reference_input_impedance is not None:
-            bandpass_hdu.header['refzin'] = self.reference_input_impedance
-        if self.reference_output_impedance is not None:
-            bandpass_hdu.header['refzout'] = self.reference_output_impedance
+        if self.reference_impedance is not None:
+            bandpass_hdu.header['ref_imp'] = self.reference_impedance
         hdulist.append(bandpass_hdu)
 
         hdulist.writeto(filename, overwrite=clobber)

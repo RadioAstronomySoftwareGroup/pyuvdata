@@ -11,6 +11,7 @@ import os
 import numpy as np
 import warnings
 import copy
+import six
 from scipy import interpolate
 
 from .uvbase import UVBase
@@ -301,17 +302,13 @@ class UVBeam(UVBase):
                                                description=desc, value={},
                                                spoof_val={}, expected_type=dict)
 
-        desc = ('Reference input impedance of the receiving chain (sets the reference '
-                'for the S parameters), units: Ohms')
-        self._reference_input_impedance = uvp.UVParameter('reference_input_impedance', required=False,
-                                                          description=desc,
-                                                          expected_type=np.float, tols=1e-3)
-
-        desc = ('Reference output impedance of the receiving chain (sets the reference '
-                'for the S parameters), units: Ohms')
-        self._reference_output_impedance = uvp.UVParameter('reference_output_impedance', required=False,
-                                                           description=desc,
-                                                           expected_type=np.float, tols=1e-3)
+        desc = ('Reference impedance of the beam model. The radiated E-farfield '
+                'or the realised gain depend on the impedance of the port used to '
+                'excite the simulation. This is the reference impedance (Z0) of '
+                'the simulation. units: Ohms')
+        self._reference_impedance = uvp.UVParameter('reference_impedance', required=False,
+                                                    description=desc,
+                                                    expected_type=np.float, tols=1e-3)
 
         desc = 'Array of receiver temperatures, shape (Nspws, Nfreqs), units K'
         self._receiver_temperature_array = \
@@ -1838,7 +1835,8 @@ class UVBeam(UVBase):
     def read_cst_beam(self, filename, beam_type='power', feed_pol=None, rotate_pol=None,
                       frequency=None, telescope_name=None, feed_name=None,
                       feed_version=None, model_name=None, model_version=None,
-                      history=None, frequency_select=None, run_check=True, check_extra=True,
+                      history=None, reference_impedance=None, extra_keywords=None,
+                      frequency_select=None, run_check=True, check_extra=True,
                       run_check_acceptability=True):
         """
         Read in data from a cst file.
@@ -1847,7 +1845,7 @@ class UVBeam(UVBase):
             filename (str): Either a settings yaml file or a cst text file or
                 list of cst text files to read from. If a list is passed,
                 the files are combined along the appropriate axes.
-                Settings yaml files must include the following:
+                Settings yaml files must include the following keywords:
                     |  telescope_name (str)
                     |  feed_name (str)
                     |  feed_version (str)
@@ -1857,6 +1855,9 @@ class UVBeam(UVBase):
                     |  frequencies (list(float))
                     |  cst text filenames (list(str)) -- path relative to yaml file location
                     |  feed_pol (str) or (list(str))
+                and it may include the following optional keywords:
+                    | ref_imp (float): beam model reference impedance
+                    | all other fields will go into the extra_keywords attribute
                 Specifying any of the associated keywords to this function will
                 override the values in the settings file.
             beam_type (str): what beam_type to read in ('power' or 'efield'). Defaults to 'power'.
@@ -1875,6 +1876,8 @@ class UVBeam(UVBase):
             model_name (str): the name of the model corresponding to the filename(s).
             model_version (str): the version of the model corresponding to the filename(s).
             history (str): A string detailing the history of the filename(s).
+            reference_impedance (float): The reference impedance of the model(s).
+            extra_keywords (dict): a dictionary containing any extra_keywords.
             frequency_select (list(float)):
                 Only used if the file is a yaml file. Indicates which frequencies
                 to include (only read in files for those frequencies)
@@ -1914,6 +1917,18 @@ class UVBeam(UVBase):
                 model_version = str(settings_dict['model_version'])
             if history is None:
                 history = settings_dict['history']
+            if reference_impedance is None and 'ref_imp' in settings_dict:
+                reference_impedance = float(settings_dict['ref_imp'])
+
+            if extra_keywords is None:
+                extra_keywords = {}
+
+            known_keys = ['telescope_name', 'feed_name', 'feed_version',
+                          'model_name', 'model_version', 'history', 'frequencies',
+                          'filenames', 'feed_pol', 'ref_imp']
+            for key, value in six.iteritems(settings_dict):
+                if key not in known_keys:
+                    extra_keywords[key] = value
 
             if frequency_select is not None:
                 freq_inds = []
@@ -1931,6 +1946,9 @@ class UVBeam(UVBase):
                 cst_filename = np.array(cst_filename)[freq_inds].tolist()
                 if len(cst_filename) == 1:
                     cst_filename = cst_filename[0]
+                if isinstance(feed_pol, list):
+                    feed_pol = feed_pol[freq_inds].tolist()
+
         else:
             cst_filename = filename
 
@@ -1992,8 +2010,10 @@ class UVBeam(UVBase):
                                feed_version=feed_version,
                                model_name=model_name,
                                model_version=model_version,
-                               history=history, run_check=run_check,
-                               check_extra=check_extra,
+                               history=history,
+                               reference_impedance=reference_impedance,
+                               extra_keywords=extra_keywords,
+                               run_check=run_check, check_extra=check_extra,
                                run_check_acceptability=run_check_acceptability)
             for file_i, f in enumerate(cst_filename[1:]):
                 if isinstance(f, (list, tuple)):
@@ -2018,8 +2038,10 @@ class UVBeam(UVBase):
                                     feed_version=feed_version,
                                     model_name=model_name,
                                     model_version=model_version,
-                                    history=history, run_check=run_check,
-                                    check_extra=check_extra,
+                                    history=history,
+                                    reference_impedance=reference_impedance,
+                                    extra_keywords=extra_keywords,
+                                    run_check=run_check, check_extra=check_extra,
                                     run_check_acceptability=run_check_acceptability)
                 self += beam2
             del(beam2)
@@ -2039,8 +2061,10 @@ class UVBeam(UVBase):
                                        feed_version=feed_version,
                                        model_name=model_name,
                                        model_version=model_version,
-                                       history=history, run_check=run_check,
-                                       check_extra=check_extra,
+                                       history=history,
+                                       reference_impedance=reference_impedance,
+                                       extra_keywords=extra_keywords,
+                                       run_check=run_check, check_extra=check_extra,
                                        run_check_acceptability=run_check_acceptability)
             self._convert_from_filetype(cst_beam_obj)
             del(cst_beam_obj)
