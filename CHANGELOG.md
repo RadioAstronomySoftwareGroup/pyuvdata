@@ -3,6 +3,9 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- Support for a yaml settings file to collect and propagate metadata for CST beam files.
+
 ## [1.3.6] - 2019-02-15
 
 ### Added
