@@ -25,7 +25,7 @@ jobs:
           command: |
             source activate ${ENV_NAME}
             mkdir test-reports
-            nosetests pyuvdata -v --with-xunit --xunit-file=test-reports/xunit.xml --with-coverage --cover-package=pyuvdata
+            nosetests pyuvdata -v --with-xunit --xunit-file=test-reports/xunit.xml --with-coverage --cover-package=pyuvdata --cover-xml
       - save_cache:
           key: deps-{{ .Branch }}-{{ checksum "ci/pyuvdata_tests.yml" }}
           paths:
@@ -35,7 +35,7 @@ jobs:
       - store_artifacts:
           path: test-reports
       - codecov/upload:
-          file: ./.coverage
+          file: ./coverage.xml
   hera_cal:
     docker:
       - image: continuumio/miniconda:latest
