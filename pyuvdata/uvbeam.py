@@ -1934,11 +1934,11 @@ class UVBeam(UVBase):
                 freq_inds = []
                 for freq in frequency_select:
                     freq_array = np.array(frequency, dtype=np.float64)
-                    closest_ind = (np.abs(freq_array - freq)).argmin()
-                    if np.isclose(freq_array[closest_ind], freq,
-                                  rtol=self._freq_array.tols[0],
-                                  atol=self._freq_array.tols[1]):
-                        freq_inds.append(closest_ind)
+                    close_inds = np.where(np.isclose(freq_array, freq, rtol=self._freq_array.tols[0],
+                                          atol=self._freq_array.tols[1]))[0]
+                    if close_inds.size > 0:
+                        for ind in close_inds:
+                            freq_inds.append(ind)
                     else:
                         raise ValueError('frequency {f} not in frequency list'.format(f=freq))
                 freq_inds = np.array(freq_inds)
@@ -1947,7 +1947,14 @@ class UVBeam(UVBase):
                 if len(cst_filename) == 1:
                     cst_filename = cst_filename[0]
                 if isinstance(feed_pol, list):
-                    feed_pol = feed_pol[freq_inds].tolist()
+                    if rotate_pol is None:
+                        # if a mix of feed pols, don't rotate by default
+                        # do this here in case selections confuse this test
+                        if np.any(np.array(feed_pol) != feed_pol[0]):
+                            rotate_pol = False
+                        else:
+                            rotate_pol = True
+                    feed_pol = np.array(feed_pol)[freq_inds].tolist()
 
         else:
             cst_filename = filename
