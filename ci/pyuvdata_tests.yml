@@ -1,0 +1,15 @@
+name: pyuvdata_tests
+channels:
+  - defaults
+  - conda-forge
+dependencies:
+  - aipy
+  - astropy
+  - h5py
+  - healpy
+  - nose
+  - numpy
+  - python-casacore
+  - scipy
+  - six
+  - coveralls
