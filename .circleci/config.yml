@@ -11,7 +11,7 @@ jobs:
     steps:
       - checkout
       - restore_cache:
-          key: deps-{{ .Branch }}-{{ checksum "ci/pyuvdata3.6.yml" }}
+          key: deps-{{ .Branch }}-{{ checksum "ci/pyuvdata_tests.yml" }}
       - run:
           name: configure conda environment
           command: ./ci/install-circle.sh
@@ -27,7 +27,7 @@ jobs:
             mkdir test-reports
             nosetests pyuvdata -v --with-xunit --xunit-file=test-reports/xunit.xml --with-coverage --cover-package=pyuvdata
       - save_cache:
-          key: deps-{{ .Branch }}-{{ checksum "ci/pyuvdata3.6.yml" }}
+          key: deps-{{ .Branch }}-{{ checksum "ci/pyuvdata_tests.yml" }}
           paths:
             - "/opt/conda/envs/${ENV_NAME}/"
       - store_test_results:
