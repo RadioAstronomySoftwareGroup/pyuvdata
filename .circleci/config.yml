@@ -19,7 +19,7 @@ jobs:
           name: install
           command: |
             source activate ${ENV_NAME}
-            pip install .
+            python setup.py build_ext --force --inplace
       - run:
           name: run pyuvdata tests
           command: |
