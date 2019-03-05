@@ -37,6 +37,8 @@ jobs:
           name: install
           command: |
             source activate ${ENV_NAME}
+            conda info --envs
+            conda list
             python setup.py build_ext --force --inplace
       - run:
           name: run pyuvdata tests
