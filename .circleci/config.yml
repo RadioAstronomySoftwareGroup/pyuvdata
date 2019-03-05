@@ -2,7 +2,7 @@ version: 2.1
 orbs:
   codecov: codecov/codecov@1.0.2
 jobs:
-  pyuvdata3.6:
+  pyuvdata-3.6:
     docker:
       - image: continuumio/miniconda:latest
     environment:
@@ -10,8 +10,8 @@ jobs:
       ENV_NAME: "pyuvdata_tests"
     steps:
       - checkout
-      # - restore_cache:
-      #     key: deps-{{ .Branch }}-{{ checksum "ci/pyuvdata_tests.yml" }}
+      - restore_cache:
+          key: deps-{{ .Branch }}-{{ checksum "ci/pyuvdata_tests.yml" }}
       - run:
           name: configure conda environment
           command: ./ci/install-circle.sh
@@ -26,10 +26,10 @@ jobs:
             source activate ${ENV_NAME}
             mkdir test-reports
             nosetests pyuvdata -v --with-xunit --xunit-file=test-reports/xunit.xml --with-coverage --cover-package=pyuvdata
-      # - save_cache:
-      #     key: deps-{{ .Branch }}-{{ checksum "ci/pyuvdata_tests.yml" }}
-      #     paths:
-      #       - "/opt/conda/envs/${ENV_NAME}/"
+      - save_cache:
+          key: deps-{{ .Branch }}-{{ checksum "ci/pyuvdata_tests.yml" }}
+          paths:
+            - "/opt/conda/envs/${ENV_NAME}/"
       - store_test_results:
           path: test-reports
       - store_artifacts:
@@ -118,6 +118,6 @@ workflows:
   version: 2
   build_and_test:
     jobs:
-      - pyuvdata3.6
+      - pyuvdata-3.6
       - hera_cal
       - hera_qm
