@@ -1,20 +1,38 @@
 version: 2.1
 orbs:
   codecov: codecov/codecov@1.0.2 # to get this to work, had to opt-in to using third party orbs in Organization Security settings.
+commands: # reusable commands with parameters
+  config_conda:
+    parameters:
+      python_version:
+        type: string
+      env_name:
+        type: string
+    steps:
+      - run: # use the python version and envname to set up the conda environment
+          name: configure conda environment
+          environment:
+            PYTHON: << parameters.python_version >>
+            ENV_NAME: << parameters.env_name >>
+          command: ./ci/install-circle.sh
+
 jobs:
   pyuvdata-3_6:
     docker:
       - image: continuumio/miniconda:latest
-    environment:
-      PYTHON: "3.6"
-      ENV_NAME: "pyuvdata_tests"
+    # environment:
+    #   PYTHON: "3.6"
+    #   ENV_NAME: "pyuvdata_tests"
     steps:
       - checkout
       - restore_cache:
           key: deps-{{ .Branch }}-{{ checksum "ci/pyuvdata_tests.yml" }}
-      - run:
-          name: configure conda environment
-          command: ./ci/install-circle.sh
+      # - run:
+      #     name: configure conda environment
+      #     command: ./ci/install-circle.sh
+      - config_conda:
+          python_version: "3.6"
+          env_name: "pyuvdata_tests"
       - run:
           name: install
           command: |
