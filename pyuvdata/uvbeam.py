@@ -1993,7 +1993,11 @@ class UVBeam(UVBase):
                                      'lists they need to be the same length')
                 pol = feed_pol[0]
                 if rotate_pol is None:
-                    rotate_pol = False
+                    # if a mix of feed pols, don't rotate by default
+                    if np.any(np.array(feed_pol) != feed_pol[0]):
+                        rotate_pol = False
+                    else:
+                        rotate_pol = True
             else:
                 pol = feed_pol
                 if rotate_pol is None:

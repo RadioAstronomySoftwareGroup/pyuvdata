@@ -80,9 +80,15 @@ def test_read_yaml():
     nt.assert_equal(beam2.reference_impedance, 100)
     nt.assert_equal(beam2.extra_keywords, extra_keywords)
 
-    # test frequency_select
-    beam2.read_cst_beam(cst_yaml_file, beam_type='efield', frequency_select=[150e6])
 
+@uvtest.skipIf_no_yaml
+def test_read_yaml_freq_select():
+    # test frequency_select
+    beam1 = UVBeam()
+    beam2 = UVBeam()
+
+    extra_keywords = {'software': 'CST 2016', 'sim_type': 'E-farfield',
+                      'layout': '1 antenna', 'port_num': 1}
     uvtest.checkWarnings(beam1.read_cst_beam, [cst_files[0]],
                          {'beam_type': 'efield', 'telescope_name': 'HERA', 'feed_name': 'Dipole',
                           'feed_version': '1.0', 'model_name': 'Dipole - Rigging height 4.9 m',
@@ -92,12 +98,115 @@ def test_read_yaml():
                           'extra_keywords': extra_keywords},
                          nwarnings=1, message='No frequency provided. Detected frequency is')
 
+    beam2.read_cst_beam(cst_yaml_file, beam_type='efield', frequency_select=[150e6])
+
     nt.assert_equal(beam1, beam2)
     nt.assert_equal(beam2.extra_keywords, extra_keywords)
 
     # test error with using frequency_select where no such frequency
     nt.assert_raises(ValueError, beam2.read_cst_beam, cst_yaml_file,
                      beam_type='power', frequency_select=[180e6])
+
+
+@uvtest.skipIf_no_yaml
+def test_read_yaml_feed_pol_list():
+    # make yaml with a list of (the same) feed_pols
+    import yaml
+
+    test_yaml_file = os.path.join(DATA_PATH, cst_folder, 'test_cst_settings.yaml')
+    with open(cst_yaml_file, 'r') as file:
+        settings_dict = yaml.safe_load(file)
+
+    settings_dict['feed_pol'] = ['x', 'x']
+
+    with open(test_yaml_file, 'w') as outfile:
+        yaml.dump(settings_dict, outfile, default_flow_style=False)
+
+    beam1 = UVBeam()
+    beam2 = UVBeam()
+
+    extra_keywords = {'software': 'CST 2016', 'sim_type': 'E-farfield',
+                      'layout': '1 antenna', 'port_num': 1}
+
+    uvtest.checkWarnings(beam1.read_cst_beam, [cst_files],
+                         {'beam_type': 'efield', 'telescope_name': 'HERA', 'feed_name': 'Dipole',
+                          'feed_version': '1.0', 'model_name': 'Dipole - Rigging height 4.9 m',
+                          'model_version': '1.0', 'reference_impedance': 100,
+                          'history': 'Derived from https://github.com/Nicolas-Fagnoni/Simulations.'
+                          '\nOnly 2 files included to keep test data volume low.',
+                          'extra_keywords': extra_keywords},
+                         nwarnings=2, message='No frequency provided. Detected frequency is')
+
+    beam2.read_cst_beam(test_yaml_file, beam_type='efield')
+    nt.assert_equal(beam1, beam2)
+
+    nt.assert_equal(beam2.reference_impedance, 100)
+    nt.assert_equal(beam2.extra_keywords, extra_keywords)
+
+    os.remove(test_yaml_file)
+
+
+@uvtest.skipIf_no_yaml
+def test_read_yaml_multi_pol():
+    # make yaml for one freq, 2 pols
+    import yaml
+
+    test_yaml_file = os.path.join(DATA_PATH, cst_folder, 'test_cst_settings.yaml')
+    with open(cst_yaml_file, 'r') as file:
+        settings_dict = yaml.safe_load(file)
+
+    settings_dict['feed_pol'] = ['x', 'y']
+    first_file = settings_dict['filenames'][0]
+    settings_dict['filenames'] = [first_file, first_file]
+    first_freq = settings_dict['frequencies'][0]
+    settings_dict['frequencies'] = [first_freq, first_freq]
+
+    with open(test_yaml_file, 'w') as outfile:
+        yaml.dump(settings_dict, outfile, default_flow_style=False)
+
+    beam1 = UVBeam()
+    beam2 = UVBeam()
+
+    extra_keywords = {'software': 'CST 2016', 'sim_type': 'E-farfield',
+                      'layout': '1 antenna', 'port_num': 1}
+
+    beam1.read_cst_beam([cst_files[0], cst_files[0]], beam_type='efield', frequency=[150e6],
+                        feed_pol=['x', 'y'], telescope_name='HERA',
+                        feed_name='Dipole', feed_version='1.0',
+                        model_name='Dipole - Rigging height 4.9 m',
+                        model_version='1.0', reference_impedance=100,
+                        history='Derived from https://github.com/Nicolas-Fagnoni/Simulations.'
+                        '\nOnly 2 files included to keep test data volume low.',
+                        extra_keywords=extra_keywords)
+
+    beam2.read_cst_beam(test_yaml_file, beam_type='efield')
+    nt.assert_equal(beam1, beam2)
+
+    nt.assert_equal(beam2.reference_impedance, 100)
+    nt.assert_equal(beam2.extra_keywords, extra_keywords)
+
+    os.remove(test_yaml_file)
+
+
+@uvtest.skipIf_no_yaml
+def test_read_yaml_errors():
+    # test error if required key is not present in yaml file
+    import yaml
+
+    test_yaml_file = os.path.join(DATA_PATH, cst_folder, 'test_cst_settings.yaml')
+    with open(cst_yaml_file, 'r') as file:
+        settings_dict = yaml.safe_load(file)
+
+    settings_dict.pop('telescope_name')
+
+    with open(test_yaml_file, 'w') as outfile:
+        yaml.dump(settings_dict, outfile, default_flow_style=False)
+
+    beam1 = UVBeam()
+    nt.assert_raises(ValueError, beam1.read_cst_beam, test_yaml_file,
+                     beam_type='power')
+
+    os.remove(test_yaml_file)
 
 
 def test_read_power():
@@ -130,7 +239,12 @@ def test_read_power():
     nt.assert_true(np.allclose(beam2.polarization_array, np.array([-6, -5])))
     nt.assert_true(np.allclose(beam1.data_array[:, :, 0, :, :, :], beam2.data_array[:, :, 0, :, :, :]))
 
+
+def test_read_power_single_freq():
     # test single frequency
+    beam1 = UVBeam()
+    beam2 = UVBeam()
+
     uvtest.checkWarnings(beam1.read_cst_beam, [[cst_files[0]]],
                          {'beam_type': 'power', 'telescope_name': 'TEST', 'feed_name': 'bob',
                           'feed_version': '0.1', 'model_name': 'E-field pattern - Rigging height 4.9m',
@@ -156,7 +270,12 @@ def test_read_power():
     nt.assert_equal(beam2.data_array.shape, (1, 1, 1, 1, 181, 360))
     nt.assert_true(np.allclose(beam1.data_array[:, :, 0, :, :, :], beam2.data_array))
 
+
+def test_read_power_multi_pol():
     # test reading in multiple polarization files
+    beam1 = UVBeam()
+    beam2 = UVBeam()
+
     beam1.read_cst_beam([cst_files[0], cst_files[0]], beam_type='power', frequency=[150e6],
                         feed_pol=np.array(['xx', 'yy']), telescope_name='TEST',
                         feed_name='bob', feed_version='0.1',
@@ -175,6 +294,8 @@ def test_read_power():
     nt.assert_equal(beam2.data_array.shape, (1, 1, 2, 1, 181, 360))
     nt.assert_true(np.allclose(beam1.data_array[:, :, 0, :, :, :], beam2.data_array[:, :, 0, :, :, :]))
 
+
+def test_read_errors():
     # test errors
     nt.assert_raises(ValueError, beam1.read_cst_beam, cst_files, beam_type='power',
                      frequency=[150e6, 123e6, 100e6], telescope_name='TEST',
