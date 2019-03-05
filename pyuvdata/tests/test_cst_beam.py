@@ -101,7 +101,6 @@ def test_read_yaml_freq_select():
     beam2.read_cst_beam(cst_yaml_file, beam_type='efield', frequency_select=[150e6])
 
     nt.assert_equal(beam1, beam2)
-    nt.assert_equal(beam2.extra_keywords, extra_keywords)
 
     # test error with using frequency_select where no such frequency
     nt.assert_raises(ValueError, beam2.read_cst_beam, cst_yaml_file,
@@ -143,6 +142,19 @@ def test_read_yaml_feed_pol_list():
     nt.assert_equal(beam2.reference_impedance, 100)
     nt.assert_equal(beam2.extra_keywords, extra_keywords)
 
+    # also test with frequency_select
+    uvtest.checkWarnings(beam1.read_cst_beam, [cst_files[0]],
+                         {'beam_type': 'efield', 'telescope_name': 'HERA', 'feed_name': 'Dipole',
+                          'feed_version': '1.0', 'model_name': 'Dipole - Rigging height 4.9 m',
+                          'model_version': '1.0', 'reference_impedance': 100,
+                          'history': 'Derived from https://github.com/Nicolas-Fagnoni/Simulations.'
+                          '\nOnly 2 files included to keep test data volume low.',
+                          'extra_keywords': extra_keywords},
+                         nwarnings=1, message='No frequency provided. Detected frequency is')
+
+    beam2.read_cst_beam(cst_yaml_file, beam_type='efield', frequency_select=[150e6])
+    nt.assert_equal(beam1, beam2)
+
     os.remove(test_yaml_file)
 
 
@@ -182,8 +194,19 @@ def test_read_yaml_multi_pol():
     beam2.read_cst_beam(test_yaml_file, beam_type='efield')
     nt.assert_equal(beam1, beam2)
 
-    nt.assert_equal(beam2.reference_impedance, 100)
-    nt.assert_equal(beam2.extra_keywords, extra_keywords)
+    # also test with frequency_select
+    beam1.read_cst_beam([cst_files[0], cst_files[0]], beam_type='efield', frequency=[150e6],
+                        feed_pol=['x', 'y'], telescope_name='HERA',
+                        feed_name='Dipole', feed_version='1.0',
+                        model_name='Dipole - Rigging height 4.9 m',
+                        model_version='1.0', reference_impedance=100,
+                        history='Derived from https://github.com/Nicolas-Fagnoni/Simulations.'
+                        '\nOnly 2 files included to keep test data volume low.',
+                        extra_keywords=extra_keywords)
+
+    beam2.read_cst_beam(test_yaml_file, beam_type='efield', frequency_select=[150e6])
+    nt.assert_equal(beam2.feed_array.tolist(), ['x', 'y'])
+    nt.assert_equal(beam1, beam2)
 
     os.remove(test_yaml_file)
 
