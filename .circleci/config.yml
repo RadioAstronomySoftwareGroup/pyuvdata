@@ -1,6 +1,6 @@
 version: 2
-# orbs:
-#   codecov: codecov/codecov@1.0.2
+orbs:
+  codecov: codecov/codecov@1.0.2
 jobs:
   pyuvdata3.6:
     docker:
@@ -34,8 +34,8 @@ jobs:
           path: test-reports
       - store_artifacts:
           path: test-reports
-      # - codecov/upload:
-      #     file: {{ .coverage }}
+      - codecov/upload:
+          file: {{ .coverage }}
   hera_cal:
     docker:
       - image: continuumio/miniconda:latest
