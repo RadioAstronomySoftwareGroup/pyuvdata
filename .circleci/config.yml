@@ -35,7 +35,7 @@ jobs:
       - store_artifacts:
           path: test-reports
       - codecov/upload:
-          file: {{ .coverage }}
+          file: {{ ".coverage" }}
   hera_cal:
     docker:
       - image: continuumio/miniconda:latest
