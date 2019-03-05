@@ -297,6 +297,8 @@ def test_read_power_multi_pol():
 
 def test_read_errors():
     # test errors
+    beam1 = UVBeam()
+
     nt.assert_raises(ValueError, beam1.read_cst_beam, cst_files, beam_type='power',
                      frequency=[150e6, 123e6, 100e6], telescope_name='TEST',
                      feed_name='bob', feed_version='0.1',
