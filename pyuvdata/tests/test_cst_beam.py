@@ -152,7 +152,7 @@ def test_read_yaml_feed_pol_list():
                           'extra_keywords': extra_keywords},
                          nwarnings=1, message='No frequency provided. Detected frequency is')
 
-    beam2.read_cst_beam(cst_yaml_file, beam_type='efield', frequency_select=[150e6])
+    beam2.read_cst_beam(test_yaml_file, beam_type='efield', frequency_select=[150e6])
     nt.assert_equal(beam1, beam2)
 
     os.remove(test_yaml_file)
