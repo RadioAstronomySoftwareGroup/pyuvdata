@@ -10,6 +10,6 @@ source activate ${ENV_NAME}
 conda list -n ${ENV_NAME}
 # check that the python version matches the desired one; exit immediately if not
 PYVER=`python -c "from __future__ import print_function; import sys; print('{:d}.{:d}'.format(sys.version_info.major, sys.version_info.minor))"`
-if [[ $PYVER != $PYTHON_VERSION ]]; then
+if [[ $PYVER != $PYTHON ]]; then
   exit 1;
 fi
