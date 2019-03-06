@@ -42,10 +42,13 @@ jobs:
       - codecov/upload:
           file: ./coverage.xml
   hera_cal:
+    parameters:
+      python_version:
+        type: string
     docker:
       - image: continuumio/miniconda:latest
     environment:
-      PYTHON: "3.6"
+      PYTHON: << parameters.python_version >>
       ENV_NAME: "hera_cal"
     steps:
       - checkout
@@ -80,10 +83,13 @@ jobs:
       - store_artifacts:
           path: hera_cal/test-reports
   hera_qm:
+    parameters:
+      python_version:
+        type: string
     docker:
       - image: continuumio/miniconda:latest
     environment:
-      PYTHON: "3.6"
+      PYTHON: << parameters.python_version >>
       ENV_NAME: "hera_qm"
     steps:
       - checkout
@@ -125,5 +131,7 @@ workflows:
     jobs:
       - pyuvdata:
           python_version: "3.6"
+      - pyuvdata:
+          python_version: "2.7"
       - hera_cal
       - hera_qm
