@@ -22,8 +22,11 @@ jobs:
           name: install
           command: |
             source activate ${ENV_NAME}
-            conda info --envs
-            conda list
+          # check that the python version matches the desired one; exit immediately if not
+            PYVER=`python -c "from __future__ import print_function; import sys; print('{:d}.{:d}'.format(sys.version_info.major, sys.version_info.minor))"`
+            if [[ $PYVER != $PYTHON_VERSION ]]; then
+              exit 1;
+            fi
             python setup.py build_ext --force --inplace
       - run:
           name: run pyuvdata tests
@@ -130,8 +133,13 @@ workflows:
   build_and_test:
     jobs:
       - pyuvdata:
+          name: pyuvdata_3.7
+          python_version: "3.7"
+      - pyuvdata:
+          name: pyuvdata_3.6
           python_version: "3.6"
       - pyuvdata:
+          name: pyuvdata_2.7
           python_version: "2.7"
       - hera_cal:
           python_version: "3.6"
