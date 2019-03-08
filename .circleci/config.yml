@@ -128,14 +128,14 @@ workflows:
   build_and_test:
     jobs:
       - pyuvdata:
-          name: pyuvdata_3.7
-          python_version: "3.7"
+          name: pyuvdata_2.7
+          python_version: "2.7"
       - pyuvdata:
           name: pyuvdata_3.6
           python_version: "3.6"
       - pyuvdata:
-          name: pyuvdata_2.7
-          python_version: "2.7"
+          name: pyuvdata_3.7
+          python_version: "3.7"
       - hera_cal:
           python_version: "3.6"
       - hera_qm:
