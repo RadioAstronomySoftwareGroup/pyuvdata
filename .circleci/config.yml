@@ -2,6 +2,30 @@ version: 2.1
 orbs:
   codecov: codecov/codecov@1.0.2 # to get this to work, had to opt-in to using third party orbs in Organization Security settings.
 jobs:
+  linter:
+    parameters:
+      python_version:
+        type: string
+    docker:
+      - image: continuumio/miniconda:latest
+    environment:
+      PYTHON: << parameters.python_version >>
+      ENV_NAME: pyuvdata_linting
+    steps:
+      - checkout
+      - restore_cache:
+          key: deps-{{ .Branch }}-{{ checksum "ci/pyuvdata_linting.yml" }}
+      - run:
+          name: configure conda environment
+          command: ./ci/install-circle.sh
+      - run:
+          name: linting for PEP8 compliance
+          command: pycodestyle --ignore=E501,W503
+      - save_cache:
+          key: deps-{{ .Branch }}-{{ checksum "ci/pyuvdata_tests.yml" }}
+          paths:
+            - "/opt/conda/envs/${ENV_NAME}/"
+
   pyuvdata:
     parameters:
       python_version:
@@ -39,6 +63,38 @@ jobs:
           path: test-reports
       - codecov/upload:
           file: ./coverage.xml
+
+  doctest:
+    parameters:
+      python_version:
+        type: string
+    docker:
+      - image: continuumio/miniconda:latest
+    environment:
+      PYTHON: << parameters.python_version >>
+      ENV_NAME: pyuvdata_tests
+    steps:
+      - checkout
+      - restore_cache:
+          key: deps-{{ .Branch }}-{{ checksum "ci/pyuvdata_tests.yml" }}
+      - run:
+          name: configure conda environment
+          command: ./ci/install-circle.sh
+      - run:
+          name: install
+          command: |
+            source activate ${ENV_NAME}
+            python setup.py build_ext --force --inplace
+      - run:
+          name: run tutorial tests
+          command: |
+            source activate ${ENV_NAME}
+            python -m doctest docs/tutorial.rst
+      - save_cache:
+          key: deps-{{ .Branch }}-{{ checksum "ci/pyuvdata_tests.yml" }}
+          paths:
+            - "/opt/conda/envs/${ENV_NAME}/"
+
   hera_cal:
     parameters:
       python_version:
@@ -80,6 +136,7 @@ jobs:
           path: hera_cal/test-reports
       - store_artifacts:
           path: hera_cal/test-reports
+
   hera_qm:
     parameters:
       python_version:
@@ -127,6 +184,8 @@ workflows:
   version: 2
   build_and_test:
     jobs:
+      - linter:
+          python_version: "3.6"
       - pyuvdata:
           name: pyuvdata_2.7
           python_version: "2.7"
@@ -136,6 +195,8 @@ workflows:
       - pyuvdata:
           name: pyuvdata_3.7
           python_version: "3.7"
+      - doctest:
+          python_version: "3.6"
       - hera_cal:
           python_version: "3.6"
       - hera_qm:
