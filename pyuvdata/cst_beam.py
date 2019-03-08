@@ -210,7 +210,18 @@ class CSTBeam(UVBeam):
 
         # get beam
         if self.beam_type == 'power':
-            data_col = np.where(np.array(column_names) == 'abs(v)')[0][0]
+
+            data_col_enum = ['abs(e)', 'abs(v)']
+            data_col = []
+            for name in data_col_enum:
+                this_col = np.where(np.array(column_names) == name)[0]
+                if this_col.size > 0:
+                    data_col = data_col + this_col.tolist()
+            if len(data_col) == 0:
+                raise ValueError('No power column found in file: {f}'.format(f=filename))
+            elif len(data_col) > 1:
+                raise ValueError('Multiple possible power columns found in file: {f}'.format(f=filename))
+            data_col = data_col[0]
             power_beam1 = data[:, data_col].reshape((theta_axis.size, phi_axis.size), order='F') ** 2.
 
             self.data_array[0, 0, 0, 0, :, :] = power_beam1
