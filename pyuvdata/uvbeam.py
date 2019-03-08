@@ -1855,7 +1855,7 @@ class UVBeam(UVBase):
                     |  frequencies (list(float))
                     |  cst text filenames (list(str)) -- path relative to yaml file location
                     |  feed_pol (str) or (list(str))
-                and it may include the following optional keywords:
+                and they may include the following optional keywords:
                     | ref_imp (float): beam model reference impedance
                     | all other fields will go into the extra_keywords attribute
                 Specifying any of the associated keywords to this function will
@@ -1866,7 +1866,8 @@ class UVBeam(UVBase):
             rotate_pol (bool): If True, assume the structure in the simulation is symmetric under
                 90 degree rotations about the z-axis (so that the y polarization can be
                 constructed by rotating the x polarization or vice versa).
-                Default: True if feed_pol is a single value, False if it is a list.
+                Default: True if feed_pol is a single value or a list with all
+                the same values in it, False if it is a list with varying values.
             frequency (list(float)): the frequency or list of frequencies corresponding to the filename(s).
                 This is assumed to be in the same order as the files.
                 If not passed, the code attempts to parse it from the filenames.

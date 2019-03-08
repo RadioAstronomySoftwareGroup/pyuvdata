@@ -202,7 +202,7 @@ def skipIf_no_h5py(test_func):
 
 
 def skipIf_no_yaml(test_func):
-    """defines a decorator to skip tests that require h5py."""
+    """defines a decorator to skip tests that require yaml."""
     reason = 'yaml is not installed, skipping tests that require it.'
     try:
         import yaml
