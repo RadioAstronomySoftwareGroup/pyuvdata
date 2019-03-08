@@ -20,7 +20,9 @@ jobs:
           command: ./ci/install-circle.sh
       - run:
           name: linting for PEP8 compliance
-          command: pycodestyle --ignore=E501,W503
+          command: |
+            source activate ${ENV_NAME}
+            pycodestyle --ignore=E501,W503
       - save_cache:
           key: deps-{{ .Branch }}-{{ checksum "ci/pyuvdata_tests.yml" }}
           paths:
