@@ -1,0 +1,6 @@
+name: pyuvdata_linting
+channels:
+  - defaults
+  - conda-forge
+dependencies:
+  - pycodestyle
