@@ -18,6 +18,7 @@ filenames = ['HERA_NicCST_150MHz.txt', 'HERA_NicCST_123MHz.txt']
 cst_folder = 'NicCSTbeams'
 cst_files = [os.path.join(DATA_PATH, cst_folder, f) for f in filenames]
 cst_yaml_file = os.path.join(DATA_PATH, cst_folder, 'NicCSTbeams.yaml')
+cst_yaml_vivaldi = os.path.join(DATA_PATH, cst_folder, 'HERA_Vivaldi_CST_beams.yaml')
 
 
 def test_basic_frequencyparse():
@@ -539,3 +540,102 @@ def test_no_deg_units():
                      telescope_name='TEST', feed_name='bob', feed_version='0.1',
                      model_name='E-field pattern - Rigging height 4.9m',
                      model_version='1.0')
+
+
+def test_wrong_column_names():
+    # need to write modified files to test headers with wrong column names
+    testfile = os.path.join(DATA_PATH, 'test', 'HERA_NicCST_150MHz_modified.txt')
+    with open(cst_files[0], 'r') as file:
+        line1 = file.readline()
+        line2 = file.readline()
+
+    data = np.loadtxt(cst_files[0], skiprows=2)
+
+    raw_names = line1.split(']')
+    raw_names = [raw_name for raw_name in raw_names if '\n' not in raw_name]
+    column_names = []
+    missing_power_column_names = []
+    extra_power_column_names = []
+    column_names_simple = []
+    units = []
+    for raw_name in raw_names:
+        column_name, unit = tuple(raw_name.split('['))
+        column_names.append(column_name)
+        column_names_simple.append(''.join(column_name.lower().split(' ')))
+        units.append(unit)
+        if column_name.strip() == 'Abs(V   )':
+            missing_power_column_names.append('Power')
+        else:
+            missing_power_column_names.append(column_name)
+        if column_name.strip() == 'Abs(Theta)':
+            extra_power_column_names.append('Abs(E   )')
+        else:
+            extra_power_column_names.append(column_name)
+
+    missing_power_column_headers = []
+    for index, name in enumerate(missing_power_column_names):
+        missing_power_column_headers.append(name + '[' + units[index] + ']')
+
+    extra_power_column_headers = []
+    for index, name in enumerate(extra_power_column_names):
+        extra_power_column_headers.append(name + '[' + units[index] + ']')
+
+    missing_power_header = ''
+    for col in missing_power_column_headers:
+        missing_power_header += '{:12}'.format(col)
+
+    beam1 = UVBeam()
+
+    # format to match existing file
+    existing_format = ['%8.3f', '%15.3f', '%20.3e', '%19.3e', '%19.3f', '%19.3e', '%19.3f', '%19.3e']
+    np.savetxt(testfile, data, fmt=existing_format, header=missing_power_header + '\n' + line2, comments='')
+    # this errors because there's no recognized power column
+    nt.assert_raises(ValueError, beam1.read_cst_beam, testfile, beam_type='power',
+                     frequency=np.array([150e6]),
+                     telescope_name='TEST', feed_name='bob', feed_version='0.1',
+                     model_name='E-field pattern - Rigging height 4.9m',
+                     model_version='1.0')
+
+    extra_power_header = ''
+    for col in extra_power_column_headers:
+        extra_power_header += '{:12}'.format(col)
+    np.savetxt(testfile, data, fmt=existing_format, header=extra_power_header + '\n' + line2, comments='')
+    # this errors because there's multiple recognized power columns
+    nt.assert_raises(ValueError, beam1.read_cst_beam, testfile, beam_type='power',
+                     frequency=np.array([150e6]),
+                     telescope_name='TEST', feed_name='bob', feed_version='0.1',
+                     model_name='E-field pattern - Rigging height 4.9m',
+                     model_version='1.0')
+
+
+@uvtest.skipIf_no_yaml
+def test_HERA_yaml():
+    beam1 = UVBeam()
+    beam2 = UVBeam()
+
+    beam1.read_cst_beam(cst_yaml_vivaldi, beam_type='efield', frequency_select=[150e6])
+
+    nt.assert_equal(beam1.reference_impedance, 100)
+    extra_keywords = {'software': 'CST 2016', 'sim_type': 'E-farfield',
+                      'layout': '1 antenna', 'port_num': 1}
+    nt.assert_equal(beam1.extra_keywords, extra_keywords)
+
+    beam2.read_cst_beam(cst_yaml_vivaldi, beam_type='power', frequency_select=[150e6])
+
+    beam1.efield_to_power(calc_cross_pols=False)
+
+    # The values in the beam file only have 4 sig figs, so they don't match precisely
+    diff = np.abs(beam1.data_array - beam2.data_array)
+    nt.assert_true(np.max(diff) < 2)
+    reldiff = diff / beam2.data_array
+    nt.assert_true(np.max(reldiff) < 0.002)
+
+    # set data_array tolerances higher to test the rest of the object
+    # tols are (relative, absolute)
+    tols = [0.002, 0]
+    beam1._data_array.tols = tols
+
+    nt.assert_false(beam1.history == beam2.history)
+    beam1.history = beam2.history
+
+    nt.assert_equal(beam1, beam2)
