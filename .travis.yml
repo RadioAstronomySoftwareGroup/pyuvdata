@@ -1,7 +1,6 @@
 sudo: required
 dist: trusty
 os:
-  - linux
   - osx
 env:
   global:
@@ -61,8 +60,6 @@ install:
 script:
   - python setup.py build_ext --force --inplace
   - nosetests pyuvdata --with-coverage --cover-package=pyuvdata
-  - python -m doctest docs/tutorial.rst
-  - pycodestyle --ignore=E501,W503
 
 after_success:
     - coveralls
