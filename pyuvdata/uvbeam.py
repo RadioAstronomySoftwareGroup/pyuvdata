@@ -42,7 +42,8 @@ class UVBeam(UVBase):
                                    'az, za coordinate axes (for the basis_vector_array) '
                                    'where az runs from East to North'}}
 
-    interpolation_function_dict = {'az_za_simple': '_interp_az_za_rect_spline'}
+    interpolation_function_dict = {'az_za_simple': '_interp_az_za_rect_spline',
+                                   'healpix_simple': '_interp_healpix_bilinear'}
 
     def __init__(self):
         """Create a new UVBeam object."""
@@ -716,35 +717,39 @@ class UVBeam(UVBase):
         if not inplace:
             return beam_object
 
-    def _interp_freq(self, freq_array):
+    def _interp_freq(self, freq_array, kind='linear', tol=1.0):
         """
         Simple interpolation function for frequency axis.
 
         Args:
-            freq_array: frequency values to interpolate to
+            freq_array: frequency values [Hz] to interpolate to
+            kind: str, interpolation method, see scipy.interpolate.interp1d
+            tol: float, distance tolerance [Hz] of nearest neighbors. If all 
+                elements in freq_array have nearest neighbor distances within
+                the specified tolerance, then return the beam at each nearest neighbor,
+                otherwise interpolate the beam.
 
         Returns:
-            an array of interpolated values, shape: (Naxes_vec, Nspws, Nfeeds or Npols, freq_array.size, Npixels or (Naxis2, Naxis1))
-            an array of distances from nearest frequency, shape: (freq_array.size)
+            an array of interpolated beam values, shape: (Naxes_vec, Nspws, Nfeeds or Npols, freq_array.size, Npixels or (Naxis2, Naxis1))
+            an array of interpolated bandpass values, shape: (Nspws, freq_array.size)
         """
         assert(isinstance(freq_array, np.ndarray))
         assert(freq_array.ndim == 1)
 
         nfreqs = freq_array.size
 
-        for f_i in range(nfreqs):
-            freq_dists = self.freq_array[0, :] - freq_array[f_i]
+        # get frequency distances
+        freq_dists = np.abs(self.freq_array - freq_array.reshape(-1, 1))  # this is faster than FOR loop
+        nearest_dist = np.min(freq_dists, axis=1)
+        nearest_ind = np.argmin(freq_dists, axis=1)
+        interp_bool = np.any(nearest_dist > tol)
+
+        # just return the beam at nearest neighbors
+        if not interp_bool:
+            return self.data_array[:, :, :, nearest_ind, :], self.bandpass_array[:, nearest_ind]
 
         if self.Nfreqs == 1:
             raise ValueError('Only one frequency in UVBeam so cannot interpolate.')
-
-        if np.iscomplexobj(self.data_array):
-            data_type = np.complex
-        else:
-            data_type = np.float
-        interp_data_shape = np.array(self.data_array.shape)
-        interp_data_shape[3] = nfreqs
-        interp_data = np.zeros(interp_data_shape, dtype=data_type)
 
         if (np.min(freq_array) < np.min(self.freq_array) or np.max(freq_array) > np.max(self.freq_array)):
             raise ValueError('at least one interpolation frequency is outside of '
@@ -757,20 +762,23 @@ class UVBeam(UVBase):
             else:
                 return lambda freqs: (real_lut(freqs) + 1j * imag_lut(freqs))
 
-        if np.iscomplexobj(self.data_array):
-            # interpolate real and imaginary parts separately
-            real_lut = interpolate.interp1d(self.freq_array[0, :], self.data_array.real, axis=3)
-            imag_lut = interpolate.interp1d(self.freq_array[0, :], self.data_array.imag, axis=3)
-            lut = get_lambda(real_lut, imag_lut)
-        else:
-            lut = interpolate.interp1d(self.freq_array[0, :], self.data_array, axis=3)
-            lut = get_lambda(lut)
+        interp_arrays = []
+        for data, ax in zip([self.data_array, self.bandpass_array], [3, 1]):
+            if np.iscomplexobj(data):
+                # interpolate real and imaginary parts separately
+                real_lut = interpolate.interp1d(self.freq_array[0, :], data.real, kind=kind, axis=ax)
+                imag_lut = interpolate.interp1d(self.freq_array[0, :], data.imag, kind=kind, axis=ax)
+                lut = get_lambda(real_lut, imag_lut)
+            else:
+                lut = interpolate.interp1d(self.freq_array[0, :], data, axis=ax)
+                lut = get_lambda(lut)
 
-        interp_data = lut(freq_array)
+            interp_arrays.append(lut(freq_array))
 
-        return interp_data
-
-    def _interp_az_za_rect_spline(self, az_array, za_array, freq_array, reuse_spline=False):
+        return tuple(interp_arrays)
+        
+    def _interp_az_za_rect_spline(self, az_array, za_array, freq_array, freq_interp_kind='linear',
+                                  reuse_spline=False, polarizations=None):
         """
         Simple interpolation function for az_za coordinate system.
 
@@ -778,7 +786,10 @@ class UVBeam(UVBase):
             az_array: az values to interpolate to (same length as za_array)
             za_array: za values to interpolate to (same length as az_array)
             freq_array: frequency values to interpolate to
+            freq_interp_kind: str, interpolation method across frequency. See scipy.interpolate.interp1d for details.
             reuse_spline: Save the interpolation functions for reuse.
+            polarizations: list of str, polarizations to interpolate if beam_type is 'power'.
+                Default is all polarizations in self.polarization_array.
 
         Returns:
             an array of interpolated values, shape: (Naxes_vec, Nspws, Nfeeds or Npols, Nfreqs, az_array.size)
@@ -792,7 +803,7 @@ class UVBeam(UVBase):
 
         if freq_array is not None:
             assert(isinstance(freq_array, np.ndarray))
-            input_data_array = self._interp_freq(freq_array)
+            input_data_array, _ = self._interp_freq(freq_array, kind=freq_interp_kind)
             input_nfreqs = freq_array.size
         else:
             input_data_array = self.data_array
@@ -820,12 +831,6 @@ class UVBeam(UVBase):
             data_type = np.complex
         else:
             data_type = np.float
-
-        if self.beam_type == 'efield':
-            data_shape = (self.Naxes_vec, self.Nspws, self.Nfeeds, input_nfreqs, npoints)
-        else:
-            data_shape = (self.Naxes_vec, self.Nspws, self.Npols, input_nfreqs, npoints)
-        interp_data = np.zeros(data_shape, dtype=data_type)
 
         if self.basis_vector_array is not None:
             if (np.any(self.basis_vector_array[0, 1, :] > 0)
@@ -856,9 +861,26 @@ class UVBeam(UVBase):
 
         # Npols is only defined for power beams.  For E-field beams need Nfeeds.
         if self.beam_type == 'power':
-            Npol_feeds = self.Npols
+            # get requested polarization indices
+            if polarizations is None:
+                Npol_feeds = self.Npols
+                pol_inds = np.arange(Npol_feeds)
+            else:
+                pols = [uvutils.polstr2num(p) for p in polarizations]
+                pol_inds = []
+                for pol in pols:
+                    if pol not in self.polarization_array:
+                        raise ValueError("Requested polarization {} not found in self.polarization_array".format(pol))
+                    pol_inds.append(np.where(self.polarization_array == pol)[0][0])
+                pol_inds = np.asarray(pol_inds)
+                Npol_feeds = len(pol_inds)
+
         else:
             Npol_feeds = self.Nfeeds
+            pol_inds = np.arange(Npol_feeds)
+
+        data_shape = (self.Naxes_vec, self.Nspws, Npol_feeds, input_nfreqs, npoints)
+        interp_data = np.zeros(data_shape, dtype=data_type)
 
         for index1 in range(self.Nspws):
             for index3 in range(input_nfreqs):
@@ -866,8 +888,8 @@ class UVBeam(UVBase):
                 if reuse_spline:
                     luts = np.empty((self.Naxes_vec, self.Nspws, Npol_feeds), dtype=object)
                 for index0 in range(self.Naxes_vec):
-                    for index2 in range(Npol_feeds):
-                        if reuse_spline and freq in self.saved_interp_functions.keys():
+                    for index2 in pol_inds:
+                        if reuse_spline and freq in self.saved_interp_functions.keys() and self.saved_interp_functions[freq].shape == (self.Naxes_vec, self.Nspws, Npol_feeds):
                             lut = self.saved_interp_functions[freq][index0, index1, index2]
                         else:
                             if np.iscomplexobj(input_data_array):
@@ -900,7 +922,115 @@ class UVBeam(UVBase):
 
         return interp_data, interp_basis_vector
 
-    def interp(self, az_array=None, za_array=None, freq_array=None, reuse_spline=False):
+    def _interp_healpix_bilinear(self, az_array, za_array, freq_array, freq_interp_kind='linear',
+                                 polarizations=None):
+        """
+        Simple bi-linear interpolation wrapper for healpix.
+
+        Args:
+            az_array: azimuth angles to interpolate to [radians]
+            za_array: zenith angles to interpolate to [radians]
+            freq_array: frequency values to interpolate to [Hz]
+            freq_interp_kind: str, interpolation method across frequency. See scipy.interpolate.interp1d for details.
+            polarizations: list of str, polarizations to interpolate if beam_type is 'power'.
+                Default is all polarizations in self.polarization_array.
+
+        Returns:
+            an array of interpolated values, shape: (Naxes_vec, Nspws, Nfeeds or Npols, Nfreqs, az_array.size)
+            an array of interpolated basis vectors, shape: (Naxes_vec, Ncomponents_vec, az_array.size)
+        """
+        try:
+            import healpy as hp
+        except ImportError:  # pragma: no cover
+            uvutils._reraise_context('healpy is not installed but is required for '
+                                     'healpix functionality')
+
+        if self.pixel_coordinate_system != 'healpix':
+            raise ValueError('pixel_coordinate_system must be "healpix"')
+
+        if freq_array is not None:
+            assert(isinstance(freq_array, np.ndarray))
+            input_data_array, _ = self._interp_freq(freq_array, kind=freq_interp_kind)
+            input_nfreqs = freq_array.size
+        else:
+            input_data_array = self.data_array
+            input_nfreqs = self.Nfreqs
+            freq_array = self.freq_array[0]
+        if az_array is None:
+            return input_data_array, self.basis_vector_array
+
+        assert(isinstance(az_array, np.ndarray))
+        assert(isinstance(za_array, np.ndarray))
+        assert(az_array.ndim == 1)
+        assert(az_array.shape == za_array.shape)
+
+        npoints = az_array.size
+
+        # Npols is only defined for power beams.  For E-field beams need Nfeeds.
+        if self.beam_type == 'power':
+            # get requested polarization indices
+            if polarizations is None:
+                Npol_feeds = self.Npols
+                pol_inds = np.arange(Npol_feeds)
+            else:
+                pols = [uvutils.polstr2num(p) for p in polarizations]
+                pol_inds = []
+                for pol in pols:
+                    if pol not in self.polarization_array:
+                        raise ValueError("Requested polarization {} not found in self.polarization_array".format(pol))
+                    pol_inds.append(np.where(self.polarization_array == pol)[0][0])
+                pol_inds = np.asarray(pol_inds)
+                Npol_feeds = len(pol_inds)
+        else:
+            Npol_feeds = self.Nfeeds
+            pol_inds = np.arange(Npol_feeds)
+
+        if np.iscomplexobj(input_data_array):
+            data_type = np.complex
+        else:
+            data_type = np.float
+        interp_data = np.zeros((self.Naxes_vec, self.Nspws, Npol_feeds, input_nfreqs, len(az_array)), dtype=data_type)
+
+        if self.basis_vector_array is not None:
+            if (np.any(self.basis_vector_array[0, 1, :] > 0)
+                    or np.any(self.basis_vector_array[1, 0, :] > 0)):
+                """ Input basis vectors are not aligned to the native theta/phi
+                coordinate system """
+                raise NotImplementedError('interpolation for input basis '
+                                          'vectors that are not aligned to the '
+                                          'native theta/phi coordinate system '
+                                          'is not yet supported')
+            else:
+                """ The basis vector array comes in defined at the rectangular grid.
+                Redefine it for the interpolation points """
+                interp_basis_vector = np.zeros([self.Naxes_vec,
+                                                self.Ncomponents_vec,
+                                                npoints])
+                interp_basis_vector[0, 0, :] = np.ones(npoints)  # theta hat
+                interp_basis_vector[1, 1, :] = np.ones(npoints)  # phi hat
+        else:
+            interp_basis_vector = None
+
+        for index1 in range(self.Nspws):
+            for index3 in range(input_nfreqs):
+                freq = freq_array[index3]
+                for index0 in range(self.Naxes_vec):
+                    for index2 in pol_inds:
+                        if np.iscomplexobj(input_data_array):
+                            # interpolate real and imaginary parts separately
+                            real_hmap = hp.get_interp_val(input_data_array[index0, index1, index2, index3, :].real, za_array, az_array)
+                            imag_hmap = hp.get_interp_val(input_data_array[index0, index1, index2, index3, :].imag, za_array, az_array)
+                            hmap = real_hmap + 1j * imag_hmap
+                        else:
+                            # interpolate once
+                            hmap = hp.get_interp_val(input_data_array[index0, index1, index2, index3, :], za_array, az_array)
+
+                        interp_data[index0, index1, index2, index3, :] = hmap
+
+        return interp_data, interp_basis_vector
+
+    def interp(self, az_array=None, za_array=None, freq_array=None, freq_interp_kind='linear',
+               polarizations=None, **kwargs):
         """
         Interpolate beam to given az, za locations (in radians).
 
@@ -908,6 +1038,10 @@ class UVBeam(UVBase):
             az_array: az values to interpolate to (same length as za_array)
             za_array: za values to interpolate to (same length as az_array)
             freq_array: frequency values to interpolate to
+            freq_interp_kind: str, interpolation method across frequency. See scipy.interpolate.inter1d for details.
+            polarizations: list of str, polarizations to interpolate if beam_type is 'power'.
+                Default is all polarizations in self.polarization_array.
+            kwargs: dictionary of keyword arguments to pass to interpolation function. See it for details.
 
         Returns:
             an array of interpolated values, shape: (Naxes_vec, Nspws, Nfeeds or Npols,
@@ -921,7 +1055,8 @@ class UVBeam(UVBase):
             raise ValueError('interpolation_function must be set on object first')
 
         interp_func = self.interpolation_function_dict[self.interpolation_function]
-        return getattr(self, interp_func)(az_array, za_array, freq_array, reuse_spline)
+        return getattr(self, interp_func)(az_array, za_array, freq_array,
+                       freq_interp_kind=freq_interp_kind, polarizations=polarizations, **kwargs)
 
     def to_healpix(self, nside=None, run_check=True, check_extra=True,
                    run_check_acceptability=True,

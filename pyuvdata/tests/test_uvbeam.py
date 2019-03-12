@@ -395,6 +395,17 @@ def test_interpolation():
 
     nt.assert_true(np.allclose(data_array_compare, interp_data_array))
 
+    # test only a single polarization
+    interp_data_array, interp_basis_vector = power_beam.interp(az_array=az_orig_vals,
+                                                               za_array=za_orig_vals,
+                                                               freq_array=freq_orig_vals,
+                                                               polarizations=['xx'])
+
+    data_array_compare = power_beam.data_array[:, :, :1]
+    interp_data_array = interp_data_array.reshape(data_array_compare.shape, order='F')
+
+    nt.assert_true(np.allclose(data_array_compare, interp_data_array))
+
     # test no errors using different points
     az_interp_vals = np.array(np.arange(0, 2 * np.pi, np.pi / 9.0).tolist()
                               + np.arange(0, 2 * np.pi, np.pi / 9.0).tolist())
@@ -404,7 +415,15 @@ def test_interpolation():
 
     interp_data_array, interp_basis_vector = power_beam.interp(az_array=az_interp_vals,
                                                                za_array=za_interp_vals,
-                                                               freq_array=freq_interp_vals)
+                                                               freq_array=freq_interp_vals)    
+
+    # test if fed orig frequencies that slice is returned instead of interpolation
+    interp_freqs, interp_bandp = power_beam._interp_freq(freq_orig_vals, kind='linear')
+    nt.assert_false(interp_data_array.flags['OWNDATA'])
+
+    # test if not orig frequencies that copy is returned
+    interp_freqs, interp_bandp = power_beam._interp_freq(freq_orig_vals + np.array([1e6, -1e6]), kind='linear')
+    nt.assert_true(interp_data_array.flags['OWNDATA'])
 
     # test reusing the spline fit.
     orig_data_array, interp_basis_vector = power_beam.interp(az_array=az_interp_vals,
@@ -485,6 +504,32 @@ def test_interpolation():
     power_beam.select(axis2_inds=np.where(power_beam.axis2_array <= np.pi / 2.)[0])
     nt.assert_raises(ValueError, power_beam.interp, az_array=az_interp_vals,
                      za_array=za_interp_vals + np.pi / 2)
+
+    # test healpix interpolation
+    if healpy_installed:
+        power_beam.read_cst_beam(cst_files, beam_type='power', frequency=[150e6, 123e6],
+                                 telescope_name='TEST', feed_name='bob',
+                                 feed_version='0.1', feed_pol=['x'],
+                                 model_name='E-field pattern - Rigging height 4.9m',
+                                 model_version='1.0')
+        power_beam.interpolation_function = 'az_za_simple'
+        power_beam.to_healpix()
+
+        # check that interpolating to existing points gives the same answer
+        power_beam.interpolation_function = 'healpix_simple'
+        za_orig_vals, az_orig_vals = hp.pix2ang(power_beam.nside, np.arange(hp.nside2npix(power_beam.nside)))
+        az_orig_vals = az_orig_vals.ravel(order='C')
+        za_orig_vals = za_orig_vals.ravel(order='C')
+        freq_orig_vals = np.array([123e6, 150e6])
+
+        interp_data_array, interp_basis_vector = power_beam.interp(az_array=az_orig_vals,
+                                                                   za_array=za_orig_vals,
+                                                                   freq_array=freq_orig_vals)
+
+        data_array_compare = power_beam.data_array
+        interp_data_array = interp_data_array.reshape(data_array_compare.shape, order='F')
+
+        nt.assert_true(np.allclose(data_array_compare, interp_data_array))
 
 
 @uvtest.skipIf_no_healpy
