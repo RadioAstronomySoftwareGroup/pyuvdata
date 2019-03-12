@@ -12,7 +12,7 @@ filenames: ['HERA_NicCST_150MHz.txt', 'HERA_NicCST_123MHz.txt']
 # feed_pol specifies which feed polarization is simulated in these files.
 # Can be a list of the same length as filenames
 feed_pol: x
-sim_type: E-farfield
+sim_beam_type: E-farfield
 layout: 1 antenna
 port_num: 1
 ref_imp: 100

@@ -1927,9 +1927,16 @@ class UVBeam(UVBase):
             known_keys = ['telescope_name', 'feed_name', 'feed_version',
                           'model_name', 'model_version', 'history', 'frequencies',
                           'filenames', 'feed_pol', 'ref_imp']
+            # One of the standard paramters in the settings yaml file is longer than 8 characters.
+            # This causes warnings and straight truncation when writing to beamfits files
+            # To avoid these, this defines a standard renaming of that paramter
+            rename_extra_keys_map = {'sim_beam_type': 'sim_type'}
             for key, value in six.iteritems(settings_dict):
                 if key not in known_keys:
-                    extra_keywords[key] = value
+                    if key in rename_extra_keys_map.keys():
+                        extra_keywords[rename_extra_keys_map[key]] = value
+                    else:
+                        extra_keywords[key] = value
 
             if frequency_select is not None:
                 freq_inds = []
