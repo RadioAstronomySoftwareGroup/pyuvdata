@@ -10,9 +10,11 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 - `keep_all_metadata` keyword for optionally discarding unused metadata when performing a select operation.
+- `_healpix_interp_bilinear` to `UVBeam`
 
 ### Changed
 - Extends `run_acceptability_check` for UVH5 metadata in `check_header` function.
+- `UVBeam._interp_freq` returns both `interp_data` and `interp_bandpass`, instead of just the former.
 
 ### Fixed
 - Antenna numbering bug in redundancy methods. It wasn't using the correct antenna numbers to make baseline indices.

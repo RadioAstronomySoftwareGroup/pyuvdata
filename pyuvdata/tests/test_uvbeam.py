@@ -417,13 +417,13 @@ def test_interpolation():
                                                                za_array=za_interp_vals,
                                                                freq_array=freq_interp_vals)    
 
-    # test if fed orig frequencies that slice is returned instead of interpolation
-    interp_freqs, interp_bandp = power_beam._interp_freq(freq_orig_vals, kind='linear')
-    nt.assert_false(interp_data_array.flags['OWNDATA'])
-
-    # test if not orig frequencies that copy is returned
-    interp_freqs, interp_bandp = power_beam._interp_freq(freq_orig_vals + np.array([1e6, -1e6]), kind='linear')
-    nt.assert_true(interp_data_array.flags['OWNDATA'])
+    # test if fed original frequencies that not interp_bool is triggered
+    # by using only one freq chan in object, which should trigger a ValueError if interp_bool is True
+    _pb = power_beam.select(frequencies=power_beam.freq_array[0, :1], inplace=False)
+    try:
+        interp_data_array, interp_bandp = _pb._interp_freq(_pb.freq_array[0], kind='linear')
+    except:
+        raise AssertionError("UVBeam._interp_freq didn't return array slice as expected...")
 
     # test reusing the spline fit.
     orig_data_array, interp_basis_vector = power_beam.interp(az_array=az_interp_vals,

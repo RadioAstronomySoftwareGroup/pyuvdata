@@ -724,7 +724,7 @@ class UVBeam(UVBase):
         Args:
             freq_array: frequency values [Hz] to interpolate to
             kind: str, interpolation method, see scipy.interpolate.interp1d
-            tol: float, distance tolerance [Hz] of nearest neighbors. If all 
+            tol: float, distance tolerance [Hz] of nearest neighbors. If all
                 elements in freq_array have nearest neighbor distances within
                 the specified tolerance, then return the beam at each nearest neighbor,
                 otherwise interpolate the beam.
@@ -776,7 +776,7 @@ class UVBeam(UVBase):
             interp_arrays.append(lut(freq_array))
 
         return tuple(interp_arrays)
-        
+
     def _interp_az_za_rect_spline(self, az_array, za_array, freq_array, freq_interp_kind='linear',
                                   reuse_spline=False, polarizations=None):
         """
