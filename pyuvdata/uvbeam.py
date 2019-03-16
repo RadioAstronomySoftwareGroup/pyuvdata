@@ -1902,6 +1902,22 @@ class UVBeam(UVBase):
             settings_dict = self._read_cst_beam_yaml(filename)
             yaml_dir = os.path.dirname(filename)
             cst_filename = [os.path.join(yaml_dir, f) for f in settings_dict['filenames']]
+
+            overriding_keywords = {'feed_pol': feed_pol,
+                                   'frequency': frequency,
+                                   'telescope_name': telescope_name,
+                                   'feed_name': feed_name,
+                                   'feed_version': feed_version,
+                                   'model_name': model_name,
+                                   'model_version': model_version,
+                                   'history': history}
+            if 'ref_imp' in settings_dict:
+                overriding_keywords['reference_impedance'] = reference_impedance
+            for key, val in six.iteritems(overriding_keywords):
+                if val is not None:
+                    warnings.warn('The {key} keyword is set, overriding the '
+                                  'value in the settings yaml file.'.format(key=key))
+
             if feed_pol is None:
                 feed_pol = settings_dict['feed_pol']
             if frequency is None:

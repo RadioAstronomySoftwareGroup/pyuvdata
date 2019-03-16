@@ -83,6 +83,33 @@ def test_read_yaml():
 
 
 @uvtest.skipIf_no_yaml
+def test_read_yaml_override():
+    beam1 = UVBeam()
+    beam2 = UVBeam()
+
+    extra_keywords = {'software': 'CST 2016', 'sim_type': 'E-farfield',
+                      'layout': '1 antenna', 'port_num': 1}
+
+    uvtest.checkWarnings(beam1.read_cst_beam, [cst_files],
+                         {'beam_type': 'efield', 'telescope_name': 'test', 'feed_name': 'Dipole',
+                          'feed_version': '1.0', 'model_name': 'Dipole - Rigging height 4.9 m',
+                          'model_version': '1.0', 'reference_impedance': 100,
+                          'history': 'Derived from https://github.com/Nicolas-Fagnoni/Simulations.'
+                          '\nOnly 2 files included to keep test data volume low.',
+                          'extra_keywords': extra_keywords},
+                         nwarnings=2, message='No frequency provided. Detected frequency is')
+
+    uvtest.checkWarnings(beam2.read_cst_beam, [cst_yaml_file],
+                         {'beam_type': 'efield', 'telescope_name': 'test'},
+                         message='The telescope_name keyword is set, overriding '
+                         'the value in the settings yaml file.')
+    nt.assert_equal(beam1, beam2)
+
+    nt.assert_equal(beam2.reference_impedance, 100)
+    nt.assert_equal(beam2.extra_keywords, extra_keywords)
+
+
+@uvtest.skipIf_no_yaml
 def test_read_yaml_freq_select():
     # test frequency_select
     beam1 = UVBeam()
