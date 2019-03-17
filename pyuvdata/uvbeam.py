@@ -1846,18 +1846,20 @@ class UVBeam(UVBase):
                 list of cst text files to read from. If a list is passed,
                 the files are combined along the appropriate axes.
                 Settings yaml files must include the following keywords:
-                    |  telescope_name (str)
-                    |  feed_name (str)
-                    |  feed_version (str)
-                    |  model_name (str)
-                    |  model_version (str)
-                    |  history (str)
-                    |  frequencies (list(float))
-                    |  cst text filenames (list(str)) -- path relative to yaml file location
-                    |  feed_pol (str) or (list(str))
+                    |  - telescope_name (str)
+                    |  - feed_name (str)
+                    |  - feed_version (str)
+                    |  - model_name (str)
+                    |  - model_version (str)
+                    |  - history (str)
+                    |  - frequencies (list(float))
+                    |  - cst text filenames (list(str)) -- path relative to yaml file location
+                    |  - feed_pol (str) or (list(str))
                 and they may include the following optional keywords:
-                    | ref_imp (float): beam model reference impedance
-                    | all other fields will go into the extra_keywords attribute
+                    |  - ref_imp (float): beam model reference impedance
+                    |  - sim_beam_type (str): e.g. 'E-farfield'
+                    |  - all other fields will go into the extra_keywords attribute
+                More details and an example are available in the docs (cst_settings_yaml.rst).
                 Specifying any of the associated keywords to this function will
                 override the values in the settings file.
             beam_type (str): what beam_type to read in ('power' or 'efield'). Defaults to 'power'.

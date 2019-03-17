@@ -1116,6 +1116,14 @@ UVBeam: Reading/writing
 -----------------------
 Reading and writing beam files using UVBeam.
 
+The text files saved out of CST beam simulations do not have much of the
+critical metadata needed for UVBeam objects. When reading in CST files, you
+can either provide the required metadata using keywords to the read_cst method
+and pass the raw CST files, or you can pass a settings yaml file which lists
+the raw files and provides the required metadata to the read_cst method. Both
+options are shown in the examples below. More details on creating a new yaml
+settings files can be found in :doc:`cst_settings_yaml`.
+
 a) Reading a CST power beam file
 ******************************************
 ::
@@ -1131,7 +1139,7 @@ a) Reading a CST power beam file
   ...              'pyuvdata/data/NicCSTbeams/HERA_NicCST_123MHz.txt']
 
   # You have to specify the telescope_name, feed_name, feed_version, model_name
-  # and model_version because they are not included in the file.
+  # and model_version because they are not included in the raw CST files.
   # You should also specify the polarization that the file represents and you can
   # set rotate_pol to generate the other polarization by rotating by 90 degrees.
   # The feed_pol defaults to 'x' and rotate_pol defaults to True.
@@ -1147,10 +1155,8 @@ a) Reading a CST power beam file
   >>> print(beam.data_normalization)
   physical
 
-  # You can also use a yaml settings file to specify the telescope_name,
-  # feed_name, feed_version, model_name, model_version, history, feed_pol,
-  # frequencies and filenames and then pass in that yaml file as the filename.
-  # Note that using a yaml file requires that pyyaml is installed
+  # You can also use a yaml settings file.
+  # Note that using a yaml file requires that pyyaml is installed.
   >>> settings_file = 'pyuvdata/data/NicCSTbeams/NicCSTbeams.yaml'
   >>> beam.read_cst_beam(settings_file, beam_type='power')
   >>> print(beam.beam_type)
