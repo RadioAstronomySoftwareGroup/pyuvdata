@@ -66,6 +66,7 @@ def write_index_rst(readme_file=None, write_file=None):
             '   uvcal\n'
             '   uvbeam_parameters\n'
             '   uvbeam\n'
+            '   cst_settings_yaml\n'
             '   developer_docs\n')
 
     out.replace(u"\u2018", "'").replace(u"\u2019", "'").replace(u"\xa0", " ")
