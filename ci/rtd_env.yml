@@ -1,7 +1,7 @@
 # conda environment specification for Read the Docs
 name: rtd
 dependencies:
-  - python=2.7
+  - python=3.6
   - numpy
   - scipy
   - astropy

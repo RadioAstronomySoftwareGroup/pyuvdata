@@ -3,7 +3,9 @@ formats:
     - none
 conda:
     file: ci/rtd_env.yml
+build:
+    image: latest
 python:
-   version: 2.7
+   version: 3.6
 python:
    setup_py_install: true
