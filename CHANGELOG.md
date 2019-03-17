@@ -12,12 +12,15 @@ All notable changes to this project will be documented in this file.
 ## [1.3.6] - 2019-02-15
 
 ### Added
-- `keep_all_metadata` keyword for optionally discarding unused metadata when performing a select operation.
 - `_healpix_interp_bilinear` to `UVBeam`
+- `keep_all_metadata` keyword for optionally discarding unused metadata when performing a select operation.
 
 ### Changed
-- Extends `run_acceptability_check` for UVH5 metadata in `check_header` function.
+- `freq_interpolation_kind` added as an attribute to `UVBeam`
+- `tol` added as keyword argument to `UVBeam._interp_freq` which allows for a fast return of `data_array` slice if nearest-neighbor frequencies are all within the distance tolerance.
+- `polarizations` added as keyword argument to `UVBeam` interpolation methods.
 - `UVBeam._interp_freq` returns both `interp_data` and `interp_bandpass`, instead of just the former.
+- Extends `run_acceptability_check` for UVH5 metadata in `check_header` function.
 
 ### Fixed
 - Antenna numbering bug in redundancy methods. It wasn't using the correct antenna numbers to make baseline indices.

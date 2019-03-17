@@ -60,7 +60,7 @@ class TestUVBeamInit(object):
                                  '_extra_keywords', '_Nelements',
                                  '_element_coordinate_system',
                                  '_element_location_array', '_delay_array',
-                                 '_interpolation_function',
+                                 '_interpolation_function', '_freq_interpolation_kind',
                                  '_gain_array', '_coupling_matrix',
                                  '_reference_impedance',
                                  '_receiver_temperature_array',
@@ -74,7 +74,7 @@ class TestUVBeamInit(object):
                                  'basis_vector_array', 'extra_keywords', 'Nelements',
                                  'element_coordinate_system',
                                  'element_location_array', 'delay_array',
-                                 'interpolation_function',
+                                 'interpolation_function', 'freq_interpolation_kind',
                                  'gain_array', 'coupling_matrix',
                                  'reference_impedance',
                                  'receiver_temperature_array',
@@ -122,7 +122,7 @@ class TestUVBeamInit(object):
         attributes = [i for i in self.beam_obj.__dict__.keys() if i[0] == '_']
         for a in attributes:
             nt.assert_true(a in expected_parameters,
-                           msg='unexpected parameter ' + a + ' found in UVData')
+                           msg='unexpected parameter ' + a + ' found in UVBeam')
 
     def test_unexpected_attributes(self):
         "Test for extra attributes."
@@ -131,7 +131,7 @@ class TestUVBeamInit(object):
         attributes = [i for i in self.beam_obj.__dict__.keys() if i[0] != '_']
         for a in attributes:
             nt.assert_true(a in expected_attributes,
-                           msg='unexpected attribute ' + a + ' found in UVData')
+                           msg='unexpected attribute ' + a + ' found in UVBeam')
 
     def test_properties(self):
         "Test that properties can be get and set properly."
@@ -415,15 +415,18 @@ def test_interpolation():
 
     interp_data_array, interp_basis_vector = power_beam.interp(az_array=az_interp_vals,
                                                                za_array=za_interp_vals,
-                                                               freq_array=freq_interp_vals)    
+                                                               freq_array=freq_interp_vals)
 
-    # test if fed original frequencies that not interp_bool is triggered
-    # by using only one freq chan in object, which should trigger a ValueError if interp_bool is True
+    # using only one freq chan should trigger a ValueError if interp_bool is True
+    # unless requesting the original frequency channel such that interp_bool is False.
+    # Therefore, to test that interp_bool is False returns array slice as desired,
+    # test that ValueError is not raised in this case.
+    # Other ways of testing this (e.g. interp_data_array.flags['OWNDATA']) doesn't work
     _pb = power_beam.select(frequencies=power_beam.freq_array[0, :1], inplace=False)
     try:
         interp_data_array, interp_bandp = _pb._interp_freq(_pb.freq_array[0], kind='linear')
-    except:
-        raise AssertionError("UVBeam._interp_freq didn't return array slice as expected...")
+    except ValueError:
+        raise AssertionError("UVBeam._interp_freq didn't return an array slice as expected")
 
     # test reusing the spline fit.
     orig_data_array, interp_basis_vector = power_beam.interp(az_array=az_interp_vals,
@@ -505,31 +508,77 @@ def test_interpolation():
     nt.assert_raises(ValueError, power_beam.interp, az_array=az_interp_vals,
                      za_array=za_interp_vals + np.pi / 2)
 
-    # test healpix interpolation
-    if healpy_installed:
-        power_beam.read_cst_beam(cst_files, beam_type='power', frequency=[150e6, 123e6],
-                                 telescope_name='TEST', feed_name='bob',
-                                 feed_version='0.1', feed_pol=['x'],
-                                 model_name='E-field pattern - Rigging height 4.9m',
-                                 model_version='1.0')
-        power_beam.interpolation_function = 'az_za_simple'
-        power_beam.to_healpix()
+    # assert polarization value error
+    nt.assert_raises(ValueError, power_beam.interp, az_array=az_interp_vals, za_array=za_interp_vals,
+                     polarizations=[1])
 
-        # check that interpolating to existing points gives the same answer
-        power_beam.interpolation_function = 'healpix_simple'
-        za_orig_vals, az_orig_vals = hp.pix2ang(power_beam.nside, np.arange(hp.nside2npix(power_beam.nside)))
-        az_orig_vals = az_orig_vals.ravel(order='C')
-        za_orig_vals = za_orig_vals.ravel(order='C')
-        freq_orig_vals = np.array([123e6, 150e6])
 
-        interp_data_array, interp_basis_vector = power_beam.interp(az_array=az_orig_vals,
-                                                                   za_array=za_orig_vals,
-                                                                   freq_array=freq_orig_vals)
+@uvtest.skipIf_no_healpy
+def test_healpix_interpolation():
+    power_beam = UVBeam()
+    power_beam.read_cst_beam(cst_files, beam_type='efield', frequency=[150e6, 123e6],
+                             telescope_name='TEST', feed_name='bob',
+                             feed_version='0.1', feed_pol=['x'],
+                             model_name='E-field pattern - Rigging height 4.9m',
+                             model_version='1.0')
+    power_beam.interpolation_function = 'az_za_simple'
+    power_beam.to_healpix()
 
-        data_array_compare = power_beam.data_array
-        interp_data_array = interp_data_array.reshape(data_array_compare.shape, order='F')
+    # check that interpolating to existing points gives the same answer
+    power_beam.interpolation_function = 'healpix_simple'
+    za_orig_vals, az_orig_vals = hp.pix2ang(power_beam.nside, np.arange(hp.nside2npix(power_beam.nside)))
+    az_orig_vals = az_orig_vals.ravel(order='C')
+    za_orig_vals = za_orig_vals.ravel(order='C')
+    freq_orig_vals = np.array([123e6, 150e6])
 
-        nt.assert_true(np.allclose(data_array_compare, interp_data_array))
+    interp_data_array, interp_basis_vector = power_beam.interp(az_array=az_orig_vals,
+                                                               za_array=za_orig_vals,
+                                                               freq_array=freq_orig_vals)
+
+    data_array_compare = power_beam.data_array
+    interp_data_array = interp_data_array.reshape(data_array_compare.shape, order='F')
+
+    nt.assert_true(np.allclose(data_array_compare, interp_data_array))
+
+    # basis_vector exception
+    power_beam.basis_vector_array[0, 1, :] = 10.0
+    nt.assert_raises(NotImplementedError, power_beam.interp, az_array=az_orig_vals, za_array=za_orig_vals)
+
+    # now convert to power beam
+    power_beam.efield_to_power()
+    interp_data_array, interp_basis_vector = power_beam.interp(az_array=az_orig_vals,
+                                                               za_array=za_orig_vals,
+                                                               freq_array=freq_orig_vals)
+
+    data_array_compare = power_beam.data_array
+    interp_data_array = interp_data_array.reshape(data_array_compare.shape, order='F')
+
+    nt.assert_true(np.allclose(data_array_compare, interp_data_array))
+
+    # assert not feeding frequencies gives same answer
+    interp_data_array2, interp_basis_vector2 = power_beam.interp(az_array=az_orig_vals, za_array=za_orig_vals)
+    nt.assert_true(np.allclose(interp_data_array, interp_data_array2))
+
+    # assert not feeding az_array gives same answer
+    interp_data_array2, interp_basis_vector2 = power_beam.interp(az_array=az_orig_vals, za_array=za_orig_vals)
+    nt.assert_true(np.allclose(interp_data_array, interp_data_array2))
+
+    # test requesting polarization gives the same answer
+    interp_data_array2, interp_basis_vector2 = power_beam.interp(az_array=az_orig_vals, za_array=za_orig_vals,
+                                                                 polarizations=['xx'])
+    nt.assert_true(np.allclose(interp_data_array[:, :, :1], interp_data_array2[:, :, :1]))
+
+    # test no inputs equals same answer
+    interp_data_array2, interp_basis_vector2 = power_beam.interp()
+    nt.assert_true(np.allclose(interp_data_array, interp_data_array2))
+
+    # assert polarization value error
+    nt.assert_raises(ValueError, power_beam.interp, az_array=az_orig_vals, za_array=za_orig_vals,
+                     polarizations=['pI'])
+
+    # healpix coord exception
+    power_beam.pixel_coordinate_system = 'foo'
+    nt.assert_raises(ValueError, power_beam.interp, az_array=az_orig_vals, za_array=za_orig_vals)
 
 
 @uvtest.skipIf_no_healpy
