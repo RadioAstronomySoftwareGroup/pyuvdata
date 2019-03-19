@@ -534,10 +534,8 @@ def test_healpix_interpolation():
     interp_data_array, interp_basis_vector = power_beam.interp(az_array=az_orig_vals,
                                                                za_array=za_orig_vals,
                                                                freq_array=freq_orig_vals)
-
     data_array_compare = power_beam.data_array
     interp_data_array = interp_data_array.reshape(data_array_compare.shape, order='F')
-
     nt.assert_true(np.allclose(data_array_compare, interp_data_array))
 
     # basis_vector exception
@@ -549,10 +547,8 @@ def test_healpix_interpolation():
     interp_data_array, interp_basis_vector = power_beam.interp(az_array=az_orig_vals,
                                                                za_array=za_orig_vals,
                                                                freq_array=freq_orig_vals)
-
     data_array_compare = power_beam.data_array
     interp_data_array = interp_data_array.reshape(data_array_compare.shape, order='F')
-
     nt.assert_true(np.allclose(data_array_compare, interp_data_array))
 
     # assert not feeding frequencies gives same answer
@@ -567,6 +563,15 @@ def test_healpix_interpolation():
     interp_data_array2, interp_basis_vector2 = power_beam.interp(az_array=az_orig_vals, za_array=za_orig_vals,
                                                                  polarizations=['xx'])
     nt.assert_true(np.allclose(interp_data_array[:, :, :1], interp_data_array2[:, :, :1]))
+
+    # change complex data_array to real data_array and test again
+    power_beam.data_array = np.abs(power_beam.data_array)
+    interp_data_array, interp_basis_vector = power_beam.interp(az_array=az_orig_vals,
+                                                               za_array=za_orig_vals,
+                                                               freq_array=freq_orig_vals)
+    data_array_compare = power_beam.data_array
+    interp_data_array = interp_data_array.reshape(data_array_compare.shape, order='F')
+    nt.assert_true(np.allclose(data_array_compare, interp_data_array))
 
     # test no inputs equals same answer
     interp_data_array2, interp_basis_vector2 = power_beam.interp()
