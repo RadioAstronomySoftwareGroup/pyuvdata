@@ -937,7 +937,7 @@ class UVBeam(UVBase):
         return interp_data, interp_basis_vector
 
     def _interp_healpix_bilinear(self, az_array, za_array, freq_array, freq_interp_kind='linear',
-                                 polarizations=None):
+                                 freq_interp_tol=1.0, polarizations=None):
         """
         Simple bi-linear interpolation wrapper for healpix.
 
@@ -946,6 +946,10 @@ class UVBeam(UVBase):
             za_array: zenith angles to interpolate to [radians]
             freq_array: frequency values to interpolate to [Hz]
             freq_interp_kind: str, interpolation method across frequency. See scipy.interpolate.interp1d for details.
+            freq_interp_tol: float, frequency distance tolerance [Hz] of nearest neighbors.
+                If *all* elements in freq_array have nearest neighbor distances within
+                the specified tolerance then return the beam at each nearest neighbor,
+                otherwise interpolate the beam.
             polarizations: list of str, polarizations to interpolate if beam_type is 'power'.
                 Default is all polarizations in self.polarization_array.
 
@@ -964,7 +968,7 @@ class UVBeam(UVBase):
 
         if freq_array is not None:
             assert(isinstance(freq_array, np.ndarray))
-            input_data_array, _ = self._interp_freq(freq_array, kind=freq_interp_kind)
+            input_data_array, _ = self._interp_freq(freq_array, kind=freq_interp_kind, tol=freq_interp_tol)
             input_nfreqs = freq_array.size
         else:
             input_data_array = self.data_array
@@ -1044,7 +1048,7 @@ class UVBeam(UVBase):
 
         return interp_data, interp_basis_vector
 
-    def interp(self, az_array=None, za_array=None, freq_array=None,
+    def interp(self, az_array=None, za_array=None, freq_array=None, freq_interp_tol=1.0,
                polarizations=None, **kwargs):
         """
         Interpolate beam to given az, za locations (in radians).
@@ -1053,6 +1057,10 @@ class UVBeam(UVBase):
             az_array: az values to interpolate to (same length as za_array)
             za_array: za values to interpolate to (same length as az_array)
             freq_array: frequency values to interpolate to
+            freq_interp_tol: float, frequency distance tolerance [Hz] of nearest neighbors.
+                If *all* elements in freq_array have nearest neighbor distances within
+                the specified tolerance then return the beam at each nearest neighbor,
+                otherwise interpolate the beam.
             polarizations: list of str, polarizations to interpolate if beam_type is 'power'.
                 Default is all polarizations in self.polarization_array.
             kwargs: dictionary of keyword arguments to pass to interpolation function. See it for details.
@@ -1073,6 +1081,7 @@ class UVBeam(UVBase):
         interp_func = self.interpolation_function_dict[self.interpolation_function]['func']
         return getattr(self, interp_func)(az_array, za_array, freq_array,
                                           freq_interp_kind=self.freq_interpolation_kind,
+                                          freq_interp_tol=freq_interp_tol,
                                           polarizations=polarizations, **kwargs)
 
     def to_healpix(self, nside=None, run_check=True, check_extra=True,
