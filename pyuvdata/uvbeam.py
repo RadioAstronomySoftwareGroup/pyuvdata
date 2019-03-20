@@ -300,10 +300,10 @@ class UVBeam(UVBase):
                                                        acceptable_vals=list(self.interpolation_function_dict.keys()))
         desc = ('String indicating frequency interpolation kind. '
                 'See scipy.interpolate.interp1d for details. Default is linear.')
-        self._freq_interpolation_kind = uvp.UVParameter("freq_interpolation_kind",
+        self._freq_interp_kind = uvp.UVParameter("freq_interp_kind",
                                                         required=False, form='str',
                                                         expected_type=str, description=desc)
-        self.freq_interpolation_kind = 'linear'
+        self.freq_interp_kind = 'linear'
 
         desc = ('Any user supplied extra keywords, type=dict. Keys should be '
                 '8 character or less strings if writing to beam fits files. '
@@ -1099,12 +1099,12 @@ class UVBeam(UVBase):
         """
         if self.interpolation_function is None:
             raise ValueError('interpolation_function must be set on object first')
-        if self.freq_interpolation_kind is None:
-            raise ValueError('freq_interpolation_kind must be set on object first')
+        if self.freq_interp_kind is None:
+            raise ValueError('freq_interp_kind must be set on object first')
 
         interp_func = self.interpolation_function_dict[self.interpolation_function]['func']
         return getattr(self, interp_func)(az_array, za_array, freq_array,
-                                          freq_interp_kind=self.freq_interpolation_kind,
+                                          freq_interp_kind=self.freq_interp_kind,
                                           freq_interp_tol=freq_interp_tol,
                                           polarizations=polarizations, **kwargs)
 
