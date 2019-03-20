@@ -443,6 +443,10 @@ def test_interpolation():
     # test no errors only frequency interpolation
     interp_data_array, interp_basis_vector = power_beam.interp(freq_array=freq_interp_vals)
 
+    # assert polarization value error
+    nt.assert_raises(ValueError, power_beam.interp, az_array=az_interp_vals, za_array=za_interp_vals,
+                     polarizations=[1])
+
     # redo tests using Efield:
     efield_beam = UVBeam()
     efield_beam.read_cst_beam(cst_files, beam_type='efield', frequency=[150e6, 123e6],
@@ -511,6 +515,11 @@ def test_interpolation():
     # assert polarization value error
     nt.assert_raises(ValueError, power_beam.interp, az_array=az_interp_vals, za_array=za_interp_vals,
                      polarizations=[1])
+
+    # assert freq_interp_kind ValueError
+    power_beam.freq_interp_kind = None
+    nt.assert_raises(ValueError, power_beam.interp, az_array=az_interp_vals, za_array=za_interp_vals,
+                     polarizations=[-5])
 
 
 @uvtest.skipIf_no_healpy
