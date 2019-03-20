@@ -60,7 +60,7 @@ class TestUVBeamInit(object):
                                  '_extra_keywords', '_Nelements',
                                  '_element_coordinate_system',
                                  '_element_location_array', '_delay_array',
-                                 '_interpolation_function', '_freq_interpolation_kind',
+                                 '_interpolation_function', '_freq_interp_kind',
                                  '_gain_array', '_coupling_matrix',
                                  '_reference_impedance',
                                  '_receiver_temperature_array',
@@ -74,7 +74,7 @@ class TestUVBeamInit(object):
                                  'basis_vector_array', 'extra_keywords', 'Nelements',
                                  'element_coordinate_system',
                                  'element_location_array', 'delay_array',
-                                 'interpolation_function', 'freq_interpolation_kind',
+                                 'interpolation_function', 'freq_interp_kind',
                                  'gain_array', 'coupling_matrix',
                                  'reference_impedance',
                                  'receiver_temperature_array',
@@ -385,11 +385,13 @@ def test_interpolation():
     nt.assert_true(isinstance(interp_bandpass, np.ndarray))
 
     # test frequency interpolation returns new UVBeam for small and large tolerances
+    power_beam.saved_interp_functions = {}
     interp_data, interp_bandpass = power_beam._interp_freq(freq_orig_vals, tol=0.0, new_object=True)
     nt.assert_true(isinstance(interp_data, UVBeam))
     nt.assert_true(interp_bandpass is None)
     np.testing.assert_array_almost_equal(interp_data.freq_array[0], freq_orig_vals)
     nt.assert_equal(interp_data.freq_interp_kind, 'linear')
+    nt.assert_false(hasattr(power_beam, 'saved_interp_functions'))  # test that saved functions are erased in new obj
 
     interp_data, interp_bandpass = power_beam._interp_freq(freq_orig_vals, tol=1.0, new_object=True)
     nt.assert_true(isinstance(interp_data, UVBeam))
@@ -534,8 +536,8 @@ def test_interpolation():
     nt.assert_raises(ValueError, power_beam.interp, az_array=az_interp_vals,
                      za_array=za_interp_vals + np.pi / 2)
 
-    # assert polarization value error
-    nt.assert_raises(ValueError, power_beam.interp, az_array=az_interp_vals, za_array=za_interp_vals,
+    # assert polarization value error on efield beam
+    nt.assert_raises(ValueError, efield_beam.interp, az_array=az_interp_vals, za_array=za_interp_vals,
                      polarizations=[1])
 
     # assert freq_interp_kind ValueError
