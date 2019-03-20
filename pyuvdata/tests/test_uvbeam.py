@@ -374,12 +374,34 @@ def test_interpolation():
                              model_name='E-field pattern - Rigging height 4.9m',
                              model_version='1.0')
 
+    # test frequency interpolation returns data arrays for small and large tolerances
+    freq_orig_vals = np.array([123e6, 150e6])
+    interp_data, interp_bandpass = power_beam._interp_freq(freq_orig_vals, tol=0.0, new_object=False)
+    nt.assert_true(isinstance(interp_data, np.ndarray))
+    nt.assert_true(isinstance(interp_bandpass, np.ndarray))
+
+    interp_data, interp_bandpass = power_beam._interp_freq(freq_orig_vals, tol=1.0, new_object=False)
+    nt.assert_true(isinstance(interp_data, np.ndarray))
+    nt.assert_true(isinstance(interp_bandpass, np.ndarray))
+
+    # test frequency interpolation returns new UVBeam for small and large tolerances
+    interp_data, interp_bandpass = power_beam._interp_freq(freq_orig_vals, tol=0.0, new_object=True)
+    nt.assert_true(isinstance(interp_data, UVBeam))
+    nt.assert_true(interp_bandpass is None)
+    np.testing.assert_array_almost_equal(interp_data.freq_array[0], freq_orig_vals)
+    nt.assert_equal(interp_data.freq_interp_kind, 'linear')
+
+    interp_data, interp_bandpass = power_beam._interp_freq(freq_orig_vals, tol=1.0, new_object=True)
+    nt.assert_true(isinstance(interp_data, UVBeam))
+    nt.assert_true(interp_bandpass is None)
+    np.testing.assert_array_almost_equal(interp_data.freq_array[0], freq_orig_vals)
+    nt.assert_true(interp_data.freq_interp_kind, 'nearest')  # assert interp kind is 'nearest' when within tol
+
     # check that interpolating to existing points gives the same answer
     za_orig_vals, az_orig_vals = np.meshgrid(power_beam.axis2_array,
                                              power_beam.axis1_array)
     az_orig_vals = az_orig_vals.ravel(order='C')
     za_orig_vals = za_orig_vals.ravel(order='C')
-    freq_orig_vals = np.array([123e6, 150e6])
 
     # test error if no interpolation function is set
     nt.assert_raises(ValueError, power_beam.interp, az_array=az_orig_vals,

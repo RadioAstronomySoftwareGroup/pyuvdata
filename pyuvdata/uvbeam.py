@@ -726,7 +726,7 @@ class UVBeam(UVBase):
         if not inplace:
             return beam_object
 
-    def _interp_freq(self, freq_array, kind='linear', tol=1.0):
+    def _interp_freq(self, freq_array, kind='linear', tol=1.0, new_object=False):
         """
         Simple interpolation function for frequency axis.
 
@@ -737,10 +737,13 @@ class UVBeam(UVBase):
                 If *all* elements in freq_array have nearest neighbor distances within
                 the specified tolerance then return the beam at each nearest neighbor,
                 otherwise interpolate the beam.
+            new_object: bool, if True return a new UVBeam object, else return just the interpolated data
 
         Returns:
-            an array of interpolated beam values, shape: (Naxes_vec, Nspws, Nfeeds or Npols, freq_array.size, Npixels or (Naxis2, Naxis1))
-            an array of interpolated bandpass values, shape: (Nspws, freq_array.size)
+            interpolated beam values, or UVBeam object if new_object==True
+                shape: (Naxes_vec, Nspws, Nfeeds or Npols, freq_array.size, Npixels or (Naxis2, Naxis1))
+            interpolated bandpass values or None if new_object==True
+                shape: (Nspws, freq_array.size)
         """
         assert(isinstance(freq_array, np.ndarray))
         assert(freq_array.ndim == 1)
@@ -750,41 +753,62 @@ class UVBeam(UVBase):
         # get frequency distances
         freq_dists = np.abs(self.freq_array - freq_array.reshape(-1, 1))
         nearest_dist = np.min(freq_dists, axis=1)
-        nearest_ind = np.argmin(freq_dists, axis=1)
-        interp_bool = np.any(nearest_dist > tol)
+        nearest_inds = np.argmin(freq_dists, axis=1)
+        interp_bool = np.any(nearest_dist >= tol)
 
-        # just return the beam at nearest neighbors
+        # use the beam at nearest neighbors if not interp_bool
         if not interp_bool:
-            return self.data_array[:, :, :, nearest_ind, :], self.bandpass_array[:, nearest_ind]
+            interp_arrays = [self.data_array[:, :, :, nearest_inds, :], self.bandpass_array[:, nearest_inds]]
+            kind = 'nearest'
 
-        if self.Nfreqs == 1:
-            raise ValueError('Only one frequency in UVBeam so cannot interpolate.')
+        # otherwise interpolate the beam
+        else:
+            if self.Nfreqs == 1:
+                raise ValueError('Only one frequency in UVBeam so cannot interpolate.')
 
-        if (np.min(freq_array) < np.min(self.freq_array) or np.max(freq_array) > np.max(self.freq_array)):
-            raise ValueError('at least one interpolation frequency is outside of '
-                             'the UVBeam freq_array range.')
+            if (np.min(freq_array) < np.min(self.freq_array) or np.max(freq_array) > np.max(self.freq_array)):
+                raise ValueError('at least one interpolation frequency is outside of '
+                                 'the UVBeam freq_array range.')
 
-        def get_lambda(real_lut, imag_lut=None):
-            # Returns function objects for interpolation reuse
-            if imag_lut is None:
-                return lambda freqs: real_lut(freqs)
-            else:
-                return lambda freqs: (real_lut(freqs) + 1j * imag_lut(freqs))
+            def get_lambda(real_lut, imag_lut=None):
+                # Returns function objects for interpolation reuse
+                if imag_lut is None:
+                    return lambda freqs: real_lut(freqs)
+                else:
+                    return lambda freqs: (real_lut(freqs) + 1j * imag_lut(freqs))
 
-        interp_arrays = []
-        for data, ax in zip([self.data_array, self.bandpass_array], [3, 1]):
-            if np.iscomplexobj(data):
-                # interpolate real and imaginary parts separately
-                real_lut = interpolate.interp1d(self.freq_array[0, :], data.real, kind=kind, axis=ax)
-                imag_lut = interpolate.interp1d(self.freq_array[0, :], data.imag, kind=kind, axis=ax)
-                lut = get_lambda(real_lut, imag_lut)
-            else:
-                lut = interpolate.interp1d(self.freq_array[0, :], data, axis=ax)
-                lut = get_lambda(lut)
+            interp_arrays = []
+            for data, ax in zip([self.data_array, self.bandpass_array], [3, 1]):
+                if np.iscomplexobj(data):
+                    # interpolate real and imaginary parts separately
+                    real_lut = interpolate.interp1d(self.freq_array[0, :], data.real, kind=kind, axis=ax)
+                    imag_lut = interpolate.interp1d(self.freq_array[0, :], data.imag, kind=kind, axis=ax)
+                    lut = get_lambda(real_lut, imag_lut)
+                else:
+                    lut = interpolate.interp1d(self.freq_array[0, :], data, axis=ax)
+                    lut = get_lambda(lut)
 
-            interp_arrays.append(lut(freq_array))
+                interp_arrays.append(lut(freq_array))
 
-        return tuple(interp_arrays)
+        # return just the interpolated arrays
+        if not new_object:
+            return tuple(interp_arrays)
+
+        # return a new UVBeam object with interpolated data
+        else:
+            # make a new object
+            new_uvb = self.select(freq_chans=np.arange(np.min([self.Nfreqs, len(freq_array)])), inplace=False)
+            new_uvb.data_array = interp_arrays[0]
+            new_uvb.Nfreqs = new_uvb.data_array.shape[3]
+            new_uvb.freq_array = freq_array.reshape(1, -1)
+            new_uvb.bandpass_array = interp_arrays[1]
+            new_uvb.freq_interp_kind = kind
+            if hasattr(new_uvb, 'saved_interp_functions'):
+                delattr(new_uvb, 'saved_interp_functions')
+
+            new_uvb.check()
+
+            return new_uvb, None
 
     def _interp_az_za_rect_spline(self, az_array, za_array, freq_array, freq_interp_kind='linear',
                                   freq_interp_tol=1.0, reuse_spline=False, polarizations=None):
