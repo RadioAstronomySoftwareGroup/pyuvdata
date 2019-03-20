@@ -366,7 +366,7 @@ def test_efield_to_power():
     nt.assert_raises(ValueError, efield_beam.efield_to_power)
 
 
-def test_interpolation():
+def test_freq_interpolation():
     power_beam = UVBeam()
     power_beam.read_cst_beam(cst_files, beam_type='power', frequency=[150e6, 123e6],
                              telescope_name='TEST', feed_name='bob',
@@ -391,7 +391,7 @@ def test_interpolation():
     nt.assert_true(interp_bandpass is None)
     np.testing.assert_array_almost_equal(interp_data.freq_array[0], freq_orig_vals)
     nt.assert_equal(interp_data.freq_interp_kind, 'linear')
-    nt.assert_false(hasattr(power_beam, 'saved_interp_functions'))  # test that saved functions are erased in new obj
+    nt.assert_false(hasattr(interp_data, 'saved_interp_functions'))  # test that saved functions are erased in new obj
 
     interp_data, interp_bandpass = power_beam._interp_freq(freq_orig_vals, tol=1.0, new_object=True)
     nt.assert_true(isinstance(interp_data, UVBeam))
@@ -399,11 +399,42 @@ def test_interpolation():
     np.testing.assert_array_almost_equal(interp_data.freq_array[0], freq_orig_vals)
     nt.assert_true(interp_data.freq_interp_kind, 'nearest')  # assert interp kind is 'nearest' when within tol
 
+    # using only one freq chan should trigger a ValueError if interp_bool is True
+    # unless requesting the original frequency channel such that interp_bool is False.
+    # Therefore, to test that interp_bool is False returns array slice as desired,
+    # test that ValueError is not raised in this case.
+    # Other ways of testing this (e.g. interp_data_array.flags['OWNDATA']) does not work
+    _pb = power_beam.select(frequencies=power_beam.freq_array[0, :1], inplace=False)
+    try:
+        interp_data_array, interp_bandp = _pb._interp_freq(_pb.freq_array[0], kind='linear')
+    except ValueError:
+        raise AssertionError("UVBeam._interp_freq didn't return an array slice as expected")
+
+
+    # test errors if one frequency
+    power_beam_singlef = power_beam.select(freq_chans=[0], inplace=False)
+    nt.assert_raises(ValueError, power_beam_singlef._interp_freq, np.array([150e6]))
+
+    # assert freq_interp_kind ValueError
+    power_beam.freq_interp_kind = None
+    nt.assert_raises(ValueError, power_beam.interp, az_array=power_beam.axis1_array, za_array=power_beam.axis2_array,
+                     freq_array=freq_orig_vals, polarizations=[-5])
+
+
+def test_spatial_interpolation():
+    power_beam = UVBeam()
+    power_beam.read_cst_beam(cst_files, beam_type='power', frequency=[150e6, 123e6],
+                             telescope_name='TEST', feed_name='bob',
+                             feed_version='0.1', feed_pol=['x'],
+                             model_name='E-field pattern - Rigging height 4.9m',
+                             model_version='1.0')
+
     # check that interpolating to existing points gives the same answer
     za_orig_vals, az_orig_vals = np.meshgrid(power_beam.axis2_array,
                                              power_beam.axis1_array)
     az_orig_vals = az_orig_vals.ravel(order='C')
     za_orig_vals = za_orig_vals.ravel(order='C')
+    freq_orig_vals = np.array([123e6, 150e6])
 
     # test error if no interpolation function is set
     nt.assert_raises(ValueError, power_beam.interp, az_array=az_orig_vals,
@@ -427,7 +458,6 @@ def test_interpolation():
 
     data_array_compare = power_beam.data_array[:, :, :1]
     interp_data_array = interp_data_array.reshape(data_array_compare.shape, order='F')
-
     nt.assert_true(np.allclose(data_array_compare, interp_data_array))
 
     # test no errors using different points
@@ -440,17 +470,6 @@ def test_interpolation():
     interp_data_array, interp_basis_vector = power_beam.interp(az_array=az_interp_vals,
                                                                za_array=za_interp_vals,
                                                                freq_array=freq_interp_vals)
-
-    # using only one freq chan should trigger a ValueError if interp_bool is True
-    # unless requesting the original frequency channel such that interp_bool is False.
-    # Therefore, to test that interp_bool is False returns array slice as desired,
-    # test that ValueError is not raised in this case.
-    # Other ways of testing this (e.g. interp_data_array.flags['OWNDATA']) doesn't work
-    _pb = power_beam.select(frequencies=power_beam.freq_array[0, :1], inplace=False)
-    try:
-        interp_data_array, interp_bandp = _pb._interp_freq(_pb.freq_array[0], kind='linear')
-    except ValueError:
-        raise AssertionError("UVBeam._interp_freq didn't return an array slice as expected")
 
     # test reusing the spline fit.
     orig_data_array, interp_basis_vector = power_beam.interp(az_array=az_interp_vals,
@@ -526,24 +545,10 @@ def test_interpolation():
     nt.assert_raises(ValueError, power_beam.interp, az_array=az_interp_vals,
                      za_array=za_interp_vals, freq_array=np.array([100]))
 
-    # test errors if one frequency
-    power_beam_singlef = power_beam.select(freq_chans=[0], inplace=False)
-    nt.assert_raises(ValueError, power_beam_singlef.interp, az_array=az_interp_vals,
-                     za_array=za_interp_vals, freq_array=freq_interp_vals)
-
     # test errors if positions outside range
     power_beam.select(axis2_inds=np.where(power_beam.axis2_array <= np.pi / 2.)[0])
     nt.assert_raises(ValueError, power_beam.interp, az_array=az_interp_vals,
                      za_array=za_interp_vals + np.pi / 2)
-
-    # assert polarization value error on efield beam
-    nt.assert_raises(ValueError, efield_beam.interp, az_array=az_interp_vals, za_array=za_interp_vals,
-                     polarizations=[1])
-
-    # assert freq_interp_kind ValueError
-    power_beam.freq_interp_kind = None
-    nt.assert_raises(ValueError, power_beam.interp, az_array=az_interp_vals, za_array=za_interp_vals,
-                     polarizations=[-5])
 
 
 @uvtest.skipIf_no_healpy
