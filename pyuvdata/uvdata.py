@@ -964,17 +964,25 @@ class UVData(UVBase):
                                          str(blt[1]).zfill(prec_b)]) for blt in
                                zip(other.time_array, other.baseline_array)])
         # Check we don't have overlapping data
-        both_pol = np.intersect1d(
-            this.polarization_array, other.polarization_array)
-        both_freq = np.intersect1d(
-            this.freq_array[0, :], other.freq_array[0, :])
-        both_blts = np.intersect1d(this_blts, other_blts)
+        both_pol, this_pol_ind, other_pol_ind = np.intersect1d(
+            this.polarization_array, other.polarization_array, return_indices=True)
+        both_freq, this_freq_ind, other_freq_ind = np.intersect1d(
+            this.freq_array[0, :], other.freq_array[0, :], return_indices=True)
+        both_blts, this_blts_ind, other_blts_ind = np.intersect1d(
+            this_blts, other_blts, return_indices=True)
         if len(both_pol) > 0:
             if len(both_freq) > 0:
                 if len(both_blts) > 0:
-                    raise ValueError('These objects have overlapping data and'
-                                     ' cannot be combined.')
+                    # check that overlapping data is not valid
+                    all_zero = np.all(this.data_array[this_blts_ind][
+                        :, :, this_freq_ind][:, :, :, this_pol_ind] == 0)
+                    all_flag = np.all(this.flag_array[this_blts_ind][
+                        :, :, this_freq_ind][:, :, :, this_pol_ind])
+                    if not (all_zero and all_flag):
+                        raise ValueError('These objects have overlapping data and'
+                                         ' cannot be combined.')
 
+        # find the blt indices in "other" but not in "this"
         temp = np.nonzero(~np.in1d(other_blts, this_blts))[0]
         if len(temp) > 0:
             bnew_inds = temp
@@ -987,6 +995,7 @@ class UVData(UVBase):
             extra_params = ['_integration_time', '_uvw_array', '_lst_array']
             compatibility_params.extend(extra_params)
 
+        # find the freq indices in "other" but not in "this"
         temp = np.nonzero(
             ~np.in1d(other.freq_array[0, :], this.freq_array[0, :]))[0]
         if len(temp) > 0:
@@ -1000,6 +1009,7 @@ class UVData(UVBase):
         else:
             fnew_inds, new_freqs = ([], [])
 
+        # find the pol indices in "other" but not in "this"
         temp = np.nonzero(~np.in1d(other.polarization_array,
                                    this.polarization_array))[0]
         if len(temp) > 0:
@@ -1015,7 +1025,27 @@ class UVData(UVBase):
 
         # Actually check compatibility parameters
         for a in compatibility_params:
-            if getattr(this, a) != getattr(other, a):
+            if a == "_integration_time":
+                # only check that overlapping blt indices match
+                params_match = np.allclose(this.integration_time[this_blts_ind],
+                                           other.integration_time[other_blts_ind],
+                                           rtol=this._integration_time.tols[0],
+                                           atol=this._integration_time.tols[1])
+            elif a ==  "_uvw_array":
+                # only check that overlapping blt indices match
+                params_match = np.allclose(this.uvw_array[this_blts_ind, :],
+                                           other.uvw_array[other_blts_ind, :],
+                                           rtol=this._uvw_array.tols[0],
+                                           atol=this._uvw_array.tols[1])
+            elif a == "_lst_array":
+                # only check that overlapping blt indices match
+                params_match = np.allclose(this.lst_array[this_blts_ind],
+                                           other.lst_array[other_blts_ind],
+                                           rtol=this._lst_array.tols[0],
+                                           atol=this._lst_array.tols[1])
+            else:
+                params_match = (getattr(this, a) == getattr(other, a))
+            if not params_match:
                 msg = 'UVParameter ' + \
                     a[1:] + ' does not match. Cannot combine objects.'
                 raise ValueError(msg)
