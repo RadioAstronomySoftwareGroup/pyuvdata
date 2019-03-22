@@ -974,11 +974,23 @@ class UVData(UVBase):
             if len(both_freq) > 0:
                 if len(both_blts) > 0:
                     # check that overlapping data is not valid
-                    all_zero = np.all(this.data_array[this_blts_ind][
+                    this_all_zero = np.all(this.data_array[this_blts_ind][
                         :, :, this_freq_ind][:, :, :, this_pol_ind] == 0)
-                    all_flag = np.all(this.flag_array[this_blts_ind][
+                    this_all_flag = np.all(this.flag_array[this_blts_ind][
                         :, :, this_freq_ind][:, :, :, this_pol_ind])
-                    if not (all_zero and all_flag):
+                    other_all_zero = np.all(other.data_array[other_blts_ind][
+                        :, :, other_freq_ind][:, :, :, other_pol_ind] == 0)
+                    other_all_flag = np.all(other.flag_array[other_blts_ind][
+                        :, :, other_freq_ind][:, :, :, other_pol_ind])
+                    if (this_all_zero and this_all_flag):
+                        # we're fine to overwrite; update history accordingly
+                        history_update_string = ' Overwrote invalid data using pyuvdata.'
+                        this.history += history_update_string
+                    elif (other_all_zero and other_all_flag):
+                        raise ValueError('To combine these data, please run the add operation again, '
+                                         'but with the object whose data is to be overwritten as the '
+                                         'first object in the add operation.')
+                    else:
                         raise ValueError('These objects have overlapping data and'
                                          ' cannot be combined.')
 

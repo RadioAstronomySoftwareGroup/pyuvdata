@@ -2956,7 +2956,25 @@ def test_overlapping_data_add():
     uvfull = uv1 + uv2
     uvfull += uv3
     uvfull += uv4
-    uv.history = uvfull.history  # make histories match
+    extra_history = ("  Downselected to specific baseline-times, polarizations using pyuvdata. "
+                     "Combined data along polarization axis using pyuvdata. Combined data along "
+                     "baseline-time axis using pyuvdata. Overwrote invalid data using pyuvdata.")
+    nt.assert_equal(uvfull.history, uv.history + extra_history)
+    uvfull.history = uv.history  # make histories match
     nt.assert_equal(uv, uvfull)
+
+    # check combination not-in-place
+    uvfull = uv1 + uv2
+    uvfull += uv3
+    uvfull = uvfull + uv4
+    uvfull.history = uv.history  # make histories match
+    nt.assert_equal(uv, uvfull)
+
+    # test raising error for adding objects incorrectly (i.e., having the object
+    # with data to be overwritten come second)
+    uvfull = uv1 + uv2
+    uvfull += uv3
+    nt.assert_raises(ValueError, uv4.__iadd__, uvfull)
+    nt.assert_raises(ValueError, uv4.__add__, uv4, uvfull)
 
     return
