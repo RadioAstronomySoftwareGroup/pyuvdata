@@ -2956,10 +2956,10 @@ def test_overlapping_data_add():
     uvfull = uv1 + uv2
     uvfull += uv3
     uvfull += uv4
-    extra_history = ("  Downselected to specific baseline-times, polarizations using pyuvdata. "
+    extra_history = ("Downselected to specific baseline-times, polarizations using pyuvdata. "
                      "Combined data along polarization axis using pyuvdata. Combined data along "
                      "baseline-time axis using pyuvdata. Overwrote invalid data using pyuvdata.")
-    nt.assert_equal(uvfull.history, uv.history + extra_history)
+    nt.assert_true(uvutils._check_histories(uvfull.history, uv.history + extra_history))
     uvfull.history = uv.history  # make histories match
     nt.assert_equal(uv, uvfull)
 
@@ -2976,5 +2976,28 @@ def test_overlapping_data_add():
     uvfull += uv3
     nt.assert_raises(ValueError, uv4.__iadd__, uvfull)
     nt.assert_raises(ValueError, uv4.__add__, uv4, uvfull)
+
+    # write individual objects out, and make sure that we can read in the list
+    uv1_out = os.path.join(DATA_PATH, "uv1.uvfits")
+    uv1.write_uvfits(uv1_out)
+    uv2_out = os.path.join(DATA_PATH, "uv2.uvfits")
+    uv2.write_uvfits(uv2_out)
+    uv3_out = os.path.join(DATA_PATH, "uv3.uvfits")
+    uv3.write_uvfits(uv3_out)
+    uv4_out = os.path.join(DATA_PATH, "uv4.uvfits")
+    uv4.write_uvfits(uv4_out)
+
+    uvfull = UVData()
+    uvtest.checkWarnings(uvfull.read, [[uv1_out, uv2_out, uv3_out, uv4_out]],
+                         nwarnings=4, message='Telescope EVLA is not')
+    nt.assert_true(uvutils._check_histories(uvfull.history, uv.history + extra_history))
+    uvfull.history = uv.history  # make histories match
+    nt.assert_true(uvfull, uv)
+
+    # clean up after ourselves
+    os.remove(uv1_out)
+    os.remove(uv2_out)
+    os.remove(uv3_out)
+    os.remove(uv4_out)
 
     return
