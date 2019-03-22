@@ -6,6 +6,9 @@ All notable changes to this project will be documented in this file.
 ### Added
 - Support for a yaml settings file to collect and propagate metadata for CST beam files.
 
+### Fixed
+- Combining UVData objects to overwrite invalid "dummy data" no longer produces errors.
+
 ## [1.3.6] - 2019-02-15
 
 ### Added
