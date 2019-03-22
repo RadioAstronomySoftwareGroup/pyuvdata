@@ -1031,7 +1031,7 @@ class UVData(UVBase):
                                            other.integration_time[other_blts_ind],
                                            rtol=this._integration_time.tols[0],
                                            atol=this._integration_time.tols[1])
-            elif a ==  "_uvw_array":
+            elif a == "_uvw_array":
                 # only check that overlapping blt indices match
                 params_match = np.allclose(this.uvw_array[this_blts_ind, :],
                                            other.uvw_array[other_blts_ind, :],
