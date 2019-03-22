@@ -2936,3 +2936,27 @@ def test_redundancy_finder_when_nblts_not_nbls_times_ntimes():
     redundant_groups, centers, lengths, conj_inds = uv.get_baseline_redundancies(tol=tol)
     redundant_groups.sort(key=len)
     nt.assert_equal(groups, redundant_groups)
+
+
+def test_overlapping_data_add():
+    # read in test data
+    uv = UVData()
+    testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    uvtest.checkWarnings(uv.read_uvfits, [testfile], message='Telescope EVLA is not')
+
+    # slice into four objects
+    blts1 = np.arange(500)
+    blts2 = np.arange(500, 1360)
+    uv1 = uv.select(polarizations=[-1, -2], blt_inds=blts1, inplace=False)
+    uv2 = uv.select(polarizations=[-3, -4], blt_inds=blts1, inplace=False)
+    uv3 = uv.select(polarizations=[-1, -2], blt_inds=blts2, inplace=False)
+    uv4 = uv.select(polarizations=[-3, -4], blt_inds=blts2, inplace=False)
+
+    # combine and check for equality
+    uvfull = uv1 + uv2
+    uvfull += uv3
+    uvfull += uv4
+    uv.history = uvfull.history  # make histories match
+    nt.assert_equal(uv, uvfull)
+
+    return
