@@ -35,9 +35,9 @@ The following are optional fields:
 - ref_imp (float): beam model reference impedance
 - sim_beam_type (str): e.g. 'E-farfield'
 - any other field that contains useful information that should be propagated
-with the beam. These will go into the extra_keywords attribute (note that if the
-field names are more than 8 characters they will be truncated to 8 if the beam
-is written to a beamfits file).
+  with the beam. These will go into the extra_keywords attribute (note that if the
+  field names are more than 8 characters they will be truncated to 8 if the beam
+  is written to a beamfits file).
 
 Example Settings File
 ---------------------
