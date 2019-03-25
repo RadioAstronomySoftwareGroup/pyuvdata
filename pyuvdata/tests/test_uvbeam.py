@@ -599,8 +599,8 @@ def test_healpix_interpolation():
 
     # test requesting polarization gives the same answer
     interp_data_array2, interp_basis_vector2 = power_beam.interp(az_array=az_orig_vals, za_array=za_orig_vals,
-                                                                 polarizations=['xx'])
-    nt.assert_true(np.allclose(interp_data_array[:, :, :1], interp_data_array2[:, :, :1]))
+                                                                 polarizations=['yy'])
+    nt.assert_true(np.allclose(interp_data_array[:, :, 1:2], interp_data_array2[:, :, :1]))
 
     # change complex data_array to real data_array and test again
     power_beam.data_array = np.abs(power_beam.data_array)

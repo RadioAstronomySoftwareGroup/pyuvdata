@@ -1058,16 +1058,16 @@ class UVBeam(UVBase):
             for index3 in range(input_nfreqs):
                 freq = freq_array[index3]
                 for index0 in range(self.Naxes_vec):
-                    for index2 in pol_inds:
+                    for index2 in range(Npol_feeds):
                         if np.iscomplexobj(input_data_array):
                             # interpolate real and imaginary parts separately
-                            real_hmap = hp.get_interp_val(input_data_array[index0, index1, index2, index3, :].real, za_array, az_array)
-                            imag_hmap = hp.get_interp_val(input_data_array[index0, index1, index2, index3, :].imag, za_array, az_array)
+                            real_hmap = hp.get_interp_val(input_data_array[index0, index1, pol_inds[index2], index3, :].real, za_array, az_array)
+                            imag_hmap = hp.get_interp_val(input_data_array[index0, index1, pol_inds[index2], index3, :].imag, za_array, az_array)
                             hmap = real_hmap + 1j * imag_hmap
                         else:
                             # interpolate once
-                            hmap = hp.get_interp_val(input_data_array[index0, index1, index2, index3, :], za_array, az_array)
-
+                            hmap = hp.get_interp_val(input_data_array[index0, index1, pol_inds[index2], index3, :], za_array, az_array)
+                            
                         interp_data[index0, index1, index2, index3, :] = hmap
 
         return interp_data, interp_basis_vector
