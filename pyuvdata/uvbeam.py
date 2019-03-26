@@ -301,8 +301,8 @@ class UVBeam(UVBase):
         desc = ('String indicating frequency interpolation kind. '
                 'See scipy.interpolate.interp1d for details. Default is linear.')
         self._freq_interp_kind = uvp.UVParameter("freq_interp_kind",
-                                                        required=False, form='str',
-                                                        expected_type=str, description=desc)
+                                                 required=False, form='str',
+                                                 expected_type=str, description=desc)
         self.freq_interp_kind = 'linear'
 
         desc = ('Any user supplied extra keywords, type=dict. Keys should be '
@@ -1067,7 +1067,7 @@ class UVBeam(UVBase):
                         else:
                             # interpolate once
                             hmap = hp.get_interp_val(input_data_array[index0, index1, pol_inds[index2], index3, :], za_array, az_array)
-                            
+
                         interp_data[index0, index1, index2, index3, :] = hmap
 
         return interp_data, interp_basis_vector
