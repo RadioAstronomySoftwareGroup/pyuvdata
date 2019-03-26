@@ -415,9 +415,10 @@ def test_freq_interpolation():
     nt.assert_raises(ValueError, power_beam_singlef._interp_freq, np.array([150e6]))
 
     # assert freq_interp_kind ValueError
+    power_beam.interpolation_function = 'az_za_simple'
     power_beam.freq_interp_kind = None
     nt.assert_raises(ValueError, power_beam.interp, az_array=power_beam.axis1_array, za_array=power_beam.axis2_array,
-                     freq_array=freq_orig_vals, polarizations=[-5])
+                     freq_array=freq_orig_vals, polarizations=['xx'])
 
 
 def test_spatial_interpolation():
@@ -487,7 +488,7 @@ def test_spatial_interpolation():
 
     # assert polarization value error
     nt.assert_raises(ValueError, power_beam.interp, az_array=az_interp_vals, za_array=za_interp_vals,
-                     polarizations=[1])
+                     polarizations=['pI'])
 
     # redo tests using Efield:
     efield_beam = UVBeam()
