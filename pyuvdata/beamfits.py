@@ -169,6 +169,7 @@ class BeamFITS(UVBeam):
             self.model_name = primary_header.pop('MODEL', None)
             self.model_version = primary_header.pop('MODELVER', None)
             self.interpolation_function = primary_header.pop('INTERPFN', None)
+            self.freq_interp_kind = primary_header.pop('FINTERP', None)
 
             # shapes
             if primary_header.pop('CTYPE' + str(ax_nums['freq'])).lower().strip() == 'freq':
@@ -408,7 +409,12 @@ class BeamFITS(UVBeam):
         primary_header['MODELVER'] = self.model_version
 
         if self.interpolation_function is not None:
-            primary_header['INTERPFN'] = self.interpolation_function
+            primary_header['INTERPFN'] = (self.interpolation_function,
+                                          'interpolation function')
+
+        if self.freq_interp_kind is not None:
+            primary_header['FINTERP'] = (self.freq_interp_kind, 'frequency '
+                                         'interpolation kind (scipy interp1d)')
 
         if self.beam_type == 'efield':
             primary_header['FEEDLIST'] = '[' + ', '.join(self.feed_array) + ']'
