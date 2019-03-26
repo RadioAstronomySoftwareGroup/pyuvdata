@@ -18,5 +18,6 @@ from .telescopes import *  # noqa
 from .uvcal import *  # noqa
 from .uvbeam import *  # noqa
 from . import version  # noqa
+from .uvflag import UVFlag  # noqa
 
 __version__ = version.version
