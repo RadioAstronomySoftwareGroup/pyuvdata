@@ -410,7 +410,6 @@ def test_freq_interpolation():
     except ValueError:
         raise AssertionError("UVBeam._interp_freq didn't return an array slice as expected")
 
-
     # test errors if one frequency
     power_beam_singlef = power_beam.select(freq_chans=[0], inplace=False)
     nt.assert_raises(ValueError, power_beam_singlef._interp_freq, np.array([150e6]))
