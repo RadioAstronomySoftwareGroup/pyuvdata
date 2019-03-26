@@ -38,6 +38,8 @@ def test_readCST_writereadFITS():
     beam_in.loss_array = np.random.normal(50.0, 5, size=(beam_in.Nspws, beam_in.Nfreqs))
     beam_in.mismatch_array = np.random.normal(0.0, 1.0, size=(beam_in.Nspws, beam_in.Nfreqs))
     beam_in.s_parameters = np.random.normal(0.0, 0.3, size=(4, beam_in.Nspws, beam_in.Nfreqs))
+    beam_in.interpolation_function = 'az_za_simple'
+    beam_in.freq_interp_kind = 'linear'
 
     write_file = os.path.join(DATA_PATH, 'test/outtest_beam.fits')
 
