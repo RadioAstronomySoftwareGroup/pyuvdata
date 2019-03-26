@@ -15,6 +15,9 @@ import copy
 from astropy.time import Time
 from astropy.coordinates import Angle
 from astropy.utils import iers
+from . import telescopes as uvtel
+from . import UVdata
+from . import UVCal
 
 # parameters for transforming between xyz & lat/lon/alt
 gps_b = 6356752.31424518
@@ -959,3 +962,141 @@ def _reraise_context(fmt, *args):
         ex.args = (cstr, ) + ex.args[1:]
 
     raise
+
+
+def lst_from_uv(uv):
+    ''' Calculate the lst_array for a UVData or UVCal object.
+    Args:
+        uv: a UVData or UVCal object.
+    Returns:
+        lst_array: lst_array corresponding to time_array and at telescope location.
+                   Units are radian.
+    '''
+    if not isinstance(uv, (UVCal, UVData)):
+        raise ValueError('Function lst_from_uv can only operate on '
+                         'UVCal or UVData object.')
+
+    tel = uvtel.get_telescope(uv.telescope_name)
+    lat, lon, alt = tel.telescope_location_lat_lon_alt_degrees
+    lst_array = get_lst_for_time(uv.time_array, lat, lon, alt)
+    return lst_array
+
+
+def collapse(a, alg, weights=None, axis=None, returned=False):
+    ''' Parent function to collapse an array with a given algorithm.
+    Args:
+        a (array): Input array to process.
+        alg (str): Algorithm to use. Must be defined in this function with
+            corresponding subfunction below.
+        weights (array, optional): weights for collapse operation (e.g. weighted mean).
+            NOTE: Some subfunctions do not use the weights. See corresponding doc strings.
+        axis (int, tuple, optional): Axis or axes to collapse. Default is all.
+        returned (Bool): Whether to return sum of weights. Default is False.
+    '''
+    if alg == 'mean':
+        out = mean_collapse(a, weights=weights, axis=axis, returned=returned)
+    elif alg == 'absmean':
+        out = absmean_collapse(a, weights=weights, axis=axis, returned=returned)
+    elif alg == 'quadmean':
+        out = quadmean_collapse(a, weights=weights, axis=axis, returned=returned)
+    elif alg == 'or':
+        out = or_collapse(a, weights=weights, axis=axis, returned=returned)
+    elif alg == 'and':
+        out = and_collapse(a, weights=weights, axis=axis, returned=returned)
+    else:
+        raise ValueError('Collapse algorithm must be one of: "mean", "absmean",'
+                         ' "quadmean", "or", or "and".')
+    return out
+
+
+def mean_collapse(a, weights=None, axis=None, returned=False):
+    ''' Function to average data. This is similar to np.average, except it
+    handles infs (by giving them zero weight) and zero weight axes (by forcing
+    result to be inf with zero output weight).
+    Args:
+        a - array to process
+        weights - weights for average. If none, will default to equal weight for
+                  all non-infinite data.
+        axis - axis keyword to pass to np.sum
+        returned - whether to return sum of weights. Default is False.
+    '''
+    a = copy.deepcopy(a)  # avoid changing outside
+    if weights is None:
+        weights = np.ones_like(a)
+    w = weights * np.logical_not(np.isinf(a))
+    a[np.isinf(a)] = 0
+    wo = np.sum(w, axis=axis)
+    o = np.sum(w * a, axis=axis)
+    where = (wo > 1e-10)
+    o = np.true_divide(o, wo, where=where)
+    o = np.where(where, o, np.inf)
+    if returned:
+        return o, wo
+    else:
+        return o
+
+
+def absmean_collapse(a, weights=None, axis=None, returned=False):
+    ''' Function to average absolute value
+    Args:
+        a - array to process
+        weights - weights for average
+        axis - axis keyword to pass to np.mean
+        returned - whether to return sum of weights. Default is False.
+    '''
+    return mean(np.abs(a), weights=weights, axis=axis, returned=returned)
+
+
+def quadmean_collapse(a, weights=None, axis=None, returned=False):
+    ''' Function to average in quadrature
+    Args:
+        a - array to process
+        weights - weights for average
+        axis - axis keyword to pass to np.mean
+        returned - whether to return sum of weights. Default is False.
+    '''
+    o = mean(np.abs(a)**2, weights=weights, axis=axis, returned=returned)
+    if returned:
+        return np.sqrt(o[0]), o[1]
+    else:
+        return np.sqrt(o)
+
+
+def or_collapse(a, weights=None, axis=None, returned=False):
+    ''' Function to collapse axes using OR operation
+    Args:
+        a - boolean array to process
+        weights - NOT USED, but kept for symmetry with other averaging functions
+        axis - axis or axes over which to OR
+        returned - whether to return dummy weights array. NOTE: the dummy weights
+                   will simply be an array of ones. Default is False.
+    '''
+    if a.dtype != np.bool:
+        raise ValueError('Input to or_collapse function must be boolean array')
+    o = np.any(a, axis=axis)
+    if (weights is not None) and not np.all(weights == weights.reshape(-1)[0]):
+        warnings.warn('Currently weights are not handled when OR-ing boolean arrays.')
+    if returned:
+        return o, np.ones_like(o, dtype=np.float)
+    else:
+        return o
+
+
+def and_collapse(a, weights=None, axis=None, returned=False):
+    ''' Function to collapse axes using AND operation
+    Args:
+        a - boolean array to process
+        weights - NOT USED, but kept for symmetry with other averaging functions
+        axis - axis or axes over which to AND
+        returned - whether to return dummy weights array. NOTE: the dummy weights
+                   will simply be an array of ones. Default is False.
+    '''
+    if a.dtype != np.bool:
+        raise ValueError('Input to and_collapse function must be boolean array')
+    o = np.all(a, axis=axis)
+    if (weights is not None) and not np.all(weights == weights.reshape(-1)[0]):
+        warnings.warn('Currently weights are not handled when AND-ing boolean arrays.')
+    if returned:
+        return o, np.ones_like(o, dtype=np.float)
+    else:
+        return o
