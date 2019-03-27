@@ -811,7 +811,7 @@ class UVBeam(UVBase):
             return new_uvb, None
 
     def _interp_az_za_rect_spline(self, az_array, za_array, freq_array, freq_interp_kind='linear',
-                                  freq_interp_tol=1.0, reuse_spline=False, polarizations=None):
+                                  freq_interp_tol=1.0, reuse_spline=False, polarizations=None, **kwargs):
         """
         Simple interpolation function for az_za coordinate system.
 
@@ -961,7 +961,7 @@ class UVBeam(UVBase):
         return interp_data, interp_basis_vector
 
     def _interp_healpix_bilinear(self, az_array, za_array, freq_array, freq_interp_kind='linear',
-                                 freq_interp_tol=1.0, polarizations=None):
+                                 freq_interp_tol=1.0, polarizations=None, **kwargs):
         """
         Simple bi-linear interpolation wrapper for healpix.
 
@@ -1073,7 +1073,7 @@ class UVBeam(UVBase):
         return interp_data, interp_basis_vector
 
     def interp(self, az_array=None, za_array=None, freq_array=None, freq_interp_tol=1.0,
-               polarizations=None, **kwargs):
+               polarizations=None, freq_interp_kind='linear', reuse_spline=False):
         """
         Interpolate beam to given az, za locations (in radians).
 
@@ -1087,7 +1087,8 @@ class UVBeam(UVBase):
                 otherwise interpolate the beam.
             polarizations: list of str, polarizations to interpolate if beam_type is 'power'.
                 Default is all polarizations in self.polarization_array.
-            kwargs: dictionary of keyword arguments to pass to interpolation function. See it for details.
+            freq_interp_kind: str, interpolation method across frequency. See scipy.interpolate.interp1d for details.
+            reuse_spline: Save the interpolation functions for reuse. Only applies for `az_za_simple` interpolation.
 
         Returns:
             an array of interpolated values, shape: (Naxes_vec, Nspws, Nfeeds or Npols,
@@ -1106,7 +1107,9 @@ class UVBeam(UVBase):
         return getattr(self, interp_func)(az_array, za_array, freq_array,
                                           freq_interp_kind=self.freq_interp_kind,
                                           freq_interp_tol=freq_interp_tol,
-                                          polarizations=polarizations, **kwargs)
+                                          polarizations=polarizations,
+                                          freq_interp_kind=freq_interp_kind,
+                                          reuse_spline=reuse_spline)
 
     def to_healpix(self, nside=None, run_check=True, check_extra=True,
                    run_check_acceptability=True,
