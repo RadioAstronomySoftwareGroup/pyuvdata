@@ -1108,7 +1108,6 @@ class UVBeam(UVBase):
                                           freq_interp_kind=self.freq_interp_kind,
                                           freq_interp_tol=freq_interp_tol,
                                           polarizations=polarizations,
-                                          freq_interp_kind=freq_interp_kind,
                                           reuse_spline=reuse_spline)
 
     def to_healpix(self, nside=None, run_check=True, check_extra=True,
