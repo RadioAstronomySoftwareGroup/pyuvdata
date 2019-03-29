@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- Added `add_to_history` kwarg to UVH5.write_uvh5_part
 - Support for a yaml settings file to collect and propagate metadata for CST beam files.
 
 ### Fixed

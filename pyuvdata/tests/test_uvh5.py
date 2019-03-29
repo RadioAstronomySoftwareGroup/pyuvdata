@@ -320,6 +320,16 @@ def test_UVH5PartialWrite():
     partial_uvh5.read(partial_testfile)
     nt.assert_equal(full_uvh5, partial_uvh5)
 
+    # test add_to_history
+    key = antpairpols[0]
+    data = full_uvh5.get_data(key, squeeze='none')
+    flags = full_uvh5.get_flags(key, squeeze='none')
+    nsamples = full_uvh5.get_nsamples(key, squeeze='none')
+    partial_uvh5.write_uvh5_part(partial_testfile, data, flags, nsamples,
+                                 bls=key, add_to_history="foo")
+    partial_uvh5.read(partial_testfile, read_data=False)
+    nt.assert_true('foo' in partial_uvh5.history)
+
     # start over, and write frequencies
     partial_uvh5 = copy.deepcopy(full_uvh5)
     partial_uvh5.data_array = None
