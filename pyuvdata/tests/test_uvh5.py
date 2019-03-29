@@ -93,6 +93,32 @@ def test_ReadUVH5Errors():
 
     return
 
+@uvtest.skipIf_no_h5py
+def test_WriteUVH5Errors():
+    """
+    Test raising errors in write_uvh5 function
+    """
+    uv_in = UVData()
+    uv_out = UVData()
+    uvfits_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    uvtest.checkWarnings(uv_in.read_uvfits, [uvfits_file], message='Telescope EVLA is not')
+    testfile = os.path.join(DATA_PATH, 'test', 'outtest_uvfits.uvh5')
+    with open(testfile, 'a'):
+        os.utime(testfile, None)
+
+    # no errors in function yet, but test that write w/ clobber = False doesn't raise an error
+    uv_in.write_uvh5(testfile, clobber=False)
+
+    # use clobber=True to write out anyway
+    uv_in.write_uvh5(testfile, clobber=True)
+    uvtest.checkWarnings(uv_out.read, [testfile], message='Telescope EVLA is not')
+    nt.assert_equal(uv_in, uv_out)
+
+    # clean up
+    os.remove(testfile)
+
+    return
+
 
 @uvtest.skipIf_no_h5py
 def test_UVH5OptionalParameters():
@@ -844,6 +870,9 @@ def test_UVH5InitializeFile():
     # read it in and make sure that the metadata matches the original
     partial_uvh5.read(partial_testfile, read_data=False)
     nt.assert_equal(partial_uvh5, full_uvh5)
+
+    # check that an error is not raised then when clobber == False
+    partial_uvh5.initialize_uvh5_file(partial_testfile, clobber=False)
 
     # add options for compression
     partial_uvh5.initialize_uvh5_file(partial_testfile, clobber=True, data_compression="lzf",
