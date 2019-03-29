@@ -1222,6 +1222,113 @@ class UVData(UVBase):
         self.__add__(other, inplace=True)
         return self
 
+    def fast_concat(self, other, axis, run_check=True, check_extra=True,
+                    run_check_acceptability=True, inplace=False):
+        """
+        Concatenate two UVData objects along specified axis with almost no checking of metadata.
+
+        Warning! This method assumes all the metadata along other axes is sorted
+        the same way. The __add__ method is much safer, it checks all the metadata,
+        but it is slower. Some quick checks are run, but this method doesn't
+        make any guarantees that the resulting object is correct.
+
+        Args:
+            other: Another UVData object which will be added to self.
+            axis: Axis to concatenate files along. This enables fast concatenation
+                along the specified axis without the normal checking that all other
+                metadata agrees. Allowed values are: 'blt', 'freq', 'polarization'.
+            run_check: Option to check for the existence and proper shapes of
+                parameters after combining objects. Default is True.
+            check_extra: Option to check optional parameters as well as
+                required ones. Default is True.
+            run_check_acceptability: Option to check acceptable range of the values of
+                parameters after combining objects. Default is True.
+            inplace: Overwrite self as we go, otherwise create a third object
+                as the sum of the two (default).
+        """
+        if inplace:
+            this = self
+        else:
+            this = copy.deepcopy(self)
+        # Check that both objects are UVData and valid
+        this.check(check_extra=check_extra, run_check_acceptability=run_check_acceptability)
+        if not issubclass(other.__class__, this.__class__):
+            if not issubclass(this.__class__, other.__class__):
+                raise ValueError('Only UVData (or subclass) objects can be '
+                                 'added to a UVData (or subclass) object')
+        other.check(check_extra=check_extra, run_check_acceptability=run_check_acceptability)
+
+        allowed_axes = ['blt', 'freq', 'polarization']
+        if axis is not None:
+            if axis not in allowed_axes:
+                raise ValueError('If axis is specifed it must be one of: '
+                                 + ', '.join(allowed_axes))
+
+        compatibility_params = ['_vis_units', '_channel_width', '_object_name',
+                                '_telescope_name', '_instrument',
+                                '_telescope_location', '_phase_type',
+                                '_Nants_telescope', '_antenna_names',
+                                '_antenna_numbers', '_antenna_positions',
+                                '_phase_center_ra', '_phase_center_dec',
+                                '_phase_center_epoch']
+
+        if axis == 'freq':
+            compatibility_params += ['_polarization_array', '_ant_1_array',
+                                     '_ant_2_array', '_integration_time',
+                                     '_uvw_array', '_lst_array']
+        elif axis == 'polarization':
+            compatibility_params += ['_freq_array', '_ant_1_array',
+                                     '_ant_2_array', '_integration_time',
+                                     '_uvw_array', '_lst_array']
+        elif axis == 'blt':
+            compatibility_params += ['_freq_array', '_polarization_array']
+
+        # Actually check compatibility parameters
+        for a in compatibility_params:
+            params_match = (getattr(this, a) == getattr(other, a))
+            if not params_match:
+                msg = 'UVParameter ' + \
+                    a[1:] + ' does not match. Cannot combine objects.'
+                raise ValueError(msg)
+
+        if axis == 'freq':
+            this.freq_array = np.concatenate([this.freq_array, other.freq_array], axis=1)
+            this.data_array = np.concatenate([this.data_array, other.data_array], axis=2)
+            this.nsample_array = np.concatenate([this.nsample_array, other.nsample_array], axis=2)
+            this.flag_array = np.concatenate([this.flag_array, other.flag_array], axis=2)
+        elif axis == 'polarization':
+            this.polarization_array = np.concatenate([this.polarization_array,
+                                                     other.polarization_array])
+            this.data_array = np.concatenate([this.data_array, other.data_array], axis=3)
+            this.nsample_array = np.concatenate([this.nsample_array, other.nsample_array], axis=3)
+            this.flag_array = np.concatenate([this.flag_array, other.flag_array], axis=3)
+        elif axis == 'blt':
+            this.ant_1_array = np.concatenate([this.ant_1_array,
+                                              other.ant_1_array])
+            this.ant_2_array = np.concatenate([this.ant_2_array,
+                                              other.ant_2_array])
+            this.uvw_array = np.concatenate([this.uvw_array,
+                                            other.uvw_array], axis=0)
+            this.time_array = np.concatenate([this.time_array,
+                                             other.time_array])
+            this.lst_array = np.concatenate([this.lst_array,
+                                            other.lst_array])
+            this.baseline_array = np.concatenate([this.baseline_array,
+                                                 other.baseline_array])
+            this.integration_time = np.concatenate([this.integration_time,
+                                                   other.integration_time])
+            this.data_array = np.concatenate([this.data_array, other.data_array], axis=0)
+            this.nsample_array = np.concatenate([this.nsample_array, other.nsample_array], axis=0)
+            this.flag_array = np.concatenate([this.flag_array, other.flag_array], axis=0)
+
+        # Check final object is self-consistent
+        if run_check:
+            this.check(check_extra=check_extra,
+                       run_check_acceptability=run_check_acceptability)
+
+        if not inplace:
+            return this
+
     def _select_preprocess(self, antenna_nums, antenna_names, ant_str, bls,
                            frequencies, freq_chans, times, polarizations, blt_inds):
         """
@@ -1662,17 +1769,22 @@ class UVData(UVBase):
             setattr(other_obj, p, param)
         return other_obj
 
-    def read_uvfits(self, filename, antenna_nums=None, antenna_names=None,
+    def read_uvfits(self, filename, axis=None, antenna_nums=None, antenna_names=None,
                     ant_str=None, bls=None, frequencies=None,
                     freq_chans=None, times=None, polarizations=None, blt_inds=None,
-                    read_data=True, read_metadata=True, run_check=True,
-                    check_extra=True, run_check_acceptability=True,
-                    keep_all_metadata=True):
+                    keep_all_metadata=True, read_data=True, read_metadata=True,
+                    run_check=True, check_extra=True, run_check_acceptability=True):
         """
         Read in header, metadata and data from uvfits file(s).
 
         Args:
             filename: The uvfits file or list of files to read from.
+            axis: Axis to concatenate files along. This enables fast concatenation
+                along the specified axis without the normal checking that all other
+                metadata agrees. This method does not guarantee correct resulting
+                objects. Please see the docstring for fast_concat for details.
+                Allowed values are: 'blt', 'freq', 'polarization'. Only used if
+                multiple files are passed.
             antenna_nums: The antennas numbers to include when reading data into
                 the object (antenna positions and names for the excluded antennas
                 will be retained). This cannot be provided if antenna_names is
@@ -1709,6 +1821,8 @@ class UVData(UVBase):
                 the object.  Ignored if read_data is False.
             blt_inds: The baseline-time indices to include when reading data into
                 the object. This is not commonly used. Ignored if read_data is False.
+            keep_all_metadata: Option to keep all the metadata associated with antennas,
+                even those that do not remain after the select option. Default is True.
             read_data: Read in the visibility and flag data. If set to false,
                 only the basic header info and metadata (if read_metadata is True)
                 will be read in. Setting read_data to False results in an
@@ -1725,8 +1839,6 @@ class UVData(UVBase):
             run_check_acceptability: Option to check acceptable range of the values of
                 parameters after reading in the file. Default is True.
                 Ignored if read_data is False.
-            keep_all_metadata: Option to keep all the metadata associated with antennas,
-                even those that do not remain after the select option. Default is True.
         """
         from . import uvfits
         # work out what function should be called depending on what's
@@ -1788,7 +1900,11 @@ class UVData(UVBase):
                                     run_check=run_check, check_extra=check_extra,
                                     run_check_acceptability=run_check_acceptability,
                                     keep_all_metadata=keep_all_metadata)
-                    self += uv2
+                    if axis is not None:
+                        self.fast_concat(uv2, axis, run_check=True, check_extra=True,
+                                         run_check_acceptability=True, inplace=True)
+                    else:
+                        self += uv2
                 del(uv2)
         else:
             if func == 'read_uvfits':
@@ -1850,13 +1966,19 @@ class UVData(UVBase):
                                 run_check_acceptability=run_check_acceptability)
         del(uvfits_obj)
 
-    def read_ms(self, filepath, run_check=True, check_extra=True,
+    def read_ms(self, filepath, axis=None, run_check=True, check_extra=True,
                 run_check_acceptability=True, data_column='DATA', pol_order='AIPS'):
         """
         Read in data from a measurement set
 
         Args:
             filepath: The measurement set file directory or list of directories to read from.
+            axis: Axis to concatenate files along. This enables fast concatenation
+                along the specified axis without the normal checking that all other
+                metadata agrees. This method does not guarantee correct resulting
+                objects. Please see the docstring for fast_concat for details.
+                Allowed values are: 'blt', 'freq', 'polarization'. Only used if
+                multiple files are passed.
             run_check: Option to check for the existence and proper shapes of
                 parameters after reading in the file. Default is True.
             check_extra: Option to check optional parameters as well as required
@@ -1880,7 +2002,11 @@ class UVData(UVBase):
                     uv2.read_ms(f, run_check=run_check, check_extra=check_extra,
                                 run_check_acceptability=run_check_acceptability,
                                 data_column=data_column, pol_order=pol_order)
-                    self += uv2
+                    if axis is not None:
+                        self.fast_concat(uv2, axis, run_check=True, check_extra=True,
+                                         run_check_acceptability=True, inplace=True)
+                    else:
+                        self += uv2
                 del(uv2)
         else:
             ms_obj = ms.MS()
@@ -1890,8 +2016,8 @@ class UVData(UVBase):
             self._convert_from_filetype(ms_obj)
             del(ms_obj)
 
-    def read_fhd(self, filelist, use_model=False, run_check=True, check_extra=True,
-                 run_check_acceptability=True):
+    def read_fhd(self, filelist, use_model=False, axis=None,
+                 run_check=True, check_extra=True, run_check_acceptability=True):
         """
         Read in data from a list of FHD files.
 
@@ -1901,6 +2027,12 @@ class UVData(UVBase):
                 Can also be a list of lists to read multiple data sets.
             use_model: Option to read in the model visibilities rather than the
                 dirty visibilities. Default is False.
+            axis: Axis to concatenate files along. This enables fast concatenation
+                along the specified axis without the normal checking that all other
+                metadata agrees. This method does not guarantee correct resulting
+                objects. Please see the docstring for fast_concat for details.
+                Allowed values are: 'blt', 'freq', 'polarization'. Only used if
+                multiple files are passed.
             run_check: Option to check for the existence and proper shapes of
                 parameters after reading in the file. Default is True.
             check_extra: Option to check optional parameters as well as required
@@ -1919,7 +2051,11 @@ class UVData(UVBase):
                     uv2.read_fhd(f, use_model=use_model, run_check=run_check,
                                  check_extra=check_extra,
                                  run_check_acceptability=run_check_acceptability)
-                    self += uv2
+                    if axis is not None:
+                        self.fast_concat(uv2, axis, run_check=True, check_extra=True,
+                                         run_check_acceptability=True, inplace=True)
+                    else:
+                        self += uv2
                 del(uv2)
         else:
             fhd_obj = fhd.FHD()
@@ -1929,8 +2065,9 @@ class UVData(UVBase):
             self._convert_from_filetype(fhd_obj)
             del(fhd_obj)
 
-    def read_miriad(self, filepath, antenna_nums=None, ant_str=None, bls=None,
-                    polarizations=None, time_range=None, read_data=True,
+    def read_miriad(self, filepath, axis=None, antenna_nums=None, ant_str=None,
+                    bls=None, polarizations=None, time_range=None,
+                    keep_all_metadata=True, read_data=True,
                     phase_type=None, correct_lat_lon=True, run_check=True,
                     check_extra=True, run_check_acceptability=True):
         """
@@ -1938,6 +2075,12 @@ class UVData(UVBase):
 
         Args:
             filepath: The miriad file directory or list of directories to read from.
+            axis: Axis to concatenate files along. This enables fast concatenation
+                along the specified axis without the normal checking that all other
+                metadata agrees. This method does not guarantee correct resulting
+                objects. Please see the docstring for fast_concat for details.
+                Allowed values are: 'blt', 'freq', 'polarization'. Only used if
+                multiple files are passed.
             antenna_nums: The antennas numbers to read into the object.
             bls: A list of antenna number tuples (e.g. [(0,1), (3,2)]) or a list of
                 baseline 3-tuples (e.g. [(0,1,'xx'), (2,3,'yy')]) specifying baselines
@@ -1952,6 +2095,8 @@ class UVData(UVBase):
                 Ex: ['xx', 'yy', ...]
             time_range: len-2 list containing min and max range of times (Julian Date) to read-in.
                 Ex: [2458115.20, 2458115.40]
+            keep_all_metadata: Option to keep all the metadata associated with antennas,
+                even those that do not remain after the select option. Default is True.
             read_data: Read in the visibility and flag data. If set to false,
                 only the metadata will be read in. Setting read_data to False
                 results in an incompletely defined object (check will not pass).
@@ -1972,14 +2117,15 @@ class UVData(UVBase):
         from . import miriad
         if isinstance(filepath, (list, tuple)):
             if not read_data:
-                raise ValueError('read_data cannot be False for a list of uvfits files')
+                raise ValueError('read_data cannot be False for a list of miriad files')
 
             self.read_miriad(filepath[0], correct_lat_lon=correct_lat_lon,
                              run_check=run_check, check_extra=check_extra,
                              run_check_acceptability=run_check_acceptability,
                              phase_type=phase_type, antenna_nums=antenna_nums,
                              ant_str=ant_str, bls=bls,
-                             polarizations=polarizations, time_range=time_range)
+                             polarizations=polarizations, time_range=time_range,
+                             keep_all_metadata=keep_all_metadata)
             if len(filepath) > 1:
                 for f in filepath[1:]:
                     uv2 = UVData()
@@ -1988,8 +2134,13 @@ class UVData(UVBase):
                                     run_check_acceptability=run_check_acceptability,
                                     phase_type=phase_type, antenna_nums=antenna_nums,
                                     ant_str=ant_str, bls=bls,
-                                    polarizations=polarizations, time_range=time_range)
-                    self += uv2
+                                    polarizations=polarizations, time_range=time_range,
+                                    keep_all_metadata=keep_all_metadata)
+                    if axis is not None:
+                        self.fast_concat(uv2, axis, run_check=True, check_extra=True,
+                                         run_check_acceptability=True, inplace=True)
+                    else:
+                        self += uv2
                 del(uv2)
         else:
             # work out what function should be called
@@ -2001,7 +2152,8 @@ class UVData(UVBase):
                                        run_check_acceptability=run_check_acceptability,
                                        phase_type=phase_type, antenna_nums=antenna_nums,
                                        ant_str=ant_str, bls=bls,
-                                       polarizations=polarizations, time_range=time_range)
+                                       polarizations=polarizations, time_range=time_range,
+                                       keep_all_metadata=keep_all_metadata)
                 self._convert_from_filetype(miriad_obj)
                 del(miriad_obj)
             else:
@@ -2035,16 +2187,22 @@ class UVData(UVBase):
                                 clobber=clobber, no_antnums=no_antnums)
         del(miriad_obj)
 
-    def read_uvh5(self, filename, antenna_nums=None, antenna_names=None,
+    def read_uvh5(self, filename, axis=axis, antenna_nums=None, antenna_names=None,
                   ant_str=None, bls=None, frequencies=None, freq_chans=None,
-                  times=None, polarizations=None, blt_inds=None, read_data=True,
-                  run_check=True, check_extra=True, run_check_acceptability=True,
-                  data_array_dtype=np.complex128, keep_all_metadata=True):
+                  times=None, polarizations=None, blt_inds=None,
+                  keep_all_metadata=True, read_data=True, data_array_dtype=np.complex128,
+                  run_check=True, check_extra=True, run_check_acceptability=True):
         """
         Read a UVH5 file.
 
         Args:
             filename: The UVH5 file or list of files to read from.
+            axis: Axis to concatenate files along. This enables fast concatenation
+                along the specified axis without the normal checking that all other
+                metadata agrees. This method does not guarantee correct resulting
+                objects. Please see the docstring for fast_concat for details.
+                Allowed values are: 'blt', 'freq', 'polarization'. Only used if
+                multiple files are passed.
             antenna_nums: The antennas numbers to include when reading data into
                 the object (antenna positions and names for the excluded antennas
                 will be retained). This cannot be provided if antenna_names is
@@ -2081,22 +2239,22 @@ class UVData(UVBase):
                 the object.  Ignored if read_data is False.
             blt_inds: The baseline-time indices to include when reading data into
                 the object. This is not commonly used. Ignored if read_data is False.
+            keep_all_metadata: Option to keep all the metadata associated with antennas,
+                even those that do not remain after the select option. Default is True.
             read_data: Read in the visibility and flag data. If set to false,
                 only the basic metadata will be read in. Setting read_data to
                 False results in an incompletely defined object (check will not
                 pass). Default True.
+            data_array_dtype: Datatype to store the output data_array as. Must be either
+                np.complex64 (single-precision real and imaginary) or np.complex128 (double-
+                precision real and imaginary). Only used if the datatype of the visibility
+                data on-disk is not 'c8' or 'c16'. Default is np.complex128.
             run_check: Option to check for the existence and proper shapes of
                 parameters after reading in the file. Default is True.
             check_extra: Option to check optional parameters as well as required
                 ones. Default is True.
             run_check_acceptability: Option to check acceptable range of the values of
                 parameters after reading in the file. Default is True.
-            data_array_dtype: Datatype to store the output data_array as. Must be either
-                np.complex64 (single-precision real and imaginary) or np.complex128 (double-
-                precision real and imaginary). Only used if the datatype of the visibility
-                data on-disk is not 'c8' or 'c16'. Default is np.complex128.
-            keep_all_metadata: Option to keep all the metadata associated with antennas,
-                even those that do not remain after the select option. Default is True.
 
         Returns:
             None
@@ -2106,7 +2264,7 @@ class UVData(UVBase):
             if not read_data and len(filename) > 1:
                 raise ValueError('read_data cannot be False for a list of uvh5 files')
 
-            self.read_uvh5(filename[0], antenna_nums=antenna_nums,
+            self.read_uvh5(filename[0], axis=axis, antenna_nums=antenna_nums,
                            antenna_names=antenna_names, ant_str=ant_str, bls=bls,
                            frequencies=frequencies, freq_chans=freq_chans, times=times,
                            polarizations=polarizations, blt_inds=blt_inds,
@@ -2118,7 +2276,7 @@ class UVData(UVBase):
             if len(filename) > 1:
                 for f in filename[1:]:
                     uv2 = UVData()
-                    uv2.read_uvh5(f, antenna_nums=antenna_nums,
+                    uv2.read_uvh5(f, axis=axis, antenna_nums=antenna_nums,
                                   antenna_names=antenna_names, ant_str=ant_str, bls=bls,
                                   frequencies=frequencies, freq_chans=freq_chans,
                                   times=times, polarizations=polarizations,
@@ -2127,11 +2285,15 @@ class UVData(UVBase):
                                   run_check_acceptability=run_check_acceptability,
                                   data_array_dtype=data_array_dtype,
                                   keep_all_metadata=keep_all_metadata)
-                    self += uv2
+                    if axis is not None:
+                        self.fast_concat(uv2, axis, run_check=True, check_extra=True,
+                                         run_check_acceptability=True, inplace=True)
+                    else:
+                        self += uv2
                 del(uv2)
         else:
             uvh5_obj = uvh5.UVH5()
-            uvh5_obj.read_uvh5(filename, antenna_nums=antenna_nums,
+            uvh5_obj.read_uvh5(filename, axis=axis, antenna_nums=antenna_nums,
                                antenna_names=antenna_names, ant_str=ant_str, bls=bls,
                                frequencies=frequencies, freq_chans=freq_chans, times=times,
                                polarizations=polarizations, blt_inds=blt_inds,
@@ -2290,14 +2452,14 @@ class UVData(UVBase):
                                  add_to_history=add_to_history)
         del(uvh5_obj)
 
-    def read(self, filename, file_type=None, antenna_nums=None, antenna_names=None,
-             ant_str=None, bls=None, frequencies=None, freq_chans=None,
-             times=None, polarizations=None, blt_inds=None, time_range=None,
-             read_metadata=True, read_data=True, phase_type=None,
-             correct_lat_lon=True, use_model=False, data_column='DATA',
-             pol_order='AIPS', run_check=True, check_extra=True,
-             run_check_acceptability=True, data_array_dtype=np.complex128,
-             keep_all_metadata=True):
+    def read(self, filename, axis=None, file_type=None,
+             antenna_nums=None, antenna_names=None, ant_str=None, bls=None,
+             frequencies=None, freq_chans=None, times=None, polarizations=None,
+             blt_inds=None, time_range=None, keep_all_metadata=True,
+             read_metadata=True, read_data=True,
+             phase_type=None, correct_lat_lon=True, use_model=False,
+             data_column='DATA', pol_order='AIPS', data_array_dtype=np.complex128,
+             run_check=True, check_extra=True, run_check_acceptability=True):
         """
         Read a generic file into a UVData object.
 
@@ -2310,6 +2472,12 @@ class UVData(UVBase):
                 extensions (FHD: .sav, .txt; uvfits: .uvfits; uvh5: .uvh5).
                 Note that if a list of datasets is passed, the file type is
                 determined from the first dataset.
+            axis: Axis to concatenate files along. This enables fast concatenation
+                along the specified axis without the normal checking that all other
+                metadata agrees. This method does not guarantee correct resulting
+                objects. Please see the docstring for fast_concat for details.
+                Allowed values are: 'blt', 'freq', 'polarization'. Only used if
+                multiple files are passed.
             antenna_nums: The antennas numbers to include when reading data into
                 the object (antenna positions and names for the excluded antennas
                 will be retained). This cannot be provided if antenna_names is
@@ -2347,6 +2515,8 @@ class UVData(UVBase):
                 Ex: [2458115.20, 2458115.40]. Cannot be set with times.
             blt_inds: The baseline-time indices to include when reading data into
                 the object. This is not commonly used. Ignored if read_data is False.
+            keep_all_metadata: Option to keep all the metadata associated with antennas,
+                even those that do not remain after the select option. Default is True.
             read_metadata: Read in metadata (times, baselines, uvws) as well as
                 basic header info. Only used if file_type is 'uvfits' and read_data is False
                 (metadata will be read if data is read). If file_type is 'uvfits'
@@ -2371,18 +2541,16 @@ class UVData(UVBase):
                 'DATA', 'MODEL', or 'CORRECTED_DATA'. Only used if file_type is 'ms'.
             pol_order: specify whether you want polarizations ordered by
                 'CASA' or 'AIPS' conventions. Only used if file_type is 'ms'.
+            data_array_dtype: Datatype to store the output data_array as when reading uvh5
+                files. Must be either np.complex64 (single-precision real and imaginary) or
+                np.complex128 (double-precision real and imaginary). Only used if the datatype
+                of the visibility data on-disk is not 'c8' or 'c16'. Default is np.complex128.
             run_check: Option to check for the existence and proper shapes of
                 parameters after reading in the file. Default is True.
             check_extra: Option to check optional parameters as well as required
                 ones. Default is True.
             run_check_acceptability: Option to check acceptable range of the values of
                 parameters after reading in the file. Default is True.
-            data_array_dtype: Datatype to store the output data_array as when reading uvh5
-                files. Must be either np.complex64 (single-precision real and imaginary) or
-                np.complex128 (double-precision real and imaginary). Only used if the datatype
-                of the visibility data on-disk is not 'c8' or 'c16'. Default is np.complex128.
-            keep_all_metadata: Option to keep all the metadata associated with antennas,
-                even those that do not remain after the select option. Default is True.
 
         Returns:
             None
@@ -2452,7 +2620,7 @@ class UVData(UVBase):
                              read_data=read_data, read_metadata=read_metadata,
                              run_check=run_check, check_extra=check_extra,
                              run_check_acceptability=run_check_acceptability,
-                             keep_all_metadata=keep_all_metadata)
+                             keep_all_metadata=keep_all_metadata, axis=axis)
 
             if select:
                 unique_times = np.unique(self.time_array)
@@ -2489,7 +2657,8 @@ class UVData(UVBase):
                              time_range=time_range, read_data=read_data,
                              phase_type=phase_type, correct_lat_lon=correct_lat_lon,
                              run_check=run_check, check_extra=check_extra,
-                             run_check_acceptability=run_check_acceptability)
+                             run_check_acceptability=run_check_acceptability,
+                             axis=axis)
 
             if select:
                 self.select(antenna_names=antenna_names, frequencies=frequencies,
@@ -2514,7 +2683,8 @@ class UVData(UVBase):
 
             self.read_fhd(filename, use_model=use_model, run_check=run_check,
                           check_extra=check_extra,
-                          run_check_acceptability=run_check_acceptability)
+                          run_check_acceptability=run_check_acceptability,
+                          axis=axis)
 
             if select:
                 self.select(antenna_nums=antenna_nums, antenna_names=antenna_names,
@@ -2540,7 +2710,7 @@ class UVData(UVBase):
 
             self.read_ms(filename, run_check=run_check, check_extra=check_extra,
                          run_check_acceptability=run_check_acceptability,
-                         data_column=data_column, pol_order=pol_order)
+                         data_column=data_column, pol_order=pol_order, axis=axis)
 
             if select:
                 self.select(antenna_nums=antenna_nums, antenna_names=antenna_names,
@@ -2566,7 +2736,7 @@ class UVData(UVBase):
                            read_data=read_data, run_check=run_check, check_extra=check_extra,
                            run_check_acceptability=run_check_acceptability,
                            data_array_dtype=data_array_dtype,
-                           keep_all_metadata=keep_all_metadata)
+                           keep_all_metadata=keep_all_metadata, axis=axis)
 
             if select:
                 unique_times = np.unique(self.time_array)
