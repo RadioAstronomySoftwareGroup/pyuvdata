@@ -851,9 +851,6 @@ def test_UVH5InitializeFile():
     partial_uvh5.read(partial_testfile, read_data=False)
     nt.assert_equal(partial_uvh5, full_uvh5)
 
-    # check that an error is raised then file exists and clobber is False
-    nt.assert_raises(ValueError, partial_uvh5.initialize_uvh5_file, partial_testfile, clobber=False)
-
     # clean up
     os.remove(testfile)
     os.remove(partial_testfile)
