@@ -2187,7 +2187,7 @@ class UVData(UVBase):
                                 clobber=clobber, no_antnums=no_antnums)
         del(miriad_obj)
 
-    def read_uvh5(self, filename, axis=axis, antenna_nums=None, antenna_names=None,
+    def read_uvh5(self, filename, axis=None, antenna_nums=None, antenna_names=None,
                   ant_str=None, bls=None, frequencies=None, freq_chans=None,
                   times=None, polarizations=None, blt_inds=None,
                   keep_all_metadata=True, read_data=True, data_array_dtype=np.complex128,
