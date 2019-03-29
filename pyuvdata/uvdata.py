@@ -2186,7 +2186,7 @@ class UVData(UVBase):
     def write_uvh5_part(self, filename, data_array, flags_array, nsample_array, check_header=True,
                         antenna_nums=None, antenna_names=None, ant_str=None, bls=None,
                         frequencies=None, freq_chans=None, times=None, polarizations=None,
-                        blt_inds=None, run_check_acceptability=True):
+                        blt_inds=None, run_check_acceptability=True, add_to_history=None):
         """
         Write data to a UVH5 file that has already been initialized.
 
@@ -2237,6 +2237,7 @@ class UVData(UVBase):
                 This is not commonly used.
             run_check_acceptability: Option to check acceptable range of the values of
                 parameters before writing the file. Default is True.
+            add_to_history: String to append to history before write out. Default is no appending.
 
         Returns:
             None
@@ -2248,7 +2249,8 @@ class UVData(UVBase):
                                  frequencies=frequencies, freq_chans=freq_chans,
                                  times=times, polarizations=polarizations,
                                  blt_inds=blt_inds,
-                                 run_check_acceptability=run_check_acceptability)
+                                 run_check_acceptability=run_check_acceptability,
+                                 add_to_history=add_to_history)
         del(uvh5_obj)
 
     def read(self, filename, file_type=None, antenna_nums=None, antenna_names=None,
