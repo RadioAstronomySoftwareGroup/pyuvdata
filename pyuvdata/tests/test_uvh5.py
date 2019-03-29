@@ -95,31 +95,6 @@ def test_ReadUVH5Errors():
 
 
 @uvtest.skipIf_no_h5py
-def test_WriteUVH5Errors():
-    """
-    Test raising errors in write_uvh5 function
-    """
-    uv_in = UVData()
-    uv_out = UVData()
-    uvfits_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-    uvtest.checkWarnings(uv_in.read_uvfits, [uvfits_file], message='Telescope EVLA is not')
-    testfile = os.path.join(DATA_PATH, 'test', 'outtest_uvfits.uvh5')
-    with open(testfile, 'a'):
-        os.utime(testfile, None)
-    nt.assert_raises(ValueError, uv_in.write_uvh5, testfile)
-
-    # use clobber=True to write out anyway
-    uv_in.write_uvh5(testfile, clobber=True)
-    uvtest.checkWarnings(uv_out.read, [testfile], message='Telescope EVLA is not')
-    nt.assert_equal(uv_in, uv_out)
-
-    # clean up
-    os.remove(testfile)
-
-    return
-
-
-@uvtest.skipIf_no_h5py
 def test_UVH5OptionalParameters():
     """
     Test reading and writing optional parameters not in sample files
