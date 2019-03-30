@@ -2066,8 +2066,7 @@ class UVData(UVBase):
             del(fhd_obj)
 
     def read_miriad(self, filepath, axis=None, antenna_nums=None, ant_str=None,
-                    bls=None, polarizations=None, time_range=None,
-                    keep_all_metadata=True, read_data=True,
+                    bls=None, polarizations=None, time_range=None, read_data=True,
                     phase_type=None, correct_lat_lon=True, run_check=True,
                     check_extra=True, run_check_acceptability=True):
         """
@@ -2095,8 +2094,6 @@ class UVData(UVBase):
                 Ex: ['xx', 'yy', ...]
             time_range: len-2 list containing min and max range of times (Julian Date) to read-in.
                 Ex: [2458115.20, 2458115.40]
-            keep_all_metadata: Option to keep all the metadata associated with antennas,
-                even those that do not remain after the select option. Default is True.
             read_data: Read in the visibility and flag data. If set to false,
                 only the metadata will be read in. Setting read_data to False
                 results in an incompletely defined object (check will not pass).
@@ -2124,8 +2121,7 @@ class UVData(UVBase):
                              run_check_acceptability=run_check_acceptability,
                              phase_type=phase_type, antenna_nums=antenna_nums,
                              ant_str=ant_str, bls=bls,
-                             polarizations=polarizations, time_range=time_range,
-                             keep_all_metadata=keep_all_metadata)
+                             polarizations=polarizations, time_range=time_range)
             if len(filepath) > 1:
                 for f in filepath[1:]:
                     uv2 = UVData()
@@ -2134,8 +2130,7 @@ class UVData(UVBase):
                                     run_check_acceptability=run_check_acceptability,
                                     phase_type=phase_type, antenna_nums=antenna_nums,
                                     ant_str=ant_str, bls=bls,
-                                    polarizations=polarizations, time_range=time_range,
-                                    keep_all_metadata=keep_all_metadata)
+                                    polarizations=polarizations, time_range=time_range)
                     if axis is not None:
                         self.fast_concat(uv2, axis, run_check=True, check_extra=True,
                                          run_check_acceptability=True, inplace=True)
@@ -2152,8 +2147,7 @@ class UVData(UVBase):
                                        run_check_acceptability=run_check_acceptability,
                                        phase_type=phase_type, antenna_nums=antenna_nums,
                                        ant_str=ant_str, bls=bls,
-                                       polarizations=polarizations, time_range=time_range,
-                                       keep_all_metadata=keep_all_metadata)
+                                       polarizations=polarizations, time_range=time_range)
                 self._convert_from_filetype(miriad_obj)
                 del(miriad_obj)
             else:
@@ -2293,7 +2287,7 @@ class UVData(UVBase):
                 del(uv2)
         else:
             uvh5_obj = uvh5.UVH5()
-            uvh5_obj.read_uvh5(filename, axis=axis, antenna_nums=antenna_nums,
+            uvh5_obj.read_uvh5(filename, antenna_nums=antenna_nums,
                                antenna_names=antenna_names, ant_str=ant_str, bls=bls,
                                frequencies=frequencies, freq_chans=freq_chans, times=times,
                                polarizations=polarizations, blt_inds=blt_inds,
