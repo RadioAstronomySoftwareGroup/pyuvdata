@@ -1027,7 +1027,7 @@ class UVH5(UVData):
 
             # append to history if desired
             if add_to_history is not None:
-                history = self.history + np.string_(add_to_history)
+                history = np.string_(self.history) + np.string_(add_to_history)
                 if 'history' in f['Header']:
                     # erase dataset first b/c it has fixed-length string datatype
                     del f['Header']['history']
