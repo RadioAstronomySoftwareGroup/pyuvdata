@@ -556,7 +556,7 @@ def test_readWriteReadMiriad():
     nt.assert_equal(uv_in2, uv_out)
 
     # check that trying to overwrite without clobber raises an error
-    nt.assert_raises(ValueError, uv_in.write_miriad, write_file)
+    nt.assert_raises(IOError, uv_in.write_miriad, write_file, clobber=False)
 
     # check that if x_orientation is set, it's read back out properly
     uv_in.x_orientation = 'east'

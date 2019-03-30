@@ -107,8 +107,8 @@ def test_WriteUVH5Errors():
     with open(testfile, 'a'):
         os.utime(testfile, None)
 
-    # no errors in function yet, but test that write w/ clobber = False doesn't raise an error
-    uv_in.write_uvh5(testfile, clobber=False)
+    # assert IOError if file exists
+    nt.assert_raises(IOError, uv_in.write_uvh5, testfile, clobber=False)
 
     # use clobber=True to write out anyway
     uv_in.write_uvh5(testfile, clobber=True)
@@ -872,8 +872,8 @@ def test_UVH5InitializeFile():
     partial_uvh5.read(partial_testfile, read_data=False)
     nt.assert_equal(partial_uvh5, full_uvh5)
 
-    # check that an error is not raised then when clobber == False
-    partial_uvh5.initialize_uvh5_file(partial_testfile, clobber=False)
+    # check that IOError is raised then when clobber == False
+    nt.assert_raises(IOError, partial_uvh5.initialize_uvh5_file, partial_testfile, clobber=False)
 
     # add options for compression
     partial_uvh5.initialize_uvh5_file(partial_testfile, clobber=True, data_compression="lzf",

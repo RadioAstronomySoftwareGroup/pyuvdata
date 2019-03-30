@@ -534,7 +534,7 @@ class Miriad(UVData):
             run_check_acceptability: Option to check acceptable range of the values of
                 parameters before writing the file. Default is True.
             clobber: Option to overwrite the filename if the file already exists.
-                Default is False.
+                Default is False. If False and file exists, raises an IOError.
             no_antnums: Option to not write the antnums variable to the file.
                 Should only be used for testing purposes.
         """
@@ -557,7 +557,7 @@ class Miriad(UVData):
                 print('File exists: clobbering')
                 shutil.rmtree(filepath)
             else:
-                raise ValueError('File exists: skipping')
+                raise IOError('File exists: skipping')
 
         if self.Nfreqs > 1:
             freq_spacing = self.freq_array[0, 1:] - self.freq_array[0, :-1]

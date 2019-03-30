@@ -606,7 +606,8 @@ class UVH5(UVData):
                 ones. Default is True.
             run_check_acceptability: Option to check acceptable range of the values of
                 parameters before writing the file. Default is True.
-            clobber: Option to overwrite the file if it already exists. Default is False.
+            clobber: Option to overwrite the file if it already exists.
+                Default is False. If False and file exists, raises an IOError.
             data_compression: HDF5 filter to apply when writing the data_array. Default is
                  None (no filter/compression).
             flags_compression: HDF5 filter to apply when writing the flags_array. Default is
@@ -642,7 +643,7 @@ class UVH5(UVData):
             if clobber:
                 print("File exists; clobbering")
             else:
-                print("File exists; skipping")
+                raise IOError("File exists; skipping")
 
         # open file for writing
         with h5py.File(filename, 'w') as f:
@@ -684,7 +685,8 @@ class UVH5(UVData):
 
         Args:
             filename: The UVH5 file to write to.
-            clobber: Option to overwrite the file if it already exists. Default is False.
+            clobber: Option to overwrite the file if it already exists.
+                Default is False. If False and file exists, raises an IOError.
             data_compression: HDF5 filter to apply when writing the data_array. Default is
                  None (no filter/compression).
             flags_compression: HDF5 filter to apply when writing the flags_array. Default is
@@ -722,7 +724,7 @@ class UVH5(UVData):
             if clobber:
                 print("File exists; clobbering")
             else:
-                print("File exists; skipping")
+                raise IOError("File exists; skipping")
 
         # write header and empty arrays to file
         with h5py.File(filename, 'w') as f:
@@ -1025,7 +1027,7 @@ class UVH5(UVData):
 
             # append to history if desired
             if add_to_history is not None:
-                history = self.history + add_to_history
+                history = self.history + np.string_(add_to_history)
                 if 'history' in f['Header']:
                     # erase dataset first b/c it has fixed-length string datatype
                     del f['Header']['history']
