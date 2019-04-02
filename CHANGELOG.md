@@ -41,6 +41,7 @@ All notable changes to this project will be documented in this file.
 - Convenience functions on UVData for finding redundant baselines (calling the corresponding utils functions)
 - memo describing the UVH5 format
 - read/write support for uvh5 files with integer datatypes for visibilities
+- Option to only do the select on the metadata. This is useful for partially defined objects as in pyuvsim setup or after reading only the metadata from a file.
 - support for python3.7
 
 ### Changed
@@ -52,9 +53,6 @@ All notable changes to this project will be documented in this file.
 ### Fixed
 - `_key2inds` now properly reorders polarization axis for conjugated visibilities. This also effects the `get_data` function.
 - long strings are saved correctly in miriad files from python3
-
-### Added
-- Option to only do the select on the metadata. This is useful for partially defined objects as in pyuvsim setup or after reading only the metadata from a file.
 
 ## [1.3.3] - 2018-11-01
 ### Added
