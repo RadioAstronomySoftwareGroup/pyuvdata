@@ -3,6 +3,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.3.7] - 2019-04-02
+
 ### Added
 - Added `add_to_history` kwarg to UVH5.write_uvh5_part
 - `_healpix_interp_bilinear` as a new interpolation method in `UVBeam`
