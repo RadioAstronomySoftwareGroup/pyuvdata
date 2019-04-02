@@ -124,11 +124,11 @@ All notable changes to this project will be documented in this file.
 - Fixed a serious bug where data was overwritten in the add functions if the axes were out of canonical order
 - Fixed scrambled data ordering in add function
 
-## [1.2.1] - 2018-11-09
+## [1.2.1] - 2017-11-09
 ### Fixed
 - Fixed a bug in parsing frequencies from CST file names
 
-## [1.2] - 2018-11-08
+## [1.2] - 2017-11-08
 ### Added
 - support doctest in the tutorial
 - utility functions for converting between Jones numbers and polarization strings
