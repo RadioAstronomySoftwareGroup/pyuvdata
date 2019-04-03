@@ -4,7 +4,7 @@ Thank you for considering contributing to pyuvdata! It's our community of users 
 
 pyuvdata is an open source project, driven by our community of contributors. There are many ways to contribute, including writing tutorials, improving the documentation, submitting bug reports and feature requests or writing code which can be incorporated into pyuvdata itself. Following the guidelines and patterns suggested below helps us maintain a high quality code base and review your contributions faster.
 
-Please note we have a [code of conduct](CODE_OF_CONDUCT.md), please follow it in all your interactions with the project.
+Please note we have a [code of conduct](../CODE_OF_CONDUCT.md), please follow it in all your interactions with the project.
 
 ## How to report a bug
 First check the issues to see if your bug already exists. Feel free to comment on the existing issue to provide more context or just to note that it is affecting you as well. If your bug is not in the issue list, make a new issue.
@@ -31,7 +31,7 @@ When making a feature request, try to provide as much context as possible. Feel 
 * Keep pull requests as small as possible. Ideally each pull request should implement ONE feature or bugfix. If you want to add or fix more than one thing, submit more than one pull request.
 * Do not commit changes to files that are irrelevant to your feature or bugfix.
 * Be aware that the pull request review process is not immediate, and is generally proportional to the size of the pull request.
-* Be welcoming to newcomers and encourage diverse new contributors from all backgrounds. See our [Code of Conduct](CODE_OF_CONDUCT.md).
+* Be welcoming to newcomers and encourage diverse new contributors from all backgrounds. See our [Code of Conduct](../CODE_OF_CONDUCT.md).
 
 ### Your First Contribution
 
@@ -66,7 +66,7 @@ http://makeapullrequest.com/ and http://www.firsttimersonly.com/. If you have mo
   - If you're fixing a bug, include a new test that breaks as a result of the bug (if possible)
   - Ensure that all your new code is covered by tests and that the existing tests pass in both python 2 and 3.
   - Ensure that your code meets the PEP8 style guidelines. You can check that your code will pass our linting tests by running `pycodestyle . --ignore=E501,W503` in the top-level pyuvdata directory.
-  - Ensure that you fully document any new features via docstrings and in the [tutorial](docs/tutorial.rst)
+  - Ensure that you fully document any new features via docstrings and in the [tutorial](../docs/tutorial.rst)
   - You can see the full pull request checklist [here](PULL_REQUEST_TEMPLATE.md)
 
 ### Code review process
@@ -74,4 +74,4 @@ http://makeapullrequest.com/ and http://www.firsttimersonly.com/. If you have mo
 The core team looks at pull requests on a regular basis and tries to provide feedback as quickly as possible. Larger pull requests generally require more time for review and may require discussion among the core team.
 
 # Community
-In addition to conversations on github, we also communicate via Slack and on monthly telecons. We welcome contributors who want to join those discussions, [contact the RASG managers](rasgmanagers@gmail.com) if you'd like to be invited to join them.
+In addition to conversations on github, we also communicate via Slack and on monthly telecons. We welcome contributors who want to join those discussions, [contact the RASG managers](mailto:rasgmanagers@gmail.com) if you'd like to be invited to join them.
