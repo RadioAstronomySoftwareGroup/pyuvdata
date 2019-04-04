@@ -25,6 +25,7 @@ def write_index_rst(readme_file=None, write_file=None):
 
     readme_md = pypandoc.convert_file(readme_file, 'md')
 
+    # find parts of Travis badge
     travis_str = 'https://travis-ci.org/RadioAstronomySoftwareGroup/pyuvdata.svg'
     regex_travis = re.compile(travis_str)
     loc_travis_start = re.search(regex_travis, readme_md).start()
@@ -34,19 +35,64 @@ def write_index_rst(readme_file=None, write_file=None):
     loc_branch_end = re.search(regex_end, readme_md).start()
     branch_str = readme_md[loc_travis_end:loc_branch_end]
 
+    start_link_str = r'\('
+    regex_start_link = re.compile(start_link_str)
+    end_link_str = r'\)\n'
+    regex_end_link = re.compile(end_link_str)
+    loc_link_start = re.search(regex_start_link, readme_md[loc_travis_end:]).start() + loc_travis_end
+    loc_link_end = re.search(regex_end_link, readme_md[loc_link_start:]).start() + loc_link_start
+    travis_link = readme_md[loc_link_start + 1:loc_link_end]
+
+    # find parts of Circleci badge
+    circleci_str = 'https://circleci.com/gh/RadioAstronomySoftwareGroup/pyuvdata.svg'
+    regex_circleci = re.compile(circleci_str)
+    loc_circleci_start = re.search(regex_circleci, readme_md).start()
+    loc_circleci_end = re.search(regex_circleci, readme_md).end()
+
+    loc_link_start = re.search(regex_start_link, readme_md[loc_circleci_end:]).start() + loc_circleci_end
+    loc_link_end = re.search(regex_end_link, readme_md[loc_link_start:]).start() + loc_link_start
+    circleci_link = readme_md[loc_link_start + 1:loc_link_end]
+
+    # find parts of Coveralls badge
     cover_str = 'https://coveralls.io/repos/github/RadioAstronomySoftwareGroup/pyuvdata/badge.svg'
     regex_cover = re.compile(cover_str)
     loc_cover_start = re.search(regex_cover, readme_md).start()
     loc_cover_end = re.search(regex_cover, readme_md).end()
 
+    loc_link_start = re.search(regex_start_link, readme_md[loc_cover_end:]).start() + loc_cover_end
+    loc_link_end = re.search(regex_end_link, readme_md[loc_link_start:]).start() + loc_link_start
+    cover_link = readme_md[loc_link_start + 1:loc_link_end]
+
+    # find parts of Codecov badge
+    codecov_str = 'https://codecov.io/gh/RadioAstronomySoftwareGroup/pyuvdata/badge.svg'
+    regex_codecov = re.compile(codecov_str)
+    loc_codecov_start = re.search(regex_codecov, readme_md).start()
+    loc_codecov_end = re.search(regex_codecov, readme_md).end()
+
+    loc_link_start = re.search(regex_start_link, readme_md[loc_codecov_end:]).start() + loc_codecov_end
+    loc_link_end = re.search(regex_end_link, readme_md[loc_link_start:]).start() + loc_link_start
+    codecov_link = readme_md[loc_link_start + 1:loc_link_end]
+
     readme_text = pypandoc.convert_file(readme_file, 'rst')
 
-    rst_status_badge = '.. image:: ' + travis_str + branch_str + '\n    :target: https://travis-ci.org/RadioAstronomySoftwareGroup/pyuvdata'
-    status_badge_text = '|Build Status|'
+    # replace Travis badge
+    rst_status_badge = '.. image:: ' + travis_str + branch_str + '\n    :target: ' + travis_link
+    status_badge_text = '`Build\nStatus <' + travis_link + '>`__'
     readme_text = readme_text.replace(status_badge_text, rst_status_badge + '\n\n')
 
-    rst_status_badge = '.. image:: ' + cover_str + branch_str + '\n    :target: https://coveralls.io/github/RadioAstronomySoftwareGroup/pyuvdata' + branch_str
-    status_badge_text = '|Coverage Status|'
+    # replace Circleci badge
+    rst_status_badge = '.. image:: ' + circleci_str + branch_str + '&style=svg' + '\n    :target: ' + circleci_link
+    status_badge_text = '`CircleCI <' + circleci_link + '>`__'
+    readme_text = readme_text.replace(status_badge_text, rst_status_badge + '\n\n')
+
+    # replace Coveralls badge
+    rst_status_badge = '.. image:: ' + cover_str + branch_str + '\n    :target: ' + cover_link
+    status_badge_text = '`Coverage\nStatus <' + cover_link + '>`__'
+    readme_text = readme_text.replace(status_badge_text, rst_status_badge + '\n\n')
+
+    # replace Codecov badge
+    rst_status_badge = '.. image:: ' + codecov_str + branch_str + '\n    :target: ' + codecov_link
+    status_badge_text = '`codecov <' + codecov_link + '>`__'
     readme_text = readme_text.replace(status_badge_text, rst_status_badge)
 
     readme_text = readme_text.replace(' ' + rst_status_badge, rst_status_badge)
