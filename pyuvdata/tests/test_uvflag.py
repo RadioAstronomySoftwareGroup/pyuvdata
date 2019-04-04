@@ -8,7 +8,7 @@ from pyuvdata import UVData
 from pyuvdata import UVCal
 from pyuvdata.data import DATA_PATH
 from pyuvdata import UVFlag
-from pyuvdata.utils import lst_from_uv
+from pyuvdata.uvflag import lst_from_uv
 from pyuvdata import version as uvversion
 import shutil
 import copy
@@ -1089,16 +1089,6 @@ def test_antpair2ind_nonbaseline():
     uvf = UVFlag(test_f_file)
     uvf.to_waterfall()
     nt.assert_raises(ValueError, uvf.antpair2ind, 0, 3)
-
-
-def test_antenna_flag_file():
-    # Test data file for hera_cal, test that it does what we want.
-    uvf = UVFlag(os.path.join(DATA_PATH, 'antenna_flags.h5'))
-    uvc = UVCal()
-    uvc.read_calfits(os.path.join(DATA_PATH, 'zen.2457698.40355.xx.HH.uvcAA.omni.calfits'))
-    nt.assert_equal(uvf.type, 'antenna')
-    nt.assert_equal(uvf.mode, 'flag')
-    nt.assert_equal(uvf.flag_array.shape, uvc.gain_array.shape)
 
 
 def test_baseline_to_antnums():
