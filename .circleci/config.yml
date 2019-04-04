@@ -199,6 +199,9 @@ workflows:
           python_version: "3.7"
       - doctest:
           python_version: "3.6"
+
+  external_tests:
+    jobs:
       - hera_cal:
           python_version: "3.6"
       - hera_qm:
