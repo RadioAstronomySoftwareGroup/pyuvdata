@@ -15,9 +15,6 @@ import copy
 from astropy.time import Time
 from astropy.coordinates import Angle
 from astropy.utils import iers
-from . import telescopes as uvtel
-from . import UVdata
-from . import UVCal
 
 # parameters for transforming between xyz & lat/lon/alt
 gps_b = 6356752.31424518
@@ -962,24 +959,6 @@ def _reraise_context(fmt, *args):
         ex.args = (cstr, ) + ex.args[1:]
 
     raise
-
-
-def lst_from_uv(uv):
-    ''' Calculate the lst_array for a UVData or UVCal object.
-    Args:
-        uv: a UVData or UVCal object.
-    Returns:
-        lst_array: lst_array corresponding to time_array and at telescope location.
-                   Units are radian.
-    '''
-    if not isinstance(uv, (UVCal, UVData)):
-        raise ValueError('Function lst_from_uv can only operate on '
-                         'UVCal or UVData object.')
-
-    tel = uvtel.get_telescope(uv.telescope_name)
-    lat, lon, alt = tel.telescope_location_lat_lon_alt_degrees
-    lst_array = get_lst_for_time(uv.time_array, lat, lon, alt)
-    return lst_array
 
 
 def collapse(a, alg, weights=None, axis=None, returned=False):
