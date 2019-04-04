@@ -90,7 +90,7 @@ class UVFlag(object):
                 self.lst_array = input.lst_array[ri]
             else:
                 self.polarization_array = input.jones_array
-                self.lst_array = uvutils.lst_from_uv(input)[ri]
+                self.lst_array = lst_from_uv(input)[ri]
             if copy_flags:
                 self.metric_array = flags2waterfall(input, keep_pol=True)
                 self.history += ' Waterfall generated from ' + str(input.__class__) + ' object.'
@@ -135,7 +135,7 @@ class UVFlag(object):
             self.history += 'Flag object with type "antenna" created by ' + self.pyuvdata_version_str
             self.ant_array = input.ant_array
             self.time_array = input.time_array
-            self.lst_array = uvutils.lst_from_uv(input)
+            self.lst_array = lst_from_uv(input)
             self.freq_array = input.freq_array
             self.polarization_array = input.jones_array
             if copy_flags:
@@ -828,5 +828,5 @@ def lst_from_uv(uv):
 
     tel = uvtel.get_telescope(uv.telescope_name)
     lat, lon, alt = tel.telescope_location_lat_lon_alt_degrees
-    lst_array = get_lst_for_time(uv.time_array, lat, lon, alt)
+    lst_array = uvutils.get_lst_for_time(uv.time_array, lat, lon, alt)
     return lst_array
