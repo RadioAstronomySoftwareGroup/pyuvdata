@@ -93,7 +93,7 @@ def write_index_rst(readme_file=None, write_file=None):
     # replace Codecov badge
     rst_status_badge = '.. image:: ' + codecov_str + branch_str + '\n    :target: ' + codecov_link
     status_badge_text = '|codecov|'
-    readme_text = readme_text.replace(status_badge_text, rst_status_badge)
+    readme_text = readme_text.replace(status_badge_text, rst_status_badge + '\n\n')
 
     readme_text = readme_text.replace(' ' + rst_status_badge, rst_status_badge)
 
