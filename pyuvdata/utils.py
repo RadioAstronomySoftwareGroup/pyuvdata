@@ -1023,7 +1023,7 @@ def absmean_collapse(a, weights=None, axis=None, returned=False):
         axis - axis keyword to pass to np.mean
         returned - whether to return sum of weights. Default is False.
     '''
-    return mean(np.abs(a), weights=weights, axis=axis, returned=returned)
+    return mean_collapse(np.abs(a), weights=weights, axis=axis, returned=returned)
 
 
 def quadmean_collapse(a, weights=None, axis=None, returned=False):
@@ -1034,7 +1034,7 @@ def quadmean_collapse(a, weights=None, axis=None, returned=False):
         axis - axis keyword to pass to np.mean
         returned - whether to return sum of weights. Default is False.
     '''
-    o = mean(np.abs(a)**2, weights=weights, axis=axis, returned=returned)
+    o = mean_collapse(np.abs(a)**2, weights=weights, axis=axis, returned=returned)
     if returned:
         return np.sqrt(o[0]), o[1]
     else:
