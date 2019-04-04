@@ -9,6 +9,7 @@ from . import UVData
 from . import UVCal
 from . import utils as uvutils
 from . import version as uvversion
+from . import telescopes as uvtel
 import warnings
 import h5py
 import copy
@@ -811,3 +812,21 @@ def and_rows_cols(waterfall):
     wf[:, (np.sum(waterfall, axis=0) / Ntimes) == 1] = True
     wf[(np.sum(waterfall, axis=1) / Nfreqs) == 1] = True
     return wf
+
+
+def lst_from_uv(uv):
+    ''' Calculate the lst_array for a UVData or UVCal object.
+    Args:
+        uv: a UVData or UVCal object.
+    Returns:
+        lst_array: lst_array corresponding to time_array and at telescope location.
+                   Units are radian.
+    '''
+    if not isinstance(uv, (UVCal, UVData)):
+        raise ValueError('Function lst_from_uv can only operate on '
+                         'UVCal or UVData object.')
+
+    tel = uvtel.get_telescope(uv.telescope_name)
+    lat, lon, alt = tel.telescope_location_lat_lon_alt_degrees
+    lst_array = get_lst_for_time(uv.time_array, lat, lon, alt)
+    return lst_array

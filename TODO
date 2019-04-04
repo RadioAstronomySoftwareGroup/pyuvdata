@@ -22,4 +22,6 @@ tests
   collapse == copy to pyuvdata utils, add "collapse" suffix to subfunctions, update xrfi calls
   and_rows_cols == copy to uvflag.py
 
+move HERAData test to hera_cal
+
 Delete this file
