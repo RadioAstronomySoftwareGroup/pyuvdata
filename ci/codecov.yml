@@ -1,0 +1,3 @@
+codecov:
+  ci:
+    - !travis  # ignore CI builds by Travis
