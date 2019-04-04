@@ -77,22 +77,22 @@ def write_index_rst(readme_file=None, write_file=None):
 
     # replace Travis badge
     rst_status_badge = '.. image:: ' + travis_str + branch_str + '\n    :target: ' + travis_link
-    status_badge_text = '`Build\nStatus <' + travis_link + '>`__'
+    status_badge_text = '|Build Status|'
     readme_text = readme_text.replace(status_badge_text, rst_status_badge + '\n\n')
 
     # replace Circleci badge
     rst_status_badge = '.. image:: ' + circleci_str + branch_str + '&style=svg' + '\n    :target: ' + circleci_link
-    status_badge_text = '`CircleCI <' + circleci_link + '>`__'
+    status_badge_text = '|CircleCI|'
     readme_text = readme_text.replace(status_badge_text, rst_status_badge + '\n\n')
 
     # replace Coveralls badge
     rst_status_badge = '.. image:: ' + cover_str + branch_str + '\n    :target: ' + cover_link
-    status_badge_text = '`Coverage\nStatus <' + cover_link + '>`__'
+    status_badge_text = '|Coverage Status|'
     readme_text = readme_text.replace(status_badge_text, rst_status_badge + '\n\n')
 
     # replace Codecov badge
     rst_status_badge = '.. image:: ' + codecov_str + branch_str + '\n    :target: ' + codecov_link
-    status_badge_text = '`codecov <' + codecov_link + '>`__'
+    status_badge_text = '|codecov|'
     readme_text = readme_text.replace(status_badge_text, rst_status_badge)
 
     readme_text = readme_text.replace(' ' + rst_status_badge, rst_status_badge)
