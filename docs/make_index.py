@@ -25,77 +25,23 @@ def write_index_rst(readme_file=None, write_file=None):
 
     readme_md = pypandoc.convert_file(readme_file, 'md')
 
-    # find parts of Travis badge
-    travis_str = 'https://travis-ci.org/RadioAstronomySoftwareGroup/pyuvdata.svg'
-    regex_travis = re.compile(travis_str)
-    loc_travis_start = re.search(regex_travis, readme_md).start()
-    loc_travis_end = re.search(regex_travis, readme_md).end()
-    end_branch_str = r'\)\]'
-    regex_end = re.compile(end_branch_str)
-    loc_branch_end = re.search(regex_end, readme_md).start()
-    branch_str = readme_md[loc_travis_end:loc_branch_end]
-
-    start_link_str = r'\('
-    regex_start_link = re.compile(start_link_str)
-    end_link_str = r'\)\n'
-    regex_end_link = re.compile(end_link_str)
-    loc_link_start = re.search(regex_start_link, readme_md[loc_travis_end:]).start() + loc_travis_end
-    loc_link_end = re.search(regex_end_link, readme_md[loc_link_start:]).start() + loc_link_start
-    travis_link = readme_md[loc_link_start + 1:loc_link_end]
-
-    # find parts of Circleci badge
-    circleci_str = 'https://circleci.com/gh/RadioAstronomySoftwareGroup/pyuvdata.svg'
-    regex_circleci = re.compile(circleci_str)
-    loc_circleci_start = re.search(regex_circleci, readme_md).start()
-    loc_circleci_end = re.search(regex_circleci, readme_md).end()
-
-    loc_link_start = re.search(regex_start_link, readme_md[loc_circleci_end:]).start() + loc_circleci_end
-    loc_link_end = re.search(regex_end_link, readme_md[loc_link_start:]).start() + loc_link_start
-    circleci_link = readme_md[loc_link_start + 1:loc_link_end]
-
-    # find parts of Coveralls badge
-    cover_str = 'https://coveralls.io/repos/github/RadioAstronomySoftwareGroup/pyuvdata/badge.svg'
-    regex_cover = re.compile(cover_str)
-    loc_cover_start = re.search(regex_cover, readme_md).start()
-    loc_cover_end = re.search(regex_cover, readme_md).end()
-
-    loc_link_start = re.search(regex_start_link, readme_md[loc_cover_end:]).start() + loc_cover_end
-    loc_link_end = re.search(regex_end_link, readme_md[loc_link_start:]).start() + loc_link_start
-    cover_link = readme_md[loc_link_start + 1:loc_link_end]
-
-    # find parts of Codecov badge
-    codecov_str = 'https://codecov.io/gh/RadioAstronomySoftwareGroup/pyuvdata/badge.svg'
-    regex_codecov = re.compile(codecov_str)
-    loc_codecov_start = re.search(regex_codecov, readme_md).start()
-    loc_codecov_end = re.search(regex_codecov, readme_md).end()
-
-    loc_link_start = re.search(regex_start_link, readme_md[loc_codecov_end:]).start() + loc_codecov_end
-    loc_link_end = re.search(regex_end_link, readme_md[loc_link_start:]).start() + loc_link_start
-    codecov_link = readme_md[loc_link_start + 1:loc_link_end]
-
     readme_text = pypandoc.convert_file(readme_file, 'rst')
 
-    # replace Travis badge
-    rst_status_badge = '.. image:: ' + travis_str + branch_str + '\n    :target: ' + travis_link
-    status_badge_text = '|Build Status|'
-    readme_text = readme_text.replace(status_badge_text, rst_status_badge + '\n\n')
+    title_badge_text = (
+        'pyuvdata\n========\n\n'
+        '.. image:: https://travis-ci.org/RadioAstronomySoftwareGroup/pyuvdata.svg?branch=master\n'
+        '    :target: https://travis-ci.org/RadioAstronomySoftwareGroup/pyuvdata\n\n'
+        '.. image:: https://circleci.com/gh/RadioAstronomySoftwareGroup/pyuvdata.svg?style=svg\n'
+        '    :target: https://circleci.com/gh/RadioAstronomySoftwareGroup/pyuvdata\n\n'
+        '.. image:: https://coveralls.io/repos/github/RadioAstronomySoftwareGroup/pyuvdata/badge.svg\n'
+        '    :target: https://coveralls.io/github/RadioAstronomySoftwareGroup/pyuvdata\n\n'
+        '.. image:: https://codecov.io/gh/RadioAstronomySoftwareGroup/pyuvdata/branch/master/graph/badge.svg\n'
+        '  :target: https://codecov.io/gh/RadioAstronomySoftwareGroup/pyuvdata\n\n')
 
-    # replace Circleci badge
-    rst_status_badge = '.. image:: ' + circleci_str + branch_str + '&style=svg' + '\n    :target: ' + circleci_link
-    status_badge_text = '|CircleCI|'
-    readme_text = readme_text.replace(status_badge_text, rst_status_badge + '\n\n')
+    begin_desc = 'pyuvdata defines a pythonic interface'
+    start_desc = str.find(readme_text, begin_desc)
 
-    # replace Coveralls badge
-    rst_status_badge = '.. image:: ' + cover_str + branch_str + '\n    :target: ' + cover_link
-    status_badge_text = '|Coverage Status|'
-    readme_text = readme_text.replace(status_badge_text, rst_status_badge + '\n\n')
-
-    # replace Codecov badge
-    rst_status_badge = '.. image:: ' + codecov_str + branch_str + '\n    :target: ' + codecov_link
-    status_badge_text = '|codecov|'
-    readme_text = readme_text.replace(status_badge_text, rst_status_badge + '\n\n')
-
-    readme_text = readme_text.replace(' ' + rst_status_badge, rst_status_badge)
+    readme_text = title_badge_text + readme_text[start_desc:]
 
     end_text = 'parameters descriptions'
     regex = re.compile(end_text.replace(' ', r'\s+'))
