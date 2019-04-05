@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
+### Deprecated
+- `UVData.order_pols` method in favor of `UVData.reorder_pols`.
 
 ## [1.3.7] - 2019-04-02
 
