@@ -326,3 +326,27 @@ def test_multi_files():
 
     fhd_uv1.history = fhd_uv2.history
     nt.assert_equal(fhd_uv1, fhd_uv2)
+
+
+def test_multi_files_axis():
+    """
+    Reading multiple files at once with axis keyword.
+    """
+    fhd_uv1 = UVData()
+    fhd_uv2 = UVData()
+    test1 = list(np.array(testfiles)[[0, 1, 2, 4, 6, 7]])
+    test2 = list(np.array(testfiles)[[0, 2, 3, 5, 6, 7]])
+    uvtest.checkWarnings(fhd_uv1.read, [[test1, test2]], {'use_model': True},
+                         message=['Telescope location derived from obs'],
+                         nwarnings=2)
+
+    uvtest.checkWarnings(fhd_uv2.read, [testfiles],
+                         {'use_model': True, 'axis': 'polarization'},
+                         known_warning='fhd')
+
+    nt.assert_true(uvutils._check_histories(fhd_uv2.history + ' Combined data '
+                                            'along polarization axis using pyuvdata.',
+                                            fhd_uv1.history))
+
+    fhd_uv1.history = fhd_uv2.history
+    nt.assert_equal(fhd_uv1, fhd_uv2)
