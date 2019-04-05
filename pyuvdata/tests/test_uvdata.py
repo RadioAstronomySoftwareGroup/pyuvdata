@@ -80,31 +80,6 @@ class TestUVDataInit(object):
         """Test teardown: delete object."""
         del(self.uv_object)
 
-    def test_order_pols(self):
-        test_uv1 = UVData()
-        testfile = os.path.join(
-            DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-        uvtest.checkWarnings(test_uv1.read_uvfits, [testfile],
-                             message='Telescope EVLA is not')
-        test_uv1.order_pols(order='AIPS')
-        # check that we have aips ordering
-        aips_pols = np.array([-1, -2, -3, -4]).astype(int)
-        nt.assert_true(np.all(test_uv1.polarization_array == aips_pols))
-        test_uv2 = copy.deepcopy(test_uv1)
-        test_uv2.order_pols(order='CASA')
-        casa_pols = np.array([-1, -3, -4, -2]).astype(int)
-        nt.assert_true(np.all(test_uv2.polarization_array == casa_pols))
-        order = np.array([0, 2, 3, 1])
-        nt.assert_true(np.all(test_uv2.data_array == test_uv1.data_array[:, :, :, order]))
-        nt.assert_true(np.all(test_uv2.flag_array == test_uv1.flag_array[:, :, :, order]))
-        # check that we have casa ordering
-        test_uv2.order_pols(order='AIPS')
-        # check that we have aips ordering again
-        nt.assert_equal(test_uv1, test_uv2)
-        uvtest.checkWarnings(test_uv2.order_pols, ['unknown'], message='Invalid order supplied')
-        del(test_uv1)
-        del(test_uv2)
-
     def test_parameter_iter(self):
         "Test expected parameters."
         all = []
@@ -1156,6 +1131,25 @@ def test_reorder_pols():
     uvtest.checkWarnings(uv1.read_uvfits, [testfile], message='Telescope EVLA is not')
     uv2.reorder_pols()
     nt.assert_equal(uv1, uv2)
+
+    uv1.reorder_pols(order='AIPS')
+    # check that we have aips ordering
+    aips_pols = np.array([-1, -2, -3, -4]).astype(int)
+    nt.assert_true(np.all(uv1.polarization_array == aips_pols))
+
+    uv2 = copy.deepcopy(uv1)
+    uv2.reorder_pols(order='CASA')
+    # check that we have casa ordering
+    casa_pols = np.array([-1, -3, -4, -2]).astype(int)
+    nt.assert_true(np.all(uv2.polarization_array == casa_pols))
+    order = np.array([0, 2, 3, 1])
+    nt.assert_true(np.all(uv2.data_array == uv1.data_array[:, :, :, order]))
+    nt.assert_true(np.all(uv2.flag_array == uv1.flag_array[:, :, :, order]))
+
+    uv2.reorder_pols(order='AIPS')
+    # check that we have aips ordering again
+    nt.assert_equal(uv1, uv2)
+    nt.assert_raises(ValueError, uv2.reorder_pols, ['unknown'])
 
 
 def test_add():

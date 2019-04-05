@@ -326,6 +326,6 @@ class MS(UVData):
         tbField.close()
         tb.close()
         # order polarizations
-        self.order_pols(pol_order)
+        self.reorder_pols(order=pol_order)
         if run_check:
             self.check(check_extra=check_extra, run_check_acceptability=run_check_acceptability)
