@@ -1673,6 +1673,11 @@ def test_fast_concat():
     nt.assert_true(uv2._polarization_array != uv_full._polarization_array)
     nt.assert_true(uv2._data_array != uv_full._data_array)
 
+    # reorder pols
+    uv2.reorder_pols()
+    uv2.history = uv_full.history
+    nt.assert_equal(uv2, uv_full)
+
     # Add times
     uv1 = copy.deepcopy(uv_full)
     uv2 = copy.deepcopy(uv_full)
