@@ -1647,8 +1647,19 @@ def test_fast_concat():
     uv2.select(freq_chans=np.arange(32, 64))
     uvtest.checkWarnings(uv2.fast_concat, [uv1, 'freq'], {'inplace': True},
                          message='Combined frequencies are not evenly spaced')
+    nt.assert_equal(uv2.Nfreqs, uv_full.Nfreqs)
     nt.assert_true(uv2._freq_array != uv_full._freq_array)
     nt.assert_true(uv2._data_array != uv_full._data_array)
+
+    # reorder frequencies and test that they are equal
+    index_array = np.argsort(uv2.freq_array[0, :])
+    uv2.freq_array = uv2.freq_array[:, index_array]
+    uv2.data_array = uv2.data_array[:, :, index_array, :]
+    uv2.nsample_array = uv2.nsample_array[:, :, index_array, :]
+    uv2.flag_array = uv2.flag_array[:, :, index_array, :]
+    uv2.history = uv_full.history
+    nt.assert_equal(uv2._freq_array, uv_full._freq_array)
+    nt.assert_equal(uv2, uv_full)
 
     # Add polarizations
     uv1 = copy.deepcopy(uv_full)
@@ -1709,7 +1720,6 @@ def test_fast_concat():
     nt.assert_equal(uv1, uv_full)
 
     # Add baselines out of order
-    # this might be able to be made equal once we have a re-ordering method
     uv1 = copy.deepcopy(uv_full)
     uv2 = copy.deepcopy(uv_full)
     ant_list = list(range(15))  # Roughly half the antennas in the data
@@ -1725,6 +1735,8 @@ def test_fast_concat():
     nt.assert_true(uv2._time_array != uv_full._time_array)
     nt.assert_true(uv2._baseline_array != uv_full._baseline_array)
     nt.assert_true(uv2._data_array != uv_full._data_array)
+
+    # TODO: should reorder blts and test that they are equal once we have a blt reordering method
 
     # Add multiple axes
     uv1 = copy.deepcopy(uv_full)
