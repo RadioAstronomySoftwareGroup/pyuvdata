@@ -15,7 +15,7 @@ import six
 from astropy.time import Time
 from astropy.coordinates import Angle
 
-from pyuvdata import UVData
+from pyuvdata import UVData, UVCal
 import pyuvdata.utils as uvutils
 import pyuvdata.tests as uvtest
 from pyuvdata.data import DATA_PATH
@@ -1804,6 +1804,22 @@ def test_fast_concat():
     nt.assert_equal(uv1.Nbls, uv_auto.Nbls + uv_cross.Nbls)
     uv2 = uv_cross.fast_concat(uv_auto, 'blt')
     nt.assert_equal(uv2.Nbls, uv_auto.Nbls + uv_cross.Nbls)
+
+
+def test_fast_concat_errors():
+    uv_full = UVData()
+    testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    uvtest.checkWarnings(uv_full.read_uvfits, [testfile],
+                         message='Telescope EVLA is not')
+
+    uv1 = copy.deepcopy(uv_full)
+    uv2 = copy.deepcopy(uv_full)
+    uv1.select(freq_chans=np.arange(0, 32))
+    uv2.select(freq_chans=np.arange(32, 64))
+    nt.assert_raises(ValueError, uv1.fast_concat, uv2, 'foo', inplace=True)
+
+    cal = UVCal()
+    nt.assert_raises(ValueError, uv1.fast_concat, cal, 'freq', inplace=True)
 
 
 def test_key2inds():

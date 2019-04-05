@@ -595,6 +595,18 @@ def test_multi_files():
     uv1.history = uv_full.history
     nt.assert_equal(uv1, uv_full)
 
+    # again, setting axis
+    uvtest.checkWarnings(uv1.read, [[testfile1, testfile2]], {'axis': 'freq'},
+                         nwarnings=2, message=['Telescope EVLA is not'])
+    # Check history is correct, before replacing and doing a full object check
+    nt.assert_true(uvutils._check_histories(uv_full.history + '  Downselected to '
+                                            'specific frequencies using pyuvdata. '
+                                            'Combined data along frequency axis '
+                                            'using pyuvdata.', uv1.history))
+
+    uv1.history = uv_full.history
+    nt.assert_equal(uv1, uv_full)
+
     # check raises error if read_data and read_metadata are False
     nt.assert_raises(ValueError, uv1.read, [testfile1, testfile2],
                      read_data=False, read_metadata=False)

@@ -245,6 +245,45 @@ def test_multi_files():
 
 
 @uvtest.skipIf_no_casa
+def test_multi_files_axis():
+    """
+    Reading multiple files at once, setting axis keyword
+    """
+    uv_full = UVData()
+    uv_multi = UVData()
+    uvfits_file = os.path.join(
+        DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    uvtest.checkWarnings(uv_full.read_uvfits, [uvfits_file], message='Telescope EVLA is not')
+    testfile1 = os.path.join(DATA_PATH, 'multi_1.ms')
+    testfile2 = os.path.join(DATA_PATH, 'multi_2.ms')
+    uv_multi.read([testfile1, testfile2], axis='freq')
+    # Casa scrambles the history parameter. Replace for now.
+    uv_multi.history = uv_full.history
+
+    # the objects won't be equal because uvfits adds some optional parameters
+    # and the ms sets default antenna diameters even thoug the uvfits file doesn't have them
+    nt.assert_false(uv_multi == uv_full)
+    # they are equal if only required parameters are checked:
+    nt.assert_true(uv_multi.__eq__(uv_full, check_extra=False))
+
+    # set those parameters to none to check that the rest of the objects match
+    uv_multi.antenna_diameters = None
+
+    for p in uv_full.extra():
+        fits_param = getattr(uv_full, p)
+        ms_param = getattr(uv_multi, p)
+        if fits_param.name in UVFITS.uvfits_required_extra and ms_param.value is None:
+            fits_param.value = None
+            setattr(uv_full, p, fits_param)
+
+    # extra keywords are also different, set both to empty dicts
+    uv_full.extra_keywords = {}
+    uv_multi.extra_keywords = {}
+
+    nt.assert_equal(uv_multi, uv_full)
+
+
+@uvtest.skipIf_no_casa
 def test_bad_col_name():
     """
     Test error with invalid column name.
