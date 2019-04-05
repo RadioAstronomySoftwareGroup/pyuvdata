@@ -936,6 +936,17 @@ class UVData(UVBase):
             self.check(check_extra=check_extra,
                        run_check_acceptability=run_check_acceptability)
 
+    def order_pols(self, order='AIPS'):
+        """
+        Soon to be deprecated method, now just calls reorder_pols.
+
+        Args:
+            order: string, either 'CASA' or 'AIPS'. Default='AIPS'
+        """
+        warnings.warn('order_pols method will soon be deprecated in favor of '
+                      'reorder_pols', PendingDeprecationWarning)
+        self.reorder_pols(order=order)
+
     def __add__(self, other, run_check=True, check_extra=True,
                 run_check_acceptability=True, inplace=False):
         """

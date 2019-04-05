@@ -1151,6 +1151,12 @@ def test_reorder_pols():
     nt.assert_equal(uv1, uv2)
     nt.assert_raises(ValueError, uv2.reorder_pols, ['unknown'])
 
+    # check warning for order_pols:
+    uvtest.checkWarnings(uv2.order_pols, [], {'order': 'AIPS'},
+                         message=('order_pols method will soon be deprecated in '
+                                  'favor of reorder_pols'),
+                         category=PendingDeprecationWarning)
+
 
 def test_add():
     uv_full = UVData()
