@@ -336,12 +336,12 @@ def test_multi_files_axis():
     fhd_uv2 = UVData()
     test1 = list(np.array(testfiles)[[0, 1, 2, 4, 6, 7]])
     test2 = list(np.array(testfiles)[[0, 2, 3, 5, 6, 7]])
-    uvtest.checkWarnings(fhd_uv1.read, [[test1, test2]], {'use_model': True},
+    uvtest.checkWarnings(fhd_uv1.read, [[test1, test2]],
+                         {'use_model': True, 'axis': 'polarization'},
                          message=['Telescope location derived from obs'],
                          nwarnings=2)
 
-    uvtest.checkWarnings(fhd_uv2.read, [testfiles],
-                         {'use_model': True, 'axis': 'polarization'},
+    uvtest.checkWarnings(fhd_uv2.read, [testfiles], {'use_model': True},
                          known_warning='fhd')
 
     nt.assert_true(uvutils._check_histories(fhd_uv2.history + ' Combined data '
