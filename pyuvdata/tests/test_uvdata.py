@@ -1149,7 +1149,9 @@ def test_reorder_pols():
     uv2.reorder_pols(order='AIPS')
     # check that we have aips ordering again
     nt.assert_equal(uv1, uv2)
-    nt.assert_raises(ValueError, uv2.reorder_pols, ['unknown'])
+
+    # check error on unknown order
+    nt.assert_raises(ValueError, uv2.reorder_pols, {'order': 'foo'})
 
     # check warning for order_pols:
     uvtest.checkWarnings(uv2.order_pols, [], {'order': 'AIPS'},
