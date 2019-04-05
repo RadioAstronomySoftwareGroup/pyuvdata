@@ -534,30 +534,6 @@ class UVData(UVBase):
         """
         return uvutils.antnums_to_baseline(ant1, ant2, self.Nants_telescope, attempt256=attempt256)
 
-    def order_pols(self, order='AIPS'):
-        '''
-        Arranges polarizations in orders corresponding to either AIPS or CASA convention.
-        CASA stokes types are ordered with cross-pols in between (e.g. XX,XY,YX,YY) while
-        AIPS orders pols with auto-pols followed by cross-pols (e.g. XX,YY,XY,YX)
-        Args:
-        order: string, either 'CASA' or 'AIPS'. Default='AIPS'
-        '''
-        if(order == 'AIPS'):
-            pol_inds = np.argsort(self.polarization_array)
-            pol_inds = pol_inds[::-1]
-        elif(order == 'CASA'):  # sandwich
-            casa_order = np.array([1, 2, 3, 4, -1, -3, -4, -2, -5, -7, -8, -6])
-            pol_inds = []
-            for pol in self.polarization_array:
-                pol_inds.append(np.where(casa_order == pol)[0][0])
-            pol_inds = np.argsort(pol_inds)
-        else:
-            warnings.warn('Invalid order supplied. No sorting performed.')
-            pol_inds = list(range(self.Npols))
-        # Generate a map from original indices to new indices
-        if not np.array_equal(pol_inds, self.Npols):
-            self.reorder_pols(order=pol_inds)
-
     def set_lsts_from_time_array(self):
         """Set the lst_array based from the time_array."""
         latitude, longitude, altitude = self.telescope_location_lat_lon_alt_degrees
@@ -909,6 +885,56 @@ class UVData(UVBase):
         if phase_type == 'phased':
             self.phase(phase_center_ra, phase_center_dec, phase_center_epoch,
                        phase_frame=output_phase_frame)
+
+    def reorder_pols(self, order='AIPS', desired_order=None, run_check=True,
+                     check_extra=True, run_check_acceptability=True):
+        """
+        Rearrange polarizations in the event they are not uvfits compatible.
+
+        Args:
+            order: either a string specifying a cannonical ordering
+                ('AIPS' or 'CASA') or an index array of length Npols that
+                specifies how to shuffle the data (this is not the desired
+                final pol order).
+                CASA ordering has cross-pols in between (e.g. XX,XY,YX,YY)
+                AIPS ordering has auto-pols followed by cross-pols (e.g. XX,YY,XY,YX)
+                Default ('AIPS') will sort by absolute value of pol values.
+            run_check: Option to check for the existence and proper shapes of
+                parameters after reordering. Default is True.
+            check_extra: Option to check optional parameters as well as required
+                ones. Default is True.
+            run_check_acceptability: Option to check acceptable range of the values of
+                parameters after reordering. Default is True.
+        """
+        if isinstance(order, (np.ndarray, list, tuple)):
+            order = np.array(order)
+            if (order.size != self.Npols
+                    or order.dtype not in [int, np.int, np.int32, np.int64]
+                    or np.min(order) < 0 or np.max(order) >= self.Npols):
+                raise ValueError('If order is an index array, it must '
+                                 'contain integers and be length Npols.')
+            index_array = order
+        elif order == 'AIPS':
+            index_array = np.argsort(np.abs(self.polarization_array))
+        elif order == 'CASA':
+            casa_order = np.array([1, 2, 3, 4, -1, -3, -4, -2, -5, -7, -8, -6])
+            pol_inds = []
+            for pol in self.polarization_array:
+                pol_inds.append(np.where(casa_order == pol)[0][0])
+            index_array = np.argsort(pol_inds)
+        else:
+            raise ValueError("order must be one of: 'AIPS', 'CASA', or an "
+                             "index array of length Npols")
+
+        self.polarization_array = self.polarization_array[index_array]
+        self.data_array = self.data_array[:, :, :, index_array]
+        self.nsample_array = self.nsample_array[:, :, :, index_array]
+        self.flag_array = self.flag_array[:, :, :, index_array]
+
+        # check if object is self-consistent
+        if run_check:
+            self.check(check_extra=check_extra,
+                       run_check_acceptability=run_check_acceptability)
 
     def __add__(self, other, run_check=True, check_extra=True,
                 run_check_acceptability=True, inplace=False):
@@ -2538,33 +2564,6 @@ class UVData(UVBase):
                 self.select(times=times_to_keep, run_check=run_check, check_extra=check_extra,
                             run_check_acceptability=run_check_acceptability,
                             keep_all_metadata=keep_all_metadata)
-
-    def reorder_pols(self, order=None, run_check=True, check_extra=True,
-                     run_check_acceptability=True):
-        """
-        Rearrange polarizations in the event they are not uvfits compatible.
-
-        Args:
-            order: Provide the order which to shuffle the data. Default will
-                sort by absolute value of pol values.
-            run_check: Option to check for the existence and proper shapes of
-                parameters after reordering. Default is True.
-            check_extra: Option to check optional parameters as well as required
-                ones. Default is True.
-            run_check_acceptability: Option to check acceptable range of the values of
-                parameters after reordering. Default is True.
-        """
-        if order is None:
-            order = np.argsort(np.abs(self.polarization_array))
-        self.polarization_array = self.polarization_array[order]
-        self.data_array = self.data_array[:, :, :, order]
-        self.nsample_array = self.nsample_array[:, :, :, order]
-        self.flag_array = self.flag_array[:, :, :, order]
-
-        # check if object is self-consistent
-        if run_check:
-            self.check(check_extra=check_extra,
-                       run_check_acceptability=run_check_acceptability)
 
     def get_ants(self):
         """
