@@ -166,7 +166,7 @@ class UVData(UVBase):
                                                        np.arange(-8, 0)) + list(np.arange(1, 5)),
                                                    form=('Npols',))
 
-        desc = ('Length of the integration in seconds, shape (NBlts). '
+        desc = ('Length of the integration in seconds, shape (Nblts). '
                 'The product of the integration_time and the nsample_array '
                 'value for a visibility reflects the total amount of time '
                 'that went into the visibility. Best practice is for the '
@@ -1272,16 +1272,26 @@ class UVData(UVBase):
                                 '_phase_center_ra', '_phase_center_dec',
                                 '_phase_center_epoch']
 
+        history_update_string = ' Combined data along '
+
         if axis == 'freq':
+            history_update_string += 'frequency'
             compatibility_params += ['_polarization_array', '_ant_1_array',
                                      '_ant_2_array', '_integration_time',
                                      '_uvw_array', '_lst_array']
         elif axis == 'polarization':
+            history_update_string += 'polarization'
             compatibility_params += ['_freq_array', '_ant_1_array',
                                      '_ant_2_array', '_integration_time',
                                      '_uvw_array', '_lst_array']
         elif axis == 'blt':
+            history_update_string += 'baseline-time'
             compatibility_params += ['_freq_array', '_polarization_array']
+
+        history_update_string += ' axis using pyuvdata.'
+        this.history += history_update_string
+
+        this.history = uvutils._combine_histories(this.history, other.history)
 
         # Actually check compatibility parameters
         for a in compatibility_params:
@@ -1293,16 +1303,35 @@ class UVData(UVBase):
 
         if axis == 'freq':
             this.freq_array = np.concatenate([this.freq_array, other.freq_array], axis=1)
+            this.Nfreqs = this.Nfreqs + other.Nfreqs
+
+            freq_separation = np.diff(this.freq_array[0, :])
+            if not np.isclose(np.min(freq_separation), np.max(freq_separation),
+                              rtol=this._freq_array.tols[0], atol=this._freq_array.tols[1]):
+                warnings.warn('Combined frequencies are not evenly spaced. This will '
+                              'make it impossible to write this data out to some file types.')
+            elif np.max(freq_separation) > this.channel_width:
+                warnings.warn('Combined frequencies are not contiguous. This will make '
+                              'it impossible to write this data out to some file types.')
+
             this.data_array = np.concatenate([this.data_array, other.data_array], axis=2)
             this.nsample_array = np.concatenate([this.nsample_array, other.nsample_array], axis=2)
             this.flag_array = np.concatenate([this.flag_array, other.flag_array], axis=2)
         elif axis == 'polarization':
             this.polarization_array = np.concatenate([this.polarization_array,
                                                      other.polarization_array])
+            this.Npols = this.Npols + other.Npols
+
+            pol_separation = np.diff(this.polarization_array)
+            if np.min(pol_separation) < np.max(pol_separation):
+                warnings.warn('Combined polarizations are not evenly spaced. This will '
+                              'make it impossible to write this data out to some file types.')
+
             this.data_array = np.concatenate([this.data_array, other.data_array], axis=3)
             this.nsample_array = np.concatenate([this.nsample_array, other.nsample_array], axis=3)
             this.flag_array = np.concatenate([this.flag_array, other.flag_array], axis=3)
         elif axis == 'blt':
+            this.Nblts = this.Nblts + other.Nblts
             this.ant_1_array = np.concatenate([this.ant_1_array,
                                               other.ant_1_array])
             this.ant_2_array = np.concatenate([this.ant_2_array,
@@ -1311,10 +1340,12 @@ class UVData(UVBase):
                                             other.uvw_array], axis=0)
             this.time_array = np.concatenate([this.time_array,
                                              other.time_array])
+            this.Ntimes = len(np.unique(this.time_array))
             this.lst_array = np.concatenate([this.lst_array,
                                             other.lst_array])
             this.baseline_array = np.concatenate([this.baseline_array,
                                                  other.baseline_array])
+            this.Nbls = len(np.unique(this.baseline_array))
             this.integration_time = np.concatenate([this.integration_time,
                                                    other.integration_time])
             this.data_array = np.concatenate([this.data_array, other.data_array], axis=0)

@@ -1619,6 +1619,193 @@ def test_break_add():
     nt.assert_raises(ValueError, uv1.__iadd__, uv2)
 
 
+def test_fast_concat():
+    uv_full = UVData()
+    testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    uvtest.checkWarnings(uv_full.read_uvfits, [testfile],
+                         message='Telescope EVLA is not')
+
+    # Add frequencies
+    uv1 = copy.deepcopy(uv_full)
+    uv2 = copy.deepcopy(uv_full)
+    uv1.select(freq_chans=np.arange(0, 32))
+    uv2.select(freq_chans=np.arange(32, 64))
+    uv1.fast_concat(uv2, 'freq', inplace=True)
+    # Check history is correct, before replacing and doing a full object check
+    nt.assert_true(uvutils._check_histories(uv_full.history + '  Downselected to '
+                                            'specific frequencies using pyuvdata. '
+                                            'Combined data along frequency axis '
+                                            'using pyuvdata.', uv1.history))
+
+    uv1.history = uv_full.history
+    nt.assert_equal(uv1, uv_full)
+
+    # Add frequencies - out of order
+    uv1 = copy.deepcopy(uv_full)
+    uv2 = copy.deepcopy(uv_full)
+    uv1.select(freq_chans=np.arange(0, 32))
+    uv2.select(freq_chans=np.arange(32, 64))
+    uvtest.checkWarnings(uv2.fast_concat, [uv1, 'freq'], {'inplace': True},
+                         message='Combined frequencies are not evenly spaced')
+    nt.assert_true(uv2._freq_array != uv_full._freq_array)
+    nt.assert_true(uv2._data_array != uv_full._data_array)
+
+    # Add polarizations
+    uv1 = copy.deepcopy(uv_full)
+    uv2 = copy.deepcopy(uv_full)
+    uv1.select(polarizations=uv1.polarization_array[0:2])
+    uv2.select(polarizations=uv2.polarization_array[2:4])
+    uv1.fast_concat(uv2, 'polarization', inplace=True)
+    nt.assert_true(uvutils._check_histories(uv_full.history + '  Downselected to '
+                                            'specific polarizations using pyuvdata. '
+                                            'Combined data along polarization axis '
+                                            'using pyuvdata.', uv1.history))
+    uv1.history = uv_full.history
+    nt.assert_equal(uv1, uv_full)
+
+    # Add polarizations - out of order
+    uv1 = copy.deepcopy(uv_full)
+    uv2 = copy.deepcopy(uv_full)
+    uv1.select(polarizations=uv1.polarization_array[0:2])
+    uv2.select(polarizations=uv2.polarization_array[2:4])
+    uvtest.checkWarnings(uv2.fast_concat, [uv1, 'polarization'], {'inplace': True},
+                         message='Combined polarizations are not evenly spaced')
+    nt.assert_true(uv2._polarization_array != uv_full._polarization_array)
+    nt.assert_true(uv2._data_array != uv_full._data_array)
+
+    # Add times
+    uv1 = copy.deepcopy(uv_full)
+    uv2 = copy.deepcopy(uv_full)
+    times = np.unique(uv_full.time_array)
+    uv1.select(times=times[0:len(times) // 2])
+    uv2.select(times=times[len(times) // 2:])
+    uv1.fast_concat(uv2, 'blt', inplace=True)
+    nt.assert_true(uvutils._check_histories(uv_full.history + '  Downselected to '
+                                            'specific times using pyuvdata. '
+                                            'Combined data along baseline-time axis '
+                                            'using pyuvdata.', uv1.history))
+    uv1.history = uv_full.history
+    nt.assert_equal(uv1, uv_full)
+
+    # Add baselines
+    uv1 = copy.deepcopy(uv_full)
+    uv2 = copy.deepcopy(uv_full)
+    # divide in half to keep in order
+    ind1 = np.arange(uv1.Nblts // 2)
+    ind2 = np.arange(uv1.Nblts // 2, uv1.Nblts)
+    uv1.select(blt_inds=ind1)
+    uv2.select(blt_inds=ind2)
+    uv1.fast_concat(uv2, 'blt', inplace=True)
+    nt.assert_true(uvutils._check_histories(uv_full.history + '  Downselected to '
+                                            'specific baseline-times using pyuvdata. '
+                                            'Combined data along baseline-time axis '
+                                            'using pyuvdata.', uv1.history))
+    uv1.history = uv_full.history
+    nt.assert_equal(uv1, uv_full)
+
+    # Add baselines out of order
+    # this might be able to be made equal once we have a re-ordering method
+    uv1 = copy.deepcopy(uv_full)
+    uv2 = copy.deepcopy(uv_full)
+    ant_list = list(range(15))  # Roughly half the antennas in the data
+    # All blts where ant_1 is in list
+    ind1 = [i for i in range(uv1.Nblts) if uv1.ant_1_array[i] in ant_list]
+    ind2 = [i for i in range(uv1.Nblts) if uv1.ant_1_array[i] not in ant_list]
+    uv1.select(blt_inds=ind1)
+    uv2.select(blt_inds=ind2)
+    uv1.fast_concat(uv2, 'blt', inplace=True)
+    nt.assert_true(uv2._ant_1_array != uv_full._ant_1_array)
+    nt.assert_true(uv2._ant_2_array != uv_full._ant_2_array)
+    nt.assert_true(uv2._uvw_array != uv_full._uvw_array)
+    nt.assert_true(uv2._time_array != uv_full._time_array)
+    nt.assert_true(uv2._baseline_array != uv_full._baseline_array)
+    nt.assert_true(uv2._data_array != uv_full._data_array)
+
+    # Add multiple axes
+    uv1 = copy.deepcopy(uv_full)
+    uv2 = copy.deepcopy(uv_full)
+    uv_ref = copy.deepcopy(uv_full)
+    times = np.unique(uv_full.time_array)
+    uv1.select(times=times[0:len(times) // 2],
+               polarizations=uv1.polarization_array[0:2])
+    uv2.select(times=times[len(times) // 2:],
+               polarizations=uv2.polarization_array[2:4])
+    nt.assert_raises(ValueError, uv1.fast_concat, uv2, 'blt', inplace=True)
+
+    # Another combo
+    uv1 = copy.deepcopy(uv_full)
+    uv2 = copy.deepcopy(uv_full)
+    uv_ref = copy.deepcopy(uv_full)
+    times = np.unique(uv_full.time_array)
+    uv1.select(times=times[0:len(times) // 2], freq_chans=np.arange(0, 32))
+    uv2.select(times=times[len(times) // 2:], freq_chans=np.arange(32, 64))
+    nt.assert_raises(ValueError, uv1.fast_concat, uv2, 'blt', inplace=True)
+
+    # Add without inplace
+    uv1 = copy.deepcopy(uv_full)
+    uv2 = copy.deepcopy(uv_full)
+    times = np.unique(uv_full.time_array)
+    uv1.select(times=times[0:len(times) // 2])
+    uv2.select(times=times[len(times) // 2:])
+    uv1 = uv1.fast_concat(uv2, 'blt', inplace=False)
+    nt.assert_true(uvutils._check_histories(uv_full.history + '  Downselected to '
+                                            'specific times using pyuvdata. '
+                                            'Combined data along baseline-time '
+                                            'axis using pyuvdata.', uv1.history))
+    uv1.history = uv_full.history
+    nt.assert_equal(uv1, uv_full)
+
+    # Check warnings
+    uv1 = copy.deepcopy(uv_full)
+    uv2 = copy.deepcopy(uv_full)
+    uv1.select(freq_chans=np.arange(0, 32))
+    uv2.select(freq_chans=np.arange(33, 64))
+    uvtest.checkWarnings(uv1.fast_concat, [uv2, 'freq'],
+                         message='Combined frequencies are not evenly spaced')
+
+    uv1 = copy.deepcopy(uv_full)
+    uv2 = copy.deepcopy(uv_full)
+    uv1.select(freq_chans=[0])
+    uv2.select(freq_chans=[3])
+    uvtest.checkWarnings(uv1.fast_concat, [uv2, 'freq'],
+                         message='Combined frequencies are not contiguous')
+
+    uv1 = copy.deepcopy(uv_full)
+    uv2 = copy.deepcopy(uv_full)
+    uv1.select(polarizations=uv1.polarization_array[0:2])
+    uv2.select(polarizations=uv2.polarization_array[3])
+    uvtest.checkWarnings(uv1.fast_concat, [uv2, 'polarization'],
+                         message='Combined polarizations are not evenly spaced')
+
+    # Combining histories
+    uv1 = copy.deepcopy(uv_full)
+    uv2 = copy.deepcopy(uv_full)
+    uv1.select(polarizations=uv1.polarization_array[0:2])
+    uv2.select(polarizations=uv2.polarization_array[2:4])
+    uv2.history += ' testing the history. AIPS WTSCAL = 1.0'
+    uv1.fast_concat(uv2, 'polarization', inplace=True)
+    nt.assert_true(uvutils._check_histories(uv_full.history + '  Downselected to '
+                                            'specific polarizations using pyuvdata. '
+                                            'Combined data along polarization '
+                                            'axis using pyuvdata. testing the history.',
+                                            uv1.history))
+    uv1.history = uv_full.history
+    nt.assert_equal(uv1, uv_full)
+
+    # test add of autocorr-only and crosscorr-only objects
+    uv_full = UVData()
+    uv_full.read_miriad(os.path.join(DATA_PATH, 'zen.2457698.40355.xx.HH.uvcA'))
+    bls = uv_full.get_antpairs()
+    autos = [bl for bl in bls if bl[0] == bl[1]]
+    cross = sorted(set(bls) - set(autos))
+    uv_auto = uv_full.select(bls=autos, inplace=False)
+    uv_cross = uv_full.select(bls=cross, inplace=False)
+    uv1 = uv_auto.fast_concat(uv_cross, 'blt')
+    nt.assert_equal(uv1.Nbls, uv_auto.Nbls + uv_cross.Nbls)
+    uv2 = uv_cross.fast_concat(uv_auto, 'blt')
+    nt.assert_equal(uv2.Nbls, uv_auto.Nbls + uv_cross.Nbls)
+
+
 def test_key2inds():
     # Test function to interpret key as antpair, pol
     uv = UVData()
