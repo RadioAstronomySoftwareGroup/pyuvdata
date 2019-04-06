@@ -1154,7 +1154,10 @@ def test_reorder_pols():
     nt.assert_raises(ValueError, uv2.reorder_pols, {'order': 'foo'})
 
     # check error if order is an array of the wrong length
-    nt.assert_raises(ValueError, uv2.reorder_pols, {'order': [3, 2, 1]})
+    with nt.assert_raises(ValueError) as cm:
+        uv2.reorder_pols(order=[3, 2, 1])
+    ex = cm.exception  # raised exception is available through exception property of context
+    nt.assert_true(ex.args[0].startswith('If order is an index array, it must'))
 
     # check warning for order_pols:
     uvtest.checkWarnings(uv2.order_pols, [], {'order': 'AIPS'},
