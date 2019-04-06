@@ -1153,6 +1153,9 @@ def test_reorder_pols():
     # check error on unknown order
     nt.assert_raises(ValueError, uv2.reorder_pols, {'order': 'foo'})
 
+    # check error if order is an array of the wrong length
+    nt.assert_raises(ValueError, uv2.reorder_pols, {'order': [3, 2, 1]})
+
     # check warning for order_pols:
     uvtest.checkWarnings(uv2.order_pols, [], {'order': 'AIPS'},
                          message=('order_pols method will soon be deprecated in '
