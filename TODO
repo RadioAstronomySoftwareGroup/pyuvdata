@@ -13,10 +13,10 @@ qm_utils
   X and_rows_cols == copy to uvflag.py
 
 tests
-  uvflag == need to check version strings
+  X uvflag == need to check version strings
   copy test data files
   lst_from_uv == copy to pyuvdata.utils
-  flags2waterfall == copy function to uvflag.py
+  X flags2waterfall == copy function to uvflag.py
   _bytes_to_str (I think we stole this from pyuvdata) == repoint to pyuvdata utils
   _str_to_bytes == repoint to pyuvdata utils
   collapse == copy to pyuvdata utils, add "collapse" suffix to subfunctions, update xrfi calls
