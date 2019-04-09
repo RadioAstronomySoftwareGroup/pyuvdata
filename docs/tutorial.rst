@@ -662,6 +662,42 @@ and added to the previous.
   >>> filenames = ['tutorial1.uvfits', 'tutorial2.uvfits', 'tutorial3.uvfits']
   >>> uv.read(filenames)
 
+e) Fast concatenation of files.
+*******************************
+As an alternative to the ``__add__`` operation, the ``fast_concat`` method can
+be used. The user specifies a UVData object to combine with the existing one,
+along with the axis along which they should be combined. Fast concatenation can
+be invoked implicitly when reading in multiple files as above by passing the
+``axis`` keyword argument. This will use the ``fast_concat`` method instead of
+the ``__add__`` method to combine the data contained in the files into a single
+UVData object.
+
+**WARNING**: There is no guarantee that two objects combined in this fashion
+will result in a self-consistent object after concatenation. Basic checking is
+done, but time-consuming robust check are eschewed for the sake of speed. The
+data will also *not* be reordered or sorted as part of the concatenation, and so
+this must be done manually by the user if a reordering is desired.
+
+The ``fast_concat`` method is significantly faster than ``__add__``, especially
+for large UVData objects. Preliminary benchmarking shows that reading in
+time-ordered visibilities from disk using the ``axis`` keyword argument can
+improve throughput by nearly an order of magnitude for 100 HERA data files
+stored in the uvh5 format.
+::
+
+   >>> from pyuvdata import UVData
+   >>> uv = UVData()
+   >>> filename = 'pyuvdata/data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
+   >>> uv.read(filename)
+   >>> uv1 = uv.select(freq_chans=np.arange(0, 20), inplace=False)
+   >>> uv2 = uv.select(freq_chans=np.arange(20, 40), inplace=False)
+   >>> uv3 = uv.select(freq_chans=np.arange(40, 64), inplace=False)
+   >>> uv1.write_uvfits('tutorial1.uvfits')
+   >>> uv2.write_uvfits('tutorial2.uvfits')
+   >>> uv3.write_uvfits('tutorial3.uvfits')
+   >>> filenames = ['tutorial1.uvfits', 'tutorial2.uvfits', 'tutorial3.uvfits']
+   >>> uv.read(filenames, axis='freq')
+
 UVData: Working with large files
 ----------------------------------------------
 To save on memory and time, pyuvdata supports reading only parts of uvfits, uvh5 and
