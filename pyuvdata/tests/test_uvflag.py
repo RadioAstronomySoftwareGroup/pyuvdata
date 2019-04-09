@@ -10,6 +10,7 @@ from pyuvdata.data import DATA_PATH
 from pyuvdata import UVFlag
 from pyuvdata.uvflag import lst_from_uv
 from pyuvdata.uvflag import flags2waterfall
+from pyuvdata.uvflag import and_rows_cols
 from pyuvdata import version as uvversion
 import shutil
 import copy
@@ -1263,3 +1264,17 @@ def test_flags2waterfall_errors():
     uv.read_miriad(test_d_file)
     # Flag array must have same shape as uv.flag_array
     nt.assert_raises(ValueError, flags2waterfall, uv, np.array([4, 5]))
+
+
+def test_and_rows_cols():
+    d = np.zeros((10, 20), np.bool)
+    d[1, :] = True
+    d[:, 2] = True
+    d[5, 10:20] = True
+    d[5:8, 5] = True
+
+    o = and_rows_cols(d)
+    nt.assert_true(o[1, :].all())
+    nt.assert_true(o[:, 2].all())
+    nt.assert_false(o[5, :].all())
+    nt.assert_false(o[:, 5].all())
