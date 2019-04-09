@@ -21,7 +21,7 @@ import h5py
 test_d_file = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.HH.uvcAA')
 test_c_file = os.path.join(DATA_PATH, 'zen.2457555.42443.HH.uvcA.omni.calfits')
 test_f_file = test_d_file + '.testuvflag.h5'
-test_outfile = os.path.join(DATA_PATH, 'uvflag_testout.h5')
+test_outfile = os.path.join(DATA_PATH, 'test', 'outtest_uvflag.h5')
 
 pyuvdata_version_str = uvversion.version + '.'
 if uvversion.git_hash is not '':
