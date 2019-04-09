@@ -886,8 +886,8 @@ class UVData(UVBase):
             self.phase(phase_center_ra, phase_center_dec, phase_center_epoch,
                        phase_frame=output_phase_frame)
 
-    def reorder_pols(self, order='AIPS', desired_order=None, run_check=True,
-                     check_extra=True, run_check_acceptability=True):
+    def reorder_pols(self, order='AIPS', run_check=True, check_extra=True,
+                     run_check_acceptability=True):
         """
         Rearrange polarizations in the event they are not uvfits compatible.
 
