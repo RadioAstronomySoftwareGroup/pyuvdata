@@ -19,7 +19,14 @@ import h5py
 test_d_file = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.HH.uvcAA')
 test_c_file = os.path.join(DATA_PATH, 'zen.2457555.42443.HH.uvcA.omni.calfits')
 test_f_file = test_d_file + '.testuvflag.h5'
-test_outfile = os.path.join(DATA_PATH, 'test_output', 'uvflag_testout.h5')
+test_outfile = os.path.join(DATA_PATH, 'uvflag_testout.h5')
+
+pyuvdata_version_str = uvversion.version + '.'
+if uvversion.git_hash is not '':
+    pyuvdata_version_str += ('  Git origin: ' + uvversion.git_origin
+                             + '.  Git hash: ' + uvversion.git_hash
+                             + '.  Git branch: ' + uvversion.git_branch
+                             + '.  Git description: ' + uvversion.git_description + '.')
 
 
 def test_init_UVData():
@@ -41,7 +48,7 @@ def test_init_UVData():
     nt.assert_true(np.all(uvf.ant_2_array == uv.ant_2_array))
     nt.assert_true('I made a UVFlag object' in uvf.history)
     nt.assert_true('Flag object with type "baseline"' in uvf.history)
-    nt.assert_true(hera_qm_version_str in uvf.history)
+    nt.assert_true(pyuvdata_version_str in uvf.history)
     nt.assert_true(uvf.label == 'test')
 
 
@@ -64,7 +71,7 @@ def test_init_UVData_copy_flags():
     nt.assert_true(np.all(uvf.ant_1_array == uv.ant_1_array))
     nt.assert_true(np.all(uvf.ant_2_array == uv.ant_2_array))
     nt.assert_true('Flag object with type "baseline"' in uvf.history)
-    nt.assert_true(hera_qm_version_str in uvf.history)
+    nt.assert_true(pyuvdata_version_str in uvf.history)
 
 
 @uvtest.skipIf_no_hera_cal
@@ -96,7 +103,7 @@ def test_init_UVCal():
     nt.assert_true(np.all(uvf.polarization_array == uvc.jones_array))
     nt.assert_true(np.all(uvf.ant_array == uvc.ant_array))
     nt.assert_true('Flag object with type "antenna"' in uvf.history)
-    nt.assert_true(hera_qm_version_str in uvf.history)
+    nt.assert_true(pyuvdata_version_str in uvf.history)
 
 
 def test_init_UVFlag_baseline():
@@ -129,7 +136,7 @@ def test_init_cal_copy_flags():
     nt.assert_true(np.all(uvf.time_array == np.unique(uv.time_array)))
     nt.assert_true(np.all(uvf.freq_array == uv.freq_array[0]))
     nt.assert_true(np.all(uvf.polarization_array == uv.jones_array))
-    nt.assert_true(hera_qm_version_str in uvf.history)
+    nt.assert_true(pyuvdata_version_str in uvf.history)
 
 
 def test_init_waterfall_uvd():
@@ -147,7 +154,7 @@ def test_init_waterfall_uvd():
     nt.assert_true(np.all(uvf.freq_array == uv.freq_array[0]))
     nt.assert_true(np.all(uvf.polarization_array == uv.polarization_array))
     nt.assert_true('Flag object with type "waterfall"' in uvf.history)
-    nt.assert_true(hera_qm_version_str in uvf.history)
+    nt.assert_true(pyuvdata_version_str in uvf.history)
 
 
 def test_init_waterfall_uvc():
@@ -164,7 +171,7 @@ def test_init_waterfall_uvc():
     nt.assert_true(np.all(uvf.freq_array == uv.freq_array[0]))
     nt.assert_true(np.all(uvf.polarization_array == uv.jones_array))
     nt.assert_true('Flag object with type "waterfall"' in uvf.history)
-    nt.assert_true(hera_qm_version_str in uvf.history)
+    nt.assert_true(pyuvdata_version_str in uvf.history)
 
 
 def test_init_waterfall_flag():
@@ -181,7 +188,7 @@ def test_init_waterfall_flag():
     nt.assert_true(np.all(uvf.freq_array == uv.freq_array[0]))
     nt.assert_true(np.all(uvf.polarization_array == uv.jones_array))
     nt.assert_true('Flag object with type "waterfall"' in uvf.history)
-    nt.assert_true(hera_qm_version_str in uvf.history)
+    nt.assert_true(pyuvdata_version_str in uvf.history)
 
 
 def test_init_waterfall_copy_flags():
@@ -198,7 +205,7 @@ def test_init_waterfall_copy_flags():
     nt.assert_true(np.all(uvf.freq_array == uv.freq_array[0]))
     nt.assert_true(np.all(uvf.polarization_array == uv.jones_array))
     nt.assert_true('Flag object with type "waterfall"' in uvf.history)
-    nt.assert_true(hera_qm_version_str in uvf.history)
+    nt.assert_true(pyuvdata_version_str in uvf.history)
 
 
 def test_read_write_loop():
@@ -208,8 +215,8 @@ def test_read_write_loop():
     uvf.write(test_outfile, clobber=True)
     uvf2 = UVFlag(test_outfile)
     # Update history to match expected additions that were made
-    uvf.history += 'Written by ' + hera_qm_version_str
-    uvf.history += ' Read by ' + hera_qm_version_str
+    uvf.history += 'Written by ' + pyuvdata_version_str
+    uvf.history += ' Read by ' + pyuvdata_version_str
     nt.assert_true(uvf.__eq__(uvf2, check_history=True))
 
 
@@ -220,8 +227,8 @@ def test_read_write_ant():
     uvf.write(test_outfile, clobber=True)
     uvf2 = UVFlag(test_outfile)
     # Update history to match expected additions that were made
-    uvf.history += 'Written by ' + hera_qm_version_str
-    uvf.history += ' Read by ' + hera_qm_version_str
+    uvf.history += 'Written by ' + pyuvdata_version_str
+    uvf.history += ' Read by ' + pyuvdata_version_str
     nt.assert_true(uvf.__eq__(uvf2, check_history=True))
 
 
@@ -232,8 +239,8 @@ def test_read_write_nocompress():
     uvf.write(test_outfile, clobber=True, data_compression=None)
     uvf2 = UVFlag(test_outfile)
     # Update history to match expected additions that were made
-    uvf.history += 'Written by ' + hera_qm_version_str
-    uvf.history += ' Read by ' + hera_qm_version_str
+    uvf.history += 'Written by ' + pyuvdata_version_str
+    uvf.history += ' Read by ' + pyuvdata_version_str
     nt.assert_true(uvf.__eq__(uvf2, check_history=True))
 
 
@@ -244,8 +251,8 @@ def test_read_write_nocompress_flag():
     uvf.write(test_outfile, clobber=True, data_compression=None)
     uvf2 = UVFlag(test_outfile)
     # Update history to match expected additions that were made
-    uvf.history += 'Written by ' + hera_qm_version_str
-    uvf.history += ' Read by ' + hera_qm_version_str
+    uvf.history += 'Written by ' + pyuvdata_version_str
+    uvf.history += ' Read by ' + pyuvdata_version_str
     nt.assert_true(uvf.__eq__(uvf2, check_history=True))
 
 
@@ -377,7 +384,7 @@ def test_add():
     nt.assert_true(uv3.type == 'baseline')
     nt.assert_true(uv3.mode == 'metric')
     nt.assert_true(np.array_equal(uv1.polarization_array, uv3.polarization_array))
-    nt.assert_true('Data combined along time axis with ' + hera_qm_version_str in uv3.history)
+    nt.assert_true('Data combined along time axis with ' + pyuvdata_version_str in uv3.history)
 
 
 def test_add_baseline():
@@ -403,7 +410,7 @@ def test_add_baseline():
     nt.assert_true(uv3.type == 'baseline')
     nt.assert_true(uv3.mode == 'metric')
     nt.assert_true(np.array_equal(uv1.polarization_array, uv3.polarization_array))
-    nt.assert_true('Data combined along baseline axis with ' + hera_qm_version_str in uv3.history)
+    nt.assert_true('Data combined along baseline axis with ' + pyuvdata_version_str in uv3.history)
 
 
 def test_add_antenna():
@@ -425,7 +432,7 @@ def test_add_antenna():
     nt.assert_true(uv3.type == 'antenna')
     nt.assert_true(uv3.mode == 'metric')
     nt.assert_true(np.array_equal(uv1.polarization_array, uv3.polarization_array))
-    nt.assert_true('Data combined along antenna axis with ' + hera_qm_version_str in uv3.history)
+    nt.assert_true('Data combined along antenna axis with ' + pyuvdata_version_str in uv3.history)
 
 
 def test_add_frequency():
@@ -447,7 +454,7 @@ def test_add_frequency():
     nt.assert_true(uv3.type == 'baseline')
     nt.assert_true(uv3.mode == 'metric')
     nt.assert_true(np.array_equal(uv1.polarization_array, uv3.polarization_array))
-    nt.assert_true('Data combined along frequency axis with ' + hera_qm_version_str in uv3.history)
+    nt.assert_true('Data combined along frequency axis with ' + pyuvdata_version_str in uv3.history)
 
 
 def test_add_pol():
@@ -469,7 +476,7 @@ def test_add_pol():
     nt.assert_true(uv3.mode == 'metric')
     nt.assert_true(np.array_equal(np.concatenate((uv1.polarization_array, uv2.polarization_array)),
                                   uv3.polarization_array))
-    nt.assert_true('Data combined along polarization axis with ' + hera_qm_version_str in uv3.history)
+    nt.assert_true('Data combined along polarization axis with ' + pyuvdata_version_str in uv3.history)
 
 
 def test_add_flag():
@@ -497,7 +504,7 @@ def test_add_flag():
     nt.assert_true(uv3.type == 'baseline')
     nt.assert_true(uv3.mode == 'flag')
     nt.assert_true(np.array_equal(uv1.polarization_array, uv3.polarization_array))
-    nt.assert_true('Data combined along time axis with ' + hera_qm_version_str in uv3.history)
+    nt.assert_true('Data combined along time axis with ' + pyuvdata_version_str in uv3.history)
 
 
 def test_add_errors():
