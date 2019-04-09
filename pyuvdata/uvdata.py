@@ -561,98 +561,6 @@ class UVData(UVBase):
         """
         return uvutils.antnums_to_baseline(ant1, ant2, self.Nants_telescope, attempt256=attempt256)
 
-    def order_blts(self, order='time', minor_order=None, ant_order=None):
-        """
-        Arrange blt axis according to desired order. Optionally conjugate according to ant_order.
-
-        Args:
-            order (str): A string describing the desired order along the blt axis.
-                Options are: 'time', 'baseline', 'ant1', 'ant2', 'bda' or an
-                index array of length Nblts that specifies the new order.
-            minor_order(str): Optionally specify a secondary ordering. Default
-                depends on how order is set, if order is 'time', this defaults
-                to 'baseline', if order is 'baseline', 'ant1', or 'ant2' this
-                defaults to 'time'. If this is the same as order, it is reset
-                to the default.
-            ant_order(str): Optionally conjugate baselines to make the baselines
-                have the desired orientation. This will fail if only one of the
-                cross pols is present (because conjugation requires changing the
-                polarization number for cross pols)
-                Options are: 'ant1' (meaning orient baselines so ant1>ant2), or
-                'ant2' (meaning orient baselines so ant2>ant1)
-        """
-        if order not in ['time', 'baseline', 'ant1', 'ant2', 'bda']:
-            if isinstance(order, (np.ndarray, list, tuple)):
-                order = np.array(order)
-                if (order.size != self.Nblts
-                        or order.dtype not in [int, np.int, np.int32, np.int64]):
-                    raise ValueError('If order is an index array, it must '
-                                     'contain integers and be length Nblts.')
-            else:
-                raise ValueError("order must be one of 'time', 'baseline', "
-                                 "'ant1', 'ant2', 'bda' or an index array of "
-                                 "length Nblts")
-
-        if minor_order == order:
-            minor_order = None
-
-        if minor_order is not None:
-            if minor_order not in ['time', 'baseline', 'ant1', 'ant2']:
-                raise ValueError("minor_order can only be one of 'time', "
-                                 "'baseline', 'ant1', 'ant2'")
-            if isinstance(order, np.ndarray) or order == 'bda':
-                raise ValueError("minor_order cannot be specified if order is "
-                                 "'bda' or an index array.")
-            if order in ['baseline', 'ant1', 'ant2']:
-                if minor_order in ['baseline', 'ant1', 'ant2']:
-                    raise ValueError('minor_order conflicts with order')
-        else:
-            if order == 'time':
-                minor_order = 'baseline'
-            elif order in ['baseline', 'ant1', 'ant2']:
-                minor_order = 'time'
-
-        if ant_order is not None:
-            if ant_order not in ['ant1', 'ant2']:
-                raise ValueError("ant_order can only be one of: 'ant1', 'ant2'")
-
-        if not isinstance(order, np.ndarray):
-            # create tuples for sorting
-            if order == 'time':
-                if minor_order == 'ant1':
-                    sort_tuple = zip(self.time_array, self.ant_1_array, self.ant_2_array)
-                elif minor_order == 'ant2':
-                    sort_tuple = zip(self.time_array, self.ant_2_array, self.ant_1_array)
-                else:
-                    sort_tuple = zip(self.time_array, self.baseline_array)
-            elif order == 'ant1':
-                sort_tuple = zip(self.ant_1_array, self.ant_2_array, self.time_array)
-            elif order == 'ant2':
-                sort_tuple = zip(self.ant_2_array, self.ant_1_array, self.time_array)
-            elif order == 'baseline':
-                sort_tuple = zip(self.baseline_array, self.time_array)
-            elif order == 'bda':
-                # Paul needs to write this part
-
-            index_array = np.argsort(sort_tuple)
-        else:
-            index_array = order
-
-        if ant_order is not None:
-            # call method to do conjugations
-
-        # actually do the reordering
-        self.ant_1_array = self.ant_1_array[index_array]
-        self.ant_2_array = self.ant_2_array[index_array]
-        self.baseline_array = self.baseline_array[index_array]
-        self.uvw_array = self.uvw_array[index_array, :]
-        self.time_array = self.time_array[index_array]
-        self.lst_array = self.lst_array[index_array]
-        self.integration_time = self.integration_time[index_array]
-        self.data_array = self.data_array[index_array, :, :, :]
-        self.flag_array = self.flag_array[index_array, :, :, :]
-        self.nsample_array = self.nsample_array[index_array, :, :, :]
-
     def set_lsts_from_time_array(self):
         """Set the lst_array based from the time_array."""
         latitude, longitude, altitude = self.telescope_location_lat_lon_alt_degrees
@@ -1065,6 +973,111 @@ class UVData(UVBase):
         warnings.warn('order_pols method will be deprecated in favor of '
                       'reorder_pols in version 1.5', DeprecationWarning)
         self.reorder_pols(order=order)
+
+    def reorder_blts(self, order='time', minor_order=None, ant_order=None,
+                     run_check=True, check_extra=True,
+                     run_check_acceptability=True):
+        """
+        Arrange blt axis according to desired order. Optionally conjugate according to ant_order.
+
+        Args:
+            order (str): A string describing the desired order along the blt axis.
+                Options are: 'time', 'baseline', 'ant1', 'ant2', 'bda' or an
+                index array of length Nblts that specifies the new order.
+            minor_order(str): Optionally specify a secondary ordering. Default
+                depends on how order is set, if order is 'time', this defaults
+                to 'baseline', if order is 'baseline', 'ant1', or 'ant2' this
+                defaults to 'time'. If this is the same as order, it is reset
+                to the default.
+            ant_order(str): Optionally conjugate baselines to make the baselines
+                have the desired orientation. This will fail if only one of the
+                cross pols is present (because conjugation requires changing the
+                polarization number for cross pols)
+                Options are: 'ant1' (meaning orient baselines so ant1>ant2), or
+                'ant2' (meaning orient baselines so ant2>ant1)
+            run_check: Option to check for the existence and proper shapes of
+                parameters after reordering. Default is True.
+            check_extra: Option to check optional parameters as well as required
+                ones. Default is True.
+            run_check_acceptability: Option to check acceptable range of the values of
+                parameters after reordering. Default is True.
+        """
+        if order not in ['time', 'baseline', 'ant1', 'ant2', 'bda']:
+            if isinstance(order, (np.ndarray, list, tuple)):
+                order = np.array(order)
+                if (order.size != self.Nblts
+                        or order.dtype not in [int, np.int, np.int32, np.int64]):
+                    raise ValueError('If order is an index array, it must '
+                                     'contain integers and be length Nblts.')
+            else:
+                raise ValueError("order must be one of 'time', 'baseline', "
+                                 "'ant1', 'ant2', 'bda' or an index array of "
+                                 "length Nblts")
+
+        if minor_order == order:
+            minor_order = None
+
+        if minor_order is not None:
+            if minor_order not in ['time', 'baseline', 'ant1', 'ant2']:
+                raise ValueError("minor_order can only be one of 'time', "
+                                 "'baseline', 'ant1', 'ant2'")
+            if isinstance(order, np.ndarray) or order == 'bda':
+                raise ValueError("minor_order cannot be specified if order is "
+                                 "'bda' or an index array.")
+            if order in ['baseline', 'ant1', 'ant2']:
+                if minor_order in ['baseline', 'ant1', 'ant2']:
+                    raise ValueError('minor_order conflicts with order')
+        else:
+            if order == 'time':
+                minor_order = 'baseline'
+            elif order in ['baseline', 'ant1', 'ant2']:
+                minor_order = 'time'
+
+        if ant_order is not None:
+            if ant_order not in ['ant1', 'ant2']:
+                raise ValueError("ant_order can only be one of: 'ant1', 'ant2'")
+
+        if not isinstance(order, np.ndarray):
+            # create tuples for sorting
+            if order == 'time':
+                if minor_order == 'ant1':
+                    sort_tuple = zip(self.time_array, self.ant_1_array, self.ant_2_array)
+                elif minor_order == 'ant2':
+                    sort_tuple = zip(self.time_array, self.ant_2_array, self.ant_1_array)
+                else:
+                    sort_tuple = zip(self.time_array, self.baseline_array)
+            elif order == 'ant1':
+                sort_tuple = zip(self.ant_1_array, self.ant_2_array, self.time_array)
+            elif order == 'ant2':
+                sort_tuple = zip(self.ant_2_array, self.ant_1_array, self.time_array)
+            elif order == 'baseline':
+                sort_tuple = zip(self.baseline_array, self.time_array)
+            elif order == 'bda':
+                # Paul needs to write this part
+
+            index_array = np.argsort(sort_tuple)
+        else:
+            index_array = order
+
+        if ant_order is not None:
+            # call method to do conjugations
+
+        # actually do the reordering
+        self.ant_1_array = self.ant_1_array[index_array]
+        self.ant_2_array = self.ant_2_array[index_array]
+        self.baseline_array = self.baseline_array[index_array]
+        self.uvw_array = self.uvw_array[index_array, :]
+        self.time_array = self.time_array[index_array]
+        self.lst_array = self.lst_array[index_array]
+        self.integration_time = self.integration_time[index_array]
+        self.data_array = self.data_array[index_array, :, :, :]
+        self.flag_array = self.flag_array[index_array, :, :, :]
+        self.nsample_array = self.nsample_array[index_array, :, :, :]
+
+        # check if object is self-consistent
+        if run_check:
+            self.check(check_extra=check_extra,
+                       run_check_acceptability=run_check_acceptability)
 
     def __add__(self, other, run_check=True, check_extra=True,
                 run_check_acceptability=True, inplace=False):
