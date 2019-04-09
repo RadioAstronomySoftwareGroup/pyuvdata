@@ -1259,10 +1259,9 @@ class UVData(UVBase):
         other.check(check_extra=check_extra, run_check_acceptability=run_check_acceptability)
 
         allowed_axes = ['blt', 'freq', 'polarization']
-        if axis is not None:
-            if axis not in allowed_axes:
-                raise ValueError('If axis is specifed it must be one of: '
-                                 + ', '.join(allowed_axes))
+        if axis not in allowed_axes:
+            raise ValueError('If axis is specifed it must be one of: '
+                             + ', '.join(allowed_axes))
 
         compatibility_params = ['_vis_units', '_channel_width', '_object_name',
                                 '_telescope_name', '_instrument',
@@ -1932,8 +1931,10 @@ class UVData(UVBase):
                                     run_check_acceptability=run_check_acceptability,
                                     keep_all_metadata=keep_all_metadata)
                     if axis is not None:
-                        self.fast_concat(uv2, axis, run_check=True, check_extra=True,
-                                         run_check_acceptability=True, inplace=True)
+                        self.fast_concat(uv2, axis, run_check=run_check,
+                                         check_extra=check_extra,
+                                         run_check_acceptability=run_check_acceptability,
+                                         inplace=True)
                     else:
                         self += uv2
                 del(uv2)
@@ -2034,8 +2035,10 @@ class UVData(UVBase):
                                 run_check_acceptability=run_check_acceptability,
                                 data_column=data_column, pol_order=pol_order)
                     if axis is not None:
-                        self.fast_concat(uv2, axis, run_check=True, check_extra=True,
-                                         run_check_acceptability=True, inplace=True)
+                        self.fast_concat(uv2, axis, run_check=run_check,
+                                         check_extra=check_extra,
+                                         run_check_acceptability=run_check_acceptability,
+                                         inplace=True)
                     else:
                         self += uv2
                 del(uv2)
@@ -2083,8 +2086,10 @@ class UVData(UVBase):
                                  check_extra=check_extra,
                                  run_check_acceptability=run_check_acceptability)
                     if axis is not None:
-                        self.fast_concat(uv2, axis, run_check=True, check_extra=True,
-                                         run_check_acceptability=True, inplace=True)
+                        self.fast_concat(uv2, axis, run_check=run_check,
+                                         check_extra=check_extra,
+                                         run_check_acceptability=run_check_acceptability,
+                                         inplace=True)
                     else:
                         self += uv2
                 del(uv2)
@@ -2163,8 +2168,10 @@ class UVData(UVBase):
                                     ant_str=ant_str, bls=bls,
                                     polarizations=polarizations, time_range=time_range)
                     if axis is not None:
-                        self.fast_concat(uv2, axis, run_check=True, check_extra=True,
-                                         run_check_acceptability=True, inplace=True)
+                        self.fast_concat(uv2, axis, run_check=run_check,
+                                         check_extra=check_extra,
+                                         run_check_acceptability=run_check_acceptability,
+                                         inplace=True)
                     else:
                         self += uv2
                 del(uv2)
@@ -2289,7 +2296,7 @@ class UVData(UVBase):
             if not read_data and len(filename) > 1:
                 raise ValueError('read_data cannot be False for a list of uvh5 files')
 
-            self.read_uvh5(filename[0], axis=axis, antenna_nums=antenna_nums,
+            self.read_uvh5(filename[0], antenna_nums=antenna_nums,
                            antenna_names=antenna_names, ant_str=ant_str, bls=bls,
                            frequencies=frequencies, freq_chans=freq_chans, times=times,
                            polarizations=polarizations, blt_inds=blt_inds,
@@ -2311,8 +2318,10 @@ class UVData(UVBase):
                                   data_array_dtype=data_array_dtype,
                                   keep_all_metadata=keep_all_metadata)
                     if axis is not None:
-                        self.fast_concat(uv2, axis, run_check=True, check_extra=True,
-                                         run_check_acceptability=True, inplace=True)
+                        self.fast_concat(uv2, axis, run_check=run_check,
+                                         check_extra=check_extra,
+                                         run_check_acceptability=run_check_acceptability,
+                                         inplace=True)
                     else:
                         self += uv2
                 del(uv2)
