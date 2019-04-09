@@ -551,3 +551,258 @@ def test_reorder_conj_pols_ints():
 def test_reorder_conj_pols_missing_conj():
     pols = ['xx', 'xy']  # Missing 'yx'
     nt.assert_raises(ValueError, uvutils.reorder_conj_pols, pols)
+
+
+def test_collapse_mean_no_return_no_weights():
+    # Fake data
+    data = np.zeros((50, 25))
+    for i in range(data.shape[1]):
+        data[:, i] = i * np.ones_like(data[:, i])
+    out = uvutils.collapse(data, 'mean', axis=0)
+    out1 = uvutils.mean_collapse(data, axis=0)
+    # Actual values are tested in test_mean_no_weights
+    nt.assert_true(np.array_equal(out, out1))
+
+
+def test_collapse_mean_returned_no_weights():
+    # Fake data
+    data = np.zeros((50, 25))
+    for i in range(data.shape[1]):
+        data[:, i] = i * np.ones_like(data[:, i])
+    out, wo = uvutils.collapse(data, 'mean', axis=0, returned=True)
+    out1, wo1 = uvutils.mean_collapse(data, axis=0, returned=True)
+    # Actual values are tested in test_mean_no_weights
+    nt.assert_true(np.array_equal(out, out1))
+    nt.assert_true(np.array_equal(wo, wo1))
+
+
+def test_collapse_mean_returned_with_weights():
+    # Fake data
+    data = np.zeros((50, 25))
+    for i in range(data.shape[1]):
+        data[:, i] = i * np.ones_like(data[:, i]) + 1
+    w = 1. / data
+    out, wo = uvutils.collapse(data, 'mean', weights=w, axis=0, returned=True)
+    out1, wo1 = uvutils.mean_collapse(data, weights=w, axis=0, returned=True)
+    # Actual values are tested in test_mean_weights
+    nt.assert_true(np.array_equal(out, out1))
+    nt.assert_true(np.array_equal(wo, wo1))
+
+
+def test_collapse_absmean_no_return_no_weights():
+    # Fake data
+    data = np.zeros((50, 25))
+    for i in range(data.shape[1]):
+        data[:, i] = (-1)**i * np.ones_like(data[:, i])
+    out = uvutils.collapse(data, 'absmean', axis=0)
+    out1 = uvutils.absmean_collapse(data, axis=0)
+    # Actual values are tested in test_absmean_no_weights
+    nt.assert_true(np.array_equal(out, out1))
+
+
+def test_collapse_quadmean_no_return_no_weights():
+    # Fake data
+    data = np.zeros((50, 25))
+    for i in range(data.shape[1]):
+        data[:, i] = i * np.ones_like(data[:, i])
+    out = uvutils.collapse(data, 'quadmean', axis=0)
+    out1 = uvutils.quadmean_collapse(data, axis=0)
+    # Actual values are tested in test_absmean_no_weights
+    nt.assert_true(np.array_equal(out, out1))
+
+
+def test_collapse_or_no_return_no_weights():
+    # Fake data
+    data = np.zeros((50, 25), np.bool)
+    data[0, 8] = True
+    o = uvutils.collapse(data, 'or', axis=0)
+    o1 = uvutils.or_collapse(data, axis=0)
+    nt.assert_true(np.array_equal(o, o1))
+
+
+def test_collapse_and_no_return_no_weights():
+    # Fake data
+    data = np.zeros((50, 25), np.bool)
+    data[0, :] = True
+    o = uvutils.collapse(data, 'and', axis=0)
+    o1 = uvutils.and_collapse(data, axis=0)
+    nt.assert_true(np.array_equal(o, o1))
+
+
+def test_collapse_error():
+    nt.assert_raises(ValueError, uvutils.collapse, np.ones((2, 3)), 'fooboo')
+
+
+def test_mean_no_weights():
+    # Fake data
+    data = np.zeros((50, 25))
+    for i in range(data.shape[1]):
+        data[:, i] = i * np.ones_like(data[:, i])
+    out, wo = uvutils.mean_collapse(data, axis=0, returned=True)
+    nt.assert_true(np.array_equal(out, np.arange(data.shape[1])))
+    nt.assert_true(np.array_equal(wo, data.shape[0] * np.ones(data.shape[1])))
+    out, wo = uvutils.mean_collapse(data, axis=1, returned=True)
+    nt.assert_true(np.all(out == np.mean(np.arange(data.shape[1]))))
+    nt.assert_true(len(out) == data.shape[0])
+    nt.assert_true(np.array_equal(wo, data.shape[1] * np.ones(data.shape[0])))
+    out, wo = uvutils.mean_collapse(data, returned=True)
+    nt.assert_true(out == np.mean(np.arange(data.shape[1])))
+    nt.assert_true(wo == data.size)
+    out = uvutils.mean_collapse(data)
+    nt.assert_true(out == np.mean(np.arange(data.shape[1])))
+
+
+def test_mean_weights():
+    # Fake data
+    data = np.zeros((50, 25))
+    for i in range(data.shape[1]):
+        data[:, i] = i * np.ones_like(data[:, i]) + 1
+    w = 1. / data
+    out, wo = uvutils.mean_collapse(data, weights=w, axis=0, returned=True)
+    nt.assert_true(np.all(np.isclose(out * wo, data.shape[0])))
+    nt.assert_true(np.all(np.isclose(wo, float(data.shape[0]) / (np.arange(data.shape[1]) + 1))))
+    out, wo = uvutils.mean_collapse(data, weights=w, axis=1, returned=True)
+    nt.assert_true(np.all(np.isclose(out * wo, data.shape[1])))
+    nt.assert_true(np.all(np.isclose(wo, np.sum(1. / (np.arange(data.shape[1]) + 1)))))
+
+    # Zero weights
+    w = np.ones_like(w)
+    w[0, :] = 0
+    w[:, 0] = 0
+    out, wo = uvutils.mean_collapse(data, weights=w, axis=0, returned=True)
+    ans = np.arange(data.shape[1]).astype(np.float) + 1
+    ans[0] = np.inf
+    nt.assert_true(np.array_equal(out, ans))
+    ans = (data.shape[0] - 1) * np.ones(data.shape[1])
+    ans[0] = 0
+    nt.assert_true(np.all(wo == ans))
+    out, wo = uvutils.mean_collapse(data, weights=w, axis=1, returned=True)
+    ans = np.mean(np.arange(data.shape[1])[1:] + 1) * np.ones(data.shape[0])
+    ans[0] = np.inf
+    nt.assert_true(np.all(out == ans))
+    ans = (data.shape[1] - 1) * np.ones(data.shape[0])
+    ans[0] = 0
+    nt.assert_true(np.all(wo == ans))
+
+
+def test_mean_infs():
+    # Fake data
+    data = np.zeros((50, 25))
+    for i in range(data.shape[1]):
+        data[:, i] = i * np.ones_like(data[:, i])
+    data[:, 0] = np.inf
+    data[0, :] = np.inf
+    out, wo = uvutils.mean_collapse(data, axis=0, returned=True)
+    ans = np.arange(data.shape[1]).astype(np.float)
+    ans[0] = np.inf
+    nt.assert_true(np.array_equal(out, ans))
+    ans = (data.shape[0] - 1) * np.ones(data.shape[1])
+    ans[0] = 0
+    nt.assert_true(np.all(wo == ans))
+    print(data)
+    out, wo = uvutils.mean_collapse(data, axis=1, returned=True)
+    ans = np.mean(np.arange(data.shape[1])[1:]) * np.ones(data.shape[0])
+    ans[0] = np.inf
+    print(out)
+    print(ans)
+    nt.assert_true(np.all(out == ans))
+    ans = (data.shape[1] - 1) * np.ones(data.shape[0])
+    ans[0] = 0
+    nt.assert_true(np.all(wo == ans))
+
+
+def test_absmean():
+    # Fake data
+    data1 = np.zeros((50, 25))
+    for i in range(data1.shape[1]):
+        data1[:, i] = (-1)**i * np.ones_like(data1[:, i])
+    data2 = np.ones_like(data1)
+    out1 = uvutils.absmean_collapse(data1)
+    out2 = uvutils.absmean_collapse(data2)
+    nt.assert_equal(out1, out2)
+
+
+def test_quadmean():
+    # Fake data
+    data = np.zeros((50, 25))
+    for i in range(data.shape[1]):
+        data[:, i] = i * np.ones_like(data[:, i])
+    o1, w1 = uvutils.quadmean_collapse(data, returned=True)
+    o2, w2 = uvutils.mean_collapse(np.abs(data)**2, returned=True)
+    o3 = uvutils.quadmean_collapse(data)  # without returned
+    o2 = np.sqrt(o2)
+    nt.assert_equal(o1, o2)
+    nt.assert_equal(w1, w2)
+    nt.assert_equal(o1, o3)
+
+
+def test_or_collapse():
+    # Fake data
+    data = np.zeros((50, 25), np.bool)
+    data[0, 8] = True
+    o = uvutils.or_collapse(data, axis=0)
+    ans = np.zeros(25, np.bool)
+    ans[8] = True
+    nt.assert_true(np.array_equal(o, ans))
+    o = uvutils.or_collapse(data, axis=1)
+    ans = np.zeros(50, np.bool)
+    ans[0] = True
+    nt.assert_true(np.array_equal(o, ans))
+    o = uvutils.or_collapse(data)
+    nt.assert_true(o)
+
+
+def test_or_collapse_weights():
+    # Fake data
+    data = np.zeros((50, 25), np.bool)
+    data[0, 8] = True
+    w = np.ones_like(data, np.float)
+    o, wo = uvutils.or_collapse(data, axis=0, weights=w, returned=True)
+    ans = np.zeros(25, np.bool)
+    ans[8] = True
+    nt.assert_true(np.array_equal(o, ans))
+    nt.assert_true(np.array_equal(wo, np.ones_like(o, dtype=np.float)))
+    w[0, 8] = 0.3
+    o = uvtest.checkWarnings(uvutils.or_collapse, [data], {'axis': 0, 'weights': w},
+                             nwarnings=1, message='Currently weights are')
+    nt.assert_true(np.array_equal(o, ans))
+
+
+def test_or_collapse_errors():
+    data = np.zeros(5)
+    nt.assert_raises(ValueError, uvutils.or_collapse, data)
+
+
+def test_and_collapse():
+    # Fake data
+    data = np.zeros((50, 25), np.bool)
+    data[0, :] = True
+    o = uvutils.and_collapse(data, axis=0)
+    ans = np.zeros(25, np.bool)
+    nt.assert_true(np.array_equal(o, ans))
+    o = uvutils.and_collapse(data, axis=1)
+    ans = np.zeros(50, np.bool)
+    ans[0] = True
+    nt.assert_true(np.array_equal(o, ans))
+    o = uvutils.and_collapse(data)
+    nt.assert_false(o)
+
+
+def test_and_collapse_weights():
+    # Fake data
+    data = np.zeros((50, 25), np.bool)
+    data[0, :] = True
+    w = np.ones_like(data, np.float)
+    o, wo = uvutils.and_collapse(data, axis=0, weights=w, returned=True)
+    ans = np.zeros(25, np.bool)
+    nt.assert_true(np.array_equal(o, ans))
+    nt.assert_true(np.array_equal(wo, np.ones_like(o, dtype=np.float)))
+    w[0, 8] = 0.3
+    o = uvtest.checkWarnings(uvutils.and_collapse, [data], {'axis': 0, 'weights': w},
+                             nwarnings=1, message='Currently weights are')
+    nt.assert_true(np.array_equal(o, ans))
+
+
+def test_and_collapse_errors():
+    data = np.zeros(5)
+    nt.assert_raises(ValueError, uvutils.and_collapse, data)
