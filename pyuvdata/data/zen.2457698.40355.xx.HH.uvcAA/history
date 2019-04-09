@@ -1,0 +1,7 @@
+CORR-DACQ: created file.
+/home/obs/src/RTP/scripts/hera/correct_hsa19.py zen.2457698.40355.xx.uv
+PULL ANTPOLS:/home/obs/src/RTP/scripts/hera/pull_antpols_simple.py -p xx -a 9,10,20,22,31,43,53,64,65,72,80,81,88,89,96,97,104,105,112 zen.2457698.40355.xx.uvc
+  Read/written with pyuvdata version: 1.1.  Git origin: git@github.com:HERA-Team/pyuvdata.git.  Git hash: 3eb0ee8b542911e1487d6b3a57b5d9adfd2715c5.  Git branch: master.  Git description: v1.1-46-g3eb0ee8  Downselected to specific times using pyuvdata.
+  Downselected to specific frequencies using pyuvdata.
+  Read/written with pyuvdata version: 1.1.  Git origin: git@github.com:HERA-Team/pyuvdata.git.  Git hash: f0ce5e984235ad274ece7b55032b679864f799f0.  Git branch: master.  Git description: v1.1-507-gf0ce5e9.
+  Read/written with pyuvdata version: 1.2.1.  Git origin: git@github.com:HERA-Team/pyuvdata.git.  Git hash: 5b7e3ccb875e34ccb4e16f7bf0d5594033fcf536.  Git branch: master.  Git description: v1.2-490-g5b7e3cc.
