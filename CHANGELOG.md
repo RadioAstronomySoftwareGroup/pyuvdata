@@ -2,6 +2,10 @@
 All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
+
+### Added
+- New `UVData.fast_concat` method to allow fast concatenation of UVData objects (or files) along a particular axis.
+
 ### Deprecated
 - `UVData.order_pols` method in favor of `UVData.reorder_pols`.
 
