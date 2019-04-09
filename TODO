@@ -14,11 +14,11 @@ qm_utils
 
 tests
   X uvflag == need to check version strings
-  copy test data files
+  X copy test data files
   X lst_from_uv == copy to pyuvdata.uvflag
   X flags2waterfall == copy function to uvflag.py
-  collapse == copy to pyuvdata utils, add "collapse" suffix to subfunctions, update xrfi calls
-  and_rows_cols == copy to uvflag.py
+  X collapse == copy to pyuvdata utils, add "collapse" suffix to subfunctions, update xrfi calls
+  X and_rows_cols == copy to uvflag.py
 
 move HERAData test to hera_cal
 
