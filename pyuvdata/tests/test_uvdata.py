@@ -1738,6 +1738,40 @@ def test_fast_concat():
 
     # TODO: should reorder blts and test that they are equal once we have a blt reordering method
 
+    # add baselines such that Nants_data needs to change
+    uv1 = copy.deepcopy(uv_full)
+    uv2 = copy.deepcopy(uv_full)
+    ant_list = list(range(15))  # Roughly half the antennas in the data
+    # All blts where ant_1 is in list
+    ind1 = [i for i in range(uv1.Nblts) if uv1.ant_1_array[i] in ant_list]
+    ind2 = [i for i in range(uv1.Nblts) if uv1.ant_1_array[i] not in ant_list]
+    uv1.select(blt_inds=ind1)
+    uv2.select(blt_inds=ind2)
+    uv2.fast_concat(uv1, 'blt', inplace=True)
+
+    nt.assert_true(uvutils._check_histories(uv_full.history + '  Downselected to '
+                                            'specific baseline-times using pyuvdata. '
+                                            'Combined data along baseline-time '
+                                            'axis using pyuvdata.', uv2.history))
+
+    # test freq & pol arrays equal
+    nt.assert_equal(uv2._freq_array, uv_full._freq_array)
+    nt.assert_equal(uv2._polarization_array, uv_full._polarization_array)
+
+    # test Nblt length arrays not equal but same shape
+    nt.assert_true(uv2._ant_1_array != uv_full._ant_1_array)
+    nt.assert_equal(uv2.ant_1_array.shape, uv_full.ant_1_array.shape)
+    nt.assert_true(uv2._ant_2_array != uv_full._ant_2_array)
+    nt.assert_equal(uv2.ant_2_array.shape, uv_full.ant_2_array.shape)
+    nt.assert_true(uv2._uvw_array != uv_full._uvw_array)
+    nt.assert_equal(uv2.uvw_array.shape, uv_full.uvw_array.shape)
+    nt.assert_true(uv2._time_array != uv_full._time_array)
+    nt.assert_equal(uv2.time_array.shape, uv_full.time_array.shape)
+    nt.assert_true(uv2._baseline_array != uv_full._baseline_array)
+    nt.assert_equal(uv2.baseline_array.shape, uv_full.baseline_array.shape)
+    nt.assert_true(uv2._data_array != uv_full._data_array)
+    nt.assert_equal(uv2.data_array.shape, uv_full.data_array.shape)
+
     # Add multiple axes
     uv1 = copy.deepcopy(uv_full)
     uv2 = copy.deepcopy(uv_full)

@@ -1335,6 +1335,8 @@ class UVData(UVBase):
                                               other.ant_1_array])
             this.ant_2_array = np.concatenate([this.ant_2_array,
                                               other.ant_2_array])
+            this.Nants_data = int(len(np.unique(self.ant_1_array.tolist()
+                                                + self.ant_2_array.tolist())))
             this.uvw_array = np.concatenate([this.uvw_array,
                                             other.uvw_array], axis=0)
             this.time_array = np.concatenate([this.time_array,
