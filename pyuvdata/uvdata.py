@@ -1038,29 +1038,31 @@ class UVData(UVBase):
                 raise ValueError("ant_order can only be one of: 'ant1', 'ant2'")
 
         if not isinstance(order, np.ndarray):
-            # create tuples for sorting
+            # Use lexsort to sort along different arrays in defined order.
+            # lexsort uses the listed arrays from last to first (so the primary sort is on the last one)
             if order == 'time':
                 if minor_order == 'ant1':
-                    sort_tuple = zip(self.time_array, self.ant_1_array, self.ant_2_array)
+                    index_array = np.lexsort((self.ant_2_array, self.ant_1_array, self.time_array))
                 elif minor_order == 'ant2':
-                    sort_tuple = zip(self.time_array, self.ant_2_array, self.ant_1_array)
+                    index_array = np.lexsort((self.ant_1_array, self.ant_2_array, self.time_array))
                 else:
-                    sort_tuple = zip(self.time_array, self.baseline_array)
+                    index_array = np.lexsort((self.baseline_array, self.time_array))
             elif order == 'ant1':
-                sort_tuple = zip(self.ant_1_array, self.ant_2_array, self.time_array)
+                index_array = np.lexsort((self.time_array, self.ant_1_array, self.ant_2_array))
             elif order == 'ant2':
-                sort_tuple = zip(self.ant_2_array, self.ant_1_array, self.time_array)
+                index_array = np.lexsort((self.time_array, self.ant_2_array, self.ant_1_array))
             elif order == 'baseline':
-                sort_tuple = zip(self.baseline_array, self.time_array)
+                index_array = np.lexsort((self.time_array, self.baseline_array))
             elif order == 'bda':
-                # Paul needs to write this part
+                # TODO: Paul needs to write this part
+                pass
 
-            index_array = np.argsort(sort_tuple)
         else:
             index_array = order
 
         if ant_order is not None:
-            # call method to do conjugations
+            # TODO: call method to do conjugations
+            pass
 
         # actually do the reordering
         self.ant_1_array = self.ant_1_array[index_array]
