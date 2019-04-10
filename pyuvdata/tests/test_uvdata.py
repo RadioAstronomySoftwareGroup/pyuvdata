@@ -1833,6 +1833,11 @@ def test_fast_concat():
     assert uv2._data_array != uv_full._data_array
     assert uv2.data_array.shape == uv_full.data_array.shape
 
+    # reorder blts to enable comparison
+    uv2.reorder_blts()
+    uv2.history = uv_full.history
+    nt.assert_equal(uv2, uv_full)
+
     # Add multiple axes
     uv1 = copy.deepcopy(uv_full)
     uv2 = copy.deepcopy(uv_full)
