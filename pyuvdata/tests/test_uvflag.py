@@ -610,7 +610,7 @@ def test_to_waterfall_bl_multi_pol():
     nt.assert_true(uvf2.metric_array.shape == (len(uvf2.time_array), len(uvf.freq_array), 1))
     nt.assert_true(uvf2.weights_array.shape == uvf2.metric_array.shape)
     nt.assert_true(len(uvf2.polarization_array) == 1)
-    nt.assert_true(uvf2.polarization_array[0] == ','.join(map(str, uvf.polarization_array)))
+    nt.assert_true(uvf2.polarization_array[0] == np.string_(','.join(map(str, uvf.polarization_array))))
 
 
 def test_collapse_pol():
@@ -622,10 +622,16 @@ def test_collapse_pol():
     uvf2 = uvf.copy()
     uvf2.collapse_pol()
     nt.assert_true(len(uvf2.polarization_array) == 1)
-    nt.assert_true(uvf2.polarization_array[0] == ','.join(map(str, uvf.polarization_array)))
+    nt.assert_true(uvf2.polarization_array[0] == np.string_(','.join(map(str, uvf.polarization_array))))
     nt.assert_equal(uvf2.mode, 'metric')
     nt.assert_true(hasattr(uvf2, 'metric_array'))
     nt.assert_false(hasattr(uvf2, 'flag_array'))
+
+    # test writing it out and reading in to make sure polarization_array has correct type
+    uvf2.write(test_outfile, clobber=True)
+    uvf = UVFlag(test_outfile)
+    nt.assert_equal(uvf, uvf2)
+    os.remove(test_outfile)
 
 
 def test_collapse_pol_or():
@@ -638,7 +644,7 @@ def test_collapse_pol_or():
     uvf2 = uvf.copy()
     uvf2.collapse_pol(method='or')
     nt.assert_true(len(uvf2.polarization_array) == 1)
-    nt.assert_true(uvf2.polarization_array[0] == ','.join(map(str, uvf.polarization_array)))
+    nt.assert_true(uvf2.polarization_array[0] == np.string_(','.join(map(str, uvf.polarization_array))))
     nt.assert_equal(uvf2.mode, 'flag')
     nt.assert_true(hasattr(uvf2, 'flag_array'))
     nt.assert_false(hasattr(uvf2, 'metric_array'))
@@ -663,7 +669,7 @@ def test_collapse_pol_flag():
     uvf2 = uvf.copy()
     uvf2.collapse_pol()
     nt.assert_true(len(uvf2.polarization_array) == 1)
-    nt.assert_true(uvf2.polarization_array[0] == ','.join(map(str, uvf.polarization_array)))
+    nt.assert_true(uvf2.polarization_array[0] == np.string_(','.join(map(str, uvf.polarization_array))))
     nt.assert_equal(uvf2.mode, 'metric')
     nt.assert_true(hasattr(uvf2, 'metric_array'))
     nt.assert_false(hasattr(uvf2, 'flag_array'))
