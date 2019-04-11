@@ -110,7 +110,7 @@ The numpy and astropy versions are important, so be sure to make sure these are 
 For anaconda users, we suggest using conda to install astropy, numpy, scipy, and optionally h5py, and
 conda-forge for optionally installing python-casacore and healpy (e.g. ```conda install -c conda-forge python-casacore```).
 
-* numpy >= 1.14
+* numpy >= 1.15
 * scipy
 * astropy >= 2.0
 * h5py (optional: for reading and writing uvh5 format)
