@@ -974,7 +974,7 @@ class UVData(UVBase):
                       'reorder_pols in version 1.5', DeprecationWarning)
         self.reorder_pols(order=order)
 
-    def reorder_blts(self, order='time', minor_order=None, ant_order=None,
+    def reorder_blts(self, order='time', minor_order=None, bl_ant_order=None,
                      run_check=True, check_extra=True,
                      run_check_acceptability=True):
         """
@@ -985,14 +985,14 @@ class UVData(UVBase):
                 Options are: 'time', 'baseline', 'ant1', 'ant2', 'bda' or an
                 index array of length Nblts that specifies the new order.
             minor_order(str): Optionally specify a secondary ordering. Default
-                depends on how order is set, if order is 'time', this defaults
+                depends on how order is set: if order is 'time', this defaults
                 to 'baseline', if order is 'ant1', or 'ant2' this defaults to
                 the other antenna, if order is 'baseline' the only allowed value
                 is 'time'. If this is the same as order, it is reset to the default.
-            ant_order(str): Optionally conjugate baselines to make the baselines
+            bl_ant_order(str): Optionally conjugate baselines to make the baselines
                 have the desired orientation. This will fail if only one of the
                 cross pols is present (because conjugation requires changing the
-                polarization number for cross pols)
+                polarization number for cross pols).
                 Options are: 'ant1' (meaning orient baselines so ant1>ant2), or
                 'ant2' (meaning orient baselines so ant2>ant1)
             run_check: Option to check for the existence and proper shapes of
@@ -1035,9 +1035,9 @@ class UVData(UVBase):
             elif order == 'ant2':
                 minor_order = 'ant1'
 
-        if ant_order is not None:
-            if ant_order not in ['ant1', 'ant2']:
-                raise ValueError("ant_order can only be one of: 'ant1', 'ant2'")
+        if bl_ant_order is not None:
+            if bl_ant_order not in ['ant1', 'ant2']:
+                raise ValueError("bl_ant_order can only be one of: 'ant1', 'ant2'")
 
         if not isinstance(order, np.ndarray):
             # Use lexsort to sort along different arrays in defined order.
@@ -1073,7 +1073,7 @@ class UVData(UVBase):
         else:
             index_array = order
 
-        if ant_order is not None:
+        if bl_ant_order is not None:
             # TODO: call method to do conjugations
             pass
 
