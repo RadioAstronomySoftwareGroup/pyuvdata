@@ -986,9 +986,9 @@ class UVData(UVBase):
                 index array of length Nblts that specifies the new order.
             minor_order(str): Optionally specify a secondary ordering. Default
                 depends on how order is set, if order is 'time', this defaults
-                to 'baseline', if order is 'baseline', 'ant1', or 'ant2' this
-                defaults to 'time'. If this is the same as order, it is reset
-                to the default.
+                to 'baseline', if order is 'ant1', or 'ant2' this defaults to
+                the other antenna, if order is 'baseline' the only allowed value
+                is 'time'. If this is the same as order, it is reset to the default.
             ant_order(str): Optionally conjugate baselines to make the baselines
                 have the desired orientation. This will fail if only one of the
                 cross pols is present (because conjugation requires changing the
@@ -1024,14 +1024,16 @@ class UVData(UVBase):
             if isinstance(order, np.ndarray) or order == 'bda':
                 raise ValueError("minor_order cannot be specified if order is "
                                  "'bda' or an index array.")
-            if order in ['baseline', 'ant1', 'ant2']:
-                if minor_order in ['baseline', 'ant1', 'ant2']:
+            if order == 'baseline':
+                if minor_order in ['ant1', 'ant2']:
                     raise ValueError('minor_order conflicts with order')
         else:
             if order == 'time':
                 minor_order = 'baseline'
-            elif order in ['baseline', 'ant1', 'ant2']:
-                minor_order = 'time'
+            elif order == 'ant1':
+                minor_order = 'ant2'
+            elif order == 'ant2':
+                minor_order = 'ant1'
 
         if ant_order is not None:
             if ant_order not in ['ant1', 'ant2']:
@@ -1045,13 +1047,24 @@ class UVData(UVBase):
                     index_array = np.lexsort((self.ant_2_array, self.ant_1_array, self.time_array))
                 elif minor_order == 'ant2':
                     index_array = np.lexsort((self.ant_1_array, self.ant_2_array, self.time_array))
-                else:
+                else:  # minor_order is baseline
                     index_array = np.lexsort((self.baseline_array, self.time_array))
             elif order == 'ant1':
-                index_array = np.lexsort((self.time_array, self.ant_1_array, self.ant_2_array))
+                if minor_order == 'time':
+                    index_array = np.lexsort((self.ant_2_array, self.time_array, self.ant_1_array))
+                elif minor_order == 'ant2':
+                    index_array = np.lexsort((self.time_array, self.ant_2_array, self.ant_1_array))
+                else:  # minor_order is baseline
+                    index_array = np.lexsort((self.time_array, self.baseline_array, self.ant_1_array))
             elif order == 'ant2':
-                index_array = np.lexsort((self.time_array, self.ant_2_array, self.ant_1_array))
+                if minor_order == 'time':
+                    index_array = np.lexsort((self.ant_1_array, self.time_array, self.ant_2_array))
+                elif minor_order == 'ant1':
+                    index_array = np.lexsort((self.time_array, self.ant_1_array, self.ant_2_array))
+                else:  # minor_order is baseline
+                    index_array = np.lexsort((self.time_array, self.baseline_array, self.ant_2_array))
             elif order == 'baseline':
+                # only allowed minor order is time
                 index_array = np.lexsort((self.time_array, self.baseline_array))
             elif order == 'bda':
                 # TODO: Paul needs to write this part
