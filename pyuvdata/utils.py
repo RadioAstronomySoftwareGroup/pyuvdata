@@ -961,10 +961,10 @@ def _reraise_context(fmt, *args):
     raise
 
 
-def collapse(a, alg, weights=None, axis=None, returned=False):
+def collapse(arr, alg, weights=None, axis=None, returned=False):
     ''' Parent function to collapse an array with a given algorithm.
     Args:
-        a (array): Input array to process.
+        arr (array): Input array to process.
         alg (str): Algorithm to use. Must be defined in this function with
             corresponding subfunction below.
         weights (array, optional): weights for collapse operation (e.g. weighted mean).
@@ -976,101 +976,103 @@ def collapse(a, alg, weights=None, axis=None, returned=False):
                      'quadmean': quadmean_collapse, 'or': or_colapse,
                      'and': and_collapse}
     try:
-        out = collapse_dict[alg](a, weights=weights, axis=axis, returned=returned)
+        out = collapse_dict[alg](arr, weights=weights, axis=axis, returned=returned)
     except KeyError:
         raise ValueError('Collapse algorithm must be one of: '
                          + ', '.join(collapse_dict.keys()) + '.')
     return out
 
 
-def mean_collapse(a, weights=None, axis=None, returned=False):
+def mean_collapse(arr, weights=None, axis=None, returned=False):
     ''' Function to average data. This is similar to np.average, except it
     handles infs (by giving them zero weight) and zero weight axes (by forcing
     result to be inf with zero output weight).
     Args:
-        a - array to process
+        arr - array to process
         weights - weights for average. If none, will default to equal weight for
                   all non-infinite data.
         axis - axis keyword to pass to np.sum
         returned - whether to return sum of weights. Default is False.
     '''
-    a = copy.deepcopy(a)  # avoid changing outside
+    arr = copy.deepcopy(arr)  # avoid changing outside
     if weights is None:
-        weights = np.ones_like(a)
-    w = weights * np.logical_not(np.isinf(a))
-    a[np.isinf(a)] = 0
-    wo = np.sum(w, axis=axis)
-    o = np.sum(w * a, axis=axis)
-    where = (wo > 1e-10)
-    o = np.true_divide(o, wo, where=where)
-    o = np.where(where, o, np.inf)
-    if returned:
-        return o, wo
+        weights = np.ones_like(arr)
     else:
-        return o
+        weights = copy.deepcopy(weights)
+    weights = weights * np.logical_not(np.isinf(arr))
+    arr[np.isinf(arr)] = 0
+    weight_out = np.sum(weights, axis=axis)
+    out = np.sum(weights * arr, axis=axis)
+    where = (weight_out > 1e-10)
+    out = np.true_divide(out, weight_out, where=where)
+    out = np.where(where, out, np.inf)
+    if returned:
+        return out, weight_out
+    else:
+        return out
 
 
-def absmean_collapse(a, weights=None, axis=None, returned=False):
+def absmean_collapse(arr, weights=None, axis=None, returned=False):
     ''' Function to average absolute value
     Args:
-        a - array to process
+        arr - array to process
         weights - weights for average
         axis - axis keyword to pass to np.mean
         returned - whether to return sum of weights. Default is False.
     '''
-    return mean_collapse(np.abs(a), weights=weights, axis=axis, returned=returned)
+    return mean_collapse(np.abs(arr), weights=weights, axis=axis, returned=returned)
 
 
-def quadmean_collapse(a, weights=None, axis=None, returned=False):
+def quadmean_collapse(arr, weights=None, axis=None, returned=False):
     ''' Function to average in quadrature
     Args:
-        a - array to process
+        arr - array to process
         weights - weights for average
         axis - axis keyword to pass to np.mean
         returned - whether to return sum of weights. Default is False.
     '''
-    o = mean_collapse(np.abs(a)**2, weights=weights, axis=axis, returned=returned)
+    out = mean_collapse(np.abs(arr)**2, weights=weights, axis=axis, returned=returned)
     if returned:
-        return np.sqrt(o[0]), o[1]
+        return np.sqrt(out[0]), out[1]
     else:
-        return np.sqrt(o)
+        return np.sqrt(out)
 
 
-def or_collapse(a, weights=None, axis=None, returned=False):
+def or_collapse(arr, weights=None, axis=None, returned=False):
     ''' Function to collapse axes using OR operation
     Args:
-        a - boolean array to process
+        arr - boolean array to process
         weights - NOT USED, but kept for symmetry with other averaging functions
         axis - axis or axes over which to OR
         returned - whether to return dummy weights array. NOTE: the dummy weights
                    will simply be an array of ones. Default is False.
     '''
-    if a.dtype != np.bool:
+    if arr.dtype != np.bool:
         raise ValueError('Input to or_collapse function must be boolean array')
-    o = np.any(a, axis=axis)
+    out = np.any(arr, axis=axis)
     if (weights is not None) and not np.all(weights == weights.reshape(-1)[0]):
         warnings.warn('Currently weights are not handled when OR-ing boolean arrays.')
     if returned:
-        return o, np.ones_like(o, dtype=np.float)
+        return out, np.ones_like(out, dtype=np.float)
     else:
-        return o
+        return out
 
 
-def and_collapse(a, weights=None, axis=None, returned=False):
+def and_collapse(arr, weights=None, axis=None, returned=False):
     ''' Function to collapse axes using AND operation
     Args:
-        a - boolean array to process
+        arr - boolean array to process
         weights - NOT USED, but kept for symmetry with other averaging functions
         axis - axis or axes over which to AND
         returned - whether to return dummy weights array. NOTE: the dummy weights
                    will simply be an array of ones. Default is False.
     '''
-    if a.dtype != np.bool:
+    if arr.dtype != np.bool:
         raise ValueError('Input to and_collapse function must be boolean array')
-    o = np.all(a, axis=axis)
+    out = np.all(arr, axis=axis)
     if (weights is not None) and not np.all(weights == weights.reshape(-1)[0]):
         warnings.warn('Currently weights are not handled when AND-ing boolean arrays.')
     if returned:
-        return o, np.ones_like(o, dtype=np.float)
+        return out, np.ones_like(out, dtype=np.float)
     else:
-        return o
+        return out
