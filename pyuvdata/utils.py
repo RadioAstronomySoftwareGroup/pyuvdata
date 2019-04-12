@@ -972,19 +972,14 @@ def collapse(a, alg, weights=None, axis=None, returned=False):
         axis (int, tuple, optional): Axis or axes to collapse. Default is all.
         returned (Bool): Whether to return sum of weights. Default is False.
     '''
-    if alg == 'mean':
-        out = mean_collapse(a, weights=weights, axis=axis, returned=returned)
-    elif alg == 'absmean':
-        out = absmean_collapse(a, weights=weights, axis=axis, returned=returned)
-    elif alg == 'quadmean':
-        out = quadmean_collapse(a, weights=weights, axis=axis, returned=returned)
-    elif alg == 'or':
-        out = or_collapse(a, weights=weights, axis=axis, returned=returned)
-    elif alg == 'and':
-        out = and_collapse(a, weights=weights, axis=axis, returned=returned)
-    else:
-        raise ValueError('Collapse algorithm must be one of: "mean", "absmean",'
-                         ' "quadmean", "or", or "and".')
+    collapse_dict = {'mean': mean_collapse, 'absmean': absmean_collapse,
+                     'quadmean': quadmean_collapse, 'or': or_colapse,
+                     'and': and_collapse}
+    try:
+        out = collapse_dict[alg](a, weights=weights, axis=axis, returned=returned)
+    except KeyError:
+        raise ValueError('Collapse algorithm must be one of: '
+                         + ', '.join(collapse_dict.keys()) + '.')
     return out
 
 
