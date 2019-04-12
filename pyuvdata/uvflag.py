@@ -175,10 +175,11 @@ class UVFlag(object):
 
     def read(self, filename, history=''):
         """
-        Read in flag/metric data from a UVH5 file.
+        Read in flag/metric data from a HDF5 file.
 
         Args:
             filename: The file name to read.
+            history: History string to append to UVFlag history attribute.
         """
 
         if isinstance(filename, (tuple, list)):
@@ -442,7 +443,7 @@ class UVFlag(object):
         warray = np.expand_dims(this.weights_array, 0)
         for other in others:
             if this.metric_array.shape != other.metric_array.shape:
-                raise ValueError('UVFlag metric arrays do not match.')
+                raise ValueError('UVFlag metric array shapes do not match.')
             darray = np.vstack([darray, np.expand_dims(other.metric_array, 0)])
             warray = np.vstack([warray, np.expand_dims(other.weights_array, 0)])
         darray, warray = uvutils.collapse(darray, method, weights=warray, axis=0, returned=True)
