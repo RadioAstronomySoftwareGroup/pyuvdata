@@ -452,6 +452,40 @@ class UVFlag(object):
         if not inplace:
             return this
 
+    def collapse_pol(self, method='quadmean'):
+        """
+        Collapse the polarization axis using a given method.
+
+        If the original UVFlag object has more than one polarization,
+        the resulting polarization_array will be a single element array with a
+        comma separated string encoding the original polarizations.
+
+        Args:
+            method: How to collapse the dimension(s)
+        """
+        method = method.lower()
+        if self.mode == 'flag':
+            darr = self.flag_array
+        else:
+            darr = self.metric_array
+        if len(self.polarization_array) > 1:
+            # Collapse pol dimension. But note we retain a polarization axis.
+            d, w = uvutils.collapse(darr, method, axis=-1, weights=self.weights_array, returned=True)
+            darr = np.expand_dims(d, axis=d.ndim)
+            self.weights_array = np.expand_dims(w, axis=w.ndim)
+            self.polarization_array = np.array([','.join(map(str, self.polarization_array))],
+                                               dtype=np.string_)
+        else:
+            warnings.warn('Cannot collapse polarization axis when only one pol present.')
+            return
+        if ((method == 'or') or (method == 'and')) and (self.mode == 'flag'):
+            self.flag_array = darr
+        else:
+            self.metric_array = darr
+            self.mode = 'metric'
+        self.clear_unused_attributes()
+        self.history += 'Pol axis collapsed with ' + self.pyuvdata_version_str
+
     def to_waterfall(self, method='quadmean', keep_pol=True):
         """
         Convert an 'antenna' or 'baseline' type object to waterfall using a given method.
@@ -506,39 +540,6 @@ class UVFlag(object):
         self.freq_array = self.freq_array.flatten()
         self.type = 'waterfall'
         self.history += 'Collapsed to type "waterfall" with ' + self.pyuvdata_version_str
-        self.clear_unused_attributes()
-
-    def collapse_pol(self, method='quadmean'):
-        """
-        Collapse the polarization axis using a given method.
-
-        If the original UVFlag object has more than one polarization,
-        the resulting polarization_array will be a single element array with a
-        comma separated string encoding the original polarizations.
-
-        Args:
-            method: How to collapse the dimension(s)
-        """
-        method = method.lower()
-        if self.mode == 'flag':
-            darr = self.flag_array
-        else:
-            darr = self.metric_array
-        if len(self.polarization_array) > 1:
-            # Collapse pol dimension. But note we retain a polarization axis.
-            d, w = uvutils.collapse(darr, method, axis=-1, weights=self.weights_array, returned=True)
-            darr = np.expand_dims(d, axis=d.ndim)
-            self.weights_array = np.expand_dims(w, axis=w.ndim)
-            self.polarization_array = np.array([','.join(map(str, self.polarization_array))],
-                                               dtype=np.string_)
-        else:
-            warnings.warn('Cannot collapse polarization axis when only one pol present.')
-            return
-        if ((method == 'or') or (method == 'and')) and (self.mode == 'flag'):
-            self.flag_array = darr
-        else:
-            self.metric_array = darr
-            self.mode = 'metric'
         self.clear_unused_attributes()
 
     def to_baseline(self, uv, force_pol=False):
