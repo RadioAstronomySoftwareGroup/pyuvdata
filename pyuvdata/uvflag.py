@@ -26,7 +26,8 @@ class UVFlag(object):
         '''Initialize UVFlag object.
         Args:
             input: UVData object, UVCal object, or path to previously saved UVFlag object.
-                   Can also be a list of any combination of the above options.
+                   Can also be a list of any compatible combination of the above options.
+                   UVData and UVCal objects cannot be directly combined, unless waterfall is True.
             mode: "metric" (default) or "flag" to initialize UVFlag in given mode.
                   The mode determines whether the object has a floating point metric_array
                   or a boolean flag_array.
