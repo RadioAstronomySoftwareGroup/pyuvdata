@@ -961,7 +961,7 @@ def _reraise_context(fmt, *args):
     raise
 
 
-def collapse(arr, alg, weights=None, axis=None, returned=False):
+def collapse(arr, alg, weights=None, axis=None, return_weights=False):
     ''' Parent function to collapse an array with a given algorithm.
     Args:
         arr (array): Input array to process.
@@ -970,20 +970,20 @@ def collapse(arr, alg, weights=None, axis=None, returned=False):
         weights (array, optional): weights for collapse operation (e.g. weighted mean).
             NOTE: Some subfunctions do not use the weights. See corresponding doc strings.
         axis (int, tuple, optional): Axis or axes to collapse. Default is all.
-        returned (Bool): Whether to return sum of weights. Default is False.
+        return_weights (Bool): Whether to return sum of weights. Default is False.
     '''
     collapse_dict = {'mean': mean_collapse, 'absmean': absmean_collapse,
                      'quadmean': quadmean_collapse, 'or': or_colapse,
                      'and': and_collapse}
     try:
-        out = collapse_dict[alg](arr, weights=weights, axis=axis, returned=returned)
+        out = collapse_dict[alg](arr, weights=weights, axis=axis, return_weights=return_weights)
     except KeyError:
         raise ValueError('Collapse algorithm must be one of: '
                          + ', '.join(collapse_dict.keys()) + '.')
     return out
 
 
-def mean_collapse(arr, weights=None, axis=None, returned=False):
+def mean_collapse(arr, weights=None, axis=None, return_weights=False):
     ''' Function to average data. This is similar to np.average, except it
     handles infs (by giving them zero weight) and zero weight axes (by forcing
     result to be inf with zero output weight).
@@ -992,7 +992,7 @@ def mean_collapse(arr, weights=None, axis=None, returned=False):
         weights - weights for average. If none, will default to equal weight for
                   all non-infinite data.
         axis - axis keyword to pass to np.sum
-        returned - whether to return sum of weights. Default is False.
+        return_weights - whether to return sum of weights. Default is False.
     '''
     arr = copy.deepcopy(arr)  # avoid changing outside
     if weights is None:
@@ -1006,45 +1006,45 @@ def mean_collapse(arr, weights=None, axis=None, returned=False):
     where = (weight_out > 1e-10)
     out = np.true_divide(out, weight_out, where=where)
     out = np.where(where, out, np.inf)
-    if returned:
+    if return_weights:
         return out, weight_out
     else:
         return out
 
 
-def absmean_collapse(arr, weights=None, axis=None, returned=False):
+def absmean_collapse(arr, weights=None, axis=None, return_weights=False):
     ''' Function to average absolute value
     Args:
         arr - array to process
         weights - weights for average
         axis - axis keyword to pass to np.mean
-        returned - whether to return sum of weights. Default is False.
+        return_weights - whether to return sum of weights. Default is False.
     '''
-    return mean_collapse(np.abs(arr), weights=weights, axis=axis, returned=returned)
+    return mean_collapse(np.abs(arr), weights=weights, axis=axis, return_weights=return_weights)
 
 
-def quadmean_collapse(arr, weights=None, axis=None, returned=False):
+def quadmean_collapse(arr, weights=None, axis=None, return_weights=False):
     ''' Function to average in quadrature
     Args:
         arr - array to process
         weights - weights for average
         axis - axis keyword to pass to np.mean
-        returned - whether to return sum of weights. Default is False.
+        return_weights - whether to return sum of weights. Default is False.
     '''
-    out = mean_collapse(np.abs(arr)**2, weights=weights, axis=axis, returned=returned)
-    if returned:
+    out = mean_collapse(np.abs(arr)**2, weights=weights, axis=axis, return_weights=return_weights)
+    if return_weights:
         return np.sqrt(out[0]), out[1]
     else:
         return np.sqrt(out)
 
 
-def or_collapse(arr, weights=None, axis=None, returned=False):
+def or_collapse(arr, weights=None, axis=None, return_weights=False):
     ''' Function to collapse axes using OR operation
     Args:
         arr - boolean array to process
         weights - NOT USED, but kept for symmetry with other averaging functions
         axis - axis or axes over which to OR
-        returned - whether to return dummy weights array. NOTE: the dummy weights
+        return_weights - whether to return dummy weights array. NOTE: the dummy weights
                    will simply be an array of ones. Default is False.
     '''
     if arr.dtype != np.bool:
@@ -1052,19 +1052,19 @@ def or_collapse(arr, weights=None, axis=None, returned=False):
     out = np.any(arr, axis=axis)
     if (weights is not None) and not np.all(weights == weights.reshape(-1)[0]):
         warnings.warn('Currently weights are not handled when OR-ing boolean arrays.')
-    if returned:
+    if return_weights:
         return out, np.ones_like(out, dtype=np.float)
     else:
         return out
 
 
-def and_collapse(arr, weights=None, axis=None, returned=False):
+def and_collapse(arr, weights=None, axis=None, return_weights=False):
     ''' Function to collapse axes using AND operation
     Args:
         arr - boolean array to process
         weights - NOT USED, but kept for symmetry with other averaging functions
         axis - axis or axes over which to AND
-        returned - whether to return dummy weights array. NOTE: the dummy weights
+        return_weights - whether to return dummy weights array. NOTE: the dummy weights
                    will simply be an array of ones. Default is False.
     '''
     if arr.dtype != np.bool:
@@ -1072,7 +1072,7 @@ def and_collapse(arr, weights=None, axis=None, returned=False):
     out = np.all(arr, axis=axis)
     if (weights is not None) and not np.all(weights == weights.reshape(-1)[0]):
         warnings.warn('Currently weights are not handled when AND-ing boolean arrays.')
-    if returned:
+    if return_weights:
         return out, np.ones_like(out, dtype=np.float)
     else:
         return out
