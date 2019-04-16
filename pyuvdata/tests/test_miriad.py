@@ -953,3 +953,27 @@ def test_readMiriadwriteMiriad_check_time_format():
     nt.assert_almost_equal(uv['lst'], uv2['lst'], delta=tolerance)
     if os.path.exists(fout):
         shutil.rmtree(fout)
+
+
+def test_file_with_bad_extra_words():
+    """Test file with bad extra words is iterated and popped correctly."""
+    fname = os.path.join(DATA_PATH, 'test_miriad_changing_extra.uv')
+    uv = UVData()
+    warn_message = ['Altitude is not present in Miriad file, '
+                    'using known location values for PAPER.',
+                    'Mean of empty slice.',
+                    'invalid value encountered in double_scalars',
+                    'npols=4 but found 1 pols in data file',
+                    'antenna number 0 has visibilities associated with it, '
+                    'but it has a position of (0,0,0)',
+                    'antenna number 26 has visibilities associated with it, '
+                    'but it has a position of (0,0,0)',
+                    ]
+    # This is an old PAPER file, run_check must be set to false
+    # The antenna positions is (0, 0, 0) vector
+    uv = uvtest.checkWarnings(uv.read_miriad, func_args=[fname],
+                              func_kwargs={'run_check': False}
+                              category=UserWarning,
+                              nwarnings=len(warn_message),
+                              message=warn_message
+                              )
