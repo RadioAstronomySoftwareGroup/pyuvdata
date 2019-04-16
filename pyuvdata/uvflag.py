@@ -551,6 +551,8 @@ class UVFlag(object):
             uv: UVData or UVFlag object of type baseline to match.
             force_pol: If True, will use 1 pol to broadcast to any other pol.
                        Otherwise, will require polarizations match.
+                       For example, this keyword is useful if one flags on all
+                       pols combined, and wants to broadcast back to individual pols.
         '''
         if self.type == 'baseline':
             return
@@ -571,7 +573,11 @@ class UVFlag(object):
             self.weights_array = self.weights_array.repeat(self.polarization_array.size, axis=-1)
         # Now the pol axes should match regardless of force_pol.
         if not np.array_equal(uv.polarization_array, self.polarization_array):
-            raise ValueError('Polarizations could not be made to match.')
+            if uv.polarization_array.size == 1:
+                raise ValueError('Polarizations do not match. Try keyword force_pol'
+                                 + 'if you wish to broadcast to all polarizations.')
+            else:
+                raise ValueError('Polarizations could not be made to match.')
         # Populate arrays
         warr = np.zeros_like(uv.flag_array)
         if self.mode == 'flag':
@@ -607,6 +613,8 @@ class UVFlag(object):
             uv: UVCal or UVFlag object of type antenna to match.
             force_pol: If True, will use 1 pol to broadcast to any other pol.
                        Otherwise, will require polarizations match.
+                       For example, this keyword is useful if one flags on all
+                       pols combined, and wants to broadcast back to individual pols.
         '''
         if self.type == 'antenna':
             return
@@ -631,7 +639,11 @@ class UVFlag(object):
             self.weights_array = self.weights_array.repeat(self.polarization_array.size, axis=-1)
         # Now the pol axes should match regardless of force_pol.
         if not np.array_equal(polarr, self.polarization_array):
-            raise ValueError('Polarizations could not be made to match.')
+            if uv.polarization_array.size == 1:
+                raise ValueError('Polarizations do not match. Try keyword force_pol'
+                                 + 'if you wish to broadcast to all polarizations.')
+            else:
+                raise ValueError('Polarizations could not be made to match.')
         # Populate arrays
         if self.mode == 'flag':
             self.flag_array = np.swapaxes(self.flag_array, 0, 1)[np.newaxis, np.newaxis,
@@ -746,7 +758,7 @@ def flags2waterfall(uv, flag_array=None, keep_pol=False):
               and supplies the flag_array to convert (if flag_array not specified)
         flag_array -- Optional flag array to convert instead of uv.flag_array.
                       Must have same dimensions as uv.flag_array.
-        keep_pol -- Option to keep the polarization axis in tact. Default is False.
+        keep_pol -- Option to keep the polarization axis intact. Default is False.
     Returns:
         waterfall -- 2D waterfall of averaged flags, for example fraction of baselines
                      which are flagged for every time and frequency (in case of UVData input)
