@@ -80,18 +80,6 @@ def test_init_UVData_copy_flags():
     nt.assert_true(pyuvdata_version_str in uvf.history)
 
 
-@uvtest.skipIf_no_hera_cal
-def test_init_HERAData():
-    from hera_cal.io import HERAData
-    uv = UVData()
-    uv.read_miriad(test_d_file)
-    uvf1 = UVFlag(uv)
-    hd = HERAData(test_d_file, filetype='miriad')
-    hd.read()
-    uvf2 = UVFlag(hd)
-    nt.assert_equal(uvf1, uvf2)
-
-
 def test_init_UVCal():
     uvc = UVCal()
     uvc.read_calfits(test_c_file)
