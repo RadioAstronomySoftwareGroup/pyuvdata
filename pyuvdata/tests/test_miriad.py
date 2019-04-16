@@ -972,7 +972,7 @@ def test_file_with_bad_extra_words():
     # This is an old PAPER file, run_check must be set to false
     # The antenna positions is (0, 0, 0) vector
     uv = uvtest.checkWarnings(uv.read_miriad, func_args=[fname],
-                              func_kwargs={'run_check': False}
+                              func_kwargs={'run_check': False},
                               category=UserWarning,
                               nwarnings=len(warn_message),
                               message=warn_message
