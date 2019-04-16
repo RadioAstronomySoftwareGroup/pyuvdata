@@ -240,7 +240,7 @@ class Miriad(UVData):
                 _source = source
 
             # check extra variables for changes compared with initial value
-            for extra_variable in check_variables.keys():
+            for extra_variable in list(check_variables.keys()):
                 if type(check_variables[extra_variable]) == str:
                     if uv[extra_variable] != check_variables[extra_variable]:
                         check_variables.pop(extra_variable)
