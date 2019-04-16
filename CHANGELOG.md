@@ -24,6 +24,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 - Combining overlapping data along multiple axes (most common when reading in multiple files) no longer errors.
+- Possible bug where `check_variables` dictionary can change size during `read_miriad` call
 
 ## [1.3.6] - 2019-02-15
 
