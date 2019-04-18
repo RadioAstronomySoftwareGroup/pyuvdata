@@ -74,7 +74,7 @@ jobs:
       - image: continuumio/miniconda:latest
     environment:
       PYTHON: << parameters.python_version >>
-      ENV_NAME: pyuvdata_tests
+      ENV_NAME: pyuvdata_min_deps_tests
     steps:
       - checkout
       - restore_cache:
