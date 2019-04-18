@@ -661,14 +661,19 @@ class UVFlag(object):
         self.type = 'antenna'
         self.history += 'Broadcast to type "antenna" with ' + self.pyuvdata_version_str
 
-    def to_flag(self):
-        '''Convert to flag mode. NOT SMART. Simply removes metric_array and initializes
-        flag_array with Falses.
+    def to_flag(self, threshold=np.inf):
+        '''Convert to flag mode. NOT SMART. Removes metric_array and creates a
+        flag_array from a simple threshold on the metric values.
+
+        Args:
+            threshold (float): Metric value over which the corresponding flag is
+                set to True. Default is np.inf, which results in flags of all False.
         '''
         if self.mode == 'flag':
             return
         elif self.mode == 'metric':
-            self.flag_array = np.zeros_like(self.metric_array, dtype=np.bool)
+            self.flag_array = np.where(self.metric_array >= threshold,
+                                       True, False)
             self.mode = 'flag'
             self.weights_array = np.ones_like(self.metric_array, dtype=np.float)
         else:
