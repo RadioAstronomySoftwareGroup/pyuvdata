@@ -354,15 +354,14 @@ class UVFlag(object):
         if not inplace:
             return this
 
-    def __iadd__(self, other, axis='time'):
+    def __iadd__(self, other):
         """
         In place add.
 
         Args:
             other: Another UVFlag object which will be added to self.
-            axis: Axis along which to combine UVFlag objects. Default is time.
         """
-        self.__add__(other, inplace=True, axis=axis)
+        self.__add__(other, inplace=True)
         return self
 
     def __or__(self, other, inplace=False):
