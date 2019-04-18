@@ -569,8 +569,8 @@ def test_collapse_mean_returned_no_weights():
     data = np.zeros((50, 25))
     for i in range(data.shape[1]):
         data[:, i] = i * np.ones_like(data[:, i])
-    out, wo = uvutils.collapse(data, 'mean', axis=0, returned=True)
-    out1, wo1 = uvutils.mean_collapse(data, axis=0, returned=True)
+    out, wo = uvutils.collapse(data, 'mean', axis=0, return_weights=True)
+    out1, wo1 = uvutils.mean_collapse(data, axis=0, return_weights=True)
     # Actual values are tested in test_mean_no_weights
     nt.assert_true(np.array_equal(out, out1))
     nt.assert_true(np.array_equal(wo, wo1))
@@ -582,8 +582,8 @@ def test_collapse_mean_returned_with_weights():
     for i in range(data.shape[1]):
         data[:, i] = i * np.ones_like(data[:, i]) + 1
     w = 1. / data
-    out, wo = uvutils.collapse(data, 'mean', weights=w, axis=0, returned=True)
-    out1, wo1 = uvutils.mean_collapse(data, weights=w, axis=0, returned=True)
+    out, wo = uvutils.collapse(data, 'mean', weights=w, axis=0, return_weights=True)
+    out1, wo1 = uvutils.mean_collapse(data, weights=w, axis=0, return_weights=True)
     # Actual values are tested in test_mean_weights
     nt.assert_true(np.array_equal(out, out1))
     nt.assert_true(np.array_equal(wo, wo1))
@@ -638,14 +638,14 @@ def test_mean_no_weights():
     data = np.zeros((50, 25))
     for i in range(data.shape[1]):
         data[:, i] = i * np.ones_like(data[:, i])
-    out, wo = uvutils.mean_collapse(data, axis=0, returned=True)
+    out, wo = uvutils.mean_collapse(data, axis=0, return_weights=True)
     nt.assert_true(np.array_equal(out, np.arange(data.shape[1])))
     nt.assert_true(np.array_equal(wo, data.shape[0] * np.ones(data.shape[1])))
-    out, wo = uvutils.mean_collapse(data, axis=1, returned=True)
+    out, wo = uvutils.mean_collapse(data, axis=1, return_weights=True)
     nt.assert_true(np.all(out == np.mean(np.arange(data.shape[1]))))
     nt.assert_true(len(out) == data.shape[0])
     nt.assert_true(np.array_equal(wo, data.shape[1] * np.ones(data.shape[0])))
-    out, wo = uvutils.mean_collapse(data, returned=True)
+    out, wo = uvutils.mean_collapse(data, return_weights=True)
     nt.assert_true(out == np.mean(np.arange(data.shape[1])))
     nt.assert_true(wo == data.size)
     out = uvutils.mean_collapse(data)
@@ -658,10 +658,10 @@ def test_mean_weights():
     for i in range(data.shape[1]):
         data[:, i] = i * np.ones_like(data[:, i]) + 1
     w = 1. / data
-    out, wo = uvutils.mean_collapse(data, weights=w, axis=0, returned=True)
+    out, wo = uvutils.mean_collapse(data, weights=w, axis=0, return_weights=True)
     nt.assert_true(np.all(np.isclose(out * wo, data.shape[0])))
     nt.assert_true(np.all(np.isclose(wo, float(data.shape[0]) / (np.arange(data.shape[1]) + 1))))
-    out, wo = uvutils.mean_collapse(data, weights=w, axis=1, returned=True)
+    out, wo = uvutils.mean_collapse(data, weights=w, axis=1, return_weights=True)
     nt.assert_true(np.all(np.isclose(out * wo, data.shape[1])))
     nt.assert_true(np.all(np.isclose(wo, np.sum(1. / (np.arange(data.shape[1]) + 1)))))
 
@@ -669,14 +669,14 @@ def test_mean_weights():
     w = np.ones_like(w)
     w[0, :] = 0
     w[:, 0] = 0
-    out, wo = uvutils.mean_collapse(data, weights=w, axis=0, returned=True)
+    out, wo = uvutils.mean_collapse(data, weights=w, axis=0, return_weights=True)
     ans = np.arange(data.shape[1]).astype(np.float) + 1
     ans[0] = np.inf
     nt.assert_true(np.array_equal(out, ans))
     ans = (data.shape[0] - 1) * np.ones(data.shape[1])
     ans[0] = 0
     nt.assert_true(np.all(wo == ans))
-    out, wo = uvutils.mean_collapse(data, weights=w, axis=1, returned=True)
+    out, wo = uvutils.mean_collapse(data, weights=w, axis=1, return_weights=True)
     ans = np.mean(np.arange(data.shape[1])[1:] + 1) * np.ones(data.shape[0])
     ans[0] = np.inf
     nt.assert_true(np.all(out == ans))
@@ -692,7 +692,7 @@ def test_mean_infs():
         data[:, i] = i * np.ones_like(data[:, i])
     data[:, 0] = np.inf
     data[0, :] = np.inf
-    out, wo = uvutils.mean_collapse(data, axis=0, returned=True)
+    out, wo = uvutils.mean_collapse(data, axis=0, return_weights=True)
     ans = np.arange(data.shape[1]).astype(np.float)
     ans[0] = np.inf
     nt.assert_true(np.array_equal(out, ans))
@@ -700,7 +700,7 @@ def test_mean_infs():
     ans[0] = 0
     nt.assert_true(np.all(wo == ans))
     print(data)
-    out, wo = uvutils.mean_collapse(data, axis=1, returned=True)
+    out, wo = uvutils.mean_collapse(data, axis=1, return_weights=True)
     ans = np.mean(np.arange(data.shape[1])[1:]) * np.ones(data.shape[0])
     ans[0] = np.inf
     print(out)
@@ -727,9 +727,9 @@ def test_quadmean():
     data = np.zeros((50, 25))
     for i in range(data.shape[1]):
         data[:, i] = i * np.ones_like(data[:, i])
-    o1, w1 = uvutils.quadmean_collapse(data, returned=True)
-    o2, w2 = uvutils.mean_collapse(np.abs(data)**2, returned=True)
-    o3 = uvutils.quadmean_collapse(data)  # without returned
+    o1, w1 = uvutils.quadmean_collapse(data, return_weights=True)
+    o2, w2 = uvutils.mean_collapse(np.abs(data)**2, return_weights=True)
+    o3 = uvutils.quadmean_collapse(data)  # without return_weights
     o2 = np.sqrt(o2)
     nt.assert_equal(o1, o2)
     nt.assert_equal(w1, w2)
@@ -757,7 +757,7 @@ def test_or_collapse_weights():
     data = np.zeros((50, 25), np.bool)
     data[0, 8] = True
     w = np.ones_like(data, np.float)
-    o, wo = uvutils.or_collapse(data, axis=0, weights=w, returned=True)
+    o, wo = uvutils.or_collapse(data, axis=0, weights=w, return_weights=True)
     ans = np.zeros(25, np.bool)
     ans[8] = True
     nt.assert_true(np.array_equal(o, ans))
@@ -793,7 +793,7 @@ def test_and_collapse_weights():
     data = np.zeros((50, 25), np.bool)
     data[0, :] = True
     w = np.ones_like(data, np.float)
-    o, wo = uvutils.and_collapse(data, axis=0, weights=w, returned=True)
+    o, wo = uvutils.and_collapse(data, axis=0, weights=w, return_weights=True)
     ans = np.zeros(25, np.bool)
     nt.assert_true(np.array_equal(o, ans))
     nt.assert_true(np.array_equal(wo, np.ones_like(o, dtype=np.float)))
