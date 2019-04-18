@@ -14,7 +14,6 @@ import nose.tools as nt
 from astropy.time import Time
 
 from pyuvdata import UVData
-from pyuvdata import uvh5
 import pyuvdata.utils as uvutils
 from pyuvdata.data import DATA_PATH
 import pyuvdata.tests as uvtest
@@ -22,6 +21,7 @@ from pyuvdata.uvh5 import _hera_corr_dtype
 
 try:
     import h5py
+    from pyuvdata import uvh5
 except(ImportError):
     pass
 
