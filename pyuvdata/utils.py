@@ -973,7 +973,7 @@ def collapse(arr, alg, weights=None, axis=None, return_weights=False):
         return_weights (Bool): Whether to return sum of weights. Default is False.
     '''
     collapse_dict = {'mean': mean_collapse, 'absmean': absmean_collapse,
-                     'quadmean': quadmean_collapse, 'or': or_colapse,
+                     'quadmean': quadmean_collapse, 'or': or_collapse,
                      'and': and_collapse}
     try:
         out = collapse_dict[alg](arr, weights=weights, axis=axis, return_weights=return_weights)
