@@ -1008,6 +1008,19 @@ def test_to_flag():
     nt.assert_true('Converted to mode "flag"' in uvf.history)
 
 
+def test_to_flag_threshold():
+    uvf = UVFlag(test_f_file)
+    uvf.metric_array = np.zeros_like(uvf.metric_array)
+    uvf.metric_array[0, 0, 4, 0] = 2.
+    uvf.to_flag(threshold=1.)
+    nt.assert_true(hasattr(uvf, 'flag_array'))
+    nt.assert_false(hasattr(uvf, 'metric_array'))
+    nt.assert_true(uvf.mode == 'flag')
+    nt.assert_equal(uvf.flag_array[0, 0, 4, 0], True)
+    nt.assert_equal(np.sum(uvf.flag_array), 1.)
+    nt.assert_true('Converted to mode "flag"' in uvf.history)
+
+
 def test_flag_to_flag():
     uvf = UVFlag(test_f_file)
     uvf.to_flag()
