@@ -447,7 +447,7 @@ class UVFlag(object):
                 raise ValueError('UVFlag metric array shapes do not match.')
             darray = np.vstack([darray, np.expand_dims(other.metric_array, 0)])
             warray = np.vstack([warray, np.expand_dims(other.weights_array, 0)])
-        darray, warray = uvutils.collapse(darray, method, weights=warray, axis=0, returned=True)
+        darray, warray = uvutils.collapse(darray, method, weights=warray, axis=0, return_weights=True)
         this.metric_array = darray
         this.weights_array = warray
         this.history += 'Combined metric arrays using ' + self.pyuvdata_version_str
@@ -472,7 +472,7 @@ class UVFlag(object):
             darr = self.metric_array
         if len(self.polarization_array) > 1:
             # Collapse pol dimension. But note we retain a polarization axis.
-            d, w = uvutils.collapse(darr, method, axis=-1, weights=self.weights_array, returned=True)
+            d, w = uvutils.collapse(darr, method, axis=-1, weights=self.weights_array, return_weights=True)
             darr = np.expand_dims(d, axis=d.ndim)
             self.weights_array = np.expand_dims(w, axis=w.ndim)
             self.polarization_array = np.array([','.join(map(str, self.polarization_array))],
@@ -513,7 +513,7 @@ class UVFlag(object):
 
         if self.type == 'antenna':
             d, w = uvutils.collapse(darr, method, axis=(0, 1), weights=self.weights_array,
-                                    returned=True)
+                                    return_weights=True)
             darr = np.swapaxes(d, 0, 1)
             self.weights_array = np.swapaxes(w, 0, 1)
         elif self.type == 'baseline':
@@ -527,7 +527,7 @@ class UVFlag(object):
                 d[i, :, :], w[i, :, :] = uvutils.collapse(darr[ind, :, :], method,
                                                           axis=0,
                                                           weights=self.weights_array[ind, :, :],
-                                                          returned=True)
+                                                          return_weights=True)
             darr = d
             self.weights_array = w
             self.time_array, ri = np.unique(self.time_array, return_index=True)
@@ -574,9 +574,9 @@ class UVFlag(object):
             self.weights_array = self.weights_array.repeat(self.polarization_array.size, axis=-1)
         # Now the pol axes should match regardless of force_pol.
         if not np.array_equal(uv.polarization_array, self.polarization_array):
-            if uv.polarization_array.size == 1:
+            if self.polarization_array.size == 1:
                 raise ValueError('Polarizations do not match. Try keyword force_pol'
-                                 + 'if you wish to broadcast to all polarizations.')
+                                 + ' if you wish to broadcast to all polarizations.')
             else:
                 raise ValueError('Polarizations could not be made to match.')
         # Populate arrays
@@ -640,7 +640,7 @@ class UVFlag(object):
             self.weights_array = self.weights_array.repeat(self.polarization_array.size, axis=-1)
         # Now the pol axes should match regardless of force_pol.
         if not np.array_equal(polarr, self.polarization_array):
-            if uv.polarization_array.size == 1:
+            if self.polarization_array.size == 1:
                 raise ValueError('Polarizations do not match. Try keyword force_pol'
                                  + 'if you wish to broadcast to all polarizations.')
             else:
