@@ -355,6 +355,7 @@ def test_deprecated_funcs():
                          message='The combine_histories function is deprecated')
 
 
+@uvtest.skipIf_no_h5py
 def test_redundancy_finder():
     """
         Check that get_baseline_redundancies and get_antenna_redundancies return consistent
@@ -471,6 +472,7 @@ def test_redundancy_conjugates():
     nt.assert_equal(sorted(conjugates), sorted(expected_conjugates))
 
 
+@uvtest.skipIf_no_h5py
 def test_redundancy_finder_fully_redundant_array():
     """Test the redundancy finder only returns one baseline group for fully redundant array."""
     uvd = pyuvdata.UVData()
