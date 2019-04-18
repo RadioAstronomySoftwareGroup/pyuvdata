@@ -899,10 +899,11 @@ def test_to_antenna_errors():
     nt.assert_raises(ValueError, uvf.to_antenna, uvc)  # Cannot pass in baseline type
     uvf = UVFlag(test_f_file)
     uvf.to_waterfall()
+    uvf2 = uvf.copy()
     uvf.polarization_array[0] = -4
     nt.assert_raises(ValueError, uvf.to_antenna, uvc)  # Mismatched pols
-    # uvf.collapse_pol()
-    # nt.assert_raises(ValueError, uvf.to_antenna, uvc)  # Mismatched pols, force_pol possible
+    uvf.__iadd__(uvf2, axis='polarization')
+    nt.assert_raises(ValueError, uvf.to_antenna, uvc)  # Mismatched pols, can't be forced
 
 
 def test_to_antenna_force_pol():
