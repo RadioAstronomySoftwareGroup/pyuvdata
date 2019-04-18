@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 - New `UVData.fast_concat` method to allow fast concatenation of UVData objects (or files) along a particular axis.
+- Added preliminary `UVFlag` module from hera_qm to pyuvdata. Will eventually promote to `UVBase` object, but for now this is undocumented functionality.
 
 ### Deprecated
 - `UVData.order_pols` method in favor of `UVData.reorder_pols`.
