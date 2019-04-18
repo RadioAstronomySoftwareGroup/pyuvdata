@@ -100,23 +100,6 @@ def test_init_UVCal():
     nt.assert_true(pyuvdata_version_str in uvf.history)
 
 
-def test_init_UVFlag_baseline():
-    uv = UVFlag(test_f_file)
-    uv2 = UVFlag(uv)
-    nt.assert_equal(uv, uv2)
-
-    uv2 = UVFlag(uv, label='foo')
-    nt.assert_equal(uv2.label, 'foo')
-
-
-def test_init_UVFlag_ant():
-    uvc = UVCal()
-    uvc.read_calfits(test_c_file)
-    uv = UVFlag(uvc, mode='flag')
-    uv2 = UVFlag(uv)
-    nt.assert_equal(uv, uv2)
-
-
 def test_init_cal_copy_flags():
     uv = UVCal()
     uv.read_calfits(test_c_file)
@@ -791,8 +774,11 @@ def test_to_baseline_errors():
     nt.assert_raises(ValueError, uvf.to_baseline, uv)  # Cannot pass in antenna type
     uvf = UVFlag(test_f_file)
     uvf.to_waterfall()
+    uvf2 = uvf.copy()
     uvf.polarization_array[0] = -4
     nt.assert_raises(ValueError, uvf.to_baseline, uv)  # Mismatched pols
+    uvf.__iadd__(uvf2, axis='polarization')
+    nt.assert_raises(ValueError, uvf.to_baseline, uv)  # Mismatched pols, can't be forced
 
 
 def test_to_baseline_force_pol():
@@ -915,6 +901,8 @@ def test_to_antenna_errors():
     uvf.to_waterfall()
     uvf.polarization_array[0] = -4
     nt.assert_raises(ValueError, uvf.to_antenna, uvc)  # Mismatched pols
+    # uvf.collapse_pol()
+    # nt.assert_raises(ValueError, uvf.to_antenna, uvc)  # Mismatched pols, force_pol possible
 
 
 def test_to_antenna_force_pol():
