@@ -362,7 +362,7 @@ def test_redundancy_finder():
         redundant groups for a test file with the HERA19 layout.
     """
     uvd = pyuvdata.UVData()
-    uvd.read_uvh5(os.path.join(DATA_PATH, 'fewant_randsrc_airybeam_Nsrc100_10MHz.uvh5'))
+    uvd.read_uvfits(os.path.join(DATA_PATH, 'fewant_randsrc_airybeam_Nsrc100_10MHz.uvfits'))
 
     uvd.select(times=uvd.time_array[0])
     uvd.unphase_to_drift()   # uvw_array is now equivalent to baseline positions
@@ -476,7 +476,7 @@ def test_redundancy_conjugates():
 def test_redundancy_finder_fully_redundant_array():
     """Test the redundancy finder only returns one baseline group for fully redundant array."""
     uvd = pyuvdata.UVData()
-    uvd.read_uvh5(os.path.join(DATA_PATH, 'test_redundant_array.uvh5'))
+    uvd.read_uvfits(os.path.join(DATA_PATH, 'test_redundant_array.uvfits'))
     uvd.select(times=uvd.time_array[0])
 
     tol = 1  # meters
