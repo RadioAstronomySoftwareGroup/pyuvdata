@@ -19,7 +19,6 @@ from pyuvdata import version as uvversion
 import shutil
 import copy
 import six
-import h5py
 
 
 test_d_file = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.HH.uvcAA')
@@ -185,6 +184,7 @@ def test_init_waterfall_copy_flags():
     nt.assert_true(pyuvdata_version_str in uvf.history)
 
 
+@uvtest.skipIf_no_h5py
 def test_read_write_loop():
     uv = UVData()
     uv.read_miriad(test_d_file)
@@ -197,6 +197,7 @@ def test_read_write_loop():
     nt.assert_true(uvf.__eq__(uvf2, check_history=True))
 
 
+@uvtest.skipIf_no_h5py
 def test_read_write_ant():
     uv = UVCal()
     uv.read_calfits(test_c_file)
@@ -209,6 +210,7 @@ def test_read_write_ant():
     nt.assert_true(uvf.__eq__(uvf2, check_history=True))
 
 
+@uvtest.skipIf_no_h5py
 def test_read_write_nocompress():
     uv = UVData()
     uv.read_miriad(test_d_file)
@@ -221,6 +223,7 @@ def test_read_write_nocompress():
     nt.assert_true(uvf.__eq__(uvf2, check_history=True))
 
 
+@uvtest.skipIf_no_h5py
 def test_read_write_nocompress_flag():
     uv = UVData()
     uv.read_miriad(test_d_file)
@@ -257,6 +260,7 @@ def test_init_list():
     nt.assert_true(np.all(uvf.polarization_array == uv.polarization_array))
 
 
+@uvtest.skipIf_no_h5py
 def test_read_list():
     uv = UVData()
     uv.read_miriad(test_d_file)
@@ -287,6 +291,7 @@ def test_read_error():
     nt.assert_raises(IOError, UVFlag, 'foo')
 
 
+@uvtest.skipIf_no_h5py
 def test_read_change_type():
     uv = UVData()
     uv.read_miriad(test_d_file)
@@ -307,6 +312,7 @@ def test_read_change_type():
     nt.assert_false(hasattr(uvf, 'ant_2_array'))
 
 
+@uvtest.skipIf_no_h5py
 def test_read_change_mode():
     uv = UVData()
     uv.read_miriad(test_d_file)
@@ -322,6 +328,7 @@ def test_read_change_mode():
     nt.assert_false(hasattr(uvf, 'metric_array'))
 
 
+@uvtest.skipIf_no_h5py
 def test_write_no_clobber():
     uvf = UVFlag(test_f_file)
     nt.assert_raises(ValueError, uvf.write, test_f_file)
@@ -588,6 +595,7 @@ def test_to_waterfall_bl_multi_pol():
     nt.assert_true(uvf2.polarization_array[0] == np.string_(','.join(map(str, uvf.polarization_array))))
 
 
+@uvtest.skipIf_no_h5py
 def test_collapse_pol():
     uvf = UVFlag(test_f_file)
     uvf.weights_array = np.ones_like(uvf.weights_array)
@@ -609,6 +617,7 @@ def test_collapse_pol():
     os.remove(test_outfile)
 
 
+@uvtest.skipIf_no_h5py
 def test_collapse_pol_or():
     uvf = UVFlag(test_f_file)
     uvf.to_flag()
@@ -625,6 +634,7 @@ def test_collapse_pol_or():
     nt.assert_false(hasattr(uvf2, 'metric_array'))
 
 
+@uvtest.skipIf_no_h5py
 def test_collapse_single_pol():
     uvf = UVFlag(test_f_file)
     uvf.weights_array = np.ones_like(uvf.weights_array)
@@ -634,6 +644,7 @@ def test_collapse_single_pol():
     nt.assert_equal(uvf, uvf2)
 
 
+@uvtest.skipIf_no_h5py
 def test_collapse_pol_flag():
     uvf = UVFlag(test_f_file)
     uvf.to_flag()
@@ -650,6 +661,7 @@ def test_collapse_pol_flag():
     nt.assert_false(hasattr(uvf2, 'flag_array'))
 
 
+@uvtest.skipIf_no_h5py
 def test_to_waterfall_bl_flags():
     uvf = UVFlag(test_f_file)
     uvf.to_flag()
@@ -663,6 +675,7 @@ def test_to_waterfall_bl_flags():
     nt.assert_true(len(uvf.lst_array) == len(uvf.time_array))
 
 
+@uvtest.skipIf_no_h5py
 def test_to_waterfall_bl_flags_or():
     uvf = UVFlag(test_f_file)
     uvf.to_flag()
@@ -701,6 +714,7 @@ def test_to_waterfall_ant():
     nt.assert_true(len(uvf.lst_array) == len(uvf.time_array))
 
 
+@uvtest.skipIf_no_h5py
 def test_to_waterfall_waterfall():
     uvf = UVFlag(test_f_file)
     uvf.weights_array = np.ones_like(uvf.weights_array)
@@ -762,6 +776,7 @@ def test_baseline_to_baseline():
     nt.assert_equal(uvf, uvf2)
 
 
+@uvtest.skipIf_no_h5py
 def test_to_baseline_errors():
     uvc = UVCal()
     uvc.read_calfits(test_c_file)
@@ -887,6 +902,7 @@ def test_antenna_to_antenna():
     nt.assert_equal(uvf, uvf2)
 
 
+@uvtest.skipIf_no_h5py
 def test_to_antenna_errors():
     uvc = UVCal()
     uvc.read_calfits(test_c_file)
@@ -944,6 +960,7 @@ def test_to_antenna_metric_force_pol():
                               (3.2 + 2.1) * uvc.Nants_data / uvf.metric_array.size))
 
 
+@uvtest.skipIf_no_h5py
 def test_copy():
     uvf = UVFlag(test_f_file)
     uvf2 = uvf.copy()
@@ -953,6 +970,7 @@ def test_copy():
     nt.assert_false(uvf == uvf2)
 
 
+@uvtest.skipIf_no_h5py
 def test_or():
     uvf = UVFlag(test_f_file)
     uvf.to_flag()
@@ -967,6 +985,7 @@ def test_or():
     nt.assert_true(np.all(uvf3.flag_array[2:]))
 
 
+@uvtest.skipIf_no_h5py
 def test_or_error():
     uvf = UVFlag(test_f_file)
     uvf2 = uvf.copy()
@@ -974,6 +993,7 @@ def test_or_error():
     nt.assert_raises(ValueError, uvf.__or__, uvf2)
 
 
+@uvtest.skipIf_no_h5py
 def test_or_add_history():
     uvf = UVFlag(test_f_file)
     uvf.to_flag()
@@ -985,6 +1005,7 @@ def test_or_add_history():
     nt.assert_true("Flags OR'd with:" in uvf3.history)
 
 
+@uvtest.skipIf_no_h5py
 def test_ior():
     uvf = UVFlag(test_f_file)
     uvf.to_flag()
@@ -999,6 +1020,7 @@ def test_ior():
     nt.assert_true(np.all(uvf.flag_array[2:]))
 
 
+@uvtest.skipIf_no_h5py
 def test_to_flag():
     uvf = UVFlag(test_f_file)
     uvf.to_flag()
@@ -1008,6 +1030,7 @@ def test_to_flag():
     nt.assert_true('Converted to mode "flag"' in uvf.history)
 
 
+@uvtest.skipIf_no_h5py
 def test_to_flag_threshold():
     uvf = UVFlag(test_f_file)
     uvf.metric_array = np.zeros_like(uvf.metric_array)
@@ -1021,6 +1044,7 @@ def test_to_flag_threshold():
     nt.assert_true('Converted to mode "flag"' in uvf.history)
 
 
+@uvtest.skipIf_no_h5py
 def test_flag_to_flag():
     uvf = UVFlag(test_f_file)
     uvf.to_flag()
@@ -1029,12 +1053,14 @@ def test_flag_to_flag():
     nt.assert_equal(uvf, uvf2)
 
 
+@uvtest.skipIf_no_h5py
 def test_to_flag_unknown_mode():
     uvf = UVFlag(test_f_file)
     uvf.mode = 'foo'
     nt.assert_raises(ValueError, uvf.to_flag)
 
 
+@uvtest.skipIf_no_h5py
 def test_to_metric_baseline():
     uvf = UVFlag(test_f_file)
     uvf.to_flag()
@@ -1052,6 +1078,7 @@ def test_to_metric_baseline():
     nt.assert_true(np.isclose(uvf.weights_array[:, :, 10], 0.0).all())
 
 
+@uvtest.skipIf_no_h5py
 def test_to_metric_waterfall():
     uvf = UVFlag(test_f_file)
     uvf.to_waterfall()
@@ -1074,6 +1101,7 @@ def test_to_metric_antenna():
     nt.assert_true(np.isclose(uvf.weights_array[15, :, 3, :, :], 0.0).all())
 
 
+@uvtest.skipIf_no_h5py
 def test_metric_to_metric():
     uvf = UVFlag(test_f_file)
     uvf2 = uvf.copy()
@@ -1081,12 +1109,14 @@ def test_metric_to_metric():
     nt.assert_equal(uvf, uvf2)
 
 
+@uvtest.skipIf_no_h5py
 def test_to_metric_unknown_mode():
     uvf = UVFlag(test_f_file)
     uvf.mode = 'foo'
     nt.assert_raises(ValueError, uvf.to_metric)
 
 
+@uvtest.skipIf_no_h5py
 def test_antpair2ind():
     uvf = UVFlag(test_f_file)
     ind = uvf.antpair2ind(uvf.ant_1_array[0], uvf.ant_2_array[0])
@@ -1094,12 +1124,14 @@ def test_antpair2ind():
     nt.assert_true(np.all(uvf.ant_2_array[ind] == uvf.ant_2_array[0]))
 
 
+@uvtest.skipIf_no_h5py
 def test_antpair2ind_nonbaseline():
     uvf = UVFlag(test_f_file)
     uvf.to_waterfall()
     nt.assert_raises(ValueError, uvf.antpair2ind, 0, 3)
 
 
+@uvtest.skipIf_no_h5py
 def test_baseline_to_antnums():
     uvf = UVFlag(test_f_file)
     a1, a2 = uvf.baseline_to_antnums(uvf.baseline_array[0])
@@ -1107,12 +1139,14 @@ def test_baseline_to_antnums():
     nt.assert_equal(a2, uvf.ant_2_array[0])
 
 
+@uvtest.skipIf_no_h5py
 def test_get_baseline_nums():
     uvf = UVFlag(test_f_file)
     bls = uvf.get_baseline_nums()
     nt.assert_true(np.array_equal(bls, np.unique(uvf.baseline_array)))
 
 
+@uvtest.skipIf_no_h5py
 def test_get_antpairs():
     uvf = UVFlag(test_f_file)
     antpairs = uvf.get_antpairs()
@@ -1123,7 +1157,10 @@ def test_get_antpairs():
         nt.assert_true((a1, a2) in antpairs)
 
 
+@uvtest.skipIf_no_h5py
 def test_missing_Nants_telescope():
+    import h5py
+
     testfile = os.path.join(DATA_PATH, 'test_missing_Nants.h5')
     shutil.copyfile(test_f_file, testfile)
 

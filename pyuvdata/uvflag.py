@@ -11,7 +11,6 @@ from . import utils as uvutils
 from . import version as uvversion
 from . import telescopes as uvtel
 import warnings
-import h5py
 import copy
 from six.moves import map
 
@@ -181,6 +180,7 @@ class UVFlag(object):
             filename: The file name to read.
             history: History string to append to UVFlag history attribute.
         """
+        import h5py
 
         if isinstance(filename, (tuple, list)):
             self.read(filename[0])
@@ -241,6 +241,7 @@ class UVFlag(object):
             data_compression: HDF5 filter to apply when writing the data_array. Default is
                  LZF. If no compression is wanted, set to None.
         """
+        import h5py
 
         if os.path.exists(filename):
             if clobber:
