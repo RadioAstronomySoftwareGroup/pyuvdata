@@ -17,11 +17,11 @@ from pyuvdata import UVData
 import pyuvdata.utils as uvutils
 from pyuvdata.data import DATA_PATH
 import pyuvdata.tests as uvtest
-from pyuvdata.uvh5 import _hera_corr_dtype
 
 try:
     import h5py
     from pyuvdata import uvh5
+    from pyuvdata.uvh5 import _hera_corr_dtype
 except(ImportError):
     pass
 
