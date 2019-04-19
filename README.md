@@ -81,6 +81,11 @@ A tutorial with example usage and developer API documentation is hosted on [Read
 # History
 pyuvdata was originally developed in the low frequency 21cm community to support the development of calibration and foreground subtraction pipelines. Particular focus has been paid to supporting drift and phased array modes.
 
+# Citation
+Please cite pyuvdata by citing our JOSS paper:
+
+Hazelton et al, (2017), pyuvdata: an interface for astronomical interferometeric datasets in python, Journal of Open Source Software, 2(10), 140, doi:10.21105/joss.00140
+
 # Installation
 For simple installation, the latest stable version is available via conda
 (preferred: ```conda install -c conda-forge pyuvdata```) or pip (```pip install pyuvdata```)
