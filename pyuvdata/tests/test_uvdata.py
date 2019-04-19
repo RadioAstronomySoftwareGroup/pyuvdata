@@ -3019,7 +3019,6 @@ def test_set_uvws_from_antenna_pos():
     nt.assert_almost_equal(max_diff, 0., 2)
 
 
-@uvtest.skipIf_no_h5py
 def test_redundancy_contract_expand():
     # Test that a UVData object can be reduced to one baseline from each redundant group
     # and restored to its original form.
@@ -3063,7 +3062,6 @@ def test_redundancy_contract_expand():
     nt.assert_equal(uv2, uv3)
 
 
-@uvtest.skipIf_no_h5py
 def test_compress_redundancy_metadata_only():
     uv0 = UVData()
     uv0.read_uvfits(os.path.join(DATA_PATH, 'fewant_randsrc_airybeam_Nsrc100_10MHz.uvfits'))
@@ -3091,7 +3089,6 @@ def test_compress_redundancy_metadata_only():
     nt.assert_equal(uv0, uv2)
 
 
-@uvtest.skipIf_no_h5py
 def test_redundancy_missing_groups():
     # Check that if I try to inflate a compressed UVData that is missing redundant groups, it will
     # raise the right warnings and fill only what data are available.
@@ -3127,7 +3124,6 @@ def test_redundancy_missing_groups():
     nt.assert_equal(np.unique(uv2.baseline_array).size, Nselect)
 
 
-@uvtest.skipIf_no_h5py
 def test_quick_redundant_vs_redundant_test_array():
     """Verify the quick redundancy calc returns the same groups as a known array."""
     uv = UVData()
