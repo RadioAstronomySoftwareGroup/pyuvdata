@@ -873,7 +873,7 @@ The ``get_antenna_redundancies`` function accepts an array of antenna indices an
     >>> uvd = UVData()
 
     # This file contains a HERA19 layout.
-    >>> uvd.read_uvh5("pyuvdata/data/fewant_randsrc_airybeam_Nsrc100_10MHz.uvh5")
+    >>> uvd.read_uvh5("pyuvdata/data/fewant_randsrc_airybeam_Nsrc100_10MHz.uvfits")
     >>> uvd.unphase_to_drift(use_ant_pos=True)
     >>> tol = 0.05  # Tolerance in meters
     >>> uvd.select(times=uvd.time_array[0])
@@ -909,7 +909,7 @@ Since redundant baselines should have similar visibilities, some level of data c
     >>> import copy
     >>> import numpy as np
     >>> uv0 = UVData()
-    >>> uv0.read_uvh5("pyuvdata/data/fewant_randsrc_airybeam_Nsrc100_10MHz.uvh5")
+    >>> uv0.read_uvh5("pyuvdata/data/fewant_randsrc_airybeam_Nsrc100_10MHz.uvfits")
     >>> tol = 0.02   # In meters
 
     # Compression can be run in-place or return a separate UVData object.
