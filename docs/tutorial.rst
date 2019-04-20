@@ -909,7 +909,7 @@ Since redundant baselines should have similar visibilities, some level of data c
     >>> import copy
     >>> import numpy as np
     >>> uv0 = UVData()
-    >>> uv0.read_uvh5("pyuvdata/data/fewant_randsrc_airybeam_Nsrc100_10MHz.uvfits")
+    >>> uv0.read_uvfits("pyuvdata/data/fewant_randsrc_airybeam_Nsrc100_10MHz.uvfits")
     >>> tol = 0.02   # In meters
 
     # Compression can be run in-place or return a separate UVData object.
