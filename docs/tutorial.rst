@@ -873,7 +873,7 @@ The ``get_antenna_redundancies`` function accepts an array of antenna indices an
     >>> uvd = UVData()
 
     # This file contains a HERA19 layout.
-    >>> uvd.read_uvh5("pyuvdata/data/fewant_randsrc_airybeam_Nsrc100_10MHz.uvfits")
+    >>> uvd.read_uvfits("pyuvdata/data/fewant_randsrc_airybeam_Nsrc100_10MHz.uvfits")
     >>> uvd.unphase_to_drift(use_ant_pos=True)
     >>> tol = 0.05  # Tolerance in meters
     >>> uvd.select(times=uvd.time_array[0])
