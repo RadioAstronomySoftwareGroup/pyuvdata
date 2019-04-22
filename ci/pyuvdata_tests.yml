@@ -11,4 +11,3 @@ dependencies:
   - python-casacore
   - scipy
   - six
-  - coveralls

@@ -33,8 +33,6 @@ def write_index_rst(readme_file=None, write_file=None):
         '    :target: https://travis-ci.org/RadioAstronomySoftwareGroup/pyuvdata\n\n'
         '.. image:: https://circleci.com/gh/RadioAstronomySoftwareGroup/pyuvdata.svg?style=svg\n'
         '    :target: https://circleci.com/gh/RadioAstronomySoftwareGroup/pyuvdata\n\n'
-        '.. image:: https://coveralls.io/repos/github/RadioAstronomySoftwareGroup/pyuvdata/badge.svg\n'
-        '    :target: https://coveralls.io/github/RadioAstronomySoftwareGroup/pyuvdata\n\n'
         '.. image:: https://codecov.io/gh/RadioAstronomySoftwareGroup/pyuvdata/branch/master/graph/badge.svg\n'
         '  :target: https://codecov.io/gh/RadioAstronomySoftwareGroup/pyuvdata\n\n')
 
