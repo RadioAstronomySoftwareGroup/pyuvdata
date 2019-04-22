@@ -54,7 +54,7 @@ jobs:
           command: |
             source activate ${ENV_NAME}
             mkdir test-reports
-            nosetests pyuvdata -v --with-xunit --xunit-file=test-reports/xunit.xml --with-coverage --cover-package=pyuvdata --cover-xml
+            nosetests pyuvdata -v --with-xunit --xunit-file=test-reports/xunit.xml --with-coverage --cover-package=pyuvdata --cover-xml --no-skip
       - save_cache:
           key: deps-{{ .Branch }}-{{ checksum "ci/pyuvdata_tests.yml" }}
           paths:
