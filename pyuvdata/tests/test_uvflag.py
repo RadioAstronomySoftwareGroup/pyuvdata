@@ -236,6 +236,7 @@ def test_read_write_nocompress_flag():
     nt.assert_true(uvf.__eq__(uvf2, check_history=True))
 
 
+@uvtest.skipIf_no_h5py
 def test_init_list():
     uv = UVData()
     uv.read_miriad(test_d_file)
@@ -287,6 +288,7 @@ def test_read_list():
     nt.assert_true(np.all(uvf.polarization_array == uv.polarization_array))
 
 
+@uvtest.skipIf_no_h5py
 def test_read_error():
     nt.assert_raises(IOError, UVFlag, 'foo')
 
@@ -345,6 +347,7 @@ def test_lst_from_uv_error():
     nt.assert_raises(ValueError, lst_from_uv, 4)
 
 
+@uvtest.skipIf_no_h5py
 def test_add():
     uv1 = UVFlag(test_f_file)
     uv2 = copy.deepcopy(uv1)
@@ -371,6 +374,7 @@ def test_add():
     nt.assert_true('Data combined along time axis with ' + pyuvdata_version_str in uv3.history)
 
 
+@uvtest.skipIf_no_h5py
 def test_add_baseline():
     uv1 = UVFlag(test_f_file)
     uv2 = copy.deepcopy(uv1)
@@ -419,6 +423,7 @@ def test_add_antenna():
     nt.assert_true('Data combined along antenna axis with ' + pyuvdata_version_str in uv3.history)
 
 
+@uvtest.skipIf_no_h5py
 def test_add_frequency():
     uv1 = UVFlag(test_f_file)
     uv2 = copy.deepcopy(uv1)
@@ -441,6 +446,7 @@ def test_add_frequency():
     nt.assert_true('Data combined along frequency axis with ' + pyuvdata_version_str in uv3.history)
 
 
+@uvtest.skipIf_no_h5py
 def test_add_pol():
     uv1 = UVFlag(test_f_file)
     uv2 = copy.deepcopy(uv1)
@@ -510,6 +516,7 @@ def test_add_errors():
     nt.assert_raises(ValueError, uv2.__add__, uv2, axis='baseline')
 
 
+@uvtest.skipIf_no_h5py
 def test_inplace_add():
     uv1a = UVFlag(test_f_file)
     uv1b = copy.deepcopy(uv1a)
@@ -519,6 +526,7 @@ def test_inplace_add():
     nt.assert_true(uv1a.__eq__(uv1b + uv2))
 
 
+@uvtest.skipIf_no_h5py
 def test_clear_unused_attributes():
     uv = UVFlag(test_f_file)
     nt.assert_true(hasattr(uv, 'baseline_array') & hasattr(uv, 'ant_1_array')
@@ -541,6 +549,7 @@ def test_clear_unused_attributes():
     nt.assert_false(hasattr(uv, 'flag_array'))
 
 
+@uvtest.skipIf_no_h5py
 def test_not_equal():
     uvf1 = UVFlag(test_f_file)
     # different class
@@ -563,6 +572,7 @@ def test_not_equal():
     nt.assert_false(uvf1.__eq__(uvf2, check_history=True))
 
 
+@uvtest.skipIf_no_h5py
 def test_to_waterfall_bl():
     uvf = UVFlag(test_f_file)
     uvf.weights_array = np.ones_like(uvf.weights_array)
@@ -573,6 +583,7 @@ def test_to_waterfall_bl():
     nt.assert_true(uvf.weights_array.shape == uvf.metric_array.shape)
 
 
+@uvtest.skipIf_no_h5py
 def test_to_waterfall_bl_multi_pol():
     uvf = UVFlag(test_f_file)
     uvf.weights_array = np.ones_like(uvf.weights_array)
