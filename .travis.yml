@@ -60,8 +60,3 @@ install:
 script:
   - python setup.py build_ext --force --inplace
   - nosetests pyuvdata --with-coverage --cover-package=pyuvdata
-
-after_success:
-    - coveralls
-notifications:
-  webhooks: https://coveralls.io/webhook?repo_token=$COVERALLS_REPO_TOKEN
