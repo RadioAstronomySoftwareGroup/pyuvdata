@@ -86,6 +86,8 @@ Please cite pyuvdata by citing our JOSS paper:
 
 Hazelton et al, (2017), pyuvdata: an interface for astronomical interferometeric datasets in python, Journal of Open Source Software, 2(10), 140, doi:10.21105/joss.00140
 
+[ADS Link](http://adsabs.harvard.edu/abs/2017JOSS....2..140J); [Bibtex entry](http://adsabs.harvard.edu/cgi-bin/nph-bib_query?bibcode=2017JOSS....2..140J&data_type=BIBTEX&db_key=GEN&nocookieset=1)
+
 # Installation
 For simple installation, the latest stable version is available via conda
 (preferred: ```conda install -c conda-forge pyuvdata```) or pip (```pip install pyuvdata```)
