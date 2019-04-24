@@ -8,3 +8,4 @@ dependencies:
   - numpy
   - scipy
   - six
+  - coverage
