@@ -281,11 +281,12 @@ class UVData(UVBase):
 
         # -------- extra, non-required parameters ----------
         desc = ('Orientation of the physical dipole corresponding to what is '
-                'labelled as the x polarization. Examples include "east" '
+                'labelled as the x polarization. Options are "east" '
                 '(indicating east/west orientation) and "north" (indicating '
                 'north/south orientation)')
         self._x_orientation = uvp.UVParameter('x_orientation', description=desc,
-                                              required=False, expected_type=str)
+                                              required=False, expected_type=str,
+                                              acceptable_vals=['east', 'north'])
 
         desc = ('Any user supplied extra keywords, type=dict. Keys should be '
                 '8 character or less strings if writing to uvfits or miriad files. '
@@ -370,6 +371,23 @@ class UVData(UVBase):
             self.set_drift()
         else:
             self.set_unknown_phase_type()
+
+        # check for deprecated x_orientation strings and convert to new values (if possible)
+        if self.x_orientation is not None:
+            if self.x_orientation not in self._x_orientation.acceptable_vals:
+                warn_string = ('x_orientation {xval} is not one of [{vals}], '
+                               .format(xvals=self.x_orientation,
+                                       vals=(', ').join(self._x_orientation.acceptable_vals)))
+                if self.x_orientation.lower() == 'e':
+                    self.x_orientation = 'east'
+                    warn_string += 'converting to "east".'
+                elif self.x_orientation.lower() == 'n':
+                    self.x_orientation = 'north'
+                    warn_string += 'converting to "north".'
+                else:
+                    warn_string += 'cannot be converted.'
+
+                warnings.warn(warn_string, PendingDeprecationWarning)
 
         super(UVData, self).check(check_extra=check_extra,
                                   run_check_acceptability=run_check_acceptability)
@@ -1600,7 +1618,7 @@ class UVData(UVBase):
             pol_inds = np.zeros(0, dtype=np.int)
             for p in polarizations:
                 if isinstance(p, str):
-                    p_num = uvutils.polstr2num(p)
+                    p_num = uvutils.polstr2num(p, x_orientation=self.x_orientation)
                 else:
                     p_num = p
                 if p_num in self.polarization_array:
@@ -2841,7 +2859,7 @@ class UVData(UVBase):
         """
         Returns list of pols in string format.
         """
-        return uvutils.polnum2str(self.polarization_array)
+        return uvutils.polnum2str(self.polarization_array, x_orientation=self.x_orientation)
 
     def get_antpairpols(self):
         """
@@ -2935,7 +2953,8 @@ class UVData(UVBase):
         key = uvutils._get_iterable(key)
         if type(key) is str:
             # Single string given, assume it is polarization
-            pol_ind1 = np.where(self.polarization_array == uvutils.polstr2num(key))[0]
+            pol_ind1 = np.where(self.polarization_array
+                                == uvutils.polstr2num(key, x_orientation=self.x_orientation))[0]
             if len(pol_ind1) > 0:
                 blt_ind1 = np.arange(self.Nblts, dtype=np.int64)
                 blt_ind2 = np.array([], dtype=np.int64)
@@ -3016,12 +3035,17 @@ class UVData(UVBase):
             if type(key[2]) is str:
                 # pol is str
                 if len(blt_ind1) > 0:
-                    pol_ind1 = np.where(self.polarization_array == uvutils.polstr2num(key[2]))[0]
+                    pol_ind1 = np.where(
+                        self.polarization_array
+                        == uvutils.polstr2num(key[2],
+                                              x_orientation=self.x_orientation))[0]
                 else:
                     pol_ind1 = np.array([], dtype=np.int64)
                 if len(blt_ind2) > 0:
-                    pol_ind2 = np.where(self.polarization_array
-                                        == uvutils.polstr2num(uvutils.conj_pol(key[2])))[0]
+                    pol_ind2 = np.where(
+                        self.polarization_array
+                        == uvutils.polstr2num(uvutils.conj_pol(key[2]),
+                                              x_orientation=self.x_orientation))[0]
                 else:
                     pol_ind2 = np.array([], dtype=np.int64)
             else:
@@ -3402,8 +3426,11 @@ class UVData(UVBase):
                             if pols is not None:
                                 for pol in pols:
                                     if (pol.lower() in pols_data
-                                            and uvutils.polstr2num(pol) not in polarizations):
-                                        polarizations.append(uvutils.polstr2num(pol))
+                                            and uvutils.polstr2num(pol, x_orientation=self.x_orientation)
+                                            not in polarizations):
+                                        polarizations.append(
+                                            uvutils.polstr2num(pol,
+                                                               x_orientation=self.x_orientation))
                                     elif not (pol.lower() in pols_data
                                               or pol in warned_pols):
                                         warned_pols.append(pol)
@@ -3414,8 +3441,11 @@ class UVData(UVBase):
                                         if (self.Npols == 1
                                                 and [pol.lower()] == pols_data):
                                             ant_pairs_nums.remove(ant_tuple)
-                                        if uvutils.polstr2num(pol) in polarizations:
-                                            polarizations.remove(uvutils.polstr2num(pol))
+                                        if uvutils.polstr2num(
+                                                pol, x_orientation=self.x_orientation) in polarizations:
+                                            polarizations.remove(
+                                                uvutils.polstr2num(
+                                                    pol, x_orientation=self.x_orientation))
                                     elif not (pol.lower() in pols_data
                                               or pol in warned_pols):
                                         warned_pols.append(pol)
@@ -3442,7 +3472,7 @@ class UVData(UVBase):
             print('\nParsed polarizations:')
             if polarizations is not None:
                 for pol in polarizations:
-                    print(uvutils.polnum2str(pol))
+                    print(uvutils.polnum2str(pol, x_orientation=self.x_orientation))
 
         if len(warned_ants) > 0:
             warnings.warn('Warning: Antenna number {a} passed, but not present '

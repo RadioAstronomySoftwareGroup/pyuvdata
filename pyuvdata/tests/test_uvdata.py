@@ -2477,7 +2477,25 @@ def test_get_pols():
                          message='Telescope EVLA is not')
     pols = uv.get_pols()
     pols_data = ['rr', 'll', 'lr', 'rl']
-    nt.assert_count_equal(pols, pols_data)
+    nt.assert_equal(sorted(pols), sorted(pols_data))
+
+
+def test_get_pols_x_orientation():
+    miriad_file = os.path.join(DATA_PATH, 'zen.2456865.60537.xy.uvcRREAA')
+    uv_in = UVData()
+    uvtest.checkWarnings(uv_in.read, [miriad_file], known_warning='miriad')
+
+    uv_in.x_orientation = 'east'
+
+    pols = uv_in.get_pols()
+    pols_data = ['en']
+    nt.assert_equal(pols, pols_data)
+
+    uv_in.x_orientation = 'north'
+
+    pols = uv_in.get_pols()
+    pols_data = ['ne']
+    nt.assert_equal(pols, pols_data)
 
 
 def test_get_feedpols():
@@ -2489,7 +2507,7 @@ def test_get_feedpols():
                          message='Telescope EVLA is not')
     pols = uv.get_feedpols()
     pols_data = ['r', 'l']
-    nt.assert_count_equal(pols, pols_data)
+    nt.assert_equal(pols, pols_data)
 
     # Test break when pseudo-Stokes visibilities are present
     uv.polarization_array[0] = 1  # pseudo-Stokes I

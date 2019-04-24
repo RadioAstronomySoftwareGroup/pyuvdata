@@ -495,59 +495,158 @@ def _fits_indexhdus(hdulist):
     return tablenames
 
 
-def polstr2num(pol):
+def _x_orientation_rep_dict(x_orientation):
+    """"Helper function to create replacement dict based on x_orientation"""
+    if x_orientation.lower() == 'east' or x_orientation.lower() == 'e':
+        return {'x': 'e', 'y': 'n'}
+    elif x_orientation.lower() == 'north' or x_orientation.lower() == 'n':
+        return {'x': 'n', 'y': 'e'}
+    else:
+        raise ValueError('x_orientation not recognized.')
+
+
+def polstr2num(pol, x_orientation=None):
     """
     Convert polarization str to number according to AIPS Memo 117.
+
     Prefer 'pI', 'pQ', 'pU' and 'pV' to make it clear that these are pseudo-Stokes,
-    not true Stokes, but also support 'I', 'Q', 'U', 'V'.
+    not true Stokes, but also supports 'I', 'Q', 'U', 'V'.
 
-    Args:
-        pol: polarization string
+    Parameters
+    ----------
+    pol : str
+        polarization string
+    x_orientation : str, optional
+        Orientation of the physical dipole corresponding to what is
+        labelled as the x polarization ("east" or "north") to allow for
+        converting from E/N strings. See corresonding parameter on UVData
+        for more details.
 
-    Returns:
+    Returns
+    ----------
+    int
         Number corresponding to string
+
+    Raises
+    ------
+    ValueError
+        If the pol string cannot be converted to a polarization number.
+
+    Warns
+    ------
+    UserWarning
+        If the x_orientation not recognized.
     """
-    poldict = {k.lower(): v for k, v in six.iteritems(POL_STR2NUM_DICT)}
+    dict_use = copy.deepcopy(POL_STR2NUM_DICT)
+    if x_orientation is not None:
+        try:
+            rep_dict = _x_orientation_rep_dict(x_orientation)
+            for key, value in six.iteritems(POL_STR2NUM_DICT):
+                new_key = key.replace('x', rep_dict['x']).replace('y', rep_dict['y'])
+                dict_use[new_key] = value
+        except ValueError:
+            warnings.warn('x_orientation not recognized.')
+
+    poldict = {k.lower(): v for k, v in six.iteritems(dict_use)}
     if isinstance(pol, str):
         out = poldict[pol.lower()]
     elif isinstance(pol, collections.Iterable):
         out = [poldict[key.lower()] for key in pol]
     else:
-        raise ValueError('Polarization {p} cannot be converted to index.'.format(p=pol))
+        raise ValueError('Polarization {p} cannot be converted to a polarization number.'.format(p=pol))
     return out
 
 
-def polnum2str(num):
+def polnum2str(num, x_orientation=None):
     """
     Convert polarization number to str according to AIPS Memo 117.
-    Use 'pI', 'pQ', 'pU' and 'pV' to make it clear that these are pseudo-Stokes, not true Stokes
 
-    Args:
-        num: polarization number
+    Uses 'pI', 'pQ', 'pU' and 'pV' to make it clear that these are pseudo-Stokes,
+    not true Stokes
 
-    Returns:
-        String corresponding to string
+    Parameters
+    ----------
+    num : int
+        polarization number
+    x_orientation : str, optional
+        Orientation of the physical dipole corresponding to what is
+        labelled as the x polarization ("east" or "north") to convert to
+        E/N strings. See corresonding parameter on UVData for more details.
+
+    Returns
+    ----------
+    str
+        String corresponding to polarization number
+
+    Raises
+    ------
+    ValueError
+        If the polarization number cannot be converted to a polarization string.
+
+    Warns
+    ------
+    UserWarning
+        If the x_orientation not recognized.
     """
+    dict_use = copy.deepcopy(POL_NUM2STR_DICT)
+    if x_orientation is not None:
+        try:
+            rep_dict = _x_orientation_rep_dict(x_orientation)
+            for key, value in six.iteritems(POL_NUM2STR_DICT):
+                new_val = value.replace('x', rep_dict['x']).replace('y', rep_dict['y'])
+                dict_use[key] = new_val
+        except ValueError:
+            warnings.warn('x_orientation not recognized.')
+
     if isinstance(num, six.integer_types + (np.int32, np.int64)):
-        out = POL_NUM2STR_DICT[num]
+        out = dict_use[num]
     elif isinstance(num, collections.Iterable):
-        out = [POL_NUM2STR_DICT[i] for i in num]
+        out = [dict_use[i] for i in num]
     else:
         raise ValueError('Polarization {p} cannot be converted to string.'.format(p=num))
     return out
 
 
-def jstr2num(jstr):
+def jstr2num(jstr, x_orientation=None):
     """
     Convert jones polarization str to number according to calfits memo.
 
-    Args:
-        jones: antenna polarization string
+    Parameters
+    ----------
+    jstr : str
+        antenna (jones) polarization string
+    x_orientation : str, optional
+        Orientation of the physical dipole corresponding to what is
+        labelled as the x polarization ("east" or "north") to allow for
+        converting from E/N strings. See corresonding parameter on UVData
+        for more details.
 
-    Returns:
-        Number corresponding to string
+    Returns
+    ----------
+    int
+        antenna (jones) polarization number corresponding to string
+
+    Raises
+    ------
+    ValueError
+        If the jones string cannot be converted to a polarization number.
+
+    Warns
+    ------
+    UserWarning
+        If the x_orientation not recognized.
     """
-    jdict = {k.lower(): v for k, v in six.iteritems(JONES_STR2NUM_DICT)}
+    dict_use = copy.deepcopy(JONES_STR2NUM_DICT)
+    if x_orientation is not None:
+        try:
+            rep_dict = _x_orientation_rep_dict(x_orientation)
+            for key, value in six.iteritems(JONES_STR2NUM_DICT):
+                new_key = key.replace('x', rep_dict['x']).replace('y', rep_dict['y'])
+                dict_use[new_key] = value
+        except ValueError:
+            warnings.warn('x_orientation not recognized.')
+
+    jdict = {k.lower(): v for k, v in six.iteritems(dict_use)}
     if isinstance(jstr, str):
         out = jdict[jstr.lower()]
     elif isinstance(jstr, collections.Iterable):
@@ -557,51 +656,116 @@ def jstr2num(jstr):
     return out
 
 
-def jnum2str(jnum):
+def jnum2str(jnum, x_orientation=None):
     """
     Convert jones polarization number to str according to calfits memo.
 
-    Args:
-        num: polarization number
+    Parameters
+    ----------
+    num : int
+        antenna (jones) polarization number
+    x_orientation : str, optional
+        Orientation of the physical dipole corresponding to what is
+        labelled as the x polarization ("east" or "north") to convert to
+        E/N strings. See corresonding parameter on UVData for more details.
 
-    Returns:
-        String corresponding to string
+    Returns
+    ----------
+    str
+        antenna (jones) polarization string corresponding to number
+
+    Raises
+    ------
+    ValueError
+        If the jones polarization number cannot be converted to a jones polarization string.
+
+    Warns
+    ------
+    UserWarning
+        If the x_orientation not recognized.
     """
+    dict_use = copy.deepcopy(JONES_NUM2STR_DICT)
+    if x_orientation is not None:
+        try:
+            rep_dict = _x_orientation_rep_dict(x_orientation)
+            for key, value in six.iteritems(JONES_NUM2STR_DICT):
+                new_val = value.replace('x', rep_dict['x']).replace('y', rep_dict['y'])
+                dict_use[key] = new_val
+        except ValueError:
+            warnings.warn('x_orientation not recognized.')
+
     if isinstance(jnum, six.integer_types + (np.int32, np.int64)):
-        out = JONES_NUM2STR_DICT[jnum]
+        out = dict_use[jnum]
     elif isinstance(jnum, collections.Iterable):
-        out = [JONES_NUM2STR_DICT[i] for i in jnum]
+        out = [dict_use[i] for i in jnum]
     else:
         raise ValueError('Jones polarization {j} cannot be converted to string.'.format(j=jnum))
     return out
 
 
-def parse_polstr(polstr):
+def parse_polstr(polstr, x_orientation=None):
     """
-    Parse a polarization string and return in AIPS Memo 117
-    standard. See utils.POL_STR2NUM_DICT for options.
+    Parse a polarization string and return pyuvdata standard polarization string.
 
-    Args:
-        polstr: polarization string
+    See utils.POL_STR2NUM_DICT for options.
 
-    Returns:
+    Parameters
+    ----------
+    polstr : str
+        polarization string
+    x_orientation : str, optional
+        Orientation of the physical dipole corresponding to what is
+        labelled as the x polarization ("east" or "north") to allow for
+        converting from E/N strings. See corresonding parameter on UVData
+        for more details.
+
+    Returns
+    ----------
+    str
         AIPS Memo 117 standard string
+
+    Raises
+    ------
+    ValueError
+        If the pol string cannot be converted to a polarization number.
+
+    Warns
+    ------
+    UserWarning
+        If the x_orientation not recognized.
     """
-    return polnum2str(polstr2num(polstr))
+    return polnum2str(polstr2num(polstr, x_orientation=x_orientation),
+                      x_orientation=x_orientation)
 
 
-def parse_jpolstr(jpolstr):
+def parse_jpolstr(jpolstr, x_orientation=None):
     """
-    Parse a Jones polarization string and return in AIPS Memo 117
-    standard. See utils.JONES_STR2NUM_DICT for options.
+    Parse a Jones polarization string and return pyuvdata standard jones string.
 
-    Args:
-        jpolstr: Jones polarization string
+    See utils.JONES_STR2NUM_DICT for options.
 
-    Returns:
-        AIPS Memo 117 standard string
+    Parameters
+    ----------
+    jpolstr : str
+        Jones polarization string
+
+    Returns
+    ----------
+    str
+        calfits memo standard string
+
+    Raises
+    ------
+    ValueError
+        If the jones string cannot be converted to a polarization number.
+
+    Warns
+    ------
+    UserWarning
+        If the x_orientation not recognized.
     """
-    return jnum2str(jstr2num(jpolstr))
+    return jnum2str(jstr2num(jpolstr, x_orientation=x_orientation),
+                    x_orientation=x_orientation)
 
 
 def conj_pol(pol):

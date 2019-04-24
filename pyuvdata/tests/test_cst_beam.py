@@ -69,7 +69,8 @@ def test_read_yaml():
     uvtest.checkWarnings(beam1.read_cst_beam, [cst_files],
                          {'beam_type': 'efield', 'telescope_name': 'HERA', 'feed_name': 'Dipole',
                           'feed_version': '1.0', 'model_name': 'Dipole - Rigging height 4.9 m',
-                          'model_version': '1.0', 'reference_impedance': 100,
+                          'model_version': '1.0', 'x_orientation': 'east',
+                          'reference_impedance': 100,
                           'history': 'Derived from https://github.com/Nicolas-Fagnoni/Simulations.'
                           '\nOnly 2 files included to keep test data volume low.',
                           'extra_keywords': extra_keywords},
@@ -93,7 +94,8 @@ def test_read_yaml_override():
     uvtest.checkWarnings(beam1.read_cst_beam, [cst_files],
                          {'beam_type': 'efield', 'telescope_name': 'test', 'feed_name': 'Dipole',
                           'feed_version': '1.0', 'model_name': 'Dipole - Rigging height 4.9 m',
-                          'model_version': '1.0', 'reference_impedance': 100,
+                          'model_version': '1.0', 'x_orientation': 'east',
+                          'reference_impedance': 100,
                           'history': 'Derived from https://github.com/Nicolas-Fagnoni/Simulations.'
                           '\nOnly 2 files included to keep test data volume low.',
                           'extra_keywords': extra_keywords},
@@ -120,7 +122,8 @@ def test_read_yaml_freq_select():
     uvtest.checkWarnings(beam1.read_cst_beam, [cst_files[0]],
                          {'beam_type': 'efield', 'telescope_name': 'HERA', 'feed_name': 'Dipole',
                           'feed_version': '1.0', 'model_name': 'Dipole - Rigging height 4.9 m',
-                          'model_version': '1.0', 'reference_impedance': 100,
+                          'model_version': '1.0', 'x_orientation': 'east',
+                          'reference_impedance': 100,
                           'history': 'Derived from https://github.com/Nicolas-Fagnoni/Simulations.'
                           '\nOnly 2 files included to keep test data volume low.',
                           'extra_keywords': extra_keywords},
@@ -158,7 +161,8 @@ def test_read_yaml_feed_pol_list():
     uvtest.checkWarnings(beam1.read_cst_beam, [cst_files],
                          {'beam_type': 'efield', 'telescope_name': 'HERA', 'feed_name': 'Dipole',
                           'feed_version': '1.0', 'model_name': 'Dipole - Rigging height 4.9 m',
-                          'model_version': '1.0', 'reference_impedance': 100,
+                          'model_version': '1.0', 'x_orientation': 'east',
+                          'reference_impedance': 100,
                           'history': 'Derived from https://github.com/Nicolas-Fagnoni/Simulations.'
                           '\nOnly 2 files included to keep test data volume low.',
                           'extra_keywords': extra_keywords},
@@ -174,7 +178,8 @@ def test_read_yaml_feed_pol_list():
     uvtest.checkWarnings(beam1.read_cst_beam, [cst_files[0]],
                          {'beam_type': 'efield', 'telescope_name': 'HERA', 'feed_name': 'Dipole',
                           'feed_version': '1.0', 'model_name': 'Dipole - Rigging height 4.9 m',
-                          'model_version': '1.0', 'reference_impedance': 100,
+                          'model_version': '1.0', 'x_orientation': 'east',
+                          'reference_impedance': 100,
                           'history': 'Derived from https://github.com/Nicolas-Fagnoni/Simulations.'
                           '\nOnly 2 files included to keep test data volume low.',
                           'extra_keywords': extra_keywords},
@@ -214,7 +219,8 @@ def test_read_yaml_multi_pol():
                         feed_pol=['x', 'y'], telescope_name='HERA',
                         feed_name='Dipole', feed_version='1.0',
                         model_name='Dipole - Rigging height 4.9 m',
-                        model_version='1.0', reference_impedance=100,
+                        model_version='1.0', x_orientation='east',
+                        reference_impedance=100,
                         history='Derived from https://github.com/Nicolas-Fagnoni/Simulations.'
                         '\nOnly 2 files included to keep test data volume low.',
                         extra_keywords=extra_keywords)
@@ -227,7 +233,8 @@ def test_read_yaml_multi_pol():
                         feed_pol=['x', 'y'], telescope_name='HERA',
                         feed_name='Dipole', feed_version='1.0',
                         model_name='Dipole - Rigging height 4.9 m',
-                        model_version='1.0', reference_impedance=100,
+                        model_version='1.0', x_orientation='east',
+                        reference_impedance=100,
                         history='Derived from https://github.com/Nicolas-Fagnoni/Simulations.'
                         '\nOnly 2 files included to keep test data volume low.',
                         extra_keywords=extra_keywords)
