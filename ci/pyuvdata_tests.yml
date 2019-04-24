@@ -9,5 +9,7 @@ dependencies:
   - nose
   - numpy
   - python-casacore
+  - pyyaml
   - scipy
   - six
+  - coverage
