@@ -161,11 +161,12 @@ class UVCal(UVBase):
                                               expected_type=np.float)
 
         desc = ('Orientation of the physical dipole corresponding to what is '
-                'labelled as the x polarization. Examples include "east" '
+                'labelled as the x polarization. Options are "east" '
                 '(indicating east/west orientation) and "north" (indicating '
                 'north/south orientation)')
         self._x_orientation = uvp.UVParameter('x_orientation', description=desc,
-                                              expected_type=str)
+                                              expected_type=str,
+                                              acceptable_vals=['east', 'north'])
 
         # --- cal_type parameters ---
         desc = ('cal type parameter. Values are delay, gain or unknown.')
@@ -295,6 +296,23 @@ class UVCal(UVBase):
             self.set_sky()
         elif self.cal_style == 'redundant':
             self.set_redundant()
+
+        # check for deprecated x_orientation strings and convert to new values (if possible)
+        if self.x_orientation is not None:
+            if self.x_orientation not in self._x_orientation.acceptable_vals:
+                warn_string = ('x_orientation {xval} is not one of [{vals}], '
+                               .format(xvals=self.x_orientation,
+                                       vals=(', ').join(self._x_orientation.acceptable_vals)))
+                if self.x_orientation.lower() == 'e':
+                    self.x_orientation = 'east'
+                    warn_string += 'converting to "east".'
+                elif self.x_orientation.lower() == 'n':
+                    self.x_orientation = 'north'
+                    warn_string += 'converting to "north".'
+                else:
+                    warn_string += 'cannot be converted.'
+
+                warnings.warn(warn_string, PendingDeprecationWarning)
 
         # first run the basic check from UVBase
         super(UVCal, self).check(check_extra=check_extra,

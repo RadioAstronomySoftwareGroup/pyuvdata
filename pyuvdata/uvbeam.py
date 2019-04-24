@@ -290,6 +290,14 @@ class UVBeam(UVBase):
                                                 expected_type=np.complex)
 
         # -------- extra, non-required parameters ----------
+        desc = ('Orientation of the physical dipole corresponding to what is '
+                'labelled as the x polarization. Options are "east" '
+                '(indicating east/west orientation) and "north" (indicating '
+                'north/south orientation)')
+        self._x_orientation = uvp.UVParameter('x_orientation', description=desc,
+                                              required=False, expected_type=str,
+                                              acceptable_vals=['east', 'north'])
+
         desc = ('String indicating interpolation function. Must be set to use '
                 'the interp_* methods. Allowed values are : "'
                 + '", "'.join(list(self.interpolation_function_dict.keys())) + '".')
@@ -589,7 +597,8 @@ class UVBeam(UVBase):
 
         pol_strings = ['pI', 'pQ', 'pU', 'pV']
         power_data = np.zeros((1, 1, len(pol_strings), _sh[-2], _sh[-1]), dtype=np.complex)
-        beam_object.polarization_array = np.array([uvutils.polstr2num(ps.upper()) for ps in pol_strings])
+        beam_object.polarization_array = np.array(
+            [uvutils.polstr2num(ps.upper(), x_orientation=self.x_orientation) for ps in pol_strings])
 
         for fq_i in range(Nfreqs):
             jones = np.zeros((_sh[-1], 2, 2), dtype=np.complex)
@@ -605,7 +614,8 @@ class UVBeam(UVBase):
         if self.pixel_coordinate_system != 'healpix':
             power_data = power_data.reshape(power_data.shape[:-1] + (Naxes2, Naxes1))
         beam_object.data_array = power_data
-        beam_object.polarization_array = np.array([uvutils.polstr2num(ps.upper()) for ps in pol_strings])
+        beam_object.polarization_array = np.array(
+            [uvutils.polstr2num(ps.upper(), x_orientation=self.x_orientation) for ps in pol_strings])
         beam_object.Naxes_vec = 1
         beam_object.set_power()
 
@@ -671,7 +681,8 @@ class UVBeam(UVBase):
         pol_strings = []
         for pair in feed_pol_order:
             pol_strings.append(beam_object.feed_array[pair[0]] + beam_object.feed_array[pair[1]])
-        beam_object.polarization_array = np.array([uvutils.polstr2num(ps.upper()) for ps in pol_strings])
+        beam_object.polarization_array = np.array(
+            [uvutils.polstr2num(ps.upper(), x_orientation=self.x_orientation) for ps in pol_strings])
 
         if not keep_basis_vector:
             beam_object.Naxes_vec = 1
@@ -904,7 +915,7 @@ class UVBeam(UVBase):
                 Npol_feeds = self.Npols
                 pol_inds = np.arange(Npol_feeds)
             else:
-                pols = [uvutils.polstr2num(p) for p in polarizations]
+                pols = [uvutils.polstr2num(p, x_orientation=self.x_orientation) for p in polarizations]
                 pol_inds = []
                 for pol in pols:
                     if pol not in self.polarization_array:
@@ -1016,7 +1027,7 @@ class UVBeam(UVBase):
                 Npol_feeds = self.Npols
                 pol_inds = np.arange(Npol_feeds)
             else:
-                pols = [uvutils.polstr2num(p) for p in polarizations]
+                pols = [uvutils.polstr2num(p, x_orientation=self.x_orientation) for p in polarizations]
                 pol_inds = []
                 for pol in pols:
                     if pol not in self.polarization_array:
@@ -1599,7 +1610,7 @@ class UVBeam(UVBase):
         assert self.pixel_coordinate_system == 'healpix', "pixel_coordinate_system must be healpix"
         # assert type is int, not string
         if isinstance(pol, (str, np.str)):
-            pol = uvutils.polstr2num(pol)
+            pol = uvutils.polstr2num(pol, x_orientation=self.x_orientation)
         pol_array = self.polarization_array
         if pol in pol_array:
             stokes_p_ind = np.where(np.isin(pol_array, pol))[0][0]
@@ -1624,7 +1635,7 @@ class UVBeam(UVBase):
           omega : float, integral of the beam across the sky [steradians]
         """
         if isinstance(pol, (str, np.str)):
-            pol = uvutils.polstr2num(pol)
+            pol = uvutils.polstr2num(pol, x_orientation=self.x_orientation)
         if self.beam_type != 'power':
             raise ValueError('beam_type must be power')
         if self.Naxes_vec > 1:
@@ -1659,7 +1670,7 @@ class UVBeam(UVBase):
           omega : float, integral of the beam^2 across the sky [steradians]
         """
         if isinstance(pol, (str, np.str)):
-            pol = uvutils.polstr2num(pol)
+            pol = uvutils.polstr2num(pol, x_orientation=self.x_orientation)
         if self.beam_type != 'power':
             raise ValueError('beam_type must be power')
         if self.Naxes_vec > 1:
@@ -2022,9 +2033,9 @@ class UVBeam(UVBase):
     def read_cst_beam(self, filename, beam_type='power', feed_pol=None, rotate_pol=None,
                       frequency=None, telescope_name=None, feed_name=None,
                       feed_version=None, model_name=None, model_version=None,
-                      history=None, reference_impedance=None, extra_keywords=None,
-                      frequency_select=None, run_check=True, check_extra=True,
-                      run_check_acceptability=True):
+                      history=None, x_orientation=None, reference_impedance=None,
+                      extra_keywords=None, frequency_select=None, run_check=True,
+                      check_extra=True, run_check_acceptability=True):
         """
         Read in data from a cst file.
 
@@ -2043,6 +2054,7 @@ class UVBeam(UVBase):
                     |  - cst text filenames (list(str)) -- path relative to yaml file location
                     |  - feed_pol (str) or (list(str))
                 and they may include the following optional keywords:
+                    |  - x_orientation (str): Optional but strongly encouraged!
                     |  - ref_imp (float): beam model reference impedance
                     |  - sim_beam_type (str): e.g. 'E-farfield'
                     |  - all other fields will go into the extra_keywords attribute
@@ -2066,6 +2078,9 @@ class UVBeam(UVBase):
             model_name (str): the name of the model corresponding to the filename(s).
             model_version (str): the version of the model corresponding to the filename(s).
             history (str): A string detailing the history of the filename(s).
+            x_orientation (str): Orientation of the physical dipole corresponding to what is
+                labelled as the x polarization. Options are "east" (indicating
+                east/west orientation) and "north" (indicating north/south orientation)
             reference_impedance (float): The reference impedance of the model(s).
             extra_keywords (dict): a dictionary containing any extra_keywords.
             frequency_select (list(float)):
@@ -2102,6 +2117,8 @@ class UVBeam(UVBase):
                                    'history': history}
             if 'ref_imp' in settings_dict:
                 overriding_keywords['reference_impedance'] = reference_impedance
+            if 'x_orientation' in settings_dict:
+                overriding_keywords['x_orientation'] = reference_impedance
             for key, val in six.iteritems(overriding_keywords):
                 if val is not None:
                     warnings.warn('The {key} keyword is set, overriding the '
@@ -2125,13 +2142,15 @@ class UVBeam(UVBase):
                 history = settings_dict['history']
             if reference_impedance is None and 'ref_imp' in settings_dict:
                 reference_impedance = float(settings_dict['ref_imp'])
+            if x_orientation is None and 'x_orientation' in settings_dict:
+                x_orientation = settings_dict['x_orientation']
 
             if extra_keywords is None:
                 extra_keywords = {}
 
             known_keys = ['telescope_name', 'feed_name', 'feed_version',
                           'model_name', 'model_version', 'history', 'frequencies',
-                          'filenames', 'feed_pol', 'ref_imp']
+                          'filenames', 'feed_pol', 'ref_imp', 'x_orientation']
             # One of the standard paramters in the settings yaml file is longer than 8 characters.
             # This causes warnings and straight truncation when writing to beamfits files
             # To avoid these, this defines a standard renaming of that paramter
@@ -2235,6 +2254,7 @@ class UVBeam(UVBase):
                                model_name=model_name,
                                model_version=model_version,
                                history=history,
+                               x_orientation=x_orientation,
                                reference_impedance=reference_impedance,
                                extra_keywords=extra_keywords,
                                run_check=run_check, check_extra=check_extra,
@@ -2263,6 +2283,7 @@ class UVBeam(UVBase):
                                     model_name=model_name,
                                     model_version=model_version,
                                     history=history,
+                                    x_orientation=x_orientation,
                                     reference_impedance=reference_impedance,
                                     extra_keywords=extra_keywords,
                                     run_check=run_check, check_extra=check_extra,
@@ -2286,6 +2307,7 @@ class UVBeam(UVBase):
                                        model_name=model_name,
                                        model_version=model_version,
                                        history=history,
+                                       x_orientation=x_orientation,
                                        reference_impedance=reference_impedance,
                                        extra_keywords=extra_keywords,
                                        run_check=run_check, check_extra=check_extra,

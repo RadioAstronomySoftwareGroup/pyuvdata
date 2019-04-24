@@ -168,6 +168,7 @@ class BeamFITS(UVBeam):
             self.feed_version = primary_header.pop('FEEDVER', None)
             self.model_name = primary_header.pop('MODEL', None)
             self.model_version = primary_header.pop('MODELVER', None)
+            self.x_orientation = primary_header.pop('XORIENT', None)
             self.interpolation_function = primary_header.pop('INTERPFN', None)
             self.freq_interp_kind = primary_header.pop('FINTERP', None)
 
@@ -407,6 +408,9 @@ class BeamFITS(UVBeam):
         primary_header['FEEDVER'] = self.feed_version
         primary_header['MODEL'] = self.model_name
         primary_header['MODELVER'] = self.model_version
+
+        if self.x_orientation is not None:
+            primary_header['XORIENT'] = self.x_orientation
 
         if self.interpolation_function is not None:
             primary_header['INTERPFN'] = (self.interpolation_function,

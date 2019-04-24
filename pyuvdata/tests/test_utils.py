@@ -275,9 +275,54 @@ def test_pol_funcs():
     nt.assert_equal(uvutils.parse_polstr("xX"), 'xx')
     nt.assert_equal(uvutils.parse_polstr("XX"), 'xx')
     nt.assert_equal(uvutils.parse_polstr('i'), 'pI')
-    nt.assert_equal(uvutils.parse_jpolstr('x'), 'Jxx')
-    nt.assert_equal(uvutils.parse_jpolstr('xy'), 'Jxy')
-    nt.assert_equal(uvutils.parse_jpolstr('XY'), 'Jxy')
+
+
+def test_pol_funcs_x_orientation():
+    """ Test utility functions to convert between polarization strings and numbers with x_orientation """
+
+    pol_nums = [-8, -7, -6, -5, -4, -3, -2, -1, 1, 2, 3, 4]
+
+    x_orient1 = 'e'
+    pol_str = ['ne', 'en', 'nn', 'ee', 'lr', 'rl', 'll', 'rr', 'pI', 'pQ', 'pU', 'pV']
+    nt.assert_equal(pol_nums, uvutils.polstr2num(pol_str, x_orientation=x_orient1))
+    nt.assert_equal(pol_str, uvutils.polnum2str(pol_nums, x_orientation=x_orient1))
+    # Check individuals
+    nt.assert_equal(-6, uvutils.polstr2num('NN', x_orientation=x_orient1))
+    nt.assert_equal('pV', uvutils.polnum2str(4))
+    # Check errors
+    nt.assert_raises(KeyError, uvutils.polstr2num, 'foo', x_orientation=x_orient1)
+    nt.assert_raises(ValueError, uvutils.polstr2num, 1, x_orientation=x_orient1)
+    nt.assert_raises(ValueError, uvutils.polnum2str, 7.3, x_orientation=x_orient1)
+    # Check parse
+    nt.assert_equal(uvutils.parse_polstr("eE", x_orientation=x_orient1), 'ee')
+    nt.assert_equal(uvutils.parse_polstr("xx", x_orientation=x_orient1), 'ee')
+    nt.assert_equal(uvutils.parse_polstr("NN", x_orientation=x_orient1), 'nn')
+    nt.assert_equal(uvutils.parse_polstr("yy", x_orientation=x_orient1), 'nn')
+    nt.assert_equal(uvutils.parse_polstr('i', x_orientation=x_orient1), 'pI')
+
+    x_orient2 = 'n'
+    pol_str = ['en', 'ne', 'ee', 'nn', 'lr', 'rl', 'll', 'rr', 'pI', 'pQ', 'pU', 'pV']
+    nt.assert_equal(pol_nums, uvutils.polstr2num(pol_str, x_orientation=x_orient2))
+    nt.assert_equal(pol_str, uvutils.polnum2str(pol_nums, x_orientation=x_orient2))
+    # Check individuals
+    nt.assert_equal(-6, uvutils.polstr2num('EE', x_orientation=x_orient2))
+    nt.assert_equal('pV', uvutils.polnum2str(4))
+    # Check errors
+    nt.assert_raises(KeyError, uvutils.polstr2num, 'foo', x_orientation=x_orient2)
+    nt.assert_raises(ValueError, uvutils.polstr2num, 1, x_orientation=x_orient2)
+    nt.assert_raises(ValueError, uvutils.polnum2str, 7.3, x_orientation=x_orient2)
+    # Check parse
+    nt.assert_equal(uvutils.parse_polstr("nN", x_orientation=x_orient2), 'nn')
+    nt.assert_equal(uvutils.parse_polstr("xx", x_orientation=x_orient2), 'nn')
+    nt.assert_equal(uvutils.parse_polstr("EE", x_orientation=x_orient2), 'ee')
+    nt.assert_equal(uvutils.parse_polstr("yy", x_orientation=x_orient2), 'ee')
+    nt.assert_equal(uvutils.parse_polstr('i', x_orientation=x_orient2), 'pI')
+
+    # check warnings for non-recognized x_orientation
+    nt.assert_equal(uvtest.checkWarnings(uvutils.polstr2num, ['xx'], {'x_orientation': 'foo'},
+                                         message='x_orientation not recognized'), -5)
+    nt.assert_equal(uvtest.checkWarnings(uvutils.polnum2str, [-6], {'x_orientation': 'foo'},
+                                         message='x_orientation not recognized'), 'yy')
 
 
 def test_jones_num_funcs():
@@ -298,6 +343,69 @@ def test_jones_num_funcs():
     nt.assert_raises(KeyError, uvutils.jstr2num, 'foo')
     nt.assert_raises(ValueError, uvutils.jstr2num, 1)
     nt.assert_raises(ValueError, uvutils.jnum2str, 7.3)
+
+    # check parse method
+    nt.assert_equal(uvutils.parse_jpolstr('x'), 'Jxx')
+    nt.assert_equal(uvutils.parse_jpolstr('xy'), 'Jxy')
+    nt.assert_equal(uvutils.parse_jpolstr('XY'), 'Jxy')
+
+
+def test_jones_num_funcs_x_orientation():
+    """ Test utility functions to convert between jones polarization strings and numbers with x_orientation"""
+
+    jnums = [-8, -7, -6, -5, -4, -3, -2, -1]
+    x_orient1 = 'east'
+    jstr = ['Jne', 'Jen', 'Jnn', 'Jee', 'Jlr', 'Jrl', 'Jll', 'Jrr']
+    nt.assert_equal(jnums, uvutils.jstr2num(jstr, x_orientation=x_orient1))
+    nt.assert_equal(jstr, uvutils.jnum2str(jnums, x_orientation=x_orient1))
+    # Check shorthands
+    jstr = ['ne', 'en', 'nn', 'n', 'ee', 'e', 'lr', 'rl', 'll', 'l', 'rr', 'r']
+    jnums = [-8, -7, -6, -6, -5, -5, -4, -3, -2, -2, -1, -1]
+    nt.assert_equal(jnums, uvutils.jstr2num(jstr, x_orientation=x_orient1))
+    # Check individuals
+    nt.assert_equal(-6, uvutils.jstr2num('jnn', x_orientation=x_orient1))
+    nt.assert_equal('Jen', uvutils.jnum2str(-7, x_orientation=x_orient1))
+    # Check errors
+    nt.assert_raises(KeyError, uvutils.jstr2num, 'foo', x_orientation=x_orient1)
+    nt.assert_raises(ValueError, uvutils.jstr2num, 1, x_orientation=x_orient1)
+    nt.assert_raises(ValueError, uvutils.jnum2str, 7.3, x_orientation=x_orient1)
+
+    # check parse method
+    nt.assert_equal(uvutils.parse_jpolstr('e', x_orientation=x_orient1), 'Jee')
+    nt.assert_equal(uvutils.parse_jpolstr('x', x_orientation=x_orient1), 'Jee')
+    nt.assert_equal(uvutils.parse_jpolstr('y', x_orientation=x_orient1), 'Jnn')
+    nt.assert_equal(uvutils.parse_jpolstr('en', x_orientation=x_orient1), 'Jen')
+    nt.assert_equal(uvutils.parse_jpolstr('NE', x_orientation=x_orient1), 'Jne')
+
+    jnums = [-8, -7, -6, -5, -4, -3, -2, -1]
+    x_orient2 = 'north'
+    jstr = ['Jen', 'Jne', 'Jee', 'Jnn', 'Jlr', 'Jrl', 'Jll', 'Jrr']
+    nt.assert_equal(jnums, uvutils.jstr2num(jstr, x_orientation=x_orient2))
+    nt.assert_equal(jstr, uvutils.jnum2str(jnums, x_orientation=x_orient2))
+    # Check shorthands
+    jstr = ['en', 'ne', 'ee', 'e', 'nn', 'n', 'lr', 'rl', 'll', 'l', 'rr', 'r']
+    jnums = [-8, -7, -6, -6, -5, -5, -4, -3, -2, -2, -1, -1]
+    nt.assert_equal(jnums, uvutils.jstr2num(jstr, x_orientation=x_orient2))
+    # Check individuals
+    nt.assert_equal(-6, uvutils.jstr2num('jee', x_orientation=x_orient2))
+    nt.assert_equal('Jne', uvutils.jnum2str(-7, x_orientation=x_orient2))
+    # Check errors
+    nt.assert_raises(KeyError, uvutils.jstr2num, 'foo', x_orientation=x_orient2)
+    nt.assert_raises(ValueError, uvutils.jstr2num, 1, x_orientation=x_orient2)
+    nt.assert_raises(ValueError, uvutils.jnum2str, 7.3, x_orientation=x_orient2)
+
+    # check parse method
+    nt.assert_equal(uvutils.parse_jpolstr('e', x_orientation=x_orient2), 'Jee')
+    nt.assert_equal(uvutils.parse_jpolstr('x', x_orientation=x_orient2), 'Jnn')
+    nt.assert_equal(uvutils.parse_jpolstr('y', x_orientation=x_orient2), 'Jee')
+    nt.assert_equal(uvutils.parse_jpolstr('en', x_orientation=x_orient2), 'Jen')
+    nt.assert_equal(uvutils.parse_jpolstr('NE', x_orientation=x_orient2), 'Jne')
+
+    # check warnings for non-recognized x_orientation
+    nt.assert_equal(uvtest.checkWarnings(uvutils.jstr2num, ['x'], {'x_orientation': 'foo'},
+                                         message='x_orientation not recognized'), -5)
+    nt.assert_equal(uvtest.checkWarnings(uvutils.jnum2str, [-6], {'x_orientation': 'foo'},
+                                         message='x_orientation not recognized'), 'Jyy')
 
 
 def test_conj_pol():
