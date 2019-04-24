@@ -187,9 +187,12 @@ class Miriad(UVData):
             # type check
             err_msg = "pols must be a list of polarization strings or ints, Ex: ['xx', ...] or [-5, ...]"
             assert isinstance(polarizations, (list, np.ndarray)), err_msg
-            assert np.array(map(lambda p: isinstance(p, (str, np.str, int, np.integer)), polarizations)).all(), err_msg
+            assert np.array(map(lambda p: isinstance(p, (str, np.str, int, np.integer)),
+                                polarizations)).all(), err_msg
             # convert to pol integer if string
-            polarizations = [p if isinstance(p, (int, np.integer)) else uvutils.polstr2num(p) for p in polarizations]
+            polarizations = [p if isinstance(p, (int, np.integer))
+                             else uvutils.polstr2num(p, x_orientation=self.x_orientation)
+                             for p in polarizations]
             # iterate through all possible pols and reject if not in pols
             pol_list = []
             for p in np.arange(-8, 5):
