@@ -161,7 +161,7 @@ class UVBeam(UVBase):
                                                    expected_type=int, form=('Npols',),
                                                    acceptable_vals=list(np.arange(-8, 0)) + list(np.arange(1, 5)))
 
-        desc = 'Array of frequencies, shape (Nspws, Nfreqs), units Hz'
+        desc = 'Array of frequencies, center of the channel, shape (Nspws, Nfreqs), units Hz'
         self._freq_array = uvp.UVParameter('freq_array', description=desc,
                                            form=('Nspws', 'Nfreqs'),
                                            expected_type=np.float,
