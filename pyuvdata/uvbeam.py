@@ -944,10 +944,6 @@ class UVBeam(UVBase):
                             if key in self.saved_interp_functions.keys():
                                 do_interp = False
                                 lut = self.saved_interp_functions[key]
-                                if lut is None:
-                                    do_interp = True
-                            else:
-                                self.saved_interp_functions[key] = None
 
                         if do_interp:
                             if np.iscomplexobj(input_data_array):
