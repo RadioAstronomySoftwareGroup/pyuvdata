@@ -2498,6 +2498,29 @@ def test_get_pols_x_orientation():
     nt.assert_equal(pols, pols_data)
 
 
+def test_deprecated_x_orientation():
+    miriad_file = os.path.join(DATA_PATH, 'zen.2456865.60537.xy.uvcRREAA')
+    uv_in = UVData()
+    uvtest.checkWarnings(uv_in.read, [miriad_file], known_warning='miriad')
+
+    uv_in.x_orientation = 'e'
+
+    uvtest.checkWarnings(uv_in.check, category=PendingDeprecationWarning,
+                         message=['x_orientation e is not one of [east, north], '
+                                  'converting to "east".'])
+
+    uv_in.x_orientation = 'N'
+    uvtest.checkWarnings(uv_in.check, category=PendingDeprecationWarning,
+                         message=['x_orientation N is not one of [east, north], '
+                                  'converting to "north".'])
+
+    uv_in.x_orientation = 'foo'
+    nt.assert_raises(ValueError, uvtest.checkWarnings, uv_in.check,
+                     category=PendingDeprecationWarning,
+                     message=['x_orientation n is not one of [east, north], '
+                              'cannot be converted.'])
+
+
 def test_get_feedpols():
     # Test function to get unique antenna feed polarizations in data. String format.
     uv = UVData()
