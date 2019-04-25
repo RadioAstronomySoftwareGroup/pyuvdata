@@ -32,7 +32,7 @@ class UVFITS(UVData):
     uvfits_required_extra = ['antenna_positions', 'gst0', 'rdate',
                              'earth_omega', 'dut1', 'timesys']
 
-    def _get_parameter_data(self, vis_hdu):
+    def _get_parameter_data(self, vis_hdu, run_check_acceptability):
         """
         Internal function to read just the random parameters portion of the
         uvfits file (referred to as metadata).
@@ -57,9 +57,10 @@ class UVFITS(UVData):
                                                      altitude)
                 if not np.all(np.isclose(self.lst_array, lst_array, rtol=self._lst_array.tols[0],
                                          atol=self._lst_array.tols[1])):
-                    warnings.warn("LST values stored in {file} are not self-consistent with time_array "
-                                  "and telescope location. Consider recomputing with "
-                                  "utils.get_lst_for_time.".format(file=filename))
+                    warnings.warn("LST values stored in this file are not "
+                                  "self-consistent with time_array and telescope "
+                                  "location. Consider recomputing with "
+                                  "utils.get_lst_for_time.")
 
         else:
             self.set_lsts_from_time_array()
@@ -133,7 +134,7 @@ class UVFITS(UVData):
 
         if self.time_array is None or read_metadata:
             # first read in random group parameters
-            self._get_parameter_data(vis_hdu)
+            self._get_parameter_data(vis_hdu, run_check_acceptability)
 
         # figure out what data to read in
         blt_inds, freq_inds, pol_inds, history_update_string = \
@@ -463,7 +464,7 @@ class UVFITS(UVData):
                 return
 
             # Now read in the random parameter info
-            self._get_parameter_data(vis_hdu)
+            self._get_parameter_data(vis_hdu, run_check_acceptability)
 
             if not read_data:
                 # don't read in the data. This means the object is incomplete,
@@ -476,14 +477,20 @@ class UVFITS(UVData):
                            blt_inds, False, run_check, check_extra, run_check_acceptability,
                            keep_all_metadata)
 
-    def read_uvfits_metadata(self, filename):
+    def read_uvfits_metadata(self, filename, run_check_acceptability=True):
         """
-        Read in metadata (random parameter info) but not data from a uvfits file
-        (useful for an object that already has the associated header info and
-        full visibility data isn't needed).
+        Read in metadata (random parameter info) but not data from a uvfits file.
 
-        Args:
-            filename: The uvfits file to read from.
+        This is useful when an object already has the associated header info and
+        full visibility data isn't needed.
+
+        Parameters
+        ----------
+        filename : str
+            The uvfits file to read from.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters after
+            reading in the file. Default is True.
         """
 
         if self.data_array is not None:
@@ -492,7 +499,7 @@ class UVFITS(UVData):
         with fits.open(filename, memmap=True) as hdu_list:
             vis_hdu = hdu_list[0]  # assumes the visibilities are in the primary hdu
 
-            self._get_parameter_data(vis_hdu)
+            self._get_parameter_data(vis_hdu, run_check_acceptability)
 
         del(vis_hdu)
 
