@@ -259,11 +259,7 @@ def test_readwriteread():
         hdulist.writeto(write_file, overwrite=True)
 
     uvtest.checkWarnings(nt.assert_raises, [ValueError, uv_out.read, write_file],
-                         message=['Telescope EVLA is not',
-                                  'ERFA function "utcut1" yielded 1 of "dubious year (Note 3)"',
-                                  'ERFA function "utctai" yielded 1 of "dubious year (Note 3)"'],
-                         nwarnings=3, category=[UserWarning, astropy._erfa.core.ErfaWarning,
-                                                astropy._erfa.core.ErfaWarning])
+                         message=['Telescope EVLA is not'])
 
     # check that unflagged data with nsample = 0 will cause warnings
     uv_in.nsample_array[list(range(11, 22))] = 0
