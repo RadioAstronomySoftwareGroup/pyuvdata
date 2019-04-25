@@ -689,8 +689,11 @@ class UVFITS(UVData):
         # We are setting PZERO4 = float32(first time of observation)
         time_array = np.float32(self.time_array - np.float64(tzero))
 
-        lst_zero = min(self.lst_array)
-        lst_array_use = np.float32(self.lst_array - np.float64(lst_zero))
+        # lst is a non-standard entry (it's not in the AIPS memo)
+        # but storing it can be useful (e.g. can avoid recalculating it on read)
+        # need to store it in 2 parts to get enough accuracy
+        lst_array_1 = np.float32(self.lst_array)
+        lst_array_2 = np.float32(self.lst_array - np.float64(lst_array_1))
 
         int_time_array = self.integration_time
 
@@ -700,8 +703,6 @@ class UVFITS(UVData):
         # Set up dictionaries for populating hdu
         # Note that uvfits antenna arrays are 1-indexed so we add 1
         # to our 0-indexed arrays
-        # lst is a non-standard entry (it's not in the AIPS memo)
-        # but storing it can be useful (e.g. can avoid recalculating it on read)
         group_parameter_dict = {'UU      ': uvw_array_sec[:, 0],
                                 'VV      ': uvw_array_sec[:, 1],
                                 'WW      ': uvw_array_sec[:, 2],
@@ -711,7 +712,7 @@ class UVFITS(UVData):
                                 'ANTENNA2': self.ant_2_array + 1,
                                 'SUBARRAY': np.ones_like(self.ant_1_array),
                                 'INTTIM  ': int_time_array,
-                                'LST     ': lst_array_use}
+                                'LST     ': lst_array_1}
         pscal_dict = {'UU      ': 1.0, 'VV      ': 1.0, 'WW      ': 1.0,
                       'DATE    ': 1.0, 'BASELINE': 1.0, 'ANTENNA1': 1.0,
                       'ANTENNA2': 1.0, 'SUBARRAY': 1.0, 'INTTIM  ': 1.0,
@@ -719,7 +720,7 @@ class UVFITS(UVData):
         pzero_dict = {'UU      ': 0.0, 'VV      ': 0.0, 'WW      ': 0.0,
                       'DATE    ': tzero, 'BASELINE': 0.0, 'ANTENNA1': 0.0,
                       'ANTENNA2': 0.0, 'SUBARRAY': 0.0, 'INTTIM  ': 0.0,
-                      'LST     ': lst_zero}
+                      'LST     ': 0.0}
 
         # list contains arrays of [u,v,w,date,baseline];
         # each array has shape (Nblts)
@@ -730,13 +731,19 @@ class UVFITS(UVData):
             # Otherwise just use the antenna arrays
             parnames_use = ['UU      ', 'VV      ', 'WW      ',
                             'DATE    ', 'BASELINE', 'ANTENNA1',
-                            'ANTENNA2', 'SUBARRAY', 'INTTIM  ', 'LST     ']
+                            'ANTENNA2', 'SUBARRAY', 'INTTIM  ',
+                            'LST     ']
         else:
             parnames_use = ['UU      ', 'VV      ', 'WW      ', 'DATE    ',
-                            'ANTENNA1', 'ANTENNA2', 'SUBARRAY', 'INTTIM  ', 'LST     ']
+                            'ANTENNA1', 'ANTENNA2', 'SUBARRAY', 'INTTIM  ',
+                            'LST     ']
 
         group_parameter_list = [group_parameter_dict[parname] for
                                 parname in parnames_use]
+        # add second LST array part
+        parnames_use.append('LST     ')
+        group_parameter_list.append(lst_array_2)
+
         hdu = fits.GroupData(uvfits_array_data, parnames=parnames_use,
                              pardata=group_parameter_list, bitpix=-32)
         hdu = fits.GroupsHDU(hdu)

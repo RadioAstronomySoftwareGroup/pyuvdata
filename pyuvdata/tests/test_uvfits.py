@@ -91,9 +91,23 @@ def test_source_group_params():
 
         par_names = vis_hdu.data.parnames
         group_parameter_list = []
-        # need to account for PZERO values
+
+        lst_ind = 0
         for index, name in enumerate(par_names):
-            group_parameter_list.append(vis_hdu.data.par(name) - vis_hdr['PZERO' + str(index + 1)])
+            par_value = vis_hdu.data.par(name)
+            # lst_array needs to be split in 2 parts to get high enough accuracy
+            if name.lower() == 'lst':
+                if lst_ind == 0:
+                    # first lst entry, par_value has full lst value (astropy adds the 2 values)
+                    lst_array_1 = np.float32(par_value)
+                    lst_array_2 = np.float32(par_value - np.float64(lst_array_1))
+                    par_value = lst_array_1
+                    lst_ind = 1
+                else:
+                    par_value = lst_array_2
+
+            # need to account for PZERO values
+            group_parameter_list.append(par_value - vis_hdr['PZERO' + str(index + 1)])
 
         par_names.append('SOURCE')
         source_array = np.ones_like(vis_hdu.data.par('BASELINE'))
@@ -129,9 +143,23 @@ def test_multisource_error():
 
         par_names = vis_hdu.data.parnames
         group_parameter_list = []
-        # need to account for PZERO values
+
+        lst_ind = 0
         for index, name in enumerate(par_names):
-            group_parameter_list.append(vis_hdu.data.par(name) - vis_hdr['PZERO' + str(index + 1)])
+            par_value = vis_hdu.data.par(name)
+            # lst_array needs to be split in 2 parts to get high enough accuracy
+            if name.lower() == 'lst':
+                if lst_ind == 0:
+                    # first lst entry, par_value has full lst value (astropy adds the 2 values)
+                    lst_array_1 = np.float32(par_value)
+                    lst_array_2 = np.float32(par_value - np.float64(lst_array_1))
+                    par_value = lst_array_1
+                    lst_ind = 1
+                else:
+                    par_value = lst_array_2
+
+            # need to account for PZERO values
+            group_parameter_list.append(par_value - vis_hdr['PZERO' + str(index + 1)])
 
         par_names.append('SOURCE')
         source_array = np.ones_like(vis_hdu.data.par('BASELINE'))
