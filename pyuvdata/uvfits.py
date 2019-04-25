@@ -51,6 +51,16 @@ class UVFITS(UVData):
         # but if the file was written with pyuvdata it may be present (depending on pyuvdata version)
         if 'LST' in vis_hdu.data.parnames:
             self.lst_array = vis_hdu.data.par('lst')
+            if run_check_acceptability:
+                latitude, longitude, altitude = self.telescope_location_lat_lon_alt_degrees
+                lst_array = uvutils.get_lst_for_time(self.time_array, latitude, longitude,
+                                                     altitude)
+                if not np.all(np.isclose(self.lst_array, lst_array, rtol=self._lst_array.tols[0],
+                                         atol=self._lst_array.tols[1])):
+                    warnings.warn("LST values stored in {file} are not self-consistent with time_array "
+                                  "and telescope location. Consider recomputing with "
+                                  "utils.get_lst_for_time.".format(file=filename))
+
         else:
             self.set_lsts_from_time_array()
 
@@ -684,7 +694,7 @@ class UVFITS(UVData):
         # Note that uvfits antenna arrays are 1-indexed so we add 1
         # to our 0-indexed arrays
         # lst is a non-standard entry (it's not in the AIPS memo)
-        # but storing it saves time in not having to recompute on read.
+        # but storing it can be useful (e.g. can avoid recalculating it on read)
         group_parameter_dict = {'UU      ': uvw_array_sec[:, 0],
                                 'VV      ': uvw_array_sec[:, 1],
                                 'WW      ': uvw_array_sec[:, 2],
