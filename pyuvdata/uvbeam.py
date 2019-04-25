@@ -846,9 +846,6 @@ class UVBeam(UVBase):
         if self.pixel_coordinate_system != 'az_za':
             raise ValueError('pixel_coordinate_system must be "az_za"')
 
-        if reuse_spline and not hasattr(self, 'saved_interp_functions'):
-            self.saved_interp_functions = {}
-
         if freq_array is not None:
             assert(isinstance(freq_array, np.ndarray))
             input_data_array, _ = self._interp_freq(freq_array, kind=freq_interp_kind, tol=freq_interp_tol)
@@ -915,6 +912,7 @@ class UVBeam(UVBase):
                 Npol_feeds = self.Npols
                 pol_inds = np.arange(Npol_feeds)
             else:
+                Npol_feeds_total = self.Npols
                 pols = [uvutils.polstr2num(p, x_orientation=self.x_orientation) for p in polarizations]
                 pol_inds = []
                 for pol in pols:
@@ -925,22 +923,33 @@ class UVBeam(UVBase):
                 Npol_feeds = len(pol_inds)
 
         else:
+            Npol_feeds_total = self.Nfeeds
             Npol_feeds = self.Nfeeds
             pol_inds = np.arange(Npol_feeds)
 
         data_shape = (self.Naxes_vec, self.Nspws, Npol_feeds, input_nfreqs, npoints)
         interp_data = np.zeros(data_shape, dtype=data_type)
 
+        if reuse_spline and not hasattr(self, 'saved_interp_functions'):
+            int_dict = {}
+            self.saved_interp_functions = int_dict
         for index1 in range(self.Nspws):
             for index3 in range(input_nfreqs):
                 freq = freq_array[index3]
-                if reuse_spline:
-                    luts = np.empty((self.Naxes_vec, self.Nspws, Npol_feeds), dtype=object)
                 for index0 in range(self.Naxes_vec):
-                    for index2 in pol_inds:
-                        if reuse_spline and freq in self.saved_interp_functions.keys() and self.saved_interp_functions[freq].shape == (self.Naxes_vec, self.Nspws, Npol_feeds):
-                            lut = self.saved_interp_functions[freq][index0, index1, index2]
-                        else:
+                    for pol_return_ind, index2 in enumerate(pol_inds):
+                        do_interp = True
+                        key = (index1, freq, index2, index0)
+                        if reuse_spline:
+                            if key in self.saved_interp_functions.keys():
+                                do_interp = False
+                                lut = self.saved_interp_functions[key]
+                                if lut is None:
+                                    do_interp = True
+                            else:
+                                self.saved_interp_functions[key] = None
+
+                        if do_interp:
                             if np.iscomplexobj(input_data_array):
                                 # interpolate real and imaginary parts separately
                                 real_lut = interpolate.RectBivariateSpline(self.axis2_array,
@@ -955,8 +964,8 @@ class UVBeam(UVBase):
                                                                       self.axis1_array,
                                                                       input_data_array[index0, index1, index2, index3, :])
                                 lut = get_lambda(lut)
-                        if reuse_spline:
-                            luts[index0, index1, index2] = lut
+                            if reuse_spline:
+                                self.saved_interp_functions[key] = lut
                         if index0 == 0 and index1 == 0 and index2 == 0 and index3 == 0:
                             for point_i in range(npoints):
                                 pix_dists = np.sqrt((theta_vals - za_array[point_i])**2.
@@ -964,10 +973,7 @@ class UVBeam(UVBase):
                                 if np.min(pix_dists) > (max_axis_diff * 2.0):
                                     raise ValueError('at least one interpolation location is outside of '
                                                      'the UVBeam pixel coverage.')
-                        interp_data[index0, index1, index2, index3, :] = lut(za_array, az_array)
-
-            if reuse_spline:
-                self.saved_interp_functions[freq] = luts
+                        interp_data[index0, index1, pol_return_ind, index3, :] = lut(za_array, az_array)
 
         return interp_data, interp_basis_vector
 
@@ -2167,7 +2173,7 @@ class UVBeam(UVBase):
                 for freq in frequency_select:
                     freq_array = np.array(frequency, dtype=np.float64)
                     close_inds = np.where(np.isclose(freq_array, freq, rtol=self._freq_array.tols[0],
-                                          atol=self._freq_array.tols[1]))[0]
+                                                     atol=self._freq_array.tols[1]))[0]
                     if close_inds.size > 0:
                         for ind in close_inds:
                             freq_inds.append(ind)

@@ -427,7 +427,7 @@ def test_power_spatial_interpolation():
     power_beam = UVBeam()
     power_beam.read_cst_beam(cst_files, beam_type='power', frequency=[150e6, 123e6],
                              telescope_name='TEST', feed_name='bob',
-                             feed_version='0.1', feed_pol=['x','y'],
+                             feed_version='0.1', feed_pol=['x', 'y'],
                              model_name='E-field pattern - Rigging height 4.9m',
                              model_version='1.0')
 
@@ -506,6 +506,7 @@ def test_power_spatial_interpolation():
     nt.assert_raises(ValueError, power_beam.interp, az_array=az_interp_vals, za_array=za_interp_vals,
                      polarizations=['pI'])
 
+
 def test_efield_spatial_interpolation():
     efield_beam = UVBeam()
     efield_beam.read_cst_beam(cst_files, beam_type='efield', frequency=[150e6, 123e6],
@@ -540,7 +541,6 @@ def test_efield_spatial_interpolation():
     interp_data_array, interp_basis_vector = efield_beam.interp(az_array=az_interp_vals,
                                                                 za_array=za_interp_vals,
                                                                 freq_array=freq_interp_vals)
-
 
     # test reusing the spline fit
     orig_data_array, interp_basis_vector = efield_beam.interp(az_array=az_interp_vals,
