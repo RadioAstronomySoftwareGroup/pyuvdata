@@ -4,10 +4,15 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- Optional `x_orientation` parameter to utils functions polstr2num, polnum2str, jstr2num and jnum2str to allow for E/N based polarization strings (rather than just x/y based ones)
+- New optional `x_orientation` parameter on UVBeam (paralleling UVData and UVCal), with read/write support in beamfits
+- Added `x_orientation` as an optional parameter in read_cst_beam and in cst settings yaml files.
+- All str2num or num2str calls on UVData and UVBeam pass the object's x_orientation
 - New `UVData.fast_concat` method to allow fast concatenation of UVData objects (or files) along a particular axis.
 - Added preliminary `UVFlag` module from hera_qm to pyuvdata. Will eventually promote to `UVBase` object, but for now this is undocumented functionality.
 
 ### Deprecated
+- Defined 'east' and 'north' as the allowed 'x_orientation' values in UVData and UVCal, Backwards compatiblity support exists for 'E' and 'N' values
 - `UVData.order_pols` method in favor of `UVData.reorder_pols`.
 
 ### Fixed
