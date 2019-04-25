@@ -96,7 +96,7 @@ class UVCal(UVBase):
                                           'numbers, shape (Nspws).', form=('Nspws',),
                                           expected_type=int)
 
-        desc = 'Array of frequencies, shape (Nspws, Nfreqs), units Hz.'
+        desc = 'Array of frequencies, center of the channel, shape (Nspws, Nfreqs), units Hz.'
         self._freq_array = uvp.UVParameter('freq_array', description=desc,
                                            form=('Nspws', 'Nfreqs'),
                                            expected_type=np.float,
