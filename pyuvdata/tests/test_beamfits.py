@@ -525,7 +525,7 @@ def test_multi_files():
 
     # add optional parameters for testing purposes
     beam_full.extra_keywords = {'KEY1': 'test_keyword'}
-    beam_in.x_orientation = 'east'
+    beam_full.x_orientation = 'east'
     beam_full.reference_impedance = 340.
     beam_full.receiver_temperature_array = np.random.normal(50.0, 5, size=(beam_full.Nspws, beam_full.Nfreqs))
     beam_full.loss_array = np.random.normal(50.0, 5, size=(beam_full.Nspws, beam_full.Nfreqs))
