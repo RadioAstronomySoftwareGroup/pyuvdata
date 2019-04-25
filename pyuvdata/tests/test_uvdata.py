@@ -2507,7 +2507,7 @@ def test_get_feedpols():
                          message='Telescope EVLA is not')
     pols = uv.get_feedpols()
     pols_data = ['r', 'l']
-    nt.assert_equal(pols, pols_data)
+    nt.assert_equal(sorted(pols), sorted(pols_data))
 
     # Test break when pseudo-Stokes visibilities are present
     uv.polarization_array[0] = 1  # pseudo-Stokes I
