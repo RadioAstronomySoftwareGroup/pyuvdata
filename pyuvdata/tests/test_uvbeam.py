@@ -423,11 +423,11 @@ def test_freq_interpolation():
                      freq_array=freq_orig_vals, polarizations=['xx'])
 
 
-def test_spatial_interpolation():
+def test_power_spatial_interpolation():
     power_beam = UVBeam()
     power_beam.read_cst_beam(cst_files, beam_type='power', frequency=[150e6, 123e6],
                              telescope_name='TEST', feed_name='bob',
-                             feed_version='0.1', feed_pol=['x'],
+                             feed_version='0.1', feed_pol=['x','y'],
                              model_name='E-field pattern - Rigging height 4.9m',
                              model_version='1.0')
 
@@ -469,9 +469,14 @@ def test_spatial_interpolation():
                               + (np.zeros((18)) + np.pi / 12).tolist())
     freq_interp_vals = np.arange(125e6, 145e6, 5e6)
 
-    interp_data_array, interp_basis_vector = power_beam.interp(az_array=az_interp_vals,
-                                                               za_array=za_interp_vals,
-                                                               freq_array=freq_interp_vals)
+    # Test requesting separate polarizations on different calls while reusing splines.
+    interp_data_array, interp_basis_vector = power_beam.interp(az_array=az_interp_vals[:2],
+                                                               za_array=za_interp_vals[:2],
+                                                               freq_array=freq_interp_vals, polarizations=['xx'], reuse_spline=True)
+
+    interp_data_array, interp_basis_vector = power_beam.interp(az_array=az_interp_vals[:2],
+                                                               za_array=za_interp_vals[:2],
+                                                               freq_array=freq_interp_vals, polarizations=['yy'], reuse_spline=True)
 
     # test reusing the spline fit.
     orig_data_array, interp_basis_vector = power_beam.interp(az_array=az_interp_vals,
@@ -485,6 +490,15 @@ def test_spatial_interpolation():
     nt.assert_true(np.all(reused_data_array == orig_data_array))
     del power_beam.saved_interp_functions
 
+    # test errors if frequency interp values outside range
+    nt.assert_raises(ValueError, power_beam.interp, az_array=az_interp_vals,
+                     za_array=za_interp_vals, freq_array=np.array([100]))
+
+    # test errors if positions outside range
+    power_beam.select(axis2_inds=np.where(power_beam.axis2_array <= np.pi / 2.)[0])
+    nt.assert_raises(ValueError, power_beam.interp, az_array=az_interp_vals,
+                     za_array=za_interp_vals + np.pi / 2)
+
     # test no errors only frequency interpolation
     interp_data_array, interp_basis_vector = power_beam.interp(freq_array=freq_interp_vals)
 
@@ -492,7 +506,7 @@ def test_spatial_interpolation():
     nt.assert_raises(ValueError, power_beam.interp, az_array=az_interp_vals, za_array=za_interp_vals,
                      polarizations=['pI'])
 
-    # redo tests using Efield:
+def test_efield_spatial_interpolation():
     efield_beam = UVBeam()
     efield_beam.read_cst_beam(cst_files, beam_type='efield', frequency=[150e6, 123e6],
                               telescope_name='TEST', feed_name='bob',
@@ -500,6 +514,11 @@ def test_spatial_interpolation():
                               model_name='E-field pattern - Rigging height 4.9m',
                               model_version='1.0')
 
+    za_orig_vals, az_orig_vals = np.meshgrid(efield_beam.axis2_array,
+                                             efield_beam.axis1_array)
+    az_orig_vals = az_orig_vals.ravel(order='C')
+    za_orig_vals = za_orig_vals.ravel(order='C')
+    freq_orig_vals = np.array([123e6, 150e6])
     efield_beam.interpolation_function = 'az_za_simple'
     interp_data_array, interp_basis_vector = efield_beam.interp(az_array=az_orig_vals,
                                                                 za_array=za_orig_vals,
@@ -510,6 +529,18 @@ def test_spatial_interpolation():
 
     nt.assert_true(np.allclose(efield_beam.data_array, interp_data_array))
     nt.assert_true(np.allclose(efield_beam.basis_vector_array, interp_basis_vector))
+
+    # test no errors using different points
+    az_interp_vals = np.array(np.arange(0, 2 * np.pi, np.pi / 9.0).tolist()
+                              + np.arange(0, 2 * np.pi, np.pi / 9.0).tolist())
+    za_interp_vals = np.array((np.zeros((18)) + np.pi / 4).tolist()
+                              + (np.zeros((18)) + np.pi / 12).tolist())
+    freq_interp_vals = np.arange(125e6, 145e6, 10e6)
+
+    interp_data_array, interp_basis_vector = efield_beam.interp(az_array=az_interp_vals,
+                                                                za_array=za_interp_vals,
+                                                                freq_array=freq_interp_vals)
+
 
     # test reusing the spline fit
     orig_data_array, interp_basis_vector = efield_beam.interp(az_array=az_interp_vals,
@@ -531,26 +562,6 @@ def test_spatial_interpolation():
                                                                        freq_array=np.array([127e6]), reuse_spline=True)
     nt.assert_true(np.allclose(select_data_array_orig, select_data_array_reused))
     del efield_beam.saved_interp_functions
-
-    # test no errors using different points
-    az_interp_vals = np.array(np.arange(0, 2 * np.pi, np.pi / 9.0).tolist()
-                              + np.arange(0, 2 * np.pi, np.pi / 9.0).tolist())
-    za_interp_vals = np.array((np.zeros((18)) + np.pi / 4).tolist()
-                              + (np.zeros((18)) + np.pi / 12).tolist())
-    freq_interp_vals = np.arange(125e6, 145e6, 10e6)
-
-    interp_data_array, interp_basis_vector = efield_beam.interp(az_array=az_interp_vals,
-                                                                za_array=za_interp_vals,
-                                                                freq_array=freq_interp_vals)
-
-    # test errors if frequency interp values outside range
-    nt.assert_raises(ValueError, power_beam.interp, az_array=az_interp_vals,
-                     za_array=za_interp_vals, freq_array=np.array([100]))
-
-    # test errors if positions outside range
-    power_beam.select(axis2_inds=np.where(power_beam.axis2_array <= np.pi / 2.)[0])
-    nt.assert_raises(ValueError, power_beam.interp, az_array=az_interp_vals,
-                     za_array=za_interp_vals + np.pi / 2)
 
 
 @uvtest.skipIf_no_healpy
