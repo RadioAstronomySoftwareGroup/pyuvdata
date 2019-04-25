@@ -50,7 +50,8 @@ class UVFITS(UVData):
         # check if lst array is saved. It's not a standard metadata item in uvfits,
         # but if the file was written with pyuvdata it may be present (depending on pyuvdata version)
         if 'LST' in vis_hdu.data.parnames:
-            self.lst_array = vis_hdu.data.par('lst')
+            # angles in uvfits files are stored in degrees, so convert to radians
+            self.lst_array = np.deg2rad(vis_hdu.data.par('lst'))
             if run_check_acceptability:
                 latitude, longitude, altitude = self.telescope_location_lat_lon_alt_degrees
                 lst_array = uvutils.get_lst_for_time(self.time_array, latitude, longitude,
@@ -692,8 +693,10 @@ class UVFITS(UVData):
         # lst is a non-standard entry (it's not in the AIPS memo)
         # but storing it can be useful (e.g. can avoid recalculating it on read)
         # need to store it in 2 parts to get enough accuracy
-        lst_array_1 = np.float32(self.lst_array)
-        lst_array_2 = np.float32(self.lst_array - np.float64(lst_array_1))
+        # angles in uvfits files are stored in degrees, so first convert to degrees
+        lst_array_deg = np.rad2deg(self.lst_array)
+        lst_array_1 = np.float32(lst_array_deg)
+        lst_array_2 = np.float32(lst_array_deg - np.float64(lst_array_1))
 
         int_time_array = self.integration_time
 
