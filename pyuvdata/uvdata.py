@@ -1975,7 +1975,8 @@ class UVData(UVBase):
             elif func == 'read_uvfits_metadata':
                 # can only be one file, it would have errored earlier because read_data=False
                 uvfits_obj = self._convert_to_filetype('uvfits')
-                uvfits_obj.read_uvfits_metadata(filename)
+                uvfits_obj.read_uvfits_metadata(
+                    filename, run_check_acceptability=run_check_acceptability)
                 self._convert_from_filetype(uvfits_obj)
                 del(uvfits_obj)
             elif func == 'read_uvfits_data':
