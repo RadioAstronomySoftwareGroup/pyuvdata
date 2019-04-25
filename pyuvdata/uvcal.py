@@ -301,7 +301,7 @@ class UVCal(UVBase):
         if self.x_orientation is not None:
             if self.x_orientation not in self._x_orientation.acceptable_vals:
                 warn_string = ('x_orientation {xval} is not one of [{vals}], '
-                               .format(xvals=self.x_orientation,
+                               .format(xval=self.x_orientation,
                                        vals=(', ').join(self._x_orientation.acceptable_vals)))
                 if self.x_orientation.lower() == 'e':
                     self.x_orientation = 'east'
