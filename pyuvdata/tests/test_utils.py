@@ -490,28 +490,29 @@ def test_redundancy_finder():
             bl_vec = bl_positions[bl_ind]
             nt.assert_true(np.allclose(np.sqrt(np.dot(bl_vec, vec_bin_centers[gi])), lens[gi], atol=tol))
 
-    # Now jostle the baselines around by up to 0.25m and see if we can recover the same redundancies to that tolerance.
+    # Now jostle the baselines around by 25cm and see if we can recover the same redundancies to that tolerance.
     tol = 0.25  # meters. Less than the smallest baseline in the file.
     Nbls = uvd.Nbls
-    shift_dists = np.random.uniform(low=0.0, high=tol / 2., size=Nbls)
-    shift_angs = np.random.uniform(low=0.0, high=2 * np.pi, size=Nbls)
-    shift_vecs = np.stack((shift_dists * np.cos(shift_angs), shift_dists * np.sin(shift_angs), np.zeros(Nbls))).T
+    Ntrials = 50
+    for i in range(Ntrials):
+        shift_dists = np.random.uniform(low=0.0, high=tol / 2.1, size=Nbls)
+        shift_angs = np.random.uniform(low=0.0, high=2 * np.pi, size=Nbls)
+        shift_vecs = np.stack((shift_dists * np.cos(shift_angs), shift_dists * np.sin(shift_angs), np.zeros(Nbls))).T
 
-    bl_positions_new = uvd.uvw_array + shift_vecs
+        bl_positions_new = uvd.uvw_array + shift_vecs
 
-    baseline_groups_new, vec_bin_centers, lens = uvutils.get_baseline_redundancies(uvd.baseline_array, bl_positions_new, tol=tol)
+        baseline_groups_new, vec_bin_centers, lens = uvutils.get_baseline_redundancies(uvd.baseline_array, bl_positions_new, tol=tol)
 
-    for gi, gp in enumerate(baseline_groups_new):
-        for bl in gp:
-            bl_ind = np.where(uvd.baseline_array == bl)
-            bl_vec = bl_positions[bl_ind]
-            nt.assert_true(np.allclose(np.sqrt(np.abs(np.dot(bl_vec, vec_bin_centers[gi]))), lens[gi], atol=tol))
+        for gi, gp in enumerate(baseline_groups_new):
+            for bl in gp:
+                bl_ind = np.where(uvd.baseline_array == bl)
+                bl_vec = bl_positions[bl_ind]
+                nt.assert_true(np.allclose(np.sqrt(np.abs(np.dot(bl_vec, vec_bin_centers[gi]))), lens[gi], atol=tol))
 
-    # Compare baseline groups:
-    for c, blg in enumerate(baseline_groups):
-        bl = blg[0]
-        ind = np.sum(np.where([bl in gp for gp in baseline_groups_new]))
-        nt.assert_equal(baseline_groups_new[ind], blg)
+        # Compare baseline groups:
+        a = [tuple(el) for el in baseline_groups]
+        b = [tuple(el) for el in baseline_groups_new]
+        nt.assert_equal(set(a), set(b))
 
     tol = 0.05
 
