@@ -8,6 +8,10 @@ from setuptools import setup, Extension
 import glob
 import os
 import io
+import sys
+import platform
+from distutils.sysconfig import get_config_var
+from distutils.version import LooseVersion
 import numpy as np
 import json
 
@@ -23,6 +27,23 @@ with open(os.path.join('pyuvdata', 'GIT_INFO'), 'w') as outfile:
 with io.open('README.md', 'r', encoding='utf-8') as readme_file:
     readme = readme_file.read()
 
+
+def is_platform_mac():
+    return sys.platform == 'darwin'
+
+
+# For mac, ensure extensions are built for macos 10.9 when compiling on a
+# 10.9 system or above, overriding distuitls behaviour which is to target
+# the version that python was built for. This may be overridden by setting
+# MACOSX_DEPLOYMENT_TARGET before calling setup.py
+# implementation based on pandas, see https://github.com/pandas-dev/pandas/issues/23424
+if is_platform_mac():
+    if 'MACOSX_DEPLOYMENT_TARGET' not in os.environ:
+        current_system = LooseVersion(platform.mac_ver()[0])
+        python_target = LooseVersion(
+            get_config_var('MACOSX_DEPLOYMENT_TARGET'))
+        if python_target < '10.9' and current_system >= '10.9':
+            os.environ['MACOSX_DEPLOYMENT_TARGET'] = '10.9'
 
 global_c_macros = [
     ('NPY_NO_DEPRECATED_API', 'NPY_1_7_API_VERSION'),
