@@ -17,6 +17,8 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 - Possible bug where `check_variables` dictionary can change size during `read_miriad` call
+- Building pyuvdata on macOS now targets minimum macOS 10.9 if run on macOS 10.9 or above
+
 
 ## [1.3.7] - 2019-04-02
 
