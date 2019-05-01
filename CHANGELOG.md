@@ -3,6 +3,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.3.8] - 2019-05-01
+
 ### Added
 - Optional `x_orientation` parameter to utils functions polstr2num, polnum2str, jstr2num and jnum2str to allow for E/N based polarization strings (rather than just x/y based ones)
 - New optional `x_orientation` parameter on UVBeam (paralleling UVData and UVCal), with read/write support in beamfits
@@ -16,8 +18,8 @@ All notable changes to this project will be documented in this file.
 - `UVData.order_pols` method in favor of `UVData.reorder_pols`.
 
 ### Fixed
-- Possible bug where `check_variables` dictionary can change size during `read_miriad` call
 - Building pyuvdata on macOS now targets minimum macOS 10.9 if run on macOS 10.9 or above
+- Possible bug where `check_variables` dictionary can change size during `read_miriad` call
 
 
 ## [1.3.7] - 2019-04-02
