@@ -490,35 +490,37 @@ def test_redundancy_finder():
             bl_vec = bl_positions[bl_ind]
             nt.assert_true(np.allclose(np.sqrt(np.dot(bl_vec, vec_bin_centers[gi])), lens[gi], atol=tol))
 
-    # Now jostle the baselines around by 25cm and see if we can recover the same redundancies to that tolerance.
-    tol = 0.25  # meters. Less than the smallest baseline in the file.
+    # Shift the baselines around in a circle. Check that the same baselines are recovered to the corresponding tolerance increase.
+    # This moves one baseline at a time by a fixed displacement and checks that the redundant groups are the same.
+
+    hightol = 0.25  # meters. Less than the smallest baseline in the file.
     Nbls = uvd.Nbls
-    Ntrials = 50
-    for i in range(Ntrials):
-        shift_dists = np.random.uniform(low=0.0, high=tol / 2.1, size=Nbls)
-        shift_angs = np.random.uniform(low=0.0, high=2 * np.pi, size=Nbls)
-        shift_vecs = np.stack((shift_dists * np.cos(shift_angs), shift_dists * np.sin(shift_angs), np.zeros(Nbls))).T
+    Nshifts = 5
+    shift_angs = np.linspace(0, 2 * np.pi, Nshifts)
+    base_shifts = np.stack(((hightol - tol) * np.cos(shift_angs), (hightol - tol) * np.sin(shift_angs), np.zeros(Nshifts))).T
+    for sh in base_shifts:
+        for bi in range(Nbls):
+            # Shift one baseline at a time.
+            bl_positions_new = uvd.uvw_array
+            bl_positions_new[bi] += sh
 
-        bl_positions_new = uvd.uvw_array + shift_vecs
+            baseline_groups_new, vec_bin_centers, lens = uvutils.get_baseline_redundancies(uvd.baseline_array, bl_positions_new, tol=hightol)
 
-        baseline_groups_new, vec_bin_centers, lens = uvutils.get_baseline_redundancies(uvd.baseline_array, bl_positions_new, tol=tol)
+            for gi, gp in enumerate(baseline_groups_new):
+                for bl in gp:
+                    bl_ind = np.where(uvd.baseline_array == bl)
+                    bl_vec = bl_positions[bl_ind]
+                    nt.assert_true(np.allclose(np.sqrt(np.abs(np.dot(bl_vec, vec_bin_centers[gi]))), lens[gi], atol=hightol))
 
-        for gi, gp in enumerate(baseline_groups_new):
-            for bl in gp:
-                bl_ind = np.where(uvd.baseline_array == bl)
-                bl_vec = bl_positions[bl_ind]
-                nt.assert_true(np.allclose(np.sqrt(np.abs(np.dot(bl_vec, vec_bin_centers[gi]))), lens[gi], atol=tol))
-
-        # Compare baseline groups:
-        a = [tuple(el) for el in baseline_groups]
-        b = [tuple(el) for el in baseline_groups_new]
-        nt.assert_equal(set(a), set(b))
+            # Compare baseline groups:
+            a = [tuple(el) for el in baseline_groups]
+            b = [tuple(el) for el in baseline_groups_new]
+            nt.assert_equal(set(a), set(b))
 
     tol = 0.05
 
-    antpos, antnums = uvtest.checkWarnings(uvd.get_ENU_antpos, category=DeprecationWarning,
-                                           message='The default for the `center` '
-                                                   'keyword has changed')
+    antpos, antnums = uvd.get_ENU_antpos()
+
     baseline_groups_ants, vec_bin_centers, lens = uvutils.get_antenna_redundancies(antnums, antpos,
                                                                                    tol=tol, include_autos=False)
     # Under these conditions, should see 19 redundant groups in the file.
