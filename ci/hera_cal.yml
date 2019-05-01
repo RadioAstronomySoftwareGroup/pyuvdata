@@ -5,6 +5,7 @@ channels:
 dependencies:
   - aipy
   - astropy
+  - cached-property
   - h5py
   - healpy
   - matplotlib
