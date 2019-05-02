@@ -22,7 +22,11 @@ class UVFlag(object):
 
     def __init__(self, input, mode='metric', copy_flags=False, waterfall=False, history='',
                  label=''):
-        '''Initialize UVFlag object.
+        '''Initialize UVFlag object. Metadata is copied from input object. If input
+        is subclass of UVData or UVCal, the weights_array will be set to all ones.
+        Input lists or tuples are iterated through, treating each entry with an
+        individual UVFlag init.
+
         Args:
             input: UVData object, UVCal object, or path to previously saved UVFlag object.
                    Can also be a list of any compatible combination of the above options.
@@ -70,11 +74,8 @@ class UVFlag(object):
                 self.polarization_array = input.jones_array
                 self.lst_array = lst_from_uv(input)[ri]
             if copy_flags:
-                self.metric_array = flags2waterfall(input, keep_pol=True)
-                self.history += ' Waterfall generated from ' + str(input.__class__) + ' object.'
-                if self.mode == 'flag':
-                    warnings.warn('Copying flags into waterfall results in mode=="metric".')
-                    self.mode = 'metric'
+                raise NotImplementedError('Cannot copy flags when initializing '
+                                          ' waterfall UVFlag from UVData or UVCal.')
             else:
                 if self.mode == 'flag':
                     self.flag_array = np.zeros((len(self.time_array),
@@ -127,8 +128,11 @@ class UVFlag(object):
                     self.flag_array = np.zeros_like(input.flag_array)
                 elif self.mode == 'metric':
                     self.metric_array = np.zeros_like(input.flag_array).astype(np.float)
+        else:
+            raise ValueError('input to UVFlag.__init__ must be one of: list, tuple, '
+                             'string, UVData, or UVCal.')
 
-        if not isinstance(input, str):
+        if issubclass(input.__class__, (UVData, UVCal)):
             if self.mode == 'flag':
                 self.weights_array = np.ones(self.flag_array.shape)
             else:
