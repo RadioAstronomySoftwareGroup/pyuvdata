@@ -873,6 +873,8 @@ def test_multi_files():
     uvtest.checkWarnings(uv_full.unphase_to_drift, category=DeprecationWarning,
                          message='The xyz array in ENU_from_ECEF is being '
                                  'interpreted as (Npts, 3)')
+    uv_full.conjugate_bls('ant1<ant2')
+
     uv1 = copy.deepcopy(uv_full)
     uv2 = copy.deepcopy(uv_full)
     uv1.select(freq_chans=np.arange(0, 32))

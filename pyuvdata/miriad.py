@@ -547,6 +547,9 @@ class Miriad(UVData):
             latitude, longitude, altitude = self.telescope_location_lat_lon_alt_degrees
             miriad_lsts = uvutils.get_lst_for_time(miriad_time_array, latitude, longitude, altitude)
 
+        # Miriad requires j>i which we call ant1<ant2
+        self.conjugate_bls(convention='ant1<ant2')
+
         if run_check:
             self.check(check_extra=check_extra,
                        run_check_acceptability=run_check_acceptability)
@@ -606,6 +609,10 @@ class Miriad(UVData):
         if self.x_orientation is not None:
             uv.add_var('xorient', 'a')
             uv['xorient'] = self.x_orientation
+        if self.blt_order is not None:
+            uv.add_var('bltorder', 'a')
+            uv['bltorder'] = self.blt_order
+
         if self.antenna_diameters is not None:
             if not np.allclose(self.antenna_diameters, self.antenna_diameters[0]):
                 warnings.warn('Antenna diameters are not uniform, but miriad only'
@@ -796,8 +803,8 @@ class Miriad(UVData):
 
                 data = self.data_array[viscnt, 0, :, polcnt]
                 flags = self.flag_array[viscnt, 0, :, polcnt]
-                if i > j:
-                    i, j, data = j, i, np.conjugate(data)
+                assert (j >= i), ('Miriad requires ant1<ant2 which should be '
+                                  'guaranteed by prior conjugate_bls call')
                 preamble = (uvw, t, (i, j))
 
                 uv.write(preamble, data, flags)
@@ -960,6 +967,9 @@ class Miriad(UVData):
             self.timesys = uv['timesys'].replace('\x00', '')
         if 'xorient' in uv.vartable.keys():
             self.x_orientation = uv['xorient'].replace('\x00', '')
+        if 'bltorder' in uv.vartable.keys():
+            self.blt_order = uv['bltorder'].replace('\x00', '')
+        self.conj_convention = 'ant1<ant2'
 
         return default_miriad_variables, other_miriad_variables, extra_miriad_variables
 

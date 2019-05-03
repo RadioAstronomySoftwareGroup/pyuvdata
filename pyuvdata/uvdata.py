@@ -288,6 +288,23 @@ class UVData(UVBase):
                                               required=False, expected_type=str,
                                               acceptable_vals=['east', 'north'])
 
+        blt_order_options = ['time', 'baseline', 'ant1', 'ant2', 'bda']
+        desc = ('Ordering of the data array along the blt axis. A tuple with '
+                'the major the minor order (minor order is None if order is "bda"). '
+                'The allowed values are: '
+                + ' ,'.join([str(val) for val in blt_order_options]))
+        self._blt_order = uvp.UVParameter('blt_order', description=desc, form=(2,),
+                                          required=False, expected_type=str,
+                                          acceptable_vals=blt_order_options)
+
+        conj_convention_values = ['ant1<ant2', 'ant2<ant1', 'u<0', 'u>0', 'v<0', 'v>0']
+        desc = ('Conjugation convention of the baselines, specifying which '
+                'baseline orientations are present in the data. Values can be: '
+                + ' ,'.join(conj_convention_values))
+        self._conj_convention = uvp.UVParameter('conj_convention', description=desc,
+                                                required=False, expected_type=str,
+                                                acceptable_vals=conj_convention_values)
+
         desc = ('Any user supplied extra keywords, type=dict. Keys should be '
                 '8 character or less strings if writing to uvfits or miriad files. '
                 'Use the special key "comment" for long multi-line string comments.')
@@ -960,6 +977,9 @@ class UVData(UVBase):
             else:
                 uvw_array_use = copy.copy(self.uvw_array)
 
+        if isinstance(convention, str):
+            self.conj_convention = convention
+
         if convention == 'ant1<ant2':
             index_array = np.asarray(self.ant_1_array > self.ant_2_array).nonzero()
         elif convention == 'ant2<ant1':
@@ -1066,8 +1086,8 @@ class UVData(UVBase):
                       'reorder_pols in version 1.5', DeprecationWarning)
         self.reorder_pols(order=order)
 
-    def reorder_blts(self, order='time', minor_order=None, bl_convention=None,
-                     bl_conv_use_enu=True, run_check=True, check_extra=True,
+    def reorder_blts(self, order='time', minor_order=None, conj_convention=None,
+                     conj_convention_use_enu=True, run_check=True, check_extra=True,
                      run_check_acceptability=True):
         """
         Arrange blt axis according to desired order. Optionally conjugate some baselines.
@@ -1084,11 +1104,11 @@ class UVData(UVBase):
             if order is `ant1`, or `ant2` this defaults to the other antenna,
             if order is `baseline` the only allowed value is `time`. Ignored if
             order is `bda` If this is the same as order, it is reset to the default.
-        bl_convention : str or array_like of int
+        conj_convention : str or array_like of int
             Optionally conjugate baselines to make the baselines have the
             desired orientation. See conjugate_bls for allowed values and details.
-        bl_conv_use_enu: bool
-            If `bl_convention` is set, this is passed to conjugate_bls, see that
+        conj_convention_use_enu: bool
+            If `conj_convention` is set, this is passed to conjugate_bls, see that
             method for details.
         run_check : bool
             Option to check for the existence and proper shapes of parameters
@@ -1104,10 +1124,6 @@ class UVData(UVBase):
         ValueError
             If parameter values are inappropriate
 
-        Warns
-        ------
-        UserWarning
-            If minor order will be ignored because of what order is set to.
         """
         if order not in ['time', 'baseline', 'ant1', 'ant2', 'bda']:
             if isinstance(order, (np.ndarray, list, tuple)):
@@ -1116,8 +1132,6 @@ class UVData(UVBase):
                         or order.dtype not in [int, np.int, np.int32, np.int64]):
                     raise ValueError('If order is an index array, it must '
                                      'contain integers and be length Nblts.')
-                if minor_order is not None:
-                    warnings.warn('Minor order will be ignored because order is an index array')
             else:
                 raise ValueError("order must be one of 'time', 'baseline', "
                                  "'ant1', 'ant2', 'bda' or an index array of "
@@ -1144,11 +1158,12 @@ class UVData(UVBase):
             elif order == 'ant2':
                 minor_order = 'ant1'
 
-        if minor_order is not None and order == 'bda':
-            warnings.warn('Minor order will be ignored because order is "bda"')
+        if isinstance(order, str):
+            self.blt_order = (order, minor_order)
 
-        if bl_convention is not None:
-            self.conjugate_bls(convention=bl_convention, use_enu=bl_conv_use_enu)
+        if conj_convention is not None:
+            self.conjugate_bls(convention=conj_convention,
+                               use_enu=conj_convention_use_enu)
 
         if not isinstance(order, np.ndarray):
             # Use lexsort to sort along different arrays in defined order.

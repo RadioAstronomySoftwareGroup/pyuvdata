@@ -54,13 +54,14 @@ def uvdata_props():
 
     extra_parameters = ['_extra_keywords', '_antenna_positions',
                         '_x_orientation', '_antenna_diameters',
+                        '_blt_order',
                         '_gst0', '_rdate', '_earth_omega', '_dut1',
                         '_timesys', '_uvplane_reference_time',
                         '_phase_center_ra', '_phase_center_dec',
                         '_phase_center_epoch', '_phase_center_frame']
 
     extra_properties = ['extra_keywords', 'antenna_positions',
-                        'x_orientation', 'antenna_diameters', 'gst0',
+                        'x_orientation', 'antenna_diameters', 'blt_order', 'gst0',
                         'rdate', 'earth_omega', 'dut1', 'timesys',
                         'uvplane_reference_time',
                         'phase_center_ra', 'phase_center_dec',
@@ -1796,6 +1797,8 @@ def test_fast_concat():
 
     # reorder blts to enable comparison
     uv2.reorder_blts()
+    nt.assert_equal(uv2.blt_order, ('time', 'baseline'))
+    uv2.blt_order = None
     uv2.history = uv_full.history
     assert uv2 == uv_full
 
@@ -1835,6 +1838,8 @@ def test_fast_concat():
 
     # reorder blts to enable comparison
     uv2.reorder_blts()
+    nt.assert_equal(uv2.blt_order, ('time', 'baseline'))
+    uv2.blt_order = None
     uv2.history = uv_full.history
     nt.assert_equal(uv2, uv_full)
 

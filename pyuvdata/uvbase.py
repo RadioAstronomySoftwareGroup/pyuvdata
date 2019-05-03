@@ -269,7 +269,7 @@ class UVBase(object):
                                              ' type. Is: ' + str(type(param.value))
                                              + '. Should be: ' + str(param.expected_type))
                     else:
-                        if isinstance(param.value, list):
+                        if isinstance(param.value, (list, tuple)):
                             # List needs to be handled differently than array
                             # list values may be different types, so they all need to be checked
                             for item in param.value:
