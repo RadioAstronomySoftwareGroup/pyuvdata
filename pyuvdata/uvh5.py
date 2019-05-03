@@ -192,6 +192,10 @@ class UVH5(UVData):
             self.timesys = _read_uvh5_string(header['timesys'], filename)
         if 'x_orientation' in header:
             self.x_orientation = _read_uvh5_string(header['x_orientation'], filename)
+        if 'blt_order' in header:
+            self.blt_order = _read_uvh5_string(header['blt_order'], filename)
+        if 'conj_convention' in header:
+            self.conj_convention = _read_uvh5_string(header['conj_convention'], filename)
         if 'antenna_diameters' in header:
             self.antenna_diameters = header['antenna_diameters'][()]
         if 'uvplane_reference_time' in header:
@@ -575,6 +579,10 @@ class UVH5(UVData):
             header['timesys'] = np.string_(self.timesys)
         if self.x_orientation is not None:
             header['x_orientation'] = np.string_(self.x_orientation)
+        if self.blt_order is not None:
+            header['blt_order'] = np.string_(self.blt_order)
+        if self.conj_convention is not None:
+            header['conj_convention'] = np.string_(self.conj_convention)
         if self.antenna_diameters is not None:
             header['antenna_diameters'] = self.antenna_diameters
         if self.uvplane_reference_time is not None:
