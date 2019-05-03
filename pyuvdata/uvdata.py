@@ -913,6 +913,90 @@ class UVData(UVBase):
             self.phase(phase_center_ra, phase_center_dec, phase_center_epoch,
                        phase_frame=output_phase_frame)
 
+    def conjugate_bls(self, convention='ant1<ant2', use_enu=True):
+        """
+        Conjugate baselines according to one of the supported conventions.
+
+        This will fail if only one of the cross pols is present (because
+        conjugation requires changing the polarization number for cross pols).
+
+        Parameters
+        ----------
+        convention : str or array_like of int
+            A convention for the directions of the baselines, options are:
+            'ant1<ant2', 'ant2<ant1', 'u<0', 'u>0', 'v<0', 'v>0' or an
+            index array of blt indices to conjugate.
+        use_enu : bool
+            Use true antenna positions to determine uv location (as opposed to
+            uvw array). Only applies if `convention` is 'u<0', 'u>0', 'v<0', 'v>0'.
+            Set to False to use uvw array values.
+
+        Raises
+        ------
+        ValueError
+            If convention is not an allowed value or if not all conjugate pols exist.
+        """
+        if convention not in ['ant1<ant2', 'ant2<ant1', 'u<0', 'u>0', 'v<0', 'v>0']:
+            if isinstance(convention, (np.ndarray, list, tuple)):
+                convention = np.array(convention)
+                if (np.max(convention) >= self.Nblts
+                        or convention.dtype not in [int, np.int, np.int32, np.int64]):
+                    raise ValueError('If convention is an index array, it must '
+                                     'contain integers and have values less than NBlts')
+            else:
+                raise ValueError("convention must be one of 'ant1<ant2', "
+                                 "'ant2<ant1', 'u<0', 'u>0', 'v<0', 'v>0' or "
+                                 "an index array with values less than NBlts")
+
+        if convention in ['u<0', 'u>0', 'v<0', 'v>0']:
+            if use_enu is True:
+                enu, anum = self.get_ENU_antpos()
+                anum = anum.tolist()
+                uvw_array_use = np.zeros_like(self.uvw_array)
+                for i, bl in enumerate(self.baseline_array):
+                    a1, a2 = self.ant_1_array[i], self.ant_2_array[i]
+                    i1, i2 = anum.index(a1), anum.index(a2)
+                    uvw_array_use[i, :] = enu[i2] - enu[i1]
+            else:
+                uvw_array_use = copy.copy(self.uvw_array)
+
+        if convention == 'ant1<ant2':
+            index_array = np.asarray(self.ant_1_array > self.ant_2_array).nonzero()
+        elif convention == 'ant2<ant1':
+            index_array = np.asarray(self.ant_2_array > self.ant_1_array).nonzero()
+        elif convention == 'u<0':
+            index_array = np.asarray((uvw_array_use[:, 0] > 0)
+                                     | (uvw_array_use[:, 1] < 0)
+                                     | (uvw_array_use[:, 2] < 0 and uvw_array_use[:, 0]
+                                        == uvw_array_use[:, 1] == 0)).nonzero()
+        elif convention == 'u>0':
+            index_array = np.asarray((uvw_array_use[:, 0] < 0)
+                                     | (uvw_array_use[:, 1] < 0)
+                                     | (uvw_array_use[:, 2] < 0 and uvw_array_use[:, 0]
+                                        == uvw_array_use[:, 1] == 0)).nonzero()
+        elif convention == 'v<0':
+            index_array = np.asarray((uvw_array_use[:, 1] > 0)
+                                     | (uvw_array_use[:, 0] < 0)
+                                     | (uvw_array_use[:, 2] < 0 and uvw_array_use[:, 0]
+                                        == uvw_array_use[:, 1] == 0)).nonzero()
+        elif convention == 'v>0':
+            index_array = np.asarray((uvw_array_use[:, 1] < 0)
+                                     | (uvw_array_use[:, 0] < 0)
+                                     | (uvw_array_use[:, 2] < 0 and uvw_array_use[:, 0]
+                                        == uvw_array_use[:, 1] == 0)).nonzero()
+
+        if index_array.size > 0:
+            new_pol_inds = uvutils.reorder_conj_pols(self.polarization_array)
+
+            self.uvw_array[index_array] *= (-1)
+            for pol_ind in np.arange(self.Npols):
+                self.data_array[index_array, :, :, new_pol_inds[pol_ind]] = \
+                    np.conj(self.data_array[index_array, :, :, pol_ind])
+            self.ant_1_array[index_array] = self.ant_2_array[index_array]
+            self.ant_2_array[index_array] = self.ant_1_array[index_array]
+            self.baseline_array[index_array] = self.antnums_to_baseline(
+                self.ant_1_array[index_array], self.ant_2_array[index_array])
+
     def reorder_pols(self, order='AIPS', run_check=True, check_extra=True,
                      run_check_acceptability=True):
         """
@@ -974,33 +1058,48 @@ class UVData(UVBase):
                       'reorder_pols in version 1.5', DeprecationWarning)
         self.reorder_pols(order=order)
 
-    def reorder_blts(self, order='time', minor_order=None, bl_ant_order=None,
-                     run_check=True, check_extra=True,
+    def reorder_blts(self, order='time', minor_order=None, bl_convention=None,
+                     bl_conv_use_enu=True, run_check=True, check_extra=True,
                      run_check_acceptability=True):
         """
-        Arrange blt axis according to desired order. Optionally conjugate according to ant_order.
+        Arrange blt axis according to desired order. Optionally conjugate some baselines.
 
-        Args:
-            order (str): A string describing the desired order along the blt axis.
-                Options are: 'time', 'baseline', 'ant1', 'ant2', 'bda' or an
-                index array of length Nblts that specifies the new order.
-            minor_order(str): Optionally specify a secondary ordering. Default
-                depends on how order is set: if order is 'time', this defaults
-                to 'baseline', if order is 'ant1', or 'ant2' this defaults to
-                the other antenna, if order is 'baseline' the only allowed value
-                is 'time'. If this is the same as order, it is reset to the default.
-            bl_ant_order(str): Optionally conjugate baselines to make the baselines
-                have the desired orientation. This will fail if only one of the
-                cross pols is present (because conjugation requires changing the
-                polarization number for cross pols).
-                Options are: 'ant1' (meaning orient baselines so ant1>ant2), or
-                'ant2' (meaning orient baselines so ant2>ant1)
-            run_check: Option to check for the existence and proper shapes of
-                parameters after reordering. Default is True.
-            check_extra: Option to check optional parameters as well as required
-                ones. Default is True.
-            run_check_acceptability: Option to check acceptable range of the values of
-                parameters after reordering. Default is True.
+        Parameters
+        ----------
+        order : str or array_like of int
+            A string describing the desired order along the blt axis.
+            Options are: `time`, `baseline`, `ant1`, `ant2`, `bda` or an
+            index array of length Nblts that specifies the new order.
+        minor_order : str
+            Optionally specify a secondary ordering. Default depends on how
+            order is set: if order is 'time', this defaults to `baseline`,
+            if order is `ant1`, or `ant2` this defaults to the other antenna,
+            if order is `baseline` the only allowed value is `time`. Ignored if
+            order is `bda` If this is the same as order, it is reset to the default.
+        bl_convention : str or array_like of int
+            Optionally conjugate baselines to make the baselines have the
+            desired orientation. See conjugate_bls for allowed values and details.
+        bl_conv_use_enu: bool
+            If `bl_convention` is set, this is passed to conjugate_bls, see that
+            method for details.
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            after reordering.
+        check_extra : bool
+            Option to check optional parameters as well as required ones.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters after
+            reordering.
+
+        Raises
+        ------
+        ValueError
+            If parameter values are inappropriate
+
+        Warns
+        ------
+        UserWarning
+            If minor order will be ignored because of what order is set to.
         """
         if order not in ['time', 'baseline', 'ant1', 'ant2', 'bda']:
             if isinstance(order, (np.ndarray, list, tuple)):
@@ -1009,6 +1108,8 @@ class UVData(UVBase):
                         or order.dtype not in [int, np.int, np.int32, np.int64]):
                     raise ValueError('If order is an index array, it must '
                                      'contain integers and be length Nblts.')
+                if minor_order is not None:
+                    warnings.warn('Minor order will be ignored because order is an index array'')
             else:
                 raise ValueError("order must be one of 'time', 'baseline', "
                                  "'ant1', 'ant2', 'bda' or an index array of "
@@ -1035,9 +1136,11 @@ class UVData(UVBase):
             elif order == 'ant2':
                 minor_order = 'ant1'
 
-        if bl_ant_order is not None:
-            if bl_ant_order not in ['ant1', 'ant2']:
-                raise ValueError("bl_ant_order can only be one of: 'ant1', 'ant2'")
+        if minor_order is not None and order == 'bda':
+            warnings.warn('Minor order will be ignored because order is "bda"')
+
+        if bl_convention is not None:
+            self.conjugate_bls(self, convention=bl_convention, use_enu=bl_conv_use_enu)
 
         if not isinstance(order, np.ndarray):
             # Use lexsort to sort along different arrays in defined order.
@@ -1067,15 +1170,10 @@ class UVData(UVBase):
                 # only allowed minor order is time
                 index_array = np.lexsort((self.time_array, self.baseline_array))
             elif order == 'bda':
-                # TODO: Paul needs to write this part
-                pass
+                index_array = np.lexsort((self.time_array, self.baseline_array, self.integration_time))
 
         else:
             index_array = order
-
-        if bl_ant_order is not None:
-            # TODO: call method to do conjugations
-            pass
 
         # actually do the reordering
         self.ant_1_array = self.ant_1_array[index_array]
