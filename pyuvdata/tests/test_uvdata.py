@@ -3132,10 +3132,12 @@ def test_redundancy_contract_expand():
 
     uv0 = UVData()
     uv0.read_uvfits(os.path.join(DATA_PATH, 'fewant_randsrc_airybeam_Nsrc100_10MHz.uvfits'))
+
     tol = 0.02   # Fails at lower precision because some baselines falling into multiple redundant groups
 
     # Assign identical data to each redundant group:
-    uvtest.checkWarnings(uv0._set_u_positive, message=['The default for the `center`'],
+    uvtest.checkWarnings(uv0.conjugate_bls, {'convention': 'u>0', 'use_enu': True},
+                         message=['The default for the `center`'],
                          nwarnings=1, category=DeprecationWarning)
     red_gps, centers, lengths = uv0.get_antenna_redundancies(tol=tol)
     for i, gp in enumerate(red_gps):
@@ -3145,8 +3147,13 @@ def test_redundancy_contract_expand():
             uv0.data_array[inds] += complex(i)
 
     uv2 = uv0.compress_by_redundancy(tol=tol, inplace=False)
-    uv0.compress_by_redundancy(tol=tol)
-    assert uv0 == uv2  # Compare in-place to separated compression.
+
+    # Compare in-place to separated compression.
+    uv3 = copy.deepcopy(uv0)
+    uv3.compress_by_redundancy(tol=tol)
+    assert uv2 == uv3
+
+    # check inflating gets back to the original
     uvtest.checkWarnings(
         uv2.inflate_by_redundancy,
         [tol],
@@ -3155,6 +3162,15 @@ def test_redundancy_contract_expand():
         message=['The default for the `center` keyword has changed.',
                  'Missing some redundant groups. Filling in available data.']
     )
+    uv2.history = uv0.history
+    # Inflation changes the baseline ordering into the order of the redundant groups.
+    # reorder bls for comparison
+    uv0.reorder_blts()
+    uv2.reorder_blts()
+    uv2._uvw_array.tols = [0, tol]
+
+    nt.assert_equal(uv2, uv0)
+
     uv3 = uv2.compress_by_redundancy(tol=tol, inplace=False)
     uvtest.checkWarnings(
         uv3.inflate_by_redundancy,
@@ -3164,8 +3180,9 @@ def test_redundancy_contract_expand():
         message=['The default for the `center` keyword has changed.',
                  'Missing some redundant groups. Filling in available data.']
     )
-    # Inflation changes the baseline ordering into the order of the redundant groups.
     # Confirm that we get the same result looping inflate -> compress -> inflate.
+    uv3.reorder_blts()
+
     uv2.history = uv3.history
     assert uv2 == uv3
 
@@ -3176,7 +3193,8 @@ def test_compress_redundancy_metadata_only():
     tol = 0.01
 
     # Assign identical data to each redundant group:
-    uvtest.checkWarnings(uv0._set_u_positive, message=['The default for the `center`'],
+    uvtest.checkWarnings(uv0.conjugate_bls, {'convention': 'u>0', 'use_enu': True},
+                         message=['The default for the `center`'],
                          nwarnings=1, category=DeprecationWarning)
     red_gps, centers, lengths = uv0.get_antenna_redundancies(tol=tol)
     for i, gp in enumerate(red_gps):
@@ -3239,7 +3257,8 @@ def test_quick_redundant_vs_redundant_test_array():
     uv.read_uvfits(os.path.join(DATA_PATH, 'fewant_randsrc_airybeam_Nsrc100_10MHz.uvfits'))
     uv.select(times=uv.time_array[0])
     uv.unphase_to_drift()
-    uvtest.checkWarnings(uv._set_u_positive, message=['The default for the `center`'],
+    uvtest.checkWarnings(uv.conjugate_bls, {'convention': 'u>0', 'use_enu': True},
+                         message=['The default for the `center`'],
                          nwarnings=1, category=DeprecationWarning)
     tol = 0.05
     # a quick and dirty redundancy calculation
@@ -3277,7 +3296,8 @@ def test_redundancy_finder_when_nblts_not_nbls_times_ntimes():
     uv = UVData()
     testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
     uvtest.checkWarnings(uv.read_uvfits, [testfile], message='Telescope EVLA is not')
-    uvtest.checkWarnings(uv._set_u_positive, message=['The default for the `center`'],
+    uvtest.checkWarnings(uv.conjugate_bls, {'convention': 'u>0', 'use_enu': True},
+                         message=['The default for the `center`'],
                          nwarnings=1, category=DeprecationWarning)
     # check that Nblts != Nbls * Ntimes
     assert uv.Nblts != uv.Nbls * uv.Ntimes

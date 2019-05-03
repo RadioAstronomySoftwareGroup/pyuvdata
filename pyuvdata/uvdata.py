@@ -966,36 +966,44 @@ class UVData(UVBase):
             index_array = np.asarray(self.ant_2_array > self.ant_1_array).nonzero()
         elif convention == 'u<0':
             index_array = np.asarray((uvw_array_use[:, 0] > 0)
-                                     | (uvw_array_use[:, 1] < 0)
-                                     | (uvw_array_use[:, 2] < 0 and uvw_array_use[:, 0]
-                                        == uvw_array_use[:, 1] == 0)).nonzero()
+                                     | (uvw_array_use[:, 1] < 0) & (uvw_array_use[:, 0] == 0)
+                                     | ((uvw_array_use[:, 2] < 0)
+                                        & (uvw_array_use[:, 0] == 0)
+                                        & (uvw_array_use[:, 1] == 0))).nonzero()
         elif convention == 'u>0':
             index_array = np.asarray((uvw_array_use[:, 0] < 0)
-                                     | (uvw_array_use[:, 1] < 0)
-                                     | (uvw_array_use[:, 2] < 0 and uvw_array_use[:, 0]
-                                        == uvw_array_use[:, 1] == 0)).nonzero()
+                                     | (uvw_array_use[:, 1] < 0) & (uvw_array_use[:, 0] == 0)
+                                     | ((uvw_array_use[:, 2] < 0)
+                                        & (uvw_array_use[:, 0] == 0)
+                                        & (uvw_array_use[:, 1] == 0))).nonzero()
         elif convention == 'v<0':
             index_array = np.asarray((uvw_array_use[:, 1] > 0)
-                                     | (uvw_array_use[:, 0] < 0)
-                                     | (uvw_array_use[:, 2] < 0 and uvw_array_use[:, 0]
-                                        == uvw_array_use[:, 1] == 0)).nonzero()
+                                     | (uvw_array_use[:, 0] < 0) & (uvw_array_use[:, 1] == 0)
+                                     | ((uvw_array_use[:, 2] < 0)
+                                        & (uvw_array_use[:, 0] == 0)
+                                        & (uvw_array_use[:, 1] == 0))).nonzero()
         elif convention == 'v>0':
             index_array = np.asarray((uvw_array_use[:, 1] < 0)
-                                     | (uvw_array_use[:, 0] < 0)
-                                     | (uvw_array_use[:, 2] < 0 and uvw_array_use[:, 0]
-                                        == uvw_array_use[:, 1] == 0)).nonzero()
+                                     | (uvw_array_use[:, 0] < 0) & (uvw_array_use[:, 1] == 0)
+                                     | ((uvw_array_use[:, 2] < 0)
+                                        & (uvw_array_use[:, 0] == 0)
+                                        & (uvw_array_use[:, 1] == 0))).nonzero()
 
-        if index_array.size > 0:
+        if index_array[0].size > 0:
             new_pol_inds = uvutils.reorder_conj_pols(self.polarization_array)
 
             self.uvw_array[index_array] *= (-1)
             for pol_ind in np.arange(self.Npols):
                 self.data_array[index_array, :, :, new_pol_inds[pol_ind]] = \
                     np.conj(self.data_array[index_array, :, :, pol_ind])
-            self.ant_1_array[index_array] = self.ant_2_array[index_array]
-            self.ant_2_array[index_array] = self.ant_1_array[index_array]
+
+            ant_1_vals = self.ant_1_array[index_array]
+            ant_2_vals = self.ant_2_array[index_array]
+            self.ant_1_array[index_array] = ant_2_vals
+            self.ant_2_array[index_array] = ant_1_vals
             self.baseline_array[index_array] = self.antnums_to_baseline(
                 self.ant_1_array[index_array], self.ant_2_array[index_array])
+            self.Nbls = np.unique(self.baseline_array).size
 
     def reorder_pols(self, order='AIPS', run_check=True, check_extra=True,
                      run_check_acceptability=True):
@@ -1109,7 +1117,7 @@ class UVData(UVBase):
                     raise ValueError('If order is an index array, it must '
                                      'contain integers and be length Nblts.')
                 if minor_order is not None:
-                    warnings.warn('Minor order will be ignored because order is an index array'')
+                    warnings.warn('Minor order will be ignored because order is an index array')
             else:
                 raise ValueError("order must be one of 'time', 'baseline', "
                                  "'ant1', 'ant2', 'bda' or an index array of "
@@ -1140,7 +1148,7 @@ class UVData(UVBase):
             warnings.warn('Minor order will be ignored because order is "bda"')
 
         if bl_convention is not None:
-            self.conjugate_bls(self, convention=bl_convention, use_enu=bl_conv_use_enu)
+            self.conjugate_bls(convention=bl_convention, use_enu=bl_conv_use_enu)
 
         if not isinstance(order, np.ndarray):
             # Use lexsort to sort along different arrays in defined order.
@@ -3736,8 +3744,9 @@ class UVData(UVBase):
         Convenience method for getting baseline redundancies to a given tolerance
         from antenna positions.
 
-        Note that the baseline numbers returned will only correspond with those in the baseline_array under the
-        u-positive convention. The function UVData._set_u_positive will flip all baselines in the UVData object
+        Note that the baseline numbers returned will only correspond with those
+        in the baseline_array under the u-positive convention. Use the conjugate_bls
+        method with convention='u>0' to flip all baselines in the UVData object
         to follow this.
 
         Args:
@@ -3794,25 +3803,6 @@ class UVData(UVBase):
         return self.select(bls=bl_ants, inplace=inplace, metadata_only=metadata_only,
                            keep_all_metadata=keep_all_metadata)
 
-    def _set_u_positive(self):
-        """
-        Flip and conjugate data/baselines to follow the u-positive convention:
-            In ENU frame,  u>0, v>0 if u==0, and w>0 if u==v==0.
-        """
-        enu, anum = self.get_ENU_antpos()
-        anum = anum.tolist()
-        for i, bl in enumerate(self.baseline_array):
-            a1, a2 = self.ant_1_array[i], self.ant_2_array[i]
-            i1, i2 = anum.index(a1), anum.index(a2)
-            u, v, w = enu[i2] - enu[i1]
-            flip_bl = (u < 0) or (v < 0 and u == 0) or (w < 0 and u == v == 0)
-            if flip_bl:
-                self.uvw_array[i] *= (-1)
-                self.data_array[i] = np.conj(self.data_array[i])
-                self.ant_1_array[i] = a2
-                self.ant_2_array[i] = a1
-                self.baseline_array[i] = self.antnums_to_baseline(a2, a1)
-
     def inflate_by_redundancy(self, tol=1.0):
         """
         Expand data to full size, copying data among redundant baselines.
@@ -3821,8 +3811,9 @@ class UVData(UVBase):
             tol = Redundancy tolerance in meters (default 1.0m)
         """
 
-        # get_antenna_redundancies method gives baselines under the u-positive convention (u>0, v>0 if u==0, w>0 if u==v==0)
-        self._set_u_positive()
+        # get_antenna_redundancies method gives baselines under the u-positive
+        # convention (u>0, v>0 if u==0, w>0 if u==v==0)
+        self.conjugate_bls(convention='u>0', use_enu=True)
 
         red_gps, centers, lengths = self.get_antenna_redundancies(tol=tol)
 
@@ -3866,8 +3857,8 @@ class UVData(UVBase):
             self.Nants_data = np.unique(self.ant_1_array.tolist() + self.ant_2_array.tolist()).size
         self.Nbls = len(bl_array_full)
         self.Nblts = self.Nbls * self.Ntimes
-        self.time_array = np.repeat(np.unique(self.time_array), self.Nbls)
-        self.lst_array = np.repeat(np.unique(self.lst_array), self.Nbls)
+        self.time_array = self.time_array[blt_map]
+        self.lst_array = self.lst_array[blt_map]
         self.integration_time = self.integration_time[blt_map]
         self.uvw_array = self.uvw_array[blt_map, ...]
 
