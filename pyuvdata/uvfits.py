@@ -354,7 +354,6 @@ class UVFITS(UVData):
             altitude = vis_hdr.pop('ALT', None)
             self.x_orientation = vis_hdr.pop('XORIENT', None)
             self.blt_order = vis_hdr.pop('BLTORDER', None)
-            self.conj_convention = vis_hdr.pop('CONJCONV', None)
             self.history = str(vis_hdr.get('HISTORY', ''))
             if not uvutils._check_history_version(self.history, self.pyuvdata_version_str):
                 self.history += self.pyuvdata_version_str
@@ -809,9 +808,6 @@ class UVFITS(UVData):
 
         if self.blt_order is not None:
             hdu.header['BLTORDER'] = self.blt_order
-
-        if self.conj_convention is not None:
-            hdu.header['CONJCONV'] = self.conj_convention
 
         for line in self.history.splitlines():
             hdu.header.add_history(line)
