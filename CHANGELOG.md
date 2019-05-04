@@ -3,6 +3,9 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+- Changed the way interpolation splines are saved in UVBeam to fix errors related to polarization selections.
+
 ## [1.3.8] - 2019-05-01
 
 ### Added
@@ -18,7 +21,6 @@ All notable changes to this project will be documented in this file.
 - `UVData.order_pols` method in favor of `UVData.reorder_pols`.
 
 ### Fixed
-- Changed the way interpolation splines are saved in UVBeam to fix errors related to polarization selections.
 - Building pyuvdata on macOS now targets minimum macOS 10.9 if run on macOS 10.9 or above
 - Possible bug where `check_variables` dictionary can change size during `read_miriad` call
 
