@@ -969,7 +969,6 @@ class Miriad(UVData):
             self.x_orientation = uv['xorient'].replace('\x00', '')
         if 'bltorder' in uv.vartable.keys():
             self.blt_order = uv['bltorder'].replace('\x00', '')
-        self.conj_convention = 'ant1<ant2'
 
         return default_miriad_variables, other_miriad_variables, extra_miriad_variables
 

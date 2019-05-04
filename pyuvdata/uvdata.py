@@ -297,14 +297,6 @@ class UVData(UVBase):
                                           required=False, expected_type=str,
                                           acceptable_vals=blt_order_options)
 
-        conj_convention_values = ['ant1<ant2', 'ant2<ant1', 'u<0', 'u>0', 'v<0', 'v>0']
-        desc = ('Conjugation convention of the baselines, specifying which '
-                'baseline orientations are present in the data. Values can be: '
-                + ' ,'.join(conj_convention_values))
-        self._conj_convention = uvp.UVParameter('conj_convention', description=desc,
-                                                required=False, expected_type=str,
-                                                acceptable_vals=conj_convention_values)
-
         desc = ('Any user supplied extra keywords, type=dict. Keys should be '
                 '8 character or less strings if writing to uvfits or miriad files. '
                 'Use the special key "comment" for long multi-line string comments.')
@@ -953,69 +945,72 @@ class UVData(UVBase):
         ValueError
             If convention is not an allowed value or if not all conjugate pols exist.
         """
-        if convention not in ['ant1<ant2', 'ant2<ant1', 'u<0', 'u>0', 'v<0', 'v>0']:
-            if isinstance(convention, (np.ndarray, list, tuple)):
-                convention = np.array(convention)
-                if (np.max(convention) >= self.Nblts
-                        or convention.dtype not in [int, np.int, np.int32, np.int64]):
-                    raise ValueError('If convention is an index array, it must '
-                                     'contain integers and have values less than NBlts')
-            else:
+        if isinstance(convention, (np.ndarray, list, tuple)):
+            convention = np.array(convention)
+            if (np.max(convention) >= self.Nblts or np.min(convention) < 0
+                    or convention.dtype not in [int, np.int, np.int32, np.int64]):
+                raise ValueError('If convention is an index array, it must '
+                                 'contain integers and have values greater '
+                                 'than zero and less than NBlts')
+        else:
+            if convention not in ['ant1<ant2', 'ant2<ant1', 'u<0', 'u>0', 'v<0', 'v>0']:
                 raise ValueError("convention must be one of 'ant1<ant2', "
                                  "'ant2<ant1', 'u<0', 'u>0', 'v<0', 'v>0' or "
                                  "an index array with values less than NBlts")
 
-        if convention in ['u<0', 'u>0', 'v<0', 'v>0']:
-            if use_enu is True:
-                enu, anum = self.get_ENU_antpos()
-                anum = anum.tolist()
-                uvw_array_use = np.zeros_like(self.uvw_array)
-                for i, bl in enumerate(self.baseline_array):
-                    a1, a2 = self.ant_1_array[i], self.ant_2_array[i]
-                    i1, i2 = anum.index(a1), anum.index(a2)
-                    uvw_array_use[i, :] = enu[i2] - enu[i1]
-            else:
-                uvw_array_use = copy.copy(self.uvw_array)
-
         if isinstance(convention, str):
-            self.conj_convention = convention
+            if convention in ['u<0', 'u>0', 'v<0', 'v>0']:
+                if use_enu is True:
+                    enu, anum = self.get_ENU_antpos()
+                    anum = anum.tolist()
+                    uvw_array_use = np.zeros_like(self.uvw_array)
+                    for i, bl in enumerate(self.baseline_array):
+                        a1, a2 = self.ant_1_array[i], self.ant_2_array[i]
+                        i1, i2 = anum.index(a1), anum.index(a2)
+                        uvw_array_use[i, :] = enu[i2] - enu[i1]
+                else:
+                    uvw_array_use = copy.copy(self.uvw_array)
 
-        if convention == 'ant1<ant2':
-            index_array = np.asarray(self.ant_1_array > self.ant_2_array).nonzero()
-        elif convention == 'ant2<ant1':
-            index_array = np.asarray(self.ant_2_array > self.ant_1_array).nonzero()
-        elif convention == 'u<0':
-            index_array = np.asarray((uvw_array_use[:, 0] > 0)
-                                     | (uvw_array_use[:, 1] < 0) & (uvw_array_use[:, 0] == 0)
-                                     | ((uvw_array_use[:, 2] < 0)
-                                        & (uvw_array_use[:, 0] == 0)
-                                        & (uvw_array_use[:, 1] == 0))).nonzero()
-        elif convention == 'u>0':
-            index_array = np.asarray((uvw_array_use[:, 0] < 0)
-                                     | (uvw_array_use[:, 1] < 0) & (uvw_array_use[:, 0] == 0)
-                                     | ((uvw_array_use[:, 2] < 0)
-                                        & (uvw_array_use[:, 0] == 0)
-                                        & (uvw_array_use[:, 1] == 0))).nonzero()
-        elif convention == 'v<0':
-            index_array = np.asarray((uvw_array_use[:, 1] > 0)
-                                     | (uvw_array_use[:, 0] < 0) & (uvw_array_use[:, 1] == 0)
-                                     | ((uvw_array_use[:, 2] < 0)
-                                        & (uvw_array_use[:, 0] == 0)
-                                        & (uvw_array_use[:, 1] == 0))).nonzero()
-        elif convention == 'v>0':
-            index_array = np.asarray((uvw_array_use[:, 1] < 0)
-                                     | (uvw_array_use[:, 0] < 0) & (uvw_array_use[:, 1] == 0)
-                                     | ((uvw_array_use[:, 2] < 0)
-                                        & (uvw_array_use[:, 0] == 0)
-                                        & (uvw_array_use[:, 1] == 0))).nonzero()
+            if convention == 'ant1<ant2':
+                index_array = np.asarray(self.ant_1_array > self.ant_2_array).nonzero()
+            elif convention == 'ant2<ant1':
+                index_array = np.asarray(self.ant_2_array > self.ant_1_array).nonzero()
+            elif convention == 'u<0':
+                index_array = np.asarray((uvw_array_use[:, 0] > 0)
+                                         | (uvw_array_use[:, 1] < 0) & (uvw_array_use[:, 0] == 0)
+                                         | ((uvw_array_use[:, 2] < 0)
+                                            & (uvw_array_use[:, 0] == 0)
+                                            & (uvw_array_use[:, 1] == 0))).nonzero()
+            elif convention == 'u>0':
+                index_array = np.asarray((uvw_array_use[:, 0] < 0)
+                                         | (uvw_array_use[:, 1] < 0) & (uvw_array_use[:, 0] == 0)
+                                         | ((uvw_array_use[:, 2] < 0)
+                                            & (uvw_array_use[:, 0] == 0)
+                                            & (uvw_array_use[:, 1] == 0))).nonzero()
+            elif convention == 'v<0':
+                index_array = np.asarray((uvw_array_use[:, 1] > 0)
+                                         | (uvw_array_use[:, 0] < 0) & (uvw_array_use[:, 1] == 0)
+                                         | ((uvw_array_use[:, 2] < 0)
+                                            & (uvw_array_use[:, 0] == 0)
+                                            & (uvw_array_use[:, 1] == 0))).nonzero()
+            elif convention == 'v>0':
+                index_array = np.asarray((uvw_array_use[:, 1] < 0)
+                                         | (uvw_array_use[:, 0] < 0) & (uvw_array_use[:, 1] == 0)
+                                         | ((uvw_array_use[:, 2] < 0)
+                                            & (uvw_array_use[:, 0] == 0)
+                                            & (uvw_array_use[:, 1] == 0))).nonzero()
+        else:
+            index_array = convention
 
         if index_array[0].size > 0:
             new_pol_inds = uvutils.reorder_conj_pols(self.polarization_array)
 
             self.uvw_array[index_array] *= (-1)
+            orig_data_array = copy.copy(self.data_array)
+
             for pol_ind in np.arange(self.Npols):
                 self.data_array[index_array, :, :, new_pol_inds[pol_ind]] = \
-                    np.conj(self.data_array[index_array, :, :, pol_ind])
+                    np.conj(orig_data_array[index_array, :, :, pol_ind])
 
             ant_1_vals = self.ant_1_array[index_array]
             ant_2_vals = self.ant_2_array[index_array]
@@ -1125,14 +1120,14 @@ class UVData(UVBase):
             If parameter values are inappropriate
 
         """
-        if order not in ['time', 'baseline', 'ant1', 'ant2', 'bda']:
-            if isinstance(order, (np.ndarray, list, tuple)):
-                order = np.array(order)
-                if (order.size != self.Nblts
-                        or order.dtype not in [int, np.int, np.int32, np.int64]):
-                    raise ValueError('If order is an index array, it must '
-                                     'contain integers and be length Nblts.')
-            else:
+        if isinstance(order, (np.ndarray, list, tuple)):
+            order = np.array(order)
+            if (order.size != self.Nblts
+                    or order.dtype not in [int, np.int, np.int32, np.int64]):
+                raise ValueError('If order is an index array, it must '
+                                 'contain integers and be length Nblts.')
+        else:
+            if order not in ['time', 'baseline', 'ant1', 'ant2', 'bda']:
                 raise ValueError("order must be one of 'time', 'baseline', "
                                  "'ant1', 'ant2', 'bda' or an index array of "
                                  "length Nblts")
@@ -1158,12 +1153,14 @@ class UVData(UVBase):
             elif order == 'ant2':
                 minor_order = 'ant1'
 
-        if isinstance(order, str):
-            self.blt_order = (order, minor_order)
-
         if conj_convention is not None:
             self.conjugate_bls(convention=conj_convention,
                                use_enu=conj_convention_use_enu)
+
+        if isinstance(order, str):
+            self.blt_order = (order, minor_order)
+        else:
+            self.blt_order = None
 
         if not isinstance(order, np.ndarray):
             # Use lexsort to sort along different arrays in defined order.

@@ -1165,6 +1165,126 @@ def test_select_not_inplace():
     assert uv1 == uv_object
 
 
+def test_conjugate_bls():
+    uv1 = UVData()
+    testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    uvtest.checkWarnings(uv1.read_uvfits, [testfile], message='Telescope EVLA is not')
+
+    # file comes in with ant1<ant2
+    assert(np.min(uv1.ant_2_array - uv1.ant_1_array) >= 0)
+
+    # check everything swapped & conjugated when go to ant2<ant1
+    uv2 = copy.deepcopy(uv1)
+    uv2.conjugate_bls(convention='ant2<ant1')
+    assert(np.min(uv2.ant_1_array - uv2.ant_2_array) >= 0)
+
+    assert(np.allclose(uv1.ant_1_array, uv2.ant_2_array))
+    assert(np.allclose(uv1.ant_2_array, uv2.ant_1_array))
+    assert(np.allclose(uv1.uvw_array, -1 * uv2.uvw_array,
+                       rtol=uv1._uvw_array.tols[0], atol=uv1._uvw_array.tols[1]))
+
+    # complicated because of the polarization swaps
+    # polarization_array = [-1 -2 -3 -4]
+    assert(np.allclose(uv1.data_array[:, :, :, :2],
+                       np.conj(uv2.data_array[:, :, :, :2]),
+                       rtol=uv1._data_array.tols[0], atol=uv1._data_array.tols[1]))
+
+    assert(np.allclose(uv1.data_array[:, :, :, 2],
+                       np.conj(uv2.data_array[:, :, :, 3]),
+                       rtol=uv1._data_array.tols[0], atol=uv1._data_array.tols[1]))
+
+    assert(np.allclose(uv1.data_array[:, :, :, 3],
+                       np.conj(uv2.data_array[:, :, :, 2]),
+                       rtol=uv1._data_array.tols[0], atol=uv1._data_array.tols[1]))
+
+    # check everything returned to original values with original convention
+    uv2.conjugate_bls(convention='ant1<ant2')
+    assert(uv1 == uv2)
+
+    # conjugate a particular set of blts
+    blts_to_conjugate = np.arange(uv2.Nblts // 2)
+    blts_not_conjugated = np.arange(uv2.Nblts // 2, uv2.Nblts)
+    uv2.conjugate_bls(convention=blts_to_conjugate)
+
+    assert(np.allclose(uv1.ant_1_array[blts_to_conjugate], uv2.ant_2_array[blts_to_conjugate]))
+    assert(np.allclose(uv1.ant_2_array[blts_to_conjugate], uv2.ant_1_array[blts_to_conjugate]))
+    assert(np.allclose(uv1.ant_1_array[blts_not_conjugated], uv2.ant_1_array[blts_not_conjugated]))
+    assert(np.allclose(uv1.ant_2_array[blts_not_conjugated], uv2.ant_2_array[blts_not_conjugated]))
+
+    assert(np.allclose(uv1.uvw_array[blts_to_conjugate],
+                       -1 * uv2.uvw_array[blts_to_conjugate],
+                       rtol=uv1._uvw_array.tols[0], atol=uv1._uvw_array.tols[1]))
+    assert(np.allclose(uv1.uvw_array[blts_not_conjugated],
+                       uv2.uvw_array[blts_not_conjugated],
+                       rtol=uv1._uvw_array.tols[0], atol=uv1._uvw_array.tols[1]))
+
+    # complicated because of the polarization swaps
+    # polarization_array = [-1 -2 -3 -4]
+    assert(np.allclose(uv1.data_array[blts_to_conjugate, :, :, :2],
+                       np.conj(uv2.data_array[blts_to_conjugate, :, :, :2]),
+                       rtol=uv1._data_array.tols[0], atol=uv1._data_array.tols[1]))
+    assert(np.allclose(uv1.data_array[blts_not_conjugated, :, :, :2],
+                       uv2.data_array[blts_not_conjugated, :, :, :2],
+                       rtol=uv1._data_array.tols[0], atol=uv1._data_array.tols[1]))
+
+    assert(np.allclose(uv1.data_array[blts_to_conjugate, :, :, 2],
+                       np.conj(uv2.data_array[blts_to_conjugate, :, :, 3]),
+                       rtol=uv1._data_array.tols[0], atol=uv1._data_array.tols[1]))
+    assert(np.allclose(uv1.data_array[blts_not_conjugated, :, :, 2],
+                       uv2.data_array[blts_not_conjugated, :, :, 2],
+                       rtol=uv1._data_array.tols[0], atol=uv1._data_array.tols[1]))
+
+    assert(np.allclose(uv1.data_array[blts_to_conjugate, :, :, 3],
+                       np.conj(uv2.data_array[blts_to_conjugate, :, :, 2]),
+                       rtol=uv1._data_array.tols[0], atol=uv1._data_array.tols[1]))
+    assert(np.allclose(uv1.data_array[blts_not_conjugated, :, :, 3],
+                       uv2.data_array[blts_not_conjugated, :, :, 3],
+                       rtol=uv1._data_array.tols[0], atol=uv1._data_array.tols[1]))
+
+    # check uv half plane conventions
+    uv2.conjugate_bls(convention='u<0', use_enu=False)
+    assert(np.max(uv2.uvw_array[:, 0]) <= 0)
+
+    uv2.conjugate_bls(convention='u>0', use_enu=False)
+    assert(np.min(uv2.uvw_array[:, 0]) >= 0)
+
+    uv2.conjugate_bls(convention='v<0', use_enu=False)
+    assert(np.max(uv2.uvw_array[:, 1]) <= 0)
+
+    uv2.conjugate_bls(convention='v>0', use_enu=False)
+    assert(np.min(uv2.uvw_array[:, 1]) >= 0)
+
+    # unphase to drift to test using ENU positions
+    uv2.unphase_to_drift(use_ant_pos=True)
+    uv2.conjugate_bls(convention='u<0')
+    assert(np.max(uv2.uvw_array[:, 0]) <= 0)
+
+    uv2.conjugate_bls(convention='u>0')
+    assert(np.min(uv2.uvw_array[:, 0]) >= 0)
+
+    uv2.conjugate_bls(convention='v<0')
+    assert(np.max(uv2.uvw_array[:, 1]) <= 0)
+
+    uv2.conjugate_bls(convention='v>0')
+    assert(np.min(uv2.uvw_array[:, 1]) >= 0)
+
+    # test errors
+    with nt.assert_raises(ValueError) as cm:
+        uv2.conjugate_bls(convention='foo')
+    ex = cm.exception  # raised exception is available through exception property of context
+    nt.assert_true(ex.args[0].startswith('convention must be one of'))
+
+    with nt.assert_raises(ValueError) as cm:
+        uv2.conjugate_bls(convention=np.arange(5) - 1)
+    ex = cm.exception  # raised exception is available through exception property of context
+    nt.assert_true(ex.args[0].startswith('If convention is an index array'))
+
+    with nt.assert_raises(ValueError) as cm:
+        uv2.conjugate_bls(convention=[uv2.Nblts])
+    ex = cm.exception  # raised exception is available through exception property of context
+    nt.assert_true(ex.args[0].startswith('If convention is an index array'))
+
+
 def test_reorder_pols():
     # Test function to fix polarization order
     uv1 = UVData()
