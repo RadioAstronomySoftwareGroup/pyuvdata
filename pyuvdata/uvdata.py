@@ -290,7 +290,7 @@ class UVData(UVBase):
 
         blt_order_options = ['time', 'baseline', 'ant1', 'ant2', 'bda']
         desc = ('Ordering of the data array along the blt axis. A tuple with '
-                'the major the minor order (minor order is None if order is "bda"). '
+                'the major and minor order (minor order is omitted if order is "bda"). '
                 'The allowed values are: '
                 + ' ,'.join([str(val) for val in blt_order_options]))
         self._blt_order = uvp.UVParameter('blt_order', description=desc, form=(2,),
@@ -1126,72 +1126,102 @@ class UVData(UVBase):
                     or order.dtype not in [int, np.int, np.int32, np.int64]):
                 raise ValueError('If order is an index array, it must '
                                  'contain integers and be length Nblts.')
+            if minor_order is not None:
+                raise ValueError('Minor order cannot be set if order is an index array.')
         else:
             if order not in ['time', 'baseline', 'ant1', 'ant2', 'bda']:
                 raise ValueError("order must be one of 'time', 'baseline', "
                                  "'ant1', 'ant2', 'bda' or an index array of "
                                  "length Nblts")
 
-        if minor_order == order:
-            minor_order = None
+            if minor_order == order:
+                minor_order = None
 
-        if minor_order is not None:
-            if minor_order not in ['time', 'baseline', 'ant1', 'ant2']:
-                raise ValueError("minor_order can only be one of 'time', "
-                                 "'baseline', 'ant1', 'ant2'")
-            if isinstance(order, np.ndarray) or order == 'bda':
-                raise ValueError("minor_order cannot be specified if order is "
-                                 "'bda' or an index array.")
-            if order == 'baseline':
-                if minor_order in ['ant1', 'ant2']:
-                    raise ValueError('minor_order conflicts with order')
-        else:
-            if order == 'time':
-                minor_order = 'baseline'
-            elif order == 'ant1':
-                minor_order = 'ant2'
-            elif order == 'ant2':
-                minor_order = 'ant1'
+            if minor_order is not None:
+                if minor_order not in ['time', 'baseline', 'ant1', 'ant2']:
+                    raise ValueError("minor_order can only be one of 'time', "
+                                     "'baseline', 'ant1', 'ant2'")
+                if isinstance(order, np.ndarray) or order == 'bda':
+                    raise ValueError("minor_order cannot be specified if order is "
+                                     "'bda' or an index array.")
+                if order == 'baseline':
+                    if minor_order in ['ant1', 'ant2']:
+                        raise ValueError('minor_order conflicts with order')
+            else:
+                if order == 'time':
+                    minor_order = 'baseline'
+                elif order == 'ant1':
+                    minor_order = 'ant2'
+                elif order == 'ant2':
+                    minor_order = 'ant1'
+                elif order == 'baseline':
+                    minor_order = 'time'
 
         if conj_convention is not None:
             self.conjugate_bls(convention=conj_convention,
                                use_enu=conj_convention_use_enu)
 
         if isinstance(order, str):
-            self.blt_order = (order, minor_order)
+            if minor_order is None:
+                self.blt_order = (order)
+                self._blt_order.form = ()
+            else:
+                self.blt_order = (order, minor_order)
+                # set it back to the right shape in case it was set differently before
+                self._blt_order.form = (2,)
         else:
             self.blt_order = None
 
         if not isinstance(order, np.ndarray):
             # Use lexsort to sort along different arrays in defined order.
-            # lexsort uses the listed arrays from last to first (so the primary sort is on the last one)
             if order == 'time':
+                arr1 = self.time_array
                 if minor_order == 'ant1':
-                    index_array = np.lexsort((self.ant_2_array, self.ant_1_array, self.time_array))
+                    arr2 = self.ant_1_array
+                    arr3 = self.ant_2_array
                 elif minor_order == 'ant2':
-                    index_array = np.lexsort((self.ant_1_array, self.ant_2_array, self.time_array))
-                else:  # minor_order is baseline
-                    index_array = np.lexsort((self.baseline_array, self.time_array))
+                    arr2 = self.ant_2_array
+                    arr3 = self.ant_1_array
+                else:
+                    # minor_order is baseline
+                    arr2 = self.baseline_array
+                    arr3 = self.baseline_array
             elif order == 'ant1':
+                arr1 = self.ant_1_array
                 if minor_order == 'time':
-                    index_array = np.lexsort((self.ant_2_array, self.time_array, self.ant_1_array))
+                    arr2 = self.time_array
+                    arr3 = self.ant_2_array
                 elif minor_order == 'ant2':
-                    index_array = np.lexsort((self.time_array, self.ant_2_array, self.ant_1_array))
+                    arr2 = self.ant_2_array
+                    arr3 = self.time_array
                 else:  # minor_order is baseline
-                    index_array = np.lexsort((self.time_array, self.baseline_array, self.ant_1_array))
+                    arr2 = self.baseline_array
+                    arr3 = self.time_array
             elif order == 'ant2':
+                arr1 = self.ant_2_array
                 if minor_order == 'time':
-                    index_array = np.lexsort((self.ant_1_array, self.time_array, self.ant_2_array))
+                    arr2 = self.time_array
+                    arr3 = self.ant_1_array
                 elif minor_order == 'ant1':
-                    index_array = np.lexsort((self.time_array, self.ant_1_array, self.ant_2_array))
-                else:  # minor_order is baseline
-                    index_array = np.lexsort((self.time_array, self.baseline_array, self.ant_2_array))
+                    arr2 = self.ant_1_array
+                    arr3 = self.time_array
+                else:
+                    # minor_order is baseline
+                    arr2 = self.baseline_array
+                    arr3 = self.time_array
             elif order == 'baseline':
+                arr1 = self.baseline_array
                 # only allowed minor order is time
-                index_array = np.lexsort((self.time_array, self.baseline_array))
+                arr2 = self.time_array
+                arr3 = self.time_array
             elif order == 'bda':
-                index_array = np.lexsort((self.time_array, self.baseline_array, self.integration_time))
+                arr1 = self.integration_time
+                # only allowed minor order is time
+                arr2 = self.baseline_array
+                arr3 = self.time_array
 
+            # lexsort uses the listed arrays from last to first (so the primary sort is on the last one)
+            index_array = np.lexsort((arr3, arr2, arr1))
         else:
             index_array = order
 
