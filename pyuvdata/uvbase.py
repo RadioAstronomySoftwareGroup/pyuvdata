@@ -270,13 +270,14 @@ class UVBase(object):
                                              + '. Should be: ' + str(param.expected_type))
                     else:
                         if isinstance(param.value, (list, tuple)):
-                            # List needs to be handled differently than array
+                            # List & tuples needs to be handled differently than array
                             # list values may be different types, so they all need to be checked
-                            for item in param.value:
+                            param_value_list = list(param.value)
+                            for item in param_value_list:
                                 if not isinstance(item, param.expected_type):
                                     raise ValueError('UVParameter ' + p + ' is not the'
                                                      ' appropriate type. Is: '
-                                                     + str(type(param.value[0])) + '. Should'
+                                                     + str(type(item)) + '. Should'
                                                      ' be: ' + str(param.expected_type))
                         else:
                             # Array

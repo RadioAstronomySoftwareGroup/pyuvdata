@@ -1272,17 +1272,17 @@ def test_conjugate_bls():
     with nt.assert_raises(ValueError) as cm:
         uv2.conjugate_bls(convention='foo')
     ex = cm.exception  # raised exception is available through exception property of context
-    nt.assert_true(ex.args[0].startswith('convention must be one of'))
+    assert(ex.args[0].startswith('convention must be one of'))
 
     with nt.assert_raises(ValueError) as cm:
         uv2.conjugate_bls(convention=np.arange(5) - 1)
     ex = cm.exception  # raised exception is available through exception property of context
-    nt.assert_true(ex.args[0].startswith('If convention is an index array'))
+    assert(ex.args[0].startswith('If convention is an index array'))
 
     with nt.assert_raises(ValueError) as cm:
         uv2.conjugate_bls(convention=[uv2.Nblts])
     ex = cm.exception  # raised exception is available through exception property of context
-    nt.assert_true(ex.args[0].startswith('If convention is an index array'))
+    assert(ex.args[0].startswith('If convention is an index array'))
 
 
 def test_reorder_pols():
@@ -1336,6 +1336,117 @@ def test_reorder_pols():
                          message=('order_pols method will be deprecated in '
                                   'favor of reorder_pols'),
                          category=DeprecationWarning)
+
+
+def test_reorder_blts():
+    uv1 = UVData()
+    testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    uvtest.checkWarnings(uv1.read_uvfits, [testfile], message='Telescope EVLA is not')
+
+    uv2 = copy.deepcopy(uv1)
+    uv2.reorder_blts()
+    assert(uv2.blt_order == ('time', 'baseline'))
+    assert(np.min(np.diff(uv2.time_array)) >= 0)
+    for this_time in np.unique(uv2.time_array):
+        bls_2 = uv2.baseline_array[np.where(uv2.time_array == this_time)]
+        bls_1 = uv1.baseline_array[np.where(uv2.time_array == this_time)]
+        assert(bls_1.shape == bls_2.shape)
+        assert(np.min(np.diff(bls_2)) >= 0)
+        bl_inds = [np.where(bls_1 == bl)[0][0] for bl in bls_2]
+        assert(np.allclose(bls_1[bl_inds], bls_2))
+
+        uvw_1 = uv1.uvw_array[np.where(uv2.time_array == this_time)[0], :]
+        uvw_2 = uv2.uvw_array[np.where(uv2.time_array == this_time)[0], :]
+        assert(uvw_1.shape == uvw_2.shape)
+        assert(np.allclose(uvw_1[bl_inds, :], uvw_2))
+
+        data_1 = uv1.data_array[np.where(uv2.time_array == this_time)[0], :, :, :]
+        data_2 = uv2.data_array[np.where(uv2.time_array == this_time)[0], :, :, :]
+        assert(data_1.shape == data_2.shape)
+        assert(np.allclose(data_1[bl_inds, :, :, :], data_2))
+
+    uv3 = copy.deepcopy(uv1)
+    uv3.reorder_blts(order='time', minor_order='ant1')
+    assert(uv3.blt_order == ('time', 'ant1'))
+    assert(np.min(np.diff(uv3.time_array)) >= 0)
+    uv3.blt_order = uv2.blt_order
+    assert(uv2 == uv3)
+
+    uv3.reorder_blts(order='time', minor_order='ant2')
+    assert(uv3.blt_order == ('time', 'ant2'))
+    assert(np.min(np.diff(uv3.time_array)) >= 0)
+
+    uv3.reorder_blts()
+    assert(uv2 == uv3)
+
+    uv3.reorder_blts(order='baseline')
+    assert(uv3.blt_order == ('baseline', 'time'))
+    assert(np.min(np.diff(uv3.baseline_array)) >= 0)
+
+    uv3.reorder_blts(order='ant1')
+    assert(uv3.blt_order == ('ant1', 'ant2'))
+    assert(np.min(np.diff(uv3.ant_1_array)) >= 0)
+
+    uv3.reorder_blts(order='ant1', minor_order='time')
+    assert(uv3.blt_order == ('ant1', 'time'))
+    assert(np.min(np.diff(uv3.ant_1_array)) >= 0)
+
+    uv3.reorder_blts(order='ant1', minor_order='baseline')
+    assert(uv3.blt_order == ('ant1', 'baseline'))
+    assert(np.min(np.diff(uv3.ant_1_array)) >= 0)
+
+    uv3.reorder_blts(order='ant2')
+    assert(uv3.blt_order == ('ant2', 'ant1'))
+    assert(np.min(np.diff(uv3.ant_2_array)) >= 0)
+
+    uv3.reorder_blts(order='ant2', minor_order='time')
+    assert(uv3.blt_order == ('ant2', 'time'))
+    assert(np.min(np.diff(uv3.ant_2_array)) >= 0)
+
+    uv3.reorder_blts(order='ant2', minor_order='baseline')
+    assert(uv3.blt_order == ('ant2', 'baseline'))
+    assert(np.min(np.diff(uv3.ant_2_array)) >= 0)
+
+    uv3.reorder_blts(order='bda')
+    assert(uv3.blt_order == ('bda'))
+    assert(np.min(np.diff(uv3.integration_time)) >= 0)
+    assert(np.min(np.diff(uv3.baseline_array)) >= 0)
+
+    # test errors
+    with nt.assert_raises(ValueError) as cm:
+        uv3.reorder_blts(order='foo')
+    ex = cm.exception  # raised exception is available through exception property of context
+    assert(ex.args[0].startswith('order must be one of'))
+
+    with nt.assert_raises(ValueError) as cm:
+        uv3.reorder_blts(order=np.arange(5))
+    ex = cm.exception  # raised exception is available through exception property of context
+    assert(ex.args[0].startswith('If order is an index array, it must'))
+
+    with nt.assert_raises(ValueError) as cm:
+        uv3.reorder_blts(order=np.arange(5, dtype=np.float))
+    ex = cm.exception  # raised exception is available through exception property of context
+    assert(ex.args[0].startswith('If order is an index array, it must'))
+
+    with nt.assert_raises(ValueError) as cm:
+        uv3.reorder_blts(order=np.arange(uv3.Nblts), minor_order='time')
+    ex = cm.exception  # raised exception is available through exception property of context
+    assert(ex.args[0].startswith('Minor order cannot be set if order is an index array'))
+
+    with nt.assert_raises(ValueError) as cm:
+        uv3.reorder_blts(order='bda', minor_order='time')
+    ex = cm.exception  # raised exception is available through exception property of context
+    assert(ex.args[0].startswith('minor_order cannot be specified if order is'))
+
+    with nt.assert_raises(ValueError) as cm:
+        uv3.reorder_blts(order='baseline', minor_order='ant1')
+    ex = cm.exception  # raised exception is available through exception property of context
+    assert(ex.args[0].startswith('minor_order conflicts with order'))
+
+    with nt.assert_raises(ValueError) as cm:
+        uv3.reorder_blts(order='time', minor_order='foo')
+    ex = cm.exception  # raised exception is available through exception property of context
+    assert(ex.args[0].startswith('minor_order can only be one of'))
 
 
 def test_add():
