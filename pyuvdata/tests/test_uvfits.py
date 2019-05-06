@@ -385,6 +385,20 @@ def test_extra_keywords():
     assert uv_in == uv_out
 
 
+def test_roundtrip_blt_order():
+    uv_in = UVData()
+    uv_out = UVData()
+    testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    write_file = os.path.join(DATA_PATH, 'test/outtest_casa.uvfits')
+    uvtest.checkWarnings(uv_in.read, [testfile], message='Telescope EVLA is not')
+
+    uv_in.reorder_blts()
+
+    uv_in.write_uvfits(write_file)
+    uvtest.checkWarnings(uv_out.read, [write_file], message='Telescope EVLA is not')
+    nt.assert_equal(uv_in, uv_out)
+
+
 def test_select_read():
     uvfits_uv = UVData()
     uvfits_uv2 = UVData()

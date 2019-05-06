@@ -137,6 +137,9 @@ def test_UVH5OptionalParameters():
     uv_in.antenna_diameters = np.ones_like(uv_in.antenna_numbers) * 1.
     uv_in.uvplane_reference_time = 0
 
+    # reorder_blts
+    uv_in.reorder_blts()
+
     # write out and read back in
     uv_in.write_uvh5(testfile, clobber=True)
     uvtest.checkWarnings(uv_out.read, [testfile], message='Telescope EVLA is not')
