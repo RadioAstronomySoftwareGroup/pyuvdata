@@ -1343,6 +1343,7 @@ def test_reorder_blts():
     testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
     uvtest.checkWarnings(uv1.read_uvfits, [testfile], message='Telescope EVLA is not')
 
+    # test default reordering in detail
     uv2 = copy.deepcopy(uv1)
     uv2.reorder_blts()
     assert(uv2.blt_order == ('time', 'baseline'))
@@ -1365,6 +1366,7 @@ def test_reorder_blts():
         assert(data_1.shape == data_2.shape)
         assert(np.allclose(data_1[bl_inds, :, :, :], data_2))
 
+    # check that ordering by time, ant1 is identical to time, baseline
     uv3 = copy.deepcopy(uv1)
     uv3.reorder_blts(order='time', minor_order='ant1')
     assert(uv3.blt_order == ('time', 'ant1'))
@@ -1376,9 +1378,23 @@ def test_reorder_blts():
     assert(uv3.blt_order == ('time', 'ant2'))
     assert(np.min(np.diff(uv3.time_array)) >= 0)
 
+    # check that loopback works
     uv3.reorder_blts()
     assert(uv2 == uv3)
 
+    # sort with a specified index array
+    new_order = np.lexsort((uv3.baseline_array, uv3.time_array))
+    uv3.reorder_blts(order=new_order)
+    assert(uv3.blt_order is None)
+    assert(np.min(np.diff(uv3.time_array)) >= 0)
+    uv3.blt_order = ('time', 'baseline')
+    assert(uv2 == uv3)
+
+    # test sensible defaulting if minor order = major order
+    uv3.reorder_blts(order='time', minor_order='time')
+    assert(uv2 == uv3)
+
+    # test all combinations of major, minor order
     uv3.reorder_blts(order='baseline')
     assert(uv3.blt_order == ('baseline', 'time'))
     assert(np.min(np.diff(uv3.baseline_array)) >= 0)
@@ -1411,6 +1427,11 @@ def test_reorder_blts():
     assert(uv3.blt_order == ('bda'))
     assert(np.min(np.diff(uv3.integration_time)) >= 0)
     assert(np.min(np.diff(uv3.baseline_array)) >= 0)
+
+    # test doing conjugation along with a reorder
+    # the file is already conjugated this way, so should be equal
+    uv3.reorder_blts(order='time', conj_convention='ant1<ant2')
+    assert(uv2 == uv3)
 
     # test errors
     with nt.assert_raises(ValueError) as cm:

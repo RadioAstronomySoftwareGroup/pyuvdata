@@ -500,6 +500,22 @@ def test_miriad_extra_keywords():
     pytest.raises(TypeError, uv_in.write_miriad, testfile, clobber=True)
 
 
+def test_roundtrip_blt_order():
+    uv_in = UVData()
+    uv_out = UVData()
+    miriad_file = os.path.join(DATA_PATH, 'zen.2456865.60537.xy.uvcRREAA')
+    testfile = os.path.join(DATA_PATH, 'test/outtest_miriad.uv')
+    uvtest.checkWarnings(uv_in.read, [miriad_file],
+                         known_warning='miriad')
+
+    uv_in.reorder_blts()
+
+    uv_in.write_miriad(testfile, clobber=True)
+    uv_out.read(testfile)
+
+    nt.assert_equal(uv_in, uv_out)
+
+
 def test_breakReadMiriad():
     """Test Miriad file checking."""
     uv_in = UVData()
