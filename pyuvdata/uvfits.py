@@ -353,7 +353,11 @@ class UVFITS(UVData):
             longitude_degrees = vis_hdr.pop('LON', None)
             altitude = vis_hdr.pop('ALT', None)
             self.x_orientation = vis_hdr.pop('XORIENT', None)
-            self.blt_order = vis_hdr.pop('BLTORDER', None)
+            blt_order_str = vis_hdr.pop('BLTORDER', None)
+            if blt_order_str is not None:
+                self.blt_order = tuple(blt_order_str.split(', '))
+                if self.blt_order == ('bda',):
+                    self._blt_order.form = (1,)
             self.history = str(vis_hdr.get('HISTORY', ''))
             if not uvutils._check_history_version(self.history, self.pyuvdata_version_str):
                 self.history += self.pyuvdata_version_str
@@ -807,7 +811,8 @@ class UVFITS(UVData):
             hdu.header['XORIENT'] = self.x_orientation
 
         if self.blt_order is not None:
-            hdu.header['BLTORDER'] = self.blt_order
+            blt_order_str = ', '.join(self.blt_order)
+            hdu.header['BLTORDER'] = blt_order_str
 
         for line in self.history.splitlines():
             hdu.header.add_history(line)

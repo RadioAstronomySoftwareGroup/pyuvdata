@@ -1424,7 +1424,7 @@ def test_reorder_blts():
     assert(np.min(np.diff(uv3.ant_2_array)) >= 0)
 
     uv3.reorder_blts(order='bda')
-    assert(uv3.blt_order == ('bda'))
+    assert(uv3.blt_order == ('bda',))
     assert(np.min(np.diff(uv3.integration_time)) >= 0)
     assert(np.min(np.diff(uv3.baseline_array)) >= 0)
 
