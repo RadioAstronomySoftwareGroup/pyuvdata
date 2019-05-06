@@ -500,7 +500,7 @@ def test_miriad_extra_keywords():
     pytest.raises(TypeError, uv_in.write_miriad, testfile, clobber=True)
 
 
-def test_roundtrip_blt_order():
+def test_roundtrip_optional_params():
     uv_in = UVData()
     uv_out = UVData()
     miriad_file = os.path.join(DATA_PATH, 'zen.2456865.60537.xy.uvcRREAA')
@@ -508,7 +508,16 @@ def test_roundtrip_blt_order():
     uvtest.checkWarnings(uv_in.read, [miriad_file],
                          known_warning='miriad')
 
+    uv_in.x_orientation = 'east'
     uv_in.reorder_blts()
+
+    uv_in.write_miriad(testfile, clobber=True)
+    uv_out.read(testfile)
+
+    nt.assert_equal(uv_in, uv_out)
+
+    # test with bda as well (single entry in tuple)
+    uv_in.reorder_blts(order='bda')
 
     uv_in.write_miriad(testfile, clobber=True)
     uv_out.read(testfile)

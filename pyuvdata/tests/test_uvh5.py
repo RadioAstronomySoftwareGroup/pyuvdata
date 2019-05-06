@@ -145,6 +145,13 @@ def test_UVH5OptionalParameters():
     uvtest.checkWarnings(uv_out.read, [testfile], message='Telescope EVLA is not')
     assert uv_in == uv_out
 
+    # test with blt_order = bda as well (single entry in tuple)
+    uv_in.reorder_blts(order='bda')
+
+    uv_in.write_uvh5(testfile, clobber=True)
+    uvtest.checkWarnings(uv_out.read, [testfile], message='Telescope EVLA is not')
+    nt.assert_equal(uv_in, uv_out)
+
     # clean up
     os.remove(testfile)
 

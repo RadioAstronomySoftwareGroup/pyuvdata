@@ -517,6 +517,16 @@ class Miriad(UVData):
         except ValueError as ve:
             warnings.warn(str(ve))
 
+        # if blt_order is defined, reorder data to match that order
+        # this is required because the data are ordered by (time, baseline) on the read
+        if self.blt_order is not None:
+            if len(list(self.blt_order)) == 2:
+                order, minor_order = self.blt_order
+            else:
+                order = self.blt_order[0]
+                minor_order = None
+            self.reorder_blts(order=order, minor_order=minor_order)
+
         # check if object has all required uv_properties set
         if run_check:
             self.check(check_extra=check_extra,
@@ -606,12 +616,6 @@ class Miriad(UVData):
         uv.add_var('longitu', 'd')
         uv['longitu'] = self.telescope_location_lat_lon_alt[1].astype(np.double)
         uv.add_var('nants', 'i')
-        if self.x_orientation is not None:
-            uv.add_var('xorient', 'a')
-            uv['xorient'] = self.x_orientation
-        if self.blt_order is not None:
-            uv.add_var('bltorder', 'a')
-            uv['bltorder'] = self.blt_order
 
         if self.antenna_diameters is not None:
             if not np.allclose(self.antenna_diameters, self.antenna_diameters[0]):
@@ -704,6 +708,13 @@ class Miriad(UVData):
         if self.timesys is not None:
             uv.add_var('timesys', 'a')
             uv['timesys'] = self.timesys
+        if self.x_orientation is not None:
+            uv.add_var('xorient', 'a')
+            uv['xorient'] = self.x_orientation
+        if self.blt_order is not None:
+            blt_order_str = ', '.join(self.blt_order)
+            uv.add_var('bltorder', 'a')
+            uv['bltorder'] = blt_order_str
 
         # other extra keywords
         # set up dictionaries to map common python types to miriad types
@@ -905,7 +916,7 @@ class Miriad(UVData):
                                     'lst', 'pol', 'nants', 'antnames', 'nblts',
                                     'ntimes', 'nbls', 'sfreq', 'epoch',
                                     'antpos', 'antnums', 'degpdy', 'antdiam',
-                                    'phsframe']
+                                    'phsframe', 'xorient', 'bltorder']
         # list of miriad variables not read, but also not interesting
         # NB: nspect (I think) is number of spectral windows, will want one day
         # NB: xyphase & xyamp are "On-line X Y phase/amplitude measurements" which we may want in
@@ -968,7 +979,10 @@ class Miriad(UVData):
         if 'xorient' in uv.vartable.keys():
             self.x_orientation = uv['xorient'].replace('\x00', '')
         if 'bltorder' in uv.vartable.keys():
-            self.blt_order = uv['bltorder'].replace('\x00', '')
+            blt_order_str = uv['bltorder'].replace('\x00', '')
+            self.blt_order = tuple(blt_order_str.split(', '))
+            if self.blt_order == ('bda',):
+                self._blt_order.form = (1,)
 
         return default_miriad_variables, other_miriad_variables, extra_miriad_variables
 

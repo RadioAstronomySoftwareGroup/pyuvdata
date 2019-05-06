@@ -193,7 +193,11 @@ class UVH5(UVData):
         if 'x_orientation' in header:
             self.x_orientation = _read_uvh5_string(header['x_orientation'], filename)
         if 'blt_order' in header:
-            self.blt_order = _read_uvh5_string(header['blt_order'], filename)
+            blt_order_str = _read_uvh5_string(header['blt_order'], filename)
+            self.blt_order = tuple(blt_order_str.split(', '))
+            if self.blt_order == ('bda',):
+                self._blt_order.form = (1,)
+
         if 'antenna_diameters' in header:
             self.antenna_diameters = header['antenna_diameters'][()]
         if 'uvplane_reference_time' in header:
@@ -578,7 +582,7 @@ class UVH5(UVData):
         if self.x_orientation is not None:
             header['x_orientation'] = np.string_(self.x_orientation)
         if self.blt_order is not None:
-            header['blt_order'] = np.string_(self.blt_order)
+            header['blt_order'] = np.string_(', '.join(self.blt_order))
         if self.antenna_diameters is not None:
             header['antenna_diameters'] = self.antenna_diameters
         if self.uvplane_reference_time is not None:

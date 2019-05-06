@@ -1163,8 +1163,8 @@ class UVData(UVBase):
 
         if isinstance(order, str):
             if minor_order is None:
-                self.blt_order = (order)
-                self._blt_order.form = ()
+                self.blt_order = (order,)
+                self._blt_order.form = (1,)
             else:
                 self.blt_order = (order, minor_order)
                 # set it back to the right shape in case it was set differently before
