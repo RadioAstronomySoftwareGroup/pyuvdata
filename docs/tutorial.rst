@@ -296,7 +296,7 @@ UVData: Plotting
 Making a simple waterfall plot.
 
 Note: there is now support for reading in only part of a uvfits, uvh5 or miriad file
-(see :ref:`UVData: Working with large files`), so you need not read in the
+(see :ref:`large_files`), so you need not read in the
 entire file to plot one waterfall.
 ::
 
@@ -359,7 +359,7 @@ antenna pairs, frequencies (in Hz or by channel number), times or polarizations
 to keep in the object while removing others.
 
 Note: The same select interface is now supported on the read for uvfits, uvh5
-and miriad files (see :ref:`UVData: Working with large files`), so you need not
+and miriad files (see :ref:`large_files`), so you need not
 read in the entire file before doing the select.
 
 a) Select 3 antennas to keep using the antenna number.
@@ -699,6 +699,8 @@ stored in the uvh5 format.
    >>> filenames = ['tutorial1.uvfits', 'tutorial2.uvfits', 'tutorial3.uvfits']
    >>> uv.read(filenames, axis='freq')
 
+.. _large_files:
+
 UVData: Working with large files
 ----------------------------------------------
 To save on memory and time, pyuvdata supports reading only parts of uvfits, uvh5 and
@@ -861,6 +863,7 @@ are written to the appropriate parts of the file on disk.
 
 
 .. _sorting_data:
+
 UVData: Sorting data along various axes
 ---------------------------------------
 A few methods exist for sorting (and conjugating) data along various axes to
