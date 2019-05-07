@@ -893,9 +893,8 @@ class UVBeam(UVBase):
             low_slice = input_data_array[:, :, :, :, :, :extend_length]
             high_slice = input_data_array[:, :, :, :, :, -1 * extend_length:]
 
-            data_use = np.concatenate((np.flip(high_slice, axis=5),
-                                       input_data_array,
-                                       np.flip(low_slice, axis=5)), axis=5)
+            data_use = np.concatenate((high_slice, input_data_array, low_slice),
+                                      axis=5)
 
         if self.basis_vector_array is not None:
             if (np.any(self.basis_vector_array[0, 1, :] > 0)
