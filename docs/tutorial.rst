@@ -676,7 +676,8 @@ UVData object.
 will result in a self-consistent object after concatenation. Basic checking is
 done, but time-consuming robust check are eschewed for the sake of speed. The
 data will also *not* be reordered or sorted as part of the concatenation, and so
-this must be done manually by the user if a reordering is desired.
+this must be done manually by the user if a reordering is desired
+(see :ref:`sorting_data`).
 
 The ``fast_concat`` method is significantly faster than ``__add__``, especially
 for large UVData objects. Preliminary benchmarking shows that reading in
@@ -858,8 +859,96 @@ are written to the appropriate parts of the file on disk.
    >>> nsample_array = uv2.nsample_array
    >>> uv.write_uvh5_part(partfile, data_array, flag_array, nsample_array, freq_chans=freq_inds2)
 
-UVData: Finding Redundant Baselines
+
+.. _sorting_data:
+UVData: Sorting data along various axes
+---------------------------------------
+A few methods exist for sorting (and conjugating) data along various axes to
+support comparisons between UVData objects and software access patterns.
+
+a) Conjugating baselines
+************************
+
+The `conjugate_bls` method will conjugate baselines to conform to various
+conventions ('ant1<ant2', 'ant2<ant1', 'u<0', 'u>0', 'v<0', v>0') or it can just
+conjugate a set of specific baseline-time indices.
+
+::
+
+    >>> from pyuvdata import UVData
+    >>> uv = UVData()
+    >>> uvfits_file = 'pyuvdata/data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
+    >>> uv.read(uvfits_file)
+    >>> uv.conjugate_bls('ant1<ant2')
+    >>> print(np.min(uv.ant_2_array - uv.ant_1_array) >= 0)
+    True
+
+    >>> uv2.conjugate_bls(convention='u<0', use_enu=False)
+    >>> print(np.max(uv2.uvw_array[:, 0]) <= 0)
+    True
+
+b) Sorting along the baseline-time axis
+***************************************
+
+The `reorder_blts` method will reorder the baseline-time axis by sorting by 'time',
+'baseline', 'ant1' or 'ant2' or according to an order preferred for data that
+have baseline dependent averaging 'bda'. A user can also just specify a desired
+order by passing an array of baseline-time indices.
+
+::
+
+    >>> from pyuvdata import UVData
+    >>> import copy
+    >>> uv = UVData()
+    >>> uvfits_file = 'pyuvdata/data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
+    >>> uv.read(uvfits_file)
+
+    # The default is to sort first by time, then by baseline
+    >>> uv.reorder_blts()
+    >>> print(np.min(np.diff(uv.time_array)) >= 0)
+    True
+
+    # Explicity sorting by 'time' then 'baseline' gets the same result
+    >>> uv2 = copy.deepcopy(uv)
+    >>> uv2.reorder_blts(order='time', minor_order='baseline')
+    >>> print(uv == uv2)
+    True
+
+    >>> uv.reorder_blts(order='ant1', minor_order='ant2')
+    >>> print(np.min(np.diff(uv.ant_1_array)) >= 0)
+    True
+
+    # You can also sort and conjugate in a single step for the purposes of comparing two objects
+    >>> uv.reorder_blts(order='bda', conj_convention='ant1<ant2')
+    >>> uv2.reorder_blts(order='bda', conj_convention='ant1<ant2')
+    >>> print(uv == uv2)
+    True
+
+c) Sorting along the polarization axis
+**************************************
+
+The `reorder_pols` method will reorder the polarization axis either following
+the 'AIPS' or 'CASA' convention, or by an explicit index ordering set by the user.
+
+::
+
+    >>> from pyuvdata import UVData
+    >>> import pyuvdata.utils as uvutils
+    >>> uv = UVData()
+    >>> uvfits_file = 'pyuvdata/data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
+    >>> uv.read(uvfits_file)
+    >>> print(uvutils.polnum2str(uv.polarization_array))
+    ['rr', 'll', 'rl', 'lr']
+
+    >>> uv.reorder_pols('CASA')
+    >>> print(uvutils.polnum2str(uv.polarization_array))
+    ['rr', 'rl', 'lr', 'll']
+
+UVData: Working with Redundant Baselines
 -----------------------------------
+
+a) Finding Redundant Baselines
+******************************
 pyuvdata.utils contains functions for finding redundant groups of baselines in an array, either by antenna positions or uvw coordinates. Baselines are considered redundant if they are within a specified tolerance distance (default is 1 meter).
 
 The ``get_baseline_redundancies`` function accepts an array of baseline indices and an array of baseline vectors (ie, uvw coordinates) as input, and finds redundancies among the vectors as given. If the ``with_conjugates`` option is selected, it will flip baselines such that ``u > 0``, or ``v > 0 if u = 0``, or ``w > 0 if u = v = 0``. In this case, a list of ``conjugates`` is returned as well, which contains indices for the baselines that were flipped for the redundant groups. In either mode of operation, this will only return baseline indices that are in the list passed in.
@@ -867,6 +956,7 @@ The ``get_baseline_redundancies`` function accepts an array of baseline indices 
 The ``get_antenna_redundancies`` function accepts an array of antenna indices and an array of antenna positions as input, defines baseline vectors and indices under the positive-u condition described above, and runs ``get_baseline_redundancies`` to find redundant baselines. This is similar to running get_baseline_redundancies with the ``with_conjugates`` option, except that the baseline indices are returned such that none need to be flipped to be redundant. This is more like what's defined in the ``hera_cal`` package.
 
 ::
+
     >>> import numpy as np
     >>> from pyuvdata import UVData
     >>> from pyuvdata import utils as uvutils
@@ -900,11 +990,12 @@ The ``get_antenna_redundancies`` function accepts an array of antenna indices an
     >>> print(len(baseline_groups))
     19
 
-UVData: Compressing/inflating on Redundant Baselines
-----------------------------------------------------
+b) Compressing/inflating on Redundant Baselines
+***********************************************
 Since redundant baselines should have similar visibilities, some level of data compression can be achieved by only keeping one out of a set of redundant baselines. The function ``compress_by_redundancies`` will find groups of baselines that are redundant to a given tolerance, choose one baseline from each group, and use the ``select`` function to choose those baselines only. This action is (almost) inverted by the ``inflate_by_redundancies`` function, which finds all possible baselines from the antenna positions and fills in the full data array based on redundancy.
 
 ::
+
     >>> from pyuvdata import UVData
     >>> import copy
     >>> import numpy as np
