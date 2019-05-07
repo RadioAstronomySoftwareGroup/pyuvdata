@@ -662,7 +662,7 @@ and added to the previous.
   >>> filenames = ['tutorial1.uvfits', 'tutorial2.uvfits', 'tutorial3.uvfits']
   >>> uv.read(filenames)
 
-e) Fast concatenation of files.
+e) Fast concatenation
 *******************************
 As an alternative to the ``__add__`` operation, the ``fast_concat`` method can
 be used. The user specifies a UVData object to combine with the existing one,
@@ -869,8 +869,8 @@ support comparisons between UVData objects and software access patterns.
 a) Conjugating baselines
 ************************
 
-The `conjugate_bls` method will conjugate baselines to conform to various
-conventions ('ant1<ant2', 'ant2<ant1', 'u<0', 'u>0', 'v<0', v>0') or it can just
+The :meth:`pyuvdata.UVData.conjugate_bls` method will conjugate baselines to conform to various
+conventions (`'ant1<ant2'`, `'ant2<ant1'`, `'u<0'`, `'u>0'`, `'v<0'`, `'v>0'`) or it can just
 conjugate a set of specific baseline-time indices.
 
 ::
@@ -890,9 +890,9 @@ conjugate a set of specific baseline-time indices.
 b) Sorting along the baseline-time axis
 ***************************************
 
-The `reorder_blts` method will reorder the baseline-time axis by sorting by 'time',
-'baseline', 'ant1' or 'ant2' or according to an order preferred for data that
-have baseline dependent averaging 'bda'. A user can also just specify a desired
+The :meth:`pyuvdata.UVData.reorder_blts` method will reorder the baseline-time axis by sorting by `'time'`,
+`'baseline'`, `'ant1'` or `'ant2'` or according to an order preferred for data that
+have baseline dependent averaging `'bda'`. A user can also just specify a desired
 order by passing an array of baseline-time indices.
 
 ::
@@ -927,8 +927,8 @@ order by passing an array of baseline-time indices.
 c) Sorting along the polarization axis
 **************************************
 
-The `reorder_pols` method will reorder the polarization axis either following
-the 'AIPS' or 'CASA' convention, or by an explicit index ordering set by the user.
+The :meth:`pyuvdata.UVData.reorder_pols` method will reorder the polarization axis either following
+the `'AIPS'` or `'CASA'` convention, or by an explicit index ordering set by the user.
 
 ::
 
