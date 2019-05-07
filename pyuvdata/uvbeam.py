@@ -869,6 +869,8 @@ class UVBeam(UVBase):
         axis2_diff = np.diff(self.axis2_array)[0]
         max_axis_diff = np.max([axis1_diff, axis2_diff])
 
+        phi_length = np.abs(self.axis1_array[0] - self.axis1_array[-1]) + axis1_diff
+
         phi_vals, theta_vals = np.meshgrid(self.axis1_array, self.axis2_array)
 
         assert(input_data_array.shape[3] == input_nfreqs)
@@ -877,6 +879,23 @@ class UVBeam(UVBase):
             data_type = np.complex
         else:
             data_type = np.float
+
+        if np.isclose(phi_length, 2 * np.pi, atol=axis1_diff):
+            # phi wraps around, extend array in each direction to improve interpolation
+            extend_length = 3
+            phi_use = np.concatenate((np.flip(phi_vals[:, :extend_length] * (-1) - axis1_diff, axis=1),
+                                      phi_vals,
+                                      phi_vals[:, -1 * extend_length:] + extend_length * axis1_diff),
+                                     axis=1)
+            theta_use = np.concatenate((theta_vals[:, :extend_length], theta_vals, theta_vals[:, -1 * extend_length:]),
+                                       axis=1)
+
+            low_slice = input_data_array[:, :, :, :, :, :extend_length]
+            high_slice = input_data_array[:, :, :, :, :, -1 * extend_length:]
+
+            data_use = np.concatenate((np.flip(high_slice, axis=5),
+                                       input_data_array,
+                                       np.flip(low_slice, axis=5)), axis=5)
 
         if self.basis_vector_array is not None:
             if (np.any(self.basis_vector_array[0, 1, :] > 0)
@@ -946,26 +965,26 @@ class UVBeam(UVBase):
                                 lut = self.saved_interp_functions[key]
 
                         if do_interp:
-                            if np.iscomplexobj(input_data_array):
+                            if np.iscomplexobj(data_use):
                                 # interpolate real and imaginary parts separately
-                                real_lut = interpolate.RectBivariateSpline(self.axis2_array,
-                                                                           self.axis1_array,
-                                                                           input_data_array[index0, index1, index2, index3, :].real)
-                                imag_lut = interpolate.RectBivariateSpline(self.axis2_array,
-                                                                           self.axis1_array,
-                                                                           input_data_array[index0, index1, index2, index3, :].imag)
+                                real_lut = interpolate.RectBivariateSpline(theta_use[:, 0],
+                                                                           phi_use[0, :],
+                                                                           data_use[index0, index1, index2, index3, :].real)
+                                imag_lut = interpolate.RectBivariateSpline(theta_use[:, 0],
+                                                                           phi_use[0, :],
+                                                                           data_use[index0, index1, index2, index3, :].imag)
                                 lut = get_lambda(real_lut, imag_lut)
                             else:
-                                lut = interpolate.RectBivariateSpline(self.axis2_array,
-                                                                      self.axis1_array,
-                                                                      input_data_array[index0, index1, index2, index3, :])
+                                lut = interpolate.RectBivariateSpline(theta_use[:, 0],
+                                                                      phi_use[0, :],
+                                                                      data_use[index0, index1, index2, index3, :])
                                 lut = get_lambda(lut)
                             if reuse_spline:
                                 self.saved_interp_functions[key] = lut
                         if index0 == 0 and index1 == 0 and index2 == 0 and index3 == 0:
                             for point_i in range(npoints):
-                                pix_dists = np.sqrt((theta_vals - za_array[point_i])**2.
-                                                    + (phi_vals - az_array[point_i])**2.)
+                                pix_dists = np.sqrt((theta_use - za_array[point_i])**2.
+                                                    + (phi_use - az_array[point_i])**2.)
                                 if np.min(pix_dists) > (max_axis_diff * 2.0):
                                     raise ValueError('at least one interpolation location is outside of '
                                                      'the UVBeam pixel coverage.')
