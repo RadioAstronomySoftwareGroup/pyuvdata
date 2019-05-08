@@ -7,6 +7,7 @@ All notable changes to this project will be documented in this file.
 - `lst_array` is now saved to UVFITS files (even though it's not a standard parameter) so that it doesn't have to be recalculated
 
 ### Fixed
+- Fixed a bug in how the longitudinal branch cut was handled in beam interpolation
 - Changed the way interpolation splines are saved in UVBeam to fix errors related to polarization selections.
 
 ## [1.3.8] - 2019-05-01
