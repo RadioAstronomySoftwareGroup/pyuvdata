@@ -3,13 +3,15 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- `lst_array` is now saved to UVFITS files (even though it's not a standard parameter) so that it doesn't have to be recalculated
+
 ### Fixed
 - Changed the way interpolation splines are saved in UVBeam to fix errors related to polarization selections.
 
 ## [1.3.8] - 2019-05-01
 
 ### Added
-- `lst_array` is now saved to UVFITS files (even though it's not a standard parameter) so that it doesn't have to be recalculated
 - Optional `x_orientation` parameter to utils functions polstr2num, polnum2str, jstr2num and jnum2str to allow for E/N based polarization strings (rather than just x/y based ones)
 - New optional `x_orientation` parameter on UVBeam (paralleling UVData and UVCal), with read/write support in beamfits
 - Added `x_orientation` as an optional parameter in read_cst_beam and in cst settings yaml files.
