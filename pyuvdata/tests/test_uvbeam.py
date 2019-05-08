@@ -564,6 +564,51 @@ def test_efield_spatial_interpolation():
     del efield_beam.saved_interp_functions
 
 
+def test_interp_longitude_branch_cut():
+    beam = UVBeam()
+    beam.read_cst_beam(cst_files, beam_type='power', frequency=[150e6, 123e6],
+                       telescope_name='TEST', feed_name='bob',
+                       feed_version='0.1', feed_pol=['x'],
+                       model_name='E-field pattern - Rigging height 4.9m',
+                       model_version='1.0')
+
+    beam.interpolation_function = 'az_za_simple'
+    interp_data_array, interp_basis_vector = beam.interp(
+        az_array=np.deg2rad(np.repeat(np.array([[-1], [359]]), 181, axis=1).flatten()),
+        za_array=np.repeat(beam.axis2_array[np.newaxis, :], 2, axis=0).flatten())
+
+    interp_data_array = interp_data_array.reshape(beam.Naxes_vec, beam.Nspws,
+                                                  beam.Npols, beam.Nfreqs,
+                                                  2, beam.Naxes2)
+
+    assert(np.allclose(interp_data_array[:, :, :, :, 0, :],
+                       interp_data_array[:, :, :, :, 1, :],
+                       rtol=beam._data_array.tols[0],
+                       atol=beam._data_array.tols[1]))
+
+    # repeat with efield
+    beam = UVBeam()
+    beam.read_cst_beam(cst_files, beam_type='efield', frequency=[150e6, 123e6],
+                       telescope_name='TEST', feed_name='bob',
+                       feed_version='0.1', feed_pol=['x'],
+                       model_name='E-field pattern - Rigging height 4.9m',
+                       model_version='1.0')
+
+    beam.interpolation_function = 'az_za_simple'
+    interp_data_array, interp_basis_vector = beam.interp(
+        az_array=np.deg2rad(np.repeat(np.array([[-1], [359]]), 181, axis=1).flatten()),
+        za_array=np.repeat(beam.axis2_array[np.newaxis, :], 2, axis=0).flatten())
+
+    interp_data_array = interp_data_array.reshape(beam.Naxes_vec, beam.Nspws,
+                                                  beam.Nfeeds, beam.Nfreqs,
+                                                  2, beam.Naxes2)
+
+    assert(np.allclose(interp_data_array[:, :, :, :, 0, :],
+                       interp_data_array[:, :, :, :, 1, :],
+                       rtol=beam._data_array.tols[0],
+                       atol=beam._data_array.tols[1]))
+
+
 @uvtest.skipIf_no_healpy
 def test_healpix_interpolation():
     power_beam = UVBeam()
