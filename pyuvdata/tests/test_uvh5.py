@@ -939,7 +939,9 @@ def test_UVH5SingleIntegrationTime():
         int_time = f['/Header/integration_time'][0]
         del(f['/Header/integration_time'])
         f['/Header/integration_time'] = int_time
-    uvtest.checkWarnings(uv_out.read_uvh5, [testfile], message='outtest_uvfits.uvh5 appears to be an old uvh5 format')
+    uvtest.checkWarnings(uv_out.read_uvh5, [testfile],
+                         message='outtest_uvfits.uvh5 appears to be an old uvh5 format',
+                         category=DeprecationWarning)
     nt.assert_equal(uv_in, uv_out)
 
     # clean up
@@ -1002,7 +1004,8 @@ def test_UVH5StringBackCompat():
         del(f['Header/instrument'])
         f['Header/instrument'] = uv_in.instrument
     uvtest.checkWarnings(uv_out.read_uvh5, [testfile],
-                         message='Strings in metadata of outtest_uvfits.uvh5 are not the correct type')
+                         message='Strings in metadata of outtest_uvfits.uvh5 are not the correct type',
+                         category=DeprecationWarning)
     nt.assert_equal(uv_in, uv_out)
 
     # clean up

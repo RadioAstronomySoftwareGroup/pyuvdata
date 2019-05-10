@@ -42,7 +42,9 @@ def _read_uvh5_string(dataset, filename):
     """
     if dataset.dtype.type is np.object_:
         warnings.warn("Strings in metadata of {file} are not the correct type; rewrite with "
-                      "write_uvh5 to ensure future compatibility".format(file=filename))
+                      "write_uvh5 to ensure future compatibility. Suppoort for reading these "
+                      "files will be removed in version 1.5.".format(file=filename),
+                      DeprecationWarning)
         try:
             return uvutils._bytes_to_str(dataset[()])
         except AttributeError:
@@ -240,7 +242,8 @@ class UVH5(UVData):
             warnings.warn('{file} appears to be an old uvh5 format '
                           'with a single valued integration_time which has been deprecated. '
                           'Rewrite this file with write_uvh5 to ensure '
-                          'future compatibility.'.format(file=filename))
+                          'future compatibility. Support for reading these files will be removed '
+                          'in version 1.5.'.format(file=filename), DeprecationWarning)
             self.integration_time = np.ones_like(self.time_array, dtype=np.float64) * integration_time[()]
         else:
             self.integration_time = integration_time[:]
