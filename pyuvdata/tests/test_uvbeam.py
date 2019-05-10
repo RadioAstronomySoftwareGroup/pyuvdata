@@ -574,15 +574,20 @@ def test_interp_longitude_branch_cut():
 
     beam.interpolation_function = 'az_za_simple'
     interp_data_array, interp_basis_vector = beam.interp(
-        az_array=np.deg2rad(np.repeat(np.array([[-1], [359]]), 181, axis=1).flatten()),
-        za_array=np.repeat(beam.axis2_array[np.newaxis, :], 2, axis=0).flatten())
+        az_array=np.deg2rad(np.repeat(np.array([[-1], [359], [0], [360]]), 181, axis=1).flatten()),
+        za_array=np.repeat(beam.axis2_array[np.newaxis, :], 4, axis=0).flatten())
 
     interp_data_array = interp_data_array.reshape(beam.Naxes_vec, beam.Nspws,
                                                   beam.Npols, beam.Nfreqs,
-                                                  2, beam.Naxes2)
+                                                  4, beam.Naxes2)
 
     assert(np.allclose(interp_data_array[:, :, :, :, 0, :],
                        interp_data_array[:, :, :, :, 1, :],
+                       rtol=beam._data_array.tols[0],
+                       atol=beam._data_array.tols[1]))
+
+    assert(np.allclose(interp_data_array[:, :, :, :, 2, :],
+                       interp_data_array[:, :, :, :, 3, :],
                        rtol=beam._data_array.tols[0],
                        atol=beam._data_array.tols[1]))
 
@@ -596,15 +601,20 @@ def test_interp_longitude_branch_cut():
 
     beam.interpolation_function = 'az_za_simple'
     interp_data_array, interp_basis_vector = beam.interp(
-        az_array=np.deg2rad(np.repeat(np.array([[-1], [359]]), 181, axis=1).flatten()),
-        za_array=np.repeat(beam.axis2_array[np.newaxis, :], 2, axis=0).flatten())
+        az_array=np.deg2rad(np.repeat(np.array([[-1], [359], [0], [360]]), 181, axis=1).flatten()),
+        za_array=np.repeat(beam.axis2_array[np.newaxis, :], 4, axis=0).flatten())
 
     interp_data_array = interp_data_array.reshape(beam.Naxes_vec, beam.Nspws,
                                                   beam.Nfeeds, beam.Nfreqs,
-                                                  2, beam.Naxes2)
+                                                  4, beam.Naxes2)
 
     assert(np.allclose(interp_data_array[:, :, :, :, 0, :],
                        interp_data_array[:, :, :, :, 1, :],
+                       rtol=beam._data_array.tols[0],
+                       atol=beam._data_array.tols[1]))
+
+    assert(np.allclose(interp_data_array[:, :, :, :, 2, :],
+                       interp_data_array[:, :, :, :, 3, :],
                        rtol=beam._data_array.tols[0],
                        atol=beam._data_array.tols[1]))
 
