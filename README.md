@@ -73,7 +73,7 @@ issues in the [issue log](https://github.com/RadioAstronomySoftwareGroup/pyuvdat
 Please see our [guide on contributing](.github/CONTRIBUTING.md)
 
 # Versioning
-We use a `generation.major.minor` version number format. We use the `generation` number for very significant improvements or major rewrites, the `major` number to indicate substantial package changes (intended to be released every 3-4 months) and the `minor` number to release smaller incremental updates (intended to be released approximately monthly and which usually do not include breaking API changes). We do our best to provide a significant period of deprecation warnings for all breaking changes to the API. We track all changes in our [changelog](https://github.com/RadioAstronomySoftwareGroup/pyuvdata/blob/master/CHANGELOG.md).
+We use a `generation.major.minor` version number format. We use the `generation` number for very significant improvements or major rewrites, the `major` number to indicate substantial package changes (intended to be released every 3-4 months) and the `minor` number to release smaller incremental updates (intended to be released approximately monthly and which usually do not include breaking API changes). We do our best to provide a significant period (usually 2 major generations) of deprecation warnings for all breaking changes to the API. We track all changes in our [changelog](https://github.com/RadioAstronomySoftwareGroup/pyuvdata/blob/master/CHANGELOG.md).
 
 # Documentation
 A tutorial with example usage and developer API documentation is hosted on [ReadTheDocs](https://pyuvdata.readthedocs.io).
