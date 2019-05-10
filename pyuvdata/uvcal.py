@@ -312,7 +312,10 @@ class UVCal(UVBase):
                 else:
                     warn_string += 'cannot be converted.'
 
-                warnings.warn(warn_string, PendingDeprecationWarning)
+                warnings.warn(warn_string + ' Only [{vals}] will be supported '
+                              'starting in version 1.5'
+                              .format(vals=(', ').join(self._x_orientation.acceptable_vals)),
+                              DeprecationWarning)
 
         # first run the basic check from UVBase
         super(UVCal, self).check(check_extra=check_extra,

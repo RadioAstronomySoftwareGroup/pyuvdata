@@ -387,7 +387,10 @@ class UVData(UVBase):
                 else:
                     warn_string += 'cannot be converted.'
 
-                warnings.warn(warn_string, PendingDeprecationWarning)
+                warnings.warn(warn_string + ' Only [{vals}] will be supported '
+                              'starting in version 1.5'
+                              .format(vals=(', ').join(self._x_orientation.acceptable_vals)),
+                              DeprecationWarning)
 
         super(UVData, self).check(check_extra=check_extra,
                                   run_check_acceptability=run_check_acceptability)
@@ -426,7 +429,7 @@ class UVData(UVBase):
         if self.antenna_positions is None:
             warnings.warn('antenna_positions are not defined. '
                           'antenna_positions will be a required parameter in '
-                          'future versions.', PendingDeprecationWarning)
+                          'version 1.5', DeprecationWarning)
 
         # check auto and cross-corrs have sensible uvws
         autos = np.isclose(self.ant_1_array - self.ant_2_array, 0.0)
@@ -961,8 +964,8 @@ class UVData(UVBase):
         Args:
             order: string, either 'CASA' or 'AIPS'. Default='AIPS'
         """
-        warnings.warn('order_pols method will soon be deprecated in favor of '
-                      'reorder_pols', PendingDeprecationWarning)
+        warnings.warn('order_pols method will be deprecated in favor of '
+                      'reorder_pols in version 1.5', DeprecationWarning)
         self.reorder_pols(order=order)
 
     def __add__(self, other, run_check=True, check_extra=True,
@@ -2826,7 +2829,8 @@ class UVData(UVBase):
             warnings.warn('The default for the `center` keyword has changed. '
                           'Previously it defaulted to True, using the median '
                           'antennna location; now it defaults to False, '
-                          'using the telescope_location.', DeprecationWarning)
+                          'using the telescope_location. This warning will be '
+                          'removed in version 1.5', DeprecationWarning)
 
         antpos = uvutils.ENU_from_ECEF((self.antenna_positions + self.telescope_location),
                                        *self.telescope_location_lat_lon_alt)

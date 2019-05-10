@@ -79,8 +79,8 @@ def LatLonAlt_from_XYZ(xyz):
     if xyz.ndim > 1 and xyz.shape[1] != 3:
         if xyz.shape[0] == 3:
             warnings.warn('The expected shape of ECEF xyz array is (Npts, 3). '
-                          'Support for arrays shaped (3, Npts) will go away in a '
-                          'future version.', PendingDeprecationWarning)
+                          'Support for arrays shaped (3, Npts) will go away in '
+                          'version 1.5', DeprecationWarning)
             xyz_use = xyz.T
         else:
             raise ValueError('The expected shape of ECEF xyz array is (Npts, 3).')
@@ -92,7 +92,8 @@ def LatLonAlt_from_XYZ(xyz):
         warnings.warn('The xyz array in LatLonAlt_from_XYZ is being '
                       'interpreted as (Npts, 3). Historically this function '
                       'has supported (3, Npts) arrays, please verify that '
-                      'array ordering is as expected.', PendingDeprecationWarning)
+                      'array ordering is as expected. This warning will be '
+                      'removed in version 1.5', DeprecationWarning)
 
     if xyz_use.ndim == 1:
         xyz_use = xyz_use[np.newaxis, :]
@@ -213,8 +214,8 @@ def ENU_from_ECEF(xyz, latitude, longitude, altitude):
     if xyz.ndim > 1 and xyz.shape[1] != 3:
         if xyz.shape[0] == 3:
             warnings.warn('The expected shape of ECEF xyz array is (Npts, 3). '
-                          'Support for arrays shaped (3, Npts) will go away in a '
-                          'future version.', PendingDeprecationWarning)
+                          'Support for arrays shaped (3, Npts) will go away in '
+                          'version 1.5', DeprecationWarning)
             xyz_in = xyz.T
             transpose = True
         else:
@@ -227,7 +228,8 @@ def ENU_from_ECEF(xyz, latitude, longitude, altitude):
         warnings.warn('The xyz array in ENU_from_ECEF is being '
                       'interpreted as (Npts, 3). Historically this function '
                       'has supported (3, Npts) arrays, please verify that '
-                      'array ordering is as expected.', PendingDeprecationWarning)
+                      'array ordering is as expected. This warning will be '
+                      'removed in version 1.5', DeprecationWarning)
 
     if xyz_in.ndim == 1:
         xyz_in = xyz_in[np.newaxis, :]
@@ -281,8 +283,8 @@ def ECEF_from_ENU(enu, latitude, longitude, altitude):
     if enu.ndim > 1 and enu.shape[1] != 3:
         if enu.shape[0] == 3:
             warnings.warn('The expected shape of the ENU array is (Npts, 3). '
-                          'Support for arrays shaped (3, Npts) will go away in a '
-                          'future version.', PendingDeprecationWarning)
+                          'Support for arrays shaped (3, Npts) will go away in '
+                          'version 1.5', DeprecationWarning)
             enu_use = enu.T
             transpose = True
         else:
@@ -295,7 +297,8 @@ def ECEF_from_ENU(enu, latitude, longitude, altitude):
         warnings.warn('The enu array in ECEF_from_ENU is being '
                       'interpreted as (Npts, 3). Historically this function '
                       'has supported (3, Npts) arrays, please verify that '
-                      'array ordering is as expected.', PendingDeprecationWarning)
+                      'array ordering is as expected. This warning will be '
+                      'removed in version 1.5', DeprecationWarning)
 
     if enu_use.ndim == 1:
         enu_use = enu_use[np.newaxis, :]
@@ -387,7 +390,8 @@ def unphase_uvw(ra, dec, uvw):
 
 def get_iterable(x):
     warnings.warn('The get_iterable function is deprecated in favor of '
-                  '_get_iterable because it is not API level code', DeprecationWarning)
+                  '_get_iterable because it is not API level code. This '
+                  'function will be removed in version 1.5', DeprecationWarning)
     return _get_iterable(x)
 
 
@@ -401,7 +405,8 @@ def _get_iterable(x):
 
 def fits_gethduaxis(HDU, axis, strict_fits=True):
     warnings.warn('The fits_gethduaxis function is deprecated in favor of '
-                  '_fits_gethduaxis because it is not API level code', DeprecationWarning)
+                  '_fits_gethduaxis because it is not API level code. This '
+                  'function will be removed in version 1.5', DeprecationWarning)
     return _fits_gethduaxis(HDU, axis, strict_fits=strict_fits)
 
 
@@ -472,7 +477,8 @@ def get_lst_for_time(jd_array, latitude, longitude, altitude):
 
 def fits_indexhdus(hdulist):
     warnings.warn('The fits_indexhdus function is deprecated in favor of '
-                  '_fits_indexhdus because it is not API level code', DeprecationWarning)
+                  '_fits_indexhdus because it is not API level code. This '
+                  'function will be removed in version 1.5', DeprecationWarning)
     return _fits_indexhdus(hdulist)
 
 
@@ -793,7 +799,7 @@ def conj_pol(pol):
         if pol.lower().startswith('j'):
             warnings.warn('conj_pol should not be called with jones matrix elements. '
                           'Support for the jones matrix elements will go away '
-                          'in a future version.', PendingDeprecationWarning)
+                          'in version 1.5', DeprecationWarning)
             cpol = deprecated_jones_dict[pol.lower()]
         else:
             cpol = cpol_dict[pol.lower()]
@@ -835,7 +841,8 @@ def reorder_conj_pols(pols):
 
 def check_history_version(history, version_string):
     warnings.warn('The check_history_version function is deprecated in favor of '
-                  '_check_history_version because it is not API level code', DeprecationWarning)
+                  '_check_history_version because it is not API level code. This '
+                  'function will be removed in version 1.5', DeprecationWarning)
     return _check_history_version(history, version_string)
 
 
@@ -848,7 +855,8 @@ def _check_history_version(history, version_string):
 
 def check_histories(history1, history2):
     warnings.warn('The check_histories function is deprecated in favor of '
-                  '_check_histories because it is not API level code', DeprecationWarning)
+                  '_check_histories because it is not API level code. This '
+                  'function will be removed in version 1.5', DeprecationWarning)
     return _check_histories(history1, history2)
 
 
@@ -861,7 +869,8 @@ def _check_histories(history1, history2):
 
 def combine_histories(history1, history2):
     warnings.warn('The combine_histories function is deprecated in favor of '
-                  '_combine_histories because it is not API level code', DeprecationWarning)
+                  '_combine_histories because it is not API level code. This '
+                  'function will be removed in version 1.5', DeprecationWarning)
     return _combine_histories(history1, history2)
 
 

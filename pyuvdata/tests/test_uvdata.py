@@ -1161,9 +1161,9 @@ def test_reorder_pols():
 
     # check warning for order_pols:
     uvtest.checkWarnings(uv2.order_pols, [], {'order': 'AIPS'},
-                         message=('order_pols method will soon be deprecated in '
+                         message=('order_pols method will be deprecated in '
                                   'favor of reorder_pols'),
-                         category=PendingDeprecationWarning)
+                         category=DeprecationWarning)
 
 
 def test_add():
@@ -1413,7 +1413,7 @@ def test_add_drift():
     uvtest.checkWarnings(uv_full.read_uvfits, [testfile],
                          message='Telescope EVLA is not')
 
-    uvtest.checkWarnings(uv_full.unphase_to_drift, category=PendingDeprecationWarning,
+    uvtest.checkWarnings(uv_full.unphase_to_drift, category=DeprecationWarning,
                          message='The xyz array in ENU_from_ECEF is being '
                                  'interpreted as (Npts, 3)')
     # Add frequencies
@@ -1597,7 +1597,7 @@ def test_break_add():
 
     # One phased, one not
     uv2 = copy.deepcopy(uv_full)
-    uvtest.checkWarnings(uv2.unphase_to_drift, category=PendingDeprecationWarning,
+    uvtest.checkWarnings(uv2.unphase_to_drift, category=DeprecationWarning,
                          message='The xyz array in ENU_from_ECEF is being '
                                  'interpreted as (Npts, 3)')
     nt.assert_raises(ValueError, uv1.__iadd__, uv2)
@@ -2505,18 +2505,18 @@ def test_deprecated_x_orientation():
 
     uv_in.x_orientation = 'e'
 
-    uvtest.checkWarnings(uv_in.check, category=PendingDeprecationWarning,
+    uvtest.checkWarnings(uv_in.check, category=DeprecationWarning,
                          message=['x_orientation e is not one of [east, north], '
                                   'converting to "east".'])
 
     uv_in.x_orientation = 'N'
-    uvtest.checkWarnings(uv_in.check, category=PendingDeprecationWarning,
+    uvtest.checkWarnings(uv_in.check, category=DeprecationWarning,
                          message=['x_orientation N is not one of [east, north], '
                                   'converting to "north".'])
 
     uv_in.x_orientation = 'foo'
     nt.assert_raises(ValueError, uvtest.checkWarnings, uv_in.check,
-                     category=PendingDeprecationWarning,
+                     category=DeprecationWarning,
                      message=['x_orientation n is not one of [east, north], '
                               'cannot be converted.'])
 

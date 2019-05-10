@@ -18,21 +18,27 @@ def _warn_oldcalfits(filename):
                   'Setting default values now, set strict_fits=True '
                   'to error rather than warn on this problem, '
                   'rewrite this file with write_calfits to ensure '
-                  'FITS compliance.'.format(file=filename))
+                  'FITS compliance. Support for this file will '
+                  'go away in version 1.5'.format(file=filename),
+                  DeprecationWarning)
 
 
 def _warn_olddelay(filename):
     warnings.warn('{file} appears to be an old calfits format '
                   'for delay files which has been deprecated. '
                   'Rewrite this file with write_calfits to ensure '
-                  'future compatibility.'.format(file=filename))
+                  'future compatibility. Support for this file will '
+                  'go away in version 1.5'.format(file=filename),
+                  DeprecationWarning)
 
 
 def _warn_oldstyle(filename):
     warnings.warn('{file} appears to be an old calfits format '
                   'which has been deprecated. '
                   'Rewrite this file with write_calfits to ensure '
-                  'future compatibility.'.format(file=filename))
+                  'future compatibility. Support for this file will '
+                  'go away in version 1.5'.format(file=filename),
+                  DeprecationWarning)
 
 
 class CALFITS(UVCal):
