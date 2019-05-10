@@ -1238,7 +1238,8 @@ class Miriad(UVData):
                 warnings.warn('This file was written with an old version of '
                               'pyuvdata, which has been deprecated. Rewrite this '
                               'file with write_miriad to ensure future '
-                              'compatibility')
+                              'compatibility. Support for this file will end in '
+                              'version 1.5', DeprecationWarning)
                 ant_name_flt = uv['antnames']
                 ant_name_list = []
                 for elem in ant_name_flt:

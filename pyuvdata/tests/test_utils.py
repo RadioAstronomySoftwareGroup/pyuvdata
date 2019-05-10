@@ -57,12 +57,12 @@ def test_LatLonAlt_from_XYZ():
     # check warning if array transposed
     uvtest.checkWarnings(uvutils.LatLonAlt_from_XYZ, [xyz_mult.T],
                          message='The expected shape of ECEF xyz array',
-                         category=PendingDeprecationWarning)
+                         category=DeprecationWarning)
     # check warning if  3 x 3 array
     xyz_3 = np.stack((np.array(ref_xyz), np.array(ref_xyz), np.array(ref_xyz)))
     uvtest.checkWarnings(uvutils.LatLonAlt_from_XYZ, [xyz_3],
                          message='The xyz array in LatLonAlt_from_XYZ is',
-                         category=PendingDeprecationWarning)
+                         category=DeprecationWarning)
     # check error if only 2 coordinates
     nt.assert_raises(ValueError, uvutils.LatLonAlt_from_XYZ, xyz_mult[:, 0:2])
 
@@ -115,12 +115,12 @@ def test_ENU_tofrom_ECEF():
     uvtest.checkWarnings(uvutils.ENU_from_ECEF, [xyz.T, center_lat, center_lon,
                                                  center_alt],
                          message='The expected shape of ECEF xyz array',
-                         category=PendingDeprecationWarning)
+                         category=DeprecationWarning)
     # check warning if  3 x 3 array
     uvtest.checkWarnings(uvutils.ENU_from_ECEF, [xyz[0:3], center_lat, center_lon,
                                                  center_alt],
                          message='The xyz array in ENU_from_ECEF is',
-                         category=PendingDeprecationWarning)
+                         category=DeprecationWarning)
     # check error if only 2 coordinates
     nt.assert_raises(ValueError, uvutils.ENU_from_ECEF, xyz[:, 0:2],
                      center_lat, center_lon, center_alt)
@@ -132,12 +132,12 @@ def test_ENU_tofrom_ECEF():
     uvtest.checkWarnings(uvutils.ECEF_from_ENU, [enu.T, center_lat, center_lon,
                                                  center_alt],
                          message='The expected shape the ENU array',
-                         category=PendingDeprecationWarning)
+                         category=DeprecationWarning)
     # check warning if  3 x 3 array
     uvtest.checkWarnings(uvutils.ECEF_from_ENU, [enu[0:3], center_lat, center_lon,
                                                  center_alt],
                          message='The enu array in ECEF_from_ENU is',
-                         category=PendingDeprecationWarning)
+                         category=DeprecationWarning)
     # check error if only 2 coordinates
     nt.assert_raises(ValueError, uvutils.ENU_from_ECEF, enu[:, 0:2], center_lat,
                      center_lon, center_alt)
@@ -424,7 +424,7 @@ def test_conj_pol():
     jstr = ['Jyx', 'Jxy', 'Jyy', 'Jxx', 'Jlr', 'Jrl', 'Jll', 'Jrr']
     cjstr = ['Jxy', 'Jyx', 'Jyy', 'Jxx', 'Jrl', 'Jlr', 'Jll', 'Jrr']
     conj_cjstr = uvtest.checkWarnings(uvutils.conj_pol, [cjstr], nwarnings=8,
-                                      category=PendingDeprecationWarning,
+                                      category=DeprecationWarning,
                                       message='conj_pol should not be called with jones')
     nt.assert_equal(jstr, conj_cjstr)
 

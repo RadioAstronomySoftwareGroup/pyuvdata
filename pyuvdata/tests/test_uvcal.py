@@ -1416,17 +1416,17 @@ def test_deprecated_x_orientation():
 
     cal_in.x_orientation = 'e'
 
-    uvtest.checkWarnings(cal_in.check, category=PendingDeprecationWarning,
+    uvtest.checkWarnings(cal_in.check, category=DeprecationWarning,
                          message=['x_orientation e is not one of [east, north], '
                                   'converting to "east".'])
 
     cal_in.x_orientation = 'N'
-    uvtest.checkWarnings(cal_in.check, category=PendingDeprecationWarning,
+    uvtest.checkWarnings(cal_in.check, category=DeprecationWarning,
                          message=['x_orientation N is not one of [east, north], '
                                   'converting to "north".'])
 
     cal_in.x_orientation = 'foo'
     nt.assert_raises(ValueError, uvtest.checkWarnings, cal_in.check,
-                     category=PendingDeprecationWarning,
+                     category=DeprecationWarning,
                      message=['x_orientation n is not one of [east, north], '
                               'cannot be converted.'])

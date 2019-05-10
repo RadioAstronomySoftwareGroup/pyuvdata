@@ -154,7 +154,7 @@ class UVH5(UVData):
         if np.abs(latitude) <= np.pi and np.abs(longitude) <= np.pi:
             warnings.warn("It seems that the latitude and longitude are in radians; "
                           "support for interpreting these quantities in radians will "
-                          "not be supported in future versions. Rewrite with write_uvh5 "
+                          "be removed in version 1.5. Rewrite with write_uvh5 "
                           "to ensure future compatibility.", DeprecationWarning)
             self.telescope_location_lat_lon_alt = (latitude, longitude, altitude)
         else:

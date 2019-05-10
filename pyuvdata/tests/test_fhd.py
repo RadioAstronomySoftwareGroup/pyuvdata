@@ -78,7 +78,7 @@ def test_ReadFHDWriteReadUVFits_no_layout():
     files_use = testfiles[:-3] + [testfiles[-2]]
     uvtest.checkWarnings(fhd_uv.read_fhd, [files_use], nwarnings=2,
                          message=['No layout file', 'antenna_positions are not defined'],
-                         category=PendingDeprecationWarning)
+                         category=DeprecationWarning)
 
     fhd_uv.write_uvfits(os.path.join(DATA_PATH, 'test/outtest_FHD_1061316296.uvfits'),
                         spoof_nonessential=True)

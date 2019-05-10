@@ -154,11 +154,13 @@ def test_wronglatlon():
     uvtest.checkWarnings(uv_in.read, [latfile], nwarnings=3,
                          message=['Altitude is not present in file and latitude value does not match',
                                   'This file was written with an old version of pyuvdata',
-                                  'This file was written with an old version of pyuvdata'])
+                                  'This file was written with an old version of pyuvdata'],
+                         category=[UserWarning, DeprecationWarning, DeprecationWarning])
     uvtest.checkWarnings(uv_in.read, [lonfile], nwarnings=3,
                          message=['Altitude is not present in file and longitude value does not match',
                                   'This file was written with an old version of pyuvdata',
-                                  'This file was written with an old version of pyuvdata'])
+                                  'This file was written with an old version of pyuvdata'],
+                         category=[UserWarning, DeprecationWarning, DeprecationWarning])
     uvtest.checkWarnings(uv_in.read, [telescopefile], {'run_check': False},
                          nwarnings=6,
                          message=['Altitude is not present in Miriad file, and telescope',
@@ -168,7 +170,9 @@ def test_wronglatlon():
                                   'are present, but the mean antenna position',
                                   'This file was written with an old version of pyuvdata',
                                   'This file was written with an old version of pyuvdata',
-                                  'Telescope foo is not in known_telescopes.'])
+                                  'Telescope foo is not in known_telescopes.'],
+                         category=(3 * [UserWarning] + 2 * [DeprecationWarning]
+                                   + [UserWarning]))
 
 
 def test_miriad_location_handling():
@@ -815,12 +819,12 @@ def test_rwrMiriad_antpos_issues():
     uv_in.antenna_positions = None
     uvtest.checkWarnings(uv_in.write_miriad, [write_file], {'clobber': True},
                          message=['antenna_positions are not defined.'],
-                         category=PendingDeprecationWarning)
+                         category=DeprecationWarning)
     uvtest.checkWarnings(uv_out.read, [write_file], nwarnings=3,
                          message=['Antenna positions are not present in the file.',
                                   'Antenna positions are not present in the file.',
                                   'antenna_positions are not defined.'],
-                         category=[UserWarning, UserWarning, PendingDeprecationWarning])
+                         category=[UserWarning, UserWarning, DeprecationWarning])
 
     nt.assert_equal(uv_in, uv_out)
 
@@ -847,12 +851,12 @@ def test_rwrMiriad_antpos_issues():
     uv_in.Nants_telescope = len(uv_in.antenna_numbers)
     uvtest.checkWarnings(uv_in.write_miriad, [write_file], {'clobber': True, 'no_antnums': True},
                          message=['antenna_positions are not defined.'],
-                         category=PendingDeprecationWarning)
+                         category=DeprecationWarning)
     uvtest.checkWarnings(uv_out.read, [write_file], nwarnings=3,
                          message=['Antenna positions are not present in the file.',
                                   'Antenna positions are not present in the file.',
                                   'antenna_positions are not defined.'],
-                         category=[UserWarning, UserWarning, PendingDeprecationWarning])
+                         category=[UserWarning, UserWarning, DeprecationWarning])
 
     nt.assert_equal(uv_in, uv_out)
 
@@ -866,7 +870,7 @@ def test_multi_files():
     testfile1 = os.path.join(DATA_PATH, 'test/uv1')
     testfile2 = os.path.join(DATA_PATH, 'test/uv2')
     uvtest.checkWarnings(uv_full.read_uvfits, [uvfits_file], message='Telescope EVLA is not')
-    uvtest.checkWarnings(uv_full.unphase_to_drift, category=PendingDeprecationWarning,
+    uvtest.checkWarnings(uv_full.unphase_to_drift, category=DeprecationWarning,
                          message='The xyz array in ENU_from_ECEF is being '
                                  'interpreted as (Npts, 3)')
     uv1 = copy.deepcopy(uv_full)

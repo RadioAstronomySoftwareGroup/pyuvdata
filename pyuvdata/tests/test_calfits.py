@@ -296,7 +296,8 @@ def test_read_oldcalfits_gain():
 
         hdulist.writeto(write_file, overwrite=True)
 
-        uvtest.checkWarnings(cal_out.read_calfits, [write_file], message=messages[i])
+        uvtest.checkWarnings(cal_out.read_calfits, [write_file], message=messages[i],
+                             category=DeprecationWarning)
         nt.assert_equal(cal_in, cal_out)
         if keyword.startswith('CR'):
             nt.assert_raises(KeyError, cal_out.read_calfits, write_file, strict_fits=True)
@@ -354,7 +355,8 @@ def test_read_oldcalfits_delay():
 
         hdulist.writeto(write_file, overwrite=True)
 
-        uvtest.checkWarnings(cal_out.read_calfits, [write_file], message=messages[i])
+        uvtest.checkWarnings(cal_out.read_calfits, [write_file], message=messages[i],
+                             category=DeprecationWarning)
         nt.assert_equal(cal_in, cal_out)
         if keyword.startswith('CR'):
             nt.assert_raises(KeyError, cal_out.read_calfits, write_file, strict_fits=True)
@@ -407,7 +409,8 @@ def test_read_oldcalfits_delay_nofreqaxis():
     hdulist.writeto(write_file, overwrite=True)
 
     message = write_file + ' appears to be an old calfits format'
-    uvtest.checkWarnings(cal_out.read_calfits, [write_file], message=message)
+    uvtest.checkWarnings(cal_out.read_calfits, [write_file], message=message,
+                         category=DeprecationWarning)
     nt.assert_equal(cal_in, cal_out)
 
 
