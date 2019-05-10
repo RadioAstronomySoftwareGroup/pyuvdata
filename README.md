@@ -36,7 +36,7 @@ It is probably not compatible with other interferometric HDF5 files defined by o
 ## UVBeam file formats
 * regularly gridded fits for both E-field and power beams
 * non-standard HEALPix fits for both E-field and power beams (in an ImageHDU rather than a binary table to support frequency, polarization and E-field vector axes)
-* read support for CST beam text files, with a defined yaml file format for metadata, details here: [cst settings file](docs/cst_settings.yaml_rst)
+* read support for CST beam text files, with a defined yaml file format for metadata, details here: [cst settings file](docs/cst_settings_yaml.rst)
 
 ## Under Development
 * UVData: uvh5 file format (beta version), note that this is probably not compatible with other interferometric HDF5 files defined by other groups.

@@ -12,6 +12,8 @@ import re
 import pypandoc
 from astropy.time import Time
 
+from pyuvdata.version import construct_version_info
+
 
 def write_index_rst(readme_file=None, write_file=None):
     t = Time.now()
@@ -39,7 +41,23 @@ def write_index_rst(readme_file=None, write_file=None):
     begin_desc = 'pyuvdata defines a pythonic interface'
     start_desc = str.find(readme_text, begin_desc)
 
-    readme_text = title_badge_text + readme_text[start_desc:]
+    readme_text = readme_text[start_desc:]
+
+    # convert relative links in readme to explicit links
+    version_info = construct_version_info()
+    branch = version_info['git_branch']
+
+    first_docs_loc = readme_text.find('docs/')
+
+    readme_text = readme_text.replace(
+        '<docs/', '<https://github.com/RadioAstronomySoftwareGroup/pyuvdata/tree/'
+        + branch + '/docs/')
+
+    readme_text = readme_text.replace(
+        '<.github/', '<https://github.com/RadioAstronomySoftwareGroup/pyuvdata/tree/'
+        + branch + '/.github/')
+
+    readme_text = title_badge_text + readme_text
 
     end_text = 'parameters descriptions'
     regex = re.compile(end_text.replace(' ', r'\s+'))
