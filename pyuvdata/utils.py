@@ -1218,7 +1218,7 @@ def or_collapse(arr, weights=None, axis=None, return_weights=False):
         weights - NOT USED, but kept for symmetry with other averaging functions
         axis - axis or axes over which to OR
         return_weights - whether to return dummy weights array. NOTE: the dummy weights
-                   will simply be an array of ones. Default is False.
+            will simply be an array of ones. Default is False.
     '''
     if arr.dtype != np.bool:
         raise ValueError('Input to or_collapse function must be boolean array')
@@ -1238,7 +1238,7 @@ def and_collapse(arr, weights=None, axis=None, return_weights=False):
         weights - NOT USED, but kept for symmetry with other averaging functions
         axis - axis or axes over which to AND
         return_weights - whether to return dummy weights array. NOTE: the dummy weights
-                   will simply be an array of ones. Default is False.
+            will simply be an array of ones. Default is False.
     '''
     if arr.dtype != np.bool:
         raise ValueError('Input to and_collapse function must be boolean array')

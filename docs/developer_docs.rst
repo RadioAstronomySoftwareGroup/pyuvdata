@@ -6,34 +6,34 @@ won't need to interact with.
 Classes
 -------------
 
-.. autoclass:: pyuvdata.UVParameter
+.. autoclass:: pyuvdata.parameter.UVParameter
   :members:
 
-.. autoclass:: pyuvdata.AntPositionParameter
+.. autoclass:: pyuvdata.parameter.AntPositionParameter
   :members:
 
-.. autoclass:: pyuvdata.AngleParameter
+.. autoclass:: pyuvdata.parameter.AngleParameter
   :members:
 
-.. autoclass:: pyuvdata.LocationParameter
+.. autoclass:: pyuvdata.parameter.LocationParameter
   :members:
 
-.. autoclass:: pyuvdata.UVBase
+.. autoclass:: pyuvdata.uvbase.UVBase
   :members:
 
-.. autoclass:: pyuvdata.UVFITS
+.. autoclass:: pyuvdata.uvfits.UVFITS
   :members:
 
-.. autoclass:: pyuvdata.Miriad
+.. autoclass:: pyuvdata.miriad.Miriad
   :members:
 
-.. autoclass:: pyuvdata.FHD
+.. autoclass:: pyuvdata.fhd.FHD
   :members:
 
-.. autoclass:: pyuvdata.CALFITS
+.. autoclass:: pyuvdata.calfits.CALFITS
   :members:
 
-.. autoclass:: pyuvdata.BeamFITS
+.. autoclass:: pyuvdata.beamfits.BeamFITS
   :members:
 
 .. autoclass:: pyuvdata.Telescope
