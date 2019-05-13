@@ -7,7 +7,7 @@
 """
 from __future__ import absolute_import, division, print_function
 
-import nose.tools as nt
+import pytest
 import os
 import numpy as np
 from astropy.io import fits
@@ -47,7 +47,7 @@ def test_readCST_writereadFITS():
     beam_in.write_beamfits(write_file, clobber=True)
     beam_out.read_beamfits(write_file)
 
-    nt.assert_equal(beam_in, beam_out)
+    assert beam_in == beam_out
 
     # redo for power beam
     del(beam_in)
@@ -71,7 +71,7 @@ def test_readCST_writereadFITS():
 
     beam_in.write_beamfits(write_file, clobber=True)
     beam_out.read_beamfits(write_file)
-    nt.assert_equal(beam_in, beam_out)
+    assert beam_in == beam_out
 
     # now replace 'power' with 'intensity' for btype
     F = fits.open(write_file)
@@ -87,7 +87,7 @@ def test_readCST_writereadFITS():
     hdulist.writeto(write_file, overwrite=True)
 
     beam_out.read_beamfits(write_file)
-    nt.assert_equal(beam_in, beam_out)
+    assert beam_in == beam_out
 
     # now remove coordsys but leave ctypes 1 & 2
     F = fits.open(write_file)
@@ -103,7 +103,7 @@ def test_readCST_writereadFITS():
     hdulist.writeto(write_file, overwrite=True)
 
     beam_out.read_beamfits(write_file)
-    nt.assert_equal(beam_in, beam_out)
+    assert beam_in == beam_out
 
     # now change frequency units
     F = fits.open(write_file)
@@ -121,7 +121,7 @@ def test_readCST_writereadFITS():
     hdulist.writeto(write_file, overwrite=True)
 
     beam_out.read_beamfits(write_file)
-    nt.assert_equal(beam_in, beam_out)
+    assert beam_in == beam_out
 
 
 @uvtest.skipIf_no_healpy
@@ -142,7 +142,7 @@ def test_writeread_healpix():
     beam_in.write_beamfits(write_file, clobber=True)
     beam_out.read_beamfits(write_file)
 
-    nt.assert_equal(beam_in, beam_out)
+    assert beam_in == beam_out
 
     # redo for power beam
     del(beam_in)
@@ -165,17 +165,17 @@ def test_writeread_healpix():
     beam_in.s_parameters = np.random.normal(0.0, 0.3, size=(4, beam_in.Nspws, beam_in.Nfreqs))
 
     # check that data_array is complex
-    nt.assert_true(np.iscomplexobj(np.real_if_close(beam_in.data_array, tol=10)))
+    assert np.iscomplexobj(np.real_if_close(beam_in.data_array, tol=10))
 
     beam_in.interpolation_function = 'az_za_simple'
     beam_in.to_healpix()
     # check that data_array is complex after interpolation
-    nt.assert_true(np.iscomplexobj(np.real_if_close(beam_in.data_array, tol=10)))
+    assert np.iscomplexobj(np.real_if_close(beam_in.data_array, tol=10))
 
     beam_in.write_beamfits(write_file, clobber=True)
     beam_out.read_beamfits(write_file)
 
-    nt.assert_equal(beam_in, beam_out)
+    assert beam_in == beam_out
 
     # now remove coordsys but leave ctype 1
     F = fits.open(write_file)
@@ -192,7 +192,7 @@ def test_writeread_healpix():
     hdulist.writeto(write_file, overwrite=True)
 
     beam_out.read_beamfits(write_file)
-    nt.assert_equal(beam_in, beam_out)
+    assert beam_in == beam_out
 
 
 def test_errors():
@@ -206,14 +206,14 @@ def test_errors():
     beam_in.beam_type = 'foo'
 
     write_file = os.path.join(DATA_PATH, 'test/outtest_beam.fits')
-    nt.assert_raises(ValueError, beam_in.write_beamfits, write_file, clobber=True)
-    nt.assert_raises(ValueError, beam_in.write_beamfits, write_file,
+    pytest.raises(ValueError, beam_in.write_beamfits, write_file, clobber=True)
+    pytest.raises(ValueError, beam_in.write_beamfits, write_file,
                      clobber=True, run_check=False)
 
     beam_in.beam_type = 'efield'
     beam_in.antenna_type = 'phased_array'
     write_file = os.path.join(DATA_PATH, 'test/outtest_beam.fits')
-    nt.assert_raises(ValueError, beam_in.write_beamfits, write_file, clobber=True)
+    pytest.raises(ValueError, beam_in.write_beamfits, write_file, clobber=True)
 
     # now change values for various items in primary hdu to test errors
     beam_in.antenna_type = 'simple'
@@ -252,7 +252,7 @@ def test_errors():
 
         hdulist.writeto(write_file, overwrite=True)
 
-        nt.assert_raises(ValueError, beam_out.read_beamfits, write_file)
+        pytest.raises(ValueError, beam_out.read_beamfits, write_file)
 
     # now change values for various items in basisvec hdu to not match primary hdu
     header_vals_to_change = [{'COORDSYS': 'foo'}, {'CTYPE1': 'foo'},
@@ -294,7 +294,7 @@ def test_errors():
 
         hdulist.writeto(write_file, overwrite=True)
 
-        nt.assert_raises(ValueError, beam_out.read_beamfits, write_file)
+        pytest.raises(ValueError, beam_out.read_beamfits, write_file)
 
 
 @uvtest.skipIf_no_healpy
@@ -345,7 +345,7 @@ def test_healpix_errors():
 
         hdulist.writeto(write_file, overwrite=True)
 
-        nt.assert_raises(ValueError, beam_out.read_beamfits, write_file)
+        pytest.raises(ValueError, beam_out.read_beamfits, write_file)
 
     # now change values for various items in basisvec hdu to not match primary hdu
     beam_in.read_cst_beam(cst_files[0], beam_type='efield', frequency=150e6,
@@ -392,7 +392,7 @@ def test_healpix_errors():
 
         hdulist.writeto(write_file, overwrite=True)
 
-        nt.assert_raises(ValueError, beam_out.read_beamfits, write_file)
+        pytest.raises(ValueError, beam_out.read_beamfits, write_file)
 
 
 def test_casa_beam():
@@ -418,13 +418,12 @@ def test_casa_beam():
                                'INSTRUME', 'DATAMAX', 'OBSRA', 'ORIGIN',
                                'DATE-MAP', 'DATE', 'EQUINOX', 'DATE-OBS',
                                'COMMENT']
-    nt.assert_equal(expected_extra_keywords.sort(),
-                    list(beam_in.extra_keywords.keys()).sort())
+    assert expected_extra_keywords.sort() == list(beam_in.extra_keywords.keys()).sort()
 
     beam_in.write_beamfits(write_file, clobber=True)
     beam_out.read_beamfits(write_file)
 
-    nt.assert_equal(beam_in, beam_out)
+    assert beam_in == beam_out
 
 
 def test_extra_keywords():
@@ -449,19 +448,19 @@ def test_extra_keywords():
     beam_in.extra_keywords['testdict'] = {'testkey': 23}
     uvtest.checkWarnings(beam_in.check, message=['testdict in extra_keywords is a '
                                                  'list, array or dict'])
-    nt.assert_raises(TypeError, beam_in.write_beamfits, testfile, run_check=False)
+    pytest.raises(TypeError, beam_in.write_beamfits, testfile, run_check=False)
     beam_in.extra_keywords.pop('testdict')
 
     beam_in.extra_keywords['testlist'] = [12, 14, 90]
     uvtest.checkWarnings(beam_in.check, message=['testlist in extra_keywords is a '
                                                  'list, array or dict'])
-    nt.assert_raises(TypeError, beam_in.write_beamfits, testfile, run_check=False)
+    pytest.raises(TypeError, beam_in.write_beamfits, testfile, run_check=False)
     beam_in.extra_keywords.pop('testlist')
 
     beam_in.extra_keywords['testarr'] = np.array([12, 14, 90])
     uvtest.checkWarnings(beam_in.check, message=['testarr in extra_keywords is a '
                                                  'list, array or dict'])
-    nt.assert_raises(TypeError, beam_in.write_beamfits, testfile, run_check=False)
+    pytest.raises(TypeError, beam_in.write_beamfits, testfile, run_check=False)
     beam_in.extra_keywords.pop('testarr')
 
     # check for warnings with extra_keywords keys that are too long
@@ -479,7 +478,7 @@ def test_extra_keywords():
     beam_in.write_beamfits(testfile, clobber=True)
     beam_out.read_beamfits(testfile, run_check=False)
 
-    nt.assert_equal(beam_in, beam_out)
+    assert beam_in == beam_out
     beam_in.extra_keywords.pop('bool')
     beam_in.extra_keywords.pop('bool2')
 
@@ -489,7 +488,7 @@ def test_extra_keywords():
     beam_in.write_beamfits(testfile, clobber=True)
     beam_out.read_beamfits(testfile, run_check=False)
 
-    nt.assert_equal(beam_in, beam_out)
+    assert beam_in == beam_out
     beam_in.extra_keywords.pop('int1')
     beam_in.extra_keywords.pop('int2')
 
@@ -499,7 +498,7 @@ def test_extra_keywords():
     beam_in.write_beamfits(testfile, clobber=True)
     beam_out.read_beamfits(testfile, run_check=False)
 
-    nt.assert_equal(beam_in, beam_out)
+    assert beam_in == beam_out
     beam_in.extra_keywords.pop('float1')
     beam_in.extra_keywords.pop('float2')
 
@@ -509,7 +508,7 @@ def test_extra_keywords():
     beam_in.write_beamfits(testfile, clobber=True)
     beam_out.read_beamfits(testfile, run_check=False)
 
-    nt.assert_equal(beam_in, beam_out)
+    assert beam_in == beam_out
 
 
 def test_multi_files():
@@ -541,10 +540,10 @@ def test_multi_files():
     beam2.write_beamfits(testfile2, clobber=True)
     beam1.read_beamfits([testfile1, testfile2])
     # Check history is correct, before replacing and doing a full object check
-    nt.assert_true(uvutils._check_histories(beam_full.history + '  Downselected '
-                                            'to specific frequencies using pyuvdata. '
-                                            'Combined data along frequency axis using'
-                                            ' pyuvdata.', beam1.history))
+    assert uvutils._check_histories(beam_full.history + '  Downselected '
+                                    'to specific frequencies using pyuvdata. '
+                                    'Combined data along frequency axis using'
+                                    ' pyuvdata.', beam1.history)
 
     beam1.history = beam_full.history
-    nt.assert_equal(beam1, beam_full)
+    assert beam1 == beam_full
