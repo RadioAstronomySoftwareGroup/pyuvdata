@@ -208,7 +208,7 @@ def test_errors():
     write_file = os.path.join(DATA_PATH, 'test/outtest_beam.fits')
     pytest.raises(ValueError, beam_in.write_beamfits, write_file, clobber=True)
     pytest.raises(ValueError, beam_in.write_beamfits, write_file,
-                     clobber=True, run_check=False)
+                  clobber=True, run_check=False)
 
     beam_in.beam_type = 'efield'
     beam_in.antenna_type = 'phased_array'
