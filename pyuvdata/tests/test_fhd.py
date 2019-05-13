@@ -7,7 +7,7 @@
 """
 from __future__ import absolute_import, division, print_function
 
-import nose.tools as nt
+import pytest
 import os
 import glob
 import numpy as np
@@ -44,7 +44,7 @@ def test_ReadFHDWriteReadUVFits():
     fhd_uv.write_uvfits(os.path.join(DATA_PATH, 'test/outtest_FHD_1061316296.uvfits'),
                         spoof_nonessential=True)
     uvfits_uv.read_uvfits(os.path.join(DATA_PATH, 'test/outtest_FHD_1061316296.uvfits'))
-    nt.assert_equal(fhd_uv, uvfits_uv)
+    assert fhd_uv == uvfits_uv
 
 
 def test_ReadFHD_select():
@@ -64,7 +64,7 @@ def test_ReadFHD_select():
     uvtest.checkWarnings(fhd_uv.read, [testfiles], known_warning='fhd')
 
     fhd_uv.select(freq_chans=np.arange(2))
-    nt.assert_equal(fhd_uv, fhd_uv2)
+    assert fhd_uv == fhd_uv2
 
 
 def test_ReadFHDWriteReadUVFits_no_layout():
@@ -81,10 +81,16 @@ def test_ReadFHDWriteReadUVFits_no_layout():
                          message=['No layout file', 'antenna_positions are not defined'],
                          category=DeprecationWarning)
 
-    fhd_uv.write_uvfits(os.path.join(DATA_PATH, 'test/outtest_FHD_1061316296.uvfits'),
-                        spoof_nonessential=True)
+    uvtest.checkWarnings(fhd_uv.write_uvfits,
+                         [os.path.join(DATA_PATH, 'test/outtest_FHD_1061316296.uvfits')],
+                         func_kwargs={"spoof_nonessential": True},
+                         nwarnings=1,
+                         message=['antenna_positions are not defined'],
+                         category=DeprecationWarning
+                         )
     uvfits_uv.read_uvfits(os.path.join(DATA_PATH, 'test/outtest_FHD_1061316296.uvfits'))
-    nt.assert_equal(fhd_uv, uvfits_uv)
+
+    assert fhd_uv == uvfits_uv
 
 
 def test_ReadFHDWriteReadUVFits_variant_flag():
@@ -103,7 +109,7 @@ def test_ReadFHDWriteReadUVFits_variant_flag():
     fhd_uv.write_uvfits(os.path.join(DATA_PATH, 'test/outtest_FHD_1061316296.uvfits'),
                         spoof_nonessential=True)
     uvfits_uv.read_uvfits(os.path.join(DATA_PATH, 'test/outtest_FHD_1061316296.uvfits'))
-    nt.assert_equal(fhd_uv, uvfits_uv)
+    assert fhd_uv == uvfits_uv
 
 
 def test_ReadFHDWriteReadUVFits_fix_layout():
@@ -122,7 +128,7 @@ def test_ReadFHDWriteReadUVFits_fix_layout():
     fhd_uv.write_uvfits(os.path.join(DATA_PATH, 'test/outtest_FHD_1061316296.uvfits'),
                         spoof_nonessential=True)
     uvfits_uv.read_uvfits(os.path.join(DATA_PATH, 'test/outtest_FHD_1061316296.uvfits'))
-    nt.assert_equal(fhd_uv, uvfits_uv)
+    assert fhd_uv == uvfits_uv
 
 
 def test_ReadFHDWriteReadUVFits_fix_layout_bad_obs_loc():
@@ -146,7 +152,7 @@ def test_ReadFHDWriteReadUVFits_fix_layout_bad_obs_loc():
     fhd_uv.write_uvfits(os.path.join(DATA_PATH, 'test/outtest_FHD_1061316296.uvfits'),
                         spoof_nonessential=True)
     uvfits_uv.read_uvfits(os.path.join(DATA_PATH, 'test/outtest_FHD_1061316296.uvfits'))
-    nt.assert_equal(fhd_uv, uvfits_uv)
+    assert fhd_uv == uvfits_uv
 
 
 def test_ReadFHDWriteReadUVFits_bad_obs_loc():
@@ -169,7 +175,7 @@ def test_ReadFHDWriteReadUVFits_bad_obs_loc():
     fhd_uv.write_uvfits(os.path.join(DATA_PATH, 'test/outtest_FHD_1061316296.uvfits'),
                         spoof_nonessential=True)
     uvfits_uv.read_uvfits(os.path.join(DATA_PATH, 'test/outtest_FHD_1061316296.uvfits'))
-    nt.assert_equal(fhd_uv, uvfits_uv)
+    assert fhd_uv == uvfits_uv
 
 
 def test_ReadFHDWriteReadUVFits_altered_layout():
@@ -190,7 +196,7 @@ def test_ReadFHDWriteReadUVFits_altered_layout():
     fhd_uv.write_uvfits(os.path.join(DATA_PATH, 'test/outtest_FHD_1061316296.uvfits'),
                         spoof_nonessential=True)
     uvfits_uv.read_uvfits(os.path.join(DATA_PATH, 'test/outtest_FHD_1061316296.uvfits'))
-    nt.assert_equal(fhd_uv, uvfits_uv)
+    assert fhd_uv == uvfits_uv
 
 
 def test_ReadFHDWriteReadUVFits_no_settings():
@@ -207,25 +213,25 @@ def test_ReadFHDWriteReadUVFits_no_settings():
                          nwarnings=2)
 
     # Check only pyuvdata history with no settings file
-    nt.assert_equal(fhd_uv.history, fhd_uv.pyuvdata_version_str)  # Check empty history with no settings
+    assert fhd_uv.history == fhd_uv.pyuvdata_version_str  # Check empty history with no settings
 
     fhd_uv.write_uvfits(os.path.join(DATA_PATH, 'test/outtest_FHD_1061316296.uvfits'),
                         spoof_nonessential=True)
     uvfits_uv.read_uvfits(os.path.join(DATA_PATH, 'test/outtest_FHD_1061316296.uvfits'))
-    nt.assert_equal(fhd_uv, uvfits_uv)
+    assert fhd_uv == uvfits_uv
 
 
 def test_breakReadFHD():
     """Try various cases of incomplete file lists."""
     fhd_uv = UVData()
-    nt.assert_raises(Exception, fhd_uv.read_fhd, testfiles[1:])  # Missing flags
+    pytest.raises(Exception, fhd_uv.read_fhd, testfiles[1:])  # Missing flags
     del(fhd_uv)
     fhd_uv = UVData()
     subfiles = [item for sublist in [testfiles[0:2], testfiles[3:]] for item in sublist]
-    nt.assert_raises(Exception, fhd_uv.read_fhd, subfiles)  # Missing params
+    pytest.raises(Exception, fhd_uv.read_fhd, subfiles)  # Missing params
     del(fhd_uv)
     fhd_uv = UVData()
-    nt.assert_raises(Exception, fhd_uv.read_fhd, ['foo'])  # No data files
+    pytest.raises(Exception, fhd_uv.read_fhd, ['foo'])  # No data files
     del(fhd_uv)
 
     # test warnings with various broken inputs
@@ -245,24 +251,24 @@ def test_breakReadFHD():
     broken_flag_file = testdir + testfile_prefix + 'broken_flags.sav'
     bad_filelist = testfiles[1:] + [broken_flag_file]
     fhd_uv = UVData()
-    nt.assert_raises(ValueError, fhd_uv.read_fhd, bad_filelist)
+    pytest.raises(ValueError, fhd_uv.read_fhd, bad_filelist)
 
     # try cases with extra files of each type
     extra_xx_file = testdir + testfile_prefix + 'extra_vis_XX.sav'
     copyfile(testfiles[1], extra_xx_file)
-    nt.assert_raises(Exception, fhd_uv.read_fhd, testfiles + [extra_xx_file])
+    pytest.raises(Exception, fhd_uv.read_fhd, testfiles + [extra_xx_file])
     os.remove(extra_xx_file)
 
     extra_yy_file = testdir + testfile_prefix + 'extra_vis_YY.sav'
     copyfile(testfiles[3], extra_yy_file)
-    nt.assert_raises(Exception, fhd_uv.read_fhd, testfiles + [extra_yy_file])
+    pytest.raises(Exception, fhd_uv.read_fhd, testfiles + [extra_yy_file])
     os.remove(extra_yy_file)
 
     xy_file = testdir + testfile_prefix + 'vis_XY.sav'
     extra_xy_file = testdir + testfile_prefix + 'extra_vis_XY.sav'
     copyfile(testfiles[1], xy_file)
     copyfile(testfiles[1], extra_xy_file)
-    nt.assert_raises(Exception, fhd_uv.read_fhd, testfiles + [xy_file, extra_xy_file])
+    pytest.raises(Exception, fhd_uv.read_fhd, testfiles + [xy_file, extra_xy_file])
     os.remove(xy_file)
     os.remove(extra_xy_file)
 
@@ -270,28 +276,28 @@ def test_breakReadFHD():
     extra_yx_file = testdir + testfile_prefix + 'extra_vis_YX.sav'
     copyfile(testfiles[1], yx_file)
     copyfile(testfiles[1], extra_yx_file)
-    nt.assert_raises(Exception, fhd_uv.read_fhd, testfiles + [yx_file, extra_yx_file])
+    pytest.raises(Exception, fhd_uv.read_fhd, testfiles + [yx_file, extra_yx_file])
     os.remove(yx_file)
     os.remove(extra_yx_file)
 
     extra_params_file = testdir + testfile_prefix + 'extra_params.sav'
     copyfile(testfiles[2], extra_params_file)
-    nt.assert_raises(Exception, fhd_uv.read_fhd, testfiles + [extra_params_file])
+    pytest.raises(Exception, fhd_uv.read_fhd, testfiles + [extra_params_file])
     os.remove(extra_params_file)
 
     extra_flags_file = testdir + testfile_prefix + 'extra_flags.sav'
     copyfile(testfiles[0], extra_flags_file)
-    nt.assert_raises(Exception, fhd_uv.read_fhd, testfiles + [extra_flags_file])
+    pytest.raises(Exception, fhd_uv.read_fhd, testfiles + [extra_flags_file])
     os.remove(extra_flags_file)
 
     extra_layout_file = testdir + testfile_prefix + 'extra_layout.sav'
     copyfile(testfiles[6], extra_layout_file)
-    nt.assert_raises(Exception, fhd_uv.read_fhd, testfiles + [extra_layout_file])
+    pytest.raises(Exception, fhd_uv.read_fhd, testfiles + [extra_layout_file])
     os.remove(extra_layout_file)
 
     extra_settings_file = testdir + testfile_prefix + 'extra_settings.txt'
     copyfile(testfiles[7], extra_settings_file)
-    nt.assert_raises(Exception, fhd_uv.read_fhd, testfiles + [extra_settings_file])
+    pytest.raises(Exception, fhd_uv.read_fhd, testfiles + [extra_settings_file])
     os.remove(extra_settings_file)
 
 
@@ -304,7 +310,7 @@ def test_ReadFHD_model():
     fhd_uv.write_uvfits(os.path.join(DATA_PATH, 'test/outtest_FHD_1061316296_model.uvfits'),
                         spoof_nonessential=True)
     uvfits_uv.read_uvfits(os.path.join(DATA_PATH, 'test/outtest_FHD_1061316296_model.uvfits'))
-    nt.assert_equal(fhd_uv, uvfits_uv)
+    assert fhd_uv == uvfits_uv
 
 
 def test_multi_files():
@@ -321,12 +327,12 @@ def test_multi_files():
 
     uvtest.checkWarnings(fhd_uv2.read, [testfiles], {'use_model': True}, known_warning='fhd')
 
-    nt.assert_true(uvutils._check_histories(fhd_uv2.history + ' Combined data '
-                                            'along polarization axis using pyuvdata.',
-                                            fhd_uv1.history))
+    assert uvutils._check_histories(fhd_uv2.history + ' Combined data '
+                                    'along polarization axis using pyuvdata.',
+                                    fhd_uv1.history)
 
     fhd_uv1.history = fhd_uv2.history
-    nt.assert_equal(fhd_uv1, fhd_uv2)
+    assert fhd_uv1 == fhd_uv2
 
 
 def test_multi_files_axis():
@@ -345,12 +351,12 @@ def test_multi_files_axis():
     uvtest.checkWarnings(fhd_uv2.read, [testfiles], {'use_model': True},
                          known_warning='fhd')
 
-    nt.assert_true(uvutils._check_histories(fhd_uv2.history + ' Combined data '
-                                            'along polarization axis using pyuvdata.',
-                                            fhd_uv1.history))
+    assert uvutils._check_histories(fhd_uv2.history + ' Combined data '
+                                    'along polarization axis using pyuvdata.',
+                                    fhd_uv1.history)
 
     fhd_uv1.history = fhd_uv2.history
-    nt.assert_equal(fhd_uv1, fhd_uv2)
+    assert fhd_uv1 == fhd_uv2
 
 
 def test_single_time():
