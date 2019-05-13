@@ -7,7 +7,7 @@
 """
 from __future__ import absolute_import, division, print_function
 
-import nose.tools as nt
+import pytest
 import numpy as np
 import copy
 
@@ -75,7 +75,7 @@ class UVTest(UVBase):
 def test_equality():
     """Basic equality test."""
     test_obj = UVTest()
-    nt.assert_equal(test_obj, test_obj)
+    assert test_obj == test_obj
 
 
 def test_equality_nocheckextra():
@@ -83,7 +83,7 @@ def test_equality_nocheckextra():
     test_obj = UVTest()
     test_obj2 = copy.deepcopy(test_obj)
     test_obj2.optional_int1 = 4
-    nt.assert_true(test_obj.__eq__(test_obj2, check_extra=False))
+    assert test_obj.__eq__(test_obj2, check_extra=False)
 
 
 def test_inequality_extra():
@@ -91,7 +91,7 @@ def test_inequality_extra():
     test_obj = UVTest()
     test_obj2 = copy.deepcopy(test_obj)
     test_obj2.optional_int1 = 4
-    nt.assert_not_equal(test_obj, test_obj2)
+    assert test_obj != test_obj2
 
 
 def test_inequality_different_extras():
@@ -100,7 +100,7 @@ def test_inequality_different_extras():
     test_obj2 = copy.deepcopy(test_obj)
     test_obj2._optional_int3 = uvp.UVParameter('optional_int3', description='optional integer value',
                                                expected_type=int, value=7, required=False)
-    nt.assert_not_equal(test_obj, test_obj2)
+    assert test_obj != test_obj2
 
 
 def test_inequality():
@@ -108,85 +108,85 @@ def test_inequality():
     test_obj = UVTest()
     test_obj2 = copy.deepcopy(test_obj)
     test_obj2.float1 = 13
-    nt.assert_not_equal(test_obj, test_obj2)
+    assert test_obj != test_obj2
 
 
 def test_class_inequality():
     """Test equality error for different classes."""
     test_obj = UVTest()
-    nt.assert_not_equal(test_obj, test_obj._floatarr)
+    assert test_obj != test_obj._floatarr
 
 
 def test_check():
     """Test simple check function."""
     test_obj = UVTest()
-    nt.assert_true(test_obj.check())
+    assert test_obj.check()
 
 
 def test_check_required():
     """Test simple check function."""
     test_obj = UVTest()
-    nt.assert_true(test_obj.check(check_extra=False))
+    assert test_obj.check(check_extra=False)
 
 
 def test_string_type_check():
     """Test check function with wrong type (string)."""
     test_obj = UVTest()
     test_obj.string1 = 1
-    nt.assert_raises(ValueError, test_obj.check)
+    pytest.raises(ValueError, test_obj.check)
 
 
 def test_string_form_check():
     """Test check function with wrong type (string)."""
     test_obj = UVTest()
     test_obj.string2 = 1
-    nt.assert_raises(ValueError, test_obj.check)
+    pytest.raises(ValueError, test_obj.check)
 
 
 def test_single_value_check():
     """Test check function with wrong type."""
     test_obj = UVTest()
     test_obj.int1 = np.float(test_obj.int1)
-    nt.assert_raises(ValueError, test_obj.check)
+    pytest.raises(ValueError, test_obj.check)
 
 
 def test_check_array_type():
     """Test check function with wrong array type."""
     test_obj = UVTest()
     test_obj.floatarr = test_obj.floatarr + 1j * test_obj.floatarr
-    nt.assert_raises(ValueError, test_obj.check)
+    pytest.raises(ValueError, test_obj.check)
 
 
 def test_check_array_shape():
     """Test check function with wrong array dimensions."""
     test_obj = UVTest()
     test_obj.floatarr = np.array([4, 5, 6], dtype=np.float)
-    nt.assert_raises(ValueError, test_obj.check)
+    pytest.raises(ValueError, test_obj.check)
 
 
 def test_list_dims():
     """Test check function with wrong list dimensions."""
     test_obj = UVTest()
     test_obj.strlist = ['s' + str(i) for i in np.arange(test_obj.int2)]
-    nt.assert_raises(ValueError, test_obj.check)
+    pytest.raises(ValueError, test_obj.check)
 
 
 def test_list_dims():
     """Test check function with wrong list type."""
     test_obj = UVTest()
     test_obj.intlist = ['s' + str(i) for i in np.arange(test_obj.int1)]
-    nt.assert_raises(ValueError, test_obj.check)
+    pytest.raises(ValueError, test_obj.check)
 
     test_obj.intlist = [i for i in np.arange(test_obj.int1)]
     test_obj.intlist[1] = 'test'
-    nt.assert_raises(ValueError, test_obj.check)
+    pytest.raises(ValueError, test_obj.check)
 
 
 def test_angle():
     test_obj = UVTest()
     test_obj2 = copy.deepcopy(test_obj)
     test_obj2.angle_degrees = 45.
-    nt.assert_equal(test_obj, test_obj2)
+    assert test_obj == test_obj2
 
 
 def test_angle_none():
@@ -194,21 +194,21 @@ def test_angle_none():
     test_obj2 = copy.deepcopy(test_obj)
     test_obj.angle = None
     test_obj2.angle_degrees = None
-    nt.assert_equal(test_obj, test_obj2)
+    assert test_obj == test_obj2
 
 
 def test_location():
     test_obj = UVTest()
     test_obj2 = copy.deepcopy(test_obj)
     test_obj2.location_lat_lon_alt = ref_latlonalt
-    nt.assert_equal(test_obj, test_obj2)
+    assert test_obj == test_obj2
 
 
 def test_location_degree():
     test_obj = UVTest()
     test_obj2 = copy.deepcopy(test_obj)
     test_obj2.location_lat_lon_alt_degrees = (np.rad2deg(ref_latlonalt[0]), np.rad2deg(ref_latlonalt[1]), ref_latlonalt[2])
-    nt.assert_equal(test_obj, test_obj2)
+    assert test_obj == test_obj2
 
 
 def test_location_none():
@@ -216,7 +216,7 @@ def test_location_none():
     test_obj2 = copy.deepcopy(test_obj)
     test_obj.location = None
     test_obj2.location_lat_lon_alt = None
-    nt.assert_equal(test_obj, test_obj2)
+    assert test_obj == test_obj2
 
 
 def test_location_degree_none():
@@ -224,9 +224,9 @@ def test_location_degree_none():
     test_obj2 = copy.deepcopy(test_obj)
     test_obj.location = None
     test_obj2.location_lat_lon_alt_degrees = None
-    nt.assert_equal(test_obj, test_obj2)
+    assert test_obj == test_obj2
 
 
 def test_warning():
     output = _warning("hello world")
-    nt.assert_equal(output, "hello world\n")
+    assert output, "hello world\n"
