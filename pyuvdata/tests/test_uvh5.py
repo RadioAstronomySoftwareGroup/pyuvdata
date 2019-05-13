@@ -10,7 +10,7 @@ from __future__ import absolute_import, division, print_function
 import os
 import copy
 import numpy as np
-import nose.tools as nt
+import pytest
 from astropy.time import Time
 
 from pyuvdata import UVData
@@ -40,14 +40,14 @@ def test_ReadMiriadWriteUVH5ReadUVH5():
                          message=['Altitude is not present'])
     uv_in.write_uvh5(testfile, clobber=True)
     uv_out.read(testfile)
-    nt.assert_equal(uv_in, uv_out)
+    assert uv_in == uv_out
 
     # also test round-tripping phased data
     uv_in.phase_to_time(Time(np.mean(uv_in.time_array), format='jd'))
     uv_in.write_uvh5(testfile, clobber=True)
     uv_out.read(testfile)
 
-    nt.assert_equal(uv_in, uv_out)
+    assert uv_in == uv_out
 
     # clean up
     os.remove(testfile)
@@ -88,8 +88,8 @@ def test_ReadUVH5Errors():
     """
     uv_in = UVData()
     fake_file = os.path.join(DATA_PATH, 'fake_file.uvh5')
-    nt.assert_raises(IOError, uv_in.read_uvh5, fake_file)
-    nt.assert_raises(ValueError, uv_in.read_uvh5, ['list of', 'fake files'], read_data=False)
+    pytest.raises(IOError, uv_in.read_uvh5, fake_file)
+    pytest.raises(ValueError, uv_in.read_uvh5, ['list of', 'fake files'], read_data=False)
 
     return
 
@@ -108,7 +108,7 @@ def test_WriteUVH5Errors():
         os.utime(testfile, None)
 
     # assert IOError if file exists
-    nt.assert_raises(IOError, uv_in.write_uvh5, testfile, clobber=False)
+    pytest.raises(IOError, uv_in.write_uvh5, testfile, clobber=False)
 
     # use clobber=True to write out anyway
     uv_in.write_uvh5(testfile, clobber=True)
@@ -851,25 +851,25 @@ def test_UVH5PartialWriteErrors():
     partial_testfile = os.path.join(DATA_PATH, 'test', 'outtest_partial.uvh5')
     if os.path.exists(partial_testfile):
         os.remove(partial_testfile)
-    nt.assert_raises(AssertionError, partial_uvh5.write_uvh5_part, partial_testfile, data,
+    pytest.raises(AssertionError, partial_uvh5.write_uvh5_part, partial_testfile, data,
                      flags, nsamples, bls=key)
 
     # initialize file on disk
     partial_uvh5.initialize_uvh5_file(partial_testfile, clobber=True)
 
     # pass in arrays that are different sizes
-    nt.assert_raises(AssertionError, partial_uvh5.write_uvh5_part, partial_testfile, data,
+    pytest.raises(AssertionError, partial_uvh5.write_uvh5_part, partial_testfile, data,
                      flags[:, :, :, 0], nsamples, bls=key)
-    nt.assert_raises(AssertionError, partial_uvh5.write_uvh5_part, partial_testfile, data,
+    pytest.raises(AssertionError, partial_uvh5.write_uvh5_part, partial_testfile, data,
                      flags, nsamples[:, :, :, 0], bls=key)
 
     # pass in arrays that are the same size, but don't match expected shape
-    nt.assert_raises(AssertionError, partial_uvh5.write_uvh5_part, partial_testfile, data[:, :, :, 0],
+    pytest.raises(AssertionError, partial_uvh5.write_uvh5_part, partial_testfile, data[:, :, :, 0],
                      flags[:, :, :, 0], nsamples[:, :, :, 0])
 
     # initialize a file on disk, and pass in a different object so check_header fails
     empty_uvd = UVData()
-    nt.assert_raises(AssertionError, empty_uvd.write_uvh5_part, partial_testfile, data,
+    pytest.raises(AssertionError, empty_uvd.write_uvh5_part, partial_testfile, data,
                      flags, nsamples, bls=key)
 
     # clean up
@@ -906,7 +906,7 @@ def test_UVH5InitializeFile():
     nt.assert_equal(partial_uvh5, full_uvh5)
 
     # check that IOError is raised then when clobber == False
-    nt.assert_raises(IOError, partial_uvh5.initialize_uvh5_file, partial_testfile, clobber=False)
+    pytest.raises(IOError, partial_uvh5.initialize_uvh5_file, partial_testfile, clobber=False)
 
     # add options for compression
     partial_uvh5.initialize_uvh5_file(partial_testfile, clobber=True, data_compression="lzf",
@@ -1081,7 +1081,7 @@ def test_UVH5ReadInts():
     os.remove(testfile)
 
     # raise error
-    nt.assert_raises(ValueError, uv_in.read_uvh5, uvh5_file, data_array_dtype=np.int32)
+    pytest.raises(ValueError, uv_in.read_uvh5, uvh5_file, data_array_dtype=np.int32)
 
     return
 
@@ -1338,7 +1338,7 @@ def test_read_complex_astype():
     # test passing in a forbidden output datatype
     with h5py.File(test_file, 'r') as f:
         dset = f['Data/testdata']
-        nt.assert_raises(ValueError, uvh5._read_complex_astype, dset, indices, np.int32)
+        pytest.raises(ValueError, uvh5._read_complex_astype, dset, indices, np.int32)
 
     # clean up
     os.remove(test_file)
@@ -1377,15 +1377,15 @@ def test_write_complex_astype():
 @uvtest.skipIf_no_h5py
 def test_check_uvh5_dtype_errors():
     # test passing in something that's not a dtype
-    nt.assert_raises(ValueError, uvh5._check_uvh5_dtype, 'hi')
+    pytest.raises(ValueError, uvh5._check_uvh5_dtype, 'hi')
 
     # test using a dtype with bad field names
     dtype = np.dtype([('a', '<i4'), ('b', '<i4')])
-    nt.assert_raises(ValueError, uvh5._check_uvh5_dtype, dtype)
+    pytest.raises(ValueError, uvh5._check_uvh5_dtype, dtype)
 
     # test having different types for 'r' and 'i' fields
     dtype = np.dtype([('r', '<i4'), ('i', '<f4')])
-    nt.assert_raises(ValueError, uvh5._check_uvh5_dtype, dtype)
+    pytest.raises(ValueError, uvh5._check_uvh5_dtype, dtype)
 
     return
 
