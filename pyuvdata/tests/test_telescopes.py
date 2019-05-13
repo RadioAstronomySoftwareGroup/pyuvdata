@@ -8,7 +8,7 @@
 from __future__ import absolute_import, division, print_function
 
 import numpy as np
-import nose.tools as nt
+import pytest
 
 import pyuvdata
 
@@ -30,8 +30,7 @@ def test_parameter_iter():
     for prop in telescope_obj:
         all.append(prop)
     for a in required_parameters:
-        nt.assert_true(a in all, msg='expected attribute ' + a
-                       + ' not returned in object iterator')
+        assert a in all, 'expected attribute ' + a + ' not returned in object iterator'
 
 
 def test_required_parameter_iter():
@@ -41,8 +40,7 @@ def test_required_parameter_iter():
     for prop in telescope_obj.required():
         required.append(prop)
     for a in required_parameters:
-        nt.assert_true(a in required, msg='expected attribute ' + a
-                       + ' not returned in required iterator')
+        assert a in required, 'expected attribute ' + a + ' not returned in required iterator'
 
 
 def test_extra_parameter_iter():
@@ -52,8 +50,7 @@ def test_extra_parameter_iter():
     for prop in telescope_obj.extra():
         extra.append(prop)
     for a in extra_parameters:
-        nt.assert_true(a in extra, msg='expected attribute ' + a
-                       + ' not returned in extra iterator')
+        a in extra, 'expected attribute ' + a + ' not returned in extra iterator'
 
 
 def test_unexpected_parameters():
@@ -62,8 +59,7 @@ def test_unexpected_parameters():
     expected_parameters = required_parameters + extra_parameters
     attributes = [i for i in list(telescope_obj.__dict__.keys()) if i[0] == '_']
     for a in attributes:
-        nt.assert_true(a in expected_parameters,
-                       msg='unexpected parameter ' + a + ' found in Telescope')
+        assert a in expected_parameters, 'unexpected parameter ' + a + ' found in Telescope'
 
 
 def test_unexpected_attributes():
@@ -72,8 +68,7 @@ def test_unexpected_attributes():
     expected_attributes = required_properties + other_attributes
     attributes = [i for i in list(telescope_obj.__dict__.keys()) if i[0] != '_']
     for a in attributes:
-        nt.assert_true(a in expected_attributes,
-                       msg='unexpected attribute ' + a + ' found in Telescope')
+        assert a in expected_attributes, 'unexpected attribute ' + a + ' found in Telescope'
 
 
 def test_properties():
@@ -85,7 +80,7 @@ def test_properties():
         setattr(telescope_obj, k, rand_num)
         this_param = getattr(telescope_obj, v)
         try:
-            nt.assert_equal(rand_num, this_param.value)
+            assert rand_num == this_param.value
         except(AssertionError):
             print('setting {prop_name} to a random number failed'.format(prop_name=k))
             raise
@@ -93,13 +88,14 @@ def test_properties():
 
 def test_known_telescopes():
     """Test known_telescopes function returns expected results."""
-    nt.assert_equal(pyuvdata.known_telescopes().sort(), expected_known_telescopes.sort())
+    # using np.sort here and casting to list instead of .sort() since .sort() acts inplace and returns None
+    assert np.sort(pyuvdata.known_telescopes()).tolist() == np.sort(expected_known_telescopes).tolist()
 
 
 def test_get_telescope():
     for inst in pyuvdata.known_telescopes():
         telescope_obj = pyuvdata.get_telescope(inst)
-        nt.assert_equal(telescope_obj.telescope_name, inst)
+        assert telescope_obj.telescope_name == inst
 
 
 def test_get_telescope_center_xyz():
@@ -121,11 +117,11 @@ def test_get_telescope_center_xyz():
     telescope_obj_ext.telescope_name = 'test'
     telescope_obj_ext.telescope_location = ref_xyz
 
-    nt.assert_equal(telescope_obj, telescope_obj_ext)
+    assert telescope_obj == telescope_obj_ext
 
     telescope_obj_ext.telescope_name = 'test2'
     telescope_obj2 = pyuvdata.get_telescope('test2', telescope_dict_in=test_telescope_dict)
-    nt.assert_equal(telescope_obj2, telescope_obj_ext)
+    assert telescope_obj2 == telescope_obj_ext
 
 
 def test_get_telescope_no_loc():
@@ -134,4 +130,4 @@ def test_get_telescope_no_loc():
                                     'longitude': None,
                                     'altitude': None,
                                     'citation': ''}}
-    nt.assert_raises(ValueError, pyuvdata.get_telescope, 'test', telescope_dict_in=test_telescope_dict)
+    pytest.raises(ValueError, pyuvdata.get_telescope, 'test', telescope_dict_in=test_telescope_dict)
