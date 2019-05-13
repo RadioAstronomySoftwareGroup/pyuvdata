@@ -7,7 +7,7 @@
 """
 from __future__ import absolute_import, division, print_function
 
-import nose.tools as nt
+import pytest
 import os
 import numpy as np
 
@@ -37,7 +37,7 @@ def test_ReadFHDcalWriteReadcalfits():
     outfile = os.path.join(DATA_PATH, 'test/outtest_FHDcal_1061311664.calfits')
     fhd_cal.write_calfits(outfile, clobber=True)
     calfits_cal.read_calfits(outfile)
-    nt.assert_equal(fhd_cal, calfits_cal)
+    assert fhd_cal == calfits_cal
 
     # do it again with fit gains (rather than raw)
     fhd_cal.read_fhd_cal(cal_testfile, obs_testfile,
@@ -45,7 +45,7 @@ def test_ReadFHDcalWriteReadcalfits():
     outfile = os.path.join(DATA_PATH, 'test/outtest_FHDcal_1061311664.calfits')
     fhd_cal.write_calfits(outfile, clobber=True)
     calfits_cal.read_calfits(outfile)
-    nt.assert_equal(fhd_cal, calfits_cal)
+    assert fhd_cal == calfits_cal
 
 
 def test_extra_history():
@@ -62,8 +62,8 @@ def test_extra_history():
     outfile = os.path.join(DATA_PATH, 'test/outtest_FHDcal_1061311664.calfits')
     fhd_cal.write_calfits(outfile, clobber=True)
     calfits_cal.read_calfits(outfile)
-    nt.assert_equal(fhd_cal, calfits_cal)
-    nt.assert_true(extra_history in fhd_cal.history)
+    assert fhd_cal == calfits_cal
+    assert extra_history in fhd_cal.history
 
     # try again with a list of history strings
     extra_history = ['Some extra history for testing',
@@ -75,9 +75,9 @@ def test_extra_history():
     outfile = os.path.join(DATA_PATH, 'test/outtest_FHDcal_1061311664.calfits')
     fhd_cal.write_calfits(outfile, clobber=True)
     calfits_cal.read_calfits(outfile)
-    nt.assert_equal(fhd_cal, calfits_cal)
+    assert fhd_cal == calfits_cal
     for line in extra_history:
-        nt.assert_true(line in fhd_cal.history)
+        assert line in fhd_cal.history
 
 
 def test_flags_galaxy():
@@ -97,19 +97,19 @@ def test_flags_galaxy():
     outfile = os.path.join(DATA_PATH, 'test/outtest_FHDcal_1061311664.calfits')
     fhd_cal.write_calfits(outfile, clobber=True)
     calfits_cal.read_calfits(outfile)
-    nt.assert_equal(fhd_cal, calfits_cal)
+    assert fhd_cal == calfits_cal
 
 
 def test_breakReadFHDcal():
     """Try various cases of missing files."""
     fhd_cal = UVCal()
-    nt.assert_raises(Exception, fhd_cal.read_fhd_cal, cal_testfile)  # Missing obs
+    pytest.raises(Exception, fhd_cal.read_fhd_cal, cal_testfile)  # Missing obs
 
     uvtest.checkWarnings(fhd_cal.read_fhd_cal, [cal_testfile, obs_testfile],
                          message=['No settings file'])
 
     # Check only pyuvdata version history with no settings file
-    nt.assert_equal(fhd_cal.history, '\n' + fhd_cal.pyuvdata_version_str)
+    assert fhd_cal.history == '\n' + fhd_cal.pyuvdata_version_str
 
 
 def test_read_multi():
@@ -128,7 +128,7 @@ def test_read_multi():
     outfile = os.path.join(DATA_PATH, 'test/outtest_FHDcal_1061311664.calfits')
     fhd_cal.write_calfits(outfile, clobber=True)
     calfits_cal.read_calfits(outfile)
-    nt.assert_equal(fhd_cal, calfits_cal)
+    assert fhd_cal == calfits_cal
 
 
 def test_break_read_multi():
@@ -140,15 +140,15 @@ def test_break_read_multi():
     settings_testfile_list = [settings_testfile, os.path.join(testdir2, testfile_prefix + 'settings.txt')]
 
     fhd_cal = UVCal()
-    nt.assert_raises(ValueError, fhd_cal.read_fhd_cal, cal_testfile_list,
-                     obs_testfile_list[0], settings_file=settings_testfile_list)
-    nt.assert_raises(ValueError, fhd_cal.read_fhd_cal, cal_testfile_list,
-                     obs_testfile_list, settings_file=settings_testfile_list[0])
-    nt.assert_raises(ValueError, fhd_cal.read_fhd_cal, cal_testfile_list,
-                     obs_testfile_list + obs_testfile_list, settings_file=settings_testfile_list)
-    nt.assert_raises(ValueError, fhd_cal.read_fhd_cal, cal_testfile_list,
-                     obs_testfile_list, settings_file=settings_testfile_list + settings_testfile_list)
-    nt.assert_raises(ValueError, fhd_cal.read_fhd_cal, cal_testfile_list[0],
-                     obs_testfile_list, settings_file=settings_testfile_list[0])
-    nt.assert_raises(ValueError, fhd_cal.read_fhd_cal, cal_testfile_list[0],
-                     obs_testfile_list[0], settings_file=settings_testfile_list)
+    pytest.raises(ValueError, fhd_cal.read_fhd_cal, cal_testfile_list,
+                  obs_testfile_list[0], settings_file=settings_testfile_list)
+    pytest.raises(ValueError, fhd_cal.read_fhd_cal, cal_testfile_list,
+                  obs_testfile_list, settings_file=settings_testfile_list[0])
+    pytest.raises(ValueError, fhd_cal.read_fhd_cal, cal_testfile_list,
+                  obs_testfile_list + obs_testfile_list, settings_file=settings_testfile_list)
+    pytest.raises(ValueError, fhd_cal.read_fhd_cal, cal_testfile_list,
+                  obs_testfile_list, settings_file=settings_testfile_list + settings_testfile_list)
+    pytest.raises(ValueError, fhd_cal.read_fhd_cal, cal_testfile_list[0],
+                  obs_testfile_list, settings_file=settings_testfile_list[0])
+    pytest.raises(ValueError, fhd_cal.read_fhd_cal, cal_testfile_list[0],
+                  obs_testfile_list[0], settings_file=settings_testfile_list)
