@@ -9,7 +9,7 @@ from __future__ import absolute_import, division, print_function
 
 import os
 import shutil
-import nose.tools as nt
+import pytest
 
 from .. import aipy_extracts as ae
 from ..data import DATA_PATH
@@ -19,13 +19,13 @@ def test_bl2ij():
     """Test bl2ij function"""
     # small baseline number
     bl = 258
-    nt.assert_true(ae.bl2ij(bl)[0] == 0)
-    nt.assert_true(ae.bl2ij(bl)[1] == 1)
+    assert ae.bl2ij(bl)[0] == 0
+    assert ae.bl2ij(bl)[1] == 1
 
     # large baseline number
     bl = 67587
-    nt.assert_true(ae.bl2ij(bl)[0] == 0)
-    nt.assert_true(ae.bl2ij(bl)[1] == 2)
+    assert ae.bl2ij(bl)[0] == 0
+    assert ae.bl2ij(bl)[1] == 2
     return
 
 
@@ -34,17 +34,17 @@ def test_ij2bl():
     # test < 256 antennas
     i = 1
     j = 2
-    nt.assert_true(ae.ij2bl(i, j) == 515)
+    assert ae.ij2bl(i, j) == 515
 
     # test > 256 antennas
     i = 2
     j = 257
-    nt.assert_true(ae.ij2bl(i, j) == 71938)
+    assert ae.ij2bl(i, j) == 71938
 
     # test case where i > j
     i = 257
     j = 2
-    nt.assert_true(ae.ij2bl(i, j) == 71938)
+    assert ae.ij2bl(i, j) == 71938
     return
 
 
@@ -75,11 +75,10 @@ def test_parse_ants():
     for k in cases:
         cases[k] = [(v + (-1,))[:3] for v in cases[k]]
     for ant_str in cases:
-        nt.assert_equal(ae.parse_ants(ant_str, nants),
-                        cases[ant_str])
+        assert ae.parse_ants(ant_str, nants) == cases[ant_str]
 
     # check that malformed antstr raises and error
-    nt.assert_raises(ValueError, ae.parse_ants, '(0_1)_2', nants)
+    pytest.raises(ValueError, ae.parse_ants, '(0_1)_2', nants)
     return
 
 
@@ -99,7 +98,7 @@ def test_UV_wrhd():
 
     # test that we wrote something
     del uv
-    nt.assert_true(os.path.isdir(test_file))
+    assert os.path.isdir(test_file)
 
     # clean up
     shutil.rmtree(test_file)
@@ -116,10 +115,10 @@ def test_UV_wrhd_special():
     uv._wrhd_special('freqs', freqs)
 
     # check that we wrote something to disk
-    nt.assert_true(os.path.isdir(test_file))
+    assert os.path.isdir(test_file)
 
     # check that anything besides 'freqs' raises an error
-    nt.assert_raises(ValueError, uv._wrhd_special, 'foo', 12)
+    pytest.raises(ValueError, uv._wrhd_special, 'foo', 12)
 
     # clean up after ourselves
     del uv
@@ -151,10 +150,10 @@ def test_UV_rdhd_special():
     # open a new file and check that freqs match the written ones
     uv3 = ae.UV(test_file)
     freqs2 = uv3._rdhd_special('freqs')
-    nt.assert_true(freqs == freqs2)
+    assert freqs == freqs2
 
     # check that anything besides 'freqs' raises an error
-    nt.assert_raises(ValueError, uv3._rdhd_special, 'foo')
+    pytest.raises(ValueError, uv3._rdhd_special, 'foo')
 
     # cleean up after ourselves
     shutil.rmtree(test_file)
