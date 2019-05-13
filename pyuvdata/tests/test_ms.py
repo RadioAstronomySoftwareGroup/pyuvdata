@@ -7,7 +7,7 @@
 """
 from __future__ import absolute_import, division, print_function
 
-import nose.tools as nt
+import pytest
 import os
 import shutil
 import copy
@@ -31,7 +31,7 @@ def test_cotter_ms():
     uvtest.checkWarnings(UV2.read, [testfile], {'freq_chans': np.arange(2)},
                          message='Warning: select on read keyword set')
     UV.select(freq_chans=np.arange(2))
-    nt.assert_equal(UV, UV2)
+    assert UV == UV2
     del(UV)
 
 
@@ -43,8 +43,7 @@ def test_readNRAO():
     expected_extra_keywords = ['DATA_COL']
 
     UV.read(testfile)
-    nt.assert_equal(sorted(expected_extra_keywords),
-                    sorted(list(UV.extra_keywords.keys())))
+    assert sorted(expected_extra_keywords) == sorted(list(UV.extra_keywords.keys()))
 
 
 @uvtest.skipIf_no_casa
@@ -60,10 +59,9 @@ def test_read_LWA():
         tf.extractall(path=DATA_PATH)
 
     UV.read(new_filename, file_type='ms')
-    nt.assert_equal(sorted(expected_extra_keywords),
-                    sorted(list(UV.extra_keywords.keys())))
+    assert sorted(expected_extra_keywords) == sorted(list(UV.extra_keywords.keys()))
 
-    nt.assert_equal(UV.history, UV.pyuvdata_version_str)
+    assert UV.history == UV.pyuvdata_version_str
 
     # delete the untarred folder
     shutil.rmtree(new_filename)
@@ -71,7 +69,7 @@ def test_read_LWA():
 
 @uvtest.skipIf_no_casa
 def test_noSPW():
-    """Test reading in a PAPER ms convertes by CASA from a uvfits with no spw axis."""
+    """Test reading in a PAPER ms converted by CASA from a uvfits with no spw axis."""
     UV = UVData()
     testfile_no_spw = os.path.join(
         DATA_PATH, 'zen.2456865.60537.xy.uvcRREAAM.ms')
@@ -84,7 +82,7 @@ def test_spwnotsupported():
     """Test errors on reading in an ms file with multiple spws."""
     UV = UVData()
     testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1scan.ms')
-    nt.assert_raises(ValueError, UV.read, testfile)
+    pytest.raises(ValueError, UV.read, testfile)
     del(UV)
 
 
@@ -93,10 +91,10 @@ def test_multi_len_spw():
     """Test errors on reading in an ms file with multiple spws with variable lenghth."""
     UV = UVData()
     testfile = os.path.join(DATA_PATH, 'multi_len_spw.ms')
-    with nt.assert_raises(ValueError) as cm:
+    with pytest.raises(ValueError) as cm:
         UV.read(testfile)
     ex = cm.exception  # raised exception is available through exception property of context
-    nt.assert_true(ex.args[0].startswith('Sorry.  Files with more than one spectral'))
+    assert ex.args[0].startswith('Sorry.  Files with more than one spectral')
 
 
 @uvtest.skipIf_no_casa
@@ -140,9 +138,9 @@ def test_readMSreadUVFITS():
 
     # the objects won't be equal because uvfits adds some optional parameters
     # and the ms sets default antenna diameters even thoug the uvfits file doesn't have them
-    nt.assert_false(uvfits_uv == ms_uv)
+    assert uvfits_uv != ms_uv
     # they are equal if only required parameters are checked:
-    nt.assert_true(uvfits_uv.__eq__(ms_uv, check_extra=False))
+    assert uvfits_uv.__eq__(ms_uv, check_extra=False)
 
     # set those parameters to none to check that the rest of the objects match
     ms_uv.antenna_diameters = None
@@ -158,7 +156,7 @@ def test_readMSreadUVFITS():
     uvfits_uv.extra_keywords = {}
     ms_uv.extra_keywords = {}
 
-    nt.assert_equal(uvfits_uv, ms_uv)
+    assert uvfits_uv == ms_uv
     del(ms_uv)
     del(uvfits_uv)
 
@@ -179,7 +177,7 @@ def test_readMSWriteUVFITS():
     uvtest.checkWarnings(uvfits_uv.read_uvfits, [testfile],
                          message='Telescope EVLA is not')
 
-    nt.assert_equal(uvfits_uv, ms_uv)
+    assert uvfits_uv == ms_uv
     del(ms_uv)
     del(uvfits_uv)
 
@@ -200,7 +198,7 @@ def test_readMSWriteMiriad():
     uvtest.checkWarnings(miriad_uv.read_miriad, [testfile],
                          message='Telescope EVLA is not')
 
-    nt.assert_equal(miriad_uv, ms_uv)
+    assert miriad_uv == ms_uv
 
 
 @uvtest.skipIf_no_casa
@@ -221,9 +219,9 @@ def test_multi_files():
 
     # the objects won't be equal because uvfits adds some optional parameters
     # and the ms sets default antenna diameters even thoug the uvfits file doesn't have them
-    nt.assert_false(uv_multi == uv_full)
+    assert uv_multi != uv_full
     # they are equal if only required parameters are checked:
-    nt.assert_true(uv_multi.__eq__(uv_full, check_extra=False))
+    assert uv_multi.__eq__(uv_full, check_extra=False)
 
     # set those parameters to none to check that the rest of the objects match
     uv_multi.antenna_diameters = None
@@ -239,7 +237,7 @@ def test_multi_files():
     uv_full.extra_keywords = {}
     uv_multi.extra_keywords = {}
 
-    nt.assert_equal(uv_multi, uv_full)
+    assert uv_multi == uv_full
     del(uv_full)
     del(uv_multi)
 
@@ -262,9 +260,9 @@ def test_multi_files_axis():
 
     # the objects won't be equal because uvfits adds some optional parameters
     # and the ms sets default antenna diameters even thoug the uvfits file doesn't have them
-    nt.assert_false(uv_multi == uv_full)
+    assert uv_multi != uv_full
     # they are equal if only required parameters are checked:
-    nt.assert_true(uv_multi.__eq__(uv_full, check_extra=False))
+    assert uv_multi.__eq__(uv_full, check_extra=False)
 
     # set those parameters to none to check that the rest of the objects match
     uv_multi.antenna_diameters = None
@@ -280,7 +278,7 @@ def test_multi_files_axis():
     uv_full.extra_keywords = {}
     uv_multi.extra_keywords = {}
 
-    nt.assert_equal(uv_multi, uv_full)
+    assert uv_multi == uv_full
 
 
 @uvtest.skipIf_no_casa
@@ -291,7 +289,7 @@ def test_bad_col_name():
     UV = UVData()
     testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.ms')
 
-    with nt.assert_raises(ValueError) as cm:
+    with pytest.raises(ValueError) as cm:
         UV.read_ms(testfile, data_column='FOO')
     ex = cm.exception  # raised exception is available through exception property of context
-    nt.assert_true(ex.args[0].startswith('Invalid data_column value supplied'))
+    assert ex.args[0].startswith('Invalid data_column value supplied')
