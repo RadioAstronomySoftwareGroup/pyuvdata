@@ -7,7 +7,7 @@
 """
 from __future__ import absolute_import, division, print_function
 
-import nose.tools as nt
+import pytest
 import os
 import numpy as np
 from astropy.io import fits
@@ -32,13 +32,13 @@ def test_readwriteread():
     cal_in.read_calfits(testfile)
     cal_in.write_calfits(write_file, clobber=True)
     cal_out.read_calfits(write_file)
-    nt.assert_equal(cal_in, cal_out)
+    assert cal_in == cal_out
 
     # test without freq_range parameter
     cal_in.freq_range = None
     cal_in.write_calfits(write_file, clobber=True)
     cal_out.read_calfits(write_file)
-    nt.assert_equal(cal_in, cal_out)
+    assert cal_in == cal_out
 
 
 def test_readwriteread_delays():
@@ -55,7 +55,7 @@ def test_readwriteread_delays():
     cal_in.read_calfits(testfile)
     cal_in.write_calfits(write_file, clobber=True)
     cal_out.read_calfits(write_file)
-    nt.assert_equal(cal_in, cal_out)
+    assert cal_in == cal_out
     del(cal_in)
     del(cal_out)
 
@@ -72,7 +72,7 @@ def test_errors():
     cal_in.read_calfits(testfile)
 
     cal_in.set_unknown_cal_type()
-    nt.assert_raises(ValueError, cal_in.write_calfits, write_file, run_check=False, clobber=True)
+    pytest.raises(ValueError, cal_in.write_calfits, write_file, run_check=False, clobber=True)
 
     # change values for various axes in flag and total quality hdus to not match primary hdu
     cal_in.read_calfits(testfile)
@@ -119,7 +119,7 @@ def test_errors():
 
         hdulist.writeto(write_file, overwrite=True)
 
-        nt.assert_raises(ValueError, cal_out.read_calfits, write_file, strict_fits=True)
+        pytest.raises(ValueError, cal_out.read_calfits, write_file, strict_fits=True)
 
     # repeat for gain type file
     testfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.gain.calfits')
@@ -163,7 +163,7 @@ def test_errors():
 
         hdulist.writeto(write_file, overwrite=True)
 
-        nt.assert_raises(ValueError, cal_out.read_calfits, write_file, strict_fits=True)
+        pytest.raises(ValueError, cal_out.read_calfits, write_file, strict_fits=True)
 
 
 def test_extra_keywords():
@@ -177,19 +177,19 @@ def test_extra_keywords():
     cal_in.extra_keywords['testdict'] = {'testkey': 23}
     uvtest.checkWarnings(cal_in.check, message=['testdict in extra_keywords is a '
                                                 'list, array or dict'])
-    nt.assert_raises(TypeError, cal_in.write_calfits, testfile, run_check=False)
+    pytest.raises(TypeError, cal_in.write_calfits, testfile, run_check=False)
     cal_in.extra_keywords.pop('testdict')
 
     cal_in.extra_keywords['testlist'] = [12, 14, 90]
     uvtest.checkWarnings(cal_in.check, message=['testlist in extra_keywords is a '
                                                 'list, array or dict'])
-    nt.assert_raises(TypeError, cal_in.write_calfits, testfile, run_check=False)
+    pytest.raises(TypeError, cal_in.write_calfits, testfile, run_check=False)
     cal_in.extra_keywords.pop('testlist')
 
     cal_in.extra_keywords['testarr'] = np.array([12, 14, 90])
     uvtest.checkWarnings(cal_in.check, message=['testarr in extra_keywords is a '
                                                 'list, array or dict'])
-    nt.assert_raises(TypeError, cal_in.write_calfits, testfile, run_check=False)
+    pytest.raises(TypeError, cal_in.write_calfits, testfile, run_check=False)
     cal_in.extra_keywords.pop('testarr')
 
     # check for warnings with extra_keywords keys that are too long
@@ -207,7 +207,7 @@ def test_extra_keywords():
     cal_in.write_calfits(testfile, clobber=True)
     cal_out.read_calfits(testfile)
 
-    nt.assert_equal(cal_in, cal_out)
+    assert cal_in == cal_out
     cal_in.extra_keywords.pop('bool')
     cal_in.extra_keywords.pop('bool2')
 
@@ -217,7 +217,7 @@ def test_extra_keywords():
     cal_in.write_calfits(testfile, clobber=True)
     cal_out.read_calfits(testfile)
 
-    nt.assert_equal(cal_in, cal_out)
+    assert cal_in == cal_out
     cal_in.extra_keywords.pop('int1')
     cal_in.extra_keywords.pop('int2')
 
@@ -227,7 +227,7 @@ def test_extra_keywords():
     cal_in.write_calfits(testfile, clobber=True)
     cal_out.read_calfits(testfile)
 
-    nt.assert_equal(cal_in, cal_out)
+    assert cal_in == cal_out
     cal_in.extra_keywords.pop('float1')
     cal_in.extra_keywords.pop('float2')
 
@@ -237,7 +237,7 @@ def test_extra_keywords():
     cal_in.write_calfits(testfile, clobber=True)
     cal_out.read_calfits(testfile)
 
-    nt.assert_equal(cal_in, cal_out)
+    assert cal_in == cal_out
     cal_in.extra_keywords.pop('complex1')
     cal_in.extra_keywords.pop('complex2')
 
@@ -248,7 +248,7 @@ def test_extra_keywords():
     cal_in.write_calfits(testfile, clobber=True)
     cal_out.read_calfits(testfile)
 
-    nt.assert_equal(cal_in, cal_out)
+    assert cal_in == cal_out
 
 
 def test_read_oldcalfits_gain():
@@ -298,9 +298,9 @@ def test_read_oldcalfits_gain():
 
         uvtest.checkWarnings(cal_out.read_calfits, [write_file], message=messages[i],
                              category=DeprecationWarning)
-        nt.assert_equal(cal_in, cal_out)
+        assert cal_in == cal_out
         if keyword.startswith('CR'):
-            nt.assert_raises(KeyError, cal_out.read_calfits, write_file, strict_fits=True)
+            pytest.raises(KeyError, cal_out.read_calfits, write_file, strict_fits=True)
 
 
 def test_read_oldcalfits_delay():
@@ -357,9 +357,9 @@ def test_read_oldcalfits_delay():
 
         uvtest.checkWarnings(cal_out.read_calfits, [write_file], message=messages[i],
                              category=DeprecationWarning)
-        nt.assert_equal(cal_in, cal_out)
+        assert cal_in == cal_out
         if keyword.startswith('CR'):
-            nt.assert_raises(KeyError, cal_out.read_calfits, write_file, strict_fits=True)
+            pytest.raises(KeyError, cal_out.read_calfits, write_file, strict_fits=True)
 
 
 def test_read_oldcalfits_delay_nofreqaxis():
@@ -411,7 +411,7 @@ def test_read_oldcalfits_delay_nofreqaxis():
     message = write_file + ' appears to be an old calfits format'
     uvtest.checkWarnings(cal_out.read_calfits, [write_file], message=message,
                          category=DeprecationWarning)
-    nt.assert_equal(cal_in, cal_out)
+    assert cal_in == cal_out
 
 
 def test_input_flag_array():
@@ -429,7 +429,7 @@ def test_input_flag_array():
     cal_in.input_flag_array = np.zeros(cal_in._input_flag_array.expected_shape(cal_in), dtype=bool)
     cal_in.write_calfits(write_file, clobber=True)
     cal_out.read_calfits(write_file)
-    nt.assert_equal(cal_in, cal_out)
+    assert cal_in == cal_out
 
     # Repeat for delay version
     testfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.delay.calfits')
@@ -437,7 +437,7 @@ def test_input_flag_array():
     cal_in.input_flag_array = np.zeros(cal_in._input_flag_array.expected_shape(cal_in), dtype=bool)
     cal_in.write_calfits(write_file, clobber=True)
     cal_out.read_calfits(write_file)
-    nt.assert_equal(cal_in, cal_out)
+    assert cal_in == cal_out
     del(cal_in)
     del(cal_out)
 
@@ -464,7 +464,7 @@ def test_jones():
 
     cal_in.write_calfits(write_file, clobber=True)
     cal_out.read_calfits(write_file)
-    nt.assert_equal(cal_in, cal_out)
+    assert cal_in == cal_out
 
     # Repeat for delay version
     testfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.delay.calfits')
@@ -479,7 +479,7 @@ def test_jones():
 
     cal_in.write_calfits(write_file, clobber=True)
     cal_out.read_calfits(write_file)
-    nt.assert_equal(cal_in, cal_out)
+    assert cal_in == cal_out
     del(cal_in)
     del(cal_out)
 
@@ -502,7 +502,7 @@ def test_readwriteread_total_quality_array():
 
     cal_in.write_calfits(write_file, clobber=True)
     cal_out.read_calfits(write_file)
-    nt.assert_equal(cal_in, cal_out)
+    assert cal_in == cal_out
     del(cal_in)
     del(cal_out)
 
@@ -517,7 +517,7 @@ def test_readwriteread_total_quality_array():
 
     cal_in.write_calfits(write_file, clobber=True)
     cal_out.read_calfits(write_file)
-    nt.assert_equal(cal_in, cal_out)
+    assert cal_in == cal_out
     del(cal_in)
     del(cal_out)
 
@@ -536,7 +536,7 @@ def test_total_quality_array_size():
     cal_in.total_quality_array = np.zeros(cal_in._total_quality_array.expected_shape(cal_in))
 
     proper_shape = (cal_in.Nspws, cal_in.Nfreqs, cal_in.Ntimes, cal_in.Njones)
-    nt.assert_equal(cal_in.total_quality_array.shape, proper_shape)
+    assert cal_in.total_quality_array.shape == proper_shape
     del(cal_in)
 
     # also test delay-type calibrations
@@ -547,7 +547,7 @@ def test_total_quality_array_size():
     cal_in.total_quality_array = np.zeros(cal_in._total_quality_array.expected_shape(cal_in))
 
     proper_shape = (cal_in.Nspws, 1, cal_in.Ntimes, cal_in.Njones)
-    nt.assert_equal(cal_in.total_quality_array.shape, proper_shape)
+    assert cal_in.total_quality_array.shape == proper_shape
     del(cal_in)
 
 
@@ -565,7 +565,7 @@ def test_write_time_precision():
     cal_in.time_array = dt * np.arange(cal_in.Ntimes)
     cal_in.write_calfits(write_file, clobber=True)
     cal_out.read_calfits(write_file)
-    nt.assert_equal(cal_in, cal_out)
+    assert cal_in == cal_out
 
 
 def test_read_noversion_history():
@@ -594,7 +594,7 @@ def test_read_noversion_history():
     hdulist.writeto(write_file, overwrite=True)
 
     cal_out.read_calfits(write_file)
-    nt.assert_equal(cal_in, cal_out)
+    assert cal_in == cal_out
 
 
 def test_spw_zero_indexed_gain():
@@ -623,7 +623,7 @@ def test_spw_zero_indexed_gain():
     hdulist.writeto(write_file, overwrite=True)
 
     cal_out.read_calfits(write_file)
-    nt.assert_equal(cal_in, cal_out)
+    assert cal_in == cal_out
 
 
 def test_spw_zero_indexed_delay():
@@ -655,7 +655,7 @@ def test_spw_zero_indexed_delay():
     hdulist.writeto(write_file, overwrite=True)
 
     cal_out.read_calfits(write_file)
-    nt.assert_equal(cal_in, cal_out)
+    assert cal_in == cal_out
 
 
 def test_write_freq_spacing_not_channel_width():
@@ -670,4 +670,4 @@ def test_write_freq_spacing_not_channel_width():
 
     cal_in.write_calfits(write_file, clobber=True)
     cal_out.read_calfits(write_file)
-    nt.assert_equal(cal_in, cal_out)
+    assert cal_in == cal_out
