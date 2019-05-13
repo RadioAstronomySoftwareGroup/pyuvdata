@@ -8,7 +8,7 @@
 from __future__ import absolute_import, division, print_function
 
 import os
-import nose.tools as nt
+import pytest
 import numpy as np
 import six
 from astropy import units
@@ -33,13 +33,13 @@ def test_XYZ_from_LatLonAlt():
                                          ref_latlonalt[2])
     # Got reference by forcing http://www.oc.nps.edu/oc2902w/coord/llhxyz.htm
     # to give additional precision.
-    nt.assert_true(np.allclose(ref_xyz, out_xyz, rtol=0, atol=1e-3))
+    assert np.allclose(ref_xyz, out_xyz, rtol=0, atol=1e-3)
 
     # test error checking
-    nt.assert_raises(ValueError, uvutils.XYZ_from_LatLonAlt, ref_latlonalt[0],
-                     ref_latlonalt[1], np.array([ref_latlonalt[2], ref_latlonalt[2]]))
-    nt.assert_raises(ValueError, uvutils.XYZ_from_LatLonAlt, ref_latlonalt[0],
-                     np.array([ref_latlonalt[1], ref_latlonalt[1]]), ref_latlonalt[2])
+    pytest.raises(ValueError, uvutils.XYZ_from_LatLonAlt, ref_latlonalt[0],
+                  ref_latlonalt[1], np.array([ref_latlonalt[2], ref_latlonalt[2]]))
+    pytest.raises(ValueError, uvutils.XYZ_from_LatLonAlt, ref_latlonalt[0],
+                  np.array([ref_latlonalt[1], ref_latlonalt[1]]), ref_latlonalt[2])
 
 
 def test_LatLonAlt_from_XYZ():
@@ -47,13 +47,13 @@ def test_LatLonAlt_from_XYZ():
     out_latlonalt = uvutils.LatLonAlt_from_XYZ(ref_xyz)
     # Got reference by forcing http://www.oc.nps.edu/oc2902w/coord/llhxyz.htm
     # to give additional precision.
-    nt.assert_true(np.allclose(ref_latlonalt, out_latlonalt, rtol=0, atol=1e-3))
-    nt.assert_raises(ValueError, uvutils.LatLonAlt_from_XYZ, ref_latlonalt)
+    assert np.allclose(ref_latlonalt, out_latlonalt, rtol=0, atol=1e-3)
+    pytest.raises(ValueError, uvutils.LatLonAlt_from_XYZ, ref_latlonalt)
 
     # test passing multiple values
     xyz_mult = np.stack((np.array(ref_xyz), np.array(ref_xyz)))
     lat_vec, lon_vec, alt_vec = uvutils.LatLonAlt_from_XYZ(xyz_mult)
-    nt.assert_true(np.allclose(ref_latlonalt, (lat_vec[1], lon_vec[1], alt_vec[1]), rtol=0, atol=1e-3))
+    assert np.allclose(ref_latlonalt, (lat_vec[1], lon_vec[1], alt_vec[1]), rtol=0, atol=1e-3)
     # check warning if array transposed
     uvtest.checkWarnings(uvutils.LatLonAlt_from_XYZ, [xyz_mult.T],
                          message='The expected shape of ECEF xyz array',
@@ -64,10 +64,10 @@ def test_LatLonAlt_from_XYZ():
                          message='The xyz array in LatLonAlt_from_XYZ is',
                          category=DeprecationWarning)
     # check error if only 2 coordinates
-    nt.assert_raises(ValueError, uvutils.LatLonAlt_from_XYZ, xyz_mult[:, 0:2])
+    pytest.raises(ValueError, uvutils.LatLonAlt_from_XYZ, xyz_mult[:, 0:2])
 
     # test error checking
-    nt.assert_raises(ValueError, uvutils.LatLonAlt_from_XYZ, ref_xyz[0:1])
+    pytest.raises(ValueError, uvutils.LatLonAlt_from_XYZ, ref_xyz[0:1])
 
 
 def test_ENU_tofrom_ECEF():
@@ -107,10 +107,10 @@ def test_ENU_tofrom_ECEF():
           -0.02019057, 0.16979185, 0.06945155, -0.64058124]
 
     xyz = uvutils.XYZ_from_LatLonAlt(lats, lons, alts)
-    nt.assert_true(np.allclose(np.stack((x, y, z), axis=1), xyz, atol=1e-3))
+    assert np.allclose(np.stack((x, y, z), axis=1), xyz, atol=1e-3)
 
     enu = uvutils.ENU_from_ECEF(xyz, center_lat, center_lon, center_alt)
-    nt.assert_true(np.allclose(np.stack((east, north, up), axis=1), enu, atol=1e-3))
+    assert np.allclose(np.stack((east, north, up), axis=1), enu, atol=1e-3)
     # check warning if array transposed
     uvtest.checkWarnings(uvutils.ENU_from_ECEF, [xyz.T, center_lat, center_lon,
                                                  center_alt],
@@ -122,12 +122,12 @@ def test_ENU_tofrom_ECEF():
                          message='The xyz array in ENU_from_ECEF is',
                          category=DeprecationWarning)
     # check error if only 2 coordinates
-    nt.assert_raises(ValueError, uvutils.ENU_from_ECEF, xyz[:, 0:2],
-                     center_lat, center_lon, center_alt)
+    pytest.raises(ValueError, uvutils.ENU_from_ECEF, xyz[:, 0:2],
+                  center_lat, center_lon, center_alt)
 
     # check that a round trip gives the original value.
     xyz_from_enu = uvutils.ECEF_from_ENU(enu, center_lat, center_lon, center_alt)
-    nt.assert_true(np.allclose(xyz, xyz_from_enu, atol=1e-3))
+    assert np.allclose(xyz, xyz_from_enu, atol=1e-3)
     # check warning if array transposed
     uvtest.checkWarnings(uvutils.ECEF_from_ENU, [enu.T, center_lat, center_lon,
                                                  center_alt],
@@ -139,20 +139,20 @@ def test_ENU_tofrom_ECEF():
                          message='The enu array in ECEF_from_ENU is',
                          category=DeprecationWarning)
     # check error if only 2 coordinates
-    nt.assert_raises(ValueError, uvutils.ENU_from_ECEF, enu[:, 0:2], center_lat,
-                     center_lon, center_alt)
+    pytest.raises(ValueError, uvutils.ENU_from_ECEF, enu[:, 0:2], center_lat,
+                  center_lon, center_alt)
 
     # check passing a single value
     enu_single = uvutils.ENU_from_ECEF(xyz[0, :], center_lat, center_lon, center_alt)
-    nt.assert_true(np.allclose(np.array((east[0], north[0], up[0])), enu[0, :], atol=1e-3))
+    assert np.allclose(np.array((east[0], north[0], up[0])), enu[0, :], atol=1e-3)
 
     xyz_from_enu = uvutils.ECEF_from_ENU(enu_single, center_lat, center_lon, center_alt)
-    nt.assert_true(np.allclose(xyz[0, :], xyz_from_enu, atol=1e-3))
+    assert np.allclose(xyz[0, :], xyz_from_enu, atol=1e-3)
 
     # error checking
-    nt.assert_raises(ValueError, uvutils.ENU_from_ECEF, xyz[:, 0:1], center_lat, center_lon, center_alt)
-    nt.assert_raises(ValueError, uvutils.ECEF_from_ENU, enu[:, 0:1], center_lat, center_lon, center_alt)
-    nt.assert_raises(ValueError, uvutils.ENU_from_ECEF, xyz / 2., center_lat, center_lon, center_alt)
+    pytest.raises(ValueError, uvutils.ENU_from_ECEF, xyz[:, 0:1], center_lat, center_lon, center_alt)
+    pytest.raises(ValueError, uvutils.ECEF_from_ENU, enu[:, 0:1], center_lat, center_lon, center_alt)
+    pytest.raises(ValueError, uvutils.ENU_from_ECEF, xyz / 2., center_lat, center_lon, center_alt)
 
 
 def test_mwa_ecef_conversion():
@@ -194,11 +194,11 @@ def test_mwa_ecef_conversion():
 
     enu = uvutils.ENU_from_ECEF(ecef_xyz, lat, lon, alt)
 
-    nt.assert_true(np.allclose(enu, enh))
+    assert np.allclose(enu, enh)
 
     # test other direction of ECEF rotation
     rot_xyz = uvutils.rotECEF_from_ECEF(new_xyz, lon)
-    nt.assert_true(np.allclose(rot_xyz.T, xyz))
+    assert np.allclose(rot_xyz.T, xyz)
 
 
 def test_phasing_funcs():
@@ -247,14 +247,14 @@ def test_phasing_funcs():
     mwa_tools_calcuvw_v = 50.388281
     mwa_tools_calcuvw_w = -151.27976
 
-    nt.assert_true(np.allclose(gcrs_uvw[0, 0], mwa_tools_calcuvw_u, atol=1e-3))
-    nt.assert_true(np.allclose(gcrs_uvw[0, 1], mwa_tools_calcuvw_v, atol=1e-3))
-    nt.assert_true(np.allclose(gcrs_uvw[0, 2], mwa_tools_calcuvw_w, atol=1e-3))
+    assert np.allclose(gcrs_uvw[0, 0], mwa_tools_calcuvw_u, atol=1e-3)
+    assert np.allclose(gcrs_uvw[0, 1], mwa_tools_calcuvw_v, atol=1e-3)
+    assert np.allclose(gcrs_uvw[0, 2], mwa_tools_calcuvw_w, atol=1e-3)
 
     # also test unphasing
     temp2 = uvutils.unphase_uvw(gcrs_coord.ra.rad, gcrs_coord.dec.rad,
                                 np.squeeze(gcrs_uvw))
-    nt.assert_true(np.allclose(gcrs_rel.value, temp2))
+    assert np.allclose(gcrs_rel.value, temp2)
 
 
 def test_pol_funcs():
@@ -262,19 +262,19 @@ def test_pol_funcs():
 
     pol_nums = [-8, -7, -6, -5, -4, -3, -2, -1, 1, 2, 3, 4]
     pol_str = ['yx', 'xy', 'yy', 'xx', 'lr', 'rl', 'll', 'rr', 'pI', 'pQ', 'pU', 'pV']
-    nt.assert_equal(pol_nums, uvutils.polstr2num(pol_str))
-    nt.assert_equal(pol_str, uvutils.polnum2str(pol_nums))
+    assert pol_nums == uvutils.polstr2num(pol_str)
+    assert pol_str == uvutils.polnum2str(pol_nums)
     # Check individuals
-    nt.assert_equal(-6, uvutils.polstr2num('YY'))
-    nt.assert_equal('pV', uvutils.polnum2str(4))
+    assert -6 == uvutils.polstr2num('YY')
+    assert 'pV' == uvutils.polnum2str(4)
     # Check errors
-    nt.assert_raises(KeyError, uvutils.polstr2num, 'foo')
-    nt.assert_raises(ValueError, uvutils.polstr2num, 1)
-    nt.assert_raises(ValueError, uvutils.polnum2str, 7.3)
+    pytest.raises(KeyError, uvutils.polstr2num, 'foo')
+    pytest.raises(ValueError, uvutils.polstr2num, 1)
+    pytest.raises(ValueError, uvutils.polnum2str, 7.3)
     # Check parse
-    nt.assert_equal(uvutils.parse_polstr("xX"), 'xx')
-    nt.assert_equal(uvutils.parse_polstr("XX"), 'xx')
-    nt.assert_equal(uvutils.parse_polstr('i'), 'pI')
+    assert uvutils.parse_polstr("xX") == 'xx'
+    assert uvutils.parse_polstr("XX") == 'xx'
+    assert uvutils.parse_polstr('i') == 'pI'
 
 
 def test_pol_funcs_x_orientation():
@@ -284,45 +284,45 @@ def test_pol_funcs_x_orientation():
 
     x_orient1 = 'e'
     pol_str = ['ne', 'en', 'nn', 'ee', 'lr', 'rl', 'll', 'rr', 'pI', 'pQ', 'pU', 'pV']
-    nt.assert_equal(pol_nums, uvutils.polstr2num(pol_str, x_orientation=x_orient1))
-    nt.assert_equal(pol_str, uvutils.polnum2str(pol_nums, x_orientation=x_orient1))
+    assert pol_nums == uvutils.polstr2num(pol_str, x_orientation=x_orient1)
+    assert pol_str == uvutils.polnum2str(pol_nums, x_orientation=x_orient1)
     # Check individuals
-    nt.assert_equal(-6, uvutils.polstr2num('NN', x_orientation=x_orient1))
-    nt.assert_equal('pV', uvutils.polnum2str(4))
+    assert -6 == uvutils.polstr2num('NN', x_orientation=x_orient1)
+    assert 'pV' == uvutils.polnum2str(4)
     # Check errors
-    nt.assert_raises(KeyError, uvutils.polstr2num, 'foo', x_orientation=x_orient1)
-    nt.assert_raises(ValueError, uvutils.polstr2num, 1, x_orientation=x_orient1)
-    nt.assert_raises(ValueError, uvutils.polnum2str, 7.3, x_orientation=x_orient1)
+    pytest.raises(KeyError, uvutils.polstr2num, 'foo', x_orientation=x_orient1)
+    pytest.raises(ValueError, uvutils.polstr2num, 1, x_orientation=x_orient1)
+    pytest.raises(ValueError, uvutils.polnum2str, 7.3, x_orientation=x_orient1)
     # Check parse
-    nt.assert_equal(uvutils.parse_polstr("eE", x_orientation=x_orient1), 'ee')
-    nt.assert_equal(uvutils.parse_polstr("xx", x_orientation=x_orient1), 'ee')
-    nt.assert_equal(uvutils.parse_polstr("NN", x_orientation=x_orient1), 'nn')
-    nt.assert_equal(uvutils.parse_polstr("yy", x_orientation=x_orient1), 'nn')
-    nt.assert_equal(uvutils.parse_polstr('i', x_orientation=x_orient1), 'pI')
+    assert uvutils.parse_polstr("eE", x_orientation=x_orient1) == 'ee'
+    assert uvutils.parse_polstr("xx", x_orientation=x_orient1) == 'ee'
+    assert uvutils.parse_polstr("NN", x_orientation=x_orient1) == 'nn'
+    assert uvutils.parse_polstr("yy", x_orientation=x_orient1) == 'nn'
+    assert uvutils.parse_polstr('i', x_orientation=x_orient1) == 'pI'
 
     x_orient2 = 'n'
     pol_str = ['en', 'ne', 'ee', 'nn', 'lr', 'rl', 'll', 'rr', 'pI', 'pQ', 'pU', 'pV']
-    nt.assert_equal(pol_nums, uvutils.polstr2num(pol_str, x_orientation=x_orient2))
-    nt.assert_equal(pol_str, uvutils.polnum2str(pol_nums, x_orientation=x_orient2))
+    assert pol_nums == uvutils.polstr2num(pol_str, x_orientation=x_orient2)
+    assert pol_str == uvutils.polnum2str(pol_nums, x_orientation=x_orient2)
     # Check individuals
-    nt.assert_equal(-6, uvutils.polstr2num('EE', x_orientation=x_orient2))
-    nt.assert_equal('pV', uvutils.polnum2str(4))
+    assert -6 == uvutils.polstr2num('EE', x_orientation=x_orient2)
+    assert 'pV' == uvutils.polnum2str(4)
     # Check errors
-    nt.assert_raises(KeyError, uvutils.polstr2num, 'foo', x_orientation=x_orient2)
-    nt.assert_raises(ValueError, uvutils.polstr2num, 1, x_orientation=x_orient2)
-    nt.assert_raises(ValueError, uvutils.polnum2str, 7.3, x_orientation=x_orient2)
+    pytest.raises(KeyError, uvutils.polstr2num, 'foo', x_orientation=x_orient2)
+    pytest.raises(ValueError, uvutils.polstr2num, 1, x_orientation=x_orient2)
+    pytest.raises(ValueError, uvutils.polnum2str, 7.3, x_orientation=x_orient2)
     # Check parse
-    nt.assert_equal(uvutils.parse_polstr("nN", x_orientation=x_orient2), 'nn')
-    nt.assert_equal(uvutils.parse_polstr("xx", x_orientation=x_orient2), 'nn')
-    nt.assert_equal(uvutils.parse_polstr("EE", x_orientation=x_orient2), 'ee')
-    nt.assert_equal(uvutils.parse_polstr("yy", x_orientation=x_orient2), 'ee')
-    nt.assert_equal(uvutils.parse_polstr('i', x_orientation=x_orient2), 'pI')
+    assert uvutils.parse_polstr("nN", x_orientation=x_orient2) == 'nn'
+    assert uvutils.parse_polstr("xx", x_orientation=x_orient2) == 'nn'
+    assert uvutils.parse_polstr("EE", x_orientation=x_orient2) == 'ee'
+    assert uvutils.parse_polstr("yy", x_orientation=x_orient2) == 'ee'
+    assert uvutils.parse_polstr('i', x_orientation=x_orient2) == 'pI'
 
     # check warnings for non-recognized x_orientation
-    nt.assert_equal(uvtest.checkWarnings(uvutils.polstr2num, ['xx'], {'x_orientation': 'foo'},
-                                         message='x_orientation not recognized'), -5)
-    nt.assert_equal(uvtest.checkWarnings(uvutils.polnum2str, [-6], {'x_orientation': 'foo'},
-                                         message='x_orientation not recognized'), 'yy')
+    assert uvtest.checkWarnings(uvutils.polstr2num, ['xx'], {'x_orientation': 'foo'},
+                                message='x_orientation not recognized') == -5
+    assert uvtest.checkWarnings(uvutils.polnum2str, [-6], {'x_orientation': 'foo'},
+                                message='x_orientation not recognized') == 'yy'
 
 
 def test_jones_num_funcs():
@@ -330,24 +330,24 @@ def test_jones_num_funcs():
 
     jnums = [-8, -7, -6, -5, -4, -3, -2, -1]
     jstr = ['Jyx', 'Jxy', 'Jyy', 'Jxx', 'Jlr', 'Jrl', 'Jll', 'Jrr']
-    nt.assert_equal(jnums, uvutils.jstr2num(jstr))
-    nt.assert_equal(jstr, uvutils.jnum2str(jnums))
+    assert jnums == uvutils.jstr2num(jstr)
+    assert jstr, uvutils.jnum2str(jnums)
     # Check shorthands
     jstr = ['yx', 'xy', 'yy', 'y', 'xx', 'x', 'lr', 'rl', 'll', 'l', 'rr', 'r']
     jnums = [-8, -7, -6, -6, -5, -5, -4, -3, -2, -2, -1, -1]
-    nt.assert_equal(jnums, uvutils.jstr2num(jstr))
+    assert jnums == uvutils.jstr2num(jstr)
     # Check individuals
-    nt.assert_equal(-6, uvutils.jstr2num('jyy'))
-    nt.assert_equal('Jxy', uvutils.jnum2str(-7))
+    assert -6 == uvutils.jstr2num('jyy')
+    assert 'Jxy' == uvutils.jnum2str(-7)
     # Check errors
-    nt.assert_raises(KeyError, uvutils.jstr2num, 'foo')
-    nt.assert_raises(ValueError, uvutils.jstr2num, 1)
-    nt.assert_raises(ValueError, uvutils.jnum2str, 7.3)
+    pytest.raises(KeyError, uvutils.jstr2num, 'foo')
+    pytest.raises(ValueError, uvutils.jstr2num, 1)
+    pytest.raises(ValueError, uvutils.jnum2str, 7.3)
 
     # check parse method
-    nt.assert_equal(uvutils.parse_jpolstr('x'), 'Jxx')
-    nt.assert_equal(uvutils.parse_jpolstr('xy'), 'Jxy')
-    nt.assert_equal(uvutils.parse_jpolstr('XY'), 'Jxy')
+    assert uvutils.parse_jpolstr('x') == 'Jxx'
+    assert uvutils.parse_jpolstr('xy') == 'Jxy'
+    assert uvutils.parse_jpolstr('XY') == 'Jxy'
 
 
 def test_jones_num_funcs_x_orientation():
@@ -356,56 +356,56 @@ def test_jones_num_funcs_x_orientation():
     jnums = [-8, -7, -6, -5, -4, -3, -2, -1]
     x_orient1 = 'east'
     jstr = ['Jne', 'Jen', 'Jnn', 'Jee', 'Jlr', 'Jrl', 'Jll', 'Jrr']
-    nt.assert_equal(jnums, uvutils.jstr2num(jstr, x_orientation=x_orient1))
-    nt.assert_equal(jstr, uvutils.jnum2str(jnums, x_orientation=x_orient1))
+    assert jnums == uvutils.jstr2num(jstr, x_orientation=x_orient1)
+    assert jstr == uvutils.jnum2str(jnums, x_orientation=x_orient1)
     # Check shorthands
     jstr = ['ne', 'en', 'nn', 'n', 'ee', 'e', 'lr', 'rl', 'll', 'l', 'rr', 'r']
     jnums = [-8, -7, -6, -6, -5, -5, -4, -3, -2, -2, -1, -1]
-    nt.assert_equal(jnums, uvutils.jstr2num(jstr, x_orientation=x_orient1))
+    assert jnums == uvutils.jstr2num(jstr, x_orientation=x_orient1)
     # Check individuals
-    nt.assert_equal(-6, uvutils.jstr2num('jnn', x_orientation=x_orient1))
-    nt.assert_equal('Jen', uvutils.jnum2str(-7, x_orientation=x_orient1))
+    assert -6 == uvutils.jstr2num('jnn', x_orientation=x_orient1)
+    assert 'Jen' == uvutils.jnum2str(-7, x_orientation=x_orient1)
     # Check errors
-    nt.assert_raises(KeyError, uvutils.jstr2num, 'foo', x_orientation=x_orient1)
-    nt.assert_raises(ValueError, uvutils.jstr2num, 1, x_orientation=x_orient1)
-    nt.assert_raises(ValueError, uvutils.jnum2str, 7.3, x_orientation=x_orient1)
+    pytest.raises(KeyError, uvutils.jstr2num, 'foo', x_orientation=x_orient1)
+    pytest.raises(ValueError, uvutils.jstr2num, 1, x_orientation=x_orient1)
+    pytest.raises(ValueError, uvutils.jnum2str, 7.3, x_orientation=x_orient1)
 
     # check parse method
-    nt.assert_equal(uvutils.parse_jpolstr('e', x_orientation=x_orient1), 'Jee')
-    nt.assert_equal(uvutils.parse_jpolstr('x', x_orientation=x_orient1), 'Jee')
-    nt.assert_equal(uvutils.parse_jpolstr('y', x_orientation=x_orient1), 'Jnn')
-    nt.assert_equal(uvutils.parse_jpolstr('en', x_orientation=x_orient1), 'Jen')
-    nt.assert_equal(uvutils.parse_jpolstr('NE', x_orientation=x_orient1), 'Jne')
+    assert uvutils.parse_jpolstr('e', x_orientation=x_orient1) == 'Jee'
+    assert uvutils.parse_jpolstr('x', x_orientation=x_orient1) == 'Jee'
+    assert uvutils.parse_jpolstr('y', x_orientation=x_orient1) == 'Jnn'
+    assert uvutils.parse_jpolstr('en', x_orientation=x_orient1) == 'Jen'
+    assert uvutils.parse_jpolstr('NE', x_orientation=x_orient1) == 'Jne'
 
     jnums = [-8, -7, -6, -5, -4, -3, -2, -1]
     x_orient2 = 'north'
     jstr = ['Jen', 'Jne', 'Jee', 'Jnn', 'Jlr', 'Jrl', 'Jll', 'Jrr']
-    nt.assert_equal(jnums, uvutils.jstr2num(jstr, x_orientation=x_orient2))
-    nt.assert_equal(jstr, uvutils.jnum2str(jnums, x_orientation=x_orient2))
+    assert jnums == uvutils.jstr2num(jstr, x_orientation=x_orient2)
+    assert jstr == uvutils.jnum2str(jnums, x_orientation=x_orient2)
     # Check shorthands
     jstr = ['en', 'ne', 'ee', 'e', 'nn', 'n', 'lr', 'rl', 'll', 'l', 'rr', 'r']
     jnums = [-8, -7, -6, -6, -5, -5, -4, -3, -2, -2, -1, -1]
-    nt.assert_equal(jnums, uvutils.jstr2num(jstr, x_orientation=x_orient2))
+    assert jnums == uvutils.jstr2num(jstr, x_orientation=x_orient2)
     # Check individuals
-    nt.assert_equal(-6, uvutils.jstr2num('jee', x_orientation=x_orient2))
-    nt.assert_equal('Jne', uvutils.jnum2str(-7, x_orientation=x_orient2))
+    assert -6 == uvutils.jstr2num('jee', x_orientation=x_orient2)
+    assert 'Jne' == uvutils.jnum2str(-7, x_orientation=x_orient2)
     # Check errors
-    nt.assert_raises(KeyError, uvutils.jstr2num, 'foo', x_orientation=x_orient2)
-    nt.assert_raises(ValueError, uvutils.jstr2num, 1, x_orientation=x_orient2)
-    nt.assert_raises(ValueError, uvutils.jnum2str, 7.3, x_orientation=x_orient2)
+    pytest.raises(KeyError, uvutils.jstr2num, 'foo', x_orientation=x_orient2)
+    pytest.raises(ValueError, uvutils.jstr2num, 1, x_orientation=x_orient2)
+    pytest.raises(ValueError, uvutils.jnum2str, 7.3, x_orientation=x_orient2)
 
     # check parse method
-    nt.assert_equal(uvutils.parse_jpolstr('e', x_orientation=x_orient2), 'Jee')
-    nt.assert_equal(uvutils.parse_jpolstr('x', x_orientation=x_orient2), 'Jnn')
-    nt.assert_equal(uvutils.parse_jpolstr('y', x_orientation=x_orient2), 'Jee')
-    nt.assert_equal(uvutils.parse_jpolstr('en', x_orientation=x_orient2), 'Jen')
-    nt.assert_equal(uvutils.parse_jpolstr('NE', x_orientation=x_orient2), 'Jne')
+    assert uvutils.parse_jpolstr('e', x_orientation=x_orient2) == 'Jee'
+    assert uvutils.parse_jpolstr('x', x_orientation=x_orient2) == 'Jnn'
+    assert uvutils.parse_jpolstr('y', x_orientation=x_orient2) == 'Jee'
+    assert uvutils.parse_jpolstr('en', x_orientation=x_orient2) == 'Jen'
+    assert uvutils.parse_jpolstr('NE', x_orientation=x_orient2) == 'Jne'
 
     # check warnings for non-recognized x_orientation
-    nt.assert_equal(uvtest.checkWarnings(uvutils.jstr2num, ['x'], {'x_orientation': 'foo'},
-                                         message='x_orientation not recognized'), -5)
-    nt.assert_equal(uvtest.checkWarnings(uvutils.jnum2str, [-6], {'x_orientation': 'foo'},
-                                         message='x_orientation not recognized'), 'Jyy')
+    assert uvtest.checkWarnings(uvutils.jstr2num, ['x'], {'x_orientation': 'foo'},
+                                message='x_orientation not recognized') == -5
+    assert uvtest.checkWarnings(uvutils.jnum2str, [-6], {'x_orientation': 'foo'},
+                                message='x_orientation not recognized') == 'Jyy'
 
 
 def test_conj_pol():
@@ -413,23 +413,23 @@ def test_conj_pol():
 
     pol_nums = [-8, -7, -6, -5, -4, -3, -2, -1, 1, 2, 3, 4]
     cpol_nums = [-7, -8, -6, -5, -3, -4, -2, -1, 1, 2, 3, 4]
-    nt.assert_equal(pol_nums, uvutils.conj_pol(cpol_nums))
-    nt.assert_equal(uvutils.conj_pol(pol_nums), cpol_nums)
+    assert pol_nums == uvutils.conj_pol(cpol_nums)
+    assert uvutils.conj_pol(pol_nums) == cpol_nums
     pol_str = ['yx', 'xy', 'yy', 'xx', 'lr', 'rl', 'll', 'rr', 'pI', 'pQ', 'pU', 'pV']
     cpol_str = ['xy', 'yx', 'yy', 'xx', 'rl', 'lr', 'll', 'rr', 'pI', 'pQ', 'pU', 'pV']
-    nt.assert_equal(pol_str, uvutils.conj_pol(cpol_str))
-    nt.assert_equal(uvutils.conj_pol(pol_str), cpol_str)
-    nt.assert_equal([pol_str, pol_nums], uvutils.conj_pol([cpol_str, cpol_nums]))
+    assert pol_str == uvutils.conj_pol(cpol_str)
+    assert uvutils.conj_pol(pol_str) == cpol_str
+    assert [pol_str, pol_nums] == uvutils.conj_pol([cpol_str, cpol_nums])
 
     jstr = ['Jyx', 'Jxy', 'Jyy', 'Jxx', 'Jlr', 'Jrl', 'Jll', 'Jrr']
     cjstr = ['Jxy', 'Jyx', 'Jyy', 'Jxx', 'Jrl', 'Jlr', 'Jll', 'Jrr']
     conj_cjstr = uvtest.checkWarnings(uvutils.conj_pol, [cjstr], nwarnings=8,
                                       category=DeprecationWarning,
                                       message='conj_pol should not be called with jones')
-    nt.assert_equal(jstr, conj_cjstr)
+    assert jstr == conj_cjstr
 
     # Test invalid pol
-    nt.assert_raises(ValueError, uvutils.conj_pol, 2.3)
+    pytest.raises(ValueError, uvutils.conj_pol, 2.3)
 
 
 def test_deprecated_funcs():
@@ -473,13 +473,14 @@ def test_redundancy_finder():
 
     uvd.select(times=uvd.time_array[0])
     uvd.unphase_to_drift()   # uvw_array is now equivalent to baseline positions
-    uvd._set_u_positive()
+    uvtest.checkWarnings(uvd._set_u_positive, message=['The default for the `center`'],
+                         nwarnings=1, category=DeprecationWarning)
 
     tol = 0.05  # meters
 
     bl_positions = uvd.uvw_array
 
-    nt.assert_raises(ValueError, uvutils.get_baseline_redundancies, uvd.baseline_array, bl_positions[0:2, 0:1])
+    pytest.raises(ValueError, uvutils.get_baseline_redundancies, uvd.baseline_array, bl_positions[0:2, 0:1])
     baseline_groups, vec_bin_centers, lens = uvutils.get_baseline_redundancies(uvd.baseline_array, bl_positions, tol=tol)
 
     baseline_groups, vec_bin_centers, lens = uvutils.get_baseline_redundancies(uvd.baseline_array, bl_positions, tol=tol)
@@ -488,7 +489,7 @@ def test_redundancy_finder():
         for bl in gp:
             bl_ind = np.where(uvd.baseline_array == bl)
             bl_vec = bl_positions[bl_ind]
-            nt.assert_true(np.allclose(np.sqrt(np.dot(bl_vec, vec_bin_centers[gi])), lens[gi], atol=tol))
+            assert np.allclose(np.sqrt(np.dot(bl_vec, vec_bin_centers[gi])), lens[gi], atol=tol)
 
     # Shift the baselines around in a circle. Check that the same baselines are recovered to the corresponding tolerance increase.
     # This moves one baseline at a time by a fixed displacement and checks that the redundant groups are the same.
@@ -510,21 +511,22 @@ def test_redundancy_finder():
                 for bl in gp:
                     bl_ind = np.where(uvd.baseline_array == bl)
                     bl_vec = bl_positions[bl_ind]
-                    nt.assert_true(np.allclose(np.sqrt(np.abs(np.dot(bl_vec, vec_bin_centers[gi]))), lens[gi], atol=hightol))
+                    assert np.allclose(np.sqrt(np.abs(np.dot(bl_vec, vec_bin_centers[gi]))), lens[gi], atol=hightol)
 
             # Compare baseline groups:
             a = [tuple(el) for el in baseline_groups]
             b = [tuple(el) for el in baseline_groups_new]
-            nt.assert_equal(set(a), set(b))
+            assert set(a) == set(b)
 
     tol = 0.05
 
-    antpos, antnums = uvd.get_ENU_antpos()
+    antpos, antnums = uvtest.checkWarnings(uvd.get_ENU_antpos, message=['The default for the `center`'],
+                                           category=DeprecationWarning,
+                                           nwarnings=1)
 
-    baseline_groups_ants, vec_bin_centers, lens = uvutils.get_antenna_redundancies(antnums, antpos,
-                                                                                   tol=tol, include_autos=False)
+    baseline_groups_ants, vec_bin_centers, lens = uvutils.get_antenna_redundancies(antnums, antpos, tol=tol, include_autos=False)
     # Under these conditions, should see 19 redundant groups in the file.
-    nt.assert_equal(len(baseline_groups_ants), 19)
+    assert len(baseline_groups_ants) == 19
 
     # Check with conjugated baseline redundancies returned
     u16_0 = bl_positions[16, 0]
@@ -548,14 +550,14 @@ def test_redundancy_finder():
         bgp_new.sort()
         baseline_groups_flipped.append(bgp_new)
     baseline_groups = [sorted(bgp) for bgp in baseline_groups]
-    nt.assert_true(np.all(sorted(baseline_groups_ants) == sorted(baseline_groups_flipped)))
+    assert np.all(sorted(baseline_groups_ants) == sorted(baseline_groups_flipped))
     for gi, gp in enumerate(baseline_groups):
         for bl in gp:
             bl_ind = np.where(uvd.baseline_array == bl)
             bl_vec = bl_positions[bl_ind]
             if bl in conjugates:
                 bl_vec *= (-1)
-            nt.assert_true(np.isclose(np.sqrt(np.dot(bl_vec, vec_bin_centers[gi])), lens[gi], atol=tol))
+            assert np.isclose(np.sqrt(np.dot(bl_vec, vec_bin_centers[gi])), lens[gi], atol=tol)
 
 
 def test_redundancy_conjugates():
@@ -579,7 +581,7 @@ def test_redundancy_conjugates():
             expected_conjugates.append(bl_inds[i])
     bl_gps, vecs, lens, conjugates = uvutils.get_baseline_redundancies(bl_inds, bl_vecs, tol=tol, with_conjugates=True)
 
-    nt.assert_equal(sorted(conjugates), sorted(expected_conjugates))
+    assert sorted(conjugates) == sorted(expected_conjugates)
 
 
 def test_redundancy_finder_fully_redundant_array():
@@ -594,72 +596,69 @@ def test_redundancy_finder_fully_redundant_array():
     baseline_groups, vec_bin_centers, lens, conjugates = uvutils.get_baseline_redundancies(uvd.baseline_array, bl_positions, tol=tol, with_conjugates=True)
 
     # Only 1 set of redundant baselines
-    nt.assert_equal(len(baseline_groups), 1)
+    assert len(baseline_groups) == 1
     #  Should return the input baselines
-    nt.assert_equal(baseline_groups[0].sort(), np.unique(uvd.baseline_array).sort())
+    assert baseline_groups[0].sort() == np.unique(uvd.baseline_array).sort()
 
 
 def test_reraise_context():
-    with nt.assert_raises(ValueError) as cm:
+    with pytest.raises(ValueError) as cm:
         try:
             uvutils.LatLonAlt_from_XYZ(ref_xyz[0:1])
         except ValueError:
             uvutils._reraise_context('Add some info')
-    ex = cm.exception
-    nt.assert_equal(ex.args[0], 'Add some info: xyz values should be ECEF x, y, z coordinates in meters')
+    assert 'Add some info: xyz values should be ECEF x, y, z coordinates in meters' in str(cm.value)
 
-    with nt.assert_raises(ValueError) as cm:
+    with pytest.raises(ValueError) as cm:
         try:
             uvutils.LatLonAlt_from_XYZ(ref_xyz[0:1])
         except ValueError:
             uvutils._reraise_context('Add some info %s', 'and then more')
-    ex = cm.exception
-    nt.assert_equal(ex.args[0], 'Add some info and then more: xyz values should be ECEF x, y, z coordinates in meters')
+    assert 'Add some info and then more: xyz values should be ECEF x, y, z coordinates in meters' in str(cm.value)
 
-    with nt.assert_raises(EnvironmentError) as cm:
+    with pytest.raises(EnvironmentError) as cm:
         try:
             raise EnvironmentError(1, 'some bad problem')
         except EnvironmentError:
             uvutils._reraise_context('Add some info')
-    ex = cm.exception
-    nt.assert_equal(ex.args[1], 'Add some info: some bad problem')
+    assert 'Add some info: some bad problem' in str(cm.value)
 
 
 def test_str_to_bytes():
     test_str = 'HERA'
     test_bytes = uvutils._str_to_bytes(test_str)
-    nt.assert_equal(type(test_bytes), six.binary_type)
-    nt.assert_equal(test_bytes, b'\x48\x45\x52\x41')
+    assert type(test_bytes) == six.binary_type
+    assert test_bytes == b'\x48\x45\x52\x41'
     return
 
 
 def test_bytes_to_str():
     test_bytes = b'\x48\x45\x52\x41'
     test_str = uvutils._bytes_to_str(test_bytes)
-    nt.assert_equal(type(test_str), str)
-    nt.assert_equal(test_str, 'HERA')
+    assert type(test_str) == str
+    assert test_str == 'HERA'
     return
 
 
 def test_reorder_conj_pols_non_list():
-    nt.assert_raises(ValueError, uvutils.reorder_conj_pols, 4)
+    pytest.raises(ValueError, uvutils.reorder_conj_pols, 4)
 
 
 def test_reorder_conj_pols_strings():
     pols = ['xx', 'xy', 'yx']
     corder = uvutils.reorder_conj_pols(pols)
-    nt.assert_true(np.array_equal(corder, [0, 2, 1]))
+    assert np.array_equal(corder, [0, 2, 1])
 
 
 def test_reorder_conj_pols_ints():
     pols = [-5, -7, -8]  # 'xx', 'xy', 'yx'
     corder = uvutils.reorder_conj_pols(pols)
-    nt.assert_true(np.array_equal(corder, [0, 2, 1]))
+    assert np.array_equal(corder, [0, 2, 1])
 
 
 def test_reorder_conj_pols_missing_conj():
     pols = ['xx', 'xy']  # Missing 'yx'
-    nt.assert_raises(ValueError, uvutils.reorder_conj_pols, pols)
+    pytest.raises(ValueError, uvutils.reorder_conj_pols, pols)
 
 
 def test_collapse_mean_no_return_no_weights():
@@ -670,7 +669,7 @@ def test_collapse_mean_no_return_no_weights():
     out = uvutils.collapse(data, 'mean', axis=0)
     out1 = uvutils.mean_collapse(data, axis=0)
     # Actual values are tested in test_mean_no_weights
-    nt.assert_true(np.array_equal(out, out1))
+    assert np.array_equal(out, out1)
 
 
 def test_collapse_mean_returned_no_weights():
@@ -681,8 +680,8 @@ def test_collapse_mean_returned_no_weights():
     out, wo = uvutils.collapse(data, 'mean', axis=0, return_weights=True)
     out1, wo1 = uvutils.mean_collapse(data, axis=0, return_weights=True)
     # Actual values are tested in test_mean_no_weights
-    nt.assert_true(np.array_equal(out, out1))
-    nt.assert_true(np.array_equal(wo, wo1))
+    assert np.array_equal(out, out1)
+    assert np.array_equal(wo, wo1)
 
 
 def test_collapse_mean_returned_with_weights():
@@ -694,8 +693,8 @@ def test_collapse_mean_returned_with_weights():
     out, wo = uvutils.collapse(data, 'mean', weights=w, axis=0, return_weights=True)
     out1, wo1 = uvutils.mean_collapse(data, weights=w, axis=0, return_weights=True)
     # Actual values are tested in test_mean_weights
-    nt.assert_true(np.array_equal(out, out1))
-    nt.assert_true(np.array_equal(wo, wo1))
+    assert np.array_equal(out, out1)
+    assert np.array_equal(wo, wo1)
 
 
 def test_collapse_absmean_no_return_no_weights():
@@ -706,7 +705,7 @@ def test_collapse_absmean_no_return_no_weights():
     out = uvutils.collapse(data, 'absmean', axis=0)
     out1 = uvutils.absmean_collapse(data, axis=0)
     # Actual values are tested in test_absmean_no_weights
-    nt.assert_true(np.array_equal(out, out1))
+    assert np.array_equal(out, out1)
 
 
 def test_collapse_quadmean_no_return_no_weights():
@@ -717,7 +716,7 @@ def test_collapse_quadmean_no_return_no_weights():
     out = uvutils.collapse(data, 'quadmean', axis=0)
     out1 = uvutils.quadmean_collapse(data, axis=0)
     # Actual values are tested in test_absmean_no_weights
-    nt.assert_true(np.array_equal(out, out1))
+    assert np.array_equal(out, out1)
 
 
 def test_collapse_or_no_return_no_weights():
@@ -726,7 +725,7 @@ def test_collapse_or_no_return_no_weights():
     data[0, 8] = True
     o = uvutils.collapse(data, 'or', axis=0)
     o1 = uvutils.or_collapse(data, axis=0)
-    nt.assert_true(np.array_equal(o, o1))
+    assert np.array_equal(o, o1)
 
 
 def test_collapse_and_no_return_no_weights():
@@ -735,11 +734,11 @@ def test_collapse_and_no_return_no_weights():
     data[0, :] = True
     o = uvutils.collapse(data, 'and', axis=0)
     o1 = uvutils.and_collapse(data, axis=0)
-    nt.assert_true(np.array_equal(o, o1))
+    assert np.array_equal(o, o1)
 
 
 def test_collapse_error():
-    nt.assert_raises(ValueError, uvutils.collapse, np.ones((2, 3)), 'fooboo')
+    pytest.raises(ValueError, uvutils.collapse, np.ones((2, 3)), 'fooboo')
 
 
 def test_mean_no_weights():
@@ -748,17 +747,17 @@ def test_mean_no_weights():
     for i in range(data.shape[1]):
         data[:, i] = i * np.ones_like(data[:, i])
     out, wo = uvutils.mean_collapse(data, axis=0, return_weights=True)
-    nt.assert_true(np.array_equal(out, np.arange(data.shape[1])))
-    nt.assert_true(np.array_equal(wo, data.shape[0] * np.ones(data.shape[1])))
+    assert np.array_equal(out, np.arange(data.shape[1]))
+    assert np.array_equal(wo, data.shape[0] * np.ones(data.shape[1]))
     out, wo = uvutils.mean_collapse(data, axis=1, return_weights=True)
-    nt.assert_true(np.all(out == np.mean(np.arange(data.shape[1]))))
-    nt.assert_true(len(out) == data.shape[0])
-    nt.assert_true(np.array_equal(wo, data.shape[1] * np.ones(data.shape[0])))
+    assert np.all(out == np.mean(np.arange(data.shape[1])))
+    assert len(out) == data.shape[0]
+    assert np.array_equal(wo, data.shape[1] * np.ones(data.shape[0]))
     out, wo = uvutils.mean_collapse(data, return_weights=True)
-    nt.assert_true(out == np.mean(np.arange(data.shape[1])))
-    nt.assert_true(wo == data.size)
+    assert out == np.mean(np.arange(data.shape[1]))
+    assert wo == data.size
     out = uvutils.mean_collapse(data)
-    nt.assert_true(out == np.mean(np.arange(data.shape[1])))
+    assert out == np.mean(np.arange(data.shape[1]))
 
 
 def test_mean_weights():
@@ -768,11 +767,11 @@ def test_mean_weights():
         data[:, i] = i * np.ones_like(data[:, i]) + 1
     w = 1. / data
     out, wo = uvutils.mean_collapse(data, weights=w, axis=0, return_weights=True)
-    nt.assert_true(np.all(np.isclose(out * wo, data.shape[0])))
-    nt.assert_true(np.all(np.isclose(wo, float(data.shape[0]) / (np.arange(data.shape[1]) + 1))))
+    assert np.allclose(out * wo, data.shape[0])
+    assert np.allclose(wo, float(data.shape[0]) / (np.arange(data.shape[1]) + 1))
     out, wo = uvutils.mean_collapse(data, weights=w, axis=1, return_weights=True)
-    nt.assert_true(np.all(np.isclose(out * wo, data.shape[1])))
-    nt.assert_true(np.all(np.isclose(wo, np.sum(1. / (np.arange(data.shape[1]) + 1)))))
+    assert np.allclose(out * wo, data.shape[1])
+    assert np.allclose(wo, np.sum(1. / (np.arange(data.shape[1]) + 1)))
 
     # Zero weights
     w = np.ones_like(w)
@@ -781,17 +780,17 @@ def test_mean_weights():
     out, wo = uvutils.mean_collapse(data, weights=w, axis=0, return_weights=True)
     ans = np.arange(data.shape[1]).astype(np.float) + 1
     ans[0] = np.inf
-    nt.assert_true(np.array_equal(out, ans))
+    assert np.array_equal(out, ans)
     ans = (data.shape[0] - 1) * np.ones(data.shape[1])
     ans[0] = 0
-    nt.assert_true(np.all(wo == ans))
+    assert np.all(wo == ans)
     out, wo = uvutils.mean_collapse(data, weights=w, axis=1, return_weights=True)
     ans = np.mean(np.arange(data.shape[1])[1:] + 1) * np.ones(data.shape[0])
     ans[0] = np.inf
-    nt.assert_true(np.all(out == ans))
+    assert np.all(out == ans)
     ans = (data.shape[1] - 1) * np.ones(data.shape[0])
     ans[0] = 0
-    nt.assert_true(np.all(wo == ans))
+    assert np.all(wo == ans)
 
 
 def test_mean_infs():
@@ -804,20 +803,20 @@ def test_mean_infs():
     out, wo = uvutils.mean_collapse(data, axis=0, return_weights=True)
     ans = np.arange(data.shape[1]).astype(np.float)
     ans[0] = np.inf
-    nt.assert_true(np.array_equal(out, ans))
+    assert np.array_equal(out, ans)
     ans = (data.shape[0] - 1) * np.ones(data.shape[1])
     ans[0] = 0
-    nt.assert_true(np.all(wo == ans))
+    assert np.all(wo == ans)
     print(data)
     out, wo = uvutils.mean_collapse(data, axis=1, return_weights=True)
     ans = np.mean(np.arange(data.shape[1])[1:]) * np.ones(data.shape[0])
     ans[0] = np.inf
     print(out)
     print(ans)
-    nt.assert_true(np.all(out == ans))
+    assert np.all(out == ans)
     ans = (data.shape[1] - 1) * np.ones(data.shape[0])
     ans[0] = 0
-    nt.assert_true(np.all(wo == ans))
+    assert np.all(wo == ans)
 
 
 def test_absmean():
@@ -828,7 +827,7 @@ def test_absmean():
     data2 = np.ones_like(data1)
     out1 = uvutils.absmean_collapse(data1)
     out2 = uvutils.absmean_collapse(data2)
-    nt.assert_equal(out1, out2)
+    assert out1 == out2
 
 
 def test_quadmean():
@@ -840,9 +839,9 @@ def test_quadmean():
     o2, w2 = uvutils.mean_collapse(np.abs(data)**2, return_weights=True)
     o3 = uvutils.quadmean_collapse(data)  # without return_weights
     o2 = np.sqrt(o2)
-    nt.assert_equal(o1, o2)
-    nt.assert_equal(w1, w2)
-    nt.assert_equal(o1, o3)
+    assert o1 == o2
+    assert w1 == w2
+    assert o1 == o3
 
 
 def test_or_collapse():
@@ -852,13 +851,13 @@ def test_or_collapse():
     o = uvutils.or_collapse(data, axis=0)
     ans = np.zeros(25, np.bool)
     ans[8] = True
-    nt.assert_true(np.array_equal(o, ans))
+    assert np.array_equal(o, ans)
     o = uvutils.or_collapse(data, axis=1)
     ans = np.zeros(50, np.bool)
     ans[0] = True
-    nt.assert_true(np.array_equal(o, ans))
+    assert np.array_equal(o, ans)
     o = uvutils.or_collapse(data)
-    nt.assert_true(o)
+    assert o
 
 
 def test_or_collapse_weights():
@@ -869,17 +868,17 @@ def test_or_collapse_weights():
     o, wo = uvutils.or_collapse(data, axis=0, weights=w, return_weights=True)
     ans = np.zeros(25, np.bool)
     ans[8] = True
-    nt.assert_true(np.array_equal(o, ans))
-    nt.assert_true(np.array_equal(wo, np.ones_like(o, dtype=np.float)))
+    assert np.array_equal(o, ans)
+    assert np.array_equal(wo, np.ones_like(o, dtype=np.float))
     w[0, 8] = 0.3
     o = uvtest.checkWarnings(uvutils.or_collapse, [data], {'axis': 0, 'weights': w},
                              nwarnings=1, message='Currently weights are')
-    nt.assert_true(np.array_equal(o, ans))
+    assert np.array_equal(o, ans)
 
 
 def test_or_collapse_errors():
     data = np.zeros(5)
-    nt.assert_raises(ValueError, uvutils.or_collapse, data)
+    pytest.raises(ValueError, uvutils.or_collapse, data)
 
 
 def test_and_collapse():
@@ -888,13 +887,13 @@ def test_and_collapse():
     data[0, :] = True
     o = uvutils.and_collapse(data, axis=0)
     ans = np.zeros(25, np.bool)
-    nt.assert_true(np.array_equal(o, ans))
+    assert np.array_equal(o, ans)
     o = uvutils.and_collapse(data, axis=1)
     ans = np.zeros(50, np.bool)
     ans[0] = True
-    nt.assert_true(np.array_equal(o, ans))
+    assert np.array_equal(o, ans)
     o = uvutils.and_collapse(data)
-    nt.assert_false(o)
+    assert not o
 
 
 def test_and_collapse_weights():
@@ -904,14 +903,14 @@ def test_and_collapse_weights():
     w = np.ones_like(data, np.float)
     o, wo = uvutils.and_collapse(data, axis=0, weights=w, return_weights=True)
     ans = np.zeros(25, np.bool)
-    nt.assert_true(np.array_equal(o, ans))
-    nt.assert_true(np.array_equal(wo, np.ones_like(o, dtype=np.float)))
+    assert np.array_equal(o, ans)
+    assert np.array_equal(wo, np.ones_like(o, dtype=np.float))
     w[0, 8] = 0.3
     o = uvtest.checkWarnings(uvutils.and_collapse, [data], {'axis': 0, 'weights': w},
                              nwarnings=1, message='Currently weights are')
-    nt.assert_true(np.array_equal(o, ans))
+    assert np.array_equal(o, ans)
 
 
 def test_and_collapse_errors():
     data = np.zeros(5)
-    nt.assert_raises(ValueError, uvutils.and_collapse, data)
+    pytest.raises(ValueError, uvutils.and_collapse, data)
