@@ -290,5 +290,4 @@ def test_bad_col_name():
 
     with pytest.raises(ValueError) as cm:
         UV.read_ms(testfile, data_column='FOO')
-    ex = cm.exception  # raised exception is available through exception property of context
     assert str(cm.value).startswith('Invalid data_column value supplied')
