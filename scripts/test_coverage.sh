@@ -6,4 +6,6 @@ cd $DIR/..
 python setup.py install
 
 cd pyuvdata/tests
-nosetests --with-coverage --cover-erase --cover-package=pyuvdata --cover-html "$@"
+python -m pytest --cov=pyuvdata --cov-config=../../.coveragerc\
+       --cov-report term --cov-report html:cover \
+       "$@"
