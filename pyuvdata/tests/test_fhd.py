@@ -9,6 +9,7 @@ from __future__ import absolute_import, division, print_function
 
 import nose.tools as nt
 import os
+import glob
 import numpy as np
 from shutil import copyfile
 
@@ -350,3 +351,15 @@ def test_multi_files_axis():
 
     fhd_uv1.history = fhd_uv2.history
     nt.assert_equal(fhd_uv1, fhd_uv2)
+
+
+def test_single_time():
+    """
+    test reading in a file with a single time.
+    """
+    single_time_filelist = glob.glob(os.path.join(DATA_PATH, 'refsim1.1_fhd/*'))
+
+    fhd_uv = UVData()
+    fhd_uv.read(single_time_filelist)
+
+    assert(np.unique(fhd_uv.time_array).size == 1)
