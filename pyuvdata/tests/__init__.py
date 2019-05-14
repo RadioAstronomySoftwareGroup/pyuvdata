@@ -66,6 +66,7 @@ except(ImportError):
 reason = 'yaml is not installed, skipping tests that require it.'
 skipIf_no_yaml = pytest.mark.skipif(not yaml_installed, reason=reason)
 
+
 # Functions that are useful for testing:
 def clearWarnings():
     """Quick code to make warnings reproducible."""
