@@ -7,7 +7,7 @@
 """
 from __future__ import absolute_import, division, print_function
 
-import nose.tools as nt
+import pytest
 import sys
 import os
 import six
@@ -48,7 +48,7 @@ def test_get_gitinfo_file():
     else:
         file_info = pyuvdata.version._get_gitinfo_file()
 
-    nt.assert_equal(file_info, test_file_info)
+    assert file_info == test_file_info
 
 
 def test_construct_version_info():
@@ -112,7 +112,7 @@ def test_construct_version_info():
                          'git_hash': git_hash, 'git_description': git_description,
                          'git_branch': git_branch}
 
-    nt.assert_equal(pyuvdata.version.construct_version_info(), test_version_info)
+    assert pyuvdata.version.construct_version_info() == test_version_info
 
 
 def test_main():
@@ -124,11 +124,11 @@ def test_main():
         sys.stdout = out
         pyuvdata.version.main()
         output = out.getvalue()
-        nt.assert_equal(output, 'Version = {v}\ngit origin = {o}\n'
-                        'git branch = {b}\ngit description = {d}\n'
-                        .format(v=version_info['version'],
-                                o=version_info['git_origin'],
-                                b=version_info['git_branch'],
-                                d=version_info['git_description']))
+        assert output == ('Version = {v}\ngit origin = {o}\n'
+                          'git branch = {b}\ngit description = {d}\n'
+                          .format(v=version_info['version'],
+                                  o=version_info['git_origin'],
+                                  b=version_info['git_branch'],
+                                  d=version_info['git_description']))
     finally:
         sys.stdout = saved_stdout
