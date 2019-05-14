@@ -1976,54 +1976,91 @@ class UVData(UVBase):
                check_extra=True, run_check_acceptability=True, inplace=True,
                metadata_only=False, keep_all_metadata=True):
         """
-        Select specific antennas, antenna pairs, frequencies, times and
-        polarizations to keep in the object while discarding others.
+        Downselect data to keep on the object along various axes.
 
-        Also supports selecting specific baseline-time indices to keep while
-        discarding others, but this is not commonly used. The history attribute
-        on the object will be updated to identify the operations performed.
+        Axes that can be selected along include antenna names or numbers,
+        antenna pairs, frequencies, times and polarizations. Specific
+        baseline-time indices can also be selected, but this is not commonly used.
+        The history attribute on the object will be updated to identify the
+        operations performed.
 
-        Args:
-            antenna_nums: The antennas numbers to keep in the object (antenna
-                positions and names for the removed antennas will be retained).
-                This cannot be provided if antenna_names is also provided.
-            antenna_names: The antennas names to keep in the object (antenna
-                positions and names for the removed antennas will be retained).
-                This cannot be provided if antenna_nums is also provided.
-            bls: A list of antenna number tuples (e.g. [(0,1), (3,2)]) or a list of
-                baseline 3-tuples (e.g. [(0,1,'xx'), (2,3,'yy')]) specifying baselines
-                to keep in the object. For length-2 tuples, the  ordering of the numbers
-                within the tuple does not matter. For length-3 tuples, the polarization
-                string is in the order of the two antennas. If length-3 tuples are provided,
-                the polarizations argument below must be None.
-            ant_str: A string containing information about what antenna numbers
-                and polarizations to keep in the object.  Can be 'auto', 'cross', 'all',
-                or combinations of antenna numbers and polarizations (e.g. '1',
-                '1_2', '1x_2y').  See tutorial for more examples of valid strings and
-                the behavior of different forms for ant_str.
-                If '1x_2y,2y_3y' is passed, both polarizations 'xy' and 'yy' will
-                be kept for both baselines (1,2) and (2,3) to return a valid
-                pyuvdata object.
-                An ant_str cannot be passed in addition to any of the above antenna
-                args or the polarizations arg.  If this occurs, select raises a ValueError.
-            frequencies: The frequencies to keep in the object.
-            freq_chans: The frequency channel numbers to keep in the object.
-            times: The times to keep in the object.
-            polarizations: The polarizations to keep in the object.
-            blt_inds: The baseline-time indices to keep in the object. This is
-                not commonly used.
-            run_check: Option to check for the existence and proper shapes of
-                parameters after downselecting data on this object. Default is True.
-            check_extra: Option to check optional parameters as well as required
-                ones. Default is True.
-            run_check_acceptability: Option to check acceptable range of the values of
-                parameters after downselecting data on this object. Default is True.
-            inplace: Option to perform the select directly on self (True, default) or return
-                a new UVData object, which is a subselection of self (False)
-            metadata_only: Option to only do the select on the metadata. Not allowed
-                if the data_array, flag_array or nsample_array is not None. (False)
-            keep_all_metadata: Option to keep all the metadata associated with antennas,
-                even those that do not remain after the select option. (True)
+        Parameters
+        ----------
+        antenna_nums : array_like of int, optional
+            The antennas numbers to keep in the object (antenna positions and
+            names for the removed antennas will be retained unless
+            `keep_all_metadata` is False). This cannot be provided if
+            `antenna_names` is also provided.
+        antenna_names : array_like of str, optional
+            The antennas names to keep in the object (antenna positions and
+            names for the removed antennas will be retained unless
+            `keep_all_metadata` is False). This cannot be provided if
+            `antenna_nums` is also provided.
+        bls : list of tuple, optional
+            A list of antenna number tuples (e.g. [(0,1), (3,2)]) or a list of
+            baseline 3-tuples (e.g. [(0,1,'xx'), (2,3,'yy')]) specifying baselines
+            to keep in the object. For length-2 tuples, the ordering of the numbers
+            within the tuple does not matter. For length-3 tuples, the polarization
+            string is in the order of the two antennas. If length-3 tuples are
+            provided, `polarizations` must be None.
+        ant_str : str, optional
+            A string containing information about what antenna numbers
+            and polarizations to keep in the object.  Can be 'auto', 'cross', 'all',
+            or combinations of antenna numbers and polarizations (e.g. '1',
+            '1_2', '1x_2y').  See tutorial for more examples of valid strings and
+            the behavior of different forms for ant_str.
+            If '1x_2y,2y_3y' is passed, both polarizations 'xy' and 'yy' will
+            be kept for both baselines (1,2) and (2,3) to return a valid
+            pyuvdata object.
+            An ant_str cannot be passed in addition to any of `antenna_nums`,
+            `antenna_names`, `bls` args or the `polarizations` parameters,
+            if it is a ValueError will be raised.
+        frequencies : array_like of float, optional
+            The frequencies to keep in the object, each value passed here should
+            exist in the freq_array.
+        freq_chans : array_like of int, optional
+            The frequency channel numbers to keep in the object.
+        times : array_like of float, optional
+            The times to keep in the object, each value passed here should
+            exist in the time_array.
+        polarizations : array_like of int, optional
+            The polarizations numbers to keep in the object, each value passed
+            here should exist in the polarization_array.
+        blt_inds : array_like of int, optional
+            The baseline-time indices to keep in the object. This is
+            not commonly used.
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            after downselecting data on this object (the default is True,
+            meaning the check will be run).
+        check_extra : bool
+            Option to check optional parameters as well as required ones (the
+            default is True, meaning the optional parameters will be checked).
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters after
+            downselecting data on this object (the default is True, meaning the
+            acceptable range check will be done).
+        inplace : bool
+            Option to perform the select directly on self or return a new UVData
+            object with just the selected data (the default is True, meaning the
+            select will be done on self).
+        metadata_only : bool
+            Option to only do the select on the metadata. Not allowed if the
+            data_array, flag_array or nsample_array is not None.
+        keep_all_metadata : bool
+            Option to keep all the metadata associated with antennas, even those
+            that do do not have data associated with them after the select option.
+
+        Returns
+        -------
+        UVData object or None
+            None is returned if inplace is True, otherwise a new UVData object
+            with just the selected data is returned
+
+        Raises
+        ------
+        ValueError
+            If any of the parameters are set to inappropriate values.
         """
         if metadata_only is True and (self.data_array is not None
                                       or self.flag_array is not None
@@ -2106,68 +2143,89 @@ class UVData(UVBase):
         """
         Read in header, metadata and data from uvfits file(s).
 
-        Args:
-            filename: The uvfits file or list of files to read from.
-            axis: Axis to concatenate files along. This enables fast concatenation
-                along the specified axis without the normal checking that all other
-                metadata agrees. This method does not guarantee correct resulting
-                objects. Please see the docstring for fast_concat for details.
-                Allowed values are: 'blt', 'freq', 'polarization'. Only used if
-                multiple files are passed.
-            antenna_nums: The antennas numbers to include when reading data into
-                the object (antenna positions and names for the excluded antennas
-                will be retained). This cannot be provided if antenna_names is
-                also provided. Ignored if read_data is False.
-            antenna_names: The antennas names to include when reading data into
-                the object (antenna positions and names for the excluded antennas
-                will be retained). This cannot be provided if antenna_nums is
-                also provided. Ignored if read_data is False.
-            bls: A list of antenna number tuples (e.g. [(0,1), (3,2)]) or a list of
-                baseline 3-tuples (e.g. [(0,1,'xx'), (2,3,'yy')]) specifying baselines
-                to keep in the object. For length-2 tuples, the  ordering of the numbers
-                within the tuple does not matter. For length-3 tuples, the polarization
-                string is in the order of the two antennas. If length-3 tuples are provided,
-                the polarizations argument below must be None. Ignored if read_data is False.
-            ant_str: A string containing information about what antenna numbers
-                and polarizations to include when reading data into the object.
-                Can be 'auto', 'cross', 'all', or combinations of antenna numbers
-                and polarizations (e.g. '1', '1_2', '1x_2y').
-                See tutorial for more examples of valid strings and
-                the behavior of different forms for ant_str.
-                If '1x_2y,2y_3y' is passed, both polarizations 'xy' and 'yy' will
-                be kept for both baselines (1,2) and (2,3) to return a valid
-                pyuvdata object.
-                An ant_str cannot be passed in addition to any of the above antenna
-                args or the polarizations arg.
-                Ignored if read_data is False.
-            frequencies: The frequencies to include when reading data into the
-                object.  Ignored if read_data is False.
-            freq_chans: The frequency channel numbers to include when reading
-                data into the object. Ignored if read_data is False.
-            times: The times to include when reading data into the object.
-                Ignored if read_data is False.
-            polarizations: The polarizations to include when reading data into
-                the object.  Ignored if read_data is False.
-            blt_inds: The baseline-time indices to include when reading data into
-                the object. This is not commonly used. Ignored if read_data is False.
-            keep_all_metadata: Option to keep all the metadata associated with antennas,
-                even those that do not remain after the select option. Default is True.
-            read_data: Read in the visibility and flag data. If set to false,
-                only the basic header info and metadata (if read_metadata is True)
-                will be read in. Setting read_data to False results in an
-                incompletely defined object (check will not pass). Default True.
-            read_metadata: Read in metadata (times, baselines, uvws) as well as
-                basic header info. Only used if read_data is False
-                (metadata will be read if data is read). If both read_data and
-                read_metadata are false, only basic header info is read in. Default True.
-            run_check: Option to check for the existence and proper shapes of
-                parameters after reading in the file. Default is True.
-                Ignored if read_data is False.
-            check_extra: Option to check optional parameters as well as required
-                ones. Default is True. Ignored if read_data is False.
-            run_check_acceptability: Option to check acceptable range of the values of
-                parameters after reading in the file. Default is True.
-                Ignored if read_data is False.
+        Parameters
+        ----------
+        filename : str or list of str
+            The uvfits file or list of files to read from.
+        axis : str
+            Axis to concatenate files along. This enables fast concatenation
+            along the specified axis without the normal checking that all other
+            metadata agrees. This method does not guarantee correct resulting
+            objects. Please see the docstring for fast_concat for details.
+            Allowed values are: 'blt', 'freq', 'polarization'. Only used if
+            multiple files are passed.
+        antenna_nums : array_like of int, optional
+            The antennas numbers to include when reading data into the object
+            (antenna positions and names for the removed antennas will be retained
+            unless `keep_all_metadata` is False). This cannot be provided if
+            `antenna_names` is also provided. Ignored if read_data is False.
+        antenna_names : array_like of str, optional
+            The antennas names to include when reading data into the object
+            (antenna positions and names for the removed antennas will be retained
+            unless `keep_all_metadata` is False). This cannot be provided if
+            `antenna_nums` is also provided. Ignored if read_data is False.
+        bls : list of tuple, optional
+            A list of antenna number tuples (e.g. [(0,1), (3,2)]) or a list of
+            baseline 3-tuples (e.g. [(0,1,'xx'), (2,3,'yy')]) specifying baselines
+            to include when reading data into the object. For length-2 tuples,
+            the ordering of the numbers within the tuple does not matter. For
+            length-3 tuples, the polarization string is in the order of the two
+            antennas. If length-3 tuples are provided, `polarizations` must be
+            None. Ignored if read_data is False.
+        ant_str : str, optional
+            A string containing information about what antenna numbers
+            and polarizations to include when reading data into the object.
+            Can be 'auto', 'cross', 'all', or combinations of antenna numbers
+            and polarizations (e.g. '1', '1_2', '1x_2y').  See tutorial for more
+            examples of valid strings and the behavior of different forms for ant_str.
+            If '1x_2y,2y_3y' is passed, both polarizations 'xy' and 'yy' will
+            be kept for both baselines (1,2) and (2,3) to return a valid
+            pyuvdata object.
+            An ant_str cannot be passed in addition to any of `antenna_nums`,
+            `antenna_names`, `bls` args or the `polarizations` parameters,
+            if it is a ValueError will be raised. Ignored if read_data is False.
+        frequencies : array_like of float, optional
+            The frequencies to include when reading data into the object, each
+            value passed here should exist in the freq_array. Ignored if
+            read_data is False.
+        freq_chans : array_like of int, optional
+            The frequency channel numbers to include when reading data into the
+            object. Ignored if read_data is False.
+        times : array_like of float, optional
+            The times to include when reading data into the object, each value
+            passed here should exist in the time_array. Ignored if read_data is False.
+        polarizations : array_like of int, optional
+            The polarizations numbers to include when reading data into the
+            object, each value passed here should exist in the polarization_array.
+            Ignored if read_data is False.
+        blt_inds : array_like of int, optional
+            The baseline-time indices to include when reading data into the
+            object. This is not commonly used. Ignored if read_data is False.
+        keep_all_metadata : bool
+            Option to keep all the metadata associated with antennas, even those
+            that do not have data associated with them after the select option.
+        read_data : bool
+            Read in the visibility and flag data. If set to false, only the
+            basic header info and metadata (if read_metadata is True) will be
+            read in. Setting read_data to False results in an incompletely
+            defined object (check will not pass).
+        read_metadata: : bool
+            Read in metadata (times, baselines, uvws) as well as basic header
+            info. Only used if read_data is False (metadata will be read if data
+            is read). If both read_data and read_metadata are false, only basic
+            header info is read in.
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            after after reading in the file (the default is True,
+            meaning the check will be run). Ignored if read_data is False.
+        check_extra : bool
+            Option to check optional parameters as well as required ones (the
+            default is True, meaning the optional parameters will be checked).
+            Ignored if read_data is False.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters after
+            reading in the file (the default is True, meaning the acceptable
+            range check will be done). Ignored if read_data is False.
         """
         from . import uvfits
         # work out what function should be called depending on what's
@@ -2277,19 +2335,27 @@ class UVData(UVBase):
         """
         Write the data to a uvfits file.
 
-        Args:
-            filename: The uvfits file to write to.
-            spoof_nonessential: Option to spoof the values of optional
-                UVParameters that are not set but are required for uvfits files.
-                Default is False.
-            force_phase: Option to automatically phase drift scan data to
-                zenith of the first timestamp. Default is False.
-            run_check: Option to check for the existence and proper shapes of
-                parameters before writing the file. Default is True.
-            check_extra: Option to check optional parameters as well as required
-                ones. Default is True.
-            run_check_acceptability: Option to check acceptable range of the values of
-                parameters before writing the file. Default is True.
+        Parameters
+        ----------
+        filename : str
+            The uvfits file to write to.
+        spoof_nonessential : bool
+            Option to spoof the values of optional UVParameters that are not set
+            but are required for uvfits files.
+        force_phase:  : bool
+            Option to automatically phase drift scan data to zenith of the first
+            timestamp.
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            after before writing the file (the default is True,
+            meaning the check will be run).
+        check_extra : bool
+            Option to check optional parameters as well as required ones (the
+            default is True, meaning the optional parameters will be checked).
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters before
+            writing the file (the default is True, meaning the acceptable
+            range check will be done).
         """
         uvfits_obj = self._convert_to_filetype('uvfits')
         uvfits_obj.write_uvfits(filename, spoof_nonessential=spoof_nonessential,
@@ -2298,29 +2364,38 @@ class UVData(UVBase):
                                 run_check_acceptability=run_check_acceptability)
         del(uvfits_obj)
 
-    def read_ms(self, filepath, axis=None, run_check=True, check_extra=True,
-                run_check_acceptability=True, data_column='DATA', pol_order='AIPS'):
+    def read_ms(self, filepath, axis=None, data_column='DATA', pol_order='AIPS',
+                run_check=True, check_extra=True, run_check_acceptability=True):
         """
         Read in data from a measurement set
 
-        Args:
-            filepath: The measurement set file directory or list of directories to read from.
-            axis: Axis to concatenate files along. This enables fast concatenation
-                along the specified axis without the normal checking that all other
-                metadata agrees. This method does not guarantee correct resulting
-                objects. Please see the docstring for fast_concat for details.
-                Allowed values are: 'blt', 'freq', 'polarization'. Only used if
-                multiple files are passed.
-            run_check: Option to check for the existence and proper shapes of
-                parameters after reading in the file. Default is True.
-            check_extra: Option to check optional parameters as well as required
-                ones. Default is True.
-            run_check_acceptability: Option to check the values of parameters
-                after reading in the file. Default is True.
-            data_column: name of CASA data column to read into data_array.
-                'DATA', 'MODEL', or 'CORRECTED_DATA'
-            pol_order: specify whether you want polarizations ordered by
-                'CASA' or 'AIPS' conventions.
+        Parameters
+        ----------
+        filepath : str or list of str
+            The measurement set file directory or list of directories to read from.
+        axis : str
+            Axis to concatenate files along. This enables fast concatenation
+            along the specified axis without the normal checking that all other
+            metadata agrees. This method does not guarantee correct resulting
+            objects. Please see the docstring for fast_concat for details.
+            Allowed values are: 'blt', 'freq', 'polarization'. Only used if
+            multiple files are passed.
+        data_column : str
+            name of CASA data column to read into data_array. Options are:
+            'DATA', 'MODEL', or 'CORRECTED_DATA'
+        pol_order : str
+            Option to specify polarizations order convention, options are 'CASA' or 'AIPS'.
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            after after reading in the file (the default is True,
+            meaning the check will be run).
+        check_extra : bool
+            Option to check optional parameters as well as required ones (the
+            default is True, meaning the optional parameters will be checked).
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters after
+            reading in the file (the default is True, meaning the acceptable
+            range check will be done).
         """
         from . import ms
 
@@ -2355,24 +2430,34 @@ class UVData(UVBase):
         """
         Read in data from a list of FHD files.
 
-        Args:
-            filelist: The list of FHD save files to read from. Must include at
-                least one polarization file, a params file and a flag file.
-                Can also be a list of lists to read multiple data sets.
-            use_model: Option to read in the model visibilities rather than the
-                dirty visibilities. Default is False.
-            axis: Axis to concatenate files along. This enables fast concatenation
-                along the specified axis without the normal checking that all other
-                metadata agrees. This method does not guarantee correct resulting
-                objects. Please see the docstring for fast_concat for details.
-                Allowed values are: 'blt', 'freq', 'polarization'. Only used if
-                multiple files are passed.
-            run_check: Option to check for the existence and proper shapes of
-                parameters after reading in the file. Default is True.
-            check_extra: Option to check optional parameters as well as required
-                ones. Default is True.
-            run_check_acceptability: Option to check acceptable range of the values of
-                parameters after reading in the file. Default is True.
+        Parameters
+        ----------
+        filelist : list of str
+            The list of FHD save files to read from. Must include at least one
+            polarization file, a params file and a flag file. Can also be a list
+            of lists to read multiple data sets.
+        use_model : bool
+            Option to read in the model visibilities rather than the dirty
+            visibilities (the default is False, meaning the dirty visibilities
+            will be read).
+        axis : str
+            Axis to concatenate files along. This enables fast concatenation
+            along the specified axis without the normal checking that all other
+            metadata agrees. This method does not guarantee correct resulting
+            objects. Please see the docstring for fast_concat for details.
+            Allowed values are: 'blt', 'freq', 'polarization'. Only used if
+            multiple data sets are passed.
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            after after reading in the file (the default is True,
+            meaning the check will be run).
+        check_extra : bool
+            Option to check optional parameters as well as required ones (the
+            default is True, meaning the optional parameters will be checked).
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters after
+            reading in the file (the default is True, meaning the acceptable
+            range check will be done).
         """
         from . import fhd
         if isinstance(filelist[0], (list, tuple)):
@@ -2408,44 +2493,67 @@ class UVData(UVBase):
         """
         Read in data from a miriad file.
 
-        Args:
-            filepath: The miriad file directory or list of directories to read from.
-            axis: Axis to concatenate files along. This enables fast concatenation
-                along the specified axis without the normal checking that all other
-                metadata agrees. This method does not guarantee correct resulting
-                objects. Please see the docstring for fast_concat for details.
-                Allowed values are: 'blt', 'freq', 'polarization'. Only used if
-                multiple files are passed.
-            antenna_nums: The antennas numbers to read into the object.
-            bls: A list of antenna number tuples (e.g. [(0,1), (3,2)]) or a list of
-                baseline 3-tuples (e.g. [(0,1,'xx'), (2,3,'yy')]) specifying baselines
-                to keep in the object. For length-2 tuples, the  ordering of the numbers
-                within the tuple does not matter. For length-3 tuples, the polarization
-                string is in the order of the two antennas. If length-3 tuples are
-                provided, the polarizations argument below must be None.
-            ant_str: A string containing information about what kinds of visibility data
-                to read-in.  Can be 'auto', 'cross', 'all'. Cannot provide ant_str if
-                antenna_nums and/or bls is not None.
-            polarizations: List of polarization integers or strings to read-in.
-                Ex: ['xx', 'yy', ...]
-            time_range: len-2 list containing min and max range of times (Julian Date) to read-in.
-                Ex: [2458115.20, 2458115.40]
-            read_data: Read in the visibility and flag data. If set to false,
-                only the metadata will be read in. Setting read_data to False
-                results in an incompletely defined object (check will not pass).
-                Default True.
-            phase_type: Either 'drift' meaning zenith drift, 'phased' meaning
-                the data are phased to a single RA/Dec or None and it will be
-                guessed at based on the file. Default None.
-            correct_lat_lon: flag -- that only matters if altitude is missing --
-                to update the latitude and longitude from the known_telescopes list.
-                Default True.
-            run_check: Option to check for the existence and proper shapes of
-                parameters after reading in the file. Default is True.
-            check_extra: Option to check optional parameters as well as required
-                ones. Default is True.
-            run_check_acceptability: Option to check acceptable range of the values of
-                parameters after reading in the file. Default is True.
+        Parameters
+        ----------
+        filepath : str or list of str
+            The miriad file directory or list of directories to read from.
+        axis : str
+            Axis to concatenate files along. This enables fast concatenation
+            along the specified axis without the normal checking that all other
+            metadata agrees. This method does not guarantee correct resulting
+            objects. Please see the docstring for fast_concat for details.
+            Allowed values are: 'blt', 'freq', 'polarization'. Only used if
+            multiple files are passed.
+        antenna_nums : array_like of int, optional
+            The antennas numbers to read into the object.
+        bls : list of tuple, optional
+            A list of antenna number tuples (e.g. [(0,1), (3,2)]) or a list of
+            baseline 3-tuples (e.g. [(0,1,'xx'), (2,3,'yy')]) specifying baselines
+            to include when reading data into the object. For length-2 tuples,
+            the ordering of the numbers within the tuple does not matter. For
+            length-3 tuples, the polarization string is in the order of the two
+            antennas. If length-3 tuples are provided, `polarizations` must be
+            None.
+        ant_str : str, optional
+            A string containing information about what antenna numbers
+            and polarizations to include when reading data into the object.
+            Can be 'auto', 'cross', 'all', or combinations of antenna numbers
+            and polarizations (e.g. '1', '1_2', '1x_2y').  See tutorial for more
+            examples of valid strings and the behavior of different forms for ant_str.
+            If '1x_2y,2y_3y' is passed, both polarizations 'xy' and 'yy' will
+            be kept for both baselines (1,2) and (2,3) to return a valid
+            pyuvdata object.
+            An ant_str cannot be passed in addition to any of `antenna_nums`,
+            `bls` or `polarizations` parameters, if it is a ValueError will be raised.
+        polarizations : array_like of int or str, optional
+            List of polarization integers or strings to read-in. e.g. ['xx', 'yy', ...]
+        time_range : list of float, optional
+            len-2 list containing min and max range of times in Julian Date to
+            include when reading data into the object. e.g. [2458115.20, 2458115.40]
+        read_data : bool
+            Read in the visibility and flag data. If set to false,
+            only the metadata will be read in. Setting read_data to False
+            results in an incompletely defined object (check will not pass).
+        phase_type : str, optional
+            Option to specify the phasing status of the data. Options are 'drift',
+            'phased' or None. 'drift' means the data are zenith drift data,
+            'phased' means the data are phased to a single RA/Dec. Default is None
+            meaning it will be guessed at based on the file contents.
+        correct_lat_lon : bool
+            Option to update the latitude and longitude from the known_telescopes
+            list if the altitude is missing.
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            after after reading in the file (the default is True,
+            meaning the check will be run). Ignored if read_data is False.
+        check_extra : bool
+            Option to check optional parameters as well as required ones (the
+            default is True, meaning the optional parameters will be checked).
+            Ignored if read_data is False.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters after
+            reading in the file (the default is True, meaning the acceptable
+            range check will be done). Ignored if read_data is False.
         """
         from . import miriad
         if isinstance(filepath, (list, tuple)):
@@ -2500,18 +2608,26 @@ class UVData(UVBase):
         """
         Write the data to a miriad file.
 
-        Args:
-            filename: The miriad file directory to write to.
-            run_check: Option to check for the existence and proper shapes of
-                parameters before writing the file. Default is True.
-            check_extra: Option to check optional parameters as well as required
-                ones. Default is True.
-            run_check_acceptability: Option to check acceptable range of the values of
-                parameters before writing the file. Default is True.
-            clobber: Option to overwrite the filename if the file already exists.
-                Default is False.
-            no_antnums: Option to not write the antnums variable to the file.
-                Should only be used for testing purposes.
+        Parameters
+        ----------
+        filename : str
+            The miriad file directory to write to.
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            after before writing the file (the default is True,
+            meaning the check will be run).
+        check_extra : bool
+            Option to check optional parameters as well as required ones (the
+            default is True, meaning the optional parameters will be checked).
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters before
+            writing the file (the default is True, meaning the acceptable
+            range check will be done).
+        clobber : bool
+            Option to overwrite the filename if the file already exists.
+        no_antnums : bool
+            Option to not write the antnums variable to the file.
+            Should only be used for testing purposes.
         """
         miriad_obj = self._convert_to_filetype('miriad')
         miriad_obj.write_miriad(filepath, run_check=run_check, check_extra=check_extra,
@@ -2527,69 +2643,89 @@ class UVData(UVBase):
         """
         Read a UVH5 file.
 
-        Args:
-            filename: The UVH5 file or list of files to read from.
-            axis: Axis to concatenate files along. This enables fast concatenation
-                along the specified axis without the normal checking that all other
-                metadata agrees. This method does not guarantee correct resulting
-                objects. Please see the docstring for fast_concat for details.
-                Allowed values are: 'blt', 'freq', 'polarization'. Only used if
-                multiple files are passed.
-            antenna_nums: The antennas numbers to include when reading data into
-                the object (antenna positions and names for the excluded antennas
-                will be retained). This cannot be provided if antenna_names is
-                also provided. Ignored if read_data is False.
-            antenna_names: The antennas names to include when reading data into
-                the object (antenna positions and names for the excluded antennas
-                will be retained). This cannot be provided if antenna_nums is
-                also provided. Ignored if read_data is False.
-            bls: A list of antenna number tuples (e.g. [(0,1), (3,2)]) or a list of
-                baseline 3-tuples (e.g. [(0,1,'xx'), (2,3,'yy')]) specifying baselines
-                to keep in the object. For length-2 tuples, the  ordering of the numbers
-                within the tuple does not matter. For length-3 tuples, the polarization
-                string is in the order of the two antennas. If length-3 tuples are provided,
-                the polarizations argument below must be None. Ignored if read_data is False.
-            ant_str: A string containing information about what antenna numbers
-                and polarizations to include when reading data into the object.
-                Can be 'auto', 'cross', 'all', or combinations of antenna numbers
-                and polarizations (e.g. '1', '1_2', '1x_2y').
-                See tutorial for more examples of valid strings and
-                the behavior of different forms for ant_str.
-                If '1x_2y,2y_3y' is passed, both polarizations 'xy' and 'yy' will
-                be kept for both baselines (1,2) and (2,3) to return a valid
-                pyuvdata object.
-                An ant_str cannot be passed in addition to any of the above antenna
-                args or the polarizations arg.
-                Ignored if read_data is False.
-            frequencies: The frequencies to include when reading data into the
-                object.  Ignored if read_data is False.
-            freq_chans: The frequency channel numbers to include when reading
-                data into the object. Ignored if read_data is False.
-            times: The times to include when reading data into the object.
-                Ignored if read_data is False.
-            polarizations: The polarizations to include when reading data into
-                the object.  Ignored if read_data is False.
-            blt_inds: The baseline-time indices to include when reading data into
-                the object. This is not commonly used. Ignored if read_data is False.
-            keep_all_metadata: Option to keep all the metadata associated with antennas,
-                even those that do not remain after the select option. Default is True.
-            read_data: Read in the visibility and flag data. If set to false,
-                only the basic metadata will be read in. Setting read_data to
-                False results in an incompletely defined object (check will not
-                pass). Default True.
-            data_array_dtype: Datatype to store the output data_array as. Must be either
-                np.complex64 (single-precision real and imaginary) or np.complex128 (double-
-                precision real and imaginary). Only used if the datatype of the visibility
-                data on-disk is not 'c8' or 'c16'. Default is np.complex128.
-            run_check: Option to check for the existence and proper shapes of
-                parameters after reading in the file. Default is True.
-            check_extra: Option to check optional parameters as well as required
-                ones. Default is True.
-            run_check_acceptability: Option to check acceptable range of the values of
-                parameters after reading in the file. Default is True.
-
-        Returns:
-            None
+        Parameters
+        ----------
+        filename : str or list of str
+             The UVH5 file or list of files to read from.
+        axis : str
+            Axis to concatenate files along. This enables fast concatenation
+            along the specified axis without the normal checking that all other
+            metadata agrees. This method does not guarantee correct resulting
+            objects. Please see the docstring for fast_concat for details.
+            Allowed values are: 'blt', 'freq', 'polarization'. Only used if
+            multiple files are passed.
+        antenna_nums : array_like of int, optional
+            The antennas numbers to include when reading data into the object
+            (antenna positions and names for the removed antennas will be retained
+            unless `keep_all_metadata` is False). This cannot be provided if
+            `antenna_names` is also provided. Ignored if read_data is False.
+        antenna_names : array_like of str, optional
+            The antennas names to include when reading data into the object
+            (antenna positions and names for the removed antennas will be retained
+            unless `keep_all_metadata` is False). This cannot be provided if
+            `antenna_nums` is also provided. Ignored if read_data is False.
+        bls : list of tuple, optional
+            A list of antenna number tuples (e.g. [(0,1), (3,2)]) or a list of
+            baseline 3-tuples (e.g. [(0,1,'xx'), (2,3,'yy')]) specifying baselines
+            to include when reading data into the object. For length-2 tuples,
+            the ordering of the numbers within the tuple does not matter. For
+            length-3 tuples, the polarization string is in the order of the two
+            antennas. If length-3 tuples are provided, `polarizations` must be
+            None. Ignored if read_data is False.
+        ant_str : str, optional
+            A string containing information about what antenna numbers
+            and polarizations to include when reading data into the object.
+            Can be 'auto', 'cross', 'all', or combinations of antenna numbers
+            and polarizations (e.g. '1', '1_2', '1x_2y').  See tutorial for more
+            examples of valid strings and the behavior of different forms for ant_str.
+            If '1x_2y,2y_3y' is passed, both polarizations 'xy' and 'yy' will
+            be kept for both baselines (1,2) and (2,3) to return a valid
+            pyuvdata object.
+            An ant_str cannot be passed in addition to any of `antenna_nums`,
+            `antenna_names`, `bls` args or the `polarizations` parameters,
+            if it is a ValueError will be raised. Ignored if read_data is False.
+        frequencies : array_like of float, optional
+            The frequencies to include when reading data into the object, each
+            value passed here should exist in the freq_array. Ignored if
+            read_data is False.
+        freq_chans : array_like of int, optional
+            The frequency channel numbers to include when reading data into the
+            object. Ignored if read_data is False.
+        times : array_like of float, optional
+            The times to include when reading data into the object, each value
+            passed here should exist in the time_array. Ignored if read_data is False.
+        polarizations : array_like of int, optional
+            The polarizations numbers to include when reading data into the
+            object, each value passed here should exist in the polarization_array.
+            Ignored if read_data is False.
+        blt_inds : array_like of int, optional
+            The baseline-time indices to include when reading data into the
+            object. This is not commonly used. Ignored if read_data is False.
+        keep_all_metadata : bool
+            Option to keep all the metadata associated with antennas, even those
+            that do not have data associated with them after the select option.
+        read_data : bool
+            Read in the visibility and flag data. If set to false, only the
+            basic header info and metadata (if read_metadata is True) will be
+            read in. Setting read_data to False results in an incompletely
+            defined object (check will not pass).
+        data_array_dtype : numpy dtype
+            Datatype to store the output data_array as. Must be either
+            np.complex64 (single-precision real and imaginary) or np.complex128 (double-
+            precision real and imaginary). Only used if the datatype of the visibility
+            data on-disk is not 'c8' or 'c16'.
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            after after reading in the file (the default is True,
+            meaning the check will be run). Ignored if read_data is False.
+        check_extra : bool
+            Option to check optional parameters as well as required ones (the
+            default is True, meaning the optional parameters will be checked).
+            Ignored if read_data is False.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters after
+            reading in the file (the default is True, meaning the acceptable
+            range check will be done). Ignored if read_data is False.
         """
         from . import uvh5
         if isinstance(filename, (list, tuple)):
@@ -2645,28 +2781,37 @@ class UVData(UVBase):
         """
         Write a completely in-memory UVData object to a UVH5 file.
 
-        Args:
-            filename: The UVH5 file to write to.
-            run_check: Option to check for the existence and proper shapes of
-                parameters before writing the file. Default is True.
-            check_extra: Option to check optional parameters as well as required
-                ones. Default is True.
-            run_check_acceptability: Option to check acceptable range of the values of
-                parameters before writing the file. Default is True.
-            clobber: Option to overwrite the file if it already exists. Default is False.
-            data_compression: HDF5 filter to apply when writing the data_array. Default is
-                None (no filter/compression).
-            flags_compression: HDF5 filter to apply when writing the flags_array. Default is
-                the LZF filter.
-            nsample_compression: HDF5 filter to apply when writing the nsample_array. Deafult is
-                the LZF filter.
-            data_write_dtype: datatype of output visibility data. If 'None', then the same datatype
-                as data_array will be used. Otherwise, a numpy dtype object must be specified with
-                an 'r' field and an 'i' field for real and imaginary parts, respectively. See
-                uvh5.py for an example of defining such a datatype. Default is None.
-
-        Returns:
-            None
+        Parameters
+        ----------
+        filename : str
+             The UVH5 file to write to.
+        clobber : bool
+            Option to overwrite the file if it already exists.
+        data_compression : str
+            HDF5 filter to apply when writing the data_array. Default is
+            None meaning no filter or compression.
+        flags_compression : str
+            HDF5 filter to apply when writing the flags_array. Default is "lzf"
+            for the LZF filter.
+        nsample_compression : str
+            HDF5 filter to apply when writing the nsample_array. Default is "lzf"
+            for the LZF filter.
+        data_write_dtype : numpy dtype
+            datatype of output visibility data. If 'None', then the same datatype
+            as data_array will be used. Otherwise, a numpy dtype object must be specified with
+            an 'r' field and an 'i' field for real and imaginary parts, respectively. See
+            uvh5.py for an example of defining such a datatype.
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            after before writing the file (the default is True,
+            meaning the check will be run).
+        check_extra : bool
+            Option to check optional parameters as well as required ones (the
+            default is True, meaning the optional parameters will be checked).
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters before
+            writing the file (the default is True, meaning the acceptable
+            range check will be done).
         """
         uvh5_obj = self._convert_to_filetype('uvh5')
         uvh5_obj.write_uvh5(filename, run_check=run_check,
@@ -2684,29 +2829,33 @@ class UVData(UVBase):
         """
         Initialize a UVH5 file on disk with the header metadata and empty data arrays.
 
-        Args:
-            filename: The UVH5 file to write to.
-            clobber: Option to overwrite the file if it already exists. Default is False.
-            data_compression: HDF5 filter to apply when writing the data_array. Default is
-                None (no filter/compression).
-            flags_compression: HDF5 filter to apply when writing the flags_array. Default is
-                the LZF filter.
-            nsample_compression: HDF5 filter to apply when writing the nsample_array. Default is
-                the LZF filter.
-            data_write_dtype: datatype of output visibility data. If 'None', then double-precision
-                floats will be used. The user may specify 'c8' for single-precision floats or 'c16'
-                for double-presicion. Otherwise, a numpy dtype object must be specified with
-                an 'r' field and an 'i' field for real and imaginary parts, respectively. See
-                uvh5.py for an example of defining such a datatype. Default is None.
+        Parameters
+        ----------
+        filename : str
+             The UVH5 file to write to.
+        clobber : bool
+            Option to overwrite the file if it already exists.
+        data_compression : str
+            HDF5 filter to apply when writing the data_array. Default is
+            None meaning no filter or compression.
+        flags_compression : str
+            HDF5 filter to apply when writing the flags_array. Default is "lzf"
+            for the LZF filter.
+        nsample_compression : str
+            HDF5 filter to apply when writing the nsample_array. Default is "lzf"
+            for the LZF filter.
+        data_write_dtype : numpy dtype
+            datatype of output visibility data. If 'None', then the same datatype
+            as data_array will be used. Otherwise, a numpy dtype object must be specified with
+            an 'r' field and an 'i' field for real and imaginary parts, respectively. See
+            uvh5.py for an example of defining such a datatype.
 
-        Returns:
-            None
-
-        Notes:
-            When partially writing out data, this function should be called first to initialize the
-            file on disk. The data is then actually written by calling the write_uvh5_part method,
-            with the same filename as the one specified in this function. See the tutorial for a
-            worked example.
+        Notes
+        -----
+        When partially writing out data, this function should be called first to initialize the
+        file on disk. The data is then actually written by calling the write_uvh5_part method,
+        with the same filename as the one specified in this function. See the tutorial for a
+        worked example.
         """
         uvh5_obj = self._convert_to_filetype('uvh5')
         uvh5_obj.initialize_uvh5_file(filename, clobber=clobber,
@@ -2723,57 +2872,74 @@ class UVData(UVBase):
         """
         Write data to a UVH5 file that has already been initialized.
 
-        Args:
-            filename: the file on disk to write data to. It must already exist,
-                and is assumed to have been initialized with initialize_uvh5_file.
-            data_array: the data to write to disk. A check is done to ensure that
-                the dimensions of the data passed in conform to the ones specified by
-                the "selection" arguments.
-            flags_array: the flags array to write to disk. A check is done to ensure
-                that the dimensions of the data passed in conform to the ones specified
-                by the "selection" arguments.
-            nsample_array: the nsample array to write to disk. A check is done to ensure
-                that the dimensions fo the data passed in conform to the ones specified
-                by the "selection" arguments.
-            check_header: option to check that the metadata present in the header
-                on disk matches that in the object. Default is True.
-            antenna_nums: The antennas numbers to include when writing data into
-                the object (antenna positions and names for the excluded antennas
-                will be retained). This cannot be provided if antenna_names is
-                also provided.
-            antenna_names: The antennas names to include when writing data into
-                the object (antenna positions and names for the excluded antennas
-                will be retained). This cannot be provided if antenna_nums is
-                also provided.
-            bls: A list of antenna number tuples (e.g. [(0,1), (3,2)]) or a list of
-                baseline 3-tuples (e.g. [(0,1,'xx'), (2,3,'yy')]) specifying baselines
-                to write to the file. For length-2 tuples, the ordering of the numbers
-                within the tuple does not matter. For length-3 tuples, the polarization
-                string is in the order of the two antennas. If length-3 tuples are provided,
-                the polarizations argument below must be None.
-            ant_str: A string containing information about what antenna numbers
-                and polarizations to include when writing data into the object.
-                Can be 'auto', 'cross', 'all', or combinations of antenna numbers
-                and polarizations (e.g. '1', '1_2', '1x_2y').
-                See tutorial for more examples of valid strings and
-                the behavior of different forms for ant_str.
-                If '1x_2y,2y_3y' is passed, both polarizations 'xy' and 'yy' will
-                be written for both baselines (1,2) and (2,3) to reflect a valid
-                pyuvdata object.
-                An ant_str cannot be passed in addition to any of the above antenna
-                args or the polarizations arg.
-            frequencies: The frequencies to include when writing data to the file.
-            freq_chans: The frequency channel numbers to include when writing data to the file.
-            times: The times to include when writing data to the file.
-            polarizations: The polarizations to include when writing data to the file.
-            blt_inds: The baseline-time indices to include when writing data to the file.
-                This is not commonly used.
-            run_check_acceptability: Option to check acceptable range of the values of
-                parameters before writing the file. Default is True.
-            add_to_history: String to append to history before write out. Default is no appending.
-
-        Returns:
-            None
+        Parameters
+        ----------
+        filename : str
+            The UVH5 file to write to. It must already exist, and is assumed to
+            have been initialized with initialize_uvh5_file.
+        data_array : ndarray
+            The data to write to disk. A check is done to ensure that the
+            dimensions of the data passed in conform to the ones specified by
+            the "selection" arguments.
+        flags_array : ndarray
+            The flags array to write to disk. A check is done to ensure that the
+            dimensions of the data passed in conform to the ones specified by
+            the "selection" arguments.
+        nsample_array : ndarray
+            The nsample array to write to disk. A check is done to ensure that the
+            dimensions of the data passed in conform to the ones specified by
+            the "selection" arguments.
+        check_header : bool
+            Option to check that the metadata present in the header on disk
+            matches that in the object.
+        antenna_nums : array_like of int, optional
+            The antennas numbers to include when writing data into the file
+            (antenna positions and names for the removed antennas will be retained).
+            This cannot be provided if `antenna_names` is also provided.
+        antenna_names : array_like of str, optional
+            The antennas names to include when writing data into the file
+            (antenna positions and names for the removed antennas will be retained).
+            This cannot be provided if `antenna_nums` is also provided.
+        bls : list of tuple, optional
+            A list of antenna number tuples (e.g. [(0,1), (3,2)]) or a list of
+            baseline 3-tuples (e.g. [(0,1,'xx'), (2,3,'yy')]) specifying baselines
+            to include when writing data into the file. For length-2 tuples,
+            the ordering of the numbers within the tuple does not matter. For
+            length-3 tuples, the polarization string is in the order of the two
+            antennas. If length-3 tuples are provided, `polarizations` must be
+            None.
+        ant_str : str, optional
+            A string containing information about what antenna numbers
+            and polarizations to include writing data into the file.
+            Can be 'auto', 'cross', 'all', or combinations of antenna numbers
+            and polarizations (e.g. '1', '1_2', '1x_2y').  See tutorial for more
+            examples of valid strings and the behavior of different forms for ant_str.
+            If '1x_2y,2y_3y' is passed, both polarizations 'xy' and 'yy' will
+            be kept for both baselines (1,2) and (2,3) to return a valid
+            pyuvdata object.
+            An ant_str cannot be passed in addition to any of `antenna_nums`,
+            `antenna_names`, `bls` args or the `polarizations` parameters,
+            if it is a ValueError will be raised.
+        frequencies : array_like of float, optional
+            The frequencies to include when writing data into the file, each
+            value passed here should exist in the freq_array.
+        freq_chans : array_like of int, optional
+            The frequency channel numbers to include writing data into the file.
+        times : array_like of float, optional
+            The times to include when writing data into the file, each value
+            passed here should exist in the time_array.
+        polarizations : array_like of int, optional
+            The polarizations numbers to include when writing data into the file,
+            each value passed here should exist in the polarization_array.
+        blt_inds : array_like of int, optional
+            The baseline-time indices to include when writing data into the file.
+            This is not commonly used.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters before
+            writing the file (the default is True, meaning the acceptable
+            range check will be done).
+        add_to_history : str
+            String to append to history before write out. Default is no appending.
         """
         uvh5_obj = self._convert_to_filetype('uvh5')
         uvh5_obj.write_uvh5_part(filename, data_array, flags_array, nsample_array,
@@ -2797,97 +2963,128 @@ class UVData(UVBase):
         """
         Read a generic file into a UVData object.
 
-        Args:
-            filename: The file(s) or list(s) of files to read from.
-            file_type: One of ['uvfits', 'miriad', 'fhd', 'ms', 'uvh5'] or None.
-                If None, the code attempts to guess what the file type is.
-                For miriad and ms types, this is based on the standard directory
-                structure. For FHD, uvfits and uvh5 files it's based on file
-                extensions (FHD: .sav, .txt; uvfits: .uvfits; uvh5: .uvh5).
-                Note that if a list of datasets is passed, the file type is
-                determined from the first dataset.
-            axis: Axis to concatenate files along. This enables fast concatenation
-                along the specified axis without the normal checking that all other
-                metadata agrees. This method does not guarantee correct resulting
-                objects. Please see the docstring for fast_concat for details.
-                Allowed values are: 'blt', 'freq', 'polarization'. Only used if
-                multiple files are passed.
-            antenna_nums: The antennas numbers to include when reading data into
-                the object (antenna positions and names for the excluded antennas
-                will be retained). This cannot be provided if antenna_names is
-                also provided. Ignored if read_data is False.
-            antenna_names: The antennas names to include when reading data into
-                the object (antenna positions and names for the excluded antennas
-                will be retained). This cannot be provided if antenna_nums is
-                also provided. Ignored if read_data is False.
-            bls: A list of antenna number tuples (e.g. [(0,1), (3,2)]) or a list
-                of baseline 3-tuples (e.g. [(0,1,'xx'), (2,3,'yy')]) specifying
-                baselines to keep in the object. For length-2 tuples, the
-                ordering of the numbers within the tuple does not matter. For
-                length-3 tuples, the polarization string is in the order of the
-                two antennas. If length-3 tuples are provided, the polarizations
-                argument below must be None. Ignored if read_data is False.
-            ant_str: A string containing information about what antenna numbers
-                and polarizations to include when reading data into the object.
-                Can be 'auto', 'cross', 'all', or combinations of antenna numbers
-                and polarizations (e.g. '1', '1_2', '1x_2y'). See tutorial for
-                more examples of valid strings and the behavior of different
-                forms for ant_str. If '1x_2y,2y_3y' is passed, both polarizations
-                'xy' and 'yy' will be kept for both baselines (1,2) and (2,3)
-                to return a valid pyuvdata object. An ant_str cannot be passed
-                in addition to any of the above antenna keywords or the
-                polarizations keyword. Ignored if read_data is False.
-            frequencies: The frequencies to include when reading data into the
-                object.  Ignored if read_data is False.
-            freq_chans: The frequency channel numbers to include when reading
-                data into the object. Ignored if read_data is False.
-            times: The times to include when reading data into the object.
-                Ignored if read_data is False.
-            polarizations: The polarizations to include when reading data into
-                the object.  Ignored if read_data is False.
-            time_range: len-2 list containing min and max range of times (Julian Date) to read-in.
-                Ex: [2458115.20, 2458115.40]. Cannot be set with times.
-            blt_inds: The baseline-time indices to include when reading data into
-                the object. This is not commonly used. Ignored if read_data is False.
-            keep_all_metadata: Option to keep all the metadata associated with antennas,
-                even those that do not remain after the select option. Default is True.
-            read_metadata: Read in metadata (times, baselines, uvws) as well as
-                basic header info. Only used if file_type is 'uvfits' and read_data is False
-                (metadata will be read if data is read). If file_type is 'uvfits'
-                and both read_data and read_metadata are false, only basic header
-                info is read in. Default True.
-            read_data: Read in the data. Only used if file_type is 'uvfits',
-                'miriad' or 'uvh5'. If set to False, only the metadata will be
-                read in (for uvfits, this can be further restricted to just the
-                header if read_metadata is False). Setting read_data to False
-                results in an incompletely defined object (check will not pass).
-                Default True.
-            phase_type: Either 'drift' meaning zenith drift, 'phased' meaning
-                the data are phased to a single RA/Dec or None and it will be
-                guessed at based on the file. Only used if file_type is 'miriad'.
-                Default None.
-            correct_lat_lon: flag -- that only matters if altitude is missing --
-                to update the latitude and longitude from the known_telescopes list.
-                Only used if file_type is 'miriad'. Default True.
-            use_model: Option to read in the model visibilities rather than the
-                dirty visibilities. Only used if file_type is 'fhd'. Default is False.
-            data_column: name of CASA data column to read into data_array.
-                'DATA', 'MODEL', or 'CORRECTED_DATA'. Only used if file_type is 'ms'.
-            pol_order: specify whether you want polarizations ordered by
-                'CASA' or 'AIPS' conventions. Only used if file_type is 'ms'.
-            data_array_dtype: Datatype to store the output data_array as when reading uvh5
-                files. Must be either np.complex64 (single-precision real and imaginary) or
-                np.complex128 (double-precision real and imaginary). Only used if the datatype
-                of the visibility data on-disk is not 'c8' or 'c16'. Default is np.complex128.
-            run_check: Option to check for the existence and proper shapes of
-                parameters after reading in the file. Default is True.
-            check_extra: Option to check optional parameters as well as required
-                ones. Default is True.
-            run_check_acceptability: Option to check acceptable range of the values of
-                parameters after reading in the file. Default is True.
+        Parameters
+        ----------
+        filename : str or list of str
+            The file(s) or list(s) of files to read from.
+        file_type : str
+            One of ['uvfits', 'miriad', 'fhd', 'ms', 'uvh5'] or None.
+            If None, the code attempts to guess what the file type is.
+            For miriad and ms types, this is based on the standard directory
+            structure. For FHD, uvfits and uvh5 files it's based on file
+            extensions (FHD: .sav, .txt; uvfits: .uvfits; uvh5: .uvh5).
+            Note that if a list of datasets is passed, the file type is
+            determined from the first dataset.
+        axis : str
+            Axis to concatenate files along. This enables fast concatenation
+            along the specified axis without the normal checking that all other
+            metadata agrees. This method does not guarantee correct resulting
+            objects. Please see the docstring for fast_concat for details.
+            Allowed values are: 'blt', 'freq', 'polarization'. Only used if
+            multiple files are passed.
+        antenna_nums : array_like of int, optional
+            The antennas numbers to include when reading data into the object
+            (antenna positions and names for the removed antennas will be retained
+            unless `keep_all_metadata` is False). This cannot be provided if
+            `antenna_names` is also provided. Ignored if read_data is False.
+        antenna_names : array_like of str, optional
+            The antennas names to include when reading data into the object
+            (antenna positions and names for the removed antennas will be retained
+            unless `keep_all_metadata` is False). This cannot be provided if
+            `antenna_nums` is also provided. Ignored if read_data is False.
+        bls : list of tuple, optional
+            A list of antenna number tuples (e.g. [(0,1), (3,2)]) or a list of
+            baseline 3-tuples (e.g. [(0,1,'xx'), (2,3,'yy')]) specifying baselines
+            to include when reading data into the object. For length-2 tuples,
+            the ordering of the numbers within the tuple does not matter. For
+            length-3 tuples, the polarization string is in the order of the two
+            antennas. If length-3 tuples are provided, `polarizations` must be
+            None. Ignored if read_data is False.
+        ant_str : str, optional
+            A string containing information about what antenna numbers
+            and polarizations to include when reading data into the object.
+            Can be 'auto', 'cross', 'all', or combinations of antenna numbers
+            and polarizations (e.g. '1', '1_2', '1x_2y').  See tutorial for more
+            examples of valid strings and the behavior of different forms for ant_str.
+            If '1x_2y,2y_3y' is passed, both polarizations 'xy' and 'yy' will
+            be kept for both baselines (1,2) and (2,3) to return a valid
+            pyuvdata object.
+            An ant_str cannot be passed in addition to any of `antenna_nums`,
+            `antenna_names`, `bls` args or the `polarizations` parameters,
+            if it is a ValueError will be raised. Ignored if read_data is False.
+        frequencies : array_like of float, optional
+            The frequencies to include when reading data into the object, each
+            value passed here should exist in the freq_array. Ignored if
+            read_data is False.
+        freq_chans : array_like of int, optional
+            The frequency channel numbers to include when reading data into the
+            object. Ignored if read_data is False.
+        times : array_like of float, optional
+            The times to include when reading data into the object, each value
+            passed here should exist in the time_array. Ignored if read_data is False.
+        time_range : list of float, optional
+            len-2 list containing min and max range of times in Julian Date to
+            include when reading data into the object. e.g. [2458115.20, 2458115.40]
+             Cannot be set with times.
+        polarizations : array_like of int, optional
+            The polarizations numbers to include when reading data into the
+            object, each value passed here should exist in the polarization_array.
+            Ignored if read_data is False.
+        blt_inds : array_like of int, optional
+            The baseline-time indices to include when reading data into the
+            object. This is not commonly used. Ignored if read_data is False.
+        keep_all_metadata : bool
+            Option to keep all the metadata associated with antennas, even those
+            that do not have data associated with them after the select option.
+        read_metadata : bool
+            Option to read in metadata (times, baselines, uvws) as well as
+            basic header info. Only used if file_type is 'uvfits' and read_data
+            is False (metadata will be read if data is read). If file_type is
+            'uvfits' and both read_data and read_metadata are false, only basic
+            header info is read in.
+        read_data : bool
+            Read in the data. Only used if file_type is 'uvfits',
+            'miriad' or 'uvh5'. If set to False, only the metadata will be
+            read in (for uvfits, this can be further restricted to just the
+            header if read_metadata is False). Setting read_data to False
+            results in an incompletely defined object (check will not pass).
+        phase_type : str, optional
+            Option to specify the phasing status of the data. Only used if
+            file_type is 'miriad'. Options are 'drift', 'phased' or None.
+            'drift' means the data are zenith drift data, 'phased' means the
+            data are phased to a single RA/Dec. Default is None
+            meaning it will be guessed at based on the file contents.
+        correct_lat_lon : bool
+            Option to update the latitude and longitude from the known_telescopes
+            list if the altitude is missing. Only used if file_type is 'miriad'.
+        use_model : bool
+            Option to read in the model visibilities rather than the dirty
+            visibilities (the default is False, meaning the dirty visibilities
+            will be read). Only used if file_type is 'fhd'.
 
-        Returns:
-            None
+        data_column : str
+            name of CASA data column to read into data_array. Options are:
+            'DATA', 'MODEL', or 'CORRECTED_DATA'. Only used if file_type is 'ms'.
+        pol_order : str
+            Option to specify polarizations order convention, options are
+            'CASA' or 'AIPS'. Only used if file_type is 'ms'.
+        data_array_dtype : numpy dtype
+            Datatype to store the output data_array as. Must be either
+            np.complex64 (single-precision real and imaginary) or np.complex128 (double-
+            precision real and imaginary). Only used if the datatype of the visibility
+            data on-disk is not 'c8' or 'c16'. Only used if file_type is 'uvh5'.
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            after after reading in the file (the default is True,
+            meaning the check will be run). Ignored if read_data is False.
+        check_extra : bool
+            Option to check optional parameters as well as required ones (the
+            default is True, meaning the optional parameters will be checked).
+            Ignored if read_data is False.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters after
+            reading in the file (the default is True, meaning the acceptable
+            range check will be done). Ignored if read_data is False.
         """
         if isinstance(filename, (list, tuple)):
             # this is either a list of separate files to read or a list of FHD files
