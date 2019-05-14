@@ -54,7 +54,7 @@ jobs:
           command: |
             source activate ${ENV_NAME}
             mkdir test-reports
-            nosetests pyuvdata --with-xunit --xunit-file=test-reports/xunit.xml --with-coverage --cover-package=pyuvdata --cover-xml
+            python -m pytest pyuvdata -v --cov=pyuvdata --cov-config=.coveragerc --cov-report xml:./coverage.xml --junitxml=test-reports/xunit.xml
       - save_cache:
           key: deps-{{ .Branch }}-{{ checksum "ci/pyuvdata_tests.yml" }}
           paths:
@@ -92,7 +92,7 @@ jobs:
           command: |
             source activate ${ENV_NAME}
             mkdir test-reports
-            nosetests pyuvdata --with-xunit --xunit-file=test-reports/xunit.xml --with-coverage --cover-package=pyuvdata --cover-xml
+            python -m pytest pyuvdata -v --cov=pyuvdata --cov-config=.coveragerc --cov-report xml:./coverage.xml --junitxml=test-reports/xunit.xml
       - save_cache:
           key: deps-{{ .Branch }}-{{ checksum "ci/pyuvdata_min_deps_tests.yml" }}
           paths:
