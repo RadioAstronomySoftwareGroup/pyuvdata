@@ -272,7 +272,7 @@ def test_read_list():
     uvf1 = UVFlag(uv)
     uvf2 = UVFlag(test_f_file)
     assert np.array_equal(np.concatenate((uvf1.metric_array, uvf2.metric_array), axis=0),
-                             uvf.metric_array)
+                          uvf.metric_array)
     assert np.array_equal(np.concatenate((uvf1.weights_array, uvf2.weights_array), axis=0),
                           uvf.weights_array)
     assert np.array_equal(np.concatenate((uvf1.time_array, uvf2.time_array)),

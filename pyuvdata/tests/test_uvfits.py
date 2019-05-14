@@ -50,7 +50,7 @@ def test_ReadNRAO():
 
     # check error trying to read metadata after data is already present
     pytest.raises(ValueError, uvtest.checkWarnings, UV2.read, [testfile],
-                 {'read_data': False}, message='Telescope EVLA is not')
+                  {'read_data': False}, message='Telescope EVLA is not')
     del(UV)
 
 
