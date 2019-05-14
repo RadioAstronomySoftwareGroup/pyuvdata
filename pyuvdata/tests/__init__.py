@@ -127,7 +127,11 @@ def checkWarnings(func, func_args=[], func_kwargs={},
                     print('expected category ' + str(i) + ' was: ', category[i])
                     print('category ' + str(i) + ' was: ', str(w_i.category))
                     assert(False)
-                if message[i] is not None:
+                if message[i] is None or message[i] == '':
+                    print('Expected message ' + str(i) + ' was None or an empty string')
+                    print('message ' + str(i) + ' was: ', str(w_i.message))
+                    assert(False)
+                else:
                     if message[i] not in str(w_i.message):
                         print('expected message ' + str(i) + ' was: ', message[i])
                         print('message ' + str(i) + ' was: ', str(w_i.message))
