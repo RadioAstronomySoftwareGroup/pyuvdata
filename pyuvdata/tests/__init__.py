@@ -48,7 +48,7 @@ skipIf_no_healpy = pytest.mark.skipif(not healpy_installed, reason=reason)
 try:
     import h5py
 
-    h5py_instaled = True
+    h5py_installed = True
 except(ImportError):
     h5py_installed = False
 reason = 'h5py is not installed, skipping tests that require it.'
