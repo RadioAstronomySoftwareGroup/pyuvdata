@@ -111,8 +111,8 @@ For simple installation, the latest stable version is available via conda
 (preferred: ```conda install -c conda-forge pyuvdata```) or pip (```pip install pyuvdata```).
 
 There are some optional dependencies that are required for specific functionality,
-which will not be installed automatically by conda or pip. See below for details
-on optional dependencies and how to install them.
+which will not be installed automatically by conda or pip.
+See [Dependencies](#dependencies) for details on installing optional dependencies.
 
 ## Optionally install the development version
 Clone the repository using
@@ -121,7 +121,7 @@ Clone the repository using
 Navigate into the pyuvdata directory and run `pip install .`.
 Note that this will attempt to automatically install any missing dependencies.
 If you use anaconda or another package manager you might prefer to first install
-the dependencies as described below.
+the dependencies as described in [Dependencies](#dependencies).
 
 To install without dependencies, run `pip install --no-deps`
 
@@ -130,8 +130,21 @@ To compile the binary extension modules such that you can successfully run
 ```python setup.py build_ext --inplace```
 
 ## Dependencies
-The numpy and astropy versions are important, so be sure to make sure these are
-up to date.
+
+Required:
+
+* numpy >= 1.15
+* scipy
+* astropy >= 2.0
+
+Optional:
+
+* h5py (for reading and writing uvh5 format)
+* python-casacore (for working with CASA measurement sets)
+* healpy (for working with beams in HEALPix formats)
+* pyyaml (for working with settings files for CST beam files)
+
+The numpy and astropy versions are important, so make sure these are up to date.
 
 We suggest using conda to install all the dependencies. If you want to install
 python-casacore and healpy, you'll need to add conda-forge as a channel
@@ -140,15 +153,7 @@ python-casacore and healpy, you'll need to add conda-forge as a channel
 If you do not want to use conda, most of the packages are also available on PyPI
 (except python-casacore, see details for that package below).
 
-* numpy >= 1.15
-* scipy
-* astropy >= 2.0
-* h5py (optional: for reading and writing uvh5 format)
-* python-casacore (optional: for working with CASA measurement sets)
-* healpy (optional: for working with beams in HEALPix formats)
-* pyyaml (optional: for working with settings files for CST beam files)
-
-### Details on installing python-casacore
+### Installing python-casacore
 python-casacore requires the casacore c++ libraries. It can be installed easily
 using conda (```python-casacore``` on conda-forge).
 
