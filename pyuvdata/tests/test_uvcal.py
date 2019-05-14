@@ -142,9 +142,13 @@ class TestUVCalBasicMethods(unittest.TestCase):
         assert self.gain_object.check()
 
     def test_nants_data_telescope(self):
-        self.gain_object.Nants_data = self.gain_object.Nants_telescope - 1
-        # This next line test nothing. An issue is opened but for now still don't call the function.
-        assert self.gain_object.check
+        # make sure it's okay for Nants_telescope to be strictly greater than Nants_data
+        self.gain_object.Nants_telescope += 1
+        # add dummy information for "new antenna" to pass object check
+        self.gain_object.antenna_names = np.concatenate((self.gain_object.antenna_names, ["dummy_ant"]))
+        self.gain_object.antenna_numbers = np.concatenate((self.gain_object.antenna_numbers, [20]))
+        assert self.gain_object.check()
+        # make sure an error is raised if Nants_data is strictly greater than Nants_telescope
         self.gain_object.Nants_data = self.gain_object.Nants_telescope + 1
         pytest.raises(ValueError, self.gain_object.check)
 
