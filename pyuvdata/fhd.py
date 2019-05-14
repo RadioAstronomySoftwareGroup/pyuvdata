@@ -236,7 +236,7 @@ class FHD(UVData):
         #   because they depend on the phasing of the visibilities)
         # the values in bl_info.JDATE are the JD for each integration.
         # We need to expand up to Nblts.
-        int_times = bl_info['JDATE'][0]
+        int_times = list(uvutils._get_iterable(bl_info['JDATE'][0]))
         bin_offset = bl_info['BIN_OFFSET'][0]
         if self.Ntimes != len(int_times):
             warnings.warn('Ntimes does not match the number of unique times in the data')
