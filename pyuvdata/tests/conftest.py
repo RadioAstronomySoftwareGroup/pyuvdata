@@ -21,7 +21,7 @@ from pyuvdata.data import DATA_PATH
 import pyuvdata.utils as uvutils
 
 
-@pytest.fixtures(autouse=True, scope="session")
+@pytest.fixture(autouse=True, scope="session")
 def setup_and_teardown_package():
     """Make data/test directory to put test output files in."""
     testdir = os.path.join(DATA_PATH, 'test/')
