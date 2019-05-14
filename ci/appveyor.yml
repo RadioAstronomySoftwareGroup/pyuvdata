@@ -75,4 +75,4 @@ test_script:
   - cd \
   - cmd: activate test-environment
   - cmd: conda list
-  - cmd: nosetests
+  - cmd: pytest
