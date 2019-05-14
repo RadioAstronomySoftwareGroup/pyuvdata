@@ -10,7 +10,7 @@ from __future__ import absolute_import, division, print_function
 import os
 import warnings
 import sys
-from unittest import SkipTest, TestCase
+import pytest
 
 import functools
 import types
@@ -21,6 +21,49 @@ from astropy.utils import iers
 
 from pyuvdata.data import DATA_PATH
 import pyuvdata.utils as uvutils
+
+# define a pytest marker for skipping casacore tests
+try:
+    import casacore
+
+    casa_installed = True
+except ImportError:
+    casa_installed = False
+reason = 'casacore is not installed, skipping tests that require it.'
+skipIf_no_casa = pytest.mark.skipif(not casa_installed, reason=reason)
+
+
+# define a pytest marker to skip healpy tests
+try:
+    import healpy
+
+    healpy_installed = True
+except(ImportError):
+    healpy_installed = False
+reason = 'healpy is not installed, skipping tests that require it.'
+skipIf_no_healpy = pytest.mark.skipif(not healpy_installed, reason=reason)
+
+
+# defines a decorator to skip tests that require h5py.
+try:
+    import h5py
+
+    h5py_instaled = True
+except(ImportError):
+    h5py_installed = False
+reason = 'h5py is not installed, skipping tests that require it.'
+skipIf_no_h5py = pytest.mark.skipif(not h5py_installed, reason=reason)
+
+
+# defines a decorator to skip tests that require yaml.
+try:
+    import yaml
+
+    yaml_installed = True
+except(ImportError):
+    yaml_installed = False
+reason = 'yaml is not installed, skipping tests that require it.'
+skipIf_no_yaml = pytest.mark.skipif(not yaml_installed, reason=reason)
 
 
 # Functions that are useful for testing:
@@ -123,75 +166,3 @@ def checkWarnings(func, func_args=[], func_kwargs={},
 
 def _id(obj):
     return obj
-
-
-def skip(reason):
-    """
-    Defines a decorator to unconditionally skip a test. Called by conditional
-    skip wrappers to skip tests that require optional dependencies.
-
-    This is needed because nose doesn't respect unittest skip_if decorators.
-    Based on: https://stackoverflow.com/questions/21936292/conditional-skip-testcase-decorator-in-nosetests
-    Args:
-        reason: String describing the reason for skipping a test.
-    """
-    def decorator(test_item):
-        if six.PY2:
-            class_types = (type, types.ClassType)
-        else:
-            class_types = (type)
-        if not isinstance(test_item, class_types):
-            @functools.wraps(test_item)
-            def skip_wrapper(*args, **kwargs):
-                raise SkipTest(reason)
-            test_item = skip_wrapper
-        elif issubclass(test_item, TestCase):
-            @classmethod
-            @functools.wraps(test_item.setUpClass)
-            def skip_wrapper(*args, **kwargs):
-                raise SkipTest(reason)
-            test_item.setUpClass = skip_wrapper
-        test_item.__unittest_skip__ = True
-        test_item.__unittest_skip_why__ = reason
-        return test_item
-    return decorator
-
-
-def skipIf_no_casa(test_func):
-    """defines a decorator to skip tests that require casacore."""
-    reason = 'casacore is not installed, skipping tests that require it.'
-    try:
-        import casacore
-    except(ImportError):
-        return skip(reason)(test_func)
-    return test_func
-
-
-def skipIf_no_healpy(test_func):
-    """defines a decorator to skip tests that require healpy."""
-    reason = 'healpy is not installed, skipping tests that require it.'
-    try:
-        import healpy
-    except(ImportError):
-        return skip(reason)(test_func)
-    return test_func
-
-
-def skipIf_no_h5py(test_func):
-    """defines a decorator to skip tests that require h5py."""
-    reason = 'h5py is not installed, skipping tests that require it.'
-    try:
-        import h5py
-    except(ImportError):
-        return skip(reason)(test_func)
-    return test_func
-
-
-def skipIf_no_yaml(test_func):
-    """defines a decorator to skip tests that require yaml."""
-    reason = 'yaml is not installed, skipping tests that require it.'
-    try:
-        import yaml
-    except(ImportError):
-        return skip(reason)(test_func)
-    return test_func
