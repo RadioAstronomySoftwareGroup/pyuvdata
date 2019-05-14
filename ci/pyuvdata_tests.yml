@@ -6,10 +6,10 @@ dependencies:
   - astropy
   - h5py
   - healpy
-  - nose
   - numpy
   - python-casacore
   - pyyaml
   - scipy
   - six
   - coverage
+  - pytest-cov

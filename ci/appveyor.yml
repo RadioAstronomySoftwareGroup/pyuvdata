@@ -63,7 +63,7 @@ install:
   - cmd: '%CMD_IN_ENV% conda build ci\appveyor.recipe -q'
 
   # create our env
-  - cmd: conda create -q -n test-environment python=%PYTHON_VERSION% numpy scipy astropy nose
+  - cmd: conda create -q -n test-environment python=%PYTHON_VERSION% numpy scipy astropy pytest-cov
   - cmd: activate test-environment
   - cmd: set DISTUTILS_DEBUG='test'
   - cmd: ls -ltr "C:\\Program Files (x86)\\Microsoft Visual Studio 9.0\\VC\\BIN\\"
