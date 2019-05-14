@@ -93,8 +93,7 @@ def test_multi_len_spw():
     testfile = os.path.join(DATA_PATH, 'multi_len_spw.ms')
     with pytest.raises(ValueError) as cm:
         UV.read(testfile)
-    ex = cm.exception  # raised exception is available through exception property of context
-    assert ex.args[0].startswith('Sorry.  Files with more than one spectral')
+    assert str(cm.value).startswith('Sorry.  Files with more than one spectral')
 
 
 @uvtest.skipIf_no_casa
@@ -292,4 +291,4 @@ def test_bad_col_name():
     with pytest.raises(ValueError) as cm:
         UV.read_ms(testfile, data_column='FOO')
     ex = cm.exception  # raised exception is available through exception property of context
-    assert ex.args[0].startswith('Invalid data_column value supplied')
+    assert str(cm.value).startswith('Invalid data_column value supplied')
