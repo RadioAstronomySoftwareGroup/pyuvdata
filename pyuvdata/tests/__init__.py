@@ -11,6 +11,7 @@ import os
 import warnings
 import sys
 import pytest
+from unittest import SkipTest, TestCase
 
 import functools
 import types
@@ -64,7 +65,6 @@ except(ImportError):
     yaml_installed = False
 reason = 'yaml is not installed, skipping tests that require it.'
 skipIf_no_yaml = pytest.mark.skipif(not yaml_installed, reason=reason)
-
 
 # Functions that are useful for testing:
 def clearWarnings():
@@ -166,3 +166,40 @@ def checkWarnings(func, func_args=[], func_kwargs={},
 
 def _id(obj):
     return obj
+
+
+def skip(reason):
+    """
+    Defines a decorator to unconditionally skip a test. Called by conditional
+    skip wrappers to skip tests that require optional dependencies.
+    This is needed because nose doesn't respect unittest skip_if decorators.
+    Based on: https://stackoverflow.com/questions/21936292/conditional-skip-testcase-decorator-in-nosetests
+    Args:
+        reason: String describing the reason for skipping a test.
+    """
+    warnings.simplefilter('always', DeprecationWarning)  # turn off filter
+    warnings.warn("The skip function was built to work with the `nose` test "
+                  "suite and is deprecated. It will be released in a future version.",
+                  DeprecationWarning)
+    warnings.simplefilter('default', DeprecationWarning)  # reset filter
+    def decorator(test_item):
+
+        if six.PY2:
+            class_types = (type, types.ClassType)
+        else:
+            class_types = (type)
+        if not isinstance(test_item, class_types):
+            @functools.wraps(test_item)
+            def skip_wrapper(*args, **kwargs):
+                raise SkipTest(reason)
+            test_item = skip_wrapper
+        elif issubclass(test_item, TestCase):
+            @classmethod
+            @functools.wraps(test_item.setUpClass)
+            def skip_wrapper(*args, **kwargs):
+                raise SkipTest(reason)
+            test_item.setUpClass = skip_wrapper
+        test_item.__unittest_skip__ = True
+        test_item.__unittest_skip_why__ = reason
+        return test_item
+    return decorator
