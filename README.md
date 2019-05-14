@@ -165,8 +165,8 @@ The python-casacore library (with manual install instructions) is available at
 https://github.com/casacore/python-casacore
 
 ## Tests
-Requires installation of `nose` package.
-From the source pyuvdata directory run ```nosetests pyuvdata```.
+Uses the `pytest` package to execute test suite.
+From the source pyuvdata directory run ```pytest``` or ```python -n pytest```.
 
 
 # API
