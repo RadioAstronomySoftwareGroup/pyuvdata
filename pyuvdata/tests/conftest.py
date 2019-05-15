@@ -11,7 +11,6 @@ import six.moves.urllib as urllib
 from astropy.utils import iers
 
 from pyuvdata.data import DATA_PATH
-import pyuvdata.utils as uvutils
 
 
 @pytest.fixture(autouse=True, scope="session")
