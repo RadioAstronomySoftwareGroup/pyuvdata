@@ -12,7 +12,6 @@ import unittest
 import os
 import numpy as np
 import copy
-import six
 from astropy.time import Time
 from astropy.coordinates import Angle
 

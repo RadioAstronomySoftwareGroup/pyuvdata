@@ -16,7 +16,6 @@ import unittest
 from pyuvdata import UVBeam
 import pyuvdata.tests as uvtest
 import pyuvdata.utils as uvutils
-import pyuvdata.version as uvversion
 from pyuvdata.data import DATA_PATH
 
 try:
