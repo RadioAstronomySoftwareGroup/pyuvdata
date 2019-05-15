@@ -6,15 +6,8 @@
 from __future__ import absolute_import, division, print_function
 
 import os
-import warnings
-import sys
 import pytest
-
-import functools
-import types
-import six
 import six.moves.urllib as urllib
-
 from astropy.utils import iers
 
 from pyuvdata.data import DATA_PATH
