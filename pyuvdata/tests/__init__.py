@@ -180,7 +180,7 @@ def skip(reason):
     """
     warnings.simplefilter('always', DeprecationWarning)  # turn off filter
     warnings.warn("The skip function was built to work with the `nose` test "
-                  "suite and is deprecated. It will be released in a future version.",
+                  "suite and is deprecated. It will be removed version 1.5.",
                   DeprecationWarning)
     warnings.simplefilter('default', DeprecationWarning)  # reset filter
     def decorator(test_item):
