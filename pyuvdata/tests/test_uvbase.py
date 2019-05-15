@@ -171,7 +171,7 @@ def test_list_dims():
     pytest.raises(ValueError, test_obj.check)
 
 
-def test_list_dims():
+def test_list_type():
     """Test check function with wrong list type."""
     test_obj = UVTest()
     test_obj.intlist = ['s' + str(i) for i in np.arange(test_obj.int1)]
