@@ -7,7 +7,6 @@
 """
 from __future__ import absolute_import, division, print_function
 
-import os
 import warnings
 import sys
 import pytest
@@ -16,11 +15,9 @@ from unittest import SkipTest, TestCase
 import functools
 import types
 import six
-import six.moves.urllib as urllib
 
 from astropy.utils import iers
 
-from pyuvdata.data import DATA_PATH
 import pyuvdata.utils as uvutils
 
 # define a pytest marker for skipping casacore tests
@@ -122,7 +119,6 @@ def checkWarnings(func, func_args=[], func_kwargs={},
         warnings.filterwarnings("ignore", message="numpy.ufunc size changed")
 
         # filter iers warnings if iers.conf.auto_max_age is set to None, as we do in testing if the iers url is down
-        from astropy.utils import iers
         if iers.conf.auto_max_age is None:
             warnings.filterwarnings("ignore", message="failed to download")
             warnings.filterwarnings("ignore", message="time is out of IERS range")
