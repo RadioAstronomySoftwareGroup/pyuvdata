@@ -807,12 +807,9 @@ def test_mean_infs():
     ans = (data.shape[0] - 1) * np.ones(data.shape[1])
     ans[0] = 0
     assert np.all(wo == ans)
-    print(data)
     out, wo = uvutils.mean_collapse(data, axis=1, return_weights=True)
     ans = np.mean(np.arange(data.shape[1])[1:]) * np.ones(data.shape[0])
     ans[0] = np.inf
-    print(out)
-    print(ans)
     assert np.all(out == ans)
     ans = (data.shape[1] - 1) * np.ones(data.shape[0])
     ans[0] = 0
