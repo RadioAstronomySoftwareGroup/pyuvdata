@@ -141,16 +141,25 @@ class TestUVCalBasicMethods(unittest.TestCase):
         """Test that parameter checks run properly"""
         assert self.gain_object.check()
 
-    def test_nants_data_telescope(self):
+    def test_nants_data_telescope_larger(self):
         # make sure it's okay for Nants_telescope to be strictly greater than Nants_data
         self.gain_object.Nants_telescope += 1
         # add dummy information for "new antenna" to pass object check
-        self.gain_object.antenna_names = np.concatenate((self.gain_object.antenna_names, ["dummy_ant"]))
-        self.gain_object.antenna_numbers = np.concatenate((self.gain_object.antenna_numbers, [20]))
+        self.gain_object.antenna_names = np.concatenate(
+            (self.gain_object.antenna_names, ["dummy_ant"]))
+        self.gain_object.antenna_numbers = np.concatenate(
+            (self.gain_object.antenna_numbers, [20]))
         assert self.gain_object.check()
-        # make sure an error is raised if Nants_data is strictly greater than Nants_telescope
-        self.gain_object.Nants_data = self.gain_object.Nants_telescope + 1
-        pytest.raises(ValueError, self.gain_object.check)
+
+    def test_ant_array_not_in_antnums(self):
+        # make sure an error is raised if antennas with data not in antenna_numbers
+        # remove antennas from antenna_names & antenna_numbers by hand
+        self.gain_object.antenna_names = self.gain_object.antenna_names[1:]
+        self.gain_object.antenna_numbers = self.gain_object.antenna_numbers[1:]
+        self.gain_object.Nants_telescope = self.gain_object.antenna_numbers.size
+        with pytest.raises(ValueError) as cm:
+            self.gain_object.check()
+        assert str(cm.value).startswith('All antennas in ant_array must be in antenna_numbers')
 
     def test_set_gain(self):
         self.delay_object.set_gain()
