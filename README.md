@@ -166,7 +166,7 @@ https://github.com/casacore/python-casacore
 
 ## Tests
 Uses the `pytest` package to execute test suite.
-From the source pyuvdata directory run ```pytest``` or ```python -n pytest```.
+From the source pyuvdata directory run ```pytest``` or ```python -m pytest```.
 
 
 # API
