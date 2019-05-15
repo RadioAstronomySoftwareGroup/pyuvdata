@@ -102,7 +102,7 @@ def test_flags_galaxy():
 def test_breakReadFHDcal():
     """Try various cases of missing files."""
     fhd_cal = UVCal()
-    pytest.raises(Exception, fhd_cal.read_fhd_cal, cal_testfile)  # Missing obs
+    pytest.raises(TypeError, fhd_cal.read_fhd_cal, cal_testfile)  # Missing obs
 
     uvtest.checkWarnings(fhd_cal.read_fhd_cal, [cal_testfile, obs_testfile],
                          message=['No settings file'])
