@@ -3,7 +3,7 @@
 # Licensed under the 2-clause BSD License
 
 from __future__ import division
-import unittest
+
 import pytest
 import os
 import numpy as np
@@ -18,7 +18,6 @@ from pyuvdata.uvflag import and_rows_cols
 from pyuvdata import version as uvversion
 import shutil
 import copy
-import six
 
 
 test_d_file = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.HH.uvcAA')

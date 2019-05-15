@@ -7,7 +7,6 @@ from __future__ import absolute_import, division, print_function
 import pytest
 import os
 import numpy as np
-import copy
 
 from pyuvdata.data import DATA_PATH
 from pyuvdata import UVBeam
