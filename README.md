@@ -68,6 +68,7 @@ see the [phasing memo](docs/references/phasing.pdf) for more details).
 * UVData: add support for writing CASA measurement sets
 * UVBeam: support phased-array antenna beams (e.g. MWA beams).
 * UVCal/UVData: method to apply calibration to data.
+* package version detection can cause issues with installation directly from the repo for some users.
 
 For details see the [issue log](https://github.com/RadioAstronomySoftwareGroup/pyuvdata/issues).
 
