@@ -321,6 +321,10 @@ class UVCal(UVBase):
         super(UVCal, self).check(check_extra=check_extra,
                                  run_check_acceptability=run_check_acceptability)
 
+        # require that all entries in ant_array exist in antenna_numbers
+        if not all(ant in self.antenna_numbers for ant in self.ant_array):
+            raise ValueError('All antennas in ant_array must be in antenna_numbers.')
+
         # issue warning if extra_keywords keys are longer than 8 characters
         for key in self.extra_keywords.keys():
             if len(key) > 8:

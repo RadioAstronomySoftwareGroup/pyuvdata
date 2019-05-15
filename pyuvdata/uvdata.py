@@ -411,6 +411,12 @@ class UVData(UVBase):
             raise ValueError('Ntimes must be equal to the number of unique '
                              'times in the time_array')
 
+        # require that all entries in ant_1_array and ant_2_array exist in antenna_numbers
+        if not all(ant in self.antenna_numbers for ant in self.ant_1_array):
+            raise ValueError('All antennas in ant_1_array must be in antenna_numbers.')
+        if not all(ant in self.antenna_numbers for ant in self.ant_2_array):
+            raise ValueError('All antennas in ant_2_array must be in antenna_numbers.')
+
         # issue warning if extra_keywords keys are longer than 8 characters
         for key in self.extra_keywords.keys():
             if len(key) > 8:

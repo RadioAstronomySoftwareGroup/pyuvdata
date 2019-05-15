@@ -197,11 +197,39 @@ class TestUVDataBasicMethods(unittest.TestCase):
         uvd.uvw_array[cross_inds[0]][:] = 0.0
         pytest.raises(ValueError, uvd.check)
 
-    def test_nants_data_telescope(self):
-        self.uv_object.Nants_data = self.uv_object.Nants_telescope - 1
-        assert self.uv_object.check
-        self.uv_object.Nants_data = self.uv_object.Nants_telescope + 1
-        pytest.raises(ValueError, self.uv_object.check)
+    def test_nants_data_telescope_larger(self):
+        # make sure it's okay for Nants_telescope to be strictly greater than Nants_data
+        self.uv_object.Nants_telescope += 1
+        # add dummy information for "new antenna" to pass object check
+        self.uv_object.antenna_names = np.concatenate(
+            (self.uv_object.antenna_names, ["dummy_ant"]))
+        self.uv_object.antenna_numbers = np.concatenate(
+            (self.uv_object.antenna_numbers, [20]))
+        self.uv_object.antenna_positions = np.concatenate(
+            (self.uv_object.antenna_positions, np.zeros((1, 3))), axis=0)
+        assert self.uv_object.check()
+
+    def test_ant1_array_not_in_antnums(self):
+        # make sure an error is raised if antennas in ant_1_array not in antenna_numbers
+        # remove antennas from antenna_names & antenna_numbers by hand
+        self.uv_object.antenna_names = self.uv_object.antenna_names[1:]
+        self.uv_object.antenna_numbers = self.uv_object.antenna_numbers[1:]
+        self.uv_object.antenna_positions = self.uv_object.antenna_positions[1:, :]
+        self.uv_object.Nants_telescope = self.uv_object.antenna_numbers.size
+        with pytest.raises(ValueError) as cm:
+            self.uv_object.check()
+        assert str(cm.value).startswith('All antennas in ant_1_array must be in antenna_numbers')
+
+    def test_ant2_array_not_in_antnums(self):
+        # make sure an error is raised if antennas in ant_2_array not in antenna_numbers
+        # remove antennas from antenna_names & antenna_numbers by hand
+        self.uv_object.antenna_names = self.uv_object.antenna_names[:-1]
+        self.uv_object.antenna_numbers = self.uv_object.antenna_numbers[:-1]
+        self.uv_object.antenna_positions = self.uv_object.antenna_positions[:-1, :]
+        self.uv_object.Nants_telescope = self.uv_object.antenna_numbers.size
+        with pytest.raises(ValueError) as cm:
+            self.uv_object.check()
+        assert str(cm.value).startswith('All antennas in ant_2_array must be in antenna_numbers')
 
     def test_converttofiletype(self):
         fhd_obj = self.uv_object._convert_to_filetype('fhd')
