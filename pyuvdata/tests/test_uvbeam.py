@@ -86,79 +86,79 @@ def uvbeam_data():
 
     beam_obj = UVBeam()
 
+    class DataHolder():
+        def __init__(self, beam_obj, required_parameters, required_properties,
+                     extra_parameters, extra_properties, other_properties):
+            self.beam_obj = beam_obj
+            self.required_parameters = required_parameters
+            self.required_properties = required_properties
+            self.extra_parameters = extra_parameters
+            self.extra_properties = extra_properties
+            self.other_properties = other_properties
+
+    uvbeam_data = DataHolder(beam_obj, required_parameters, required_properties,
+                             extra_parameters, extra_properties, other_properties)
     # yields the data we need but will continue to the del call after tests
-    yield beam_obj, required_parameters, required_properties, extra_parameters, extra_properties, other_properties
+    yield uvbeam_data
 
     # some post-test object cleanup
-    del(beam_obj)
+    del(uvbeam_data)
 
     return
 
 
-def test_parameter_iter(uvbeam_data, request):
+def test_parameter_iter(uvbeam_data):
     """Test expected parameters."""
-    (beam_obj, required_parameters, required_properties,
-     extra_parameters, extra_properties, other_properties) = uvbeam_data
     all = []
-    for prop in beam_obj:
+    for prop in uvbeam_data.beam_obj:
         all.append(prop)
-    for a in required_parameters + extra_parameters:
+    for a in uvbeam_data.required_parameters + uvbeam_data.extra_parameters:
         assert a in all, 'expected attribute ' + a + ' not returned in object iterator'
 
 
 def test_required_parameter_iter(uvbeam_data):
     """Test expected required parameters."""
-    (beam_obj, required_parameters, required_properties,
-     extra_parameters, extra_properties, other_properties) = uvbeam_data
     required = []
-    for prop in beam_obj.required():
+    for prop in uvbeam_data.beam_obj.required():
         required.append(prop)
-    for a in required_parameters:
+    for a in uvbeam_data.required_parameters:
         assert a in required, 'expected attribute ' + a + ' not returned in required iterator'
 
 
 def test_extra_parameter_iter(uvbeam_data):
     """Test expected optional parameters."""
-    (beam_obj, required_parameters, required_properties,
-     extra_parameters, extra_properties, other_properties) = uvbeam_data
     extra = []
-    for prop in beam_obj.extra():
+    for prop in uvbeam_data.beam_obj.extra():
         extra.append(prop)
-    for a in extra_parameters:
+    for a in uvbeam_data.extra_parameters:
         assert a in extra, 'expected attribute ' + a + ' not returned in extra iterator'
 
 
 def test_unexpected_parameters(uvbeam_data):
     """Test for extra parameters."""
-    (beam_obj, required_parameters, required_properties,
-     extra_parameters, extra_properties, other_properties) = uvbeam_data
-    expected_parameters = required_parameters + extra_parameters
-    attributes = [i for i in beam_obj.__dict__.keys() if i[0] == '_']
+    expected_parameters = uvbeam_data.required_parameters + uvbeam_data.extra_parameters
+    attributes = [i for i in uvbeam_data.beam_obj.__dict__.keys() if i[0] == '_']
     for a in attributes:
         assert a in expected_parameters, 'unexpected parameter ' + a + ' found in UVBeam'
 
 
 def test_unexpected_attributes(uvbeam_data):
     """Test for extra attributes."""
-    (beam_obj, required_parameters, required_properties,
-     extra_parameters, extra_properties, other_properties) = uvbeam_data
-    expected_attributes = required_properties + \
-        extra_properties + other_properties
-    attributes = [i for i in beam_obj.__dict__.keys() if i[0] != '_']
+    expected_attributes = uvbeam_data.required_properties + \
+        uvbeam_data.extra_properties + uvbeam_data.other_properties
+    attributes = [i for i in uvbeam_data.beam_obj.__dict__.keys() if i[0] != '_']
     for a in attributes:
         assert a in expected_attributes, 'unexpected attribute ' + a + ' found in UVBeam'
 
 
 def test_properties(uvbeam_data):
     "Test that properties can be get and set properly."
-    (beam_obj, required_parameters, required_properties,
-     extra_parameters, extra_properties, other_properties) = uvbeam_data
-    prop_dict = dict(list(zip(required_properties + extra_properties,
-                              required_parameters + extra_parameters)))
+    prop_dict = dict(list(zip(uvbeam_data.required_properties + uvbeam_data.extra_properties,
+                              uvbeam_data.required_parameters + uvbeam_data.extra_parameters)))
     for k, v in prop_dict.items():
         rand_num = np.random.rand()
-        setattr(beam_obj, k, rand_num)
-        this_param = getattr(beam_obj, v)
+        setattr(uvbeam_data.beam_obj, k, rand_num)
+        this_param = getattr(uvbeam_data.beam_obj, v)
         try:
             assert rand_num == this_param.value
         except(AssertionError):
