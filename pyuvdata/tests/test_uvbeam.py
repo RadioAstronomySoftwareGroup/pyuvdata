@@ -29,7 +29,7 @@ cst_files = [os.path.join(DATA_PATH, cst_folder, f) for f in filenames]
 
 
 @pytest.fixture(scope='function')
-def uvbeam_data(request):
+def uvbeam_data():
     """Setup and teardown for basic parameter, property and iterator tests."""
     required_parameters = ['_beam_type', '_Nfreqs', '_Naxes_vec', '_Nspws',
                            '_pixel_coordinate_system',
@@ -86,7 +86,10 @@ def uvbeam_data(request):
 
     beam_obj = UVBeam()
 
+    # yields the data we need but will continue to the del call after tests
     yield beam_obj, required_parameters, required_properties, extra_parameters, extra_properties, other_properties
+
+    # some post-test object cleanup
     del(beam_obj)
 
     return
