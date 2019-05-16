@@ -8,7 +8,6 @@
 from __future__ import absolute_import, division, print_function
 
 import pytest
-import unittest
 import os
 import numpy as np
 import copy
@@ -23,269 +22,311 @@ from pyuvdata.data import DATA_PATH
 from collections import Counter
 
 
-class TestUVDataInit(unittest.TestCase):
-    def setUp(self):
-        """Setup for basic parameter, property and iterator tests."""
-        self.required_parameters = ['_data_array', '_nsample_array',
-                                    '_flag_array', '_Ntimes', '_Nbls',
-                                    '_Nblts', '_Nfreqs', '_Npols', '_Nspws',
-                                    '_uvw_array', '_time_array', '_ant_1_array',
-                                    '_ant_2_array', '_lst_array',
-                                    '_baseline_array', '_freq_array',
-                                    '_polarization_array', '_spw_array',
-                                    '_integration_time', '_channel_width',
-                                    '_object_name', '_telescope_name',
-                                    '_instrument', '_telescope_location',
-                                    '_history', '_vis_units', '_Nants_data',
-                                    '_Nants_telescope', '_antenna_names',
-                                    '_antenna_numbers', '_phase_type']
+@pytest.fixture(scope='function')
+def uvdata_props():
+    required_parameters = ['_data_array', '_nsample_array',
+                           '_flag_array', '_Ntimes', '_Nbls',
+                           '_Nblts', '_Nfreqs', '_Npols', '_Nspws',
+                           '_uvw_array', '_time_array', '_ant_1_array',
+                           '_ant_2_array', '_lst_array',
+                           '_baseline_array', '_freq_array',
+                           '_polarization_array', '_spw_array',
+                           '_integration_time', '_channel_width',
+                           '_object_name', '_telescope_name',
+                           '_instrument', '_telescope_location',
+                           '_history', '_vis_units', '_Nants_data',
+                           '_Nants_telescope', '_antenna_names',
+                           '_antenna_numbers', '_phase_type']
 
-        self.required_properties = ['data_array', 'nsample_array',
-                                    'flag_array', 'Ntimes', 'Nbls',
-                                    'Nblts', 'Nfreqs', 'Npols', 'Nspws',
-                                    'uvw_array', 'time_array', 'ant_1_array',
-                                    'ant_2_array', 'lst_array',
-                                    'baseline_array', 'freq_array',
-                                    'polarization_array', 'spw_array',
-                                    'integration_time', 'channel_width',
-                                    'object_name', 'telescope_name',
-                                    'instrument', 'telescope_location',
-                                    'history', 'vis_units', 'Nants_data',
-                                    'Nants_telescope', 'antenna_names',
-                                    'antenna_numbers', 'phase_type']
+    required_properties = ['data_array', 'nsample_array',
+                           'flag_array', 'Ntimes', 'Nbls',
+                           'Nblts', 'Nfreqs', 'Npols', 'Nspws',
+                           'uvw_array', 'time_array', 'ant_1_array',
+                           'ant_2_array', 'lst_array',
+                           'baseline_array', 'freq_array',
+                           'polarization_array', 'spw_array',
+                           'integration_time', 'channel_width',
+                           'object_name', 'telescope_name',
+                           'instrument', 'telescope_location',
+                           'history', 'vis_units', 'Nants_data',
+                           'Nants_telescope', 'antenna_names',
+                           'antenna_numbers', 'phase_type']
 
-        self.extra_parameters = ['_extra_keywords', '_antenna_positions',
-                                 '_x_orientation', '_antenna_diameters',
-                                 '_gst0', '_rdate', '_earth_omega', '_dut1',
-                                 '_timesys', '_uvplane_reference_time',
-                                 '_phase_center_ra', '_phase_center_dec',
-                                 '_phase_center_epoch', '_phase_center_frame']
+    extra_parameters = ['_extra_keywords', '_antenna_positions',
+                        '_x_orientation', '_antenna_diameters',
+                        '_gst0', '_rdate', '_earth_omega', '_dut1',
+                        '_timesys', '_uvplane_reference_time',
+                        '_phase_center_ra', '_phase_center_dec',
+                        '_phase_center_epoch', '_phase_center_frame']
 
-        self.extra_properties = ['extra_keywords', 'antenna_positions',
-                                 'x_orientation', 'antenna_diameters', 'gst0',
-                                 'rdate', 'earth_omega', 'dut1', 'timesys',
-                                 'uvplane_reference_time',
-                                 'phase_center_ra', 'phase_center_dec',
-                                 'phase_center_epoch', 'phase_center_frame']
+    extra_properties = ['extra_keywords', 'antenna_positions',
+                        'x_orientation', 'antenna_diameters', 'gst0',
+                        'rdate', 'earth_omega', 'dut1', 'timesys',
+                        'uvplane_reference_time',
+                        'phase_center_ra', 'phase_center_dec',
+                        'phase_center_epoch', 'phase_center_frame']
 
-        self.other_properties = ['telescope_location_lat_lon_alt',
-                                 'telescope_location_lat_lon_alt_degrees',
-                                 'phase_center_ra_degrees', 'phase_center_dec_degrees',
-                                 'pyuvdata_version_str']
+    other_properties = ['telescope_location_lat_lon_alt',
+                        'telescope_location_lat_lon_alt_degrees',
+                        'phase_center_ra_degrees', 'phase_center_dec_degrees',
+                        'pyuvdata_version_str']
 
-        self.uv_object = UVData()
+    uv_object = UVData()
 
-    def teardown(self):
-        """Test teardown: delete object."""
-        del(self.uv_object)
+    class DataHolder():
+        def __init__(self, uv_object, required_parameters, required_properties,
+                     extra_parameters, extra_properties, other_properties):
+            self.uv_object = uv_object
+            self.required_parameters = required_parameters
+            self.required_properties = required_properties
+            self.extra_parameters = extra_parameters
+            self.extra_properties = extra_properties
+            self.other_properties = other_properties
 
-    def test_parameter_iter(self):
-        "Test expected parameters."
-        all = []
-        for prop in self.uv_object:
-            all.append(prop)
-        for a in self.required_parameters + self.extra_parameters:
-            assert a in all, 'expected attribute ' + a + ' not returned in object iterator'
+    uvdata_props = DataHolder(uv_object, required_parameters, required_properties,
+                              extra_parameters, extra_properties, other_properties)
+    # yields the data we need but will continue to the del call after tests
+    yield uvdata_props
 
-    def test_required_parameter_iter(self):
-        "Test expected required parameters."
-        required = []
-        for prop in self.uv_object.required():
-            required.append(prop)
-        for a in self.required_parameters:
-            assert a in required, 'expected attribute ' + a + ' not returned in required iterator'
+    # some post-test object cleanup
+    del(uvdata_props)
 
-    def test_extra_parameter_iter(self):
-        "Test expected optional parameters."
-        extra = []
-        for prop in self.uv_object.extra():
-            extra.append(prop)
-        for a in self.extra_parameters:
-            assert a in extra, 'expected attribute ' + a + ' not returned in extra iterator'
-
-    def test_unexpected_parameters(self):
-        "Test for extra parameters."
-        expected_parameters = self.required_parameters + self.extra_parameters
-        attributes = [i for i in self.uv_object.__dict__.keys() if i[0] == '_']
-        for a in attributes:
-            assert a in expected_parameters, 'unexpected parameter ' + a + ' found in UVData'
-
-    def test_unexpected_attributes(self):
-        "Test for extra attributes."
-        expected_attributes = self.required_properties + \
-            self.extra_properties + self.other_properties
-        attributes = [i for i in self.uv_object.__dict__.keys() if i[0] != '_']
-        for a in attributes:
-            assert a in expected_attributes, 'unexpected attribute ' + a + ' found in UVData'
-
-    def test_properties(self):
-        "Test that properties can be get and set properly."
-        prop_dict = dict(list(zip(self.required_properties + self.extra_properties,
-                                  self.required_parameters + self.extra_parameters)))
-        for k, v in prop_dict.items():
-            rand_num = np.random.rand()
-            setattr(self.uv_object, k, rand_num)
-            this_param = getattr(self.uv_object, v)
-            try:
-                assert rand_num == this_param.value
-            except(AssertionError):
-                print('setting {prop_name} to a random number failed'.format(prop_name=k))
-                raise(AssertionError)
+    return
 
 
-class TestUVDataBasicMethods(unittest.TestCase):
-    def setUp(self):
-        """Setup for tests of basic methods."""
-        self.uv_object = UVData()
-        self.testfile = os.path.join(
-            DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-        uvtest.checkWarnings(self.uv_object.read_uvfits, [self.testfile],
-                             message='Telescope EVLA is not')
-        self.uv_object2 = copy.deepcopy(self.uv_object)
-
-    def teardown(self):
-        """Test teardown: delete objects."""
-        del(self.uv_object)
-        del(self.uv_object2)
-
-    def test_equality(self):
-        """Basic equality test."""
-        assert self.uv_object == self.uv_object
-
-    def test_check(self):
-        """Test simple check function."""
-        assert self.uv_object.check()
-        # Check variety of special cases
-        self.uv_object.Nants_data += 1
-        pytest.raises(ValueError, self.uv_object.check)
-        self.uv_object.Nants_data -= 1
-        self.uv_object.Nbls += 1
-        pytest.raises(ValueError, self.uv_object.check)
-        self.uv_object.Nbls -= 1
-        self.uv_object.Ntimes += 1
-        pytest.raises(ValueError, self.uv_object.check)
-        self.uv_object.Ntimes -= 1
-
-        # Check case where all data is autocorrelations
-        # Currently only test files that have autos are fhd files
-        testdir = os.path.join(DATA_PATH, 'fhd_vis_data/')
-        file_list = [testdir + '1061316296_flags.sav',
-                     testdir + '1061316296_vis_XX.sav',
-                     testdir + '1061316296_params.sav',
-                     testdir + '1061316296_layout.sav',
-                     testdir + '1061316296_settings.txt']
-
-        uvtest.checkWarnings(self.uv_object.read_fhd, [file_list], known_warning='fhd')
-
-        self.uv_object.select(blt_inds=np.where(self.uv_object.ant_1_array
-                                                == self.uv_object.ant_2_array)[0])
-        assert self.uv_object.check()
-
-        # test auto and cross corr uvw_array
-        uvd = UVData()
-        uvd.read_miriad(os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcA"))
-        autos = np.isclose(uvd.ant_1_array - uvd.ant_2_array, 0.0)
-        auto_inds = np.where(autos)[0]
-        cross_inds = np.where(~autos)[0]
-
-        # make auto have non-zero uvw coords, assert ValueError
-        uvd.uvw_array[auto_inds[0], 0] = 0.1
-        pytest.raises(ValueError, uvd.check)
-
-        # make cross have |uvw| zero, assert ValueError
-        uvd.read_miriad(os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcA"))
-        uvd.uvw_array[cross_inds[0]][:] = 0.0
-        pytest.raises(ValueError, uvd.check)
-
-    def test_nants_data_telescope_larger(self):
-        # make sure it's okay for Nants_telescope to be strictly greater than Nants_data
-        self.uv_object.Nants_telescope += 1
-        # add dummy information for "new antenna" to pass object check
-        self.uv_object.antenna_names = np.concatenate(
-            (self.uv_object.antenna_names, ["dummy_ant"]))
-        self.uv_object.antenna_numbers = np.concatenate(
-            (self.uv_object.antenna_numbers, [20]))
-        self.uv_object.antenna_positions = np.concatenate(
-            (self.uv_object.antenna_positions, np.zeros((1, 3))), axis=0)
-        assert self.uv_object.check()
-
-    def test_ant1_array_not_in_antnums(self):
-        # make sure an error is raised if antennas in ant_1_array not in antenna_numbers
-        # remove antennas from antenna_names & antenna_numbers by hand
-        self.uv_object.antenna_names = self.uv_object.antenna_names[1:]
-        self.uv_object.antenna_numbers = self.uv_object.antenna_numbers[1:]
-        self.uv_object.antenna_positions = self.uv_object.antenna_positions[1:, :]
-        self.uv_object.Nants_telescope = self.uv_object.antenna_numbers.size
-        with pytest.raises(ValueError) as cm:
-            self.uv_object.check()
-        assert str(cm.value).startswith('All antennas in ant_1_array must be in antenna_numbers')
-
-    def test_ant2_array_not_in_antnums(self):
-        # make sure an error is raised if antennas in ant_2_array not in antenna_numbers
-        # remove antennas from antenna_names & antenna_numbers by hand
-        self.uv_object.antenna_names = self.uv_object.antenna_names[:-1]
-        self.uv_object.antenna_numbers = self.uv_object.antenna_numbers[:-1]
-        self.uv_object.antenna_positions = self.uv_object.antenna_positions[:-1, :]
-        self.uv_object.Nants_telescope = self.uv_object.antenna_numbers.size
-        with pytest.raises(ValueError) as cm:
-            self.uv_object.check()
-        assert str(cm.value).startswith('All antennas in ant_2_array must be in antenna_numbers')
-
-    def test_converttofiletype(self):
-        fhd_obj = self.uv_object._convert_to_filetype('fhd')
-        self.uv_object._convert_from_filetype(fhd_obj)
-        assert self.uv_object, self.uv_object2
-
-        pytest.raises(ValueError, self.uv_object._convert_to_filetype, 'foo')
+def test_parameter_iter(uvdata_props):
+    "Test expected parameters."
+    all = []
+    for prop in uvdata_props.uv_object:
+        all.append(prop)
+    for a in uvdata_props.required_parameters + uvdata_props.extra_parameters:
+        assert a in all, 'expected attribute ' + a + ' not returned in object iterator'
 
 
-class TestBaselineAntnumMethods(unittest.TestCase):
-    """Setup for tests on antnum, baseline conversion."""
+def test_required_parameter_iter(uvdata_props):
+    "Test expected required parameters."
+    required = []
+    for prop in uvdata_props.uv_object.required():
+        required.append(prop)
+    for a in uvdata_props.required_parameters:
+        assert a in required, 'expected attribute ' + a + ' not returned in required iterator'
 
-    def setUp(self):
-        self.uv_object = UVData()
-        self.uv_object.Nants_telescope = 128
-        self.uv_object2 = UVData()
-        self.uv_object2.Nants_telescope = 2049
 
-    def teardown(self):
-        """Test teardown: delete objects."""
-        del(self.uv_object)
-        del(self.uv_object2)
+def test_extra_parameter_iter(uvdata_props):
+    "Test expected optional parameters."
+    extra = []
+    for prop in uvdata_props.uv_object.extra():
+        extra.append(prop)
+    for a in uvdata_props.extra_parameters:
+        assert a in extra, 'expected attribute ' + a + ' not returned in extra iterator'
 
-    def test_baseline_to_antnums(self):
-        """Test baseline to antnum conversion for 256 & larger conventions."""
-        assert self.uv_object.baseline_to_antnums(67585) == (0, 0)
-        pytest.raises(Exception, self.uv_object2.baseline_to_antnums, 67585)
 
-        ant_pairs = [(10, 20), (280, 310)]
-        for pair in ant_pairs:
-            if np.max(np.array(pair)) < 255:
-                bl = self.uv_object.antnums_to_baseline(
-                    pair[0], pair[1], attempt256=True)
-                ant_pair_out = self.uv_object.baseline_to_antnums(bl)
-                assert pair == ant_pair_out
+def test_unexpected_parameters(uvdata_props):
+    "Test for extra parameters."
+    expected_parameters = uvdata_props.required_parameters + uvdata_props.extra_parameters
+    attributes = [i for i in uvdata_props.uv_object.__dict__.keys() if i[0] == '_']
+    for a in attributes:
+        assert a in expected_parameters, 'unexpected parameter ' + a + ' found in UVData'
 
-            bl = self.uv_object.antnums_to_baseline(
-                pair[0], pair[1], attempt256=False)
-            ant_pair_out = self.uv_object.baseline_to_antnums(bl)
+
+def test_unexpected_attributes(uvdata_props):
+    "Test for extra attributes."
+    expected_attributes = uvdata_props.required_properties + \
+        uvdata_props.extra_properties + uvdata_props.other_properties
+    attributes = [i for i in uvdata_props.uv_object.__dict__.keys() if i[0] != '_']
+    for a in attributes:
+        assert a in expected_attributes, 'unexpected attribute ' + a + ' found in UVData'
+
+
+def test_properties(uvdata_props):
+    "Test that properties can be get and set properly."
+    prop_dict = dict(list(zip(uvdata_props.required_properties + uvdata_props.extra_properties,
+                              uvdata_props.required_parameters + uvdata_props.extra_parameters)))
+    for k, v in prop_dict.items():
+        rand_num = np.random.rand()
+        setattr(uvdata_props.uv_object, k, rand_num)
+        this_param = getattr(uvdata_props.uv_object, v)
+        try:
+            assert rand_num == this_param.value
+        except(AssertionError):
+            print('setting {prop_name} to a random number failed'.format(prop_name=k))
+            raise(AssertionError)
+
+
+@pytest.fixture(scope='function')
+def uvdata_data():
+    uv_object = UVData()
+    testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    uvtest.checkWarnings(uv_object.read_uvfits, [testfile],
+                         message='Telescope EVLA is not')
+
+    class DataHolder():
+        def __init__(self, uv_object):
+            self.uv_object = uv_object
+            self.uv_object2 = copy.deepcopy(uv_object)
+
+    uvdata_data = DataHolder(uv_object)
+    # yields the data we need but will continue to the del call after tests
+    yield uvdata_data
+
+    # some post-test object cleanup
+    del(uvdata_data)
+
+    return
+
+
+def test_equality(uvdata_data):
+    """Basic equality test."""
+    assert uvdata_data.uv_object == uvdata_data.uv_object
+
+
+def test_check(uvdata_data):
+    """Test simple check function."""
+    assert uvdata_data.uv_object.check()
+    # Check variety of special cases
+    uvdata_data.uv_object.Nants_data += 1
+    pytest.raises(ValueError, uvdata_data.uv_object.check)
+    uvdata_data.uv_object.Nants_data -= 1
+    uvdata_data.uv_object.Nbls += 1
+    pytest.raises(ValueError, uvdata_data.uv_object.check)
+    uvdata_data.uv_object.Nbls -= 1
+    uvdata_data.uv_object.Ntimes += 1
+    pytest.raises(ValueError, uvdata_data.uv_object.check)
+    uvdata_data.uv_object.Ntimes -= 1
+
+    # Check case where all data is autocorrelations
+    # Currently only test files that have autos are fhd files
+    testdir = os.path.join(DATA_PATH, 'fhd_vis_data/')
+    file_list = [testdir + '1061316296_flags.sav',
+                 testdir + '1061316296_vis_XX.sav',
+                 testdir + '1061316296_params.sav',
+                 testdir + '1061316296_layout.sav',
+                 testdir + '1061316296_settings.txt']
+
+    uvtest.checkWarnings(uvdata_data.uv_object.read_fhd, [file_list], known_warning='fhd')
+
+    uvdata_data.uv_object.select(blt_inds=np.where(uvdata_data.uv_object.ant_1_array
+                                                   == uvdata_data.uv_object.ant_2_array)[0])
+    assert uvdata_data.uv_object.check()
+
+    # test auto and cross corr uvw_array
+    uvd = UVData()
+    uvd.read_miriad(os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcA"))
+    autos = np.isclose(uvd.ant_1_array - uvd.ant_2_array, 0.0)
+    auto_inds = np.where(autos)[0]
+    cross_inds = np.where(~autos)[0]
+
+    # make auto have non-zero uvw coords, assert ValueError
+    uvd.uvw_array[auto_inds[0], 0] = 0.1
+    pytest.raises(ValueError, uvd.check)
+
+    # make cross have |uvw| zero, assert ValueError
+    uvd.read_miriad(os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcA"))
+    uvd.uvw_array[cross_inds[0]][:] = 0.0
+    pytest.raises(ValueError, uvd.check)
+
+
+def test_nants_data_telescope_larger(uvdata_data):
+    # make sure it's okay for Nants_telescope to be strictly greater than Nants_data
+    uvdata_data.uv_object.Nants_telescope += 1
+    # add dummy information for "new antenna" to pass object check
+    uvdata_data.uv_object.antenna_names = np.concatenate(
+        (uvdata_data.uv_object.antenna_names, ["dummy_ant"]))
+    uvdata_data.uv_object.antenna_numbers = np.concatenate(
+        (uvdata_data.uv_object.antenna_numbers, [20]))
+    uvdata_data.uv_object.antenna_positions = np.concatenate(
+        (uvdata_data.uv_object.antenna_positions, np.zeros((1, 3))), axis=0)
+    assert uvdata_data.uv_object.check()
+
+
+def test_ant1_array_not_in_antnums(uvdata_data):
+    # make sure an error is raised if antennas in ant_1_array not in antenna_numbers
+    # remove antennas from antenna_names & antenna_numbers by hand
+    uvdata_data.uv_object.antenna_names = uvdata_data.uv_object.antenna_names[1:]
+    uvdata_data.uv_object.antenna_numbers = uvdata_data.uv_object.antenna_numbers[1:]
+    uvdata_data.uv_object.antenna_positions = uvdata_data.uv_object.antenna_positions[1:, :]
+    uvdata_data.uv_object.Nants_telescope = uvdata_data.uv_object.antenna_numbers.size
+    with pytest.raises(ValueError) as cm:
+        uvdata_data.uv_object.check()
+    assert str(cm.value).startswith('All antennas in ant_1_array must be in antenna_numbers')
+
+
+def test_ant2_array_not_in_antnums(uvdata_data):
+    # make sure an error is raised if antennas in ant_2_array not in antenna_numbers
+    # remove antennas from antenna_names & antenna_numbers by hand
+    uvdata_data.uv_object.antenna_names = uvdata_data.uv_object.antenna_names[:-1]
+    uvdata_data.uv_object.antenna_numbers = uvdata_data.uv_object.antenna_numbers[:-1]
+    uvdata_data.uv_object.antenna_positions = uvdata_data.uv_object.antenna_positions[:-1, :]
+    uvdata_data.uv_object.Nants_telescope = uvdata_data.uv_object.antenna_numbers.size
+    with pytest.raises(ValueError) as cm:
+        uvdata_data.uv_object.check()
+    assert str(cm.value).startswith('All antennas in ant_2_array must be in antenna_numbers')
+
+
+def test_converttofiletype(uvdata_data):
+    fhd_obj = uvdata_data.uv_object._convert_to_filetype('fhd')
+    uvdata_data.uv_object._convert_from_filetype(fhd_obj)
+    assert uvdata_data.uv_object, uvdata_data.uv_object2
+
+    pytest.raises(ValueError, uvdata_data.uv_object._convert_to_filetype, 'foo')
+
+
+@pytest.fixture(scope='function')
+def uvdata_baseline():
+    uv_object = UVData()
+    uv_object.Nants_telescope = 128
+    uv_object2 = UVData()
+    uv_object2.Nants_telescope = 2049
+
+    class DataHolder():
+        def __init__(self, uv_object, uv_object2):
+            self.uv_object = uv_object
+            self.uv_object2 = uv_object2
+
+    uvdata_baseline = DataHolder(uv_object, uv_object2)
+
+    # yields the data we need but will continue to the del call after tests
+    yield uvdata_baseline
+
+    # Post test clean-up
+    del(uvdata_baseline)
+    return
+
+
+def test_baseline_to_antnums(uvdata_baseline):
+    """Test baseline to antnum conversion for 256 & larger conventions."""
+    assert uvdata_baseline.uv_object.baseline_to_antnums(67585) == (0, 0)
+    pytest.raises(Exception, uvdata_baseline.uv_object2.baseline_to_antnums, 67585)
+
+    ant_pairs = [(10, 20), (280, 310)]
+    for pair in ant_pairs:
+        if np.max(np.array(pair)) < 255:
+            bl = uvdata_baseline.uv_object.antnums_to_baseline(
+                pair[0], pair[1], attempt256=True)
+            ant_pair_out = uvdata_baseline.uv_object.baseline_to_antnums(bl)
             assert pair == ant_pair_out
 
-    def test_antnums_to_baselines(self):
-        """Test antums to baseline conversion for 256 & larger conventions."""
-        assert self.uv_object.antnums_to_baseline(0, 0) == 67585
-        assert self.uv_object.antnums_to_baseline(257, 256) == 594177
-        assert self.uv_object.baseline_to_antnums(594177) == (257, 256)
-        # Check attempt256
-        assert self.uv_object.antnums_to_baseline(0, 0, attempt256=True) == 257
-        assert self.uv_object.antnums_to_baseline(257, 256) == 594177
-        uvtest.checkWarnings(self.uv_object.antnums_to_baseline, [257, 256],
-                             {'attempt256': True}, message='found > 256 antennas')
-        pytest.raises(Exception, self.uv_object2.antnums_to_baseline, 0, 0)
-        # check a len-1 array returns as an array
-        ant1 = np.array([1])
-        ant2 = np.array([2])
-        assert isinstance(self.uv_object.antnums_to_baseline(ant1, ant2), np.ndarray)
+        bl = uvdata_baseline.uv_object.antnums_to_baseline(
+            pair[0], pair[1], attempt256=False)
+        ant_pair_out = uvdata_baseline.uv_object.baseline_to_antnums(bl)
+        assert pair == ant_pair_out
+
+
+def test_antnums_to_baselines(uvdata_baseline):
+    """Test antums to baseline conversion for 256 & larger conventions."""
+    assert uvdata_baseline.uv_object.antnums_to_baseline(0, 0) == 67585
+    assert uvdata_baseline.uv_object.antnums_to_baseline(257, 256) == 594177
+    assert uvdata_baseline.uv_object.baseline_to_antnums(594177) == (257, 256)
+    # Check attempt256
+    assert uvdata_baseline.uv_object.antnums_to_baseline(0, 0, attempt256=True) == 257
+    assert uvdata_baseline.uv_object.antnums_to_baseline(257, 256) == 594177
+    uvtest.checkWarnings(uvdata_baseline.uv_object.antnums_to_baseline, [257, 256],
+                         {'attempt256': True}, message='found > 256 antennas')
+    pytest.raises(Exception, uvdata_baseline.uv_object2.antnums_to_baseline, 0, 0)
+    # check a len-1 array returns as an array
+    ant1 = np.array([1])
+    ant2 = np.array([2])
+    assert isinstance(uvdata_baseline.uv_object.antnums_to_baseline(ant1, ant2), np.ndarray)
 
 
 def test_known_telescopes():
