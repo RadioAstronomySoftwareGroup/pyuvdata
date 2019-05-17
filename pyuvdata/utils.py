@@ -1136,14 +1136,26 @@ def _reraise_context(fmt, *args):
 
 def collapse(arr, alg, weights=None, axis=None, return_weights=False):
     ''' Parent function to collapse an array with a given algorithm.
-    Args:
-        arr (array): Input array to process.
-        alg (str): Algorithm to use. Must be defined in this function with
-            corresponding subfunction below.
-        weights (array, optional): weights for collapse operation (e.g. weighted mean).
-            NOTE: Some subfunctions do not use the weights. See corresponding doc strings.
-        axis (int, tuple, optional): Axis or axes to collapse. Default is all.
-        return_weights (Bool): Whether to return sum of weights. Default is False.
+
+    Parameters
+    ----------
+    arr : array
+        Input array to process.
+    alg : str
+        Algorithm to use. Must be defined in this function with
+        corresponding subfunction below.
+    weights : array, optional
+        weights for collapse operation (e.g. weighted mean).
+        NOTE: Some subfunctions do not use the weights. See corresponding doc strings.
+    axis : int or tuple, optional
+        Axis or axes to collapse. Default is all.
+    return_weights : bool, optional
+        Whether to return sum of weights. Default is False.
+
+    Returns
+    -------
+        out : array
+            resulting array after collapsing arr along axis.
     '''
     collapse_dict = {'mean': mean_collapse, 'absmean': absmean_collapse,
                      'quadmean': quadmean_collapse, 'or': or_collapse,
@@ -1160,12 +1172,23 @@ def mean_collapse(arr, weights=None, axis=None, return_weights=False):
     ''' Function to average data. This is similar to np.average, except it
     handles infs (by giving them zero weight) and zero weight axes (by forcing
     result to be inf with zero output weight).
-    Args:
-        arr - array to process
-        weights - weights for average. If none, will default to equal weight for
-                  all non-infinite data.
-        axis - axis keyword to pass to np.sum
-        return_weights - whether to return sum of weights. Default is False.
+
+    Parameters
+    ----------
+    arr : array
+        Input array to process.
+    weights : array, optional
+        weights for average. If None, will use equal weight for all non-infinite
+        data (default).
+    axis : int or tuple, optional
+        Axis or axes to collapse. Default is all.
+    return_weights : bool, optional
+        Whether to return sum of weights. Default is False.
+
+    Returns
+    -------
+        out : array
+            resulting array after collapsing arr along axis.
     '''
     arr = copy.deepcopy(arr)  # avoid changing outside
     if weights is None:
@@ -1187,22 +1210,46 @@ def mean_collapse(arr, weights=None, axis=None, return_weights=False):
 
 def absmean_collapse(arr, weights=None, axis=None, return_weights=False):
     ''' Function to average absolute value
-    Args:
-        arr - array to process
-        weights - weights for average
-        axis - axis keyword to pass to np.mean
-        return_weights - whether to return sum of weights. Default is False.
+
+    Parameters
+    ----------
+    arr : array
+        Input array to process.
+    weights : array, optional
+        weights for average. If None, will use equal weight for all non-infinite
+        data (default).
+    axis : int or tuple, optional
+        Axis or axes to collapse. Default is all.
+    return_weights : bool, optional
+        Whether to return sum of weights. Default is False.
+
+    Returns
+    -------
+        out : array
+            resulting array after collapsing arr along axis.
     '''
     return mean_collapse(np.abs(arr), weights=weights, axis=axis, return_weights=return_weights)
 
 
 def quadmean_collapse(arr, weights=None, axis=None, return_weights=False):
     ''' Function to average in quadrature
-    Args:
-        arr - array to process
-        weights - weights for average
-        axis - axis keyword to pass to np.mean
-        return_weights - whether to return sum of weights. Default is False.
+
+    Parameters
+    ----------
+    arr : array
+        Input array to process.
+    weights : array, optional
+        weights for average. If None, will use equal weight for all non-infinite
+        data (default).
+    axis : int or tuple, optional
+        Axis or axes to collapse. Default is all.
+    return_weights : bool, optional
+        Whether to return sum of weights. Default is False.
+
+    Returns
+    -------
+        out : array
+            resulting array after collapsing arr along axis.
     '''
     out = mean_collapse(np.abs(arr)**2, weights=weights, axis=axis, return_weights=return_weights)
     if return_weights:
@@ -1213,12 +1260,22 @@ def quadmean_collapse(arr, weights=None, axis=None, return_weights=False):
 
 def or_collapse(arr, weights=None, axis=None, return_weights=False):
     ''' Function to collapse axes using OR operation
-    Args:
-        arr - boolean array to process
-        weights - NOT USED, but kept for symmetry with other averaging functions
-        axis - axis or axes over which to OR
-        return_weights - whether to return dummy weights array. NOTE: the dummy weights
-            will simply be an array of ones. Default is False.
+
+    Parameters
+    ----------
+    arr : array
+        Input array to process.
+    weights : array, optional
+        NOT USED, but kept for symmetry with other averaging functions
+    axis : int or tuple, optional
+        Axis or axes to collapse. Default is all.
+    return_weights : bool, optional
+        Whether to return sum of weights. Default is False.
+
+    Returns
+    -------
+        out : array
+            resulting array after collapsing arr along axis.
     '''
     if arr.dtype != np.bool:
         raise ValueError('Input to or_collapse function must be boolean array')
@@ -1233,12 +1290,22 @@ def or_collapse(arr, weights=None, axis=None, return_weights=False):
 
 def and_collapse(arr, weights=None, axis=None, return_weights=False):
     ''' Function to collapse axes using AND operation
-    Args:
-        arr - boolean array to process
-        weights - NOT USED, but kept for symmetry with other averaging functions
-        axis - axis or axes over which to AND
-        return_weights - whether to return dummy weights array. NOTE: the dummy weights
-            will simply be an array of ones. Default is False.
+
+    Parameters
+    ----------
+    arr : array
+        Input array to process.
+    weights : array, optional
+        NOT USED, but kept for symmetry with other averaging functions
+    axis : int or tuple, optional
+        Axis or axes to collapse. Default is all.
+    return_weights : bool, optional
+        Whether to return sum of weights. Default is False.
+
+    Returns
+    -------
+        out : array
+            resulting array after collapsing arr along axis.
     '''
     if arr.dtype != np.bool:
         raise ValueError('Input to and_collapse function must be boolean array')
