@@ -97,7 +97,7 @@ def known_telescopes():
     list of str
         List of known telescope names.
     """
-    return list(telescopes.keys())
+    return list(KNOWN_TELESCOPES.keys())
 
 
 def get_telescope(telescope_name, telescope_dict_in=None):
