@@ -1762,3 +1762,34 @@ def test_UVH5PartialWriteIntsIrregular():
     os.remove(partial_testfile)
 
     return
+
+
+@uvtest.skipIf_no_h5py
+def test_antenna_names_not_list():
+    """Test if antenna_names is cast to an array, dimensions are preserved in np.string_ call during uvh5 write."""
+    uv_in = UVData()
+    uv_out = UVData()
+    uvfits_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    testfile = os.path.join(DATA_PATH, 'test', 'outtest_uvfits_ant_names.uvh5')
+    uvtest.checkWarnings(uv_in.read_uvfits, [uvfits_file], message='Telescope EVLA is not')
+
+    # simulate a user defining antenna names as an array of unicode
+    uv_in.antenna_names = np.array(uv_in.antenna_names, dtype='U')
+
+    uv_in.write_uvh5(testfile, clobber=True)
+    uvtest.checkWarnings(uv_out.read, [testfile], message='Telescope EVLA is not')
+
+    # recast as list since antenna names should be a list and will be cast as list on read
+    uv_in.antenna_names = uv_in.antenna_names.tolist()
+    assert uv_in == uv_out
+
+    # also test writing double-precision data_array
+    uv_in.data_array = uv_in.data_array.astype(np.complex128)
+    uv_in.write_uvh5(testfile, clobber=True)
+    uvtest.checkWarnings(uv_out.read, [testfile], message='Telescope EVLA is not')
+    assert uv_in == uv_out
+
+    # clean up
+    os.remove(testfile)
+
+    return
