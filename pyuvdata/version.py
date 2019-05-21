@@ -53,7 +53,14 @@ def _unicode_to_str(u):
 
 
 def construct_version_info():
+    """
+    Get full version information, including git details
 
+    Returns
+    -------
+    dict
+        dictionary giving full version information
+    """
     version_file = os.path.join(pyuvdata_dir, 'VERSION')
     with open(version_file) as f:
         version = f.read().strip()

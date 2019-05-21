@@ -37,28 +37,28 @@ else:
         return b.decode('utf8')
 
 # polarization constants
-#: maps polarization strings to polarization integers
+# maps polarization strings to polarization integers
 POL_STR2NUM_DICT = {'pI': 1, 'pQ': 2, 'pU': 3, 'pV': 4,
                     'I': 1, 'Q': 2, 'U': 3, 'V': 4,  # support straight stokes names
                     'rr': -1, 'll': -2, 'rl': -3, 'lr': -4,
                     'xx': -5, 'yy': -6, 'xy': -7, 'yx': -8}
-#: maps polarization integers to polarization strings
+# maps polarization integers to polarization strings
 POL_NUM2STR_DICT = {1: 'pI', 2: 'pQ', 3: 'pU', 4: 'pV',
                     -1: 'rr', -2: 'll', -3: 'rl', -4: 'lr',
                     -5: 'xx', -6: 'yy', -7: 'xy', -8: 'yx'}
 
-#: maps how polarizations change when antennas are swapped
+# maps how polarizations change when antennas are swapped
 CONJ_POL_DICT = {'xx': 'xx', 'yy': 'yy', 'xy': 'yx', 'yx': 'xy',
                  'rr': 'rr', 'll': 'll', 'rl': 'lr', 'lr': 'rl',
                  'I': 'I', 'Q': 'Q', 'U': 'U', 'V': 'V',
                  'pI': 'pI', 'pQ': 'pQ', 'pU': 'pU', 'pV': 'pV'}
 
-#: maps jones matrix element strings to jones integers
+# maps jones matrix element strings to jones integers
 JONES_STR2NUM_DICT = {'Jxx': -5, 'Jyy': -6, 'Jxy': -7, 'Jyx': -8,
                       'xx': -5, 'x': -5, 'yy': -6, 'y': -6, 'xy': -7, 'yx': -8,  # Allow shorthand
                       'Jrr': -1, 'Jll': -2, 'Jrl': -3, 'Jlr': -4,
                       'rr': -1, 'r': -1, 'll': -2, 'l': -2, 'rl': -3, 'lr': -4}
-#: maps jones integers to jones matrix element strings
+# maps jones integers to jones matrix element strings
 JONES_NUM2STR_DICT = {-1: 'Jrr', -2: 'Jll', -3: 'Jrl', -4: 'Jlr',
                       -5: 'Jxx', -6: 'Jyy', -7: 'Jxy', -8: 'Jyx'}
 
