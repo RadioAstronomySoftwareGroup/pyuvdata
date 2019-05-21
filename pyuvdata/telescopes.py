@@ -23,35 +23,42 @@ from . import uvbase
 from . import parameter as uvp
 
 # center_xyz is the location of the telescope in ITRF (earth-centered frame)
-telescopes = {'PAPER': {'center_xyz': None,
-                        'latitude': Angle('-30d43m17.5s').radian,
-                        'longitude': Angle('21d25m41.9s').radian,
-                        'altitude': 1073.,
-                        'citation': 'value taken from capo/cals/hsa7458_v000.py, '
-                                    'comment reads KAT/SA  (GPS), altitude from elevationmap.net'},
-              'HERA': {'center_xyz': None,
-                       'latitude': Angle('-30d43m17.5s').radian,
-                       'longitude': Angle('21d25m41.9s').radian,
-                       'altitude': 1073.,
-                       'diameters': 14.0,
-                       'citation': 'value taken from capo/cals/hsa7458_v000.py, '
-                                   'comment reads KAT/SA  (GPS), altitude from elevationmap.net'},
-              'MWA': {'center_xyz': None,
-                      'latitude': Angle('-26d42m11.94986s').radian,
-                      'longitude': Angle('116d40m14.93485s').radian,
-                      'altitude': 377.827,
-                      'citation': 'Tingay et al., 2013'}}
+KNOWN_TELESCOPES = {
+    'PAPER': {'center_xyz': None,
+              'latitude': Angle('-30d43m17.5s').radian,
+              'longitude': Angle('21d25m41.9s').radian,
+              'altitude': 1073.,
+              'citation': ('value taken from capo/cals/hsa7458_v000.py, '
+                           'comment reads KAT/SA  (GPS), altitude from elevationmap.net')},
+    'HERA': {'center_xyz': None,
+             'latitude': Angle('-30d43m17.5s').radian,
+             'longitude': Angle('21d25m41.9s').radian,
+             'altitude': 1073.,
+             'diameters': 14.0,
+             'citation': ('value taken from capo/cals/hsa7458_v000.py, '
+                          'comment reads KAT/SA  (GPS), altitude from elevationmap.net')},
+    'MWA': {'center_xyz': None,
+            'latitude': Angle('-26d42m11.94986s').radian,
+            'longitude': Angle('116d40m14.93485s').radian,
+            'altitude': 377.827,
+            'citation': 'Tingay et al., 2013'}}
 
 
 class Telescope(uvbase.UVBase):
     """
     A class for defining a telescope for use with UVData objects.
 
-    Attributes:
-        citation (str): text giving source of telescope information
-        telescope_name (string, UVParameter): name of the telescope
-        telescope_location (array_like, UVParameter): telescope location xyz coordinates in ITRF
-            (earth-centered frame).
+    Attributes
+    ----------
+    citation : str
+        text giving source of telescope information
+    telescope_name : UVParameter of str
+        name of the telescope
+    telescope_location : UVParameter of array_like
+        telescope location xyz coordinates in ITRF (earth-centered frame).
+    antenna_diameters : UVParameter of float
+        Optional, antenna diameters in meters. Used by CASA to construct a
+        default beam if no beam is supplied.
     """
 
     def __init__(self):
@@ -85,23 +92,34 @@ def known_telescopes():
     """
     Get list of known telescopes.
 
-    Returns:
+    Returns
+    -------
+    list of str
         List of known telescope names.
     """
     return list(telescopes.keys())
 
 
-def get_telescope(telescope_name, telescope_dict_in=telescopes):
+def get_telescope(telescope_name, telescope_dict_in=None):
     """
     Get Telescope object for a telescope in telescope_dict.
 
-    Args:
-        telescope_name: string name of a telescope, must be in known_telescopes().
-        telescope_dict_in: dict with telescope info (only use non-default for testing)
+    Parameters
+    ----------
+    telescope_name : str
+        Name of a telescope
+    telescope_dict_in: dict
+        telescope info dict. Default is None, meaning use KNOWN_TELESCOPES
+        (other values are only used for testing)
 
-    Returns:
+    Returns
+    -------
+    Telescope object
         The Telescope object associated with telescope_name.
     """
+    if telescope_dict_in is None:
+        telescope_dict_in = KNOWN_TELESCOPES
+
     telescope_list = list(telescope_dict_in.keys())
     uc_telescope_list = [item.upper() for item in telescope_list]
     if telescope_name.upper() in uc_telescope_list:

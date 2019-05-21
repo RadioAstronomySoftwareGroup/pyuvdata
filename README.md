@@ -68,7 +68,8 @@ see the [phasing memo](docs/references/phasing.pdf) for more details).
 * UVData: add support for writing CASA measurement sets
 * UVBeam: support phased-array antenna beams (e.g. MWA beams).
 * UVCal/UVData: method to apply calibration to data.
-* package version detection can cause issues with installation directly from the repo for some users.
+* package version detection can cause issues with installation directly from the
+repo for some users (see [issue #590](https://github.com/RadioAstronomySoftwareGroup/pyuvdata/issues/590))
 
 For details see the [issue log](https://github.com/RadioAstronomySoftwareGroup/pyuvdata/issues).
 
@@ -116,6 +117,9 @@ which will not be installed automatically by conda or pip.
 See [Dependencies](#dependencies) for details on installing optional dependencies.
 
 ## Optionally install the development version
+First install the dependencies, see [Dependencies](#dependencies) for package
+recommendations and optional dependencies for specific use cases.
+
 Clone the repository using
 ```git clone https://github.com/RadioAstronomySoftwareGroup/pyuvdata.git```
 
