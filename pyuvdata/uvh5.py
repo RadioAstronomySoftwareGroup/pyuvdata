@@ -555,7 +555,7 @@ class UVH5(UVData):
             dtype = "S{:d}".format(max_len_names)
             header.create_dataset('antenna_names', (n_names,), dtype=dtype, data=self.antenna_names)
         else:
-            header['antenna_names'] = np.string_(self.antenna_names)
+            header['antenna_names'] = np.string_(self.antenna_names, keepdims=True)
 
         # write out phasing information
         header['phase_type'] = np.string_(self.phase_type)
