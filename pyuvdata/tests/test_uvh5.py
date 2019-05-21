@@ -1783,12 +1783,6 @@ def test_antenna_names_not_list():
     uv_in.antenna_names = uv_in.antenna_names.tolist()
     assert uv_in == uv_out
 
-    # also test writing double-precision data_array
-    uv_in.data_array = uv_in.data_array.astype(np.complex128)
-    uv_in.write_uvh5(testfile, clobber=True)
-    uvtest.checkWarnings(uv_out.read, [testfile], message='Telescope EVLA is not')
-    assert uv_in == uv_out
-
     # clean up
     os.remove(testfile)
 
