@@ -473,7 +473,7 @@ def test_redundancy_finder():
 
     uvd.select(times=uvd.time_array[0])
     uvd.unphase_to_drift()   # uvw_array is now equivalent to baseline positions
-    uvtest.checkWarnings(uvd.conjugate_bls, {'convention': 'u>0', 'use_enu': True},
+    uvtest.checkWarnings(uvd.conjugate_bls, func_kwargs={'convention': 'u>0', 'use_enu': True},
                          message=['The default for the `center`'],
                          nwarnings=1, category=DeprecationWarning)
 

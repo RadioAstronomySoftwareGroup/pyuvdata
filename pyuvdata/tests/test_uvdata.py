@@ -1269,20 +1269,18 @@ def test_conjugate_bls():
     assert(np.min(uv2.uvw_array[:, 1]) >= 0)
 
     # test errors
-    with nt.assert_raises(ValueError) as cm:
+    with pytest.raises(ValueError) as cm:
         uv2.conjugate_bls(convention='foo')
-    ex = cm.exception  # raised exception is available through exception property of context
-    assert(ex.args[0].startswith('convention must be one of'))
+    assert str(cm.value).startswith('convention must be one of')
 
-    with nt.assert_raises(ValueError) as cm:
+    with pytest.raises(ValueError) as cm:
         uv2.conjugate_bls(convention=np.arange(5) - 1)
-    ex = cm.exception  # raised exception is available through exception property of context
-    assert(ex.args[0].startswith('If convention is an index array'))
+    assert str(cm.value).startswith('If convention is an index array')
 
-    with nt.assert_raises(ValueError) as cm:
+    with pytest.raises(ValueError) as cm:
         uv2.conjugate_bls(convention=[uv2.Nblts])
-    ex = cm.exception  # raised exception is available through exception property of context
-    assert(ex.args[0].startswith('If convention is an index array'))
+
+    assert str(cm.value).startswith('If convention is an index array')
 
 
 def test_reorder_pols():
@@ -1434,40 +1432,33 @@ def test_reorder_blts():
     assert(uv2 == uv3)
 
     # test errors
-    with nt.assert_raises(ValueError) as cm:
+    with pytest.raises(ValueError) as cm:
         uv3.reorder_blts(order='foo')
-    ex = cm.exception  # raised exception is available through exception property of context
-    assert(ex.args[0].startswith('order must be one of'))
+    assert str(cm.value).startswith('order must be one of')
 
-    with nt.assert_raises(ValueError) as cm:
+    with pytest.raises(ValueError) as cm:
         uv3.reorder_blts(order=np.arange(5))
-    ex = cm.exception  # raised exception is available through exception property of context
-    assert(ex.args[0].startswith('If order is an index array, it must'))
+    assert str(cm.value).startswith('If order is an index array, it must')
 
-    with nt.assert_raises(ValueError) as cm:
+    with pytest.raises(ValueError) as cm:
         uv3.reorder_blts(order=np.arange(5, dtype=np.float))
-    ex = cm.exception  # raised exception is available through exception property of context
-    assert(ex.args[0].startswith('If order is an index array, it must'))
+    assert str(cm.value).startswith('If order is an index array, it must')
 
-    with nt.assert_raises(ValueError) as cm:
+    with pytest.raises(ValueError) as cm:
         uv3.reorder_blts(order=np.arange(uv3.Nblts), minor_order='time')
-    ex = cm.exception  # raised exception is available through exception property of context
-    assert(ex.args[0].startswith('Minor order cannot be set if order is an index array'))
+    assert str(cm.value).startswith('Minor order cannot be set if order is an index array')
 
-    with nt.assert_raises(ValueError) as cm:
+    with pytest.raises(ValueError) as cm:
         uv3.reorder_blts(order='bda', minor_order='time')
-    ex = cm.exception  # raised exception is available through exception property of context
-    assert(ex.args[0].startswith('minor_order cannot be specified if order is'))
+    assert str(cm.value).startswith('minor_order cannot be specified if order is')
 
-    with nt.assert_raises(ValueError) as cm:
+    with pytest.raises(ValueError) as cm:
         uv3.reorder_blts(order='baseline', minor_order='ant1')
-    ex = cm.exception  # raised exception is available through exception property of context
-    assert(ex.args[0].startswith('minor_order conflicts with order'))
+    assert str(cm.value).startswith('minor_order conflicts with order')
 
-    with nt.assert_raises(ValueError) as cm:
+    with pytest.raises(ValueError) as cm:
         uv3.reorder_blts(order='time', minor_order='foo')
-    ex = cm.exception  # raised exception is available through exception property of context
-    assert(ex.args[0].startswith('minor_order can only be one of'))
+    assert str(cm.value).startswith('minor_order can only be one of')
 
 
 def test_add():
@@ -2049,7 +2040,7 @@ def test_fast_concat():
 
     # reorder blts to enable comparison
     uv2.reorder_blts()
-    nt.assert_equal(uv2.blt_order, ('time', 'baseline'))
+    assert uv2.blt_order == ('time', 'baseline')
     uv2.blt_order = None
     uv2.history = uv_full.history
     assert uv2 == uv_full
@@ -2090,10 +2081,10 @@ def test_fast_concat():
 
     # reorder blts to enable comparison
     uv2.reorder_blts()
-    nt.assert_equal(uv2.blt_order, ('time', 'baseline'))
+    assert uv2.blt_order == ('time', 'baseline')
     uv2.blt_order = None
     uv2.history = uv_full.history
-    nt.assert_equal(uv2, uv_full)
+    assert uv2 == uv_full
 
     # Add multiple axes
     uv1 = copy.deepcopy(uv_full)
@@ -3393,7 +3384,7 @@ def test_redundancy_contract_expand():
     tol = 0.02   # Fails at lower precision because some baselines falling into multiple redundant groups
 
     # Assign identical data to each redundant group:
-    uvtest.checkWarnings(uv0.conjugate_bls, {'convention': 'u>0', 'use_enu': True},
+    uvtest.checkWarnings(uv0.conjugate_bls, func_kwargs={'convention': 'u>0', 'use_enu': True},
                          message=['The default for the `center`'],
                          nwarnings=1, category=DeprecationWarning)
     red_gps, centers, lengths = uv0.get_antenna_redundancies(tol=tol)
@@ -3426,7 +3417,7 @@ def test_redundancy_contract_expand():
     uv2.reorder_blts()
     uv2._uvw_array.tols = [0, tol]
 
-    nt.assert_equal(uv2, uv0)
+    assert uv2 == uv0
 
     uv3 = uv2.compress_by_redundancy(tol=tol, inplace=False)
     uvtest.checkWarnings(
@@ -3450,7 +3441,7 @@ def test_compress_redundancy_metadata_only():
     tol = 0.01
 
     # Assign identical data to each redundant group:
-    uvtest.checkWarnings(uv0.conjugate_bls, {'convention': 'u>0', 'use_enu': True},
+    uvtest.checkWarnings(uv0.conjugate_bls, func_kwargs={'convention': 'u>0', 'use_enu': True},
                          message=['The default for the `center`'],
                          nwarnings=1, category=DeprecationWarning)
     red_gps, centers, lengths = uv0.get_antenna_redundancies(tol=tol)
@@ -3514,7 +3505,7 @@ def test_quick_redundant_vs_redundant_test_array():
     uv.read_uvfits(os.path.join(DATA_PATH, 'fewant_randsrc_airybeam_Nsrc100_10MHz.uvfits'))
     uv.select(times=uv.time_array[0])
     uv.unphase_to_drift()
-    uvtest.checkWarnings(uv.conjugate_bls, {'convention': 'u>0', 'use_enu': True},
+    uvtest.checkWarnings(uv.conjugate_bls, func_kwargs={'convention': 'u>0', 'use_enu': True},
                          message=['The default for the `center`'],
                          nwarnings=1, category=DeprecationWarning)
     tol = 0.05
@@ -3553,7 +3544,7 @@ def test_redundancy_finder_when_nblts_not_nbls_times_ntimes():
     uv = UVData()
     testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
     uvtest.checkWarnings(uv.read_uvfits, [testfile], message='Telescope EVLA is not')
-    uvtest.checkWarnings(uv.conjugate_bls, {'convention': 'u>0', 'use_enu': True},
+    uvtest.checkWarnings(uv.conjugate_bls, func_kwargs={'convention': 'u>0', 'use_enu': True},
                          message=['The default for the `center`'],
                          nwarnings=1, category=DeprecationWarning)
     # check that Nblts != Nbls * Ntimes
