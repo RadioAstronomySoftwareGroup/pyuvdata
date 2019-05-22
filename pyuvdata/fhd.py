@@ -33,9 +33,10 @@ def get_fhd_history(settings_file, return_user=False):
 
     Returns
     -------
-    str or tuple of str
-        If return_user is False, returns the history string. If return_user is
-        True, returns a tuple with the history string and the username.
+    history : str
+        string of history extracted from the settings file
+    user : str
+        Only returned if return_user is True
     """
     with open(settings_file, 'r') as f:
         settings_lines = f.readlines()

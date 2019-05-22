@@ -53,6 +53,21 @@ str2pol = {
 
 
 def bl2ij(bl):
+    """
+    Convert baseline number to antenna numbers
+
+    Parameters
+    ----------
+    bl : int
+        baseline number
+
+    Returns
+    -------
+    int
+        first antenna number
+    int
+        second antenna number
+    """
     bl = int(bl)
 
     if bl > 65536:
@@ -65,6 +80,21 @@ def bl2ij(bl):
 
 
 def ij2bl(i, j):
+    """
+    Convert antenna numbers to baseline number
+
+    Parameters
+    ----------
+    i : int
+        first antenna number
+    j : int
+        second antenna number
+
+    Returns
+    -------
+    int
+        baseline number
+    """
     if i > j:
         i, j = j, i
 
@@ -79,9 +109,23 @@ bl_re = '(^(%s_%s|%s),?)' % (ant_re, ant_re, ant_re)
 
 
 def parse_ants(ant_str, nants):
-    """Generate list of (baseline, include, pol) tuples based on parsing of the
+    """
+    Parse ant string into a list of (baseline, include, pol) tuples
+
+    Generate list of (baseline, include, pol) tuples based on parsing of the
     string associated with the 'ants' command-line option.
 
+    Parameters
+    ----------
+    ant_str : str
+        string associated with the 'ants' command-line option
+    nants : int
+        number of antennas
+
+    Returns
+    -------
+    list of tuples
+        list of (baseline, include, pol) tuples
     """
     rv, cnt = [], 0
 
@@ -167,10 +211,22 @@ def parse_ants(ant_str, nants):
 
 
 def uv_selector(uv, ants=-1, pol_str=-1):
-    """Call uv.select with appropriate options based on string argument for
-    antennas (can be 'all', 'auto', 'cross', '0,1,2', or '0_1,0_2') and string
-    for polarization ('xx','yy','xy','yx').
+    """
+    Call select on a Miriad object with string arguments for antennas and polarizations
 
+    Parameters
+    ----------
+    uv : UV object
+        Miriad data set object
+    ants : str
+        string to select antennas or baselines, e.g. 'all', 'auto', 'cross',
+        '0,1,2', or '0_1,0_2'
+    pol_str : str
+        polarizations to select, e.g. 'xx','yy','xy','yx'
+
+    Returns
+    -------
+    None
     """
     if ants != -1:
         if type(ants) == str:
@@ -232,10 +288,17 @@ class UV(_miriad.UV):
     """
 
     def __init__(self, filename, status='old', corrmode='r'):
-        """Open a miriad file. status can be ('old','new','append'). corrmode can be
-        'r' (float32 data storage) or 'j' (int16 with shared exponent).
-        Default is 'r'.
+        """
+        Initialize from a miriad file
 
+        Parameters
+        ----------
+        filename : str
+            filename to initialize from
+        status : str
+            options are: 'old','new','append'
+        corrmode : str
+            options are 'r' (float32 data storage) or 'j' (int16 with shared exponent)
         """
         assert status in ['old', 'new', 'append']
         assert corrmode in ['r', 'j']
@@ -257,8 +320,13 @@ class UV(_miriad.UV):
             self.vartable = {'corr': corrmode}
 
     def _gen_vartable(self):
-        """Generate table of variables and types from the vartable header.
+        """
+        Generate table of variables and types from the vartable header.
 
+        Returns
+        -------
+        dict
+            variables and types from the vartable header
         """
         vartable = {}
         for line in self._rdhd('vartable').split('\n'):
@@ -271,14 +339,24 @@ class UV(_miriad.UV):
         return vartable
 
     def vars(self):
-        """Return a list of available variables.
+        """
+        Get the list of available variables.
 
+        Returns
+        -------
+        list of str
+            list of available variables
         """
         return list(self.vartable.keys())
 
     def items(self):
-        """Return a list of available header items.
+        """
+        Get the list of available header items.
 
+        Returns
+        -------
+        list of str
+            list of available header items
         """
         items = []
 
@@ -291,8 +369,18 @@ class UV(_miriad.UV):
         return items
 
     def _rdhd(self, name):
-        """Provide read access to header items via low-level calls.
+        """
+        Provide read access to header items via low-level calls.
 
+        Parameters
+        ----------
+        name : str
+            name of header item
+
+        Returns
+        -------
+        str or int or float
+            value of header item
         """
         itype = itemtable[name]
 
@@ -448,24 +536,29 @@ class UV(_miriad.UV):
             self._wrhd(name, val)
 
     def select(self, name, n1, n2, include=True):
-        """Choose which data are returned by read().
+        """
+        Choose which data are returned by read().
 
-            name    This can be: 'decimate','time','antennae','visibility',
-                    'uvrange','pointing','amplitude','window','or','dra',
-                    'ddec','uvnrange','increment','ra','dec','and', 'clear',
-                    'on','polarization','shadow','auto','dazim','delev'
-            n1,n2   Generally this is the range of values to select. For
-                    'antennae', this is the two antennae pair to select
-                    (indexed from 0); a -1 indicates 'all antennae'.
-                    For 'decimate', n1 is every Nth integration to use, and
-                    n2 is which integration within a block of N to use.
-                    For 'shadow', a zero indicates use 'antdiam' variable.
-                    For 'on','window','polarization','increment','shadow' only
-                    p1 is used.
-                    For 'and','or','clear','auto' p1 and p2 are ignored.
-            include If true, the data is selected. If false, the data is
-                    discarded. Ignored for 'and','or','clear'.
-
+        Parameters
+        ----------
+        name : str
+            This can be: 'decimate','time','antennae','visibility',
+            'uvrange','pointing','amplitude','window','or','dra',
+            'ddec','uvnrange','increment','ra','dec','and', 'clear',
+            'on','polarization','shadow','auto','dazim','delev'
+        n1,n2 : int
+            Generally this is the range of values to select. For
+            'antennae', this is the two antennae pair to select
+            (indexed from 0); a -1 indicates 'all antennae'.
+            For 'decimate', n1 is every Nth integration to use, and
+            n2 is which integration within a block of N to use.
+            For 'shadow', a zero indicates use 'antdiam' variable.
+            For 'on','window','polarization','increment','shadow' only
+            p1 is used.
+            For 'and','or','clear','auto' p1 and p2 are ignored.
+        include : bool
+            If true, the data is selected. If false, the data is
+            discarded. Ignored for 'and','or','clear'.
         """
         if name == 'antennae':
             n1 += 1
@@ -473,10 +566,26 @@ class UV(_miriad.UV):
         self._select(name, float(n1), float(n2), int(include))
 
     def read(self, raw=False):
-        """Return the next data record. Calling this function causes vars to change to
-        reflect the record which this function returns. 'raw' causes data and
-        flags to be returned seperately.
+        """
+        Return the next data record.
 
+        Calling this function causes vars to change to
+        reflect the record which this function returns.
+
+        Parameters
+        ----------
+        raw : bool
+            if True data and flags are returned seperately
+
+        Returns
+        -------
+        preamble : tuple
+            (uvw, t, (i,j)), where uvw is an array of u,v,w, t is the
+            Julian date, and (i,j) is an antenna pair
+        data : ndarray or masked array
+            ndarray if raw is True, otherwise a masked array
+        flags : ndarray
+            only returned if raw is True
         """
         preamble, data, flags, nread = self.raw_read(self.nchan)
 
@@ -490,9 +599,25 @@ class UV(_miriad.UV):
         return preamble, np.ma.array(data, mask=flags)
 
     def all(self, raw=False):
-        """Provide an iterator over preamble, data. Allows constructs like: ``for
-        preamble, data in uv.all(): ...``
+        """
+        Provide an iterator over preamble, data.
 
+        Allows constructs like: ``for preamble, data in uv.all(): ...``
+
+        Parameters
+        ----------
+        raw : bool
+            if True data and flags are returned seperately
+
+        Yields
+        -------
+        preamble : tuple
+            (uvw, t, (i,j)), where uvw is an array of u,v,w, t is the
+            Julian date, and (i,j) is an antenna pair
+        data : ndarray or masked array of complex
+            ndarray if raw is True, otherwise a masked array
+        flags : ndarray
+            only returned if raw is True
         """
         while True:
             try:
@@ -501,10 +626,16 @@ class UV(_miriad.UV):
                 break
 
     def write(self, preamble, data, flags=None):
-        """Write the next data record. data must be a complex, masked array. preamble
-        must be (uvw, t, (i,j)), where uvw is an array of u,v,w, t is the
-        Julian date, and (i,j) is an antenna pair.
+        """
+        Write the next data record.
 
+        Parameters
+        ----------
+        preamble : tuple
+            (uvw, t, (i,j)), where uvw is an array of u,v,w, t is the
+            Julian date, and (i,j) is an antenna pair
+        data : masked array of complex
+            spectra for this record
         """
         if data is None:
             return
@@ -521,11 +652,23 @@ class UV(_miriad.UV):
         self.raw_write(preamble, data.astype(np.complex64), flags.astype(np.int32))
 
     def init_from_uv(self, uv, override={}, exclude=[]):
-        """Initialize header items and variables from another UV. Those in override
-        will be overwritten by override[k], and tracking will be turned off
-        (meaning they will not be updated in pipe()). Those in exclude are
-        omitted completely.
+        """
+        Initialize header items and variables from another UV.
 
+        Those in override will be overwritten by override[k], and tracking will
+        be turned off (meaning they will not be updated in pipe()). Those in
+        exclude are omitted completely.
+
+        TODO: check that defaults work properly. I usually use None in this context
+
+        Parameters
+        ----------
+        uv : UV object
+            Miriad data set object to initialize from
+        override : dict
+            variables with values to overwrite
+        exclude : list
+            list of variable to exclude
         """
         for k in uv.items():
             if k in exclude:
@@ -553,12 +696,25 @@ class UV(_miriad.UV):
                 uv.trackvr(k, 'c')  # Set to copy when copyvr() called
 
     def pipe(self, uv, mfunc=_uv_pipe_default_action, append2hist='', raw=False):
-        """Pipe in data from another UV through the function ``mfunc(uv, preamble,
-        data)``, which should return ``(preamble, data)``. If mfunc is not
-        provided, the dataset will just be cloned, and if the returned data is
-        None, it will be omitted. The string 'append2hist' will be appended to
-        history.
+        """
+        Pipe in data from another UV
 
+        Uses the function ``mfunc(uv, preamble, data)``, which should return
+        ``(preamble, data)``. If mfunc is not provided, the dataset will just be
+        cloned, and if the returned data is None, it will be omitted.
+
+        Parameters
+        ----------
+        uv : UV object
+            Miriad data set object to pipe from
+        mfunc : function
+            function that defines how the data are piped.
+            ``mfunc(uv, preamble, data)`` should return ``(preamble, data)``.
+            Default is ``_uv_pipe_default_action`` which just clones the dataset.
+        append2hist : str
+            string to append to history
+        raw : bool
+            if True data and flags are piped seperately
         """
         self._wrhd('history', self['history'] + append2hist)
 
@@ -574,7 +730,14 @@ class UV(_miriad.UV):
                 self.write(np, nd)
 
     def add_var(self, name, type):
-        """Add a variable of the specified type to a UV file.
+        """
+        Add a variable of the specified type to a UV file.
 
+        Parameters
+        ----------
+        name : str
+            name of header item to add
+        type : str
+            string indicating the variable type (e.g. 'a', 'i', 'd')
         """
         self.vartable[name] = type
