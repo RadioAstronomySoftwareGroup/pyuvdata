@@ -23,6 +23,19 @@ def get_fhd_history(settings_file, return_user=False):
     Small function to get the important history from an FHD settings text file.
 
     Includes information about the command line call, the user, machine name and date
+
+    Parameters
+    ----------
+    settings_file : str
+        FHD settings file name
+    return_user : bool
+        optionally return the username who ran FHD
+
+    Returns
+    -------
+    str or tuple of str
+        If return_user is False, returns the history string. If return_user is
+        True, returns a tuple with the history string and the username.
     """
     with open(settings_file, 'r') as f:
         settings_lines = f.readlines()
