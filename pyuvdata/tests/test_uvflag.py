@@ -169,18 +169,8 @@ def test_init_waterfall_flag():
 def test_init_waterfall_copy_flags():
     uv = UVCal()
     uv.read_calfits(test_c_file)
-    uvf = uvtest.checkWarnings(UVFlag, [uv], {'copy_flags': True, 'mode': 'flag', 'waterfall': True},
-                               nwarnings=1, message='Copying flags into waterfall')
-    assert not hasattr(uvf, 'flag_array')  # Should be metric due to copy flags
-    assert uvf.metric_array.shape == (uv.Ntimes, uv.Nfreqs, uv.Njones)
-    assert uvf.weights_array.shape == (uv.Ntimes, uv.Nfreqs, uv.Njones)
-    assert uvf.type == 'waterfall'
-    assert uvf.mode == 'metric'
-    assert np.all(uvf.time_array == np.unique(uv.time_array))
-    assert np.all(uvf.freq_array == uv.freq_array[0])
-    assert np.all(uvf.polarization_array == uv.jones_array)
-    assert 'Flag object with type "waterfall"' in uvf.history
-    assert pyuvdata_version_str in uvf.history
+    pytest.raises(NotImplementedError, UVFlag, uv, copy_flags=True, mode='flag',
+                  waterfall=True)
 
 
 @uvtest.skipIf_no_h5py
