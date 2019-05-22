@@ -222,7 +222,7 @@ def uv_selector(uv, ants=-1, pol_str=-1):
         string to select antennas or baselines, e.g. 'all', 'auto', 'cross',
         '0,1,2', or '0_1,0_2'
     pol_str : str
-        polarizations to select, e.g. 'xx','yy','xy','yx'
+        polarizations to select, e.g. 'xx', 'yy', 'xy', 'yx'
 
     Returns
     -------
@@ -296,7 +296,7 @@ class UV(_miriad.UV):
         filename : str
             filename to initialize from
         status : str
-            options are: 'old','new','append'
+            options are: 'old', 'new', 'append'
         corrmode : str
             options are 'r' (float32 data storage) or 'j' (int16 with shared exponent)
         """
@@ -542,10 +542,10 @@ class UV(_miriad.UV):
         Parameters
         ----------
         name : str
-            This can be: 'decimate','time','antennae','visibility',
-            'uvrange','pointing','amplitude','window','or','dra',
-            'ddec','uvnrange','increment','ra','dec','and', 'clear',
-            'on','polarization','shadow','auto','dazim','delev'
+            This can be: 'decimate', 'time', 'antennae', 'visibility',
+            'uvrange', 'pointing', 'amplitude', 'window', 'or', 'dra',
+            'ddec', 'uvnrange', 'increment', 'ra', 'dec', 'and', 'clear',
+            'on', 'polarization', 'shadow', 'auto', 'dazim', 'delev'
         n1,n2 : int
             Generally this is the range of values to select. For
             'antennae', this is the two antennae pair to select
@@ -553,12 +553,12 @@ class UV(_miriad.UV):
             For 'decimate', n1 is every Nth integration to use, and
             n2 is which integration within a block of N to use.
             For 'shadow', a zero indicates use 'antdiam' variable.
-            For 'on','window','polarization','increment','shadow' only
+            For 'on', 'window', 'polarization', 'increment', 'shadow' only
             p1 is used.
-            For 'and','or','clear','auto' p1 and p2 are ignored.
+            For 'and', 'or', 'clear', 'auto' p1 and p2 are ignored.
         include : bool
             If true, the data is selected. If false, the data is
-            discarded. Ignored for 'and','or','clear'.
+            discarded. Ignored for 'and', 'or', 'clear'.
         """
         if name == 'antennae':
             n1 += 1

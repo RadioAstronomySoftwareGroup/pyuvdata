@@ -40,8 +40,10 @@ polDict = {1: 1, 2: 2, 3: 3, 4: 4, 5: -1, 6: -3,
 class MS(UVData):
     """
     Defines a class for reading and writing casa measurement sets.
-    Attributs:
-      ms_required_extra: Names of optional MSParameters that are required for casa ms
+    Attributes
+    ----------
+    ms_required_extra : list of str
+        Names of optional UVParameters that are required for MS
     """
     ms_required_extra = ['datacolumn', 'antenna_positions']
 
