@@ -8,6 +8,7 @@
 from __future__ import absolute_import, division, print_function
 
 import os
+import six
 import copy
 import numpy as np
 import pytest
@@ -1765,6 +1766,7 @@ def test_UVH5PartialWriteIntsIrregular():
 
 
 @uvtest.skipIf_no_h5py
+@pytest.mark.skipif(not six.PY3, reason="Skipping. This test is only relevant in python3.")
 def test_antenna_names_not_list():
     """Test if antenna_names is cast to an array, dimensions are preserved in np.string_ call during uvh5 write."""
     uv_in = UVData()
