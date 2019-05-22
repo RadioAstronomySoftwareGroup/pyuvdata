@@ -514,7 +514,7 @@ def test_roundtrip_optional_params():
     uv_in.write_miriad(testfile, clobber=True)
     uv_out.read(testfile)
 
-    nt.assert_equal(uv_in, uv_out)
+    assert uv_in == uv_out
 
     # test with bda as well (single entry in tuple)
     uv_in.reorder_blts(order='bda')
@@ -522,7 +522,7 @@ def test_roundtrip_optional_params():
     uv_in.write_miriad(testfile, clobber=True)
     uv_out.read(testfile)
 
-    nt.assert_equal(uv_in, uv_out)
+    assert uv_in == uv_out
 
 
 def test_breakReadMiriad():

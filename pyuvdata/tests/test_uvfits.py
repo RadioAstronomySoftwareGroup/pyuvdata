@@ -396,14 +396,14 @@ def test_roundtrip_blt_order():
 
     uv_in.write_uvfits(write_file)
     uvtest.checkWarnings(uv_out.read, [write_file], message='Telescope EVLA is not')
-    nt.assert_equal(uv_in, uv_out)
+    assert uv_in == uv_out
 
     # test with bda as well (single entry in tuple)
     uv_in.reorder_blts(order='bda')
 
     uv_in.write_uvfits(write_file)
     uvtest.checkWarnings(uv_out.read, [write_file], message='Telescope EVLA is not')
-    nt.assert_equal(uv_in, uv_out)
+    assert uv_in == uv_out
 
 
 def test_select_read():
