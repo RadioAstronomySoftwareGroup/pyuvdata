@@ -10,6 +10,7 @@ All notable changes to this project will be documented in this file.
 - Fixed a bug in UVData when reading in an FHD file with a single time integration.
 - Fixed a bug in how the longitudinal branch cut was handled in beam interpolation
 - Changed the way interpolation splines are saved in UVBeam to fix errors related to polarization selections.
+- Python 3: `np.string_` call now uses `keepdims=True` to guard against `antenna_names` being cast as an array.
 
 ### Changed
 - Testing framework changed from `nose` to `pytest`.
