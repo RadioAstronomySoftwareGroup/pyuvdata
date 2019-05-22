@@ -72,6 +72,7 @@ Functions
 
 .. autofunction:: pyuvdata.version.construct_version_info
 
+.. autofunction:: pyuvdata.fhd.get_fhd_history
 
 aipy extracts
 _____________
