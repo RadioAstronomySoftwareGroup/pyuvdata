@@ -759,7 +759,7 @@ class UVData(UVBase):
 
         Parameters
         ----------
-        key : array_like of int
+        key : int or tuple of int
             Identifier of data. Key can be 1, 2, or 3 numbers:
             if len(key) == 1:
                 if (key < 5) or (type(key) is str):  interpreted as a
@@ -931,9 +931,6 @@ class UVData(UVBase):
         ndarray
             copy (or if possible, a read-only view) of relevant section of data
         """
-        force_copy = kwargs.pop('force_copy', False)
-        squeeze = kwargs.pop('squeeze', 'default')
-
         p_reg_spaced = [False, False]
         p_start = [0, 0]
         p_stop = [0, 0]
@@ -1017,14 +1014,17 @@ class UVData(UVBase):
 
         return out
 
-    def get_data(self, key, squeeze='default', force_copy=False):
+    def get_data(self, key1, key2=None, key3=None, squeeze='default',
+                 force_copy=False):
         """
         Get the data corresonding to a baseline and/or polarization.
 
         Parameters
         ----------
-        key : array_like of int
-            Identifier of which data to get, can be length 1, 2, or 3.
+        key1, key2, key3 : int
+            Identifier of which data to get, can be passed as 1, 2, or 3 arguments
+            or as a single tuple of length 1, 2, or 3. These are collectively
+            called the key.
 
             If key is length 1:
                 if (key < 5) or (type(key) is str):
@@ -1053,19 +1053,29 @@ class UVData(UVBase):
             If data exists conjugate to requested antenna pair, it will be conjugated
             before returning.
         """
+        key = list(uvutils._get_iterable(key1))
+        if key2 is not None:
+            key += list(uvutils._get_iterable(key2))
+        if key3 is not None:
+            key += list(uvutils._get_iterable(key3))
+        if len(key) > 3:
+            raise ValueError('no more than 3 key values can be passed')
         ind1, ind2, indp = self._key2inds(key)
         out = self._smart_slicing(self.data_array, ind1, ind2, indp,
                                   squeeze=squeeze, force_copy=force_copy)
         return out
 
-    def get_flags(self, key, squeeze='default', force_copy=False):
+    def get_flags(self, key1, key2=None, key3=None, squeeze='default',
+                  force_copy=False):
         """
         Get the flags corresonding to a baseline and/or polarization.
 
         Parameters
         ----------
-        key : array_like of int
-            Identifier of which flags to get, can be length 1, 2, or 3.
+        key1, key2, key3 : int
+            Identifier of which data to get, can be passed as 1, 2, or 3 arguments
+            or as a single tuple of length 1, 2, or 3. These are collectively
+            called the key.
 
             If key is length 1:
                 if (key < 5) or (type(key) is str):
@@ -1092,19 +1102,29 @@ class UVData(UVBase):
         ndarray
             copy (or if possible, a read-only view) of relevant section of flags.
         """
+        key = list(uvutils._get_iterable(key1))
+        if key2 is not None:
+            key += list(uvutils._get_iterable(key2))
+        if key3 is not None:
+            key += list(uvutils._get_iterable(key3))
+        if len(key) > 3:
+            raise ValueError('no more than 3 key values can be passed')
         ind1, ind2, indp = self._key2inds(key)
         out = self._smart_slicing(self.flag_array, ind1, ind2, indp,
                                   squeeze=squeeze, force_copy=force_copy).astype(np.bool)
         return out
 
-    def get_nsamples(self, key, squeeze='default', force_copy=False):
+    def get_nsamples(self, key1, key2=None, key3=None, squeeze='default',
+                     force_copy=False):
         """
         Get the nsamples corresonding to a baseline and/or polarization.
 
         Parameters
         ----------
-        key : array_like of int
-            Identifier of which nsamples to get, can be length 1, 2, or 3.
+        key1, key2, key3 : int
+            Identifier of which data to get, can be passed as 1, 2, or 3 arguments
+            or as a single tuple of length 1, 2, or 3. These are collectively
+            called the key.
 
             If key is length 1:
                 if (key < 5) or (type(key) is str):
@@ -1131,12 +1151,19 @@ class UVData(UVBase):
         ndarray
             copy (or if possible, a read-only view) of relevant section of nsample_array.
         """
+        key = list(uvutils._get_iterable(key1))
+        if key2 is not None:
+            key += list(uvutils._get_iterable(key2))
+        if key3 is not None:
+            key += list(uvutils._get_iterable(key3))
+        if len(key) > 3:
+            raise ValueError('no more than 3 key values can be passed')
         ind1, ind2, indp = self._key2inds(key)
         out = self._smart_slicing(self.nsample_array, ind1, ind2, indp,
                                   squeeze=squeeze, force_copy=force_copy)
         return out
 
-    def get_times(self, key):
+    def get_times(self, key1, key2=None, key3=None):
         """
         Get the times for a given antpair or baseline number.
 
@@ -1144,8 +1171,10 @@ class UVData(UVBase):
 
         Parameters
         ----------
-        key : array_like of int
-            Identifier of which times to get, can be length 1, 2, or 3.
+        key1, key2, key3 : int
+            Identifier of which data to get, can be passed as 1, 2, or 3 arguments
+            or as a single tuple of length 1, 2, or 3. These are collectively
+            called the key.
 
             If key is length 1:
                 if (key < 5) or (type(key) is str):
@@ -1164,6 +1193,13 @@ class UVData(UVBase):
         ndarray
             times from the time_array for the given antpair or baseline.
         """
+        key = list(uvutils._get_iterable(key1))
+        if key2 is not None:
+            key += list(uvutils._get_iterable(key2))
+        if key3 is not None:
+            key += list(uvutils._get_iterable(key3))
+        if len(key) > 3:
+            raise ValueError('no more than 3 key values can be passed')
         inds1, inds2, indp = self._key2inds(key)
         return self.time_array[np.append(inds1, inds2)]
 
