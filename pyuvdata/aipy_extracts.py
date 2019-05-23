@@ -659,8 +659,6 @@ class UV(_miriad.UV):
         be turned off (meaning they will not be updated in pipe()). Those in
         exclude are omitted completely.
 
-        TODO: check that defaults work properly. I usually use None in this context
-
         Parameters
         ----------
         uv : UV object
