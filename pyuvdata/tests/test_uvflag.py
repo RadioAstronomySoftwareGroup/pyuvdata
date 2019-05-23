@@ -173,6 +173,11 @@ def test_init_waterfall_copy_flags():
                   waterfall=True)
 
 
+def test_init_invalid_input():
+    # input is not UVData, UVCal, path, or list/tuple
+    pytest.raises(ValueError, UVFlag, 14)
+
+
 @uvtest.skipIf_no_h5py
 def test_read_write_loop():
     uv = UVData()
