@@ -27,18 +27,24 @@ class UVFlag(object):
         Input lists or tuples are iterated through, treating each entry with an
         individual UVFlag init.
 
-        Args:
-            input: UVData object, UVCal object, or path to previously saved UVFlag object.
-                   Can also be a list of any compatible combination of the above options.
-                   UVData and UVCal objects cannot be directly combined, unless waterfall is True.
-            mode: "metric" (default) or "flag" to initialize UVFlag in given mode.
-                  The mode determines whether the object has a floating point metric_array
-                  or a boolean flag_array.
-            copy_flags: Whether to copy flags from input to new UVFlag object. Default is False.
-            waterfall: Whether to immediately initialize as a waterfall object,
-                       with flag/metric axes: time, frequency, polarization. Default is False.
-            history: History string to attach to object.
-            label: string used for labeling the object (e.g. 'FM')
+        Parameters
+        ----------
+        input : UVData or UVCal or str or list of compatible combination of options
+            Input to initialize UVFlag object. If str, assumed to be path to previously
+            saved UVFlag object. UVData and UVCal objects cannot be directly combined,
+            unless waterfall is True.
+        mode : {"metric", "flag"}, optional
+            The mode determines whether the object has a floating point metric_array
+            or a boolean flag_array. Default is "metric".
+        copy_flags : bool, optional
+            Whether to copy flags from input to new UVFlag object. Default is False.
+        waterfall : bool, optional
+            Whether to immediately initialize as a waterfall object, with flag/metric
+            axes: time, frequency, polarization. Default is False.
+        history : str, optional
+            History string to attach to object. Default is empty string.
+        label: str, optional
+            String used for labeling the object (e.g. 'FM'). Default is empty string.
         '''
 
         self.mode = mode.lower()  # Gets overwritten if reading file
