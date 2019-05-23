@@ -19,6 +19,7 @@ All notable changes to this project will be documented in this file.
 - `lst_array` is now saved to UVFITS files (even though it's not a standard parameter) so that it doesn't have to be recalculated
 
 ### Fixed
+- Fixed init logic in UVFlag.
 - Fixed a bug in how FHD uvw vectors were oriented (and visibilities were conjugated)
 - Fixed a bug in `UVData.inflate_by_redundancy` when Nblts is not equal to Nbls * Ntimes.
 - Fixed a bug in UVData when reading in an FHD file with a single time integration.
