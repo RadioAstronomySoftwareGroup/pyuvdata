@@ -3,6 +3,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.4.0] - 2019-05-23
+
 ### Added
 - made an option to not save the `lst_array` to uvfits files.
 - `conjugate_bls` option to `UVData.get_antenna_redundancies`
