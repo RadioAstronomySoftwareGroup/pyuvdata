@@ -759,15 +759,18 @@ class UVData(UVBase):
 
         Parameters
         ----------
-        key : int or tuple of int
-            Identifier of data. Key can be 1, 2, or 3 numbers:
+        key : tuple of int
+            Identifier of data. Key can be length 1, 2, or 3:
+
             if len(key) == 1:
                 if (key < 5) or (type(key) is str):  interpreted as a
                              polarization number/name, return all blts for that pol.
                 else: interpreted as a baseline number. Return all times and
                       polarizations for that baseline.
+
             if len(key) == 2: interpreted as an antenna pair. Return all
                 times and pols for that baseline.
+
             if len(key) == 3: interpreted as antenna pair and pol (ant1, ant2, pol).
                 Return all times for that baseline, pol. pol may be a string.
 

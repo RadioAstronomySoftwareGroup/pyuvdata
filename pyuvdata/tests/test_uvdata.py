@@ -2205,7 +2205,7 @@ def test_key2inds():
     assert np.array_equal(np.array([]), ind2)
     assert np.array_equal([0], indp[0])
     # Any of these inputs can also be a tuple of a tuple, so need to be checked twice.
-    ind1, ind2, indp = uv._key2inds(((ant1, ant2, pol)))
+    ind1, ind2, indp = uv._key2inds(((ant1, ant2, pol),))
     assert np.array_equal(bltind, ind1)
     assert np.array_equal(np.array([]), ind2)
     assert np.array_equal([0], indp[0])
@@ -2213,7 +2213,7 @@ def test_key2inds():
     # Combo with pol as string
     ind1, ind2, indp = uv._key2inds((ant1, ant2, uvutils.polnum2str(pol)))
     assert np.array_equal([0], indp[0])
-    ind1, ind2, indp = uv._key2inds(((ant1, ant2, uvutils.polnum2str(pol))))
+    ind1, ind2, indp = uv._key2inds(((ant1, ant2, uvutils.polnum2str(pol)),))
     assert np.array_equal([0], indp[0])
 
     # Check conjugation
@@ -2243,7 +2243,7 @@ def test_key2inds():
     assert np.array_equal(bltind, ind1)
     assert np.array_equal(np.array([]), ind2)
     assert np.array_equal(np.arange(uv.Npols), indp[0])
-    ind1, ind2, indp = uv._key2inds((uv.antnums_to_baseline(ant1, ant2)))
+    ind1, ind2, indp = uv._key2inds((uv.antnums_to_baseline(ant1, ant2),))
     assert np.array_equal(bltind, ind1)
     assert np.array_equal(np.array([]), ind2)
     assert np.array_equal(np.arange(uv.Npols), indp[0])
