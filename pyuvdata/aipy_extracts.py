@@ -546,7 +546,7 @@ class UV(_miriad.UV):
             'uvrange', 'pointing', 'amplitude', 'window', 'or', 'dra',
             'ddec', 'uvnrange', 'increment', 'ra', 'dec', 'and', 'clear',
             'on', 'polarization', 'shadow', 'auto', 'dazim', 'delev'
-        n1,n2 : int
+        n1, n2 : int
             Generally this is the range of values to select. For
             'antennae', this is the two antennae pair to select
             (indexed from 0); a -1 indicates 'all antennae'.
