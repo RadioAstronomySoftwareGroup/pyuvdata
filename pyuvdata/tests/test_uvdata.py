@@ -2571,6 +2571,9 @@ def test_get_data():
     d = uv.get_data(ant1, ant2, pol)
     assert np.all(dcheck == d)
 
+    d = uv.get_data(ant1, ant2, uvutils.polnum2str(pol))
+    assert np.all(dcheck == d)
+
     d = uv.get_data((ant1, ant2, pol))
     assert np.all(dcheck == d)
 
@@ -2615,6 +2618,9 @@ def test_get_flags():
     d = uv.get_flags(ant1, ant2, pol)
     assert np.all(dcheck == d)
 
+    d = uv.get_flags(ant1, ant2, uvutils.polnum2str(pol))
+    assert np.all(dcheck == d)
+
     d = uv.get_flags((ant1, ant2, pol))
     assert np.all(dcheck == d)
 
@@ -2653,6 +2659,9 @@ def test_get_nsamples():
     bltind = np.where((uv.ant_1_array == ant1) & (uv.ant_2_array == ant2))[0]
     dcheck = np.squeeze(uv.nsample_array[bltind, :, :, 0])
     d = uv.get_nsamples(ant1, ant2, pol)
+    assert np.all(dcheck == d)
+
+    d = uv.get_nsamples(ant1, ant2, uvutils.polnum2str(pol))
     assert np.all(dcheck == d)
 
     d = uv.get_nsamples((ant1, ant2, pol))
@@ -2726,6 +2735,9 @@ def test_get_times():
     bltind = np.where((uv.ant_1_array == ant1) & (uv.ant_2_array == ant2))[0]
     dcheck = uv.time_array[bltind]
     d = uv.get_times(ant1, ant2, pol)
+    assert np.all(dcheck == d)
+
+    d = uv.get_times(ant1, ant2, uvutils.polnum2str(pol))
     assert np.all(dcheck == d)
 
     d = uv.get_times((ant1, ant2, pol))

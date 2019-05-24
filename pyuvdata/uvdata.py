@@ -1053,11 +1053,12 @@ class UVData(UVBase):
             If data exists conjugate to requested antenna pair, it will be conjugated
             before returning.
         """
-        key = list(uvutils._get_iterable(key1))
-        if key2 is not None:
-            key += list(uvutils._get_iterable(key2))
-        if key3 is not None:
-            key += list(uvutils._get_iterable(key3))
+        key = []
+        for val in [key1, key2, key3]:
+            if isinstance(val, str):
+                key.append(val)
+            elif val is not None:
+                key += list(uvutils._get_iterable(val))
         if len(key) > 3:
             raise ValueError('no more than 3 key values can be passed')
         ind1, ind2, indp = self._key2inds(key)
@@ -1102,11 +1103,12 @@ class UVData(UVBase):
         ndarray
             copy (or if possible, a read-only view) of relevant section of flags.
         """
-        key = list(uvutils._get_iterable(key1))
-        if key2 is not None:
-            key += list(uvutils._get_iterable(key2))
-        if key3 is not None:
-            key += list(uvutils._get_iterable(key3))
+        key = []
+        for val in [key1, key2, key3]:
+            if isinstance(val, str):
+                key.append(val)
+            elif val is not None:
+                key += list(uvutils._get_iterable(val))
         if len(key) > 3:
             raise ValueError('no more than 3 key values can be passed')
         ind1, ind2, indp = self._key2inds(key)
@@ -1151,11 +1153,12 @@ class UVData(UVBase):
         ndarray
             copy (or if possible, a read-only view) of relevant section of nsample_array.
         """
-        key = list(uvutils._get_iterable(key1))
-        if key2 is not None:
-            key += list(uvutils._get_iterable(key2))
-        if key3 is not None:
-            key += list(uvutils._get_iterable(key3))
+        key = []
+        for val in [key1, key2, key3]:
+            if isinstance(val, str):
+                key.append(val)
+            elif val is not None:
+                key += list(uvutils._get_iterable(val))
         if len(key) > 3:
             raise ValueError('no more than 3 key values can be passed')
         ind1, ind2, indp = self._key2inds(key)
@@ -1193,11 +1196,12 @@ class UVData(UVBase):
         ndarray
             times from the time_array for the given antpair or baseline.
         """
-        key = list(uvutils._get_iterable(key1))
-        if key2 is not None:
-            key += list(uvutils._get_iterable(key2))
-        if key3 is not None:
-            key += list(uvutils._get_iterable(key3))
+        key = []
+        for val in [key1, key2, key3]:
+            if isinstance(val, str):
+                key.append(val)
+            elif val is not None:
+                key += list(uvutils._get_iterable(val))
         if len(key) > 3:
             raise ValueError('no more than 3 key values can be passed')
         inds1, inds2, indp = self._key2inds(key)
