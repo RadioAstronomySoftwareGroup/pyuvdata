@@ -211,7 +211,8 @@ jobs:
             git clone git@github.com:HERA-Team/hera_qm.git
             cd hera_qm
             mkdir test-reports
-            nosetests hera_qm -v --with-xunit --xunit-file=test-reports/xunit.xml
+            python -m pytest hera_qm -v --junitxml=test-reports/xunit.xml
+
       - save_cache:
           key: deps-{{ .Branch }}-{{ checksum "ci/hera_qm.yml" }}
           paths:
