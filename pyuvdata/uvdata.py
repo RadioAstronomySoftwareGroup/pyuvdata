@@ -573,7 +573,9 @@ class UVData(UVBase):
     def set_lsts_from_time_array(self):
         """Set the lst_array based from the time_array."""
         latitude, longitude, altitude = self.telescope_location_lat_lon_alt_degrees
-        self.lst_array = uvutils.get_lst_for_time(self.time_array, latitude, longitude, altitude)
+        unique_times, inverse_inds = np.unique(self.time_array, return_inverse=True)
+        unique_lst_array = uvutils.get_lst_for_time(unique_times, latitude, longitude, altitude)
+        self.lst_array = unique_lst_array[inverse_inds]
 
     def unphase_to_drift(self, phase_frame=None, use_ant_pos=False):
         """
