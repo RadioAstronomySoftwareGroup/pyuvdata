@@ -16,6 +16,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 - Testing framework changed from `nose` to `pytest`.
+- `uvdata.set_lsts_from_time_array` only calculates lsts for unique elements in `time_array`.
 
 ## [1.3.8] - 2019-05-01
 
