@@ -16,13 +16,13 @@ from six.moves import map
 
 
 class UVFlag(object):
-    ''' Object to handle flag arrays and waterfalls. Supports reading/writing,
+    """ Object to handle flag arrays and waterfalls. Supports reading/writing,
     and stores all relevant information to combine flags and apply to data.
-    '''
+    """
 
     def __init__(self, input, mode='metric', copy_flags=False, waterfall=False, history='',
                  label=''):
-        '''Initialize UVFlag object. Metadata is copied from input object. If input
+        """Initialize UVFlag object. Metadata is copied from input object. If input
         is subclass of UVData or UVCal, the weights_array will be set to all ones.
         Input lists or tuples are iterated through, treating each entry with an
         individual UVFlag init.
@@ -45,7 +45,7 @@ class UVFlag(object):
             History string to attach to object. Default is empty string.
         label: str, optional
             String used for labeling the object (e.g. 'FM'). Default is empty string.
-        '''
+        """
 
         self.mode = mode.lower()  # Gets overwritten if reading file
         self.history = ''  # Added to at the end
@@ -294,12 +294,12 @@ class UVFlag(object):
                                            compression=data_compression)
 
     def __add__(self, other, inplace=False, axis='time'):
-        '''Add two UVFlag objects together along a given axis.
+        """Add two UVFlag objects together along a given axis.
         Args:
             other: second UVFlag object to concatenate with self.
             inplace: Whether to concatenate to self, or create a new UVFlag object. Default is False.
             axis: Axis along which to combine UVFlag objects. Default is time.
-        '''
+        """
 
         # Handle in place
         if inplace:
@@ -377,11 +377,11 @@ class UVFlag(object):
         return self
 
     def __or__(self, other, inplace=False):
-        '''Combine two UVFlag objects in "flag" mode by "OR"-ing their flags.
+        """Combine two UVFlag objects in "flag" mode by "OR"-ing their flags.
         Args:
             other: second UVFlag object to combine with self.
             inplace: Whether to combine to self, or create a new UVFlag object. Default is False.
-        '''
+        """
         if (self.mode != 'flag') or (other.mode != 'flag'):
             raise ValueError('UVFlag object must be in "flag" mode to use "or" function.')
 
@@ -398,10 +398,10 @@ class UVFlag(object):
             return this
 
     def __ior__(self, other):
-        '''In place or
+        """In place or
         Args:
             other: second UVFlag object to combine with self.
-        '''
+        """
         self.__or__(other, inplace=True)
         return self
 
@@ -425,7 +425,7 @@ class UVFlag(object):
             del(self.flag_array)
 
     def copy(self):
-        ''' Simply return a copy of this object '''
+        """ Simply return a copy of this object """
         return copy.deepcopy(self)
 
     def combine_metrics(self, others, method='quadmean', inplace=True):
@@ -556,7 +556,7 @@ class UVFlag(object):
         self.clear_unused_attributes()
 
     def to_baseline(self, uv, force_pol=False):
-        '''Convert a UVFlag object of type "waterfall" to type "baseline".
+        """Convert a UVFlag object of type "waterfall" to type "baseline".
         Broadcasts the flag array to all baselines.
         This function does NOT apply flags to uv.
         Args:
@@ -565,7 +565,7 @@ class UVFlag(object):
                        Otherwise, will require polarizations match.
                        For example, this keyword is useful if one flags on all
                        pols combined, and wants to broadcast back to individual pols.
-        '''
+        """
         if self.type == 'baseline':
             return
         if not (issubclass(uv.__class__, UVData) or (isinstance(uv, UVFlag) and uv.type == 'baseline')):
@@ -618,7 +618,7 @@ class UVFlag(object):
         self.history += 'Broadcast to type "baseline" with ' + self.pyuvdata_version_str
 
     def to_antenna(self, uv, force_pol=False):
-        '''Convert a UVFlag object of type "waterfall" to type "antenna".
+        """Convert a UVFlag object of type "waterfall" to type "antenna".
         Broadcasts the flag array to all antennas.
         This function does NOT apply flags to uv.
         Args:
@@ -627,7 +627,7 @@ class UVFlag(object):
                        Otherwise, will require polarizations match.
                        For example, this keyword is useful if one flags on all
                        pols combined, and wants to broadcast back to individual pols.
-        '''
+        """
         if self.type == 'antenna':
             return
         if not (issubclass(uv.__class__, UVCal) or (isinstance(uv, UVFlag) and uv.type == 'antenna')):
@@ -673,13 +673,13 @@ class UVFlag(object):
         self.history += 'Broadcast to type "antenna" with ' + self.pyuvdata_version_str
 
     def to_flag(self, threshold=np.inf):
-        '''Convert to flag mode. NOT SMART. Removes metric_array and creates a
+        """Convert to flag mode. NOT SMART. Removes metric_array and creates a
         flag_array from a simple threshold on the metric values.
 
         Args:
             threshold (float): Metric value over which the corresponding flag is
                 set to True. Default is np.inf, which results in flags of all False.
-        '''
+        """
         if self.mode == 'flag':
             return
         elif self.mode == 'metric':
@@ -693,7 +693,7 @@ class UVFlag(object):
         self.clear_unused_attributes()
 
     def to_metric(self, convert_wgts=False):
-        '''Convert to metric mode. NOT SMART. Simply recasts flag_array as float
+        """Convert to metric mode. NOT SMART. Simply recasts flag_array as float
         and uses this as the metric array.
 
         Args:
@@ -703,7 +703,7 @@ class UVFlag(object):
                 flags as metrics to calculate flag fraction. Zero weighting
                 completely flagged rows/columns prevents those from counting
                 against a threshold along the other dimension.
-        '''
+        """
         if self.mode == 'metric':
             return
         elif self.mode == 'flag':
@@ -826,13 +826,13 @@ def and_rows_cols(waterfall):
 
 
 def lst_from_uv(uv):
-    ''' Calculate the lst_array for a UVData or UVCal object.
+    """ Calculate the lst_array for a UVData or UVCal object.
     Args:
         uv: a UVData or UVCal object.
     Returns:
         lst_array: lst_array corresponding to time_array and at telescope location.
                    Units are radian.
-    '''
+    """
     if not isinstance(uv, (UVCal, UVData)):
         raise ValueError('Function lst_from_uv can only operate on '
                          'UVCal or UVData object.')
