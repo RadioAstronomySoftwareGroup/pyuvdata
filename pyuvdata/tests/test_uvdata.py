@@ -3642,3 +3642,17 @@ def test_overlapping_data_add():
     os.remove(uv4_out)
 
     return
+
+
+def test_lsts_from_time_with_only_unique():
+    """Test `set_lsts_from_time_array` with only unique values is identical to full array."""
+    miriad_file = os.path.join(DATA_PATH, 'zen.2456865.60537.xy.uvcRREAA')
+    uv = UVData()
+    uvtest.checkWarnings(uv.read_miriad, [miriad_file],
+                         known_warning='miriad')
+    lat, lon, alt = uv.telescope_location_lat_lon_alt_degrees
+    # calculate the lsts for all elements in time array
+    full_lsts = uvutils.get_lst_for_time(uv.time_array, lat, lon, alt)
+    # use `set_lst_from_time_array` to set the uv.lst_array using only unique values
+    uv.set_lsts_from_time_array()
+    assert np.array_equal(full_lsts, uv.lst_array)
