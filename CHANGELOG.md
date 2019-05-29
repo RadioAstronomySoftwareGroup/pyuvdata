@@ -16,7 +16,6 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 - Testing framework changed from `nose` to `pytest`.
-- Updated `hera_qm` test call on circleci
 
 ## [1.3.8] - 2019-05-01
 
