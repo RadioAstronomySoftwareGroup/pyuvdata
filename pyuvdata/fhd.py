@@ -233,15 +233,19 @@ class FHD(UVData):
                                     self.Npols), dtype=np.bool_)
         for pol, vis in vis_data.items():
             pol_i = pol_list.index(linear_pol_dict[pol])
-            self.data_array[:, 0, :, pol_i] = vis
+            # FHD follows the FITS uvw direction convention, which is opposite ours and Miriad's.
+            # So conjugate the visibilities and flip the uvws:
+            self.data_array[:, 0, :, pol_i] = np.conj(vis)
             self.flag_array[:, 0, :, pol_i] = vis_weights_data[pol] <= 0
             self.nsample_array[:, 0, :, pol_i] = np.abs(vis_weights_data[pol])
 
-        # In FHD, uvws are in seconds not meters!
+        # In FHD, uvws are in seconds not meters.
+        # FHD follows the FITS uvw direction convention, which is opposite ours and Miriad's.
+        # So conjugate the visibilities and flip the uvws:
         self.uvw_array = np.zeros((self.Nblts, 3))
-        self.uvw_array[:, 0] = params['UU'][0] * const.c.to('m/s').value
-        self.uvw_array[:, 1] = params['VV'][0] * const.c.to('m/s').value
-        self.uvw_array[:, 2] = params['WW'][0] * const.c.to('m/s').value
+        self.uvw_array[:, 0] = (-1) * params['UU'][0] * const.c.to('m/s').value
+        self.uvw_array[:, 1] = (-1) * params['VV'][0] * const.c.to('m/s').value
+        self.uvw_array[:, 2] = (-1) * params['WW'][0] * const.c.to('m/s').value
 
         # bl_info.JDATE (a vector of length Ntimes) is the only safe date/time
         # to use in FHD files.
