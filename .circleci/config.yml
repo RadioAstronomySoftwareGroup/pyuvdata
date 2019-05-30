@@ -168,7 +168,7 @@ jobs:
             git clone git@github.com:HERA-Team/hera_cal.git
             cd hera_cal
             mkdir test-reports
-            nosetests hera_cal -v --with-xunit --xunit-file=test-reports/xunit.xml
+            python -m pytest hera_cal -v --junitxml=test-reports/xunit.xml
       - save_cache:
           key: deps-{{ .Branch }}-{{ checksum "ci/hera_cal.yml" }}
           paths:
