@@ -13,6 +13,7 @@ dependencies:
   - nose
   - numpy
   - pandas
+  - pyyaml
   - scikit-learn
   - scipy
   - six
