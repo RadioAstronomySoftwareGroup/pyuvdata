@@ -9,6 +9,7 @@ dependencies:
   - h5py
   - healpy
   - matplotlib
+  - mpi4py
   - nose
   - numpy
   - pandas
