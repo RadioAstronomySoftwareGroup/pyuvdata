@@ -3374,6 +3374,33 @@ def test_set_uvws_from_antenna_pos():
     assert np.isclose(max_diff, 0., atol=2)
 
 
+def test_get_antenna_redundancies():
+    uv0 = UVData()
+    uv0.read_uvfits(os.path.join(DATA_PATH, 'fewant_randsrc_airybeam_Nsrc100_10MHz.uvfits'))
+
+    red_gps, centers, lengths = uv0.get_antenna_redundancies(include_autos=False,
+                                                             conjugate_bls=True)
+
+    # assert all baselines are in the data (because it's conjugated to match)
+    for i, gp in enumerate(red_gps):
+        for bl in gp:
+            assert bl in uv0.baseline_array
+    old_bl_array = np.copy(uv0.baseline_array)
+
+    # conjugate data differently
+    uv0.conjugate_bls(convention='ant1<ant2')
+    new_red_gps, new_centers, new_lengths = uv0.get_antenna_redundancies(
+        include_autos=False)
+
+    # new and old baseline Numbers are not the same (different conjugation)
+    assert not np.allclose(uv0.baseline_array, old_bl_array)
+
+    # all redundancy info is the same
+    assert red_gps == new_red_gps
+    assert np.allclose(centers, new_centers)
+    assert np.allclose(lengths, new_lengths)
+
+
 def test_redundancy_contract_expand():
     # Test that a UVData object can be reduced to one baseline from each redundant group
     # and restored to its original form.
@@ -3384,10 +3411,7 @@ def test_redundancy_contract_expand():
     tol = 0.02   # Fails at lower precision because some baselines falling into multiple redundant groups
 
     # Assign identical data to each redundant group:
-    uvtest.checkWarnings(uv0.conjugate_bls, func_kwargs={'convention': 'u>0', 'use_enu': True},
-                         message=['The default for the `center`'],
-                         nwarnings=1, category=DeprecationWarning)
-    red_gps, centers, lengths = uv0.get_antenna_redundancies(tol=tol)
+    red_gps, centers, lengths = uv0.get_antenna_redundancies(tol=tol, conjugate_bls=True)
     for i, gp in enumerate(red_gps):
         for bl in gp:
             inds = np.where(bl == uv0.baseline_array)
@@ -3435,16 +3459,69 @@ def test_redundancy_contract_expand():
     assert uv2 == uv3
 
 
+def test_redundancy_contract_expand_nblts_not_nbls_times_ntimes():
+    uv0 = UVData()
+    testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    uvtest.checkWarnings(uv0.read_uvfits, [testfile], message='Telescope EVLA is not')
+
+    # check that Nblts != Nbls * Ntimes
+    assert uv0.Nblts != uv0.Nbls * uv0.Ntimes
+
+    tol = 1.0
+
+    # Assign identical data to each redundant group:
+    red_gps, centers, lengths = uv0.get_antenna_redundancies(tol=tol,
+                                                             conjugate_bls=True)
+    for i, gp in enumerate(red_gps):
+        for bl in gp:
+            inds = np.where(bl == uv0.baseline_array)
+            uv0.data_array[inds, ...] *= 0
+            uv0.data_array[inds, ...] += complex(i)
+
+    uv2 = uv0.compress_by_redundancy(tol=tol, inplace=False)
+
+    # check inflating gets back to the original
+    uvtest.checkWarnings(uv2.inflate_by_redundancy, {tol: tol},
+                         nwarnings=2, category=[DeprecationWarning, UserWarning],
+                         message=['The default for the `center` keyword has changed.',
+                                  'Missing some redundant groups. Filling in available data.'])
+
+    uv2.history = uv0.history
+    # Inflation changes the baseline ordering into the order of the redundant groups.
+    # reorder bls for comparison
+    uv0.reorder_blts()
+    uv2.reorder_blts()
+    uv2._uvw_array.tols = [0, tol]
+
+    blt_inds = []
+    missing_inds = []
+    for bl, t in zip(uv0.baseline_array, uv0.time_array):
+        antpair = uv2.baseline_to_antnums(bl)
+        if (bl, t) in zip(uv2.baseline_array, uv2.time_array):
+            this_ind = np.where((uv2.baseline_array == bl) & (uv2.time_array == t))[0]
+            blt_inds.append(this_ind[0])
+        else:
+            # this is missing because of the compress_by_redundancy step
+            missing_inds.append(np.where((uv0.baseline_array == bl) & (uv0.time_array == t))[0])
+
+    uv3 = uv2.select(blt_inds=blt_inds, inplace=False)
+
+    orig_inds_keep = list(np.arange(uv0.Nblts))
+    for ind in missing_inds:
+        orig_inds_keep.remove(ind)
+    uv1 = uv0.select(blt_inds=orig_inds_keep, inplace=False)
+
+    assert uv3 == uv1
+
+
 def test_compress_redundancy_metadata_only():
     uv0 = UVData()
     uv0.read_uvfits(os.path.join(DATA_PATH, 'fewant_randsrc_airybeam_Nsrc100_10MHz.uvfits'))
     tol = 0.01
 
     # Assign identical data to each redundant group:
-    uvtest.checkWarnings(uv0.conjugate_bls, func_kwargs={'convention': 'u>0', 'use_enu': True},
-                         message=['The default for the `center`'],
-                         nwarnings=1, category=DeprecationWarning)
-    red_gps, centers, lengths = uv0.get_antenna_redundancies(tol=tol)
+    red_gps, centers, lengths = uv0.get_antenna_redundancies(tol=tol,
+                                                             conjugate_bls=True)
     for i, gp in enumerate(red_gps):
         for bl in gp:
             inds = np.where(bl == uv0.baseline_array)

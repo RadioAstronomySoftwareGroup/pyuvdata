@@ -465,8 +465,8 @@ def test_deprecated_funcs():
 
 def test_redundancy_finder():
     """
-        Check that get_baseline_redundancies and get_antenna_redundancies return consistent
-        redundant groups for a test file with the HERA19 layout.
+    Check that get_baseline_redundancies and get_antenna_redundancies return consistent
+    redundant groups for a test file with the HERA19 layout.
     """
     uvd = pyuvdata.UVData()
     uvd.read_uvfits(os.path.join(DATA_PATH, 'fewant_randsrc_airybeam_Nsrc100_10MHz.uvfits'))
@@ -481,38 +481,48 @@ def test_redundancy_finder():
 
     bl_positions = uvd.uvw_array
 
-    pytest.raises(ValueError, uvutils.get_baseline_redundancies, uvd.baseline_array, bl_positions[0:2, 0:1])
-    baseline_groups, vec_bin_centers, lens = uvutils.get_baseline_redundancies(uvd.baseline_array, bl_positions, tol=tol)
+    pytest.raises(ValueError, uvutils.get_baseline_redundancies,
+                  uvd.baseline_array, bl_positions[0:2, 0:1])
+    baseline_groups, vec_bin_centers, lens = uvutils.get_baseline_redundancies(
+        uvd.baseline_array, bl_positions, tol=tol)
 
-    baseline_groups, vec_bin_centers, lens = uvutils.get_baseline_redundancies(uvd.baseline_array, bl_positions, tol=tol)
+    baseline_groups, vec_bin_centers, lens = uvutils.get_baseline_redundancies(
+        uvd.baseline_array, bl_positions, tol=tol)
 
     for gi, gp in enumerate(baseline_groups):
         for bl in gp:
             bl_ind = np.where(uvd.baseline_array == bl)
             bl_vec = bl_positions[bl_ind]
-            assert np.allclose(np.sqrt(np.dot(bl_vec, vec_bin_centers[gi])), lens[gi], atol=tol)
+            assert np.allclose(np.sqrt(np.dot(bl_vec, vec_bin_centers[gi])),
+                               lens[gi], atol=tol)
 
-    # Shift the baselines around in a circle. Check that the same baselines are recovered to the corresponding tolerance increase.
-    # This moves one baseline at a time by a fixed displacement and checks that the redundant groups are the same.
+    # Shift the baselines around in a circle. Check that the same baselines are
+    # recovered to the corresponding tolerance increase.
+    # This moves one baseline at a time by a fixed displacement and checks that
+    # the redundant groups are the same.
 
     hightol = 0.25  # meters. Less than the smallest baseline in the file.
     Nbls = uvd.Nbls
     Nshifts = 5
     shift_angs = np.linspace(0, 2 * np.pi, Nshifts)
-    base_shifts = np.stack(((hightol - tol) * np.cos(shift_angs), (hightol - tol) * np.sin(shift_angs), np.zeros(Nshifts))).T
+    base_shifts = np.stack(((hightol - tol) * np.cos(shift_angs),
+                            (hightol - tol) * np.sin(shift_angs),
+                            np.zeros(Nshifts))).T
     for sh in base_shifts:
         for bi in range(Nbls):
             # Shift one baseline at a time.
             bl_positions_new = uvd.uvw_array
             bl_positions_new[bi] += sh
 
-            baseline_groups_new, vec_bin_centers, lens = uvutils.get_baseline_redundancies(uvd.baseline_array, bl_positions_new, tol=hightol)
+            baseline_groups_new, vec_bin_centers, lens = uvutils.get_baseline_redundancies(
+                uvd.baseline_array, bl_positions_new, tol=hightol)
 
             for gi, gp in enumerate(baseline_groups_new):
                 for bl in gp:
                     bl_ind = np.where(uvd.baseline_array == bl)
                     bl_vec = bl_positions[bl_ind]
-                    assert np.allclose(np.sqrt(np.abs(np.dot(bl_vec, vec_bin_centers[gi]))), lens[gi], atol=hightol)
+                    assert np.allclose(np.sqrt(np.abs(np.dot(bl_vec, vec_bin_centers[gi]))),
+                                       lens[gi], atol=hightol)
 
             # Compare baseline groups:
             a = [tuple(el) for el in baseline_groups]
@@ -521,22 +531,27 @@ def test_redundancy_finder():
 
     tol = 0.05
 
-    antpos, antnums = uvtest.checkWarnings(uvd.get_ENU_antpos, message=['The default for the `center`'],
+    antpos, antnums = uvtest.checkWarnings(uvd.get_ENU_antpos,
+                                           message=['The default for the `center`'],
                                            category=DeprecationWarning,
                                            nwarnings=1)
 
-    baseline_groups_ants, vec_bin_centers, lens = uvutils.get_antenna_redundancies(antnums, antpos, tol=tol, include_autos=False)
+    baseline_groups_ants, vec_bin_centers, lens = uvutils.get_antenna_redundancies(
+        antnums, antpos, tol=tol, include_autos=False)
     # Under these conditions, should see 19 redundant groups in the file.
     assert len(baseline_groups_ants) == 19
 
     # Check with conjugated baseline redundancies returned
     u16_0 = bl_positions[16, 0]
-    bl_positions[16, 0] = 0                 # Ensure at least one baseline has u==0 and v!=0 (for coverage of this case)
-    baseline_groups, vec_bin_centers, lens, conjugates = uvutils.get_baseline_redundancies(uvd.baseline_array, bl_positions, tol=tol, with_conjugates=True)
+    # Ensure at least one baseline has u==0 and v!=0 (for coverage of this case)
+    bl_positions[16, 0] = 0
+    baseline_groups, vec_bin_centers, lens, conjugates = uvutils.get_baseline_redundancies(
+        uvd.baseline_array, bl_positions, tol=tol, with_conjugates=True)
 
     # restore baseline (16,0) and repeat to get correct groups
     bl_positions[16, 0] = u16_0
-    baseline_groups, vec_bin_centers, lens, conjugates = uvutils.get_baseline_redundancies(uvd.baseline_array, bl_positions, tol=tol, with_conjugates=True)
+    baseline_groups, vec_bin_centers, lens, conjugates = uvutils.get_baseline_redundancies(
+        uvd.baseline_array, bl_positions, tol=tol, with_conjugates=True)
 
     # Should get the same groups as with the antenna method:
     baseline_groups_flipped = []
@@ -558,7 +573,8 @@ def test_redundancy_finder():
             bl_vec = bl_positions[bl_ind]
             if bl in conjugates:
                 bl_vec *= (-1)
-            assert np.isclose(np.sqrt(np.dot(bl_vec, vec_bin_centers[gi])), lens[gi], atol=tol)
+            assert np.isclose(np.sqrt(np.dot(bl_vec, vec_bin_centers[gi])),
+                              lens[gi], atol=tol)
 
 
 def test_redundancy_conjugates():
@@ -580,7 +596,8 @@ def test_redundancy_conjugates():
     for i, (u, v, w) in enumerate(bl_vecs):
         if (u < 0) or (v < 0 and u == 0) or (w < 0 and u == v == 0):
             expected_conjugates.append(bl_inds[i])
-    bl_gps, vecs, lens, conjugates = uvutils.get_baseline_redundancies(bl_inds, bl_vecs, tol=tol, with_conjugates=True)
+    bl_gps, vecs, lens, conjugates = uvutils.get_baseline_redundancies(
+        bl_inds, bl_vecs, tol=tol, with_conjugates=True)
 
     assert sorted(conjugates) == sorted(expected_conjugates)
 
@@ -594,7 +611,8 @@ def test_redundancy_finder_fully_redundant_array():
     tol = 1  # meters
     bl_positions = uvd.uvw_array
 
-    baseline_groups, vec_bin_centers, lens, conjugates = uvutils.get_baseline_redundancies(uvd.baseline_array, bl_positions, tol=tol, with_conjugates=True)
+    baseline_groups, vec_bin_centers, lens, conjugates = uvutils.get_baseline_redundancies(
+        uvd.baseline_array, bl_positions, tol=tol, with_conjugates=True)
 
     # Only 1 set of redundant baselines
     assert len(baseline_groups) == 1
