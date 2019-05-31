@@ -956,24 +956,34 @@ def antnums_to_baseline(ant1, ant2, Nants_telescope, attempt256=False):
         return np.int64(baseline)
 
 
-def get_baseline_redundancies(baseline_inds, baseline_vecs, tol=1.0, with_conjugates=False):
+def get_baseline_redundancies(baselines, baseline_vecs, tol=1.0, with_conjugates=False):
     """
-    Return redundant baseline groups, and lists of corresponding lengths and vectors
+    Find redundant baseline groups
 
-    Args:
-        baseline_inds = Baseline indices.  (Nbls,), (int)
-        baseline_vecs = Baseline vectors in meters. (Nbls, 3), (float)
-        tol  = Absolute tolerance of redundancy, in meters. (float)
-        with_conjugates = Include baselines that are redundant when flipped.
+    Parameters
+    ----------
+    baselines : array_like of int
+        Baseline numbers, shape (Nbls,)
+    baseline_vecs : array_like of float
+        Baseline vectors in meters, shape shape (Nbls, 3)
+    tol : float
+        Absolute tolerance of redundancy, in meters.
+    with_conjugates : bool
+        Option to include baselines that are redundant when flipped.
 
-    Returns:
-        baseline_groups: list of lists of redundant baseline indices
-        vec_bin_centers: List of vectors describing redundant group centers
-        lengths: List of redundant group baseline lengths in meters
-        baseline_ind_conj: List of baselines that are redundant when reversed. (Only returned if with_conjugates is True)
-
+    Returns
+    -------
+    baseline_groups : list of lists of int
+        list of lists of redundant baseline numbers
+    vec_bin_centers : list of array_like of float
+        List of vectors describing redundant group centers
+    lengths : list of float
+        List of redundant group baseline lengths in meters
+    baseline_ind_conj : list of int
+        List of baselines that are redundant when reversed. Only returned if
+        with_conjugates is True
     """
-    Nbls = baseline_inds.shape[0]
+    Nbls = baselines.shape[0]
 
     if not baseline_vecs.shape == (Nbls, 3):
         raise ValueError("Baseline vectors must be shape (Nbls, 3)")
@@ -992,8 +1002,8 @@ def get_baseline_redundancies(baseline_inds, baseline_vecs, tol=1.0, with_conjug
                 conjugates.append(bl[0] < 0)
         conjugates = np.array(conjugates, dtype=bool)
         baseline_vecs[conjugates] *= (-1)
-        baseline_ind_conj = baseline_inds[conjugates]
-        bl_gps, vec_bin_centers, lens = get_baseline_redundancies(baseline_inds, baseline_vecs, tol=tol, with_conjugates=False)
+        baseline_ind_conj = baselines[conjugates]
+        bl_gps, vec_bin_centers, lens = get_baseline_redundancies(baselines, baseline_vecs, tol=tol, with_conjugates=False)
         return bl_gps, vec_bin_centers, lens, baseline_ind_conj
 
     # For each baseline, list all others that are within the tolerance distance.
@@ -1001,12 +1011,12 @@ def get_baseline_redundancies(baseline_inds, baseline_vecs, tol=1.0, with_conjug
     adj = {}   # Adjacency dictionary
 
     for bi, bv0 in enumerate(baseline_vecs):
-        key0 = baseline_inds[bi]
+        key0 = baselines[bi]
         adj[key0] = []
         for bj, bv1 in enumerate(baseline_vecs):
             dist = np.linalg.norm(bv1 - bv0)
             if dist < tol:
-                key1 = baseline_inds[bj]
+                key1 = baselines[bj]
                 adj[key0].append(key1)
 
     # The adjacency list defines a set of graph edges.
@@ -1036,7 +1046,7 @@ def get_baseline_redundancies(baseline_inds, baseline_vecs, tol=1.0, with_conjug
     N_unique = len(bl_gps)
     vec_bin_centers = np.zeros((N_unique, 3))
     for gi, gp in enumerate(bl_gps):
-        inds = [np.where(i == baseline_inds)[0] for i in gp]
+        inds = [np.where(i == baselines)[0] for i in gp]
         vec_bin_centers[gi] = np.mean(baseline_vecs[inds, :], axis=0)
 
     lens = np.sqrt(np.sum(vec_bin_centers**2, axis=1))
@@ -1046,22 +1056,33 @@ def get_baseline_redundancies(baseline_inds, baseline_vecs, tol=1.0, with_conjug
 
 def get_antenna_redundancies(antenna_numbers, antenna_positions, tol=1.0, include_autos=False):
     """
-    Construct baselines from antenna positions and get baseline redundancies.
+    Find redundant baseline groups based on antenna positions.
 
-    Args:
-        antenna_numbers:  Antenna numbers.   (float), shape (Nants,)
-        antenna_positions:  Antenna position vectors in meters. Cartesian frame  (float), shape (Nants, 3)
-        tol = (float)   Redundancy tolerance in meters. (float)
-        include_autos =  Include autocorrelations (bool). Default is false
+    Include all possible redundant baselines based on antenna positions.
 
-    Returns:
-        baseline_groups: list of lists of redundant baseline indices
-        vec_bin_centers: List of vectors describing redundant group centers
-        lengths: List of redundant group baseline lengths in meters
+    Parameters
+    ----------
+    antenna_numbers : array_like of int
+        Antenna numbers, shape (Nants,).
+    antenna_positions : array_like of float
+        Antenna position vectors in the ENU (topocentric) frame in meters, shape (Nants, 3).
+    tol : float
+        Redundancy tolerance in meters.
+    include_autos : bool
+        Option to include autocorrelations.
+
+    Returns
+    -------
+    baseline_groups : list of lists of int
+        list of lists of redundant baseline numbers
+    vec_bin_centers : list of array_like of float
+        List of vectors describing redundant group centers
+    lengths : list of float
+        List of redundant group baseline lengths in meters
     """
     Nants = antenna_numbers.shape[0]
 
-    bl_inds = []
+    bls = []
     bl_vecs = []
 
     for aj in range(Nants):
@@ -1078,10 +1099,10 @@ def get_antenna_redundancies(antenna_numbers, antenna_positions, tol=1.0, includ
                 bv *= (-1)
                 bidx = antnums_to_baseline(antj, anti, Nants)
             bl_vecs.append(bv)
-            bl_inds.append(bidx)
-    bl_inds = np.array(bl_inds)
+            bls.append(bidx)
+    bls = np.array(bls)
     bl_vecs = np.array(bl_vecs)
-    return get_baseline_redundancies(bl_inds, bl_vecs, tol=tol, with_conjugates=False)
+    return get_baseline_redundancies(bls, bl_vecs, tol=tol, with_conjugates=False)
 
 
 def _reraise_context(fmt, *args):

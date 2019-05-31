@@ -3783,25 +3783,36 @@ class UVData(UVBase):
         """
         return np.diff(np.sort(list(set(self.time_array))))[0] * 86400
 
-    def get_antenna_redundancies(self, tol=1.0, include_autos=True):
+    def get_antenna_redundancies(self, tol=1.0, include_autos=True,
+                                 conjugate_bls=False):
         """
         Convenience method for getting baseline redundancies to a given tolerance
         from antenna positions.
 
-        Note that the baseline numbers returned will only correspond with those
-        in the baseline_array under the u-positive convention. Use the conjugate_bls
-        method with convention='u>0' to flip all baselines in the UVData object
-        to follow this.
+        Returns all possible baselines (antenna pairs) not just those with data.
 
         Args:
             tol: Redundancy tolerance in meters (default 1m)
             include_autos: Include autocorrelations in the full redundancy list (default True)
+            conjugate_bls: Option to conjugate baselines on this object to the
+                'u>0' convention. Set this to True to ensure that the returned
+                baseline numbers will match the baseline numbers in the data
+                (if they exist in the data).
 
         Returns:
-            baseline_groups: list of lists of redundant baseline indices
+            baseline_groups: list of lists of redundant baseline numbers
             vec_bin_centers: List of vectors describing redundant group centers
             lengths: List of redundant group baseline lengths in meters
+
+        Notes
+        -----
+        Note that this method finds all possible redundant baselines in the 'u>0'
+        part of the uv plane. In order for the returned baseline numbers to match
+        baselines in this object, this method will conjugate baselines on this
+        object to the 'u>0' convention unless `no_conjugate` is set to True.
         """
+        if conjugate_bls:
+            self.conjugate_bls(convention='u>0')
         antpos, numbers = self.get_ENU_antpos(center=False)
         return uvutils.get_antenna_redundancies(numbers, antpos, tol=tol, include_autos=include_autos)
 
@@ -3813,7 +3824,7 @@ class UVData(UVBase):
             tol: Redundancy tolerance in meters (default 1m)
 
         Returns:
-            baseline_groups: list of lists of redundant baseline indices
+            baseline_groups: list of lists of redundant baseline numbers
             vec_bin_centers: List of vectors describing redundant group centers
             lengths: List of redundant group baseline lengths in meters
             baseline_ind_conj: List of baselines that are redundant when reversed. (Only returned if with_conjugates is True)
@@ -3821,9 +3832,9 @@ class UVData(UVBase):
         _, unique_inds = np.unique(self.baseline_array, return_index=True)
         unique_inds.sort()
         baseline_vecs = np.take(self.uvw_array, unique_inds, axis=0)
-        baseline_inds = np.take(self.baseline_array, unique_inds)
+        baselines = np.take(self.baseline_array, unique_inds)
 
-        return uvutils.get_baseline_redundancies(baseline_inds, baseline_vecs, tol=tol, with_conjugates=True)
+        return uvutils.get_baseline_redundancies(baselines, baseline_vecs, tol=tol, with_conjugates=True)
 
     def compress_by_redundancy(self, tol=1.0, inplace=True, metadata_only=False,
                                keep_all_metadata=True):
@@ -3847,63 +3858,77 @@ class UVData(UVBase):
         return self.select(bls=bl_ants, inplace=inplace, metadata_only=metadata_only,
                            keep_all_metadata=keep_all_metadata)
 
-    def inflate_by_redundancy(self, tol=1.0):
+    def inflate_by_redundancy(self, tol=1.0, blt_order='time', blt_minor_order=None):
         """
         Expand data to full size, copying data among redundant baselines.
 
+        Note that this method conjugates baselines to the 'u>0' convention in order
+        to inflate the redundancies.
+
         Args:
             tol = Redundancy tolerance in meters (default 1.0m)
+            blt_order : str
+                string specifying primary order along the blt axis (see `reorder_blts`)
+            blt_minor_order : str
+                string specifying minor order along the blt axis (see `reorder_blts`)
         """
 
-        # get_antenna_redundancies method gives baselines under the u-positive
-        # convention (u>0, v>0 if u==0, w>0 if u==v==0)
-        self.conjugate_bls(convention='u>0', use_enu=True)
-
-        red_gps, centers, lengths = self.get_antenna_redundancies(tol=tol)
+        red_gps, centers, lengths = self.get_antenna_redundancies(tol=tol,
+                                                                  conjugate_bls=True)
 
         # Stack redundant groups into one array.
         group_index, bl_array_full = zip(*[(i, bl) for i, gp in enumerate(red_gps) for bl in gp])
 
+        # TODO should be an assert that each baseline only ends up in one group
+
         # Map group index to blt indices in the compressed array.
         bl_array_comp = self.baseline_array
-        uniq_bl, bl_inv = np.unique(bl_array_comp, return_inverse=True)
+        uniq_bl = np.unique(bl_array_comp)
 
         group_blti = {}
+        Nblts_full = 0
         for i, gp in enumerate(red_gps):
             for bl in gp:
                 # First baseline in the group that is also in the compressed baseline array.
                 if bl in uniq_bl:
                     group_blti[i] = np.where(bl == bl_array_comp)[0]
+                    # add number of blts for this group
+                    Nblts_full += group_blti[i].size * len(gp)
                     break
 
-        Nbls_full = len(bl_array_full)
-        blt_map = np.zeros(Nbls_full * self.Ntimes, dtype=int)
-        missing = np.zeros(Nbls_full * self.Ntimes).astype(bool)
-        for i, gi in enumerate(group_index):
+        blt_map = np.zeros(Nblts_full, dtype=int)
+        full_baselines = np.zeros(Nblts_full, dtype=int)
+        missing = []
+        counter = 0
+        for bl, gi in zip(bl_array_full, group_index):
             try:
-                blt_map[i::Nbls_full] = group_blti[gi]
+                # this makes the time the fastest axis
+                blt_map[counter:counter + group_blti[gi].size] = group_blti[gi]
+                full_baselines[counter:counter + group_blti[gi].size] = bl
+                counter += group_blti[gi].size
             except KeyError:
-                missing[i::Nbls_full] = True
+                missing.append(bl)
                 pass
+
         if np.any(missing):
             warnings.warn("Missing some redundant groups. Filling in available data.")
-            blt_map = blt_map[~missing]
-            bl_array_full = np.array(bl_array_full)[~missing[:Nbls_full]]
 
         # blt_map is an index array mapping compressed blti indices to uncompressed
         self.data_array = self.data_array[blt_map, ...]
         self.nsample_array = self.nsample_array[blt_map, ...]
         self.flag_array = self.flag_array[blt_map, ...]
 
-        self.baseline_array = np.tile(bl_array_full, self.Ntimes)
-        self.ant_1_array, self.ant_2_array = self.baseline_to_antnums(self.baseline_array)
-        if np.any(missing):
-            self.Nants_data = np.unique(self.ant_1_array.tolist() + self.ant_2_array.tolist()).size
-        self.Nbls = len(bl_array_full)
-        self.Nblts = self.Nbls * self.Ntimes
         self.time_array = self.time_array[blt_map]
         self.lst_array = self.lst_array[blt_map]
         self.integration_time = self.integration_time[blt_map]
         self.uvw_array = self.uvw_array[blt_map, ...]
+
+        self.baseline_array = full_baselines
+        self.ant_1_array, self.ant_2_array = self.baseline_to_antnums(self.baseline_array)
+        self.Nants_data = np.unique(self.ant_1_array.tolist() + self.ant_2_array.tolist()).size
+        self.Nbls = np.unique(self.baseline_array).size
+        self.Nblts = Nblts_full
+
+        self.reorder_blts(order=blt_order, minor_order=blt_minor_order)
 
         self.check()
