@@ -952,11 +952,32 @@ UVData: Working with Redundant Baselines
 
 a) Finding Redundant Baselines
 ******************************
-pyuvdata.utils contains functions for finding redundant groups of baselines in an array, either by antenna positions or uvw coordinates. Baselines are considered redundant if they are within a specified tolerance distance (default is 1 meter).
+:mod:`utils` contains functions for finding redundant groups of baselines in
+an array, either by antenna positions or uvw coordinates. Baselines are
+considered redundant if they are within a specified tolerance distance (default is 1 meter).
 
-The ``get_baseline_redundancies`` function accepts an array of baseline indices and an array of baseline vectors (ie, uvw coordinates) as input, and finds redundancies among the vectors as given. If the ``with_conjugates`` option is selected, it will flip baselines such that ``u > 0``, or ``v > 0 if u = 0``, or ``w > 0 if u = v = 0``. In this case, a list of ``conjugates`` is returned as well, which contains indices for the baselines that were flipped for the redundant groups. In either mode of operation, this will only return baseline indices that are in the list passed in.
+The :func:`utils.get_baseline_redundancies` function accepts an array of baseline indices
+and an array of baseline vectors (ie, uvw coordinates) as input, and finds
+redundancies among the vectors as given. If the ``with_conjugates`` option is
+selected, it will flip baselines such that ``u > 0``, or ``v > 0 if u = 0``, or
+``w > 0 if u = v = 0``. In this case, a list of ``conjugates`` is returned as well,
+which contains indices for the baselines that were flipped for the redundant groups.
+In either mode of operation, this will only return baseline indices that are in the list passed in.
 
-The ``get_antenna_redundancies`` function accepts an array of antenna indices and an array of antenna positions as input, defines baseline vectors and indices under the positive-u condition described above, and runs ``get_baseline_redundancies`` to find redundant baselines. This is similar to running get_baseline_redundancies with the ``with_conjugates`` option, except that the baseline indices are returned such that none need to be flipped to be redundant. This is more like what's defined in the ``hera_cal`` package.
+The :func:`utils.get_antenna_redundancies` function accepts an array of
+antenna indices and an array of antenna positions as input, defines baseline vectors
+and indices under the positive-u condition described above, and runs
+:func:`utils.get_baseline_redundancies` to find redundant baselines.
+This is similar to running get_baseline_redundancies with the `with_conjugates`
+option, except that the baseline indices are returned such that none need to be
+flipped to be redundant. This is more like what's defined in the `hera_cal` package.
+
+There are also corresponding methods on :class:`~pyuvdata.UVData` with a few
+conveniences. :meth:`~pyuvdata.UVData.get_baseline_redundancies` passes the baselines
+that have data. :meth:`~pyuvdata.UVData.get_antenna_redundancies` has a convenience
+option `conjugate_bls`, which can be set to True to conjugate the UVData object
+to follow the positive-u condition so that the baselines on the object will match
+the baseline numbers returned by the method.
 
 ::
 
@@ -995,7 +1016,13 @@ The ``get_antenna_redundancies`` function accepts an array of antenna indices an
 
 b) Compressing/inflating on Redundant Baselines
 ***********************************************
-Since redundant baselines should have similar visibilities, some level of data compression can be achieved by only keeping one out of a set of redundant baselines. The function ``compress_by_redundancies`` will find groups of baselines that are redundant to a given tolerance, choose one baseline from each group, and use the ``select`` function to choose those baselines only. This action is (almost) inverted by the ``inflate_by_redundancies`` function, which finds all possible baselines from the antenna positions and fills in the full data array based on redundancy.
+Since redundant baselines should have similar visibilities, some level of data
+compression can be achieved by only keeping one out of a set of redundant baselines.
+The function ``compress_by_redundancies`` will find groups of baselines that are
+redundant to a given tolerance, choose one baseline from each group, and use the
+``select`` function to choose those baselines only. This action is (almost)
+inverted by the ``inflate_by_redundancies`` function, which finds all possible
+baselines from the antenna positions and fills in the full data array based on redundancy.
 
 ::
 
@@ -1007,16 +1034,17 @@ Since redundant baselines should have similar visibilities, some level of data c
     >>> tol = 0.02   # In meters
 
     # Compression can be run in-place or return a separate UVData object.
-    >>> uv2 = uv0.compress_by_redundancy(tol=tol, inplace=False)
     >>> uv_backup = copy.deepcopy(uv0)
+    >>> uv2 = uv0.compress_by_redundancy(tol=tol, inplace=False)
     >>> uv0.compress_by_redundancy(tol=tol)
     >>> uv2 == uv0
     True
 
-    # Note -- Compressing and inflating changes the baseline order, so the inflated object may be different.
+    # Note -- Compressing and inflating changes the baseline order, reorder before comparing.
     >>> uv0.inflate_by_redundancy(tol=tol)
+    >>> uv_backup.reorder_blts()
     >>> np.all(uv0.baseline_array == uv_backup.baseline_array)
-    False
+    True
 
     >>> uv2.inflate_by_redundancy(tol=tol)
     >>> uv2 == uv0
