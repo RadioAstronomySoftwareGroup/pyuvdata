@@ -1018,10 +1018,10 @@ b) Compressing/inflating on Redundant Baselines
 ***********************************************
 Since redundant baselines should have similar visibilities, some level of data
 compression can be achieved by only keeping one out of a set of redundant baselines.
-The function ``compress_by_redundancies`` will find groups of baselines that are
+The :meth:`~pyuvdata.UVData.compress_by_redundancy` method will find groups of baselines that are
 redundant to a given tolerance, choose one baseline from each group, and use the
-``select`` function to choose those baselines only. This action is (almost)
-inverted by the ``inflate_by_redundancies`` function, which finds all possible
+:meth:`~pyuvdata.UVData.select` method to choose those baselines only. This action is (almost)
+inverted by the :meth:`~pyuvdata.UVData.inflate_by_redundancy` method, which finds all possible
 baselines from the antenna positions and fills in the full data array based on redundancy.
 
 ::
