@@ -4496,9 +4496,8 @@ class UVData(UVBase):
         red_gps, centers, lengths = self.get_antenna_redundancies(tol=tol,
                                                                   conjugate_bls=True)
 
-        # get_antenna_redundancies method gives baselines under the u-positive
-        # convention (u>0, v>0 if u==0, w>0 if u==v==0)
-        self.conjugate_bls(convention='u>0', use_enu=True)
+        # Stack redundant groups into one array.
+        group_index, bl_array_full = zip(*[(i, bl) for i, gp in enumerate(red_gps) for bl in gp])
 
         # TODO should be an assert that each baseline only ends up in one group
 
