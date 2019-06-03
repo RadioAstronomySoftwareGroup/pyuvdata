@@ -56,6 +56,9 @@ extensions = [
 # set this to properly handle multiple input params with the same type/shape
 napoleon_use_param = False
 
+# set this to handle returns section more uniformly
+napoleon_use_rtype = False
+
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
 
