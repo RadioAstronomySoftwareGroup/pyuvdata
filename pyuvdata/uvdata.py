@@ -4438,9 +4438,9 @@ class UVData(UVBase):
         _, unique_inds = np.unique(self.baseline_array, return_index=True)
         unique_inds.sort()
         baseline_vecs = np.take(self.uvw_array, unique_inds, axis=0)
-        baseline_inds = np.take(self.baseline_array, unique_inds)
+        baselines = np.take(self.baseline_array, unique_inds)
 
-        return uvutils.get_baseline_redundancies(baseline_inds, baseline_vecs,
+        return uvutils.get_baseline_redundancies(baselines, baseline_vecs,
                                                  tol=tol, with_conjugates=True)
 
     def compress_by_redundancy(self, tol=1.0, inplace=True, metadata_only=False,
