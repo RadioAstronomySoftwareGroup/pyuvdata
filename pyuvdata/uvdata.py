@@ -4375,7 +4375,8 @@ class UVData(UVBase):
         # seconds, so we need to convert.
         return np.diff(np.sort(list(set(self.time_array))))[0] * 86400
 
-    def get_antenna_redundancies(self, tol=1.0, include_autos=True):
+    def get_antenna_redundancies(self, tol=1.0, include_autos=True,
+                                 conjugate_bls=False):
         """
         Get redundant baselines to a given tolerance from antenna positions.
 
@@ -4426,7 +4427,7 @@ class UVData(UVBase):
         Returns
         -------
         baseline_groups : list of lists of int
-            List of lists of redundant baseline indices
+            List of lists of redundant baseline numbers
         vec_bin_centers : list of ndarray of float
             List of vectors describing redundant group uvw centers
         lengths : list of float
@@ -4475,21 +4476,29 @@ class UVData(UVBase):
         return self.select(bls=bl_ants, inplace=inplace, metadata_only=metadata_only,
                            keep_all_metadata=keep_all_metadata)
 
-    def inflate_by_redundancy(self, tol=1.0):
+    def inflate_by_redundancy(self, tol=1.0, blt_order='time', blt_minor_order=None):
         """
         Expand data to full size, copying data among redundant baselines.
+
+        Note that this method conjugates baselines to the 'u>0' convention in order
+        to inflate the redundancies.
 
         Parameters
         ----------
         tol : float
             Redundancy tolerance in meters, default is 1.0 corresponding to 1 meter.
+        blt_order : str
+            string specifying primary order along the blt axis (see `reorder_blts`)
+        blt_minor_order : str
+            string specifying minor order along the blt axis (see `reorder_blts`)
         """
+
+        red_gps, centers, lengths = self.get_antenna_redundancies(tol=tol,
+                                                                  conjugate_bls=True)
 
         # get_antenna_redundancies method gives baselines under the u-positive
         # convention (u>0, v>0 if u==0, w>0 if u==v==0)
         self.conjugate_bls(convention='u>0', use_enu=True)
-
-        red_gps, centers, lengths = self.get_antenna_redundancies(tol=tol)
 
         # TODO should be an assert that each baseline only ends up in one group
 
@@ -4526,6 +4535,9 @@ class UVData(UVBase):
             warnings.warn("Missing some redundant groups. Filling in available data.")
 
         # blt_map is an index array mapping compressed blti indices to uncompressed
+        self.data_array = self.data_array[blt_map, ...]
+        self.nsample_array = self.nsample_array[blt_map, ...]
+        self.flag_array = self.flag_array[blt_map, ...]
         self.time_array = self.time_array[blt_map]
         self.lst_array = self.lst_array[blt_map]
         self.integration_time = self.integration_time[blt_map]
