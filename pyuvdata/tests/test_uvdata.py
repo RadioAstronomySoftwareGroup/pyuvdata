@@ -2205,7 +2205,7 @@ def test_key2inds():
     assert np.array_equal(np.array([]), ind2)
     assert np.array_equal([0], indp[0])
     # Any of these inputs can also be a tuple of a tuple, so need to be checked twice.
-    ind1, ind2, indp = uv._key2inds(((ant1, ant2, pol)))
+    ind1, ind2, indp = uv._key2inds(((ant1, ant2, pol),))
     assert np.array_equal(bltind, ind1)
     assert np.array_equal(np.array([]), ind2)
     assert np.array_equal([0], indp[0])
@@ -2213,7 +2213,7 @@ def test_key2inds():
     # Combo with pol as string
     ind1, ind2, indp = uv._key2inds((ant1, ant2, uvutils.polnum2str(pol)))
     assert np.array_equal([0], indp[0])
-    ind1, ind2, indp = uv._key2inds(((ant1, ant2, uvutils.polnum2str(pol))))
+    ind1, ind2, indp = uv._key2inds(((ant1, ant2, uvutils.polnum2str(pol)),))
     assert np.array_equal([0], indp[0])
 
     # Check conjugation
@@ -2243,7 +2243,7 @@ def test_key2inds():
     assert np.array_equal(bltind, ind1)
     assert np.array_equal(np.array([]), ind2)
     assert np.array_equal(np.arange(uv.Npols), indp[0])
-    ind1, ind2, indp = uv._key2inds((uv.antnums_to_baseline(ant1, ant2)))
+    ind1, ind2, indp = uv._key2inds((uv.antnums_to_baseline(ant1, ant2),))
     assert np.array_equal(bltind, ind1)
     assert np.array_equal(np.array([]), ind2)
     assert np.array_equal(np.arange(uv.Npols), indp[0])
@@ -2571,6 +2571,16 @@ def test_get_data():
     d = uv.get_data(ant1, ant2, pol)
     assert np.all(dcheck == d)
 
+    d = uv.get_data(ant1, ant2, uvutils.polnum2str(pol))
+    assert np.all(dcheck == d)
+
+    d = uv.get_data((ant1, ant2, pol))
+    assert np.all(dcheck == d)
+
+    with pytest.raises(ValueError) as cm:
+        uv.get_data((ant1, ant2, pol), (ant1, ant2, pol))
+    assert str(cm.value).startswith('no more than 3 key values can be passed')
+
     # Check conjugation
     d = uv.get_data(ant2, ant1, pol)
     assert np.all(dcheck == np.conj(d))
@@ -2608,6 +2618,16 @@ def test_get_flags():
     d = uv.get_flags(ant1, ant2, pol)
     assert np.all(dcheck == d)
 
+    d = uv.get_flags(ant1, ant2, uvutils.polnum2str(pol))
+    assert np.all(dcheck == d)
+
+    d = uv.get_flags((ant1, ant2, pol))
+    assert np.all(dcheck == d)
+
+    with pytest.raises(ValueError) as cm:
+        uv.get_flags((ant1, ant2, pol), (ant1, ant2, pol))
+    assert str(cm.value).startswith('no more than 3 key values can be passed')
+
     # Check conjugation
     d = uv.get_flags(ant2, ant1, pol)
     assert np.all(dcheck == d)
@@ -2640,6 +2660,16 @@ def test_get_nsamples():
     dcheck = np.squeeze(uv.nsample_array[bltind, :, :, 0])
     d = uv.get_nsamples(ant1, ant2, pol)
     assert np.all(dcheck == d)
+
+    d = uv.get_nsamples(ant1, ant2, uvutils.polnum2str(pol))
+    assert np.all(dcheck == d)
+
+    d = uv.get_nsamples((ant1, ant2, pol))
+    assert np.all(dcheck == d)
+
+    with pytest.raises(ValueError) as cm:
+        uv.get_nsamples((ant1, ant2, pol), (ant1, ant2, pol))
+    assert str(cm.value).startswith('no more than 3 key values can be passed')
 
     # Check conjugation
     d = uv.get_nsamples(ant2, ant1, pol)
@@ -2706,6 +2736,16 @@ def test_get_times():
     dcheck = uv.time_array[bltind]
     d = uv.get_times(ant1, ant2, pol)
     assert np.all(dcheck == d)
+
+    d = uv.get_times(ant1, ant2, uvutils.polnum2str(pol))
+    assert np.all(dcheck == d)
+
+    d = uv.get_times((ant1, ant2, pol))
+    assert np.all(dcheck == d)
+
+    with pytest.raises(ValueError) as cm:
+        uv.get_times((ant1, ant2, pol), (ant1, ant2, pol))
+    assert str(cm.value).startswith('no more than 3 key values can be passed')
 
     # Check conjugation
     d = uv.get_times(ant2, ant1, pol)

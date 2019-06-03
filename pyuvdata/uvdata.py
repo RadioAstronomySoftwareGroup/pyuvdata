@@ -32,11 +32,13 @@ class UVData(UVBase):
     Currently supported file types: uvfits, miriad, fhd.
     Provides phasing functions.
 
-    Attributes:
-        UVParameter objects: For full list see UVData Parameters
-            (http://pyuvdata.readthedocs.io/en/latest/uvdata_parameters.html).
-            Some are always required, some are required for certain phase_types
-            and others are always optional.
+    Attributes
+    ----------
+    UVParameter objects :
+        For full list see UVData Parameters
+        (http://pyuvdata.readthedocs.io/en/latest/uvdata_parameters.html).
+        Some are always required, some are required for certain phase_types
+        and others are always optional.
     """
 
     def __init__(self):
@@ -366,11 +368,23 @@ class UVData(UVBase):
         Check that required parameters exist. Check that parameters have
         appropriate shapes and optionally that the values are acceptable.
 
-        Args:
-            check_extra: If true, check all parameters, otherwise only check
-                required parameters.
-            run_check_acceptability: Option to check if values in parameters
-                are acceptable. Default is True.
+        Parameters
+        ----------
+        check_extra : bool
+            If true, check all parameters, otherwise only check required parameters.
+        run_check_acceptability : bool
+            Option to check if values in parameters are acceptable.
+
+        Returns
+        -------
+        bool
+            True if check passes
+
+        Raises
+        ------
+        ValueError
+            if parameter shapes or types are wrong or do not have acceptable
+            values (if run_check_acceptability is True)
         """
         # first run the basic check from UVBase
         # set the phase type based on object's value
@@ -484,9 +498,14 @@ class UVData(UVBase):
 
     def known_telescopes(self):
         """
-        Retun a list of telescopes known to pyuvdata.
+        Get a list of telescopes known to pyuvdata.
 
         This is just a shortcut to uvdata.telescopes.known_telescopes()
+
+        Returns
+        -------
+        list of str
+            List of names of known telescopes
         """
         return uvtel.known_telescopes()
 
@@ -498,10 +517,16 @@ class UVData(UVBase):
         telescope-associated parameters (e.g. telescope location) to the value
         for the known telescope.
 
-        Args:
-            overwrite: Option to overwrite existing telescope-associated
-                parameters with the values from the known telescope.
-                Default is False.
+        Parameters
+        ----------
+        overwrite : bool
+            Option to overwrite existing telescope-associated parameters with
+            the values from the known telescope.
+
+        Raises
+        ------
+        ValueError
+            if the telescope_name is not in known telescopes
         """
         telescope_obj = uvtel.get_telescope(self.telescope_name)
         if telescope_obj is not False:
@@ -546,11 +571,17 @@ class UVData(UVBase):
         """
         Get the antenna numbers corresponding to a given baseline number.
 
-        Args:
-            baseline: integer baseline number
+        Parameters
+        ----------
+        baseline : int
+            baseline number
 
-        Returns:
-            tuple with the two antenna numbers corresponding to the baseline.
+        Returns
+        -------
+        int
+            first antenna number
+        int
+            second antenna number
         """
         return uvutils.baseline_to_antnums(baseline, self.Nants_telescope)
 
@@ -558,15 +589,20 @@ class UVData(UVBase):
         """
         Get the baseline number corresponding to two given antenna numbers.
 
-        Args:
-            ant1: first antenna number (integer)
-            ant2: second antenna number (integer)
-            attempt256: Option to try to use the older 256 standard used in
-                many uvfits files (will use 2048 standard if there are more
-                than 256 antennas). Default is False.
+        Parameters
+        ----------
+        ant1 : int
+            first antenna number
+        ant2 : int
+            second antenna number
+        attempt256 : bool
+            Option to try to use the older 256 standard used in many uvfits files
+            (will use 2048 standard if there are more than 256 antennas).
 
-        Returns:
-            integer baseline number corresponding to the two antenna numbers.
+        Returns
+        -------
+        int
+            baseline number corresponding to the two antenna numbers.
         """
         return uvutils.antnums_to_baseline(ant1, ant2, self.Nants_telescope, attempt256=attempt256)
 
@@ -580,15 +616,24 @@ class UVData(UVBase):
     def unphase_to_drift(self, phase_frame=None, use_ant_pos=False):
         """
         Convert from a phased dataset to a drift dataset.
+
         See the phasing memo under docs/references for more documentation.
 
-        Args:
-            phase_frame: the astropy frame to phase from. Either 'icrs' or 'gcrs'.
-                'gcrs' accounts for precession & nutation, 'icrs' also includes abberation.
-                Defaults to using the 'phase_center_frame' attribute or 'icrs'
-                if that attribute is None
-            use_ant_pos: If True, calculate the uvws directly from the
-                antenna positions rather than from the existing uvws.
+        Parameters
+        ----------
+        phase_frame : str
+            The astropy frame to phase from. Either 'icrs' or 'gcrs'.
+            'gcrs' accounts for precession & nutation, 'icrs' also includes abberation.
+            Defaults to using the 'phase_center_frame' attribute or 'icrs'
+            if that attribute is None.
+        use_ant_pos : bool
+            If True, calculate the uvws directly from the antenna positions
+            rather than from the existing uvws.
+
+        Raises
+        ------
+        ValueError
+            If the phase_type is not 'phased'
         """
         if self.phase_type == 'phased':
             pass
@@ -686,28 +731,39 @@ class UVData(UVBase):
         self.set_drift()
 
     def phase(self, ra, dec, epoch='J2000', phase_frame='icrs', use_ant_pos=False):
-        """"
+        """
         Phase a drift scan dataset to a single ra/dec at a particular epoch.
+
         See the phasing memo under docs/references for more documentation.
 
         Tested against MWA_Tools/CONV2UVFITS/convutils.
         Will not phase already phased data.
 
-        Args:
-            ra: The ra to phase to in radians.
-            dec: The dec to phase to in radians.
-            epoch: The epoch to use for phasing.
-                Either an astropy Time object or the string "J2000" (which is the default).
-                Note that the epoch is only used to evaluate the ra & dec values,
-                if the epoch is not J2000, the ra & dec values are interpreted
-                as FK5 ra/dec values and translated to J2000, the data are then
-                phased to the J2000 ra/dec values.
-            phase_frame: the astropy frame to phase to. Either 'icrs' or 'gcrs'.
-                'gcrs' accounts for precession & nutation,
-                'icrs' accounts for precession, nutation & abberation.
-                Default is 'icrs'.
-            use_ant_pos: If True, calculate the uvws directly from the
-                antenna positions rather than from the existing uvws.
+        Parameters
+        ----------
+        ra : float
+            The ra to phase to in radians.
+        dec : float
+            The dec to phase to in radians.
+        epoch : astropy.time.Time object or str
+            The epoch to use for phasing. Either an astropy Time object or the
+            string "J2000" (which is the default).
+            Note that the epoch is only used to evaluate the ra & dec values,
+            if the epoch is not J2000, the ra & dec values are interpreted
+            as FK5 ra/dec values and translated to J2000, the data are then
+            phased to the J2000 ra/dec values.
+        phase_frame : str
+            The astropy frame to phase to. Either 'icrs' or 'gcrs'.
+            'gcrs' accounts for precession & nutation,
+            'icrs' accounts for precession, nutation & abberation.
+        use_ant_pos : bool
+            If True, calculate the uvws directly from the antenna positions
+            rather than from the existing uvws.
+
+        Raises
+        ------
+        ValueError
+            If the phase_type is not 'drift'
         """
         if self.phase_type == 'drift':
             pass
@@ -826,16 +882,27 @@ class UVData(UVBase):
     def phase_to_time(self, time, phase_frame='icrs', use_ant_pos=False):
         """
         Phase a drift scan dataset to the ra/dec of zenith at a particular time.
+
         See the phasing memo under docs/references for more documentation.
 
-        Args:
-            time: The time to phase to, an astropy Time object.
-            phase_frame: the astropy frame to phase to. Either 'icrs' or 'gcrs'.
-                'gcrs' accounts for precession & nutation,
-                'icrs' accounts for precession, nutation & abberation.
-                Default is 'icrs'.
-            use_ant_pos: If True, calculate the uvws directly from the
-                antenna positions rather than from the existing uvws.
+        Parameters
+        ----------
+        time : astropy.time.Time object
+            The time to phase to, an astropy Time object.
+        phase_frame : str
+            The astropy frame to phase to. Either 'icrs' or 'gcrs'.
+            'gcrs' accounts for precession & nutation,
+            'icrs' accounts for precession, nutation & abberation.
+        use_ant_pos : bool
+            If True, calculate the uvws directly from the antenna positions
+            rather than from the existing uvws.
+
+        Raises
+        ------
+        ValueError
+            If the phase_type is not 'drift'
+        TypeError
+            If time is not an astropy.time.Time object
         """
         if self.phase_type == 'drift':
             pass
@@ -873,18 +940,29 @@ class UVData(UVBase):
         """
         Calculate UVWs based on antenna_positions
 
-        Args:
-            allow_phasing: Option for phased data. If data is phased and
-                allow_phasing is set, data will be unphased, UVWs will be
-                calculated, and then data will be rephased. Script will error
-                if data is phased and allow_phasing is not set. Default is
-                False.
-            orig_phase_frame: The astropy frame to phase from. Either 'icrs' or
-                'gcrs'. Defaults to using the 'phase_center_frame' attribute
-                or 'icrs' if that attribute is None. Applied only if
-                allow_phasing=True.
-            output_phase_frame: The astropy frame to phase to. Either 'icrs' or
-                'gcrs'. Default is 'icrs'. Applied only if allow_phasing=True.
+        Parameters
+        ----------
+        allow_phasing : bool
+            Option for phased data. If data is phased and allow_phasing is set,
+            data will be unphased, UVWs will be calculated, and then data will
+            be rephased.
+        orig_phase_frame : str
+            The astropy frame to phase from. Either 'icrs' or 'gcrs'.
+            Defaults to using the 'phase_center_frame' attribute or 'icrs' if
+            that attribute is None. Only used if allow_phasing is True.
+        output_phase_frame : str
+            The astropy frame to phase to. Either 'icrs' or 'gcrs'. Only used if
+            allow_phasing is True.
+
+        Raises
+        ------
+        ValueError
+            If data is phased and allow_phasing is False.
+
+        Warns
+        -----
+        UserWarning
+            If the phase_type is 'phased'
         """
         phase_type = self.phase_type
         if phase_type == 'phased':
@@ -1027,20 +1105,28 @@ class UVData(UVBase):
         """
         Rearrange polarizations in the event they are not uvfits compatible.
 
-        Args:
-            order: either a string specifying a cannonical ordering
-                ('AIPS' or 'CASA') or an index array of length Npols that
-                specifies how to shuffle the data (this is not the desired
-                final pol order).
-                CASA ordering has cross-pols in between (e.g. XX,XY,YX,YY)
-                AIPS ordering has auto-pols followed by cross-pols (e.g. XX,YY,XY,YX)
-                Default ('AIPS') will sort by absolute value of pol values.
-            run_check: Option to check for the existence and proper shapes of
-                parameters after reordering. Default is True.
-            check_extra: Option to check optional parameters as well as required
-                ones. Default is True.
-            run_check_acceptability: Option to check acceptable range of the values of
-                parameters after reordering. Default is True.
+        Parameters
+        ----------
+        order : str
+            Either a string specifying a cannonical ordering ('AIPS' or 'CASA')
+            or an index array of length Npols that specifies how to shuffle the
+            data (this is not the desired final pol order).
+            CASA ordering has cross-pols in between (e.g. XX,XY,YX,YY)
+            AIPS ordering has auto-pols followed by cross-pols (e.g. XX,YY,XY,YX)
+            Default ('AIPS') will sort by absolute value of pol values.
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            after reordering.
+        check_extra : bool
+            Option to check optional parameters as well as required ones.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters after
+            reordering.
+
+        Raises
+        ------
+        ValueError
+            If the order is not one of the allowed values.
         """
         if isinstance(order, (np.ndarray, list, tuple)):
             order = np.array(order)
@@ -1074,10 +1160,22 @@ class UVData(UVBase):
 
     def order_pols(self, order='AIPS'):
         """
-        Soon to be deprecated method, now just calls reorder_pols.
+        Will be deprecated in version 1.5, now just calls reorder_pols.
 
-        Args:
-            order: string, either 'CASA' or 'AIPS'. Default='AIPS'
+        Parameters
+        ----------
+        order : str
+            either 'CASA' or 'AIPS'.
+
+        Raises
+        ------
+        ValueError
+            If the order is not one of the allowed values.
+
+        Warns
+        -----
+        DeprecationWarning
+            Always, because this method will be deprecated in version 1.5
         """
         warnings.warn('order_pols method will be deprecated in favor of '
                       'reorder_pols in version 1.5', DeprecationWarning)
@@ -1120,7 +1218,6 @@ class UVData(UVBase):
         ------
         ValueError
             If parameter values are inappropriate
-
         """
         if isinstance(order, (np.ndarray, list, tuple)):
             order = np.array(order)
@@ -1247,19 +1344,29 @@ class UVData(UVBase):
     def __add__(self, other, run_check=True, check_extra=True,
                 run_check_acceptability=True, inplace=False):
         """
-        Combine two UVData objects. Objects can be added along frequency,
-        polarization, and/or baseline-time axis.
+        Combine two UVData objects along frequency, polarization and/or baseline-time.
 
-        Args:
-            other: Another UVData object which will be added to self.
-            run_check: Option to check for the existence and proper shapes of
-                parameters after combining objects. Default is True.
-            check_extra: Option to check optional parameters as well as
-                required ones. Default is True.
-            run_check_acceptability: Option to check acceptable range of the values of
-                parameters after combining objects. Default is True.
-            inplace: Overwrite self as we go, otherwise create a third object
-                as the sum of the two (default).
+        Parameters
+        ----------
+        other : UVData object
+            Another UVData object which will be added to self.
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            after combining objects.
+        check_extra : bool
+            Option to check optional parameters as well as required ones.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters after
+            combining objects.
+        inplace : bool
+            If True, overwrite self as we go, otherwise create a third object
+            as the sum of the two.
+
+        Raises
+        ------
+        ValueError
+            If other is not a UVData object, self and other are not compatible
+            or if data in self and other overlap.
         """
         if inplace:
             this = self
@@ -1513,8 +1620,16 @@ class UVData(UVBase):
         """
         In place add.
 
-        Args:
-            other: Another UVData object which will be added to self.
+        Parameters
+        ----------
+        other : UVData object
+            Another UVData object which will be added to self.
+
+        Raises
+        ------
+        ValueError
+            If other is not a UVData object, self and other are not compatible
+            or if data in self and other overlap.
         """
         self.__add__(other, inplace=True)
         return self
@@ -1529,19 +1644,31 @@ class UVData(UVBase):
         but it is slower. Some quick checks are run, but this method doesn't
         make any guarantees that the resulting object is correct.
 
-        Args:
-            other: Another UVData object which will be added to self.
-            axis: Axis to concatenate files along. This enables fast concatenation
-                along the specified axis without the normal checking that all other
-                metadata agrees. Allowed values are: 'blt', 'freq', 'polarization'.
-            run_check: Option to check for the existence and proper shapes of
-                parameters after combining objects. Default is True.
-            check_extra: Option to check optional parameters as well as
-                required ones. Default is True.
-            run_check_acceptability: Option to check acceptable range of the values of
-                parameters after combining objects. Default is True.
-            inplace: Overwrite self as we go, otherwise create a third object
-                as the sum of the two (default).
+        Parameters
+        ----------
+        other : UVData object
+            Another UVData object which will be added to self.
+        axis : str
+            Axis to concatenate files along. This enables fast concatenation
+            along the specified axis without the normal checking that all other
+            metadata agrees. Allowed values are: 'blt', 'freq', 'polarization'.
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            after combining objects.
+        check_extra : bool
+            Option to check optional parameters as well as required ones.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters after
+            combining objects.
+        inplace : bool
+            If True, overwrite self as we go, otherwise create a third object
+            as the sum of the two.
+
+        Raises
+        ------
+        ValueError
+            If other is not a UVData object, axis is not an allowed value or if
+            self and other are not compatible.
         """
         if inplace:
             this = self
@@ -1663,6 +1790,63 @@ class UVData(UVBase):
         """
         Internal function to build up blt_inds, freq_inds, pol_inds
         and history_update_string for select.
+
+        Parameters
+        ----------
+        antenna_nums : array_like of int, optional
+            The antennas numbers to keep in the object (antenna positions and
+            names for the removed antennas will be retained unless
+            `keep_all_metadata` is False). This cannot be provided if
+            `antenna_names` is also provided.
+        antenna_names : array_like of str, optional
+            The antennas names to keep in the object (antenna positions and
+            names for the removed antennas will be retained unless
+            `keep_all_metadata` is False). This cannot be provided if
+            `antenna_nums` is also provided.
+        bls : list of tuple, optional
+            A list of antenna number tuples (e.g. [(0,1), (3,2)]) or a list of
+            baseline 3-tuples (e.g. [(0,1,'xx'), (2,3,'yy')]) specifying baselines
+            to keep in the object. For length-2 tuples, the ordering of the numbers
+            within the tuple does not matter. For length-3 tuples, the polarization
+            string is in the order of the two antennas. If length-3 tuples are
+            provided, `polarizations` must be None.
+        ant_str : str, optional
+            A string containing information about what antenna numbers
+            and polarizations to keep in the object.  Can be 'auto', 'cross', 'all',
+            or combinations of antenna numbers and polarizations (e.g. '1',
+            '1_2', '1x_2y').  See tutorial for more examples of valid strings and
+            the behavior of different forms for ant_str.
+            If '1x_2y,2y_3y' is passed, both polarizations 'xy' and 'yy' will
+            be kept for both baselines (1,2) and (2,3) to return a valid
+            pyuvdata object.
+            An ant_str cannot be passed in addition to any of `antenna_nums`,
+            `antenna_names`, `bls` args or the `polarizations` parameters,
+            if it is a ValueError will be raised.
+        frequencies : array_like of float, optional
+            The frequencies to keep in the object, each value passed here should
+            exist in the freq_array.
+        freq_chans : array_like of int, optional
+            The frequency channel numbers to keep in the object.
+        times : array_like of float, optional
+            The times to keep in the object, each value passed here should
+            exist in the time_array.
+        polarizations : array_like of int, optional
+            The polarizations numbers to keep in the object, each value passed
+            here should exist in the polarization_array.
+        blt_inds : array_like of int, optional
+            The baseline-time indices to keep in the object. This is
+            not commonly used.
+
+        Returns
+        -------
+        blt_inds : list of int
+            list of baseline-time indices to keep. Can be None (to keep everything).
+        freq_inds : list of int
+            list of frequency indices to keep. Can be None (to keep everything).
+        pol_inds : list of int
+            list of polarization indices to keep. Can be None (to keep everything).
+        history_update_string : str
+            string to append to the end of the history.
         """
         # build up history string as we go
         history_update_string = '  Downselected to specific '
@@ -1927,13 +2111,18 @@ class UVData(UVBase):
         """
         Internal function to perform select on everything except the data-sized arrays.
 
-        Args:
-            blt_inds: list of baseline-time indices to keep. Can be None (to keep everything).
-            freq_inds: list of frequency indices to keep. Can be None (to keep everything).
-            pol_inds: list of polarization indices to keep. Can be None (to keep everything).
-            history_update_string: string to append to the end of the history.
-            keep_all_metadata: whether to keep metadata for antennas that are no longer in the dataset.
-                Defaults to True.
+        Parameters
+        ----------
+        blt_inds : list of int
+            list of baseline-time indices to keep. Can be None (to keep everything).
+        freq_inds : list of int
+            list of frequency indices to keep. Can be None (to keep everything).
+        pol_inds : list of int
+            list of polarization indices to keep. Can be None (to keep everything).
+        history_update_string : str
+            string to append to the end of the history.
+        keep_all_metadata : bool
+            Option to keep metadata for antennas that are no longer in the dataset.
         """
         if blt_inds is not None:
             self.Nblts = len(blt_inds)
@@ -1976,54 +2165,91 @@ class UVData(UVBase):
                check_extra=True, run_check_acceptability=True, inplace=True,
                metadata_only=False, keep_all_metadata=True):
         """
-        Select specific antennas, antenna pairs, frequencies, times and
-        polarizations to keep in the object while discarding others.
+        Downselect data to keep on the object along various axes.
 
-        Also supports selecting specific baseline-time indices to keep while
-        discarding others, but this is not commonly used. The history attribute
-        on the object will be updated to identify the operations performed.
+        Axes that can be selected along include antenna names or numbers,
+        antenna pairs, frequencies, times and polarizations. Specific
+        baseline-time indices can also be selected, but this is not commonly used.
+        The history attribute on the object will be updated to identify the
+        operations performed.
 
-        Args:
-            antenna_nums: The antennas numbers to keep in the object (antenna
-                positions and names for the removed antennas will be retained).
-                This cannot be provided if antenna_names is also provided.
-            antenna_names: The antennas names to keep in the object (antenna
-                positions and names for the removed antennas will be retained).
-                This cannot be provided if antenna_nums is also provided.
-            bls: A list of antenna number tuples (e.g. [(0,1), (3,2)]) or a list of
-                baseline 3-tuples (e.g. [(0,1,'xx'), (2,3,'yy')]) specifying baselines
-                to keep in the object. For length-2 tuples, the  ordering of the numbers
-                within the tuple does not matter. For length-3 tuples, the polarization
-                string is in the order of the two antennas. If length-3 tuples are provided,
-                the polarizations argument below must be None.
-            ant_str: A string containing information about what antenna numbers
-                and polarizations to keep in the object.  Can be 'auto', 'cross', 'all',
-                or combinations of antenna numbers and polarizations (e.g. '1',
-                '1_2', '1x_2y').  See tutorial for more examples of valid strings and
-                the behavior of different forms for ant_str.
-                If '1x_2y,2y_3y' is passed, both polarizations 'xy' and 'yy' will
-                be kept for both baselines (1,2) and (2,3) to return a valid
-                pyuvdata object.
-                An ant_str cannot be passed in addition to any of the above antenna
-                args or the polarizations arg.  If this occurs, select raises a ValueError.
-            frequencies: The frequencies to keep in the object.
-            freq_chans: The frequency channel numbers to keep in the object.
-            times: The times to keep in the object.
-            polarizations: The polarizations to keep in the object.
-            blt_inds: The baseline-time indices to keep in the object. This is
-                not commonly used.
-            run_check: Option to check for the existence and proper shapes of
-                parameters after downselecting data on this object. Default is True.
-            check_extra: Option to check optional parameters as well as required
-                ones. Default is True.
-            run_check_acceptability: Option to check acceptable range of the values of
-                parameters after downselecting data on this object. Default is True.
-            inplace: Option to perform the select directly on self (True, default) or return
-                a new UVData object, which is a subselection of self (False)
-            metadata_only: Option to only do the select on the metadata. Not allowed
-                if the data_array, flag_array or nsample_array is not None. (False)
-            keep_all_metadata: Option to keep all the metadata associated with antennas,
-                even those that do not remain after the select option. (True)
+        Parameters
+        ----------
+        antenna_nums : array_like of int, optional
+            The antennas numbers to keep in the object (antenna positions and
+            names for the removed antennas will be retained unless
+            `keep_all_metadata` is False). This cannot be provided if
+            `antenna_names` is also provided.
+        antenna_names : array_like of str, optional
+            The antennas names to keep in the object (antenna positions and
+            names for the removed antennas will be retained unless
+            `keep_all_metadata` is False). This cannot be provided if
+            `antenna_nums` is also provided.
+        bls : list of tuple, optional
+            A list of antenna number tuples (e.g. [(0,1), (3,2)]) or a list of
+            baseline 3-tuples (e.g. [(0,1,'xx'), (2,3,'yy')]) specifying baselines
+            to keep in the object. For length-2 tuples, the ordering of the numbers
+            within the tuple does not matter. For length-3 tuples, the polarization
+            string is in the order of the two antennas. If length-3 tuples are
+            provided, `polarizations` must be None.
+        ant_str : str, optional
+            A string containing information about what antenna numbers
+            and polarizations to keep in the object.  Can be 'auto', 'cross', 'all',
+            or combinations of antenna numbers and polarizations (e.g. '1',
+            '1_2', '1x_2y').  See tutorial for more examples of valid strings and
+            the behavior of different forms for ant_str.
+            If '1x_2y,2y_3y' is passed, both polarizations 'xy' and 'yy' will
+            be kept for both baselines (1,2) and (2,3) to return a valid
+            pyuvdata object.
+            An ant_str cannot be passed in addition to any of `antenna_nums`,
+            `antenna_names`, `bls` args or the `polarizations` parameters,
+            if it is a ValueError will be raised.
+        frequencies : array_like of float, optional
+            The frequencies to keep in the object, each value passed here should
+            exist in the freq_array.
+        freq_chans : array_like of int, optional
+            The frequency channel numbers to keep in the object.
+        times : array_like of float, optional
+            The times to keep in the object, each value passed here should
+            exist in the time_array.
+        polarizations : array_like of int, optional
+            The polarizations numbers to keep in the object, each value passed
+            here should exist in the polarization_array.
+        blt_inds : array_like of int, optional
+            The baseline-time indices to keep in the object. This is
+            not commonly used.
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            after downselecting data on this object (the default is True,
+            meaning the check will be run).
+        check_extra : bool
+            Option to check optional parameters as well as required ones (the
+            default is True, meaning the optional parameters will be checked).
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters after
+            downselecting data on this object (the default is True, meaning the
+            acceptable range check will be done).
+        inplace : bool
+            Option to perform the select directly on self or return a new UVData
+            object with just the selected data (the default is True, meaning the
+            select will be done on self).
+        metadata_only : bool
+            Option to only do the select on the metadata. Not allowed if the
+            data_array, flag_array or nsample_array is not None.
+        keep_all_metadata : bool
+            Option to keep all the metadata associated with antennas, even those
+            that do do not have data associated with them after the select option.
+
+        Returns
+        -------
+        UVData object or None
+            None is returned if inplace is True, otherwise a new UVData object
+            with just the selected data is returned
+
+        Raises
+        ------
+        ValueError
+            If any of the parameters are set to inappropriate values.
         """
         if metadata_only is True and (self.data_array is not None
                                       or self.flag_array is not None
@@ -2074,11 +2300,37 @@ class UVData(UVBase):
             return uv_object
 
     def _convert_from_filetype(self, other):
+        """
+        Internal function to convert from a file-type specific object to a UVData object.
+
+        Used in reads.
+
+        Parameters
+        ----------
+        other : object that inherits from UVData
+            File type specific object to convert to UVData
+        """
         for p in other:
             param = getattr(other, p)
             setattr(self, p, param)
 
     def _convert_to_filetype(self, filetype):
+        """
+        Internal function to convert from a UVData object to a file-type specific object.
+
+        Used in writes.
+
+        Parameters
+        ----------
+        filetype : str
+            Specifies what file type object to convert to. Options are: 'uvfits',
+            'fhd', 'miriad', 'uvh5'
+
+        Raises
+        ------
+        ValueError
+            if filetype is not a known type
+        """
         if filetype is 'uvfits':
             from . import uvfits
             other_obj = uvfits.UVFITS()
@@ -2106,68 +2358,89 @@ class UVData(UVBase):
         """
         Read in header, metadata and data from uvfits file(s).
 
-        Args:
-            filename: The uvfits file or list of files to read from.
-            axis: Axis to concatenate files along. This enables fast concatenation
-                along the specified axis without the normal checking that all other
-                metadata agrees. This method does not guarantee correct resulting
-                objects. Please see the docstring for fast_concat for details.
-                Allowed values are: 'blt', 'freq', 'polarization'. Only used if
-                multiple files are passed.
-            antenna_nums: The antennas numbers to include when reading data into
-                the object (antenna positions and names for the excluded antennas
-                will be retained). This cannot be provided if antenna_names is
-                also provided. Ignored if read_data is False.
-            antenna_names: The antennas names to include when reading data into
-                the object (antenna positions and names for the excluded antennas
-                will be retained). This cannot be provided if antenna_nums is
-                also provided. Ignored if read_data is False.
-            bls: A list of antenna number tuples (e.g. [(0,1), (3,2)]) or a list of
-                baseline 3-tuples (e.g. [(0,1,'xx'), (2,3,'yy')]) specifying baselines
-                to keep in the object. For length-2 tuples, the  ordering of the numbers
-                within the tuple does not matter. For length-3 tuples, the polarization
-                string is in the order of the two antennas. If length-3 tuples are provided,
-                the polarizations argument below must be None. Ignored if read_data is False.
-            ant_str: A string containing information about what antenna numbers
-                and polarizations to include when reading data into the object.
-                Can be 'auto', 'cross', 'all', or combinations of antenna numbers
-                and polarizations (e.g. '1', '1_2', '1x_2y').
-                See tutorial for more examples of valid strings and
-                the behavior of different forms for ant_str.
-                If '1x_2y,2y_3y' is passed, both polarizations 'xy' and 'yy' will
-                be kept for both baselines (1,2) and (2,3) to return a valid
-                pyuvdata object.
-                An ant_str cannot be passed in addition to any of the above antenna
-                args or the polarizations arg.
-                Ignored if read_data is False.
-            frequencies: The frequencies to include when reading data into the
-                object.  Ignored if read_data is False.
-            freq_chans: The frequency channel numbers to include when reading
-                data into the object. Ignored if read_data is False.
-            times: The times to include when reading data into the object.
-                Ignored if read_data is False.
-            polarizations: The polarizations to include when reading data into
-                the object.  Ignored if read_data is False.
-            blt_inds: The baseline-time indices to include when reading data into
-                the object. This is not commonly used. Ignored if read_data is False.
-            keep_all_metadata: Option to keep all the metadata associated with antennas,
-                even those that do not remain after the select option. Default is True.
-            read_data: Read in the visibility and flag data. If set to false,
-                only the basic header info and metadata (if read_metadata is True)
-                will be read in. Setting read_data to False results in an
-                incompletely defined object (check will not pass). Default True.
-            read_metadata: Read in metadata (times, baselines, uvws) as well as
-                basic header info. Only used if read_data is False
-                (metadata will be read if data is read). If both read_data and
-                read_metadata are false, only basic header info is read in. Default True.
-            run_check: Option to check for the existence and proper shapes of
-                parameters after reading in the file. Default is True.
-                Ignored if read_data is False.
-            check_extra: Option to check optional parameters as well as required
-                ones. Default is True. Ignored if read_data is False.
-            run_check_acceptability: Option to check acceptable range of the values of
-                parameters after reading in the file. Default is True.
-                Ignored if read_data is False.
+        Parameters
+        ----------
+        filename : str or list of str
+            The uvfits file or list of files to read from.
+        axis : str
+            Axis to concatenate files along. This enables fast concatenation
+            along the specified axis without the normal checking that all other
+            metadata agrees. This method does not guarantee correct resulting
+            objects. Please see the docstring for fast_concat for details.
+            Allowed values are: 'blt', 'freq', 'polarization'. Only used if
+            multiple files are passed.
+        antenna_nums : array_like of int, optional
+            The antennas numbers to include when reading data into the object
+            (antenna positions and names for the removed antennas will be retained
+            unless `keep_all_metadata` is False). This cannot be provided if
+            `antenna_names` is also provided. Ignored if read_data is False.
+        antenna_names : array_like of str, optional
+            The antennas names to include when reading data into the object
+            (antenna positions and names for the removed antennas will be retained
+            unless `keep_all_metadata` is False). This cannot be provided if
+            `antenna_nums` is also provided. Ignored if read_data is False.
+        bls : list of tuple, optional
+            A list of antenna number tuples (e.g. [(0,1), (3,2)]) or a list of
+            baseline 3-tuples (e.g. [(0,1,'xx'), (2,3,'yy')]) specifying baselines
+            to include when reading data into the object. For length-2 tuples,
+            the ordering of the numbers within the tuple does not matter. For
+            length-3 tuples, the polarization string is in the order of the two
+            antennas. If length-3 tuples are provided, `polarizations` must be
+            None. Ignored if read_data is False.
+        ant_str : str, optional
+            A string containing information about what antenna numbers
+            and polarizations to include when reading data into the object.
+            Can be 'auto', 'cross', 'all', or combinations of antenna numbers
+            and polarizations (e.g. '1', '1_2', '1x_2y').  See tutorial for more
+            examples of valid strings and the behavior of different forms for ant_str.
+            If '1x_2y,2y_3y' is passed, both polarizations 'xy' and 'yy' will
+            be kept for both baselines (1,2) and (2,3) to return a valid
+            pyuvdata object.
+            An ant_str cannot be passed in addition to any of `antenna_nums`,
+            `antenna_names`, `bls` args or the `polarizations` parameters,
+            if it is a ValueError will be raised. Ignored if read_data is False.
+        frequencies : array_like of float, optional
+            The frequencies to include when reading data into the object, each
+            value passed here should exist in the freq_array. Ignored if
+            read_data is False.
+        freq_chans : array_like of int, optional
+            The frequency channel numbers to include when reading data into the
+            object. Ignored if read_data is False.
+        times : array_like of float, optional
+            The times to include when reading data into the object, each value
+            passed here should exist in the time_array. Ignored if read_data is False.
+        polarizations : array_like of int, optional
+            The polarizations numbers to include when reading data into the
+            object, each value passed here should exist in the polarization_array.
+            Ignored if read_data is False.
+        blt_inds : array_like of int, optional
+            The baseline-time indices to include when reading data into the
+            object. This is not commonly used. Ignored if read_data is False.
+        keep_all_metadata : bool
+            Option to keep all the metadata associated with antennas, even those
+            that do not have data associated with them after the select option.
+        read_data : bool
+            Read in the visibility and flag data. If set to false, only the
+            basic header info and metadata (if read_metadata is True) will be
+            read in. Setting read_data to False results in an incompletely
+            defined object (check will not pass).
+        read_metadata: : bool
+            Read in metadata (times, baselines, uvws) as well as basic header
+            info. Only used if read_data is False (metadata will be read if data
+            is read). If both read_data and read_metadata are false, only basic
+            header info is read in.
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            after after reading in the file (the default is True,
+            meaning the check will be run). Ignored if read_data is False.
+        check_extra : bool
+            Option to check optional parameters as well as required ones (the
+            default is True, meaning the optional parameters will be checked).
+            Ignored if read_data is False.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters after
+            reading in the file (the default is True, meaning the acceptable
+            range check will be done). Ignored if read_data is False.
         """
         from . import uvfits
         # work out what function should be called depending on what's
@@ -2277,19 +2550,27 @@ class UVData(UVBase):
         """
         Write the data to a uvfits file.
 
-        Args:
-            filename: The uvfits file to write to.
-            spoof_nonessential: Option to spoof the values of optional
-                UVParameters that are not set but are required for uvfits files.
-                Default is False.
-            force_phase: Option to automatically phase drift scan data to
-                zenith of the first timestamp. Default is False.
-            run_check: Option to check for the existence and proper shapes of
-                parameters before writing the file. Default is True.
-            check_extra: Option to check optional parameters as well as required
-                ones. Default is True.
-            run_check_acceptability: Option to check acceptable range of the values of
-                parameters before writing the file. Default is True.
+        Parameters
+        ----------
+        filename : str
+            The uvfits file to write to.
+        spoof_nonessential : bool
+            Option to spoof the values of optional UVParameters that are not set
+            but are required for uvfits files.
+        force_phase:  : bool
+            Option to automatically phase drift scan data to zenith of the first
+            timestamp.
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            after before writing the file (the default is True,
+            meaning the check will be run).
+        check_extra : bool
+            Option to check optional parameters as well as required ones (the
+            default is True, meaning the optional parameters will be checked).
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters before
+            writing the file (the default is True, meaning the acceptable
+            range check will be done).
         """
         uvfits_obj = self._convert_to_filetype('uvfits')
         uvfits_obj.write_uvfits(filename, spoof_nonessential=spoof_nonessential,
@@ -2298,29 +2579,38 @@ class UVData(UVBase):
                                 run_check_acceptability=run_check_acceptability)
         del(uvfits_obj)
 
-    def read_ms(self, filepath, axis=None, run_check=True, check_extra=True,
-                run_check_acceptability=True, data_column='DATA', pol_order='AIPS'):
+    def read_ms(self, filepath, axis=None, data_column='DATA', pol_order='AIPS',
+                run_check=True, check_extra=True, run_check_acceptability=True):
         """
         Read in data from a measurement set
 
-        Args:
-            filepath: The measurement set file directory or list of directories to read from.
-            axis: Axis to concatenate files along. This enables fast concatenation
-                along the specified axis without the normal checking that all other
-                metadata agrees. This method does not guarantee correct resulting
-                objects. Please see the docstring for fast_concat for details.
-                Allowed values are: 'blt', 'freq', 'polarization'. Only used if
-                multiple files are passed.
-            run_check: Option to check for the existence and proper shapes of
-                parameters after reading in the file. Default is True.
-            check_extra: Option to check optional parameters as well as required
-                ones. Default is True.
-            run_check_acceptability: Option to check the values of parameters
-                after reading in the file. Default is True.
-            data_column: name of CASA data column to read into data_array.
-                'DATA', 'MODEL', or 'CORRECTED_DATA'
-            pol_order: specify whether you want polarizations ordered by
-                'CASA' or 'AIPS' conventions.
+        Parameters
+        ----------
+        filepath : str or list of str
+            The measurement set file directory or list of directories to read from.
+        axis : str
+            Axis to concatenate files along. This enables fast concatenation
+            along the specified axis without the normal checking that all other
+            metadata agrees. This method does not guarantee correct resulting
+            objects. Please see the docstring for fast_concat for details.
+            Allowed values are: 'blt', 'freq', 'polarization'. Only used if
+            multiple files are passed.
+        data_column : str
+            name of CASA data column to read into data_array. Options are:
+            'DATA', 'MODEL', or 'CORRECTED_DATA'
+        pol_order : str
+            Option to specify polarizations order convention, options are 'CASA' or 'AIPS'.
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            after after reading in the file (the default is True,
+            meaning the check will be run).
+        check_extra : bool
+            Option to check optional parameters as well as required ones (the
+            default is True, meaning the optional parameters will be checked).
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters after
+            reading in the file (the default is True, meaning the acceptable
+            range check will be done).
         """
         from . import ms
 
@@ -2355,24 +2645,34 @@ class UVData(UVBase):
         """
         Read in data from a list of FHD files.
 
-        Args:
-            filelist: The list of FHD save files to read from. Must include at
-                least one polarization file, a params file and a flag file.
-                Can also be a list of lists to read multiple data sets.
-            use_model: Option to read in the model visibilities rather than the
-                dirty visibilities. Default is False.
-            axis: Axis to concatenate files along. This enables fast concatenation
-                along the specified axis without the normal checking that all other
-                metadata agrees. This method does not guarantee correct resulting
-                objects. Please see the docstring for fast_concat for details.
-                Allowed values are: 'blt', 'freq', 'polarization'. Only used if
-                multiple files are passed.
-            run_check: Option to check for the existence and proper shapes of
-                parameters after reading in the file. Default is True.
-            check_extra: Option to check optional parameters as well as required
-                ones. Default is True.
-            run_check_acceptability: Option to check acceptable range of the values of
-                parameters after reading in the file. Default is True.
+        Parameters
+        ----------
+        filelist : list of str
+            The list of FHD save files to read from. Must include at least one
+            polarization file, a params file and a flag file. Can also be a list
+            of lists to read multiple data sets.
+        use_model : bool
+            Option to read in the model visibilities rather than the dirty
+            visibilities (the default is False, meaning the dirty visibilities
+            will be read).
+        axis : str
+            Axis to concatenate files along. This enables fast concatenation
+            along the specified axis without the normal checking that all other
+            metadata agrees. This method does not guarantee correct resulting
+            objects. Please see the docstring for fast_concat for details.
+            Allowed values are: 'blt', 'freq', 'polarization'. Only used if
+            multiple data sets are passed.
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            after after reading in the file (the default is True,
+            meaning the check will be run).
+        check_extra : bool
+            Option to check optional parameters as well as required ones (the
+            default is True, meaning the optional parameters will be checked).
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters after
+            reading in the file (the default is True, meaning the acceptable
+            range check will be done).
         """
         from . import fhd
         if isinstance(filelist[0], (list, tuple)):
@@ -2408,44 +2708,67 @@ class UVData(UVBase):
         """
         Read in data from a miriad file.
 
-        Args:
-            filepath: The miriad file directory or list of directories to read from.
-            axis: Axis to concatenate files along. This enables fast concatenation
-                along the specified axis without the normal checking that all other
-                metadata agrees. This method does not guarantee correct resulting
-                objects. Please see the docstring for fast_concat for details.
-                Allowed values are: 'blt', 'freq', 'polarization'. Only used if
-                multiple files are passed.
-            antenna_nums: The antennas numbers to read into the object.
-            bls: A list of antenna number tuples (e.g. [(0,1), (3,2)]) or a list of
-                baseline 3-tuples (e.g. [(0,1,'xx'), (2,3,'yy')]) specifying baselines
-                to keep in the object. For length-2 tuples, the  ordering of the numbers
-                within the tuple does not matter. For length-3 tuples, the polarization
-                string is in the order of the two antennas. If length-3 tuples are
-                provided, the polarizations argument below must be None.
-            ant_str: A string containing information about what kinds of visibility data
-                to read-in.  Can be 'auto', 'cross', 'all'. Cannot provide ant_str if
-                antenna_nums and/or bls is not None.
-            polarizations: List of polarization integers or strings to read-in.
-                Ex: ['xx', 'yy', ...]
-            time_range: len-2 list containing min and max range of times (Julian Date) to read-in.
-                Ex: [2458115.20, 2458115.40]
-            read_data: Read in the visibility and flag data. If set to false,
-                only the metadata will be read in. Setting read_data to False
-                results in an incompletely defined object (check will not pass).
-                Default True.
-            phase_type: Either 'drift' meaning zenith drift, 'phased' meaning
-                the data are phased to a single RA/Dec or None and it will be
-                guessed at based on the file. Default None.
-            correct_lat_lon: flag -- that only matters if altitude is missing --
-                to update the latitude and longitude from the known_telescopes list.
-                Default True.
-            run_check: Option to check for the existence and proper shapes of
-                parameters after reading in the file. Default is True.
-            check_extra: Option to check optional parameters as well as required
-                ones. Default is True.
-            run_check_acceptability: Option to check acceptable range of the values of
-                parameters after reading in the file. Default is True.
+        Parameters
+        ----------
+        filepath : str or list of str
+            The miriad file directory or list of directories to read from.
+        axis : str
+            Axis to concatenate files along. This enables fast concatenation
+            along the specified axis without the normal checking that all other
+            metadata agrees. This method does not guarantee correct resulting
+            objects. Please see the docstring for fast_concat for details.
+            Allowed values are: 'blt', 'freq', 'polarization'. Only used if
+            multiple files are passed.
+        antenna_nums : array_like of int, optional
+            The antennas numbers to read into the object.
+        bls : list of tuple, optional
+            A list of antenna number tuples (e.g. [(0,1), (3,2)]) or a list of
+            baseline 3-tuples (e.g. [(0,1,'xx'), (2,3,'yy')]) specifying baselines
+            to include when reading data into the object. For length-2 tuples,
+            the ordering of the numbers within the tuple does not matter. For
+            length-3 tuples, the polarization string is in the order of the two
+            antennas. If length-3 tuples are provided, `polarizations` must be
+            None.
+        ant_str : str, optional
+            A string containing information about what antenna numbers
+            and polarizations to include when reading data into the object.
+            Can be 'auto', 'cross', 'all', or combinations of antenna numbers
+            and polarizations (e.g. '1', '1_2', '1x_2y').  See tutorial for more
+            examples of valid strings and the behavior of different forms for ant_str.
+            If '1x_2y,2y_3y' is passed, both polarizations 'xy' and 'yy' will
+            be kept for both baselines (1,2) and (2,3) to return a valid
+            pyuvdata object.
+            An ant_str cannot be passed in addition to any of `antenna_nums`,
+            `bls` or `polarizations` parameters, if it is a ValueError will be raised.
+        polarizations : array_like of int or str, optional
+            List of polarization integers or strings to read-in. e.g. ['xx', 'yy', ...]
+        time_range : list of float, optional
+            len-2 list containing min and max range of times in Julian Date to
+            include when reading data into the object. e.g. [2458115.20, 2458115.40]
+        read_data : bool
+            Read in the visibility and flag data. If set to false,
+            only the metadata will be read in. Setting read_data to False
+            results in an incompletely defined object (check will not pass).
+        phase_type : str, optional
+            Option to specify the phasing status of the data. Options are 'drift',
+            'phased' or None. 'drift' means the data are zenith drift data,
+            'phased' means the data are phased to a single RA/Dec. Default is None
+            meaning it will be guessed at based on the file contents.
+        correct_lat_lon : bool
+            Option to update the latitude and longitude from the known_telescopes
+            list if the altitude is missing.
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            after after reading in the file (the default is True,
+            meaning the check will be run). Ignored if read_data is False.
+        check_extra : bool
+            Option to check optional parameters as well as required ones (the
+            default is True, meaning the optional parameters will be checked).
+            Ignored if read_data is False.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters after
+            reading in the file (the default is True, meaning the acceptable
+            range check will be done). Ignored if read_data is False.
         """
         from . import miriad
         if isinstance(filepath, (list, tuple)):
@@ -2500,18 +2823,26 @@ class UVData(UVBase):
         """
         Write the data to a miriad file.
 
-        Args:
-            filename: The miriad file directory to write to.
-            run_check: Option to check for the existence and proper shapes of
-                parameters before writing the file. Default is True.
-            check_extra: Option to check optional parameters as well as required
-                ones. Default is True.
-            run_check_acceptability: Option to check acceptable range of the values of
-                parameters before writing the file. Default is True.
-            clobber: Option to overwrite the filename if the file already exists.
-                Default is False.
-            no_antnums: Option to not write the antnums variable to the file.
-                Should only be used for testing purposes.
+        Parameters
+        ----------
+        filename : str
+            The miriad file directory to write to.
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            after before writing the file (the default is True,
+            meaning the check will be run).
+        check_extra : bool
+            Option to check optional parameters as well as required ones (the
+            default is True, meaning the optional parameters will be checked).
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters before
+            writing the file (the default is True, meaning the acceptable
+            range check will be done).
+        clobber : bool
+            Option to overwrite the filename if the file already exists.
+        no_antnums : bool
+            Option to not write the antnums variable to the file.
+            Should only be used for testing purposes.
         """
         miriad_obj = self._convert_to_filetype('miriad')
         miriad_obj.write_miriad(filepath, run_check=run_check, check_extra=check_extra,
@@ -2527,69 +2858,89 @@ class UVData(UVBase):
         """
         Read a UVH5 file.
 
-        Args:
-            filename: The UVH5 file or list of files to read from.
-            axis: Axis to concatenate files along. This enables fast concatenation
-                along the specified axis without the normal checking that all other
-                metadata agrees. This method does not guarantee correct resulting
-                objects. Please see the docstring for fast_concat for details.
-                Allowed values are: 'blt', 'freq', 'polarization'. Only used if
-                multiple files are passed.
-            antenna_nums: The antennas numbers to include when reading data into
-                the object (antenna positions and names for the excluded antennas
-                will be retained). This cannot be provided if antenna_names is
-                also provided. Ignored if read_data is False.
-            antenna_names: The antennas names to include when reading data into
-                the object (antenna positions and names for the excluded antennas
-                will be retained). This cannot be provided if antenna_nums is
-                also provided. Ignored if read_data is False.
-            bls: A list of antenna number tuples (e.g. [(0,1), (3,2)]) or a list of
-                baseline 3-tuples (e.g. [(0,1,'xx'), (2,3,'yy')]) specifying baselines
-                to keep in the object. For length-2 tuples, the  ordering of the numbers
-                within the tuple does not matter. For length-3 tuples, the polarization
-                string is in the order of the two antennas. If length-3 tuples are provided,
-                the polarizations argument below must be None. Ignored if read_data is False.
-            ant_str: A string containing information about what antenna numbers
-                and polarizations to include when reading data into the object.
-                Can be 'auto', 'cross', 'all', or combinations of antenna numbers
-                and polarizations (e.g. '1', '1_2', '1x_2y').
-                See tutorial for more examples of valid strings and
-                the behavior of different forms for ant_str.
-                If '1x_2y,2y_3y' is passed, both polarizations 'xy' and 'yy' will
-                be kept for both baselines (1,2) and (2,3) to return a valid
-                pyuvdata object.
-                An ant_str cannot be passed in addition to any of the above antenna
-                args or the polarizations arg.
-                Ignored if read_data is False.
-            frequencies: The frequencies to include when reading data into the
-                object.  Ignored if read_data is False.
-            freq_chans: The frequency channel numbers to include when reading
-                data into the object. Ignored if read_data is False.
-            times: The times to include when reading data into the object.
-                Ignored if read_data is False.
-            polarizations: The polarizations to include when reading data into
-                the object.  Ignored if read_data is False.
-            blt_inds: The baseline-time indices to include when reading data into
-                the object. This is not commonly used. Ignored if read_data is False.
-            keep_all_metadata: Option to keep all the metadata associated with antennas,
-                even those that do not remain after the select option. Default is True.
-            read_data: Read in the visibility and flag data. If set to false,
-                only the basic metadata will be read in. Setting read_data to
-                False results in an incompletely defined object (check will not
-                pass). Default True.
-            data_array_dtype: Datatype to store the output data_array as. Must be either
-                np.complex64 (single-precision real and imaginary) or np.complex128 (double-
-                precision real and imaginary). Only used if the datatype of the visibility
-                data on-disk is not 'c8' or 'c16'. Default is np.complex128.
-            run_check: Option to check for the existence and proper shapes of
-                parameters after reading in the file. Default is True.
-            check_extra: Option to check optional parameters as well as required
-                ones. Default is True.
-            run_check_acceptability: Option to check acceptable range of the values of
-                parameters after reading in the file. Default is True.
-
-        Returns:
-            None
+        Parameters
+        ----------
+        filename : str or list of str
+             The UVH5 file or list of files to read from.
+        axis : str
+            Axis to concatenate files along. This enables fast concatenation
+            along the specified axis without the normal checking that all other
+            metadata agrees. This method does not guarantee correct resulting
+            objects. Please see the docstring for fast_concat for details.
+            Allowed values are: 'blt', 'freq', 'polarization'. Only used if
+            multiple files are passed.
+        antenna_nums : array_like of int, optional
+            The antennas numbers to include when reading data into the object
+            (antenna positions and names for the removed antennas will be retained
+            unless `keep_all_metadata` is False). This cannot be provided if
+            `antenna_names` is also provided. Ignored if read_data is False.
+        antenna_names : array_like of str, optional
+            The antennas names to include when reading data into the object
+            (antenna positions and names for the removed antennas will be retained
+            unless `keep_all_metadata` is False). This cannot be provided if
+            `antenna_nums` is also provided. Ignored if read_data is False.
+        bls : list of tuple, optional
+            A list of antenna number tuples (e.g. [(0,1), (3,2)]) or a list of
+            baseline 3-tuples (e.g. [(0,1,'xx'), (2,3,'yy')]) specifying baselines
+            to include when reading data into the object. For length-2 tuples,
+            the ordering of the numbers within the tuple does not matter. For
+            length-3 tuples, the polarization string is in the order of the two
+            antennas. If length-3 tuples are provided, `polarizations` must be
+            None. Ignored if read_data is False.
+        ant_str : str, optional
+            A string containing information about what antenna numbers
+            and polarizations to include when reading data into the object.
+            Can be 'auto', 'cross', 'all', or combinations of antenna numbers
+            and polarizations (e.g. '1', '1_2', '1x_2y').  See tutorial for more
+            examples of valid strings and the behavior of different forms for ant_str.
+            If '1x_2y,2y_3y' is passed, both polarizations 'xy' and 'yy' will
+            be kept for both baselines (1,2) and (2,3) to return a valid
+            pyuvdata object.
+            An ant_str cannot be passed in addition to any of `antenna_nums`,
+            `antenna_names`, `bls` args or the `polarizations` parameters,
+            if it is a ValueError will be raised. Ignored if read_data is False.
+        frequencies : array_like of float, optional
+            The frequencies to include when reading data into the object, each
+            value passed here should exist in the freq_array. Ignored if
+            read_data is False.
+        freq_chans : array_like of int, optional
+            The frequency channel numbers to include when reading data into the
+            object. Ignored if read_data is False.
+        times : array_like of float, optional
+            The times to include when reading data into the object, each value
+            passed here should exist in the time_array. Ignored if read_data is False.
+        polarizations : array_like of int, optional
+            The polarizations numbers to include when reading data into the
+            object, each value passed here should exist in the polarization_array.
+            Ignored if read_data is False.
+        blt_inds : array_like of int, optional
+            The baseline-time indices to include when reading data into the
+            object. This is not commonly used. Ignored if read_data is False.
+        keep_all_metadata : bool
+            Option to keep all the metadata associated with antennas, even those
+            that do not have data associated with them after the select option.
+        read_data : bool
+            Read in the visibility and flag data. If set to false, only the
+            basic header info and metadata (if read_metadata is True) will be
+            read in. Setting read_data to False results in an incompletely
+            defined object (check will not pass).
+        data_array_dtype : numpy dtype
+            Datatype to store the output data_array as. Must be either
+            np.complex64 (single-precision real and imaginary) or np.complex128 (double-
+            precision real and imaginary). Only used if the datatype of the visibility
+            data on-disk is not 'c8' or 'c16'.
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            after after reading in the file (the default is True,
+            meaning the check will be run). Ignored if read_data is False.
+        check_extra : bool
+            Option to check optional parameters as well as required ones (the
+            default is True, meaning the optional parameters will be checked).
+            Ignored if read_data is False.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters after
+            reading in the file (the default is True, meaning the acceptable
+            range check will be done). Ignored if read_data is False.
         """
         from . import uvh5
         if isinstance(filename, (list, tuple)):
@@ -2645,28 +2996,37 @@ class UVData(UVBase):
         """
         Write a completely in-memory UVData object to a UVH5 file.
 
-        Args:
-            filename: The UVH5 file to write to.
-            run_check: Option to check for the existence and proper shapes of
-                parameters before writing the file. Default is True.
-            check_extra: Option to check optional parameters as well as required
-                ones. Default is True.
-            run_check_acceptability: Option to check acceptable range of the values of
-                parameters before writing the file. Default is True.
-            clobber: Option to overwrite the file if it already exists. Default is False.
-            data_compression: HDF5 filter to apply when writing the data_array. Default is
-                None (no filter/compression).
-            flags_compression: HDF5 filter to apply when writing the flags_array. Default is
-                the LZF filter.
-            nsample_compression: HDF5 filter to apply when writing the nsample_array. Deafult is
-                the LZF filter.
-            data_write_dtype: datatype of output visibility data. If 'None', then the same datatype
-                as data_array will be used. Otherwise, a numpy dtype object must be specified with
-                an 'r' field and an 'i' field for real and imaginary parts, respectively. See
-                uvh5.py for an example of defining such a datatype. Default is None.
-
-        Returns:
-            None
+        Parameters
+        ----------
+        filename : str
+             The UVH5 file to write to.
+        clobber : bool
+            Option to overwrite the file if it already exists.
+        data_compression : str
+            HDF5 filter to apply when writing the data_array. Default is
+            None meaning no filter or compression.
+        flags_compression : str
+            HDF5 filter to apply when writing the flags_array. Default is "lzf"
+            for the LZF filter.
+        nsample_compression : str
+            HDF5 filter to apply when writing the nsample_array. Default is "lzf"
+            for the LZF filter.
+        data_write_dtype : numpy dtype
+            datatype of output visibility data. If 'None', then the same datatype
+            as data_array will be used. Otherwise, a numpy dtype object must be specified with
+            an 'r' field and an 'i' field for real and imaginary parts, respectively. See
+            uvh5.py for an example of defining such a datatype.
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            after before writing the file (the default is True,
+            meaning the check will be run).
+        check_extra : bool
+            Option to check optional parameters as well as required ones (the
+            default is True, meaning the optional parameters will be checked).
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters before
+            writing the file (the default is True, meaning the acceptable
+            range check will be done).
         """
         uvh5_obj = self._convert_to_filetype('uvh5')
         uvh5_obj.write_uvh5(filename, run_check=run_check,
@@ -2684,29 +3044,33 @@ class UVData(UVBase):
         """
         Initialize a UVH5 file on disk with the header metadata and empty data arrays.
 
-        Args:
-            filename: The UVH5 file to write to.
-            clobber: Option to overwrite the file if it already exists. Default is False.
-            data_compression: HDF5 filter to apply when writing the data_array. Default is
-                None (no filter/compression).
-            flags_compression: HDF5 filter to apply when writing the flags_array. Default is
-                the LZF filter.
-            nsample_compression: HDF5 filter to apply when writing the nsample_array. Default is
-                the LZF filter.
-            data_write_dtype: datatype of output visibility data. If 'None', then double-precision
-                floats will be used. The user may specify 'c8' for single-precision floats or 'c16'
-                for double-presicion. Otherwise, a numpy dtype object must be specified with
-                an 'r' field and an 'i' field for real and imaginary parts, respectively. See
-                uvh5.py for an example of defining such a datatype. Default is None.
+        Parameters
+        ----------
+        filename : str
+             The UVH5 file to write to.
+        clobber : bool
+            Option to overwrite the file if it already exists.
+        data_compression : str
+            HDF5 filter to apply when writing the data_array. Default is
+            None meaning no filter or compression.
+        flags_compression : str
+            HDF5 filter to apply when writing the flags_array. Default is "lzf"
+            for the LZF filter.
+        nsample_compression : str
+            HDF5 filter to apply when writing the nsample_array. Default is "lzf"
+            for the LZF filter.
+        data_write_dtype : numpy dtype
+            datatype of output visibility data. If 'None', then the same datatype
+            as data_array will be used. Otherwise, a numpy dtype object must be specified with
+            an 'r' field and an 'i' field for real and imaginary parts, respectively. See
+            uvh5.py for an example of defining such a datatype.
 
-        Returns:
-            None
-
-        Notes:
-            When partially writing out data, this function should be called first to initialize the
-            file on disk. The data is then actually written by calling the write_uvh5_part method,
-            with the same filename as the one specified in this function. See the tutorial for a
-            worked example.
+        Notes
+        -----
+        When partially writing out data, this function should be called first to initialize the
+        file on disk. The data is then actually written by calling the write_uvh5_part method,
+        with the same filename as the one specified in this function. See the tutorial for a
+        worked example.
         """
         uvh5_obj = self._convert_to_filetype('uvh5')
         uvh5_obj.initialize_uvh5_file(filename, clobber=clobber,
@@ -2723,57 +3087,74 @@ class UVData(UVBase):
         """
         Write data to a UVH5 file that has already been initialized.
 
-        Args:
-            filename: the file on disk to write data to. It must already exist,
-                and is assumed to have been initialized with initialize_uvh5_file.
-            data_array: the data to write to disk. A check is done to ensure that
-                the dimensions of the data passed in conform to the ones specified by
-                the "selection" arguments.
-            flags_array: the flags array to write to disk. A check is done to ensure
-                that the dimensions of the data passed in conform to the ones specified
-                by the "selection" arguments.
-            nsample_array: the nsample array to write to disk. A check is done to ensure
-                that the dimensions fo the data passed in conform to the ones specified
-                by the "selection" arguments.
-            check_header: option to check that the metadata present in the header
-                on disk matches that in the object. Default is True.
-            antenna_nums: The antennas numbers to include when writing data into
-                the object (antenna positions and names for the excluded antennas
-                will be retained). This cannot be provided if antenna_names is
-                also provided.
-            antenna_names: The antennas names to include when writing data into
-                the object (antenna positions and names for the excluded antennas
-                will be retained). This cannot be provided if antenna_nums is
-                also provided.
-            bls: A list of antenna number tuples (e.g. [(0,1), (3,2)]) or a list of
-                baseline 3-tuples (e.g. [(0,1,'xx'), (2,3,'yy')]) specifying baselines
-                to write to the file. For length-2 tuples, the ordering of the numbers
-                within the tuple does not matter. For length-3 tuples, the polarization
-                string is in the order of the two antennas. If length-3 tuples are provided,
-                the polarizations argument below must be None.
-            ant_str: A string containing information about what antenna numbers
-                and polarizations to include when writing data into the object.
-                Can be 'auto', 'cross', 'all', or combinations of antenna numbers
-                and polarizations (e.g. '1', '1_2', '1x_2y').
-                See tutorial for more examples of valid strings and
-                the behavior of different forms for ant_str.
-                If '1x_2y,2y_3y' is passed, both polarizations 'xy' and 'yy' will
-                be written for both baselines (1,2) and (2,3) to reflect a valid
-                pyuvdata object.
-                An ant_str cannot be passed in addition to any of the above antenna
-                args or the polarizations arg.
-            frequencies: The frequencies to include when writing data to the file.
-            freq_chans: The frequency channel numbers to include when writing data to the file.
-            times: The times to include when writing data to the file.
-            polarizations: The polarizations to include when writing data to the file.
-            blt_inds: The baseline-time indices to include when writing data to the file.
-                This is not commonly used.
-            run_check_acceptability: Option to check acceptable range of the values of
-                parameters before writing the file. Default is True.
-            add_to_history: String to append to history before write out. Default is no appending.
-
-        Returns:
-            None
+        Parameters
+        ----------
+        filename : str
+            The UVH5 file to write to. It must already exist, and is assumed to
+            have been initialized with initialize_uvh5_file.
+        data_array : ndarray
+            The data to write to disk. A check is done to ensure that the
+            dimensions of the data passed in conform to the ones specified by
+            the "selection" arguments.
+        flags_array : ndarray
+            The flags array to write to disk. A check is done to ensure that the
+            dimensions of the data passed in conform to the ones specified by
+            the "selection" arguments.
+        nsample_array : ndarray
+            The nsample array to write to disk. A check is done to ensure that the
+            dimensions of the data passed in conform to the ones specified by
+            the "selection" arguments.
+        check_header : bool
+            Option to check that the metadata present in the header on disk
+            matches that in the object.
+        antenna_nums : array_like of int, optional
+            The antennas numbers to include when writing data into the file
+            (antenna positions and names for the removed antennas will be retained).
+            This cannot be provided if `antenna_names` is also provided.
+        antenna_names : array_like of str, optional
+            The antennas names to include when writing data into the file
+            (antenna positions and names for the removed antennas will be retained).
+            This cannot be provided if `antenna_nums` is also provided.
+        bls : list of tuple, optional
+            A list of antenna number tuples (e.g. [(0,1), (3,2)]) or a list of
+            baseline 3-tuples (e.g. [(0,1,'xx'), (2,3,'yy')]) specifying baselines
+            to include when writing data into the file. For length-2 tuples,
+            the ordering of the numbers within the tuple does not matter. For
+            length-3 tuples, the polarization string is in the order of the two
+            antennas. If length-3 tuples are provided, `polarizations` must be
+            None.
+        ant_str : str, optional
+            A string containing information about what antenna numbers
+            and polarizations to include writing data into the file.
+            Can be 'auto', 'cross', 'all', or combinations of antenna numbers
+            and polarizations (e.g. '1', '1_2', '1x_2y').  See tutorial for more
+            examples of valid strings and the behavior of different forms for ant_str.
+            If '1x_2y,2y_3y' is passed, both polarizations 'xy' and 'yy' will
+            be kept for both baselines (1,2) and (2,3) to return a valid
+            pyuvdata object.
+            An ant_str cannot be passed in addition to any of `antenna_nums`,
+            `antenna_names`, `bls` args or the `polarizations` parameters,
+            if it is a ValueError will be raised.
+        frequencies : array_like of float, optional
+            The frequencies to include when writing data into the file, each
+            value passed here should exist in the freq_array.
+        freq_chans : array_like of int, optional
+            The frequency channel numbers to include writing data into the file.
+        times : array_like of float, optional
+            The times to include when writing data into the file, each value
+            passed here should exist in the time_array.
+        polarizations : array_like of int, optional
+            The polarizations numbers to include when writing data into the file,
+            each value passed here should exist in the polarization_array.
+        blt_inds : array_like of int, optional
+            The baseline-time indices to include when writing data into the file.
+            This is not commonly used.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters before
+            writing the file (the default is True, meaning the acceptable
+            range check will be done).
+        add_to_history : str
+            String to append to history before write out. Default is no appending.
         """
         uvh5_obj = self._convert_to_filetype('uvh5')
         uvh5_obj.write_uvh5_part(filename, data_array, flags_array, nsample_array,
@@ -2797,97 +3178,127 @@ class UVData(UVBase):
         """
         Read a generic file into a UVData object.
 
-        Args:
-            filename: The file(s) or list(s) of files to read from.
-            file_type: One of ['uvfits', 'miriad', 'fhd', 'ms', 'uvh5'] or None.
-                If None, the code attempts to guess what the file type is.
-                For miriad and ms types, this is based on the standard directory
-                structure. For FHD, uvfits and uvh5 files it's based on file
-                extensions (FHD: .sav, .txt; uvfits: .uvfits; uvh5: .uvh5).
-                Note that if a list of datasets is passed, the file type is
-                determined from the first dataset.
-            axis: Axis to concatenate files along. This enables fast concatenation
-                along the specified axis without the normal checking that all other
-                metadata agrees. This method does not guarantee correct resulting
-                objects. Please see the docstring for fast_concat for details.
-                Allowed values are: 'blt', 'freq', 'polarization'. Only used if
-                multiple files are passed.
-            antenna_nums: The antennas numbers to include when reading data into
-                the object (antenna positions and names for the excluded antennas
-                will be retained). This cannot be provided if antenna_names is
-                also provided. Ignored if read_data is False.
-            antenna_names: The antennas names to include when reading data into
-                the object (antenna positions and names for the excluded antennas
-                will be retained). This cannot be provided if antenna_nums is
-                also provided. Ignored if read_data is False.
-            bls: A list of antenna number tuples (e.g. [(0,1), (3,2)]) or a list
-                of baseline 3-tuples (e.g. [(0,1,'xx'), (2,3,'yy')]) specifying
-                baselines to keep in the object. For length-2 tuples, the
-                ordering of the numbers within the tuple does not matter. For
-                length-3 tuples, the polarization string is in the order of the
-                two antennas. If length-3 tuples are provided, the polarizations
-                argument below must be None. Ignored if read_data is False.
-            ant_str: A string containing information about what antenna numbers
-                and polarizations to include when reading data into the object.
-                Can be 'auto', 'cross', 'all', or combinations of antenna numbers
-                and polarizations (e.g. '1', '1_2', '1x_2y'). See tutorial for
-                more examples of valid strings and the behavior of different
-                forms for ant_str. If '1x_2y,2y_3y' is passed, both polarizations
-                'xy' and 'yy' will be kept for both baselines (1,2) and (2,3)
-                to return a valid pyuvdata object. An ant_str cannot be passed
-                in addition to any of the above antenna keywords or the
-                polarizations keyword. Ignored if read_data is False.
-            frequencies: The frequencies to include when reading data into the
-                object.  Ignored if read_data is False.
-            freq_chans: The frequency channel numbers to include when reading
-                data into the object. Ignored if read_data is False.
-            times: The times to include when reading data into the object.
-                Ignored if read_data is False.
-            polarizations: The polarizations to include when reading data into
-                the object.  Ignored if read_data is False.
-            time_range: len-2 list containing min and max range of times (Julian Date) to read-in.
-                Ex: [2458115.20, 2458115.40]. Cannot be set with times.
-            blt_inds: The baseline-time indices to include when reading data into
-                the object. This is not commonly used. Ignored if read_data is False.
-            keep_all_metadata: Option to keep all the metadata associated with antennas,
-                even those that do not remain after the select option. Default is True.
-            read_metadata: Read in metadata (times, baselines, uvws) as well as
-                basic header info. Only used if file_type is 'uvfits' and read_data is False
-                (metadata will be read if data is read). If file_type is 'uvfits'
-                and both read_data and read_metadata are false, only basic header
-                info is read in. Default True.
-            read_data: Read in the data. Only used if file_type is 'uvfits',
-                'miriad' or 'uvh5'. If set to False, only the metadata will be
-                read in (for uvfits, this can be further restricted to just the
-                header if read_metadata is False). Setting read_data to False
-                results in an incompletely defined object (check will not pass).
-                Default True.
-            phase_type: Either 'drift' meaning zenith drift, 'phased' meaning
-                the data are phased to a single RA/Dec or None and it will be
-                guessed at based on the file. Only used if file_type is 'miriad'.
-                Default None.
-            correct_lat_lon: flag -- that only matters if altitude is missing --
-                to update the latitude and longitude from the known_telescopes list.
-                Only used if file_type is 'miriad'. Default True.
-            use_model: Option to read in the model visibilities rather than the
-                dirty visibilities. Only used if file_type is 'fhd'. Default is False.
-            data_column: name of CASA data column to read into data_array.
-                'DATA', 'MODEL', or 'CORRECTED_DATA'. Only used if file_type is 'ms'.
-            pol_order: specify whether you want polarizations ordered by
-                'CASA' or 'AIPS' conventions. Only used if file_type is 'ms'.
-            data_array_dtype: Datatype to store the output data_array as when reading uvh5
-                files. Must be either np.complex64 (single-precision real and imaginary) or
-                np.complex128 (double-precision real and imaginary). Only used if the datatype
-                of the visibility data on-disk is not 'c8' or 'c16'. Default is np.complex128.
-            run_check: Option to check for the existence and proper shapes of
-                parameters after reading in the file. Default is True.
-            check_extra: Option to check optional parameters as well as required
-                ones. Default is True.
-            run_check_acceptability: Option to check acceptable range of the values of
-                parameters after reading in the file. Default is True.
-
-        Returns:
-            None
+        Parameters
+        ----------
+        filename : str or list of str
+            The file(s) or list(s) of files to read from.
+        file_type : str
+            One of ['uvfits', 'miriad', 'fhd', 'ms', 'uvh5'] or None.
+            If None, the code attempts to guess what the file type is.
+            For miriad and ms types, this is based on the standard directory
+            structure. For FHD, uvfits and uvh5 files it's based on file
+            extensions (FHD: .sav, .txt; uvfits: .uvfits; uvh5: .uvh5).
+            Note that if a list of datasets is passed, the file type is
+            determined from the first dataset.
+        axis : str
+            Axis to concatenate files along. This enables fast concatenation
+            along the specified axis without the normal checking that all other
+            metadata agrees. This method does not guarantee correct resulting
+            objects. Please see the docstring for fast_concat for details.
+            Allowed values are: 'blt', 'freq', 'polarization'. Only used if
+            multiple files are passed.
+        antenna_nums : array_like of int, optional
+            The antennas numbers to include when reading data into the object
+            (antenna positions and names for the removed antennas will be retained
+            unless `keep_all_metadata` is False). This cannot be provided if
+            `antenna_names` is also provided. Ignored if read_data is False.
+        antenna_names : array_like of str, optional
+            The antennas names to include when reading data into the object
+            (antenna positions and names for the removed antennas will be retained
+            unless `keep_all_metadata` is False). This cannot be provided if
+            `antenna_nums` is also provided. Ignored if read_data is False.
+        bls : list of tuple, optional
+            A list of antenna number tuples (e.g. [(0,1), (3,2)]) or a list of
+            baseline 3-tuples (e.g. [(0,1,'xx'), (2,3,'yy')]) specifying baselines
+            to include when reading data into the object. For length-2 tuples,
+            the ordering of the numbers within the tuple does not matter. For
+            length-3 tuples, the polarization string is in the order of the two
+            antennas. If length-3 tuples are provided, `polarizations` must be
+            None. Ignored if read_data is False.
+        ant_str : str, optional
+            A string containing information about what antenna numbers
+            and polarizations to include when reading data into the object.
+            Can be 'auto', 'cross', 'all', or combinations of antenna numbers
+            and polarizations (e.g. '1', '1_2', '1x_2y').  See tutorial for more
+            examples of valid strings and the behavior of different forms for ant_str.
+            If '1x_2y,2y_3y' is passed, both polarizations 'xy' and 'yy' will
+            be kept for both baselines (1,2) and (2,3) to return a valid
+            pyuvdata object.
+            An ant_str cannot be passed in addition to any of `antenna_nums`,
+            `antenna_names`, `bls` args or the `polarizations` parameters,
+            if it is a ValueError will be raised. Ignored if read_data is False.
+        frequencies : array_like of float, optional
+            The frequencies to include when reading data into the object, each
+            value passed here should exist in the freq_array. Ignored if
+            read_data is False.
+        freq_chans : array_like of int, optional
+            The frequency channel numbers to include when reading data into the
+            object. Ignored if read_data is False.
+        times : array_like of float, optional
+            The times to include when reading data into the object, each value
+            passed here should exist in the time_array. Ignored if read_data is False.
+        time_range : list of float, optional
+            len-2 list containing min and max range of times in Julian Date to
+            include when reading data into the object. e.g. [2458115.20, 2458115.40]
+            Cannot be set with times.
+        polarizations : array_like of int, optional
+            The polarizations numbers to include when reading data into the
+            object, each value passed here should exist in the polarization_array.
+            Ignored if read_data is False.
+        blt_inds : array_like of int, optional
+            The baseline-time indices to include when reading data into the
+            object. This is not commonly used. Ignored if read_data is False.
+        keep_all_metadata : bool
+            Option to keep all the metadata associated with antennas, even those
+            that do not have data associated with them after the select option.
+        read_metadata : bool
+            Option to read in metadata (times, baselines, uvws) as well as
+            basic header info. Only used if file_type is 'uvfits' and read_data
+            is False (metadata will be read if data is read). If file_type is
+            'uvfits' and both read_data and read_metadata are false, only basic
+            header info is read in.
+        read_data : bool
+            Read in the data. Only used if file_type is 'uvfits',
+            'miriad' or 'uvh5'. If set to False, only the metadata will be
+            read in (for uvfits, this can be further restricted to just the
+            header if read_metadata is False). Setting read_data to False
+            results in an incompletely defined object (check will not pass).
+        phase_type : str, optional
+            Option to specify the phasing status of the data. Only used if
+            file_type is 'miriad'. Options are 'drift', 'phased' or None.
+            'drift' means the data are zenith drift data, 'phased' means the
+            data are phased to a single RA/Dec. Default is None
+            meaning it will be guessed at based on the file contents.
+        correct_lat_lon : bool
+            Option to update the latitude and longitude from the known_telescopes
+            list if the altitude is missing. Only used if file_type is 'miriad'.
+        use_model : bool
+            Option to read in the model visibilities rather than the dirty
+            visibilities (the default is False, meaning the dirty visibilities
+            will be read). Only used if file_type is 'fhd'.
+        data_column : str
+            name of CASA data column to read into data_array. Options are:
+            'DATA', 'MODEL', or 'CORRECTED_DATA'. Only used if file_type is 'ms'.
+        pol_order : str
+            Option to specify polarizations order convention, options are
+            'CASA' or 'AIPS'. Only used if file_type is 'ms'.
+        data_array_dtype : numpy dtype
+            Datatype to store the output data_array as. Must be either
+            np.complex64 (single-precision real and imaginary) or np.complex128 (double-
+            precision real and imaginary). Only used if the datatype of the visibility
+            data on-disk is not 'c8' or 'c16'. Only used if file_type is 'uvh5'.
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            after after reading in the file (the default is True,
+            meaning the check will be run). Ignored if read_data is False.
+        check_extra : bool
+            Option to check optional parameters as well as required ones (the
+            default is True, meaning the optional parameters will be checked).
+            Ignored if read_data is False.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters after
+            reading in the file (the default is True, meaning the acceptable
+            range check will be done). Ignored if read_data is False.
         """
         if isinstance(filename, (list, tuple)):
             # this is either a list of separate files to read or a list of FHD files
@@ -3082,7 +3493,12 @@ class UVData(UVBase):
 
     def get_ants(self):
         """
-        Returns numpy array of unique antennas in the data.
+        Get the unique antennas that have data associated with them.
+
+        Returns
+        -------
+        ndarray of int
+            Array of unique antennas with data associated with them.
         """
         return np.unique(np.append(self.ant_1_array, self.ant_2_array))
 
@@ -3090,15 +3506,19 @@ class UVData(UVBase):
         """
         Returns antenna positions in ENU (topocentric) coordinates in units of meters.
 
-        Parameters:
-        -----------
-        center : bool, if True: subtract median of array position from antpos
-        pick_data_ants : bool, if True: return only antennas found in data
+        Parameters
+        ----------
+        center : bool
+            If True, subtract median of array position from antpos
+        pick_data_ants : bool
+            If True, return only antennas found in data
 
-        Returns: (antpos, ants)
-        --------
-        antpos : ndarray, antenna positions in TOPO frame and units of meters, shape=(Nants, 3)
-        ants : ndarray, antenna numbers matching ordering of antpos, shape=(Nants,)
+        Returns
+        -------
+        antpos : ndarray
+            Antenna positions in ENU (topocentric) coordinates in units of meters, shape=(Nants, 3)
+        ants : ndarray
+            Antenna numbers matching ordering of antpos, shape=(Nants,)
         """
         if center is None:
             center = False
@@ -3126,25 +3546,45 @@ class UVData(UVBase):
 
     def get_baseline_nums(self):
         """
-        Returns numpy array of unique baseline numbers in data.
+        Get the unique baselines that have data associated with them.
+
+        Returns
+        -------
+        ndarray of int
+            Array of unique baselines with data associated with them.
         """
         return np.unique(self.baseline_array)
 
     def get_antpairs(self):
         """
-        Returns list of unique antpair tuples (ant1, ant2) in data.
+        Get the unique antpair tuples that have data associated with them.
+
+        Returns
+        -------
+        list of tuples of int
+            list of unique antpair tuples (ant1, ant2) with data associated with them.
         """
         return [self.baseline_to_antnums(bl) for bl in self.get_baseline_nums()]
 
     def get_pols(self):
         """
-        Returns list of pols in string format.
+        Get the polarizations in the data.
+
+        Returns
+        -------
+        list of str
+            list of polarizations (as strings) in the data.
         """
         return uvutils.polnum2str(self.polarization_array, x_orientation=self.x_orientation)
 
     def get_antpairpols(self):
         """
-        Returns list of unique antpair + pol tuples (ant1, ant2, pol) in data.
+        Get the unique antpair + pol tuples that have data associated with them.
+
+        Returns
+        -------
+        list of tuples of int
+            list of unique antpair + pol tuples (ant1, ant2, pol) with data associated with them.
         """
         bli = 0
         pols = self.get_pols()
@@ -3153,8 +3593,17 @@ class UVData(UVBase):
 
     def get_feedpols(self):
         """
-        Returns list of unique antenna feed polarizations (e.g. ['X', 'Y']) in data.
-        NOTE: Will return ValueError if any pseudo-Stokes visibilities are present.
+        Get the unique antenna feed polarizations in the data.
+
+        Returns
+        -------
+        list of str
+            list of antenna feed polarizations (e.g. ['X', 'Y']) in the data.
+
+        Raises
+        ------
+        ValueError
+            If any pseudo-Stokes visibilities are present
         """
         if np.any(self.polarization_array > 0):
             raise ValueError('Pseudo-Stokes visibilities cannot be interpreted as feed polarizations')
@@ -3163,20 +3612,23 @@ class UVData(UVBase):
 
     def antpair2ind(self, ant1, ant2=None, ordered=True):
         """
-        Given an antenna pair key, return indices along the baseline-time axis.
+        Get indices along the baseline-time axis for a given antenna pair.
+
         This will search for either the key as specified, or the key and its
         conjugate.
 
-        Args:
-            ant1, ant2:
-                Either an antenna-pair key, or key expanded as arguments.
-                Example: antpair2ind( (10, 20) ) or antpair2ind(10, 20)
-            ordered : Boolean, if True, search for antpair as provided, else
-                search for it and it conjugate.
+        Parameters
+        ----------
+        ant1, ant2 : int
+            Either an antenna-pair key, or key expanded as arguments,
+            e.g. antpair2ind( (10, 20) ) or antpair2ind(10, 20)
+        ordered : bool
+            If True, search for antpair as provided, else search for it and it's conjugate.
 
-        Returns:
-            inds: int-64 ndarray containing indices of the antpair along the
-                baseline-time axis.
+        Returns
+        -------
+        inds : ndarray of int-64
+            indices of the antpair along the baseline-time axis.
         """
         # check for expanded antpair or key
         if ant2 is None:
@@ -3209,27 +3661,36 @@ class UVData(UVBase):
         """
         Interpret user specified key as a combination of antenna pair and/or polarization.
 
-        Args:
-            key: Identifier of data. Key can be 1, 2, or 3 numbers:
-                if len(key) == 1:
-                    if (key < 5) or (type(key) is str):  interpreted as a
-                                 polarization number/name, return all blts for that pol.
-                    else: interpreted as a baseline number. Return all times and
-                          polarizations for that baseline.
-                if len(key) == 2: interpreted as an antenna pair. Return all
-                    times and pols for that baseline.
-                if len(key) == 3: interpreted as antenna pair and pol (ant1, ant2, pol).
-                    Return all times for that baseline, pol. pol may be a string.
+        Parameters
+        ----------
+        key : tuple of int
+            Identifier of data. Key can be length 1, 2, or 3:
 
-        Returns:
-            blt_ind1: numpy array with blt indices for antenna pair.
-            blt_ind2: numpy array with blt indices for conjugate antenna pair.
-                      Note if a cross-pol baseline is requested, the polarization will
-                      also be reversed so the appropriate correlations are returned.
-                      e.g. asking for (1, 2, 'xy') may return conj(2, 1, 'yx'), which
-                      is equivalent to the requesting baseline. See utils.conj_pol() for
-                      complete conjugation mapping.
-            pol_ind: tuple of numpy arrays with polarization indices for blt_ind1 and blt_ind2
+            if len(key) == 1:
+                if (key < 5) or (type(key) is str):  interpreted as a
+                             polarization number/name, return all blts for that pol.
+                else: interpreted as a baseline number. Return all times and
+                      polarizations for that baseline.
+
+            if len(key) == 2: interpreted as an antenna pair. Return all
+                times and pols for that baseline.
+
+            if len(key) == 3: interpreted as antenna pair and pol (ant1, ant2, pol).
+                Return all times for that baseline, pol. pol may be a string.
+
+        Returns
+        ----------
+        blt_ind1 : ndarray of int
+            blt indices for antenna pair.
+        blt_ind2 : ndarray of int
+            blt indices for conjugate antenna pair.
+            Note if a cross-pol baseline is requested, the polarization will
+            also be reversed so the appropriate correlations are returned.
+            e.g. asking for (1, 2, 'xy') may return conj(2, 1, 'yx'), which
+            is equivalent to the requesting baseline. See utils.conj_pol() for
+            complete conjugation mapping.
+        pol_ind : tuple of ndarray of int
+            polarization indices for blt_ind1 and blt_ind2
         """
         key = uvutils._get_iterable(key)
         if type(key) is str:
@@ -3347,27 +3808,36 @@ class UVData(UVBase):
             blt_ind2 = np.array([], dtype=np.int64)
         return (blt_ind1, blt_ind2, pol_ind)
 
-    def _smart_slicing(self, data, ind1, ind2, indp, **kwargs):
+    def _smart_slicing(self, data, ind1, ind2, indp, squeeze='default',
+                       force_copy=False):
         """
-        Method for quickly picking out the relevant section of data for get_data or get_flags
+        Method to quickly get the relevant section of a data-like array.
 
-        Args:
-            data: 4-dimensional array in the format of self.data_array
-            ind1: list with blt indices for antenna pair (e.g. from self._key2inds)
-            ind2: list with blt indices for conjugate antenna pair. (e.g. from self._key2inds)
-            indp: tuple of lists with polarization indices for ind1 and ind2 (e.g. from self._key2inds)
-        kwargs:
-            squeeze: 'default': squeeze pol and spw dimensions if possible (default)
-                     'none': no squeezing of resulting numpy array
-                     'full': squeeze all length 1 dimensions
-            force_copy: Option to explicitly make a copy of the data. Default is False.
+        Used in get_data, get_flags and get_nsamples.
 
-        Returns:
-            out: numpy array copy (or if possible, a read-only view) of relevant section of data
+        Parameters
+        ----------
+        data : ndarray
+            4-dimensional array shaped like self.data_array
+        ind1 : array_like of int
+            blt indices for antenna pair (e.g. from self._key2inds)
+        ind2 : array_like of int
+            blt indices for conjugate antenna pair. (e.g. from self._key2inds)
+        indp : tuple array_like of int
+            polarization indices for ind1 and ind2 (e.g. from self._key2inds)
+        squeeze : str
+            string specifying how to squeeze the returned array. Options are:
+            'default': squeeze pol and spw dimensions if possible;
+            'none': no squeezing of resulting numpy array;
+            'full': squeeze all length 1 dimensions.
+        force_copy : bool
+            Option to explicitly make a copy of the data.
+
+        Returns
+        -------
+        ndarray
+            copy (or if possible, a read-only view) of relevant section of data
         """
-        force_copy = kwargs.pop('force_copy', False)
-        squeeze = kwargs.pop('squeeze', 'default')
-
         p_reg_spaced = [False, False]
         p_start = [0, 0]
         p_stop = [0, 0]
@@ -3451,100 +3921,217 @@ class UVData(UVBase):
 
         return out
 
-    def get_data(self, *args, **kwargs):
+    def get_data(self, key1, key2=None, key3=None, squeeze='default',
+                 force_copy=False):
         """
-        Function for quick access to numpy array with data corresponding to
-        a baseline and/or polarization. Returns a read-only view if possible, otherwise a copy.
+        Get the data corresonding to a baseline and/or polarization.
 
-        Args:
-            *args: parameters or tuple of parameters defining the key to identify
-                   desired data. See _key2inds for formatting.
-            **kwargs: Keyword arguments:
-                squeeze: 'default': squeeze pol and spw dimensions if possible
-                         'none': no squeezing of resulting numpy array
-                         'full': squeeze all length 1 dimensions
-                force_copy: Option to explicitly make a copy of the data.
-                             Default is False.
+        Parameters
+        ----------
+        key1, key2, key3 : int or tuple of ints
+            Identifier of which data to get, can be passed as 1, 2, or 3 arguments
+            or as a single tuple of length 1, 2, or 3. These are collectively
+            called the key.
 
-        Returns:
-            Numpy array of data corresponding to key.
+            If key is length 1:
+                if (key < 5) or (type(key) is str):
+                    interpreted as a polarization number/name, get all data for
+                    that pol.
+                else:
+                    interpreted as a baseline number, get all data for that baseline.
+
+            if key is length 2: interpreted as an antenna pair, get all data
+                for that baseline.
+
+            if key is length 3: interpreted as antenna pair and pol (ant1, ant2, pol),
+                get all data for that baseline, pol. pol may be a string or int.
+        squeeze : str
+            string specifying how to squeeze the returned array. Options are:
+            'default': squeeze pol and spw dimensions if possible;
+            'none': no squeezing of resulting numpy array;
+            'full': squeeze all length 1 dimensions.
+        force_copy : bool
+            Option to explicitly make a copy of the data.
+
+        Returns
+        -------
+        ndarray
+            copy (or if possible, a read-only view) of relevant section of data.
             If data exists conjugate to requested antenna pair, it will be conjugated
             before returning.
         """
-        ind1, ind2, indp = self._key2inds(args)
-        out = self._smart_slicing(self.data_array, ind1, ind2, indp, **kwargs)
+        key = []
+        for val in [key1, key2, key3]:
+            if isinstance(val, str):
+                key.append(val)
+            elif val is not None:
+                key += list(uvutils._get_iterable(val))
+        if len(key) > 3:
+            raise ValueError('no more than 3 key values can be passed')
+        ind1, ind2, indp = self._key2inds(key)
+        out = self._smart_slicing(self.data_array, ind1, ind2, indp,
+                                  squeeze=squeeze, force_copy=force_copy)
         return out
 
-    def get_flags(self, *args, **kwargs):
+    def get_flags(self, key1, key2=None, key3=None, squeeze='default',
+                  force_copy=False):
         """
-        Function for quick access to numpy array with flags corresponding to
-        a baseline and/or polarization. Returns a read-only view if possible, otherwise a copy.
+        Get the flags corresonding to a baseline and/or polarization.
 
-        Args:
-            *args: parameters or tuple of parameters defining the key to identify
-                   desired data. See _key2inds for formatting.
-            **kwargs: Keyword arguments:
-                squeeze: 'default': squeeze pol and spw dimensions if possible
-                         'none': no squeezing of resulting numpy array
-                         'full': squeeze all length 1 dimensions
-                force_copy: Option to explicitly make a copy of the data.
-                             Default is False.
+        Parameters
+        ----------
+        key1, key2, key3 : int or tuple of ints
+            Identifier of which data to get, can be passed as 1, 2, or 3 arguments
+            or as a single tuple of length 1, 2, or 3. These are collectively
+            called the key.
 
-        Returns:
-            Numpy array of flags corresponding to key.
+            If key is length 1:
+                if (key < 5) or (type(key) is str):
+                    interpreted as a polarization number/name, get all flags for
+                    that pol.
+                else:
+                    interpreted as a baseline number, get all flags for that baseline.
+
+            if key is length 2: interpreted as an antenna pair, get all flags
+                for that baseline.
+
+            if key is length 3: interpreted as antenna pair and pol (ant1, ant2, pol),
+                get all flags for that baseline, pol. pol may be a string or int.
+        squeeze : str
+            string specifying how to squeeze the returned array. Options are:
+            'default': squeeze pol and spw dimensions if possible;
+            'none': no squeezing of resulting numpy array;
+            'full': squeeze all length 1 dimensions.
+        force_copy : bool
+            Option to explicitly make a copy of the data.
+
+        Returns
+        -------
+        ndarray
+            copy (or if possible, a read-only view) of relevant section of flags.
         """
-        ind1, ind2, indp = self._key2inds(args)
-        out = self._smart_slicing(self.flag_array, ind1, ind2, indp, **kwargs).astype(np.bool)
+        key = []
+        for val in [key1, key2, key3]:
+            if isinstance(val, str):
+                key.append(val)
+            elif val is not None:
+                key += list(uvutils._get_iterable(val))
+        if len(key) > 3:
+            raise ValueError('no more than 3 key values can be passed')
+        ind1, ind2, indp = self._key2inds(key)
+        out = self._smart_slicing(self.flag_array, ind1, ind2, indp,
+                                  squeeze=squeeze, force_copy=force_copy).astype(np.bool)
         return out
 
-    def get_nsamples(self, *args, **kwargs):
+    def get_nsamples(self, key1, key2=None, key3=None, squeeze='default',
+                     force_copy=False):
         """
-        Function for quick access to numpy array with nsamples corresponding to
-        a baseline and/or polarization. Returns a read-only view if possible, otherwise a copy.
+        Get the nsamples corresonding to a baseline and/or polarization.
 
-        Args:
-            *args: parameters or tuple of parameters defining the key to identify
-                   desired data. See _key2inds for formatting.
-            **kwargs: Keyword arguments:
-                squeeze: 'default': squeeze pol and spw dimensions if possible
-                         'none': no squeezing of resulting numpy array
-                         'full': squeeze all length 1 dimensions
-                force_copy: Option to explicitly make a copy of the data.
-                             Default is False.
+        Parameters
+        ----------
+        key1, key2, key3 : int or tuple of ints
+            Identifier of which data to get, can be passed as 1, 2, or 3 arguments
+            or as a single tuple of length 1, 2, or 3. These are collectively
+            called the key.
 
-        Returns:
-            Numpy array of nsamples corresponding to key.
+            If key is length 1:
+                if (key < 5) or (type(key) is str):
+                    interpreted as a polarization number/name, get all nsamples for
+                    that pol.
+                else:
+                    interpreted as a baseline number, get all nsamples for that baseline.
+
+            if key is length 2: interpreted as an antenna pair, get all nsamples
+                for that baseline.
+
+            if key is length 3: interpreted as antenna pair and pol (ant1, ant2, pol),
+                get all nsamples for that baseline, pol. pol may be a string or int.
+        squeeze : str
+            string specifying how to squeeze the returned array. Options are:
+            'default': squeeze pol and spw dimensions if possible;
+            'none': no squeezing of resulting numpy array;
+            'full': squeeze all length 1 dimensions.
+        force_copy : bool
+            Option to explicitly make a copy of the data.
+
+        Returns
+        -------
+        ndarray
+            copy (or if possible, a read-only view) of relevant section of nsample_array.
         """
-        ind1, ind2, indp = self._key2inds(args)
-        out = self._smart_slicing(self.nsample_array, ind1, ind2, indp, **kwargs)
+        key = []
+        for val in [key1, key2, key3]:
+            if isinstance(val, str):
+                key.append(val)
+            elif val is not None:
+                key += list(uvutils._get_iterable(val))
+        if len(key) > 3:
+            raise ValueError('no more than 3 key values can be passed')
+        ind1, ind2, indp = self._key2inds(key)
+        out = self._smart_slicing(self.nsample_array, ind1, ind2, indp,
+                                  squeeze=squeeze, force_copy=force_copy)
         return out
 
-    def get_times(self, *args):
+    def get_times(self, key1, key2=None, key3=None):
         """
-        Find the time_array entries for a given antpair or baseline number.
+        Get the times for a given antpair or baseline number.
+
         Meant to be used in conjunction with get_data function.
 
-        Args:
-            args: antenna-pair(-pol) key expanded as arguments.
+        Parameters
+        ----------
+        key1, key2, key3 : int or tuple of ints
+            Identifier of which data to get, can be passed as 1, 2, or 3 arguments
+            or as a single tuple of length 1, 2, or 3. These are collectively
+            called the key.
 
-        Returns:
-            Numpy array of times corresonding to key.
+            If key is length 1:
+                if (key < 5) or (type(key) is str):
+                    interpreted as a polarization number/name, get all times.
+                else:
+                    interpreted as a baseline number, get all times for that baseline.
+
+            if key is length 2: interpreted as an antenna pair, get all times
+                for that baseline.
+
+            if key is length 3: interpreted as antenna pair and pol (ant1, ant2, pol),
+                get all times for that baseline.
+
+        Returns
+        -------
+        ndarray
+            times from the time_array for the given antpair or baseline.
         """
-        inds1, inds2, indp = self._key2inds(args)
+        key = []
+        for val in [key1, key2, key3]:
+            if isinstance(val, str):
+                key.append(val)
+            elif val is not None:
+                key += list(uvutils._get_iterable(val))
+        if len(key) > 3:
+            raise ValueError('no more than 3 key values can be passed')
+        inds1, inds2, indp = self._key2inds(key)
         return self.time_array[np.append(inds1, inds2)]
 
     def antpairpol_iter(self, squeeze='default'):
         """
-        Generates numpy arrays of data for each antpair, pol combination.
+        Iterator to get the data for each antpair, polarization combination.
 
-        Args:
-            squeeze: 'default': squeeze pol and spw dimensions if possible
-                     'none': no squeezing of resulting numpy array
-                     'full': squeeze all length 1 dimensions
+        Parameters
+        ----------
+        squeeze : str
+            string specifying how to squeeze the returned array. Options are:
+            'default': squeeze pol and spw dimensions if possible;
+            'none': no squeezing of resulting numpy array;
+            'full': squeeze all length 1 dimensions.
 
-        Returns (for each iteration):
-            key: tuple with antenna1, antenna2, and polarization string
-            data: Numpy array with data which is the result of self[key]
+        Yields
+        ------
+        key : tuple
+            antenna1, antenna2, and polarization string
+        data : ndarray of complex
+            data for the ant pair and polarization specified in key
         """
         antpairpols = self.get_antpairpols()
         for key in antpairpols:
@@ -3552,31 +4139,35 @@ class UVData(UVBase):
 
     def parse_ants(self, ant_str, print_toggle=False):
         """
+        Get antpair and polarization from parsing an aipy-style ant string.
+
+        Used to support the the select function.
         Generates two lists of antenna pair tuples and polarization indices based
         on parsing of the string ant_str.  If no valid polarizations (pseudo-Stokes
         params, or combinations of [lr] or [xy]) or antenna numbers are found in
         ant_str, ant_pairs_nums and polarizations are returned as None.
 
-        Args:
-            ant_str: String containing antenna information to pass to select
-                function. Can be 'all', 'auto', cross, or combinations of antenna
-                numbers and polarization indicators l and r or x and y.  Minus
-                signs can also be used in front of an antenna number or baseline
-                to exclude it from being output in ant_pairs_nums. If the antenna
-                number attached with a minus sign is present in the outputted list
-                ant_pairs_nums, it will be removed from the list.  If ant_str
-                passed with a minus sign as the first character, 'all,' will be
-                appended to the beginning of the string.  See the
-                tutorial for examples of valid strings and their behavior.
-            print_toggle: Boolean for printing parsed baselines for a visual user
-                check.
+        Parameters
+        ----------
+        ant_str : str
+            String containing antenna information to parse. Can be 'all',
+            'auto', 'cross', or combinations of antenna numbers and polarization
+            indicators 'l' and 'r' or 'x' and 'y'.  Minus signs can also be used
+            in front of an antenna number or baseline to exclude it from being
+            output in ant_pairs_nums. If ant_str has a minus sign as the first
+            character, 'all,' will be appended to the beginning of the string.
+            See the tutorial for examples of valid strings and their behavior.
+        print_toggle : bool
+            Boolean for printing parsed baselines for a visual user check.
 
-        Output:
-            ant_pairs_nums: List of tuples containing the parsed pairs of
-                antenna numbers. If 'all' or pseudo-Stokes parameters are passed as
-                ant_str, returned as None.
-            polarizations: List of desired polarizations. If no polarizations
-                found in ant_str then returned as None.
+        Returns
+        -------
+        ant_pairs_nums : list of tuples of int or None
+            List of tuples containing the parsed pairs of antenna numbers, or
+            None if ant_str is 'all' or a pseudo-Stokes polarizations.
+        polarizations : list of int or None
+            List of desired polarizations or None if ant_str does not contain a
+            polarization specification.
         """
 
         ant_re = r'(\(((-?\d+[lrxy]?,?)+)\)|-?\d+[lrxy]?)'
@@ -3768,41 +4359,48 @@ class UVData(UVBase):
         return ant_pairs_nums, polarizations
 
     def _calc_single_integration_time(self):
-        """Calculate a single integration time for a UVData object when not otherwise specified.
-
-        Args:
-            None
-
-        Returns:
-            int_time: integration time to be assigned to all samples in the data.
-
-        Notes:
-            This funciton computes the shortest time difference present in a UVData object's time_array,
-            and returns that as the integration time to be used for all samples. Also, the time_array
-            is in units of days, and integration_time has units of seconds, so we need to convert.
         """
+        Calculate a single integration time in seconds when not otherwise specified.
+
+        This function computes the shortest time difference present in the
+        time_array, and returns it to be used as the integration time for all
+        samples.
+
+        Returns
+        ----------
+        int_time : int
+            integration time in seconds to be assigned to all samples in the data.
+        """
+        # The time_array is in units of days, and integration_time has units of
+        # seconds, so we need to convert.
         return np.diff(np.sort(list(set(self.time_array))))[0] * 86400
 
     def get_antenna_redundancies(self, tol=1.0, include_autos=True,
                                  conjugate_bls=False):
         """
-        Convenience method for getting baseline redundancies to a given tolerance
-        from antenna positions.
+        Get redundant baselines to a given tolerance from antenna positions.
 
-        Returns all possible baselines (antenna pairs) not just those with data.
+        Finds all possible redundant baselines (antenna pairs) not just those with data.
 
-        Args:
-            tol: Redundancy tolerance in meters (default 1m)
-            include_autos: Include autocorrelations in the full redundancy list (default True)
-            conjugate_bls: Option to conjugate baselines on this object to the
-                'u>0' convention. Set this to True to ensure that the returned
-                baseline numbers will match the baseline numbers in the data
-                (if they exist in the data).
+        Parameters
+        ----------
+        tol : float
+            Redundancy tolerance in meters (default 1m).
+        include_autos : bool
+            Option to include autocorrelations in the full redundancy list.
+        conjugate_bls : bool
+            Option to conjugate baselines on this object to the 'u>0' convention.
+            Set this to True to ensure that the returned baseline numbers will
+            match the baseline numbers in the data (if they exist in the data).
 
-        Returns:
-            baseline_groups: list of lists of redundant baseline numbers
-            vec_bin_centers: List of vectors describing redundant group centers
-            lengths: List of redundant group baseline lengths in meters
+        Returns
+        -------
+        baseline_groups : list of lists of int
+            List of lists of redundant baseline numbers
+        vec_bin_centers : list of ndarray of float
+            List of vectors describing redundant group uvw centers
+        lengths : list of float
+            List of redundant group baseline lengths in meters
 
         Notes
         -----
@@ -3814,42 +4412,62 @@ class UVData(UVBase):
         if conjugate_bls:
             self.conjugate_bls(convention='u>0')
         antpos, numbers = self.get_ENU_antpos(center=False)
-        return uvutils.get_antenna_redundancies(numbers, antpos, tol=tol, include_autos=include_autos)
+        return uvutils.get_antenna_redundancies(numbers, antpos, tol=tol,
+                                                include_autos=include_autos)
 
     def get_baseline_redundancies(self, tol=1.0):
         """
-        Convenience method for getting baseline redundancies to a given tolerance.
+        Get baseline redundancies to a given tolerance from uvw_array.
 
-        Args:
-            tol: Redundancy tolerance in meters (default 1m)
+        Parameters
+        ----------
+        tol : float
+            Redundancy tolerance in meters, default is 1.0 corresponding to 1 meter.
 
-        Returns:
-            baseline_groups: list of lists of redundant baseline numbers
-            vec_bin_centers: List of vectors describing redundant group centers
-            lengths: List of redundant group baseline lengths in meters
-            baseline_ind_conj: List of baselines that are redundant when reversed. (Only returned if with_conjugates is True)
+        Returns
+        -------
+        baseline_groups : list of lists of int
+            List of lists of redundant baseline numbers
+        vec_bin_centers : list of ndarray of float
+            List of vectors describing redundant group uvw centers
+        lengths : list of float
+            List of redundant group baseline lengths in meters
+        baseline_ind_conj : list of int
+            List of baselines that are redundant when reversed.
         """
         _, unique_inds = np.unique(self.baseline_array, return_index=True)
         unique_inds.sort()
         baseline_vecs = np.take(self.uvw_array, unique_inds, axis=0)
         baselines = np.take(self.baseline_array, unique_inds)
 
-        return uvutils.get_baseline_redundancies(baselines, baseline_vecs, tol=tol, with_conjugates=True)
+        return uvutils.get_baseline_redundancies(baselines, baseline_vecs,
+                                                 tol=tol, with_conjugates=True)
 
     def compress_by_redundancy(self, tol=1.0, inplace=True, metadata_only=False,
                                keep_all_metadata=True):
         """
-        Uses utility functions to find redundant baselines to the given tolerance, then select on those.
+        Downselect to only have one baseline per redundant group on the object.
 
-        Args:
-            tol: Redundancy tolerance in meters (default 1m)
-            inplace: Do selection on current object.
-            metadata_only: Option to only do the select on the metadata. Not allowed
-                if the data_array, flag_array or nsample_array is not None. (False)
-            keep_all_metadata: Option to keep all the metadata associated with antennas,
-                even those that do not remain after the select option. (True)
-        Returns:
-            UVData: if not inplace, returns the compressed UVData object
+        Uses utility functions to find redundant baselines to the given tolerance,
+        then select on those.
+
+        Parameters
+        ----------
+        tol : float
+            Redundancy tolerance in meters, default is 1.0 corresponding to 1 meter.
+        inplace : bool
+            Option to do selection on current object.
+        metadata_only : bool
+            Option to only do the select on the metadata. Not allowed
+            if the data_array, flag_array or nsample_array is not None.
+        keep_all_metadata : bool
+            Option to keep all the metadata associated with antennas,
+            even those that do not remain after the select option.
+
+        Returns
+        -------
+        UVData object or None
+            if inplace is False, return the compressed UVData object
         """
 
         red_gps, centers, lengths, conjugates = self.get_baseline_redundancies(tol)
@@ -3865,12 +4483,14 @@ class UVData(UVBase):
         Note that this method conjugates baselines to the 'u>0' convention in order
         to inflate the redundancies.
 
-        Args:
-            tol = Redundancy tolerance in meters (default 1.0m)
-            blt_order : str
-                string specifying primary order along the blt axis (see `reorder_blts`)
-            blt_minor_order : str
-                string specifying minor order along the blt axis (see `reorder_blts`)
+        Parameters
+        ----------
+        tol : float
+            Redundancy tolerance in meters, default is 1.0 corresponding to 1 meter.
+        blt_order : str
+            string specifying primary order along the blt axis (see `reorder_blts`)
+        blt_minor_order : str
+            string specifying minor order along the blt axis (see `reorder_blts`)
         """
 
         red_gps, centers, lengths = self.get_antenna_redundancies(tol=tol,
@@ -3917,7 +4537,6 @@ class UVData(UVBase):
         self.data_array = self.data_array[blt_map, ...]
         self.nsample_array = self.nsample_array[blt_map, ...]
         self.flag_array = self.flag_array[blt_map, ...]
-
         self.time_array = self.time_array[blt_map]
         self.lst_array = self.lst_array[blt_map]
         self.integration_time = self.integration_time[blt_map]
