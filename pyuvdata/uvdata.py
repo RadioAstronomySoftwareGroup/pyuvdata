@@ -34,7 +34,8 @@ class UVData(UVBase):
 
     Attributes
     ----------
-    UVParameter objects: For full list see UVData Parameters
+    UVParameter objects :
+        For full list see UVData Parameters
         (http://pyuvdata.readthedocs.io/en/latest/uvdata_parameters.html).
         Some are always required, some are required for certain phase_types
         and others are always optional.
@@ -889,7 +890,7 @@ class UVData(UVBase):
         time : astropy.time.Time object
             The time to phase to, an astropy Time object.
         phase_frame : str
-            the astropy frame to phase to. Either 'icrs' or 'gcrs'.
+            The astropy frame to phase to. Either 'icrs' or 'gcrs'.
             'gcrs' accounts for precession & nutation,
             'icrs' accounts for precession, nutation & abberation.
         use_ant_pos : bool
@@ -901,7 +902,7 @@ class UVData(UVBase):
         ValueError
             If the phase_type is not 'drift'
         TypeError
-            if time is not an astropy.time.Time object
+            If time is not an astropy.time.Time object
         """
         if self.phase_type == 'drift':
             pass
@@ -1107,7 +1108,7 @@ class UVData(UVBase):
         Parameters
         ----------
         order : str
-            either a string specifying a cannonical ordering ('AIPS' or 'CASA')
+            Either a string specifying a cannonical ordering ('AIPS' or 'CASA')
             or an index array of length Npols that specifies how to shuffle the
             data (this is not the desired final pol order).
             CASA ordering has cross-pols in between (e.g. XX,XY,YX,YY)
@@ -1121,6 +1122,11 @@ class UVData(UVBase):
         run_check_acceptability : bool
             Option to check acceptable range of the values of parameters after
             reordering.
+
+        Raises
+        ------
+        ValueError
+            If the order is not one of the allowed values.
         """
         if isinstance(order, (np.ndarray, list, tuple)):
             order = np.array(order)
@@ -1160,6 +1166,11 @@ class UVData(UVBase):
         ----------
         order : str
             either 'CASA' or 'AIPS'.
+
+        Raises
+        ------
+        ValueError
+            If the order is not one of the allowed values.
 
         Warns
         -----
@@ -3498,16 +3509,16 @@ class UVData(UVBase):
         Parameters
         ----------
         center : bool
-            if True, subtract median of array position from antpos
+            If True, subtract median of array position from antpos
         pick_data_ants : bool
-            if True, return only antennas found in data
+            If True, return only antennas found in data
 
         Returns
         -------
         antpos : ndarray
-            antenna positions in ENU (topocentric) coordinates in units of meters, shape=(Nants, 3)
+            Antenna positions in ENU (topocentric) coordinates in units of meters, shape=(Nants, 3)
         ants : ndarray
-            antenna numbers matching ordering of antpos, shape=(Nants,)
+            Antenna numbers matching ordering of antpos, shape=(Nants,)
         """
         if center is None:
             center = False
@@ -3917,7 +3928,7 @@ class UVData(UVBase):
 
         Parameters
         ----------
-        key1, key2, key3 : int
+        key1, key2, key3 : int or tuple of ints
             Identifier of which data to get, can be passed as 1, 2, or 3 arguments
             or as a single tuple of length 1, 2, or 3. These are collectively
             called the key.
