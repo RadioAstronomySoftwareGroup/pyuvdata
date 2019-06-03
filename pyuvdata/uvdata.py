@@ -3980,7 +3980,7 @@ class UVData(UVBase):
 
         Parameters
         ----------
-        key1, key2, key3 : int
+        key1, key2, key3 : int or tuple of ints
             Identifier of which data to get, can be passed as 1, 2, or 3 arguments
             or as a single tuple of length 1, 2, or 3. These are collectively
             called the key.
@@ -4030,7 +4030,7 @@ class UVData(UVBase):
 
         Parameters
         ----------
-        key1, key2, key3 : int
+        key1, key2, key3 : int or tuple of ints
             Identifier of which data to get, can be passed as 1, 2, or 3 arguments
             or as a single tuple of length 1, 2, or 3. These are collectively
             called the key.
@@ -4081,7 +4081,7 @@ class UVData(UVBase):
 
         Parameters
         ----------
-        key1, key2, key3 : int
+        key1, key2, key3 : int or tuple of ints
             Identifier of which data to get, can be passed as 1, 2, or 3 arguments
             or as a single tuple of length 1, 2, or 3. These are collectively
             called the key.
