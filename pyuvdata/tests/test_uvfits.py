@@ -201,6 +201,11 @@ def test_readwriteread():
     uvtest.checkWarnings(uv_out.read, [write_file], message='Telescope EVLA is not')
     assert uv_in == uv_out
 
+    # test that it works with write_lst = False
+    uv_in.write_uvfits(write_file, write_lst=False)
+    uvtest.checkWarnings(uv_out.read, [write_file], message='Telescope EVLA is not')
+    assert uv_in == uv_out
+
     # check that if x_orientation is set, it's read back out properly
     uv_in.x_orientation = 'east'
     uv_in.write_uvfits(write_file)

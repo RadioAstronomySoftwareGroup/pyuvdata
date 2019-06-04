@@ -577,25 +577,32 @@ class UVFITS(UVData):
 
         del(vis_hdu)
 
-    def write_uvfits(self, filename, spoof_nonessential=False,
+    def write_uvfits(self, filename, spoof_nonessential=False, write_lst=True,
                      force_phase=False, run_check=True, check_extra=True,
                      run_check_acceptability=True):
         """
         Write the data to a uvfits file.
 
-        Args:
-            filename: The uvfits file to write to.
-            spoof_nonessential: Option to spoof the values of optional
-                UVParameters that are not set but are required for uvfits files.
-                Default is False.
-            force_phase: Option to automatically phase drift scan data to
-                zenith of the first timestamp. Default is False.
-            run_check: Option to check for the existence and proper shapes of
-                parameters before writing the file. Default is True.
-            check_extra: Option to check optional parameters as well as required
-                ones. Default is True.
-            run_check_acceptability: Option to check acceptable range of the values of
-                parameters before writing the file. Default is True.
+        Parameters
+        ----------
+        filename : str
+            The uvfits file to write to.
+        spoof_nonessential : bool
+            Option to spoof the values of optional UVParameters that are not set
+            but are required for uvfits files.
+        write_lst : bool
+            Option to write the LSTs to the metadata (random group parameters).
+        force_phase : bool
+            Option to automatically phase drift scan data to zenith of the first
+            timestamp.
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            before writing the file.
+        check_extra : bool
+            Option to check optional parameters as well as required ones.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters before
+            writing the file.
         """
         if run_check:
             self.check(check_extra=check_extra,
@@ -695,14 +702,6 @@ class UVFITS(UVData):
         # We are setting PZERO4 = float32(first time of observation)
         time_array = np.float32(self.time_array - np.float64(tzero))
 
-        # lst is a non-standard entry (it's not in the AIPS memo)
-        # but storing it can be useful (e.g. can avoid recalculating it on read)
-        # need to store it in 2 parts to get enough accuracy
-        # angles in uvfits files are stored in degrees, so first convert to degrees
-        lst_array_deg = np.rad2deg(self.lst_array)
-        lst_array_1 = np.float32(lst_array_deg)
-        lst_array_2 = np.float32(lst_array_deg - np.float64(lst_array_1))
-
         int_time_array = self.integration_time
 
         baselines_use = self.antnums_to_baseline(self.ant_1_array,
@@ -719,38 +718,49 @@ class UVFITS(UVData):
                                 'ANTENNA1': self.ant_1_array + 1,
                                 'ANTENNA2': self.ant_2_array + 1,
                                 'SUBARRAY': np.ones_like(self.ant_1_array),
-                                'INTTIM  ': int_time_array,
-                                'LST     ': lst_array_1}
+                                'INTTIM  ': int_time_array}
+
         pscal_dict = {'UU      ': 1.0, 'VV      ': 1.0, 'WW      ': 1.0,
                       'DATE    ': 1.0, 'BASELINE': 1.0, 'ANTENNA1': 1.0,
-                      'ANTENNA2': 1.0, 'SUBARRAY': 1.0, 'INTTIM  ': 1.0,
-                      'LST     ': 1.0}
+                      'ANTENNA2': 1.0, 'SUBARRAY': 1.0, 'INTTIM  ': 1.0}
         pzero_dict = {'UU      ': 0.0, 'VV      ': 0.0, 'WW      ': 0.0,
                       'DATE    ': tzero, 'BASELINE': 0.0, 'ANTENNA1': 0.0,
-                      'ANTENNA2': 0.0, 'SUBARRAY': 0.0, 'INTTIM  ': 0.0,
-                      'LST     ': 0.0}
+                      'ANTENNA2': 0.0, 'SUBARRAY': 0.0, 'INTTIM  ': 0.0}
+
+        if write_lst:
+            # lst is a non-standard entry (it's not in the AIPS memo)
+            # but storing it can be useful (e.g. can avoid recalculating it on read)
+            # need to store it in 2 parts to get enough accuracy
+            # angles in uvfits files are stored in degrees, so first convert to degrees
+            lst_array_deg = np.rad2deg(self.lst_array)
+            lst_array_1 = np.float32(lst_array_deg)
+            lst_array_2 = np.float32(lst_array_deg - np.float64(lst_array_1))
+            group_parameter_dict['LST     '] = lst_array_1
+            pscal_dict['LST     '] = 1.0
+            pzero_dict['LST     '] = 0.0
 
         # list contains arrays of [u,v,w,date,baseline];
         # each array has shape (Nblts)
+        parnames_use = ['UU      ', 'VV      ', 'WW      ', 'DATE    ']
         if (np.max(self.ant_1_array) < 255
                 and np.max(self.ant_2_array) < 255):
             # if the number of antennas is less than 256 then include both the
             # baseline array and the antenna arrays in the group parameters.
             # Otherwise just use the antenna arrays
-            parnames_use = ['UU      ', 'VV      ', 'WW      ',
-                            'DATE    ', 'BASELINE', 'ANTENNA1',
-                            'ANTENNA2', 'SUBARRAY', 'INTTIM  ',
-                            'LST     ']
-        else:
-            parnames_use = ['UU      ', 'VV      ', 'WW      ', 'DATE    ',
-                            'ANTENNA1', 'ANTENNA2', 'SUBARRAY', 'INTTIM  ',
-                            'LST     ']
+            parnames_use.append('BASELINE')
+
+        parnames_use += ['ANTENNA1', 'ANTENNA2', 'SUBARRAY', 'INTTIM  ']
+
+        if write_lst:
+            parnames_use.append('LST     ')
 
         group_parameter_list = [group_parameter_dict[parname] for
                                 parname in parnames_use]
-        # add second LST array part
-        parnames_use.append('LST     ')
-        group_parameter_list.append(lst_array_2)
+
+        if write_lst:
+            # add second LST array part
+            parnames_use.append('LST     ')
+            group_parameter_list.append(lst_array_2)
 
         hdu = fits.GroupData(uvfits_array_data, parnames=parnames_use,
                              pardata=group_parameter_list, bitpix=-32)

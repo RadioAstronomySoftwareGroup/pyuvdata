@@ -2544,7 +2544,7 @@ class UVData(UVBase):
                 self._convert_from_filetype(uvfits_obj)
                 del(uvfits_obj)
 
-    def write_uvfits(self, filename, spoof_nonessential=False,
+    def write_uvfits(self, filename, spoof_nonessential=False, write_lst=True,
                      force_phase=False, run_check=True, check_extra=True,
                      run_check_acceptability=True):
         """
@@ -2557,6 +2557,8 @@ class UVData(UVBase):
         spoof_nonessential : bool
             Option to spoof the values of optional UVParameters that are not set
             but are required for uvfits files.
+        write_lst : bool
+            Option to write the LSTs to the metadata (random group parameters).
         force_phase:  : bool
             Option to automatically phase drift scan data to zenith of the first
             timestamp.
@@ -2574,8 +2576,8 @@ class UVData(UVBase):
         """
         uvfits_obj = self._convert_to_filetype('uvfits')
         uvfits_obj.write_uvfits(filename, spoof_nonessential=spoof_nonessential,
-                                force_phase=force_phase, run_check=run_check,
-                                check_extra=check_extra,
+                                write_lst=write_lst, force_phase=force_phase,
+                                run_check=run_check, check_extra=check_extra,
                                 run_check_acceptability=run_check_acceptability)
         del(uvfits_obj)
 
