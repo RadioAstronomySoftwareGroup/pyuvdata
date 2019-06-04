@@ -366,11 +366,8 @@ def test_single_time():
     single_time_filelist = glob.glob(os.path.join(DATA_PATH, 'refsim1.1_fhd/*'))
 
     fhd_uv = UVData()
-    uvtest.checkWarnings(fhd_uv.read, [single_time_filelist], nwarnings=3,
-                         message=['No layout file included in file list.',
-                                  'Telescope gaussian is not in known_telescopes.',
-                                  'antenna_positions are not defined.'],
-                         category=[DeprecationWarning, UserWarning, DeprecationWarning])
+    uvtest.checkWarnings(fhd_uv.read, [single_time_filelist],
+                         message=['Telescope gaussian is not in known_telescopes.'])
 
     assert np.unique(fhd_uv.time_array).size == 1
 
@@ -384,11 +381,8 @@ def test_conjugation():
     uvfits_uv.read(uvfits_file)
 
     fhd_uv = UVData()
-    uvtest.checkWarnings(fhd_uv.read, [fhd_filelist], nwarnings=3,
-                         message=['No layout file included in file list.',
-                                  'Telescope gaussian is not in known_telescopes.',
-                                  'antenna_positions are not defined.'],
-                         category=[DeprecationWarning, UserWarning, DeprecationWarning])
+    uvtest.checkWarnings(fhd_uv.read, [fhd_filelist],
+                         message=['Telescope gaussian is not in known_telescopes.'])
 
     uvfits_uv.select(polarizations=fhd_uv.polarization_array)
 
