@@ -423,7 +423,8 @@ class FHD(UVData):
             self.gst0 = float(layout['gst0'][0])
             layout_fields.remove('gst0')
 
-            self.rdate = uvutils._bytes_to_str(layout['ref_date'][0]).lower()
+            if layout['ref_date'][0] != '':
+                self.rdate = uvutils._bytes_to_str(layout['ref_date'][0]).lower()
             layout_fields.remove('ref_date')
 
             self.earth_omega = float(layout['earth_degpd'][0])
