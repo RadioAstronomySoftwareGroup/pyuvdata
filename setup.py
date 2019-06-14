@@ -21,8 +21,10 @@ import json
 # without a workaround we can't use the pyuvdata code to get the version.
 os.environ['PYUVDATA_IGNORE_EXTMOD_IMPORT_FAIL'] = '1'
 
+
 class CustomBuildExtCommand(build_ext):
     """build_ext command for use when numpy headers are needed."""
+
     def run(self):
 
         # Import numpy here, only when headers are needed
@@ -138,8 +140,6 @@ git_branch = version_info['git_branch']
 data = [git_origin, git_hash, git_description, git_branch]
 with open(os.path.join('pyuvdata', 'GIT_INFO'), 'w') as outfile:
     json.dump(data, outfile)
-
-__version__ = version
 
 with io.open('README.md', 'r', encoding='utf-8') as readme_file:
     readme = readme_file.read()
