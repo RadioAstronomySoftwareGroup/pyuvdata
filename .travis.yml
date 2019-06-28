@@ -39,7 +39,7 @@ install:
   - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then
       conda install -c defaults -y 'libgfortran =3.0.0' 'libgfortran-ng =7.2.0';
     else
-      conda install -c defaults -y 'libgfortran =3.0.0' libgfortran-ng;
+      conda install -c defaults -y libgfortran libgfortran-ng;
     fi
   - conda config --add channels conda-forge
   # Useful for debugging any issues with conda
