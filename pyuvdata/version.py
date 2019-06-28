@@ -5,11 +5,16 @@
 from __future__ import absolute_import, division, print_function
 
 import os
-import six
+import sys
 import subprocess
 import json
 
 pyuvdata_dir = os.path.dirname(os.path.realpath(__file__))
+
+
+def py_major_version():
+    version_info = sys.version_info
+    return version_info[0]
 
 
 def _get_git_output(args, capture_stderr=False):
@@ -25,7 +30,7 @@ def _get_git_output(args, capture_stderr=False):
 
     data = data.strip()
 
-    if six.PY2:
+    if py_major_version() == 2:
         return data
     return data.decode('utf8')
 
@@ -47,7 +52,7 @@ def _get_gitinfo_file(git_file=None):
 
 
 def _unicode_to_str(u):
-    if six.PY2:
+    if py_major_version() == 2:
         return u.encode('utf8')
     return u
 
