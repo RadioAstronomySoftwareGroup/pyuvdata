@@ -649,9 +649,9 @@ def test_readWriteReadMiriad():
     assert np.max(exp_uv.ant_2_array) == 0
     assert uv_in == exp_uv
 
-    uv_in.read(write_file, antenna_nums=[0], bls=[(2, 4)])
+    uv_in.read(write_file, antenna_nums=[0, 2, 4], bls=[(0, 0), (2, 4)])
     assert np.array([bl in uv_in.get_antpairs() for bl in [(0, 0), (2, 4)]]).all()
-    exp_uv = full.select(antenna_nums=[0], bls=[(2, 4)], inplace=False)
+    exp_uv = full.select(antenna_nums=[0, 2, 4], bls=[(0, 0), (2, 4)], inplace=False)
     assert uv_in == exp_uv
 
     uv_in.read(write_file, bls=[(2, 4, 'xy')])
