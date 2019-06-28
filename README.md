@@ -118,13 +118,11 @@ which will not be installed automatically by conda or pip.
 See [Dependencies](#dependencies) for details on installing optional dependencies.
 
 ## Optionally install the development version
-First install the dependencies, see [Dependencies](#dependencies) for package
-recommendations and optional dependencies for specific use cases.
-
 Clone the repository using
 ```git clone https://github.com/RadioAstronomySoftwareGroup/pyuvdata.git```
 
-Navigate into the pyuvdata directory and run `pip install .`.
+Navigate into the pyuvdata directory and run `pip install .`
+(note that `python setup.py install` does not work).
 Note that this will attempt to automatically install any missing dependencies.
 If you use anaconda or another package manager you might prefer to first install
 the dependencies as described in [Dependencies](#dependencies).
