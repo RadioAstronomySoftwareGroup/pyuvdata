@@ -114,7 +114,7 @@ class Miriad(UVData):
                 # get all possible combinations
                 antpairs = list(itertools.combinations_with_replacement(antenna_nums, 2))
                 # convert antenna numbers to string form required by aipy_extracts.uv_selector
-                antpair_str += ','.join(['_'.join([str(a) for a in ap]) for ap in antpairs])
+                antpair_str_list = ['_'.join([str(a) for a in ap]) for ap in antpairs]
                 history_update_string += 'antennas'
                 n_selects += 1
 
@@ -137,9 +137,6 @@ class Miriad(UVData):
                 else:
                     raise ValueError('bls tuples must be all length-2 or all length-3')
 
-                # convert ant-pair tuples to string form required by aipy_extracts.uv_selector
-                if len(antpair_str) > 0:
-                    antpair_str += ','
                 bl_str_list = []
                 bl_pols = set()
                 for bl in bls:
@@ -151,7 +148,13 @@ class Miriad(UVData):
                         bl_str_list.append(str(bl[1]) + '_' + str(bl[0]))
                         if len(bl) == 3:
                             bl_pols.add(bl[2][::-1])
-                antpair_str += ','.join(bl_str_list)
+
+                if n_selects > 0:
+                    # combine antpair_str_list and bl_str_list with an intersection
+                    antpair_str_list = list(set(antpair_str_list).intersection(bl_str_list))
+                else:
+                    antpair_str_list = bl_str_list
+
                 if len(bl_pols) > 0:
                     polarizations = list(bl_pols)
 
@@ -160,6 +163,9 @@ class Miriad(UVData):
                 else:
                     history_update_string += 'baselines'
                 n_selects += 1
+
+            # convert antenna pair list to string form required by aipy_extracts.uv_selector
+            antpair_str += ','.join(antpair_str_list)
             aipy_extracts.uv_selector(uv, antpair_str)
 
         # select on time range
