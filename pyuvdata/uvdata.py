@@ -1969,15 +1969,14 @@ class UVData(UVBase):
                 polarizations = list(bl_pols)
 
             if ant_blt_inds is not None:
-                # Use union (or) to join antenna_names/nums & ant_pairs_nums
-                ant_blt_inds = np.array(list(set(ant_blt_inds).union(bls_blt_inds)))
+                # Use intersection (and) to join antenna_names/nums & ant_pairs_nums
+                ant_blt_inds = np.array(list(set(ant_blt_inds).intersection(bls_blt_inds)))
             else:
                 ant_blt_inds = bls_blt_inds
 
         if ant_blt_inds is not None:
             if blt_inds is not None:
-                # Use intesection (and) to join antenna_names/nums/ant_pairs_nums with blt_inds
-                # handled differently because of the time aspect (which is anded with antennas below)
+                # Use intersection (and) to join antenna_names/nums/ant_pairs_nums with blt_inds
                 blt_inds = np.array(
                     list(set(blt_inds).intersection(ant_blt_inds)), dtype=np.int)
             else:
