@@ -1088,7 +1088,7 @@ def test_select():
 
     unique_ants = np.unique(
         uv_object.ant_1_array.tolist() + uv_object.ant_2_array.tolist())
-    ants_to_keep = np.array([11, 6, 20, 26, 2, 27, 3, 7, 14])
+    ants_to_keep = np.array([11, 6, 20, 26, 2, 27, 7, 14])
 
     ant_pairs_to_keep = [(2, 11), (20, 26), (6, 7), (3, 27), (14, 6)]
     sorted_pairs_to_keep = [sort_bl(p) for p in ant_pairs_to_keep]
@@ -1107,7 +1107,7 @@ def test_select():
     blts_pair_select = [sort_bl((a1, a2)) in sorted_pairs_to_keep for (a1, a2) in
                         zip(uv_object.ant_1_array, uv_object.ant_2_array)]
     blts_time_select = [t in times_to_keep for t in uv_object.time_array]
-    Nblts_select = np.sum([bi & (ai | pi) & ti for (bi, ai, pi, ti) in
+    Nblts_select = np.sum([bi & (ai & pi) & ti for (bi, ai, pi, ti) in
                            zip(blts_blt_select, blts_ant_select, blts_pair_select,
                                blts_time_select)])
 
