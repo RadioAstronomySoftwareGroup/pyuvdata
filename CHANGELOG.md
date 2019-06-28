@@ -3,6 +3,9 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+- Fixed a bug in select that caused bls and antenna_names/numbers to be or'ed rather than and'ed together.
+
 ## [1.4.0] - 2019-05-23
 
 ### Added
