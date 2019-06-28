@@ -3,6 +3,7 @@
 [![Build Status](https://travis-ci.org/RadioAstronomySoftwareGroup/pyuvdata.svg?branch=master)](https://travis-ci.org/RadioAstronomySoftwareGroup/pyuvdata)
 [![CircleCI](https://circleci.com/gh/RadioAstronomySoftwareGroup/pyuvdata.svg?style=svg&branch=master)](https://circleci.com/gh/RadioAstronomySoftwareGroup/pyuvdata?branch=master)
 [![codecov](https://codecov.io/gh/RadioAstronomySoftwareGroup/pyuvdata/badge.svg?branch=master)](https://codecov.io/gh/RadioAstronomySoftwareGroup/pyuvdata)
+[![DOI](http://joss.theoj.org/papers/10.21105/joss.00140/status.svg)](https://doi.org/10.21105/joss.00140)
 
 pyuvdata defines a pythonic interface to interferometric data sets.
 Currently pyuvdata supports reading and writing of miriad, uvfits, and uvh5 files

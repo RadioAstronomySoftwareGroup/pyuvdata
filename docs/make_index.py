@@ -36,7 +36,9 @@ def write_index_rst(readme_file=None, write_file=None):
         '.. image:: https://circleci.com/gh/RadioAstronomySoftwareGroup/pyuvdata.svg?style=svg\n'
         '    :target: https://circleci.com/gh/RadioAstronomySoftwareGroup/pyuvdata\n\n'
         '.. image:: https://codecov.io/gh/RadioAstronomySoftwareGroup/pyuvdata/branch/master/graph/badge.svg\n'
-        '  :target: https://codecov.io/gh/RadioAstronomySoftwareGroup/pyuvdata\n\n')
+        '  :target: https://codecov.io/gh/RadioAstronomySoftwareGroup/pyuvdata\n\n'
+        '.. image:: http://joss.theoj.org/papers/10.21105/joss.00140/status.svg\n'
+        '  :target: https://doi.org/10.21105/joss.00140\n\n')
 
     begin_desc = 'pyuvdata defines a pythonic interface'
     start_desc = str.find(readme_text, begin_desc)
