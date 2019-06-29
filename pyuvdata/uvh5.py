@@ -671,15 +671,42 @@ class UVH5(UVData):
                     data_write_dtype = 'c16'
             if data_write_dtype not in ('c8', 'c16'):
                 _check_uvh5_dtype(data_write_dtype)
-                visdata = dgrp.create_dataset("visdata", self.data_array.shape, chunks=True,
-                                              compression=data_compression, dtype=data_write_dtype)
+                if data_compression == "bitshuffle":
+                    try:
+                        import bitshuffle.h5
+                    except ImportError:
+                        warnings.warn("bitshuffle installation not detected; writing data "
+                                      "without compression.")
+                        data_compression = None
+                if data_compression == "bitshuffle":
+                    visdata = dgrp.create_dataset("visdata", chunks=True, data=self.data_array,
+                                                  compression=bitshuffle.h5.H5FILTER,
+                                                  compression_opts=(0, bitshuffle.h5.H5_COMPRESS_LZ4),
+                                                  dtype=data_write_dtype)
+                else:
+                    visdata = dgrp.create_dataset("visdata", self.data_array.shape, chunks=True,
+                                                  compression=data_compression, dtype=data_write_dtype)
                 indices = (np.s_[:], np.s_[:], np.s_[:], np.s_[:])
                 _write_complex_astype(self.data_array, visdata, indices)
             else:
-                visdata = dgrp.create_dataset("visdata", chunks=True,
-                                              data=self.data_array,
-                                              compression=data_compression,
-                                              dtype=data_write_dtype)
+                if data_compression == "bitshuffle":
+                    try:
+                        import bitshuffle.h5
+                    except ImportError:
+                        warnings.warn("bitshuffle installation not detected; writing data "
+                                      "without compression.")
+                        data_compression = None
+                if data_compression == "bitshuffle":
+                    visdata = dgrp.create_dataset("visdata", chunks=True,
+                                                  data=self.data_array,
+                                                  compression=bitshuffle.h5.H5FILTER,
+                                                  compression_opts=(0, bitshuffle.h5.H5_COMPRESS_LZ4),
+                                                  dtype=data_write_dtype)
+                else:
+                    visdata = dgrp.create_dataset("visdata", chunks=True,
+                                                  data=self.data_array,
+                                                  compression=data_compression,
+                                                  dtype=data_write_dtype)
             flags = dgrp.create_dataset("flags", chunks=True,
                                         data=self.flag_array,
                                         compression=flags_compression)
@@ -752,8 +779,20 @@ class UVH5(UVData):
             if data_write_dtype not in ('c8', 'c16'):
                 # make sure the data type is correct
                 _check_uvh5_dtype(data_write_dtype)
-            visdata = dgrp.create_dataset("visdata", data_size, chunks=True,
-                                          dtype=data_write_dtype, compression=data_compression)
+            if data_compression == "bitshuffle":
+                try:
+                    import bitshuffle.h5
+                except ImportError:
+                    warnings.warn("bitshuffle installation not detected; writing data "
+                                  "without compression.")
+                    data_compression = None
+            if data_compression == "bitshuffle":
+                visdata = dgrp.create_dataset("visdata", data_size, compression=bitshuffle.h5.H5FILTER,
+                                              compression_opts=(0, bitshuffle.h5.H5_COMPRESS_LZ4),
+                                              dtype=data_write_dtype)
+            else:
+                visdata = dgrp.create_dataset("visdata", data_size, chunks=True,
+                                              dtype=data_write_dtype, compression=data_compression)
             flags = dgrp.create_dataset("flags", data_size, chunks=True,
                                         dtype='b1', compression=flags_compression)
             nsample_array = dgrp.create_dataset("nsamples", data_size, chunks=True,
