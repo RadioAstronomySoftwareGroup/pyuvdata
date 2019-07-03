@@ -1437,6 +1437,48 @@ def test_multi_files_delay(delay_data):
     assert delay_data.delay_object == delay_object_full
 
 
+def test_uvcal_get_methods():
+    # load data
+    uvc = UVCal()
+    uvc.read_calfits(os.path.join(DATA_PATH, 'zen.2457698.40355.xx.gain.calfits'))
+
+    # test get methods
+    key = (9, 'Jxx')
+    d, f, q = uvc.get_gains(key), uvc.get_flags(key), uvc.get_quality(key)
+
+    # test shapes
+    assert d.shape == (uvc.Nfreqs, uvc.Ntimes)
+    assert f.shape == (uvc.Nfreqs, uvc.Ntimes)
+    assert q.shape == (uvc.Nfreqs, uvc.Ntimes)
+
+    # test against by-hand indexing
+    np.testing.assert_array_almost_equal(d, uvc.gain_array[uvc.ant_array.tolist().index(9), 0, :, :, uvc.jones_array.tolist().index(-5)])
+
+    # test variable key input
+    d2 = uvc.get_gains(*key)
+    np.testing.assert_array_almost_equal(d, d2)
+    d2 = uvc.get_gains(key[0])
+    np.testing.assert_array_almost_equal(d, d2)
+    d2 = uvc.get_gains(key[:1])
+    np.testing.assert_array_almost_equal(d, d2)
+    d2 = uvc.get_gains(9, -5)
+    np.testing.assert_array_almost_equal(d, d2)
+    d2 = uvc.get_gains(9, 'x')
+    np.testing.assert_array_almost_equal(d, d2)
+
+    # check has_key
+    assert uvc._has_key(antnum=9)
+    assert uvc._has_key(jpol='Jxx')
+    assert uvc._has_key(antnum=9, jpol='Jxx')
+    assert not uvc._has_key(antnum=9, jpol='Jyy')
+    assert not uvc._has_key(antnum=101, jpol='Jxx')
+
+    # test exceptions
+    pytest.raises(ValueError, uvc.get_gains, 1)
+    pytest.raises(ValueError, uvc.get_gains, (9, 'Jyy'))
+    uvc.cal_type = 'delay'
+    pytest.raises(ValueError, uvc.get_gains, 9)
+
 def test_deprecated_x_orientation():
     cal_in = UVCal()
     testfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.gain.calfits')

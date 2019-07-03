@@ -930,3 +930,42 @@ def test_and_collapse_weights():
 def test_and_collapse_errors():
     data = np.zeros(5)
     pytest.raises(ValueError, uvutils.and_collapse, data)
+
+
+def test_uvcalibrate():
+    # read data
+    uvd = pyuvdata.UVData()
+    uvd.read(os.path.join(DATA_PATH, 'zen.2457698.40355.xx.HH.uvcAA'))
+    uvc = pyuvdata.UVCal()
+    uvc.read_calfits(os.path.join(DATA_PATH, 'zen.2457698.40355.xx.gain.calfits'))
+    # downselect to match each other
+    uvd.select(frequencies=uvd.freq_array[0, :10])
+    uvc.select(times=uvc.time_array[:3])
+
+    # division calibrate
+    key = (43, 72, 'xx')
+    ant1 = (43, 'Jxx')
+    ant2 = (72, 'Jxx')
+    uvc.gain_convention = 'divide'
+    uvdcal = uvutils.uvcalibrate(uvd, uvc, prop_flags=False, flag_missing=False, inplace=False)
+    np.testing.assert_array_almost_equal(uvdcal.get_data(key), uvd.get_data(key) / (uvc.get_gains(ant1) * uvc.get_gains(ant2).conj()).T)
+
+    # multiplication calibrate
+    uvc.gain_convention = 'multiply'
+    uvdcal = uvutils.uvcalibrate(uvd, uvc, prop_flags=False, flag_missing=False, inplace=False)
+    np.testing.assert_array_almost_equal(uvdcal.get_data(key), uvd.get_data(key) * (uvc.get_gains(ant1) * uvc.get_gains(ant2).conj()).T)
+
+    # test flag propagation
+    uvc.flag_array[0] = True
+    uvc.gain_array[1] = 0.0
+    uvdcal = uvutils.uvcalibrate(uvd, uvc, prop_flags=True, flag_missing=False, inplace=False)
+    assert uvdcal.get_flags(9, 20, 'xx').min()  # assert completely flagged
+    assert uvdcal.get_flags(10, 20, 'xx').min()  # assert completely flagged
+    np.testing.assert_array_almost_equal(uvd.get_data(9, 20, 'xx'), uvdcal.get_data(9, 20, 'xx'))
+    np.testing.assert_array_almost_equal(uvd.get_data(10, 20, 'xx'), uvdcal.get_data(10, 20, 'xx'))
+
+    uvc_sub = uvc.select(antenna_nums=[9, 10], inplace=False)
+    uvdcal = uvutils.uvcalibrate(uvd, uvc_sub, prop_flags=True, flag_missing=False, inplace=False)
+    assert not uvdcal.get_flags(20, 72, 'xx').max()  # assert no flags exist
+    uvdcal = uvutils.uvcalibrate(uvd, uvc_sub, prop_flags=True, flag_missing=True, inplace=False)
+    assert uvdcal.get_flags(20, 72, 'xx').min()  # assert completely flagged

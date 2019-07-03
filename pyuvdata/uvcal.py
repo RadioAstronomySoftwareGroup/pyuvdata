@@ -661,6 +661,94 @@ class UVCal(UVBase):
         else:
             raise ValueError('cal_type is unknown, cannot convert to gain')
 
+    def get_gains(self, *args):
+        """
+        Return ndarray of gains for an antenna or antenna-polarization pair.
+        """
+        if self.cal_type != 'gain':
+            raise ValueError("cal_type must be 'gain' for get_gains() method")
+        if isinstance(args[0], tuple):
+            args = args[0]
+        return self._slice_array(args, self.gain_array)
+
+    def get_flags(self, *args):
+        """
+        Return ndarray of flags for an antenna or antenna-polarization pair.
+        """
+        if isinstance(args[0], tuple):
+            args = args[0]
+        return self._slice_array(args, self.flag_array)
+
+    def get_quality(self, *args):
+        """
+        Return ndarray of qualities for an antenna or antenna-polarization pair.
+        """
+        if isinstance(args[0], tuple):
+            args = args[0]
+        return self._slice_array(args, self.quality_array)
+
+    def ant2ind(self, antnum):
+        """
+        Given antenna number return its index in data arrays
+
+        Args:
+            antnum : Antenna number (integer)
+
+        Returns:
+            index : Index in data arrays (integer)
+        """
+        if not self._has_key(antnum=antnum):
+            raise ValueError("{} not found in ant_array".format(antnum))
+
+        return np.argmin(self.ant_array - antnum)
+
+    def jpol2ind(self, jpol):
+        """
+        Given a jones polarization, return its index in data arrays
+
+        Args:
+            jpol : Jones polarization (integer or string)
+
+        Returns:
+            index : Index in data arrays (integer)
+        """
+        if isinstance(jpol, (str, np.str)):
+            jpol = uvutils.jstr2num(jpol)
+
+        if not self._has_key(jpol=jpol):
+            raise ValueError("{} not found in jones_array".format(jpol))
+
+        return np.argmin(np.abs(self.jones_array - jpol))
+
+    def _has_key(self, antnum=None, jpol=None):
+        """
+        Check if this UVCal has the requested antenna or polarization
+        """
+        if antnum is not None:
+            if not antnum in self.ant_array:
+                return False
+        if jpol is not None:
+            if isinstance(jpol, (str, np.str)):
+                jpol = uvutils.jstr2num(jpol)
+            if jpol not in self.jones_array:
+                return False
+
+        return True
+
+    def _slice_array(self, key, data_array, squeeze_pol=True):
+        """
+        Slice a data array given a data key
+        """
+        key = uvutils._get_iterable(key)
+        if len(key) == 1:
+            # interpret as a single antenna
+            output = data_array[self.ant2ind(key[0]), 0, :, :, :]
+            if squeeze_pol and output.shape[-1] == 1:
+                return output[:, :, 0]
+        elif len(key) == 2:
+            # interpret as an antenna-pol pair
+            return data_array[self.ant2ind(key[0]), 0, :, :, self.jpol2ind(key[1])]
+
     def _convert_from_filetype(self, other):
         for p in other:
             param = getattr(other, p)
