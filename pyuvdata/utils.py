@@ -420,7 +420,7 @@ def uvcalibrate(uvdata, uvcal, inplace=True, prop_flags=True, flag_missing=True)
             if flag_missing:
                 uvdata.flag_array[blt_inds, 0, :, pol_ind] = True
             continue
-        gain = (uvcal.get_gains(ant1) * np.conj(uvcal.get_gains(ant2))).T # tranpose to match uvdata shape
+        gain = (uvcal.get_gains(ant1) * np.conj(uvcal.get_gains(ant2))).T  # tranpose to match uvdata shape
         flag = (uvcal.get_flags(ant1) | uvcal.get_flags(ant2)).T
 
         # update gain array with one for flags and zeros

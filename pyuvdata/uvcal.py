@@ -725,7 +725,7 @@ class UVCal(UVBase):
         Check if this UVCal has the requested antenna or polarization
         """
         if antnum is not None:
-            if not antnum in self.ant_array:
+            if antnum not in self.ant_array:
                 return False
         if jpol is not None:
             if isinstance(jpol, (str, np.str)):
