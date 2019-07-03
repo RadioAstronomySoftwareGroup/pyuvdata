@@ -744,7 +744,8 @@ class UVCal(UVBase):
             # interpret as a single antenna
             output = data_array[self.ant2ind(key[0]), 0, :, :, :]
             if squeeze_pol and output.shape[-1] == 1:
-                return output[:, :, 0]
+                output = output[:, :, 0]
+            return output
         elif len(key) == 2:
             # interpret as an antenna-pol pair
             return data_array[self.ant2ind(key[0]), 0, :, :, self.jpol2ind(key[1])]
