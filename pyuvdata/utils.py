@@ -388,6 +388,59 @@ def unphase_uvw(ra, dec, uvw):
     return(xyz)
 
 
+def uvcalibrate(uvdata, uvcal, inplace=True, prop_flags=True, flag_missing=True):
+    """
+    Calibrate a UVData object with a UVCal object.
+
+    Args:
+        uvdata: UVData object
+        uvcal: UVCal object
+        inplace: bool, if True edit uvdata in place, else deepcopy
+        prop_flags : bool, if True, propagate calibration flags to data flags
+        flag_missing: bool, if True, flag baselines in uvdata
+            if a participating antenna or polarization is missing in uvcal.
+
+    Returns:
+        uvdata: If not inplace, return deepcopied uvdata
+    """
+    # deepcopy for not inplace
+    if not inplace:
+        uvdata = copy.deepcopy(uvdata)
+
+    # iterate over keys
+    for key in uvdata.get_antpairpols():
+        # get indices for this key
+        blt_inds = uvdata.antpair2ind(key)
+        pol_ind = np.argmin(np.abs(uvdata.polarization_array - polstr2num(key[2])))
+
+        # try to get gains for each antenna
+        ant1 = (key[0], key[2][0])
+        ant2 = (key[1], key[2][1])
+        if not uvcal._has_key(*ant1) or not uvcal._has_key(*ant2):
+            if flag_missing:
+                uvdata.flag_array[blt_inds, 0, :, pol_ind] = True
+            continue
+        gain = (uvcal.get_gains(ant1) * np.conj(uvcal.get_gains(ant2))).T # tranpose to match uvdata shape
+        flag = (uvcal.get_flags(ant1) | uvcal.get_flags(ant2)).T
+
+        # update gain array with one for flags and zeros
+        mask = np.isclose(gain, 0.0) | flag
+        gain[mask] = 1.0
+
+        # apply to data
+        if uvcal.gain_convention == 'multiply':
+            uvdata.data_array[blt_inds, 0, :, pol_ind] *= gain
+        elif uvcal.gain_convention == 'divide':
+            uvdata.data_array[blt_inds, 0, :, pol_ind] /= gain
+
+        # propagate flags
+        if prop_flags:
+            uvdata.flag_array[blt_inds, 0, :, pol_ind] += mask
+
+    if not inplace:
+        return uvdata
+
+
 def get_iterable(x):
     warnings.warn('The get_iterable function is deprecated in favor of '
                   '_get_iterable because it is not API level code. This '

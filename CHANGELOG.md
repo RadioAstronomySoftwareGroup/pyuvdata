@@ -11,6 +11,8 @@ All notable changes to this project will be documented in this file.
 - `UVData.conjugate_bls` method to conjugate baselines to get the desired baseline directions.
 - `UVData.reorder_blts` method to reorder the data along the blt axis (and optionally also conjugate baselines), and a new `blt_order` optional parameter on UVData objects to track the ordering (including through read/writes).
 - `lst_array` is now saved to UVFITS files (even though it's not a standard parameter) so that it doesn't have to be recalculated
+- `UVCal.get_*` methods for accessing data arrays with antenna-polarization keys
+- `utils.uvcalibrate` for automated calibration of `UVData` by `UVCal`
 
 ### Fixed
 - Fixed a bug in how FHD uvw vectors were oriented (and visibilities were conjugated)
