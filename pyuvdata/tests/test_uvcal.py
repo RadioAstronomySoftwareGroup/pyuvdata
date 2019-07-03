@@ -1479,6 +1479,7 @@ def test_uvcal_get_methods():
     uvc.cal_type = 'delay'
     pytest.raises(ValueError, uvc.get_gains, 9)
 
+
 def test_deprecated_x_orientation():
     cal_in = UVCal()
     testfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.gain.calfits')
