@@ -1112,6 +1112,53 @@ b) FHD cal to cal fits
   >>> fhd_cal.write_calfits('tutorial_cal.fits', clobber=True)
 
 
+UVCal: Quick data acess
+----------------------
+Similar methods for quick data access are available for UVCal.
+Note that because UVCal has a different gain_array shape,
+the data output will have shape (Nfreqs, Ntimes).
+
+a) Data for a single antenna and instrumental polarization
+************************************************************
+::
+
+  >>> from pyuvdata import UVCal
+  >>> import numpy as np
+  >>> UVC = UVCal()
+  >>> filename = 'pyuvdata/data/zen.2457555.42443.HH.uvcA.omni.calfits'
+  >>> UVC.read_calfits(filename)
+  >>> gain = UVC.get_gains(9, 'Jxx')  # gain for ant=9, pol='Jxx'
+  >>> print(gain.shape)
+  (1024, 3)
+  >>> print(UVC.Nfreqs, UVC.Ntimes)
+  (1024, 3)
+
+  # One can equivalently make any of these calls with the input wrapped in a tuple.
+  >>> gain = UVC.get_gains((9, 'Jxx'))
+
+  # If no polarization is fed, then all polarizations are returned
+  >>> gain = UVC.get_gains(9)
+  >>> print(gain.shape)
+  (1024, 3, 2)
+  >>> print(UVC.Nfreqs, UVC.Ntimes, UVC.Njones)
+  (1024, 3, 2)
+
+  # One can also request flags and quality arrays in a similar manner
+  >>> flags = UVC.get_flags(9, 'Jxx')
+  >>> quals = UVC.get_quality(9, 'Jxx')
+
+b) Calibration of UVData by UVCal
+**********************************
+::
+
+  # We can calibrate directly using a UVCal object
+  >>> from pyuvdata import UVData, UVCal, utils
+  >>> UV = UVData()
+  >>> UV.read(<UVData filename>)
+  >>> UVC = UVCal()
+  >>> UVC.read_calfits(<calfits filename>)
+  >>> UV_calibrated = utils.uvcalibrate(UV, UVC, inplace=False)
+
 UVCal: Selecting data
 -----------------------
 The select method lets you select specific antennas (by number or name),
