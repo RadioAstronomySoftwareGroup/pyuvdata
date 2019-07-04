@@ -392,22 +392,32 @@ def uvcalibrate(uvdata, uvcal, inplace=True, prop_flags=True, flag_missing=True)
     """
     Calibrate a UVData object with a UVCal object.
 
-    Args:
-        uvdata: UVData object
-        uvcal: UVCal object
-        inplace: bool, if True edit uvdata in place, else deepcopy
-        prop_flags : bool, if True, propagate calibration flags to data flags
-            and doesn't use flagged gains. Otherwise, uses flagged gains and
-            does not propagate calibration flags to data flags.
-        flag_missing: bool, if True, flag baselines in uvdata
-            if a participating antenna or polarization is missing in uvcal.
+    Parameters
+    ----------
+    uvdata: UVData object
+    uvcal: UVCal object
+    inplace: bool, optional
+        if True edit uvdata in place, else deepcopy
+    prop_flags : bool, optional
+        if True, propagate calibration flags to data flags
+        and doesn't use flagged gains. Otherwise, uses flagged gains and
+        does not propagate calibration flags to data flags.
+    flag_missing: bool, optional
+        if True, flag baselines in uvdata
+        if a participating antenna or polarization is missing in uvcal.
 
-    Returns:
-        uvdata: If not inplace, return deepcopied uvdata
+    Returns
+    -------
+    UVData
+        Retruns if not inplace
     """
     # deepcopy for not inplace
     if not inplace:
         uvdata = copy.deepcopy(uvdata)
+
+    # input checks
+    if uvcal.cal_type != 'gain':
+        raise ValueError("uvcal must have cal_type of 'gain' for calibration")
 
     # iterate over keys
     for key in uvdata.get_antpairpols():
