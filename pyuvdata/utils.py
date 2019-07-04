@@ -397,6 +397,8 @@ def uvcalibrate(uvdata, uvcal, inplace=True, prop_flags=True, flag_missing=True)
         uvcal: UVCal object
         inplace: bool, if True edit uvdata in place, else deepcopy
         prop_flags : bool, if True, propagate calibration flags to data flags
+            and doesn't use flagged gains. Otherwise, uses flagged gains and
+            does not propagate calibration flags to data flags.
         flag_missing: bool, if True, flag baselines in uvdata
             if a participating antenna or polarization is missing in uvcal.
 
@@ -423,19 +425,17 @@ def uvcalibrate(uvdata, uvcal, inplace=True, prop_flags=True, flag_missing=True)
         gain = (uvcal.get_gains(ant1) * np.conj(uvcal.get_gains(ant2))).T  # tranpose to match uvdata shape
         flag = (uvcal.get_flags(ant1) | uvcal.get_flags(ant2)).T
 
-        # update gain array with one for flags and zeros
-        mask = np.isclose(gain, 0.0) | flag
-        gain[mask] = 1.0
+        # propagate flags
+        if prop_flags:
+            mask = np.isclose(gain, 0.0) | flag
+            gain[mask] = 1.0
+            uvdata.flag_array[blt_inds, 0, :, pol_ind] += mask
 
         # apply to data
         if uvcal.gain_convention == 'multiply':
             uvdata.data_array[blt_inds, 0, :, pol_ind] *= gain
         elif uvcal.gain_convention == 'divide':
             uvdata.data_array[blt_inds, 0, :, pol_ind] /= gain
-
-        # propagate flags
-        if prop_flags:
-            uvdata.flag_array[blt_inds, 0, :, pol_ind] += mask
 
     if not inplace:
         return uvdata
