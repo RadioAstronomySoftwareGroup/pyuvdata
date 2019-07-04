@@ -691,11 +691,15 @@ class UVCal(UVBase):
         """
         Given antenna number return its index in data arrays
 
-        Args:
-            antnum : Antenna number (integer)
+        Parameters
+        ----------
+        antnum : int
+            Antenna number
 
-        Returns:
-            index : Index in data arrays (integer)
+        Returns
+        -------
+        intn
+            Index in data arrays
         """
         if not self._has_key(antnum=antnum):
             raise ValueError("{} not found in ant_array".format(antnum))
@@ -706,11 +710,15 @@ class UVCal(UVBase):
         """
         Given a jones polarization, return its index in data arrays
 
-        Args:
-            jpol : Jones polarization (integer or string)
+        Parameters
+        ----------
+        jpol : int or str
+            Jones polarization
 
-        Returns:
-            index : Index in data arrays (integer)
+        Returns
+        -------
+        int
+            Index in data arrays
         """
         if isinstance(jpol, (str, np.str)):
             jpol = uvutils.jstr2num(jpol)

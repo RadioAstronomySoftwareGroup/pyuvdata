@@ -15,6 +15,7 @@ from astropy import units
 from astropy.time import Time
 from astropy.coordinates import SkyCoord, Angle
 from astropy.io import fits
+import copy
 
 import pyuvdata
 from pyuvdata.data import DATA_PATH
@@ -969,3 +970,8 @@ def test_uvcalibrate():
     assert not uvdcal.get_flags(20, 72, 'xx').max()  # assert no flags exist
     uvdcal = uvutils.uvcalibrate(uvd, uvc_sub, prop_flags=True, flag_missing=True, inplace=False)
     assert uvdcal.get_flags(20, 72, 'xx').min()  # assert completely flagged
+
+    # exceptions
+    uvc_d = copy.deepcopy(uvc)
+    uvc_d.cal_type = 'delay'
+    pytest.raises(ValueError, uvutils.uvcalibrate, uvd, uvc_d)
