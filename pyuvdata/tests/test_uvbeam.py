@@ -391,31 +391,36 @@ def test_freq_interpolation():
                              feed_version='0.1', feed_pol=['x'],
                              model_name='E-field pattern - Rigging height 4.9m',
                              model_version='1.0')
+    power_beam.interpolation_function = 'az_za_simple'
 
     # test frequency interpolation returns data arrays for small and large tolerances
     freq_orig_vals = np.array([123e6, 150e6])
-    interp_data, interp_bandpass = power_beam._interp_freq(freq_orig_vals, tol=0.0, new_object=False)
+    interp_data, interp_basis_vector, interp_bandpass = \
+        power_beam.interp(freq_array=freq_orig_vals, freq_interp_tol=0.0,
+                          return_bandpass=True)
     assert isinstance(interp_data, np.ndarray)
     assert isinstance(interp_bandpass, np.ndarray)
 
-    interp_data, interp_bandpass = power_beam._interp_freq(freq_orig_vals, tol=1.0, new_object=False)
+    interp_data, interp_basis_vector, interp_bandpass = \
+        power_beam.interp(freq_array=freq_orig_vals, freq_interp_tol=1.0,
+                          return_bandpass=True)
     assert isinstance(interp_data, np.ndarray)
     assert isinstance(interp_bandpass, np.ndarray)
 
     # test frequency interpolation returns new UVBeam for small and large tolerances
     power_beam.saved_interp_functions = {}
-    interp_data, interp_bandpass = power_beam._interp_freq(freq_orig_vals, tol=0.0, new_object=True)
-    assert isinstance(interp_data, UVBeam)
-    assert interp_bandpass is None
-    np.testing.assert_array_almost_equal(interp_data.freq_array[0], freq_orig_vals)
-    assert interp_data.freq_interp_kind == 'linear'
-    assert not hasattr(interp_data, 'saved_interp_functions')  # test that saved functions are erased in new obj
+    new_beam_obj = power_beam.interp(freq_array=freq_orig_vals, freq_interp_tol=0.0,
+                                     new_object=True)
+    assert isinstance(new_beam_obj, UVBeam)
+    np.testing.assert_array_almost_equal(new_beam_obj.freq_array[0], freq_orig_vals)
+    assert new_beam_obj.freq_interp_kind == 'linear'
+    assert not hasattr(new_beam_obj, 'saved_interp_functions')  # test that saved functions are erased in new obj
 
-    interp_data, interp_bandpass = power_beam._interp_freq(freq_orig_vals, tol=1.0, new_object=True)
-    assert isinstance(interp_data, UVBeam)
-    assert interp_bandpass is None
-    np.testing.assert_array_almost_equal(interp_data.freq_array[0], freq_orig_vals)
-    assert interp_data.freq_interp_kind == 'nearest'  # assert interp kind is 'nearest' when within tol
+    new_beam_obj = power_beam.interp(freq_array=freq_orig_vals, freq_interp_tol=1.0,
+                                     new_object=True)
+    assert isinstance(new_beam_obj, UVBeam)
+    np.testing.assert_array_almost_equal(new_beam_obj.freq_array[0], freq_orig_vals)
+    assert new_beam_obj.freq_interp_kind == 'nearest'  # assert interp kind is 'nearest' when within tol
 
     # using only one freq chan should trigger a ValueError if interp_bool is True
     # unless requesting the original frequency channel such that interp_bool is False.
@@ -424,13 +429,13 @@ def test_freq_interpolation():
     # Other ways of testing this (e.g. interp_data_array.flags['OWNDATA']) does not work
     _pb = power_beam.select(frequencies=power_beam.freq_array[0, :1], inplace=False)
     try:
-        interp_data_array, interp_bandp = _pb._interp_freq(_pb.freq_array[0], kind='linear')
+        interp_data, interp_basis_vector = _pb.interp(freq_array=_pb.freq_array[0])
     except ValueError:
-        raise AssertionError("UVBeam._interp_freq didn't return an array slice as expected")
+        raise AssertionError("UVBeam.interp didn't return an array slice as expected")
 
     # test errors if one frequency
     power_beam_singlef = power_beam.select(freq_chans=[0], inplace=False)
-    pytest.raises(ValueError, power_beam_singlef._interp_freq, np.array([150e6]))
+    pytest.raises(ValueError, power_beam_singlef.interp, freq_array=np.array([150e6]))
 
     # assert freq_interp_kind ValueError
     power_beam.interpolation_function = 'az_za_simple'
@@ -469,6 +474,29 @@ def test_power_spatial_interpolation():
 
     assert np.allclose(data_array_compare, interp_data_array)
 
+    # test that new object from interpolation is identical
+    new_power_beam = power_beam.interp(az_array=power_beam.axis1_array,
+                                       za_array=power_beam.axis2_array,
+                                       az_za_grid=True,
+                                       freq_array=freq_orig_vals,
+                                       new_object=True)
+    assert new_power_beam.freq_interp_kind == 'nearest'
+    assert new_power_beam.history == (power_beam.history + ' Interpolated in '
+                                      'frequency and to a new azimuth/zenith '
+                                      'angle grid using pyuvdata with '
+                                      'interpolation_function = az_za_simple '
+                                      'and freq_interp_kind = nearest.')
+    # make histories & freq_interp_kind equal
+    new_power_beam.history = power_beam.history
+    new_power_beam.freq_interp_kind = 'linear'
+    assert new_power_beam == power_beam
+
+    # test error if new_object set without az_za_grid
+    with pytest.raises(ValueError) as cm:
+        power_beam.interp(az_array=az_orig_vals, za_array=za_orig_vals,
+                          freq_array=freq_orig_vals, new_object=True)
+    assert str(cm.value).startswith('A new object can only be returned')
+
     # test only a single polarization
     interp_data_array, interp_basis_vector = power_beam.interp(az_array=az_orig_vals,
                                                                za_array=za_orig_vals,
@@ -489,11 +517,13 @@ def test_power_spatial_interpolation():
     # Test requesting separate polarizations on different calls while reusing splines.
     interp_data_array, interp_basis_vector = power_beam.interp(az_array=az_interp_vals[:2],
                                                                za_array=za_interp_vals[:2],
-                                                               freq_array=freq_interp_vals, polarizations=['xx'], reuse_spline=True)
+                                                               freq_array=freq_interp_vals,
+                                                               polarizations=['xx'], reuse_spline=True)
 
     interp_data_array, interp_basis_vector = power_beam.interp(az_array=az_interp_vals[:2],
                                                                za_array=za_interp_vals[:2],
-                                                               freq_array=freq_interp_vals, polarizations=['yy'], reuse_spline=True)
+                                                               freq_array=freq_interp_vals,
+                                                               polarizations=['yy'], reuse_spline=True)
 
     # test reusing the spline fit.
     orig_data_array, interp_basis_vector = power_beam.interp(az_array=az_interp_vals,
@@ -549,6 +579,23 @@ def test_efield_spatial_interpolation():
     assert np.allclose(efield_beam.data_array, interp_data_array)
     assert np.allclose(efield_beam.basis_vector_array, interp_basis_vector)
 
+    # test that new object from interpolation is identical
+    new_efield_beam = efield_beam.interp(az_array=efield_beam.axis1_array,
+                                         za_array=efield_beam.axis2_array,
+                                         az_za_grid=True,
+                                         freq_array=freq_orig_vals,
+                                         new_object=True)
+    assert new_efield_beam.freq_interp_kind == 'nearest'
+    assert new_efield_beam.history == (efield_beam.history + ' Interpolated in '
+                                       'frequency and to a new azimuth/zenith '
+                                       'angle grid using pyuvdata with '
+                                       'interpolation_function = az_za_simple '
+                                       'and freq_interp_kind = nearest.')
+    # make histories & freq_interp_kind equal
+    new_efield_beam.history = efield_beam.history
+    new_efield_beam.freq_interp_kind = 'linear'
+    assert new_efield_beam == efield_beam
+
     # test no errors using different points
     az_interp_vals = np.array(np.arange(0, 2 * np.pi, np.pi / 9.0).tolist()
                               + np.arange(0, 2 * np.pi, np.pi / 9.0).tolist())
@@ -577,7 +624,8 @@ def test_efield_spatial_interpolation():
 
     select_data_array_reused, interp_basis_vector = efield_beam.interp(az_array=az_interp_vals[0:1],
                                                                        za_array=za_interp_vals[0:1],
-                                                                       freq_array=np.array([127e6]), reuse_spline=True)
+                                                                       freq_array=np.array([127e6]),
+                                                                       reuse_spline=True)
     assert np.allclose(select_data_array_orig, select_data_array_reused)
     del efield_beam.saved_interp_functions
 
@@ -662,6 +710,33 @@ def test_healpix_interpolation():
     interp_data_array = interp_data_array.reshape(data_array_compare.shape, order='F')
     assert np.allclose(data_array_compare, interp_data_array)
 
+    # test calling interp with healpix parameters directly gives same result
+    new_power_beam = power_beam.interp(healpix_nside=power_beam.nside,
+                                       freq_array=freq_orig_vals,
+                                       new_object=True)
+    assert new_power_beam.freq_interp_kind == 'nearest'
+    assert new_power_beam.history == (power_beam.history + ' Interpolated in '
+                                      'frequency and to a new healpix grid '
+                                      'using pyuvdata with '
+                                      'interpolation_function = healpix_simple '
+                                      'and freq_interp_kind = nearest.')
+    # make histories & freq_interp_kind equal
+    new_power_beam.history = power_beam.history
+    new_power_beam.freq_interp_kind = 'linear'
+    assert new_power_beam == power_beam
+
+    # test errors with specifying healpix_inds without and nside
+    with pytest.raises(ValueError) as cm:
+        power_beam.interp(healpix_inds=np.arange(hp.nside2npix(power_beam.nside)),
+                          freq_array=freq_orig_vals)
+    assert str(cm.value).startswith('healpix_nside must be set if healpix_inds is set')
+
+    # test error setting both healpix_nside and az_array
+    with pytest.raises(ValueError) as cm:
+        power_beam.interp(healpix_nside=power_beam.nside, az_array=az_orig_vals,
+                          za_array=za_orig_vals, freq_array=freq_orig_vals)
+    assert str(cm.value).startswith('healpix_nside and healpix_inds can not be')
+
     # basis_vector exception
     power_beam.basis_vector_array[0, 1, :] = 10.0
     pytest.raises(NotImplementedError, power_beam.interp, az_array=az_orig_vals, za_array=za_orig_vals)
@@ -726,9 +801,12 @@ def test_to_healpix():
 
     # check that history is updated appropriately
     assert power_beam_healpix.history == (power_beam.history
-                                          + ' Interpolated from regularly gridded '
-                                          'azimuth/zenith_angle to HEALPix using pyuvdata '
-                                          'with interpolation_function = az_za_simple.')
+                                          + ' Interpolated from '
+                                          + power_beam.coordinate_system_dict['az_za']['description']
+                                          + ' to '
+                                          + power_beam.coordinate_system_dict['healpix']['description']
+                                          + ' using pyuvdata with '
+                                          'interpolation_function = az_za_simple.')
 
     npix = hp.nside2npix(power_beam_healpix.nside)
     assert power_beam_healpix.Npixels <= npix * 0.55
@@ -767,9 +845,11 @@ def test_to_healpix():
     sq_then_interp._data_array.tols = tols
 
     # check history changes
-    interp_history_add = (' Interpolated from regularly gridded '
-                          'azimuth/zenith_angle to HEALPix using pyuvdata '
-                          'with interpolation_function = az_za_simple.')
+    interp_history_add = (' Interpolated from '
+                          + power_beam.coordinate_system_dict['az_za']['description']
+                          + ' to '
+                          + power_beam.coordinate_system_dict['healpix']['description']
+                          + ' using pyuvdata with interpolation_function = az_za_simple.')
     sq_history_add = ' Converted from efield to power using pyuvdata.'
     assert sq_then_interp.history == efield_beam.history + sq_history_add + interp_history_add
     assert interp_then_sq.history == efield_beam.history + interp_history_add + sq_history_add
