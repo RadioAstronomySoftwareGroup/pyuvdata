@@ -22,9 +22,15 @@ All notable changes to this project will be documented in this file.
 - `UVCal.get_*` methods for accessing data arrays with antenna-polarization keys
 - `utils.uvcalibrate` for automated calibration of `UVData` by `UVCal`
 
+### Added
+- option for `UVBeam.interp` to return a new beam object.
+
 ### Fixed
 - Fixed a bug in select that caused bls and antenna_names/numbers to be or'ed rather than and'ed together.
 - Fixed a bug where `baseline_to_antnums` could accept a numpy array as input but not other array_like objects.
+
+### Changed
+- removed `new_object` keyword from `UVBeam._interp_freq` in favor of new functionality in `UVBeam.interp`
 
 ## [1.4.0] - 2019-05-23
 
