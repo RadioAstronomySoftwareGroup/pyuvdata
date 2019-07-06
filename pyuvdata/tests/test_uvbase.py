@@ -69,6 +69,9 @@ class UVTest(UVBase):
         self._optional_int2 = uvp.UVParameter('optional_int2', description='optional integer value',
                                               expected_type=int, value=5, required=False)
 
+        self._unset_int1 = uvp.UVParameter('unset_int1', description='An unset parameter.',
+                                           expected_type=int, value=None, required=False)
+
         super(UVTest, self).__init__()
 
 
@@ -230,3 +233,10 @@ def test_location_degree_none():
 def test_warning():
     output = _warning("hello world")
     assert output, "hello world\n"
+
+
+def test_check_acceptability_only():
+    test_obj = UVTest()
+    test_obj._unset_int1.required = True
+    pytest.raises(ValueError, test_obj.check)
+    assert test_obj.check(only_check_set=True)

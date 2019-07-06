@@ -71,6 +71,7 @@ class UVBase(object):
 
     def prop_fget(self, param_name):
         """Getter method for UVParameter properties."""
+
         def fget(self):
             this_param = getattr(self, param_name)
             return this_param.value
@@ -78,6 +79,7 @@ class UVBase(object):
 
     def prop_fset(self, param_name):
         """Setter method for UVParameter properties."""
+
         def fset(self, value):
             this_param = getattr(self, param_name)
             this_param.value = value
@@ -86,6 +88,7 @@ class UVBase(object):
 
     def degree_prop_fget(self, param_name):
         """Degree getter method for AngleParameter properties."""
+
         def fget(self):
             this_param = getattr(self, param_name)
             return this_param.degrees()
@@ -93,6 +96,7 @@ class UVBase(object):
 
     def degree_prop_fset(self, param_name):
         """Degree setter method for AngleParameter properties."""
+
         def fset(self, value):
             this_param = getattr(self, param_name)
             this_param.set_degrees(value)
@@ -101,6 +105,7 @@ class UVBase(object):
 
     def lat_lon_alt_prop_fget(self, param_name):
         """Lat/lon/alt getter method for LocationParameter properties."""
+
         def fget(self):
             this_param = getattr(self, param_name)
             return this_param.lat_lon_alt()
@@ -108,6 +113,7 @@ class UVBase(object):
 
     def lat_lon_alt_prop_fset(self, param_name):
         """Lat/lon/alt setter method for LocationParameter properties."""
+
         def fset(self, value):
             this_param = getattr(self, param_name)
             this_param.set_lat_lon_alt(value)
@@ -116,6 +122,7 @@ class UVBase(object):
 
     def lat_lon_alt_degrees_prop_fget(self, param_name):
         """Lat/lon/alt degree getter method for LocationParameter properties."""
+
         def fget(self):
             this_param = getattr(self, param_name)
             return this_param.lat_lon_alt_degrees()
@@ -123,6 +130,7 @@ class UVBase(object):
 
     def lat_lon_alt_degrees_prop_fset(self, param_name):
         """Lat/lon/alt degree setter method for LocationParameter properties."""
+
         def fset(self, value):
             this_param = getattr(self, param_name)
             this_param.set_lat_lon_alt_degrees(value)
@@ -222,7 +230,7 @@ class UVBase(object):
         """Not equal."""
         return not self.__eq__(other)
 
-    def check(self, check_extra=True, run_check_acceptability=True):
+    def check(self, check_extra=True, run_check_acceptability=True, only_check_set=False):
         """
         Check that required parameters exist. Check that parameters have
         appropriate shapes and optionally that the values are acceptable.
@@ -232,6 +240,9 @@ class UVBase(object):
                 otherwise only check required parameters.
             run_check_acceptability: Option to check if values in required parameters
                 are acceptable. Default is True.
+            only_check_set: Option to check only that values are acceptable for parameters
+                that have been set. This is equivalent to run_check_acceptability, but will
+                not error if any required_parameters are missing.
         """
         if check_extra:
             p_check = [p for p in self.required()] + [p for p in self.extra()]
@@ -242,6 +253,8 @@ class UVBase(object):
             param = getattr(self, p)
             # Check required parameter exists
             if param.value is None:
+                if only_check_set:
+                    continue
                 if param.required is True:
                     raise ValueError('Required UVParameter ' + p
                                      + ' has not been set.')
