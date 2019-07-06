@@ -1147,7 +1147,10 @@ a) Data for a single antenna and instrumental polarization
   >>> flags = UVC.get_flags(9, 'Jxx')
   >>> quals = UVC.get_quality(9, 'Jxx')
 
-b) Calibration of UVData by UVCal
+UVCal: Calibrating UVData
+--------------------------
+
+a) Calibration of UVData by UVCal
 **********************************
 ::
 
