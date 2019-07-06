@@ -1292,7 +1292,6 @@ class UVBeam(UVBase):
                 interp_data = interp_data.reshape(interp_data.shape[:-1]
                                                   + (za_array.size, az_array.size))
                 if interp_basis_vector is not None:
-                    print(interp_basis_vector.shape)
                     interp_basis_vector = interp_basis_vector.reshape(
                         interp_basis_vector.shape[:-1] + (za_array.size, az_array.size))
 
