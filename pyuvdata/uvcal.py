@@ -661,31 +661,65 @@ class UVCal(UVBase):
         else:
             raise ValueError('cal_type is unknown, cannot convert to gain')
 
-    def get_gains(self, *args):
+    def get_gains(self, ant, jpol=None):
         """
-        Return ndarray of gains for an antenna or antenna-polarization pair.
+        Get the gain associated with an antenna and/or polarization.
+
+        Parameters
+        ----------
+        ant : int
+            Antenna integer to request
+        jpol : int or str, optional
+            Instrumental polarization to request. Ex. 'Jxx'
+
+        Returns
+        -------
+        complex ndarray
+            Gain solution of shape (Nfreqs, Ntimes) or
+            (Nfreqs, Ntimes, Npol) if Njones > 1 and jpol is not fed.
         """
         if self.cal_type != 'gain':
             raise ValueError("cal_type must be 'gain' for get_gains() method")
-        if isinstance(args[0], tuple):
-            args = args[0]
-        return self._slice_array(args, self.gain_array)
 
-    def get_flags(self, *args):
-        """
-        Return ndarray of flags for an antenna or antenna-polarization pair.
-        """
-        if isinstance(args[0], tuple):
-            args = args[0]
-        return self._slice_array(args, self.flag_array)
+        return self._slice_array(self._parse_key(ant, jpol=jpol), self.gain_array)
 
-    def get_quality(self, *args):
+    def get_flags(self, ant, jpol=None):
         """
-        Return ndarray of qualities for an antenna or antenna-polarization pair.
+        Get the flags associated with an antenna and/or polarization.
+
+        Parameters
+        ----------
+        ant : int
+            Antenna integer to request
+        jpol : int or str, optional
+            Instrumental polarization to request. Ex. 'Jxx'
+
+        Returns
+        -------
+        boolean ndarray
+            Flags of shape (Nfreqs, Ntimes) or
+            (Nfreqs, Ntimes, Npol) if Njones > 1 and jpol is not fed.
         """
-        if isinstance(args[0], tuple):
-            args = args[0]
-        return self._slice_array(args, self.quality_array)
+        return self._slice_array(self._parse_key(ant, jpol=jpol), self.flag_array)
+
+    def get_quality(self, ant, jpol=None):
+        """
+        Get the qualities associated with an antenna and/or polarization.
+
+        Parameters
+        ----------
+        ant : int
+            Antenna integer to request
+        jpol : int or str, optional
+            Instrumental polarization to request. Ex. 'Jxx'
+
+        Returns
+        -------
+        float ndarray
+            Qualities of shape (Nfreqs, Ntimes) or
+            (Nfreqs, Ntimes, Npol) if Njones > 1 and jpol is not fed.
+        """
+        return self._slice_array(self._parse_key(ant, jpol=jpol), self.quality_array)
 
     def ant2ind(self, antnum):
         """
@@ -698,7 +732,7 @@ class UVCal(UVBase):
 
         Returns
         -------
-        intn
+        int
             Index in data arrays
         """
         if not self._has_key(antnum=antnum):
@@ -757,6 +791,22 @@ class UVCal(UVBase):
         elif len(key) == 2:
             # interpret as an antenna-pol pair
             return data_array[self.ant2ind(key[0]), 0, :, :, self.jpol2ind(key[1])]
+
+    def _parse_key(self, ant, jpol=None):
+        """
+        Parse key inputs and return a standard antenna-polarization key
+        """
+        if isinstance(ant, (list, tuple)):
+            # interpret ant as (ant,) or (ant, jpol)
+            key = tuple(ant)
+        elif isinstance(ant, (int, np.integer)):
+            # interpret ant as antenna number
+            key = (ant,)
+            # add jpol if fed
+            if jpol is not None:
+                key += (jpol,)
+
+        return key
 
     def _convert_from_filetype(self, other):
         for p in other:
