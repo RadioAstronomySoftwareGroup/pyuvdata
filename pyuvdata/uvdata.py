@@ -9,7 +9,6 @@ from __future__ import absolute_import, division, print_function
 
 import os
 import copy
-import collections
 import re
 import numpy as np
 import six
@@ -23,6 +22,11 @@ from .uvbase import UVBase
 from . import parameter as uvp
 from . import telescopes as uvtel
 from . import utils as uvutils
+
+if six.PY2:
+    from collections import Iterable
+else:
+    from collections.abc import Iterable
 
 
 class UVData(UVBase):
@@ -3707,7 +3711,7 @@ class UVData(UVBase):
                 raise KeyError('Polarization {pol} not found in data.'.format(pol=key))
         elif len(key) == 1:
             key = key[0]  # For simplicity
-            if isinstance(key, collections.Iterable):
+            if isinstance(key, Iterable):
                 # Nested tuple. Call function again.
                 blt_ind1, blt_ind2, pol_ind = self._key2inds(key)
             elif key < 5:
