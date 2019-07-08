@@ -230,7 +230,7 @@ class UVBase(object):
         """Not equal."""
         return not self.__eq__(other)
 
-    def check(self, check_extra=True, run_check_acceptability=True, only_check_set=False):
+    def check(self, check_extra=True, run_check_acceptability=True, ignore_requirements=False):
         """
         Check that required parameters exist. Check that parameters have
         appropriate shapes and optionally that the values are acceptable.
@@ -238,11 +238,11 @@ class UVBase(object):
         Args:
             check_extra: If true, check shapes and values on all parameters,
                 otherwise only check required parameters.
-            run_check_acceptability: Option to check if values in required parameters
+            run_check_acceptability: Option to check if values in parameters
                 are acceptable. Default is True.
-            only_check_set: Option to check only that values are acceptable for parameters
-                that have been set. This is equivalent to run_check_acceptability, but will
-                not error if any required_parameters are missing.
+            ignore_requirements: Do not error if a required parameter isn't set.
+                Default is False. When used with run_check_acceptability, this lets
+                the user check that a partially-defined UVData object has valid values. 
         """
         if check_extra:
             p_check = [p for p in self.required()] + [p for p in self.extra()]
@@ -253,7 +253,7 @@ class UVBase(object):
             param = getattr(self, p)
             # Check required parameter exists
             if param.value is None:
-                if only_check_set:
+                if ignore_requirements:
                     continue
                 if param.required is True:
                     raise ValueError('Required UVParameter ' + p
