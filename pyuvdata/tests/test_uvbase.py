@@ -235,8 +235,8 @@ def test_warning():
     assert output, "hello world\n"
 
 
-def test_check_acceptability_only():
+def test_check_ignore_unset():
     test_obj = UVTest()
     test_obj._unset_int1.required = True
     pytest.raises(ValueError, test_obj.check)
-    assert test_obj.check(only_check_set=True)
+    assert test_obj.check(ignore_requirements=True)
