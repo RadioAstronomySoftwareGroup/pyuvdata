@@ -16,6 +16,11 @@ from astropy.time import Time
 from astropy.coordinates import Angle
 from astropy.utils import iers
 
+if six.PY2:
+    from collections import Iterable
+else:
+    from collections.abc import Iterable
+
 # parameters for transforming between xyz & lat/lon/alt
 gps_b = 6356752.31424518
 gps_a = 6378137
@@ -483,7 +488,7 @@ def get_iterable(x):
 
 def _get_iterable(x):
     """Helper function to ensure iterability."""
-    if isinstance(x, collections.Iterable):
+    if isinstance(x, Iterable):
         return x
     else:
         return (x,)
@@ -642,7 +647,7 @@ def polstr2num(pol, x_orientation=None):
     poldict = {k.lower(): v for k, v in six.iteritems(dict_use)}
     if isinstance(pol, str):
         out = poldict[pol.lower()]
-    elif isinstance(pol, collections.Iterable):
+    elif isinstance(pol, Iterable):
         out = [poldict[key.lower()] for key in pol]
     else:
         raise ValueError('Polarization {p} cannot be converted to a polarization number.'.format(p=pol))
@@ -692,7 +697,7 @@ def polnum2str(num, x_orientation=None):
 
     if isinstance(num, six.integer_types + (np.int32, np.int64)):
         out = dict_use[num]
-    elif isinstance(num, collections.Iterable):
+    elif isinstance(num, Iterable):
         out = [dict_use[i] for i in num]
     else:
         raise ValueError('Polarization {p} cannot be converted to string.'.format(p=num))
@@ -741,7 +746,7 @@ def jstr2num(jstr, x_orientation=None):
     jdict = {k.lower(): v for k, v in six.iteritems(dict_use)}
     if isinstance(jstr, str):
         out = jdict[jstr.lower()]
-    elif isinstance(jstr, collections.Iterable):
+    elif isinstance(jstr, Iterable):
         out = [jdict[key.lower()] for key in jstr]
     else:
         raise ValueError('Jones polarization {j} cannot be converted to index.'.format(j=jstr))
@@ -788,7 +793,7 @@ def jnum2str(jnum, x_orientation=None):
 
     if isinstance(jnum, six.integer_types + (np.int32, np.int64)):
         out = dict_use[jnum]
-    elif isinstance(jnum, collections.Iterable):
+    elif isinstance(jnum, Iterable):
         out = [dict_use[i] for i in jnum]
     else:
         raise ValueError('Jones polarization {j} cannot be converted to string.'.format(j=jnum))
@@ -889,7 +894,7 @@ def conj_pol(pol):
             cpol = deprecated_jones_dict[pol.lower()]
         else:
             cpol = cpol_dict[pol.lower()]
-    elif isinstance(pol, collections.Iterable):
+    elif isinstance(pol, Iterable):
         cpol = [conj_pol(p) for p in pol]
     elif isinstance(pol, six.integer_types + (np.int32, np.int64)):
         cpol = polstr2num(cpol_dict[polnum2str(pol).lower()])
@@ -916,7 +921,7 @@ def reorder_conj_pols(pols):
     Returns:
         conj_order: Indices to reorder polarization axis
     """
-    if not isinstance(pols, collections.Iterable):
+    if not isinstance(pols, Iterable):
         raise ValueError('reorder_conj_pols must be given an array of polarizations.')
     cpols = np.array([conj_pol(p) for p in pols])  # Array needed for np.where
     conj_order = [np.where(cpols == p)[0][0] if p in cpols else -1 for p in pols]
