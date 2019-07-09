@@ -232,8 +232,8 @@ class UVBase(object):
 
     def check(self, check_extra=True, run_check_acceptability=True, ignore_requirements=False):
         """
-        Check that required parameters exist. Check that parameters have
-        appropriate shapes and optionally that the values are acceptable.
+        Check that required parameters exist and have the correct shapes.
+        Optionally, check that the values are acceptable.
 
         Args:
             check_extra: If true, check shapes and values on all parameters,
@@ -241,8 +241,8 @@ class UVBase(object):
             run_check_acceptability: Option to check if values in parameters
                 are acceptable. Default is True.
             ignore_requirements: Do not error if a required parameter isn't set.
-                Default is False. When used with run_check_acceptability, this lets
-                the user check that a partially-defined UVData object has valid values. 
+                Default is False. This allows the user to run the shape/acceptability checks
+                on parameters in a partially-defined UVData object.
         """
         if check_extra:
             p_check = [p for p in self.required()] + [p for p in self.extra()]
