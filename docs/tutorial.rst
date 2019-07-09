@@ -1128,20 +1128,12 @@ a) Data for a single antenna and instrumental polarization
   >>> filename = 'pyuvdata/data/zen.2457555.42443.HH.uvcA.omni.calfits'
   >>> UVC.read_calfits(filename)
   >>> gain = UVC.get_gains(9, 'Jxx')  # gain for ant=9, pol='Jxx'
-  >>> print(gain.shape)
-  (1024, 3)
-  >>> print(UVC.Nfreqs, UVC.Ntimes)
-  (1024, 3)
 
   # One can equivalently make any of these calls with the input wrapped in a tuple.
   >>> gain = UVC.get_gains((9, 'Jxx'))
 
   # If no polarization is fed, then all polarizations are returned
   >>> gain = UVC.get_gains(9)
-  >>> print(gain.shape)
-  (1024, 3, 2)
-  >>> print(UVC.Nfreqs, UVC.Ntimes, UVC.Njones)
-  (1024, 3, 2)
 
   # One can also request flags and quality arrays in a similar manner
   >>> flags = UVC.get_flags(9, 'Jxx')
@@ -1157,9 +1149,9 @@ a) Calibration of UVData by UVCal
   # We can calibrate directly using a UVCal object
   >>> from pyuvdata import UVData, UVCal, utils
   >>> UV = UVData()
-  >>> UV.read(<UVData filename>)
+  >>> UV.read('pyuvdata/data/zen.2458116.30448.HH.uvh5')
   >>> UVC = UVCal()
-  >>> UVC.read_calfits(<calfits filename>)
+  >>> UVC.read_calfits('pyuvdata/data/zen.2458116.30448.HH.flagged_abs.calfits')
   >>> UV_calibrated = utils.uvcalibrate(UV, UVC, inplace=False)
 
 UVCal: Selecting data

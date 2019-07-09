@@ -467,6 +467,9 @@ def uvcalibrate(uvdata, uvcal, inplace=True, prop_flags=True, flag_missing=True,
                 elif uvcal.gain_convention == 'divide':
                     uvdata.data_array[blt_inds, 0, :, pol_ind] /= gain
 
+    # update history
+    uvdata.history += "\nCalibrated with pyuvdata.utils.uvcalibrate."
+
     if not inplace:
         return uvdata
 
