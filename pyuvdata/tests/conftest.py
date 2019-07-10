@@ -22,8 +22,11 @@ def setup_and_teardown_package():
         print('making test directory')
         os.mkdir(testdir)
 
-    # try to download the iers table. If it fails, turn off auto downloading for the tests
-    # and turn it back on in teardown_package (done by extending auto_max_age)
+    # Try to download the latest IERS table. If the download succeeds, run a
+    # computation that requires the values, so they are cached for all future
+    # tests. If it fails, turn off auto downloading for the tests and turn it
+    # back on once all tests are completed (done by extending auto_max_age).
+    # Also, the checkWarnings function will ignore IERS-related warnings.
     try:
         iers_a = iers.IERS_A.open(iers.IERS_A_URL)
         t1 = Time.now()
