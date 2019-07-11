@@ -178,6 +178,23 @@ def test_init_invalid_input():
     pytest.raises(ValueError, UVFlag, 14)
 
 
+def test_init_list_files_weights(tmpdir):
+    # Test that weights are preserved when reading list of files
+    tmp_path = tmpdir.strpath
+    # Create two files to read
+    uvf = UVFlag(test_f_file)
+    np.random.seed(0)
+    wts1 = np.random.rand(*uvf.weights_array.shape)
+    uvf.weights_array = wts1.copy()
+    uvf.write(os.path.join(tmp_path, 'test1.h5'))
+    wts2 = np.random.rand(*uvf.weights_array.shape)
+    uvf.weights_array = wts2.copy()
+    uvf.write(os.path.join(tmp_path, 'test2.h5'))
+    uvf2 = UVFlag([os.path.join(tmp_path, 'test1.h5'),
+                   os.path.join(tmp_path, 'test2.h5')])
+    assert np.all(uvf2.weights_array == np.concatenate([wts1, wts2], axis=0))
+
+
 @uvtest.skipIf_no_h5py
 def test_read_write_loop():
     uv = UVData()
