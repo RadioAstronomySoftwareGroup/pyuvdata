@@ -6,22 +6,31 @@ pool:
 strategy:
   matrix:
     Python27:
-      python.version: '2.7'
+      PYTHON: '2.7'
     Python36:
-      python.version: '3.6'
+      PYTHON: '3.6'
     Python37:
-      python.version: '3.7'
+      PYTHON: '3.7'
 
 steps:
 - bash: echo "##vso[task.prependpath]$CONDA/bin"
   displayName: Add conda to PATH
+- script: echo $(PYTHON)
+
 
 # On Hosted macOS, the agent user doesn't have ownership of Miniconda's installation directory/
 # We need to take ownership if we want to update conda or install packages globally
 - bash: sudo chown -R $USER $CONDA
   displayName: Take ownership of conda installation
 
-- script: conda env create --quiet --file ci/pyuvdata_tests.yml
+- script: |
+    conda env create --quiet --file ci/pyuvdata_tests.yml  python=$PYTHON
+    source activate pyuvdata_tests
+    conda list -n pyuvdata_tests
+    PYVER=`python -c "from __future__ import print_function; import sys; print('{:d}.{:d}'.format(sys.version_info.major, sys.version_info.minor))"`
+    if [[ $PYVER != $PYTHON ]]; then
+      exit 1;
+    fi
   displayName: Create Anaconda environment
 
 - bash: |
