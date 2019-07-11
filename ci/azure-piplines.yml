@@ -43,7 +43,7 @@ steps:
 
 - bash: |
     source activate pyuvdata_tests
-    pip install .
+    python setup.py build_ext --force --inplace
   displayName: install pyuvdata
 
 - bash: |
