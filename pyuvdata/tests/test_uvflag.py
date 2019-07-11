@@ -175,7 +175,9 @@ def test_init_waterfall_copy_flags():
 
 def test_init_invalid_input():
     # input is not UVData, UVCal, path, or list/tuple
-    pytest.raises(ValueError, UVFlag, 14)
+    with pytest.raises(ValueError) as cm:
+        foo = UVFlag(14)
+    assert str(cm.value).startswith('input to UVFlag.__init__ must be one of:')
 
 
 def test_init_list_files_weights(tmpdir):
