@@ -28,9 +28,15 @@ steps:
     conda update -q conda
     conda config --add channels conda-forge
     conda info -a
-    conda env create --quiet --file ci/pyuvdata_tests.yml python=$(PYTHON)
+    conda env create --quiet -n pyuvdata_tests  python=$(PYTHON)
     source activate pyuvdata_tests
-    conda install -c defaults -y libgfortran libgfortran-ng
+    PYVER=`python -c "from __future__ import print_function; import sys; print('{:d}.{:d}'.format(sys.version_info.major, sys.version_info.minor))"`
+    echo $(PYTHON)
+    echo $PYVER
+    if [[ $PYVER != $PYTHON ]]; then
+      exit 1;
+    fi
+    conda env update -n pyuvdata_tests -f ci/pyuvdata_tests.yml
     conda list -n pyuvdata_tests
     PYVER=`python -c "from __future__ import print_function; import sys; print('{:d}.{:d}'.format(sys.version_info.major, sys.version_info.minor))"`
     echo $(PYTHON)
