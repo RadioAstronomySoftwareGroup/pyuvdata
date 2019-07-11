@@ -55,13 +55,16 @@ class UVFlag(object):
             self.pyuvdata_version_str += ('  Git origin: ' + uvversion.git_origin
                                           + '.  Git hash: ' + uvversion.git_hash
                                           + '.  Git branch: ' + uvversion.git_branch
-                                          + '.  Git description: ' + uvversion.git_description + '.')
+                                          + '.  Git description: '
+                                          + uvversion.git_description + '.')
         self.label = ''  # Added to at the end
         if isinstance(input, (list, tuple)):
-            self.__init__(input[0], mode=mode, copy_flags=copy_flags, waterfall=waterfall, history=history)
+            self.__init__(input[0], mode=mode, copy_flags=copy_flags,
+                          waterfall=waterfall, history=history)
             if len(input) > 1:
                 for i in input[1:]:
-                    fobj = UVFlag(i, mode=mode, copy_flags=copy_flags, waterfall=waterfall, history=history)
+                    fobj = UVFlag(i, mode=mode, copy_flags=copy_flags,
+                                  waterfall=waterfall, history=history)
                     self += fobj
                 del(fobj)
 
@@ -70,7 +73,8 @@ class UVFlag(object):
             self.read(input, history)
         elif waterfall and issubclass(input.__class__, (UVData, UVCal)):
             self.type = 'waterfall'
-            self.history += 'Flag object with type "waterfall" created by ' + self.pyuvdata_version_str
+            self.history += ('Flag object with type "waterfall" created by '
+                             + self.pyuvdata_version_str)
             self.time_array, ri = np.unique(input.time_array, return_index=True)
             self.freq_array = input.freq_array[0, :]
             if issubclass(input.__class__, UVData):
@@ -94,7 +98,8 @@ class UVFlag(object):
 
         elif issubclass(input.__class__, UVData):
             self.type = 'baseline'
-            self.history += 'Flag object with type "baseline" created by ' + self.pyuvdata_version_str
+            self.history += ('Flag object with type "baseline" created by '
+                             + self.pyuvdata_version_str)
             self.baseline_array = input.baseline_array
             self.ant_1_array = input.ant_1_array
             self.ant_2_array = input.ant_2_array
@@ -117,7 +122,8 @@ class UVFlag(object):
 
         elif issubclass(input.__class__, UVCal):
             self.type = 'antenna'
-            self.history += 'Flag object with type "antenna" created by ' + self.pyuvdata_version_str
+            self.history += ('Flag object with type "antenna" created by '
+                             + self.pyuvdata_version_str)
             self.ant_array = input.ant_array
             self.time_array = input.time_array
             self.lst_array = lst_from_uv(input)
@@ -213,7 +219,8 @@ class UVFlag(object):
                 self.time_array = header['time_array'][()]
                 self.lst_array = header['lst_array'][()]
                 self.freq_array = header['freq_array'][()]
-                self.history = uvutils._bytes_to_str(header['history'][()]) + ' Read by ' + self.pyuvdata_version_str
+                self.history = (uvutils._bytes_to_str(header['history'][()])
+                                + ' Read by ' + self.pyuvdata_version_str)
                 self.history += history
                 if 'label' in header.keys():
                     self.label = uvutils._bytes_to_str(header['label'][()])
@@ -269,7 +276,8 @@ class UVFlag(object):
             header['lst_array'] = self.lst_array
             header['freq_array'] = self.freq_array
             header['polarization_array'] = self.polarization_array
-            header['history'] = uvutils._str_to_bytes(self.history + 'Written by ' + self.pyuvdata_version_str)
+            header['history'] = uvutils._str_to_bytes(self.history + 'Written by '
+                                                      + self.pyuvdata_version_str)
             header['label'] = uvutils._str_to_bytes(self.label)
 
             if self.type == 'baseline':
@@ -483,7 +491,8 @@ class UVFlag(object):
             darr = self.metric_array
         if len(self.polarization_array) > 1:
             # Collapse pol dimension. But note we retain a polarization axis.
-            d, w = uvutils.collapse(darr, method, axis=-1, weights=self.weights_array, return_weights=True)
+            d, w = uvutils.collapse(darr, method, axis=-1, weights=self.weights_array,
+                                    return_weights=True)
             darr = np.expand_dims(d, axis=d.ndim)
             self.weights_array = np.expand_dims(w, axis=w.ndim)
             self.polarization_array = np.array([','.join(map(str, self.polarization_array))],
