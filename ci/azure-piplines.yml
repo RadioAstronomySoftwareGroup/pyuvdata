@@ -1,10 +1,5 @@
 # Python package
 # Create and test a Python package on multiple Python versions.
-# Add steps that analyze code, save the dist with the build record, publish to a PyPI-compatible index, and more:
-# https://docs.microsoft.com/azure/devops/pipelines/languages/python
-
-trigger:
-- master
 
 pool:
   vmImage: "macos-10.13"
@@ -31,14 +26,15 @@ steps:
 
 - bash: |
     source activate pyuvdata_tests
+    pip install .
     python setup.py build_ext --force --inplace
   displayName: install pyuvdata
 
 - bash: |
     source activate pyuvdata_tests
     mkdir test-reports
-    nosetests pyuvdata --with-xunit --xunit-file=test-reports/xunit.xml --with-coverage --cover-package=pyuvdata --cover-xml
-  displayName: nosetests
+    python -m pytest pyuvdata -v --cov=pyuvdata --cov-config=.coveragerc --cov-report xml:./coverage.xml --junitxml=test-reports/xunit.xml
+  displayName: run tests
 
 - task: PublishTestResults@2
   inputs:
