@@ -1,0 +1,47 @@
+# Python package
+# Create and test a Python package on multiple Python versions.
+# Add steps that analyze code, save the dist with the build record, publish to a PyPI-compatible index, and more:
+# https://docs.microsoft.com/azure/devops/pipelines/languages/python
+
+trigger:
+- master
+
+pool:
+  vmImage: "macos-10.13"
+strategy:
+strategy:
+  matrix:
+    Python27:
+      python.version: '2.7'
+    Python36:
+      python.version: '3.6'
+    Python37:
+      python.version: '3.7'
+
+steps:
+- bash: echo "##vso[task.prependpath]$CONDA/bin"
+  displayName: Add conda to PATH
+
+# On Hosted macOS, the agent user doesn't have ownership of Miniconda's installation directory/
+# We need to take ownership if we want to update conda or install packages globally
+- bash: sudo chown -R $USER $CONDA
+  displayName: Take ownership of conda installation
+
+- script: conda env create --quiet --file ci/pyuvdata_tests.yml
+  displayName: Create Anaconda environment
+
+- bash: |
+    source activate pyuvdata_tests
+    python setup.py build_ext --force --inplace
+  displayName: install pyuvdata
+
+- bash: |
+    source activate pyuvdata_tests
+    mkdir test-reports
+    nosetests pyuvdata --with-xunit --xunit-file=test-reports/xunit.xml --with-coverage --cover-package=pyuvdata --cover-xml
+  displayName: nosetests
+
+- task: PublishTestResults@2
+  inputs:
+    testResultsFiles: 'test-reports/*.xml'
+  condition: succeededOrFailed()
