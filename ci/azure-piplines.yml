@@ -24,13 +24,17 @@ steps:
   displayName: Take ownership of conda installation
 
 - script: |
-    conda env create --quiet --file ci/pyuvdata_tests.yml  python=$PYTHON
+    conda config --set always_yes yes --set changeps1 no
+    conda update -q conda
+    conda config --add channels conda-forge
+    conda info -a
+    conda env create --quiet --file ci/pyuvdata_tests.yml python=$(PYTHON)
     source activate pyuvdata_tests
     conda install -c defaults -y libgfortran libgfortran-ng
     conda list -n pyuvdata_tests
     PYVER=`python -c "from __future__ import print_function; import sys; print('{:d}.{:d}'.format(sys.version_info.major, sys.version_info.minor))"`
     echo $(PYTHON)
-    echo $(PYVER)
+    echo $PYVER
     if [[ $PYVER != $PYTHON ]]; then
       exit 1;
     fi
