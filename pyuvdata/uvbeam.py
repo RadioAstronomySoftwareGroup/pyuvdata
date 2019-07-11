@@ -802,7 +802,7 @@ class UVBeam(UVBase):
 
     def _interp_az_za_rect_spline(self, az_array, za_array, freq_array,
                                   freq_interp_kind='linear', freq_interp_tol=1.0,
-                                  polarizations=None, reuse_spline=False, **kwargs):
+                                  polarizations=None, reuse_spline=False):
         """
         Simple interpolation function for az_za coordinate system.
 
@@ -993,8 +993,10 @@ class UVBeam(UVBase):
 
         return interp_data, interp_basis_vector, interp_bandpass
 
-    def _interp_healpix_bilinear(self, az_array, za_array, freq_array, freq_interp_kind='linear',
-                                 freq_interp_tol=1.0, polarizations=None, **kwargs):
+    def _interp_healpix_bilinear(self, az_array, za_array, freq_array,
+                                 freq_interp_kind='linear',
+                                 freq_interp_tol=1.0, polarizations=None,
+                                 reuse_spline=False):
         """
         Simple bi-linear interpolation wrapper for healpix.
 
@@ -1247,11 +1249,16 @@ class UVBeam(UVBase):
             za_array_use, az_array_use = hp.pix2ang(healpix_nside, healpix_inds)
 
         interp_func = self.interpolation_function_dict[self.interpolation_function]['func']
+
+        extra_keyword_dict = {}
+        if interp_func == '_interp_az_za_rect_spline':
+            extra_keyword_dict['reuse_spline'] = reuse_spline
+
         interp_data, interp_basis_vector, interp_bandpass = \
             getattr(self, interp_func)(az_array_use, za_array_use, freq_array,
                                        freq_interp_kind=kind_use,
                                        polarizations=polarizations,
-                                       reuse_spline=reuse_spline)
+                                       **extra_keyword_dict)
 
         # return just the interpolated arrays
         if not new_object:
