@@ -180,6 +180,7 @@ def test_init_invalid_input():
     assert str(cm.value).startswith('input to UVFlag.__init__ must be one of:')
 
 
+@uvtest.skipIf_no_h5py
 def test_init_list_files_weights(tmpdir):
     # Test that weights are preserved when reading list of files
     tmp_path = tmpdir.strpath
