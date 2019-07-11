@@ -9,7 +9,6 @@ trigger:
 pool:
   vmImage: "macos-10.13"
 strategy:
-strategy:
   matrix:
     Python27:
       python.version: '2.7'
