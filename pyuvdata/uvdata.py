@@ -365,6 +365,26 @@ class UVData(UVBase):
 
         super(UVData, self).__init__()
 
+    @property
+    def metadata_only(self):
+        """
+        Property that determines whether this is a metadata only object.
+
+        An object is metadata only if data_array, nsample_array and flag_array
+        are all None.
+        """
+        param_list = ['data_array', 'nsample_array', 'flag_array']
+        if np.all([hasattr(self, param) for param in param_list]):
+            metadata_only = (self.data_array is None and self.nsample_array is None
+                             and self.flag_array is None)
+            self._data_array.required = not metadata_only
+            self._nsample_array.required = not metadata_only
+            self._flag_array.required = not metadata_only
+        else:
+            metadata_only = False
+
+        return metadata_only
+
     def check(self, check_extra=True, run_check_acceptability=True):
         """
         Add some extra checks on top of checks on UVBase class.
@@ -1376,6 +1396,7 @@ class UVData(UVBase):
             this = self
         else:
             this = copy.deepcopy(self)
+
         # Check that both objects are UVData and valid
         this.check(check_extra=check_extra, run_check_acceptability=run_check_acceptability)
         if not issubclass(other.__class__, this.__class__):
@@ -1415,29 +1436,30 @@ class UVData(UVBase):
             this.freq_array[0, :], other.freq_array[0, :], return_indices=True)
         both_blts, this_blts_ind, other_blts_ind = np.intersect1d(
             this_blts, other_blts, return_indices=True)
-        if len(both_pol) > 0:
-            if len(both_freq) > 0:
-                if len(both_blts) > 0:
-                    # check that overlapping data is not valid
-                    this_all_zero = np.all(this.data_array[this_blts_ind][
-                        :, :, this_freq_ind][:, :, :, this_pol_ind] == 0)
-                    this_all_flag = np.all(this.flag_array[this_blts_ind][
-                        :, :, this_freq_ind][:, :, :, this_pol_ind])
-                    other_all_zero = np.all(other.data_array[other_blts_ind][
-                        :, :, other_freq_ind][:, :, :, other_pol_ind] == 0)
-                    other_all_flag = np.all(other.flag_array[other_blts_ind][
-                        :, :, other_freq_ind][:, :, :, other_pol_ind])
-                    if (this_all_zero and this_all_flag):
-                        # we're fine to overwrite; update history accordingly
-                        history_update_string = ' Overwrote invalid data using pyuvdata.'
-                        this.history += history_update_string
-                    elif (other_all_zero and other_all_flag):
-                        raise ValueError('To combine these data, please run the add operation again, '
-                                         'but with the object whose data is to be overwritten as the '
-                                         'first object in the add operation.')
-                    else:
-                        raise ValueError('These objects have overlapping data and'
-                                         ' cannot be combined.')
+        if not self.metadata_only:
+            if len(both_pol) > 0:
+                if len(both_freq) > 0:
+                    if len(both_blts) > 0:
+                        # check that overlapping data is not valid
+                        this_all_zero = np.all(this.data_array[this_blts_ind][
+                            :, :, this_freq_ind][:, :, :, this_pol_ind] == 0)
+                        this_all_flag = np.all(this.flag_array[this_blts_ind][
+                            :, :, this_freq_ind][:, :, :, this_pol_ind])
+                        other_all_zero = np.all(other.data_array[other_blts_ind][
+                            :, :, other_freq_ind][:, :, :, other_pol_ind] == 0)
+                        other_all_flag = np.all(other.flag_array[other_blts_ind][
+                            :, :, other_freq_ind][:, :, :, other_pol_ind])
+                        if (this_all_zero and this_all_flag):
+                            # we're fine to overwrite; update history accordingly
+                            history_update_string = ' Overwrote invalid data using pyuvdata.'
+                            this.history += history_update_string
+                        elif (other_all_zero and other_all_flag):
+                            raise ValueError('To combine these data, please run the add operation again, '
+                                             'but with the object whose data is to be overwritten as the '
+                                             'first object in the add operation.')
+                        else:
+                            raise ValueError('These objects have overlapping data and'
+                                             ' cannot be combined.')
 
         # find the blt indices in "other" but not in "this"
         temp = np.nonzero(~np.in1d(other_blts, this_blts))[0]
@@ -1511,12 +1533,13 @@ class UVData(UVBase):
         if len(bnew_inds) > 0:
             this_blts = np.concatenate((this_blts, new_blts))
             blt_order = np.argsort(this_blts)
-            zero_pad = np.zeros(
-                (len(bnew_inds), this.Nspws, this.Nfreqs, this.Npols))
-            this.data_array = np.concatenate([this.data_array, zero_pad], axis=0)
-            this.nsample_array = np.concatenate([this.nsample_array, zero_pad], axis=0)
-            this.flag_array = np.concatenate([this.flag_array,
-                                              1 - zero_pad], axis=0).astype(np.bool)
+            if not self.metadata_only:
+                zero_pad = np.zeros(
+                    (len(bnew_inds), this.Nspws, this.Nfreqs, this.Npols))
+                this.data_array = np.concatenate([this.data_array, zero_pad], axis=0)
+                this.nsample_array = np.concatenate([this.nsample_array, zero_pad], axis=0)
+                this.flag_array = np.concatenate([this.flag_array,
+                                                  1 - zero_pad], axis=0).astype(np.bool)
             this.uvw_array = np.concatenate([this.uvw_array,
                                              other.uvw_array[bnew_inds, :]], axis=0)[blt_order, :]
             this.time_array = np.concatenate([this.time_array,
@@ -1533,25 +1556,27 @@ class UVData(UVBase):
                                                   other.baseline_array[bnew_inds]])[blt_order]
 
         if len(fnew_inds) > 0:
-            zero_pad = np.zeros((this.data_array.shape[0], this.Nspws, len(fnew_inds),
-                                 this.Npols))
             this.freq_array = np.concatenate([this.freq_array,
                                               other.freq_array[:, fnew_inds]], axis=1)
             f_order = np.argsort(this.freq_array[0, :])
-            this.data_array = np.concatenate([this.data_array, zero_pad], axis=2)
-            this.nsample_array = np.concatenate([this.nsample_array, zero_pad], axis=2)
-            this.flag_array = np.concatenate([this.flag_array, 1 - zero_pad],
-                                             axis=2).astype(np.bool)
+            if not self.metadata_only:
+                zero_pad = np.zeros((this.data_array.shape[0], this.Nspws, len(fnew_inds),
+                                     this.Npols))
+                this.data_array = np.concatenate([this.data_array, zero_pad], axis=2)
+                this.nsample_array = np.concatenate([this.nsample_array, zero_pad], axis=2)
+                this.flag_array = np.concatenate([this.flag_array, 1 - zero_pad],
+                                                 axis=2).astype(np.bool)
         if len(pnew_inds) > 0:
-            zero_pad = np.zeros((this.data_array.shape[0], this.Nspws,
-                                 this.data_array.shape[2], len(pnew_inds)))
             this.polarization_array = np.concatenate([this.polarization_array,
                                                       other.polarization_array[pnew_inds]])
             p_order = np.argsort(np.abs(this.polarization_array))
-            this.data_array = np.concatenate([this.data_array, zero_pad], axis=3)
-            this.nsample_array = np.concatenate([this.nsample_array, zero_pad], axis=3)
-            this.flag_array = np.concatenate([this.flag_array, 1 - zero_pad],
-                                             axis=3).astype(np.bool)
+            if not self.metadata_only:
+                zero_pad = np.zeros((this.data_array.shape[0], this.Nspws,
+                                     this.data_array.shape[2], len(pnew_inds)))
+                this.data_array = np.concatenate([this.data_array, zero_pad], axis=3)
+                this.nsample_array = np.concatenate([this.nsample_array, zero_pad], axis=3)
+                this.flag_array = np.concatenate([this.flag_array, 1 - zero_pad],
+                                                 axis=3).astype(np.bool)
 
         # Now populate the data
         pol_t2o = np.nonzero(
@@ -1559,26 +1584,30 @@ class UVData(UVBase):
         freq_t2o = np.nonzero(
             np.in1d(this.freq_array[0, :], other.freq_array[0, :]))[0]
         blt_t2o = np.nonzero(np.in1d(this_blts, other_blts))[0]
-        this.data_array[np.ix_(blt_t2o, [0], freq_t2o,
-                               pol_t2o)] = other.data_array
-        this.nsample_array[np.ix_(
-            blt_t2o, [0], freq_t2o, pol_t2o)] = other.nsample_array
-        this.flag_array[np.ix_(blt_t2o, [0], freq_t2o,
-                               pol_t2o)] = other.flag_array
+        if not self.metadata_only:
+            this.data_array[np.ix_(blt_t2o, [0], freq_t2o,
+                                   pol_t2o)] = other.data_array
+            this.nsample_array[np.ix_(
+                blt_t2o, [0], freq_t2o, pol_t2o)] = other.nsample_array
+            this.flag_array[np.ix_(blt_t2o, [0], freq_t2o,
+                                   pol_t2o)] = other.flag_array
         if len(bnew_inds) > 0:
-            this.data_array = this.data_array[blt_order, :, :, :]
-            this.nsample_array = this.nsample_array[blt_order, :, :, :]
-            this.flag_array = this.flag_array[blt_order, :, :, :]
+            if not self.metadata_only:
+                this.data_array = this.data_array[blt_order, :, :, :]
+                this.nsample_array = this.nsample_array[blt_order, :, :, :]
+                this.flag_array = this.flag_array[blt_order, :, :, :]
         if len(fnew_inds) > 0:
             this.freq_array = this.freq_array[:, f_order]
-            this.data_array = this.data_array[:, :, f_order, :]
-            this.nsample_array = this.nsample_array[:, :, f_order, :]
-            this.flag_array = this.flag_array[:, :, f_order, :]
+            if not self.metadata_only:
+                this.data_array = this.data_array[:, :, f_order, :]
+                this.nsample_array = this.nsample_array[:, :, f_order, :]
+                this.flag_array = this.flag_array[:, :, f_order, :]
         if len(pnew_inds) > 0:
             this.polarization_array = this.polarization_array[p_order]
-            this.data_array = this.data_array[:, :, :, p_order]
-            this.nsample_array = this.nsample_array[:, :, :, p_order]
-            this.flag_array = this.flag_array[:, :, :, p_order]
+            if not self.metadata_only:
+                this.data_array = this.data_array[:, :, :, p_order]
+                this.nsample_array = this.nsample_array[:, :, :, p_order]
+                this.flag_array = this.flag_array[:, :, :, p_order]
 
         # Update N parameters (e.g. Npols)
         this.Ntimes = len(np.unique(this.time_array))
@@ -1740,10 +1769,10 @@ class UVData(UVBase):
             elif np.max(freq_separation) > this.channel_width:
                 warnings.warn('Combined frequencies are not contiguous. This will make '
                               'it impossible to write this data out to some file types.')
-
-            this.data_array = np.concatenate([this.data_array, other.data_array], axis=2)
-            this.nsample_array = np.concatenate([this.nsample_array, other.nsample_array], axis=2)
-            this.flag_array = np.concatenate([this.flag_array, other.flag_array], axis=2)
+            if not self.metadata_only:
+                this.data_array = np.concatenate([this.data_array, other.data_array], axis=2)
+                this.nsample_array = np.concatenate([this.nsample_array, other.nsample_array], axis=2)
+                this.flag_array = np.concatenate([this.flag_array, other.flag_array], axis=2)
         elif axis == 'polarization':
             this.polarization_array = np.concatenate([this.polarization_array,
                                                      other.polarization_array])
@@ -1754,9 +1783,10 @@ class UVData(UVBase):
                 warnings.warn('Combined polarizations are not evenly spaced. This will '
                               'make it impossible to write this data out to some file types.')
 
-            this.data_array = np.concatenate([this.data_array, other.data_array], axis=3)
-            this.nsample_array = np.concatenate([this.nsample_array, other.nsample_array], axis=3)
-            this.flag_array = np.concatenate([this.flag_array, other.flag_array], axis=3)
+            if not self.metadata_only:
+                this.data_array = np.concatenate([this.data_array, other.data_array], axis=3)
+                this.nsample_array = np.concatenate([this.nsample_array, other.nsample_array], axis=3)
+                this.flag_array = np.concatenate([this.flag_array, other.flag_array], axis=3)
         elif axis == 'blt':
             this.Nblts = this.Nblts + other.Nblts
             this.ant_1_array = np.concatenate([this.ant_1_array,
@@ -1777,9 +1807,10 @@ class UVData(UVBase):
             this.Nbls = len(np.unique(this.baseline_array))
             this.integration_time = np.concatenate([this.integration_time,
                                                    other.integration_time])
-            this.data_array = np.concatenate([this.data_array, other.data_array], axis=0)
-            this.nsample_array = np.concatenate([this.nsample_array, other.nsample_array], axis=0)
-            this.flag_array = np.concatenate([this.flag_array, other.flag_array], axis=0)
+            if not self.metadata_only:
+                this.data_array = np.concatenate([this.data_array, other.data_array], axis=0)
+                this.nsample_array = np.concatenate([this.nsample_array, other.nsample_array], axis=0)
+                this.flag_array = np.concatenate([this.flag_array, other.flag_array], axis=0)
 
         # Check final object is self-consistent
         if run_check:
@@ -2166,7 +2197,7 @@ class UVData(UVBase):
                bls=None, frequencies=None, freq_chans=None,
                times=None, polarizations=None, blt_inds=None, run_check=True,
                check_extra=True, run_check_acceptability=True, inplace=True,
-               metadata_only=False, keep_all_metadata=True):
+               keep_all_metadata=True):
         """
         Downselect data to keep on the object along various axes.
 
@@ -2236,9 +2267,6 @@ class UVData(UVBase):
             Option to perform the select directly on self or return a new UVData
             object with just the selected data (the default is True, meaning the
             select will be done on self).
-        metadata_only : bool
-            Option to only do the select on the metadata. Not allowed if the
-            data_array, flag_array or nsample_array is not None.
         keep_all_metadata : bool
             Option to keep all the metadata associated with antennas, even those
             that do do not have data associated with them after the select option.
@@ -2253,13 +2281,8 @@ class UVData(UVBase):
         ------
         ValueError
             If any of the parameters are set to inappropriate values.
-        """
-        if metadata_only is True and (self.data_array is not None
-                                      or self.flag_array is not None
-                                      or self.nsample_array is not None):
-            raise ValueError('metadata_only option cannot be used if data_array, '
-                             'flag_array or nsample_array is not None')
 
+        """
         if inplace:
             uv_object = self
         else:
@@ -2273,7 +2296,7 @@ class UVData(UVBase):
         uv_object._select_metadata(blt_inds, freq_inds, pol_inds, history_update_string,
                                    keep_all_metadata)
 
-        if metadata_only is True:
+        if self.metadata_only:
             if not inplace:
                 return uv_object
             else:
@@ -2481,16 +2504,19 @@ class UVData(UVBase):
                 func = 'read_uvfits'
 
         if isinstance(filename, (list, tuple)):
-            if not read_data:
-                raise ValueError('read_data cannot be False for a list of uvfits files')
+            if not read_data and not read_metadata:
+                raise ValueError('A list of files cannot be used when just '
+                                 'reading the header (read_data and read_metadata are False)')
             if func == 'read_uvfits_data':
-                raise ValueError('A list of files cannot be used when just reading data')
+                raise ValueError('A list of files cannot be used when just '
+                                 'reading data (metadata already exists)')
 
             self.read_uvfits(filename[0], antenna_nums=antenna_nums,
                              antenna_names=antenna_names, ant_str=ant_str,
                              bls=bls, frequencies=frequencies,
                              freq_chans=freq_chans, times=times,
                              polarizations=polarizations, blt_inds=blt_inds,
+                             read_data=read_data, read_metadata=read_metadata,
                              run_check=run_check, check_extra=check_extra,
                              run_check_acceptability=run_check_acceptability,
                              keep_all_metadata=keep_all_metadata)
@@ -2502,6 +2528,7 @@ class UVData(UVBase):
                                     bls=bls, frequencies=frequencies,
                                     freq_chans=freq_chans, times=times,
                                     polarizations=polarizations, blt_inds=blt_inds,
+                                    read_data=read_data, read_metadata=read_metadata,
                                     run_check=run_check, check_extra=check_extra,
                                     run_check_acceptability=run_check_acceptability,
                                     keep_all_metadata=keep_all_metadata)
@@ -2528,13 +2555,14 @@ class UVData(UVBase):
                 self._convert_from_filetype(uvfits_obj)
                 del(uvfits_obj)
             elif func == 'read_uvfits_metadata':
-                # can only be one file, it would have errored earlier because read_data=False
+                # can only be one file, it would have errored earlier otherwise
                 uvfits_obj = self._convert_to_filetype('uvfits')
                 uvfits_obj.read_uvfits_metadata(
                     filename, run_check_acceptability=run_check_acceptability)
                 self._convert_from_filetype(uvfits_obj)
                 del(uvfits_obj)
             elif func == 'read_uvfits_data':
+                # can only be one file, it would have errored earlier otherwise
                 uvfits_obj = self._convert_to_filetype('uvfits')
                 uvfits_obj.read_uvfits_data(filename, antenna_nums=antenna_nums,
                                             antenna_names=antenna_names, ant_str=ant_str,
@@ -2777,9 +2805,6 @@ class UVData(UVBase):
         """
         from . import miriad
         if isinstance(filepath, (list, tuple)):
-            if not read_data:
-                raise ValueError('read_data cannot be False for a list of miriad files')
-
             self.read_miriad(filepath[0], correct_lat_lon=correct_lat_lon,
                              run_check=run_check, check_extra=check_extra,
                              run_check_acceptability=run_check_acceptability,
@@ -2926,9 +2951,8 @@ class UVData(UVBase):
             that do not have data associated with them after the select option.
         read_data : bool
             Read in the visibility and flag data. If set to false, only the
-            basic header info and metadata (if read_metadata is True) will be
-            read in. Setting read_data to False results in an incompletely
-            defined object (check will not pass).
+            basic header info and metadata will be read in. Setting read_data to
+            False results in an incompletely defined object (check will not pass).
         data_array_dtype : numpy dtype
             Datatype to store the output data_array as. Must be either
             np.complex64 (single-precision real and imaginary) or np.complex128 (double-
@@ -2949,8 +2973,9 @@ class UVData(UVBase):
         """
         from . import uvh5
         if isinstance(filename, (list, tuple)):
-            if not read_data and len(filename) > 1:
-                raise ValueError('read_data cannot be False for a list of uvh5 files')
+            if self.data_array is None and self.freq_array is not None:
+                raise ValueError('A list of files cannot be used when just '
+                                 'reading data (metadata already exists)')
 
             self.read_uvh5(filename[0], antenna_nums=antenna_nums,
                            antenna_names=antenna_names, ant_str=ant_str, bls=bls,
@@ -4448,8 +4473,7 @@ class UVData(UVBase):
         return uvutils.get_baseline_redundancies(baselines, baseline_vecs,
                                                  tol=tol, with_conjugates=True)
 
-    def compress_by_redundancy(self, tol=1.0, inplace=True, metadata_only=False,
-                               keep_all_metadata=True):
+    def compress_by_redundancy(self, tol=1.0, inplace=True, keep_all_metadata=True):
         """
         Downselect to only have one baseline per redundant group on the object.
 
@@ -4462,9 +4486,6 @@ class UVData(UVBase):
             Redundancy tolerance in meters, default is 1.0 corresponding to 1 meter.
         inplace : bool
             Option to do selection on current object.
-        metadata_only : bool
-            Option to only do the select on the metadata. Not allowed
-            if the data_array, flag_array or nsample_array is not None.
         keep_all_metadata : bool
             Option to keep all the metadata associated with antennas,
             even those that do not remain after the select option.
@@ -4478,7 +4499,7 @@ class UVData(UVBase):
         red_gps, centers, lengths, conjugates = self.get_baseline_redundancies(tol)
 
         bl_ants = [self.baseline_to_antnums(gp[0]) for gp in red_gps]
-        return self.select(bls=bl_ants, inplace=inplace, metadata_only=metadata_only,
+        return self.select(bls=bl_ants, inplace=inplace,
                            keep_all_metadata=keep_all_metadata)
 
     def inflate_by_redundancy(self, tol=1.0, blt_order='time', blt_minor_order=None):
