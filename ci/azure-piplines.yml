@@ -1,142 +1,142 @@
 jobs:
-  job: mac_tests
-    pool:
-      vmImage: "macos-10.13"
-    strategy:
-    matrix:
-      Python27:
-        PYTHON: '2.7'
-      Python36:
-        PYTHON: '3.6'
-      Python37:
-        PYTHON: '3.7'
+- job: mac_tests
+  pool:
+    vmImage: "macos-10.13"
+  strategy:
+  matrix:
+    Python27:
+      PYTHON: '2.7'
+    Python36:
+      PYTHON: '3.6'
+    Python37:
+      PYTHON: '3.7'
 
-    steps:
-    - bash: echo "##vso[task.prependpath]$CONDA/bin"
+  steps:
+  - bash: echo "##vso[task.prependpath]$CONDA/bin"
+  displayName: Add conda to PATH
+  - script: echo $(PYTHON)
+
+
+  # On Hosted macOS, the agent user doesn't have ownership of Miniconda's installation directory/
+  # We need to take ownership if we want to update conda or install packages globally
+  - bash: sudo chown -R $USER $CONDA
+  displayName: Take ownership of conda installation
+
+  - bash: |
+    conda config --set always_yes yes --set changeps1 no
+    conda update -q conda
+    conda config --add channels conda-forge
+    conda info -a
+    conda create -n pyuvdata_tests python=$(PYTHON)
+    source activate pyuvdata_tests
+    conda install -c defaults -y libgfortran libgfortran-ng
+    conda env update -n pyuvdata_tests -f ci/pyuvdata_tests.yml
+    conda list -n pyuvdata_tests
+    PYVER=`python -c "from __future__ import print_function; import sys; print('{:d}.{:d}'.format(sys.version_info.major, sys.version_info.minor))"`
+    if [[ $PYVER != $PYTHON ]]; then
+      exit 1;
+    fi
+  displayName: Create Anaconda environment
+
+  - bash: |
+    source activate pyuvdata_tests
+    python setup.py build_ext --force --inplace
+  displayName: install pyuvdata
+
+  - bash: |
+    source activate pyuvdata_tests
+    mkdir test-reports
+    python -m pytest pyuvdata -v --cov=pyuvdata --cov-config=.coveragerc --cov-report xml:./coverage.xml --junitxml=test-reports/xunit.xml
+  displayName: run tests
+
+  - task: PublishTestResults@2
+  inputs:
+    testResultsFiles: 'test-reports/*.xml'
+  condition: succeededOrFailed()
+
+- job: hera_cal
+  pool:
+  vmImage: "ubuntu-16.04"
+  strategy:
+
+  steps:
+  - bash: echo "##vso[task.prependpath]$CONDA/bin"
     displayName: Add conda to PATH
-    - script: echo $(PYTHON)
+
+  - bash: |
+    PYTHON="3.6"
+    conda config --set always_yes yes --set changeps1 no
+    conda update -q conda
+    conda config --add channels conda-forge
+    conda info -a
+    conda create -n hera_cal python=$(PYTHON)
+    source activate hera_cal
+    conda env update -n hera_cal -f ci/hera_cal.yml
+    conda list -n hera_cal
+    PYVER=`python -c "from __future__ import print_function; import sys; print('{:d}.{:d}'.format(sys.version_info.major, sys.version_info.minor))"`
+    if [[ $PYVER != $PYTHON ]]; then
+      exit 1;
+    fi
+  displayName: Create Anaconda environment
+
+  - bash: |
+    source activate hera_cal
+    pip install .
+    pip install git+https://github.com/HERA-Team/linsolve.git
+    pip install git+https://github.com/HERA-Team/hera_qm.git
+    pip install git+https://github.com/HERA-Team/uvtools.git
+    pip install git+https://github.com/HERA-Team/hera_sim.git
+  displayName: install related repos
+
+  - bash: |
+    source activate hera_cal
+    cd ../
+    git clone git@github.com:HERA-Team/hera_cal.git
+    cd hera_cal
+    mkdir test-reports
+    python -m pytest hera_cal -v --junitxml=test-reports/xunit.xml
+  displayName: run hera_cal tests
 
 
-    # On Hosted macOS, the agent user doesn't have ownership of Miniconda's installation directory/
-    # We need to take ownership if we want to update conda or install packages globally
-    - bash: sudo chown -R $USER $CONDA
-    displayName: Take ownership of conda installation
+- job: hera_qm
+  pool:
+  vmImage: "ubuntu-16.04"
+  strategy:
 
-    - bash: |
-      conda config --set always_yes yes --set changeps1 no
-      conda update -q conda
-      conda config --add channels conda-forge
-      conda info -a
-      conda create -n pyuvdata_tests python=$(PYTHON)
-      source activate pyuvdata_tests
-      conda install -c defaults -y libgfortran libgfortran-ng
-      conda env update -n pyuvdata_tests -f ci/pyuvdata_tests.yml
-      conda list -n pyuvdata_tests
-      PYVER=`python -c "from __future__ import print_function; import sys; print('{:d}.{:d}'.format(sys.version_info.major, sys.version_info.minor))"`
-      if [[ $PYVER != $PYTHON ]]; then
-        exit 1;
-      fi
-    displayName: Create Anaconda environment
+  steps:
+  - bash: echo "##vso[task.prependpath]$CONDA/bin"
+    displayName: Add conda to PATH
 
-    - bash: |
-      source activate pyuvdata_tests
-      python setup.py build_ext --force --inplace
-    displayName: install pyuvdata
+  - bash: |
+    PYTHON="3.6"
+    conda config --set always_yes yes --set changeps1 no
+    conda update -q conda
+    conda config --add channels conda-forge
+    conda info -a
+    conda create -n hera_qm python=$(PYTHON)
+    source activate hera_qm
+    conda env update -n hera_qm -f ci/hera_qm.yml
+    conda list -n hera_qm
+    PYVER=`python -c "from __future__ import print_function; import sys; print('{:d}.{:d}'.format(sys.version_info.major, sys.version_info.minor))"`
+    if [[ $PYVER != $PYTHON ]]; then
+      exit 1;
+    fi
+  displayName: Create Anaconda environment
 
-    - bash: |
-      source activate pyuvdata_tests
-      mkdir test-reports
-      python -m pytest pyuvdata -v --cov=pyuvdata --cov-config=.coveragerc --cov-report xml:./coverage.xml --junitxml=test-reports/xunit.xml
-    displayName: run tests
+  - bash: |
+    source activate hera_qm
+    pip install .
+    pip install git+https://github.com/HERA-Team/omnical.git
+    pip install git+https://github.com/HERA-Team/linsolve.git
+    pip install git+https://github.com/HERA-Team/uvtools.git
+    pip install git+https://github.com/HERA-Team/hera_cal.git
+  displayName: install related repos
 
-    - task: PublishTestResults@2
-    inputs:
-      testResultsFiles: 'test-reports/*.xml'
-    condition: succeededOrFailed()
-
-  job: hera_cal
-    pool:
-    vmImage: "ubuntu-16.04"
-    strategy:
-
-    steps:
-    - bash: echo "##vso[task.prependpath]$CONDA/bin"
-      displayName: Add conda to PATH
-
-    - bash: |
-      PYTHON="3.6"
-      conda config --set always_yes yes --set changeps1 no
-      conda update -q conda
-      conda config --add channels conda-forge
-      conda info -a
-      conda create -n hera_cal python=$(PYTHON)
-      source activate hera_cal
-      conda env update -n hera_cal -f ci/hera_cal.yml
-      conda list -n hera_cal
-      PYVER=`python -c "from __future__ import print_function; import sys; print('{:d}.{:d}'.format(sys.version_info.major, sys.version_info.minor))"`
-      if [[ $PYVER != $PYTHON ]]; then
-        exit 1;
-      fi
-    displayName: Create Anaconda environment
-
-    - bash: |
-      source activate hera_cal
-      pip install .
-      pip install git+https://github.com/HERA-Team/linsolve.git
-      pip install git+https://github.com/HERA-Team/hera_qm.git
-      pip install git+https://github.com/HERA-Team/uvtools.git
-      pip install git+https://github.com/HERA-Team/hera_sim.git
-    displayName: install related repos
-
-    - bash: |
-      source activate hera_cal
-      cd ../
-      git clone git@github.com:HERA-Team/hera_cal.git
-      cd hera_cal
-      mkdir test-reports
-      python -m pytest hera_cal -v --junitxml=test-reports/xunit.xml
-    displayName: run hera_cal tests
-
-
-  job: hera_qm
-    pool:
-    vmImage: "ubuntu-16.04"
-    strategy:
-
-    steps:
-    - bash: echo "##vso[task.prependpath]$CONDA/bin"
-      displayName: Add conda to PATH
-
-    - bash: |
-      PYTHON="3.6"
-      conda config --set always_yes yes --set changeps1 no
-      conda update -q conda
-      conda config --add channels conda-forge
-      conda info -a
-      conda create -n hera_qm python=$(PYTHON)
-      source activate hera_qm
-      conda env update -n hera_qm -f ci/hera_qm.yml
-      conda list -n hera_qm
-      PYVER=`python -c "from __future__ import print_function; import sys; print('{:d}.{:d}'.format(sys.version_info.major, sys.version_info.minor))"`
-      if [[ $PYVER != $PYTHON ]]; then
-        exit 1;
-      fi
-    displayName: Create Anaconda environment
-
-    - bash: |
-      source activate hera_qm
-      pip install .
-      pip install git+https://github.com/HERA-Team/omnical.git
-      pip install git+https://github.com/HERA-Team/linsolve.git
-      pip install git+https://github.com/HERA-Team/uvtools.git
-      pip install git+https://github.com/HERA-Team/hera_cal.git
-    displayName: install related repos
-
-    - bash: |
-      source activate hera_qm
-      cd ../
-      git clone git@github.com:HERA-Team/hera_qm.git
-      cd hera_qm
-      mkdir test-reports
-      python -m pytest hera_qm -v --junitxml=test-reports/xunit.xml
-    displayName: run hera_qm tests
+  - bash: |
+    source activate hera_qm
+    cd ../
+    git clone git@github.com:HERA-Team/hera_qm.git
+    cd hera_qm
+    mkdir test-reports
+    python -m pytest hera_qm -v --junitxml=test-reports/xunit.xml
+  displayName: run hera_qm tests
