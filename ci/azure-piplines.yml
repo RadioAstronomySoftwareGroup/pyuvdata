@@ -21,30 +21,30 @@ jobs:
     displayName: Take ownership of conda installation
 
   - bash: |
-    conda config --set always_yes yes --set changeps1 no
-    conda update -q conda
-    conda config --add channels conda-forge
-    conda info -a
-    conda create -n pyuvdata_tests python=$(PYTHON)
-    source activate pyuvdata_tests
-    conda install -c defaults -y libgfortran libgfortran-ng
-    conda env update -n pyuvdata_tests -f ci/pyuvdata_tests.yml
-    conda list -n pyuvdata_tests
-    PYVER=`python -c "from __future__ import print_function; import sys; print('{:d}.{:d}'.format(sys.version_info.major, sys.version_info.minor))"`
-    if [[ $PYVER != $PYTHON ]]; then
-      exit 1;
-    fi
+      conda config --set always_yes yes --set changeps1 no
+      conda update -q conda
+      conda config --add channels conda-forge
+      conda info -a
+      conda create -n pyuvdata_tests python=$(PYTHON)
+      source activate pyuvdata_tests
+      conda install -c defaults -y libgfortran libgfortran-ng
+      conda env update -n pyuvdata_tests -f ci/pyuvdata_tests.yml
+      conda list -n pyuvdata_tests
+      PYVER=`python -c "from __future__ import print_function; import sys; print('{:d}.{:d}'.format(sys.version_info.major, sys.version_info.minor))"`
+      if [[ $PYVER != $PYTHON ]]; then
+        exit 1;
+      fi
   displayName: Create Anaconda environment
 
   - bash: |
-    source activate pyuvdata_tests
-    python setup.py build_ext --force --inplace
+      source activate pyuvdata_tests
+      python setup.py build_ext --force --inplace
   displayName: install pyuvdata
 
   - bash: |
-    source activate pyuvdata_tests
-    mkdir test-reports
-    python -m pytest pyuvdata -v --cov=pyuvdata --cov-config=.coveragerc --cov-report xml:./coverage.xml --junitxml=test-reports/xunit.xml
+      source activate pyuvdata_tests
+      mkdir test-reports
+      python -m pytest pyuvdata -v --cov=pyuvdata --cov-config=.coveragerc --cov-report xml:./coverage.xml --junitxml=test-reports/xunit.xml
   displayName: run tests
 
   - task: PublishTestResults@2
@@ -62,37 +62,37 @@ jobs:
     displayName: Add conda to PATH
 
   - bash: |
-    PYTHON="3.6"
-    conda config --set always_yes yes --set changeps1 no
-    conda update -q conda
-    conda config --add channels conda-forge
-    conda info -a
-    conda create -n hera_cal python=$(PYTHON)
-    source activate hera_cal
-    conda env update -n hera_cal -f ci/hera_cal.yml
-    conda list -n hera_cal
-    PYVER=`python -c "from __future__ import print_function; import sys; print('{:d}.{:d}'.format(sys.version_info.major, sys.version_info.minor))"`
-    if [[ $PYVER != $PYTHON ]]; then
-      exit 1;
-    fi
+      PYTHON="3.6"
+      conda config --set always_yes yes --set changeps1 no
+      conda update -q conda
+      conda config --add channels conda-forge
+      conda info -a
+      conda create -n hera_cal python=$(PYTHON)
+      source activate hera_cal
+      conda env update -n hera_cal -f ci/hera_cal.yml
+      conda list -n hera_cal
+      PYVER=`python -c "from __future__ import print_function; import sys; print('{:d}.{:d}'.format(sys.version_info.major, sys.version_info.minor))"`
+      if [[ $PYVER != $PYTHON ]]; then
+        exit 1;
+      fi
   displayName: Create Anaconda environment
 
   - bash: |
-    source activate hera_cal
-    pip install .
-    pip install git+https://github.com/HERA-Team/linsolve.git
-    pip install git+https://github.com/HERA-Team/hera_qm.git
-    pip install git+https://github.com/HERA-Team/uvtools.git
-    pip install git+https://github.com/HERA-Team/hera_sim.git
+      source activate hera_cal
+      pip install .
+      pip install git+https://github.com/HERA-Team/linsolve.git
+      pip install git+https://github.com/HERA-Team/hera_qm.git
+      pip install git+https://github.com/HERA-Team/uvtools.git
+      pip install git+https://github.com/HERA-Team/hera_sim.git
   displayName: install related repos
 
   - bash: |
-    source activate hera_cal
-    cd ../
-    git clone git@github.com:HERA-Team/hera_cal.git
-    cd hera_cal
-    mkdir test-reports
-    python -m pytest hera_cal -v --junitxml=test-reports/xunit.xml
+      source activate hera_cal
+      cd ../
+      git clone git@github.com:HERA-Team/hera_cal.git
+      cd hera_cal
+      mkdir test-reports
+      python -m pytest hera_cal -v --junitxml=test-reports/xunit.xml
   displayName: run hera_cal tests
 
 
@@ -106,35 +106,35 @@ jobs:
     displayName: Add conda to PATH
 
   - bash: |
-    PYTHON="3.6"
-    conda config --set always_yes yes --set changeps1 no
-    conda update -q conda
-    conda config --add channels conda-forge
-    conda info -a
-    conda create -n hera_qm python=$(PYTHON)
-    source activate hera_qm
-    conda env update -n hera_qm -f ci/hera_qm.yml
-    conda list -n hera_qm
-    PYVER=`python -c "from __future__ import print_function; import sys; print('{:d}.{:d}'.format(sys.version_info.major, sys.version_info.minor))"`
-    if [[ $PYVER != $PYTHON ]]; then
-      exit 1;
-    fi
+      PYTHON="3.6"
+      conda config --set always_yes yes --set changeps1 no
+      conda update -q conda
+      conda config --add channels conda-forge
+      conda info -a
+      conda create -n hera_qm python=$(PYTHON)
+      source activate hera_qm
+      conda env update -n hera_qm -f ci/hera_qm.yml
+      conda list -n hera_qm
+      PYVER=`python -c "from __future__ import print_function; import sys; print('{:d}.{:d}'.format(sys.version_info.major, sys.version_info.minor))"`
+      if [[ $PYVER != $PYTHON ]]; then
+        exit 1;
+      fi
   displayName: Create Anaconda environment
 
   - bash: |
-    source activate hera_qm
-    pip install .
-    pip install git+https://github.com/HERA-Team/omnical.git
-    pip install git+https://github.com/HERA-Team/linsolve.git
-    pip install git+https://github.com/HERA-Team/uvtools.git
-    pip install git+https://github.com/HERA-Team/hera_cal.git
+      source activate hera_qm
+      pip install .
+      pip install git+https://github.com/HERA-Team/omnical.git
+      pip install git+https://github.com/HERA-Team/linsolve.git
+      pip install git+https://github.com/HERA-Team/uvtools.git
+      pip install git+https://github.com/HERA-Team/hera_cal.git
   displayName: install related repos
 
   - bash: |
-    source activate hera_qm
-    cd ../
-    git clone git@github.com:HERA-Team/hera_qm.git
-    cd hera_qm
-    mkdir test-reports
-    python -m pytest hera_qm -v --junitxml=test-reports/xunit.xml
+      source activate hera_qm
+      cd ../
+      git clone git@github.com:HERA-Team/hera_qm.git
+      cd hera_qm
+      mkdir test-reports
+      python -m pytest hera_qm -v --junitxml=test-reports/xunit.xml
   displayName: run hera_qm tests
