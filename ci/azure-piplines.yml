@@ -3,13 +3,13 @@ jobs:
   pool:
     vmImage: "macos-10.13"
   strategy:
-  matrix:
-    Python27:
-      PYTHON: '2.7'
-    Python36:
-      PYTHON: '3.6'
-    Python37:
-      PYTHON: '3.7'
+    matrix:
+      Python27:
+        PYTHON: '2.7'
+      Python36:
+        PYTHON: '3.6'
+      Python37:
+        PYTHON: '3.7'
 
   steps:
   - bash: echo "##vso[task.prependpath]$CONDA/bin"
