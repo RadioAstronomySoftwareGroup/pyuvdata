@@ -35,8 +35,9 @@ def test_ReadNRAO():
                          message='Telescope EVLA is not')
     assert expected_extra_keywords.sort() == list(UV2.extra_keywords.keys()).sort()
     pytest.raises(ValueError, UV2.check)
+
     UV2.read(testfile, read_data=False)
-    pytest.raises(ValueError, UV2.check)
+    assert UV2.check()
     UV2.read(testfile)
     assert UV == UV2
     # test reading in header & metadata first, then data
@@ -44,7 +45,7 @@ def test_ReadNRAO():
     uvtest.checkWarnings(UV2.read, [testfile], {'read_data': False},
                          message='Telescope EVLA is not')
     assert expected_extra_keywords.sort() == list(UV2.extra_keywords.keys()).sort()
-    pytest.raises(ValueError, UV2.check)
+    assert UV2.check()
     UV2.read(testfile)
     assert UV == UV2
 
@@ -660,19 +661,36 @@ def test_multi_files():
     uv1.history = uv_full.history
     assert uv1 == uv_full
 
+    # check with metadata_only
+    uv_full = UVData()
+    uvtest.checkWarnings(uv_full.read, [uvfits_file], {'read_data': False},
+                         message='Telescope EVLA is not')
+    uv1 = UVData()
+    uv1.read([testfile1, testfile2], read_data=False)
+
+    # Check history is correct, before replacing and doing a full object check
+    assert uvutils._check_histories(uv_full.history + '  Downselected to '
+                                    'specific frequencies using pyuvdata. '
+                                    'Combined data along frequency axis '
+                                    'using pyuvdata.', uv1.history)
+
+    uv1.history = uv_full.history
+    assert uv1 == uv_full
+
     # check raises error if read_data and read_metadata are False
-    pytest.raises(ValueError, uv1.read, [testfile1, testfile2],
-                  read_data=False, read_metadata=False)
+    with pytest.raises(ValueError) as cm:
+        uv1.read([testfile1, testfile2], read_data=False, read_metadata=False)
+    assert str(cm.value).startswith('A list of files cannot be used when just '
+                                    'reading the header')
 
-    # check raises error if read_data is False and read_metadata is True
-    pytest.raises(ValueError, uv1.read, [testfile1, testfile2],
-                  read_data=False, read_metadata=True)
-
-    # check raises error if only reading data on a list of files
+    # check raises error if only reading data on a list of files (metadata already read)
     uv1 = UVData()
     uvtest.checkWarnings(uv1.read, [uvfits_file], {'read_data': False},
                          message=['Telescope EVLA is not'])
-    pytest.raises(ValueError, uv1.read, [testfile1, testfile2])
+    with pytest.raises(ValueError) as cm:
+        uv1.read([testfile1, testfile2])
+    assert str(cm.value).startswith('A list of files cannot be used when just '
+                                    'reading data (metadata already exists)')
 
 
 @uvtest.skipIf_no_casa

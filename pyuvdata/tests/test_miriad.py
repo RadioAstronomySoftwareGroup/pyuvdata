@@ -569,7 +569,6 @@ def test_readWriteReadMiriad():
     uv_out = UVData()
     testfile = os.path.join(DATA_PATH, 'zen.2456865.60537.xy.uvcRREAA')
     write_file = os.path.join(DATA_PATH, 'test/outtest_miriad.uv')
-    write_file2 = os.path.join(DATA_PATH, 'test/outtest_miriad2.uv')
     uvtest.checkWarnings(uv_in.read, [testfile], known_warning='miriad')
     uv_in.write_miriad(write_file, clobber=True)
     uv_out.read(write_file)
@@ -628,7 +627,33 @@ def test_readWriteReadMiriad():
     assert ischan == 1
     del(uv_aipy)  # close the file so it can be used later
 
-    # check partial IO selections
+    # test load_telescope_coords w/ blank Miriad
+    uv_in = Miriad()
+    uv = aipy_extracts.UV(testfile)
+    uvtest.checkWarnings(uv_in._load_telescope_coords, [uv], known_warning='miriad')
+    assert uv_in.telescope_location_lat_lon_alt is not None
+    # test load_antpos w/ blank Miriad
+    uv_in = Miriad()
+    uv = aipy_extracts.UV(testfile)
+    uvtest.checkWarnings(uv_in._load_antpos, [uv], known_warning='miriad')
+    assert uv_in.antenna_positions is not None
+
+    # test that changing precision of integraiton_time is okay
+    # tolerance of integration_time (1e-3) is larger than floating point type conversions
+    uv_in = UVData()
+    uvtest.checkWarnings(uv_in.read, [testfile], known_warning='miriad')
+    uv_in.integration_time = uv_in.integration_time.astype(np.float32)
+    uv_in.write_miriad(write_file, clobber=True)
+    new_uv = UVData()
+    new_uv.read(write_file)
+    assert uv_in == new_uv
+
+
+def test_readWriteReadMiriad_partial():
+    testfile = os.path.join(DATA_PATH, 'zen.2456865.60537.xy.uvcRREAA')
+    write_file = os.path.join(DATA_PATH, 'test/outtest_miriad.uv')
+
+    # check partial read selections
     full = UVData()
     uvtest.checkWarnings(full.read, [testfile], known_warning='miriad')
     full.write_miriad(write_file, clobber=True)
@@ -758,9 +783,11 @@ def test_readWriteReadMiriad():
     exp_uv = full.select(blt_inds=blts_select, antenna_nums=ants_keep, inplace=False)
     assert uv_in != exp_uv
 
-    del(uv_in)
-    del(uv_out)
-    del(full)
+
+def test_readWriteReadMiriad_partial_metadata_only():
+    testfile = os.path.join(DATA_PATH, 'zen.2456865.60537.xy.uvcRREAA')
+    write_file = os.path.join(DATA_PATH, 'test/outtest_miriad.uv')
+    write_file2 = os.path.join(DATA_PATH, 'test/outtest_miriad2.uv')
 
     # try metadata only read
     uv_in = UVData()
@@ -773,40 +800,27 @@ def test_readWriteReadMiriad():
     for m in metadata:
         assert getattr(uv_in, m) is not None
 
-    # test exceptions
-    # multiple file read-in
+    # metadata only multiple file read-in
     uv_in = UVData()
     uvtest.checkWarnings(uv_in.read, [testfile], known_warning='miriad')
     new_uv = uv_in.select(freq_chans=np.arange(5), inplace=False)
     new_uv.write_miriad(write_file, clobber=True)
     new_uv = uv_in.select(freq_chans=np.arange(5) + 5, inplace=False)
     new_uv.write_miriad(write_file2, clobber=True)
-    pytest.raises(ValueError, uv_in.read, [write_file, write_file2], read_data=False)
+    uv_in.read(testfile)
+    uv_in.select(freq_chans=np.arange(10))
+    uv_in2 = UVData()
+    uv_in2.read([write_file, write_file2])
+
+    assert uv_in.history != uv_in2.history
+    uv_in2.history = uv_in.history
+    assert uv_in == uv_in2
+
+    # test exceptions
     # read-in when data already exists
     uv_in = UVData()
     uvtest.checkWarnings(uv_in.read, [testfile], known_warning='miriad')
     pytest.raises(ValueError, uv_in.read, testfile, read_data=False)
-
-    # test load_telescope_coords w/ blank Miriad
-    uv_in = Miriad()
-    uv = aipy_extracts.UV(testfile)
-    uvtest.checkWarnings(uv_in._load_telescope_coords, [uv], known_warning='miriad')
-    assert uv_in.telescope_location_lat_lon_alt is not None
-    # test load_antpos w/ blank Miriad
-    uv_in = Miriad()
-    uv = aipy_extracts.UV(testfile)
-    uvtest.checkWarnings(uv_in._load_antpos, [uv], known_warning='miriad')
-    assert uv_in.antenna_positions is not None
-
-    # test that changing precision of integraiton_time is okay
-    # tolerance of integration_time (1e-3) is larger than floating point type conversions
-    uv_in = UVData()
-    uvtest.checkWarnings(uv_in.read, [testfile], known_warning='miriad')
-    uv_in.integration_time = uv_in.integration_time.astype(np.float32)
-    uv_in.write_miriad(write_file, clobber=True)
-    new_uv = UVData()
-    new_uv.read(write_file)
-    assert uv_in == new_uv
 
 
 @uvtest.skipIf_no_casa
