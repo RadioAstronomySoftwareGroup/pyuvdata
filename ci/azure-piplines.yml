@@ -26,6 +26,7 @@ steps:
 - bash: |
     conda config --set always_yes yes --set changeps1 no
     conda update -q conda
+    conda config --add channels conda-forge
     conda clean -i
     conda clean --all
     conda info -a
