@@ -106,6 +106,21 @@ def test_parameter_iter(uvdata_props):
 
 def test_required_parameter_iter(uvdata_props):
     "Test expected required parameters."
+
+    # at first it's a metadata_only object, so need to modify required_parameters
+    required = []
+    for prop in uvdata_props.uv_object.required():
+        required.append(prop)
+    expected_required = copy.copy(uvdata_props.required_parameters)
+    expected_required.remove('_data_array')
+    expected_required.remove('_nsample_array')
+    expected_required.remove('_flag_array')
+    for a in expected_required:
+        assert a in required, 'expected attribute ' + a + ' not returned in required iterator'
+
+    uvdata_props.uv_object.data_array = 1
+    uvdata_props.uv_object.nsample_array = 1
+    uvdata_props.uv_object.flag_array = 1
     required = []
     for prop in uvdata_props.uv_object.required():
         required.append(prop)
@@ -174,6 +189,17 @@ def uvdata_data():
     del(uvdata_data)
 
     return
+
+
+def test_metadata_only_property(uvdata_data):
+    uvdata_data.uv_object.data_array = None
+    assert uvdata_data.uv_object.metadata_only is False
+    pytest.raises(ValueError, uvdata_data.uv_object.check)
+    uvdata_data.uv_object.flag_array = None
+    assert uvdata_data.uv_object.metadata_only is False
+    pytest.raises(ValueError, uvdata_data.uv_object.check)
+    uvdata_data.uv_object.nsample_array = None
+    assert uvdata_data.uv_object.metadata_only is True
 
 
 def test_equality(uvdata_data):
@@ -627,13 +653,11 @@ def test_select_blts():
 
     # check that just doing the metadata works properly
     uv_object3 = copy.deepcopy(uv_object)
-    pytest.raises(ValueError, uv_object3.select, blt_inds=blt_inds, metadata_only=True)
     uv_object3.data_array = None
-    pytest.raises(ValueError, uv_object3.select, blt_inds=blt_inds, metadata_only=True)
     uv_object3.flag_array = None
-    pytest.raises(ValueError, uv_object3.select, blt_inds=blt_inds, metadata_only=True)
     uv_object3.nsample_array = None
-    uv_object4 = uv_object3.select(blt_inds=blt_inds, metadata_only=True, inplace=False)
+    assert uv_object3.metadata_only is True
+    uv_object4 = uv_object3.select(blt_inds=blt_inds, inplace=False)
     for param in uv_object4:
         param_name = getattr(uv_object4, param).name
         if param_name not in ['data_array', 'flag_array', 'nsample_array']:
@@ -642,7 +666,7 @@ def test_select_blts():
             assert getattr(uv_object4, param_name) is None
 
     # also check with inplace=True
-    uv_object3.select(blt_inds=blt_inds, metadata_only=True)
+    uv_object3.select(blt_inds=blt_inds)
     assert uv_object3 == uv_object4
 
     # check for errors associated with out of bounds indices
@@ -3587,7 +3611,7 @@ def test_compress_redundancy_metadata_only():
     uv2.data_array = None
     uv2.flag_array = None
     uv2.nsample_array = None
-    uv2.compress_by_redundancy(tol=tol, inplace=True, metadata_only=True)
+    uv2.compress_by_redundancy(tol=tol, inplace=True)
 
     uv0.compress_by_redundancy(tol=tol)
     uv0.data_array = None

@@ -90,7 +90,6 @@ def test_ReadUVH5Errors():
     uv_in = UVData()
     fake_file = os.path.join(DATA_PATH, 'fake_file.uvh5')
     pytest.raises(IOError, uv_in.read_uvh5, fake_file)
-    pytest.raises(ValueError, uv_in.read_uvh5, ['list of', 'fake files'], read_data=False)
 
     return
 
@@ -207,6 +206,50 @@ def test_UVH5ReadMultiple_files():
                                     ' pyuvdata.', uv1.history)
     uv1.history = uv_full.history
     assert uv1 == uv_full
+
+    # clean up
+    os.remove(testfile1)
+    os.remove(testfile2)
+
+    return
+
+
+@uvtest.skipIf_no_h5py
+def test_UVH5ReadMultiple_files_metadata_only():
+    """
+    Test reading multiple uvh5 files with metadata only
+    """
+    uv_full = UVData()
+    uvfits_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    testfile1 = os.path.join(DATA_PATH, 'test/uv1.uvh5')
+    testfile2 = os.path.join(DATA_PATH, 'test/uv2.uvh5')
+    uvtest.checkWarnings(uv_full.read_uvfits, [uvfits_file], message='Telescope EVLA is not')
+    uv1 = copy.deepcopy(uv_full)
+    uv2 = copy.deepcopy(uv_full)
+    uv1.select(freq_chans=np.arange(0, 32))
+    uv2.select(freq_chans=np.arange(32, 64))
+    uv1.write_uvh5(testfile1, clobber=True)
+    uv2.write_uvh5(testfile2, clobber=True)
+
+    uv_full = UVData()
+    uvtest.checkWarnings(uv_full.read_uvfits, [uvfits_file], {'read_data': False},
+                         message='Telescope EVLA is not')
+    uvtest.checkWarnings(uv1.read, [[testfile1, testfile2]], {'read_data': False},
+                         nwarnings=2, message='Telescope EVLA is not')
+    # Check history is correct, before replacing and doing a full object check
+    assert uvutils._check_histories(uv_full.history + '  Downselected to '
+                                    'specific frequencies using pyuvdata. '
+                                    'Combined data along frequency axis using'
+                                    ' pyuvdata.', uv1.history)
+    uv1.history = uv_full.history
+    assert uv1 == uv_full
+
+    # test error if metadata exists and try to read data for multiple files
+    with pytest.raises(ValueError) as cm:
+        uvtest.checkWarnings(uv1.read, [[testfile1, testfile2]], nwarnings=2,
+                             message='Telescope EVLA is not')
+    assert str(cm.value).startswith('A list of files cannot be used when just '
+                                    'reading data (metadata already exists)')
 
     # clean up
     os.remove(testfile1)
