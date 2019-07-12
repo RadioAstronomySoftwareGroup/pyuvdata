@@ -1,7 +1,7 @@
 name: pyuvdata_tests
 channels:
-  - defaults
   - conda-forge
+  - defaults
 dependencies:
   - astropy
   - h5py
