@@ -2197,7 +2197,7 @@ class UVData(UVBase):
                bls=None, frequencies=None, freq_chans=None,
                times=None, polarizations=None, blt_inds=None, run_check=True,
                check_extra=True, run_check_acceptability=True, inplace=True,
-               keep_all_metadata=True):
+               metadata_only=False, keep_all_metadata=True):
         """
         Downselect data to keep on the object along various axes.
 
@@ -2267,6 +2267,11 @@ class UVData(UVBase):
             Option to perform the select directly on self or return a new UVData
             object with just the selected data (the default is True, meaning the
             select will be done on self).
+        metadata_only : bool
+            Option to only do the select on the metadata. Not allowed if the
+            data_array, flag_array or nsample_array is not None. Note this option
+            has been replaced by an automatic detection of whether the data like
+            arrays are present. The keyword will be deprecated in version 1.6.
         keep_all_metadata : bool
             Option to keep all the metadata associated with antennas, even those
             that do do not have data associated with them after the select option.
@@ -2283,6 +2288,16 @@ class UVData(UVBase):
             If any of the parameters are set to inappropriate values.
 
         """
+        if metadata_only is True:
+            warnings.warn('The metadata_only option has been replaced by an '
+                          'automatic detection of whether the data like arrays '
+                          'are present. The keyword will be deprecated in version 1.6.',
+                          DeprecationWarning)
+
+            if not self.metadata_only:
+                raise ValueError('The metadata_only option cannot be used if data_array, '
+                                 'flag_array or nsample_array is not None')
+
         if inplace:
             uv_object = self
         else:
@@ -4473,7 +4488,8 @@ class UVData(UVBase):
         return uvutils.get_baseline_redundancies(baselines, baseline_vecs,
                                                  tol=tol, with_conjugates=True)
 
-    def compress_by_redundancy(self, tol=1.0, inplace=True, keep_all_metadata=True):
+    def compress_by_redundancy(self, tol=1.0, inplace=True, metadata_only=False,
+                               keep_all_metadata=True):
         """
         Downselect to only have one baseline per redundant group on the object.
 
@@ -4486,6 +4502,11 @@ class UVData(UVBase):
             Redundancy tolerance in meters, default is 1.0 corresponding to 1 meter.
         inplace : bool
             Option to do selection on current object.
+        metadata_only : bool
+            Option to only do the select on the metadata. Not allowed if the
+            data_array, flag_array or nsample_array is not None. Note this option
+            has been replaced by an automatic detection of whether the data like
+            arrays are present. The keyword will be deprecated in version 1.6.
         keep_all_metadata : bool
             Option to keep all the metadata associated with antennas,
             even those that do not remain after the select option.
@@ -4499,7 +4520,7 @@ class UVData(UVBase):
         red_gps, centers, lengths, conjugates = self.get_baseline_redundancies(tol)
 
         bl_ants = [self.baseline_to_antnums(gp[0]) for gp in red_gps]
-        return self.select(bls=bl_ants, inplace=inplace,
+        return self.select(bls=bl_ants, inplace=inplace, metadata_only=metadata_only,
                            keep_all_metadata=keep_all_metadata)
 
     def inflate_by_redundancy(self, tol=1.0, blt_order='time', blt_minor_order=None):
