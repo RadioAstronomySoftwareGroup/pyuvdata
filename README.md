@@ -1,7 +1,7 @@
 # pyuvdata
 
-[![Build Status](https://travis-ci.org/RadioAstronomySoftwareGroup/pyuvdata.svg?branch=master)](https://travis-ci.org/RadioAstronomySoftwareGroup/pyuvdata)
 [![CircleCI](https://circleci.com/gh/RadioAstronomySoftwareGroup/pyuvdata.svg?style=svg&branch=master)](https://circleci.com/gh/RadioAstronomySoftwareGroup/pyuvdata?branch=master)
+[![Build Status](https://dev.azure.com/radioastronomysoftwaregroup/pyuvdata/_apis/build/status/RadioAstronomySoftwareGroup.pyuvdata?branchName=master)](https://dev.azure.com/radioastronomysoftwaregroup/pyuvdata/_build/latest?definitionId=1&branchName=master)
 [![codecov](https://codecov.io/gh/RadioAstronomySoftwareGroup/pyuvdata/badge.svg?branch=master)](https://codecov.io/gh/RadioAstronomySoftwareGroup/pyuvdata)
 [![DOI](http://joss.theoj.org/papers/10.21105/joss.00140/status.svg)](https://doi.org/10.21105/joss.00140)
 
