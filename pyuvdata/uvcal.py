@@ -738,7 +738,7 @@ class UVCal(UVBase):
         if not self._has_key(antnum=antnum):
             raise ValueError("{} not found in ant_array".format(antnum))
 
-        return np.argmin(self.ant_array - antnum)
+        return np.argmin(np.abs(self.ant_array - antnum))
 
     def jpol2ind(self, jpol):
         """

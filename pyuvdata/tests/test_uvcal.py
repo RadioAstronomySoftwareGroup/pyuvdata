@@ -1442,17 +1442,19 @@ def test_uvcal_get_methods():
     uvc = UVCal()
     uvc.read_calfits(os.path.join(DATA_PATH, 'zen.2457698.40355.xx.gain.calfits'))
 
-    # test get methods
-    key = (9, 'Jxx')
+    # test get methods: add in a known value and make sure it is returned
+    key = (10, 'Jxx')
+    uvc.gain_array[1] = 0.0
     d, f, q = uvc.get_gains(key), uvc.get_flags(key), uvc.get_quality(key)
 
     # test shapes
+    assert np.all(np.isclose(d, 0.0))
     assert d.shape == (uvc.Nfreqs, uvc.Ntimes)
     assert f.shape == (uvc.Nfreqs, uvc.Ntimes)
     assert q.shape == (uvc.Nfreqs, uvc.Ntimes)
 
     # test against by-hand indexing
-    np.testing.assert_array_almost_equal(d, uvc.gain_array[uvc.ant_array.tolist().index(9), 0, :, :, uvc.jones_array.tolist().index(-5)])
+    np.testing.assert_array_almost_equal(d, uvc.gain_array[uvc.ant_array.tolist().index(10), 0, :, :, uvc.jones_array.tolist().index(-5)])
 
     # test variable key input
     d2 = uvc.get_gains(*key)
@@ -1461,23 +1463,23 @@ def test_uvcal_get_methods():
     np.testing.assert_array_almost_equal(d, d2)
     d2 = uvc.get_gains(key[:1])
     np.testing.assert_array_almost_equal(d, d2)
-    d2 = uvc.get_gains(9, -5)
+    d2 = uvc.get_gains(10, -5)
     np.testing.assert_array_almost_equal(d, d2)
-    d2 = uvc.get_gains(9, 'x')
+    d2 = uvc.get_gains(10, 'x')
     np.testing.assert_array_almost_equal(d, d2)
 
     # check has_key
-    assert uvc._has_key(antnum=9)
+    assert uvc._has_key(antnum=10)
     assert uvc._has_key(jpol='Jxx')
-    assert uvc._has_key(antnum=9, jpol='Jxx')
-    assert not uvc._has_key(antnum=9, jpol='Jyy')
+    assert uvc._has_key(antnum=10, jpol='Jxx')
+    assert not uvc._has_key(antnum=10, jpol='Jyy')
     assert not uvc._has_key(antnum=101, jpol='Jxx')
 
     # test exceptions
     pytest.raises(ValueError, uvc.get_gains, 1)
-    pytest.raises(ValueError, uvc.get_gains, (9, 'Jyy'))
+    pytest.raises(ValueError, uvc.get_gains, (10, 'Jyy'))
     uvc.cal_type = 'delay'
-    pytest.raises(ValueError, uvc.get_gains, 9)
+    pytest.raises(ValueError, uvc.get_gains, 10)
 
 
 def test_deprecated_x_orientation():
