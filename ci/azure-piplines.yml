@@ -81,14 +81,14 @@ jobs:
       pip install .
       pip install git+https://github.com/HERA-Team/linsolve.git
       pip install git+https://github.com/HERA-Team/hera_qm.git
-      pip install git+https://github.com/HERA-Team/uvtools.git
+      pip install git+https://github.com/HERA-Team/uvtools.git --no-deps
       pip install git+https://github.com/HERA-Team/hera_sim.git
     displayName: install related repos
 
   - bash: |
       source activate hera_cal
       cd ../
-      git clone git@github.com:HERA-Team/hera_cal.git
+      git clone https://github.com/HERA-Team/hera_cal.git
       cd hera_cal
       mkdir test-reports
       python -m pytest hera_cal -v --junitxml=test-reports/xunit.xml
@@ -124,15 +124,14 @@ jobs:
       pip install .
       pip install git+https://github.com/HERA-Team/omnical.git
       pip install git+https://github.com/HERA-Team/linsolve.git
-      pip install git+https://github.com/HERA-Team/uvtools.git
+      pip install git+https://github.com/HERA-Team/uvtools.git --no-deps
       pip install git+https://github.com/HERA-Team/hera_cal.git
     displayName: install related repos
 
   - bash: |
-      pip install --install-option test git+https://github.com/HERA-Team/hera_qm.git
       source activate hera_qm
       cd ../
-      git clone git@github.com:HERA-Team/hera_qm.git
+      git clone https://github.com/HERA-Team/hera_qm.git
       cd hera_qm
       mkdir test-reports
       python -m pytest hera_qm -v --junitxml=test-reports/xunit.xml
