@@ -2988,9 +2988,6 @@ class UVData(UVBase):
         """
         from . import uvh5
         if isinstance(filename, (list, tuple)):
-            if self.data_array is None and self.freq_array is not None:
-                raise ValueError('A list of files cannot be used when just '
-                                 'reading data (metadata already exists)')
 
             self.read_uvh5(filename[0], antenna_nums=antenna_nums,
                            antenna_names=antenna_names, ant_str=ant_str, bls=bls,
