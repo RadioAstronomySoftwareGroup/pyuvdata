@@ -577,15 +577,15 @@ class UVData(UVBase):
 
         Parameters
         ----------
-        baseline : int
+        baseline : int or array_like of int
             baseline number
 
         Returns
         -------
-        int
-            first antenna number
-        int
-            second antenna number
+        int or array_like of int
+            first antenna number(s)
+        int or array_like of int
+            second antenna number(s)
         """
         return uvutils.baseline_to_antnums(baseline, self.Nants_telescope)
 
