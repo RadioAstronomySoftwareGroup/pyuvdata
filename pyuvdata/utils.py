@@ -463,13 +463,12 @@ def uvcalibrate(uvdata, uvcal, inplace=True, prop_flags=True, flag_missing=True,
                 mask = np.isclose(gain, 0.0) | flag
                 gain[mask] = 1.0
                 uvdata.flag_array[blt_inds, 0, :, pol_ind] += mask
-
-            else:
-                # apply to data
-                if uvcal.gain_convention == 'multiply':
-                    uvdata.data_array[blt_inds, 0, :, pol_ind] *= gain
-                elif uvcal.gain_convention == 'divide':
-                    uvdata.data_array[blt_inds, 0, :, pol_ind] /= gain
+    
+            # apply to data
+            if uvcal.gain_convention == 'multiply':
+                uvdata.data_array[blt_inds, 0, :, pol_ind] *= gain
+            elif uvcal.gain_convention == 'divide':
+                uvdata.data_array[blt_inds, 0, :, pol_ind] /= gain
 
     # update history
     uvdata.history += "\nCalibrated with pyuvdata.utils.uvcalibrate."
