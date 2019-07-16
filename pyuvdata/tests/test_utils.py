@@ -948,7 +948,7 @@ def test_uvcalibrate_apply_gains():
 
     # division calibrate
     uvc.gain_convention = 'divide'
-    uvdcal = uvutils.uvcalibrate(uvd, uvc, prop_flags=False, flag_missing=False, inplace=False)
+    uvdcal = uvutils.uvcalibrate(uvd, uvc, prop_flags=True, flag_missing=False, inplace=False)
     np.testing.assert_array_almost_equal(uvdcal.get_data(key), uvd.get_data(key) / (uvc.get_gains(ant1) * uvc.get_gains(ant2).conj()).T)
 
     # multiplication calibrate

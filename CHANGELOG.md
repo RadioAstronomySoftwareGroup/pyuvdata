@@ -2,6 +2,7 @@
 All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
+- `utils.uvcalibrate` flag propagation bug fix
 - `UVCal.ant2ind` indexing bug fix
 - `UVCal.get_*` methods for accessing data arrays with antenna-polarization keys
 - `utils.uvcalibrate` for automated calibration of `UVData` by `UVCal`
