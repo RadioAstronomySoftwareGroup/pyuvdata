@@ -2197,7 +2197,7 @@ class UVData(UVBase):
                bls=None, frequencies=None, freq_chans=None,
                times=None, polarizations=None, blt_inds=None, run_check=True,
                check_extra=True, run_check_acceptability=True, inplace=True,
-               metadata_only=False, keep_all_metadata=True):
+               metadata_only=None, keep_all_metadata=True):
         """
         Downselect data to keep on the object along various axes.
 
@@ -2288,15 +2288,16 @@ class UVData(UVBase):
             If any of the parameters are set to inappropriate values.
 
         """
-        if metadata_only is True:
+        if metadata_only is not None:
             warnings.warn('The metadata_only option has been replaced by an '
                           'automatic detection of whether the data like arrays '
                           'are present. The keyword will be deprecated in version 1.6.',
                           DeprecationWarning)
 
-            if not self.metadata_only:
-                raise ValueError('The metadata_only option cannot be used if data_array, '
-                                 'flag_array or nsample_array is not None')
+            if metadata_only != self.metadata_only:
+                raise ValueError('The metadata_only option can only be True if '
+                                 'data_array, flag_array or nsample_array are '
+                                 'all None and must be False otherwise.')
 
         if inplace:
             uv_object = self
@@ -4485,7 +4486,7 @@ class UVData(UVBase):
         return uvutils.get_baseline_redundancies(baselines, baseline_vecs,
                                                  tol=tol, with_conjugates=True)
 
-    def compress_by_redundancy(self, tol=1.0, inplace=True, metadata_only=False,
+    def compress_by_redundancy(self, tol=1.0, inplace=True, metadata_only=None,
                                keep_all_metadata=True):
         """
         Downselect to only have one baseline per redundant group on the object.
