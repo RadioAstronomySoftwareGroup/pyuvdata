@@ -672,12 +672,11 @@ def test_select_blts():
     # check for warnings & errors with the metadata_only keyword
     uv_object3 = copy.deepcopy(uv_object)
     with pytest.raises(ValueError) as cm:
-        uv_object3.select(blt_inds=blt_inds, metadata_only=True)
         uvtest.checkWarnings(uv_object3.select,
                              func_kwargs={'blt_inds': blt_inds, 'metadata_only': True},
                              message='The metadata_only option has been replaced',
                              category=DeprecationWarning)
-    assert str(cm.value).startswith('The metadata_only option cannot be used if data_array')
+    assert str(cm.value).startswith('The metadata_only option can only be True')
 
     # check for errors associated with out of bounds indices
     pytest.raises(ValueError, uv_object.select, blt_inds=np.arange(-10, -5))
