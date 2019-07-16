@@ -1019,16 +1019,23 @@ def antnums_to_baseline(ant1, ant2, Nants_telescope, attempt256=False):
     """
     Get the baseline number corresponding to two given antenna numbers.
 
-    Args:
-        ant1: first antenna number (integer)
-        ant2: second antenna number (integer)
-        Nant_telescope: integer number of antennas
-        attempt256: Option to try to use the older 256 standard used in
-            many uvfits files (will use 2048 standard if there are more
-            than 256 antennas). Default is False.
+    Parameters
+    ----------
+    ant1 : int or array_like of int
+        first antenna number
+    ant2 : int or array_like of int
+        second antenna number
+    Nant_telescope : int
+        number of antennas
+    attempt256 : bool
+        Option to try to use the older 256 standard used in
+        many uvfits files (will use 2048 standard if there are more
+        than 256 antennas). Default is False.
 
-    Returns:
-        integer baseline number corresponding to the two antenna numbers.
+    Returns
+    -------
+    int or array of int
+        baseline number corresponding to the two antenna numbers.
     """
     ant1, ant2 = np.int64((ant1, ant2))
     if Nants_telescope is not None and Nants_telescope > 2048:

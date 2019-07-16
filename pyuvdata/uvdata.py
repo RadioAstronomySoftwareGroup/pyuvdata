@@ -595,9 +595,9 @@ class UVData(UVBase):
 
         Parameters
         ----------
-        ant1 : int
+        ant1 : int or array_like of int
             first antenna number
-        ant2 : int
+        ant2 : int or array_like of int
             second antenna number
         attempt256 : bool
             Option to try to use the older 256 standard used in many uvfits files
@@ -605,7 +605,7 @@ class UVData(UVBase):
 
         Returns
         -------
-        int
+        int or array of int
             baseline number corresponding to the two antenna numbers.
         """
         return uvutils.antnums_to_baseline(ant1, ant2, self.Nants_telescope, attempt256=attempt256)
