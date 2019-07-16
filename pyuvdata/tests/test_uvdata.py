@@ -297,7 +297,10 @@ def uvdata_baseline():
 def test_baseline_to_antnums(uvdata_baseline):
     """Test baseline to antnum conversion for 256 & larger conventions."""
     assert uvdata_baseline.uv_object.baseline_to_antnums(67585) == (0, 0)
-    pytest.raises(Exception, uvdata_baseline.uv_object2.baseline_to_antnums, 67585)
+    with pytest.raises(Exception) as cm:
+        uvdata_baseline.uv_object2.baseline_to_antnums(67585)
+    assert str(cm.value).startswith('error Nants={Nants}>2048'
+                                    ' not supported'.format(Nants=uvdata_baseline.uv_object2.Nants_telescope))
 
     ant_pairs = [(10, 20), (280, 310)]
     for pair in ant_pairs:
