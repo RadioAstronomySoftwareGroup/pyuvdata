@@ -244,13 +244,6 @@ def test_UVH5ReadMultiple_files_metadata_only():
     uv1.history = uv_full.history
     assert uv1 == uv_full
 
-    # test error if metadata exists and try to read data for multiple files
-    with pytest.raises(ValueError) as cm:
-        uvtest.checkWarnings(uv1.read, [[testfile1, testfile2]], nwarnings=2,
-                             message='Telescope EVLA is not')
-    assert str(cm.value).startswith('A list of files cannot be used when just '
-                                    'reading data (metadata already exists)')
-
     # clean up
     os.remove(testfile1)
     os.remove(testfile2)

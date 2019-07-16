@@ -654,9 +654,20 @@ def test_select_blts():
     uv_object3.select(blt_inds=blt_inds)
     assert uv_object3 == uv_object4
 
+    # check for warnings & errors with the metadata_only keyword
+    uv_object3 = copy.deepcopy(uv_object)
+    with pytest.raises(ValueError) as cm:
+        uv_object3.select(blt_inds=blt_inds, metadata_only=True)
+        uvtest.checkWarnings(uv_object3.select,
+                             func_kwargs={'blt_inds': blt_inds, 'metadata_only': True},
+                             message='The metadata_only option has been replaced',
+                             category=DeprecationWarning)
+    assert str(cm.value).startswith('The metadata_only option cannot be used if data_array')
+
     # check for errors associated with out of bounds indices
     pytest.raises(ValueError, uv_object.select, blt_inds=np.arange(-10, -5))
-    pytest.raises(ValueError, uv_object.select, blt_inds=np.arange(uv_object.Nblts + 1, uv_object.Nblts + 10))
+    pytest.raises(ValueError, uv_object.select,
+                  blt_inds=np.arange(uv_object.Nblts + 1, uv_object.Nblts + 10))
 
 
 def test_select_antennas():
@@ -3597,6 +3608,18 @@ def test_compress_redundancy_metadata_only():
     uv2.flag_array = None
     uv2.nsample_array = None
     uv2.compress_by_redundancy(tol=tol, inplace=True)
+
+    # check for deprecation warning with metadata_only keyword
+    uv1 = copy.deepcopy(uv0)
+    uv1.data_array = None
+    uv1.flag_array = None
+    uv1.nsample_array = None
+    uvtest.checkWarnings(uv1.compress_by_redundancy,
+                         func_kwargs={'tol': tol, 'inplace': True,
+                                      'metadata_only': True},
+                         category=DeprecationWarning,
+                         message='The metadata_only option has been replaced')
+    assert uv1 == uv2
 
     uv0.compress_by_redundancy(tol=tol)
     uv0.data_array = None
