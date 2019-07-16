@@ -9,6 +9,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 - Fixed a bug in select that caused bls and antenna_names/numbers to be or'ed rather than and'ed together.
+- Fixed a bug where `baseline_to_antnums` could accept a numpy array as input but not other array_like objects.
 
 ## [1.4.0] - 2019-05-23
 
