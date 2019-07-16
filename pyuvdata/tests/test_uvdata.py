@@ -316,6 +316,18 @@ def test_baseline_to_antnums(uvdata_baseline):
         assert pair == ant_pair_out
 
 
+def test_baseline_to_antnums_vectorized(uvdata_baseline):
+    """Test vectorized antnum to baseline conversion."""
+    ant_1 = [10, 280]
+    ant_2 = [20, 310]
+    baseline_array = uvdata_baseline.uv_object.antnums_to_baseline(ant_1, ant_2)
+    assert np.array_equal(baseline_array, [88085, 641335])
+    ant_1_out, ant_2_out = uvdata_baseline.uv_object.baseline_to_antnums(baseline_array.tolist())
+    print('out:', ant_1_out, ant_2_out)
+    assert np.array_equal(ant_1, ant_1_out)
+    assert np.array_equal(ant_2, ant_2_out)
+
+
 def test_antnums_to_baselines(uvdata_baseline):
     """Test antums to baseline conversion for 256 & larger conventions."""
     assert uvdata_baseline.uv_object.antnums_to_baseline(0, 0) == 67585
