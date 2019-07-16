@@ -2,6 +2,10 @@
 All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
+
+### Added
+- `metadata_only` property on `UVData` to automatically detect if data-like arrays are present
+- support for combining metadata only objects and reading in multiple files as metadata only
 - `UVCal.get_*` methods for accessing data arrays with antenna-polarization keys
 - `utils.uvcalibrate` for automated calibration of `UVData` by `UVCal`
 
