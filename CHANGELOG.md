@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- option for `UVBeam.interp` to return a new beam object.
 - `UVFlag` information on Read The Docs
 
 ### Changed
@@ -21,9 +22,6 @@ All notable changes to this project will be documented in this file.
 - `UVCal.ant2ind` indexing bug fix
 - `UVCal.get_*` methods for accessing data arrays with antenna-polarization keys
 - `utils.uvcalibrate` for automated calibration of `UVData` by `UVCal`
-
-### Added
-- option for `UVBeam.interp` to return a new beam object.
 
 ### Fixed
 - Fixed a bug in select that caused bls and antenna_names/numbers to be or'ed rather than and'ed together.
