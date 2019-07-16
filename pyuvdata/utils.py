@@ -987,16 +987,25 @@ def baseline_to_antnums(baseline, Nants_telescope):
     """
     Get the antenna numbers corresponding to a given baseline number.
 
-    Args:
-        baseline: integer baseline number
-        Nant_telescope: integer number of antennas
+    Parameters
+    ----------
+    baseline : int or array_like of ints
+        baseline number
+    Nant_telescope : int
+        number of antennas
 
-    Returns:
-        tuple with the two antenna numbers corresponding to the baseline.
+    Returns
+    -------
+    int or array_like of int
+        first antenna number(s)
+    int or array_like of int
+        second antenna number(s)
     """
     if Nants_telescope > 2048:
         raise Exception('error Nants={Nants}>2048 not '
                         'supported'.format(Nants=Nants_telescope))
+
+    baseline = np.asarray(baseline, dtype=np.int64)
     if np.min(baseline) > 2**16:
         ant2 = (baseline - 2**16) % 2048 - 1
         ant1 = (baseline - 2**16 - (ant2 + 1)) / 2048 - 1
