@@ -1443,30 +1443,30 @@ class UVData(UVBase):
             this.freq_array[0, :], other.freq_array[0, :], return_indices=True)
         both_blts, this_blts_ind, other_blts_ind = np.intersect1d(
             this_blts, other_blts, return_indices=True)
-        if not self.metadata_only:
-            if len(both_pol) > 0:
-                if len(both_freq) > 0:
-                    if len(both_blts) > 0:
-                        # check that overlapping data is not valid
-                        this_all_zero = np.all(this.data_array[this_blts_ind][
-                            :, :, this_freq_ind][:, :, :, this_pol_ind] == 0)
-                        this_all_flag = np.all(this.flag_array[this_blts_ind][
-                            :, :, this_freq_ind][:, :, :, this_pol_ind])
-                        other_all_zero = np.all(other.data_array[other_blts_ind][
-                            :, :, other_freq_ind][:, :, :, other_pol_ind] == 0)
-                        other_all_flag = np.all(other.flag_array[other_blts_ind][
-                            :, :, other_freq_ind][:, :, :, other_pol_ind])
-                        if (this_all_zero and this_all_flag):
-                            # we're fine to overwrite; update history accordingly
-                            history_update_string = ' Overwrote invalid data using pyuvdata.'
-                            this.history += history_update_string
-                        elif (other_all_zero and other_all_flag):
-                            raise ValueError('To combine these data, please run the add operation again, '
-                                             'but with the object whose data is to be overwritten as the '
-                                             'first object in the add operation.')
-                        else:
-                            raise ValueError('These objects have overlapping data and'
-                                             ' cannot be combined.')
+        if not self.metadata_only and (
+                len(both_pol) > 0 and len(both_freq) > 0 and len(both_blts) > 0
+        ):
+            # check that overlapping data is not valid
+            this_all_zero = np.all(this.data_array[this_blts_ind][
+                :, :, this_freq_ind][:, :, :, this_pol_ind] == 0)
+            this_all_flag = np.all(this.flag_array[this_blts_ind][
+                :, :, this_freq_ind][:, :, :, this_pol_ind])
+            other_all_zero = np.all(other.data_array[other_blts_ind][
+                :, :, other_freq_ind][:, :, :, other_pol_ind] == 0)
+            other_all_flag = np.all(other.flag_array[other_blts_ind][
+                :, :, other_freq_ind][:, :, :, other_pol_ind])
+
+            if this_all_zero and this_all_flag:
+                # we're fine to overwrite; update history accordingly
+                history_update_string = ' Overwrote invalid data using pyuvdata.'
+                this.history += history_update_string
+            elif other_all_zero and other_all_flag:
+                raise ValueError('To combine these data, please run the add operation again, '
+                                 'but with the object whose data is to be overwritten as the '
+                                 'first object in the add operation.')
+            else:
+                raise ValueError('These objects have overlapping data and'
+                                 ' cannot be combined.')
 
         # find the blt indices in "other" but not in "this"
         temp = np.nonzero(~np.in1d(other_blts, this_blts))[0]
@@ -1598,23 +1598,20 @@ class UVData(UVBase):
                 blt_t2o, [0], freq_t2o, pol_t2o)] = other.nsample_array
             this.flag_array[np.ix_(blt_t2o, [0], freq_t2o,
                                    pol_t2o)] = other.flag_array
-        if len(bnew_inds) > 0:
-            if not self.metadata_only:
-                this.data_array = this.data_array[blt_order, :, :, :]
-                this.nsample_array = this.nsample_array[blt_order, :, :, :]
-                this.flag_array = this.flag_array[blt_order, :, :, :]
+
+        if not self.metadata_only:
+            for name, param in zip(this._data_params, this.data_like_parameters):
+                if len(bnew_inds) > 0:
+                    setattr(this, param, param[blt_order, :, :, :])
+                if len(fnew_inds) > 0:
+                    setattr(this, param, param[:, :, f_order, :])
+                if len(pnew_inds) > 0:
+                    setattr(this, param, param[:, :, :, pnew_inds])
+
         if len(fnew_inds) > 0:
             this.freq_array = this.freq_array[:, f_order]
-            if not self.metadata_only:
-                this.data_array = this.data_array[:, :, f_order, :]
-                this.nsample_array = this.nsample_array[:, :, f_order, :]
-                this.flag_array = this.flag_array[:, :, f_order, :]
         if len(pnew_inds) > 0:
             this.polarization_array = this.polarization_array[p_order]
-            if not self.metadata_only:
-                this.data_array = this.data_array[:, :, :, p_order]
-                this.nsample_array = this.nsample_array[:, :, :, p_order]
-                this.flag_array = this.flag_array[:, :, :, p_order]
 
         # Update N parameters (e.g. Npols)
         this.Ntimes = len(np.unique(this.time_array))
@@ -2325,20 +2322,15 @@ class UVData(UVBase):
             else:
                 return
 
-        if blt_inds is not None:
-            uv_object.data_array = uv_object.data_array[blt_inds, :, :, :]
-            uv_object.flag_array = uv_object.flag_array[blt_inds, :, :, :]
-            uv_object.nsample_array = uv_object.nsample_array[blt_inds, :, :, :]
+        for param_name, param in zip(self._data_params, uv_object.data_like_parameters):
+            if blt_inds is not None:
+                setattr(uv_object, param_name, param[blt_inds, :, :, :])
 
-        if freq_inds is not None:
-            uv_object.data_array = uv_object.data_array[:, :, freq_inds, :]
-            uv_object.flag_array = uv_object.flag_array[:, :, freq_inds, :]
-            uv_object.nsample_array = uv_object.nsample_array[:, :, freq_inds, :]
+            if freq_inds is not None:
+                setattr(uv_object, param_name, param[:, :, freq_inds, :])
 
-        if pol_inds is not None:
-            uv_object.data_array = uv_object.data_array[:, :, :, pol_inds]
-            uv_object.flag_array = uv_object.flag_array[:, :, :, pol_inds]
-            uv_object.nsample_array = uv_object.nsample_array[:, :, :, pol_inds]
+            if pol_inds is not None:
+                setattr(uv_object, param_name, param[:, :, :, pol_inds])
 
         # check if object is uv_object-consistent
         if run_check:
@@ -3390,7 +3382,7 @@ class UVData(UVBase):
         if file_type is None:
             raise ValueError('File type could not be determined.')
 
-        if (time_range is not None):
+        if time_range is not None:
             if times is not None:
                 raise ValueError(
                     'Only one of times and time_range can be provided.')
@@ -3399,7 +3391,7 @@ class UVData(UVBase):
             raise ValueError('Only one of antenna_nums and antenna_names can be provided.')
 
         if file_type == 'uvfits':
-            if (time_range is not None):
+            if time_range is not None:
                 select = True
                 warnings.warn('Warning: "time_range" keyword is set which is not '
                               'supported by read_uvfits. This select will be '
