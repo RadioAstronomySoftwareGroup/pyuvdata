@@ -366,6 +366,18 @@ class UVData(UVBase):
         super(UVData, self).__init__()
 
     @property
+    def _data_params(self):
+        """List of strings giving the data-like parameters"""
+        return ['data_array', 'nsample_array', 'flag_array']
+
+    @property
+    def data_like_parameters(self):
+        """An iterator of defined parameters which are data-like (not metadata-like)"""
+        for key in self._data_params:
+            if hasattr(self, key):
+                yield getattr(self, key)
+
+    @property
     def metadata_only(self):
         """
         Property that determines whether this is a metadata only object.
@@ -373,15 +385,10 @@ class UVData(UVBase):
         An object is metadata only if data_array, nsample_array and flag_array
         are all None.
         """
-        param_list = ['data_array', 'nsample_array', 'flag_array']
-        if np.all([hasattr(self, param) for param in param_list]):
-            metadata_only = (self.data_array is None and self.nsample_array is None
-                             and self.flag_array is None)
-            self._data_array.required = not metadata_only
-            self._nsample_array.required = not metadata_only
-            self._flag_array.required = not metadata_only
-        else:
-            metadata_only = False
+        metadata_only = all(d is None for d in self.data_like_parameters)
+
+        for param_name in self._data_params:
+            getattr(self, "_" + param_name).required = not metadata_only
 
         return metadata_only
 
