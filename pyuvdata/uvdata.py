@@ -4628,3 +4628,128 @@ class UVData(UVBase):
         self.reorder_blts(order=blt_order, minor_order=blt_minor_order)
 
         self.check()
+
+
+    def bda_upsample(self, max_int_time, blt_order="time", minor_order="baseline"):
+        """
+        Convert to a common (shorter) integration time.
+
+        This method will resample a UVData object such that all data samples have
+        a maximum integration time specified by the user.
+
+        Parameters
+        ----------
+        max_int_time : float
+            Maximum integration time to upsample the UVData integration_time to
+            in seconds.
+        blt_order : str
+            Major baseline ordering for output object. Default is "time".
+        minor_order : str
+            Minor baseline ordering for output object. Default is "baseline".
+
+        Returns
+        -------
+        None
+
+        """
+        # check that max_int_time is sensible given integration_time
+        min_integration_time = np.amin(self.integration_time)
+        sensible_min = 1e-2 * min_integration_time
+        sensible_max = 1e2 * min_integration_time
+        if max_int_time < sensible_min or max_int_time > sensible_max:
+            raise ValueError("value outside of sensible range")
+
+        input_phase_type = self.phase_type
+        if input_phase_type == "drift":
+            # phase to RA/dec of zenith
+            phase_center = self.time_array[0]
+            self.phase_to_time(phase_center)
+
+        # figure out where integration_time is longer than max_int_time
+        # need to check that int times are sensible given integration_times on object
+        inds_to_upsample = np.nonzero(self.integration_time > max_int_time)
+        n_new_samples = int(np.round(self.integration_time[inds_to_upsample] / max_int_time))
+        temp_Nblts = np.sum(n_new_samples)
+
+        temp_baseline = np.zeros((temp_Nblts,))
+        temp_time = np.zeros((temp_Nblts,))
+        temp_uvw = np.zeros((temp_Nblts, 3))
+        temp_int_time = np.zeros((temp_Nblts,))
+        if not self.metadata_only:
+            temp_data = np.zeros((temp_Nblts, self.Nspws, self.Nfreqs, self.Npols),
+                                 dtype=self.data_array.dtype)
+            temp_flag = np.zeros((temp_Nblts, self.Nspws, self.Nfreqs, self.Npols),
+                                 dtype=self.flag_array.dtype)
+            temp_nsample = np.zeros((temp_Nblts, self.Nspws, self.Nfreqs, self.Npols),
+                                    dtype=self.nsample_array.dtype)
+
+        i0 = 0
+        for i, ind in enumerate(inds_to_upsample[0]):
+            i1 = i0 + n_new_samples[i]
+            temp_baseline[i0:i1] = self.baseline_array[i]
+            if not self.metadata_only:
+                temp_data[i0:i1] = self.data_array[ind] / n_new_samples[i]
+                temp_flag[i0:i1] = self.flag_array[ind]
+                temp_nsample[i0:i1] = self.nsample_array[ind]
+
+            # compute the new times of the upsampled array
+            t0 = self.time_array[i]
+            dt = self.integration_time[i] / n_new_samples[i]
+            if n_new_samples[i] % 2 == 0:
+                # even number of new samples
+                n2 = n_new_samples[i] // 2
+                for ii, idx in enumerate(range(i0, i1)):
+                    idx2 = ii + 0.5 + n2 - n_new_samples[i]
+                    nt = ((t0 * units.day) + (dt * idx2 * units.s)).to(units.day).value
+                    temp_time[idx] = nt
+            else:
+                # odd number of new samples
+                n2 = n_new_samples[i] // 2
+                for ii, idx in enumerate(range(i0, i1)):
+                    idx2 = ii + 1 + n2 - n_new_samples[i]
+                    nt = ((t0 * units.day) + (dt * idx2 * units.s)).to(units.day).value
+                    temp_time[idx] = nt
+
+            temp_int_time[i0:i1] = dt
+
+            i0 = i1
+
+        # drop data where we upsampled
+        # TODO: write test where all indices are upsampled
+        inds_to_keep = np.nonzero(self.integration_time <= max_int_time)
+        self.baseline_array = self.baseline_array[inds_to_keep]
+        self.time_array = self.time_array[inds_to_keep]
+        self.integration_time = self.integration_time[inds_to_keep]
+        self.baseline_array = np.concatenate((self.baseline_array, temp_baseline))
+        self.time_array = np.concatenate((self.time_array, temp_time))
+        self.integration_time = np.concatenate((self.integration_time, temp_int_time))
+        if not self.metadata_only:
+            self.data_array = self.data_array[inds_to_keep]
+            self.flag_array = self.flag_array[inds_to_keep]
+            self.nsample_array = self.nsample_array[inds_to_keep]
+
+            # concatenate temp array with existing arrays
+            self.data_array = np.concatenate((self.data_array, temp_data), axis=0)
+            self.flag_array = np.concatenate((self.flag_array, temp_data), axis=0)
+            self.nsample_array = np.concatenate((self.nsample_array, temp_data), axis=0)
+
+        # set antenna arrays from baseline_array
+        self.ant_1_array, self.ant_2_array = self.baseline_to_ant_nums(self.baseline_array)
+
+        # The following operations *must* happen in this order: unphasing (if necessary),
+        # setting the uvw array, reordering. This is to prevent doing phasing twice and
+        # accumulating the associated floating point errors.
+        if input_phase_type == "drift":
+            # unphase back to drift
+            self.unphase_to_drift()
+
+        # properly calculate the uvws self-consistently
+        self.set_uvws_from_antenna_positions(allow_phasing=True)
+
+        # reorganize along blt axis
+        self.reorder_blts(order=blt_order, minor_order=minor_order)
+
+        # check the resulting object
+        self.check()
+
+        return
