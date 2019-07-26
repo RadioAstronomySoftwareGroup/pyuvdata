@@ -1602,11 +1602,11 @@ class UVData(UVBase):
         if not self.metadata_only:
             for name, param in zip(this._data_params, this.data_like_parameters):
                 if len(bnew_inds) > 0:
-                    setattr(this, param, param[blt_order, :, :, :])
+                    setattr(this, name, param[blt_order, :, :, :])
                 if len(fnew_inds) > 0:
-                    setattr(this, param, param[:, :, f_order, :])
+                    setattr(this, name, param[:, :, f_order, :])
                 if len(pnew_inds) > 0:
-                    setattr(this, param, param[:, :, :, pnew_inds])
+                    setattr(this, name, param[:, :, :, pnew_inds])
 
         if len(fnew_inds) > 0:
             this.freq_array = this.freq_array[:, f_order]
