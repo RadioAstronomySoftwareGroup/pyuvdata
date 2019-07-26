@@ -1600,13 +1600,17 @@ class UVData(UVBase):
                                    pol_t2o)] = other.flag_array
 
         if not self.metadata_only:
-            for name, param in zip(this._data_params, this.data_like_parameters):
-                if len(bnew_inds) > 0:
+            if len(bnew_inds) > 0:
+                for name, param in zip(this._data_params, this.data_like_parameters):
                     setattr(this, name, param[blt_order, :, :, :])
-                if len(fnew_inds) > 0:
+
+            if len(fnew_inds) > 0:
+                for name, param in zip(this._data_params, this.data_like_parameters):
                     setattr(this, name, param[:, :, f_order, :])
-                if len(pnew_inds) > 0:
-                    setattr(this, name, param[:, :, :, pnew_inds])
+
+            if len(pnew_inds) > 0:
+                for name, param in zip(this._data_params, this.data_like_parameters):
+                    setattr(this, name, param[:, :, :, p_order])
 
         if len(fnew_inds) > 0:
             this.freq_array = this.freq_array[:, f_order]
@@ -2322,14 +2326,16 @@ class UVData(UVBase):
             else:
                 return
 
-        for param_name, param in zip(self._data_params, uv_object.data_like_parameters):
-            if blt_inds is not None:
+        if blt_inds is not None:
+            for param_name, param in zip(self._data_params, uv_object.data_like_parameters):
                 setattr(uv_object, param_name, param[blt_inds, :, :, :])
 
-            if freq_inds is not None:
+        if freq_inds is not None:
+            for param_name, param in zip(self._data_params, uv_object.data_like_parameters):
                 setattr(uv_object, param_name, param[:, :, freq_inds, :])
 
-            if pol_inds is not None:
+        if pol_inds is not None:
+            for param_name, param in zip(self._data_params, uv_object.data_like_parameters):
                 setattr(uv_object, param_name, param[:, :, :, pol_inds])
 
         # check if object is uv_object-consistent
