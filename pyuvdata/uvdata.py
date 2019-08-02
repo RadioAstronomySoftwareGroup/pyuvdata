@@ -4671,9 +4671,8 @@ class UVData(UVBase):
         n_new_samples = np.asarray(list(map(int, np.round(self.integration_time[inds_to_upsample] / max_int_time))))
         temp_Nblts = np.sum(n_new_samples)
 
-        temp_baseline = np.zeros((temp_Nblts,))
+        temp_baseline = np.zeros((temp_Nblts,), dtype=np.int)
         temp_time = np.zeros((temp_Nblts,))
-        temp_uvw = np.zeros((temp_Nblts, 3))
         temp_int_time = np.zeros((temp_Nblts,))
         if not self.metadata_only:
             temp_data = np.zeros((temp_Nblts, self.Nspws, self.Nfreqs, self.Npols),
@@ -4730,11 +4729,19 @@ class UVData(UVBase):
 
             # concatenate temp array with existing arrays
             self.data_array = np.concatenate((self.data_array, temp_data), axis=0)
-            self.flag_array = np.concatenate((self.flag_array, temp_data), axis=0)
-            self.nsample_array = np.concatenate((self.nsample_array, temp_data), axis=0)
+            self.flag_array = np.concatenate((self.flag_array, temp_flag), axis=0)
+            self.nsample_array = np.concatenate((self.nsample_array, temp_nsample), axis=0)
 
         # set antenna arrays from baseline_array
-        self.ant_1_array, self.ant_2_array = self.baseline_to_ant_nums(self.baseline_array)
+        self.ant_1_array, self.ant_2_array = self.baseline_to_antnums(self.baseline_array)
+
+        # update metadata
+        self.Nblts = self.data_array.shape[0]
+        self.Ntimes = np.unique(self.time_array).size
+        self.uvw_array = np.zeros((self.Nblts, 3))
+
+        # set lst array
+        self.set_lsts_from_time_array()
 
         # The following operations *must* happen in this order: unphasing (if necessary),
         # setting the uvw array, reordering. This is to prevent doing phasing twice and
@@ -4796,7 +4803,7 @@ class UVData(UVBase):
         n_new_samples = int(np.round(min_int_time / self.integration_time[inds_to_downsample]))
         temp_Nblts = np.sum(n_new_samples)
 
-        temp_baseline = np.zeros((temp_Nblts,))
+        temp_baseline = np.zeros((temp_Nblts,), dtype=np.int)
         temp_time = np.zeros((temp_Nblts,))
         temp_uvw = np.zeros((temp_Nblts, 3))
         temp_int_time = np.zeros((temp_Nblts,))
@@ -4856,8 +4863,8 @@ class UVData(UVBase):
 
             # concatenate temp array with existing arrays
             self.data_array = np.concatenate((self.data_array, temp_data), axis=0)
-            self.flag_array = np.concatenate((self.flag_array, temp_data), axis=0)
-            self.nsample_array = np.concatenate((self.nsample_array, temp_data), axis=0)
+            self.flag_array = np.concatenate((self.flag_array, temp_flag), axis=0)
+            self.nsample_array = np.concatenate((self.nsample_array, temp_nsample), axis=0)
 
         # set antenna arrays from baseline_array
         self.ant_1_array, self.ant_2_array = self.baseline_to_ant_nums(self.baseline_array)

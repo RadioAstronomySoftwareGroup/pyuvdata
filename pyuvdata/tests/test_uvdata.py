@@ -3919,13 +3919,14 @@ def test_bda_upsample():
                          message='Telescope EVLA is not')
 
     # save some values for later
-    initial_data_size = uv_object.data_array.size
-    d0 = uv_object.data_array[0, 0, 0, 0]
+    init_data_size = uv_object.data_array.size
+    init_wf = uv_object.get_data(0, 1)
 
     # change the target integration time
     max_integration_time = np.amin(uv_object.integration_time) / 2.0
     uv_object.bda_upsample(max_integration_time)
     assert np.allclose(uv_object.integration_time, max_integration_time)
     # we should double the size of the data arrays
-    assert uv_object.data_array.size == 2 * initial_data_size
-    assert np.isclose(uv_object.data_array[0, 0, 0, 0], d0 / 2.0)
+    assert uv_object.data_array.size == 2 * init_data_size
+    out_wf = uv_object.get_data(0, 1)
+    assert np.isclose(init_wf[0, 0, 0], out_wf[0, 0, 0] / 2.0)
