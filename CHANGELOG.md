@@ -3,6 +3,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.4.1] - 2019-08-2
+
 ### Added
 - `metadata_only` property on `UVData` to automatically detect if data-like arrays are present
 - support for combining metadata only objects and reading in multiple files as metadata only
