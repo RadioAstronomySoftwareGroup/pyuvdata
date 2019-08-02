@@ -4668,7 +4668,7 @@ class UVData(UVBase):
         # figure out where integration_time is longer than max_int_time
         # need to check that int times are sensible given integration_times on object
         inds_to_upsample = np.nonzero(self.integration_time > max_int_time)
-        n_new_samples = int(np.round(self.integration_time[inds_to_upsample] / max_int_time))
+        n_new_samples = np.asarray(list(map(int, np.round(self.integration_time[inds_to_upsample] / max_int_time))))
         temp_Nblts = np.sum(n_new_samples)
 
         temp_baseline = np.zeros((temp_Nblts,))
@@ -4717,6 +4717,132 @@ class UVData(UVBase):
         # drop data where we upsampled
         # TODO: write test where all indices are upsampled
         inds_to_keep = np.nonzero(self.integration_time <= max_int_time)
+        self.baseline_array = self.baseline_array[inds_to_keep]
+        self.time_array = self.time_array[inds_to_keep]
+        self.integration_time = self.integration_time[inds_to_keep]
+        self.baseline_array = np.concatenate((self.baseline_array, temp_baseline))
+        self.time_array = np.concatenate((self.time_array, temp_time))
+        self.integration_time = np.concatenate((self.integration_time, temp_int_time))
+        if not self.metadata_only:
+            self.data_array = self.data_array[inds_to_keep]
+            self.flag_array = self.flag_array[inds_to_keep]
+            self.nsample_array = self.nsample_array[inds_to_keep]
+
+            # concatenate temp array with existing arrays
+            self.data_array = np.concatenate((self.data_array, temp_data), axis=0)
+            self.flag_array = np.concatenate((self.flag_array, temp_data), axis=0)
+            self.nsample_array = np.concatenate((self.nsample_array, temp_data), axis=0)
+
+        # set antenna arrays from baseline_array
+        self.ant_1_array, self.ant_2_array = self.baseline_to_ant_nums(self.baseline_array)
+
+        # The following operations *must* happen in this order: unphasing (if necessary),
+        # setting the uvw array, reordering. This is to prevent doing phasing twice and
+        # accumulating the associated floating point errors.
+        if input_phase_type == "drift":
+            # unphase back to drift
+            self.unphase_to_drift()
+
+        # properly calculate the uvws self-consistently
+        self.set_uvws_from_antenna_positions(allow_phasing=True)
+
+        # reorganize along blt axis
+        self.reorder_blts(order=blt_order, minor_order=minor_order)
+
+        # check the resulting object
+        self.check()
+
+        return
+
+
+    def bda_downsample(self, min_int_time, blt_order="time", minor_order="baseline"):
+        """
+        Convert to a common (longer) integration time.
+
+        This method will resample a UVData object such that all data samples have
+        a minimum integration time specified by the user.
+
+        Parameters
+        ----------
+        min_int_time : float
+            Minimum integration time to downsample the UVData integration_time to
+            in seconds.
+        blt_order : str
+            Major baseline ordering for output object. Default is "time".
+        minor_order : str
+            Minor baseline ordering for output object. Default is "baseline".
+
+        Returns
+        -------
+        None
+
+        """
+        # check that min_int_time is sensible given integration_time
+        max_integration_time = np.amax(self.integration_time)
+        sensible_min = 1e-2 * max_integration_time
+        sensible_max = 1e2 * max_integration_time
+        if min_int_time < sensible_min or min_int_time > sensible_max:
+            raise ValueError("value outside of sensible range")
+
+        input_phase_type = self.phase_type
+        if input_phase_type == "drift":
+            # phase to RA/dec of zenith
+            phase_center = self.time_array[0]
+            self.phase_to_time(phase_center)
+
+        # figure out where integration_time is shorter than min_int_time
+        # need to check that int times are sensible given integration_times on object
+        inds_to_downsample = np.nonzero(self.integration_time < min_int_time)
+        n_new_samples = int(np.round(min_int_time / self.integration_time[inds_to_downsample]))
+        temp_Nblts = np.sum(n_new_samples)
+
+        temp_baseline = np.zeros((temp_Nblts,))
+        temp_time = np.zeros((temp_Nblts,))
+        temp_uvw = np.zeros((temp_Nblts, 3))
+        temp_int_time = np.zeros((temp_Nblts,))
+        if not self.metadata_only:
+            temp_data = np.zeros((temp_Nblts, self.Nspws, self.Nfreqs, self.Npols),
+                                 dtype=self.data_array.dtype)
+            temp_flag = np.zeros((temp_Nblts, self.Nspws, self.Nfreqs, self.Npols),
+                                 dtype=self.flag_array.dtype)
+            temp_nsample = np.zeros((temp_Nblts, self.Nspws, self.Nfreqs, self.Npols),
+                                    dtype=self.nsample_array.dtype)
+
+        bls_to_downsample = np.unique(self.baseline_array[inds_to_downsample])
+        i0 = 0
+        for bl in bls_to_downsample:
+            bl_inds = np.nonzero(self.baseline_array == bl)
+            running_int_time = 0
+            n_avg = 0
+            i1 = 0
+            for int_time in self.integration_time[bl_inds]:
+                running_int_time += int_time
+                n_sum += 1
+                if (running_int_time > min_int_time
+                    or np.isclose(running_int_time, min_int_time)):
+                    # sum together that number of samples
+                    temp_baseline[i0] = bl
+                    # this might be wrong if some of the constituent times are *totally* flagged
+                    idx = bl_inds[i1:i1 + n_sum]
+                    temp_time[i0] = np.average(self.time_array[idx])
+                    temp_int_time[i0] = running_int_time
+                    if not self.metadata_only:
+                        # fill in data stuff here
+                        idx_to_keep = np.nonzero(~self.flag_array[idx])
+                        temp_data[i0] = np.sum(self.data_array[idx_to_keep])
+                        if idx_to_keep[0].size > 0:
+                            temp_flag[i0] = False
+                        else:
+                            temp_flag[i0] = True
+                        # nsample array is the fraction of data that we actually kept,
+                        # relative to the amount that went into the sum
+                        temp_nsamples[i0] = float(idx_to_keep[0].size) / float(self.flag_array[idx].size)
+                    i0 += 1
+                    i1 = i1 + n_sum
+
+        # drop data where we downsampled
+        # TODO: write test where all indices are downsampled
+        inds_to_keep = np.nonzero(self.integration_time >= min_int_time)
         self.baseline_array = self.baseline_array[inds_to_keep]
         self.time_array = self.time_array[inds_to_keep]
         self.integration_time = self.integration_time[inds_to_keep]
