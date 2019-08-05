@@ -25,7 +25,8 @@ test_c_file = os.path.join(DATA_PATH, 'zen.2457555.42443.HH.uvcA.omni.calfits')
 test_f_file = test_d_file + '.testuvflag.h5'
 test_outfile = os.path.join(DATA_PATH, 'test', 'outtest_uvflag.h5')
 
-pyuvdata_version_str = uvversion.version + '.'
+pyuvdata_version_str = ('  Read/written with pyuvdata version: '
+                        + uvversion.version + '.')
 if uvversion.git_hash is not '':
     pyuvdata_version_str += ('  Git origin: ' + uvversion.git_origin
                              + '.  Git hash: ' + uvversion.git_hash
@@ -61,7 +62,9 @@ def test_init_UVData_copy_flags():
     uv.read_miriad(test_d_file)
     uvf = uvtest.checkWarnings(UVFlag, [uv], {'copy_flags': True, 'mode': 'metric'},
                                nwarnings=1, message='Copying flags to type=="baseline"')
-    assert not hasattr(uvf, 'metric_array')  # Should be flag due to copy flags
+    #  with copy flags uvf.metric_array should be none
+    assert hasattr(uvf, 'metric_array')
+    assert uvf.metric_array is None
     assert np.array_equal(uvf.flag_array, uv.flag_array)
     assert uvf.weights_array.shape == uv.flag_array.shape
     assert np.all(uvf.weights_array == 1)
@@ -103,7 +106,9 @@ def test_init_cal_copy_flags():
     uv.read_calfits(test_c_file)
     uvf = uvtest.checkWarnings(UVFlag, [uv], {'copy_flags': True, 'mode': 'metric'},
                                nwarnings=1, message='Copying flags to type=="antenna"')
-    assert not hasattr(uvf, 'metric_array')  # Should be flag due to copy flags
+    #  with copy flags uvf.metric_array should be none
+    assert hasattr(uvf, 'metric_array')
+    assert uvf.metric_array is None
     assert np.array_equal(uvf.flag_array, uv.flag_array)
     assert uvf.weights_array.shape == uv.flag_array.shape
     assert uvf.type == 'antenna'
@@ -317,15 +322,21 @@ def test_read_change_type():
     uvf.write(test_outfile, clobber=True)
     assert hasattr(uvf, 'ant_array')
     uvf.read(test_f_file)
-    assert not hasattr(uvf, 'ant_array')
+
+    # clear sets these to None now
+    assert hasattr(uvf, 'ant_array')
+    assert uvf.ant_array is None
     assert hasattr(uvf, 'baseline_array')
     assert hasattr(uvf, 'ant_1_array')
     assert hasattr(uvf, 'ant_2_array')
     uvf.read(test_outfile)
     assert hasattr(uvf, 'ant_array')
-    assert not hasattr(uvf, 'baseline_array')
-    assert not hasattr(uvf, 'ant_1_array')
-    assert not hasattr(uvf, 'ant_2_array')
+    assert hasattr(uvf, 'baseline_array')
+    assert uvf.baseline_array is None
+    assert hasattr(uvf, 'ant_1_array')
+    assert uvf.ant_1_array is None
+    assert hasattr(uvf, 'ant_2_array')
+    assert uvf.ant_2_array is None
 
 
 @uvtest.skipIf_no_h5py
@@ -334,14 +345,17 @@ def test_read_change_mode():
     uv.read_miriad(test_d_file)
     uvf = UVFlag(uv, mode='flag')
     assert hasattr(uvf, 'flag_array')
-    assert not hasattr(uvf, 'metric_array')
+    assert hasattr(uvf, 'metric_array')
+    assert uvf.metric_array is None
     uvf.write(test_outfile, clobber=True)
     uvf.read(test_f_file)
     assert hasattr(uvf, 'metric_array')
-    assert not hasattr(uvf, 'flag_array')
+    assert hasattr(uvf, 'flag_array')
+    assert uvf.flag_array is None
     uvf.read(test_outfile)
     assert hasattr(uvf, 'flag_array')
-    assert not hasattr(uvf, 'metric_array')
+    assert hasattr(uvf, 'metric_array')
+    assert uvf.metric_array is None
 
 
 @uvtest.skipIf_no_h5py
@@ -547,24 +561,34 @@ def test_clear_unused_attributes():
     assert hasattr(uv, 'ant_1_array')
     assert hasattr(uv, 'ant_2_array')
     assert hasattr(uv, 'Nants_telescope')
-    uv.type = 'antenna'
+    uv._set_type_antenna()
     uv.clear_unused_attributes()
-    assert not hasattr(uv, 'baseline_array')
-    assert not hasattr(uv, 'ant_1_array')
-    assert not hasattr(uv, 'ant_2_array')
-    assert not hasattr(uv, 'Nants_telescope')
-    uv.mode = 'flag'
+    # clear_unused_attributes now sets these to None
+    print(uv._baseline_array.required)
+    assert hasattr(uv, 'baseline_array')
+    assert uv.baseline_array is None
+    assert hasattr(uv, 'ant_1_array')
+    assert uv.ant_1_array is None
+    assert hasattr(uv, 'ant_2_array')
+    assert uv.ant_2_array is None
+    assert hasattr(uv, 'Nants_telescope')
+    assert uv.Nants_telescope is None
+
+    uv._set_mode_flag()
     assert hasattr(uv, 'metric_array')
     uv.clear_unused_attributes()
-    assert not hasattr(uv, 'metric_array')
+    assert hasattr(uv, 'metric_array')
+    assert uv.metric_array is None
 
     # Start over
     uv = UVFlag(test_f_file)
     uv.ant_array = np.array([4])
     uv.flag_array = np.array([5])
     uv.clear_unused_attributes()
-    assert not hasattr(uv, 'ant_array')
-    assert not hasattr(uv, 'flag_array')
+    assert hasattr(uv, 'ant_array')
+    assert uv.ant_array is None
+    assert hasattr(uv, 'flag_array')
+    assert uv.flag_array is None
 
 
 @uvtest.skipIf_no_h5py
@@ -637,7 +661,8 @@ def test_collapse_pol():
     assert uvf2.polarization_array[0] == np.string_(','.join(map(str, uvf.polarization_array)))
     assert uvf2.mode == 'metric'
     assert hasattr(uvf2, 'metric_array')
-    assert not hasattr(uvf2, 'flag_array')
+    assert hasattr(uvf2, 'flag_array')
+    assert uvf2.flag_array is None
 
     # test writing it out and reading in to make sure polarization_array has correct type
     uvf2.write(test_outfile, clobber=True)
@@ -660,7 +685,8 @@ def test_collapse_pol_or():
     assert uvf2.polarization_array[0] == np.string_(','.join(map(str, uvf.polarization_array)))
     assert uvf2.mode == 'flag'
     assert hasattr(uvf2, 'flag_array')
-    assert not hasattr(uvf2, 'metric_array')
+    assert hasattr(uvf2, 'metric_array')
+    assert uvf2.metric_array is None
 
 
 @uvtest.skipIf_no_h5py
@@ -687,7 +713,8 @@ def test_collapse_pol_flag():
     assert uvf2.polarization_array[0] == np.string_(','.join(map(str, uvf.polarization_array)))
     assert uvf2.mode == 'metric'
     assert hasattr(uvf2, 'metric_array')
-    assert not hasattr(uvf2, 'flag_array')
+    assert hasattr(uvf2, 'flag_array')
+    assert uvf2.flag_array is None
 
 
 @uvtest.skipIf_no_h5py
@@ -1054,7 +1081,8 @@ def test_to_flag():
     uvf = UVFlag(test_f_file)
     uvf.to_flag()
     assert hasattr(uvf, 'flag_array')
-    assert not hasattr(uvf, 'metric_array')
+    assert hasattr(uvf, 'metric_array')
+    assert uvf.metric_array is None
     assert uvf.mode == 'flag'
     assert 'Converted to mode "flag"' in uvf.history
 
@@ -1066,7 +1094,8 @@ def test_to_flag_threshold():
     uvf.metric_array[0, 0, 4, 0] = 2.
     uvf.to_flag(threshold=1.)
     assert hasattr(uvf, 'flag_array')
-    assert not hasattr(uvf, 'metric_array')
+    assert hasattr(uvf, 'metric_array')
+    assert uvf.metric_array is None
     assert uvf.mode == 'flag'
     assert uvf.flag_array[0, 0, 4, 0]
     assert np.sum(uvf.flag_array) == 1.
@@ -1096,11 +1125,13 @@ def test_to_metric_baseline():
     uvf.flag_array[:, :, 10] = True
     uvf.flag_array[1, :, :] = True
     assert hasattr(uvf, 'flag_array')
-    assert not hasattr(uvf, 'metric_array')
+    assert hasattr(uvf, 'metric_array')
+    assert uvf.metric_array is None
     assert uvf.mode == 'flag'
     uvf.to_metric(convert_wgts=True)
     assert hasattr(uvf, 'metric_array')
-    assert not hasattr(uvf, 'flag_array')
+    assert hasattr(uvf, 'flag_array')
+    assert uvf.flag_array is None
     assert uvf.mode == 'metric'
     assert 'Converted to mode "metric"' in uvf.history
     assert np.isclose(uvf.weights_array[1], 0.0).all()
