@@ -470,7 +470,7 @@ class UVFlag(UVBase):
 
         else:
             # initial check that the classes are the same
-            # the strip the histories
+            # then strip the histories
             if isinstance(other, self.__class__):
                 _h1 = self.history
                 self.history = None
