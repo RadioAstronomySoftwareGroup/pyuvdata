@@ -3489,9 +3489,8 @@ def test_set_uvws_from_antenna_pos():
 def test_get_antenna_redundancies():
     uv0 = UVData()
     uv0.read_uvfits(os.path.join(DATA_PATH, 'fewant_randsrc_airybeam_Nsrc100_10MHz.uvfits'))
-
-    red_gps, centers, lengths = uv0.get_antenna_redundancies(include_autos=False,
-                                                             conjugate_bls=True)
+    uv0.conjugate_bls('u>0')
+    red_gps, centers, lengths, _ = uv0.get_redundancies(use_antpos=True, include_autos=False)
 
     # assert all baselines are in the data (because it's conjugated to match)
     for i, gp in enumerate(red_gps):
@@ -3501,7 +3500,7 @@ def test_get_antenna_redundancies():
 
     # conjugate data differently
     uv0.conjugate_bls(convention='ant1<ant2')
-    new_red_gps, new_centers, new_lengths = uv0.get_antenna_redundancies(
+    new_red_gps, new_centers, new_lengths, _ = uv0.get_redundancies(use_antpos=True,
         include_autos=False)
 
     # new and old baseline Numbers are not the same (different conjugation)
@@ -3523,7 +3522,8 @@ def test_redundancy_contract_expand():
     tol = 0.02   # Fails at lower precision because some baselines falling into multiple redundant groups
 
     # Assign identical data to each redundant group:
-    red_gps, centers, lengths = uv0.get_antenna_redundancies(tol=tol, conjugate_bls=True)
+    uv0.conjugate_bls('u>0')
+    red_gps, centers, lengths, _ = uv0.get_redundancies(tol=tol, use_antpos=True)
     for i, gp in enumerate(red_gps):
         for bl in gp:
             inds = np.where(bl == uv0.baseline_array)
@@ -3582,8 +3582,8 @@ def test_redundancy_contract_expand_nblts_not_nbls_times_ntimes():
     tol = 1.0
 
     # Assign identical data to each redundant group:
-    red_gps, centers, lengths = uv0.get_antenna_redundancies(tol=tol,
-                                                             conjugate_bls=True)
+    uv0.conjugate_bls('u>0')
+    red_gps, centers, lengths, _ = uv0.get_redundancies(tol=tol, use_antpos=True)
     for i, gp in enumerate(red_gps):
         for bl in gp:
             inds = np.where(bl == uv0.baseline_array)
@@ -3632,8 +3632,8 @@ def test_compress_redundancy_metadata_only():
     tol = 0.01
 
     # Assign identical data to each redundant group:
-    red_gps, centers, lengths = uv0.get_antenna_redundancies(tol=tol,
-                                                             conjugate_bls=True)
+    uv0.conjugate_bls('u>0')
+    red_gps, centers, lengths, _ = uv0.get_redundancies(tol=tol, use_antpos=True)
     for i, gp in enumerate(red_gps):
         for bl in gp:
             inds = np.where(bl == uv0.baseline_array)
@@ -3734,7 +3734,7 @@ def test_quick_redundant_vs_redundant_test_array():
     groups = [[bl for bl in grp if bl != -1] for grp in groups]
     groups.sort(key=len)
 
-    redundant_groups, centers, lengths, conj_inds = uv.get_baseline_redundancies(tol=tol)
+    redundant_groups, centers, lengths, conj_inds = uv.get_redundancies(tol=tol)
     redundant_groups.sort(key=len)
     assert groups == redundant_groups
 
@@ -3775,7 +3775,7 @@ def test_redundancy_finder_when_nblts_not_nbls_times_ntimes():
     groups = [[bl for bl in grp if bl != -1] for grp in groups]
     groups.sort(key=len)
 
-    redundant_groups, centers, lengths, conj_inds = uv.get_baseline_redundancies(tol=tol)
+    redundant_groups, centers, lengths, conj_inds = uv.get_redundancies(tol=tol)
     redundant_groups.sort(key=len)
     assert groups == redundant_groups
 
