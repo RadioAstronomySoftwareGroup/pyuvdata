@@ -758,7 +758,9 @@ class UVFlag(UVBase):
             this.ant_array = np.concatenate([this.ant_array, other.ant_array])
             this.Nants_data = len(this.ant_array)
         elif axis == 'frequency':
-            this.freq_array = np.concatenate([this.freq_array, other.freq_array])
+            this.freq_array = np.concatenate([this.freq_array,
+                                              other.freq_array],
+                                             axis=-1)
             this.Nfreqs = np.unique(this.freq_array.flatten()).size
         elif axis in ['polarization', 'pol', 'jones']:
             this.polarization_array = np.concatenate([this.polarization_array,
