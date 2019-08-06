@@ -697,7 +697,8 @@ class UVFlag(UVBase):
                                            data=self.flag_array,
                                            compression=data_compression)
 
-    def __add__(self, other, inplace=False, axis='time'):
+    def __add__(self, other, inplace=False, axis='time',
+                run_check=True, check_extra=True, run_check_acceptability=True):
         """Add two UVFlag objects together along a given axis.
         Args:
             other: second UVFlag object to concatenate with self.
@@ -778,11 +779,14 @@ class UVFlag(UVBase):
         this.history += 'Data combined along ' + axis + ' axis with ' + self.pyuvdata_version_str
         this.Ntimes = np.unique(this.time_array).size
 
-        this.check()
+        if run_check:
+            this.check(check_extra=check_extra,
+                       run_check_acceptability=run_check_acceptability)
         if not inplace:
             return this
 
-    def __iadd__(self, other, axis='time'):
+    def __iadd__(self, other, axis='time',
+                 run_check=True, check_extra=True, run_check_acceptability=True):
         """
         In place add.
 
@@ -790,10 +794,12 @@ class UVFlag(UVBase):
             other: Another UVFlag object which will be added to self.
             axis: Axis along which to combine UVFlag objects. Default is time.
         """
-        self.__add__(other, inplace=True, axis=axis)
+        self.__add__(other, inplace=True, axis=axis, run_check=True,
+                     check_extra=True, run_check_acceptability=True)
         return self
 
-    def __or__(self, other, inplace=False):
+    def __or__(self, other, inplace=False, run_check=True,
+               check_extra=True, run_check_acceptability=True,):
         """Combine two UVFlag objects in "flag" mode by "OR"-ing their flags.
         Args:
             other: second UVFlag object to combine with self.
@@ -811,16 +817,20 @@ class UVFlag(UVBase):
         if other.history not in this.history:
             this.history += "Flags OR'd with: " + other.history
 
-        this.check()
+        if run_check:
+            this.check(check_extra=check_extra,
+                       run_check_acceptability=run_check_acceptability)
         if not inplace:
             return this
 
-    def __ior__(self, other):
+    def __ior__(self, other, run_check=True,
+                check_extra=True, run_check_acceptability=True):
         """In place or
         Args:
             other: second UVFlag object to combine with self.
         """
-        self.__or__(other, inplace=True)
+        self.__or__(other, inplace=True, run_check=True,
+                    check_extra=True, run_check_acceptability=True)
         return self
 
     def clear_unused_attributes(self):
@@ -837,7 +847,9 @@ class UVFlag(UVBase):
         """ Simply return a copy of this object """
         return copy.deepcopy(self)
 
-    def combine_metrics(self, others, method='quadmean', inplace=True):
+    def combine_metrics(self, others, method='quadmean', inplace=True,
+                        run_check=True, check_extra=True,
+                        run_check_acceptability=True):
         """
         Combine metric arrays between different UVFlag objects together.
         Args:
@@ -872,11 +884,14 @@ class UVFlag(UVBase):
         this.weights_array = warray
         this.history += 'Combined metric arrays using ' + self.pyuvdata_version_str
 
-        this.check()
+        if run_check:
+            this.check(check_extra=check_extra,
+                       run_check_acceptability=run_check_acceptability)
         if not inplace:
             return this
 
-    def collapse_pol(self, method='quadmean'):
+    def collapse_pol(self, method='quadmean', run_check=True, check_extra=True,
+                     run_check_acceptability=True):
         """
         Collapse the polarization axis using a given method.
 
@@ -915,9 +930,12 @@ class UVFlag(UVBase):
             self._set_mode_metric()
         self.clear_unused_attributes()
         self.history += 'Pol axis collapsed with ' + self.pyuvdata_version_str
-        self.check()
+        if run_check:
+            self.check(check_extra=check_extra,
+                       run_check_acceptability=run_check_acceptability)
 
-    def to_waterfall(self, method='quadmean', keep_pol=True):
+    def to_waterfall(self, method='quadmean', keep_pol=True, run_check=True,
+                     check_extra=True, run_check_acceptability=True):
         """
         Convert an 'antenna' or 'baseline' type object to waterfall using a given method.
         Args:
@@ -975,9 +993,12 @@ class UVFlag(UVBase):
         self._set_type_waterfall()
         self.history += 'Collapsed to type "waterfall" with ' + self.pyuvdata_version_str
         self.clear_unused_attributes()
-        self.check()
+        if run_check:
+            self.check(check_extra=check_extra,
+                       run_check_acceptability=run_check_acceptability)
 
-    def to_baseline(self, uv, force_pol=False):
+    def to_baseline(self, uv, force_pol=False, run_check=True,
+                    check_extra=True, run_check_acceptability=True):
         """Convert a UVFlag object of type "waterfall" to type "baseline".
         Broadcasts the flag array to all baselines.
         This function does NOT apply flags to uv.
@@ -1047,9 +1068,12 @@ class UVFlag(UVBase):
         self._set_type_baseline()
         self.history += 'Broadcast to type "baseline" with ' + self.pyuvdata_version_str
 
-        self.check()
+        if run_check:
+            self.check(check_extra=check_extra,
+                       run_check_acceptability=run_check_acceptability)
 
-    def to_antenna(self, uv, force_pol=False):
+    def to_antenna(self, uv, force_pol=False, run_check=True,
+                   check_extra=True, run_check_acceptability=True):
         """Convert a UVFlag object of type "waterfall" to type "antenna".
         Broadcasts the flag array to all antennas.
         This function does NOT apply flags to uv.
@@ -1108,9 +1132,13 @@ class UVFlag(UVBase):
 
         self._set_type_antenna()
         self.history += 'Broadcast to type "antenna" with ' + self.pyuvdata_version_str
-        self.check()
 
-    def to_flag(self, threshold=np.inf):
+        if run_check:
+            self.check(check_extra=check_extra,
+                       run_check_acceptability=run_check_acceptability)
+
+    def to_flag(self, threshold=np.inf, run_check=True,
+                check_extra=True, run_check_acceptability=True):
         """Convert to flag mode. NOT SMART. Removes metric_array and creates a
         flag_array from a simple threshold on the metric values.
 
@@ -1129,9 +1157,13 @@ class UVFlag(UVBase):
             raise ValueError('Unknown UVFlag mode: ' + self.mode + '. Cannot convert to flag.')
         self.history += 'Converted to mode "flag" with ' + self.pyuvdata_version_str
         self.clear_unused_attributes()
-        self.check()
 
-    def to_metric(self, convert_wgts=False):
+        if run_check:
+            self.check(check_extra=check_extra,
+                       run_check_acceptability=run_check_acceptability)
+
+    def to_metric(self, convert_wgts=False, run_check=True,
+                  check_extra=True, run_check_acceptability=True):
         """Convert to metric mode. NOT SMART. Simply recasts flag_array as float
         and uses this as the metric array.
 
@@ -1166,7 +1198,10 @@ class UVFlag(UVBase):
             raise ValueError('Unknown UVFlag mode: ' + self.mode + '. Cannot convert to metric.')
         self.history += 'Converted to mode "metric" with ' + self.pyuvdata_version_str
         self.clear_unused_attributes()
-        self.check()
+
+        if run_check:
+            self.check(check_extra=check_extra,
+                       run_check_acceptability=run_check_acceptability)
 
     def antpair2ind(self, ant1, ant2):
         """
