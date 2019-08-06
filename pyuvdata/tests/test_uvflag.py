@@ -654,7 +654,7 @@ def test_to_waterfall_bl_multi_pol():
     assert uvf2.metric_array.shape == (len(uvf2.time_array), len(uvf.freq_array), 1)
     assert uvf2.weights_array.shape == uvf2.metric_array.shape
     assert len(uvf2.polarization_array) == 1
-    assert uvf2.polarization_array[0] == np.string_(','.join(map(str, uvf.polarization_array)))
+    assert uvf2.polarization_array[0] == np.str_(','.join(map(str, uvf.polarization_array)))
 
 
 @uvtest.skipIf_no_h5py
@@ -667,7 +667,7 @@ def test_collapse_pol():
     uvf2 = uvf.copy()
     uvf2.collapse_pol()
     assert len(uvf2.polarization_array) == 1
-    assert uvf2.polarization_array[0] == np.string_(','.join(map(str, uvf.polarization_array)))
+    assert uvf2.polarization_array[0] == np.str_(','.join(map(str, uvf.polarization_array)))
     assert uvf2.mode == 'metric'
     assert hasattr(uvf2, 'metric_array')
     assert hasattr(uvf2, 'flag_array')
@@ -691,7 +691,7 @@ def test_collapse_pol_or():
     uvf2 = uvf.copy()
     uvf2.collapse_pol(method='or')
     assert len(uvf2.polarization_array) == 1
-    assert uvf2.polarization_array[0] == np.string_(','.join(map(str, uvf.polarization_array)))
+    assert uvf2.polarization_array[0] == np.str_(','.join(map(str, uvf.polarization_array)))
     assert uvf2.mode == 'flag'
     assert hasattr(uvf2, 'flag_array')
     assert hasattr(uvf2, 'metric_array')
@@ -719,7 +719,7 @@ def test_collapse_pol_flag():
     uvf2 = uvf.copy()
     uvf2.collapse_pol()
     assert len(uvf2.polarization_array) == 1
-    assert uvf2.polarization_array[0] == np.string_(','.join(map(str, uvf.polarization_array)))
+    assert uvf2.polarization_array[0] == np.str_(','.join(map(str, uvf.polarization_array)))
     assert uvf2.mode == 'metric'
     assert hasattr(uvf2, 'metric_array')
     assert hasattr(uvf2, 'flag_array')

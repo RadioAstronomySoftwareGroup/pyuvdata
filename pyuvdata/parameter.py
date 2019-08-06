@@ -106,7 +106,7 @@ class UVParameter(object):
                 if isinstance(self.value, six.string_types):
                     str_type = True
                 if isinstance(self.value, (list, np.ndarray)):
-                    if isinstance(self.value[0], str):
+                    if isinstance(self.value[0], six.string_types):
                         str_type = True
 
                 if not str_type:
