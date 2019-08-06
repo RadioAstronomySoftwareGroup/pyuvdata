@@ -457,7 +457,7 @@ def test_add_frequency():
     uv2 = copy.deepcopy(uv1)
     uv2.freq_array += 1e4  # Arbitrary
     uv3 = uv1.__add__(uv2, axis='frequency')
-    assert np.array_equal(np.concatenate((uv1.freq_array, uv2.freq_array)),
+    assert np.array_equal(np.concatenate((uv1.freq_array, uv2.freq_array), axis=-1),
                           uv3.freq_array)
     assert np.array_equal(uv1.time_array, uv3.time_array)
     assert np.array_equal(uv1.baseline_array, uv3.baseline_array)
