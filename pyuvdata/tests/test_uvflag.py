@@ -226,6 +226,55 @@ def test_read_write_loop():
 
 
 @uvtest.skipIf_no_h5py
+def test_read_write_loop_waterfal():
+    uv = UVData()
+    uv.read_miriad(test_d_file)
+    uvf = UVFlag(uv, label='test')
+    uvf.to_waterfall()
+    uvf.write(test_outfile, clobber=True)
+    uvf2 = UVFlag(test_outfile)
+    # Update history to match expected additions that were made
+    uvf.history += 'Written by ' + pyuvdata_version_str
+    uvf.history += ' Read by ' + pyuvdata_version_str
+    assert uvf.__eq__(uvf2, check_history=True)
+
+
+@uvtest.skipIf_no_h5py
+def test_bad_mode_savefile():
+    # redundant skip definition but a good example
+    h5py = pytest.importorskip('h5py')
+    uv = UVData()
+    uv.read_miriad(test_d_file)
+    uvf = UVFlag(uv, label='test')
+    uvf.write(test_outfile, clobber=True)
+    # manually re-read and tamper with parameters
+    with h5py.File(test_outfile, 'a') as h5:
+        mode = h5['Header/mode']
+        mode[...] = 'test'
+
+    with pytest.raises(ValueError) as cm:
+        uvf = UVFlag(test_outfile)
+    assert str(cm.value).startswith('File cannot be read. Received mode')
+
+
+@uvtest.skipIf_no_h5py
+def test_bad_type_savefile():
+    # redundant skip definition but a good example
+    h5py = pytest.importorskip('h5py')
+    uv = UVData()
+    uv.read_miriad(test_d_file)
+    uvf = UVFlag(uv, label='test')
+    uvf.write(test_outfile, clobber=True)
+    # manually re-read and tamper with parameters
+    with h5py.File(test_outfile, 'a') as h5:
+        mode = h5['Header/type']
+        mode[...] = 'test'
+    with pytest.raises(ValueError) as cm:
+        uvf = UVFlag(test_outfile)
+    assert str(cm.value).startswith('File cannot be read. Received type')
+
+
+@uvtest.skipIf_no_h5py
 def test_read_write_ant():
     uv = UVCal()
     uv.read_calfits(test_c_file)

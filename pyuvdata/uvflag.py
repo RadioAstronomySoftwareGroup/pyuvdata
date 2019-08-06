@@ -522,7 +522,8 @@ class UVFlag(UVBase):
                 elif self.type == 'waterfall':
                     self._set_type_waterfall()
                 else:
-                    raise ValueError("Saved file 'type'. Received: {receive} but "
+                    raise ValueError("File cannot be read. Received type "
+                                     "parameter: {receive} but "
                                      "must be within acceptable values: "
                                      "{expect}".format(receive=self.type,
                                                        expect=(', ').join(self._type.acceptable_vals)))
@@ -533,6 +534,12 @@ class UVFlag(UVBase):
                     self._set_mode_metric()
                 elif self.mode == "flag":
                     self._set_mode_flag()
+                else:
+                    raise ValueError("File cannot be read. Received mode "
+                                     "parameter: {receive} but "
+                                     "must be within acceptable values: "
+                                     "{expect}".format(receive=self.mode,
+                                                       expect=(', ').join(self._mode.acceptable_vals)))
 
                 self.time_array = header['time_array'][()]
                 if 'Ntimes' in header.keys():
