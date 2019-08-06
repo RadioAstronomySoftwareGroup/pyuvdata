@@ -38,8 +38,8 @@ def test_init_bad_mode():
     uv = UVData()
     uv.read_miriad(test_d_file)
     with pytest.raises(ValueError) as cm:
-            uvf = UVFlag(uv, mode='bad_mode',
-                         history='I made a UVFlag object', label='test')
+        uvf = UVFlag(uv, mode='bad_mode',
+                     history='I made a UVFlag object', label='test')
     assert str(cm.value).startswith('Input mode must be within acceptable')
 
 
