@@ -1201,7 +1201,7 @@ def get_antenna_redundancies(antenna_numbers, antenna_positions, tol=1.0, includ
             bv = antenna_positions[aj] - antenna_positions[ai]
             # Enforce u-positive orientation
             if (bv[0] < 0 or ((bv[0] == 0) and bv[1] < 0)
-               or ((bv[0] == 0) and (bv[1] == 0) and bv[2] < 0)):
+                    or ((bv[0] == 0) and (bv[1] == 0) and bv[2] < 0)):
                 bv *= (-1)
                 bidx = antnums_to_baseline(antj, anti, Nants)
             bl_vecs.append(bv)

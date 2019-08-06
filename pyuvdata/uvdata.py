@@ -1783,7 +1783,7 @@ class UVData(UVBase):
                 this.flag_array = np.concatenate([this.flag_array, other.flag_array], axis=2)
         elif axis == 'polarization':
             this.polarization_array = np.concatenate([this.polarization_array,
-                                                     other.polarization_array])
+                                                      other.polarization_array])
             this.Npols = this.Npols + other.Npols
 
             pol_separation = np.diff(this.polarization_array)
@@ -1798,23 +1798,23 @@ class UVData(UVBase):
         elif axis == 'blt':
             this.Nblts = this.Nblts + other.Nblts
             this.ant_1_array = np.concatenate([this.ant_1_array,
-                                              other.ant_1_array])
+                                               other.ant_1_array])
             this.ant_2_array = np.concatenate([this.ant_2_array,
-                                              other.ant_2_array])
+                                               other.ant_2_array])
             this.Nants_data = int(len(np.unique(self.ant_1_array.tolist()
                                                 + self.ant_2_array.tolist())))
             this.uvw_array = np.concatenate([this.uvw_array,
-                                            other.uvw_array], axis=0)
+                                             other.uvw_array], axis=0)
             this.time_array = np.concatenate([this.time_array,
-                                             other.time_array])
+                                              other.time_array])
             this.Ntimes = len(np.unique(this.time_array))
             this.lst_array = np.concatenate([this.lst_array,
-                                            other.lst_array])
+                                             other.lst_array])
             this.baseline_array = np.concatenate([this.baseline_array,
-                                                 other.baseline_array])
+                                                  other.baseline_array])
             this.Nbls = len(np.unique(this.baseline_array))
             this.integration_time = np.concatenate([this.integration_time,
-                                                   other.integration_time])
+                                                    other.integration_time])
             if not self.metadata_only:
                 this.data_array = np.concatenate([this.data_array, other.data_array], axis=0)
                 this.nsample_array = np.concatenate([this.nsample_array, other.nsample_array], axis=0)
@@ -4424,7 +4424,7 @@ class UVData(UVBase):
         return np.diff(np.sort(list(set(self.time_array))))[0] * 86400
 
     def get_redundancies(self, tol=1.0, use_antpos=False,
-                                include_conjugates=True, include_autos=True):
+                         include_conjugates=True, include_autos=True):
         """
         Get redundant baselines to a given tolerance.
 
@@ -4533,7 +4533,7 @@ class UVData(UVBase):
         """
 
         self.conjugate_bls(convention='u>0')
-        red_gps, centers, lengths, _, = self.get_redundancies(tol=tol, use_antpos=True) 
+        red_gps, centers, lengths, _, = self.get_redundancies(tol=tol, use_antpos=True)
 
         # Stack redundant groups into one array.
         group_index, bl_array_full = zip(*[(i, bl) for i, gp in enumerate(red_gps) for bl in gp])

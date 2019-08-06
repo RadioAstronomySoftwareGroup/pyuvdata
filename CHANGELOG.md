@@ -4,15 +4,22 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
-- option for `UVBeam.interp` to return a new beam object.
+- UVData.get_redundancies method to replace old get_baseline_redundancies and get_antenna_redundancies.
 - `UVFlag` information on Read The Docs
+- option for `UVBeam.interp` to return a new beam object.
 
 ### Changed
+- All redundancy finder methods will return four items --- redundant groups, bin centers, lengths, and conjugates.
+- UVData.get_antenna_redundancies will no longer automatically conjugate baselines.
+- UVData.get_baseline_redundancies and UVData.get_antenna_redundancies have been combined.
 - `UVFlag` inherits from `UVBase` object.
 
 ### Fixed
 - A bug where `conj_pol` could not handle cardinal direction polarizations.
 - A bug that gave the wrong error message when calling `UVData.phase_to_time` without an Astropy Time object.
+
+### Deprecated
+- UVData.get_baseline_redundancies and UVData.get_antenna_redundancies will be deprecated in version 1.6.1
 
 ## [1.4.1] - 2019-08-2
 
