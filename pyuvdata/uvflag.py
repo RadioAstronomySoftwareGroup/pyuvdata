@@ -778,10 +778,7 @@ class UVFlag(UVBase):
         this.history += 'Data combined along ' + axis + ' axis with ' + self.pyuvdata_version_str
         this.Ntimes = np.unique(this.time_array).size
 
-        try:
-            this.check()
-        except ValueError as err:
-            raise err
+        this.check()
         if not inplace:
             return this
 
