@@ -972,12 +972,9 @@ This is similar to running get_baseline_redundancies with the `with_conjugates`
 option, except that the baseline indices are returned such that none need to be
 flipped to be redundant. This is more like what's defined in the `hera_cal` package.
 
-There are also corresponding methods on :class:`~pyuvdata.UVData` with a few
-conveniences. :meth:`~pyuvdata.UVData.get_baseline_redundancies` passes the baselines
-that have data. :meth:`~pyuvdata.UVData.get_antenna_redundancies` has a convenience
-option `conjugate_bls`, which can be set to True to conjugate the UVData object
-to follow the positive-u condition so that the baselines on the object will match
-the baseline numbers returned by the method.
+The method :meth:`~pyuvdata.UVData.get_redundancies` is provided as a convenience. If
+run with the `use_antpos` option, it will mimic the behavior of `utils.get_antenna_redundancies`.
+Otherwise it will return redundancies in the existing data using `utils.get_baesline_redundancies`.
 
 ::
 
@@ -992,8 +989,8 @@ the baseline numbers returned by the method.
     >>> tol = 0.05  # Tolerance in meters
     >>> uvd.select(times=uvd.time_array[0])
 
-    # Returned values: list of redundant groups, corresponding mean baseline vectors, baseline lengths.
-    >>> baseline_groups, vec_bin_centers, lengths = uvutils.get_baseline_redundancies(uvd.baseline_array, uvd.uvw_array, tol=tol)
+    # Returned values: list of redundant groups, corresponding mean baseline vectors, baseline lengths. No conjugates included, so conjugates is None.
+    >>> baseline_groups, vec_bin_centers, lengths, conjugates = uvutils.get_baseline_redundancies(uvd.baseline_array, uvd.uvw_array, tol=tol)
     >>> print(len(baseline_groups))
     19
 
@@ -1005,12 +1002,12 @@ the baseline numbers returned by the method.
 
     # Using antenna positions instead
     >>> antpos, antnums = uvd.get_ENU_antpos()
-    >>> baseline_groups, vec_bin_centers, lengths = uvutils.get_antenna_redundancies(antnums, antpos, tol=tol, include_autos=True)
+    >>> baseline_groups, vec_bin_centers, lengths, conjugates = uvutils.get_antenna_redundancies(antnums, antpos, tol=tol, include_autos=True)
     >>> print(len(baseline_groups))
     20
 
     # get_antenna_redundancies has the option to ignore autocorrelations.
-    >>> baseline_groups, vec_bin_centers, lengths = uvutils.get_antenna_redundancies(antnums, antpos, tol=tol, include_autos=False)
+    >>> baseline_groups, vec_bin_centers, lengths, conjugates = uvutils.get_antenna_redundancies(antnums, antpos, tol=tol, include_autos=False)
     >>> print(len(baseline_groups))
     19
 
