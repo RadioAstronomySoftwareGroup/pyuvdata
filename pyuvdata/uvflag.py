@@ -525,17 +525,17 @@ class UVFlag(UVBase):
             with h5py.File(filename, 'r') as f:
                 header = f['/Header']
 
-                _type = uvutils._bytes_to_str(header['type'][()])
-                if _type == 'antenna':
+                self.type = uvutils._bytes_to_str(header['type'][()])
+                if self.type == 'antenna':
                     self._set_type_antenna()
-                elif _type == 'baseline':
+                elif self.type == 'baseline':
                     self._set_type_baseline()
-                elif _type == 'waterfall':
+                elif self.type == 'waterfall':
                     self._set_type_waterfall()
                 else:
                     raise ValueError("Saved file 'type'. Received: {receive} but "
                                      "must be within acceptable values: "
-                                     "{expect}".format(receive=_type,
+                                     "{expect}".format(receive=self.type,
                                                        expect=(', ').join(self._type.acceptable_vals)))
 
                 self.mode = uvutils._bytes_to_str(header['mode'][()])
@@ -551,6 +551,15 @@ class UVFlag(UVBase):
                 else:
                     self.Ntimes = np.unique(self.time_array).size
 
+                # for antenna and waterfall, Nblts is used to define
+                # the size of some arrays but is equivalent to _Ntimes
+                # for baseline type nblts is should be stored
+                # if not it is read later
+                if 'Nblts' in header.keys():
+                    self.Nblts = header['Nblts'][()]
+                else:
+                    self.Nblts = self.Ntimes
+
                 self.lst_array = header['lst_array'][()]
 
                 self.freq_array = header['freq_array'][()]
@@ -558,10 +567,6 @@ class UVFlag(UVBase):
                     self.Nfreqs = header['Nfreqs'][()]
                 else:
                     self.Nfreqs = np.unique(self.freq_array).size
-                if 'Nspws' in header.keys():
-                    self.Nspws = header['Nspws'][()]
-                else:
-                    self.Nspws = np.shape(self.freq_array)[0]
 
                 self.history = (uvutils._bytes_to_str(header['history'][()])
                                 + ' Read by ' + self.pyuvdata_version_str)
@@ -578,9 +583,9 @@ class UVFlag(UVBase):
                 if self.type == 'baseline':
                     self.baseline_array = header['baseline_array'][()]
 
-                    if 'Nbls' in header.keys():
-                        self.Nbls = header['Nbls'][()]
-                    else:
+                    #  if the Nblts was set via the antenna/waterfall method
+                    # it needs to be overwritten  with the correct shape.
+                    if self.Nblts == self.Ntimes:
                         self.Nbls = np.unique(self.baseline_array).size
 
                     if 'Nblts' in header.keys():
@@ -596,6 +601,12 @@ class UVFlag(UVBase):
                         warnings.warn('Nants_telescope not available in file, '
                                       'assuming < 2048.')
                         self.Nants_telescope = None
+
+                    if 'Nspws' in header.keys():
+                        self.Nspws = header['Nspws'][()]
+                    else:
+                        self.Nspws = np.shape(self.freq_array)[0]
+
                 elif self.type == 'antenna':
                     self.ant_array = header['ant_array'][()]
                     try:
@@ -604,6 +615,11 @@ class UVFlag(UVBase):
                         warnings.warn('Nants_data not available in file, '
                                       'assuming < 2048.')
                         self.Nants_data = None
+
+                    if 'Nspws' in header.keys():
+                        self.Nspws = header['Nspws'][()]
+                    else:
+                        self.Nspws = np.shape(self.freq_array)[0]
 
                 dgrp = f['/Data']
                 if self.mode == 'metric':
@@ -645,7 +661,6 @@ class UVFlag(UVBase):
             header['lst_array'] = self.lst_array
 
             header['freq_array'] = self.freq_array
-            header['Nspws'] = self.Nspws
             header['Nfreqs'] = self.Nfreqs
 
             header['Npols'] = self.Npols
@@ -661,9 +676,13 @@ class UVFlag(UVBase):
                 header['ant_1_array'] = self.ant_1_array
                 header['ant_2_array'] = self.ant_2_array
                 header['Nants_telescope'] = self.Nants_telescope
+                header['Nspws'] = self.Nspws
+
             elif self.type == 'antenna':
                 header['ant_array'] = self.ant_array
                 header['Nants_data'] = self.Nants_data
+                header['Nspws'] = self.Nspws
+
 
             dgrp = f.create_group("Data")
             wtsdata = dgrp.create_dataset('weights_array', chunks=True,
