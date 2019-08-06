@@ -563,7 +563,12 @@ class UVFlag(UVBase):
                 if 'label' in header.keys():
                     self.label = uvutils._bytes_to_str(header['label'][()])
 
-                self.polarization_array = header['polarization_array'][()]
+                polarization_array = header['polarization_array'][()]
+                if isinstance(polarization_array[0], np.string_):
+                    polarization_array = np.asarray(polarization_array,
+                                                    dtype=np.str_)
+                self.polarization_array = polarization_array
+
                 if 'Npols' in header.keys():
                     self.Npols = int(header['Npols'][()])
                 else:
@@ -653,7 +658,12 @@ class UVFlag(UVBase):
             header['Nfreqs'] = self.Nfreqs
 
             header['Npols'] = self.Npols
-            header['polarization_array'] = self.polarization_array
+            if isinstance(self.polarization_array.item(0), six.string_types):
+                polarization_array = np.asarray(self.polarization_array,
+                                                dtype=np.string_)
+            else:
+                polarization_array = self.polarization_array
+            header['polarization_array'] = polarization_array
             header['history'] = uvutils._str_to_bytes(self.history + 'Written by '
                                                       + self.pyuvdata_version_str)
             header['label'] = uvutils._str_to_bytes(self.label)
@@ -902,11 +912,12 @@ class UVFlag(UVBase):
             darr = np.expand_dims(d, axis=d.ndim)
             self.weights_array = np.expand_dims(w, axis=w.ndim)
             self.polarization_array = np.array([','.join(map(str, self.polarization_array))],
-                                               dtype=np.string_)
+                                               dtype=np.str_)
+
             self.Npols = len(self.polarization_array)
             # this typing is a nightmare. np.string_ casts as '|S' but is not
             # the same as np.string_
-            self._polarization_array.expected_type = bytes
+            self._polarization_array.expected_type = six.string_types
             self._polarization_array.acceptable_vals = None
         else:
             warnings.warn('Cannot collapse polarization axis when only one pol present.')
