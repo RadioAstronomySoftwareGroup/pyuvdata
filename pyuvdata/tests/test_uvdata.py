@@ -3486,6 +3486,23 @@ def test_set_uvws_from_antenna_pos():
     assert np.isclose(max_diff, 0., atol=2)
 
 
+def test_deprecated_redundancy_funcs():
+    uv0 = UVData()
+    uv0.read_uvfits(os.path.join(DATA_PATH, 'fewant_randsrc_airybeam_Nsrc100_10MHz.uvfits'))
+    redant_gps, centers, lengths = uvtest.checkWarnings(uv0.get_antenna_redundancies,
+                                                        func_kwargs={'include_autos': False, 'conjugate_bls': True},
+                                                        category=DeprecationWarning,
+                                                        nwarnings=2,
+                                                        message=['UVData.get_antenna_redundancies has been replaced',
+                                                                 'The default for the `center` keyword'])
+    redbl_gps, centers, lengths, _ = uvtest.checkWarnings(uv0.get_baseline_redundancies,
+                                                          category=DeprecationWarning,
+                                                          message='UVData.get_baseline_redundancies has been replaced')
+
+    red_gps_new, _, _, _ = uv0.get_redundancies(include_autos=False, use_antpos=True)
+    assert red_gps_new == redant_gps
+
+
 def test_get_antenna_redundancies():
     uv0 = UVData()
     uv0.read_uvfits(os.path.join(DATA_PATH, 'fewant_randsrc_airybeam_Nsrc100_10MHz.uvfits'))

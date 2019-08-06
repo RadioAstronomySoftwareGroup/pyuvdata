@@ -4466,7 +4466,6 @@ class UVData(UVBase):
         for this telescope, under the u>0 antenna ordering convention. If use_antpos is not set,
         this function will look for redundant groups in the data.
         """
-
         if use_antpos:
             antpos, numbers = self.get_ENU_antpos(center=False)
             return uvutils.get_antenna_redundancies(numbers, antpos, tol=tol,
@@ -4479,6 +4478,29 @@ class UVData(UVBase):
 
         return uvutils.get_baseline_redundancies(baselines, baseline_vecs,
                                                  tol=tol, with_conjugates=include_conjugates)
+
+    def get_antenna_redundancies(self, *args, **kwargs):
+        """
+        Deprecated -- Please use `get_redundancies` instead.
+        """
+
+        warnings.warn("UVData.get_antenna_redundancies has been replaced with get_redundancies.",
+                      DeprecationWarning)
+        if kwargs.pop('conjugate_bls', False):
+            self.conjugate_bls('u>0')
+        kwargs['use_antpos'] = True
+        red_gps, blvecs, lens, conjs = self.get_redundancies(*args, **kwargs)
+        return red_gps, blvecs, lens
+
+    def get_baseline_redundancies(self, *args, **kwargs):
+        """
+        Deprecated -- Please use `get_redundancies` instead.
+        """
+        warnings.warn("UVData.get_baseline_redundancies has been replaced with get_redundancies.",
+                      DeprecationWarning)
+        kwargs['include_conjugates'] = True
+        red_gps, blvecs, lens, conjs = self.get_redundancies(*args, **kwargs)
+        return red_gps, blvecs, lens, conjs
 
     def compress_by_redundancy(self, tol=1.0, inplace=True, metadata_only=None,
                                keep_all_metadata=True):
