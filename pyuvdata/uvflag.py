@@ -7,6 +7,7 @@ import numpy as np
 import os
 import warnings
 import copy
+import six
 from six.moves import map
 
 from .uvbase import UVBase
@@ -459,46 +460,33 @@ class UVFlag(UVBase):
                 'shape (Nfreqs), units Hz')
         self._freq_array.form = ('Nfreqs',)
 
-    def __eq__(self, other, check_history=False):
+    def __eq__(self, other, check_history=False, check_extra=False):
         """ Function to check equality of two UVFlag objects
         Args:
             other: UVFlag object to check against
         """
-        if not isinstance(other, self.__class__):
-            print("Class")
-            return False
-        if (self.type != other.type) or (self.mode != other.mode) or (self.label != other.label):
-            print(self.type, other.type)
-            print(self.mode, other.mode)
-            print(self.label, other.label)
-            return False
-
-        array_list = ['weights_array', 'time_array', 'lst_array', 'freq_array',
-                      'polarization_array']
-        if self.type == 'antenna':
-            array_list += ['ant_array']
-        elif self.type == 'baseline':
-            array_list += ['baseline_array', 'ant_1_array', 'ant_2_array', 'Nants_telescope']
-        if self.mode == 'flag':
-            array_list += ['flag_array']
-        elif self.mode == 'metric':
-            array_list += ['metric_array']
-        for arr in array_list:
-            self_param = getattr(self, arr)
-            other_param = getattr(other, arr)
-            if not np.all(self_param == other_param):
-                print('data')
-                print(arr)
-                print(self_param.shape)
-                print(other_param.shape)
-                return False
-
         if check_history:
-            if self.history != other.history:
-                print('histories')
-                return False
+            return super(UVFlag, self).__eq__(other, check_extra=check_extra)
 
-        return True
+        else:
+            # initial check that the classes are the same
+            # the strip the histories
+            if isinstance(other, self.__class__):
+                _h1 = self.history
+                self.history = None
+
+                _h2 = other.history
+                other.history = None
+
+                truth = super(UVFlag, self).__eq__(other, check_extra=check_extra)
+
+                self.history = _h1
+                other.history = _h2
+
+                return truth
+            else:
+                print('Classes do not match')
+                return False
 
     def read(self, filename, history=''):
         """
