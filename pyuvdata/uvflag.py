@@ -736,6 +736,9 @@ class UVFlag(UVBase):
                 this.baseline_array = np.concatenate([this.baseline_array, other.baseline_array])
                 this.ant_1_array = np.concatenate([this.ant_1_array, other.ant_1_array])
                 this.ant_2_array = np.concatenate([this.ant_2_array, other.ant_2_array])
+            this.Ntimes = np.unique(this.time_array).size
+            this.Nblts = len(this.time_array)
+
         elif axis == 'baseline':
             if self.type != 'baseline':
                 raise ValueError('Flag object of type ' + self.type + ' cannot be '
