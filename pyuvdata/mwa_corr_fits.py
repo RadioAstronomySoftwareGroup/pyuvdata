@@ -100,6 +100,12 @@ class MWACorrFITS(UVData):
         self.vis_units = 'uncalib'
         self.Npols = 4 
         
+        #set antenna array location latitude (radians), longitude (radians), altitude
+        #(meters above sea level)
+        lat = -26.703319 * np.pi/180
+        lon = 116.67081 * np.pi/180
+        alt = 377
+        
         #get information from metafits file
         with fits.open(metafits_file, memmap = True) as meta:
             meta_hdr = meta[0].header
@@ -123,16 +129,26 @@ class MWACorrFITS(UVData):
             self.object_name = meta_hdr['FILENAME']
             #TODO: remove these keys and store remaining keys in extra keywords
             
-            #get data from metafits file table
+            #get antenna data from metafits file table
             meta_tbl = meta[1].data
             
+            #TODO: talk to Bryna re: ordering
             self.antenna_numbers = meta_tbl['Antenna'][1::2]#because of polarization, each antenna # is listed twice
             self.antenna_names = meta_tbl['TileName'][1::2]
             
-            #TODO: self.antenna_positions
+            #get antenna postions in enu coordinates
+            antenna_positions = np.zeros(len(self.antenna_numbers),3)
+            antenna_positions[:,0] = meta_tbl['East'][1::2]
+            antenna_positions[:,1] = meta_tbl['North'][1::2]
+            antenna_positions[:,2] = meta_tbl['Height'][1::2]
+            
             #TODO: self.antenna_diameters
             #TODO: self.x_orientation
-            
+        
+        #convert antenna positions from enu to ecef
+        self.antenna_positions=uvutils.ECEF_from_ENU(antenna_positions,lat,lon,alt)
+        
+        #set parameters from other parameters
         self.Nants_data = len(self.antenna_numbers)
         self.Nants_telescope = len(self.antenna_numbers)
         self.Nbls = len(self.antenna_numbers) * (len(self.antenna_numbers + 1))/2
@@ -312,8 +328,7 @@ class MWACorrFITS(UVData):
         self.polarization_array = np.zeros(self.Npols)
         #TODO ask Bryna what is the shape of this?
         #self.telescope_location
-        #TODO talk to Bryna about this!
-        self.time_array = np.zeros(self.Nblts)
+        
         #TODO
         self.uvw_array = np.zeros((self.Nblts, 3))
             
