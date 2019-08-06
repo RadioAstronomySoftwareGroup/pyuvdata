@@ -683,7 +683,6 @@ class UVFlag(UVBase):
                 header['Nants_data'] = self.Nants_data
                 header['Nspws'] = self.Nspws
 
-
             dgrp = f.create_group("Data")
             wtsdata = dgrp.create_dataset('weights_array', chunks=True,
                                           data=self.weights_array,
