@@ -78,14 +78,15 @@ class UVFlag(UVBase):
         self._Ntimes = uvp.UVParameter('Ntimes', description='Number of times',
                                        expected_type=int)
         self._Nbls = uvp.UVParameter('Nbls', description='Number of baselines',
-                                     expected_type=int)
+                                     expected_type=int, required=False)
         self._Nblts = uvp.UVParameter('Nblts', description='Number of baseline-times '
                                       '(i.e. number of spectra). Not necessarily '
                                       'equal to Nbls * Ntimes', expected_type=int)
         self._Nspws = uvp.UVParameter('Nspws', description='Number of spectral windows '
                                       '(ie non-contiguous spectral chunks). '
                                       'More than one spectral window is not '
-                                      'currently supported.', expected_type=int)
+                                      'currently supported.', expected_type=int,
+                                      required=False)
         self._Nfreqs = uvp.UVParameter('Nfreqs', description='Number of frequency channels',
                                        expected_type=int)
         self._Npols = uvp.UVParameter('Npols', description='Number of polarizations',
@@ -547,7 +548,7 @@ class UVFlag(UVBase):
 
                 self.time_array = header['time_array'][()]
                 if 'Ntimes' in header.keys():
-                    self.Ntimes = header['Ntimes'][()]
+                    self.Ntimes = int(header['Ntimes'][()])
                 else:
                     self.Ntimes = np.unique(self.time_array).size
 
@@ -556,7 +557,7 @@ class UVFlag(UVBase):
                 # for baseline type nblts is should be stored
                 # if not it is read later
                 if 'Nblts' in header.keys():
-                    self.Nblts = header['Nblts'][()]
+                    self.Nblts = int(header['Nblts'][()])
                 else:
                     self.Nblts = self.Ntimes
 
@@ -564,7 +565,7 @@ class UVFlag(UVBase):
 
                 self.freq_array = header['freq_array'][()]
                 if 'Nfreqs' in header.keys():
-                    self.Nfreqs = header['Nfreqs'][()]
+                    self.Nfreqs = int(header['Nfreqs'][()])
                 else:
                     self.Nfreqs = np.unique(self.freq_array).size
 
@@ -576,7 +577,7 @@ class UVFlag(UVBase):
 
                 self.polarization_array = header['polarization_array'][()]
                 if 'Npols' in header.keys():
-                    self.Npols = header['Npols'][()]
+                    self.Npols = int(header['Npols'][()])
                 else:
                     self.Npols = len(self.polarization_array)
 
@@ -586,12 +587,12 @@ class UVFlag(UVBase):
                     #  if the Nblts was set via the antenna/waterfall method
                     # it needs to be overwritten  with the correct shape.
                     if self.Nblts == self.Ntimes:
-                        self.Nbls = np.unique(self.baseline_array).size
-
-                    if 'Nblts' in header.keys():
-                        self.Nblts = header['Nblts'][()]
-                    else:
                         self.Nblts = len(self.baseline_array)
+
+                    if 'Nbls' in header.keys():
+                        self.Nbls = int(header['Nbls'][()])
+                    else:
+                        self.Nbls = np.unique(self.baseline_array).size
 
                     self.ant_1_array = header['ant_1_array'][()]
                     self.ant_2_array = header['ant_2_array'][()]
@@ -603,21 +604,21 @@ class UVFlag(UVBase):
                         self.Nants_telescope = None
 
                     if 'Nspws' in header.keys():
-                        self.Nspws = header['Nspws'][()]
+                        self.Nspws = int(header['Nspws'][()])
                     else:
                         self.Nspws = np.shape(self.freq_array)[0]
 
                 elif self.type == 'antenna':
                     self.ant_array = header['ant_array'][()]
                     try:
-                        self.Nants_data = header['Nants_data'][()]
+                        self.Nants_data = int(header['Nants_data'][()])
                     except KeyError:
                         warnings.warn('Nants_data not available in file, '
                                       'assuming < 2048.')
                         self.Nants_data = None
 
                     if 'Nspws' in header.keys():
-                        self.Nspws = header['Nspws'][()]
+                        self.Nspws = int(header['Nspws'][()])
                     else:
                         self.Nspws = np.shape(self.freq_array)[0]
 
@@ -772,6 +773,10 @@ class UVFlag(UVBase):
         this.history += 'Data combined along ' + axis + ' axis with ' + self.pyuvdata_version_str
         this.Ntimes = np.unique(this.time_array).size
 
+        try:
+            this.check()
+        except ValueError as err:
+            raise err
         if not inplace:
             return this
 
@@ -804,6 +809,7 @@ class UVFlag(UVBase):
         if other.history not in this.history:
             this.history += "Flags OR'd with: " + other.history
 
+        this.check()
         if not inplace:
             return this
 
@@ -824,20 +830,6 @@ class UVFlag(UVBase):
             if not attr.required and attr.value is not None:
                 attr.value = None
                 setattr(self, p, attr)
-        # if hasattr(self, 'baseline_array') and self.type != 'baseline':
-        #     self.baseline_array = None
-        # if hasattr(self, 'ant_1_array') and self.type != 'baseline':
-        #     self.ant_1_array = None
-        # if hasattr(self, 'ant_2_array') and self.type != 'baseline':
-        #     self.ant_2_array = None
-        # if hasattr(self, 'Nants_telescope') and self.type != 'baseline':
-        #     self.Nants_telescope = None
-        # if hasattr(self, 'ant_array') and self.type != 'antenna':
-        #     self.ant_array = None
-        # if hasattr(self, 'metric_array') and self.mode != 'metric':
-        #     self.metric_array = None
-        # if hasattr(self, 'flag_array') and self.mode != 'flag':
-        #     self.flag_array = None
 
     def copy(self):
         """ Simply return a copy of this object """
@@ -877,6 +869,8 @@ class UVFlag(UVBase):
         this.metric_array = darray
         this.weights_array = warray
         this.history += 'Combined metric arrays using ' + self.pyuvdata_version_str
+
+        this.check()
         if not inplace:
             return this
 
@@ -919,6 +913,7 @@ class UVFlag(UVBase):
             self._set_mode_metric()
         self.clear_unused_attributes()
         self.history += 'Pol axis collapsed with ' + self.pyuvdata_version_str
+        self.check()
 
     def to_waterfall(self, method='quadmean', keep_pol=True):
         """
