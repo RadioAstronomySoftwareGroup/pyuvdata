@@ -4423,10 +4423,10 @@ class UVData(UVBase):
         # seconds, so we need to convert.
         return np.diff(np.sort(list(set(self.time_array))))[0] * 86400
 
-    def get_antenna_redundancies(self, tol=1.0, include_autos=True,
-                                 conjugate_bls=False):
+    def get_redundancies(self, tol=1.0, use_antpos=False,
+                                include_conjugates=True, include_autos=True):
         """
-        Get redundant baselines to a given tolerance from antenna positions.
+        Get redundant baselines to a given tolerance.
 
         Finds all possible redundant baselines (antenna pairs) not just those with data.
 
@@ -4434,12 +4434,16 @@ class UVData(UVBase):
         ----------
         tol : float
             Redundancy tolerance in meters (default 1m).
+        use_antpos : bool
+            Use antenna positions to find all possible redundant groups for this
+            telescope (default False).
+            The returned baselines are in the 'u>0' convention.
+        include_conjugates : bool
+            Option to include baselines that are redundant under conjugation.
+            Only used if use_antpos is False.
         include_autos : bool
             Option to include autocorrelations in the full redundancy list.
-        conjugate_bls : bool
-            Option to conjugate baselines on this object to the 'u>0' convention.
-            Set this to True to ensure that the returned baseline numbers will
-            match the baseline numbers in the data (if they exist in the data).
+            Only used if use_antpos is True.
 
         Returns
         -------
@@ -4449,47 +4453,32 @@ class UVData(UVBase):
             List of vectors describing redundant group uvw centers
         lengths : list of float
             List of redundant group baseline lengths in meters
+        conjugate_bls : list of int, or None
+            List of indices for baselines that must be conjugated to fit into their
+            redundant groups.
+            Will return None if:
+                use_antpos is True
+                use_antpos is False and include_conjugates is False
 
         Notes
-        -----
-        Note that this method finds all possible redundant baselines in the 'u>0'
-        part of the uv plane. In order for the returned baseline numbers to match
-        baselines in this object, this method will conjugate baselines on this
-        object to the 'u>0' convention unless `no_conjugate` is set to True.
+        ----
+        If use_antpos is set, then this function will find all redundant baseline groups
+        for this telescope, under the u>0 antenna ordering convention. If use_antpos is not set,
+        this function will look for redundant groups in the data.
         """
-        if conjugate_bls:
-            self.conjugate_bls(convention='u>0')
-        antpos, numbers = self.get_ENU_antpos(center=False)
-        return uvutils.get_antenna_redundancies(numbers, antpos, tol=tol,
-                                                include_autos=include_autos)
 
-    def get_baseline_redundancies(self, tol=1.0):
-        """
-        Get baseline redundancies to a given tolerance from uvw_array.
+        if use_antpos:
+            antpos, numbers = self.get_ENU_antpos(center=False)
+            return uvutils.get_antenna_redundancies(numbers, antpos, tol=tol,
+                                                    include_autos=include_autos)
 
-        Parameters
-        ----------
-        tol : float
-            Redundancy tolerance in meters, default is 1.0 corresponding to 1 meter.
-
-        Returns
-        -------
-        baseline_groups : list of lists of int
-            List of lists of redundant baseline numbers
-        vec_bin_centers : list of ndarray of float
-            List of vectors describing redundant group uvw centers
-        lengths : list of float
-            List of redundant group baseline lengths in meters
-        baseline_ind_conj : list of int
-            List of baselines that are redundant when reversed.
-        """
         _, unique_inds = np.unique(self.baseline_array, return_index=True)
         unique_inds.sort()
         baseline_vecs = np.take(self.uvw_array, unique_inds, axis=0)
         baselines = np.take(self.baseline_array, unique_inds)
 
         return uvutils.get_baseline_redundancies(baselines, baseline_vecs,
-                                                 tol=tol, with_conjugates=True)
+                                                 tol=tol, with_conjugates=include_conjugates)
 
     def compress_by_redundancy(self, tol=1.0, inplace=True, metadata_only=None,
                                keep_all_metadata=True):
@@ -4520,7 +4509,7 @@ class UVData(UVBase):
             if inplace is False, return the compressed UVData object
         """
 
-        red_gps, centers, lengths, conjugates = self.get_baseline_redundancies(tol)
+        red_gps, centers, lengths, conjugates = self.get_redundancies(tol)
 
         bl_ants = [self.baseline_to_antnums(gp[0]) for gp in red_gps]
         return self.select(bls=bl_ants, inplace=inplace, metadata_only=metadata_only,
@@ -4543,8 +4532,8 @@ class UVData(UVBase):
             string specifying minor order along the blt axis (see `reorder_blts`)
         """
 
-        red_gps, centers, lengths = self.get_antenna_redundancies(tol=tol,
-                                                                  conjugate_bls=True)
+        self.conjugate_bls(convention='u>0')
+        red_gps, centers, lengths, _, = self.get_redundancies(tol=tol, use_antpos=True) 
 
         # Stack redundant groups into one array.
         group_index, bl_array_full = zip(*[(i, bl) for i, gp in enumerate(red_gps) for bl in gp])
