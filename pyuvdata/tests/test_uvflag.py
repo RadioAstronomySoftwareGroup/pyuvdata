@@ -288,6 +288,57 @@ def test_read_write_ant():
 
 
 @uvtest.skipIf_no_h5py
+def test_read_missing_nants_data():
+    # redundant skip definition but a good example
+    h5py = pytest.importorskip('h5py')
+    uv = UVCal()
+    uv.read_calfits(test_c_file)
+    uvf = UVFlag(uv, mode='flag', label='test')
+    uvf.write(test_outfile, clobber=True)
+
+    with h5py.File(test_outfile, 'a') as h5:
+        del h5['Header/Nants_data']
+
+    uvf2 = uvtest.checkWarnings(UVFlag, [test_outfile], {}, nwarnings=1,
+                                message='Nants_data not available in file,',
+                                category=UserWarning)
+
+    # Update history to match expected additions that were made
+    uvf.history += 'Written by ' + pyuvdata_version_str
+    uvf.history += ' Read by ' + pyuvdata_version_str
+
+    # make sure this was set to None
+    assert uvf2.Nants_data == len(uvf2.ant_array)
+
+    uvf2.Nants_data = uvf.Nants_data
+    # verify no other elements were changed
+    assert uvf.__eq__(uvf2, check_history=True)
+
+
+@uvtest.skipIf_no_h5py
+def test_read_missing_nspws():
+    # redundant skip definition but a good example
+    h5py = pytest.importorskip('h5py')
+    uv = UVCal()
+    uv.read_calfits(test_c_file)
+    uvf = UVFlag(uv, mode='flag', label='test')
+    uvf.write(test_outfile, clobber=True)
+
+    with h5py.File(test_outfile, 'a') as h5:
+        del h5['Header/Nspws']
+
+    uvf2 = UVFlag(test_outfile)
+    # Update history to match expected additions that were made
+    uvf.history += 'Written by ' + pyuvdata_version_str
+    uvf.history += ' Read by ' + pyuvdata_version_str
+    # make sure Nspws was calculated
+    assert uvf2.Nspws == 1
+
+    # verify no other elements were changed
+    assert uvf.__eq__(uvf2, check_history=True)
+
+
+@uvtest.skipIf_no_h5py
 def test_read_write_nocompress():
     uv = UVData()
     uv.read_miriad(test_d_file)
