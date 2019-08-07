@@ -220,9 +220,6 @@ def test_read_write_loop():
     uvf = UVFlag(uv, label='test')
     uvf.write(test_outfile, clobber=True)
     uvf2 = UVFlag(test_outfile)
-    # Update history to match expected additions that were made
-    uvf.history += 'Written by ' + pyuvdata_version_str
-    uvf.history += ' Read by ' + pyuvdata_version_str
     assert uvf.__eq__(uvf2, check_history=True)
 
 
@@ -234,9 +231,6 @@ def test_read_write_loop_waterfal():
     uvf.to_waterfall()
     uvf.write(test_outfile, clobber=True)
     uvf2 = UVFlag(test_outfile)
-    # Update history to match expected additions that were made
-    uvf.history += 'Written by ' + pyuvdata_version_str
-    uvf.history += ' Read by ' + pyuvdata_version_str
     assert uvf.__eq__(uvf2, check_history=True)
 
 
@@ -283,9 +277,6 @@ def test_read_write_ant():
     uvf = UVFlag(uv, mode='flag', label='test')
     uvf.write(test_outfile, clobber=True)
     uvf2 = UVFlag(test_outfile)
-    # Update history to match expected additions that were made
-    uvf.history += 'Written by ' + pyuvdata_version_str
-    uvf.history += ' Read by ' + pyuvdata_version_str
     assert uvf.__eq__(uvf2, check_history=True)
 
 
@@ -304,10 +295,6 @@ def test_read_missing_nants_data():
     uvf2 = uvtest.checkWarnings(UVFlag, [test_outfile], {}, nwarnings=1,
                                 message='Nants_data not available in file,',
                                 category=UserWarning)
-
-    # Update history to match expected additions that were made
-    uvf.history += 'Written by ' + pyuvdata_version_str
-    uvf.history += ' Read by ' + pyuvdata_version_str
 
     # make sure this was set to None
     assert uvf2.Nants_data == len(uvf2.ant_array)
@@ -330,9 +317,6 @@ def test_read_missing_nspws():
         del h5['Header/Nspws']
 
     uvf2 = UVFlag(test_outfile)
-    # Update history to match expected additions that were made
-    uvf.history += 'Written by ' + pyuvdata_version_str
-    uvf.history += ' Read by ' + pyuvdata_version_str
     # make sure Nspws was calculated
     assert uvf2.Nspws == 1
 
@@ -347,9 +331,6 @@ def test_read_write_nocompress():
     uvf = UVFlag(uv, label='test')
     uvf.write(test_outfile, clobber=True, data_compression=None)
     uvf2 = UVFlag(test_outfile)
-    # Update history to match expected additions that were made
-    uvf.history += 'Written by ' + pyuvdata_version_str
-    uvf.history += ' Read by ' + pyuvdata_version_str
     assert uvf.__eq__(uvf2, check_history=True)
 
 
@@ -360,9 +341,6 @@ def test_read_write_nocompress_flag():
     uvf = UVFlag(uv, mode='flag', label='test')
     uvf.write(test_outfile, clobber=True, data_compression=None)
     uvf2 = UVFlag(test_outfile)
-    # Update history to match expected additions that were made
-    uvf.history += 'Written by ' + pyuvdata_version_str
-    uvf.history += ' Read by ' + pyuvdata_version_str
     assert uvf.__eq__(uvf2, check_history=True)
 
 
@@ -516,7 +494,7 @@ def test_add():
     assert uv3.type == 'baseline'
     assert uv3.mode == 'metric'
     assert np.array_equal(uv1.polarization_array, uv3.polarization_array)
-    assert 'Data combined along time axis with ' + pyuvdata_version_str in uv3.history
+    assert 'Data combined along time axis. ' in uv3.history
 
 
 @uvtest.skipIf_no_h5py
@@ -543,7 +521,7 @@ def test_add_baseline():
     assert uv3.type == 'baseline'
     assert uv3.mode == 'metric'
     assert np.array_equal(uv1.polarization_array, uv3.polarization_array)
-    assert 'Data combined along baseline axis with ' + pyuvdata_version_str in uv3.history
+    assert 'Data combined along baseline axis. ' in uv3.history
 
 
 def test_add_antenna():
@@ -565,7 +543,7 @@ def test_add_antenna():
     assert uv3.type == 'antenna'
     assert uv3.mode == 'metric'
     assert np.array_equal(uv1.polarization_array, uv3.polarization_array)
-    assert 'Data combined along antenna axis with ' + pyuvdata_version_str in uv3.history
+    assert 'Data combined along antenna axis. ' in uv3.history
 
 
 @uvtest.skipIf_no_h5py
@@ -588,7 +566,7 @@ def test_add_frequency():
     assert uv3.type == 'baseline'
     assert uv3.mode == 'metric'
     assert np.array_equal(uv1.polarization_array, uv3.polarization_array)
-    assert 'Data combined along frequency axis with ' + pyuvdata_version_str in uv3.history
+    assert 'Data combined along frequency axis. ' in uv3.history
 
 
 @uvtest.skipIf_no_h5py
@@ -611,7 +589,7 @@ def test_add_pol():
     assert uv3.mode == 'metric'
     assert np.array_equal(np.concatenate((uv1.polarization_array, uv2.polarization_array)),
                           uv3.polarization_array)
-    assert 'Data combined along polarization axis with ' + pyuvdata_version_str in uv3.history
+    assert 'Data combined along polarization axis. ' in uv3.history
 
 
 def test_add_flag():
@@ -639,7 +617,7 @@ def test_add_flag():
     assert uv3.type == 'baseline'
     assert uv3.mode == 'flag'
     assert np.array_equal(uv1.polarization_array, uv3.polarization_array)
-    assert 'Data combined along time axis with ' + pyuvdata_version_str in uv3.history
+    assert 'Data combined along time axis. ' in uv3.history
 
 
 def test_add_errors():
