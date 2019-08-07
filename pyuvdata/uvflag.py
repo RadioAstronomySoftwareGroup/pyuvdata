@@ -614,8 +614,8 @@ class UVFlag(UVBase):
                         self.Nants_data = int(header['Nants_data'][()])
                     except KeyError:
                         warnings.warn('Nants_data not available in file, '
-                                      'assuming < 2048.')
-                        self.Nants_data = None
+                                      'attempting to calculate from ant_array.')
+                        self.Nants_data = len(self.ant_array)
 
                     if 'Nspws' in header.keys():
                         self.Nspws = int(header['Nspws'][()])
