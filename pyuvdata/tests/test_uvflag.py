@@ -1379,7 +1379,9 @@ def test_combine_metrics_not_uvflag():
     uvc = UVCal()
     uvc.read_calfits(test_c_file)
     uvf = UVFlag(uvc)
-    pytest.raises(ValueError, uvf.combine_metrics, 'bubblegum')
+    with pytest.raises(ValueError) as cm:
+        uvf.combine_metrics('bubblegum')
+    assert str(cm.value).startswith('"others" must be UVFlag or list of UVFlag objects')
 
 
 def test_combine_metrics_not_metric():
@@ -1390,7 +1392,9 @@ def test_combine_metrics_not_metric():
     uvf.metric_array = np.random.normal(size=uvf.metric_array.shape)
     uvf2 = uvf.copy()
     uvf2.to_flag()
-    pytest.raises(ValueError, uvf.combine_metrics, uvf2)
+    with pytest.raises(ValueError) as cm:
+        uvf.combine_metrics(uvf2)
+    assert str(cm.value).startswith('UVFlag object and "others" must be in "metric"')
 
 
 def test_combine_metrics_wrong_shape():
@@ -1401,7 +1405,9 @@ def test_combine_metrics_wrong_shape():
     uvf.metric_array = np.random.normal(size=uvf.metric_array.shape)
     uvf2 = uvf.copy()
     uvf2.to_waterfall()
-    pytest.raises(ValueError, uvf.combine_metrics, uvf2)
+    with pytest.raises(ValueError) as cm:
+        uvf.combine_metrics(uvf2)
+    assert str(cm.value).startswith('UVFlag metric array shapes do not match.')
 
 
 def test_super():

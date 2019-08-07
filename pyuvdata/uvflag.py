@@ -866,11 +866,14 @@ class UVFlag(UVBase):
             uvf (UVFlag): If inplace==False, return new UVFlag object with combined metrics.
         """
         # Ensure others is iterable (in case of single UVFlag object)
-        others = uvutils._get_iterable(others)
+        # cannot use uvutils._get_iterable because the object itself is iterable
+        if not isinstance(others, (list, tuple, np.ndarray)):
+            others = [others]
+
         if np.any([not isinstance(other, UVFlag) for other in others]):
             raise ValueError('"others" must be UVFlag or list of UVFlag objects')
         if (self.mode != 'metric') or np.any([other.mode != 'metric' for other in others]):
-            raise ValueError('UVFlag object and "others" must be in "flag" mode '
+            raise ValueError('UVFlag object and "others" must be in "metric" mode '
                              'to use "add_metrics" function.')
         if inplace:
             this = self
