@@ -27,17 +27,14 @@ def input_output_mapping():
             pfb_inputs_to_outputs[pfb_mapper[i] + p * 64] = p * 64 + i
     return pfb_inputs_to_outputs
 
-#TODO: ask Bryna: do we want to allow reading in a subset of files from an observation? 
-#or do we want to force all the files from an observation to be included?
-
 class MWACorrFITS(UVData):
     """
     Defines a MWA correlator fits-specific subclass of UVData for reading MWA 
     correlator fits files. This class should not be interacted with directly, 
     instead use the read_mwa_corr_fits method on the UVData class.
     """
-    def read_mwa_corr_fits(self, filelist, run_check = True, check_extra = True, 
-                 run_check_acceptability = True):
+    def read_mwa_corr_fits(self, filelist, use_cotter_flags=False, run_check=True, check_extra=True, 
+                 run_check_acceptability=True):
         """
         Read in data from a list of MWA correlator fits files. 
 
@@ -54,29 +51,54 @@ class MWACorrFITS(UVData):
         
         metafits_file = None
         file_dict = {}
-        
+        start_time = 0.0
+        end_time = 0.0
+        included_file_nums=[]
+        cotter_warning=False
+        num_fine_chans=0
+       
+        #TOOD: what (if anything) to do with the metafits_ppds file?        
+        #iterate through files and organize
+        #create a list of included coarse channels
+        #find the first and last times that have data
         for file in filelist:
             if file.lower().endswith('.metafits'):
                 #check that have a metafits file
-                #TODO: * *  * fix this so that it allows for multiple metafits files! * * * 
+                #TODO: figure out what to do with multiple metafits files for multiple obs
                 #for now, force only one metafits file
                 if metafits_file is not None:
                     raise ValueError('multiple metafits files in filelist')
                 metafits_file = file
             #organize data files
-            #TOOD: what to do with the metafits_ppds file?
-            elif file.lower().endswith('00.fits'):
-                if '00' not in file_dict.keys():
-                    file_dict['00'] = [file]
+            elif file.lower().endswith('00.fits') or file.lower().endswith('01.fits'):
+                #get the file number from the file name; this will later be mapped to a coarse channel
+                file_num=int(file.split('_')[-2][-2:])
+                if file_num not in included_file_nums:
+                    included_file_nums.append(file_num)
+                with fits.open(file) as data:
+                    #check headers for first and last times containing data
+                    if start_time == 0.0:
+                        start_time = data[1].header['TIME'] + data[1].header['MILLITIM']/1000.0
+                    elif start_time > data[1].header['TIME'] + data[1].header['MILLITIM']/1000.0:
+                        start_time = data[1].header['TIME'] + data[1].header['MILLITIM']/1000.0
+                    if end_time < data[-1].header['TIME'] + data[-1].header['MILLITIM']/1000.0:
+                        end_time = data[-1].header['TIME'] + data[-1].header['MILLITIM']/1000.0
+                    #get number of fine channels
+                    if num_fine_chans == 0:
+                        num_fine_chans == data[1].header['NAXIS2']
+                    elif num_fine_chans != data[1].header['NAXIS2']:
+                        raise ValueError('files submitted have different fine channel widths')
+                #organize files
+                if 'data' not in file_dict.keys():
+                    file_dict['data'] = [file]
                 else:
-                    file_dict['00'].append(file)
-            elif file.lower().endswith('01.fits'):
-                if '01' not in file_dict.keys():
-                    file_dict['01'] = [file]
-                else:
-                    file_dict['01'].append(file)
+                    file_dict['data'].append(file)
+            #look for flag files
             elif file.lower().endswith('.mwaf'):
-                if 'flags' not in file_dict.keys():
+                if use_cotter_flags == False and cotter_warning == False:
+                    warnings.warn('mwaf files submitted but will not be used. User might wish to rerun with use_cotter_flags=True')
+                    cotter_warning == True 
+                elif 'flags' not in file_dict.keys():
                     file_dict['flags'] = [file]
                 else:
                     file_dict['flags'].append(file)        
@@ -84,14 +106,11 @@ class MWACorrFITS(UVData):
                 continue
         
         #checks:
-        if '01' not in file_dict.keys() and '00' not in file_dict.keys():
+        if 'data' not in file_dict.keys():
             raise ValueError('no fits files submitted')
-        if '01' not in file_dict.keys() or '00' not in file_dict.keys():
-            raise ValueError('this reader currently does not support reading in a subset of the observation')
-        if len(file_dict['00'])!= len(file_dict['01']):
-            raise ValueError('coarse band file missing')
         if 'flags' not in file_dict.keys():
             warnings.warn('no flag files submitted')
+        #TODO: think about what checks make sense for missing data
         
         #first set parameters that are always true
         self.Nspws = 1
@@ -100,26 +119,27 @@ class MWACorrFITS(UVData):
         self.vis_units = 'uncalib'
         self.Npols = 4 
         
-        #set antenna array location latitude (radians), longitude (radians), altitude
-        #(meters above sea level)
-        lat = -26.703319 * np.pi/180
-        lon = 116.67081 * np.pi/180
-        alt = 377
+#==============================================================================
+#         #set antenna array location latitude (radians), longitude (radians), altitude
+#         #(meters above sea level)
+#         lat = -26.703319 * np.pi/180
+#         lon = 116.67081 * np.pi/180
+#         alt = 377
+#         self.telescope_location_lat_lon_alt=[lat,lon,alt]        
+#==============================================================================
         
         #get information from metafits file
         with fits.open(metafits_file, memmap = True) as meta:
             meta_hdr = meta[0].header
             
-            chans = meta_hdr['CHANNELS'].split(', ') 
+            #get a list of coarse channels
+            coarse_chans=meta_hdr['CHANNELS'].split(',')
+            coarse_chans = np.array([int(i) for i in coarse_chans])
             
-            #TODO: fix this with a better time array solution
-            start_time = Time(meta_hdr['GPSTIME'] + 2, format = 'gps', scale = 'utc')
-            start_time = start_time.unix
-            inttime = meta_hdr['INTTIME'] 
+            #integration time in seconds
+            int_time = meta_hdr['INTTIME'] 
             
             #get parameters from header
-            self.Nfreqs = meta_hdr['NCHANS']
-            self.Ntimes = meta_hdr['NSCANS']
             self.channel_width = meta_hdr['FINECHAN'] * 1000#this assumes no averaging by this code so will need to be updated
             self.history = str(meta_hdr['HISTORY'])
             if not uvutils._check_history_version(self.history, self.pyuvdata_version_str):
@@ -132,9 +152,9 @@ class MWACorrFITS(UVData):
             #get antenna data from metafits file table
             meta_tbl = meta[1].data
             
-            #TODO: talk to Bryna re: ordering
-            self.antenna_numbers = meta_tbl['Antenna'][1::2]#because of polarization, each antenna # is listed twice
-            self.antenna_names = meta_tbl['TileName'][1::2]
+            antenna_numbers = meta_tbl['Antenna'][1::2]#because of polarization, each antenna # is listed twice
+            antenna_names = meta_tbl['TileName'][1::2]
+            antenna_flags = meta_tbl['Flag'][1::2]
             
             #get antenna postions in enu coordinates
             antenna_positions = np.zeros(len(self.antenna_numbers),3)
@@ -145,22 +165,100 @@ class MWACorrFITS(UVData):
             #TODO: self.antenna_diameters
             #TODO: self.x_orientation
         
-        #convert antenna positions from enu to ecef
-        self.antenna_positions=uvutils.ECEF_from_ENU(antenna_positions,lat,lon,alt)
+        #reorder antenna parameters from metafits ordering
+        reordered_inds = antenna_numbers.argsort()
+        self.antenna_numbers = antenna_numbers[reordered_inds]
+        self.antenna_names = antenna_names[reordered_inds]
+        self.antenna_positions = antenna_positions[reordered_inds,:]
+        antenna_flags=antenna_flags[reordered_inds]
         
         #set parameters from other parameters
         self.Nants_data = len(self.antenna_numbers)
         self.Nants_telescope = len(self.antenna_numbers)
         self.Nbls = len(self.antenna_numbers) * (len(self.antenna_numbers + 1))/2
         self.Nblts = self.Nbls * self.Ntimes
-        self.integration_time = np.array([inttime for i in range(self.Nblts)])#assumes no averaging
+        self.integration_time = np.array([int_time for i in range(self.Nblts)])#assumes no averaging        
         
-        #create an array of channel numbers
-        chans = np.array([int(i) for i in chans])
+        #build time array of centers
+        time_array = np.arange(start_time + int_time/2.0, end_time + int_time/2.0 + int_time, int_time)
+        #TODO: ask Bryna if need to change time_array to integers
+        julian_time_array = np.array([Time(i, format='unix', scale='utc').jd for i in time_array])
+        self.Ntimes = len(self.time_array)
+        #TODO:
+        self.time_array=np.zeros(self.Nblts)
+        #TODO:
+        self.lst_array = np.zeros(self.Nblts)
         
-        #TODO: fix this for a subset of included coarse channels?
+        #get telescope parameters
+        self.set_telescope_params()
+        
+        #convert antenna positions from enu to ecef
+        lat, lon, alt = self.telescope_location_lat_lon_alt
+        antenna_positions = uvutils.ECEF_from_ENU(antenna_positions,lat,lon,alt)
+        
+        #make initial antenna arrays, where ant_1 <= ant_2
+        ant_1_array =[]
+        ant_2_array = []
+        for i in range(self.Nants_telescope):
+            for j in range(i,self.Nants_telescope):
+                ant_1_array.append(i)
+                ant_2_array.append(j)
+        
+        #make initial uvw array
+        uvw_array = np.zeros(self.Nbls,3)        
+        #uvw = xyz(ant2) - xyz(ant1)
+        for i in range(len(ant_1_array)):
+            ant_1 = ant_1_array[i]
+            ant_2 = ant_2_array[i]
+            uvw_array[i,3] = self.antenna_positions[ant_2,3] - self.antenna_positions[ant_1,3]
+        
+        #TODO:
+        self.baseline_array = np.zeros(self.Nblts)
+        #TODO:
+        self.ant_1_array = np.zeros(self.Nblts)
+        #TODO:
+        self.ant_2_array = np.zeros(self.Nblts)
+        #TODO
+        self.uvw_array = np.zeros((self.Nblts, 3))
+        
+        #coarse channel mapping:
+        #channels in group 0-128 go in order; channels in group 129-155 go in reverse order
+        #that is, if the lowest channel is 127, it will be assigned to the first file
+        #channel 128 will be assigned to the second file
+        #then the highest channel will be assigned to the third file
+        #and the next hightest channel assigned to the fourth file, and so on
+        count = 0   
+        #count the number of channels that are in group 0-128
+        for i in coarse_chans:
+            if i <= 128:
+                count += 1
+        #map file numbers to coarse channel numbers
+        file_nums_to_coarse_chans = {i+1:coarse_chans[i] if i<count else coarse_chans[(len(coarse_chans) + count-i-1)] for i in range(len(coarse_chans))}
+        #map file numbers to an index that orders them
+        file_nums_to_index = {i + 1:i if i<count else (len(coarse_chans) + count-i-1) for i in range(len(coarse_chans))}
+        
+        #find which coarse channels are actually included
+        included_coarse_chans = []
+        for i in included_file_nums:
+            included_coarse_chans.append(file_nums_to_coarse_chans[i])
+        included_coarse_chans=included_coarse_chans.sorted()
+        
+        #check that coarse channels are contiguous.
+        #TODO: look at a data file where the coarse channels aren't contiguous to make sure this works
+        chans = np.array([int(i) for i in included_coarse_chans])
+        for i in np.diff(chans):
+            if i!= 1:
+                warnings.warn('coarse channels are not contiguous for this observation')
+                break
+            
+        #warn user if not all coarse channels are included
+        if len(included_coarse_chans) != len(coarse_chans):
+            warnings.warn('some coarse channel files were not submitted')
+        
         #build frequency array
+        self.Nfreqs=len(included_coarse_chans) * num_fine_chans
         self.frequency_array = np.zeros((self.Nspws, self.Nfreqs))
+        
         #each coarse channel is split into 128 fine channels of width 10 kHz. The first fine channel for 
         #each coarse channel is centered on the lower bound frequency of that channel and it's center
         #frequency is computed as fine_center = coarse_channel_number * 1280-640 (kHz).
@@ -176,86 +274,32 @@ class MWACorrFITS(UVData):
         num_avg_chans = 128/avg_factor
         width = self.channel_width/1000
         offset = (avg_factor-1) * 10/2
-        for i in range(len(chans)):
+        
+        for i in range(len(included_coarse_chans)):
             #get the lowest fine freq going into the lowest averaged channel(kHz)
-            lower_fine_freq = chans[i] * 1280 - 640
+            lower_fine_freq = included_coarse_chans[i] * 1280 - 640
             #find the center of the lowest averaged channel
             first_center = lower_fine_freq + offset
             #add the channel centers for this coarse channel into the frequency array (converting from kHz to Hz)
             self.frequency_array[0, int(i * 128/avg_factor):int((i + 1) * 128/avg_factor)] = np.arange(first_center, first_center + num_avg_chans * width, width) * 1000
         
-        #check that coarse channels are contiguous.
-        #TODO: look at a data file where the coarse channels aren't contiguous to make sure this works
-        chans = np.array([int(i) for i in chans])
-        for i in np.diff(chans):
-            if i!= 1:
-                warnings.warn('coarse channels are not contiguous for this observation')
-                break
-        
-        #check that all channels are included
-        #make an array of channels from file names
-        file_chans = np.array([int(file.split('_')[-2][-2:]) for file in file_dict['00']])
-        if len(chans)!= len(file_chans):
-            warnings.warn('only a subset of coarse channels are being processed')        
-            #if not all channels are included, check that included channels are contiguous
-            #actually this doesn't work, because the ordering is weird
-            for i in np.diff(file_chans):
-                if i!= 1:
-                    warnings.warn('coarse channels are not contiguous for included data')
-                    break
-        
-        #make dictionary for coarse channel ordering
-        #this breaks if coarse channel files are missing
-        #channels in group 0-128 go in order; channels in group 129-155 go in reverse order
-        #that is, if the lowest channel is 127, it will be assigned to the first file
-        #channel 128 will be assigned to the second file
-        #then the highest channel will be assigned to the third file
-        #and the next hightest channel assigned to the fourth file, and so on
-        count = 0   
-        #count the number of channels that are in group 0-128
-        for i in chans:
-            if i <= 128:
-                count += 1
-        chan_order = {i + 1:i if i<count else (len(chans) + count-i-1) for i in range(len(chans))}
-        
-        #read in the data!
-        #read into a data array with dimensions (time, frequency, baselines/pols)
-        #and a times array holds the unix timestamp from each hdu
-        #TODO: fix this to deal with a frequency or time subset?
+        #read data into an array with dimensions (time, frequency, baselines*pols)
         data_dump = np.zeros((self.Ntimes, self.Nfreqs, self.Nbls * self.Npols), dtype = np.complex)
-        times = np.arange(start_time, start_time + self.Ntimes * 0.5, 0.5)
         
-        #build time array
-        #TODO: convert time_array from unix to julian dates
-        self.time_array = np.array([i for i in times for j in range(self.Nbls)])
-        
-        #read the earlier time files
-        for file in file_dict['00']:
-            #get the course channel index from the file name
-            coarse=int(file.split('_')[-2][-2:])
+        #read data files
+        for file in file_dict['data']:
+            #get the file number from the file name
+            file_num = int(file.split('_')[-2][-2:])
+            #map file number to frequency index
+            freq_ind = file_nums_to_index[file_num] * num_fine_chans
             with fits.open(file,memmap=False,do_not_scale_image_data=False) as hdu_list:
-                end_time=len(hdu_list)
-                #get number of fine channels
-                fine=hdu_list[1].header['NAXIS2']
-                freq_ind=chan_order[coarse]*fine
+                #count number of times
+                end_time = len(hdu_list)
                 for i in range(1,end_time):
-                    time=hdu_list[i].header['TIME']+hdu_list[i].header['MILLITIM']/1000.0
-                    time_ind=np.where(times==time)[0][0]
-                    #this takes data from real to complex numbers
-                    data_dump[time_ind,freq_ind:freq_ind+fine,:]=hdu_list[i].data[:,0::2]+1j*hdu_list[i].data[:,1::2]
-        #read the later time files
-        for file in file_dict['01']:
-            #get the coarse channel index from the file name
-            coarse=int(file.split('_')[-2][-2:])
-            with fits.open(file,memmap=False,do_not_scale_image_data=False) as hdu_list:
-                end_time=len(hdu_list)
-                #find frequency index
-                freq_ind=chan_order[coarse]*fine
-                for i in range(1,end_time):
-                    time=hdu_list[i].header['TIME']+hdu_list[i].header['MILLITIM']/1000.0
-                    time_ind=np.where(times==time)[0][0]
-                    #this takes data from real to complex numbers
-                    data_dump[time_ind,freq_ind:freq_ind+fine,:] = hdu_list[i].data[:,0::2] + 1j*hdu_list[i].data[:,1::2]
+                    time = hdu_list[i].header['TIME'] + hdu_list[i].header['MILLITIM']/1000.0 + int_time/2.0
+                    time_ind = np.where(time_array == time)[0][0]
+                    #dump data into matrix and take data from real to complex numbers
+                    data_dump[time_ind, freq_ind:freq_ind+num_fine_chans, :] = hdu_list[i].data[:,0::2]+1j*hdu_list[i].data[:,1::2]
         
         #TODO: add flagging for missing times
         #TODO: read in flag files
@@ -264,20 +308,21 @@ class MWACorrFITS(UVData):
         #build new data array
         #polarizations are ordered yy, yx, xy, xx
         self.polarization_array = np.array([-6, -8, -7, -5])
+        #initialize matrix for data reordering
         data_reorder = np.zeros((self.Ntimes, self.Nbls, self.Nfreqs, self.Npols), dtype = np.complex)
         
         #build mapper from antenna numbers and polarizations to pfb inputs
         corr_ants_to_pfb_inputs = {}
-        for i in range(len(self.antenna_numbers)):
+        for i in range(len(antenna_numbers)):
             for p in range(2):
-                corr_ants_to_pfb_inputs[(self.antenna_numbers[i], p)] = 2 * i + p
+                corr_ants_to_pfb_inputs[(antenna_numbers[i], p)] = 2 * i + p
                 
         #for mapping, start with a pair of antennas/polarizations 
         #this is the pair we want to find the data for
         #map the pair to the corresponding pfb input indices 
         #map the pfb input indices to the pfb output indices
         #these are the indices for the data corresponding to the initial antenna/pol pair
-        pfb_inputs_to_outputs=input_output_mapping()
+        pfb_inputs_to_outputs = input_output_mapping()
         for ant1 in range(128):
             for ant2 in range(ant1,128):
                 for p1 in range(2):
@@ -285,24 +330,24 @@ class MWACorrFITS(UVData):
                         #generate the indices in data_reorder for this combination 
                         #baselines are ordered (0,0),(0,1),...,(0,127),(1,1),.....
                         #polarizion of 0 (1) corresponds to y (x)
-                        pol_ind=2*p1+p2
-                        bls_ind=128*ant1-ant1*(ant1+1)/2+ant2
+                        pol_ind = 2 * p1 + p2
+                        bls_ind = 128 * ant1 - ant1 * (ant1 + 1)/2 + ant2
                         #find the pfb output indices for this combination
-                        ind1_1,ind1_2=corr_ants_to_pfb_inputs[(ant1,p1)],corr_ants_to_pfb_inputs[(ant2,p2)]
-                        ind2_1,ind2_2=pfb_inputs_to_outputs[(ind1_1)],pfb_inputs_to_outputs[(ind1_2)]
-                        out_ant1=int(ind2_1/2)
-                        out_ant2=int(ind2_2/2)
-                        out_p1=ind2_1%2
-                        out_p2=ind2_2%2
+                        ind1_1,ind1_2 = corr_ants_to_pfb_inputs[(ant1,p1)],corr_ants_to_pfb_inputs[(ant2,p2)]
+                        ind2_1,ind2_2 = pfb_inputs_to_outputs[(ind1_1)],pfb_inputs_to_outputs[(ind1_2)]
+                        out_ant1 = int(ind2_1/2)
+                        out_ant2 = int(ind2_2/2)
+                        out_p1 = ind2_1%2
+                        out_p2 = ind2_2%2
                         #the correlator has antenna 1 >= antenna2, so check if ind2_1 and ind2_2 satisfy this
                         #get the index for the data
-                        if out_ant1<out_ant2:
-                            data_index=2*out_ant2*(out_ant2+1)+4*out_ant1+2*out_p2+out_p1
+                        if out_ant1 < out_ant2:
+                            data_index = 2 * out_ant2 * (out_ant2+1) + 4 * out_ant1 + 2 * out_p2 + out_p1
                             #need to take the complex conjugate of the data
-                            data_reorder[:,bls_ind,:,pol_ind]=np.conj(data_dump[:,:,data_index])
+                            data_reorder[:,bls_ind,:,pol_ind] = np.conj(data_dump[:,:,data_index])
                         else:
-                            data_index=2*out_ant1*(out_ant1+1)+4*out_ant2+2*out_p1+out_p2
-                            data_reorder[:,bls_ind,:,pol_ind]=data_dump[:,:,data_index] 
+                            data_index = 2 * out_ant1 * (out_ant1 + 1) + 4 * out_ant2 + 2 * out_p1 + out_p2
+                            data_reorder[:,bls_ind,:,pol_ind] = data_dump[:,:,data_index] 
         
         #add spectral window index
         #assign as data array        
@@ -310,27 +355,14 @@ class MWACorrFITS(UVData):
         
         
         
-        #TODO:
-        self.baseline_array = np.zeros(self.Nblts, dtype = np.complex)
-        #TODO:
-        self.ant_1_array = np.zeros(self.Nblts)
-        #TODO:
-        self.ant_2_array = np.zeros(self.Nblts)
+        
         #TODO:
         self.data_array = np.zeros((self.Nblts, self.Nspws, self.Nfreqs, self.Npols))
         #TODO:
         self.flag_array = np.zeros((self.Nblts, self.Nspws, self.Nfreqs, self.Npols))
-        #TODO:
-        self.lst_array = np.zeros(self.Nblts)
-        #TODO:
+        #TODO: talk to Bryna about what makes sense for this!
         self.nsample_array = np.zeros((self.Nblts, self.Nspws, self.Nfreqs, self.Npols))
-        #TODO
-        self.polarization_array = np.zeros(self.Npols)
-        #TODO ask Bryna what is the shape of this?
-        #self.telescope_location
         
-        #TODO
-        self.uvw_array = np.zeros((self.Nblts, 3))
             
             
             
