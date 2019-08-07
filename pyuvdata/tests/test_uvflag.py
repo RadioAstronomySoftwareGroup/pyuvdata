@@ -38,8 +38,8 @@ def test_init_bad_mode():
     uv = UVData()
     uv.read_miriad(test_d_file)
     with pytest.raises(ValueError) as cm:
-        uvf = UVFlag(uv, mode='bad_mode',
-                     history='I made a UVFlag object', label='test')
+        UVFlag(uv, mode='bad_mode',
+               history='I made a UVFlag object', label='test')
     assert str(cm.value).startswith('Input mode must be within acceptable')
 
 
@@ -183,14 +183,15 @@ def test_init_waterfall_flag():
 def test_init_waterfall_copy_flags():
     uv = UVCal()
     uv.read_calfits(test_c_file)
-    pytest.raises(NotImplementedError, UVFlag, uv, copy_flags=True, mode='flag',
-                  waterfall=True)
+    with pytest.raises(NotImplementedError) as cm:
+        UVFlag(uv, copy_flags=True, mode='flag', waterfall=True)
+    assert str(cm.value).startswith('Cannot copy flags when initializing')
 
 
 def test_init_invalid_input():
     # input is not UVData, UVCal, path, or list/tuple
     with pytest.raises(ValueError) as cm:
-        foo = UVFlag(14)
+        UVFlag(14)
     assert str(cm.value).startswith('input to UVFlag.__init__ must be one of:')
 
 
@@ -269,6 +270,7 @@ def test_bad_type_savefile():
     with h5py.File(test_outfile, 'a') as h5:
         mode = h5['Header/type']
         mode[...] = 'test'
+
     with pytest.raises(ValueError) as cm:
         uvf = UVFlag(test_outfile)
     assert str(cm.value).startswith('File cannot be read. Received type')
@@ -418,7 +420,9 @@ def test_read_list():
 
 @uvtest.skipIf_no_h5py
 def test_read_error():
-    pytest.raises(IOError, UVFlag, 'foo')
+    with pytest.raises(IOError) as cm:
+        UVFlag('foo')
+    assert str(cm.value).startswith('foo not found')
 
 
 @uvtest.skipIf_no_h5py
@@ -470,7 +474,9 @@ def test_read_change_mode():
 @uvtest.skipIf_no_h5py
 def test_write_no_clobber():
     uvf = UVFlag(test_f_file)
-    pytest.raises(ValueError, uvf.write, test_f_file)
+    with pytest.raises(ValueError) as cm:
+        uvf.write(test_f_file)
+    assert str(cm.value).startswith('File ' + test_f_file + ' exists;')
 
 
 def test_lst_from_uv():
@@ -481,7 +487,9 @@ def test_lst_from_uv():
 
 
 def test_lst_from_uv_error():
-    pytest.raises(ValueError, lst_from_uv, 4)
+    with pytest.raises(ValueError) as cm:
+        lst_from_uv(4)
+    assert str(cm.value).startswith('Function lst_from_uv can only operate on')
 
 
 @uvtest.skipIf_no_h5py
@@ -641,16 +649,30 @@ def test_add_errors():
     uvc.read_calfits(test_c_file)
     uv1 = UVFlag(uv)
     # Mismatched classes
-    pytest.raises(ValueError, uv1.__add__, 3)
+    with pytest.raises(ValueError) as cm:
+        uv1.__add__(3)
+    assert str(cm.value).startswith('Only UVFlag objects can be added to a UVFlag object')
+
     # Mismatched types
     uv2 = UVFlag(uvc)
-    pytest.raises(ValueError, uv1.__add__, uv2)
+    with pytest.raises(ValueError) as cm:
+        uv1.__add__(uv2)
+    assert str(cm.value).startswith('UVFlag object of type ')
+
     # Mismatched modes
     uv3 = UVFlag(uv, mode='flag')
-    pytest.raises(ValueError, uv1.__add__, uv3)
+    with pytest.raises(ValueError) as cm:
+        uv1.__add__(uv3)
+    assert str(cm.value).startswith('UVFlag object of mode ')
+
     # Invalid axes
-    pytest.raises(ValueError, uv1.__add__, uv1, axis='antenna')
-    pytest.raises(ValueError, uv2.__add__, uv2, axis='baseline')
+    with pytest.raises(ValueError) as cm:
+        uv1.__add__(uv1, axis='antenna')
+    assert str(cm.value).endswith('concatenated along antenna axis.')
+
+    with pytest.raises(ValueError) as cm:
+        uv2.__add__(uv2, axis='baseline')
+    assert str(cm.value).endswith('concatenated along baseline axis.')
 
 
 @uvtest.skipIf_no_h5py
@@ -949,16 +971,27 @@ def test_to_baseline_errors():
     uv.read_miriad(test_d_file)
     uvf = UVFlag(test_f_file)
     uvf.to_waterfall()
-    pytest.raises(ValueError, uvf.to_baseline, 7.3)  # invalid matching object
+    with pytest.raises(ValueError) as cm:
+        uvf.to_baseline(7.3)  # invalid matching object
+    assert str(cm.value).startswith('Must pass in UVData object or UVFlag object')
+
     uvf = UVFlag(uvc)
-    pytest.raises(ValueError, uvf.to_baseline, uv)  # Cannot pass in antenna type
+    with pytest.raises(ValueError) as cm:
+        uvf.to_baseline(uv)  # Cannot pass in antenna type
+    assert str(cm.value).startswith('Cannot convert from type "'
+                                    + uvf.type + '" to "baseline"')
     uvf = UVFlag(test_f_file)
     uvf.to_waterfall()
     uvf2 = uvf.copy()
     uvf.polarization_array[0] = -4
-    pytest.raises(ValueError, uvf.to_baseline, uv)  # Mismatched pols
+    with pytest.raises(ValueError) as cm:
+        uvf.to_baseline(uv)  # Mismatched pols
+    assert str(cm.value).startswith('Polarizations do not match.')
     uvf.__iadd__(uvf2, axis='polarization')
-    pytest.raises(ValueError, uvf.to_baseline, uv)  # Mismatched pols, can't be forced
+
+    with pytest.raises(ValueError) as cm:
+        uvf.to_baseline(uv)  # Mismatched pols, can't be forced
+    assert str(cm.value).startswith('Polarizations could not be made to match.')
 
 
 def test_to_baseline_force_pol():
@@ -1075,16 +1108,27 @@ def test_to_antenna_errors():
     uv.read_miriad(test_d_file)
     uvf = UVFlag(test_f_file)
     uvf.to_waterfall()
-    pytest.raises(ValueError, uvf.to_antenna, 7.3)  # invalid matching object
+    with pytest.raises(ValueError) as cm:
+        uvf.to_antenna(7.3)  # invalid matching object
+    assert str(cm.value).startswith('Must pass in UVCal object or UVFlag object ')
+
     uvf = UVFlag(uv)
-    pytest.raises(ValueError, uvf.to_antenna, uvc)  # Cannot pass in baseline type
+    with pytest.raises(ValueError) as cm:
+        uvf.to_antenna(uvc)  # Cannot pass in baseline type
+    assert str(cm.value).startswith('Cannot convert from type "baseline" to "antenna".')
+
     uvf = UVFlag(test_f_file)
     uvf.to_waterfall()
     uvf2 = uvf.copy()
     uvf.polarization_array[0] = -4
-    pytest.raises(ValueError, uvf.to_antenna, uvc)  # Mismatched pols
+    with pytest.raises(ValueError) as cm:
+        uvf.to_antenna(uvc)  # Mismatched pols
+    assert str(cm.value).startswith('Polarizations do not match. ')
+
     uvf.__iadd__(uvf2, axis='polarization')
-    pytest.raises(ValueError, uvf.to_antenna, uvc)  # Mismatched pols, can't be forced
+    with pytest.raises(ValueError) as cm:
+        uvf.to_antenna(uvc)  # Mismatched pols, can't be forced
+    assert str(cm.value).startswith('Polarizations could not be made to match.')
 
 
 def test_to_antenna_force_pol():
@@ -1155,7 +1199,9 @@ def test_or_error():
     uvf = UVFlag(test_f_file)
     uvf2 = uvf.copy()
     uvf.to_flag()
-    pytest.raises(ValueError, uvf.__or__, uvf2)
+    with pytest.raises(ValueError) as cm:
+        uvf.__or__(uvf2)
+    assert str(cm.value).startswith('UVFlag object must be in "flag" mode')
 
 
 @uvtest.skipIf_no_h5py
@@ -1224,7 +1270,9 @@ def test_flag_to_flag():
 def test_to_flag_unknown_mode():
     uvf = UVFlag(test_f_file)
     uvf.mode = 'foo'
-    pytest.raises(ValueError, uvf.to_flag)
+    with pytest.raises(ValueError) as cm:
+        uvf.to_flag()
+    assert str(cm.value).startswith('Unknown UVFlag mode: foo')
 
 
 @uvtest.skipIf_no_h5py
@@ -1282,7 +1330,9 @@ def test_metric_to_metric():
 def test_to_metric_unknown_mode():
     uvf = UVFlag(test_f_file)
     uvf.mode = 'foo'
-    pytest.raises(ValueError, uvf.to_metric)
+    with pytest.raises(ValueError) as cm:
+        uvf.to_metric()
+    assert str(cm.value).startswith('Unknown UVFlag mode: foo')
 
 
 @uvtest.skipIf_no_h5py
@@ -1297,7 +1347,11 @@ def test_antpair2ind():
 def test_antpair2ind_nonbaseline():
     uvf = UVFlag(test_f_file)
     uvf.to_waterfall()
-    pytest.raises(ValueError, uvf.antpair2ind, 0, 3)
+    with pytest.raises(ValueError) as cm:
+        uvf.antpair2ind(0, 3)
+    assert str(cm.value).startswith('UVFlag object of type ' + uvf.type
+                                    + ' does not contain antenna '
+                                    + 'pairs to index.')
 
 
 @uvtest.skipIf_no_h5py
@@ -1470,12 +1524,17 @@ def test_flags2waterfall():
 def test_flags2waterfall_errors():
 
     # First argument must be UVData or UVCal object
-    pytest.raises(ValueError, flags2waterfall, 5)
+    with pytest.raises(ValueError) as cm:
+        flags2waterfall(5)
+    assert str(cm.value).startswith('flags2waterfall() requires a UVData or '
+                                    + 'UVCal object')
 
     uv = UVData()
     uv.read_miriad(test_d_file)
     # Flag array must have same shape as uv.flag_array
-    pytest.raises(ValueError, flags2waterfall, uv, np.array([4, 5]))
+    with pytest.raises(ValueError) as cm:
+        flags2waterfall(uv, np.array([4, 5]))
+    assert str(cm.value).startswith('Flag array must align with UVData or UVCal')
 
 
 def test_and_rows_cols():
