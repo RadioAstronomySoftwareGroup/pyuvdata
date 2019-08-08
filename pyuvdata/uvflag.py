@@ -220,7 +220,6 @@ class UVFlag(UVBase):
         elif waterfall and issubclass(input.__class__, (UVData, UVCal)):
             self._set_type_waterfall()
             self.history += ('Flag object with type "waterfall" created. ')
-                             # + self.pyuvdata_version_str)
             if not uvutils._check_history_version(self.history, self.pyuvdata_version_str):
                 self.history += self.pyuvdata_version_str
 
@@ -254,7 +253,6 @@ class UVFlag(UVBase):
         elif issubclass(input.__class__, UVData):
             self._set_type_baseline()
             self.history += ('Flag object with type "baseline" created. ')
-                             # + self.pyuvdata_version_str)
             if not uvutils._check_history_version(self.history, self.pyuvdata_version_str):
                 self.history += self.pyuvdata_version_str
 
@@ -290,7 +288,6 @@ class UVFlag(UVBase):
         elif issubclass(input.__class__, UVCal):
             self._set_type_antenna()
             self.history += ('Flag object with type "antenna" created. ')
-                             # + self.pyuvdata_version_str)
             if not uvutils._check_history_version(self.history, self.pyuvdata_version_str):
                 self.history += self.pyuvdata_version_str
             self.ant_array = input.ant_array
@@ -798,7 +795,7 @@ class UVFlag(UVBase):
         this.weights_array = np.concatenate([this.weights_array,
                                              other.weights_array], axis=ax)
 
-        this.history += 'Data combined along ' + axis + ' axis. ' # with ' + self.pyuvdata_version_str
+        this.history += 'Data combined along ' + axis + ' axis. '
         if not uvutils._check_history_version(self.history, self.pyuvdata_version_str):
             self.history += self.pyuvdata_version_str
 
@@ -910,7 +907,7 @@ class UVFlag(UVBase):
         darray, warray = uvutils.collapse(darray, method, weights=warray, axis=0, return_weights=True)
         this.metric_array = darray
         this.weights_array = warray
-        this.history += 'Combined metric arrays using. ' # + self.pyuvdata_version_str
+        this.history += 'Combined metric arrays. '
         if not uvutils._check_history_version(self.history, self.pyuvdata_version_str):
             self.history += self.pyuvdata_version_str
 
@@ -960,7 +957,7 @@ class UVFlag(UVBase):
             self.metric_array = darr
             self._set_mode_metric()
         self.clear_unused_attributes()
-        self.history += 'Pol axis collapse. ' # + self.pyuvdata_version_str
+        self.history += 'Pol axis collapse. '
         if not uvutils._check_history_version(self.history, self.pyuvdata_version_str):
             self.history += self.pyuvdata_version_str
         if run_check:
@@ -1102,7 +1099,7 @@ class UVFlag(UVBase):
 
         self.Nants_telescope = int(uv.Nants_telescope)
         self._set_type_baseline()
-        self.history += 'Broadcast to type "baseline". ' # + self.pyuvdata_version_str
+        self.history += 'Broadcast to type "baseline". '
         if not uvutils._check_history_version(self.history, self.pyuvdata_version_str):
             self.history += self.pyuvdata_version_str
 
@@ -1193,7 +1190,7 @@ class UVFlag(UVBase):
             self.weights_array = np.ones_like(self.metric_array, dtype=np.float)
         else:
             raise ValueError('Unknown UVFlag mode: ' + self.mode + '. Cannot convert to flag.')
-        self.history += 'Converted to mode "flag". ' #+ self.pyuvdata_version_str
+        self.history += 'Converted to mode "flag". '
         if not uvutils._check_history_version(self.history, self.pyuvdata_version_str):
             self.history += self.pyuvdata_version_str
         self.clear_unused_attributes()
@@ -1236,7 +1233,7 @@ class UVFlag(UVBase):
                             self.weights_array[j, 0, :, :, i] *= ~and_rows_cols(self.flag_array[j, 0, :, :, i])
         else:
             raise ValueError('Unknown UVFlag mode: ' + self.mode + '. Cannot convert to metric.')
-        self.history += 'Converted to mode "metric". ' #+ self.pyuvdata_version_str
+        self.history += 'Converted to mode "metric". '
         if not uvutils._check_history_version(self.history, self.pyuvdata_version_str):
             self.history += self.pyuvdata_version_str
         self.clear_unused_attributes()
