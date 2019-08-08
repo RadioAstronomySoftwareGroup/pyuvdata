@@ -10,6 +10,7 @@ import numpy as np
 import pyuvdata.tests as uvtest
 from pyuvdata import UVData
 from pyuvdata import UVCal
+from pyuvdata import utils as uvutils
 from pyuvdata.data import DATA_PATH
 from pyuvdata import UVFlag
 from pyuvdata.uvflag import lst_from_uv
@@ -271,6 +272,41 @@ def test_bad_type_savefile():
 
 
 @uvtest.skipIf_no_h5py
+def test_write_add_version_str():
+    h5py = pytest.importorskip('h5py')
+    uv = UVData()
+    uv.read_miriad(test_d_file)
+    uvf = UVFlag(uv, label='test')
+    uvf.history = uvf.history.replace(pyuvdata_version_str, '')
+
+    assert pyuvdata_version_str not in uvf.history
+    uvf.write(test_outfile, clobber=True)
+
+    with h5py.File(test_outfile, 'r') as h5:
+        hist = uvutils._bytes_to_str(h5['Header/history'][()])
+    assert pyuvdata_version_str in hist
+
+
+@uvtest.skipIf_no_h5py
+def test_read_add_version_str():
+    h5py = pytest.importorskip('h5py')
+    uv = UVData()
+    uv.read_miriad(test_d_file)
+    uvf = UVFlag(uv, label='test')
+
+    assert pyuvdata_version_str in uvf.history
+    uvf.write(test_outfile, clobber=True)
+
+    with h5py.File(test_outfile, 'r') as h5:
+        hist = h5['Header/history']
+        del hist
+
+    uvf2 = UVFlag(test_outfile)
+    assert pyuvdata_version_str in uvf2.history
+    assert uvf == uvf2
+
+
+@uvtest.skipIf_no_h5py
 def test_read_write_ant():
     uv = UVCal()
     uv.read_calfits(test_c_file)
@@ -495,6 +531,21 @@ def test_add():
     assert uv3.mode == 'metric'
     assert np.array_equal(uv1.polarization_array, uv3.polarization_array)
     assert 'Data combined along time axis. ' in uv3.history
+
+
+@uvtest.skipIf_no_h5py
+def test_add_add_version_str():
+    uv1 = UVFlag(test_f_file)
+    uv1.history = uv1.history.replace(pyuvdata_version_str, '')
+
+    assert pyuvdata_version_str not in uv1.history
+
+    uv2 = copy.deepcopy(uv1)
+    uv2.time_array += 1  # Add a day
+    uv3 = uv1 + uv2
+    assert pyuvdata_version_str in uv3.history
+
+
 
 
 @uvtest.skipIf_no_h5py
@@ -735,6 +786,17 @@ def test_to_waterfall_bl():
 
 
 @uvtest.skipIf_no_h5py
+def test_to_waterfall_add_version_str():
+    uvf = UVFlag(test_f_file)
+    uvf.weights_array = np.ones_like(uvf.weights_array)
+
+    uvf.history = uvf.history.replace(pyuvdata_version_str, '')
+    assert pyuvdata_version_str not in uvf.history
+    uvf.to_waterfall()
+    assert pyuvdata_version_str in uvf.history
+
+
+@uvtest.skipIf_no_h5py
 def test_to_waterfall_bl_multi_pol():
     uvf = UVFlag(test_f_file)
     uvf.weights_array = np.ones_like(uvf.weights_array)
@@ -796,6 +858,25 @@ def test_collapse_pol_or():
     assert hasattr(uvf2, 'flag_array')
     assert hasattr(uvf2, 'metric_array')
     assert uvf2.metric_array is None
+
+
+@uvtest.skipIf_no_h5py
+def test_collapse_pol_add_version_str():
+    uvf = UVFlag(test_f_file)
+    uvf.to_flag()
+    uvf.weights_array = np.ones_like(uvf.weights_array)
+
+    uvf2 = uvf.copy()
+    uvf2.polarization_array[0] = -4
+    uvf.__add__(uvf2, inplace=True, axis='pol')  # Concatenate to form multi-pol object
+
+    uvf.history = uvf.history.replace(pyuvdata_version_str, '')
+    assert pyuvdata_version_str not in uvf.history
+
+    uvf2 = uvf.copy()
+    uvf2.collapse_pol(method='or')
+
+    assert pyuvdata_version_str in uvf2.history
 
 
 @uvtest.skipIf_no_h5py
@@ -932,6 +1013,21 @@ def test_to_baseline_metric():
                       (3.2 * nt0 + 2.1 * nt1) / uvf.metric_array.size)
 
 
+def test_to_baseline_add_version_str():
+    uv = UVData()
+    uv.read_miriad(test_d_file)
+    uvf = UVFlag(uv)
+    uvf.to_waterfall()
+    uvf.metric_array[0, 10, 0] = 3.2  # Fill in time0, chan10
+    uvf.metric_array[1, 15, 0] = 2.1  # Fill in time1, chan15
+
+    uvf.history = uvf.history.replace(pyuvdata_version_str, '')
+    assert pyuvdata_version_str not in uvf.history
+
+    uvf.to_baseline(uv)
+    assert pyuvdata_version_str in uvf.history
+
+
 def test_baseline_to_baseline():
     uv = UVData()
     uv.read_miriad(test_d_file)
@@ -1034,6 +1130,21 @@ def test_to_antenna_flags():
     assert np.all(uvf.flag_array[:, 0, 10, 0, 0])
     assert np.all(uvf.flag_array[:, 0, 15, 1, 0])
     assert uvf.flag_array.mean() == 2. * uvc.Nants_data / uvf.flag_array.size
+
+
+def test_to_antenna_add_version_str():
+    uvc = UVCal()
+    uvc.read_calfits(test_c_file)
+    uvf = UVFlag(uvc)
+    uvf.to_waterfall()
+    uvf.to_flag()
+    uvf.flag_array[0, 10, 0] = True  # Flag time0, chan10
+    uvf.flag_array[1, 15, 0] = True  # Flag time1, chan15
+    uvf.history = uvf.history.replace(pyuvdata_version_str, '')
+    assert pyuvdata_version_str not in uvf.history
+
+    uvf.to_antenna(uvc)
+    assert pyuvdata_version_str in uvf.history
 
 
 def test_to_antenna_metric():
@@ -1173,6 +1284,24 @@ def test_or():
 
 
 @uvtest.skipIf_no_h5py
+def test_or_add_version_str():
+    uvf = UVFlag(test_f_file)
+    uvf.to_flag()
+    uvf.history = uvf.history.replace(pyuvdata_version_str, '')
+
+    assert pyuvdata_version_str not in uvf.history
+    uvf2 = uvf.copy()
+    uvf2.flag_array = np.ones_like(uvf2.flag_array)
+    uvf.flag_array[0] = True
+    uvf2.flag_array[0] = False
+    uvf2.flag_array[1] = False
+    uvf3 = uvf | uvf2
+
+    assert pyuvdata_version_str in uvf3.history
+
+
+
+@uvtest.skipIf_no_h5py
 def test_or_error():
     uvf = UVFlag(test_f_file)
     uvf2 = uvf.copy()
@@ -1218,6 +1347,16 @@ def test_to_flag():
     assert uvf.metric_array is None
     assert uvf.mode == 'flag'
     assert 'Converted to mode "flag"' in uvf.history
+
+
+@uvtest.skipIf_no_h5py
+def test_to_flag_add_version_str():
+    uvf = UVFlag(test_f_file)
+    uvf.history = uvf.history.replace(pyuvdata_version_str, '')
+    assert pyuvdata_version_str not in uvf.history
+
+    uvf.to_flag()
+    assert pyuvdata_version_str in uvf.history
 
 
 @uvtest.skipIf_no_h5py
@@ -1271,6 +1410,24 @@ def test_to_metric_baseline():
     assert 'Converted to mode "metric"' in uvf.history
     assert np.isclose(uvf.weights_array[1], 0.0).all()
     assert np.isclose(uvf.weights_array[:, :, 10], 0.0).all()
+
+
+@uvtest.skipIf_no_h5py
+def test_to_metric_add_version_str():
+    uvf = UVFlag(test_f_file)
+    uvf.to_flag()
+    uvf.flag_array[:, :, 10] = True
+    uvf.flag_array[1, :, :] = True
+    assert hasattr(uvf, 'flag_array')
+    assert hasattr(uvf, 'metric_array')
+    assert uvf.metric_array is None
+    assert uvf.mode == 'flag'
+
+    uvf.history = uvf.history.replace(pyuvdata_version_str, '')
+    assert pyuvdata_version_str not in uvf.history
+
+    uvf.to_metric(convert_wgts=True)
+    assert pyuvdata_version_str in uvf.history
 
 
 @uvtest.skipIf_no_h5py
@@ -1440,6 +1597,24 @@ def test_combine_metrics_wrong_shape():
     with pytest.raises(ValueError) as cm:
         uvf.combine_metrics(uvf2)
     assert str(cm.value).startswith('UVFlag metric array shapes do not match.')
+
+
+def test_combine_metrics_add_version_str():
+    uvc = UVCal()
+    uvc.read_calfits(test_c_file)
+    uvf = UVFlag(uvc)
+    uvf.history = uvf.history.replace(pyuvdata_version_str, '')
+
+    assert pyuvdata_version_str not in uvf.history
+    np.random.seed(44)
+    uvf.metric_array = np.random.normal(size=uvf.metric_array.shape)
+    uvf2 = uvf.copy()
+    uvf2.metric_array *= 2
+    uvf3 = uvf.copy()
+    uvf3.metric_array *= 3
+    uvf4 = uvf.combine_metrics([uvf2, uvf3], inplace=False)
+
+    assert pyuvdata_version_str in uvf4.history
 
 
 def test_super():

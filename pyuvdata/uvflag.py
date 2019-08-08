@@ -796,8 +796,8 @@ class UVFlag(UVBase):
                                              other.weights_array], axis=ax)
 
         this.history += 'Data combined along ' + axis + ' axis. '
-        if not uvutils._check_history_version(self.history, self.pyuvdata_version_str):
-            self.history += self.pyuvdata_version_str
+        if not uvutils._check_history_version(this.history, this.pyuvdata_version_str):
+            this.history += this.pyuvdata_version_str
 
         this.Ntimes = np.unique(this.time_array).size
 
@@ -838,6 +838,9 @@ class UVFlag(UVBase):
         this.flag_array += other.flag_array
         if other.history not in this.history:
             this.history += "Flags OR'd with: " + other.history
+
+        if not uvutils._check_history_version(this.history, this.pyuvdata_version_str):
+            this.history += this.pyuvdata_version_str
 
         if run_check:
             this.check(check_extra=check_extra,
@@ -908,8 +911,9 @@ class UVFlag(UVBase):
         this.metric_array = darray
         this.weights_array = warray
         this.history += 'Combined metric arrays. '
-        if not uvutils._check_history_version(self.history, self.pyuvdata_version_str):
-            self.history += self.pyuvdata_version_str
+
+        if not uvutils._check_history_version(this.history, this.pyuvdata_version_str):
+            this.history += this.pyuvdata_version_str
 
         if run_check:
             this.check(check_extra=check_extra,
@@ -958,8 +962,10 @@ class UVFlag(UVBase):
             self._set_mode_metric()
         self.clear_unused_attributes()
         self.history += 'Pol axis collapse. '
+
         if not uvutils._check_history_version(self.history, self.pyuvdata_version_str):
             self.history += self.pyuvdata_version_str
+
         if run_check:
             self.check(check_extra=check_extra,
                        run_check_acceptability=run_check_acceptability)
@@ -1022,6 +1028,7 @@ class UVFlag(UVBase):
         self.Nspws = None
         self._set_type_waterfall()
         self.history += 'Collapsed to type "waterfall". '  # + self.pyuvdata_version_str
+
         if not uvutils._check_history_version(self.history, self.pyuvdata_version_str):
             self.history += self.pyuvdata_version_str
 
@@ -1100,6 +1107,7 @@ class UVFlag(UVBase):
         self.Nants_telescope = int(uv.Nants_telescope)
         self._set_type_baseline()
         self.history += 'Broadcast to type "baseline". '
+
         if not uvutils._check_history_version(self.history, self.pyuvdata_version_str):
             self.history += self.pyuvdata_version_str
 
@@ -1166,7 +1174,10 @@ class UVFlag(UVBase):
         self.Nspws = self.freq_array.shape[0]
 
         self._set_type_antenna()
-        self.history += 'Broadcast to type "antenna" with ' + self.pyuvdata_version_str
+        self.history += 'Broadcast to type "antenna". '
+
+        if not uvutils._check_history_version(self.history, self.pyuvdata_version_str):
+            self.history += self.pyuvdata_version_str
 
         if run_check:
             self.check(check_extra=check_extra,
@@ -1234,6 +1245,7 @@ class UVFlag(UVBase):
         else:
             raise ValueError('Unknown UVFlag mode: ' + self.mode + '. Cannot convert to metric.')
         self.history += 'Converted to mode "metric". '
+
         if not uvutils._check_history_version(self.history, self.pyuvdata_version_str):
             self.history += self.pyuvdata_version_str
         self.clear_unused_attributes()
