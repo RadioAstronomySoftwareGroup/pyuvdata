@@ -88,9 +88,9 @@ class MWACorrFITS(UVData):
                 with fits.open(file) as data:
                     # check headers for first and last times containing data
                     first_time = data[1].header['TIME']
-                    + data[1].header['MILLITIM']/1000.0
+                    + data[1].header['MILLITIM'] / 1000.0
                     last_time = data[-1].header['TIME']
-                    + data[-1].header['MILLITIM']/1000.0
+                    + data[-1].header['MILLITIM'] / 1000.0
                     if start_time == 0.0:
                         start_time = first_time
                     elif start_time > first_time:
@@ -196,30 +196,38 @@ class MWACorrFITS(UVData):
         self.Nants_data = len(self.antenna_numbers)
         self.Nants_telescope = len(self.antenna_numbers)
         self.Nbls = len(self.antenna_numbers)
-        * (len(self.antenna_numbers + 1))/2
+        * (len(self.antenna_numbers + 1)) / 2
         self.Nblts = self.Nbls * self.Ntimes
+
         # assumes no averaging
         self.integration_time = np.array([int_time for i in range(self.Nblts)])
-
-        # build time array of centers
-        time_array = np.arange(start_time + int_time/2.0, end_time +
-                               int_time/2.0 + int_time, int_time)
-        # TODO: ask Bryna if need to change time_array to integers
-        julian_time_array = np.array([Time(i, format='unix', scale='utc').jd
-                                     for i in time_array])
-        self.Ntimes = len(self.time_array)
-        # TODO:
-        self.time_array = np.zeros(self.Nblts)
-        # TODO:
-        self.lst_array = np.zeros(self.Nblts)
 
         # get telescope parameters
         self.set_telescope_params()
 
+        # build time array of centers
+        time_array = np.arange(start_time + int_time / 2.0, end_time
+                               + int_time / 2.0 + int_time, int_time)
+        # convert from unix to julian times
+        julian_time_array = [Time(i, format='unix', scale='utc').jd
+                             for i in time_array]
+        # convert to integers
+        int_time_array = np.array([int(i) for i in julian_time_array])
+        # build into time array
+        self.time_array = np.repeat(int_time_array, self.Nbls)
+
+        self.Ntimes = len(time_array)
+
+        # convert times to lst
+        self.lst_array = self.get_lst_for_time(self.time_array,
+                                               self.telescope_location_lat_lon_alt)
+
         # convert antenna positions from enu to ecef
-        lat, lon, alt = self.telescope_location_lat_lon_alt
-        antenna_positions = uvutils.ECEF_from_ENU(antenna_positions, lat, lon,
-                                                  alt)
+        # TODO: ask Bryna does this work? antenna positions are "relative to
+        # the centre of the array in local topocentric \"east\", \"north\",
+        # \"height\". Units are meters.
+        antenna_positions = uvutils.ECEF_from_ENU(antenna_positions,
+                                                  self.telescope_location_lat_lon_alt)
 
         # make initial antenna arrays, where ant_1 <= ant_2
         ant_1_array = []
@@ -229,22 +237,12 @@ class MWACorrFITS(UVData):
                 ant_1_array.append(i)
                 ant_2_array.append(j)
 
-        # make initial uvw array
-        uvw_array = np.zeros(self.Nbls, 3)
-        for i in range(len(ant_1_array)):
-            ant_1 = ant_1_array[i]
-            ant_2 = ant_2_array[i]
-            uvw_array[i, 3] = self.antenna_positions[ant_2, 3] - \
-                self.antenna_positions[ant_1, 3]
+        self.ant_1_array = np.tile(np.array(ant_1_array), self.Ntimes)
+        self.ant_2_array = np.tile(np.array(ant_2_array), self.Ntimes)
 
-        # TODO:
-        self.baseline_array = np.zeros(self.Nblts)
-        # TODO:
-        self.ant_1_array = np.zeros(self.Nblts)
-        # TODO:
-        self.ant_2_array = np.zeros(self.Nblts)
-        # TODO
-        self.uvw_array = np.zeros((self.Nblts, 3))
+        self.baseline_array = np.tile(np.arange(self.Nbls), self.Ntimes)
+
+        self.uvw_array = self.set_uvws_from_antenna_positions(allow_phasing=False)
 
         # coarse channel mapping:
         # channels in group 0-128 go in order; channels in group 129-155 go in
@@ -261,11 +259,11 @@ class MWACorrFITS(UVData):
                 count += 1
         # map file numbers to coarse channel numbers
         file_nums_to_coarse = {i + 1: coarse_chans[i] if i < count else
-                               coarse_chans[(len(coarse_chans) + count-i-1)]
+                               coarse_chans[(len(coarse_chans) + count - i - 1)]
                                for i in range(len(coarse_chans))}
         # map file numbers to an index that orders them
-        file_nums_to_index = {i + 1: i if i < count else (len(coarse_chans) +
-                              count-i-1) for i in range(len(coarse_chans))}
+        file_nums_to_index = {i + 1: i if i < count else (len(coarse_chans)
+                              + count - i - 1) for i in range(len(coarse_chans))}
 
         # find which coarse channels are actually included
         included_coarse_chans = []
@@ -303,10 +301,10 @@ class MWACorrFITS(UVData):
         #                   =lowest_fine_center+((avg_factor-1)*10)/2
         #                   =lowest_fine_center+offset
         # Calculate offset=((avg_factor-1)*10)/2 to build the frequency array
-        avg_factor = self.channel_width/10000
-        num_avg_chans = 128/avg_factor
-        width = self.channel_width/1000
-        offset = (avg_factor-1) * 10/2
+        avg_factor = self.channel_width / 10000
+        num_avg_chans = 128 / avg_factor
+        width = self.channel_width / 1000
+        offset = (avg_factor - 1) * 10 / 2.0
 
         for i in range(len(included_coarse_chans)):
             # get the lowest fine freq of the coarse channel (kHz)
@@ -315,7 +313,7 @@ class MWACorrFITS(UVData):
             first_center = lower_fine_freq + offset
             # add the channel centers for this coarse channel into
             # the frequency array (converting from kHz to Hz)
-            self.frequency_array[0, int(i * 128/avg_factor):int((i + 1) * 128/avg_factor)] = \
+            self.frequency_array[0, int(i * 128 / avg_factor):int((i + 1) * 128 / avg_factor)] = \
                 np.arange(first_center, first_center + num_avg_chans * width, width) * 1000
 
         # read data into an array with dimensions (time, frequency, baselines*pols)
@@ -331,11 +329,11 @@ class MWACorrFITS(UVData):
                 # count number of times
                 end_time = len(hdu_list)
                 for i in range(1, end_time):
-                    time = hdu_list[i].header['TIME'] + hdu_list[i].header['MILLITIM']/1000.0 + int_time/2.0
+                    time = hdu_list[i].header['TIME'] + hdu_list[i].header['MILLITIM'] / 1000.0 + int_time / 2.0
                     time_ind = np.where(time_array == time)[0][0]
                     # dump data into matrix
                     # and take data from real to complex numbers
-                    data_dump[time_ind, freq_ind:freq_ind+num_fine_chans, :] = \
+                    data_dump[time_ind, freq_ind:freq_ind + num_fine_chans, :] = \
                         hdu_list[i].data[:, 0::2] + 1j * hdu_list[i].data[:, 1::2]
 
         # TODO: add flagging for missing times
@@ -368,22 +366,22 @@ class MWACorrFITS(UVData):
                         # baselines are ordered (0,0),(0,1),...,(0,127),(1,1),.....
                         # polarizion of 0 (1) corresponds to y (x)
                         pol_ind = 2 * p1 + p2
-                        bls_ind = 128 * ant1 - ant1 * (ant1 + 1)/2 + ant2
+                        bls_ind = 128 * ant1 - ant1 * (ant1 + 1) / 2 + ant2
                         # find the pfb input indices for this combination
                         ind1_1, ind1_2 = corr_ants_to_pfb_inputs[(ant1, p1)],
                         corr_ants_to_pfb_inputs[(ant2, p2)]
                         # finde the pfb output indices
                         ind2_1, ind2_2 = pfb_inputs_to_outputs[(ind1_1)],
                         pfb_inputs_to_outputs[(ind1_2)]
-                        out_ant1 = int(ind2_1/2)
-                        out_ant2 = int(ind2_2/2)
+                        out_ant1 = int(ind2_1 / 2)
+                        out_ant2 = int(ind2_2 / 2)
                         out_p1 = ind2_1 % 2
                         out_p2 = ind2_2 % 2
                         # the correlator has antenna 1 >= antenna2,
                         # so check if ind2_1 and ind2_2 satisfy this
                         # get the index for the data
                         if out_ant1 < out_ant2:
-                            data_index = 2 * out_ant2 * (out_ant2+1) + 4 * out_ant1 + 2 * out_p2 + out_p1
+                            data_index = 2 * out_ant2 * (out_ant2 + 1) + 4 * out_ant1 + 2 * out_p2 + out_p1
                             # need to take the complex conjugate of the data
                             data_reorder[:, bls_ind, :, pol_ind] = np.conj(data_dump[:, :, data_index])
                         else:
