@@ -4453,12 +4453,11 @@ class UVData(UVBase):
             List of vectors describing redundant group uvw centers
         lengths : list of float
             List of redundant group baseline lengths in meters
-        conjugate_bls : list of int, or None
+        conjugate_bls : list of int, or None, optional
             List of indices for baselines that must be conjugated to fit into their
             redundant groups.
-            Will return None if:
-                use_antpos is True
-                use_antpos is False and include_conjugates is False
+            Will return None if use_antpos is True and include_conjugates is True
+            Only returned if include_conjugates is True
 
         Notes
         ----
@@ -4468,8 +4467,11 @@ class UVData(UVBase):
         """
         if use_antpos:
             antpos, numbers = self.get_ENU_antpos(center=False)
-            return uvutils.get_antenna_redundancies(numbers, antpos, tol=tol,
-                                                    include_autos=include_autos)
+            result = uvutils.get_antenna_redundancies(numbers, antpos, tol=tol,
+                                                      include_autos=include_autos)
+            if include_conjugates:
+                result = result + (None,)
+            return result
 
         _, unique_inds = np.unique(self.baseline_array, return_index=True)
         unique_inds.sort()

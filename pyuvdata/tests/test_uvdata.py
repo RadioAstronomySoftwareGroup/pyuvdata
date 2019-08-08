@@ -3517,8 +3517,11 @@ def test_get_antenna_redundancies():
 
     # conjugate data differently
     uv0.conjugate_bls(convention='ant1<ant2')
-    new_red_gps, new_centers, new_lengths, _ = uv0.get_redundancies(use_antpos=True,
-                                                                    include_autos=False)
+    new_red_gps, new_centers, new_lengths, conjs = uv0.get_redundancies(use_antpos=True,
+                                                                        include_autos=False,
+                                                                        include_conjugates=True)
+
+    assert conjs is None
 
     # new and old baseline Numbers are not the same (different conjugation)
     assert not np.allclose(uv0.baseline_array, old_bl_array)

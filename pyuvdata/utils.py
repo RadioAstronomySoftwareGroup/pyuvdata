@@ -1109,7 +1109,7 @@ def get_baseline_redundancies(baselines, baseline_vecs, tol=1.0, with_conjugates
         conjugates = np.array(conjugates, dtype=bool)
         baseline_vecs[conjugates] *= (-1)
         baseline_ind_conj = baselines[conjugates]
-        bl_gps, vec_bin_centers, lens, _ = get_baseline_redundancies(baselines, baseline_vecs, tol=tol, with_conjugates=False)
+        bl_gps, vec_bin_centers, lens = get_baseline_redundancies(baselines, baseline_vecs, tol=tol, with_conjugates=False)
         return bl_gps, vec_bin_centers, lens, baseline_ind_conj
 
     # For each baseline, list all others that are within the tolerance distance.
@@ -1157,7 +1157,7 @@ def get_baseline_redundancies(baselines, baseline_vecs, tol=1.0, with_conjugates
 
     lens = np.sqrt(np.sum(vec_bin_centers**2, axis=1))
 
-    return bl_gps, vec_bin_centers, lens, None
+    return bl_gps, vec_bin_centers, lens
 
 
 def get_antenna_redundancies(antenna_numbers, antenna_positions, tol=1.0, include_autos=False):
