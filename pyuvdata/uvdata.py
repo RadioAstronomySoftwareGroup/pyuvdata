@@ -2951,6 +2951,66 @@ class UVData(UVBase):
                                 clobber=clobber, no_antnums=no_antnums)
         del(miriad_obj)
 
+    def read_mwa_corr_fits(self, filepath, axis=None, use_cotter_flags=False,
+                           run_check=True, check_extra=True,
+                           run_check_acceptability=True):
+        """
+        Read in data from a measurement set
+
+        Parameters
+        ----------
+        filepath : str or list of str
+            The measurement set file directory or list of directories to read from.
+        axis : str
+            Axis to concatenate files along. This enables fast concatenation
+            along the specified axis without the normal checking that all other
+            metadata agrees. This method does not guarantee correct resulting
+            objects. Please see the docstring for fast_concat for details.
+            Allowed values are: 'blt', 'freq', 'polarization'. Only used if
+            multiple files are passed.
+        use_cotter_flags : bool
+            Option to use cotter output mwaf flag files. Otherwise flagging
+            will only be applied to missing data and bad antennas.
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            after after reading in the file (the default is True,
+            meaning the check will be run).
+        check_extra : bool
+            Option to check optional parameters as well as required ones (the
+            default is True, meaning the optional parameters will be checked).
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters after
+            reading in the file (the default is True, meaning the acceptable
+            range check will be done).
+        """
+
+        from . import mwa_corr_fits
+        if isinstance(filepath, (list, tuple)):
+            self.read_mwa_corr_fits(filepath[0], use_cotter_flags=use_cotter_flags,
+                                    run_check=run_check, check_extra=check_extra,
+                                    run_check_acceptability=run_check_acceptability)
+            if len(filepath) > 1:
+                for f in filepath[1:]:
+                    uv2 = UVData()
+                    uv2.read_mwa_corr_fits(f, use_cotter_flags=use_cotter_flags,
+                                           run_check=run_check, check_extra=check_extra,
+                                           run_check_acceptability=run_check_acceptability)
+                    if axis is not None:
+                        self.fast_concat(uv2, axis, run_check=run_check,
+                                         check_extra=check_extra,
+                                         run_check_acceptability=run_check_acceptability,
+                                         inplace=True)
+                    else:
+                        self += uv2
+                del(uv2)
+        else:
+            corr_obj = mwa_corr_fits.MWACorrFITS()
+            corr_obj.read_mwa_corr_fits(filepath, use_cotter_flags=use_cotter_flags,
+                                        run_check=run_check, check_extra=check_extra,
+                                        run_check_acceptability=run_check_acceptability)
+            self._convert_from_filetype(corr_obj)
+            del(corr_obj)
+
     def read_uvh5(self, filename, axis=None, antenna_nums=None, antenna_names=None,
                   ant_str=None, bls=None, frequencies=None, freq_chans=None,
                   times=None, polarizations=None, blt_inds=None,
