@@ -4426,9 +4426,9 @@ class UVData(UVBase):
     def get_redundancies(self, tol=1.0, use_antpos=False,
                          include_conjugates=True, include_autos=True):
         """
-        Get redundant baselines to a given tolerance.
-
-        Finds all possible redundant baselines (antenna pairs) not just those with data.
+        Get redundant baselines to a given tolerance. This can be used to identify
+        redundant baselines present in the data, or find all possible redundant
+        baselines given the antenna positions.
 
         Parameters
         ----------
@@ -4484,7 +4484,8 @@ class UVData(UVBase):
         Deprecated -- Please use `get_redundancies` instead.
         """
 
-        warnings.warn("UVData.get_antenna_redundancies has been replaced with get_redundancies.",
+        warnings.warn("UVData.get_antenna_redundancies has been replaced with get_redundancies,"
+                      "and will be removed in version 1.6.",
                       DeprecationWarning)
         if kwargs.pop('conjugate_bls', False):
             self.conjugate_bls('u>0')
@@ -4496,7 +4497,8 @@ class UVData(UVBase):
         """
         Deprecated -- Please use `get_redundancies` instead.
         """
-        warnings.warn("UVData.get_baseline_redundancies has been replaced with get_redundancies.",
+        warnings.warn("UVData.get_baseline_redundancies has been replaced with get_redundancies,"
+                      "and will be removed in version 1.6.",
                       DeprecationWarning)
         kwargs['include_conjugates'] = True
         red_gps, blvecs, lens, conjs = self.get_redundancies(*args, **kwargs)
