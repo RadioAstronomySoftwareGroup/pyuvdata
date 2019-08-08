@@ -546,8 +546,6 @@ def test_add_add_version_str():
     assert pyuvdata_version_str in uv3.history
 
 
-
-
 @uvtest.skipIf_no_h5py
 def test_add_baseline():
     uv1 = UVFlag(test_f_file)
@@ -1298,7 +1296,6 @@ def test_or_add_version_str():
     uvf3 = uvf | uvf2
 
     assert pyuvdata_version_str in uvf3.history
-
 
 
 @uvtest.skipIf_no_h5py
