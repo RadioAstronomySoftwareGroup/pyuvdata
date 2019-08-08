@@ -9,7 +9,6 @@ All notable changes to this project will be documented in this file.
 - option for `UVBeam.interp` to return a new beam object.
 
 ### Changed
-- All redundancy finder methods will return four items --- redundant groups, bin centers, lengths, and conjugates.
 - UVData.get_antenna_redundancies will no longer automatically conjugate baselines.
 - UVData.get_baseline_redundancies and UVData.get_antenna_redundancies have been combined.
 - `UVFlag` inherits from `UVBase` object.

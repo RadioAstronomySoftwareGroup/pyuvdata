@@ -486,10 +486,10 @@ def test_redundancy_finder():
 
     pytest.raises(ValueError, uvutils.get_baseline_redundancies,
                   uvd.baseline_array, bl_positions[0:2, 0:1])
-    baseline_groups, vec_bin_centers, lens, _ = uvutils.get_baseline_redundancies(
+    baseline_groups, vec_bin_centers, lens = uvutils.get_baseline_redundancies(
         uvd.baseline_array, bl_positions, tol=tol)
 
-    baseline_groups, vec_bin_centers, lens, _ = uvutils.get_baseline_redundancies(
+    baseline_groups, vec_bin_centers, lens = uvutils.get_baseline_redundancies(
         uvd.baseline_array, bl_positions, tol=tol)
 
     for gi, gp in enumerate(baseline_groups):
@@ -517,7 +517,7 @@ def test_redundancy_finder():
             bl_positions_new = uvd.uvw_array
             bl_positions_new[bi] += sh
 
-            baseline_groups_new, vec_bin_centers, lens, _ = uvutils.get_baseline_redundancies(
+            baseline_groups_new, vec_bin_centers, lens = uvutils.get_baseline_redundancies(
                 uvd.baseline_array, bl_positions_new, tol=hightol)
 
             for gi, gp in enumerate(baseline_groups_new):
@@ -539,7 +539,7 @@ def test_redundancy_finder():
                                            category=DeprecationWarning,
                                            nwarnings=1)
 
-    baseline_groups_ants, vec_bin_centers, lens, _ = uvutils.get_antenna_redundancies(
+    baseline_groups_ants, vec_bin_centers, lens = uvutils.get_antenna_redundancies(
         antnums, antpos, tol=tol, include_autos=False)
     # Under these conditions, should see 19 redundant groups in the file.
     assert len(baseline_groups_ants) == 19

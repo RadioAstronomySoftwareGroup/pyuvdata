@@ -990,7 +990,7 @@ Otherwise it will return redundancies in the existing data using `utils.get_baes
     >>> uvd.select(times=uvd.time_array[0])
 
     # Returned values: list of redundant groups, corresponding mean baseline vectors, baseline lengths. No conjugates included, so conjugates is None.
-    >>> baseline_groups, vec_bin_centers, lengths, conjugates = uvutils.get_baseline_redundancies(uvd.baseline_array, uvd.uvw_array, tol=tol)
+    >>> baseline_groups, vec_bin_centers, lengths = uvutils.get_baseline_redundancies(uvd.baseline_array, uvd.uvw_array, tol=tol)
     >>> print(len(baseline_groups))
     19
 
@@ -1002,12 +1002,12 @@ Otherwise it will return redundancies in the existing data using `utils.get_baes
 
     # Using antenna positions instead
     >>> antpos, antnums = uvd.get_ENU_antpos()
-    >>> baseline_groups, vec_bin_centers, lengths, conjugates = uvutils.get_antenna_redundancies(antnums, antpos, tol=tol, include_autos=True)
+    >>> baseline_groups, vec_bin_centers, lengths = uvutils.get_antenna_redundancies(antnums, antpos, tol=tol, include_autos=True)
     >>> print(len(baseline_groups))
     20
 
     # get_antenna_redundancies has the option to ignore autocorrelations.
-    >>> baseline_groups, vec_bin_centers, lengths, conjugates = uvutils.get_antenna_redundancies(antnums, antpos, tol=tol, include_autos=False)
+    >>> baseline_groups, vec_bin_centers, lengths = uvutils.get_antenna_redundancies(antnums, antpos, tol=tol, include_autos=False)
     >>> print(len(baseline_groups))
     19
 
