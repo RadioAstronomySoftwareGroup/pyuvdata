@@ -506,6 +506,27 @@ class UVData(UVBase):
 
         return True
 
+    def copy(self, metadata_only=False):
+        """Make and return a copy of the UVData object.
+
+        Parameters
+        ----------
+        metadata_only : bool
+            If True, only copy the metadata of the object.
+
+        Returns
+        -------
+        uv : UVData
+            Copy of self.
+        """
+        uv = UVData()
+        for param in self:
+            if metadata_only and param in self._data_params:
+                continue
+            setattr(uv, param, copy.deepcopy(getattr(self, param)))
+
+        return uv
+
     def set_drift(self):
         """Set phase_type to 'drift' and adjust required parameters."""
         self.phase_type = 'drift'
@@ -698,10 +719,11 @@ class UVData(UVBase):
         self.uvw_array = np.float64(self.uvw_array)
 
         # apply -w phasor
-        w_lambda = (self.uvw_array[:, 2].reshape(self.Nblts, 1)
-                    / const.c.to('m/s').value * self.freq_array.reshape(1, self.Nfreqs))
-        phs = np.exp(-1j * 2 * np.pi * (-1) * w_lambda[:, None, :, None])
-        self.data_array *= phs
+        if not self.metadata_only:
+            w_lambda = (self.uvw_array[:, 2].reshape(self.Nblts, 1)
+                        / const.c.to('m/s').value * self.freq_array.reshape(1, self.Nfreqs))
+            phs = np.exp(-1j * 2 * np.pi * (-1) * w_lambda[:, None, :, None])
+            self.data_array *= phs
 
         unique_times, unique_inds = np.unique(self.time_array, return_index=True)
         for ind, jd in enumerate(unique_times):
@@ -902,10 +924,11 @@ class UVData(UVBase):
                                                             frame_rel_uvw)
 
         # calculate data and apply phasor
-        w_lambda = (self.uvw_array[:, 2].reshape(self.Nblts, 1)
-                    / const.c.to('m/s').value * self.freq_array.reshape(1, self.Nfreqs))
-        phs = np.exp(-1j * 2 * np.pi * w_lambda[:, None, :, None])
-        self.data_array *= phs
+        if not self.metadata_only:
+            w_lambda = (self.uvw_array[:, 2].reshape(self.Nblts, 1)
+                        / const.c.to('m/s').value * self.freq_array.reshape(1, self.Nfreqs))
+            phs = np.exp(-1j * 2 * np.pi * w_lambda[:, None, :, None])
+            self.data_array *= phs
 
         self.phase_center_frame = phase_frame
         self.set_phased()
@@ -4685,15 +4708,15 @@ class UVData(UVBase):
         i0 = 0
         for i, ind in enumerate(inds_to_upsample[0]):
             i1 = i0 + n_new_samples[i]
-            temp_baseline[i0:i1] = self.baseline_array[i]
+            temp_baseline[i0:i1] = self.baseline_array[ind]
             if not self.metadata_only:
                 temp_data[i0:i1] = self.data_array[ind] / n_new_samples[i]
                 temp_flag[i0:i1] = self.flag_array[ind]
                 temp_nsample[i0:i1] = self.nsample_array[ind]
 
             # compute the new times of the upsampled array
-            t0 = self.time_array[i]
-            dt = self.integration_time[i] / n_new_samples[i]
+            t0 = self.time_array[ind]
+            dt = self.integration_time[ind] / n_new_samples[i]
             if n_new_samples[i] % 2 == 0:
                 # even number of new samples
                 n2 = n_new_samples[i] // 2
@@ -4743,15 +4766,16 @@ class UVData(UVBase):
         # set lst array
         self.set_lsts_from_time_array()
 
-        # The following operations *must* happen in this order: unphasing (if necessary),
-        # setting the uvw array, reordering. This is to prevent doing phasing twice and
-        # accumulating the associated floating point errors.
+        # temporarily store the metadata only to calculate UVWs correctly
+        uv_temp = self.copy(metadata_only=True)
+
+        # properly calculate the uvws self-consistently
+        uv_temp.set_uvws_from_antenna_positions(allow_phasing=True)
+        self.uvw_array = uv_temp.uvw_array
+
         if input_phase_type == "drift":
             # unphase back to drift
             self.unphase_to_drift()
-
-        # properly calculate the uvws self-consistently
-        self.set_uvws_from_antenna_positions(allow_phasing=True)
 
         # reorganize along blt axis
         self.reorder_blts(order=blt_order, minor_order=minor_order)
