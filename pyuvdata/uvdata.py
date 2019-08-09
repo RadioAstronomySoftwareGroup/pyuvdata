@@ -4652,7 +4652,6 @@ class UVData(UVBase):
 
         self.check()
 
-
     def bda_upsample(self, max_int_time, blt_order="time", minor_order="baseline"):
         """
         Convert to a common (shorter) integration time.
@@ -4785,7 +4784,6 @@ class UVData(UVBase):
 
         return
 
-
     def bda_downsample(self, min_int_time, blt_order="time", minor_order="baseline"):
         """
         Convert to a common (longer) integration time.
@@ -4849,8 +4847,8 @@ class UVData(UVBase):
             for int_time in self.integration_time[bl_inds]:
                 running_int_time += int_time
                 n_sum += 1
-                if (running_int_time > min_int_time
-                    or np.isclose(running_int_time, min_int_time)):
+                if running_int_time > min_int_time or np.isclose(running_int_time,
+                                                                 min_int_time):
                     # sum together that number of samples
                     temp_baseline[i0] = bl
                     # this might be wrong if some of the constituent times are *totally* flagged
