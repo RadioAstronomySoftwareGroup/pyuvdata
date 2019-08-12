@@ -295,7 +295,6 @@ def test_read_write_loop_with_optional_x_orientation():
     assert uvf.__eq__(uvf2, check_history=True)
 
 
-
 @uvtest.skipIf_no_h5py
 def test_read_write_loop_waterfal():
     uv = UVData()
