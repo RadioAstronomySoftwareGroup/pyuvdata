@@ -85,6 +85,7 @@ class MWACorrFITS(UVData):
                 file_num = int(file.split('_')[-2][-2:])
                 if file_num not in included_file_nums:
                     included_file_nums.append(file_num)
+                    print('getting file number')
                 with fits.open(file) as data:
                     # check headers for first and last times containing data
                     first_time = data[1].header['TIME']
@@ -93,19 +94,24 @@ class MWACorrFITS(UVData):
                     + data[-1].header['MILLITIM'] / 1000.0
                     if start_time == 0.0:
                         start_time = first_time
+                        print('start time:  ' + str(start_time))
                     elif start_time > first_time:
                         start_time = first_time
                     if end_time < last_time:
                         end_time = last_time
+                        print('end time:  ' + str(end_time))
                     # get number of fine channels
                     if num_fine_chans == 0:
                         num_fine_chans == data[1].header['NAXIS2']
+                        print('getting num_fine_chans')
                     elif num_fine_chans != data[1].header['NAXIS2']:
                         raise ValueError('files submitted have different fine \
                         channel widths')
                 # organize files
+                print('now organize files')
                 if 'data' not in file_dict.keys():
                     file_dict['data'] = [file]
+                    print('adding key')
                 else:
                     file_dict['data'].append(file)
             # look for flag files
