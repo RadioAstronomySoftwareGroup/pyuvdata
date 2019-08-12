@@ -2985,6 +2985,7 @@ class UVData(UVBase):
         """
 
         from . import mwa_corr_fits
+        print('find error')
         if isinstance(filelist[0], (list, tuple)):
             self.read_mwa_corr_fits(filelist[0], use_cotter_flags=use_cotter_flags,
                                     run_check=run_check, check_extra=check_extra,
