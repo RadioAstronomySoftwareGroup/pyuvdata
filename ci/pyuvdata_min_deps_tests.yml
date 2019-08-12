@@ -9,6 +9,7 @@ dependencies:
   - six
   - coverage
   - pytest-cov
+  - setuptools_scm
   - pip
   - pip:
      - pytest-cases
