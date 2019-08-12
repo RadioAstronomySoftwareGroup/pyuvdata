@@ -201,13 +201,15 @@ class MWACorrFITS(UVData):
         # build time array of centers
         time_array = np.arange(start_time + int_time / 2.0, end_time
                                + int_time / 2.0 + int_time, int_time)
+        print(time_array[0:10])
         # convert from unix to julian times
         julian_time_array = [Time(i, format='unix', scale='utc').jd
                              for i in time_array]
+        print(julian_time_array[0:10])
         # convert to integers
-        int_time_array = np.array([int(i) for i in julian_time_array])
+        float_time_array = np.array([float(i) for i in julian_time_array])
         # build into time array
-        self.time_array = np.repeat(int_time_array, self.Nbls)
+        self.time_array = np.repeat(float_time_array, self.Nbls)
 
         self.Ntimes = len(time_array)
 
@@ -224,7 +226,7 @@ class MWACorrFITS(UVData):
         # convert antenna positions from enu to ecef
         # TODO: ask Bryna does this work? antenna positions are "relative to
         # the centre of the array in local topocentric \"east\", \"north\",
-        # \"height\". Units are meters.
+        # \"height\". Units are meters."
         antenna_positions = uvutils.ECEF_from_ENU(antenna_positions, lat, lon, alt)
 
         # make initial antenna arrays, where ant_1 <= ant_2
@@ -240,7 +242,8 @@ class MWACorrFITS(UVData):
 
         self.baseline_array = np.tile(np.arange(self.Nbls), self.Ntimes)
 
-        self.uvw_array = self.set_uvws_from_antenna_positions(allow_phasing=False)
+        # create self.uvw_array        
+        self.set_uvws_from_antenna_positions(allow_phasing=False)
 
         # coarse channel mapping:
         # channels in group 0-128 go in order; channels in group 129-155 go in
