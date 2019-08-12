@@ -195,8 +195,7 @@ class MWACorrFITS(UVData):
         # set parameters from other parameters
         self.Nants_data = len(self.antenna_numbers)
         self.Nants_telescope = len(self.antenna_numbers)
-        self.Nbls = len(self.antenna_numbers)
-        * (len(self.antenna_numbers + 1)) / 2
+        self.Nbls = len(self.antenna_numbers) * (len(self.antenna_numbers) + 1) / 2
         self.Nblts = self.Nbls * self.Ntimes
 
         # assumes no averaging
