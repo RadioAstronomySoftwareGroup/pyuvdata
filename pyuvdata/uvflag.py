@@ -186,11 +186,15 @@ class UVFlag(UVBase):
         self._Nants_data = uvp.UVParameter('Nants_data',
                                            description=desc,
                                            expected_type=int,
-                                           required=False)
-
-        # mode is used to initialize some parameter requirements
-        # will be overridden if reading in a save file.
-        super(UVFlag, self).__init__()
+                                           required=True)
+        #  --extra information ---
+        desc = ('Orientation of the physical dipole corresponding to what is '
+                'labelled as the x polarization. Options are "east" '
+                '(indicating east/west orientation) and "north" (indicating '
+                'north/south orientation)')
+        self._x_orientation = uvp.UVParameter('x_orientation', description=desc,
+                                              required=False, expected_type=str,
+                                              acceptable_vals=['east', 'north'])
 
         if mode.lower() == "metric":
             self._set_mode_metric()
@@ -200,7 +204,17 @@ class UVFlag(UVBase):
             raise ValueError("Input mode must be within acceptable values: "
                              "{}".format((', ').join(self._mode.acceptable_vals)))
 
-        self.mode = mode.lower()  # Gets overwritten if reading file
+        # set the mode to allow the super call to process
+        # the "data_like_parameters" propery
+        self.mode = mode.lower()
+        # initialize the underlying UVBase propteries
+        super(UVFlag, self).__init__()
+
+        # re-set the mode on the object since it gets overwritten
+        # during the super call
+        # Gets overwritten if reading file
+        self.mode = mode.lower()
+
         self.history = ''  # Added to at the end
 
         self.label = ''  # Added to at the end
@@ -261,6 +275,7 @@ class UVFlag(UVBase):
             self.Nblts = len(self.baseline_array)
             self.ant_1_array = input.ant_1_array
             self.ant_2_array = input.ant_2_array
+            self.Nants_data = input.Nants_data
 
             self.time_array = input.time_array
             self.lst_array = input.lst_array
@@ -331,9 +346,28 @@ class UVFlag(UVBase):
 
         self.clear_unused_attributes()
 
+    @property
+    def _data_params(self):
+        """List of strings giving the data-like parameters"""
+        if self.mode == "flag":
+            return ['flag_array', 'weights_array']
+        elif self.mode == "metric":
+            return ['metric_array', 'weights_array']
+        else:
+            raise ValueError("Invalid mode. Mode must be one of "
+                             + ", ".join(["{}"]
+                                         * len(self._mode.acceptable_vals)
+                                         ).format(*self._mode.acceptable_vals))
+
+    @property
+    def data_like_parameters(self):
+        """An iterator of defined parameters which are data-like (not metadata-like)"""
+        for key in self._data_params:
+            if hasattr(self, key):
+                yield getattr(self, key)
+
     def _set_mode_flag(self):
         """Set the mode and required parameters consistent with a flag object."""
-
         self.mode = 'flag'
         self._flag_array.required = True
         self._metric_array.required = False
@@ -395,7 +429,7 @@ class UVFlag(UVBase):
         self._ant_1_array.required = True
         self._ant_2_array.required = True
         self._Nants_telescope.required = True
-        self._Nants_data.required = False
+        self._Nants_data.required = True
         self._Nbls.required = True
         self._Nspws.required = True
 
@@ -493,6 +527,485 @@ class UVFlag(UVBase):
                 print('Classes do not match')
                 return False
 
+    def _select_preprocess(self, antenna_nums, bls,
+                           frequencies, freq_chans, times, polarizations,
+                           blt_inds, ant_inds):
+        """
+        Internal function to build up blt_inds, freq_inds, pol_inds
+        and history_update_string for select.
+
+        Parameters
+        ----------
+        antenna_nums : array_like of int, optional
+            The antennas numbers to keep in the object (antenna positions and
+            names for the removed antennas will be retained unless
+            `keep_all_metadata` is False). This cannot be provided if
+            `antenna_names` is also provided.
+        bls : list of tuple, optional
+            A list of antenna number tuples (e.g. [(0,1), (3,2)]) or a list of
+            baseline 3-tuples (e.g. [(0,1,'xx'), (2,3,'yy')]) specifying baselines
+            to keep in the object. For length-2 tuples, the ordering of the numbers
+            within the tuple does not matter. For length-3 tuples, the polarization
+            string is in the order of the two antennas. If length-3 tuples are
+            provided, `polarizations` must be None.
+        frequencies : array_like of float, optional
+            The frequencies to keep in the object, each value passed here should
+            exist in the freq_array.
+        freq_chans : array_like of int, optional
+            The frequency channel numbers to keep in the object.
+        times : array_like of float, optional
+            The times to keep in the object, each value passed here should
+            exist in the time_array.
+        polarizations : array_like of int, optional
+            The polarizations numbers to keep in the object, each value passed
+            here should exist in the polarization_array.
+        blt_inds : array_like of int, optional
+            The baseline-time indices to keep in the object. This is
+            not commonly used.
+        blt_inds : array_like of int, optional
+            The antenna indices to keep in the object. This is
+            not commonly used.
+
+        Returns
+        -------
+        blt_inds : list of int
+            list of baseline-time indices to keep. Can be None (to keep everything).
+        ant_inds : list of int
+            list of antenna number indices to keep. Can be None (keep all; only valid for "antenna" mode).
+        freq_inds : list of int
+            list of frequency indices to keep. Can be None (to keep everything).
+        pol_inds : list of int
+            list of polarization indices to keep. Can be None (to keep everything).
+        history_update_string : str
+            string to append to the end of the history.
+        """
+        # build up history string as we go
+        history_update_string = '  Downselected to specific '
+        n_selects = 0
+
+        if self.type == "waterfall":
+            if antenna_nums is not None:
+                raise ValueError('Cannot select on antenna_nums with waterfall type '
+                                 'UVFLag objects.')
+            if bls is not None:
+                raise ValueError('Cannot select on bls with waterfall type '
+                                 'UVFlag objects.')
+
+        # Antennas, times and blt_inds all need to be combined into a set of
+        # blts indices to keep.
+
+        # test for blt_inds presence before adding inds from antennas & times
+        if blt_inds is not None:
+            blt_inds = uvutils._get_iterable(blt_inds)
+            if np.array(blt_inds).ndim > 1:
+                blt_inds = np.array(blt_inds).flatten()
+            history_update_string += 'baseline-times'
+            n_selects += 1
+
+        if antenna_nums is not None:
+            antenna_nums = uvutils._get_iterable(antenna_nums)
+            if np.array(antenna_nums).ndim > 1:
+                antenna_nums = np.array(antenna_nums).flatten()
+            if n_selects > 0:
+                history_update_string += ', antennas'
+            else:
+                history_update_string += 'antennas'
+            n_selects += 1
+
+            if self.type == "baseline":
+                inds1 = np.zeros(0, dtype=np.int)
+                inds2 = np.zeros(0, dtype=np.int)
+                for ant in antenna_nums:
+                    if ant in self.ant_1_array or ant in self.ant_2_array:
+                        wh1 = np.where(self.ant_1_array == ant)[0]
+                        wh2 = np.where(self.ant_2_array == ant)[0]
+                        if len(wh1) > 0:
+                            inds1 = np.append(inds1, list(wh1))
+                        if len(wh2) > 0:
+                            inds2 = np.append(inds2, list(wh2))
+                    else:
+                        raise ValueError('Antenna number {a} is not present in the '
+                                         'ant_1_array or ant_2_array'.format(a=ant))
+                ant_blt_inds = np.array(list(set(inds1).intersection(inds2)),
+                                        dtype=np.int)
+            if self.type == "antenna":
+                ant_blt_inds = None
+                ant_inds = np.zeros(0, dtype=np.int)
+                for ant in antenna_nums:
+                    if ant in self.ant_array:
+                        wh = np.nonzero(self.ant_array == ant)[0]
+                        if len(wh) > 0:
+                            ant_inds = np.append(ant_inds, list(wh))
+                    else:
+                        raise ValueError('Antenna number {a} is not present in the '
+                                         'ant_array'.format(a=ant))
+
+        else:
+            ant_blt_inds = None
+
+        if bls is not None:
+            if self.type != "baseline":
+                raise ValueError('Only "baseline" mode UVFlag objects may select'
+                                 ' along the baseline axis')
+            if isinstance(bls, tuple) and (len(bls) == 2 or len(bls) == 3):
+                bls = [bls]
+            if not all(isinstance(item, tuple) for item in bls):
+                raise ValueError(
+                    'bls must be a list of tuples of antenna numbers (optionally with polarization).')
+            if not all([isinstance(item[0], six.integer_types + (np.integer,)) for item in bls]
+                       + [isinstance(item[1], six.integer_types + (np.integer,)) for item in bls]):
+                raise ValueError(
+                    'bls must be a list of tuples of integer antenna numbers (optionally with polarization).')
+            if all([len(item) == 3 for item in bls]):
+                if polarizations is not None:
+                    raise ValueError('Cannot provide length-3 tuples and also specify polarizations.')
+                if not all([isinstance(item[2], str) for item in bls]):
+                    raise ValueError('The third element in each bl must be a polarization string')
+
+            if n_selects > 0:
+                history_update_string += ', baselines'
+            else:
+                history_update_string += 'baselines'
+
+            n_selects += 1
+            bls_blt_inds = np.zeros(0, dtype=np.int)
+            bl_pols = set()
+            for bl in bls:
+                if not (bl[0] in self.ant_1_array or bl[0] in self.ant_2_array):
+                    raise ValueError('Antenna number {a} is not present in the '
+                                     'ant_1_array or ant_2_array'.format(a=bl[0]))
+                if not (bl[1] in self.ant_1_array or bl[1] in self.ant_2_array):
+                    raise ValueError('Antenna number {a} is not present in the '
+                                     'ant_1_array or ant_2_array'.format(a=bl[1]))
+                wh1 = np.where(np.logical_and(
+                    self.ant_1_array == bl[0], self.ant_2_array == bl[1]))[0]
+                wh2 = np.where(np.logical_and(
+                    self.ant_1_array == bl[1], self.ant_2_array == bl[0]))[0]
+                if len(wh1) > 0:
+                    bls_blt_inds = np.append(bls_blt_inds, list(wh1))
+                    if len(bl) == 3:
+                        bl_pols.add(bl[2])
+                elif len(wh2) > 0:
+                    bls_blt_inds = np.append(bls_blt_inds, list(wh2))
+                    if len(bl) == 3:
+                        bl_pols.add(bl[2][::-1])  # reverse polarization string
+                else:
+                    raise ValueError('Antenna pair {p} does not have any data '
+                                     'associated with it.'.format(p=bl))
+            if len(bl_pols) > 0:
+                polarizations = list(bl_pols)
+
+            if ant_blt_inds is not None:
+                # Use intersection (and) to join antenna_names/nums & ant_pairs_nums
+                ant_blt_inds = np.array(list(set(ant_blt_inds).intersection(bls_blt_inds)))
+            else:
+                ant_blt_inds = bls_blt_inds
+
+        if ant_blt_inds is not None:
+            if blt_inds is not None:
+                # Use intersection (and) to join antenna_names/nums/ant_pairs_nums with blt_inds
+                blt_inds = np.array(
+                    list(set(blt_inds).intersection(ant_blt_inds)), dtype=np.int)
+            else:
+                blt_inds = ant_blt_inds
+
+        if times is not None:
+            times = uvutils._get_iterable(times)
+            if np.array(times).ndim > 1:
+                times = np.array(times).flatten()
+            if n_selects > 0:
+                history_update_string += ', times'
+            else:
+                history_update_string += 'times'
+            n_selects += 1
+
+            time_blt_inds = np.zeros(0, dtype=np.int)
+            for jd in times:
+                if jd in self.time_array:
+                    time_blt_inds = np.append(
+                        time_blt_inds, np.where(self.time_array == jd)[0])
+                else:
+                    raise ValueError(
+                        'Time {t} is not present in the time_array'.format(t=jd))
+
+            if blt_inds is not None:
+                # Use intesection (and) to join antenna_names/nums/ant_pairs_nums/blt_inds with times
+                blt_inds = np.array(
+                    list(set(blt_inds).intersection(time_blt_inds)), dtype=np.int)
+            else:
+                blt_inds = time_blt_inds
+
+        if blt_inds is not None:
+            if len(blt_inds) == 0:
+                raise ValueError(
+                    'No baseline-times were found that match criteria')
+            if max(blt_inds) >= self.Nblts:
+                raise ValueError(
+                    'blt_inds contains indices that are too large')
+            if min(blt_inds) < 0:
+                raise ValueError('blt_inds contains indices that are negative')
+
+            blt_inds = list(sorted(set(list(blt_inds))))
+
+        if freq_chans is not None:
+            freq_chans = uvutils._get_iterable(freq_chans)
+            if np.array(freq_chans).ndim > 1:
+                freq_chans = np.array(freq_chans).flatten()
+            if frequencies is None:
+                if self.type != "waterfall":
+                    frequencies = self.freq_array[0, freq_chans]
+                else:
+                    frequencies = self.freq_array[freq_chans]
+
+            else:
+                frequencies = uvutils._get_iterable(frequencies)
+                if self.type != "waterfall":
+                    frequencies = np.sort(list(set(frequencies)
+                                          | set(self.freq_array[0, freq_chans])))
+                else:
+                    frequencies = np.sort(list(set(frequencies)
+                                          | set(self.freq_array[freq_chans])))
+
+        if frequencies is not None:
+            frequencies = uvutils._get_iterable(frequencies)
+            if np.array(frequencies).ndim > 1:
+                frequencies = np.array(frequencies).flatten()
+            if n_selects > 0:
+                history_update_string += ', frequencies'
+            else:
+                history_update_string += 'frequencies'
+            n_selects += 1
+
+            freq_inds = np.zeros(0, dtype=np.int)
+            # this works because we only allow one SPW. This will have to be reworked when we support more.
+            if self.type != "waterfall":
+                freq_arr_use = self.freq_array[0, :]
+            else:
+                freq_arr_use = self.freq_array[:]
+            for f in frequencies:
+                if f in freq_arr_use:
+                    freq_inds = np.append(
+                        freq_inds, np.where(freq_arr_use == f)[0])
+                else:
+                    raise ValueError(
+                        'Frequency {f} is not present in the freq_array'.format(f=f))
+
+            freq_inds = list(sorted(set(list(freq_inds))))
+        else:
+            freq_inds = None
+
+        if polarizations is not None:
+            polarizations = uvutils._get_iterable(polarizations)
+            if np.array(polarizations).ndim > 1:
+                polarizations = np.array(polarizations).flatten()
+            if n_selects > 0:
+                history_update_string += ', polarizations'
+            else:
+                history_update_string += 'polarizations'
+            n_selects += 1
+
+            pol_inds = np.zeros(0, dtype=np.int)
+            for p in polarizations:
+                if isinstance(p, str):
+                    p_num = uvutils.polstr2num(p, x_orientation=self.x_orientation)
+                else:
+                    p_num = p
+                if p_num in self.polarization_array:
+                    pol_inds = np.append(pol_inds, np.where(
+                        self.polarization_array == p_num)[0])
+                else:
+                    raise ValueError(
+                        'Polarization {p} is not present in the polarization_array'.format(p=p))
+
+            pol_inds = list(sorted(set(list(pol_inds))))
+        else:
+            pol_inds = None
+
+        history_update_string += ' using pyuvdata.'
+
+        return blt_inds, ant_inds, freq_inds, pol_inds, history_update_string
+
+    def _select_metadata(self, blt_inds, ant_inds, freq_inds, pol_inds,
+                         history_update_string):
+        """
+        Internal function to perform select on everything except the data-sized arrays.
+
+        Parameters
+        ----------
+        blt_inds : list of int
+            list of baseline-time indices to keep. Can be None (to keep everything).
+        freq_inds : list of int
+            list of frequency indices to keep. Can be None (to keep everything).
+        pol_inds : list of int
+            list of polarization indices to keep. Can be None (to keep everything).
+        history_update_string : str
+            string to append to the end of the history.
+        keep_all_metadata : bool
+            Option to keep metadata for antennas that are no longer in the dataset.
+        """
+        if blt_inds is not None:
+            self.Nblts = len(blt_inds)
+            if self.type == "baseline":
+                self.baseline_array = self.baseline_array[blt_inds]
+                self.Nbls = len(np.unique(self.baseline_array))
+                self.ant_1_array = self.ant_1_array[blt_inds]
+                self.ant_2_array = self.ant_2_array[blt_inds]
+                self.Nants_data = int(len(set(self.ant_1_array.tolist()
+                                              + self.ant_2_array.tolist())))
+
+            self.time_array = self.time_array[blt_inds]
+            self.lst_array = self.lst_array[blt_inds]
+            self.Ntimes = len(np.unique(self.time_array))
+
+        if self.type == "antenna":
+            if ant_inds is not None:
+                self.ant_array = self.ant_array[ant_inds]
+                self.Nants_data = int(len(self.ant_array))
+
+        if freq_inds is not None:
+            self.Nfreqs = len(freq_inds)
+            if self.type != "waterfall":
+                self.freq_array = self.freq_array[:, freq_inds]
+            else:
+                self.freq_array = self.freq_array[freq_inds]
+
+        if pol_inds is not None:
+            self.Npols = len(pol_inds)
+            self.polarization_array = self.polarization_array[pol_inds]
+
+        self.history = self.history + history_update_string
+
+    def select(self, antenna_nums=None, ant_inds=None,
+               bls=None, frequencies=None, freq_chans=None,
+               times=None, polarizations=None, blt_inds=None, run_check=True,
+               check_extra=True, run_check_acceptability=True, inplace=True):
+        """Downselect data to keep on the object along various axes.
+
+        Axes that can be selected along depend on the current type of the object.
+        However some axis may always be selected upon, these include frequencies, times and polarizations.
+        In "baseline" and "antenna" modes, antenna numbers may be selected.
+        In "baseline" mode, antenna pairs may be selected.
+        Specific baseline-time indices can also be selected in "baseline" mode, but this is not commonly used.
+        The history attribute on the object will be updated to identify the
+        operations performed.
+
+        Parameters
+        ----------
+        antenna_nums : array_like of int, optional
+            The antennas numbers to keep in the object (antenna positions and
+            names for the removed antennas will be retained unless
+            `keep_all_metadata` is False). This cannot be provided if
+            `antenna_names` is also provided.
+       bls : list of tuple, optional
+            A list of antenna number tuples (e.g. [(0,1), (3,2)]) or a list of
+            baseline 3-tuples (e.g. [(0,1,'xx'), (2,3,'yy')]) specifying baselines
+            to keep in the object. For length-2 tuples, the ordering of the numbers
+            within the tuple does not matter. For length-3 tuples, the polarization
+            string is in the order of the two antennas. If length-3 tuples are
+            provided, `polarizations` must be None.
+       frequencies : array_like of float, optional
+            The frequencies to keep in the object, each value passed here should
+            exist in the freq_array.
+        freq_chans : array_like of int, optional
+            The frequency channel numbers to keep in the object.
+        times : array_like of float, optional
+            The times to keep in the object, each value passed here should
+            exist in the time_array.
+        polarizations : array_like of int, optional
+            The polarizations numbers to keep in the object, each value passed
+            here should exist in the polarization_array.
+        blt_inds : array_like of int, optional
+            The baseline-time indices to keep in the object. This is
+            not commonly used.
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            after downselecting data on this object (the default is True,
+            meaning the check will be run).
+        check_extra : bool
+            Option to check optional parameters as well as required ones (the
+            default is True, meaning the optional parameters will be checked).
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters after
+            downselecting data on this object (the default is True, meaning the
+            acceptable range check will be done).
+        inplace : bool
+            Option to perform the select directly on self or return a new UVData
+            object with just the selected data (the default is True, meaning the
+            select will be done on self).
+
+        Returns
+        -------
+        UVData object or None
+            None is returned if inplace is True, otherwise a new UVData object
+            with just the selected data is returned
+
+        Raises
+        ------
+        ValueError
+            If any of the parameters are set to inappropriate values.
+
+
+        """
+
+        if inplace:
+            uv_object = self
+        else:
+            uv_object = copy.deepcopy(self)
+
+        blt_inds, ant_inds, freq_inds, pol_inds, history_update_string = \
+            uv_object._select_preprocess(antenna_nums, bls,
+                                         frequencies, freq_chans, times,
+                                         polarizations, blt_inds, ant_inds)
+
+        # do select operations on everything except data_array, flag_array and nsample_array
+        uv_object._select_metadata(blt_inds, ant_inds, freq_inds, pol_inds,
+                                   history_update_string)
+
+        if blt_inds is not None:
+            if self.type == "baseline":
+                for param_name, param in zip(self._data_params, uv_object.data_like_parameters):
+                    setattr(uv_object, param_name, param[blt_inds, :, :, :])
+            if self.type == "waterfall":
+                for param_name, param in zip(self._data_params, uv_object.data_like_parameters):
+                    setattr(uv_object, param_name, param[blt_inds, :, :])
+            if self.type == "antenna":
+                for param_name, param in zip(self._data_params, uv_object.data_like_parameters):
+                    setattr(uv_object, param_name, param[:, :, :, blt_inds, :])
+
+        if ant_inds is not None and self.type == "antenna":
+            for param_name, param in zip(self._data_params, uv_object.data_like_parameters):
+                setattr(uv_object, param_name, param[ant_inds, :, :, :])
+
+        if freq_inds is not None:
+            if self.type == "baseline":
+                for param_name, param in zip(self._data_params, uv_object.data_like_parameters):
+                    setattr(uv_object, param_name, param[:, :, freq_inds, :])
+            if self.type == "waterfall":
+                for param_name, param in zip(self._data_params, uv_object.data_like_parameters):
+                    setattr(uv_object, param_name, param[:, freq_inds, :])
+            if self.type == "antenna":
+                for param_name, param in zip(self._data_params, uv_object.data_like_parameters):
+                    setattr(uv_object, param_name, param[:, :, freq_inds, :, :])
+
+        if pol_inds is not None:
+            if self.type == "baseline":
+                for param_name, param in zip(self._data_params, uv_object.data_like_parameters):
+                    setattr(uv_object, param_name, param[:, :, :, pol_inds])
+            if self.type == "waterfall":
+                for param_name, param in zip(self._data_params, uv_object.data_like_parameters):
+                    setattr(uv_object, param_name, param[:, :, pol_inds])
+            if self.type == "antenna":
+                for param_name, param in zip(self._data_params, uv_object.data_like_parameters):
+                    setattr(uv_object, param_name, param[:, :, :, :, pol_inds])
+
+        # check if object is uv_object-consistent
+        if run_check:
+            uv_object.check(check_extra=check_extra,
+                            run_check_acceptability=run_check_acceptability)
+
+        if not inplace:
+            return uv_object
+
     def read(self, filename, history=''):
         """
         Read in flag/metric data from a HDF5 file.
@@ -545,6 +1058,9 @@ class UVFlag(UVBase):
                                      "must be within acceptable values: "
                                      "{expect}".format(receive=self.mode,
                                                        expect=(', ').join(self._mode.acceptable_vals)))
+
+                if 'x_orientation' in header.keys():
+                    self.x_orientation = uvutils._bytes_to_str(header['x_orientation'][()])
 
                 self.time_array = header['time_array'][()]
                 if 'Ntimes' in header.keys():
@@ -605,12 +1121,19 @@ class UVFlag(UVBase):
 
                     self.ant_1_array = header['ant_1_array'][()]
                     self.ant_2_array = header['ant_2_array'][()]
+
                     try:
                         self.Nants_telescope = int(header['Nants_telescope'][()])
                     except KeyError:
                         warnings.warn('Nants_telescope not available in file, '
                                       'assuming < 2048.')
                         self.Nants_telescope = None
+
+                    if 'Nants_data' in header.keys():
+                        self.Nants_data = int(header['Nants_data'][()])
+                    else:
+                        self.Nants_data = int(len(self.ant_1_array.tolist()
+                                                  + self.ant_2_array.tolist()))
 
                     if 'Nspws' in header.keys():
                         self.Nspws = int(header['Nspws'][()])
@@ -674,6 +1197,10 @@ class UVFlag(UVBase):
             header['Nfreqs'] = self.Nfreqs
 
             header['Npols'] = self.Npols
+
+            if self.x_orientation is not None:
+                header['x_orientation'] = uvutils._str_to_bytes(self.x_orientation)
+
             if isinstance(self.polarization_array.item(0), six.string_types):
                 polarization_array = np.asarray(self.polarization_array,
                                                 dtype=np.string_)
@@ -694,6 +1221,7 @@ class UVFlag(UVBase):
                 header['Nblts'] = self.Nblts
                 header['ant_1_array'] = self.ant_1_array
                 header['ant_2_array'] = self.ant_2_array
+                header['Nants_data'] = self.Nants_data
                 header['Nants_telescope'] = self.Nants_telescope
                 header['Nspws'] = self.Nspws
 
@@ -755,6 +1283,9 @@ class UVFlag(UVBase):
                 this.baseline_array = np.concatenate([this.baseline_array, other.baseline_array])
                 this.ant_1_array = np.concatenate([this.ant_1_array, other.ant_1_array])
                 this.ant_2_array = np.concatenate([this.ant_2_array, other.ant_2_array])
+                this.Nants_data = int(len(set(self.ant_1_array.tolist()
+                                              + self.ant_2_array.tolist())))
+
             this.Ntimes = np.unique(this.time_array).size
             this.Nblts = len(this.time_array)
 
@@ -767,6 +1298,9 @@ class UVFlag(UVBase):
             this.baseline_array = np.concatenate([this.baseline_array, other.baseline_array])
             this.ant_1_array = np.concatenate([this.ant_1_array, other.ant_1_array])
             this.ant_2_array = np.concatenate([this.ant_2_array, other.ant_2_array])
+            this.Nants_data = int(len(set(self.ant_1_array.tolist()
+                                          + self.ant_2_array.tolist())))
+
             this.Nbls = np.unique(this.baseline_array).size
             this.Nblts = len(this.baseline_array)
 
@@ -864,7 +1398,7 @@ class UVFlag(UVBase):
         """
         for p in self:
             attr = getattr(self, p)
-            if not attr.required and attr.value is not None:
+            if not attr.required and attr.value is not None and attr.name != 'x_orientation':
                 attr.value = None
                 setattr(self, p, attr)
 
@@ -1100,6 +1634,8 @@ class UVFlag(UVBase):
 
         self.ant_1_array = uv.ant_1_array
         self.ant_2_array = uv.ant_2_array
+        self.Nants_data = int(len(set(self.ant_1_array.tolist()
+                                      + self.ant_2_array.tolist())))
 
         self.time_array = uv.time_array
         self.lst_array = uv.lst_array

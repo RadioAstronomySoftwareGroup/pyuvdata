@@ -13,3 +13,6 @@ dependencies:
   - six
   - coverage
   - pytest-cov
+  - pip
+  - pip:
+      - pytest-cases
