@@ -85,33 +85,25 @@ class MWACorrFITS(UVData):
                 file_num = int(file.split('_')[-2][-2:])
                 if file_num not in included_file_nums:
                     included_file_nums.append(file_num)
-                    print('getting file number')
                 with fits.open(file) as data:
                     # check headers for first and last times containing data
-                    first_time = data[1].header['TIME']
-                    + data[1].header['MILLITIM'] / 1000.0
-                    last_time = data[-1].header['TIME']
-                    + data[-1].header['MILLITIM'] / 1000.0
+                    first_time = data[1].header['TIME'] + data[1].header['MILLITIM'] / 1000.0
+                    last_time = data[-1].header['TIME'] + data[-1].header['MILLITIM'] / 1000.0
                     if start_time == 0.0:
                         start_time = first_time
-                        print('start time:  ' + str(start_time))
                     elif start_time > first_time:
                         start_time = first_time
                     if end_time < last_time:
                         end_time = last_time
-                        print('end time:  ' + str(end_time))
                     # get number of fine channels
                     if num_fine_chans == 0:
-                        num_fine_chans == data[1].header['NAXIS2']
-                        print('getting num_fine_chans')
+                        num_fine_chans = data[1].header['NAXIS2']
                     elif num_fine_chans != data[1].header['NAXIS2']:
                         raise ValueError('files submitted have different fine \
                         channel widths')
                 # organize files
-                print('now organize files')
                 if 'data' not in file_dict.keys():
                     file_dict['data'] = [file]
-                    print('adding key')
                 else:
                     file_dict['data'].append(file)
             # look for flag files
@@ -183,7 +175,7 @@ class MWACorrFITS(UVData):
             antenna_flags = meta_tbl['Flag'][1::2]
 
             # get antenna postions in enu coordinates
-            antenna_positions = np.zeros(len(self.antenna_numbers), 3)
+            antenna_positions = np.zeros((len(antenna_numbers), 3))
             antenna_positions[:, 0] = meta_tbl['East'][1::2]
             antenna_positions[:, 1] = meta_tbl['North'][1::2]
             antenna_positions[:, 2] = meta_tbl['Height'][1::2]
@@ -201,11 +193,7 @@ class MWACorrFITS(UVData):
         # set parameters from other parameters
         self.Nants_data = len(self.antenna_numbers)
         self.Nants_telescope = len(self.antenna_numbers)
-        self.Nbls = len(self.antenna_numbers) * (len(self.antenna_numbers) + 1) / 2
-        self.Nblts = self.Nbls * self.Ntimes
-
-        # assumes no averaging
-        self.integration_time = np.array([int_time for i in range(self.Nblts)])
+        self.Nbls = int(len(self.antenna_numbers) * (len(self.antenna_numbers) + 1) / 2.0)
 
         # get telescope parameters
         self.set_telescope_params()
@@ -223,16 +211,21 @@ class MWACorrFITS(UVData):
 
         self.Ntimes = len(time_array)
 
+        self.Nblts = int(self.Nbls * self.Ntimes)
+
+        lat, lon, alt = self.telescope_location_lat_lon_alt
+
         # convert times to lst
-        self.lst_array = self.get_lst_for_time(self.time_array,
-                                               self.telescope_location_lat_lon_alt)
+        self.lst_array = uvutils.get_lst_for_time(self.time_array, lat, lon, alt)
+
+        # assumes no averaging
+        self.integration_time = np.array([int_time for i in range(self.Nblts)])
 
         # convert antenna positions from enu to ecef
         # TODO: ask Bryna does this work? antenna positions are "relative to
         # the centre of the array in local topocentric \"east\", \"north\",
         # \"height\". Units are meters.
-        antenna_positions = uvutils.ECEF_from_ENU(antenna_positions,
-                                                  self.telescope_location_lat_lon_alt)
+        antenna_positions = uvutils.ECEF_from_ENU(antenna_positions, lat, lon, alt)
 
         # make initial antenna arrays, where ant_1 <= ant_2
         ant_1_array = []
@@ -262,19 +255,25 @@ class MWACorrFITS(UVData):
         for i in coarse_chans:
             if i <= 128:
                 count += 1
-        # map file numbers to coarse channel numbers
+        # map all file numbers to coarse channel numbers
         file_nums_to_coarse = {i + 1: coarse_chans[i] if i < count else
                                coarse_chans[(len(coarse_chans) + count - i - 1)]
                                for i in range(len(coarse_chans))}
-        # map file numbers to an index that orders them
-        file_nums_to_index = {i + 1: i if i < count else (len(coarse_chans)
-                              + count - i - 1) for i in range(len(coarse_chans))}
 
         # find which coarse channels are actually included
         included_coarse_chans = []
         for i in included_file_nums:
             included_coarse_chans.append(file_nums_to_coarse[i])
-        included_coarse_chans = included_coarse_chans.sorted()
+        included_coarse_chans = sorted(included_coarse_chans)
+
+        # count the number of included coarse channels that are in group 0-128
+        count = 0
+        for i in included_coarse_chans:
+            if i <= 128:
+                count += 1
+        # map included file numbers to an index that orders them
+        file_nums_to_index = {i + 1: i if i < count else (len(included_coarse_chans)
+                              + count - i - 1) for i in range(len(included_coarse_chans))}
 
         # check that coarse channels are contiguous.
         # TODO: look at a data file where the coarse channels aren't contiguous to make sure this works
@@ -291,7 +290,7 @@ class MWACorrFITS(UVData):
 
         # build frequency array
         self.Nfreqs = len(included_coarse_chans) * num_fine_chans
-        self.frequency_array = np.zeros((self.Nspws, self.Nfreqs))
+        self.freq_array = np.zeros((self.Nspws, self.Nfreqs))
 
         # each coarse channel is split into 128 fine channels of width 10 kHz.
         # The first fine channel for each coarse channel is centered on the
@@ -318,12 +317,11 @@ class MWACorrFITS(UVData):
             first_center = lower_fine_freq + offset
             # add the channel centers for this coarse channel into
             # the frequency array (converting from kHz to Hz)
-            self.frequency_array[0, int(i * 128 / avg_factor):int((i + 1) * 128 / avg_factor)] = \
+            self.freq_array[0, int(i * 128 / avg_factor):int((i + 1) * 128 / avg_factor)] = \
                 np.arange(first_center, first_center + num_avg_chans * width, width) * 1000
 
-        # read data into an array with dimensions (time, frequency, baselines*pols)
+        # read data into an array with dimensions (time, uv, baselines*pols)
         data_dump = np.zeros((self.Ntimes, self.Nfreqs, self.Nbls * self.Npols), dtype=np.complex)
-
         # read data files
         for file in file_dict['data']:
             # get the file number from the file name
@@ -332,8 +330,8 @@ class MWACorrFITS(UVData):
             freq_ind = file_nums_to_index[file_num] * num_fine_chans
             with fits.open(file, memmap=False, do_not_scale_image_data=False) as hdu_list:
                 # count number of times
-                end_time = len(hdu_list)
-                for i in range(1, end_time):
+                end_list = len(hdu_list)
+                for i in range(1, end_list):
                     time = hdu_list[i].header['TIME'] + hdu_list[i].header['MILLITIM'] / 1000.0 + int_time / 2.0
                     time_ind = np.where(time_array == time)[0][0]
                     # dump data into matrix
@@ -370,14 +368,14 @@ class MWACorrFITS(UVData):
                         # generate the indices in data_reorder for this combination
                         # baselines are ordered (0,0),(0,1),...,(0,127),(1,1),.....
                         # polarizion of 0 (1) corresponds to y (x)
-                        pol_ind = 2 * p1 + p2
-                        bls_ind = 128 * ant1 - ant1 * (ant1 + 1) / 2 + ant2
+                        pol_ind = int(2 * p1 + p2)
+                        bls_ind = int(128 * ant1 - ant1 * (ant1 + 1) / 2 + ant2)
                         # find the pfb input indices for this combination
-                        ind1_1, ind1_2 = corr_ants_to_pfb_inputs[(ant1, p1)],
-                        corr_ants_to_pfb_inputs[(ant2, p2)]
+                        (ind1_1, ind1_2) = (corr_ants_to_pfb_inputs[(ant1, p1)],
+                                            corr_ants_to_pfb_inputs[(ant2, p2)])
                         # finde the pfb output indices
-                        ind2_1, ind2_2 = pfb_inputs_to_outputs[(ind1_1)],
-                        pfb_inputs_to_outputs[(ind1_2)]
+                        (ind2_1, ind2_2) = (pfb_inputs_to_outputs[(ind1_1)],
+                                            pfb_inputs_to_outputs[(ind1_2)])
                         out_ant1 = int(ind2_1 / 2)
                         out_ant2 = int(ind2_2 / 2)
                         out_p1 = ind2_1 % 2
@@ -386,11 +384,11 @@ class MWACorrFITS(UVData):
                         # so check if ind2_1 and ind2_2 satisfy this
                         # get the index for the data
                         if out_ant1 < out_ant2:
-                            data_index = 2 * out_ant2 * (out_ant2 + 1) + 4 * out_ant1 + 2 * out_p2 + out_p1
+                            data_index = int(2 * out_ant2 * (out_ant2 + 1) + 4 * out_ant1 + 2 * out_p2 + out_p1)
                             # need to take the complex conjugate of the data
                             data_reorder[:, bls_ind, :, pol_ind] = np.conj(data_dump[:, :, data_index])
                         else:
-                            data_index = 2 * out_ant1 * (out_ant1 + 1) + 4 * out_ant2 + 2 * out_p1 + out_p2
+                            data_index = int(2 * out_ant1 * (out_ant1 + 1) + 4 * out_ant2 + 2 * out_p1 + out_p2)
                             data_reorder[:, bls_ind, :, pol_ind] = data_dump[:, :, data_index]
 
         # add spectral window index
