@@ -19,6 +19,9 @@ from pyuvdata.uvflag import and_rows_cols
 from pyuvdata import version as uvversion
 import shutil
 import copy
+import warnings
+
+pytest_cases = pytest.importorskip('pytest_cases')
 
 
 test_d_file = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.HH.uvcAA')
@@ -33,6 +36,53 @@ if uvversion.git_hash is not '':
                              + '.  Git hash: ' + uvversion.git_hash
                              + '.  Git branch: ' + uvversion.git_branch
                              + '.  Git description: ' + uvversion.git_description + '.')
+
+
+# This warning is raised by pytest_cases
+# It is due to a feature the developer does
+# not know how to handle yet. ignore for now.
+warnings.filterwarnings("ignore",
+                        message="WARNING the new order is not"
+                                + " taken into account !!", append=True)
+
+
+@pytest.fixture(scope='function')
+def uvf_from_miriad():
+    uv = UVData()
+    uv.read_miriad(test_d_file)
+    uvf = UVFlag(uv)
+
+    # yeild the object for the test
+    yield uvf
+
+    # do some cleanup
+    del(uvf, uv)
+
+
+@pytest.fixture(scope='function')
+def uvf_from_uvcal():
+    uvc = UVCal()
+    uvc.read_calfits(test_c_file)
+    uvf = UVFlag(uvc)
+
+    # yeild the object for the test
+    yield uvf
+
+    # do some cleanup
+    del(uvf, uvc)
+
+
+@pytest.fixture(scope='function')
+def uvf_from_waterfall():
+    uv = UVData()
+    uv.read_miriad(test_d_file)
+    uvf = UVFlag(uv, waterfall=True)
+
+    # yeild the object for the test
+    yield uvf
+
+    # do some cleanup
+    del(uvf, uv)
 
 
 def test_init_bad_mode():
@@ -214,6 +264,16 @@ def test_init_list_files_weights(tmpdir):
     assert np.all(uvf2.weights_array == np.concatenate([wts1, wts2], axis=0))
 
 
+def test_data_like_property_mode_tamper():
+    uv = UVData()
+    uv.read_miriad(test_d_file)
+    uvf = UVFlag(uv, label='test')
+    uvf.mode = 'test'
+    with pytest.raises(ValueError) as cm:
+        junk = list(uvf.data_like_parameters)
+    assert str(cm.value).startswith('Invalid mode. Mode must be one of')
+
+
 @uvtest.skipIf_no_h5py
 def test_read_write_loop():
     uv = UVData()
@@ -222,6 +282,18 @@ def test_read_write_loop():
     uvf.write(test_outfile, clobber=True)
     uvf2 = UVFlag(test_outfile)
     assert uvf.__eq__(uvf2, check_history=True)
+
+
+@uvtest.skipIf_no_h5py
+def test_read_write_loop_with_optional_x_orientation():
+    uv = UVData()
+    uv.read_miriad(test_d_file)
+    uvf = UVFlag(uv, label='test')
+    uvf.x_orientation = 'east'
+    uvf.write(test_outfile, clobber=True)
+    uvf2 = UVFlag(test_outfile)
+    assert uvf.__eq__(uvf2, check_history=True)
+
 
 
 @uvtest.skipIf_no_h5py
@@ -329,7 +401,7 @@ def test_read_missing_nants_data():
         del h5['Header/Nants_data']
 
     uvf2 = uvtest.checkWarnings(UVFlag, [test_outfile], {}, nwarnings=1,
-                                message='Nants_data not available in file,',
+                                message=['Nants_data not available in file,'],
                                 category=UserWarning)
 
     # make sure this was set to None
@@ -1522,7 +1594,7 @@ def test_missing_Nants_telescope():
     with h5py.File(testfile, 'r+') as f:
         del(f['/Header/Nants_telescope'])
     uvf = uvtest.checkWarnings(UVFlag, [testfile], {}, nwarnings=1,
-                               message='Nants_telescope not availabe')
+                               message=['Nants_telescope not available in file,'])
     uvf2 = UVFlag(test_f_file)
     uvf2.Nants_telescope = None
     assert uvf == uvf2
@@ -1699,3 +1771,667 @@ def test_and_rows_cols():
     assert o[:, 2].all()
     assert not o[5, :].all()
     assert not o[:, 5].all()
+
+
+def test_select_waterfall_errors(uvf_from_waterfall):
+    uvf = uvf_from_waterfall
+    with pytest.raises(ValueError) as cm:
+        uvf.select(antenna_nums=[0, 1, 2])
+    assert str(cm.value).startswith('Cannot select on antenna_nums with waterfall')
+
+    with pytest.raises(ValueError) as cm:
+        uvf.select(bls=[(0, 1), (0, 2)])
+    assert str(cm.value).startswith('Cannot select on bls with waterfall')
+
+
+@pytest_cases.pytest_parametrize_plus("input_uvf",
+                                      [pytest_cases.fixture_ref(uvf_from_miriad),
+                                       pytest_cases.fixture_ref(uvf_from_uvcal),
+                                       pytest_cases.fixture_ref(uvf_from_waterfall)])
+@pytest.mark.parametrize("uvf_mode", ["to_flag", "to_metric"])
+def test_select_blt_inds(input_uvf, uvf_mode):
+    uvf = input_uvf
+
+    # used to set the mode depending on which input is given to uvf_mode
+    getattr(uvf, uvf_mode)()
+    np.random.seed(0)
+    blt_inds = np.random.choice(uvf.Nblts, size=uvf.Nblts // 2, replace=False)
+    new_nblts = uvf.Nblts // 2
+    uvf1 = uvf.select(blt_inds=blt_inds, inplace=False)
+
+    # test the data was extracted correctly for each case
+    for param_name, new_param in zip(uvf._data_params, uvf1.data_like_parameters):
+        old_param = getattr(uvf, param_name)
+        if uvf.type == "baseline":
+            assert np.allclose(old_param[blt_inds], new_param)
+        if uvf.type == "antenna":
+            assert np.allclose(old_param[:, :, :, blt_inds], new_param)
+        if uvf.type == "waterfall":
+            assert np.allclose(old_param[blt_inds], new_param)
+
+    assert uvf1.Nblts == new_nblts
+    # verify that histories are different
+    assert not uvutils._check_histories(uvf.history, uvf1.history)
+
+    assert uvutils._check_histories(uvf.history + '  Downselected to '
+                                    'specific baseline-times using pyuvdata.',
+                                    uvf1.history)
+
+    # test works with higher dimension arrays:
+    uvf1 = uvf.select(blt_inds=np.atleast_3d(blt_inds), inplace=False)
+
+    # test the data was extraced
+    # assert np.allclose(uvf.metric_array[blt_inds], uvf1.metric_array)
+    assert uvf1.Nblts == new_nblts
+    assert 'baseline-times' in uvf1.history
+    # verify that histories are different
+    assert not uvutils._check_histories(uvf.history, uvf1.history)
+
+    assert uvutils._check_histories(uvf.history + '  Downselected to '
+                                    'specific baseline-times using pyuvdata.',
+                                    uvf1.history)
+
+    # test the error modes of blt_inds
+    with pytest.raises(ValueError) as cm:
+        uvf.select(blt_inds=[])
+    assert str(cm.value).startswith('No baseline-times were found')
+
+    with pytest.raises(ValueError) as cm:
+        uvf.select(blt_inds=[np.max(uvf.Nblts) + 1])
+    assert str(cm.value).startswith('blt_inds contains indices that are too large')
+
+    with pytest.raises(ValueError) as cm:
+        uvf.select(blt_inds=[-1])
+    assert str(cm.value).startswith('blt_inds contains indices that are negative')
+
+
+@pytest_cases.pytest_parametrize_plus("input_uvf",
+                                      [pytest_cases.fixture_ref(uvf_from_miriad),
+                                       pytest_cases.fixture_ref(uvf_from_uvcal)])
+@pytest.mark.parametrize("uvf_mode", ["to_flag", "to_metric"])
+def test_select_antenna_nums(input_uvf, uvf_mode):
+    uvf = input_uvf
+    # used to set the mode depending on which input is given to uvf_mode
+    getattr(uvf, uvf_mode)()
+
+    old_history = copy.deepcopy(uvf.history)
+    np.random.seed(0)
+    if uvf.type == "baseline":
+        unique_ants = np.unique(uvf.ant_1_array.tolist()
+                                + uvf.ant_2_array.tolist())
+        ants_to_keep = np.random.choice(unique_ants,
+                                        size=unique_ants.size // 2,
+                                        replace=False)
+
+        blts_select = [(a1 in ants_to_keep) & (a2 in ants_to_keep) for (a1, a2) in
+                       zip(uvf.ant_1_array, uvf.ant_2_array)]
+        Nblts_selected = np.sum(blts_select)
+    else:
+        unique_ants = np.unique(uvf.ant_array)
+        ants_to_keep = np.random.choice(unique_ants,
+                                        size=unique_ants.size // 2,
+                                        replace=False)
+
+    uvf2 = copy.deepcopy(uvf)
+    uvf2.select(antenna_nums=ants_to_keep)
+
+    assert len(ants_to_keep) == uvf2.Nants_data
+    if uvf2.type == "baseline":
+        assert Nblts_selected == uvf2.Nblts
+        for ant in ants_to_keep:
+            assert ant in uvf2.ant_1_array or ant in uvf2.ant_2_array
+        for ant in np.unique(uvf2.ant_1_array.tolist()
+                             + uvf2.ant_2_array.tolist()):
+            assert ant in ants_to_keep
+    else:
+        for ant in ants_to_keep:
+            assert ant in uvf2.ant_array
+        for ant in np.unique(uvf2.ant_array):
+            assert ant in ants_to_keep
+
+    assert uvutils._check_histories(old_history + '  Downselected to '
+                                    'specific antennas using pyuvdata.',
+                                    uvf2.history)
+
+    # check that it also works with higher dimension array
+    uvf2 = copy.deepcopy(uvf)
+    uvf2.select(antenna_nums=np.atleast_3d(ants_to_keep))
+
+    assert len(ants_to_keep) == uvf2.Nants_data
+    assert len(ants_to_keep) == uvf2.Nants_data
+    if uvf2.type == "baseline":
+        assert Nblts_selected == uvf2.Nblts
+        for ant in ants_to_keep:
+            assert ant in uvf2.ant_1_array or ant in uvf2.ant_2_array
+        for ant in np.unique(uvf2.ant_1_array.tolist()
+                             + uvf2.ant_2_array.tolist()):
+            assert ant in ants_to_keep
+    else:
+        for ant in ants_to_keep:
+            assert ant in uvf2.ant_array
+        for ant in np.unique(uvf2.ant_array):
+            assert ant in ants_to_keep
+
+    assert uvutils._check_histories(old_history + '  Downselected to '
+                                    'specific antennas using pyuvdata.',
+                                    uvf2.history)
+
+    # also test for error if antenna numbers not present in data
+    with pytest.raises(ValueError) as cm:
+        uvf.select(antenna_nums=np.max(unique_ants) + np.arange(1, 3))
+    assert str(cm.value).startswith('Antenna number '
+                                    '{a} is not present'.format(a=np.max(unique_ants) + 1))
+
+
+def sort_bl(p):
+    """Sort a tuple that starts with a pair of antennas, and may have stuff after."""
+    if p[1] >= p[0]:
+        return p
+    return (p[1], p[0]) + p[2:]
+
+
+@pytest_cases.pytest_parametrize_plus("input_uvf",
+                                      [pytest_cases.fixture_ref(uvf_from_miriad),
+                                       pytest_cases.fixture_ref(uvf_from_uvcal)])
+@pytest.mark.parametrize("uvf_mode", ["to_flag", "to_metric"])
+def test_select_bls(input_uvf, uvf_mode):
+    uvf = input_uvf
+    # used to set the mode depending on which input is given to uvf_mode
+    getattr(uvf, uvf_mode)()
+    np.random.seed(0)
+
+    if uvf.type != "baseline":
+        with pytest.raises(ValueError) as cm:
+            uvf.select(bls=[(0, 1)])
+        assert str(cm.value).startswith('Only "baseline" mode UVFlag '
+                                        'objects may select along the '
+                                        'baseline axis')
+    else:
+        old_history = copy.deepcopy(uvf.history)
+        bls_select = np.random.choice(uvf.baseline_array,
+                                      size=uvf.Nbls // 2,
+                                      replace=False)
+        first_ants, second_ants = uvf.baseline_to_antnums(bls_select)
+
+        # give the conjugate bls for a few baselines
+        first_ants[5:8], second_ants[5:8] = copy.copy(second_ants[5:8]), copy.copy(first_ants[5:8])
+
+        new_unique_ants = np.unique(first_ants.tolist() + second_ants.tolist())
+        ant_pairs_to_keep = list(zip(first_ants, second_ants))
+        sorted_pairs_to_keep = [sort_bl(p) for p in ant_pairs_to_keep]
+
+        blts_select = [sort_bl((a1, a2)) in sorted_pairs_to_keep for (a1, a2) in
+                       zip(uvf.ant_1_array, uvf.ant_2_array)]
+        Nblts_selected = np.sum(blts_select)
+
+        uvf2 = copy.deepcopy(uvf)
+        uvf2.select(bls=ant_pairs_to_keep)
+        sorted_pairs_object2 = [sort_bl(p) for p in zip(
+            uvf2.ant_1_array, uvf2.ant_2_array)]
+
+        assert len(new_unique_ants) == uvf2.Nants_data
+        assert Nblts_selected == uvf2.Nblts
+        for ant in new_unique_ants:
+            assert ant in uvf2.ant_1_array or ant in uvf2.ant_2_array
+        for ant in np.unique(uvf2.ant_1_array.tolist() + uvf2.ant_2_array.tolist()):
+            assert ant in new_unique_ants
+        for pair in sorted_pairs_to_keep:
+            assert pair in sorted_pairs_object2
+        for pair in sorted_pairs_object2:
+            assert pair in sorted_pairs_to_keep
+
+        assert uvutils._check_histories(old_history + '  Downselected to '
+                                        'specific baselines using pyuvdata.',
+                                        uvf2.history)
+
+        # Check with polarization too
+        first_ants, second_ants = uvf.baseline_to_antnums(bls_select)
+        # conjugate a few bls
+        first_ants[5:8], second_ants[5:8] = copy.copy(second_ants[5:8]), copy.copy(first_ants[5:8])
+
+        pols = ['xx'] * len(first_ants)
+
+        new_unique_ants = np.unique(first_ants.tolist() + second_ants.tolist())
+        ant_pairs_to_keep = list(zip(first_ants, second_ants, pols))
+        sorted_pairs_to_keep = [sort_bl(p) for p in ant_pairs_to_keep]
+
+        blts_select = [sort_bl((a1, a2, 'xx')) in sorted_pairs_to_keep for (a1, a2) in
+                       zip(uvf.ant_1_array, uvf.ant_2_array)]
+        Nblts_selected = np.sum(blts_select)
+
+        uvf2 = copy.deepcopy(uvf)
+
+        uvf2.select(bls=ant_pairs_to_keep)
+        sorted_pairs_object2 = [sort_bl(p) + ('xx',) for p in zip(
+            uvf2.ant_1_array, uvf2.ant_2_array)]
+
+        assert len(new_unique_ants) == uvf2.Nants_data
+        assert Nblts_selected == uvf2.Nblts
+        for ant in new_unique_ants:
+            assert ant in uvf2.ant_1_array or ant in uvf2.ant_2_array
+        for ant in np.unique(uvf2.ant_1_array.tolist() + uvf2.ant_2_array.tolist()):
+            assert ant in new_unique_ants
+        for pair in sorted_pairs_to_keep:
+            assert pair in sorted_pairs_object2
+        for pair in sorted_pairs_object2:
+            assert pair in sorted_pairs_to_keep
+
+        assert uvutils._check_histories(old_history + '  Downselected to '
+                                        'specific baselines, polarizations using pyuvdata.',
+                                        uvf2.history)
+
+        # check that you can specify a single pair without errors
+        assert isinstance(ant_pairs_to_keep[0], tuple)
+        uvf2.select(bls=ant_pairs_to_keep[0])
+        sorted_pairs_object2 = [sort_bl(p) + ('xx', ) for p in zip(
+            uvf2.ant_1_array, uvf2.ant_2_array)]
+        assert list(set(sorted_pairs_object2)) == [ant_pairs_to_keep[0]]
+
+        # test some error modes
+        with pytest.raises(ValueError) as cm:
+            uvf.select(bls=[3])
+        assert str(cm.value).startswith('bls must be a list of tuples')
+
+        # must be integers
+        with pytest.raises(ValueError) as cm:
+            uvf.select(bls=[(np.pi, 2 * np.pi)])
+        assert str(cm.value).startswith('bls must be a list of tuples of integer')
+
+        with pytest.raises(ValueError) as cm:
+            uvf.select(bls=(0, 1, 'xx'), polarizations=[-5])
+        assert str(cm.value).startswith('Cannot provide length-3 tuples and also specify polarizations.')
+
+        with pytest.raises(ValueError) as cm:
+            uvf.select(bls=(0, 1, 5))
+        assert str(cm.value).startswith('The third element in each bl must be a polarization string')
+
+        with pytest.raises(ValueError) as cm:
+            uvf.select(bls=(455, 456))
+        assert str(cm.value).startswith('Antenna number 455 is not present')
+
+        with pytest.raises(ValueError) as cm:
+            uvf.select(bls=(first_ants[0], 456))
+        assert str(cm.value).startswith('Antenna number 456 is not present')
+
+        uvf2 = copy.deepcopy(uvf)
+        uvf2.select(bls=[(97, 104), (97, 105), (88, 97)])
+        with pytest.raises(ValueError) as cm:
+            uvf2.select(bls=(97, 97))
+        assert str(cm.value).startswith("Antenna pair (97, 97) does not have any")
+
+
+@pytest_cases.pytest_parametrize_plus("input_uvf",
+                                      [pytest_cases.fixture_ref(uvf_from_miriad),
+                                       pytest_cases.fixture_ref(uvf_from_uvcal),
+                                       pytest_cases.fixture_ref(uvf_from_waterfall)])
+@pytest.mark.parametrize("uvf_mode", ["to_flag", "to_metric"])
+def test_select_times(input_uvf, uvf_mode):
+    uvf = input_uvf
+    # used to set the mode depending on which input is given to uvf_mode
+    getattr(uvf, uvf_mode)()
+    np.random.seed(0)
+    old_history = uvf.history
+    unique_times = np.unique(uvf.time_array)
+    times_to_keep = np.random.choice(unique_times, size=unique_times.size // 2,
+                                     replace=False)
+
+    Nblts_selected = np.sum([t in times_to_keep for t in uvf.time_array])
+
+    uvf2 = copy.deepcopy(uvf)
+    uvf2.select(times=times_to_keep)
+
+    assert len(times_to_keep) == uvf2.Ntimes
+    assert Nblts_selected == uvf2.Nblts
+    for t in times_to_keep:
+        assert t in uvf2.time_array
+    for t in np.unique(uvf2.time_array):
+        assert t in times_to_keep
+
+    assert uvutils._check_histories(old_history + '  Downselected to '
+                                    'specific times using pyuvdata.',
+                                    uvf2.history)
+    # check that it also works with higher dimension array
+    uvf2 = copy.deepcopy(uvf)
+    uvf2.select(times=times_to_keep[np.newaxis, :])
+
+    assert len(times_to_keep) == uvf2.Ntimes
+    assert Nblts_selected == uvf2.Nblts
+    for t in times_to_keep:
+        assert t in uvf2.time_array
+    for t in np.unique(uvf2.time_array):
+        assert t in times_to_keep
+
+    assert uvutils._check_histories(old_history + '  Downselected to '
+                                    'specific times using pyuvdata.',
+                                    uvf2.history)
+    # check for errors associated with times not included in data
+    with pytest.raises(ValueError) as cm:
+        bad_time = [np.min(unique_times) - .005]
+        uvf.select(times=bad_time)
+    assert str(cm.value).startswith('Time {t} is not present in'
+                                    ' the time_array'.format(t=bad_time[0]))
+
+
+@pytest_cases.pytest_parametrize_plus("input_uvf",
+                                      [pytest_cases.fixture_ref(uvf_from_miriad),
+                                       pytest_cases.fixture_ref(uvf_from_uvcal),
+                                       pytest_cases.fixture_ref(uvf_from_waterfall)])
+@pytest.mark.parametrize("uvf_mode", ["to_flag", "to_metric"])
+def test_select_frequencies(input_uvf, uvf_mode):
+    uvf = input_uvf
+    # used to set the mode depending on which input is given to uvf_mode
+    getattr(uvf, uvf_mode)()
+    np.random.seed(0)
+    old_history = uvf.history
+
+    freqs_to_keep = np.random.choice(uvf.freq_array.squeeze(), size=uvf.Nfreqs // 10,
+                                     replace=False)
+
+    uvf2 = copy.deepcopy(uvf)
+    uvf2.select(frequencies=freqs_to_keep)
+
+    assert len(freqs_to_keep) == uvf2.Nfreqs
+    for f in freqs_to_keep:
+        assert f in uvf2.freq_array
+    for f in np.unique(uvf2.freq_array):
+        assert f in freqs_to_keep
+
+    assert uvutils._check_histories(old_history + '  Downselected to '
+                                    'specific frequencies using pyuvdata.',
+                                    uvf2.history)
+
+    # check that it also works with higher dimension array
+    uvf2 = copy.deepcopy(uvf)
+    uvf2.select(frequencies=freqs_to_keep[np.newaxis, :])
+
+    assert len(freqs_to_keep) == uvf2.Nfreqs
+    for f in freqs_to_keep:
+        assert f in uvf2.freq_array
+    for f in np.unique(uvf2.freq_array):
+        assert f in freqs_to_keep
+
+    assert uvutils._check_histories(old_history + '  Downselected to '
+                                    'specific frequencies using pyuvdata.',
+                                    uvf2.history)
+
+    # check that selecting one frequency works
+    uvf2 = copy.deepcopy(uvf)
+    uvf2.select(frequencies=freqs_to_keep[0])
+    assert 1 == uvf2.Nfreqs
+    assert freqs_to_keep[0] in uvf2.freq_array
+    for f in uvf2.freq_array:
+        assert f in [freqs_to_keep[0]]
+
+    assert uvutils._check_histories(old_history + '  Downselected to '
+                                    'specific frequencies using pyuvdata.',
+                                    uvf2.history)
+
+    # check for errors associated with frequencies not included in data
+    with pytest.raises(ValueError) as cm:
+        bad_freq = [np.max(uvf.freq_array) + 100]
+        uvf.select(frequencies=bad_freq)
+    assert str(cm.value).startswith('Frequency {f} is not present in the freq_array'.format(f=bad_freq[0]))
+
+
+@pytest_cases.pytest_parametrize_plus("input_uvf",
+                                      [pytest_cases.fixture_ref(uvf_from_miriad),
+                                       pytest_cases.fixture_ref(uvf_from_uvcal),
+                                       pytest_cases.fixture_ref(uvf_from_waterfall)])
+@pytest.mark.parametrize("uvf_mode", ["to_flag", "to_metric"])
+def test_select_freq_chans(input_uvf, uvf_mode):
+    uvf = input_uvf
+    # used to set the mode depending on which input is given to uvf_mode
+    getattr(uvf, uvf_mode)()
+    np.random.seed(0)
+    old_history = uvf.history
+
+    old_history = uvf.history
+    chans = np.random.choice(uvf.Nfreqs, 2)
+    c1, c2 = np.sort(chans)
+    chans_to_keep = np.arange(c1, c2)
+
+    uvf2 = copy.deepcopy(uvf)
+    uvf2.select(freq_chans=chans_to_keep)
+
+    assert len(chans_to_keep) == uvf2.Nfreqs
+    for chan in chans_to_keep:
+        if uvf2.type != "waterfall":
+            assert uvf.freq_array[0, chan] in uvf2.freq_array
+        else:
+            assert uvf.freq_array[chan] in uvf2.freq_array
+
+    for f in np.unique(uvf2.freq_array):
+        if uvf2.type != "waterfall":
+            assert f in uvf.freq_array[0, chans_to_keep]
+        else:
+            assert f in uvf.freq_array[chans_to_keep]
+
+    assert uvutils._check_histories(old_history + '  Downselected to '
+                                    'specific frequencies using pyuvdata.',
+                                    uvf2.history)
+
+    # check that it also works with higher dimension array
+    uvf2 = copy.deepcopy(uvf)
+    uvf2.select(freq_chans=chans_to_keep[np.newaxis, :])
+
+    assert len(chans_to_keep) == uvf2.Nfreqs
+    for chan in chans_to_keep:
+        if uvf2.type != "waterfall":
+            assert uvf.freq_array[0, chan] in uvf2.freq_array
+        else:
+            assert uvf.freq_array[chan] in uvf2.freq_array
+
+    for f in np.unique(uvf2.freq_array):
+        if uvf2.type != "waterfall":
+            assert f in uvf.freq_array[0, chans_to_keep]
+        else:
+            assert f in uvf.freq_array[chans_to_keep]
+
+    assert uvutils._check_histories(old_history + '  Downselected to '
+                                    'specific frequencies using pyuvdata.',
+                                    uvf2.history)
+
+    # Test selecting both channels and frequencies
+    chans = np.random.choice(uvf.Nfreqs, 2)
+    c1, c2 = np.sort(chans)
+    chans_to_keep = np.arange(c1, c2)
+
+    if uvf.type != "waterfall":
+        freqs_to_keep = uvf.freq_array[0, np.arange(c1 + 1, c2)]  # Overlaps with chans
+    else:
+        freqs_to_keep = uvf.freq_array[np.arange(c1 + 1, c2)]  # Overlaps with chans
+
+    all_chans_to_keep = np.arange(c1, c2)
+
+    uvf2 = copy.deepcopy(uvf)
+    uvf2.select(frequencies=freqs_to_keep, freq_chans=chans_to_keep)
+
+    assert len(all_chans_to_keep) == uvf2.Nfreqs
+    for chan in chans_to_keep:
+        if uvf2.type != "waterfall":
+            assert uvf.freq_array[0, chan] in uvf2.freq_array
+        else:
+            assert uvf.freq_array[chan] in uvf2.freq_array
+
+    for f in np.unique(uvf2.freq_array):
+        if uvf2.type != "waterfall":
+            assert f in uvf.freq_array[0, chans_to_keep]
+        else:
+            assert f in uvf.freq_array[chans_to_keep]
+
+
+@pytest_cases.pytest_parametrize_plus("input_uvf",
+                                      [pytest_cases.fixture_ref(uvf_from_miriad),
+                                       pytest_cases.fixture_ref(uvf_from_uvcal),
+                                       pytest_cases.fixture_ref(uvf_from_waterfall)])
+@pytest.mark.parametrize("uvf_mode", ["to_flag", "to_metric"])
+def test_select_polarizations(input_uvf, uvf_mode):
+    uvf = input_uvf
+    # used to set the mode depending on which input is given to uvf_mode
+    getattr(uvf, uvf_mode)()
+    np.random.seed(0)
+    old_history = uvf.history
+
+    pols_to_keep = [-5]
+
+    uvf2 = copy.deepcopy(uvf)
+    uvf2.select(polarizations=pols_to_keep)
+
+    assert len(pols_to_keep) == uvf2.Npols
+    for p in pols_to_keep:
+        assert p in uvf2.polarization_array
+    for p in np.unique(uvf2.polarization_array):
+        assert p in pols_to_keep
+
+    assert uvutils._check_histories(old_history + '  Downselected to '
+                                    'specific polarizations using pyuvdata.',
+                                    uvf2.history)
+
+    # check that it also works with higher dimension array
+    uvf2 = copy.deepcopy(uvf)
+    uvf2.select(polarizations=[pols_to_keep])
+
+    assert len(pols_to_keep) == uvf2.Npols
+    for p in pols_to_keep:
+        assert p in uvf2.polarization_array
+    for p in np.unique(uvf2.polarization_array):
+        assert p in pols_to_keep
+
+    assert uvutils._check_histories(old_history + '  Downselected to '
+                                    'specific polarizations using pyuvdata.',
+                                    uvf2.history)
+
+    # check for errors associated with polarizations not included in data
+    with pytest.raises(ValueError) as cm:
+        uvf2.select(polarizations=[-3])
+    assert str(cm.value).startswith('Polarization {p} is not present in the polarization_array'.format(p=-3))
+
+
+@pytest_cases.pytest_parametrize_plus("input_uvf",
+                                      [pytest_cases.fixture_ref(uvf_from_miriad),
+                                       pytest_cases.fixture_ref(uvf_from_uvcal),
+                                       pytest_cases.fixture_ref(uvf_from_waterfall)])
+@pytest.mark.parametrize("uvf_mode", ["to_flag", "to_metric"])
+def test_select(input_uvf, uvf_mode):
+    uvf = input_uvf
+    # used to set the mode depending on which input is given to uvf_mode
+    getattr(uvf, uvf_mode)()
+    np.random.seed(0)
+    old_history = uvf.history
+
+    # make new blts
+    blt_inds = np.arange(uvf.Nblts - 1)
+
+    # new freqs
+    freqs_to_keep = np.random.choice(uvf.freq_array.squeeze(),
+                                     size=uvf.Nfreqs - 1,
+                                     replace=False)
+    # new ants
+    if uvf.type == "baseline":
+        unique_ants = np.unique(uvf.ant_1_array.tolist()
+                                + uvf.ant_2_array.tolist())
+        ants_to_keep = np.random.choice(unique_ants,
+                                        size=unique_ants.size - 1,
+                                        replace=False)
+
+        blts_select = [(a1 in ants_to_keep) & (a2 in ants_to_keep) for (a1, a2) in
+                       zip(uvf.ant_1_array, uvf.ant_2_array)]
+        Nblts_selected = np.sum(blts_select)
+    elif uvf.type == "antenna":
+        unique_ants = np.unique(uvf.ant_array)
+        ants_to_keep = np.random.choice(unique_ants,
+                                        size=unique_ants.size - 1,
+                                        replace=False)
+    else:
+        ants_to_keep = None
+
+    if uvf.type == "baseline":
+        #  new bls
+        bls_select = np.random.choice(uvf.baseline_array,
+                                      size=uvf.Nbls - 1,
+                                      replace=False)
+        first_ants, second_ants = uvf.baseline_to_antnums(bls_select)
+        # give the conjugate bls for a few baselines
+        first_ants[2:4], second_ants[2:4] = second_ants[2:4], first_ants[2:4]
+
+        ant_pairs_to_keep = list(zip(first_ants, second_ants))
+        sorted_pairs_to_keep = [sort_bl(p) for p in ant_pairs_to_keep]
+
+        blts_select = [sort_bl((a1, a2)) in sorted_pairs_to_keep for (a1, a2) in
+                       zip(uvf.ant_1_array, uvf.ant_2_array)]
+    else:
+        ant_pairs_to_keep = None
+
+    # new times
+    unique_times = np.unique(uvf.time_array)
+    times_to_keep = np.random.choice(unique_times,
+                                     size=unique_times.size - 1,
+                                     replace=False)
+
+    # new pols
+    pols_to_keep = [-5]
+
+    # Independently count blts that should be selected
+    if uvf.type == "baseline":
+        blts_blt_select = [i in blt_inds for i in np.arange(uvf.Nblts)]
+        blts_ant_select = [(a1 in ants_to_keep) & (a2 in ants_to_keep) for (a1, a2) in
+                           zip(uvf.ant_1_array, uvf.ant_2_array)]
+        blts_pair_select = [sort_bl((a1, a2)) in sorted_pairs_to_keep for (a1, a2) in
+                            zip(uvf.ant_1_array, uvf.ant_2_array)]
+        blts_time_select = [t in times_to_keep for t in uvf.time_array]
+        Nblts_select = np.sum([bi & (ai & pi) & ti for (bi, ai, pi, ti) in
+                               zip(blts_blt_select, blts_ant_select, blts_pair_select,
+                                   blts_time_select)])
+    else:
+        blts_blt_select = [i in blt_inds for i in np.arange(uvf.Nblts)]
+        blts_time_select = [t in times_to_keep for t in uvf.time_array]
+        Nblts_select = np.sum([bi & ti for (bi, ti) in
+                               zip(blts_blt_select, blts_time_select)])
+
+    uvf2 = copy.deepcopy(uvf)
+    uvf2.select(blt_inds=blt_inds, antenna_nums=ants_to_keep,
+                bls=ant_pairs_to_keep, frequencies=freqs_to_keep,
+                times=times_to_keep, polarizations=pols_to_keep)
+
+    assert Nblts_select == uvf2.Nblts
+    if uvf.type == "baseline":
+        for ant in np.unique(uvf2.ant_1_array.tolist()
+                             + uvf2.ant_2_array.tolist()):
+            assert ant in ants_to_keep
+    elif uvf.type == "antenna":
+        for ant in np.unique(uvf2.ant_array):
+            assert ant in ants_to_keep
+
+    assert len(freqs_to_keep) == uvf2.Nfreqs
+    for f in freqs_to_keep:
+        assert f in uvf2.freq_array
+    for f in np.unique(uvf2.freq_array):
+        assert f in freqs_to_keep
+
+    for t in np.unique(uvf2.time_array):
+        assert t in times_to_keep
+
+    assert len(pols_to_keep) == uvf2.Npols
+    for p in pols_to_keep:
+        assert p in uvf2.polarization_array
+    for p in np.unique(uvf2.polarization_array):
+        assert p in pols_to_keep
+
+    if uvf.type == "baseline":
+        assert uvutils._check_histories(old_history + '  Downselected to '
+                                        'specific baseline-times, antennas, '
+                                        'baselines, times, frequencies, '
+                                        'polarizations using pyuvdata.',
+                                        uvf2.history)
+    elif uvf.type == "antenna":
+        assert uvutils._check_histories(old_history + '  Downselected to '
+                                        'specific baseline-times, antennas, '
+                                        'times, frequencies, '
+                                        'polarizations using pyuvdata.',
+                                        uvf2.history)
+    else:
+        assert uvutils._check_histories(old_history + '  Downselected to '
+                                        'specific baseline-times, '
+                                        'times, frequencies, '
+                                        'polarizations using pyuvdata.',
+                                        uvf2.history)
