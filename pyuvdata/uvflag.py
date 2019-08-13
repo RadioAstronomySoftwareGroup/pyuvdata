@@ -35,16 +35,16 @@ class UVFlag(UVBase):
         unless waterfall is True.
     mode : {"metric", "flag"}, optional
         The mode determines whether the object has a floating point metric_array
-        or a boolean flag_array. Default is "metric".
+        or a boolean flag_array.
     copy_flags : bool, optional
-        Whether to copy flags from input to new UVFlag object. Default is False.
+        Whether to copy flags from input to new UVFlag object
     waterfall : bool, optional
         Whether to immediately initialize as a waterfall object, with flag/metric
-        axes: time, frequency, polarization. Default is False.
+        axes: time, frequency, polarization.
     history : str, optional
-        History string to attach to object. Default is empty string.
+        History string to attach to object.
     label: str, optional
-        String used for labeling the object (e.g. 'FM'). Default is empty string.
+        String used for labeling the object (e.g. 'FM').
 
     Attributes
     -----------
@@ -227,7 +227,6 @@ class UVFlag(UVBase):
             raise ValueError("Input mode must be within acceptable values: "
                              "{}".format((', ').join(self._mode.acceptable_vals)))
 
-
         self.history = ''  # Added to at the end
 
         self.label = ''  # Added to at the end
@@ -376,7 +375,7 @@ class UVFlag(UVBase):
 
     @property
     def data_like_parameters(self):
-        """An iterator of defined parameters which are data-like (not metadata-like)"""
+        """Return iterator of defined parameters which are data-like (not metadata-like)."""
         for key in self._data_params:
             if hasattr(self, key):
                 yield getattr(self, key)
@@ -523,10 +522,8 @@ class UVFlag(UVBase):
             object to check against
         check_history : bool
             Include the history keyword when comparing UVFlag objects.
-            Default is False
         check_extra : bool
             Include non-required parameters when comparing UVFlag objects.
-            Default is False
 
         """
         if check_history:
@@ -946,19 +943,16 @@ class UVFlag(UVBase):
             not commonly used.
         run_check : bool
             Option to check for the existence and proper shapes of parameters
-            after downselecting data on this object (the default is True,
-            meaning the check will be run).
+            after downselecting data on this object.
         check_extra : bool
             Option to check optional parameters as well as required ones (the
             default is True, meaning the optional parameters will be checked).
         run_check_acceptability : bool
             Option to check acceptable range of the values of parameters after
-            downselecting data on this object (the default is True, meaning the
-            acceptable range check will be done).
+            downselecting data on this object.
         inplace : bool
             Option to perform the select directly on self or return a new UVData
-            object with just the selected data (the default is True, meaning the
-            select will be done on self).
+            object with just the selected data.
 
         Returns
         -------
@@ -1200,10 +1194,10 @@ class UVFlag(UVBase):
         filename : str
             The file to write to.
         clobber : bool
-            Option to overwrite the file if it already exists. Default is False.
+            Option to overwrite the file if it already exists.
          data_compression : str
-            HDF5 filter to apply when writing the data_array. Default is
-            LZF. If no compression is wanted, set to None.
+            HDF5 filter to apply when writing the data_array.
+            If no compression is wanted, set to None.
 
         """
         import h5py
@@ -1284,22 +1278,18 @@ class UVFlag(UVBase):
         other : UVFlag
             object to combine with self.
         axis: str
-            Axis along which to combine UVFlag objects. Default is time.
+            Axis along which to combine UVFlag objects.
         run_check : bool
             Option to check for the existence and proper shapes of parameters
-            after downselecting data on this object (the default is True,
-            meaning the check will be run).
+            after downselecting data on this object.
         check_extra : bool
-            Option to check optional parameters as well as required ones (the
-            default is True, meaning the optional parameters will be checked).
+            Option to check optional parameters as well as required ones.
         run_check_acceptability : bool
             Option to check acceptable range of the values of parameters after
-            downselecting data on this object (the default is True, meaning the
-            acceptable range check will be done).
+            downselecting data on this object.
         inplace : bool
             Option to perform the select directly on self or return a new UVData
-            object with just the selected data (the default is True, meaning the
-            select will be done on self).
+            object with just the selected data.
 
         Returns
         --------
@@ -1405,18 +1395,15 @@ class UVFlag(UVBase):
         other : UVFlag
             object to combine with self.
         axis: str
-            Axis along which to combine UVFlag objects. Default is time.
+            Axis along which to combine UVFlag objects.
         run_check : bool
             Option to check for the existence and proper shapes of parameters
-            after downselecting data on this object (the default is True,
-            meaning the check will be run).
+            after downselecting data on this object.
         check_extra : bool
-            Option to check optional parameters as well as required ones (the
-            default is True, meaning the optional parameters will be checked).
+            Option to check optional parameters as well as required ones.
         run_check_acceptability : bool
             Option to check acceptable range of the values of parameters after
-            downselecting data on this object (the default is True, meaning the
-            acceptable range check will be done).
+            downselecting data on this object.
 
         """
         self.__add__(other, inplace=True, axis=axis, run_check=True,
@@ -1433,19 +1420,15 @@ class UVFlag(UVBase):
             object to combine with self.
         run_check : bool
             Option to check for the existence and proper shapes of parameters
-            after downselecting data on this object (the default is True,
-            meaning the check will be run).
+            after downselecting data on this object.
         check_extra : bool
-            Option to check optional parameters as well as required ones (the
-            default is True, meaning the optional parameters will be checked).
+            Option to check optional parameters as well as required ones.
         run_check_acceptability : bool
             Option to check acceptable range of the values of parameters after
-            downselecting data on this object (the default is True, meaning the
-            acceptable range check will be done).
+            downselecting data on this object.
         inplace : bool
             Option to perform the select directly on self or return a new UVData
-            object with just the selected data (the default is True, meaning the
-            select will be done on self).
+            object with just the selected data.
 
         Returns
         --------
@@ -1484,15 +1467,12 @@ class UVFlag(UVBase):
             object to combine with self.
         run_check : bool
             Option to check for the existence and proper shapes of parameters
-            after downselecting data on this object (the default is True,
-            meaning the check will be run).
+            after downselecting data on this object.
         check_extra : bool
-            Option to check optional parameters as well as required ones (the
-            default is True, meaning the optional parameters will be checked).
+            Option to check optional parameters as well as required ones.
         run_check_acceptability : bool
             Option to check acceptable range of the values of parameters after
-            downselecting data on this object (the default is True, meaning the
-            acceptable range check will be done).
+            downselecting data on this object.
 
         """
         self.__or__(other, inplace=True, run_check=True,
@@ -1526,10 +1506,10 @@ class UVFlag(UVBase):
         ----------
         others : UVFlag or list of UVFlags
             Other UVFlag objects to combine metrics with this one.
-        method : str, optional
-            Method to combine metrics. Default is "quadmean".
+        method : str, {"quadmean", "absmean", "mean", "or", "and"}
+            Method to combine metrics.
         inplace : bool, optional
-            Perform combination in place. Default is True.
+            Perform combination in place.
 
         Returns
         --------
@@ -1583,19 +1563,16 @@ class UVFlag(UVBase):
 
         Parameters
         ----------
-        method : str
-            How to collapse the dimension(s). Default is "quadmean"
+        method : str, {"quadmean", "absmean", "mean", "or", "and"}
+            How to collapse the dimension(s).
         run_check : bool
             Option to check for the existence and proper shapes of parameters
-            after downselecting data on this object (the default is True,
-            meaning the check will be run).
+            after downselecting data on this object.
         check_extra : bool
-            Option to check optional parameters as well as required ones (the
-            default is True, meaning the optional parameters will be checked).
+            Option to check optional parameters as well as required ones.
         run_check_acceptability : bool
             Option to check acceptable range of the values of parameters after
-            downselecting data on this object (the default is True, meaning the
-            acceptable range check will be done).
+            downselecting data on this object.
 
         """
         method = method.lower()
@@ -1641,8 +1618,8 @@ class UVFlag(UVBase):
 
         Parameters
         ----------
-        method : str
-            How to collapse the dimension(s). Default is "quadmean"
+        method : str, {"quadmean", "absmean", "mean", "or", "and"}
+            How to collapse the dimension(s).
         keep_pol : bool
             Whether to also collapse the polarization dimension
             If keep_pol is False, and the original UVFlag object has more
@@ -1651,15 +1628,12 @@ class UVFlag(UVBase):
             encoding the original polarizations.
         run_check : bool
             Option to check for the existence and proper shapes of parameters
-            after downselecting data on this object (the default is True,
-            meaning the check will be run).
+            after downselecting data on this object.
         check_extra : bool
-            Option to check optional parameters as well as required ones (the
-            default is True, meaning the optional parameters will be checked).
+            Option to check optional parameters as well as required ones.
         run_check_acceptability : bool
             Option to check acceptable range of the values of parameters after
-            downselecting data on this object (the default is True, meaning the
-            acceptable range check will be done).
+            downselecting data on this object.
 
         """
         method = method.lower()
@@ -1735,15 +1709,12 @@ class UVFlag(UVBase):
             pols combined, and wants to broadcast back to individual pols.
         run_check : bool
             Option to check for the existence and proper shapes of parameters
-            after downselecting data on this object (the default is True,
-            meaning the check will be run).
+            after downselecting data on this object.
         check_extra : bool
-            Option to check optional parameters as well as required ones (the
-            default is True, meaning the optional parameters will be checked).
+            Option to check optional parameters as well as required ones.
         run_check_acceptability : bool
             Option to check acceptable range of the values of parameters after
-            downselecting data on this object (the default is True, meaning the
-            acceptable range check will be done).
+            downselecting data on this object.
 
         """
         if self.type == 'baseline':
@@ -1832,15 +1803,12 @@ class UVFlag(UVBase):
             pols combined, and wants to broadcast back to individual pols.
         run_check : bool
             Option to check for the existence and proper shapes of parameters
-            after downselecting data on this object (the default is True,
-            meaning the check will be run).
+            after downselecting data on this object.
         check_extra : bool
-            Option to check optional parameters as well as required ones (the
-            default is True, meaning the optional parameters will be checked).
+            Option to check optional parameters as well as required ones.
         run_check_acceptability : bool
             Option to check acceptable range of the values of parameters after
-            downselecting data on this object (the default is True, meaning the
-            acceptable range check will be done).
+            downselecting data on this object.
 
         """
         if self.type == 'antenna':
@@ -1913,15 +1881,12 @@ class UVFlag(UVBase):
             set to True. Default is np.inf, which results in flags of all False.
         run_check : bool
             Option to check for the existence and proper shapes of parameters
-            after downselecting data on this object (the default is True,
-            meaning the check will be run).
+            after downselecting data on this object.
         check_extra : bool
-            Option to check optional parameters as well as required ones (the
-            default is True, meaning the optional parameters will be checked).
+            Option to check optional parameters as well as required ones.
         run_check_acceptability : bool
             Option to check acceptable range of the values of parameters after
-            downselecting data on this object (the default is True, meaning the
-            acceptable range check will be done).
+            downselecting data on this object.
 
         """
         if self.mode == 'flag':
@@ -1960,15 +1925,12 @@ class UVFlag(UVBase):
             against a threshold along the other dimension.
         run_check : bool
             Option to check for the existence and proper shapes of parameters
-            after downselecting data on this object (the default is True,
-            meaning the check will be run).
+            after downselecting data on this object.
         check_extra : bool
-            Option to check optional parameters as well as required ones (the
-            default is True, meaning the optional parameters will be checked).
+            Option to check optional parameters as well as required ones.
         run_check_acceptability : bool
             Option to check acceptable range of the values of parameters after
-            downselecting data on this object (the default is True, meaning the
-            acceptable range check will be done).
+            downselecting data on this object.
 
         """
         if self.mode == 'metric':
@@ -2065,7 +2027,7 @@ def flags2waterfall(uv, flag_array=None, keep_pol=False):
         flag array to convert instead of uv.flag_array.
         Must have same dimensions as uv.flag_array.
     keep_pol : bool
-        Option to keep the polarization axis intact. Default is False.
+        Option to keep the polarization axis intact.
 
     Returns
     -------
