@@ -3,6 +3,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- `UVFlag` information on Read The Docs
+
+### Changed
+- `UVFlag` inherits from `UVBase` object.
+
 ## [1.4.1] - 2019-08-2
 
 ### Added
