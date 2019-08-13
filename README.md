@@ -19,13 +19,16 @@ The three main goals are:
 3. Provide precise data definition via both human readable code and high quality online documentation
 
 # Package Details
-pyuvdata has three major user classes:
+pyuvdata has four major user classes:
 
 * UVData: supports interferometric data (visibilities) and associated metadata
 * UVCal: supports interferometric calibration solutions (antenna-based) and
 associated metadata (Note that this is a fairly new object, consider it to be a beta version)
 * UVBeam: supports primary beams (E-field or power) and associated metadata
 (Note that this is a new object and is very experimental, consider it to be an alpha version)
+* UVFlag: A class to handle the manipulation and combination of flags for data sets.
+Also can convert raw data quality metrics into flags using thresholding.
+(This object is very new and experimental. Consider it to be a beta version)
 
 ## UVData File standard notes
 * miriad has been throughly tested with aipy-style miriad files and minimally
@@ -60,6 +63,7 @@ metadata, details here: [cst settings file](docs/cst_settings_yaml.rst)
 compatible with other interferometric HDF5 files defined by other groups.
 * UVCal: object and calfits file format (beta version)
 * UVBeam: object and beamfits file format (alpha version)
+* UVFlag: object, initialization, and type changing. (beta version)
 
 ## Known Issues and Planned Improvements
 * UVData: phasing (and the accuracy on the uvw coordinates) is only known to be
@@ -71,6 +75,8 @@ see the [phasing memo](docs/references/phasing.pdf) for more details).
 * UVCal/UVData: method to apply calibration to data.
 * package version detection can cause issues with installation directly from the
 repo for some users (see [issue #590](https://github.com/RadioAstronomySoftwareGroup/pyuvdata/issues/590))
+* UVFlag: cannot convert between "antenna" and "baseline" types. (see [issue #565](https://github.com/RadioAstronomySoftwareGroup/pyuvdata/issues/565))
+* UVFlag: cannot initialize a blank object. (see [issue #652](https://github.com/RadioAstronomySoftwareGroup/pyuvdata/issues/652))
 
 For details see the [issue log](https://github.com/RadioAstronomySoftwareGroup/pyuvdata/issues).
 
@@ -143,7 +149,7 @@ Required:
 
 Optional:
 
-* h5py (for reading and writing uvh5 format)
+* h5py (for reading and writing uvh5 format and uvflag save files)
 * python-casacore (for working with CASA measurement sets)
 * healpy (for working with beams in HEALPix formats)
 * pyyaml (for working with settings files for CST beam files)
@@ -177,10 +183,10 @@ Testing of `UVFlag` module requires the `pytest-cases` plug-in (available from p
 The primary interface to data from python is via the UVData object. It provides
 import functionality from all supported file formats (UVFITS, Miriad, UVH5, FHD,
 CASA measurement sets) and export to UVFITS, Miriad, and UVH5 formats and can
-be interacted with directly. Similarly, the primary calibration and beam
-interfaces are via the UVCal and UVBeam objects. The attributes of the UVData,
-UVCal and UVBeam objects are described in the uvdata_parameters, uvcal_parameters
-and uvbeam_parameters descriptions at https://pyuvdata.readthedocs.io or
+be interacted with directly. Similarly, the primary calibration, beam, and flag
+interfaces are via the UVCal, UVBeam, and UVflag objects. The attributes of the UVData,
+UVCal, UVBeam, and UVFlag objects are described in the uvdata_parameters, uvcal_parameters,
+ uvbeam_parameters and uvflag_parameters descriptions at https://pyuvdata.readthedocs.io or
 [here](https://github.com/RadioAstronomySoftwareGroup/pyuvdata/blob/master/docs).
 
 
