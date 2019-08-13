@@ -946,6 +946,9 @@ class UVFlag(UVBase):
         blt_inds : array_like of int, optional
             The baseline-time indices to keep in the object. This is
             not commonly used.
+        ant_inds : array_like of int, optional
+            The antenna indices to keep in the object. This is
+            not commonly used.
         run_check : bool
             Option to check for the existence and proper shapes of parameters
             after downselecting data on this object (the default is True,
