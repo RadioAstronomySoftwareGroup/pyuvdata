@@ -35,6 +35,7 @@ index_file = os.path.join(os.path.abspath('../docs'), 'index.rst')
 dataparams_file = os.path.join(os.path.abspath('../docs'), 'uvdata_parameters.rst')
 calparams_file = os.path.join(os.path.abspath('../docs'), 'uvcal_parameters.rst')
 beamparams_file = os.path.join(os.path.abspath('../docs'), 'uvbeam_parameters.rst')
+flagparams_file = os.path.join(os.path.abspath('../docs'), 'uvflag_parameters.rst')
 
 # -- General configuration ------------------------------------------------
 
@@ -333,10 +334,12 @@ def build_custom_docs(app):
     import make_parameters
     import make_cal_parameters
     import make_beam_parameters
+    import make_flag_parameters
     make_index.write_index_rst(readme_file=readme_file, write_file=index_file)
     make_parameters.write_dataparams_rst(write_file=dataparams_file)
     make_cal_parameters.write_calparams_rst(write_file=calparams_file)
     make_beam_parameters.write_beamparams_rst(write_file=beamparams_file)
+    make_flag_parameters.write_flagparams_rst(write_file=flagparams_file)
 
 
 # this is to enable running python in the rst files.
