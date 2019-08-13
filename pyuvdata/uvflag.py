@@ -216,6 +216,9 @@ class UVFlag(UVBase):
                                               required=False, expected_type=str,
                                               acceptable_vals=['east', 'north'])
 
+        # initialize the underlying UVBase properties
+        super(UVFlag, self).__init__()
+
         if mode.lower() == "metric":
             self._set_mode_metric()
         elif mode.lower() == "flag":
@@ -224,16 +227,6 @@ class UVFlag(UVBase):
             raise ValueError("Input mode must be within acceptable values: "
                              "{}".format((', ').join(self._mode.acceptable_vals)))
 
-        # set the mode to allow the super call to process
-        # the "data_like_parameters" propery
-        self.mode = mode.lower()
-        # initialize the underlying UVBase propteries
-        super(UVFlag, self).__init__()
-
-        # re-set the mode on the object since it gets overwritten
-        # during the super call
-        # Gets overwritten if reading file
-        self.mode = mode.lower()
 
         self.history = ''  # Added to at the end
 
@@ -368,8 +361,10 @@ class UVFlag(UVBase):
 
     @property
     def _data_params(self):
-        """List of strings giving the data-like parameters"""
-        if self.mode == "flag":
+        """List of strings giving the data-like parameters."""
+        if not hasattr(self, "mode") or self.mode is None:
+            return None
+        elif self.mode == "flag":
             return ['flag_array', 'weights_array']
         elif self.mode == "metric":
             return ['metric_array', 'weights_array']
