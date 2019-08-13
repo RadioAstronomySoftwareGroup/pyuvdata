@@ -121,7 +121,7 @@ class UVFlag(UVBase):
                                            expected_type=np.bool,
                                            required=False)
 
-        desc = 'Floating point weight information, shape (Nblts, Nspws, Nfreq, Npols)..'
+        desc = 'Floating point weight information, shape (Nblts, Nspws, Nfreq, Npols).'
         self._weights_array = uvp.UVParameter('weights_array', description=desc,
                                               form=('Nblts', 'Nspws',
                                                     'Nfreqs', 'Npols'),
