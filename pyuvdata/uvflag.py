@@ -49,16 +49,16 @@ class UVFlag(UVBase):
     Attributes
     -----------
      UVParameter objects :
-         For full list see UVData Parameters
-         (http://pyuvdata.readthedocs.io/en/latest/uvdata_parameters.html).
+         For full list see the [UVFlag Parameters Documentation.](https://pyuvdata.readthedocs.io/en/latest/uvflag_parameters.html)
          Some are always required, some are required for certain phase_types
          and others are always optional.
+
 
     """
 
     def __init__(self, input, mode='metric', copy_flags=False, waterfall=False, history='',
                  label=''):
-        """Initialize the object"""
+        """Initialize the object."""
         # standard angle tolerance: 10 mas in radians.
         # Should perhaps be decreased to 1 mas in the future
         radian_tol = 10 * 2 * np.pi * 1e-3 / (60.0 * 60.0 * 360.0)
@@ -88,7 +88,9 @@ class UVFlag(UVBase):
 
         self._Ntimes = uvp.UVParameter('Ntimes', description='Number of times',
                                        expected_type=int)
-        self._Nbls = uvp.UVParameter('Nbls', description='Number of baselines',
+        desc = ('Number of baselines. '
+                'Only Required for "baseline" type objects.')
+        self._Nbls = uvp.UVParameter('Nbls', description=desc,
                                      expected_type=int, required=False)
         self._Nblts = uvp.UVParameter('Nblts', description='Number of baseline-times '
                                       '(i.e. number of spectra). Not necessarily '
@@ -103,14 +105,16 @@ class UVFlag(UVBase):
         self._Npols = uvp.UVParameter('Npols', description='Number of polarizations',
                                       expected_type=int)
 
-        desc = 'Floating point metric information, shape (Nblts, Nspws, Nfreq, Npols).'
+        desc = ('Floating point metric information, only availble in metric mode.'
+                'shape (Nblts, Nspws, Nfreq, Npols).')
         self._metric_array = uvp.UVParameter('metric_array', description=desc,
                                              form=('Nblts', 'Nspws',
                                                    'Nfreqs', 'Npols'),
                                              expected_type=np.float,
                                              required=False)
 
-        desc = 'Boolean flag, True is flagged, shape (Nblts, Nspws, Nfreq, Npols).'
+        desc = ('Boolean flag, True is flagged, only availble in flag mode. '
+                'shape (Nblts, Nspws, Nfreq, Npols).')
         self._flag_array = uvp.UVParameter('flag_array', description=desc,
                                            form=('Nblts', 'Nspws',
                                                  'Nfreqs', 'Npols'),
@@ -137,22 +141,26 @@ class UVFlag(UVBase):
                                           expected_type=np.float,
                                           tols=radian_tol)
 
-        desc = ('Array of first antenna indices, shape (Nblts), '
+        desc = ('Array of first antenna indices, shape (Nblts). '
+                'Only available for "baseline" type objects.'
                 'type = int, 0 indexed')
         self._ant_1_array = uvp.UVParameter('ant_1_array', description=desc,
                                             expected_type=int, form=('Nblts',))
-        desc = ('Array of second antenna indices, shape (Nblts), '
+        desc = ('Array of second antenna indices, shape (Nblts). '
+                'Only available for "baseline" type objects.'
                 'type = int, 0 indexed')
         self._ant_2_array = uvp.UVParameter('ant_2_array', description=desc,
                                             expected_type=int, form=('Nblts',))
 
         desc = ('Array of antenna numbers, shape (Nants_data), '
+                'Only available for "antenna" type objects.'
                 'type = int, 0 indexed')
         self._ant_array = uvp.UVParameter('ant_array', description=desc,
                                           expected_type=int,
                                           form=('Nants_data',))
 
-        desc = ('Array of baseline indices, shape (Nblts), '
+        desc = ('Array of baseline indices, shape (Nblts). '
+                'Only available for "baseline" type objects.'
                 'type = int; baseline = 2048 * (ant1+1) + (ant2+1) + 2^16')
         self._baseline_array = uvp.UVParameter('baseline_array',
                                                description=desc,
@@ -186,12 +194,14 @@ class UVFlag(UVBase):
 
         # ---antenna information ---
         desc = ('Number of antennas in the array. May be larger '
+                'Only available for "baseline" type objects. '
                 'than the number of antennas with data')
         self._Nants_telescope = uvp.UVParameter('Nants_telescope',
                                                 description=desc,
                                                 expected_type=int,
                                                 required=False)
         desc = ('Number of antennas with data present. May be smaller '
+                'Only available for "baseline" or "antenna" type objects.'
                 'than the number of antennas in the array')
         self._Nants_data = uvp.UVParameter('Nants_data',
                                            description=desc,
@@ -510,9 +520,19 @@ class UVFlag(UVBase):
         self._freq_array.form = ('Nfreqs',)
 
     def __eq__(self, other, check_history=False, check_extra=False):
-        """ Function to check equality of two UVFlag objects
-        Args:
-            other: UVFlag object to check against
+        """Check Equality of two UVFlag objects.
+
+        Parameters
+        ----------
+        other: UVFlag
+            object to check against
+        check_history : bool
+            Include the history keyword when comparing UVFlag objects.
+            Default is False
+        check_extra : bool
+            Include non-required parameters when comparing UVFlag objects.
+            Default is False
+
         """
         if check_history:
             return super(UVFlag, self).__eq__(other, check_extra=check_extra)
@@ -540,9 +560,7 @@ class UVFlag(UVBase):
     def _select_preprocess(self, antenna_nums, bls,
                            frequencies, freq_chans, times, polarizations,
                            blt_inds, ant_inds):
-        """
-        Internal function to build up blt_inds, freq_inds, pol_inds
-        and history_update_string for select.
+        """Build up blt_inds, freq_inds, pol_inds and history_update_string for select.
 
         Parameters
         ----------
@@ -588,6 +606,7 @@ class UVFlag(UVBase):
             list of polarization indices to keep. Can be None (to keep everything).
         history_update_string : str
             string to append to the end of the history.
+
         """
         # build up history string as we go
         history_update_string = '  Downselected to specific '
@@ -837,8 +856,7 @@ class UVFlag(UVBase):
 
     def _select_metadata(self, blt_inds, ant_inds, freq_inds, pol_inds,
                          history_update_string):
-        """
-        Internal function to perform select on everything except the data-sized arrays.
+        """Perform select on everything except the data-sized arrays.
 
         Parameters
         ----------
@@ -852,6 +870,7 @@ class UVFlag(UVBase):
             string to append to the end of the history.
         keep_all_metadata : bool
             Option to keep metadata for antennas that are no longer in the dataset.
+
         """
         if blt_inds is not None:
             self.Nblts = len(blt_inds)
@@ -906,14 +925,14 @@ class UVFlag(UVBase):
             names for the removed antennas will be retained unless
             `keep_all_metadata` is False). This cannot be provided if
             `antenna_names` is also provided.
-       bls : list of tuple, optional
+        bls : list of tuple, optional
             A list of antenna number tuples (e.g. [(0,1), (3,2)]) or a list of
             baseline 3-tuples (e.g. [(0,1,'xx'), (2,3,'yy')]) specifying baselines
             to keep in the object. For length-2 tuples, the ordering of the numbers
             within the tuple does not matter. For length-3 tuples, the polarization
             string is in the order of the two antennas. If length-3 tuples are
             provided, `polarizations` must be None.
-       frequencies : array_like of float, optional
+        frequencies : array_like of float, optional
             The frequencies to keep in the object, each value passed here should
             exist in the freq_array.
         freq_chans : array_like of int, optional
@@ -954,9 +973,7 @@ class UVFlag(UVBase):
         ValueError
             If any of the parameters are set to inappropriate values.
 
-
         """
-
         if inplace:
             uv_object = self
         else:
@@ -1017,12 +1034,15 @@ class UVFlag(UVBase):
             return uv_object
 
     def read(self, filename, history=''):
-        """
-        Read in flag/metric data from a HDF5 file.
+        """Read in flag/metric data from a HDF5 file.
 
-        Args:
-            filename: The file name to read.
-            history: History string to append to UVFlag history attribute.
+        Parameters
+        ----------
+        filename : str
+            The file name to read.
+        history : str
+            History string to append to UVFlag history attribute.
+
         """
         import h5py
 
@@ -1175,14 +1195,18 @@ class UVFlag(UVBase):
             self.clear_unused_attributes()
 
     def write(self, filename, clobber=False, data_compression='lzf'):
-        """
-        Write a UVFlag object to a hdf5 file.
+        """Write a UVFlag object to a hdf5 file.
 
-        Args:
-            filename: The file to write to.
-            clobber: Option to overwrite the file if it already exists. Default is False.
-            data_compression: HDF5 filter to apply when writing the data_array. Default is
-                 LZF. If no compression is wanted, set to None.
+        Parameters
+        ----------
+        filename : str
+            The file to write to.
+        clobber : bool
+            Option to overwrite the file if it already exists. Default is False.
+         data_compression : str
+            HDF5 filter to apply when writing the data_array. Default is
+            LZF. If no compression is wanted, set to None.
+
         """
         import h5py
 
@@ -1256,12 +1280,35 @@ class UVFlag(UVBase):
     def __add__(self, other, inplace=False, axis='time',
                 run_check=True, check_extra=True, run_check_acceptability=True):
         """Add two UVFlag objects together along a given axis.
-        Args:
-            other: second UVFlag object to concatenate with self.
-            inplace: Whether to concatenate to self, or create a new UVFlag object. Default is False.
-            axis: Axis along which to combine UVFlag objects. Default is time.
-        """
 
+        Parameters
+        ----------
+        other : UVFlag
+            object to combine with self.
+        axis: str
+            Axis along which to combine UVFlag objects. Default is time.
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            after downselecting data on this object (the default is True,
+            meaning the check will be run).
+        check_extra : bool
+            Option to check optional parameters as well as required ones (the
+            default is True, meaning the optional parameters will be checked).
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters after
+            downselecting data on this object (the default is True, meaning the
+            acceptable range check will be done).
+        inplace : bool
+            Option to perform the select directly on self or return a new UVData
+            object with just the selected data (the default is True, meaning the
+            select will be done on self).
+
+        Returns
+        --------
+        uvf : UVFlag
+            If inplace==False, return new UVFlag object.
+
+        """
         # Handle in place
         if inplace:
             this = self
@@ -1353,12 +1400,26 @@ class UVFlag(UVBase):
 
     def __iadd__(self, other, axis='time',
                  run_check=True, check_extra=True, run_check_acceptability=True):
-        """
-        In place add.
+        """In place add.
 
-        Args:
-            other: Another UVFlag object which will be added to self.
-            axis: Axis along which to combine UVFlag objects. Default is time.
+        Parameters
+        ----------
+        other : UVFlag
+            object to combine with self.
+        axis: str
+            Axis along which to combine UVFlag objects. Default is time.
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            after downselecting data on this object (the default is True,
+            meaning the check will be run).
+        check_extra : bool
+            Option to check optional parameters as well as required ones (the
+            default is True, meaning the optional parameters will be checked).
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters after
+            downselecting data on this object (the default is True, meaning the
+            acceptable range check will be done).
+
         """
         self.__add__(other, inplace=True, axis=axis, run_check=True,
                      check_extra=True, run_check_acceptability=True)
@@ -1367,9 +1428,32 @@ class UVFlag(UVBase):
     def __or__(self, other, inplace=False, run_check=True,
                check_extra=True, run_check_acceptability=True,):
         """Combine two UVFlag objects in "flag" mode by "OR"-ing their flags.
-        Args:
-            other: second UVFlag object to combine with self.
-            inplace: Whether to combine to self, or create a new UVFlag object. Default is False.
+
+        Parameters
+        ----------
+        other : UVFlag
+            object to combine with self.
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            after downselecting data on this object (the default is True,
+            meaning the check will be run).
+        check_extra : bool
+            Option to check optional parameters as well as required ones (the
+            default is True, meaning the optional parameters will be checked).
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters after
+            downselecting data on this object (the default is True, meaning the
+            acceptable range check will be done).
+        inplace : bool
+            Option to perform the select directly on self or return a new UVData
+            object with just the selected data (the default is True, meaning the
+            select will be done on self).
+
+        Returns
+        --------
+        uvf : UVFlag
+            If inplace==False, return new UVFlag object.
+
         """
         if (self.mode != 'flag') or (other.mode != 'flag'):
             raise ValueError('UVFlag object must be in "flag" mode to use "or" function.')
@@ -1394,17 +1478,36 @@ class UVFlag(UVBase):
 
     def __ior__(self, other, run_check=True,
                 check_extra=True, run_check_acceptability=True):
-        """In place or
-        Args:
-            other: second UVFlag object to combine with self.
+        """Perform an inplace logical or.
+
+        Parameters
+        ----------
+        other : UVFlag
+            object to combine with self.
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            after downselecting data on this object (the default is True,
+            meaning the check will be run).
+        check_extra : bool
+            Option to check optional parameters as well as required ones (the
+            default is True, meaning the optional parameters will be checked).
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters after
+            downselecting data on this object (the default is True, meaning the
+            acceptable range check will be done).
+
         """
         self.__or__(other, inplace=True, run_check=True,
                     check_extra=True, run_check_acceptability=True)
         return self
 
     def clear_unused_attributes(self):
-        """
-        Remove unused attributes. Useful when changing type or mode.
+        """Remove unused attributes.
+
+        Useful when changing type or mode or to save memory.
+        Will set all non-required attributes to None, except x_orientation.
+
+
         """
         for p in self:
             attr = getattr(self, p)
@@ -1413,21 +1516,28 @@ class UVFlag(UVBase):
                 setattr(self, p, attr)
 
     def copy(self):
-        """ Simply return a copy of this object """
+        """Return a copy of this object."""
         return copy.deepcopy(self)
 
     def combine_metrics(self, others, method='quadmean', inplace=True,
                         run_check=True, check_extra=True,
                         run_check_acceptability=True):
-        """
-        Combine metric arrays between different UVFlag objects together.
-        Args:
-            others (UVFlag or list of UVFlags): Other UVFlag objects to combine
-                metrics with this one.
-            method (str, optional): Method to combine metrics. Default is "quadmean".
-            inplace (bool, optional): Perform combination in place. Default is True.
-        Returns:
-            uvf (UVFlag): If inplace==False, return new UVFlag object with combined metrics.
+        """Combine metric arrays between different UVFlag objects together.
+
+        Parameters
+        ----------
+        others : UVFlag or list of UVFlags
+            Other UVFlag objects to combine metrics with this one.
+        method : str, optional
+            Method to combine metrics. Default is "quadmean".
+        inplace : bool, optional
+            Perform combination in place. Default is True.
+
+        Returns
+        --------
+        uvf : UVFlag
+            If inplace==False, return new UVFlag object with combined metrics.
+
         """
         # Ensure others is iterable (in case of single UVFlag object)
         # cannot use uvutils._get_iterable because the object itself is iterable
