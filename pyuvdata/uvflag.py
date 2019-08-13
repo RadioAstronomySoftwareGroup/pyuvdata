@@ -105,7 +105,7 @@ class UVFlag(UVBase):
         self._Npols = uvp.UVParameter('Npols', description='Number of polarizations',
                                       expected_type=int)
 
-        desc = ('Floating point metric information, only availble in metric mode.'
+        desc = ('Floating point metric information, only availble in metric mode. '
                 'shape (Nblts, Nspws, Nfreq, Npols).')
         self._metric_array = uvp.UVParameter('metric_array', description=desc,
                                              form=('Nblts', 'Nspws',
@@ -142,25 +142,25 @@ class UVFlag(UVBase):
                                           tols=radian_tol)
 
         desc = ('Array of first antenna indices, shape (Nblts). '
-                'Only available for "baseline" type objects.'
+                'Only available for "baseline" type objects. '
                 'type = int, 0 indexed')
         self._ant_1_array = uvp.UVParameter('ant_1_array', description=desc,
                                             expected_type=int, form=('Nblts',))
         desc = ('Array of second antenna indices, shape (Nblts). '
-                'Only available for "baseline" type objects.'
+                'Only available for "baseline" type objects. '
                 'type = int, 0 indexed')
         self._ant_2_array = uvp.UVParameter('ant_2_array', description=desc,
                                             expected_type=int, form=('Nblts',))
 
         desc = ('Array of antenna numbers, shape (Nants_data), '
-                'Only available for "antenna" type objects.'
+                'Only available for "antenna" type objects. '
                 'type = int, 0 indexed')
         self._ant_array = uvp.UVParameter('ant_array', description=desc,
                                           expected_type=int,
                                           form=('Nants_data',))
 
         desc = ('Array of baseline indices, shape (Nblts). '
-                'Only available for "baseline" type objects.'
+                'Only available for "baseline" type objects. '
                 'type = int; baseline = 2048 * (ant1+1) + (ant2+1) + 2^16')
         self._baseline_array = uvp.UVParameter('baseline_array',
                                                description=desc,
@@ -193,16 +193,16 @@ class UVFlag(UVBase):
                                         form='str', expected_type=str)
 
         # ---antenna information ---
-        desc = ('Number of antennas in the array. May be larger '
+        desc = ('Number of antennas in the array. '
                 'Only available for "baseline" type objects. '
-                'than the number of antennas with data')
+                'May be larger than the number of antennas with data.')
         self._Nants_telescope = uvp.UVParameter('Nants_telescope',
                                                 description=desc,
                                                 expected_type=int,
                                                 required=False)
-        desc = ('Number of antennas with data present. May be smaller '
+        desc = ('Number of antennas with data present. '
                 'Only available for "baseline" or "antenna" type objects.'
-                'than the number of antennas in the array')
+                'May be smaller than the number of antennas in the array')
         self._Nants_data = uvp.UVParameter('Nants_data',
                                            description=desc,
                                            expected_type=int,
