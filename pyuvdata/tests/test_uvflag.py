@@ -2432,6 +2432,8 @@ def test_select(input_uvf, uvf_mode):
 def test_equality_no_history(uvf_from_miriad):
     uvf = uvf_from_miriad
     uvf2 = uvf.copy()
+    assert uvf.__eq__(uvf2, check_history=True)
+    uvf2.history += "different text"
     assert uvf.__eq__(uvf2, check_history=False)
 
 
