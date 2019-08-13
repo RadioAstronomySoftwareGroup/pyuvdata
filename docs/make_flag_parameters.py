@@ -15,7 +15,7 @@ def write_flagparams_rst(write_file=None):
     UV = UVFlag(test_file)
     out = 'UVFLag Parameters\n=================\n'
     out += ("These are the standard attributes of UVFlag objects.\n\nUnder the hood "
-            "they are actually properties based on UVParameter objects.")
+            "they are actually properties based on UVParameter objects.\n\n")
     out += 'Required\n----------------\n'
     out += ('These parameters are required to have a sensible UVFlag object and \n'
             'are required for most kinds of uv data files.')
