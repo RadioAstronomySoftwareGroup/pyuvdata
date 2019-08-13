@@ -513,7 +513,7 @@ class UVFlag(UVBase):
                 'shape (Nfreqs), units Hz')
         self._freq_array.form = ('Nfreqs',)
 
-    def __eq__(self, other, check_history=False, check_extra=False):
+    def __eq__(self, other, check_history=True, check_extra=True):
         """Check Equality of two UVFlag objects.
 
         Parameters
@@ -1277,7 +1277,7 @@ class UVFlag(UVBase):
         ----------
         other : UVFlag
             object to combine with self.
-        axis: str
+        axis : str
             Axis along which to combine UVFlag objects.
         run_check : bool
             Option to check for the existence and proper shapes of parameters
@@ -1394,7 +1394,7 @@ class UVFlag(UVBase):
         ----------
         other : UVFlag
             object to combine with self.
-        axis: str
+        axis : str
             Axis along which to combine UVFlag objects.
         run_check : bool
             Option to check for the existence and proper shapes of parameters
