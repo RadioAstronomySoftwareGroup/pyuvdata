@@ -1577,15 +1577,28 @@ class UVFlag(UVBase):
 
     def collapse_pol(self, method='quadmean', run_check=True, check_extra=True,
                      run_check_acceptability=True):
-        """
-        Collapse the polarization axis using a given method.
+        """Collapse the polarization axis using a given method.
 
         If the original UVFlag object has more than one polarization,
         the resulting polarization_array will be a single element array with a
         comma separated string encoding the original polarizations.
 
-        Args:
-            method: How to collapse the dimension(s)
+        Parameters
+        ----------
+        method : str
+            How to collapse the dimension(s). Default is "quadmean"
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            after downselecting data on this object (the default is True,
+            meaning the check will be run).
+        check_extra : bool
+            Option to check optional parameters as well as required ones (the
+            default is True, meaning the optional parameters will be checked).
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters after
+            downselecting data on this object (the default is True, meaning the
+            acceptable range check will be done).
+
         """
         method = method.lower()
         if self.mode == 'flag':
@@ -1626,15 +1639,30 @@ class UVFlag(UVBase):
 
     def to_waterfall(self, method='quadmean', keep_pol=True, run_check=True,
                      check_extra=True, run_check_acceptability=True):
-        """
-        Convert an 'antenna' or 'baseline' type object to waterfall using a given method.
-        Args:
-            method: How to collapse the dimension(s)
-            keep_pol: Whether to also collapse the polarization dimension
-                      If keep_pol is False, and the original UVFlag object has more
-                      than one polarization, the resulting polarization_array
-                      will be a single element array with a comma separated string
-                      encoding the original polarizations.
+        """Convert an 'antenna' or 'baseline' type object to waterfall.
+
+        Parameters
+        ----------
+        method : str
+            How to collapse the dimension(s). Default is "quadmean"
+        keep_pol : bool
+            Whether to also collapse the polarization dimension
+            If keep_pol is False, and the original UVFlag object has more
+            than one polarization, the resulting polarization_array
+            will be a single element array with a comma separated string
+            encoding the original polarizations.
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            after downselecting data on this object (the default is True,
+            meaning the check will be run).
+        check_extra : bool
+            Option to check optional parameters as well as required ones (the
+            default is True, meaning the optional parameters will be checked).
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters after
+            downselecting data on this object (the default is True, meaning the
+            acceptable range check will be done).
+
         """
         method = method.lower()
         if self.type == 'waterfall' and (keep_pol or (len(self.polarization_array) == 1)):
@@ -1694,14 +1722,31 @@ class UVFlag(UVBase):
     def to_baseline(self, uv, force_pol=False, run_check=True,
                     check_extra=True, run_check_acceptability=True):
         """Convert a UVFlag object of type "waterfall" to type "baseline".
+
         Broadcasts the flag array to all baselines.
         This function does NOT apply flags to uv.
-        Args:
-            uv: UVData or UVFlag object of type baseline to match.
-            force_pol: If True, will use 1 pol to broadcast to any other pol.
-                       Otherwise, will require polarizations match.
-                       For example, this keyword is useful if one flags on all
-                       pols combined, and wants to broadcast back to individual pols.
+
+        Parameters
+        ----------
+        uv : UVData or UVFlag object
+            Objcet with type baseline to match.
+        force_pol : bool
+            If True, will use 1 pol to broadcast to any other pol.
+            Otherwise, will require polarizations match.
+            For example, this keyword is useful if one flags on all
+            pols combined, and wants to broadcast back to individual pols.
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            after downselecting data on this object (the default is True,
+            meaning the check will be run).
+        check_extra : bool
+            Option to check optional parameters as well as required ones (the
+            default is True, meaning the optional parameters will be checked).
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters after
+            downselecting data on this object (the default is True, meaning the
+            acceptable range check will be done).
+
         """
         if self.type == 'baseline':
             return
@@ -1774,14 +1819,31 @@ class UVFlag(UVBase):
     def to_antenna(self, uv, force_pol=False, run_check=True,
                    check_extra=True, run_check_acceptability=True):
         """Convert a UVFlag object of type "waterfall" to type "antenna".
+
         Broadcasts the flag array to all antennas.
         This function does NOT apply flags to uv.
-        Args:
-            uv: UVCal or UVFlag object of type antenna to match.
-            force_pol: If True, will use 1 pol to broadcast to any other pol.
-                       Otherwise, will require polarizations match.
-                       For example, this keyword is useful if one flags on all
-                       pols combined, and wants to broadcast back to individual pols.
+
+        Parameters
+        ----------
+        uv : UVCal or UVFlag object
+            object of type antenna to match.
+        force_pol : bool
+            If True, will use 1 pol to broadcast to any other pol.
+            Otherwise, will require polarizations match.
+            For example, this keyword is useful if one flags on all
+            pols combined, and wants to broadcast back to individual pols.
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            after downselecting data on this object (the default is True,
+            meaning the check will be run).
+        check_extra : bool
+            Option to check optional parameters as well as required ones (the
+            default is True, meaning the optional parameters will be checked).
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters after
+            downselecting data on this object (the default is True, meaning the
+            acceptable range check will be done).
+
         """
         if self.type == 'antenna':
             return
@@ -1841,12 +1903,28 @@ class UVFlag(UVBase):
 
     def to_flag(self, threshold=np.inf, run_check=True,
                 check_extra=True, run_check_acceptability=True):
-        """Convert to flag mode. NOT SMART. Removes metric_array and creates a
+        """Convert to flag mode.
+
+        This function is NOT SMART. Removes metric_array and creates a
         flag_array from a simple threshold on the metric values.
 
-        Args:
-            threshold (float): Metric value over which the corresponding flag is
-                set to True. Default is np.inf, which results in flags of all False.
+        Parameters
+        ----------
+        threshold : float
+            Metric value over which the corresponding flag is
+            set to True. Default is np.inf, which results in flags of all False.
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            after downselecting data on this object (the default is True,
+            meaning the check will be run).
+        check_extra : bool
+            Option to check optional parameters as well as required ones (the
+            default is True, meaning the optional parameters will be checked).
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters after
+            downselecting data on this object (the default is True, meaning the
+            acceptable range check will be done).
+
         """
         if self.mode == 'flag':
             return
@@ -1868,16 +1946,32 @@ class UVFlag(UVBase):
 
     def to_metric(self, convert_wgts=False, run_check=True,
                   check_extra=True, run_check_acceptability=True):
-        """Convert to metric mode. NOT SMART. Simply recasts flag_array as float
+        """Convert to metric mode.
+
+        This function is NOT SMART. Simply recasts flag_array as float
         and uses this as the metric array.
 
-        Args:
-            convert_wgts : bool, if True convert self.weights_array to ones
-                unless a column or row is completely flagged, in which case
-                convert those pixels to zero. This is used when reinterpretting
-                flags as metrics to calculate flag fraction. Zero weighting
-                completely flagged rows/columns prevents those from counting
-                against a threshold along the other dimension.
+        Parameters
+        ----------
+        convert_wgts : bool
+            if True convert self.weights_array to ones
+            unless a column or row is completely flagged, in which case
+            convert those pixels to zero. This is used when reinterpretting
+            flags as metrics to calculate flag fraction. Zero weighting
+            completely flagged rows/columns prevents those from counting
+            against a threshold along the other dimension.
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            after downselecting data on this object (the default is True,
+            meaning the check will be run).
+        check_extra : bool
+            Option to check optional parameters as well as required ones (the
+            default is True, meaning the optional parameters will be checked).
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters after
+            downselecting data on this object (the default is True, meaning the
+            acceptable range check will be done).
+
         """
         if self.mode == 'metric':
             return
@@ -1911,8 +2005,20 @@ class UVFlag(UVBase):
                        run_check_acceptability=run_check_acceptability)
 
     def antpair2ind(self, ant1, ant2):
-        """
-        Get blt indices for given (ordered) antenna pair.
+        """Get blt indices for given (ordered) antenna pair.
+
+        Parameters
+        ----------
+        ant1 : int or array_like of int
+            Number of the first antenna
+        ant2 : int or array_like of int
+            Number of the second antenna
+
+        Returns
+        -------
+        int or array_like of int
+            baseline number(s) corresponding to the input antenna number
+
         """
         if self.type != 'baseline':
             raise ValueError('UVFlag object of type ' + self.type + ' does not '
@@ -1920,48 +2026,56 @@ class UVFlag(UVBase):
         return np.where((self.ant_1_array == ant1) & (self.ant_2_array == ant2))[0]
 
     def baseline_to_antnums(self, baseline):
-        """
-        Get the antenna numbers corresponding to a given baseline number.
+        """Get the antenna numbers corresponding to a given baseline number.
 
-        Args:
-            baseline(int): baseline number
+        Parameters
+        ----------
+        baseline : int
+            baseline number
 
-        Returns:
-            (tuple): Antenna numbers corresponding to baseline.
+        Returns
+        -------
+        tuple
+            Antenna numbers corresponding to baseline.
+
         """
         assert self.type == 'baseline', 'Must be "baseline" type UVFlag object.'
         return uvutils.baseline_to_antnums(baseline, self.Nants_telescope)
 
     def get_baseline_nums(self):
-        """
-        Returns numpy array of unique baseline numbers in data.
-        """
+        """Return numpy array of unique baseline numbers in data."""
         assert self.type == 'baseline', 'Must be "baseline" type UVFlag object.'
         return np.unique(self.baseline_array)
 
     def get_antpairs(self):
-        """
-        Returns list of unique antpair tuples (ant1, ant2) in data.
-        """
+        """Return list of unique antpair tuples (ant1, ant2) in data."""
         assert self.type == 'baseline', 'Must be "baseline" type UVFlag object.'
         return [self.baseline_to_antnums(bl) for bl in self.get_baseline_nums()]
 
 
 def flags2waterfall(uv, flag_array=None, keep_pol=False):
-    """
-    Convert a flag array to a 2D waterfall of dimensions (Ntimes, Nfreqs).
+    """Convert a flag array to a 2D waterfall of dimensions (Ntimes, Nfreqs).
+
     Averages over baselines and polarizations (in the case of visibility data),
     or antennas and jones parameters (in case of calibrationd data).
-    Args:
-        uv -- A UVData or UVCal object which defines the times and frequencies,
-              and supplies the flag_array to convert (if flag_array not specified)
-        flag_array -- Optional flag array to convert instead of uv.flag_array.
-                      Must have same dimensions as uv.flag_array.
-        keep_pol -- Option to keep the polarization axis intact. Default is False.
-    Returns:
-        waterfall -- 2D waterfall of averaged flags, for example fraction of baselines
-                     which are flagged for every time and frequency (in case of UVData input)
-                     Size is (Ntimes, Nfreqs) or (Ntimes, Nfreqs, Npols).
+    Parameters
+    ----------
+    uv : A UVData or UVCal object
+        Object defines the times and frequencies, and supplies the
+        flag_array to convert (if flag_array not specified)
+    flag_array :  Optional,
+        flag array to convert instead of uv.flag_array.
+        Must have same dimensions as uv.flag_array.
+    keep_pol : bool
+        Option to keep the polarization axis intact. Default is False.
+
+    Returns
+    -------
+    waterfall : 2D array or 3D array
+        Waterfall of averaged flags, for example fraction of baselines
+        which are flagged for every time and frequency (in case of UVData input)
+        Size is (Ntimes, Nfreqs) or (Ntimes, Nfreqs, Npols).
+
     """
     if not isinstance(uv, (UVData, UVCal)):
         raise ValueError('flags2waterfall() requires a UVData or UVCal object as '
@@ -1992,13 +2106,21 @@ def flags2waterfall(uv, flag_array=None, keep_pol=False):
 
 
 def and_rows_cols(waterfall):
-    """ For a 2D flag waterfall, flag pixels only if fully flagged along
+    """Perform logical and over rows and cols of a waterfall.
+
+    For a 2D flag waterfall, flag pixels only if fully flagged along
     time and/or frequency
-    Args:
-        waterfall - 2D boolean array of shape (Ntimes, Nfreqs)
-    Returns:
-        wf (2D array): A 2D array (size same as input) where only times/integrations
-            that were fully flagged are flagged.
+
+    Parameters
+    ----------
+    waterfall : 2D boolean array of shape (Ntimes, Nfreqs)
+
+    Returns
+    -------
+    wf : 2D array
+        A 2D array (size same as input) where only times/integrations
+        that were fully flagged are flagged.
+
     """
     wf = np.zeros_like(waterfall, dtype=np.bool)
     Ntimes, Nfreqs = waterfall.shape
@@ -2008,12 +2130,19 @@ def and_rows_cols(waterfall):
 
 
 def lst_from_uv(uv):
-    """ Calculate the lst_array for a UVData or UVCal object.
-    Args:
-        uv: a UVData or UVCal object.
-    Returns:
-        lst_array: lst_array corresponding to time_array and at telescope location.
-                   Units are radian.
+    """Calculate the lst_array for a UVData or UVCal object.
+
+    Parameters
+    ----------
+    uv : a UVData or UVCal object.
+        Object from which lsts are calculated
+
+    Returns
+    -------
+    lst_array: array of float
+        lst_array corresponding to time_array and at telescope location.
+        Units are radian.
+
     """
     if not isinstance(uv, (UVCal, UVData)):
         raise ValueError('Function lst_from_uv can only operate on '
