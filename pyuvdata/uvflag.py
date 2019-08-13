@@ -49,7 +49,7 @@ class UVFlag(UVBase):
     Attributes
     -----------
      UVParameter objects :
-         For full list see the [UVFlag Parameters Documentation.](https://pyuvdata.readthedocs.io/en/latest/uvflag_parameters.html)
+         For full list see the UVFlag Parameters Documentation. (https://pyuvdata.readthedocs.io/en/latest/uvflag_parameters.html)
          Some are always required, some are required for certain phase_types
          and others are always optional.
 
