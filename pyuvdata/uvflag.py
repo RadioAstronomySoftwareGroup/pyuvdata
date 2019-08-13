@@ -19,36 +19,46 @@ from . import telescopes as uvtel
 
 
 class UVFlag(UVBase):
-    """ Object to handle flag arrays and waterfalls. Supports reading/writing,
-    and stores all relevant information to combine flags and apply to data.
+    """Object to handle flag arrays and waterfalls for interferometric datasets.
+
+    Supports reading/writing, and stores all relevant information to combine flags and apply to data.
+    Initialization of the UVFlag object requires some parameters. Metadata is copied from input object. If input
+    is subclass of UVData or UVCal, the weights_array will be set to all ones.
+    Input lists or tuples are iterated through, treating each entry with an
+    individual UVFlag init.
+
+    Parameters
+    ----------
+    input : UVData, UVCal, str, list of compatible combination of options
+        Input to initialize UVFlag object. If str, assumed to be path to previously
+        saved UVFlag object. UVData and UVCal objects cannot be directly combined,
+        unless waterfall is True.
+    mode : {"metric", "flag"}, optional
+        The mode determines whether the object has a floating point metric_array
+        or a boolean flag_array. Default is "metric".
+    copy_flags : bool, optional
+        Whether to copy flags from input to new UVFlag object. Default is False.
+    waterfall : bool, optional
+        Whether to immediately initialize as a waterfall object, with flag/metric
+        axes: time, frequency, polarization. Default is False.
+    history : str, optional
+        History string to attach to object. Default is empty string.
+    label: str, optional
+        String used for labeling the object (e.g. 'FM'). Default is empty string.
+
+    Attributes
+    -----------
+     UVParameter objects :
+         For full list see UVData Parameters
+         (http://pyuvdata.readthedocs.io/en/latest/uvdata_parameters.html).
+         Some are always required, some are required for certain phase_types
+         and others are always optional.
+
     """
 
     def __init__(self, input, mode='metric', copy_flags=False, waterfall=False, history='',
                  label=''):
-        """Initialize UVFlag object. Metadata is copied from input object. If input
-        is subclass of UVData or UVCal, the weights_array will be set to all ones.
-        Input lists or tuples are iterated through, treating each entry with an
-        individual UVFlag init.
-
-        Parameters
-        ----------
-        input : UVData or UVCal or str or list of compatible combination of options
-            Input to initialize UVFlag object. If str, assumed to be path to previously
-            saved UVFlag object. UVData and UVCal objects cannot be directly combined,
-            unless waterfall is True.
-        mode : {"metric", "flag"}, optional
-            The mode determines whether the object has a floating point metric_array
-            or a boolean flag_array. Default is "metric".
-        copy_flags : bool, optional
-            Whether to copy flags from input to new UVFlag object. Default is False.
-        waterfall : bool, optional
-            Whether to immediately initialize as a waterfall object, with flag/metric
-            axes: time, frequency, polarization. Default is False.
-        history : str, optional
-            History string to attach to object. Default is empty string.
-        label: str, optional
-            String used for labeling the object (e.g. 'FM'). Default is empty string.
-        """
+        """Initialize the object"""
         # standard angle tolerance: 10 mas in radians.
         # Should perhaps be decreased to 1 mas in the future
         radian_tol = 10 * 2 * np.pi * 1e-3 / (60.0 * 60.0 * 360.0)

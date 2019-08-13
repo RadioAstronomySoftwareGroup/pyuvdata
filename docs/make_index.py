@@ -76,6 +76,8 @@ def write_index_rst(readme_file=None, write_file=None):
             '   uvcal\n'
             '   uvbeam_parameters\n'
             '   uvbeam\n'
+            '   uvflag_parameters\n'
+            '   uvflag\n'
             '   cst_settings_yaml\n'
             '   utility_functions\n'
             '   known_telescopes\n'
