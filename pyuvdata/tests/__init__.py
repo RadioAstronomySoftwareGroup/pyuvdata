@@ -20,6 +20,16 @@ from astropy.utils import iers
 
 import pyuvdata.utils as uvutils
 
+# define a pytest marker for skipping pytest-cases
+try:
+    import pytest_cases
+
+    cases_installed = True
+except ImportError:
+    cases_installed = False
+reason = 'pytest-cases is not installed, skipping tests that require it.'
+skipIf_no_pytest_cases = pytest.mark.skipif(not cases_installed, reason=reason)
+
 # define a pytest marker for skipping casacore tests
 try:
     import casacore

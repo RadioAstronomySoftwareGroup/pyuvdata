@@ -21,8 +21,75 @@ import shutil
 import copy
 import warnings
 
-pytest_cases = pytest.importorskip('pytest_cases')
 
+# The following three fixtures are used regularly
+# to initizize UVFlag objects from standard files
+# We need to define these here in order to set up
+# some skips for developers who do not have `pytest-cases` installed
+@pytest.fixture(scope='function')
+def uvf_from_miriad():
+    uv = UVData()
+    uv.read_miriad(test_d_file)
+    uvf = UVFlag(uv)
+
+    # yield the object for the test
+    yield uvf
+
+    # do some cleanup
+    del(uvf, uv)
+
+
+@pytest.fixture(scope='function')
+def uvf_from_uvcal():
+    uvc = UVCal()
+    uvc.read_calfits(test_c_file)
+    uvf = UVFlag(uvc)
+
+    # yield the object for the test
+    yield uvf
+
+    # do some cleanup
+    del(uvf, uvc)
+
+
+@pytest.fixture(scope='function')
+def uvf_from_waterfall():
+    uv = UVData()
+    uv.read_miriad(test_d_file)
+    uvf = UVFlag(uv, waterfall=True)
+
+    # yield the object for the test
+    yield uvf
+
+    # do some cleanup
+    del(uvf, uv)
+
+
+# Try to import `pytest-cases` and define decorators used to
+# iterate over the three main types of UVFLag objects
+# otherwise make the decorators skip the tests that use these iterators
+try:
+    import pytest_cases
+
+    cases_decorator = pytest_cases.pytest_parametrize_plus(
+        "input_uvf", [pytest_cases.fixture_ref(uvf_from_miriad),
+                      pytest_cases.fixture_ref(uvf_from_uvcal),
+                      pytest_cases.fixture_ref(uvf_from_waterfall)])
+
+    cases_decorator_no_waterfall = pytest_cases.pytest_parametrize_plus(
+        "input_uvf", [pytest_cases.fixture_ref(uvf_from_miriad),
+                      pytest_cases.fixture_ref(uvf_from_uvcal)])
+
+    # This warning is raised by pytest_cases
+    # It is due to a feature the developer does
+    # not know how to handle yet. ignore for now.
+    warnings.filterwarnings("ignore",
+                            message="WARNING the new order is not"
+                                    + " taken into account !!", append=True)
+
+except ImportError:
+    cases_decorator = uvtest.skipIf_no_pytest_cases
+    cases_decorator_no_waterfall = uvtest.skipIf_no_pytest_cases
 
 test_d_file = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.HH.uvcAA')
 test_c_file = os.path.join(DATA_PATH, 'zen.2457555.42443.HH.uvcA.omni.calfits')
@@ -36,53 +103,6 @@ if uvversion.git_hash != '':
                              + '.  Git hash: ' + uvversion.git_hash
                              + '.  Git branch: ' + uvversion.git_branch
                              + '.  Git description: ' + uvversion.git_description + '.')
-
-
-# This warning is raised by pytest_cases
-# It is due to a feature the developer does
-# not know how to handle yet. ignore for now.
-warnings.filterwarnings("ignore",
-                        message="WARNING the new order is not"
-                                + " taken into account !!", append=True)
-
-
-@pytest.fixture(scope='function')
-def uvf_from_miriad():
-    uv = UVData()
-    uv.read_miriad(test_d_file)
-    uvf = UVFlag(uv)
-
-    # yeild the object for the test
-    yield uvf
-
-    # do some cleanup
-    del(uvf, uv)
-
-
-@pytest.fixture(scope='function')
-def uvf_from_uvcal():
-    uvc = UVCal()
-    uvc.read_calfits(test_c_file)
-    uvf = UVFlag(uvc)
-
-    # yeild the object for the test
-    yield uvf
-
-    # do some cleanup
-    del(uvf, uvc)
-
-
-@pytest.fixture(scope='function')
-def uvf_from_waterfall():
-    uv = UVData()
-    uv.read_miriad(test_d_file)
-    uvf = UVFlag(uv, waterfall=True)
-
-    # yeild the object for the test
-    yield uvf
-
-    # do some cleanup
-    del(uvf, uv)
 
 
 def test_init_bad_mode():
@@ -1783,10 +1803,7 @@ def test_select_waterfall_errors(uvf_from_waterfall):
     assert str(cm.value).startswith('Cannot select on bls with waterfall')
 
 
-@pytest_cases.pytest_parametrize_plus("input_uvf",
-                                      [pytest_cases.fixture_ref(uvf_from_miriad),
-                                       pytest_cases.fixture_ref(uvf_from_uvcal),
-                                       pytest_cases.fixture_ref(uvf_from_waterfall)])
+@cases_decorator
 @pytest.mark.parametrize("uvf_mode", ["to_flag", "to_metric"])
 def test_select_blt_inds(input_uvf, uvf_mode):
     uvf = input_uvf
@@ -1844,9 +1861,7 @@ def test_select_blt_inds(input_uvf, uvf_mode):
     assert str(cm.value).startswith('blt_inds contains indices that are negative')
 
 
-@pytest_cases.pytest_parametrize_plus("input_uvf",
-                                      [pytest_cases.fixture_ref(uvf_from_miriad),
-                                       pytest_cases.fixture_ref(uvf_from_uvcal)])
+@cases_decorator_no_waterfall
 @pytest.mark.parametrize("uvf_mode", ["to_flag", "to_metric"])
 def test_select_antenna_nums(input_uvf, uvf_mode):
     uvf = input_uvf
@@ -1929,9 +1944,7 @@ def sort_bl(p):
     return (p[1], p[0]) + p[2:]
 
 
-@pytest_cases.pytest_parametrize_plus("input_uvf",
-                                      [pytest_cases.fixture_ref(uvf_from_miriad),
-                                       pytest_cases.fixture_ref(uvf_from_uvcal)])
+@cases_decorator_no_waterfall
 @pytest.mark.parametrize("uvf_mode", ["to_flag", "to_metric"])
 def test_select_bls(input_uvf, uvf_mode):
     uvf = input_uvf
@@ -2059,10 +2072,7 @@ def test_select_bls(input_uvf, uvf_mode):
         assert str(cm.value).startswith("Antenna pair (97, 97) does not have any")
 
 
-@pytest_cases.pytest_parametrize_plus("input_uvf",
-                                      [pytest_cases.fixture_ref(uvf_from_miriad),
-                                       pytest_cases.fixture_ref(uvf_from_uvcal),
-                                       pytest_cases.fixture_ref(uvf_from_waterfall)])
+@cases_decorator
 @pytest.mark.parametrize("uvf_mode", ["to_flag", "to_metric"])
 def test_select_times(input_uvf, uvf_mode):
     uvf = input_uvf
@@ -2111,10 +2121,7 @@ def test_select_times(input_uvf, uvf_mode):
                                     ' the time_array'.format(t=bad_time[0]))
 
 
-@pytest_cases.pytest_parametrize_plus("input_uvf",
-                                      [pytest_cases.fixture_ref(uvf_from_miriad),
-                                       pytest_cases.fixture_ref(uvf_from_uvcal),
-                                       pytest_cases.fixture_ref(uvf_from_waterfall)])
+@cases_decorator
 @pytest.mark.parametrize("uvf_mode", ["to_flag", "to_metric"])
 def test_select_frequencies(input_uvf, uvf_mode):
     uvf = input_uvf
@@ -2172,10 +2179,7 @@ def test_select_frequencies(input_uvf, uvf_mode):
     assert str(cm.value).startswith('Frequency {f} is not present in the freq_array'.format(f=bad_freq[0]))
 
 
-@pytest_cases.pytest_parametrize_plus("input_uvf",
-                                      [pytest_cases.fixture_ref(uvf_from_miriad),
-                                       pytest_cases.fixture_ref(uvf_from_uvcal),
-                                       pytest_cases.fixture_ref(uvf_from_waterfall)])
+@cases_decorator
 @pytest.mark.parametrize("uvf_mode", ["to_flag", "to_metric"])
 def test_select_freq_chans(input_uvf, uvf_mode):
     uvf = input_uvf
@@ -2259,10 +2263,7 @@ def test_select_freq_chans(input_uvf, uvf_mode):
             assert f in uvf.freq_array[chans_to_keep]
 
 
-@pytest_cases.pytest_parametrize_plus("input_uvf",
-                                      [pytest_cases.fixture_ref(uvf_from_miriad),
-                                       pytest_cases.fixture_ref(uvf_from_uvcal),
-                                       pytest_cases.fixture_ref(uvf_from_waterfall)])
+@cases_decorator
 @pytest.mark.parametrize("uvf_mode", ["to_flag", "to_metric"])
 def test_select_polarizations(input_uvf, uvf_mode):
     uvf = input_uvf
@@ -2306,10 +2307,7 @@ def test_select_polarizations(input_uvf, uvf_mode):
     assert str(cm.value).startswith('Polarization {p} is not present in the polarization_array'.format(p=-3))
 
 
-@pytest_cases.pytest_parametrize_plus("input_uvf",
-                                      [pytest_cases.fixture_ref(uvf_from_miriad),
-                                       pytest_cases.fixture_ref(uvf_from_uvcal),
-                                       pytest_cases.fixture_ref(uvf_from_waterfall)])
+@cases_decorator
 @pytest.mark.parametrize("uvf_mode", ["to_flag", "to_metric"])
 def test_select(input_uvf, uvf_mode):
     uvf = input_uvf
