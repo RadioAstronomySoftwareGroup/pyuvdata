@@ -31,7 +31,7 @@ test_outfile = os.path.join(DATA_PATH, 'test', 'outtest_uvflag.h5')
 
 pyuvdata_version_str = ('  Read/written with pyuvdata version: '
                         + uvversion.version + '.')
-if uvversion.git_hash is not '':
+if uvversion.git_hash != '':
     pyuvdata_version_str += ('  Git origin: ' + uvversion.git_origin
                              + '.  Git hash: ' + uvversion.git_hash
                              + '.  Git branch: ' + uvversion.git_branch
@@ -270,7 +270,7 @@ def test_data_like_property_mode_tamper():
     uvf = UVFlag(uv, label='test')
     uvf.mode = 'test'
     with pytest.raises(ValueError) as cm:
-        junk = list(uvf.data_like_parameters)
+        list(uvf.data_like_parameters)
     assert str(cm.value).startswith('Invalid mode. Mode must be one of')
 
 
@@ -2333,9 +2333,6 @@ def test_select(input_uvf, uvf_mode):
                                         size=unique_ants.size - 1,
                                         replace=False)
 
-        blts_select = [(a1 in ants_to_keep) & (a2 in ants_to_keep) for (a1, a2) in
-                       zip(uvf.ant_1_array, uvf.ant_2_array)]
-        Nblts_selected = np.sum(blts_select)
     elif uvf.type == "antenna":
         unique_ants = np.unique(uvf.ant_array)
         ants_to_keep = np.random.choice(unique_ants,
@@ -2356,8 +2353,6 @@ def test_select(input_uvf, uvf_mode):
         ant_pairs_to_keep = list(zip(first_ants, second_ants))
         sorted_pairs_to_keep = [sort_bl(p) for p in ant_pairs_to_keep]
 
-        blts_select = [sort_bl((a1, a2)) in sorted_pairs_to_keep for (a1, a2) in
-                       zip(uvf.ant_1_array, uvf.ant_2_array)]
     else:
         ant_pairs_to_keep = None
 
