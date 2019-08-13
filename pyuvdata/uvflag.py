@@ -549,6 +549,11 @@ class UVFlag(UVBase):
                 print('Classes do not match')
                 return False
 
+    def __ne__(self, other, check_history=True, check_extra=True):
+        """Not Equal."""
+        return not self.__eq__(other, check_history=check_history,
+                               check_extra=check_extra)
+
     def _select_preprocess(self, antenna_nums, bls,
                            frequencies, freq_chans, times, polarizations,
                            blt_inds, ant_inds):

@@ -2427,3 +2427,21 @@ def test_select(input_uvf, uvf_mode):
                                         'times, frequencies, '
                                         'polarizations using pyuvdata.',
                                         uvf2.history)
+
+
+def test_equality_no_history(uvf_from_miriad):
+    uvf = uvf_from_miriad
+    uvf2 = uvf.copy()
+    assert uvf.__eq__(uvf2, check_history=False)
+
+
+def test_inequality_different_classes(uvf_from_miriad):
+    uvf = uvf_from_miriad
+
+    class test_class(object):
+        def __init__(self):
+            pass
+
+    other_class = test_class()
+
+    assert uvf.__ne__(other_class, check_history=False)
