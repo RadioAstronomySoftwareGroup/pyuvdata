@@ -187,8 +187,11 @@ class MWACorrFITS(UVData):
         reordered_inds = antenna_numbers.argsort()
         self.antenna_numbers = antenna_numbers[reordered_inds]
         self.antenna_names = antenna_names[reordered_inds]
-        self.antenna_positions = antenna_positions[reordered_inds, :]
+        antenna_positions = antenna_positions[reordered_inds, :]
         antenna_flags = antenna_flags[reordered_inds]
+
+        # find flagged antenna
+        flagged_ants = self.antenna_numbers[np.where(antenna_flags == 1)]
 
         # set parameters from other parameters
         self.Nants_data = len(self.antenna_numbers)
@@ -201,11 +204,11 @@ class MWACorrFITS(UVData):
         # build time array of centers
         time_array = np.arange(start_time + int_time / 2.0, end_time
                                + int_time / 2.0 + int_time, int_time)
-        print(time_array[0:10])
+
         # convert from unix to julian times
         julian_time_array = [Time(i, format='unix', scale='utc').jd
                              for i in time_array]
-        print(julian_time_array[0:10])
+
         # convert to integers
         float_time_array = np.array([float(i) for i in julian_time_array])
         # build into time array
@@ -227,7 +230,9 @@ class MWACorrFITS(UVData):
         # TODO: ask Bryna does this work? antenna positions are "relative to
         # the centre of the array in local topocentric \"east\", \"north\",
         # \"height\". Units are meters."
-        antenna_positions = uvutils.ECEF_from_ENU(antenna_positions, lat, lon, alt)
+        antenna_positions_ecef = uvutils.ECEF_from_ENU(antenna_positions, lat, lon, alt)
+        # convert to ITRF
+        self.antenna_positions = antenna_positions_ecef - self.telescope_location
 
         # make initial antenna arrays, where ant_1 <= ant_2
         ant_1_array = []
@@ -323,6 +328,9 @@ class MWACorrFITS(UVData):
             self.freq_array[0, int(i * 128 / avg_factor):int((i + 1) * 128 / avg_factor)] = \
                 np.arange(first_center, first_center + num_avg_chans * width, width) * 1000
 
+        # initialize a flag array; as data is read in unflag that data
+        # this way missing data is automatically flagged
+        flag_dump = np.full((self.Ntimes, self.Nfreqs, self.Nbls * self.Npols), True)
         # read data into an array with dimensions (time, uv, baselines*pols)
         data_dump = np.zeros((self.Ntimes, self.Nfreqs, self.Nbls * self.Npols), dtype=np.complex)
         # read data files
@@ -341,17 +349,16 @@ class MWACorrFITS(UVData):
                     # and take data from real to complex numbers
                     data_dump[time_ind, freq_ind:freq_ind + num_fine_chans, :] = \
                         hdu_list[i].data[:, 0::2] + 1j * hdu_list[i].data[:, 1::2]
-
-        # TODO: add flagging for missing times
-        # TODO: read in flag files
-
+                    # unflag where data is
+                    flag_dump[time_ind, freq_ind:freq_ind + num_fine_chans, :] = False
+        
         # TODO: check conjugation
         # build new data array
         # polarizations are ordered yy, yx, xy, xx
         self.polarization_array = np.array([-6, -8, -7, -5])
         # initialize matrix for data reordering
         data_reorder = np.zeros((self.Ntimes, self.Nbls, self.Nfreqs, self.Npols), dtype=np.complex)
-
+        flag_reorder = np.full((self.Ntimes, self.Nbls, self.Nfreqs, self.Npols), True)
         # build mapper from antenna numbers and polarizations to pfb inputs
         corr_ants_to_pfb_inputs = {}
         for i in range(len(antenna_numbers)):
@@ -393,13 +400,27 @@ class MWACorrFITS(UVData):
                         else:
                             data_index = int(2 * out_ant1 * (out_ant1 + 1) + 4 * out_ant2 + 2 * out_p1 + out_p2)
                             data_reorder[:, bls_ind, :, pol_ind] = data_dump[:, :, data_index]
+                        # reorder flags
+                        flag_reorder[:, bls_ind, :, pol_ind] = flag_dump[:, :, data_index]
 
         # add spectral window index
-        # assign as data array
+        data_reorder = data_reorder[:, :, np.newaxis, :, :]
+        flag_reorder = flag_reorder[:, :, np.newaxis, :, :]
 
-        # TODO:
-        self.data_array = np.zeros((self.Nblts, self.Nspws, self.Nfreqs, self.Npols))
-        # TODO:
-        self.flag_array = np.zeros((self.Nblts, self.Nspws, self.Nfreqs, self.Npols))
+        # generage baseline flags for flagged ants
+        baseline_flags = np.full(self.Nbls, False)
+        for ant1 in range(128):
+            for ant2 in range(ant1, 128):
+                if ant1 in flagged_ants or ant2 in flagged_ants:
+                    baseline_flags[int(128 * ant1 - ant1 * (ant1 + 1) / 2 + ant2)] = True
+
+        flag_reorder[:, np.where(baseline_flags is True), :, :] = True
+
+        # combine baseline and time axes
+        self.data_array = data_reorder.reshape((self.Nblts, self.Nspws, self.Nfreqs, self.Npols))
+        self.flag_array = flag_reorder.reshape((self.Nblts, self.Nspws, self.Nfreqs, self.Npols))
+
+        # TODO: add support for cotter flag files
+
         # TODO: talk to Bryna about what makes sense for this!
         self.nsample_array = np.zeros((self.Nblts, self.Nspws, self.Nfreqs, self.Npols))
