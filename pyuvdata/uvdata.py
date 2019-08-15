@@ -4684,8 +4684,8 @@ class UVData(UVBase):
         input_phase_type = self.phase_type
         if input_phase_type == "drift":
             # phase to RA/dec of zenith
-            phase_center = self.time_array[0]
-            self.phase_to_time(phase_center)
+            phase_time = Time(self.time_array[0], format='jd')
+            self.phase_to_time(phase_time)
 
         # figure out where integration_time is longer than max_int_time
         # need to check that int times are sensible given integration_times on object
@@ -4816,13 +4816,14 @@ class UVData(UVBase):
         input_phase_type = self.phase_type
         if input_phase_type == "drift":
             # phase to RA/dec of zenith
-            phase_center = self.time_array[0]
-            self.phase_to_time(phase_center)
+            phase_time = Time(self.time_array[0], format='jd')
+            self.phase_to_time(phase_time)
 
         # figure out where integration_time is shorter than min_int_time
         # need to check that int times are sensible given integration_times on object
         inds_to_downsample = np.nonzero(self.integration_time < min_int_time)
-        n_new_samples = int(np.round(min_int_time / self.integration_time[inds_to_downsample]))
+        n_new_samples = np.round(min_int_time
+                                 / self.integration_time[inds_to_downsample]).astype(int)
         temp_Nblts = np.sum(n_new_samples)
 
         temp_baseline = np.zeros((temp_Nblts,), dtype=np.int)
@@ -4844,6 +4845,7 @@ class UVData(UVBase):
             running_int_time = 0
             n_avg = 0
             i1 = 0
+            n_sum = 0
             for int_time in self.integration_time[bl_inds]:
                 running_int_time += int_time
                 n_sum += 1
@@ -4865,7 +4867,8 @@ class UVData(UVBase):
                             temp_flag[i0] = True
                         # nsample array is the fraction of data that we actually kept,
                         # relative to the amount that went into the sum
-                        temp_nsamples[i0] = float(idx_to_keep[0].size) / float(self.flag_array[idx].size)
+                        temp_nsample[i0] = (float(idx_to_keep[0].size)
+                                            / float(self.flag_array[idx].size))
                     i0 += 1
                     i1 = i1 + n_sum
 
@@ -4875,6 +4878,7 @@ class UVData(UVBase):
         self.baseline_array = self.baseline_array[inds_to_keep]
         self.time_array = self.time_array[inds_to_keep]
         self.integration_time = self.integration_time[inds_to_keep]
+
         self.baseline_array = np.concatenate((self.baseline_array, temp_baseline))
         self.time_array = np.concatenate((self.time_array, temp_time))
         self.integration_time = np.concatenate((self.integration_time, temp_int_time))
@@ -4891,15 +4895,24 @@ class UVData(UVBase):
         # set antenna arrays from baseline_array
         self.ant_1_array, self.ant_2_array = self.baseline_to_ant_nums(self.baseline_array)
 
-        # The following operations *must* happen in this order: unphasing (if necessary),
-        # setting the uvw array, reordering. This is to prevent doing phasing twice and
-        # accumulating the associated floating point errors.
+        # update metadata
+        self.Nblts = self.data_array.shape[0]
+        self.Ntimes = np.unique(self.time_array).size
+        self.uvw_array = np.zeros((self.Nblts, 3))
+
+        # set lst array
+        self.set_lsts_from_time_array()
+
+        # temporarily store the metadata only to calculate UVWs correctly
+        uv_temp = self.copy(metadata_only=True)
+
+        # properly calculate the uvws self-consistently
+        uv_temp.set_uvws_from_antenna_positions(allow_phasing=True)
+        self.uvw_array = uv_temp.uvw_array
+
         if input_phase_type == "drift":
             # unphase back to drift
             self.unphase_to_drift()
-
-        # properly calculate the uvws self-consistently
-        self.set_uvws_from_antenna_positions(allow_phasing=True)
 
         # reorganize along blt axis
         self.reorder_blts(order=blt_order, minor_order=minor_order)
