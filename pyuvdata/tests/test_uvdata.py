@@ -494,7 +494,9 @@ def test_phase_unphaseHERA():
     assert np.allclose(UV_phase_simple_small.uvw_array, UV_raw_small.uvw_array, atol=1e-2)
 
     # check error if not passing a Time object to phase_to_time
-    pytest.raises(TypeError, UV_raw.phase_to_time, UV_raw.time_array[0])
+    with pytest.raises(TypeError) as cm:
+        UV_raw.phase_to_time(UV_raw.time_array[0])
+    assert str(cm.value).startswith('time must be an astropy.time.Time object')
 
     # check errors when trying to unphase drift or unknown data
     pytest.raises(ValueError, UV_raw.unphase_to_drift)
