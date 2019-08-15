@@ -86,10 +86,39 @@ def clearWarnings():
             reg.clear()
 
 
-def checkWarnings(func, func_args=[], func_kwargs={},
-                  category=UserWarning,
-                  nwarnings=1, message=None, known_warning=None):
-    """Function to check expected warnings."""
+def checkWarnings(func, func_args=[], func_kwargs={}, nwarnings=1,
+                  category=UserWarning, message=None, known_warning=None):
+    """Function to check expected warnings.
+
+    Parameters
+    ----------
+    func : function
+        Function or method to check warnings for.
+    func_args : list, optional
+        List of positional parameters to pass `func`
+    func_kwargs : dict, optional
+        Dict of keyword parameter to pass func. Keys are the parameter names,
+        values are the values to pass to the parameters.
+    nwarnings : int
+        Number of expected warnings.
+    category : warning type or list of warning types
+        Expected warning type(s). If a scalar is passed and `nwarnings` is
+        greater than one, the same category will be expected for all warnings.
+    message : str or list of str
+        Expected warning string(s). If a scalar is passed and `nwarnings` is
+        greater than one, the same warning string will be expected for all warnings.
+    known_warning : {'miriad', 'paper_uvfits', 'fhd'}, optional
+        Shorthand way to specify one of a standard set of warnings.
+
+    Returns
+    -------
+    Value returned by `func`
+
+    Raises
+    ------
+    AssertionError
+        If the warning(s) raised by func does not match the expected values.
+    """
 
     if (not isinstance(category, list) or len(category) == 1) and nwarnings > 1:
         if isinstance(category, list):
