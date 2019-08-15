@@ -88,7 +88,10 @@ def clearWarnings():
 
 def checkWarnings(func, func_args=[], func_kwargs={}, nwarnings=1,
                   category=UserWarning, message=None, known_warning=None):
-    """Function to check expected warnings.
+    """Function to check expected warnings in tests.
+
+    Useful for checking that appropriate warnings are raised and to capture
+    (and silence) warnings in tests.
 
     Parameters
     ----------
@@ -117,7 +120,7 @@ def checkWarnings(func, func_args=[], func_kwargs={}, nwarnings=1,
     Raises
     ------
     AssertionError
-        If the warning(s) raised by func does not match the expected values.
+        If the warning(s) raised by func do not match the expected values.
     """
 
     if (not isinstance(category, list) or len(category) == 1) and nwarnings > 1:
