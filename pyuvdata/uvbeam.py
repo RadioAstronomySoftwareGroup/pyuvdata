@@ -1275,7 +1275,7 @@ class UVBeam(UVBase):
             history_update_string = (' Interpolated')
             if freq_array is not None:
                 history_update_string += (' in frequency')
-                new_uvb.Nfreqs = new_uvb.data_array.shape[3]
+                new_uvb.Nfreqs = freq_array.size
                 new_uvb.freq_array = freq_array.reshape(1, -1)
                 new_uvb.bandpass_array = interp_bandpass
                 new_uvb.freq_interp_kind = kind_use

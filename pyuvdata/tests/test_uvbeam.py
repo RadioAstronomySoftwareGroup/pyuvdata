@@ -420,7 +420,8 @@ def test_freq_interpolation():
     assert isinstance(new_beam_obj, UVBeam)
     np.testing.assert_array_almost_equal(new_beam_obj.freq_array[0], freq_orig_vals)
     assert new_beam_obj.freq_interp_kind == 'linear'
-    assert not hasattr(new_beam_obj, 'saved_interp_functions')  # test that saved functions are erased in new obj
+    # test that saved functions are erased in new obj
+    assert not hasattr(new_beam_obj, 'saved_interp_functions')
     assert power_beam.history != new_beam_obj.history
     new_beam_obj.history = power_beam.history
     assert power_beam == new_beam_obj
@@ -429,8 +430,30 @@ def test_freq_interpolation():
                                      new_object=True)
     assert isinstance(new_beam_obj, UVBeam)
     np.testing.assert_array_almost_equal(new_beam_obj.freq_array[0], freq_orig_vals)
-    assert new_beam_obj.freq_interp_kind == 'nearest'  # assert interp kind is 'nearest' when within tol
+    # assert interp kind is 'nearest' when within tol
+    assert new_beam_obj.freq_interp_kind == 'nearest'
     new_beam_obj.freq_interp_kind = 'linear'
+    assert power_beam.history != new_beam_obj.history
+    new_beam_obj.history = power_beam.history
+    assert power_beam == new_beam_obj
+
+    # test frequency interpolation returns valid new UVBeam for different
+    # number of freqs from input
+    power_beam.saved_interp_functions = {}
+    new_beam_obj = power_beam.interp(freq_array=np.linspace(123e6, 150e6, num=5),
+                                     freq_interp_tol=0.0, new_object=True)
+
+    assert isinstance(new_beam_obj, UVBeam)
+    np.testing.assert_array_almost_equal(new_beam_obj.freq_array[0],
+                                         np.linspace(123e6, 150e6, num=5))
+    assert new_beam_obj.freq_interp_kind == 'linear'
+    # test that saved functions are erased in new obj
+    assert not hasattr(new_beam_obj, 'saved_interp_functions')
+    assert power_beam.history != new_beam_obj.history
+    new_beam_obj.history = power_beam.history
+
+    # down select to orig freqs and test equality
+    new_beam_obj.select(frequencies=freq_orig_vals)
     assert power_beam.history != new_beam_obj.history
     new_beam_obj.history = power_beam.history
     assert power_beam == new_beam_obj
