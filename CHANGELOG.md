@@ -9,6 +9,9 @@ All notable changes to this project will be documented in this file.
 ### Changed
 - `UVFlag` inherits from `UVBase` object.
 
+### Fixed
+- A bug that gave the wrong error message when calling `UVData.phase_to_time` without an Astropy Time object.
+
 ## [1.4.1] - 2019-08-2
 
 ### Added
