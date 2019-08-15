@@ -919,31 +919,21 @@ class UVData(UVBase):
 
         if run_check_uvw_antpos:
             # check that the uvws make sense given the antenna positions
-            # first, make a copy of this object with just the metadata
-            # new_obj = UVData()
-            # for param_name in self:
-            #     if param_name not in ['data_array', 'flag_array', 'nsample_array']:
-            #         setattr(new_obj, param_name, getattr(self, param_name))
-            new_obj = UVData()
-            for param in new_obj:
-                param_obj = getattr(new_obj, param)
-                param_name = param_obj.name
-                if param_name not in ['data_array', 'flag_array', 'nsample_array']:
-                    setattr(new_obj, param_name, getattr(self, param_name))
+            # make a metadata only copy of this object to properly calculate uvws
+            temp_obj = self.copy(metadata_only=True)
 
-            if new_obj.phase_center_frame is not None:
-                output_phase_frame = new_obj.phase_center_frame
+            if temp_obj.phase_center_frame is not None:
+                output_phase_frame = temp_obj.phase_center_frame
             else:
                 output_phase_frame = 'icrs'
 
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
-                new_obj.set_uvws_from_antenna_positions(allow_phasing=True,
-                                                        output_phase_frame=output_phase_frame,
-                                                        metadata_only=True)
+                temp_obj.set_uvws_from_antenna_positions(
+                    allow_phasing=True, output_phase_frame=output_phase_frame)
 
-            if not np.allclose(new_obj.uvw_array, self.uvw_array, atol=1):
-                print(np.max(np.abs(new_obj.uvw_array - self.uvw_array)))
+            if not np.allclose(temp_obj.uvw_array, self.uvw_array, atol=1):
+                print(np.max(np.abs(temp_obj.uvw_array - self.uvw_array)))
                 raise ValueError('uvw_array does not match the expected values '
                                  'given the antenna positions.')
 
