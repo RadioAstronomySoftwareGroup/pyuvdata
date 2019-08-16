@@ -161,9 +161,9 @@ def test_properties(uvbeam_data):
         this_param = getattr(uvbeam_data.beam_obj, v)
         try:
             assert rand_num == this_param.value
-        except(AssertionError):
+        except AssertionError:
             print('setting {prop_name} to a random number failed'.format(prop_name=k))
-            raise(AssertionError)
+            raise
 
 
 def test_errors():
