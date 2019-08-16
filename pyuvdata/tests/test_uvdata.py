@@ -164,9 +164,9 @@ def test_properties(uvdata_props):
         this_param = getattr(uvdata_props.uv_object, v)
         try:
             assert rand_num == this_param.value
-        except(AssertionError):
+        except AssertionError:
             print('setting {prop_name} to a random number failed'.format(prop_name=k))
-            raise(AssertionError)
+            raise
 
 
 @pytest.fixture(scope='function')
