@@ -1963,7 +1963,7 @@ class UVData(UVBase):
         if bls is not None:
             if isinstance(bls, tuple) and (len(bls) == 2 or len(bls) == 3):
                 bls = [bls]
-            if not all(isinstance(item, tuple) for item in bls):
+            if len(bls) == 0 or not all(isinstance(item, tuple) for item in bls):
                 raise ValueError(
                     'bls must be a list of tuples of antenna numbers (optionally with polarization).')
             if not all([isinstance(item[0], six.integer_types + (np.integer,)) for item in bls]
