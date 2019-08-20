@@ -13,7 +13,7 @@ from astropy.time import Time
 def write_flagparams_rst(write_file=None):
     test_file = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.HH.uvcAA.testuvflag.h5')
     UV = UVFlag(test_file)
-    out = 'UVFLag Parameters\n=================\n'
+    out = 'UVFlag Parameters\n=================\n'
     out += ("These are the standard attributes of UVFlag objects.\n\nUnder the hood "
             "they are actually properties based on UVParameter objects.\n\n")
     out += 'Required\n----------------\n'

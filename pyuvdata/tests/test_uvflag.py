@@ -66,7 +66,7 @@ def uvf_from_waterfall():
 
 
 # Try to import `pytest-cases` and define decorators used to
-# iterate over the three main types of UVFLag objects
+# iterate over the three main types of UVFlag objects
 # otherwise make the decorators skip the tests that use these iterators
 try:
     import pytest_cases
