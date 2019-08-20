@@ -612,7 +612,7 @@ class UVFlag(UVBase):
         if self.type == "waterfall":
             if antenna_nums is not None:
                 raise ValueError('Cannot select on antenna_nums with waterfall type '
-                                 'UVFLag objects.')
+                                 'UVFlag objects.')
             if bls is not None:
                 raise ValueError('Cannot select on bls with waterfall type '
                                  'UVFlag objects.')
