@@ -895,15 +895,36 @@ def test_select_bls():
     assert list(set(sorted_pairs_object2)) == [(0, 6)]
 
     # check for errors associated with antenna pairs not included in data and bad inputs
-    pytest.raises(ValueError, uv_object.select,
-                  bls=list(zip(first_ants, second_ants)) + [0, 6])
-    pytest.raises(ValueError, uv_object.select,
-                  bls=[(uv_object.antenna_names[0], uv_object.antenna_names[1])])
-    pytest.raises(ValueError, uv_object.select, bls=(5, 1))
-    pytest.raises(ValueError, uv_object.select, bls=(0, 5))
-    pytest.raises(ValueError, uv_object.select, bls=(27, 27))
-    pytest.raises(ValueError, uv_object.select, bls=(6, 0, 'RR'), polarizations='RR')
-    pytest.raises(ValueError, uv_object.select, bls=(6, 0, 8))
+    with pytest.raises(ValueError) as cm:
+        uv_object.select(bls=list(zip(first_ants, second_ants)) + [0, 6])
+    assert str(cm.value).startswith('bls must be a list of tuples of antenna numbers')
+
+    with pytest.raises(ValueError) as cm:
+        uv_object.select(bls=[(uv_object.antenna_names[0], uv_object.antenna_names[1])])
+    assert str(cm.value).startswith('bls must be a list of tuples of antenna numbers')
+
+    with pytest.raises(ValueError) as cm:
+        uv_object.select(bls=(5, 1))
+    assert str(cm.value).startswith('Antenna number 5 is not present in the '
+                                    'ant_1_array or ant_2_array')
+    with pytest.raises(ValueError) as cm:
+        uv_object.select(bls=(0, 5))
+    assert str(cm.value).startswith('Antenna number 5 is not present in the '
+                                    'ant_1_array or ant_2_array')
+    with pytest.raises(ValueError) as cm:
+        uv_object.select(bls=(27, 27))
+    assert str(cm.value).startswith('Antenna pair (27, 27) does not have any data')
+    with pytest.raises(ValueError) as cm:
+        uv_object.select(bls=(6, 0, 'RR'), polarizations='RR')
+    assert str(cm.value).startswith('Cannot provide length-3 tuples and also '
+                                    'specify polarizations.')
+    with pytest.raises(ValueError) as cm:
+        uv_object.select(bls=(6, 0, 8))
+    assert str(cm.value).startswith('The third element in each bl must be a '
+                                    'polarization string')
+    with pytest.raises(ValueError) as cm:
+        uv_object.select(bls=[])
+    assert str(cm.value).startswith('bls must be a list of tuples of antenna numbers')
 
 
 def test_select_times():
