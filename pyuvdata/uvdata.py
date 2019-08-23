@@ -4902,7 +4902,7 @@ class UVData(UVBase):
                         # nsample array is the fraction of data that we actually kept,
                         # relative to the amount that went into the sum
                         temp_nsample[temp_idx] = (np.sum(~self.flag_array[averaging_idx], axis=0)
-                                                  / float(self.flag_array[averaging_idx].size))
+                                                  / float(self.flag_array[averaging_idx].shape[0]))
                     # increment counters and reset values
                     temp_idx += 1
                     summing_idx += n_sum
