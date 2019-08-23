@@ -81,7 +81,7 @@ jobs:
       pip install .
       pip install git+https://github.com/HERA-Team/linsolve.git
       pip install git+https://github.com/HERA-Team/hera_qm.git
-      pip install git+https://github.com/HERA-Team/uvtools.git --no-deps
+      pip install git+https://github.com/HERA-Team/uvtools.git
       pip install git+https://github.com/HERA-Team/hera_sim.git
     displayName: install related repos
 
@@ -124,7 +124,7 @@ jobs:
       pip install .
       pip install git+https://github.com/HERA-Team/omnical.git
       pip install git+https://github.com/HERA-Team/linsolve.git
-      pip install git+https://github.com/HERA-Team/uvtools.git --no-deps
+      pip install git+https://github.com/HERA-Team/uvtools.git
       pip install git+https://github.com/HERA-Team/hera_cal.git
     displayName: install related repos
 
