@@ -380,6 +380,16 @@ class UVFlag(UVBase):
             if hasattr(self, key):
                 yield getattr(self, key)
 
+    @property
+    def pol_collapsed(self):
+        """Determine if this object has had pols collapsed."""
+        if not hasattr(self, 'polarization_array') or self.polarization_array is None:
+            return False
+        elif isinstance(self.polarization_array.item(0), six.string_types):
+            return True
+        else:
+            return False
+
     def _set_mode_flag(self):
         """Set the mode and required parameters consistent with a flag object."""
         self.mode = 'flag'
@@ -1030,7 +1040,8 @@ class UVFlag(UVBase):
         if not inplace:
             return uv_object
 
-    def read(self, filename, history=''):
+    def read(self, filename, history='', run_check=True, check_extra=True,
+             run_check_acceptability=True):
         """Read in flag/metric data from a HDF5 file.
 
         Parameters
@@ -1039,6 +1050,14 @@ class UVFlag(UVBase):
             The file name to read.
         history : str
             History string to append to UVFlag history attribute.
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            after reading data.
+        check_extra : bool
+            Option to check optional parameters as well as required ones.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters after
+            reading data.
 
         """
         import h5py
@@ -1126,6 +1145,11 @@ class UVFlag(UVBase):
                 if isinstance(polarization_array[0], np.string_):
                     polarization_array = np.asarray(polarization_array,
                                                     dtype=np.str_)
+                    # collapsed pol objects have a different type for
+                    # the polarization array.
+                    self._polarization_array.expected_type = six.string_types
+                    self._polarization_array.acceptable_vals = None
+
                 self.polarization_array = polarization_array
 
                 if 'Npols' in header.keys():
@@ -1154,7 +1178,7 @@ class UVFlag(UVBase):
                     except KeyError:
                         warnings.warn('Nants_telescope not available in file, '
                                       'assuming < 2048.')
-                        self.Nants_telescope = None
+                        self.Nants_telescope = 2047
 
                     if 'Nants_data' in header.keys():
                         self.Nants_data = int(header['Nants_data'][()])
@@ -1190,6 +1214,10 @@ class UVFlag(UVBase):
                 self.weights_array = dgrp['weights_array'][()]
 
             self.clear_unused_attributes()
+
+            if run_check:
+                self.check(check_extra=check_extra,
+                           run_check_acceptability=run_check_acceptability)
 
     def write(self, filename, clobber=False, data_compression='lzf'):
         """Write a UVFlag object to a hdf5 file.
@@ -1366,6 +1394,10 @@ class UVFlag(UVBase):
                                              axis=-1)
             this.Nfreqs = np.unique(this.freq_array.flatten()).size
         elif axis in ['polarization', 'pol', 'jones']:
+            if this.pol_collapsed:
+                raise NotImplementedError("Two UVFlag objects with their "
+                                          "polarizations collapsed cannot be "
+                                          "added at this time.")
             this.polarization_array = np.concatenate([this.polarization_array,
                                                       other.polarization_array])
             this.Npols = len(this.polarization_array)
