@@ -1023,7 +1023,7 @@ class UVData(UVBase):
         if phase_type == 'phased':
             if allow_phasing:
                 if not self.metadata_only:
-                    warnings.warn('Warning: Data will be unphased and rephased '
+                    warnings.warn('Data will be unphased and rephased '
                                   'to calculate UVWs, which might introduce small '
                                   'inaccuracies to the data.')
                 if orig_phase_frame not in [None, 'icrs', 'gcrs']:
@@ -4691,7 +4691,7 @@ class UVData(UVBase):
 
         # figure out where integration_time is longer than max_int_time
         inds_to_upsample = np.nonzero(self.integration_time > max_int_time)
-        if len(inds_to_upsample) == 0:
+        if len(inds_to_upsample[0]) == 0:
             warnings.warn("All values in the integration_time array are already "
                           "longer than the value specified; doing nothing.")
             return
@@ -4901,7 +4901,9 @@ class UVData(UVBase):
                         temp_flag[temp_idx] = np.sum(self.flag_array[averaging_idx], axis=0)
                         # nsample array is the fraction of data that we actually kept,
                         # relative to the amount that went into the sum
-                        temp_nsample[temp_idx] = (np.sum(~self.flag_array[averaging_idx], axis=0)
+                        masked_nsample = np.ma.masked_array(self.nsample_array[averaging_idx],
+                                                            mask=self.flag_array[averaging_idx])
+                        temp_nsample[temp_idx] = (np.sum(masked_nsample, axis=0)
                                                   / float(self.flag_array[averaging_idx].shape[0]))
                     # increment counters and reset values
                     temp_idx += 1

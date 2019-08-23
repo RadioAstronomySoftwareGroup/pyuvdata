@@ -3495,17 +3495,17 @@ def test_set_uvws_from_antenna_pos():
     uvtest.checkWarnings(
         pytest.raises,
         [ValueError, uv_object.set_uvws_from_antenna_positions, True, 'xyz'],
-        message='Warning: Data will be unphased'
+        message='Data will be unphased'
     )
     uvtest.checkWarnings(
         pytest.raises,
         [ValueError, uv_object.set_uvws_from_antenna_positions, True, 'gcrs', 'xyz'],
-        message='Warning: Data will be unphased'
+        message='Data will be unphased'
     )
     uvtest.checkWarnings(
         uv_object.set_uvws_from_antenna_positions,
         [True, 'gcrs', 'gcrs'],
-        message='Warning: Data will be unphased'
+        message='Data will be unphased'
     )
     max_diff = np.amax(np.absolute(np.subtract(orig_uvw_array,
                                                uv_object.uvw_array)))
@@ -3925,6 +3925,9 @@ def test_bda_upsample():
     # save some values for later
     init_data_size = uv_object.data_array.size
     init_wf = uv_object.get_data(0, 1)
+    # check that there are no flags
+    assert np.nonzero(uv_object.flag_array is True)[0].size == 0
+    init_ns = uv_object.get_nsamples(0, 1)
 
     # change the target integration time
     max_integration_time = np.amin(uv_object.integration_time) / 2.0
@@ -3936,6 +3939,10 @@ def test_bda_upsample():
     # output data should be different by a factor of 2
     out_wf = uv_object.get_data(0, 1)
     assert np.isclose(init_wf[0, 0, 0], out_wf[0, 0, 0] * 2.0)
+
+    # this should be true because there are no flags
+    out_ns = uv_object.get_nsamples(0, 1)
+    assert np.isclose(init_ns[0, 0, 0], out_ns[0, 0, 0])
 
     return
 
@@ -3957,6 +3964,7 @@ def test_bda_downsample():
     original_int_time = np.amax(uv_object.integration_time)
     # check that there are no flags
     assert np.nonzero(uv_object.flag_array is True)[0].size == 0
+    init_ns = uv_object.get_nsamples(0, 1)
 
     # change the target integration time
     min_integration_time = original_int_time * 2.0
@@ -3972,8 +3980,45 @@ def test_bda_downsample():
     assert np.isclose(init_wf[0, 0, 0] + init_wf[1, 0, 0], out_wf[0, 0, 0])
 
     # this should be true because there are no flags
-    assert np.min(uv_object.nsample_array) == 1
+    out_ns = uv_object.get_nsamples(0, 1)
+    assert np.isclose((init_ns[0, 0, 0] + init_ns[1, 0, 0]) / 2., out_ns[0, 0, 0])
 
     # TODO: test with flagging
 
     return
+
+
+@pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
+@pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
+@pytest.mark.filterwarnings("ignore:Data will be unphased and rephased")
+def test_bda_upsample_downsample():
+    """Test round trip works"""
+    uv_object = UVData()
+    testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    uvtest.checkWarnings(uv_object.read_uvfits, [testfile],
+                         message='Telescope EVLA is not')
+
+    # set uvws from antenna positions so they'll agree later.
+    # the fact that this is required is a bit concerning, it means that
+    # our calculated uvws from the antenna positions do not match what's in the file
+    uv_object.set_uvws_from_antenna_positions(allow_phasing=True)
+
+    # reorder to make sure we get the right value later
+    uv_object.reorder_blts(order="baseline", minor_order="time")
+    uv_object2 = uv_object.copy()
+
+    max_integration_time = np.amin(uv_object.integration_time) / 2.0
+    uv_object.bda_upsample(max_integration_time, blt_order="baseline")
+    assert np.amax(uv_object.integration_time) <= max_integration_time
+    new_Nblts = uv_object.Nblts
+
+    # check that calling upsample again with the same max_integration_time
+    # gives warning and does nothing
+    uvtest.checkWarnings(uv_object.bda_upsample, func_args=[max_integration_time],
+                         func_kwargs={'blt_order': "baseline"},
+                         message='All values in the integration_time array are already longer')
+    assert uv_object.Nblts == new_Nblts
+
+    uv_object.bda_downsample(np.amin(uv_object2.integration_time), blt_order="baseline")
+
+    assert uv_object == uv_object2
