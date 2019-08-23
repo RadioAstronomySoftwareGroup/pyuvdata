@@ -3953,9 +3953,10 @@ def test_bda_downsample():
 
     # save some values for later
     init_data_size = uv_object.data_array.size
-    uv_object.data_array = np.zeros_like(uv_object.data_array)
     init_wf = uv_object.get_data(0, 1)
     original_int_time = np.amax(uv_object.integration_time)
+    # check that there are no flags
+    assert np.nonzero(uv_object.flag_array is True)[0].size == 0
 
     # change the target integration time
     min_integration_time = original_int_time * 2.0
@@ -3968,6 +3969,11 @@ def test_bda_downsample():
                                 np.isclose(uv_object.integration_time, min_integration_time)))
     # output data should be different by a factor of 2
     out_wf = uv_object.get_data(0, 1)
-    assert np.isclose(init_wf[0, 0, 0], out_wf[0, 0, 0] / 2.0)
+    assert np.isclose(init_wf[0, 0, 0] + init_wf[1, 0, 0], out_wf[0, 0, 0])
+
+    # this should be true because there are no flags
+    assert np.min(uv_object.nsample_array) == 1
+
+    # TODO: test with flagging
 
     return
