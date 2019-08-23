@@ -20,6 +20,7 @@ from pyuvdata import version as uvversion
 import shutil
 import copy
 import warnings
+import six
 
 
 # The following three fixtures are used regularly
@@ -625,6 +626,22 @@ def test_add():
 
 
 @uvtest.skipIf_no_h5py
+def test_add_collapsed_pols():
+    uvf = UVFlag(test_f_file)
+    uvf.weights_array = np.ones_like(uvf.weights_array)
+    uvf2 = uvf.copy()
+    uvf2.polarization_array[0] = -4
+    uvf.__add__(uvf2, inplace=True, axis='pol')  # Concatenate to form multi-pol object
+    uvf.collapse_pol()
+    uvf3 = uvf.copy()
+    uvf3.time_array += 1  # increment the time array
+    uvf4 = uvf + uvf3
+    assert uvf4.Ntimes == 2 * uvf.Ntimes
+    assert uvf4.check()
+
+
+
+@uvtest.skipIf_no_h5py
 def test_add_add_version_str():
     uv1 = UVFlag(test_f_file)
     uv1.history = uv1.history.replace(pyuvdata_version_str, '')
@@ -924,11 +941,30 @@ def test_collapse_pol():
     assert hasattr(uvf2, 'flag_array')
     assert uvf2.flag_array is None
 
+    # test check passes just to be sure
+    assert uvf2.check()
+
     # test writing it out and reading in to make sure polarization_array has correct type
     uvf2.write(test_outfile, clobber=True)
     uvf = UVFlag(test_outfile)
+    assert uvf._polarization_array.expected_type == six.string_types
+    assert uvf._polarization_array.acceptable_vals is None
     assert uvf == uvf2
     os.remove(test_outfile)
+
+
+@uvtest.skipIf_no_h5py
+def test_collapse_pol_add_pol_axis():
+    uvf = UVFlag(test_f_file)
+    uvf.weights_array = np.ones_like(uvf.weights_array)
+    uvf2 = uvf.copy()
+    uvf2.polarization_array[0] = -4
+    uvf.__add__(uvf2, inplace=True, axis='pol')  # Concatenate to form multi-pol object
+    uvf2 = uvf.copy()
+    uvf2.collapse_pol()
+    with pytest.raises(NotImplementedError) as cm:
+        uvf2.__add__(uvf2, axis='pol')
+    assert str(cm.value).startswith("Two UVFlag objects with their")
 
 
 @uvtest.skipIf_no_h5py
@@ -1615,7 +1651,7 @@ def test_missing_Nants_telescope():
     uvf = uvtest.checkWarnings(UVFlag, [testfile], {}, nwarnings=1,
                                message=['Nants_telescope not available in file,'])
     uvf2 = UVFlag(test_f_file)
-    uvf2.Nants_telescope = None
+    uvf2.Nants_telescope = 2047
     assert uvf == uvf2
     os.remove(testfile)
 
