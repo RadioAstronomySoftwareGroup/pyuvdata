@@ -3911,6 +3911,8 @@ def test_lsts_from_time_with_only_unique():
     assert np.array_equal(full_lsts, uv.lst_array)
 
 
+@pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
+@pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
 def test_bda_upsample():
     """Test the bda_upsample method"""
     uv_object = UVData()
@@ -3934,3 +3936,38 @@ def test_bda_upsample():
     # output data should be different by a factor of 2
     out_wf = uv_object.get_data(0, 1)
     assert np.isclose(init_wf[0, 0, 0], out_wf[0, 0, 0] * 2.0)
+
+    return
+
+
+@pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
+@pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
+def test_bda_downsample():
+    """Test the bda downsample method"""
+    uv_object = UVData()
+    testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    uvtest.checkWarnings(uv_object.read_uvfits, [testfile],
+                         message='Telescope EVLA is not')
+    # reorder to make sure we get the right value later
+    uv_object.reorder_blts(order="baseline", minor_order="time")
+
+    # save some values for later
+    init_data_size = uv_object.data_array.size
+    uv_object.data_array = np.zeros_like(uv_object.data_array)
+    init_wf = uv_object.get_data(0, 1)
+    original_int_time = np.amax(uv_object.integration_time)
+
+    # change the target integration time
+    min_integration_time = original_int_time * 2.0
+    uv_object.bda_downsample(min_integration_time, blt_order="baseline", minor_order="time")
+
+    # Only some baselines have an even number of times, so the output integration time
+    # is not uniformly the same. For the test case, we'll have *either* the original
+    # integration time or twice that.
+    assert np.all(np.logical_or(np.isclose(uv_object.integration_time, original_int_time),
+                                np.isclose(uv_object.integration_time, min_integration_time)))
+    # output data should be different by a factor of 2
+    out_wf = uv_object.get_data(0, 1)
+    assert np.isclose(init_wf[0, 0, 0], out_wf[0, 0, 0] / 2.0)
+
+    return
