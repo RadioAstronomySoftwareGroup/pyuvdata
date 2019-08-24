@@ -404,7 +404,7 @@ class CALFITS(UVCal):
                 hdr.remove('HISTORY')
             self.time_range = list(map(float, hdr.pop('TMERANGE').split(',')))
             self.gain_convention = hdr.pop('GNCONVEN')
-            self.gain_scale == hdr.pop("GNSCALE", None)
+            self.gain_scale = hdr.pop("GNSCALE", None)
             self.x_orientation = hdr.pop('XORIENT')
             self.cal_type = hdr.pop('CALTYPE')
             if self.cal_type == 'delay':

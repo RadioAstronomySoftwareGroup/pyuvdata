@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- `utils.uvcalibrate(.., undo=True)` kwarg for undo-ing a calibration.
+- `utils.uvcalibrate` updates `UVData.vis_units` if `UVCal.gain_scale` is set.
+- `UVCal.gain_scale` non-required attribute
 - UVData.get_redundancies method to replace old get_baseline_redundancies and get_antenna_redundancies.
 - option for `UVBeam.interp` to return a new beam object.
 - `UVFlag` information on Read The Docs
