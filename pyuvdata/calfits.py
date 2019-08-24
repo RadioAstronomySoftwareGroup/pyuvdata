@@ -120,6 +120,7 @@ class CALFITS(UVCal):
         prihdr['BITPIX'] = 32
         prihdr['TELESCOP'] = self.telescope_name
         prihdr['GNCONVEN'] = self.gain_convention
+        prihdr['GNSCALE'] = self.gain_scale
         prihdr['CALTYPE'] = self.cal_type
         prihdr['CALSTYLE'] = self.cal_style
         if self.sky_field is not None:
@@ -403,6 +404,7 @@ class CALFITS(UVCal):
                 hdr.remove('HISTORY')
             self.time_range = list(map(float, hdr.pop('TMERANGE').split(',')))
             self.gain_convention = hdr.pop('GNCONVEN')
+            self.gain_scale == hdr.pop("GNSCALE", None)
             self.x_orientation = hdr.pop('XORIENT')
             self.cal_type = hdr.pop('CALTYPE')
             if self.cal_type == 'delay':

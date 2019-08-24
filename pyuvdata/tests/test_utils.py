@@ -941,6 +941,8 @@ def test_uvcalibrate_apply_gains():
     uvd.read(os.path.join(DATA_PATH, 'zen.2457698.40355.xx.HH.uvcAA'))
     uvc = pyuvdata.UVCal()
     uvc.read_calfits(os.path.join(DATA_PATH, 'zen.2457698.40355.xx.gain.calfits'))
+    # assign gain scale manually
+    uvc.gain_scale = 'Jy'
     # downselect to match each other
     uvd.select(frequencies=uvd.freq_array[0, :10])
     uvc.select(times=uvc.time_array[:3])
@@ -952,11 +954,18 @@ def test_uvcalibrate_apply_gains():
     uvc.gain_convention = 'divide'
     uvdcal = uvutils.uvcalibrate(uvd, uvc, prop_flags=True, flag_missing=False, inplace=False)
     np.testing.assert_array_almost_equal(uvdcal.get_data(key), uvd.get_data(key) / (uvc.get_gains(ant1) * uvc.get_gains(ant2).conj()).T)
+    assert uvdcal.vis_units == 'Jy'
+
+    # test undo
+    uvdcal = uvutils.uvcalibrate(uvdcal, uvc, prop_flags=True, flag_missing=False, inplace=False, undo=True)
+    np.testing.assert_array_almost_equal(uvd.get_data(key), uvdcal.get_data(key))
+    assert uvdcal.vis_units == 'UNCALIB'
 
     # multiplication calibrate
     uvc.gain_convention = 'multiply'
     uvdcal = uvutils.uvcalibrate(uvd, uvc, prop_flags=False, flag_missing=False, inplace=False)
     np.testing.assert_array_almost_equal(uvdcal.get_data(key), uvd.get_data(key) * (uvc.get_gains(ant1) * uvc.get_gains(ant2).conj()).T)
+    assert uvdcal.vis_units == 'Jy'
 
     # test delay conversion runs through
     uvc.read_calfits(os.path.join(DATA_PATH, 'zen.2457698.40355.xx.delay.calfits'))
