@@ -51,7 +51,7 @@ def uvcal_data():
                         '_input_flag_array', '_freq_range',
                         '_observer', '_git_origin_cal',
                         '_git_hash_cal', '_total_quality_array',
-                        '_extra_keywords']
+                        '_extra_keywords', '_gain_scale']
 
     extra_properties = ['gain_array', 'delay_array', 'sky_field',
                         'sky_catalog', 'ref_antenna_name', 'Nsources',
@@ -59,7 +59,7 @@ def uvcal_data():
                         'input_flag_array', 'freq_range',
                         'observer', 'git_origin_cal',
                         'git_hash_cal', 'total_quality_array',
-                        'extra_keywords']
+                        'extra_keywords', 'gain_scale']
 
     other_properties = ['pyuvdata_version_str']
 

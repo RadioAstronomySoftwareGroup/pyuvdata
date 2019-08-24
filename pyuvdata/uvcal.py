@@ -232,6 +232,13 @@ class UVCal(UVBase):
                                               expected_type=str, description=desc)
 
         # --- truly optional parameters ---
+        desc = ('The gain scale of the calibration, which indicates the units of the '
+                'calibrated visibilities. For example, Jy or K str.')
+        self._gain_scale = uvp.UVParameter('gain_scale', form='str',
+                                                expected_type=str,
+                                                description=desc, required=False,
+                                                acceptable_vals=['Jy', 'K str'])
+
         desc = ('Array of input flags, True is flagged. shape: (Nants_data, Nspws, '
                 'Nfreqs, Ntimes, Njones), type = bool.')
         self._input_flag_array = uvp.UVParameter('input_flag_array',

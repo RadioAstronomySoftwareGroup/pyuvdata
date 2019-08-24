@@ -394,7 +394,7 @@ def unphase_uvw(ra, dec, uvw):
 
 
 def uvcalibrate(uvdata, uvcal, inplace=True, prop_flags=True, flag_missing=True,
-                Dterm_cal=False, delay_convention='minus'):
+                Dterm_cal=False, delay_convention='minus', undo=False):
     """
     Calibrate a UVData object with a UVCal object.
 
@@ -417,6 +417,9 @@ def uvcalibrate(uvdata, uvcal, inplace=True, prop_flags=True, flag_missing=True,
     delay_convention : str, optional
         Exponent sign to use in conversion of 'delay' to 'gain' cal_type
         if the input uvcal is not inherently 'gain' cal_type. Default to 'minus'.
+    undo : bool, optional
+        If True, undo the provided calibration. i.e. apply the calibration with
+        flipped gain_convention. Flag propagation rules apply the same.
 
     Returns
     -------
@@ -466,13 +469,21 @@ def uvcalibrate(uvdata, uvcal, inplace=True, prop_flags=True, flag_missing=True,
                 uvdata.flag_array[blt_inds, 0, :, pol_ind] += mask
 
             # apply to data
-            if uvcal.gain_convention == 'multiply':
+            mult_gains = uvcal.gain_convention == 'multiply'
+            if undo:
+                mult_gains = not mult_gains
+            if mult_gains:
                 uvdata.data_array[blt_inds, 0, :, pol_ind] *= gain
-            elif uvcal.gain_convention == 'divide':
+            else:
                 uvdata.data_array[blt_inds, 0, :, pol_ind] /= gain
 
-    # update history
+    # update attributes
     uvdata.history += "\nCalibrated with pyuvdata.utils.uvcalibrate."
+    if undo:
+        uvdata.vis_units = 'UNCALIB'
+    else:
+        if uvcal.gain_scale is not None:
+            uvdata.vis_units = uvcal.gain_scale
 
     if not inplace:
         return uvdata
