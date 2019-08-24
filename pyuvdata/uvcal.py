@@ -236,8 +236,7 @@ class UVCal(UVBase):
                 'calibrated visibilities. For example, Jy or K str.')
         self._gain_scale = uvp.UVParameter('gain_scale', form='str',
                                            expected_type=str,
-                                           description=desc, required=False,
-                                           acceptable_vals=['Jy', 'K str'])
+                                           description=desc, required=False)
 
         desc = ('Array of input flags, True is flagged. shape: (Nants_data, Nspws, '
                 'Nfreqs, Ntimes, Njones), type = bool.')
