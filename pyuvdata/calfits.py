@@ -120,7 +120,6 @@ class CALFITS(UVCal):
         prihdr['BITPIX'] = 32
         prihdr['TELESCOP'] = self.telescope_name
         prihdr['GNCONVEN'] = self.gain_convention
-        prihdr['GNSCALE'] = self.gain_scale
         prihdr['CALTYPE'] = self.cal_type
         prihdr['CALSTYLE'] = self.cal_style
         if self.sky_field is not None:
@@ -135,6 +134,8 @@ class CALFITS(UVCal):
             prihdr['BL_RANGE'] = '[' + ', '.join([str(b) for b in self.baseline_range]) + ']'
         if self.diffuse_model is not None:
             prihdr['DIFFUSE'] = self.diffuse_model
+        if self.gain_scale is not None:
+            prihdr['GNSCALE'] = self.gain_scale
         prihdr['INTTIME'] = self.integration_time
         prihdr['CHWIDTH'] = self.channel_width
         prihdr['XORIENT'] = self.x_orientation
