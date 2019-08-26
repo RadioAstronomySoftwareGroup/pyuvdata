@@ -247,7 +247,8 @@ class UVFlag(UVBase):
                 for i in input[1:]:
                     fobj = UVFlag(i, mode=mode, copy_flags=copy_flags,
                                   waterfall=waterfall, history=history)
-                    self.__add__(fobj, run_chec=run_check,
+                    self.__add__(fobj, run_check=run_check,
+                                 inplace=True,
                                  check_extra=check_extra,
                                  run_check_acceptability=run_check_acceptability)
                 del(fobj)
