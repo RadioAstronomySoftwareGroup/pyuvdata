@@ -1430,7 +1430,8 @@ class UVFlag(UVBase):
             if this.pol_collapsed:
                 raise NotImplementedError("Two UVFlag objects with their "
                                           "polarizations collapsed cannot be "
-                                          "added at this time.")
+                                          "added along the polarization axis "
+                                          "at this time.")
             this.polarization_array = np.concatenate([this.polarization_array,
                                                       other.polarization_array])
             this.Npols = len(this.polarization_array)
