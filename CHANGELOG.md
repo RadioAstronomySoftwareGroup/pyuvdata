@@ -11,6 +11,7 @@ All notable changes to this project will be documented in this file.
 - `UVFlag` inherits from `UVBase` object.
 
 ### Fixed
+- A bug where `conj_pol` could not handle cardinal direction polarizations.
 - A bug that gave the wrong error message when calling `UVData.phase_to_time` without an Astropy Time object.
 
 ## [1.4.1] - 2019-08-2
