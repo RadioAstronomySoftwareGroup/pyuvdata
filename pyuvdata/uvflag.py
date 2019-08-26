@@ -45,6 +45,15 @@ class UVFlag(UVBase):
         History string to attach to object.
     label: str, optional
         String used for labeling the object (e.g. 'FM').
+    run_check : bool
+        Option to check for the existence and proper shapes of parameters
+        after creating UVFlag object.
+    check_extra : bool
+        Option to check optional parameters as well as required ones (the
+        default is True, meaning the optional parameters will be checked).
+    run_check_acceptability : bool
+        Option to check acceptable range of the values of parameters after
+        creating UVFlag object.
 
     Attributes
     -----------
@@ -56,8 +65,9 @@ class UVFlag(UVBase):
 
     """
 
-    def __init__(self, input, mode='metric', copy_flags=False, waterfall=False, history='',
-                 label=''):
+    def __init__(self, input, mode='metric', copy_flags=False, waterfall=False,
+                 history='', label='', run_check=True, check_extra=True,
+                 run_check_acceptability=True):
         """Initialize the object."""
         # standard angle tolerance: 10 mas in radians.
         # Should perhaps be decreased to 1 mas in the future
@@ -237,12 +247,16 @@ class UVFlag(UVBase):
                 for i in input[1:]:
                     fobj = UVFlag(i, mode=mode, copy_flags=copy_flags,
                                   waterfall=waterfall, history=history)
-                    self += fobj
+                    self.__add__(fobj, run_chec=run_check,
+                                 check_extra=check_extra,
+                                 run_check_acceptability=run_check_acceptability)
                 del(fobj)
 
         elif isinstance(input, str):
             # Given a path, read input
-            self.read(input, history)
+            self.read(input, history, run_check=run_check,
+                      check_extra=check_extra,
+                      run_check_acceptability=run_check_acceptability)
         elif waterfall and issubclass(input.__class__, (UVData, UVCal)):
             self._set_type_waterfall()
             self.history += ('Flag object with type "waterfall" created. ')
@@ -357,6 +371,10 @@ class UVFlag(UVBase):
         self.label += label
 
         self.clear_unused_attributes()
+
+        if run_check:
+            self.check(check_extra=check_extra,
+                       run_check_acceptability=run_check_acceptability)
 
     @property
     def _data_params(self):
@@ -1320,12 +1338,12 @@ class UVFlag(UVBase):
             Axis along which to combine UVFlag objects.
         run_check : bool
             Option to check for the existence and proper shapes of parameters
-            after downselecting data on this object.
+            after combining two objects.
         check_extra : bool
             Option to check optional parameters as well as required ones.
         run_check_acceptability : bool
             Option to check acceptable range of the values of parameters after
-            downselecting data on this object.
+            combining two objects.
         inplace : bool
             Option to perform the select directly on self or return a new UVData
             object with just the selected data.
@@ -1441,12 +1459,12 @@ class UVFlag(UVBase):
             Axis along which to combine UVFlag objects.
         run_check : bool
             Option to check for the existence and proper shapes of parameters
-            after downselecting data on this object.
+            after combining two objects.
         check_extra : bool
             Option to check optional parameters as well as required ones.
         run_check_acceptability : bool
             Option to check acceptable range of the values of parameters after
-            downselecting data on this object.
+            combining two objects.
 
         """
         self.__add__(other, inplace=True, axis=axis, run_check=True,
@@ -1463,12 +1481,12 @@ class UVFlag(UVBase):
             object to combine with self.
         run_check : bool
             Option to check for the existence and proper shapes of parameters
-            after downselecting data on this object.
+            after combining two objects.
         check_extra : bool
             Option to check optional parameters as well as required ones.
         run_check_acceptability : bool
             Option to check acceptable range of the values of parameters after
-            downselecting data on this object.
+            combining two objects.
         inplace : bool
             Option to perform the select directly on self or return a new UVData
             object with just the selected data.
@@ -1510,12 +1528,12 @@ class UVFlag(UVBase):
             object to combine with self.
         run_check : bool
             Option to check for the existence and proper shapes of parameters
-            after downselecting data on this object.
+            after combining two objects.
         check_extra : bool
             Option to check optional parameters as well as required ones.
         run_check_acceptability : bool
             Option to check acceptable range of the values of parameters after
-            downselecting data on this object.
+            combining two objects.
 
         """
         self.__or__(other, inplace=True, run_check=True,
@@ -1610,12 +1628,12 @@ class UVFlag(UVBase):
             How to collapse the dimension(s).
         run_check : bool
             Option to check for the existence and proper shapes of parameters
-            after downselecting data on this object.
+            after collapsing polarizations.
         check_extra : bool
             Option to check optional parameters as well as required ones.
         run_check_acceptability : bool
             Option to check acceptable range of the values of parameters after
-            downselecting data on this object.
+            collapsing polarizations.
 
         """
         method = method.lower()
@@ -1671,12 +1689,12 @@ class UVFlag(UVBase):
             encoding the original polarizations.
         run_check : bool
             Option to check for the existence and proper shapes of parameters
-            after downselecting data on this object.
+            after converting to waterfall type.
         check_extra : bool
             Option to check optional parameters as well as required ones.
         run_check_acceptability : bool
             Option to check acceptable range of the values of parameters after
-            downselecting data on this object.
+            converting to waterfall type.
 
         """
         method = method.lower()
@@ -1752,12 +1770,12 @@ class UVFlag(UVBase):
             pols combined, and wants to broadcast back to individual pols.
         run_check : bool
             Option to check for the existence and proper shapes of parameters
-            after downselecting data on this object.
+            after converting to baseline type.
         check_extra : bool
             Option to check optional parameters as well as required ones.
         run_check_acceptability : bool
             Option to check acceptable range of the values of parameters after
-            downselecting data on this object.
+            converting to baseline type.
 
         """
         if self.type == 'baseline':
@@ -1846,12 +1864,12 @@ class UVFlag(UVBase):
             pols combined, and wants to broadcast back to individual pols.
         run_check : bool
             Option to check for the existence and proper shapes of parameters
-            after downselecting data on this object.
+            after converting to antenna type.
         check_extra : bool
             Option to check optional parameters as well as required ones.
         run_check_acceptability : bool
             Option to check acceptable range of the values of parameters after
-            downselecting data on this object.
+            converting to antenna type.
 
         """
         if self.type == 'antenna':
@@ -1924,12 +1942,12 @@ class UVFlag(UVBase):
             set to True. Default is np.inf, which results in flags of all False.
         run_check : bool
             Option to check for the existence and proper shapes of parameters
-            after downselecting data on this object.
+            after converting to flag mode.
         check_extra : bool
             Option to check optional parameters as well as required ones.
         run_check_acceptability : bool
             Option to check acceptable range of the values of parameters after
-            downselecting data on this object.
+            converting to flag mode.
 
         """
         if self.mode == 'flag':
@@ -1968,12 +1986,12 @@ class UVFlag(UVBase):
             against a threshold along the other dimension.
         run_check : bool
             Option to check for the existence and proper shapes of parameters
-            after downselecting data on this object.
+            after converting to metric mode.
         check_extra : bool
             Option to check optional parameters as well as required ones.
         run_check_acceptability : bool
             Option to check acceptable range of the values of parameters after
-            downselecting data on this object.
+            converting to metric mode.
 
         """
         if self.mode == 'metric':
