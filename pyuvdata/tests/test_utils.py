@@ -416,8 +416,10 @@ def test_conj_pol():
     cpol_nums = [-7, -8, -6, -5, -3, -4, -2, -1, 1, 2, 3, 4]
     assert pol_nums == uvutils.conj_pol(cpol_nums)
     assert uvutils.conj_pol(pol_nums) == cpol_nums
-    pol_str = ['yx', 'xy', 'yy', 'xx', 'lr', 'rl', 'll', 'rr', 'pI', 'pQ', 'pU', 'pV']
-    cpol_str = ['xy', 'yx', 'yy', 'xx', 'rl', 'lr', 'll', 'rr', 'pI', 'pQ', 'pU', 'pV']
+    pol_str = ['yx', 'xy', 'yy', 'xx', 'ee', 'nn', 'en', 'ne', 'lr', 'rl', 'll',
+               'rr', 'pI', 'pQ', 'pU', 'pV']
+    cpol_str = ['xy', 'yx', 'yy', 'xx', 'ee', 'nn', 'ne', 'en', 'rl', 'lr', 'll',
+                'rr', 'pI', 'pQ', 'pU', 'pV']
     assert pol_str == uvutils.conj_pol(cpol_str)
     assert uvutils.conj_pol(pol_str) == cpol_str
     assert [pol_str, pol_nums] == uvutils.conj_pol([cpol_str, cpol_nums])

@@ -53,6 +53,7 @@ POL_NUM2STR_DICT = {1: 'pI', 2: 'pQ', 3: 'pU', 4: 'pV',
 
 # maps how polarizations change when antennas are swapped
 CONJ_POL_DICT = {'xx': 'xx', 'yy': 'yy', 'xy': 'yx', 'yx': 'xy',
+                 'ee': 'ee', 'nn': 'nn', 'en': 'ne', 'ne': 'en',
                  'rr': 'rr', 'll': 'll', 'rl': 'lr', 'lr': 'rl',
                  'I': 'I', 'Q': 'Q', 'U': 'U', 'V': 'V',
                  'pI': 'pI', 'pQ': 'pQ', 'pU': 'pU', 'pV': 'pV'}
