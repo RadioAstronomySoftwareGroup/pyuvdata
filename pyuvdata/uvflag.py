@@ -2,6 +2,7 @@
 # Copyright (c) 2019 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 
+"""Primary container for radio interferometer flag manipulation."""
 from __future__ import print_function, division, absolute_import
 import numpy as np
 import os
@@ -429,7 +430,6 @@ class UVFlag(UVBase):
 
     def _set_mode_metric(self):
         """Set the mode and required parameters consistent with a metric object."""
-
         self.mode = 'metric'
         self._flag_array.required = False
         self._metric_array.required = True
