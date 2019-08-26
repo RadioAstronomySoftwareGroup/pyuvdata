@@ -1126,6 +1126,12 @@ class UVFlag(UVBase):
                 self.lst_array = header['lst_array'][()]
 
                 self.freq_array = header['freq_array'][()]
+                # older save files will not have this spws axis
+                # at least_2d will preserve shape of 2d arrays and
+                # promote 1D to (1, Nfreqs)
+                if self.type != 'waterfall':
+                    self.freq_array = np.atleast_2d(self.freq_array)
+
                 if 'Nfreqs' in header.keys():
                     self.Nfreqs = int(header['Nfreqs'][()])
                 else:
