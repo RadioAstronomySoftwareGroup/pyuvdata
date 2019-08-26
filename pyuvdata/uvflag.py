@@ -408,6 +408,17 @@ class UVFlag(UVBase):
         else:
             return False
 
+    def _check_pol_state(self):
+        if self.pol_collapsed:
+            # collapsed pol objects have a different type for
+            # the polarization array.
+            self._polarization_array.expected_type = six.string_types
+            self._polarization_array.acceptable_vals = None
+        else:
+            self._polarization_array.expected_type = int
+            self._polarization_array.acceptable_vals = (list(np.arange(-8, 0))
+                                                        + list(np.arange(1, 5)))
+
     def _set_mode_flag(self):
         """Set the mode and required parameters consistent with a flag object."""
         self.mode = 'flag'
@@ -1169,12 +1180,9 @@ class UVFlag(UVBase):
                 if isinstance(polarization_array[0], np.string_):
                     polarization_array = np.asarray(polarization_array,
                                                     dtype=np.str_)
-                    # collapsed pol objects have a different type for
-                    # the polarization array.
-                    self._polarization_array.expected_type = six.string_types
-                    self._polarization_array.acceptable_vals = None
 
                 self.polarization_array = polarization_array
+                self._check_pol_state()
 
                 if 'Npols' in header.keys():
                     self.Npols = int(header['Npols'][()])
@@ -1651,10 +1659,7 @@ class UVFlag(UVBase):
                                                dtype=np.str_)
 
             self.Npols = len(self.polarization_array)
-            # this typing is a nightmare. np.string_ casts as '|S' but is not
-            # the same as np.string_
-            self._polarization_array.expected_type = six.string_types
-            self._polarization_array.acceptable_vals = None
+            self._check_pol_state()
         else:
             warnings.warn('Cannot collapse polarization axis when only one pol present.')
             return
