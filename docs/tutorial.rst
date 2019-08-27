@@ -1151,6 +1151,9 @@ a) Calibration of UVData by UVCal
   >>> UVC.read_calfits('pyuvdata/data/zen.2458116.30448.HH.flagged_abs.calfits')
   >>> UV_calibrated = utils.uvcalibrate(UV, UVC, inplace=False)
 
+  # We can also un-calibrate using the same UVCal
+  >>> UV_uncalibrated = utils.uvcalibrate(UV_calibrated, UVC, inplace=False, undo=True)
+
 UVCal: Selecting data
 -----------------------
 The select method lets you select specific antennas (by number or name),
