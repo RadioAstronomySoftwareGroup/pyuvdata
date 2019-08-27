@@ -1781,7 +1781,7 @@ class UVData(UVBase):
                               rtol=this._freq_array.tols[0], atol=this._freq_array.tols[1]):
                 warnings.warn('Combined frequencies are not evenly spaced. This will '
                               'make it impossible to write this data out to some file types.')
-            elif np.max(freq_separation) > this.channel_width:
+            elif np.max(freq_separation) > this.channel_width + this._channel_width.tols[1]:
                 warnings.warn('Combined frequencies are not contiguous. This will make '
                               'it impossible to write this data out to some file types.')
             if not self.metadata_only:

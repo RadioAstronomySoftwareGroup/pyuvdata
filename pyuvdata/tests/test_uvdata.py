@@ -1744,6 +1744,14 @@ def test_add():
 
     uv1 = copy.deepcopy(uv_full)
     uv2 = copy.deepcopy(uv_full)
+    uv1.select(freq_chans=[0])
+    uv2.select(freq_chans=[1])
+    uv2.freq_array += uv2._channel_width.tols[1] / 2.
+    uvtest.checkWarnings(uv1.__iadd__, [uv2],
+                         nwarnings=0)
+
+    uv1 = copy.deepcopy(uv_full)
+    uv2 = copy.deepcopy(uv_full)
     uv1.select(polarizations=uv1.polarization_array[0:2])
     uv2.select(polarizations=uv2.polarization_array[3])
     uvtest.checkWarnings(uv1.__iadd__, [uv2],
@@ -2211,6 +2219,14 @@ def test_fast_concat():
     uv2.select(freq_chans=[3])
     uvtest.checkWarnings(uv1.fast_concat, [uv2, 'freq'],
                          message='Combined frequencies are not contiguous')
+
+    uv1 = copy.deepcopy(uv_full)
+    uv2 = copy.deepcopy(uv_full)
+    uv1.select(freq_chans=[0])
+    uv2.select(freq_chans=[1])
+    uv2.freq_array += uv2._channel_width.tols[1] / 2.
+    uvtest.checkWarnings(uv1.fast_concat, [uv2, 'freq'],
+                         nwarnings=0)
 
     uv1 = copy.deepcopy(uv_full)
     uv2 = copy.deepcopy(uv_full)
