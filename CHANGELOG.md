@@ -4,15 +4,24 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+<<<<<<< HEAD
 - `utils.uvcalibrate(.., undo=True)` kwarg for undo-ing a calibration.
 - `utils.uvcalibrate` updates `UVData.vis_units` if `UVCal.gain_scale` is set.
 - `UVCal.gain_scale` non-required attribute
+=======
+- `copy` method for `UVData`, which can optionally make a copy of just metadata
+- `bda_upsample` and `bda_downsample` methods on `UVData` objects
+>>>>>>> Add tests of up/downsample methods with flags present; update changelog
 - UVData.get_redundancies method to replace old get_baseline_redundancies and get_antenna_redundancies.
 - option for `UVBeam.interp` to return a new beam object.
 - `UVFlag` information on Read The Docs
 
 ### Changed
+<<<<<<< HEAD
 - utils.get_baseline_redundancies uses scipy pdist functions instead of for loops (faster)
+=======
+- Phasing now supports metadata only `UVData` objects
+>>>>>>> Add tests of up/downsample methods with flags present; update changelog
 - UVData.get_antenna_redundancies will no longer automatically conjugate baselines.
 - UVData.get_baseline_redundancies and UVData.get_antenna_redundancies have been combined.
 - `UVFlag` inherits from `UVBase` object.
