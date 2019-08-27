@@ -1482,6 +1482,27 @@ def test_uvcal_get_methods():
     pytest.raises(ValueError, uvc.get_gains, 10)
 
 
+def test_write_read_optional_attrs():
+    # read a test file
+    cal_in = UVCal()
+    testfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.gain.calfits')
+    cal_in.read_calfits(testfile)
+
+    # set some optional parameters
+    cal_in.gain_scale = 'Jy'
+    cal_in.sky_field = 'GLEAM'
+
+    # write
+    write_file_calfits = os.path.join(DATA_PATH, 'test/test.calfits')
+    cal_in.write_calfits(write_file_calfits, clobber=True)
+
+    # read and compare
+    cal_in2 = UVCal()
+    cal_in2.read_calfits(write_file_calfits)
+    assert cal_in == cal_in2
+    os.remove(write_file_calfits)
+
+
 def test_deprecated_x_orientation():
     cal_in = UVCal()
     testfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.gain.calfits')
