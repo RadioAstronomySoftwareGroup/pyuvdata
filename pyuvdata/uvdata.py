@@ -4431,7 +4431,8 @@ class UVData(UVBase):
         return np.diff(np.sort(list(set(self.time_array))))[0] * 86400
 
     def get_redundancies(self, tol=1.0, use_antpos=False,
-                         include_conjugates=True, include_autos=True):
+                         include_conjugates=True, include_autos=True
+                         conjugate_bls=False):
         """
         Get redundant baselines to a given tolerance. This can be used to identify
         redundant baselines present in the data, or find all possible redundant
@@ -4451,6 +4452,9 @@ class UVData(UVBase):
         include_autos : bool
             Option to include autocorrelations in the full redundancy list.
             Only used if use_antpos is True.
+        conjugate_bls : bool
+            If using antenna positions, this will conjugate baselines on this
+            object so that the baseline numbers returned exist in the baseline_array.
 
         Returns
         -------
@@ -4460,7 +4464,7 @@ class UVData(UVBase):
             List of vectors describing redundant group uvw centers
         lengths : list of float
             List of redundant group baseline lengths in meters
-        conjugate_bls : list of int, or None, optional
+        conjugates : list of int, or None, optional
             List of indices for baselines that must be conjugated to fit into their
             redundant groups.
             Will return None if use_antpos is True and include_conjugates is True
@@ -4476,6 +4480,9 @@ class UVData(UVBase):
             antpos, numbers = self.get_ENU_antpos(center=False)
             result = uvutils.get_antenna_redundancies(numbers, antpos, tol=tol,
                                                       include_autos=include_autos)
+            if conjugate_bls:
+                self.conjugate_bls(convention='u>0', uvw_tol=tol)
+
             if include_conjugates:
                 result = result + (None,)
             return result
@@ -4496,8 +4503,6 @@ class UVData(UVBase):
         warnings.warn("UVData.get_antenna_redundancies has been replaced with get_redundancies,"
                       "and will be removed in version 1.6.",
                       DeprecationWarning)
-        if kwargs.pop('conjugate_bls', False):
-            self.conjugate_bls('u>0')
         kwargs['use_antpos'] = True
         red_gps, blvecs, lens, conjs = self.get_redundancies(*args, **kwargs)
         return red_gps, blvecs, lens
