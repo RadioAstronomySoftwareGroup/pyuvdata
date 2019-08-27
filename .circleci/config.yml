@@ -54,7 +54,7 @@ jobs:
           command: |
             source activate ${ENV_NAME}
             mkdir test-reports
-            python -m pytest pyuvdata -v --cov=pyuvdata --cov-config=.coveragerc --cov-report xml:./coverage.xml --junitxml=test-reports/xunit.xml
+            python -m pytest pyuvdata --cov=pyuvdata --cov-config=.coveragerc --cov-report xml:./coverage.xml --junitxml=test-reports/xunit.xml
       - save_cache:
           key: deps-{{ .Branch }}-{{ checksum "ci/pyuvdata_tests.yml" }}
           paths:

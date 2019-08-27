@@ -207,6 +207,7 @@ def test_equality(uvdata_data):
     assert uvdata_data.uv_object == uvdata_data.uv_object
 
 
+@pytest.mark.filterwarnings("ignore:Telescope location derived from obs")
 def test_check(uvdata_data):
     """Test simple check function."""
     assert uvdata_data.uv_object.check()
@@ -230,7 +231,7 @@ def test_check(uvdata_data):
                  testdir + '1061316296_layout.sav',
                  testdir + '1061316296_settings.txt']
 
-    uvtest.checkWarnings(uvdata_data.uv_object.read_fhd, [file_list], known_warning='fhd')
+    uvdata_data.uv_object.read_fhd(file_list)
 
     uvdata_data.uv_object.select(blt_inds=np.where(uvdata_data.uv_object.ant_1_array
                                                    == uvdata_data.uv_object.ant_2_array)[0])
@@ -380,11 +381,11 @@ def test_known_telescopes():
     assert np.sort(known_telescopes).tolist() == np.sort(uv_object.known_telescopes()).tolist()
 
 
+@pytest.mark.filterwarnings("ignore:Altitude is not present in Miriad file")
 def test_HERA_diameters():
     miriad_file = os.path.join(DATA_PATH, 'zen.2456865.60537.xy.uvcRREAA')
     uv_in = UVData()
-    uvtest.checkWarnings(uv_in.read_miriad, [miriad_file],
-                         known_warning='miriad')
+    uv_in.read_miriad(miriad_file)
 
     uv_in.telescope_name = 'HERA'
     uvtest.checkWarnings(uv_in.set_telescope_params, message='antenna_diameters '
@@ -396,11 +397,11 @@ def test_HERA_diameters():
     uv_in.check()
 
 
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 def test_generic_read():
     uv_in = UVData()
     uvfits_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-    uvtest.checkWarnings(uv_in.read, [uvfits_file], {'read_data': False},
-                         message='Telescope EVLA is not')
+    uv_in.read(uvfits_file, read_data=False)
     unique_times = np.unique(uv_in.time_array)
 
     pytest.raises(ValueError, uv_in.read, uvfits_file, times=unique_times[0:2],
@@ -590,12 +591,12 @@ def test_phasing():
     assert np.allclose(uvd2.uvw_array, uvd2_drift_antpos.uvw_array, atol=2e-2)
 
 
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 def test_set_phase_unknown():
     uv_object = UVData()
     testfile = os.path.join(
         DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-    uvtest.checkWarnings(uv_object.read_uvfits, [
-                         testfile], message='Telescope EVLA is not')
+    uv_object.read_uvfits(testfile)
 
     uv_object.set_unknown_phase_type()
     assert uv_object.phase_type == 'unknown'
@@ -605,11 +606,11 @@ def test_set_phase_unknown():
     assert uv_object.check()
 
 
+@pytest.mark.filterwarnings("ignore:Altitude is not present in Miriad file")
 def test_select_blts():
     uv_object = UVData()
     testfile = os.path.join(DATA_PATH, 'zen.2456865.60537.xy.uvcRREAA')
-    uvtest.checkWarnings(uv_object.read_miriad, [testfile],
-                         known_warning='miriad')
+    uv_object.read_miriad(testfile)
     old_history = uv_object.history
     blt_inds = np.array([172, 182, 132, 227, 144, 44, 16, 104, 385, 134, 326, 140, 116,
                          218, 178, 391, 111, 276, 274, 308, 38, 64, 317, 76, 239, 246,
@@ -686,12 +687,12 @@ def test_select_blts():
                   blt_inds=np.arange(uv_object.Nblts + 1, uv_object.Nblts + 10))
 
 
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 def test_select_antennas():
     uv_object = UVData()
     testfile = os.path.join(
         DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-    uvtest.checkWarnings(uv_object.read_uvfits, [testfile],
-                         message='Telescope EVLA is not')
+    uv_object.read_uvfits(testfile)
     old_history = uv_object.history
     unique_ants = np.unique(
         uv_object.ant_1_array.tolist() + uv_object.ant_2_array.tolist())
@@ -789,12 +790,12 @@ def sort_bl(p):
     return (p[1], p[0]) + p[2:]
 
 
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 def test_select_bls():
     uv_object = UVData()
     testfile = os.path.join(
         DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-    uvtest.checkWarnings(uv_object.read_uvfits, [testfile],
-                         message='Telescope EVLA is not')
+    uv_object.read_uvfits(testfile)
     old_history = uv_object.history
     first_ants = [6, 2, 7, 2, 21, 27, 8]
     second_ants = [0, 20, 8, 1, 2, 3, 22]
@@ -927,12 +928,12 @@ def test_select_bls():
     assert str(cm.value).startswith('bls must be a list of tuples of antenna numbers')
 
 
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 def test_select_times():
     uv_object = UVData()
     testfile = os.path.join(
         DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-    uvtest.checkWarnings(uv_object.read_uvfits, [testfile],
-                         message='Telescope EVLA is not')
+    uv_object.read_uvfits(testfile)
     old_history = uv_object.history
     unique_times = np.unique(uv_object.time_array)
     times_to_keep = unique_times[[0, 3, 5, 6, 7, 10, 14]]
@@ -971,12 +972,12 @@ def test_select_times():
     pytest.raises(ValueError, uv_object.select, times=[np.min(unique_times) - uv_object.integration_time[0]])
 
 
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 def test_select_frequencies():
     uv_object = UVData()
     testfile = os.path.join(
         DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-    uvtest.checkWarnings(uv_object.read_uvfits, [testfile],
-                         message='Telescope EVLA is not')
+    uv_object.read_uvfits(testfile)
     old_history = uv_object.history
     freqs_to_keep = uv_object.freq_array[0, np.arange(12, 22)]
 
@@ -1039,12 +1040,12 @@ def test_select_frequencies():
     pytest.raises(ValueError, uv_object2.write_miriad, write_file_miriad)
 
 
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 def test_select_freq_chans():
     uv_object = UVData()
     testfile = os.path.join(
         DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-    uvtest.checkWarnings(uv_object.read_uvfits, [testfile],
-                         message='Telescope EVLA is not')
+    uv_object.read_uvfits(testfile)
     old_history = uv_object.history
     chans_to_keep = np.arange(12, 22)
 
@@ -1089,12 +1090,12 @@ def test_select_freq_chans():
         assert f in uv_object.freq_array[0, all_chans_to_keep]
 
 
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 def test_select_polarizations():
     uv_object = UVData()
     testfile = os.path.join(
         DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-    uvtest.checkWarnings(uv_object.read_uvfits, [testfile],
-                         message='Telescope EVLA is not')
+    uv_object.read_uvfits(testfile)
     old_history = uv_object.history
     pols_to_keep = [-1, -2]
 
@@ -1135,13 +1136,13 @@ def test_select_polarizations():
     pytest.raises(ValueError, uv_object.write_uvfits, write_file_uvfits)
 
 
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 def test_select():
     # now test selecting along all axes at once
     uv_object = UVData()
     testfile = os.path.join(
         DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-    uvtest.checkWarnings(uv_object.read_uvfits, [testfile],
-                         message='Telescope EVLA is not')
+    uv_object.read_uvfits(testfile)
     old_history = uv_object.history
 
     blt_inds = np.array([1057, 461, 1090, 354, 528, 654, 882, 775, 369, 906, 748,
@@ -1218,13 +1219,13 @@ def test_select():
                   times=unique_times[0], antenna_nums=1)
 
 
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 def test_select_not_inplace():
     # Test non-inplace select
     uv_object = UVData()
     testfile = os.path.join(
         DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-    uvtest.checkWarnings(uv_object.read_uvfits, [testfile],
-                         message='Telescope EVLA is not')
+    uv_object.read_uvfits(testfile)
     old_history = uv_object.history
     uv1 = uv_object.select(freq_chans=np.arange(32), inplace=False)
     uv1 += uv_object.select(freq_chans=np.arange(32, 64), inplace=False)
@@ -1237,10 +1238,12 @@ def test_select_not_inplace():
     assert uv1 == uv_object
 
 
+@pytest.mark.filterwarnings("ignore:The default for the `center` keyword")
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 def test_conjugate_bls():
     uv1 = UVData()
     testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-    uvtest.checkWarnings(uv1.read_uvfits, [testfile], message='Telescope EVLA is not')
+    uv1.read_uvfits(testfile)
 
     # file comes in with ant1<ant2
     assert(np.min(uv1.ant_2_array - uv1.ant_1_array) >= 0)
@@ -1355,11 +1358,12 @@ def test_conjugate_bls():
     assert str(cm.value).startswith('If convention is an index array')
 
 
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 def test_reorder_pols():
     # Test function to fix polarization order
     uv1 = UVData()
     testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-    uvtest.checkWarnings(uv1.read_uvfits, [testfile], message='Telescope EVLA is not')
+    uv1.read_uvfits(testfile)
     uv2 = copy.deepcopy(uv1)
     # reorder uv2 manually
     order = [1, 3, 2, 0]
@@ -1371,7 +1375,7 @@ def test_reorder_pols():
     assert uv1 == uv2
 
     # Restore original order
-    uvtest.checkWarnings(uv1.read_uvfits, [testfile], message='Telescope EVLA is not')
+    uv1.read_uvfits(testfile)
     uv2.reorder_pols()
     assert uv1 == uv2
 
@@ -1408,10 +1412,11 @@ def test_reorder_pols():
                          category=DeprecationWarning)
 
 
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 def test_reorder_blts():
     uv1 = UVData()
     testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-    uvtest.checkWarnings(uv1.read_uvfits, [testfile], message='Telescope EVLA is not')
+    uv1.read_uvfits(testfile)
 
     # test default reordering in detail
     uv2 = copy.deepcopy(uv1)
@@ -1533,11 +1538,11 @@ def test_reorder_blts():
     assert str(cm.value).startswith('minor_order can only be one of')
 
 
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 def test_add():
     uv_full = UVData()
     testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-    uvtest.checkWarnings(uv_full.read_uvfits, [testfile],
-                         message='Telescope EVLA is not')
+    uv_full.read_uvfits(testfile)
 
     # Add frequencies
     uv1 = copy.deepcopy(uv_full)
@@ -1773,12 +1778,12 @@ def test_add():
     assert uv2.Nbls == uv_auto.Nbls + uv_cross.Nbls
 
 
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 def test_add_drift():
     uv_full = UVData()
     testfile = os.path.join(
         DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-    uvtest.checkWarnings(uv_full.read_uvfits, [testfile],
-                         message='Telescope EVLA is not')
+    uv_full.read_uvfits(testfile)
 
     uvtest.checkWarnings(uv_full.unphase_to_drift, category=DeprecationWarning,
                          message='The xyz array in ENU_from_ECEF is being '
@@ -1949,13 +1954,13 @@ def test_add_drift():
     assert uv1 == uv_full
 
 
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 def test_break_add():
     # Test failure modes of add function
     uv_full = UVData()
     testfile = os.path.join(
         DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-    uvtest.checkWarnings(uv_full.read_uvfits, [testfile],
-                         message='Telescope EVLA is not')
+    uv_full.read_uvfits(testfile)
 
     # Wrong class
     uv1 = copy.deepcopy(uv_full)
@@ -1986,11 +1991,11 @@ def test_break_add():
     pytest.raises(ValueError, uv1.__iadd__, uv2)
 
 
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 def test_fast_concat():
     uv_full = UVData()
     testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-    uvtest.checkWarnings(uv_full.read_uvfits, [testfile],
-                         message='Telescope EVLA is not')
+    uv_full.read_uvfits(testfile)
 
     # Add frequencies
     uv1 = copy.deepcopy(uv_full)
@@ -2243,11 +2248,11 @@ def test_fast_concat():
     assert uv2.Nbls == uv_auto.Nbls + uv_cross.Nbls
 
 
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 def test_fast_concat_errors():
     uv_full = UVData()
     testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-    uvtest.checkWarnings(uv_full.read_uvfits, [testfile],
-                         message='Telescope EVLA is not')
+    uv_full.read_uvfits(testfile)
 
     uv1 = copy.deepcopy(uv_full)
     uv2 = copy.deepcopy(uv_full)
@@ -2259,13 +2264,13 @@ def test_fast_concat_errors():
     pytest.raises(ValueError, uv1.fast_concat, cal, 'freq', inplace=True)
 
 
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 def test_key2inds():
     # Test function to interpret key as antpair, pol
     uv = UVData()
     testfile = os.path.join(
         DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-    uvtest.checkWarnings(uv.read_uvfits, [testfile],
-                         message='Telescope EVLA is not')
+    uv.read_uvfits(testfile)
 
     # Get an antpair/pol combo
     ant1 = uv.ant_1_array[0]
@@ -2355,12 +2360,12 @@ def test_key2inds():
     assert np.array_equal(ind2, [])
 
 
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 def test_key2inds_conj_all_pols():
     uv = UVData()
     testfile = os.path.join(
         DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-    uvtest.checkWarnings(uv.read_uvfits, [testfile],
-                         message='Telescope EVLA is not')
+    uv.read_uvfits(testfile)
 
     ant1 = uv.ant_1_array[0]
     ant2 = uv.ant_2_array[0]
@@ -2375,12 +2380,12 @@ def test_key2inds_conj_all_pols():
     assert np.array_equal([0, 1, 3, 2], indp[1])
 
 
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 def test_key2inds_conj_all_pols_fringe():
     uv = UVData()
     testfile = os.path.join(
         DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-    uvtest.checkWarnings(uv.read_uvfits, [testfile],
-                         message='Telescope EVLA is not')
+    uv.read_uvfits(testfile)
 
     uv.select(polarizations=['rl'])
     ant1 = uv.ant_1_array[0]
@@ -2397,12 +2402,12 @@ def test_key2inds_conj_all_pols_fringe():
     assert np.array_equal(np.array([]), indp[1])
 
 
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 def test_key2inds_conj_all_pols_bl_fringe():
     uv = UVData()
     testfile = os.path.join(
         DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-    uvtest.checkWarnings(uv.read_uvfits, [testfile],
-                         message='Telescope EVLA is not')
+    uv.read_uvfits(testfile)
 
     uv.select(polarizations=['rl'])
     ant1 = uv.ant_1_array[0]
@@ -2421,12 +2426,12 @@ def test_key2inds_conj_all_pols_bl_fringe():
     assert np.array_equal(np.array([]), indp[1])
 
 
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 def test_key2inds_conj_all_pols_missing_data():
     uv = UVData()
     testfile = os.path.join(
         DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-    uvtest.checkWarnings(uv.read_uvfits, [testfile],
-                         message='Telescope EVLA is not')
+    uv.read_uvfits(testfile)
     uv.select(polarizations=['rl'])
     ant1 = uv.ant_1_array[0]
     ant2 = uv.ant_2_array[0]
@@ -2434,12 +2439,12 @@ def test_key2inds_conj_all_pols_missing_data():
     pytest.raises(KeyError, uv._key2inds, (ant2, ant1))
 
 
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 def test_key2inds_conj_all_pols_bls():
     uv = UVData()
     testfile = os.path.join(
         DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-    uvtest.checkWarnings(uv.read_uvfits, [testfile],
-                         message='Telescope EVLA is not')
+    uv.read_uvfits(testfile)
 
     ant1 = uv.ant_1_array[0]
     ant2 = uv.ant_2_array[0]
@@ -2455,12 +2460,12 @@ def test_key2inds_conj_all_pols_bls():
     assert np.array_equal([0, 1, 3, 2], indp[1])
 
 
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 def test_key2inds_conj_all_pols_missing_data_bls():
     uv = UVData()
     testfile = os.path.join(
         DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-    uvtest.checkWarnings(uv.read_uvfits, [testfile],
-                         message='Telescope EVLA is not')
+    uv.read_uvfits(testfile)
     uv.select(polarizations=['rl'])
     ant1 = uv.ant_1_array[0]
     ant2 = uv.ant_2_array[0]
@@ -2469,13 +2474,13 @@ def test_key2inds_conj_all_pols_missing_data_bls():
     pytest.raises(KeyError, uv._key2inds, bl)
 
 
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 def test_smart_slicing():
     # Test function to slice data
     uv = UVData()
     testfile = os.path.join(
         DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-    uvtest.checkWarnings(uv.read_uvfits, [testfile],
-                         message='Telescope EVLA is not')
+    uv.read_uvfits(testfile)
 
     # ind1 reg, ind2 empty, pol reg
     ind1 = 10 * np.arange(9)
@@ -2626,13 +2631,13 @@ def test_smart_slicing():
                   (indp, []), squeeze='notasqueeze')
 
 
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 def test_get_data():
     # Test get_data function for easy access to data
     uv = UVData()
     testfile = os.path.join(
         DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-    uvtest.checkWarnings(uv.read_uvfits, [testfile],
-                         message='Telescope EVLA is not')
+    uv.read_uvfits(testfile)
 
     # Get an antpair/pol combo
     ant1 = uv.ant_1_array[0]
@@ -2673,13 +2678,13 @@ def test_get_data():
     assert np.all(dcheck == d)
 
 
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 def test_get_flags():
     # Test function for easy access to flags
     uv = UVData()
     testfile = os.path.join(
         DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-    uvtest.checkWarnings(uv.read_uvfits, [testfile],
-                         message='Telescope EVLA is not')
+    uv.read_uvfits(testfile)
 
     # Get an antpair/pol combo
     ant1 = uv.ant_1_array[0]
@@ -2716,13 +2721,13 @@ def test_get_flags():
     assert np.all(dcheck == d)
 
 
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 def test_get_nsamples():
     # Test function for easy access to nsample array
     uv = UVData()
     testfile = os.path.join(
         DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-    uvtest.checkWarnings(uv.read_uvfits, [testfile],
-                         message='Telescope EVLA is not')
+    uv.read_uvfits(testfile)
 
     # Get an antpair/pol combo
     ant1 = uv.ant_1_array[0]
@@ -2758,13 +2763,13 @@ def test_get_nsamples():
     assert np.all(dcheck == d)
 
 
+@pytest.mark.filterwarnings("ignore:Altitude is not present in Miriad file")
 def test_antpair2ind():
     # Test for baseline-time axis indexer
     uv = UVData()
     testfile = os.path.join(
         DATA_PATH, 'zen.2456865.60537.xy.uvcRREAA')
-    uvtest.checkWarnings(uv.read_miriad, [testfile],
-                         message='Altitude is not present in Miriad file')
+    uv.read_miriad(testfile)
 
     # get indices
     inds = uv.antpair2ind(0, 1, ordered=False)
@@ -2792,13 +2797,13 @@ def test_antpair2ind():
     pytest.raises(ValueError, uv.antpair2ind, 0, 1, 'foo')
 
 
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 def test_get_times():
     # Test function for easy access to times, to work in conjunction with get_data
     uv = UVData()
     testfile = os.path.join(
         DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-    uvtest.checkWarnings(uv.read_uvfits, [testfile],
-                         message='Telescope EVLA is not')
+    uv.read_uvfits(testfile)
 
     # Get an antpair/pol combo (pol shouldn't actually effect result)
     ant1 = uv.ant_1_array[0]
@@ -2832,13 +2837,13 @@ def test_get_times():
     assert np.all(d == uv.time_array)
 
 
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 def test_antpairpol_iter():
     # Test generator
     uv = UVData()
     testfile = os.path.join(
         DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-    uvtest.checkWarnings(uv.read_uvfits, [testfile],
-                         message='Telescope EVLA is not')
+    uv.read_uvfits(testfile)
 
     pol_dict = {uvutils.polnum2str(uv.polarization_array[i]): i for i in range(uv.Npols)}
     keys = []
@@ -2856,13 +2861,14 @@ def test_antpairpol_iter():
     assert len(pols) == uv.Npols
 
 
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 def test_get_ants():
     # Test function to get unique antennas in data
     uv = UVData()
     testfile = os.path.join(
         DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-    uvtest.checkWarnings(uv.read_uvfits, [testfile],
-                         message='Telescope EVLA is not')
+    uv.read_uvfits(testfile)
+
     ants = uv.get_ants()
     for ant in ants:
         assert (ant in uv.ant_1_array) or (ant in uv.ant_2_array)
@@ -2894,22 +2900,23 @@ def test_get_ENU_antpos():
     assert np.isclose(antpos[0, 0], -0.0026981323386223721)
 
 
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 def test_get_pols():
     # Test function to get unique polarizations in string format
     uv = UVData()
     testfile = os.path.join(
         DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-    uvtest.checkWarnings(uv.read_uvfits, [testfile],
-                         message='Telescope EVLA is not')
+    uv.read_uvfits(testfile)
     pols = uv.get_pols()
     pols_data = ['rr', 'll', 'lr', 'rl']
     assert sorted(pols) == sorted(pols_data)
 
 
+@pytest.mark.filterwarnings("ignore:Altitude is not present in Miriad file")
 def test_get_pols_x_orientation():
     miriad_file = os.path.join(DATA_PATH, 'zen.2456865.60537.xy.uvcRREAA')
     uv_in = UVData()
-    uvtest.checkWarnings(uv_in.read, [miriad_file], known_warning='miriad')
+    uv_in.read(miriad_file)
 
     uv_in.x_orientation = 'east'
 
@@ -2924,10 +2931,11 @@ def test_get_pols_x_orientation():
     assert pols == pols_data
 
 
+@pytest.mark.filterwarnings("ignore:Altitude is not present in Miriad file")
 def test_deprecated_x_orientation():
     miriad_file = os.path.join(DATA_PATH, 'zen.2456865.60537.xy.uvcRREAA')
     uv_in = UVData()
-    uvtest.checkWarnings(uv_in.read, [miriad_file], known_warning='miriad')
+    uv_in.read(miriad_file)
 
     uv_in.x_orientation = 'e'
 
@@ -2947,13 +2955,13 @@ def test_deprecated_x_orientation():
                            'cannot be converted.'])
 
 
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 def test_get_feedpols():
     # Test function to get unique antenna feed polarizations in data. String format.
     uv = UVData()
     testfile = os.path.join(
         DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-    uvtest.checkWarnings(uv.read_uvfits, [testfile],
-                         message='Telescope EVLA is not')
+    uv.read_uvfits(testfile)
     pols = uv.get_feedpols()
     pols_data = ['r', 'l']
     assert sorted(pols) == sorted(pols_data)
@@ -2963,12 +2971,13 @@ def test_get_feedpols():
     pytest.raises(ValueError, uv.get_feedpols)
 
 
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 def test_parse_ants():
     # Test function to get correct antenna pairs and polarizations
     uv = UVData()
     testfile = os.path.join(
         DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-    uvtest.checkWarnings(uv.read_uvfits, [testfile], message='Telescope EVLA is not')
+    uv.read_uvfits(testfile)
 
     # All baselines
     ant_str = 'all'
@@ -3214,12 +3223,13 @@ def test_parse_ants():
     assert isinstance(polarizations, type(None))
 
 
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 def test_select_with_ant_str():
     # Test select function with ant_str argument
     uv = UVData()
     testfile = os.path.join(
         DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-    uvtest.checkWarnings(uv.read_uvfits, [testfile], message='Telescope EVLA is not')
+    uv.read_uvfits(testfile)
     inplace = False
 
     # Check error thrown if ant_str passed with antenna_nums,
@@ -3489,20 +3499,21 @@ def test_set_uvws_from_antenna_pos():
 def test_deprecated_redundancy_funcs():
     uv0 = UVData()
     uv0.read_uvfits(os.path.join(DATA_PATH, 'fewant_randsrc_airybeam_Nsrc100_10MHz.uvfits'))
-    redant_gps, centers, lengths = uvtest.checkWarnings(uv0.get_antenna_redundancies,
-                                                        func_kwargs={'include_autos': False, 'conjugate_bls': True},
-                                                        category=DeprecationWarning,
-                                                        nwarnings=2,
-                                                        message=['UVData.get_antenna_redundancies has been replaced',
-                                                                 'The default for the `center` keyword'])
-    redbl_gps, centers, lengths, _ = uvtest.checkWarnings(uv0.get_baseline_redundancies,
-                                                          category=DeprecationWarning,
-                                                          message='UVData.get_baseline_redundancies has been replaced')
+    redant_gps, centers, lengths = uvtest.checkWarnings(
+        uv0.get_antenna_redundancies,
+        func_kwargs={'include_autos': False, 'conjugate_bls': True},
+        category=DeprecationWarning, nwarnings=2,
+        message=['UVData.get_antenna_redundancies has been replaced',
+                 'The default for the `center` keyword'])
+    redbl_gps, centers, lengths, _ = uvtest.checkWarnings(
+        uv0.get_baseline_redundancies, category=DeprecationWarning,
+        message='UVData.get_baseline_redundancies has been replaced')
 
     red_gps_new, _, _, = uv0.get_redundancies(include_autos=False, use_antpos=True)
     assert red_gps_new == redant_gps
 
 
+@pytest.mark.filterwarnings("ignore:The default for the `center` keyword")
 def test_get_antenna_redundancies():
     uv0 = UVData()
     uv0.read_uvfits(os.path.join(DATA_PATH, 'fewant_randsrc_airybeam_Nsrc100_10MHz.uvfits'))
@@ -3535,6 +3546,7 @@ def test_get_antenna_redundancies():
     assert np.allclose(lengths, new_lengths)
 
 
+@pytest.mark.filterwarnings("ignore:The default for the `center` keyword")
 def test_redundancy_contract_expand():
     # Test that a UVData object can be reduced to one baseline from each redundant group
     # and restored to its original form.
@@ -3593,10 +3605,12 @@ def test_redundancy_contract_expand():
     assert uv2 == uv3
 
 
+@pytest.mark.filterwarnings("ignore:The default for the `center` keyword")
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 def test_redundancy_contract_expand_nblts_not_nbls_times_ntimes():
     uv0 = UVData()
     testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-    uvtest.checkWarnings(uv0.read_uvfits, [testfile], message='Telescope EVLA is not')
+    uv0.read_uvfits(testfile)
 
     # check that Nblts != Nbls * Ntimes
     assert uv0.Nblts != uv0.Nbls * uv0.Ntimes
@@ -3647,6 +3661,7 @@ def test_redundancy_contract_expand_nblts_not_nbls_times_ntimes():
     assert uv3 == uv1
 
 
+@pytest.mark.filterwarnings("ignore:The default for the `center` keyword")
 def test_compress_redundancy_metadata_only():
     uv0 = UVData()
     uv0.read_uvfits(os.path.join(DATA_PATH, 'fewant_randsrc_airybeam_Nsrc100_10MHz.uvfits'))
@@ -3759,12 +3774,13 @@ def test_quick_redundant_vs_redundant_test_array():
     assert groups == redundant_groups
 
 
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 def test_redundancy_finder_when_nblts_not_nbls_times_ntimes():
     """Test the redundancy finder functions when Nblts != Nbls * Ntimes."""
     tol = 1  # meter
     uv = UVData()
     testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-    uvtest.checkWarnings(uv.read_uvfits, [testfile], message='Telescope EVLA is not')
+    uv.read_uvfits(testfile)
     uvtest.checkWarnings(uv.conjugate_bls, func_kwargs={'convention': 'u>0', 'use_enu': True},
                          message=['The default for the `center`'],
                          nwarnings=1, category=DeprecationWarning)
@@ -3800,11 +3816,12 @@ def test_redundancy_finder_when_nblts_not_nbls_times_ntimes():
     assert groups == redundant_groups
 
 
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 def test_overlapping_data_add():
     # read in test data
     uv = UVData()
     testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-    uvtest.checkWarnings(uv.read_uvfits, [testfile], message='Telescope EVLA is not')
+    uv.read_uvfits(testfile)
 
     # slice into four objects
     blts1 = np.arange(500)
@@ -3850,8 +3867,7 @@ def test_overlapping_data_add():
     uv4.write_uvfits(uv4_out)
 
     uvfull = UVData()
-    uvtest.checkWarnings(uvfull.read, [[uv1_out, uv2_out, uv3_out, uv4_out]],
-                         nwarnings=4, message='Telescope EVLA is not')
+    uvfull.read([uv1_out, uv2_out, uv3_out, uv4_out])
     assert uvutils._check_histories(uvfull.history, uv.history + extra_history)
     uvfull.history = uv.history  # make histories match
     assert uvfull == uv
@@ -3865,12 +3881,12 @@ def test_overlapping_data_add():
     return
 
 
+@pytest.mark.filterwarnings("ignore:Altitude is not present in Miriad file")
 def test_lsts_from_time_with_only_unique():
     """Test `set_lsts_from_time_array` with only unique values is identical to full array."""
     miriad_file = os.path.join(DATA_PATH, 'zen.2456865.60537.xy.uvcRREAA')
     uv = UVData()
-    uvtest.checkWarnings(uv.read_miriad, [miriad_file],
-                         known_warning='miriad')
+    uv.read_miriad(miriad_file)
     lat, lon, alt = uv.telescope_location_lat_lon_alt_degrees
     # calculate the lsts for all elements in time array
     full_lsts = uvutils.get_lst_for_time(uv.time_array, lat, lon, alt)
