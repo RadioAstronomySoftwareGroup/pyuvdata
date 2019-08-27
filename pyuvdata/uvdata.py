@@ -4742,7 +4742,7 @@ class UVData(UVBase):
             i0 = i1
 
         # drop data where we upsampled
-        # TODO: write test where all indices are upsampled
+        # TODO: write test where not all indices are upsampled
         inds_to_keep = np.nonzero(self.integration_time <= max_int_time)
         self.baseline_array = self.baseline_array[inds_to_keep]
         self.time_array = self.time_array[inds_to_keep]
@@ -4823,6 +4823,7 @@ class UVData(UVBase):
 
         """
         # TODO: Re-order blt axis to make time increasing monotonically for each baseline
+        # TODO: Write test where keep_ragged=False
         # check that min_int_time is sensible given integration_time
         max_integration_time = np.amax(self.integration_time)
         sensible_min = 1e-2 * max_integration_time

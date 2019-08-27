@@ -3921,6 +3921,7 @@ def test_bda_upsample():
                          message='Telescope EVLA is not')
     # reorder to make sure we get the right value later
     uv_object.reorder_blts(order="baseline")
+    uv_object_copy = uv_object.copy()
 
     # save some values for later
     init_data_size = uv_object.data_array.size
@@ -3944,6 +3945,18 @@ def test_bda_upsample():
     out_ns = uv_object.get_nsamples(0, 1)
     assert np.isclose(init_ns[0, 0, 0], out_ns[0, 0, 0])
 
+    # add flags and try again
+    uv_object_copy.flag_array[0, 0, 0, 0] = True
+    uv_object_copy.bda_upsample(max_integration_time, blt_order="baseline")
+
+    # data and nsamples should be changed as normal, but flagged
+    out_wf = uv_object_copy.get_data(0, 1)
+    assert np.isclose(init_wf[0, 0, 0], out_wf[0, 0, 0] * 2.0)
+    out_flags = uv_object_copy.get_flags(0, 1)
+    assert np.all(out_flags[:2, 0, 0])
+    out_ns = uv_object.get_nsamples(0, 1)
+    assert np.isclose(init_ns[0, 0, 0], out_ns[0, 0, 0])
+
     return
 
 
@@ -3957,6 +3970,9 @@ def test_bda_downsample():
                          message='Telescope EVLA is not')
     # reorder to make sure we get the right value later
     uv_object.reorder_blts(order="baseline", minor_order="time")
+
+    # make a copy for later
+    uv_object_copy = uv_object.copy()
 
     # save some values for later
     init_data_size = uv_object.data_array.size
@@ -3983,7 +3999,19 @@ def test_bda_downsample():
     out_ns = uv_object.get_nsamples(0, 1)
     assert np.isclose((init_ns[0, 0, 0] + init_ns[1, 0, 0]) / 2., out_ns[0, 0, 0])
 
-    # TODO: test with flagging
+    # add flags and try again
+    uv_object_copy.flag_array[0, 0, 0, 0] = True
+    uv_object_copy.bda_downsample(min_integration_time, blt_order="baseline",
+                                  minor_order="time")
+    out_wf = uv_object_copy.get_data(0, 1)
+    assert np.isclose(init_wf[1, 0, 0], out_wf[0, 0, 0])
+
+    # make sure nsamlpes is correct
+    out_ns = uv_object_copy.get_nsamples(0, 1)
+    assert np.isclose((init_ns[1, 0, 0]) / 2., out_ns[0, 0, 0])
+
+    # check that there are still no flags
+    assert np.nonzero(uv_object_copy.flag_array is True)[0].size == 0
 
     return
 
