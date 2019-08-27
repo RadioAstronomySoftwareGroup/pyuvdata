@@ -10,6 +10,8 @@ from __future__ import absolute_import, division, print_function
 import numpy as np
 import copy
 import os
+
+import six
 import pytest
 import astropy
 from astropy.io import fits
