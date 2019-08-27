@@ -1050,6 +1050,9 @@ class UVData(UVBase):
             Use true antenna positions to determine uv location (as opposed to
             uvw array). Only applies if `convention` is 'u<0', 'u>0', 'v<0', 'v>0'.
             Set to False to use uvw array values.
+        uvw_tol : float
+            Defines a tolerance on uvw coordinates for setting the
+            u>0, u<0, v>0, or v<0 conventions. Defaults to 0m.
 
         Raises
         ------
@@ -1087,29 +1090,29 @@ class UVData(UVBase):
             elif convention == 'ant2<ant1':
                 index_array = np.asarray(self.ant_2_array > self.ant_1_array).nonzero()
             elif convention == 'u<0':
-                index_array = np.asarray((uvw_array_use[:, 0] > 0)
-                                         | (uvw_array_use[:, 1] < 0) & (uvw_array_use[:, 0] == 0)
-                                         | ((uvw_array_use[:, 2] < 0)
-                                            & (uvw_array_use[:, 0] == 0)
-                                            & (uvw_array_use[:, 1] == 0))).nonzero()
+                    index_array = np.asarray((uvw_array_use[:, 0] > uvw_tol)
+                                             | (uvw_array_use[:, 1] > uvw_tol) & np.isclose(uvw_array_use[:, 0], 0, atol=uvw_tol)
+                                             | (uvw_array_use[:, 2] > uvw_tol)
+                                             & np.isclose(uvw_array_use[:, 0], 0, atol=uvw_tol)
+                                             & np.isclose(uvw_array_use[:, 1], 0, atol=uvw_tol)).nonzero()
             elif convention == 'u>0':
-                index_array = np.asarray((uvw_array_use[:, 0] < 0)
-                                         | (uvw_array_use[:, 1] < 0) & (uvw_array_use[:, 0] == 0)
-                                         | ((uvw_array_use[:, 2] < 0)
-                                            & (uvw_array_use[:, 0] == 0)
-                                            & (uvw_array_use[:, 1] == 0))).nonzero()
+                index_array = np.asarray((uvw_array_use[:, 0] < -uvw_tol)
+                                         | ((uvw_array_use[:, 1] < -uvw_tol) & np.isclose(uvw_array_use[:, 0], 0, atol=uvw_tol))
+                                         | ((uvw_array_use[:, 2] < -uvw_tol)
+                                            & np.isclose(uvw_array_use[:, 0], 0, atol=uvw_tol)
+                                            & np.isclose(uvw_array_use[:, 1], 0, atol=uvw_tol))).nonzero()
             elif convention == 'v<0':
-                index_array = np.asarray((uvw_array_use[:, 1] > 0)
-                                         | (uvw_array_use[:, 0] < 0) & (uvw_array_use[:, 1] == 0)
-                                         | ((uvw_array_use[:, 2] < 0)
-                                            & (uvw_array_use[:, 0] == 0)
-                                            & (uvw_array_use[:, 1] == 0))).nonzero()
+                index_array = np.asarray((uvw_array_use[:, 1] > uvw_tol)
+                                         | (uvw_array_use[:, 0] > uvw_tol) & np.isclose(uvw_array_use[:, 1], 0, atol=uvw_tol)
+                                         | (uvw_array_use[:, 2] > uvw_tol)
+                                         & np.isclose(uvw_array_use[:, 0], 0, atol=uvw_tol)
+                                         & np.isclose(uvw_array_use[:, 1], 0, atol=uvw_tol)).nonzero()
             elif convention == 'v>0':
-                index_array = np.asarray((uvw_array_use[:, 1] < 0)
-                                         | (uvw_array_use[:, 0] < 0) & (uvw_array_use[:, 1] == 0)
-                                         | ((uvw_array_use[:, 2] < 0)
-                                            & (uvw_array_use[:, 0] == 0)
-                                            & (uvw_array_use[:, 1] == 0))).nonzero()
+                index_array = np.asarray((uvw_array_use[:, 1] < -uvw_tol)
+                                         | (uvw_array_use[:, 0] < -uvw_tol) & np.isclose(uvw_array_use[:, 1], 0, atol=uvw_tol)
+                                         | (uvw_array_use[:, 2] < -uvw_tol)
+                                         & np.isclose(uvw_array_use[:, 0], 0, atol=uvw_tol)
+                                         & np.isclose(uvw_array_use[:, 1], 0, atol=uvw_tol)).nonzero()
         else:
             index_array = convention
 
@@ -1212,7 +1215,7 @@ class UVData(UVBase):
                       'reorder_pols in version 1.5', DeprecationWarning)
         self.reorder_pols(order=order)
 
-    def reorder_blts(self, order='time', minor_order=None, conj_convention=None,
+    def reorder_blts(self, order='time', minor_order=None, conj_convention=None, uvw_tol=0.0,
                      conj_convention_use_enu=True, run_check=True, check_extra=True,
                      run_check_acceptability=True):
         """
@@ -1233,6 +1236,10 @@ class UVData(UVBase):
         conj_convention : str or array_like of int
             Optionally conjugate baselines to make the baselines have the
             desired orientation. See conjugate_bls for allowed values and details.
+        uvw_tol : float
+            If conjugating baselines, sets a tolerance for determining the signs
+            of u,v, and w, and whether or not they are zero.
+            See conjugate_bls for details.
         conj_convention_use_enu: bool
             If `conj_convention` is set, this is passed to conjugate_bls, see that
             method for details.
@@ -1289,7 +1296,7 @@ class UVData(UVBase):
 
         if conj_convention is not None:
             self.conjugate_bls(convention=conj_convention,
-                               use_enu=conj_convention_use_enu)
+                               use_enu=conj_convention_use_enu, uvw_tol=uvw_tol)
 
         if isinstance(order, str):
             if minor_order is None:
