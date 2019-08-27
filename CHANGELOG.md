@@ -5,8 +5,8 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 - UVData.get_redundancies method to replace old get_baseline_redundancies and get_antenna_redundancies.
-- `UVFlag` information on Read The Docs
 - option for `UVBeam.interp` to return a new beam object.
+- `UVFlag` information on Read The Docs
 
 ### Changed
 - UVData.get_antenna_redundancies will no longer automatically conjugate baselines.
