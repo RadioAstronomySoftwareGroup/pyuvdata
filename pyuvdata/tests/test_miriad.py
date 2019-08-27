@@ -437,9 +437,15 @@ def test_miriad_extra_keywords():
     uv_in.extra_keywords['testdict'] = {'testkey': 23}
     uvtest.checkWarnings(uv_in.check, message=['testdict in extra_keywords is a '
                                                'list, array or dict'])
-    with pytest.raises(TypeError) as cm:
-        uv_in.write_miriad(testfile, clobber=True, run_check=False)
-    assert str(cm.value).startswith("Extra keyword testdict is of <class 'dict'>")
+
+    if six.PY2:
+        with pytest.raises(TypeError) as cm:
+            uv_in.write_miriad(testfile, clobber=True, run_check=False)
+        assert str(cm.value).startswith("Extra keyword testdict is of <type 'dict'>")
+    else:
+        with pytest.raises(TypeError) as cm:
+            uv_in.write_miriad(testfile, clobber=True, run_check=False)
+        assert str(cm.value).startswith("Extra keyword testdict is of <class 'dict'>")
 
     uv_in.extra_keywords.pop('testdict')
 
@@ -602,9 +608,14 @@ def test_readWriteReadMiriad():
     assert uv_in2 == uv_out
 
     # check that trying to overwrite without clobber raises an error
-    with pytest.raises(OSError) as cm:
-        uv_in.write_miriad(write_file, clobber=False)
-    assert str(cm.value).startswith("File exists: skipping")
+    if six.PY2:
+        with pytest.raises(IOError) as cm:
+            uv_in.write_miriad(write_file, clobber=False)
+        assert str(cm.value).startswith("File exists: skipping")
+    else:
+        with pytest.raises(OSError) as cm:
+            uv_in.write_miriad(write_file, clobber=False)
+        assert str(cm.value).startswith("File exists: skipping")
 
     # check that if x_orientation is set, it's read back out properly
     uv_in.x_orientation = 'east'
@@ -790,9 +801,14 @@ def test_readWriteReadMiriad_partial():
         uv_in.read(write_file, polarizations='xx')
     assert str(cm.value).startswith("pols must be a list of polarization strings or ints")
 
-    with pytest.raises(ValueError) as cm:
-        uv_in.read(write_file, polarizations=[1.0])
-    assert str(cm.value).startswith("Polarization 1.0 cannot be converted to a polarization number")
+    if six.PY2:
+        with pytest.raises(AssertionError) as cm:
+            uv_in.read(write_file, polarizations=[1.0])
+        assert str(cm.value).startswith("pols must be a list of polarization strings or ints")
+    else:
+        with pytest.raises(ValueError) as cm:
+            uv_in.read(write_file, polarizations=[1.0])
+        assert str(cm.value).startswith("Polarization 1.0 cannot be converted to a polarization number")
 
     with pytest.raises(ValueError) as cm:
         uv_in.read(write_file, polarizations=['yy'])

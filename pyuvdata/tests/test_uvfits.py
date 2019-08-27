@@ -331,9 +331,14 @@ def test_extra_keywords():
     uv_in.extra_keywords['testdict'] = {'testkey': 23}
     uvtest.checkWarnings(uv_in.check, message=['testdict in extra_keywords is a '
                                                'list, array or dict'])
-    with pytest.raises(TypeError) as cm:
-        uv_in.write_uvfits(testfile, run_check=False)
-    assert str(cm.value).startswith("Extra keyword testdict is of <class 'dict'>")
+    if six.PY2:
+        with pytest.raises(TypeError) as cm:
+            uv_in.write_uvfits(testfile, run_check=False)
+        assert str(cm.value).startswith("Extra keyword testdict is of <type 'dict'>")
+    else:
+        with pytest.raises(TypeError) as cm:
+            uv_in.write_uvfits(testfile, run_check=False)
+        assert str(cm.value).startswith("Extra keyword testdict is of <class 'dict'>")
     uv_in.extra_keywords.pop('testdict')
 
     uv_in.extra_keywords['testlist'] = [12, 14, 90]
