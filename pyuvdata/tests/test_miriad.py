@@ -452,17 +452,27 @@ def test_miriad_extra_keywords():
     uv_in.extra_keywords['testlist'] = [12, 14, 90]
     uvtest.checkWarnings(uv_in.check, message=['testlist in extra_keywords is a '
                                                'list, array or dict'])
-    with pytest.raises(TypeError) as cm:
-        uv_in.write_miriad(testfile, clobber=True, run_check=False)
-    assert str(cm.value).startswith("Extra keyword testlist is of <class 'list'>")
+    if six.PY2:
+        with pytest.raises(TypeError) as cm:
+            uv_in.write_miriad(testfile, clobber=True, run_check=False)
+        assert str(cm.value).startswith("Extra keyword testlist is of <type 'list'>")
+    else:
+        with pytest.raises(TypeError) as cm:
+            uv_in.write_miriad(testfile, clobber=True, run_check=False)
+        assert str(cm.value).startswith("Extra keyword testlist is of <class 'list'>")
     uv_in.extra_keywords.pop('testlist')
 
     uv_in.extra_keywords['testarr'] = np.array([12, 14, 90])
     uvtest.checkWarnings(uv_in.check, message=['testarr in extra_keywords is a '
                                                'list, array or dict'])
-    with pytest.raises(TypeError) as cm:
-        uv_in.write_miriad(testfile, clobber=True, run_check=False)
-    assert str(cm.value).startswith("Extra keyword testarr is of <class 'numpy.ndarray'>")
+    if six.PY2:
+        with pytest.raises(TypeError) as cm:
+            uv_in.write_miriad(testfile, clobber=True, run_check=False)
+        assert str(cm.value).startswith("Extra keyword testarr is of <type 'numpy.ndarray'>")
+    else:
+        with pytest.raises(TypeError) as cm:
+            uv_in.write_miriad(testfile, clobber=True, run_check=False)
+        assert str(cm.value).startswith("Extra keyword testarr is of <class 'numpy.ndarray'>")
     uv_in.extra_keywords.pop('testarr')
 
     # check for warnings with extra_keywords keys that are too long
@@ -514,15 +524,25 @@ def test_miriad_extra_keywords():
     # check handling of complex-like keywords
     # currently they are NOT supported
     uv_in.extra_keywords['complex1'] = np.complex64(5.3 + 1.2j)
-    with pytest.raises(TypeError) as cm:
-        uv_in.write_miriad(testfile, clobber=True, run_check=False)
-    assert str(cm.value).startswith("Extra keyword complex1 is of <class 'numpy.complex64'>")
+    if six.PY2:
+        with pytest.raises(TypeError) as cm:
+            uv_in.write_miriad(testfile, clobber=True, run_check=False)
+        assert str(cm.value).startswith("Extra keyword complex1 is of <type 'numpy.complex64'>")
+    else:
+        with pytest.raises(TypeError) as cm:
+            uv_in.write_miriad(testfile, clobber=True, run_check=False)
+        assert str(cm.value).startswith("Extra keyword complex1 is of <class 'numpy.complex64'>")
     uv_in.extra_keywords.pop('complex1')
 
     uv_in.extra_keywords['complex2'] = 6.9 + 4.6j
-    with pytest.raises(TypeError) as cm:
-        uv_in.write_miriad(testfile, clobber=True, run_check=False)
-    assert str(cm.value).startswith("Extra keyword complex2 is of <class 'complex'>")
+    if six.PY2:
+        with pytest.raises(TypeError) as cm:
+            uv_in.write_miriad(testfile, clobber=True, run_check=False)
+        assert str(cm.value).startswith("Extra keyword complex2 is of <type 'complex'>")
+    else:
+        with pytest.raises(TypeError) as cm:
+            uv_in.write_miriad(testfile, clobber=True, run_check=False)
+        assert str(cm.value).startswith("Extra keyword complex2 is of <class 'complex'>")
 
 
 @pytest.mark.filterwarnings("ignore:Altitude is not present in Miriad file")

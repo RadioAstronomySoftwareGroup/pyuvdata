@@ -346,17 +346,27 @@ def test_extra_keywords():
     uv_in.extra_keywords['testlist'] = [12, 14, 90]
     uvtest.checkWarnings(uv_in.check, message=['testlist in extra_keywords is a '
                                                'list, array or dict'])
-    with pytest.raises(TypeError) as cm:
-        uv_in.write_uvfits(testfile, run_check=False)
-    assert str(cm.value).startswith("Extra keyword testlist is of <class 'list'>")
+    if six.PY2:
+        with pytest.raises(TypeError) as cm:
+            uv_in.write_uvfits(testfile, run_check=False)
+        assert str(cm.value).startswith("Extra keyword testlist is of <type 'list'>")
+    else:
+        with pytest.raises(TypeError) as cm:
+            uv_in.write_uvfits(testfile, run_check=False)
+        assert str(cm.value).startswith("Extra keyword testlist is of <class 'list'>")
     uv_in.extra_keywords.pop('testlist')
 
     uv_in.extra_keywords['testarr'] = np.array([12, 14, 90])
     uvtest.checkWarnings(uv_in.check, message=['testarr in extra_keywords is a '
                                                'list, array or dict'])
-    with pytest.raises(TypeError) as cm:
-        uv_in.write_uvfits(testfile, run_check=False)
-    assert str(cm.value).startswith("Extra keyword testarr is of <class 'numpy.ndarray'>")
+    if six.PY2:
+        with pytest.raises(TypeError) as cm:
+            uv_in.write_uvfits(testfile, run_check=False)
+        assert str(cm.value).startswith("Extra keyword testarr is of <type 'numpy.ndarray'>")
+    else:
+        with pytest.raises(TypeError) as cm:
+            uv_in.write_uvfits(testfile, run_check=False)
+        assert str(cm.value).startswith("Extra keyword testarr is of <class 'numpy.ndarray'>")
     uv_in.extra_keywords.pop('testarr')
 
     # check for warnings with extra_keywords keys that are too long
