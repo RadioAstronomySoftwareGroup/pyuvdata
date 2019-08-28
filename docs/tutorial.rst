@@ -980,7 +980,8 @@ The method :meth:`~pyuvdata.UVData.get_redundancies` is provided as a convenienc
 run with the `use_antpos` option, it will mimic the behavior of `utils.get_antenna_redundancies`.
 Otherwise it will return redundancies in the existing data using `utils.get_baseline_redundancies`.
 If run with `use_antpos` and the `conjugate_bls` option, it will also adjust the data_array and baseline_array
-so that the baselines on the object will match the baseline numbers in the returned list of groups.
+so that the baselines in the returned groups correspond with the baselines listed on the object (i.e., except for
+antenna pairs with no associated data).
 
 ::
 

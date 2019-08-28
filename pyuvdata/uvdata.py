@@ -4454,7 +4454,7 @@ class UVData(UVBase):
             Only used if use_antpos is True.
         conjugate_bls : bool
             If using antenna positions, this will conjugate baselines on this
-            object so that the baseline numbers returned exist in the baseline_array.
+            object to correspond with those in the returned groups.
 
         Returns
         -------
