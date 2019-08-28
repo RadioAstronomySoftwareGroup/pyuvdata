@@ -959,22 +959,28 @@ considered redundant if they are within a specified tolerance distance (default 
 The :func:`utils.get_baseline_redundancies` function accepts an array of baseline indices
 and an array of baseline vectors (ie, uvw coordinates) as input, and finds
 redundancies among the vectors as given. If the ``with_conjugates`` option is
-selected, it will flip baselines such that ``u > 0``, or ``v > 0 if u = 0``, or
-``w > 0 if u = v = 0``. In this case, a list of ``conjugates`` is returned as well,
+selected, it will include baselines that are redundant when reversed in the same group.
+In this case, a list of ``conjugates`` is returned as well,
 which contains indices for the baselines that were flipped for the redundant groups.
 In either mode of operation, this will only return baseline indices that are in the list passed in.
 
 The :func:`utils.get_antenna_redundancies` function accepts an array of
 antenna indices and an array of antenna positions as input, defines baseline vectors
-and indices under the positive-u condition described above, and runs
-:func:`utils.get_baseline_redundancies` to find redundant baselines.
-This is similar to running get_baseline_redundancies with the `with_conjugates`
-option, except that the baseline indices are returned such that none need to be
-flipped to be redundant. This is more like what's defined in the `hera_cal` package.
+and indices in the convention that ``ant1<ant2``, and runs
+:func:`utils.get_baseline_redundancies` to find redundant baselines. It will then apply the conjugates
+list to the groups it finds.
+
+There is a subtle difference between the purposes of the two functions. `utils.get_antenna_redundancies`
+gives you all redundant baselines from the antenna positions, and does not necessarily reflect the baselines
+in a file. This is similar to what is written in the `hera_cal` package.
+Alternatively, `utils.get_baseline_redundancies` may be given the actual
+baseline vectors in a file and it will search for redundancies among those.
 
 The method :meth:`~pyuvdata.UVData.get_redundancies` is provided as a convenience. If
 run with the `use_antpos` option, it will mimic the behavior of `utils.get_antenna_redundancies`.
-Otherwise it will return redundancies in the existing data using `utils.get_baesline_redundancies`.
+Otherwise it will return redundancies in the existing data using `utils.get_baseline_redundancies`.
+If run with `use_antpos` and the `conjugate_bls` option, it will also adjust the data_array and baseline_array
+so that the baselines on the object will match the baseline numbers in the returned list of groups.
 
 ::
 
@@ -1039,7 +1045,8 @@ baselines from the antenna positions and fills in the full data array based on r
 
     # Note -- Compressing and inflating changes the baseline order, reorder before comparing.
     >>> uv0.inflate_by_redundancy(tol=tol)
-    >>> uv_backup.reorder_blts()
+    >>> uv_backup.reorder_blts(conj_convention="u>0", uvw_tol=tol)
+    >>> uv0.reorder_blts()
     >>> np.all(uv0.baseline_array == uv_backup.baseline_array)
     True
 
