@@ -10,7 +10,7 @@ jobs:
       - image: continuumio/miniconda:latest
     environment:
       PYTHON: << parameters.python_version >>
-      ENV_NAME: pyuvdata_linting
+      ENV_NAME: << parameters.env_name >>
     steps:
       - checkout
       - restore_cache:
@@ -36,7 +36,7 @@ jobs:
       - image: continuumio/miniconda:latest
     environment:
       PYTHON: << parameters.python_version >>
-      ENV_NAME: pyuvdata_tests
+      ENV_NAME: << parameters.env_name >>
     steps:
       - checkout
       - restore_cache:
@@ -66,44 +66,6 @@ jobs:
       - codecov/upload:
           file: ./coverage.xml
 
-  pyuvdata_min_deps:
-    parameters:
-      python_version:
-        type: string
-    docker:
-      - image: continuumio/miniconda:latest
-    environment:
-      PYTHON: << parameters.python_version >>
-      ENV_NAME: pyuvdata_min_deps_tests
-    steps:
-      - checkout
-      - restore_cache:
-          key: deps-{{ .Branch }}-{{ checksum "ci/pyuvdata_min_deps_tests.yml" }}
-      - run:
-          name: configure conda environment
-          command: ./ci/install-circle.sh
-      - run:
-          name: install
-          command: |
-            source activate ${ENV_NAME}
-            python setup.py build_ext --force --inplace
-      - run:
-          name: run pyuvdata tests
-          command: |
-            source activate ${ENV_NAME}
-            mkdir test-reports
-            python -m pytest pyuvdata -v --cov=pyuvdata --cov-config=.coveragerc --cov-report xml:./coverage.xml --junitxml=test-reports/xunit.xml
-      - save_cache:
-          key: deps-{{ .Branch }}-{{ checksum "ci/pyuvdata_min_deps_tests.yml" }}
-          paths:
-            - "/opt/conda/envs/${ENV_NAME}/"
-      - store_test_results:
-          path: test-reports
-      - store_artifacts:
-          path: test-reports
-      - codecov/upload:
-          file: ./coverage.xml
-
   doctest:
     parameters:
       python_version:
@@ -112,7 +74,7 @@ jobs:
       - image: continuumio/miniconda:latest
     environment:
       PYTHON: << parameters.python_version >>
-      ENV_NAME: pyuvdata_tests
+      ENV_NAME: << parameters.env_name >>
     steps:
       - checkout
       - restore_cache:
@@ -141,16 +103,23 @@ workflows:
     jobs:
       - linter:
           python_version: "3.6"
+          env_name: "pyuvdata_linting"
       - pyuvdata:
           name: pyuvdata_2.7
           python_version: "2.7"
+          env_name: "pyuvdata_tests"
       - pyuvdata:
           name: pyuvdata_3.6
           python_version: "3.6"
+          env_name: "pyuvdata_tests"
       - pyuvdata:
           name: pyuvdata_3.7
           python_version: "3.7"
-      - pyuvdata_min_deps:
+          env_name: "pyuvdata_tests"
+      - pyuvdata:
+          name: pyuvdata_min_deps
           python_version: "3.6"
+          env_name: "pyuvdata_min_deps_tests"
       - doctest:
           python_version: "3.6"
+          env_name: "pyuvdata_tests"
