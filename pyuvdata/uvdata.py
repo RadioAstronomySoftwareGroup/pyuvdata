@@ -1090,17 +1090,17 @@ class UVData(UVBase):
             elif convention == 'ant2<ant1':
                 index_array = np.asarray(self.ant_2_array > self.ant_1_array).nonzero()
             elif convention == 'u<0':
-                    index_array = np.asarray((uvw_array_use[:, 0] > uvw_tol)
-                                             | (uvw_array_use[:, 1] > uvw_tol) & np.isclose(uvw_array_use[:, 0], 0, atol=uvw_tol)
-                                             | (uvw_array_use[:, 2] > uvw_tol)
-                                             & np.isclose(uvw_array_use[:, 0], 0, atol=uvw_tol)
-                                             & np.isclose(uvw_array_use[:, 1], 0, atol=uvw_tol)).nonzero()
+                index_array = np.asarray((uvw_array_use[:, 0] > uvw_tol)
+                                         | (uvw_array_use[:, 1] > uvw_tol) & np.isclose(uvw_array_use[:, 0], 0, atol=uvw_tol)
+                                         | (uvw_array_use[:, 2] > uvw_tol)
+                                         & np.isclose(uvw_array_use[:, 0], 0, atol=uvw_tol)
+                                         & np.isclose(uvw_array_use[:, 1], 0, atol=uvw_tol)).nonzero()
             elif convention == 'u>0':
                 index_array = np.asarray((uvw_array_use[:, 0] < -uvw_tol)
                                          | ((uvw_array_use[:, 1] < -uvw_tol) & np.isclose(uvw_array_use[:, 0], 0, atol=uvw_tol))
                                          | ((uvw_array_use[:, 2] < -uvw_tol)
-                                            & np.isclose(uvw_array_use[:, 0], 0, atol=uvw_tol)
-                                            & np.isclose(uvw_array_use[:, 1], 0, atol=uvw_tol))).nonzero()
+                                         & np.isclose(uvw_array_use[:, 0], 0, atol=uvw_tol)
+                                         & np.isclose(uvw_array_use[:, 1], 0, atol=uvw_tol))).nonzero()
             elif convention == 'v<0':
                 index_array = np.asarray((uvw_array_use[:, 1] > uvw_tol)
                                          | (uvw_array_use[:, 0] > uvw_tol) & np.isclose(uvw_array_use[:, 1], 0, atol=uvw_tol)
