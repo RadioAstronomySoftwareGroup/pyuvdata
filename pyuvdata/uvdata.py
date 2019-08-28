@@ -4701,7 +4701,10 @@ class UVData(UVBase):
                 self.phase_to_time(phase_time)
 
         # figure out where integration_time is longer than max_int_time
-        inds_to_upsample = np.nonzero(self.integration_time > max_int_time)
+        inds_to_upsample = np.nonzero((self.integration_time > max_int_time)
+                                      & (~np.isclose(self.integration_time, max_int_time,
+                                                     rtol=self._integration_time.tols[0],
+                                                     atol=self._integration_time.tols[1])))
         if len(inds_to_upsample[0]) == 0:
             warnings.warn("All values in the integration_time array are already "
                           "longer than the value specified; doing nothing.")
@@ -4849,8 +4852,12 @@ class UVData(UVBase):
             raise ValueError("value outside of sensible range")
 
         # figure out where integration_time is shorter than min_int_time
-        inds_to_downsample = np.nonzero(self.integration_time < min_int_time)
-        if len(inds_to_downsample) == 0:
+        inds_to_downsample = np.nonzero((self.integration_time < min_int_time)
+                                        & (~np.isclose(self.integration_time, min_int_time,
+                                                       rtol=self._integration_time.tols[0],
+                                                       atol=self._integration_time.tols[1])))
+
+        if len(inds_to_downsample[0]) == 0:
             warnings.warn("All values in the integration_time array are already "
                           "shorter than the value specified; doing nothing.")
             return
@@ -4901,7 +4908,9 @@ class UVData(UVBase):
                 running_int_time += int_time
                 n_sum += 1
                 over_min_int_time = (running_int_time > min_int_time
-                                     or np.isclose(running_int_time, min_int_time))
+                                     or np.isclose(running_int_time, min_int_time,
+                                                   rtol=self._integration_time.tols[0],
+                                                   atol=self._integration_time.tols[1]))
                 last_sample = (itime == len(bl_inds) - 1)
                 # We sum up all the samples found so far if we're over the target minimum
                 # time, or we've hit the end of the time samples for this baseline.
