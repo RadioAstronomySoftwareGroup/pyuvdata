@@ -4859,12 +4859,12 @@ class UVData(UVBase):
         n_new_samples = 0
         for bl in bls_to_downsample:
             bl_inds = np.nonzero(self.baseline_array == bl)[0]
-            if keep_ragged:
-                n_new_samples += np.ceil(np.sum(self.integration_time[bl_inds]
-                                                / min_int_time)).astype(int)
+            n_sample_temp = np.sum(self.integration_time[bl_inds] / min_int_time)
+            if keep_ragged and not np.isclose(n_sample_temp, np.floor(n_sample_temp)):
+                n_new_samples += np.ceil(n_sample_temp).astype(int)
             else:
-                n_new_samples += np.floor(np.sum(self.integration_time[bl_inds]
-                                                 / min_int_time)).astype(int)
+                n_new_samples += np.floor(n_sample_temp).astype(int)
+
         temp_Nblts = n_new_samples
 
         input_phase_type = self.phase_type
