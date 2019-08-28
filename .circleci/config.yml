@@ -6,6 +6,8 @@ jobs:
     parameters:
       python_version:
         type: string
+      env_name:
+        type: string
     docker:
       - image: continuumio/miniconda:latest
     environment:
@@ -31,6 +33,8 @@ jobs:
   pyuvdata:
     parameters:
       python_version:
+        type: string
+      env_name:
         type: string
     docker:
       - image: continuumio/miniconda:latest
@@ -69,6 +73,8 @@ jobs:
   doctest:
     parameters:
       python_version:
+        type: string
+      env_name:
         type: string
     docker:
       - image: continuumio/miniconda:latest
