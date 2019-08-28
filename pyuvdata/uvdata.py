@@ -4431,7 +4431,7 @@ class UVData(UVBase):
         return np.diff(np.sort(list(set(self.time_array))))[0] * 86400
 
     def get_redundancies(self, tol=1.0, use_antpos=False,
-                         include_conjugates=True, include_autos=True
+                         include_conjugates=True, include_autos=True,
                          conjugate_bls=False):
         """
         Get redundant baselines to a given tolerance. This can be used to identify
