@@ -3616,8 +3616,8 @@ def test_redundancy_contract_expand_nblts_not_nbls_times_ntimes():
     # check inflating gets back to the original
     uvtest.checkWarnings(uv2.inflate_by_redundancy, {tol: tol},
                          nwarnings=3, category=[DeprecationWarning, DeprecationWarning, UserWarning],
-                         message=['The default for the `center` keyword']*2\
-                                  + ['Missing some redundant groups. Filling in available data.'])
+                         message=['The default for the `center` keyword'] * 2
+                         + ['Missing some redundant groups. Filling in available data.'])
 
     uv2.history = uv0.history
     # Inflation changes the baseline ordering into the order of the redundant groups.
