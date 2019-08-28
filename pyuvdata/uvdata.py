@@ -4654,22 +4654,28 @@ class UVData(UVBase):
 
         self.check()
 
-    def bda_upsample(self, max_int_time, blt_order="time", minor_order="baseline"):
+    def bda_upsample(self, max_int_time, blt_order="time", minor_order="baseline",
+                     allow_drift=False):
         """
-        Convert to a common (shorter) integration time.
+        Resample to a shorter integration time.
 
         This method will resample a UVData object such that all data samples have
-        a maximum integration time specified by the user.
+        an integration time less than or equal to the `max_int_time`. The new
+        samples are copied from the original samples (not interpolated).
 
         Parameters
         ----------
         max_int_time : float
-            Maximum integration time to upsample the UVData integration_time to
-            in seconds.
+            Maximum integration time to upsample the to in seconds.
         blt_order : str
             Major baseline ordering for output object. Default is "time".
         minor_order : str
             Minor baseline ordering for output object. Default is "baseline".
+        allow_drift : bool
+            Option to allow resampling of drift mode data. If this is False,
+            drift mode data will be phased before resampling and then unphased
+            after resampling. Phasing and unphasing can introduce small errors,
+            but resampling in drift mode may result in unexpected behavior.
 
         Returns
         -------
@@ -4685,9 +4691,14 @@ class UVData(UVBase):
 
         input_phase_type = self.phase_type
         if input_phase_type == "drift":
-            # phase to RA/dec of zenith
-            phase_time = Time(self.time_array[0], format='jd')
-            self.phase_to_time(phase_time)
+            if allow_drift:
+                print('Data are in drift mode and allow_drift is True, so '
+                      'resampling will be done without phasing.')
+            else:
+                # phase to RA/dec of zenith
+                print('Data are in drift mode, phasing before resampling.')
+                phase_time = Time(self.time_array[0], format='jd')
+                self.phase_to_time(phase_time)
 
         # figure out where integration_time is longer than max_int_time
         inds_to_upsample = np.nonzero(self.integration_time > max_int_time)
@@ -4778,8 +4789,8 @@ class UVData(UVBase):
         uv_temp.set_uvws_from_antenna_positions(allow_phasing=True)
         self.uvw_array = uv_temp.uvw_array
 
-        if input_phase_type == "drift":
-            # unphase back to drift
+        if input_phase_type == "drift" and not allow_drift:
+            print('Unphasing back to drift mode.')
             self.unphase_to_drift()
 
         # reorganize along blt axis
@@ -4791,16 +4802,17 @@ class UVData(UVBase):
         return
 
     def bda_downsample(self, min_int_time, blt_order="time", minor_order="baseline",
-                       keep_ragged=True):
+                       keep_ragged=True, allow_drift=False):
         """
-        Convert to a common (longer) integration time.
+        Resample to a longer integration time.
 
-        This method will resample a UVData object such that all data samples have
-        a minimum integration time specified by the user. Note that if a baseline
-        do not divide evenly into the specified minimum integration time given the
-        existing integration time, the samples in the output may have a different
-        integration time. This behavior can be controlled with the `keep_ragged`
-        argument.
+        This method will resample a UVData object such that nearly all data
+        samples have an integration time greater than or equal to the `min_int_time`.
+        Note that if the integrations for a baseline do not divide evenly into
+        the specified `min_int_time`, the final integrations for that baseline
+        in the output may have integration times less than `min_int_time`.
+        This behavior can be controlled with the `keep_ragged` argument. The new
+        samples are averages of the original samples (not interpolations).
 
         Parameters
         ----------
@@ -4816,6 +4828,11 @@ class UVData(UVBase):
             keep_ragged controls whether to keep the (summed) integrations
             corresponding to the remaining samples (keep_ragged=True), or
             discard them (keep_ragged=False).
+        allow_drift : bool
+            Option to allow resampling of drift mode data. If this is False,
+            drift mode data will be phased before resampling and then unphased
+            after resampling. Phasing and unphasing can introduce small errors,
+            but resampling in drift mode may result in unexpected behavior.
 
         Returns
         -------
@@ -4852,9 +4869,14 @@ class UVData(UVBase):
 
         input_phase_type = self.phase_type
         if input_phase_type == "drift":
-            # phase to RA/dec of zenith
-            phase_time = Time(self.time_array[0], format='jd')
-            self.phase_to_time(phase_time)
+            if allow_drift:
+                print('Data are in drift mode and allow_drift is True, so '
+                      'resampling will be done without phasing.')
+            else:
+                # phase to RA/dec of zenith
+                print('Data are in drift mode, phasing before resampling.')
+                phase_time = Time(self.time_array[0], format='jd')
+                self.phase_to_time(phase_time)
 
         # make temporary arrays
         temp_baseline = np.zeros((temp_Nblts,), dtype=np.int)
@@ -4968,7 +4990,7 @@ class UVData(UVBase):
         self.uvw_array = uv_temp.uvw_array
 
         if input_phase_type == "drift":
-            # unphase back to drift
+            print('Unphasing back to drift mode.')
             self.unphase_to_drift()
 
         # reorganize along blt axis
