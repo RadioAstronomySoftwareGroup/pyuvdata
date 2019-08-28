@@ -3939,7 +3939,7 @@ def test_bda_upsample():
     assert uv_object.data_array.size == 2 * init_data_size
     # output data should be different by a factor of 2
     out_wf = uv_object.get_data(0, 1)
-    assert np.isclose(init_wf[0, 0, 0], out_wf[0, 0, 0] * 2.0)
+    assert np.isclose(init_wf[0, 0, 0], out_wf[0, 0, 0])
 
     # this should be true because there are no flags
     out_ns = uv_object.get_nsamples(0, 1)
@@ -3951,7 +3951,7 @@ def test_bda_upsample():
 
     # data and nsamples should be changed as normal, but flagged
     out_wf = uv_object_copy.get_data(0, 1)
-    assert np.isclose(init_wf[0, 0, 0], out_wf[0, 0, 0] * 2.0)
+    assert np.isclose(init_wf[0, 0, 0], out_wf[0, 0, 0])
     out_flags = uv_object_copy.get_flags(0, 1)
     assert np.all(out_flags[:2, 0, 0])
     out_ns = uv_object.get_nsamples(0, 1)
@@ -3973,6 +3973,7 @@ def test_bda_downsample():
 
     # make a copy for later
     uv_object_copy = uv_object.copy()
+    uv_object_copy2 = uv_object.copy()
 
     # save some values for later
     init_data_size = uv_object.data_array.size
@@ -3993,25 +3994,44 @@ def test_bda_downsample():
                                 np.isclose(uv_object.integration_time, min_integration_time)))
     # output data should be different by a factor of 2
     out_wf = uv_object.get_data(0, 1)
-    assert np.isclose(init_wf[0, 0, 0] + init_wf[1, 0, 0], out_wf[0, 0, 0])
+    assert np.isclose((init_wf[0, 0, 0] + init_wf[1, 0, 0]) / 2., out_wf[0, 0, 0])
 
     # this should be true because there are no flags
     out_ns = uv_object.get_nsamples(0, 1)
     assert np.isclose((init_ns[0, 0, 0] + init_ns[1, 0, 0]) / 2., out_ns[0, 0, 0])
 
-    # add flags and try again
+    # add flags and try again. With one of the 2 inputs flagged, the data should
+    # just be the unflagged value and nsample should be half the unflagged one
+    # and the output should not be flagged.
     uv_object_copy.flag_array[0, 0, 0, 0] = True
     uv_object_copy.bda_downsample(min_integration_time, blt_order="baseline",
                                   minor_order="time")
     out_wf = uv_object_copy.get_data(0, 1)
     assert np.isclose(init_wf[1, 0, 0], out_wf[0, 0, 0])
 
-    # make sure nsamlpes is correct
+    # make sure nsamples is correct
     out_ns = uv_object_copy.get_nsamples(0, 1)
     assert np.isclose((init_ns[1, 0, 0]) / 2., out_ns[0, 0, 0])
 
     # check that there are still no flags
     assert np.nonzero(uv_object_copy.flag_array is True)[0].size == 0
+
+    # add more flags and try again. When all the input points are flagged,
+    # data and nsample should have the same results as no flags but the output
+    # should be flagged
+    uv_object_copy2.flag_array[:2, 0, 0, 0] = True
+    uv_object_copy2.bda_downsample(min_integration_time, blt_order="baseline",
+                                   minor_order="time")
+    out_wf = uv_object_copy2.get_data(0, 1)
+    assert np.isclose((init_wf[0, 0, 0] + init_wf[1, 0, 0]) / 2., out_wf[0, 0, 0])
+
+    # make sure nsamples is correct
+    out_ns = uv_object_copy2.get_nsamples(0, 1)
+    assert np.isclose((init_ns[0, 0, 0] + init_ns[1, 0, 0]) / 2., out_ns[0, 0, 0])
+
+    # check that the new sample is flagged
+    out_flag = uv_object_copy2.get_flags(0, 1)
+    assert out_flag[0, 0, 0]
 
     return
 
