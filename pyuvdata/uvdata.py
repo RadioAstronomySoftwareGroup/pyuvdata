@@ -4740,20 +4740,13 @@ class UVData(UVBase):
             # compute the new times of the upsampled array
             t0 = self.time_array[ind]
             dt = self.integration_time[ind] / n_new_samples[i]
-            if n_new_samples[i] % 2 == 0:
-                # even number of new samples
-                n2 = n_new_samples[i] // 2
-                for ii, idx in enumerate(range(i0, i1)):
-                    idx2 = ii + 0.5 + n2 - n_new_samples[i]
-                    nt = ((t0 * units.day) + (dt * idx2 * units.s)).to(units.day).value
-                    temp_time[idx] = nt
-            else:
-                # odd number of new samples
-                n2 = n_new_samples[i] // 2
-                for ii, idx in enumerate(range(i0, i1)):
-                    idx2 = ii + 1 + n2 - n_new_samples[i]
-                    nt = ((t0 * units.day) + (dt * idx2 * units.s)).to(units.day).value
-                    temp_time[idx] = nt
+
+            offset = .5 + .5 * (n_new_samples[i] % 2)
+            n2 = n_new_samples[i] // 2
+            for ii, idx in enumerate(range(i0, i1)):
+                idx2 = ii + offset + n2 - n_new_samples[i]
+                nt = ((t0 * units.day) + (dt * idx2 * units.s)).to(units.day).value
+                temp_time[idx] = nt
 
             temp_int_time[i0:i1] = dt
 
