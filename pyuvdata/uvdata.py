@@ -4706,8 +4706,15 @@ class UVData(UVBase):
             warnings.warn("All values in the integration_time array are already "
                           "longer than the value specified; doing nothing.")
             return
-        n_new_samples = np.asarray(list(map(int, np.round(
-            self.integration_time[inds_to_upsample] / max_int_time))))
+
+        # we want the ceil of this, but we don't want to get the wrong answer
+        # when the number is very close to an integer but just barely above it.
+        temp_new_samples = self.integration_time[inds_to_upsample] / max_int_time
+        mask_close_floor = np.isclose(temp_new_samples, np.floor(temp_new_samples))
+        temp_new_samples[mask_close_floor] = np.floor(temp_new_samples[mask_close_floor])
+
+        n_new_samples = np.asarray(list(map(int, np.ceil(temp_new_samples))))
+
         temp_Nblts = np.sum(n_new_samples)
 
         temp_baseline = np.zeros((temp_Nblts,), dtype=np.int)
