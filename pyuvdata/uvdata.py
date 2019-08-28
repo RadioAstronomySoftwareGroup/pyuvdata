@@ -4865,7 +4865,7 @@ class UVData(UVBase):
             else:
                 n_new_samples += np.floor(np.sum(self.integration_time[bl_inds]
                                                  / min_int_time)).astype(int)
-        temp_Nblts = np.sum(n_new_samples)
+        temp_Nblts = n_new_samples
 
         input_phase_type = self.phase_type
         if input_phase_type == "drift":
@@ -4891,7 +4891,6 @@ class UVData(UVBase):
             temp_nsample = np.zeros((temp_Nblts, self.Nspws, self.Nfreqs, self.Npols),
                                     dtype=self.nsample_array.dtype)
 
-        bls_to_downsample = np.unique(self.baseline_array[inds_to_downsample])
         temp_idx = 0
         for bl in bls_to_downsample:
             bl_inds = np.nonzero(self.baseline_array == bl)[0]
