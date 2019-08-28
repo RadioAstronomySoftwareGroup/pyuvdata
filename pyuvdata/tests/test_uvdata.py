@@ -4091,3 +4091,15 @@ def test_bda_upsample_downsample():
     uv_object.bda_downsample(np.amin(uv_object2.integration_time), blt_order="baseline")
 
     assert uv_object == uv_object2
+
+    # try again with a resampling factor of 3 (test odd numbers)
+    uv_object = uv_object2.copy()
+
+    max_integration_time = np.amin(uv_object.integration_time) / 3.0
+    uv_object.bda_upsample(max_integration_time, blt_order="baseline")
+    assert np.amax(uv_object.integration_time) <= max_integration_time
+    new_Nblts = uv_object.Nblts
+
+    uv_object.bda_downsample(np.amin(uv_object2.integration_time), blt_order="baseline")
+
+    assert uv_object == uv_object2
