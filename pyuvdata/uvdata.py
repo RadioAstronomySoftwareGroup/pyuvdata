@@ -4715,7 +4715,7 @@ class UVData(UVBase):
             i1 = i0 + n_new_samples[i]
             temp_baseline[i0:i1] = self.baseline_array[ind]
             if not self.metadata_only:
-                temp_data[i0:i1] = self.data_array[ind] / n_new_samples[i]
+                temp_data[i0:i1] = self.data_array[ind]
                 temp_flag[i0:i1] = self.flag_array[ind]
                 temp_nsample[i0:i1] = self.nsample_array[ind]
 
@@ -4895,15 +4895,28 @@ class UVData(UVBase):
                     temp_time[temp_idx] = np.average(self.time_array[averaging_idx])
                     temp_int_time[temp_idx] = running_int_time
                     if not self.metadata_only:
-                        # fill in data stuff here
+                        # if all inputs are flagged, the flag array should be True,
+                        # otherwise it should be False.
+                        # The sum below will be zero if it's all flagged and
+                        # greater than zero otherwise
+                        # Then we use a test against 0 to turn it into a Boolean
+                        temp_flag[temp_idx] = np.sum(~self.flag_array[averaging_idx], axis=0) == 0
+
+                        mask = self.flag_array[averaging_idx]
+                        # need to update mask if a downsampled visibility will be flagged
+                        # so that we don't set it to zero
+                        if (temp_flag[temp_idx]).any():
+                            ax1_inds, ax2_inds, ax3_inds = np.nonzero(temp_flag[temp_idx])
+                            for ii in range(ax1_inds.size):
+                                mask[:, ax1_inds[ii], ax2_inds[ii], ax3_inds[ii]] = False
+
                         masked_data = np.ma.masked_array(self.data_array[averaging_idx],
-                                                         mask=self.flag_array[averaging_idx])
-                        temp_data[temp_idx] = np.sum(masked_data, axis=0)
-                        temp_flag[temp_idx] = np.sum(self.flag_array[averaging_idx], axis=0)
+                                                         mask=mask)
+                        temp_data[temp_idx] = np.mean(masked_data, axis=0)
                         # nsample array is the fraction of data that we actually kept,
                         # relative to the amount that went into the sum
                         masked_nsample = np.ma.masked_array(self.nsample_array[averaging_idx],
-                                                            mask=self.flag_array[averaging_idx])
+                                                            mask=mask)
                         temp_nsample[temp_idx] = (np.sum(masked_nsample, axis=0)
                                                   / float(self.flag_array[averaging_idx].shape[0]))
                     # increment counters and reset values
