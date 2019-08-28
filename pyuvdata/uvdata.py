@@ -4571,7 +4571,7 @@ class UVData(UVBase):
         """
 
         self.conjugate_bls(convention='u>0')
-        red_gps, centers, lengths, _, = self.get_redundancies(tol=tol, use_antpos=True)
+        red_gps, centers, lengths = self.get_redundancies(tol=tol, use_antpos=True, conjugate_bls=True)
 
         # Stack redundant groups into one array.
         group_index, bl_array_full = zip(*[(i, bl) for i, gp in enumerate(red_gps) for bl in gp])

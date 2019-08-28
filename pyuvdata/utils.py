@@ -1073,6 +1073,14 @@ def antnums_to_baseline(ant1, ant2, Nants_telescope, attempt256=False):
         return np.int64(baseline)
 
 
+def baseline_index_flip(baseline, Nants_telescope):
+    """
+    Change baseline number to reverse antenna order.
+    """
+    ant1, ant2 = baseline_to_antnums(baseline, Nants_telescope)
+    return antnums_to_baseline(ant2, ant1, Nants_telescope)
+
+
 def get_baseline_redundancies(baselines, baseline_vecs, tol=1.0, with_conjugates=False):
     """
     Find redundant baseline groups
@@ -1109,14 +1117,14 @@ def get_baseline_redundancies(baselines, baseline_vecs, tol=1.0, with_conjugates
 
     if with_conjugates:
         conjugates = []
-        for bl in baseline_vecs:
-            if bl[0] == 0:
-                if bl[1] == 0:
-                    conjugates.append(bl[2] < 0)
-                else:
-                    conjugates.append(bl[1] < 0)
-            else:
-                conjugates.append(bl[0] < 0)
+        for bv in baseline_vecs:
+            uneg = bv[0] < -tol
+            uzer = np.isclose(bv[0], 0.0, atol=tol)
+            vneg = bv[1] < -tol
+            vzer = np.isclose(bv[1], 0.0, atol=tol)
+            wneg = bv[2] < -tol
+            conjugates.append(uneg or (uzer and vneg) or (uzer and vzer and wneg))
+
         conjugates = np.array(conjugates, dtype=bool)
         baseline_vecs[conjugates] *= (-1)
         baseline_ind_conj = baselines[conjugates]
@@ -1175,8 +1183,6 @@ def get_antenna_redundancies(antenna_numbers, antenna_positions, tol=1.0, includ
     """
     Find redundant baseline groups based on antenna positions.
 
-    Include all possible redundant baselines based on antenna positions.
-
     Parameters
     ----------
     antenna_numbers : array_like of int
@@ -1196,8 +1202,24 @@ def get_antenna_redundancies(antenna_numbers, antenna_positions, tol=1.0, includ
         List of vectors describing redundant group centers
     lengths : list of float
         List of redundant group baseline lengths in meters
+
+    Notes
+    -----
+
+    The baseline numbers refer to antenna pairs (a1, a2) such that
+    the baseline vector formed from ENU antenna positions,
+        blvec = enu[a1] - enu[a2]
+    is close to the other baselines in the group.
+
+    This is achieved by putting baselines in a form of the u>0
+    convention, but with a tolerance in defining the signs of
+    vector components.
+
+    To guarantee that the same baseline numbers are present in a UVData
+    object, ``UVData.conjugate_bls('u>0', uvw_tol=tol)``, where `tol` is
+    the tolerance used here.
     """
-    Nants = antenna_numbers.shape[0]
+    Nants = antenna_numbers.size
 
     bls = []
     bl_vecs = []
@@ -1208,18 +1230,20 @@ def get_antenna_redundancies(antenna_numbers, antenna_positions, tol=1.0, includ
             mini = aj
         for ai in range(mini, Nants):
             anti, antj = antenna_numbers[ai], antenna_numbers[aj]
-            bidx = antnums_to_baseline(anti, antj, Nants)
-            bv = antenna_positions[aj] - antenna_positions[ai]
-            # Enforce u-positive orientation
-            if (bv[0] < 0 or ((bv[0] == 0) and bv[1] < 0)
-                    or ((bv[0] == 0) and (bv[1] == 0) and bv[2] < 0)):
-                bv *= (-1)
-                bidx = antnums_to_baseline(antj, anti, Nants)
+            bidx = antnums_to_baseline(antj, anti, Nants)
+            bv = antenna_positions[ai] - antenna_positions[aj]
             bl_vecs.append(bv)
             bls.append(bidx)
     bls = np.array(bls)
     bl_vecs = np.array(bl_vecs)
-    return get_baseline_redundancies(bls, bl_vecs, tol=tol, with_conjugates=False)
+    gps, vecs, lens, conjs = get_baseline_redundancies(bls, bl_vecs, tol=tol, with_conjugates=True)
+    # Flip the baselines in the groups.
+    for gi, gp in enumerate(gps):
+        for bi, bl in enumerate(gp):
+            if bl in conjs:
+                gps[gi][bi] = baseline_index_flip(bl, Nants)
+
+    return gps, vecs, lens
 
 
 def _reraise_context(fmt, *args):
