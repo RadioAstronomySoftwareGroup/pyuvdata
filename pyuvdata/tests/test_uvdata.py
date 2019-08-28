@@ -3499,21 +3499,23 @@ def test_deprecated_redundancy_funcs():
                                                           category=DeprecationWarning,
                                                           message='UVData.get_baseline_redundancies has been replaced')
 
-    red_gps_new, _, _, _ = uv0.get_redundancies(include_autos=False, use_antpos=True)
+    red_gps_new, _, _, = uv0.get_redundancies(include_autos=False, use_antpos=True)
     assert red_gps_new == redant_gps
 
 
 def test_get_antenna_redundancies():
     uv0 = UVData()
     uv0.read_uvfits(os.path.join(DATA_PATH, 'fewant_randsrc_airybeam_Nsrc100_10MHz.uvfits'))
-    uv0.conjugate_bls('u>0')
-    red_gps, centers, lengths, _ = uv0.get_redundancies(use_antpos=True, include_autos=False)
+
+    old_bl_array = np.copy(uv0.baseline_array)
+    red_gps, centers, lengths = uv0.get_redundancies(use_antpos=True, include_autos=False, conjugate_bls=True)
+    # new and old baseline Numbers are not the same (different conjugation)
+    assert not np.allclose(uv0.baseline_array, old_bl_array)
 
     # assert all baselines are in the data (because it's conjugated to match)
     for i, gp in enumerate(red_gps):
         for bl in gp:
             assert bl in uv0.baseline_array
-    old_bl_array = np.copy(uv0.baseline_array)
 
     # conjugate data differently
     uv0.conjugate_bls(convention='ant1<ant2')
@@ -3523,8 +3525,9 @@ def test_get_antenna_redundancies():
 
     assert conjs is None
 
-    # new and old baseline Numbers are not the same (different conjugation)
-    assert not np.allclose(uv0.baseline_array, old_bl_array)
+    apos, anums = uv0.get_ENU_antpos()
+    new_red_gps, new_centers, new_lengths = uvutils.get_antenna_redundancies(
+        anums, apos, include_autos=False)
 
     # all redundancy info is the same
     assert red_gps == new_red_gps
@@ -3539,11 +3542,10 @@ def test_redundancy_contract_expand():
     uv0 = UVData()
     uv0.read_uvfits(os.path.join(DATA_PATH, 'fewant_randsrc_airybeam_Nsrc100_10MHz.uvfits'))
 
-    tol = 0.02   # Fails at lower precision because some baselines falling into multiple redundant groups
+    tol = 0.02   # Fails at lower precision because some baselines fall into multiple redundant groups
 
     # Assign identical data to each redundant group:
-    uv0.conjugate_bls('u>0')
-    red_gps, centers, lengths, _ = uv0.get_redundancies(tol=tol, use_antpos=True)
+    red_gps, centers, lengths = uv0.get_redundancies(tol=tol, use_antpos=True, conjugate_bls=True)
     for i, gp in enumerate(red_gps):
         for bl in gp:
             inds = np.where(bl == uv0.baseline_array)
@@ -3561,31 +3563,31 @@ def test_redundancy_contract_expand():
     uvtest.checkWarnings(
         uv2.inflate_by_redundancy,
         [tol],
-        nwarnings=2,
-        category=[DeprecationWarning, UserWarning],
-        message=['The default for the `center` keyword has changed.',
+        nwarnings=3,
+        category=[DeprecationWarning, DeprecationWarning, UserWarning],
+        message=['The default for the `center` keyword', 'The default for the `center` keyword',
                  'Missing some redundant groups. Filling in available data.']
     )
     uv2.history = uv0.history
     # Inflation changes the baseline ordering into the order of the redundant groups.
     # reorder bls for comparison
-    uv0.reorder_blts()
-    uv2.reorder_blts()
+    uv0.reorder_blts(conj_convention='u>0')
+    uv2.reorder_blts(conj_convention='u>0')
     uv2._uvw_array.tols = [0, tol]
-
     assert uv2 == uv0
 
     uv3 = uv2.compress_by_redundancy(tol=tol, inplace=False)
     uvtest.checkWarnings(
         uv3.inflate_by_redundancy,
         [tol],
-        nwarnings=2,
-        category=[DeprecationWarning, UserWarning],
-        message=['The default for the `center` keyword has changed.',
+        nwarnings=3,
+        category=[DeprecationWarning, DeprecationWarning, UserWarning],
+        message=['The default for the `center` keyword', 'The default for the `center` keyword',
                  'Missing some redundant groups. Filling in available data.']
     )
     # Confirm that we get the same result looping inflate -> compress -> inflate.
-    uv3.reorder_blts()
+    uv3.reorder_blts(conj_convention='u>0')
+    uv2.reorder_blts(conj_convention='u>0')
 
     uv2.history = uv3.history
     assert uv2 == uv3
@@ -3602,8 +3604,7 @@ def test_redundancy_contract_expand_nblts_not_nbls_times_ntimes():
     tol = 1.0
 
     # Assign identical data to each redundant group:
-    uv0.conjugate_bls('u>0')
-    red_gps, centers, lengths, _ = uv0.get_redundancies(tol=tol, use_antpos=True)
+    red_gps, centers, lengths = uv0.get_redundancies(tol=tol, use_antpos=True, conjugate_bls=True)
     for i, gp in enumerate(red_gps):
         for bl in gp:
             inds = np.where(bl == uv0.baseline_array)
@@ -3614,9 +3615,9 @@ def test_redundancy_contract_expand_nblts_not_nbls_times_ntimes():
 
     # check inflating gets back to the original
     uvtest.checkWarnings(uv2.inflate_by_redundancy, {tol: tol},
-                         nwarnings=2, category=[DeprecationWarning, UserWarning],
-                         message=['The default for the `center` keyword has changed.',
-                                  'Missing some redundant groups. Filling in available data.'])
+                         nwarnings=3, category=[DeprecationWarning, DeprecationWarning, UserWarning],
+                         message=['The default for the `center` keyword']*2\
+                                  + ['Missing some redundant groups. Filling in available data.'])
 
     uv2.history = uv0.history
     # Inflation changes the baseline ordering into the order of the redundant groups.
@@ -3652,8 +3653,7 @@ def test_compress_redundancy_metadata_only():
     tol = 0.01
 
     # Assign identical data to each redundant group:
-    uv0.conjugate_bls('u>0')
-    red_gps, centers, lengths, _ = uv0.get_redundancies(tol=tol, use_antpos=True)
+    red_gps, centers, lengths = uv0.get_redundancies(tol=tol, use_antpos=True, conjugate_bls=True)
     for i, gp in enumerate(red_gps):
         for bl in gp:
             inds = np.where(bl == uv0.baseline_array)
@@ -3709,9 +3709,9 @@ def test_redundancy_missing_groups():
     uvtest.checkWarnings(
         uv1.inflate_by_redundancy,
         [tol],
-        nwarnings=2,
-        category=[DeprecationWarning, UserWarning],
-        message=['The default for the `center` keyword has changed.',
+        nwarnings=3,
+        category=[DeprecationWarning, DeprecationWarning, UserWarning],
+        message=['The default for the `center` keyword', 'The default for the `center` keyword',
                  'Missing some redundant groups. Filling in available data.']
     )
 
@@ -3754,7 +3754,7 @@ def test_quick_redundant_vs_redundant_test_array():
     groups = [[bl for bl in grp if bl != -1] for grp in groups]
     groups.sort(key=len)
 
-    redundant_groups, centers, lengths, conj_inds = uv.get_redundancies(tol=tol)
+    redundant_groups, centers, lengths, conj_inds = uv.get_redundancies(tol=tol, include_conjugates=True)
     redundant_groups.sort(key=len)
     assert groups == redundant_groups
 
@@ -3795,7 +3795,7 @@ def test_redundancy_finder_when_nblts_not_nbls_times_ntimes():
     groups = [[bl for bl in grp if bl != -1] for grp in groups]
     groups.sort(key=len)
 
-    redundant_groups, centers, lengths, conj_inds = uv.get_redundancies(tol=tol)
+    redundant_groups, centers, lengths, conj_inds = uv.get_redundancies(tol=tol, include_conjugates=True)
     redundant_groups.sort(key=len)
     assert groups == redundant_groups
 
