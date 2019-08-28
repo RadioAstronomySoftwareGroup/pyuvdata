@@ -1033,7 +1033,7 @@ class UVData(UVBase):
             self.phase(phase_center_ra, phase_center_dec, phase_center_epoch,
                        phase_frame=output_phase_frame)
 
-    def conjugate_bls(self, convention='ant1<ant2', use_enu=True):
+    def conjugate_bls(self, convention='ant1<ant2', use_enu=True, uvw_tol=0.0):
         """
         Conjugate baselines according to one of the supported conventions.
 
@@ -4431,7 +4431,7 @@ class UVData(UVBase):
         return np.diff(np.sort(list(set(self.time_array))))[0] * 86400
 
     def get_redundancies(self, tol=1.0, use_antpos=False,
-                         include_conjugates=True, include_autos=True,
+                         include_conjugates=False, include_autos=True,
                          conjugate_bls=False):
         """
         Get redundant baselines to a given tolerance. This can be used to identify
@@ -4504,7 +4504,7 @@ class UVData(UVBase):
                       "and will be removed in version 1.6.",
                       DeprecationWarning)
         kwargs['use_antpos'] = True
-        red_gps, blvecs, lens, conjs = self.get_redundancies(*args, **kwargs)
+        red_gps, blvecs, lens = self.get_redundancies(*args, **kwargs)
         return red_gps, blvecs, lens
 
     def get_baseline_redundancies(self, *args, **kwargs):
@@ -4547,7 +4547,7 @@ class UVData(UVBase):
             if inplace is False, return the compressed UVData object
         """
 
-        red_gps, centers, lengths, conjugates = self.get_redundancies(tol)
+        red_gps, centers, lengths, conjugates = self.get_redundancies(tol, include_conjugates=True)
 
         bl_ants = [self.baseline_to_antnums(gp[0]) for gp in red_gps]
         return self.select(bls=bl_ants, inplace=inplace, metadata_only=metadata_only,
