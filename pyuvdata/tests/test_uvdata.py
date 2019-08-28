@@ -3911,14 +3911,35 @@ def test_lsts_from_time_with_only_unique():
     assert np.array_equal(full_lsts, uv.lst_array)
 
 
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+def test_copy():
+    """Test the copy method"""
+    uv_object = UVData()
+    testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    uv_object.read_uvfits(testfile)
+
+    uv_object_copy = uv_object.copy()
+    assert uv_object_copy == uv_object
+
+    uv_object_copy = uv_object.copy(metadata_only=True)
+    assert uv_object_copy.metadata_only
+
+    for name in uv_object._data_params:
+        setattr(uv_object, name, None)
+    assert uv_object_copy == uv_object
+
+    uv_object_copy = uv_object.copy()
+    assert uv_object_copy == uv_object
+
+
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
 @pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 def test_bda_upsample():
     """Test the bda_upsample method"""
     uv_object = UVData()
     testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-    uvtest.checkWarnings(uv_object.read_uvfits, [testfile],
-                         message='Telescope EVLA is not')
+    uv_object.read_uvfits(testfile)
     # reorder to make sure we get the right value later
     uv_object.reorder_blts(order="baseline")
     uv_object_copy = uv_object.copy()
@@ -3962,12 +3983,12 @@ def test_bda_upsample():
 
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
 @pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 def test_bda_downsample():
     """Test the bda downsample method"""
     uv_object = UVData()
     testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-    uvtest.checkWarnings(uv_object.read_uvfits, [testfile],
-                         message='Telescope EVLA is not')
+    uv_object.read_uvfits(testfile)
     # reorder to make sure we get the right value later
     uv_object.reorder_blts(order="baseline", minor_order="time")
 
@@ -4039,12 +4060,12 @@ def test_bda_downsample():
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
 @pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
 @pytest.mark.filterwarnings("ignore:Data will be unphased and rephased")
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 def test_bda_upsample_downsample():
     """Test round trip works"""
     uv_object = UVData()
     testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-    uvtest.checkWarnings(uv_object.read_uvfits, [testfile],
-                         message='Telescope EVLA is not')
+    uv_object.read_uvfits(testfile)
 
     # set uvws from antenna positions so they'll agree later.
     # the fact that this is required is a bit concerning, it means that
