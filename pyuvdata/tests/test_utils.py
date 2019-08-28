@@ -475,14 +475,13 @@ def test_redundancy_finder():
     uvd.read_uvfits(os.path.join(DATA_PATH, 'fewant_randsrc_airybeam_Nsrc100_10MHz.uvfits'))
 
     uvd.select(times=uvd.time_array[0])
-    uvd.unphase_to_drift()   # uvw_array is now equivalent to baseline positions
-    uvtest.checkWarnings(uvd.conjugate_bls, func_kwargs={'convention': 'u>0', 'use_enu': True},
-                         message=['The default for the `center`'],
-                         nwarnings=1, category=DeprecationWarning)
+    uvd.unphase_to_drift(use_ant_pos=True)   # uvw_array is now equivalent to baseline positions
+    uvd.conjugate_bls(convention='ant1<ant2', use_enu=True)
 
     tol = 0.05  # meters
 
     bl_positions = uvd.uvw_array
+    bl_pos_backup = copy.deepcopy(uvd.uvw_array)
 
     pytest.raises(ValueError, uvutils.get_baseline_redundancies,
                   uvd.baseline_array, bl_positions[0:2, 0:1])
@@ -545,31 +544,24 @@ def test_redundancy_finder():
     assert len(baseline_groups_ants) == 19
 
     # Check with conjugated baseline redundancies returned
-    u16_0 = bl_positions[16, 0]
     # Ensure at least one baseline has u==0 and v!=0 (for coverage of this case)
     bl_positions[16, 0] = 0
     baseline_groups, vec_bin_centers, lens, conjugates = uvutils.get_baseline_redundancies(
         uvd.baseline_array, bl_positions, tol=tol, with_conjugates=True)
 
     # restore baseline (16,0) and repeat to get correct groups
-    bl_positions[16, 0] = u16_0
+    bl_positions = bl_pos_backup
     baseline_groups, vec_bin_centers, lens, conjugates = uvutils.get_baseline_redundancies(
         uvd.baseline_array, bl_positions, tol=tol, with_conjugates=True)
 
-    # Should get the same groups as with the antenna method:
-    baseline_groups_flipped = []
-    for bgp in baseline_groups:
-        bgp_new = []
-        for bl in bgp:
-            ai, aj = uvutils.baseline_to_antnums(bl, uvd.Nants_telescope)
+    # Apply flips to compare with get_antenna_redundancies().
+    bl_gps_unconj = copy.deepcopy(baseline_groups)
+    for gi, gp in enumerate(bl_gps_unconj):
+        for bi, bl in enumerate(gp):
             if bl in conjugates:
-                bgp_new.append(uvutils.antnums_to_baseline(aj, ai, uvd.Nants_telescope))
-            else:
-                bgp_new.append(uvutils.antnums_to_baseline(ai, aj, uvd.Nants_telescope))
-        bgp_new.sort()
-        baseline_groups_flipped.append(bgp_new)
-    baseline_groups = [sorted(bgp) for bgp in baseline_groups]
-    assert np.all(sorted(baseline_groups_ants) == sorted(baseline_groups_flipped))
+                bl_gps_unconj[gi][bi] = uvutils.baseline_index_flip(bl, len(antnums))
+    bl_gps_unconj = [sorted(bgp) for bgp in bl_gps_unconj]
+    assert np.all(sorted(baseline_groups_ants) == sorted(bl_gps_unconj))
     for gi, gp in enumerate(baseline_groups):
         for bl in gp:
             bl_ind = np.where(uvd.baseline_array == bl)
@@ -597,7 +589,12 @@ def test_redundancy_conjugates():
 
     expected_conjugates = []
     for i, (u, v, w) in enumerate(bl_vecs):
-        if (u < 0) or (v < 0 and u == 0) or (w < 0 and u == v == 0):
+        uneg = u < -tol
+        uzer = np.isclose(u, 0.0, atol=tol)
+        vneg = v < -tol
+        vzer = np.isclose(v, 0.0, atol=tol)
+        wneg = w < -tol
+        if uneg or (uzer and vneg) or (uzer and vzer and wneg):
             expected_conjugates.append(bl_inds[i])
     bl_gps, vecs, lens, conjugates = uvutils.get_baseline_redundancies(
         bl_inds, bl_vecs, tol=tol, with_conjugates=True)
@@ -999,3 +996,27 @@ def test_uvcalibrate_flag_propagation():
     assert not uvdcal.get_flags(20, 72, 'xx').max()  # assert no flags exist
     uvdcal = uvutils.uvcalibrate(uvd, uvc_sub, prop_flags=True, flag_missing=True, inplace=False)
     assert uvdcal.get_flags(20, 72, 'xx').min()  # assert completely flagged
+
+
+def test_upos_tol_reds():
+    # Checks that the u-positive convention in get_antenna_redundancies
+    # is enforced to the specificed tolerance.
+
+    # Make a layout with two NS baselines, one with u ~ -2*eps, and another with u == 0
+    # This would previously cause one to be flipped, when they should be redundant.
+
+    eps = 1e-5
+    tol = 3 * eps
+
+    ant_pos = np.array([
+        [-eps, 1., 0.],
+        [1., 1., 0.],
+        [eps, 0., 0.],
+        [1., 0., 0.]
+    ])
+
+    ant_nums = np.arange(4)
+
+    red_grps, _, _ = uvutils.get_antenna_redundancies(ant_nums, ant_pos, tol=tol)
+
+    assert len(red_grps) == 4
