@@ -4104,16 +4104,43 @@ def test_bda_upsample_downsample():
     # gives warning and does nothing
     uvtest.checkWarnings(uv_object.bda_upsample, func_args=[max_integration_time],
                          func_kwargs={'blt_order': "baseline"},
-                         message='All values in the integration_time array are already longer')
+                         message='All values in the integration_time array are '
+                         'already longer')
+    assert uv_object.Nblts == new_Nblts
+
+    # check that calling upsample again with the almost the same max_integration_time
+    # gives warning and does nothing
+    small_number = 0.9 * uv_object._integration_time.tols[1]
+    uvtest.checkWarnings(uv_object.bda_upsample,
+                         func_args=[max_integration_time - small_number],
+                         func_kwargs={'blt_order': "baseline"},
+                         message='All values in the integration_time array are '
+                         'already longer')
     assert uv_object.Nblts == new_Nblts
 
     uv_object.bda_downsample(np.amin(uv_object2.integration_time), blt_order="baseline")
 
     assert uv_object == uv_object2
 
-    # try again with a resampling factor of 3 (test odd numbers)
-    uv_object = uv_object2.copy()
+    # check that calling downsample again with the same min_integration_time
+    # gives warning and does nothing
+    uvtest.checkWarnings(uv_object.bda_downsample,
+                         func_args=[np.amin(uv_object2.integration_time)],
+                         func_kwargs={'blt_order': "baseline"},
+                         message='All values in the integration_time array are '
+                         'already shorter')
+    assert uv_object.Nblts == uv_object2.Nblts
 
+    # check that calling upsample again with the almost the same min_integration_time
+    # gives warning and does nothing
+    uvtest.checkWarnings(uv_object.bda_downsample,
+                         func_args=[np.amin(uv_object2.integration_time) + small_number],
+                         func_kwargs={'blt_order': "baseline"},
+                         message='All values in the integration_time array are '
+                         'already shorter')
+    assert uv_object.Nblts == uv_object2.Nblts
+
+    # try again with a resampling factor of 3 (test odd numbers)
     max_integration_time = np.amin(uv_object.integration_time) / 3.0
     uv_object.bda_upsample(max_integration_time, blt_order="baseline")
     assert np.amax(uv_object.integration_time) <= max_integration_time
