@@ -4997,7 +4997,7 @@ class UVData(UVBase):
         uv_temp.set_uvws_from_antenna_positions(allow_phasing=True)
         self.uvw_array = uv_temp.uvw_array
 
-        if input_phase_type == "drift":
+        if input_phase_type == "drift" and not allow_drift:
             print('Unphasing back to drift mode.')
             self.unphase_to_drift()
 
