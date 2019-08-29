@@ -4685,9 +4685,20 @@ class UVData(UVBase):
         # check that max_int_time is sensible given integration_time
         min_integration_time = np.amin(self.integration_time)
         sensible_min = 1e-2 * min_integration_time
-        sensible_max = 1e2 * min_integration_time
-        if max_int_time < sensible_min or max_int_time > sensible_max:
-            raise ValueError("value outside of sensible range")
+        if max_int_time < sensible_min:
+            raise ValueError("Decreasing the integration time by more than a "
+                             "factor of 100 is not supported. Also note that "
+                             "max_int_time should be in seconds.")
+
+        # figure out where integration_time is longer than max_int_time
+        inds_to_upsample = np.nonzero((self.integration_time > max_int_time)
+                                      & (~np.isclose(self.integration_time, max_int_time,
+                                                     rtol=self._integration_time.tols[0],
+                                                     atol=self._integration_time.tols[1])))
+        if len(inds_to_upsample[0]) == 0:
+            warnings.warn("All values in the integration_time array are already "
+                          "longer than the value specified; doing nothing.")
+            return
 
         input_phase_type = self.phase_type
         if input_phase_type == "drift":
@@ -4699,16 +4710,6 @@ class UVData(UVBase):
                 print('Data are in drift mode, phasing before resampling.')
                 phase_time = Time(self.time_array[0], format='jd')
                 self.phase_to_time(phase_time)
-
-        # figure out where integration_time is longer than max_int_time
-        inds_to_upsample = np.nonzero((self.integration_time > max_int_time)
-                                      & (~np.isclose(self.integration_time, max_int_time,
-                                                     rtol=self._integration_time.tols[0],
-                                                     atol=self._integration_time.tols[1])))
-        if len(inds_to_upsample[0]) == 0:
-            warnings.warn("All values in the integration_time array are already "
-                          "longer than the value specified; doing nothing.")
-            return
 
         # we want the ceil of this, but we don't want to get the wrong answer
         # when the number is very close to an integer but just barely above it.
@@ -4846,10 +4847,11 @@ class UVData(UVBase):
         # TODO: Write test where keep_ragged=False
         # check that min_int_time is sensible given integration_time
         max_integration_time = np.amax(self.integration_time)
-        sensible_min = 1e-2 * max_integration_time
         sensible_max = 1e2 * max_integration_time
-        if min_int_time < sensible_min or min_int_time > sensible_max:
-            raise ValueError("value outside of sensible range")
+        if min_int_time > sensible_max:
+            raise ValueError("Increasing the integration time by more than a "
+                             "factor of 100 is not supported. Also note that "
+                             "min_int_time should be in seconds.")
 
         # figure out where integration_time is shorter than min_int_time
         inds_to_downsample = np.nonzero((self.integration_time < min_int_time)
@@ -4861,6 +4863,7 @@ class UVData(UVBase):
             warnings.warn("All values in the integration_time array are already "
                           "shorter than the value specified; doing nothing.")
             return
+
         # figure out how many baselines we'll end up with at the end
         bls_to_downsample = np.unique(self.baseline_array[inds_to_downsample])
         n_new_samples = 0
@@ -4957,7 +4960,10 @@ class UVData(UVBase):
 
         # make sure we've populated the right number of baseline-times
         assert temp_idx == temp_Nblts, ("Wrong number of baselines. Got {:d}, "
-                                        "expected {:d}".format(temp_idx, temp_Nblts))
+                                        "expected {:d}. This is a bug, please "
+                                        "make an issue at https://github.com/"
+                                        "RadioAstronomySoftwareGroup/pyuvdata/"
+                                        "issues".format(temp_idx, temp_Nblts))
 
         # drop data where we downsampled
         # TODO: write test where all indices are downsampled
