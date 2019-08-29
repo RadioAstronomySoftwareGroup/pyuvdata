@@ -11,6 +11,7 @@ import numpy as np
 import six
 import warnings
 import copy
+from scipy.spatial.distance import pdist, squareform
 from astropy.time import Time
 from astropy.coordinates import Angle
 from astropy.utils import iers
@@ -1132,25 +1133,19 @@ def get_baseline_redundancies(baselines, baseline_vecs, tol=1.0, with_conjugates
         return bl_gps, vec_bin_centers, lens, baseline_ind_conj
 
     # For each baseline, list all others that are within the tolerance distance.
+    adj_triu_mat = pdist(baseline_vecs) < tol
+    adj = {}    # Adjacency dictionary
 
-    adj = {}   # Adjacency dictionary
-
-    for bi, bv0 in enumerate(baseline_vecs):
-        key0 = baselines[bi]
-        adj[key0] = []
-        for bj, bv1 in enumerate(baseline_vecs):
-            dist = np.linalg.norm(bv1 - bv0)
-            if dist < tol:
-                key1 = baselines[bj]
-                adj[key0].append(key1)
+    for bi, col in enumerate(squareform(adj_triu_mat)):
+        col[bi] = True
+        adj[baselines[bi]] = baselines[col]
 
     # The adjacency list defines a set of graph edges.
     # For each baseline b0, loop over its adjacency list ai \in adj[b0]
     #   If adj[b0] is a subset of adj[ai], then ai is in a redundant group with b0
-
     bl_gps = []
     for k in adj.keys():
-        a0 = adj[k] + [k, ]
+        a0 = adj[k]
         group = [k]
         for a in a0:
             if set(a0).issubset(adj[a]) and a not in group:
