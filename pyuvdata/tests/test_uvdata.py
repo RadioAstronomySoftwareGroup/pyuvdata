@@ -4000,6 +4000,29 @@ def test_bda_upsample():
     return
 
 
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+def test_bda_upsample_errors():
+    """Test errors and warnings raised by bda_upsample"""
+    uv_object = UVData()
+    testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    uv_object.read_uvfits(testfile)
+
+    # test using a too-small integration time
+    max_integration_time = 1e-3 * np.amin(uv_object.integration_time)
+    with pytest.raises(ValueError) as cm:
+        uv_object.bda_upsample(max_integration_time)
+    assert str(cm.value).startswith("Decreasing the integration time by more than")
+
+    # catch a warning for doing no work
+    uv_object2 = uv_object.copy()
+    max_integration_time = 2 * np.amax(uv_object.integration_time)
+    uvtest.checkWarnings(uv_object.bda_upsample, [max_integration_time],
+                         message="All values in integration_time array are already shorter")
+    assert uv_object == uv_object2
+
+    return
+
+
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
 @pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
@@ -4195,6 +4218,29 @@ def test_bda_downsample_drift():
 
     # check that there are no flags
     assert np.nonzero(uv_object_copy.flag_array is True)[0].size == 0
+
+    return
+
+
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+def test_bda_downsample_errors():
+    """Test various errors and warnings are raised"""
+    uv_object = UVData()
+    testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    uv_object.read_uvfits(testfile)
+
+    # raise an error for a too-large integration time
+    max_integration_time = 1e3 * np.amax(uv_object.integration_time)
+    with pytest.raises(ValueError) as cm:
+        uv_object.bda_downsample(max_integration_time)
+    assert str(cm.value).startswith("Increasing the integration time by more than")
+
+    # catch a warning for doing no work
+    uv_object2 = uv_object.copy()
+    max_integration_time = 0.5 * np.amin(uv_object.integration_time)
+    uvtest.checkWarnings(uv_object.bda_downsample, [max_integration_time],
+                         message="All values in the integration_time array are already longer")
+    assert uv_object == uv_object2
 
     return
 
