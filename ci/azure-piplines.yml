@@ -91,7 +91,7 @@ jobs:
       git clone https://github.com/HERA-Team/hera_cal.git
       cd hera_cal
       mkdir test-reports
-      python -m pytest hera_cal -v --junitxml=test-reports/xunit.xml
+      python -m pytest hera_cal --junitxml=test-reports/xunit.xml
     displayName: run hera_cal tests
 
 
@@ -134,5 +134,5 @@ jobs:
       git clone https://github.com/HERA-Team/hera_qm.git
       cd hera_qm
       mkdir test-reports
-      python -m pytest hera_qm -v --junitxml=test-reports/xunit.xml
+      python -m pytest hera_qm --junitxml=test-reports/xunit.xml
     displayName: run hera_qm tests
