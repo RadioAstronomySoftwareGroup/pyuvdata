@@ -10,7 +10,8 @@ dependencies:
   - healpy
   - matplotlib
   - mpi4py
-  - nose
+  - pytest
+  - pytest-cov
   - numpy
   - pandas
   - pyyaml
