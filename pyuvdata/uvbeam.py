@@ -2528,3 +2528,31 @@ class UVBeam(UVBase):
                                        run_check_acceptability=run_check_acceptability)
             self._convert_from_filetype(cst_beam_obj)
             del(cst_beam_obj)
+
+    def read_mwa_beam(self, h5filepath, delays=None, amplitudes=None, pixels_per_deg=5,
+                      run_check=True, check_extra=True, run_check_acceptability=True):
+        """
+        Read in the full embedded element MWA beam.
+
+        Parameters
+        ----------
+        h5filepath : str
+            path to input h5 file containing the MWA full embedded element spherical
+            harmonic modes. Download via `wget http://cerberus.mwa128t.org/mwa_full_embedded_element_pattern.h5`
+        delays : array of ints
+            Array of MWA beamformer delay steps. Should be shape (n_pols, n_dipoles).
+        amplitudes : array of floats
+            Array of dipole amplitudes, hese are absolute values (i.e. relatable to physical units).
+            Should be shape (n_pols, n_dipoles).
+        pixels_per_deg : float
+            Number of theta/phi pixels per degree. Sets the resolution of the beam.
+
+        """
+        from . import mwa_beam
+        mwabeam_obj = mwa_beam.MWABeam()
+        mwabeam_obj.read_mwa_beam(h5filepath, delays=delays, amplitudes=amplitudes,
+                                  pixels_per_deg=pixels_per_deg,
+                                  run_check=run_check, check_extra=check_extra,
+                                  run_check_acceptability=run_check_acceptability)
+        self._convert_from_filetype(mwabeam_obj)
+        del(mwabeam_obj)

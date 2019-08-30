@@ -415,7 +415,7 @@ class MWABeam(UVBeam):
         ----------
         h5filepath : str
             path to input h5 file containing the MWA full embedded element spherical
-            harmonic modes.
+            harmonic modes. Download via `wget http://cerberus.mwa128t.org/mwa_full_embedded_element_pattern.h5`
         delays : array of ints
             Array of MWA beamformer delay steps. Should be shape (n_pols, n_dipoles).
         amplitudes : array of floats
