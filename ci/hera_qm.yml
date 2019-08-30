@@ -14,4 +14,3 @@ dependencies:
   - scipy
   - six
   - pytest
-  - pytest-cov
