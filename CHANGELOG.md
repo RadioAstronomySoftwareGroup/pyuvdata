@@ -12,6 +12,7 @@ All notable changes to this project will be documented in this file.
 - `UVFlag` information on Read The Docs
 
 ### Changed
+- utils.get_baseline_redundancies uses scipy pdist functions instead of for loops (faster)
 - UVData.get_antenna_redundancies will no longer automatically conjugate baselines.
 - UVData.get_baseline_redundancies and UVData.get_antenna_redundancies have been combined.
 - `UVFlag` inherits from `UVBase` object.
