@@ -126,7 +126,7 @@ class CSTBeam(UVBeam):
                     self.feed_array = np.array(['x'])
                 else:
                     self.feed_array = np.array(['y'])
-            self.Nfeeds = len(self.feed_array)
+            self.Nfeeds = self.feed_array.size
             self.set_efield()
 
         self.data_normalization = 'physical'
