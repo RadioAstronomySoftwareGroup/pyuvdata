@@ -9,8 +9,9 @@ dependencies:
   - h5py
   - healpy
   - matplotlib
-  - nose
   - numpy
   - scikit-learn
   - scipy
   - six
+  - pytest
+  - pytest-cov
