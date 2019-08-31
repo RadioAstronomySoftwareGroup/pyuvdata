@@ -433,7 +433,8 @@ class UVFITS(UVData):
                 # goes through the local meridian.
                 rot_ecef_positions = ant_hdu.data.field('STABXYZ')
                 latitude, longitude, altitude = \
-                    uvutils.LatLonAlt_from_XYZ(np.array([x_telescope, y_telescope, z_telescope]))
+                    uvutils.LatLonAlt_from_XYZ(np.array([x_telescope, y_telescope, z_telescope]),
+                                               check_acceptability=run_check_acceptability)
                 self.antenna_positions = uvutils.ECEF_from_rotECEF(rot_ecef_positions,
                                                                    longitude)
 
