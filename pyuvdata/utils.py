@@ -69,12 +69,13 @@ JONES_NUM2STR_DICT = {-1: 'Jrr', -2: 'Jll', -3: 'Jrl', -4: 'Jlr',
                       -5: 'Jxx', -6: 'Jyy', -7: 'Jxy', -8: 'Jyx'}
 
 
-def LatLonAlt_from_XYZ(xyz):
+def LatLonAlt_from_XYZ(xyz, check_acceptability=True):
     """
     Calculate lat/lon/alt from ECEF x,y,z.
 
     Args:
         xyz: numpy array, shape (Npts, 3), with ECEF x,y,z coordinates
+        check_acceptability: bool, check XYZ coordinates are reasonable.
 
     Returns:
         tuple of latitude, longitude, altitude numpy arrays (if Npts > 1) or
@@ -105,10 +106,11 @@ def LatLonAlt_from_XYZ(xyz):
         xyz_use = xyz_use[np.newaxis, :]
 
     # checking for acceptable values
-    if (np.any(np.linalg.norm(xyz_use, axis=1) < 6.35e6)
-            or np.any(np.linalg.norm(xyz_use, axis=1) > 6.39e6)):
-        raise ValueError(
-            'xyz values should be ECEF x, y, z coordinates in meters')
+    if check_acceptability:
+        if (np.any(np.linalg.norm(xyz_use, axis=1) < 6.35e6)
+                or np.any(np.linalg.norm(xyz_use, axis=1) > 6.39e6)):
+            raise ValueError(
+                'xyz values should be ECEF x, y, z coordinates in meters')
 
     # see wikipedia geodetic_datum and Datum transformations of
     # GPS positions PDF in docs/references folder

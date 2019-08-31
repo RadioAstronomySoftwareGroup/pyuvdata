@@ -352,7 +352,8 @@ class FHD(UVData):
             if xyz_telescope_frame == 'itrf':
                 # compare to lat/lon/alt
                 location_latlonalt = uvutils.XYZ_from_LatLonAlt(latitude, longitude, altitude)
-                latlonalt_arr_center = uvutils.LatLonAlt_from_XYZ(arr_center)
+                latlonalt_arr_center = uvutils.LatLonAlt_from_XYZ(arr_center,
+                                                                  check_acceptability=run_check_acceptability)
 
                 # check both lat/lon/alt and xyz because of subtle differences in tolerances
                 if (self._xyz_close(location_latlonalt, arr_center)

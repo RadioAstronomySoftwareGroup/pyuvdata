@@ -323,7 +323,7 @@ class LocationParameter(UVParameter):
         if self.value is None:
             return None
         else:
-            return utils.LatLonAlt_from_XYZ(self.value)
+            return utils.LatLonAlt_from_XYZ(self.value, check_acceptability=False)
 
     def set_lat_lon_alt(self, lat_lon_alt):
         """
@@ -344,7 +344,8 @@ class LocationParameter(UVParameter):
         if self.value is None:
             return None
         else:
-            latitude, longitude, altitude = utils.LatLonAlt_from_XYZ(self.value)
+            latitude, longitude, altitude = utils.LatLonAlt_from_XYZ(self.value,
+                                                                     check_acceptability=False)
             return latitude * 180. / np.pi, longitude * 180. / np.pi, altitude
 
     def set_lat_lon_alt_degrees(self, lat_lon_alt_degree):
