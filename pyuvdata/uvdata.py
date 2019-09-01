@@ -4918,7 +4918,7 @@ class UVData(UVBase):
                 # We sum up all the samples found so far if we're over the target minimum
                 # time, or we've hit the end of the time samples for this baseline.
                 if over_min_int_time or last_sample:
-                    if last_sample and not keep_ragged:
+                    if last_sample and not (over_min_int_time or keep_ragged):
                         # don't do anything -- implicitly drop these integrations
                         continue
                     # sum together that number of samples
