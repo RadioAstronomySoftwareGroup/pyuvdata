@@ -3981,7 +3981,6 @@ def test_bda_upsample():
     assert np.isclose(init_ns[0, 0, 0], out_ns[0, 0, 0])
 
     # try again with a non-integer resampling factor
-    uv_object_copy2
     # change the target integration time
     max_integration_time = np.amin(uv_object_copy2.integration_time) * 0.75
     uv_object_copy2.bda_upsample(max_integration_time, blt_order="baseline")
@@ -4090,6 +4089,7 @@ def test_bda_downsample():
     # make a copy for later
     uv_object_copy = uv_object.copy()
     uv_object_copy2 = uv_object.copy()
+    uv_object_copy3 = uv_object.copy()
 
     # save some values for later
     init_data_size = uv_object.data_array.size
@@ -4148,6 +4148,18 @@ def test_bda_downsample():
     # check that the new sample is flagged
     out_flag = uv_object_copy2.get_flags(0, 1)
     assert out_flag[0, 0, 0]
+
+    # test again with keep_ragged=False
+    min_integration_time = original_int_time * 2.0
+    uv_object_copy3.bda_downsample(min_integration_time, blt_order="baseline",
+                                   minor_order="time", keep_ragged=False)
+    # make sure integration time is correct
+    # in this case, all integration times should be the target one
+    assert np.all(np.isclose(uv_object_copy3.integration_time, min_integration_time))
+
+    # as usual, the new data should be the average of the input data
+    out_wf = uv_object_copy3.get_data(0, 1)
+    assert np.isclose((init_wf[0, 0, 0] + init_wf[1, 0, 0]) / 2.0, out_wf[0, 0, 0])
 
     return
 
