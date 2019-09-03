@@ -4025,6 +4025,52 @@ def test_bda_upsample_errors():
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
 @pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+def test_bda_partial_upsample():
+    """Test the bda_upsample method"""
+    uv_object = UVData()
+    testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    uv_object.read_uvfits(testfile)
+
+    # change a whole baseline's integration time
+    bl_inds, _, _ = uv_object._key2inds((0, 1))
+    uv_object.integration_time[bl_inds] = uv_object.integration_time[0] / 2.0
+
+    # reorder to make sure we get the right value later
+    uv_object.reorder_blts(order="baseline")
+
+    # save some values for later
+    init_data_size = uv_object.data_array.size
+    init_wf_01 = uv_object.get_data(0, 1)
+    init_wf_02 = uv_object.get_data(0, 2)
+    # check that there are no flags
+    assert np.nonzero(uv_object.flag_array is True)[0].size == 0
+    init_ns_01 = uv_object.get_nsamples(0, 1)
+    init_ns_02 = uv_object.get_nsamples(0, 2)
+
+    # change the target integration time
+    max_integration_time = np.amin(uv_object.integration_time)
+    uv_object.bda_upsample(max_integration_time, blt_order="baseline")
+
+    assert np.allclose(uv_object.integration_time, max_integration_time)
+    # output data should be the same
+    out_wf_01 = uv_object.get_data(0, 1)
+    out_wf_02 = uv_object.get_data(0, 2)
+    assert np.all(init_wf_01 == out_wf_01)
+    assert np.isclose(init_wf_02[0, 0, 0], out_wf_02[0, 0, 0])
+    assert init_wf_02.size * 2 == out_wf_02.size
+
+    # this should be true because there are no flags
+    out_ns_01 = uv_object.get_nsamples(0, 1)
+    out_ns_02 = uv_object.get_nsamples(0, 2)
+    assert np.allclose(out_ns_01, init_ns_01)
+    assert np.isclose(init_ns_02[0, 0, 0], out_ns_02[0, 0, 0])
+
+    return
+
+
+@pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
+@pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 def test_bda_upsample_drift():
     """Test the bda_upsample method on drift mode data"""
     uv_object = UVData()
@@ -4160,6 +4206,57 @@ def test_bda_downsample():
     # as usual, the new data should be the average of the input data
     out_wf = uv_object_copy3.get_data(0, 1)
     assert np.isclose((init_wf[0, 0, 0] + init_wf[1, 0, 0]) / 2.0, out_wf[0, 0, 0])
+
+    return
+
+
+@pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
+@pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+def test_bda_partial_downsample():
+    """Test the bda_upsample method"""
+    uv_object = UVData()
+    testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    uv_object.read_uvfits(testfile)
+
+    # change a whole baseline's integration time
+    bl_inds, _, _ = uv_object._key2inds((0, 1))
+    uv_object.integration_time[bl_inds] = uv_object.integration_time[0] * 2.0
+
+    # reorder to make sure we get the right value later
+    uv_object.reorder_blts(order="baseline")
+
+    # save some values for later
+    init_data_size = uv_object.data_array.size
+    init_wf_01 = uv_object.get_data(0, 1)
+    init_wf_02 = uv_object.get_data(0, 2)
+    # check that there are no flags
+    assert np.nonzero(uv_object.flag_array is True)[0].size == 0
+    init_ns_01 = uv_object.get_nsamples(0, 1)
+    init_ns_02 = uv_object.get_nsamples(0, 2)
+
+    # change the target integration time
+    min_integration_time = np.amax(uv_object.integration_time)
+    uv_object.bda_downsample(min_integration_time, blt_order="baseline")
+
+    # Only some baselines have an even number of times, so the output integration time
+    # is not uniformly the same. For the test case, we'll have *either* the original
+    # integration time or twice that.
+    assert np.all(np.logical_or(np.isclose(uv_object.integration_time, min_integration_time / 2.0),
+                                np.isclose(uv_object.integration_time, min_integration_time)))
+    # output data should be the same
+    out_wf_01 = uv_object.get_data(0, 1)
+    out_wf_02 = uv_object.get_data(0, 2)
+    assert np.all(init_wf_01 == out_wf_01)
+    assert np.isclose((init_wf_02[0, 0, 0] + init_wf_02[1, 0, 0]) / 2.,
+                      out_wf_02[0, 0, 0])
+
+    # this should be true because there are no flags
+    out_ns_01 = uv_object.get_nsamples(0, 1)
+    out_ns_02 = uv_object.get_nsamples(0, 2)
+    assert np.allclose(out_ns_01, init_ns_01)
+    assert np.isclose((init_ns_02[0, 0, 0] + init_ns_02[1, 0, 0]) / 2.0,
+                      out_ns_02[0, 0, 0])
 
     return
 
