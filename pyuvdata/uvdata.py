@@ -4668,7 +4668,8 @@ class UVData(UVBase):
         max_int_time : float
             Maximum integration time to upsample the to in seconds.
         blt_order : str
-            Major baseline ordering for output object. Default is "time".
+            Major baseline ordering for output object. Default is "time". See
+            the documentation on the `reorder_blts` method for more info.
         minor_order : str
             Minor baseline ordering for output object. Default is "baseline".
         allow_drift : bool
@@ -4745,7 +4746,7 @@ class UVData(UVBase):
             t0 = self.time_array[ind]
             dt = self.integration_time[ind] / n_new_samples[i]
 
-            offset = .5 + .5 * (n_new_samples[i] % 2)
+            offset = 0.5 + 0.5 * (n_new_samples[i] % 2)
             n2 = n_new_samples[i] // 2
             for ii, idx in enumerate(range(i0, i1)):
                 idx2 = ii + offset + n2 - n_new_samples[i]
@@ -4757,7 +4758,6 @@ class UVData(UVBase):
             i0 = i1
 
         # drop data where we upsampled
-        # TODO: write test where not all indices are upsampled
         inds_to_keep = np.nonzero(self.integration_time <= max_int_time)
         self.baseline_array = self.baseline_array[inds_to_keep]
         self.time_array = self.time_array[inds_to_keep]
@@ -4824,7 +4824,8 @@ class UVData(UVBase):
             Minimum integration time to downsample the UVData integration_time to
             in seconds.
         blt_order : str
-            Major baseline ordering for output object. Default is "time".
+            Major baseline ordering for output object. Default is "time". See the
+            documentation on the `reorder_blts` method for more details.
         minor_order : str
             Minor baseline ordering for output object. Default is "baseline".
         keep_ragged : bool
@@ -4843,8 +4844,6 @@ class UVData(UVBase):
         None
 
         """
-        # TODO: Re-order blt axis to make time increasing monotonically for each baseline
-        # TODO: Write test where keep_ragged=False
         # check that min_int_time is sensible given integration_time
         max_integration_time = np.amax(self.integration_time)
         sensible_max = 1e2 * max_integration_time
@@ -4853,7 +4852,7 @@ class UVData(UVBase):
                              "factor of 100 is not supported. Also note that "
                              "min_int_time should be in seconds.")
 
-        # figure out where integration_time is shorter than min_int_time
+        # first figure out where integration_time is shorter than min_int_time
         inds_to_downsample = np.nonzero((self.integration_time < min_int_time)
                                         & (~np.isclose(self.integration_time, min_int_time,
                                                        rtol=self._integration_time.tols[0],
@@ -4863,6 +4862,16 @@ class UVData(UVBase):
             warnings.warn("All values in the integration_time array are already "
                           "shorter than the value specified; doing nothing.")
             return
+        # If we're going to do actual work, reorder the baselines to ensure time is
+        # monotonically increasing.
+        # Default of reorder_blts is baseline major, time minor, which is what we want.
+        self.reorder_blts()
+
+        # now re-compute inds_to_downsample, in case things have changed
+        inds_to_downsample = np.nonzero((self.integration_time < min_int_time)
+                                        & (~np.isclose(self.integration_time, min_int_time,
+                                                       rtol=self._integration_time.tols[0],
+                                                       atol=self._integration_time.tols[1])))
 
         # figure out how many baselines we'll end up with at the end
         bls_to_downsample = np.unique(self.baseline_array[inds_to_downsample])
@@ -4874,6 +4883,17 @@ class UVData(UVBase):
                 n_new_samples += np.ceil(n_sample_temp).astype(int)
             else:
                 n_new_samples += np.floor(n_sample_temp).astype(int)
+            # figure out if there are any time gaps in the data
+            dtime = np.unique(np.ediff1d(self.time_array[bl_inds]))
+            if len(dtime) > 1:
+                warnings.warn("There is a gap in the times of this baseline. Some "
+                              "of the output may include averaging across long "
+                              "time gaps.")
+            if (len(dtime) == 1
+                and not np.isclose(dtime[0],
+                                   np.amin(self.integration_time[bl_inds]))):
+                warnings.warn("The time difference is not the same as the "
+                              "smallest integration time for this baseline.")
 
         temp_Nblts = n_new_samples
 
@@ -4966,7 +4986,6 @@ class UVData(UVBase):
                                         "issues".format(temp_idx, temp_Nblts))
 
         # drop data where we downsampled
-        # TODO: write test where all indices are downsampled
         inds_to_keep = np.nonzero(self.integration_time >= min_int_time)
         self.baseline_array = self.baseline_array[inds_to_keep]
         self.time_array = self.time_array[inds_to_keep]
