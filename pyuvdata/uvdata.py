@@ -4884,16 +4884,32 @@ class UVData(UVBase):
             else:
                 n_new_samples += np.floor(n_sample_temp).astype(int)
             # figure out if there are any time gaps in the data
-            dtime = np.unique(np.ediff1d(self.time_array[bl_inds]))
-            if len(dtime) > 1:
-                warnings.warn("There is a gap in the times of this baseline. Some "
-                              "of the output may include averaging across long "
-                              "time gaps.")
-            if (len(dtime) == 1
-                and not np.isclose(dtime[0],
-                                   np.amin(self.integration_time[bl_inds]))):
-                warnings.warn("The time difference is not the same as the "
-                              "smallest integration time for this baseline.")
+            # meaning that the time differences are larger than the integration times
+            # time_array is in JD, need to convert to seconds for the diff
+            dtime = np.ediff1d(self.time_array[bl_inds]) * 24 * 3600
+            int_times = self.integration_time[bl_inds]
+            if len(np.unique(int_times)) == 1:
+                # this baseline has all the same integration times
+                if len(np.unique(dtime)) > 1:
+                    warnings.warn("There is a gap in the times of baseline {bl}. "
+                                  "The output may include averages across long "
+                                  "time gaps.".format(bl=self.baseline_to_antnums(bl)))
+                elif not np.isclose(dtime[0], int_times[0]):
+                    warnings.warn("The time difference between integrations is "
+                                  "not the same as the integration time for "
+                                  "baseline {bl}. The output may average across "
+                                  "longer time intervals than "
+                                  "expected".format(bl=self.baseline_to_antnums(bl)))
+
+            else:
+                # varying integration times for this baseline, need to be more careful
+                wh_diff = np.nonzero(not np.allclose(dtime, int_times[:-1]))
+                if wh_diff[0].size > 1:
+                    warnings.warn("The time difference between integrations is "
+                                  "different than the integration time for "
+                                  "baseline {bl}. The output may include "
+                                  "averages across long time "
+                                  "gaps.".format(bl=self.baseline_to_antnums(bl)))
 
         temp_Nblts = n_new_samples
 
