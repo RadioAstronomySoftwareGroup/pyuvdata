@@ -1050,7 +1050,7 @@ def test_multi_files():
     # again, setting axis
     del(uv1)
     uv1 = UVData()
-    uv1.read([testfile1, testfile2])
+    uv1.read([testfile1, testfile2], axis='freq')
     # Check history is correct, before replacing and doing a full object check
     assert uvutils._check_histories(uv_full.history + '  Downselected to '
                                     'specific frequencies using pyuvdata. '
