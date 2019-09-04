@@ -82,6 +82,7 @@ jobs:
       pip install git+https://github.com/HERA-Team/linsolve.git
       pip install git+https://github.com/HERA-Team/hera_qm.git
       pip install git+https://github.com/HERA-Team/uvtools.git
+      pip install git+https://github.com/RadioAstronomySoftwareGroup/pyuvsim.git
       pip install git+https://github.com/HERA-Team/hera_sim.git
     displayName: install related repos
 
