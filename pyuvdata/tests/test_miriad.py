@@ -26,6 +26,7 @@ from pyuvdata.data import DATA_PATH
 from .. import aipy_extracts
 
 
+@pytest.mark.filterwarnings("ignore:Telescope ATCA is not")
 def test_ReadWriteReadATCA():
     uv_in = UVData()
     uv_out = UVData()
@@ -44,8 +45,7 @@ def test_ReadWriteReadATCA():
                                   'Telescope ATCA is not in known_telescopes.'])
 
     uv_in.write_miriad(testfile, clobber=True)
-    uvtest.checkWarnings(uv_out.read, [testfile],
-                         message='Telescope ATCA is not in known_telescopes.')
+    uv_out.read(testfile)
     assert uv_in == uv_out
 
 
@@ -911,6 +911,7 @@ def test_readWriteReadMiriad_partial_metadata_only():
         assert getattr(uv_in, m) is not None
 
     # metadata only multiple file read-in
+    del(uv_in)
     uv_in = UVData()
     uv_in.read(testfile)
     new_uv = uv_in.select(freq_chans=np.arange(5), inplace=False)
@@ -928,6 +929,7 @@ def test_readWriteReadMiriad_partial_metadata_only():
 
     # test exceptions
     # read-in when data already exists
+    del(uv_in)
     uv_in = UVData()
     uv_in.read(testfile)
     with pytest.raises(ValueError) as cm:
@@ -1013,6 +1015,7 @@ def test_rwrMiriad_antpos_issues():
     assert uv_in == uv_out
 
 
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 def test_multi_files():
     """
     Reading multiple files at once.
@@ -1021,7 +1024,7 @@ def test_multi_files():
     uvfits_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
     testfile1 = os.path.join(DATA_PATH, 'test/uv1')
     testfile2 = os.path.join(DATA_PATH, 'test/uv2')
-    uvtest.checkWarnings(uv_full.read_uvfits, [uvfits_file], message='Telescope EVLA is not')
+    uv_full.read_uvfits(uvfits_file)
     uvtest.checkWarnings(uv_full.unphase_to_drift, category=DeprecationWarning,
                          message='The xyz array in ENU_from_ECEF is being '
                                  'interpreted as (Npts, 3)')
@@ -1033,8 +1036,9 @@ def test_multi_files():
     uv2.select(freq_chans=np.arange(32, 64))
     uv1.write_miriad(testfile1, clobber=True)
     uv2.write_miriad(testfile2, clobber=True)
-    uvtest.checkWarnings(uv1.read, [[testfile1, testfile2]], nwarnings=2,
-                         message=['Telescope EVLA is not', 'Telescope EVLA is not'])
+    del(uv1)
+    uv1 = UVData()
+    uv1.read([testfile1, testfile2])
     # Check history is correct, before replacing and doing a full object check
     assert uvutils._check_histories(uv_full.history + '  Downselected to '
                                     'specific frequencies using pyuvdata. '
@@ -1044,8 +1048,9 @@ def test_multi_files():
     assert uv1 == uv_full
 
     # again, setting axis
-    uvtest.checkWarnings(uv1.read, [[testfile1, testfile2]], {'axis': 'freq'},
-                         nwarnings=2, message=['Telescope EVLA is not'])
+    del(uv1)
+    uv1 = UVData()
+    uv1.read([testfile1, testfile2])
     # Check history is correct, before replacing and doing a full object check
     assert uvutils._check_histories(uv_full.history + '  Downselected to '
                                     'specific frequencies using pyuvdata. '
