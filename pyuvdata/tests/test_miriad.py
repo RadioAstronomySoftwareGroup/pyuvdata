@@ -719,6 +719,8 @@ def test_readWriteReadMiriad_partial():
     exp_uv = full.select(bls=[(0, 0), (0, 1), (4, 2)], inplace=False)
     assert uv_in == exp_uv
 
+    del(uv_in)
+    uv_in = UVData()
     # test all bls w/ 0 are loaded
     uv_in.read(write_file, antenna_nums=[0])
     diff = set(full.get_antpairs()) - set(uv_in.get_antpairs())
@@ -728,27 +730,37 @@ def test_readWriteReadMiriad_partial():
     assert np.max(exp_uv.ant_2_array) == 0
     assert uv_in == exp_uv
 
+    del(uv_in)
+    uv_in = UVData()
     uv_in.read(write_file, antenna_nums=[0, 2, 4], bls=[(0, 0), (2, 4)])
     assert np.array([bl in uv_in.get_antpairs() for bl in [(0, 0), (2, 4)]]).all()
     exp_uv = full.select(antenna_nums=[0, 2, 4], bls=[(0, 0), (2, 4)], inplace=False)
     assert uv_in == exp_uv
 
+    del(uv_in)
+    uv_in = UVData()
     uv_in.read(write_file, bls=[(2, 4, 'xy')])
     assert np.array([bl in uv_in.get_antpairs() for bl in [(2, 4)]]).all()
     exp_uv = full.select(bls=[(2, 4, 'xy')], inplace=False)
     assert uv_in == exp_uv
 
+    del(uv_in)
+    uv_in = UVData()
     uv_in.read(write_file, bls=[(4, 2, 'yx')])
     assert np.array([bl in uv_in.get_antpairs() for bl in [(2, 4)]]).all()
     exp_uv = full.select(bls=[(4, 2, 'yx')], inplace=False)
     assert uv_in == exp_uv
 
+    del(uv_in)
+    uv_in = UVData()
     uv_in.read(write_file, bls=(4, 2, 'yx'))
     assert np.array([bl in uv_in.get_antpairs() for bl in [(2, 4)]]).all()
     exp_uv = full.select(bls=[(4, 2, 'yx')], inplace=False)
     assert uv_in == exp_uv
 
     # test time loading
+    del(uv_in)
+    uv_in = UVData()
     uv_in.read(write_file, time_range=[2456865.607, 2456865.609])
     full_times = np.unique(full.time_array[(full.time_array > 2456865.607) & (full.time_array < 2456865.609)])
     assert np.isclose(np.unique(uv_in.time_array), full_times).all()
@@ -756,30 +768,42 @@ def test_readWriteReadMiriad_partial():
     assert uv_in == exp_uv
 
     # test polarization loading
+    del(uv_in)
+    uv_in = UVData()
     uv_in.read(write_file, polarizations=['xy'])
     assert full.polarization_array == uv_in.polarization_array
     exp_uv = full.select(polarizations=['xy'], inplace=False)
     assert uv_in == exp_uv
 
+    del(uv_in)
+    uv_in = UVData()
     uv_in.read(write_file, polarizations=[-7])
     assert full.polarization_array == uv_in.polarization_array
     exp_uv = full.select(polarizations=[-7], inplace=False)
     uv_in == exp_uv
 
     # test ant_str
+    del(uv_in)
+    uv_in = UVData()
     uv_in.read(write_file, ant_str='auto')
     assert np.array([blp[0] == blp[1] for blp in uv_in.get_antpairs()]).all()
     exp_uv = full.select(ant_str='auto', inplace=False)
     assert uv_in == exp_uv
 
+    del(uv_in)
+    uv_in = UVData()
     uv_in.read(write_file, ant_str='cross')
     assert np.array([blp[0] != blp[1] for blp in uv_in.get_antpairs()]).all()
     exp_uv = full.select(ant_str='cross', inplace=False)
     assert uv_in == exp_uv
 
+    del(uv_in)
+    uv_in = UVData()
     uv_in.read(write_file, ant_str='all')
     assert uv_in == full
 
+    del(uv_in)
+    uv_in = UVData()
     # assert exceptions
     with pytest.raises(AssertionError) as cm:
         uv_in.read(write_file, ant_str='auto', antenna_nums=[0, 1])
@@ -854,16 +878,22 @@ def test_readWriteReadMiriad_partial():
         uv_in.read(write_file, ant_str=0)
     assert str(cm.value).startswith("ant_str must be fed as a string")
 
+    del(uv_in)
+    uv_in = UVData()
     # assert partial-read and select are same
     uv_in.read(write_file, polarizations=[-7], bls=[(4, 4)])
     exp_uv = full.select(polarizations=[-7], bls=[(4, 4)], inplace=False)
     assert uv_in == exp_uv
 
+    del(uv_in)
+    uv_in = UVData()
     # assert partial-read and select are same
     uv_in.read(write_file, bls=[(4, 4, 'xy')])
     exp_uv = full.select(bls=[(4, 4, 'xy')], inplace=False)
     assert uv_in == exp_uv
 
+    del(uv_in)
+    uv_in = UVData()
     # assert partial-read and select are same
     unique_times = np.unique(full.time_array)
     time_range = [2456865.607, 2456865.609]
@@ -873,21 +903,28 @@ def test_readWriteReadMiriad_partial():
     exp_uv = full.select(antenna_nums=[0], times=times_to_keep, inplace=False)
     assert uv_in == exp_uv
 
+    del(uv_in)
+    uv_in = UVData()
     # assert partial-read and select are same
     uv_in.read(write_file, polarizations=[-7], time_range=time_range)
     exp_uv = full.select(polarizations=[-7], times=times_to_keep, inplace=False)
     assert uv_in == exp_uv
 
+    del(uv_in)
+    uv_in = UVData()
     # check handling for generic read selections unsupported by read_miriad
     uvtest.checkWarnings(uv_in.read, [write_file], {'times': times_to_keep},
                          message=['Warning: a select on read keyword is set'])
     exp_uv = full.select(times=times_to_keep, inplace=False)
     assert uv_in == exp_uv
 
+    del(uv_in)
+    uv_in = UVData()
     # check handling for generic read selections unsupported by read_miriad
     blts_select = np.where(full.time_array == unique_times[0])[0]
     ants_keep = [0, 2, 4]
-    uvtest.checkWarnings(uv_in.read, [write_file], {'blt_inds': blts_select, 'antenna_nums': ants_keep},
+    uvtest.checkWarnings(uv_in.read, [write_file],
+                         {'blt_inds': blts_select, 'antenna_nums': ants_keep},
                          message=['Warning: blt_inds is set along with select on read'])
     exp_uv = full.select(blt_inds=blts_select, antenna_nums=ants_keep, inplace=False)
     assert uv_in != exp_uv
