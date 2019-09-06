@@ -1,6 +1,7 @@
 # -- mode: python; coding: utf-8 --
 # Copyright (c) 2019 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
+"""Read in the Sujinto et al. full embedded element MWA Beam."""
 from __future__ import absolute_import, division, print_function
 import numpy as np
 import warnings
@@ -9,6 +10,7 @@ import h5py
 from scipy.special import factorial, lpmv  # associated Legendre function
 
 from . import UVBeam
+from . import utils as uvutils
 
 
 def P1sin(nmax, theta):
@@ -473,13 +475,15 @@ class MWABeam(UVBeam):
         self.model_name = 'full embedded element'
         self.model_version = '1.0'
         self.history = 'Sujito et al. full embedded element beam, derived from https://github.com/MWATelescope/mwa_pb/'
+        if not uvutils._check_history_version(self.history, self.pyuvdata_version_str):
+            self.history += self.pyuvdata_version_str
 
         self.x_orientation = 'east'
 
         self.set_efield()
         self.Naxes_vec = 2
         self.Ncomponents_vec = 2
-        self.feed_array = np.array([pol.lower() for pol in pol_names])
+        self.feed_array = np.array([str(pol.lower()) for pol in pol_names])
         self.Nfeeds = self.feed_array.size
 
         self.data_normalization = 'physical'
