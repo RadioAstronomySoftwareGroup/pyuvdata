@@ -5049,3 +5049,71 @@ class UVData(UVBase):
         self.check()
 
         return
+
+    def bda_resample(self, target_time, only_downsample=False, only_upsample=False,
+                     blt_order="time", minor_order="baseline", keep_ragged=True,
+                     allow_drift=False):
+        """Intelligently upsample or downsample a UVData object to the target time.
+
+        Parameters
+        ----------
+        target_time : float
+            The target integration time to resample to, in seconds.
+        only_downsample : bool
+            Option to only call bda_downsample.
+        only_upsample : bool
+            Option to only call bda_upsample.
+        blt_order : str
+            Major baseline ordering for output object. Default is "time". See the
+            documentation on the `reorder_blts` method for more details.
+        minor_order : str
+            Minor baseline ordering for output object. Default is "baseline".
+        keep_ragged : bool
+            When averaging baselines that do not evenly divide into min_int_time,
+            keep_ragged controls whether to keep the (summed) integrations
+            corresponding to the remaining samples (keep_ragged=True), or
+            discard them (keep_ragged=False). Note this option only applies to the
+            `bda_downsample` method.
+        allow_drift : bool
+            Option to allow resampling of drift mode data. If this is False,
+            drift mode data will be phased before resampling and then unphased
+            after resampling. Phasing and unphasing can introduce small errors,
+            but resampling in drift mode may result in unexpected behavior.
+
+        Returns
+        -------
+        None
+        """
+        # figure out integration times relative to target time
+        min_int_time = np.amin(self.integration_time)
+        max_int_time = np.amax(self.integration_time)
+
+        if (int(np.floor(target_int_time / min_int_time)) >= 2
+            and not only_upsample):
+            downsample = True
+        else:
+            downsample = False
+
+        if (int(np.floor(max_int_time / target_int_time)) >= 2
+            and not only_downsample):
+            upsample = True
+        else:
+            upsample = False
+
+        if downsample:
+            self.bda_downsample(
+                target_time,
+                keep_ragged=keep_ragged,
+                allow_drift=allow_drift,
+                blt_order=blt_order,
+                minor_order=minor_order,
+            )
+        if upsample:
+            self.bda_upsample(
+                target_time,
+                allow_drift=allow_drift,
+                blt_order=blt_order,
+                minor_order=minor_order
+            )
+
+        return
