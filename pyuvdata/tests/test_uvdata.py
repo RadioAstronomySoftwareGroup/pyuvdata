@@ -418,18 +418,12 @@ def test_phase_unphaseHERA():
     """
     Read in drift data, phase to an RA/DEC, unphase and check for object equality.
     """
-    testfile = os.path.join(DATA_PATH, 'hera_testfile')
+    testfile = os.path.join(DATA_PATH, 'zen.2458661.23480.HH.uvh5')
     UV_raw = UVData()
-    # Note the RA/DEC values in the raw file were calculated from the lat/long
-    # in the file, which don't agree with our known_telescopes.
-    # So for this test we use the lat/lon in the file.
-    uvtest.checkWarnings(UV_raw.read_miriad, [testfile], {'correct_lat_lon': False},
-                         message='Altitude is not present in file and latitude and '
-                                 'longitude values do not match')
+    UV_raw.read(testfile)
+
     UV_phase = UVData()
-    uvtest.checkWarnings(UV_phase.read_miriad, [testfile], {'correct_lat_lon': False},
-                         message='Altitude is not present in file and '
-                                 'latitude and longitude values do not match')
+    UV_phase.read(testfile)
     UV_phase.phase(0., 0., epoch="J2000")
     UV_phase.unphase_to_drift()
     # check that phase + unphase gets back to raw
@@ -476,7 +470,7 @@ def test_phase_unphaseHERA():
     # the data array are just multiplied by the w's for phasing, so a difference
     # at the 1e-3 level makes the data array different at that level too.
     # -> change the tolerance on data_array for this test
-    UV_phase2._data_array.tols = (0, 1e-3)
+    UV_phase2._data_array.tols = (0, 1e-3 * np.amax(np.abs(UV_phase2.data_array)))
     assert UV_phase2 == UV_phase
 
     # check that phase + unphase gets back to raw using antpos
@@ -492,7 +486,7 @@ def test_phase_unphaseHERA():
                                         phase_frame='gcrs')
 
     # it's unclear to me how close this should be...
-    assert np.allclose(UV_phase_simple_small.uvw_array, UV_raw_small.uvw_array, atol=1e-2)
+    assert np.allclose(UV_phase_simple_small.uvw_array, UV_raw_small.uvw_array, atol=1e-1)
 
     # check error if not passing a Time object to phase_to_time
     with pytest.raises(TypeError) as cm:
@@ -3207,34 +3201,34 @@ def test_parse_ants():
 
     # Test ant_str='auto' on file with auto correlations
     uv = UVData()
-    testfile = os.path.join(DATA_PATH, 'hera_testfile')
-    uvtest.checkWarnings(uv.read_miriad, [testfile], nwarnings=1,
-                         message='Altitude is not')
+    testfile = os.path.join(DATA_PATH, 'zen.2458661.23480.HH.uvh5')
+    uv.read(testfile)
 
     ant_str = 'auto'
     ant_pairs_nums, polarizations = uv.parse_ants(ant_str)
-    ant_pairs_expected = [(9, 9), (10, 10), (20, 20)]
+    ant_pairs_expected = [(0, 0), (1, 1), (2, 2), (11, 11)]
     assert Counter(ant_pairs_nums) == Counter(ant_pairs_expected)
     assert isinstance(polarizations, type(None))
 
     # Test cross correlation extraction on data with auto + cross
     ant_str = 'cross'
     ant_pairs_nums, polarizations = uv.parse_ants(ant_str)
-    ant_pairs_expected = [(9, 10), (9, 20), (10, 20)]
+    ant_pairs_expected = [(0, 1), (0, 2), (0, 11), (1, 11), (2, 1), (2, 11)]
     assert Counter(ant_pairs_nums) == Counter(ant_pairs_expected)
     assert isinstance(polarizations, type(None))
 
-    # Remove only polarization of single baseline
-    ant_str = 'all,-9x_10x'
+    # Remove only a single baseline
+    ant_str = 'all,-0_1'
     ant_pairs_nums, polarizations = uv.parse_ants(ant_str)
-    ant_pairs_expected = [(9, 9), (9, 20), (10, 10), (10, 20), (20, 20)]
+    ant_pairs_expected = [(0, 0), (0, 2), (0, 11), (1, 1), (1, 11),
+                          (2, 11), (2, 1), (2, 2), (11, 11)]
     assert Counter(ant_pairs_nums) == Counter(ant_pairs_expected)
     assert isinstance(polarizations, type(None))
 
     # Test appending all to beginning of strings that start with -
-    ant_str = '-9'
+    ant_str = '-1'
     ant_pairs_nums, polarizations = uv.parse_ants(ant_str)
-    ant_pairs_expected = [(10, 10), (10, 20), (20, 20)]
+    ant_pairs_expected = [(0, 0), (0, 2), (0, 11), (2, 2), (2, 11), (11, 11)]
     assert Counter(ant_pairs_nums) == Counter(ant_pairs_expected)
     assert isinstance(polarizations, type(None))
 
@@ -3452,33 +3446,33 @@ def test_select_with_ant_str():
 
     # Test ant_str = 'auto' on file with auto correlations
     uv = UVData()
-    testfile = os.path.join(DATA_PATH, 'hera_testfile')
-    uvtest.checkWarnings(uv.read_miriad, [testfile], nwarnings=1,
-                         message='Altitude is not')
+    testfile = os.path.join(DATA_PATH, 'zen.2458661.23480.HH.uvh5')
+    uv.read(testfile)
 
     ant_str = 'auto'
-    ant_pairs = [(9, 9), (10, 10), (20, 20)]
+    ant_pairs = [(0, 0), (1, 1), (2, 2), (11, 11)]
     uv2 = uv.select(ant_str=ant_str, inplace=inplace)
     assert Counter(uv2.get_antpairs()) == Counter(ant_pairs)
     assert Counter(uv2.get_pols()) == Counter(uv.get_pols())
 
     # Test cross correlation extraction on data with auto + cross
     ant_str = 'cross'
-    ant_pairs = [(9, 10), (9, 20), (10, 20)]
+    ant_pairs = [(0, 1), (0, 2), (0, 11), (1, 11), (2, 1), (2, 11)]
     uv2 = uv.select(ant_str=ant_str, inplace=inplace)
     assert Counter(uv2.get_antpairs()) == Counter(ant_pairs)
     assert Counter(uv2.get_pols()) == Counter(uv.get_pols())
 
-    # Remove only polarization of single baseline
-    ant_str = 'all,-9x_10x'
-    ant_pairs = [(9, 9), (9, 20), (10, 10), (10, 20), (20, 20)]
+    # Remove a single baseline
+    ant_str = 'all,-0_1'
+    ant_pairs = [(0, 0), (0, 2), (0, 11), (1, 1), (1, 11), (2, 1), (2, 2),
+                 (2, 11), (11, 11)]
     uv2 = uv.select(ant_str=ant_str, inplace=inplace)
     assert Counter(uv2.get_antpairs()) == Counter(ant_pairs)
     assert Counter(uv2.get_pols()) == Counter(uv.get_pols())
 
     # Test appending all to beginning of strings that start with -
-    ant_str = '-9'
-    ant_pairs = [(10, 10), (10, 20), (20, 20)]
+    ant_str = '-1'
+    ant_pairs = [(0, 0), (0, 2), (0, 11), (2, 2), (2, 11), (11, 11)]
     uv2 = uv.select(ant_str=ant_str, inplace=inplace)
     assert Counter(uv2.get_antpairs()) == Counter(ant_pairs)
     assert Counter(uv2.get_pols()) == Counter(uv.get_pols())
@@ -3938,8 +3932,9 @@ def test_copy():
 def test_bda_upsample():
     """Test the bda_upsample method"""
     uv_object = UVData()
-    testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-    uv_object.read_uvfits(testfile)
+    testfile = os.path.join(DATA_PATH, 'zen.2458661.23480.HH.uvh5')
+    uv_object.read(testfile)
+    uv_object.phase_to_time(Time(uv_object.time_array[0], format="jd"))
 
     # reorder to make sure we get the right value later
     uv_object.reorder_blts(order="baseline")
@@ -3969,7 +3964,8 @@ def test_bda_upsample():
     assert np.isclose(init_ns[0, 0, 0], out_ns[0, 0, 0])
 
     # add flags and try again
-    uv_object_copy.flag_array[0, 0, 0, 0] = True
+    inds01, _, _ = uv_object_copy._key2inds((0, 1))
+    uv_object_copy.flag_array[inds01[0], 0, 0, 0] = True
     uv_object_copy.bda_upsample(max_integration_time, blt_order="baseline")
 
     # data and nsamples should be changed as normal, but flagged
@@ -4003,8 +3999,9 @@ def test_bda_upsample():
 def test_bda_upsample_errors():
     """Test errors and warnings raised by bda_upsample"""
     uv_object = UVData()
-    testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-    uv_object.read_uvfits(testfile)
+    testfile = os.path.join(DATA_PATH, 'zen.2458661.23480.HH.uvh5')
+    uv_object.read(testfile)
+    uv_object.phase_to_time(Time(uv_object.time_array[0], format="jd"))
 
     # test using a too-small integration time
     max_integration_time = 1e-3 * np.amin(uv_object.integration_time)
@@ -4028,8 +4025,9 @@ def test_bda_upsample_errors():
 def test_bda_partial_upsample():
     """Test the bda_upsample method"""
     uv_object = UVData()
-    testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-    uv_object.read_uvfits(testfile)
+    testfile = os.path.join(DATA_PATH, 'zen.2458661.23480.HH.uvh5')
+    uv_object.read(testfile)
+    uv_object.phase_to_time(Time(uv_object.time_array[0], format="jd"))
 
     # change a whole baseline's integration time
     bl_inds, _, _ = uv_object._key2inds((0, 1))
@@ -4074,9 +4072,8 @@ def test_bda_partial_upsample():
 def test_bda_upsample_drift():
     """Test the bda_upsample method on drift mode data"""
     uv_object = UVData()
-    testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-    uv_object.read_uvfits(testfile)
-    uv_object.unphase_to_drift()
+    testfile = os.path.join(DATA_PATH, 'zen.2458661.23480.HH.uvh5')
+    uv_object.read(testfile)
 
     # reorder to make sure we get the right value later
     uv_object.reorder_blts(order="baseline")
@@ -4098,7 +4095,9 @@ def test_bda_upsample_drift():
     assert uv_object.data_array.size == 2 * init_data_size
     # output data should be the same
     out_wf = uv_object.get_data(0, 1)
-    assert np.isclose(init_wf[0, 0, 0], out_wf[0, 0, 0])
+    # we need a "large" tolerance given the "large" data
+    new_tol = 1e-2 * np.amax(np.abs(uv_object.data_array))
+    assert np.isclose(init_wf[0, 0, 0], out_wf[0, 0, 0], atol=new_tol)
 
     # this should be true because there are no flags
     out_ns = uv_object.get_nsamples(0, 1)
@@ -4112,7 +4111,7 @@ def test_bda_upsample_drift():
     assert uv_object_copy.data_array.size == 2 * init_data_size
     # output data should be similar, but somewhat different because of the phasing
     out_wf = uv_object_copy.get_data(0, 1)
-    assert np.isclose(init_wf[0, 0, 0], out_wf[0, 0, 0], atol=1e-3)
+    assert np.isclose(init_wf[0, 0, 0], out_wf[0, 0, 0], atol=new_tol)
 
     # this should be true because there are no flags
     out_ns = uv_object_copy.get_nsamples(0, 1)
@@ -4127,8 +4126,9 @@ def test_bda_upsample_drift():
 def test_bda_downsample():
     """Test the bda downsample method"""
     uv_object = UVData()
-    testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-    uv_object.read_uvfits(testfile)
+    testfile = os.path.join(DATA_PATH, 'zen.2458661.23480.HH.uvh5')
+    uv_object.read(testfile)
+    uv_object.phase_to_time(Time(uv_object.time_array[0], format="jd"))
     # reorder to make sure we get the right value later
     uv_object.reorder_blts(order="baseline", minor_order="time")
 
@@ -4165,7 +4165,8 @@ def test_bda_downsample():
     # add flags and try again. With one of the 2 inputs flagged, the data should
     # just be the unflagged value and nsample should be half the unflagged one
     # and the output should not be flagged.
-    uv_object_copy.flag_array[0, 0, 0, 0] = True
+    inds01, _, _ = uv_object_copy._key2inds((0, 1))
+    uv_object_copy.flag_array[inds01[0], 0, 0, 0] = True
     uv_object_copy.bda_downsample(min_integration_time, blt_order="baseline",
                                   minor_order="time")
     out_wf = uv_object_copy.get_data(0, 1)
@@ -4181,7 +4182,7 @@ def test_bda_downsample():
     # add more flags and try again. When all the input points are flagged,
     # data and nsample should have the same results as no flags but the output
     # should be flagged
-    uv_object_copy2.flag_array[:2, 0, 0, 0] = True
+    uv_object_copy2.flag_array[inds01[:2], 0, 0, 0] = True
     uv_object_copy2.bda_downsample(min_integration_time, blt_order="baseline",
                                    minor_order="time")
     out_wf = uv_object_copy2.get_data(0, 1)
@@ -4216,8 +4217,9 @@ def test_bda_downsample():
 def test_bda_partial_downsample():
     """Test the bda_upsample method"""
     uv_object = UVData()
-    testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-    uv_object.read_uvfits(testfile)
+    testfile = os.path.join(DATA_PATH, 'zen.2458661.23480.HH.uvh5')
+    uv_object.read(testfile)
+    uv_object.phase_to_time(Time(uv_object.time_array[0], format="jd"))
 
     # change a whole baseline's integration time
     bl_inds, _, _ = uv_object._key2inds((0, 1))
@@ -4263,13 +4265,12 @@ def test_bda_partial_downsample():
 
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
 @pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+@pytest.mark.filterwarnings("ignore:x_orientation NORTH is not one of")
 def test_bda_downsample_drift():
     """Test the bda downsample method on drift mode data"""
     uv_object = UVData()
-    testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-    uv_object.read_uvfits(testfile)
-    uv_object.unphase_to_drift()
+    testfile = os.path.join(DATA_PATH, 'zen.2458661.23480.HH.uvh5')
+    uv_object.read(testfile)
 
     # reorder to make sure we get the right value later
     uv_object.reorder_blts(order="baseline", minor_order="time")
@@ -4318,8 +4319,9 @@ def test_bda_downsample_drift():
     # output data should be similar to the average, but somewhat different
     # because of the phasing
     out_wf = uv_object_copy.get_data(0, 1)
+    new_tol = 5e-2 * np.amax(np.abs(uv_object_copy.data_array))
     assert np.isclose((init_wf[0, 0, 0] + init_wf[1, 0, 0]) / 2.,
-                      out_wf[0, 0, 0], atol=5e-2)
+                      out_wf[0, 0, 0], atol=new_tol)
 
     # this should be true because there are no flags
     out_ns = uv_object_copy.get_nsamples(0, 1)
@@ -4335,8 +4337,8 @@ def test_bda_downsample_drift():
 def test_bda_downsample_errors():
     """Test various errors and warnings are raised"""
     uv_object = UVData()
-    testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-    uv_object.read_uvfits(testfile)
+    testfile = os.path.join(DATA_PATH, 'zen.2458661.23480.HH.uvh5')
+    uv_object.read(testfile)
 
     # raise an error for a too-large integration time
     max_integration_time = 1e3 * np.amax(uv_object.integration_time)
@@ -4361,13 +4363,20 @@ def test_bda_downsample_errors():
 def test_bda_upsample_downsample():
     """Test round trip works"""
     uv_object = UVData()
-    testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-    uv_object.read_uvfits(testfile)
+    testfile = os.path.join(DATA_PATH, 'zen.2458661.23480.HH.uvh5')
+    uv_object.read(testfile)
+    uv_object.set_uvws_from_antenna_positions()
+    uv_object.phase_to_time(Time(uv_object.time_array[0], format="jd"))
+    uv_object.set_lsts_from_time_array()
+    # add "large" absolute tolerance to data array
+    tols = uv_object._data_array.tols
+    new_atol = 5e-2 * np.amax(np.abs(uv_object.data_array))
+    uv_object._data_array.tols = (tols[0], new_atol)
 
     # set uvws from antenna positions so they'll agree later.
     # the fact that this is required is a bit concerning, it means that
     # our calculated uvws from the antenna positions do not match what's in the file
-    uv_object.set_uvws_from_antenna_positions(allow_phasing=True)
+    # uv_object.set_uvws_from_antenna_positions(allow_phasing=True)
 
     # reorder to make sure we get the right value later
     uv_object.reorder_blts(order="baseline", minor_order="time")
