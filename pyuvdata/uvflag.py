@@ -67,7 +67,7 @@ class UVFlag(UVBase):
 
     """
 
-    def __init__(self, input, mode='metric', copy_flags=False, waterfall=False,
+    def __init__(self, input=None, mode='metric', copy_flags=False, waterfall=False,
                  history='', label='', run_check=True, check_extra=True,
                  run_check_acceptability=True):
         """Initialize the object."""
@@ -231,24 +231,20 @@ class UVFlag(UVBase):
         # initialize the underlying UVBase properties
         super(UVFlag, self).__init__()
 
-        if mode.lower() == "metric":
-            self._set_mode_metric()
-        elif mode.lower() == "flag":
-            self._set_mode_flag()
-        else:
-            raise ValueError("Input mode must be within acceptable values: "
-                             "{}".format((', ').join(self._mode.acceptable_vals)))
-
         self.history = ''  # Added to at the end
 
         self.label = ''  # Added to at the end
         if isinstance(input, (list, tuple)):
             self.__init__(input[0], mode=mode, copy_flags=copy_flags,
-                          waterfall=waterfall, history=history)
+                          waterfall=waterfall, history=history, label=label,
+                          run_check=run_check, check_extra=check_extra,
+                          run_check_acceptability=run_check_acceptability)
             if len(input) > 1:
                 for i in input[1:]:
                     fobj = UVFlag(i, mode=mode, copy_flags=copy_flags,
-                                  waterfall=waterfall, history=history)
+                                  waterfall=waterfall, history=history,
+                                  run_check=run_check, check_extra=check_extra,
+                                  run_check_acceptability=run_check_acceptability)
                     self.__add__(fobj, run_check=run_check,
                                  inplace=True,
                                  check_extra=check_extra,
@@ -260,124 +256,21 @@ class UVFlag(UVBase):
             self.read(input, history, run_check=run_check,
                       check_extra=check_extra,
                       run_check_acceptability=run_check_acceptability)
-        elif waterfall and issubclass(input.__class__, (UVData, UVCal)):
-            self._set_type_waterfall()
-            self.history += ('Flag object with type "waterfall" created. ')
-            if not uvutils._check_history_version(self.history, self.pyuvdata_version_str):
-                self.history += self.pyuvdata_version_str
-
-            self.time_array, ri = np.unique(input.time_array, return_index=True)
-            self.Ntimes = len(self.time_array)
-            self.freq_array = input.freq_array[0, :]
-            self.Nspws = None
-            self.Nfreqs = len(self.freq_array)
-            self.Nblts = len(self.time_array)
-            if issubclass(input.__class__, UVData):
-                self.polarization_array = input.polarization_array
-                self.Npols = len(self.polarization_array)
-                self.lst_array = input.lst_array[ri]
-            else:
-                self.polarization_array = input.jones_array
-                self.Npols = len(self.polarization_array)
-                self.lst_array = lst_from_uv(input)[ri]
-            if copy_flags:
-                raise NotImplementedError('Cannot copy flags when initializing '
-                                          ' waterfall UVFlag from UVData or UVCal.')
-            else:
-                if self.mode == 'flag':
-                    self.flag_array = np.zeros((len(self.time_array),
-                                                len(self.freq_array),
-                                                len(self.polarization_array)), np.bool)
-                elif self.mode == 'metric':
-                    self.metric_array = np.zeros((len(self.time_array),
-                                                  len(self.freq_array),
-                                                  len(self.polarization_array)))
-
         elif issubclass(input.__class__, UVData):
-            self._set_type_baseline()
-            self.history += ('Flag object with type "baseline" created. ')
-            if not uvutils._check_history_version(self.history, self.pyuvdata_version_str):
-                self.history += self.pyuvdata_version_str
-
-            self.baseline_array = input.baseline_array
-            self.Nbls = np.unique(self.baseline_array).size
-            self.Nblts = len(self.baseline_array)
-            self.ant_1_array = input.ant_1_array
-            self.ant_2_array = input.ant_2_array
-            self.Nants_data = input.Nants_data
-
-            self.time_array = input.time_array
-            self.lst_array = input.lst_array
-            self.Ntimes = np.unique(self.time_array).size
-
-            self.freq_array = input.freq_array
-            self.Nfreqs = np.unique(self.freq_array).size
-            self.Nspws = input.Nspws
-
-            self.polarization_array = input.polarization_array
-            self.Npols = len(self.polarization_array)
-            self.Nants_telescope = input.Nants_telescope
-            if copy_flags:
-                self.flag_array = input.flag_array
-                self.history += ' Flags copied from ' + str(input.__class__) + ' object.'
-                if self.mode == 'metric':
-                    warnings.warn('Copying flags to type=="baseline" results in mode=="flag".')
-                    self._set_mode_flag()
-            else:
-                if self.mode == 'flag':
-                    self.flag_array = np.zeros_like(input.flag_array)
-                elif self.mode == 'metric':
-                    self.metric_array = np.zeros_like(input.flag_array).astype(np.float)
+            self.from_uvdata(input, mode=mode, copy_flags=copy_flags,
+                             waterfall=waterfall, history=history, label=label,
+                             run_check=run_check, check_extra=check_extra,
+                             run_check_acceptability=run_check_acceptability)
 
         elif issubclass(input.__class__, UVCal):
-            self._set_type_antenna()
-            self.history += ('Flag object with type "antenna" created. ')
-            if not uvutils._check_history_version(self.history, self.pyuvdata_version_str):
-                self.history += self.pyuvdata_version_str
-            self.ant_array = input.ant_array
-            self.Nants_data = len(self.ant_array)
+            self.from_uvcal(input, mode=mode, copy_flags=copy_flags,
+                            waterfall=waterfall, history=history, label=label,
+                            run_check=run_check, check_extra=check_extra,
+                            run_check_acceptability=run_check_acceptability)
 
-            self.time_array = input.time_array
-            self.lst_array = lst_from_uv(input)
-            self.Ntimes = np.unique(self.time_array).size
-            self.Nblts = self.Ntimes
-
-            self.freq_array = input.freq_array
-            self.Nspws = input.Nspws
-            self.Nfreqs = np.unique(self.freq_array).size
-
-            self.polarization_array = input.jones_array
-            self.Npols = len(self.polarization_array)
-            if copy_flags:
-                self.flag_array = input.flag_array
-                self.history += ' Flags copied from ' + str(input.__class__) + ' object.'
-                if self.mode == 'metric':
-                    warnings.warn('Copying flags to type=="antenna" results in mode=="flag".')
-                    self._set_mode_flag()
-            else:
-                if self.mode == 'flag':
-                    self.flag_array = np.zeros_like(input.flag_array)
-                elif self.mode == 'metric':
-                    self.metric_array = np.zeros_like(input.flag_array).astype(np.float)
-        else:
-            raise ValueError('input to UVFlag.__init__ must be one of: list, tuple, '
-                             'string, UVData, or UVCal.')
-
-        if issubclass(input.__class__, (UVData, UVCal)):
-            if self.mode == 'flag':
-                self.weights_array = np.ones(self.flag_array.shape)
-            else:
-                self.weights_array = np.ones(self.metric_array.shape)
-
-        if history not in self.history:
-            self.history += history
-        self.label += label
-
-        self.clear_unused_attributes()
-
-        if run_check:
-            self.check(check_extra=check_extra,
-                       run_check_acceptability=run_check_acceptability)
+        elif input is not None:
+            raise ValueError('input to UVFlag.__init__ must be one of: '
+                             'list, tuple, string, UVData, or UVCal.')
 
     @property
     def _data_params(self):
@@ -1564,6 +1457,268 @@ class UVFlag(UVBase):
     def copy(self):
         """Return a copy of this object."""
         return copy.deepcopy(self)
+
+    def from_uvdata(self, input, mode='metric', copy_flags=False,
+                    waterfall=False, history='', label='',
+                    run_check=True, check_extra=True,
+                    run_check_acceptability=True):
+        """Construct a UVFlag object from a UVData object.
+
+        Parameters
+        ----------
+        input : UVData
+            Input to initialize UVFlag object.
+        mode : {"metric", "flag"}, optional
+            The mode determines whether the object has a floating point metric_array
+            or a boolean flag_array.
+        copy_flags : bool, optional
+            Whether to copy flags from input to new UVFlag object
+        waterfall : bool, optional
+            Whether to immediately initialize as a waterfall object, with flag/metric
+            axes: time, frequency, polarization.
+        history : str, optional
+            History string to attach to object.
+        label: str, optional
+            String used for labeling the object (e.g. 'FM').
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            after creating UVFlag object.
+        check_extra : bool
+            Option to check optional parameters as well as required ones (the
+            default is True, meaning the optional parameters will be checked).
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters after
+            creating UVFlag object.
+
+        """
+        if not issubclass(input.__class__, UVData):
+            raise ValueError("from_uvdata can only initialize a UVFlag object "
+                             "from an input UVData object or a subclass "
+                             " of a UVData object.")
+
+        if mode.lower() == "metric":
+            self._set_mode_metric()
+        elif mode.lower() == "flag":
+            self._set_mode_flag()
+        else:
+            raise ValueError("Input mode must be within acceptable values: "
+                             "{}".format((', ').join(self._mode.acceptable_vals)))
+
+        if waterfall:
+            self._set_type_waterfall()
+            self.history += ('Flag object with type "waterfall" created. ')
+            if not uvutils._check_history_version(self.history,
+                                                  self.pyuvdata_version_str):
+                self.history += self.pyuvdata_version_str
+
+            self.time_array, ri = np.unique(input.time_array,
+                                            return_index=True)
+            self.Ntimes = len(self.time_array)
+            self.freq_array = input.freq_array[0, :]
+            self.Nspws = None
+            self.Nfreqs = len(self.freq_array)
+            self.Nblts = len(self.time_array)
+            self.polarization_array = input.polarization_array
+            self.Npols = len(self.polarization_array)
+            self.lst_array = input.lst_array[ri]
+            if copy_flags:
+                raise NotImplementedError('Cannot copy flags when '
+                                          'initializing waterfall UVFlag '
+                                          'from UVData or UVCal.')
+            else:
+                if self.mode == 'flag':
+                    self.flag_array = np.zeros((len(self.time_array),
+                                                len(self.freq_array),
+                                                len(self.polarization_array)),
+                                               np.bool)
+                elif self.mode == 'metric':
+                    self.metric_array = np.zeros((len(self.time_array),
+                                                  len(self.freq_array),
+                                                  len(self.polarization_array)))
+
+        else:
+            self._set_type_baseline()
+            self.history += ('Flag object with type "baseline" created. ')
+            if not uvutils._check_history_version(self.history,
+                                                  self.pyuvdata_version_str):
+                self.history += self.pyuvdata_version_str
+
+            self.baseline_array = input.baseline_array
+            self.Nbls = np.unique(self.baseline_array).size
+            self.Nblts = len(self.baseline_array)
+            self.ant_1_array = input.ant_1_array
+            self.ant_2_array = input.ant_2_array
+            self.Nants_data = input.Nants_data
+
+            self.time_array = input.time_array
+            self.lst_array = input.lst_array
+            self.Ntimes = np.unique(self.time_array).size
+
+            self.freq_array = input.freq_array
+            self.Nfreqs = np.unique(self.freq_array).size
+            self.Nspws = input.Nspws
+
+            self.polarization_array = input.polarization_array
+            self.Npols = len(self.polarization_array)
+            self.Nants_telescope = input.Nants_telescope
+            if copy_flags:
+                self.flag_array = input.flag_array
+                self.history += (' Flags copied from '
+                                 + str(input.__class__) + ' object.')
+                if self.mode == 'metric':
+                    warnings.warn('Copying flags to type=="baseline" '
+                                  'results in mode=="flag".')
+                    self._set_mode_flag()
+            else:
+                if self.mode == 'flag':
+                    self.flag_array = np.zeros_like(input.flag_array)
+                elif self.mode == 'metric':
+                    self.metric_array = (np.zeros_like(input.flag_array)
+                                         .astype(np.float))
+        if self.mode == 'flag':
+            self.weights_array = np.ones(self.flag_array.shape)
+        else:
+            self.weights_array = np.ones(self.metric_array.shape)
+
+        if history not in self.history:
+            self.history += history
+        self.label += label
+
+        self.clear_unused_attributes()
+
+        if run_check:
+            self.check(check_extra=check_extra,
+                       run_check_acceptability=run_check_acceptability)
+        return
+
+    def from_uvcal(self, input, mode='metric', copy_flags=False,
+                   waterfall=False, history='', label='',
+                   run_check=True, check_extra=True,
+                   run_check_acceptability=True):
+        """Construct a UVFlag object from a UVCal object.
+
+        Parameters
+        ----------
+        input : UVData
+            Input to initialize UVFlag object.
+        mode : {"metric", "flag"}, optional
+            The mode determines whether the object has a floating point metric_array
+            or a boolean flag_array.
+        copy_flags : bool, optional
+            Whether to copy flags from input to new UVFlag object
+        waterfall : bool, optional
+            Whether to immediately initialize as a waterfall object, with flag/metric
+            axes: time, frequency, polarization.
+        history : str, optional
+            History string to attach to object.
+        label: str, optional
+            String used for labeling the object (e.g. 'FM').
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            after creating UVFlag object.
+        check_extra : bool
+            Option to check optional parameters as well as required ones (the
+            default is True, meaning the optional parameters will be checked).
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters after
+            creating UVFlag object.
+
+        """
+        if not issubclass(input.__class__, UVCal):
+            raise ValueError("from_uvcal can only initialize a UVFlag object "
+                             "from an input UVCal object or a subclass "
+                             "of a UVCal object.")
+
+        if mode.lower() == "metric":
+            self._set_mode_metric()
+        elif mode.lower() == "flag":
+            self._set_mode_flag()
+        else:
+            raise ValueError("Input mode must be within acceptable values: "
+                             "{}".format((', ').join(self._mode.acceptable_vals)))
+
+        if waterfall:
+            self._set_type_waterfall()
+            self.history += ('Flag object with type "waterfall" created. ')
+            if not uvutils._check_history_version(self.history,
+                                                  self.pyuvdata_version_str):
+                self.history += self.pyuvdata_version_str
+
+            self.time_array, ri = np.unique(input.time_array,
+                                            return_index=True)
+            self.Ntimes = len(self.time_array)
+            self.freq_array = input.freq_array[0, :]
+            self.Nspws = None
+            self.Nfreqs = len(self.freq_array)
+            self.Nblts = len(self.time_array)
+            self.polarization_array = input.jones_array
+            self.Npols = len(self.polarization_array)
+            self.lst_array = lst_from_uv(input)[ri]
+            if copy_flags:
+                raise NotImplementedError('Cannot copy flags when '
+                                          'initializing waterfall UVFlag '
+                                          'from UVData or UVCal.')
+            else:
+                if self.mode == 'flag':
+                    self.flag_array = np.zeros((len(self.time_array),
+                                                len(self.freq_array),
+                                                len(self.polarization_array)),
+                                               np.bool)
+                elif self.mode == 'metric':
+                    self.metric_array = np.zeros((len(self.time_array),
+                                                  len(self.freq_array),
+                                                  len(self.polarization_array)))
+
+        else:
+            self._set_type_antenna()
+            self.history += ('Flag object with type "antenna" created. ')
+            if not uvutils._check_history_version(self.history,
+                                                  self.pyuvdata_version_str):
+                self.history += self.pyuvdata_version_str
+            self.ant_array = input.ant_array
+            self.Nants_data = len(self.ant_array)
+
+            self.time_array = input.time_array
+            self.lst_array = lst_from_uv(input)
+            self.Ntimes = np.unique(self.time_array).size
+            self.Nblts = self.Ntimes
+
+            self.freq_array = input.freq_array
+            self.Nspws = input.Nspws
+            self.Nfreqs = np.unique(self.freq_array).size
+
+            self.polarization_array = input.jones_array
+            self.Npols = len(self.polarization_array)
+            if copy_flags:
+                self.flag_array = input.flag_array
+                self.history += (' Flags copied from '
+                                 + str(input.__class__) + ' object.')
+                if self.mode == 'metric':
+                    warnings.warn('Copying flags to type=="antenna" '
+                                  'results in mode=="flag".')
+                    self._set_mode_flag()
+            else:
+                if self.mode == 'flag':
+                    self.flag_array = np.zeros_like(input.flag_array)
+                elif self.mode == 'metric':
+                    self.metric_array = (np.zeros_like(input.flag_array)
+                                         .astype(np.float))
+
+        if self.mode == 'flag':
+            self.weights_array = np.ones(self.flag_array.shape)
+        else:
+            self.weights_array = np.ones(self.metric_array.shape)
+
+        if history not in self.history:
+            self.history += history
+        self.label += label
+
+        self.clear_unused_attributes()
+
+        if run_check:
+            self.check(check_extra=check_extra,
+                       run_check_acceptability=run_check_acceptability)
+        return
 
     def combine_metrics(self, others, method='quadmean', inplace=True,
                         run_check=True, check_extra=True,
