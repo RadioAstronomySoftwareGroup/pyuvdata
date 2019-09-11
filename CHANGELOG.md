@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 - `copy` method for `UVData`, which can optionally make a copy of just metadata
-- `bda_upsample` and `bda_downsample` methods on `UVData` objects
+- `bda_upsample`, `bda_downsample`, and `bda_resample` methods on `UVData` objects
 - `utils.uvcalibrate(.., undo=True)` kwarg for undo-ing a calibration.
 - `utils.uvcalibrate` updates `UVData.vis_units` if `UVCal.gain_scale` is set.
 - `UVCal.gain_scale` non-required attribute
