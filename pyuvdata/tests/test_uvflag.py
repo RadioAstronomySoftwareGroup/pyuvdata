@@ -32,7 +32,8 @@ import h5py
 def uvf_from_miriad():
     uv = UVData()
     uv.read_miriad(test_d_file)
-    uvf = UVFlag(uv)
+    uvf = UVFlag()
+    uvf.from_uvdata(uv)
 
     # yield the object for the test
     yield uvf
@@ -45,7 +46,8 @@ def uvf_from_miriad():
 def uvf_from_uvcal():
     uvc = UVCal()
     uvc.read_calfits(test_c_file)
-    uvf = UVFlag(uvc)
+    uvf = UVFlag()
+    uvf.from_uvcal(uvc)
 
     # yield the object for the test
     yield uvf
@@ -58,7 +60,8 @@ def uvf_from_uvcal():
 def uvf_from_waterfall():
     uv = UVData()
     uv.read_miriad(test_d_file)
-    uvf = UVFlag(uv, waterfall=True)
+    uvf = UVFlag()
+    uvf.from_uvdata(uv, waterfall=True)
 
     # yield the object for the test
     yield uvf
@@ -115,6 +118,13 @@ def test_init_bad_mode():
                history='I made a UVFlag object', label='test')
     assert str(cm.value).startswith('Input mode must be within acceptable')
 
+    uv = UVCal()
+    uv.read_calfits(test_c_file)
+    with pytest.raises(ValueError) as cm:
+        UVFlag(uv, mode='bad_mode',
+               history='I made a UVFlag object', label='test')
+    assert str(cm.value).startswith('Input mode must be within acceptable')
+
 
 def test_init_UVData():
     uv = UVData()
@@ -163,6 +173,30 @@ def test_init_UVData_copy_flags():
     assert pyuvdata_version_str in uvf.history
 
 
+def test_init_UVData_mode_flag():
+    uv = UVData()
+    uv.read_miriad(test_d_file)
+    uvf = UVFlag()
+    uvf.from_uvdata(uv, copy_flags=False, mode="flag")
+    #  with copy flags uvf.metric_array should be none
+    assert hasattr(uvf, 'metric_array')
+    assert uvf.metric_array is None
+    assert np.array_equal(uvf.flag_array, uv.flag_array)
+    assert uvf.weights_array.shape == uv.flag_array.shape
+    assert np.all(uvf.weights_array == 1)
+    assert uvf.type == 'baseline'
+    assert uvf.mode == 'flag'
+    assert np.all(uvf.time_array == uv.time_array)
+    assert np.all(uvf.lst_array == uv.lst_array)
+    assert np.all(uvf.freq_array == uv.freq_array[0])
+    assert np.all(uvf.polarization_array == uv.polarization_array)
+    assert np.all(uvf.baseline_array == uv.baseline_array)
+    assert np.all(uvf.ant_1_array == uv.ant_1_array)
+    assert np.all(uvf.ant_2_array == uv.ant_2_array)
+    assert 'Flag object with type "baseline"' in uvf.history
+    assert pyuvdata_version_str in uvf.history
+
+
 def test_init_UVCal():
     uvc = UVCal()
     uvc.read_calfits(test_c_file)
@@ -173,6 +207,27 @@ def test_init_UVCal():
     assert np.all(uvf.weights_array == 1)
     assert uvf.type == 'antenna'
     assert uvf.mode == 'metric'
+    assert np.all(uvf.time_array == uvc.time_array)
+    lst = lst_from_uv(uvc)
+    assert np.all(uvf.lst_array == lst)
+    assert np.all(uvf.freq_array == uvc.freq_array[0])
+    assert np.all(uvf.polarization_array == uvc.jones_array)
+    assert np.all(uvf.ant_array == uvc.ant_array)
+    assert 'Flag object with type "antenna"' in uvf.history
+    assert pyuvdata_version_str in uvf.history
+
+
+def test_init_UVCal_mode_flag():
+    uvc = UVCal()
+    uvc.read_calfits(test_c_file)
+    uvf = UVFlag(uvc, copy_flags=False, mode='flag')
+    assert hasattr(uvf, 'metric_array')
+    assert uvf.metric_array is None
+    assert np.array_equal(uvf.flag_array, uvc.flag_array)
+    assert uvf.weights_array.shape == uvc.flag_array.shape
+    assert np.all(uvf.weights_array == 1)
+    assert uvf.type == 'antenna'
+    assert uvf.mode == 'flag'
     assert np.all(uvf.time_array == uvc.time_array)
     lst = lst_from_uv(uvc)
     assert np.all(uvf.lst_array == lst)
@@ -222,7 +277,7 @@ def test_init_waterfall_uvd():
 def test_init_waterfall_uvc():
     uv = UVCal()
     uv.read_calfits(test_c_file)
-    uvf = UVFlag(uv, waterfall=True)
+    uvf = UVFlag(uv, waterfall=True, history='input history check')
     assert uvf.metric_array.shape == (uv.Ntimes, uv.Nfreqs, uv.Njones)
     assert np.all(uvf.metric_array == 0)
     assert uvf.weights_array.shape == (uv.Ntimes, uv.Nfreqs, uv.Njones)
@@ -233,10 +288,11 @@ def test_init_waterfall_uvc():
     assert np.all(uvf.freq_array == uv.freq_array[0])
     assert np.all(uvf.polarization_array == uv.jones_array)
     assert 'Flag object with type "waterfall"' in uvf.history
+    assert 'input history check' in uvf.history
     assert pyuvdata_version_str in uvf.history
 
 
-def test_init_waterfall_flag():
+def test_init_waterfall_flag_uvcal():
     uv = UVCal()
     uv.read_calfits(test_c_file)
     uvf = UVFlag(uv, waterfall=True, mode='flag')
@@ -253,9 +309,32 @@ def test_init_waterfall_flag():
     assert pyuvdata_version_str in uvf.history
 
 
+def test_init_waterfall_flag_uvdata():
+    uv = UVData()
+    uv.read_miriad(test_d_file)
+    uvf = UVFlag(uv, waterfall=True, mode='flag')
+    assert uvf.flag_array.shape == (uv.Ntimes, uv.Nfreqs, uv.Npols)
+    assert not np.any(uvf.flag_array)
+    assert uvf.weights_array.shape == (uv.Ntimes, uv.Nfreqs, uv.Npols)
+    assert np.all(uvf.weights_array == 1)
+    assert uvf.type == 'waterfall'
+    assert uvf.mode == 'flag'
+    assert np.all(uvf.time_array == np.unique(uv.time_array))
+    assert np.all(uvf.freq_array == uv.freq_array[0])
+    assert np.all(uvf.polarization_array == uv.polarization_array)
+    assert 'Flag object with type "waterfall"' in uvf.history
+    assert pyuvdata_version_str in uvf.history
+
+
 def test_init_waterfall_copy_flags():
     uv = UVCal()
     uv.read_calfits(test_c_file)
+    with pytest.raises(NotImplementedError) as cm:
+        UVFlag(uv, copy_flags=True, mode='flag', waterfall=True)
+    assert str(cm.value).startswith('Cannot copy flags when initializing')
+
+    uv = UVData()
+    uv.read_miriad(test_d_file)
     with pytest.raises(NotImplementedError) as cm:
         UVFlag(uv, copy_flags=True, mode='flag', waterfall=True)
     assert str(cm.value).startswith('Cannot copy flags when initializing')
@@ -266,6 +345,24 @@ def test_init_invalid_input():
     with pytest.raises(ValueError) as cm:
         UVFlag(14)
     assert str(cm.value).startswith('input to UVFlag.__init__ must be one of:')
+
+
+def test_from_uvcal_error():
+    uv = UVData()
+    uv.read_miriad(test_d_file)
+    uvf = UVFlag()
+    with pytest.raises(ValueError) as cm:
+        uvf.from_uvcal(uv)
+    assert str(cm.value).startswith("from_uvcal can only initialize a UVFlag object")
+
+
+def test_from_udata_error():
+    uv = UVCal()
+    uv.read_calfits(test_c_file)
+    uvf = UVFlag()
+    with pytest.raises(ValueError) as cm:
+        uvf.from_uvdata(uv)
+    assert str(cm.value).startswith("from_uvdata can only initialize a UVFlag object")
 
 
 def test_init_list_files_weights(tmpdir):
