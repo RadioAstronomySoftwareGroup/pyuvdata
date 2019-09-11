@@ -9,8 +9,10 @@ from __future__ import absolute_import, division, print_function
 
 import pytest
 import os
-import numpy as np
 import copy
+import itertools
+
+import numpy as np
 from astropy.time import Time
 from astropy.coordinates import Angle
 
@@ -414,6 +416,7 @@ def test_generic_read():
     pytest.raises(ValueError, uv_in.read, 'foo')
 
 
+@uvtest.skipIf_no_h5py
 def test_phase_unphaseHERA():
     """
     Read in drift data, phase to an RA/DEC, unphase and check for object equality.
@@ -3201,34 +3204,38 @@ def test_parse_ants():
 
     # Test ant_str='auto' on file with auto correlations
     uv = UVData()
-    testfile = os.path.join(DATA_PATH, 'zen.2458661.23480.HH.uvh5')
+    testfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.HH.uvcA')
     uv.read(testfile)
 
     ant_str = 'auto'
     ant_pairs_nums, polarizations = uv.parse_ants(ant_str)
-    ant_pairs_expected = [(0, 0), (1, 1), (2, 2), (11, 11)]
-    assert Counter(ant_pairs_nums) == Counter(ant_pairs_expected)
+    ant_nums = [9, 10, 20, 22, 31, 43, 53, 64, 65, 72, 80, 81, 88, 89, 96, 97,
+                104, 105, 112]
+    ant_pairs_autos = [(ant_i, ant_i) for ant_i in ant_nums]
+    assert Counter(ant_pairs_nums) == Counter(ant_pairs_autos)
     assert isinstance(polarizations, type(None))
 
     # Test cross correlation extraction on data with auto + cross
     ant_str = 'cross'
     ant_pairs_nums, polarizations = uv.parse_ants(ant_str)
-    ant_pairs_expected = [(0, 1), (0, 2), (0, 11), (1, 11), (2, 1), (2, 11)]
-    assert Counter(ant_pairs_nums) == Counter(ant_pairs_expected)
+    ant_pairs_cross = list(itertools.combinations(ant_nums, 2))
+    assert Counter(ant_pairs_nums) == Counter(ant_pairs_cross)
     assert isinstance(polarizations, type(None))
 
     # Remove only a single baseline
-    ant_str = 'all,-0_1'
+    ant_str = 'all,-9_10'
     ant_pairs_nums, polarizations = uv.parse_ants(ant_str)
-    ant_pairs_expected = [(0, 0), (0, 2), (0, 11), (1, 1), (1, 11),
-                          (2, 11), (2, 1), (2, 2), (11, 11)]
+    ant_pairs_expected = ant_pairs_autos + ant_pairs_cross
+    ant_pairs_expected.remove((9, 10))
     assert Counter(ant_pairs_nums) == Counter(ant_pairs_expected)
     assert isinstance(polarizations, type(None))
 
     # Test appending all to beginning of strings that start with -
-    ant_str = '-1'
+    ant_str = '-9'
     ant_pairs_nums, polarizations = uv.parse_ants(ant_str)
-    ant_pairs_expected = [(0, 0), (0, 2), (0, 11), (2, 2), (2, 11), (11, 11)]
+    ant_pairs_expected = ant_pairs_autos + ant_pairs_cross
+    for ant_i in ant_nums:
+        ant_pairs_expected.remove((9, ant_i))
     assert Counter(ant_pairs_nums) == Counter(ant_pairs_expected)
     assert isinstance(polarizations, type(None))
 
@@ -3446,33 +3453,37 @@ def test_select_with_ant_str():
 
     # Test ant_str = 'auto' on file with auto correlations
     uv = UVData()
-    testfile = os.path.join(DATA_PATH, 'zen.2458661.23480.HH.uvh5')
+    testfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.HH.uvcA')
     uv.read(testfile)
 
     ant_str = 'auto'
-    ant_pairs = [(0, 0), (1, 1), (2, 2), (11, 11)]
+    ant_nums = [9, 10, 20, 22, 31, 43, 53, 64, 65, 72, 80, 81, 88, 89, 96, 97,
+                104, 105, 112]
+    ant_pairs_autos = [(ant_i, ant_i) for ant_i in ant_nums]
     uv2 = uv.select(ant_str=ant_str, inplace=inplace)
-    assert Counter(uv2.get_antpairs()) == Counter(ant_pairs)
+    assert Counter(uv2.get_antpairs()) == Counter(ant_pairs_autos)
     assert Counter(uv2.get_pols()) == Counter(uv.get_pols())
 
     # Test cross correlation extraction on data with auto + cross
     ant_str = 'cross'
-    ant_pairs = [(0, 1), (0, 2), (0, 11), (1, 11), (2, 1), (2, 11)]
+    ant_pairs_cross = list(itertools.combinations(ant_nums, 2))
     uv2 = uv.select(ant_str=ant_str, inplace=inplace)
-    assert Counter(uv2.get_antpairs()) == Counter(ant_pairs)
+    assert Counter(uv2.get_antpairs()) == Counter(ant_pairs_cross)
     assert Counter(uv2.get_pols()) == Counter(uv.get_pols())
 
     # Remove a single baseline
-    ant_str = 'all,-0_1'
-    ant_pairs = [(0, 0), (0, 2), (0, 11), (1, 1), (1, 11), (2, 1), (2, 2),
-                 (2, 11), (11, 11)]
+    ant_str = 'all,-9_10'
+    ant_pairs = ant_pairs_autos + ant_pairs_cross
+    ant_pairs.remove((9, 10))
     uv2 = uv.select(ant_str=ant_str, inplace=inplace)
     assert Counter(uv2.get_antpairs()) == Counter(ant_pairs)
     assert Counter(uv2.get_pols()) == Counter(uv.get_pols())
 
     # Test appending all to beginning of strings that start with -
-    ant_str = '-1'
-    ant_pairs = [(0, 0), (0, 2), (0, 11), (2, 2), (2, 11), (11, 11)]
+    ant_str = '-9'
+    ant_pairs = ant_pairs_autos + ant_pairs_cross
+    for ant_i in ant_nums:
+        ant_pairs.remove((9, ant_i))
     uv2 = uv.select(ant_str=ant_str, inplace=inplace)
     assert Counter(uv2.get_antpairs()) == Counter(ant_pairs)
     assert Counter(uv2.get_pols()) == Counter(uv.get_pols())
@@ -3926,9 +3937,9 @@ def test_copy():
     assert uv_object_copy == uv_object
 
 
+@uvtest.skipIf_no_h5py
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
 @pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 def test_bda_upsample():
     """Test the bda_upsample method"""
     uv_object = UVData()
@@ -3995,7 +4006,7 @@ def test_bda_upsample():
     return
 
 
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+@uvtest.skipIf_no_h5py
 def test_bda_upsample_errors():
     """Test errors and warnings raised by bda_upsample"""
     uv_object = UVData()
@@ -4019,9 +4030,9 @@ def test_bda_upsample_errors():
     return
 
 
+@uvtest.skipIf_no_h5py
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
 @pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 def test_bda_partial_upsample():
     """Test the bda_upsample method"""
     uv_object = UVData()
@@ -4066,9 +4077,9 @@ def test_bda_partial_upsample():
     return
 
 
+@uvtest.skipIf_no_h5py
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
 @pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 def test_bda_upsample_drift():
     """Test the bda_upsample method on drift mode data"""
     uv_object = UVData()
@@ -4120,9 +4131,9 @@ def test_bda_upsample_drift():
     return
 
 
+@uvtest.skipIf_no_h5py
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
 @pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 def test_bda_downsample():
     """Test the bda downsample method"""
     uv_object = UVData()
@@ -4211,9 +4222,9 @@ def test_bda_downsample():
     return
 
 
+@uvtest.skipIf_no_h5py
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
 @pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 def test_bda_partial_downsample():
     """Test the bda_upsample method"""
     uv_object = UVData()
@@ -4263,6 +4274,7 @@ def test_bda_partial_downsample():
     return
 
 
+@uvtest.skipIf_no_h5py
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
 @pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
 @pytest.mark.filterwarnings("ignore:x_orientation NORTH is not one of")
@@ -4333,7 +4345,7 @@ def test_bda_downsample_drift():
     return
 
 
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+@uvtest.skipIf_no_h5py
 def test_bda_downsample_errors():
     """Test various errors and warnings are raised"""
     uv_object = UVData()
@@ -4356,10 +4368,10 @@ def test_bda_downsample_errors():
     return
 
 
+@uvtest.skipIf_no_h5py
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
 @pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
 @pytest.mark.filterwarnings("ignore:Data will be unphased and rephased")
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 def test_bda_upsample_downsample():
     """Test round trip works"""
     uv_object = UVData()
