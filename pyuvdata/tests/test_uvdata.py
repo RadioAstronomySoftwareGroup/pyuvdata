@@ -3956,7 +3956,7 @@ def test_bda_upsample():
     init_data_size = uv_object.data_array.size
     init_wf = uv_object.get_data(0, 1)
     # check that there are no flags
-    assert np.nonzero(uv_object.flag_array is True)[0].size == 0
+    assert np.nonzero(uv_object.flag_array)[0].size == 0
     init_ns = uv_object.get_nsamples(0, 1)
 
     # change the target integration time
@@ -4052,7 +4052,7 @@ def test_bda_partial_upsample():
     init_wf_01 = uv_object.get_data(0, 1)
     init_wf_02 = uv_object.get_data(0, 2)
     # check that there are no flags
-    assert np.nonzero(uv_object.flag_array is True)[0].size == 0
+    assert np.nonzero(uv_object.flag_array)[0].size == 0
     init_ns_01 = uv_object.get_nsamples(0, 1)
     init_ns_02 = uv_object.get_nsamples(0, 2)
 
@@ -4094,7 +4094,7 @@ def test_bda_upsample_drift():
     init_data_size = uv_object.data_array.size
     init_wf = uv_object.get_data(0, 1)
     # check that there are no flags
-    assert np.nonzero(uv_object.flag_array is True)[0].size == 0
+    assert np.nonzero(uv_object.flag_array)[0].size == 0
     init_ns = uv_object.get_nsamples(0, 1)
 
     # change the target integration time
@@ -4147,24 +4147,25 @@ def test_bda_downsample():
     uv_object_copy = uv_object.copy()
     uv_object_copy2 = uv_object.copy()
     uv_object_copy3 = uv_object.copy()
+    uv_object_copy4 = uv_object.copy()
 
     # save some values for later
     init_data_size = uv_object.data_array.size
     init_wf = uv_object.get_data(0, 1)
     original_int_time = np.amax(uv_object.integration_time)
     # check that there are no flags
-    assert np.nonzero(uv_object.flag_array is True)[0].size == 0
+    assert np.nonzero(uv_object.flag_array)[0].size == 0
     init_ns = uv_object.get_nsamples(0, 1)
 
     # change the target integration time
     min_integration_time = original_int_time * 2.0
     uv_object.bda_downsample(min_integration_time, blt_order="baseline", minor_order="time")
 
-    # Only some baselines have an even number of times, so the output integration time
-    # is not uniformly the same. For the test case, we'll have *either* the original
-    # integration time or twice that.
-    assert np.all(np.logical_or(np.isclose(uv_object.integration_time, original_int_time),
-                                np.isclose(uv_object.integration_time, min_integration_time)))
+    # Should have half the size of the data array and all the new integration time
+    # (for this file with 20 integrations and a factor of 2 downsampling)
+    assert np.all(np.isclose(uv_object.integration_time, min_integration_time))
+    assert uv_object.data_array.size * 2 == init_data_size
+
     # output data should be the average
     out_wf = uv_object.get_data(0, 1)
     assert np.isclose((init_wf[0, 0, 0] + init_wf[1, 0, 0]) / 2., out_wf[0, 0, 0])
@@ -4188,7 +4189,7 @@ def test_bda_downsample():
     assert np.isclose((init_ns[1, 0, 0]) / 2., out_ns[0, 0, 0])
 
     # check that there are still no flags
-    assert np.nonzero(uv_object_copy.flag_array is True)[0].size == 0
+    assert np.nonzero(uv_object_copy.flag_array)[0].size == 0
 
     # add more flags and try again. When all the input points are flagged,
     # data and nsample should have the same results as no flags but the output
@@ -4207,17 +4208,33 @@ def test_bda_downsample():
     out_flag = uv_object_copy2.get_flags(0, 1)
     assert out_flag[0, 0, 0]
 
-    # test again with keep_ragged=False
-    min_integration_time = original_int_time * 2.0
+    # test again with a downsample factor that doesn't go evenly into the number of samples
+    min_integration_time = original_int_time * 3.0
     uv_object_copy3.bda_downsample(min_integration_time, blt_order="baseline",
                                    minor_order="time", keep_ragged=False)
+
+    # Only some baselines have an even number of times, so the output integration time
+    # is not uniformly the same. For the test case, we'll have *either* the original
+    # integration time or twice that.
+    assert np.all(np.logical_or(
+        np.isclose(uv_object_copy3.integration_time, original_int_time),
+        np.isclose(uv_object_copy3.integration_time, min_integration_time)))
+
+    # as usual, the new data should be the average of the input data (3 points now)
+    out_wf = uv_object_copy3.get_data(0, 1)
+    assert np.isclose(np.mean(init_wf[0:3, 0, 0]), out_wf[0, 0, 0])
+
+    # test again with keep_ragged=False
+    uv_object_copy4.bda_downsample(min_integration_time, blt_order="baseline",
+                                   minor_order="time", keep_ragged=False)
+
     # make sure integration time is correct
     # in this case, all integration times should be the target one
-    assert np.all(np.isclose(uv_object_copy3.integration_time, min_integration_time))
+    assert np.all(np.isclose(uv_object_copy4.integration_time, min_integration_time))
 
     # as usual, the new data should be the average of the input data
-    out_wf = uv_object_copy3.get_data(0, 1)
-    assert np.isclose((init_wf[0, 0, 0] + init_wf[1, 0, 0]) / 2.0, out_wf[0, 0, 0])
+    out_wf = uv_object_copy4.get_data(0, 1)
+    assert np.isclose(np.mean(init_wf[0:3, 0, 0]), out_wf[0, 0, 0])
 
     return
 
@@ -4244,7 +4261,7 @@ def test_bda_partial_downsample():
     init_wf_01 = uv_object.get_data(0, 1)
     init_wf_02 = uv_object.get_data(0, 2)
     # check that there are no flags
-    assert np.nonzero(uv_object.flag_array is True)[0].size == 0
+    assert np.nonzero(uv_object.flag_array)[0].size == 0
     init_ns_01 = uv_object.get_nsamples(0, 1)
     init_ns_02 = uv_object.get_nsamples(0, 2)
 
@@ -4252,11 +4269,10 @@ def test_bda_partial_downsample():
     min_integration_time = np.amax(uv_object.integration_time)
     uv_object.bda_downsample(min_integration_time, blt_order="baseline")
 
-    # Only some baselines have an even number of times, so the output integration time
-    # is not uniformly the same. For the test case, we'll have *either* the original
-    # integration time or twice that.
-    assert np.all(np.logical_or(np.isclose(uv_object.integration_time, min_integration_time / 2.0),
-                                np.isclose(uv_object.integration_time, min_integration_time)))
+    # Should have all the new integration time
+    # (for this file with 20 integrations and a factor of 2 downsampling)
+    assert np.all(np.isclose(uv_object.integration_time, min_integration_time))
+
     # output data should be the same
     out_wf_01 = uv_object.get_data(0, 1)
     out_wf_02 = uv_object.get_data(0, 2)
@@ -4277,7 +4293,6 @@ def test_bda_partial_downsample():
 @uvtest.skipIf_no_h5py
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
 @pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
-@pytest.mark.filterwarnings("ignore:x_orientation NORTH is not one of")
 def test_bda_downsample_drift():
     """Test the bda downsample method on drift mode data"""
     uv_object = UVData()
@@ -4302,11 +4317,11 @@ def test_bda_downsample_drift():
     min_integration_time = original_int_time * 2.0
     uv_object.bda_downsample(min_integration_time, blt_order="baseline", allow_drift=True)
 
-    # Only some baselines have an even number of times, so the output integration time
-    # is not uniformly the same. For the test case, we'll have *either* the original
-    # integration time or twice that.
-    assert np.all(np.logical_or(np.isclose(uv_object.integration_time, original_int_time),
-                                np.isclose(uv_object.integration_time, min_integration_time)))
+    # Should have half the size of the data array and all the new integration time
+    # (for this file with 20 integrations and a factor of 2 downsampling)
+    assert np.all(np.isclose(uv_object.integration_time, min_integration_time))
+    assert uv_object.data_array.size * 2 == init_data_size
+
     # output data should be the average
     out_wf = uv_object.get_data(0, 1)
     assert np.isclose((init_wf[0, 0, 0] + init_wf[1, 0, 0]) / 2., out_wf[0, 0, 0])
@@ -4321,12 +4336,10 @@ def test_bda_downsample_drift():
     # try again with allow_drift=False
     uv_object_copy.bda_downsample(min_integration_time, blt_order="baseline")
 
-    # Only some baselines have an even number of times, so the output integration time
-    # is not uniformly the same. For the test case, we'll have *either* the original
-    # integration time or twice that.
-    assert np.all(np.logical_or(
-        np.isclose(uv_object_copy.integration_time, original_int_time),
-        np.isclose(uv_object_copy.integration_time, min_integration_time)))
+    # Should have half the size of the data array and all the new integration time
+    # (for this file with 20 integrations and a factor of 2 downsampling)
+    assert np.all(np.isclose(uv_object_copy.integration_time, min_integration_time))
+    assert uv_object_copy.data_array.size * 2 == init_data_size
 
     # output data should be similar to the average, but somewhat different
     # because of the phasing
@@ -4351,6 +4364,9 @@ def test_bda_downsample_errors():
     uv_object = UVData()
     testfile = os.path.join(DATA_PATH, 'zen.2458661.23480.HH.uvh5')
     uv_object.read(testfile)
+    uv_object.phase_to_time(Time(uv_object.time_array[0], format="jd"))
+    # reorder to make sure we get the right value later
+    uv_object.reorder_blts(order="baseline", minor_order="time")
 
     # raise an error for a too-large integration time
     max_integration_time = 1e3 * np.amax(uv_object.integration_time)
@@ -4358,12 +4374,116 @@ def test_bda_downsample_errors():
         uv_object.bda_downsample(max_integration_time)
     assert str(cm.value).startswith("Increasing the integration time by more than")
 
-    # catch a warning for doing no work
+    # make copies for later
     uv_object2 = uv_object.copy()
+    uv_object3 = uv_object.copy()
+    uv_object4 = uv_object.copy()
+
+    # catch a warning for doing no work
     max_integration_time = 0.5 * np.amin(uv_object.integration_time)
     uvtest.checkWarnings(uv_object.bda_downsample, [max_integration_time],
-                         message="All values in the integration_time array are already longer")
+                         message="All values in the integration_time array are "
+                         "already longer")
     assert uv_object == uv_object2
+
+    # save some values for later
+    init_data_size = uv_object.data_array.size
+    init_wf = uv_object.get_data(0, 1)
+    original_int_time = np.amax(uv_object.integration_time)
+    # check that there are no flags
+    assert np.nonzero(uv_object.flag_array)[0].size == 0
+    init_ns = uv_object.get_nsamples(0, 1)
+
+    # make a gap in the times to check a warning about that
+    inds01, _, _ = uv_object._key2inds((0, 1))
+    initial_int_time = uv_object.integration_time[inds01[0]]
+    # time array is in jd, integration time is in sec
+    uv_object.time_array[inds01[-1]] += initial_int_time / (24 * 3600)
+    uv_object.Ntimes += 1
+    min_integration_time = 2 * np.amin(uv_object.integration_time)
+    uvtest.checkWarnings(uv_object.bda_downsample, [min_integration_time],
+                         message=["There is a gap in the times of baseline (0, 1)"])
+
+    # Should have half the size of the data array and all the new integration time
+    # (for this file with 20 integrations and a factor of 2 downsampling)
+    assert np.all(np.isclose(uv_object.integration_time, min_integration_time))
+    assert uv_object.data_array.size * 2 == init_data_size
+
+    # output data should be the average
+    out_wf = uv_object.get_data(0, 1)
+    assert np.isclose((init_wf[0, 0, 0] + init_wf[1, 0, 0]) / 2., out_wf[0, 0, 0])
+
+    # this should be true because there are no flags
+    out_ns = uv_object.get_nsamples(0, 1)
+    assert np.isclose((init_ns[0, 0, 0] + init_ns[1, 0, 0]) / 2., out_ns[0, 0, 0])
+
+    # change the integration times to catch a warning about integration times
+    # not matching the time delta between integrations
+    uv_object2.integration_time *= 0.5
+    min_integration_time = 2 * np.amin(uv_object2.integration_time)
+    uvtest.checkWarnings(uv_object2.bda_downsample, [min_integration_time],
+                         message=["The time difference between integrations is "
+                                  "not the same"],
+                         nwarnings=10)
+
+    # Should have half the size of the data array and all the new integration time
+    # (for this file with 20 integrations and a factor of 2 downsampling)
+    assert np.all(np.isclose(uv_object2.integration_time, min_integration_time))
+    assert uv_object2.data_array.size * 2 == init_data_size
+
+    # output data should be the average
+    out_wf = uv_object2.get_data(0, 1)
+    assert np.isclose((init_wf[0, 0, 0] + init_wf[1, 0, 0]) / 2., out_wf[0, 0, 0])
+
+    # this should be true because there are no flags
+    out_ns = uv_object2.get_nsamples(0, 1)
+    assert np.isclose((init_ns[0, 0, 0] + init_ns[1, 0, 0]) / 2., out_ns[0, 0, 0])
+
+    # test handling (& warnings) with varying integration time in a baseline
+    # First, change both integration time & time array to match
+    inds01, _, _ = uv_object3._key2inds((0, 1))
+    initial_int_time = uv_object3.integration_time[inds01[0]]
+    # time array is in jd, integration time is in sec
+    uv_object3.time_array[inds01[-2]] += (initial_int_time / 2) / (24 * 3600)
+    uv_object3.time_array[inds01[-1]] += (3 * initial_int_time / 2) / (24 * 3600)
+    uv_object3.integration_time[inds01[-2:]] += initial_int_time
+    uv_object3.Ntimes = np.unique(uv_object3.time_array).size
+    min_integration_time = 2 * np.amin(uv_object3.integration_time)
+    uvtest.checkWarnings(uv_object3.bda_downsample, [min_integration_time],
+                         nwarnings=0)
+
+    # Should have all the new integration time
+    # (for this file with 20 integrations and a factor of 2 downsampling)
+    assert np.all(np.isclose(uv_object3.integration_time, min_integration_time))
+
+    # output data should be the average
+    out_wf = uv_object3.get_data(0, 1)
+    assert np.isclose((init_wf[0, 0, 0] + init_wf[1, 0, 0]) / 2., out_wf[0, 0, 0])
+
+    # this should be true because there are no flags
+    out_ns = uv_object3.get_nsamples(0, 1)
+    assert np.isclose((init_ns[0, 0, 0] + init_ns[1, 0, 0]) / 2., out_ns[0, 0, 0])
+
+    # Next, change just integration time, so time array doesn't match
+    inds01, _, _ = uv_object4._key2inds((0, 1))
+    initial_int_time = uv_object4.integration_time[inds01[0]]
+    uv_object4.integration_time[inds01[-2:]] += initial_int_time
+    min_integration_time = 2 * np.amin(uv_object4.integration_time)
+    uvtest.checkWarnings(uv_object4.bda_downsample, [min_integration_time],
+                         message="The time difference between integrations is "
+                         "different than")
+
+    # Should have all the new integration time
+    # (for this file with 20 integrations and a factor of 2 downsampling)
+    assert np.all(np.isclose(uv_object4.integration_time, min_integration_time))
+
+    # output data should be the average
+    out_wf = uv_object4.get_data(0, 1)
+    assert np.isclose((init_wf[0, 0, 0] + init_wf[1, 0, 0]) / 2., out_wf[0, 0, 0])
+
+    # this should be true because there are no flags
+    out_ns = uv_object4.get_nsamples(0, 1)
+    assert np.isclose((init_ns[0, 0, 0] + init_ns[1, 0, 0]) / 2., out_ns[0, 0, 0])
 
     return
 
@@ -4372,7 +4492,6 @@ def test_bda_downsample_errors():
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
 @pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
 @pytest.mark.filterwarnings("ignore:Data will be unphased and rephased")
-@pytest.mark.filterwarnings("ignore:x_orientation NORTH is not one of")
 def test_bda_upsample_downsample():
     """Test round trip works"""
     uv_object = UVData()
@@ -4444,6 +4563,7 @@ def test_bda_upsample_downsample():
     max_integration_time = np.amin(uv_object.integration_time) / 3.0
     uv_object.bda_upsample(max_integration_time, blt_order="baseline")
     assert np.amax(uv_object.integration_time) <= max_integration_time
+
     new_Nblts = uv_object.Nblts
 
     uv_object.bda_downsample(np.amin(uv_object2.integration_time), blt_order="baseline")
