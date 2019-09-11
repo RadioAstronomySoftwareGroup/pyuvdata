@@ -5090,12 +5090,12 @@ class UVData(UVBase):
         min_int_time = np.amin(self.integration_time)
         max_int_time = np.amax(self.integration_time)
 
-        if int(np.floor(target_int_time / min_int_time)) >= 2 and not only_upsample:
+        if int(np.floor(target_time / min_int_time)) >= 2 and not only_upsample:
             downsample = True
         else:
             downsample = False
 
-        if int(np.floor(max_int_time / target_int_time)) >= 2 and not only_downsample:
+        if int(np.floor(max_int_time / target_time)) >= 2 and not only_downsample:
             upsample = True
         else:
             upsample = False
