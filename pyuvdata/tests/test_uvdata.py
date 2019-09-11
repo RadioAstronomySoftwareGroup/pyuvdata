@@ -3975,7 +3975,7 @@ def test_bda_upsample():
     assert np.isclose(init_ns[0, 0, 0], out_ns[0, 0, 0])
 
     # add flags and try again
-    inds01, _, _ = uv_object_copy._key2inds((0, 1))
+    inds01 = uv_object_copy.antpair2ind(0, 1)
     uv_object_copy.flag_array[inds01[0], 0, 0, 0] = True
     uv_object_copy.bda_upsample(max_integration_time, blt_order="baseline")
 
@@ -4041,7 +4041,7 @@ def test_bda_partial_upsample():
     uv_object.phase_to_time(Time(uv_object.time_array[0], format="jd"))
 
     # change a whole baseline's integration time
-    bl_inds, _, _ = uv_object._key2inds((0, 1))
+    bl_inds = uv_object.antpair2ind(0, 1)
     uv_object.integration_time[bl_inds] = uv_object.integration_time[0] / 2.0
 
     # reorder to make sure we get the right value later
@@ -4177,7 +4177,7 @@ def test_bda_downsample():
     # add flags and try again. With one of the 2 inputs flagged, the data should
     # just be the unflagged value and nsample should be half the unflagged one
     # and the output should not be flagged.
-    inds01, _, _ = uv_object_copy._key2inds((0, 1))
+    inds01 = uv_object_copy.antpair2ind(0, 1)
     uv_object_copy.flag_array[inds01[0], 0, 0, 0] = True
     uv_object_copy.bda_downsample(min_integration_time, blt_order="baseline",
                                   minor_order="time")
@@ -4250,7 +4250,7 @@ def test_bda_partial_downsample():
     uv_object.phase_to_time(Time(uv_object.time_array[0], format="jd"))
 
     # change a whole baseline's integration time
-    bl_inds, _, _ = uv_object._key2inds((0, 1))
+    bl_inds = uv_object.antpair2ind(0, 1)
     uv_object.integration_time[bl_inds] = uv_object.integration_time[0] * 2.0
 
     # reorder to make sure we get the right value later
@@ -4395,7 +4395,7 @@ def test_bda_downsample_errors():
     init_ns = uv_object.get_nsamples(0, 1)
 
     # make a gap in the times to check a warning about that
-    inds01, _, _ = uv_object._key2inds((0, 1))
+    inds01 = uv_object.antpair2ind(0, 1)
     initial_int_time = uv_object.integration_time[inds01[0]]
     # time array is in jd, integration time is in sec
     uv_object.time_array[inds01[-1]] += initial_int_time / (24 * 3600)
@@ -4441,7 +4441,7 @@ def test_bda_downsample_errors():
 
     # test handling (& warnings) with varying integration time in a baseline
     # First, change both integration time & time array to match
-    inds01, _, _ = uv_object3._key2inds((0, 1))
+    inds01 = uv_object3.antpair2ind(0, 1)
     initial_int_time = uv_object3.integration_time[inds01[0]]
     # time array is in jd, integration time is in sec
     uv_object3.time_array[inds01[-2]] += (initial_int_time / 2) / (24 * 3600)
@@ -4465,7 +4465,7 @@ def test_bda_downsample_errors():
     assert np.isclose((init_ns[0, 0, 0] + init_ns[1, 0, 0]) / 2., out_ns[0, 0, 0])
 
     # Next, change just integration time, so time array doesn't match
-    inds01, _, _ = uv_object4._key2inds((0, 1))
+    inds01 = uv_object4.antpair2ind(0, 1)
     initial_int_time = uv_object4.integration_time[inds01[0]]
     uv_object4.integration_time[inds01[-2:]] += initial_int_time
     min_integration_time = 2 * np.amin(uv_object4.integration_time)
@@ -4497,18 +4497,14 @@ def test_bda_upsample_downsample():
     uv_object = UVData()
     testfile = os.path.join(DATA_PATH, 'zen.2458661.23480.HH.uvh5')
     uv_object.read(testfile)
-    uv_object.set_uvws_from_antenna_positions()
-    uv_object.phase_to_time(Time(uv_object.time_array[0], format="jd"))
-    uv_object.set_lsts_from_time_array()
-    # add "large" absolute tolerance to data array
-    tols = uv_object._data_array.tols
-    new_atol = 5e-2 * np.amax(np.abs(uv_object.data_array))
-    uv_object._data_array.tols = (tols[0], new_atol)
 
     # set uvws from antenna positions so they'll agree later.
     # the fact that this is required is a bit concerning, it means that
     # our calculated uvws from the antenna positions do not match what's in the file
     # uv_object.set_uvws_from_antenna_positions(allow_phasing=True)
+    uv_object.set_uvws_from_antenna_positions()
+
+    uv_object.phase_to_time(Time(uv_object.time_array[0], format="jd"))
 
     # reorder to make sure we get the right value later
     uv_object.reorder_blts(order="baseline", minor_order="time")
@@ -4569,3 +4565,51 @@ def test_bda_upsample_downsample():
     uv_object.bda_downsample(np.amin(uv_object2.integration_time), blt_order="baseline")
 
     assert uv_object == uv_object2
+
+
+@pytest.mark.filterwarnings("ignore:Telescope mock-HERA is not in known_telescopes")
+@pytest.mark.filterwarnings("ignore:There is a gap in the times of baseline")
+def test_bda_resample():
+    uv_object = UVData()
+    # Note this file has slight variations in the delta t between integrations
+    # that causes our gap test to issue a warning, but the variations are small
+    # We aren't worried about them, so we filter those warnings
+    testfile = os.path.join(DATA_PATH, 'simulated_bda_file.uvh5')
+    uv_object.read(testfile)
+
+    ant_pairs = uv_object.get_antpairs()
+
+    # save some initial info
+    # 2s integration time
+    init_data_1_136 = uv_object.get_data((1, 136))
+    # 4s integration time
+    init_data_1_137 = uv_object.get_data((1, 137))
+    # 8s integration time
+    init_data_1_138 = uv_object.get_data((1, 138))
+    # 16s integration time
+    init_data_136_137 = uv_object.get_data((136, 137))
+
+    uv_object.bda_resample(8)
+    # Should have all the target integration time
+    assert np.all(np.isclose(uv_object.integration_time, 8))
+
+    # 2s integration time
+    out_data_1_136 = uv_object.get_data((1, 136))
+    # 4s integration time
+    out_data_1_137 = uv_object.get_data((1, 137))
+    # 8s integration time
+    out_data_1_138 = uv_object.get_data((1, 138))
+    # 16s integration time
+    out_data_136_137 = uv_object.get_data((136, 137))
+
+    # check array sizes make sense
+    assert out_data_1_136.size * 4 == init_data_1_136.size
+    assert out_data_1_137.size * 2 == init_data_1_137.size
+    assert out_data_1_138.size == init_data_1_138.size
+    assert out_data_136_137.size / 2 == init_data_136_137.size
+
+    # check some values
+    assert np.isclose(np.mean(init_data_1_136[0:4, 0, 0]), out_data_1_136[0, 0, 0])
+    assert np.isclose(np.mean(init_data_1_137[0:2, 0, 0]), out_data_1_137[0, 0, 0])
+    assert np.isclose(init_data_1_138[0, 0, 0], out_data_1_138[0, 0, 0])
+    assert np.isclose(init_data_136_137[0, 0, 0], out_data_136_137[0, 0, 0])
