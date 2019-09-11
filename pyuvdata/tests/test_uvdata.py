@@ -4295,7 +4295,7 @@ def test_bda_downsample_drift():
     init_wf = uv_object.get_data(0, 1)
     original_int_time = np.amax(uv_object.integration_time)
     # check that there are no flags
-    assert np.nonzero(uv_object.flag_array is True)[0].size == 0
+    assert np.nonzero(uv_object.flag_array)[0].size == 0
     init_ns = uv_object.get_nsamples(0, 1)
 
     # change the target integration time
@@ -4316,7 +4316,7 @@ def test_bda_downsample_drift():
     assert np.isclose((init_ns[0, 0, 0] + init_ns[1, 0, 0]) / 2., out_ns[0, 0, 0])
 
     # check that there are no flags
-    assert np.nonzero(uv_object.flag_array is True)[0].size == 0
+    assert np.nonzero(uv_object.flag_array)[0].size == 0
 
     # try again with allow_drift=False
     uv_object_copy.bda_downsample(min_integration_time, blt_order="baseline")
@@ -4340,7 +4340,7 @@ def test_bda_downsample_drift():
     assert np.isclose((init_ns[0, 0, 0] + init_ns[1, 0, 0]) / 2., out_ns[0, 0, 0])
 
     # check that there are no flags
-    assert np.nonzero(uv_object_copy.flag_array is True)[0].size == 0
+    assert np.nonzero(uv_object.flag_array)[0].size == 0
 
     return
 
@@ -4372,6 +4372,7 @@ def test_bda_downsample_errors():
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
 @pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
 @pytest.mark.filterwarnings("ignore:Data will be unphased and rephased")
+@pytest.mark.filterwarnings("ignore:x_orientation NORTH is not one of")
 def test_bda_upsample_downsample():
     """Test round trip works"""
     uv_object = UVData()
