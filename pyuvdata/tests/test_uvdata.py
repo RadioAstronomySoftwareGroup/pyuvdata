@@ -4567,6 +4567,7 @@ def test_bda_upsample_downsample():
     assert uv_object == uv_object2
 
 
+@uvtest.skipIf_no_h5py
 @pytest.mark.filterwarnings("ignore:Telescope mock-HERA is not in known_telescopes")
 @pytest.mark.filterwarnings("ignore:There is a gap in the times of baseline")
 def test_bda_resample():
