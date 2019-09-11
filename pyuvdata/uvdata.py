@@ -428,7 +428,8 @@ class UVData(UVBase):
 
         # check for deprecated x_orientation strings and convert to new values (if possible)
         if self.x_orientation is not None:
-            if self.x_orientation not in self._x_orientation.acceptable_vals:
+            # the acceptability check is always done with a `lower` for strings
+            if self.x_orientation.lower() not in self._x_orientation.acceptable_vals:
                 warn_string = ('x_orientation {xval} is not one of [{vals}], '
                                .format(xval=self.x_orientation,
                                        vals=(', ').join(self._x_orientation.acceptable_vals)))
@@ -4903,12 +4904,13 @@ class UVData(UVBase):
 
             else:
                 # varying integration times for this baseline, need to be more careful
-                wh_diff = np.nonzero(not np.allclose(dtime, int_times[:-1]))
+                expected_dtimes = (int_times[:-1] + int_times[1:]) / 2
+                wh_diff = np.nonzero(~np.isclose(dtime, expected_dtimes))
                 if wh_diff[0].size > 1:
                     warnings.warn("The time difference between integrations is "
-                                  "different than the integration time for "
-                                  "baseline {bl}. The output may include "
-                                  "averages across long time "
+                                  "different than the expected given the "
+                                  "integration times for baseline {bl}. The "
+                                  "output may include averages across long time "
                                   "gaps.".format(bl=self.baseline_to_antnums(bl)))
 
         temp_Nblts = n_new_samples
