@@ -406,7 +406,7 @@ class MWABeam(UVBeam):
                 Jones[pol_i, 0, freq_i] = Sigma_T
                 Jones[pol_i, 1, freq_i] = -Sigma_P
 
-            return Jones
+        return Jones
 
     def read_mwa_beam(self, h5filepath, delays=None, amplitudes=None, pixels_per_deg=5,
                       run_check=True, check_extra=True, run_check_acceptability=True):
@@ -460,7 +460,7 @@ class MWABeam(UVBeam):
                                           amplitudes)
 
         n_phi = np.floor(360 * pixels_per_deg)
-        n_theta = np.floor(90 * pixels_per_deg)
+        n_theta = np.floor(90 * pixels_per_deg) + 1
         theta_arr = np.deg2rad(np.arange(0, n_theta) / pixels_per_deg)
         phi_arr = np.deg2rad(np.arange(0, n_phi) / pixels_per_deg)
 
