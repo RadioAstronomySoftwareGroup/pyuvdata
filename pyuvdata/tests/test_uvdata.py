@@ -15,6 +15,7 @@ import itertools
 import numpy as np
 from astropy.time import Time
 from astropy.coordinates import Angle
+from astropy.utils import iers
 
 from pyuvdata import UVData, UVCal
 import pyuvdata.utils as uvutils
@@ -4501,7 +4502,6 @@ def test_bda_upsample_downsample():
     # set uvws from antenna positions so they'll agree later.
     # the fact that this is required is a bit concerning, it means that
     # our calculated uvws from the antenna positions do not match what's in the file
-    # uv_object.set_uvws_from_antenna_positions(allow_phasing=True)
     uv_object.set_uvws_from_antenna_positions()
 
     uv_object.phase_to_time(Time(uv_object.time_array[0], format="jd"))
@@ -4563,6 +4563,11 @@ def test_bda_upsample_downsample():
     new_Nblts = uv_object.Nblts
 
     uv_object.bda_downsample(np.amin(uv_object2.integration_time), blt_order="baseline")
+
+    # increase tolerance on LST if iers.conf.auto_max_age is set to None, as we
+    # do in testing if the iers url is down. See conftest.py for more info.
+    if iers.conf.auto_max_age is None:
+        uv_object._lst_array.tols = (0, 1e-3)
 
     assert uv_object == uv_object2
 
