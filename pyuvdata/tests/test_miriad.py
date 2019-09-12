@@ -235,6 +235,7 @@ def test_wronglatlon():
     miriad_file = os.path.join(DATA_PATH, 'zen.2456865.60537.xy.uvcRREAA')
     latfile = os.path.join(DATA_PATH, 'zen.2456865.60537_wronglat.xy.uvcRREAA')
     lonfile = os.path.join(DATA_PATH, 'zen.2456865.60537_wronglon.xy.uvcRREAA')
+    latlonfile = os.path.join(DATA_PATH, 'zen.2456865.60537_wronglatlon.xy.uvcRREAA')
     telescopefile = os.path.join(DATA_PATH, 'zen.2456865.60537_wrongtelecope.xy.uvcRREAA')
     uv_in.read(miriad_file)
     uv_in.select(times=uv_in.time_array[0])
@@ -251,6 +252,10 @@ def test_wronglatlon():
     uv_in.write_miriad(lonfile)
     uv_out.read(lonfile)
 
+    uv_in.telescope_location_lat_lon_alt = (lat_wrong, lon_wrong, alt)
+    uv_in.write_miriad(latlonfile)
+    uv_out.read(latlonfile)
+
     uv_in.telescope_location_lat_lon_alt = (lat, lon, alt)
     uv_in.telescope_name = 'foo'
     uv_in.write_miriad(telescopefile)
@@ -259,6 +264,7 @@ def test_wronglatlon():
     uv_in = UVData()
     latfile = os.path.join(DATA_PATH, "zen.2456865.60537_wronglat.xy.uvcRREAA")
     lonfile = os.path.join(DATA_PATH, "zen.2456865.60537_wronglon.xy.uvcRREAA")
+    latlonfile = os.path.join(DATA_PATH, 'zen.2456865.60537_wronglatlon.xy.uvcRREAA')
     telescopefile = os.path.join(
         DATA_PATH, "zen.2456865.60537_wrongtelecope.xy.uvcRREAA"
     )
@@ -285,6 +291,17 @@ def test_wronglatlon():
         ],
         category=[UserWarning, DeprecationWarning, DeprecationWarning],
     )
+    uvtest.checkWarnings(
+        uv_in.read,
+        func_args=[latlonfile],
+        nwarnings=2,
+        message=[
+            "Altitude is not present in file and latitude and longitude "
+            "values do not match",
+            "drift RA, Dec is off from lst, latitude"
+        ],
+        category=[UserWarning, UserWarning])
+
     uvtest.checkWarnings(
         uv_in.read,
         [telescopefile],
