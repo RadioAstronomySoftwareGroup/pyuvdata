@@ -4535,6 +4535,11 @@ def test_bda_upsample_downsample():
 
     uv_object.bda_downsample(np.amin(uv_object2.integration_time), blt_order="baseline")
 
+    # increase tolerance on LST if iers.conf.auto_max_age is set to None, as we
+    # do in testing if the iers url is down. See conftest.py for more info.
+    if iers.conf.auto_max_age is None:
+        uv_object._lst_array.tols = (0, 1e-4)
+
     assert uv_object == uv_object2
 
     # check that calling downsample again with the same min_integration_time
@@ -4563,11 +4568,6 @@ def test_bda_upsample_downsample():
     new_Nblts = uv_object.Nblts
 
     uv_object.bda_downsample(np.amin(uv_object2.integration_time), blt_order="baseline")
-
-    # increase tolerance on LST if iers.conf.auto_max_age is set to None, as we
-    # do in testing if the iers url is down. See conftest.py for more info.
-    if iers.conf.auto_max_age is None:
-        uv_object._lst_array.tols = (0, 1e-3)
 
     assert uv_object == uv_object2
 
