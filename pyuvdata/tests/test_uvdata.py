@@ -3223,8 +3223,8 @@ def test_parse_ants():
     assert Counter(ant_pairs_nums) == Counter(ant_pairs_cross)
     assert isinstance(polarizations, type(None))
 
-    # Remove only a single baseline
-    ant_str = 'all,-9_10'
+    # Remove only polarization of single baseline
+    ant_str = 'all,-9x_10x'
     ant_pairs_nums, polarizations = uv.parse_ants(ant_str)
     ant_pairs_expected = ant_pairs_autos + ant_pairs_cross
     ant_pairs_expected.remove((9, 10))
@@ -3472,8 +3472,8 @@ def test_select_with_ant_str():
     assert Counter(uv2.get_antpairs()) == Counter(ant_pairs_cross)
     assert Counter(uv2.get_pols()) == Counter(uv.get_pols())
 
-    # Remove a single baseline
-    ant_str = 'all,-9_10'
+    # Remove only polarization of single baseline
+    ant_str = 'all,-9x_10x'
     ant_pairs = ant_pairs_autos + ant_pairs_cross
     ant_pairs.remove((9, 10))
     uv2 = uv.select(ant_str=ant_str, inplace=inplace)
