@@ -4578,6 +4578,10 @@ def test_bda_resample():
     testfile = os.path.join(DATA_PATH, 'simulated_bda_file.uvh5')
     uv_object.read(testfile)
 
+    # save some copies for later
+    uv_object2 = uv_object.copy()
+    uv_object3 = uv_object.copy()
+
     ant_pairs = uv_object.get_antpairs()
 
     # save some initial info
@@ -4612,5 +4616,63 @@ def test_bda_resample():
     # check some values
     assert np.isclose(np.mean(init_data_1_136[0:4, 0, 0]), out_data_1_136[0, 0, 0])
     assert np.isclose(np.mean(init_data_1_137[0:2, 0, 0]), out_data_1_137[0, 0, 0])
+    assert np.isclose(init_data_1_138[0, 0, 0], out_data_1_138[0, 0, 0])
+    assert np.isclose(init_data_136_137[0, 0, 0], out_data_136_137[0, 0, 0])
+
+    # again, with only_downsample set
+    uv_object2.bda_resample(8, only_downsample=True)
+    # Should have all less than or equal to the target integration time
+    assert np.all(np.logical_or(
+        np.isclose(uv_object2.integration_time, 8),
+        np.isclose(uv_object2.integration_time, 16)))
+
+    # 2s integration time
+    out_data_1_136 = uv_object2.get_data((1, 136))
+    # 4s integration time
+    out_data_1_137 = uv_object2.get_data((1, 137))
+    # 8s integration time
+    out_data_1_138 = uv_object2.get_data((1, 138))
+    # 16s integration time
+    out_data_136_137 = uv_object2.get_data((136, 137))
+
+    # check array sizes make sense
+    assert out_data_1_136.size * 4 == init_data_1_136.size
+    assert out_data_1_137.size * 2 == init_data_1_137.size
+    assert out_data_1_138.size == init_data_1_138.size
+    assert out_data_136_137.size == init_data_136_137.size
+
+    # check some values
+    assert np.isclose(np.mean(init_data_1_136[0:4, 0, 0]), out_data_1_136[0, 0, 0])
+    assert np.isclose(np.mean(init_data_1_137[0:2, 0, 0]), out_data_1_137[0, 0, 0])
+    assert np.isclose(init_data_1_138[0, 0, 0], out_data_1_138[0, 0, 0])
+    assert np.isclose(init_data_136_137[0, 0, 0], out_data_136_137[0, 0, 0])
+
+    # again, with only_upsample set
+    uv_object3.bda_resample(8, only_upsample=True)
+    # Should have all greater than or equal to the target integration time
+    print(np.unique(uv_object3.integration_time))
+    assert np.all(np.logical_or(np.logical_or(
+        np.isclose(uv_object3.integration_time, 2.),
+        np.isclose(uv_object3.integration_time, 4.)),
+        np.isclose(uv_object3.integration_time, 8.)))
+
+    # 2s integration time
+    out_data_1_136 = uv_object3.get_data((1, 136))
+    # 4s integration time
+    out_data_1_137 = uv_object3.get_data((1, 137))
+    # 8s integration time
+    out_data_1_138 = uv_object3.get_data((1, 138))
+    # 16s integration time
+    out_data_136_137 = uv_object3.get_data((136, 137))
+
+    # check array sizes make sense
+    assert out_data_1_136.size == init_data_1_136.size
+    assert out_data_1_137.size == init_data_1_137.size
+    assert out_data_1_138.size == init_data_1_138.size
+    assert out_data_136_137.size / 2 == init_data_136_137.size
+
+    # check some values
+    assert np.isclose(init_data_1_136[0, 0, 0], out_data_1_136[0, 0, 0])
+    assert np.isclose(init_data_1_137[0, 0, 0], out_data_1_137[0, 0, 0])
     assert np.isclose(init_data_1_138[0, 0, 0], out_data_1_138[0, 0, 0])
     assert np.isclose(init_data_136_137[0, 0, 0], out_data_136_137[0, 0, 0])
