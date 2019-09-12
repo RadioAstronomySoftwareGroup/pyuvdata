@@ -1234,7 +1234,17 @@ def test_to_baseline_from_antenna(uvf_from_uvcal):
     assert uvf.check()
 
     # all new antenna should be completely flagged
+    # checks auto correlations
     uvf_new = uvf.select(antenna_nums=new_ants, inplace=False)
+    for bl in np.unique(uvf_new.baseline_array):
+        uvf2 = uvf_new.select(bls=uv.baseline_to_antnums(bl), inplace=False)
+        assert np.all(uvf2.flag_array)
+
+    # check for baselines with one new antenna
+    bls = [uvf.baseline_to_antnums(bl)
+           for bl in uvf.baseline_array
+           if np.intersect1d(new_ants, uvf.baseline_to_antnums(bl)).size > 0]
+    uvf_new = uvf.select(bls=bls, inplace=False)
     for bl in np.unique(uvf_new.baseline_array):
         uvf2 = uvf_new.select(bls=uv.baseline_to_antnums(bl), inplace=False)
         assert np.all(uvf2.flag_array)

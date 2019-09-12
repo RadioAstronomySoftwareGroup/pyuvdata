@@ -2006,9 +2006,7 @@ class UVFlag(UVBase):
                 baseline_flags = np.full((uv.Nblts, self.Nspws,
                                           self.Nfreqs, self.Npols),
                                          True, dtype=bool)
-                # Have to convert from this shape
-                #  from 'Nants_data', 'Nspws', 'Nfreqs', 'Ntimes', 'Npols'
-                #  to Nblts, Nspws, Nfreqs, Npols
+
                 for t_index, bl in enumerate(uv.baseline_array):
                     # TODO: match times within the time_range if the UVFlag
                     # object was created from a UVCal object
