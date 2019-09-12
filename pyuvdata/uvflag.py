@@ -9,7 +9,7 @@ import os
 import warnings
 import copy
 import six
-from six.moves import map
+from six.moves import map, zip
 import h5py
 
 from .uvbase import UVBase
@@ -1942,8 +1942,6 @@ class UVFlag(UVBase):
         if not (issubclass(uv.__class__, UVData) or (isinstance(uv, UVFlag) and uv.type == 'baseline')):
             raise ValueError('Must pass in UVData object or UVFlag object of type '
                              '"baseline" to match.')
-        if self.type != 'waterfall':
-            raise ValueError('Cannot convert from type "' + self.type + '" to "baseline".')
         # Deal with polarization
         if force_pol and self.polarization_array.size == 1:
             # Use single pol for all pols, regardless
@@ -1961,41 +1959,109 @@ class UVFlag(UVBase):
                                  + ' if you wish to broadcast to all polarizations.')
             else:
                 raise ValueError('Polarizations could not be made to match.')
-        # Populate arrays
-        warr = np.zeros_like(uv.flag_array, dtype=np.float)
-        if self.mode == 'flag':
-            arr = np.zeros_like(uv.flag_array)
-            sarr = self.flag_array
-        elif self.mode == 'metric':
-            arr = np.zeros_like(uv.flag_array, dtype=float)
-            sarr = self.metric_array
-        for i, t in enumerate(np.unique(uv.time_array)):
-            ti = np.where(uv.time_array == t)
-            arr[ti, :, :, :] = sarr[i, :, :][np.newaxis, np.newaxis, :, :]
-            warr[ti, :, :, :] = self.weights_array[i, :, :][np.newaxis, np.newaxis, :, :]
-        if self.mode == 'flag':
-            self.flag_array = arr
-        elif self.mode == 'metric':
-            self.metric_array = arr
-        self.weights_array = warr
+        if self.type == "waterfall":
+            # Populate arrays
+            warr = np.zeros_like(uv.flag_array, dtype=np.float)
+            if self.mode == 'flag':
+                arr = np.zeros_like(uv.flag_array)
+                sarr = self.flag_array
+            elif self.mode == 'metric':
+                arr = np.zeros_like(uv.flag_array, dtype=float)
+                sarr = self.metric_array
+            for i, t in enumerate(np.unique(uv.time_array)):
+                ti = np.where(uv.time_array == t)
+                arr[ti, :, :, :] = sarr[i, :, :][np.newaxis, np.newaxis, :, :]
+                warr[ti, :, :, :] = self.weights_array[i, :, :][np.newaxis, np.newaxis, :, :]
+            if self.mode == 'flag':
+                self.flag_array = arr
+            elif self.mode == 'metric':
+                self.metric_array = arr
+            self.weights_array = warr
 
-        self.baseline_array = uv.baseline_array
-        self.Nbls = np.unique(self.baseline_array).size
+            self.baseline_array = uv.baseline_array
+            self.Nbls = np.unique(self.baseline_array).size
+            self.ant_1_array = uv.ant_1_array
+            self.ant_2_array = uv.ant_2_array
+            self.time_array = uv.time_array
+            self.lst_array = uv.lst_array
+
+        elif self.type == "antenna":
+            if self.mode == "metric":
+                raise NotImplementedError("Cannot currently convert from "
+                                          "antenna type, metric mode to "
+                                          "baseline type UVFlag object.")
+            else:
+                if uv.Nants_data > self.Nants_data:
+                    ants_data = np.unique(uv.ant_1_array.tolist()
+                                          + uv.ant_2_array.tolist()
+                                          )
+                    new_ants = np.setdiff1d(ants_data, self.ant_array)
+                    self.ant_array = np.append(self.ant_array, new_ants).tolist()
+                    # make new flags of the same shape but with first axis the
+                    # size of the new ants
+                    new_flags = np.full((new_ants.size,
+                                         *self.flag_array.shape[1:]),
+                                        True, dtype=bool)
+                    self.flag_array = np.append(self.flag_array,
+                                                new_flags,
+                                                axis=0)
+                    new_weights = np.ones(new_flags.shape, dtype=np.float)
+                    self.weights_array = np.append(self.weights_array,
+                                                   new_weights,
+                                                   axis=0)
+
+                baseline_flags = np.zeros((uv.Nbls * self.Ntimes, self.Nspws,
+                                           self.Nfreqs, self.Npols), dtype=bool)
+                ant_1_array = []
+                ant_2_array = []
+                baseline_array = []
+
+                # Have to convert from this shape
+                #  from 'Nants_data', 'Nspws', 'Nfreqs', 'Ntimes', 'Npols'
+                #  to Nblts, Nspws, Nfreqs, Npols
+                index0 = 0
+                unique_bls, bl_index = np.unique(uv.baseline_array,
+                                                 return_index=True)
+                for bl in uv.baseline_array[bl_index]:
+                    ant1, ant2 = uv.baseline_to_antnums(bl)
+                    ant1_index = np.nonzero(np.array(self.ant_array) == ant1)
+                    ant2_index = np.nonzero(np.array(self.ant_array) == ant2)
+                    or_flags = np.logical_or(self.flag_array[ant1_index],
+                                             self.flag_array[ant2_index])
+                    or_flags = or_flags.astype(bool)
+                    # squeeze out the antenna axis, then
+                    # transpose from Nspws, Nfreqs, Ntimes, Npols
+                    # to Nblts, Nspws, Nfreqs, Npols
+                    or_flags = or_flags.squeeze(0).transpose([2, 0, 1, 3])
+                    baseline_flags[index0:index0 + self.Ntimes] = or_flags.copy()
+                    ant_1_array.extend([ant1] * self.Ntimes)
+                    ant_2_array.extend([ant2] * self.Ntimes)
+                    baseline_array.extend([bl] * self.Ntimes)
+                    index0 += self.Ntimes
+
+                self.flag_array = baseline_flags
+                self.weights_array = np.ones_like(baseline_flags,
+                                                  dtype=np.float)
+
+                self.baseline_array = np.array(baseline_array, dtype=int)
+                self.Nbls = np.unique(self.baseline_array).size
+                self.ant_1_array = np.array(ant_1_array, dtype=int)
+                self.ant_2_array = np.array(ant_2_array, dtype=int)
+                self.time_array = self.time_array.repeat(self.Nbls)
+                self.lst_array = self.lst_array.repeat(self.Nbls)
 
         # Check the frequency array for Nspws, otherwise broadcast to 1,Nfreqs
         self.freq_array = np.atleast_2d(self.freq_array)
         self.Nspws = self.freq_array.shape[0]
 
-        self.ant_1_array = uv.ant_1_array
-        self.ant_2_array = uv.ant_2_array
         self.Nants_data = int(len(set(self.ant_1_array.tolist()
                                       + self.ant_2_array.tolist())))
 
-        self.time_array = uv.time_array
-        self.lst_array = uv.lst_array
+        self.nblts = self.time_array.size
 
         self.Nants_telescope = int(uv.Nants_telescope)
         self._set_type_baseline()
+        self.clear_unused_attributes()
         self.history += 'Broadcast to type "baseline". '
 
         if not uvutils._check_history_version(self.history, self.pyuvdata_version_str):

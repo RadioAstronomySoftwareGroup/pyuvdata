@@ -1209,6 +1209,37 @@ def test_baseline_to_baseline():
     assert uvf == uvf2
 
 
+def test_to_baseline_metric_error(uvf_from_uvcal):
+    uvf = uvf_from_uvcal
+    uvf.select(polarizations=uvf.polarization_array[0])
+    uv = UVData()
+    uv.read_miriad(test_d_file)
+    with pytest.raises(NotImplementedError) as cm:
+        uvf.to_baseline(uv, force_pol=True)
+    assert str(cm.value).startswith("Cannot currently convert from "
+                                    "antenna type, metric mode")
+
+
+def test_to_baseline_from_antenna(uvf_from_uvcal):
+    uvf = uvf_from_uvcal
+    uvf.select(polarizations=uvf.polarization_array[0])
+    uvf.to_flag()
+    uv = UVData()
+    uv.read_miriad(test_d_file)
+
+    ants_data = np.unique(uv.ant_1_array.tolist() + uv.ant_2_array.tolist())
+    new_ants = np.setdiff1d(ants_data, uvf.ant_array)
+
+    uvf.to_baseline(uv, force_pol=True)
+    assert uvf.check()
+
+    # all new antenna should be completely flagged
+    uvf_new = uvf.select(antenna_nums=new_ants, inplace=False)
+    for bl in np.unique(uvf_new.baseline_array):
+        uvf2 = uvf_new.select(bls=uv.baseline_to_antnums(bl), inplace=False)
+        assert np.all(uvf2.flag_array)
+
+
 def test_to_baseline_errors():
     uvc = UVCal()
     uvc.read_calfits(test_c_file)
@@ -1220,11 +1251,11 @@ def test_to_baseline_errors():
         uvf.to_baseline(7.3)  # invalid matching object
     assert str(cm.value).startswith('Must pass in UVData object or UVFlag object')
 
-    uvf = UVFlag(uvc)
-    with pytest.raises(ValueError) as cm:
-        uvf.to_baseline(uv)  # Cannot pass in antenna type
-    assert str(cm.value).startswith('Cannot convert from type "'
-                                    + uvf.type + '" to "baseline"')
+    # uvf = UVFlag(uvc)
+    # with pytest.raises(ValueError) as cm:
+    #     uvf.to_baseline(uv)  # Cannot pass in antenna type
+    # assert str(cm.value).startswith('Cannot convert from type "'
+    #                                 + uvf.type + '" to "baseline"')
     uvf = UVFlag(test_f_file)
     uvf.to_waterfall()
     uvf2 = uvf.copy()
