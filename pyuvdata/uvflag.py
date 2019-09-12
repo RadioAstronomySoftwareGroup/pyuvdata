@@ -1978,13 +1978,6 @@ class UVFlag(UVBase):
                 self.metric_array = arr
             self.weights_array = warr
 
-            self.baseline_array = uv.baseline_array
-            self.Nbls = np.unique(self.baseline_array).size
-            self.ant_1_array = uv.ant_1_array
-            self.ant_2_array = uv.ant_2_array
-            self.time_array = uv.time_array
-            self.lst_array = uv.lst_array
-
         elif self.type == "antenna":
             if self.mode == "metric":
                 raise NotImplementedError("Cannot currently convert from "
@@ -1999,9 +1992,9 @@ class UVFlag(UVBase):
                     self.ant_array = np.append(self.ant_array, new_ants).tolist()
                     # make new flags of the same shape but with first axis the
                     # size of the new ants
-                    new_flags = np.full((new_ants.size,
-                                         *self.flag_array.shape[1:]),
-                                        True, dtype=bool)
+                    flag_shape = list(self.flag_array.shape)
+                    flag_shape[0] = new_ants.size
+                    new_flags = np.full(flag_shape, True, dtype=bool)
                     self.flag_array = np.append(self.flag_array,
                                                 new_flags,
                                                 axis=0)
@@ -2010,53 +2003,46 @@ class UVFlag(UVBase):
                                                    new_weights,
                                                    axis=0)
 
-                baseline_flags = np.zeros((uv.Nbls * self.Ntimes, self.Nspws,
-                                           self.Nfreqs, self.Npols), dtype=bool)
-                ant_1_array = []
-                ant_2_array = []
-                baseline_array = []
-
+                baseline_flags = np.full((uv.Nblts, self.Nspws,
+                                          self.Nfreqs, self.Npols),
+                                         True, dtype=bool)
                 # Have to convert from this shape
                 #  from 'Nants_data', 'Nspws', 'Nfreqs', 'Ntimes', 'Npols'
                 #  to Nblts, Nspws, Nfreqs, Npols
-                index0 = 0
-                unique_bls, bl_index = np.unique(uv.baseline_array,
-                                                 return_index=True)
-                for bl in uv.baseline_array[bl_index]:
-                    ant1, ant2 = uv.baseline_to_antnums(bl)
-                    ant1_index = np.nonzero(np.array(self.ant_array) == ant1)
-                    ant2_index = np.nonzero(np.array(self.ant_array) == ant2)
-                    or_flags = np.logical_or(self.flag_array[ant1_index],
-                                             self.flag_array[ant2_index])
-                    or_flags = or_flags.astype(bool)
-                    # squeeze out the antenna axis, then
-                    # transpose from Nspws, Nfreqs, Ntimes, Npols
-                    # to Nblts, Nspws, Nfreqs, Npols
-                    or_flags = or_flags.squeeze(0).transpose([2, 0, 1, 3])
-                    baseline_flags[index0:index0 + self.Ntimes] = or_flags.copy()
-                    ant_1_array.extend([ant1] * self.Ntimes)
-                    ant_2_array.extend([ant2] * self.Ntimes)
-                    baseline_array.extend([bl] * self.Ntimes)
-                    index0 += self.Ntimes
+                for t_index, bl in enumerate(uv.baseline_array):
+                    # TODO: match times within the time_range if the UVFlag
+                    # object was created from a UVCal object
+                    uvf_t_index = np.nonzero(uv.time_array[t_index]
+                                             == self.time_array)[0]
+                    if uvf_t_index.size > 0:
+                        # if the time is found in the array
+                        # input the or'ed data from each antenna
+                        ant1, ant2 = uv.baseline_to_antnums(bl)
+                        ant1_index = np.nonzero(np.array(self.ant_array) == ant1)
+                        ant2_index = np.nonzero(np.array(self.ant_array) == ant2)
+                        or_flag = np.logical_or(
+                            self.flag_array[ant1_index, :, :, uvf_t_index, :],
+                            self.flag_array[ant2_index, :, :, uvf_t_index, :])
+
+                        baseline_flags[t_index, :, :, :] = or_flag.copy()
 
                 self.flag_array = baseline_flags
                 self.weights_array = np.ones_like(baseline_flags,
                                                   dtype=np.float)
 
-                self.baseline_array = np.array(baseline_array, dtype=int)
-                self.Nbls = np.unique(self.baseline_array).size
-                self.ant_1_array = np.array(ant_1_array, dtype=int)
-                self.ant_2_array = np.array(ant_2_array, dtype=int)
-                self.time_array = self.time_array.repeat(self.Nbls)
-                self.lst_array = self.lst_array.repeat(self.Nbls)
-
         # Check the frequency array for Nspws, otherwise broadcast to 1,Nfreqs
         self.freq_array = np.atleast_2d(self.freq_array)
         self.Nspws = self.freq_array.shape[0]
 
+        self.baseline_array = uv.baseline_array
+        self.Nbls = np.unique(self.baseline_array).size
+        self.ant_1_array = uv.ant_1_array
+        self.ant_2_array = uv.ant_2_array
         self.Nants_data = int(len(set(self.ant_1_array.tolist()
                                       + self.ant_2_array.tolist())))
 
+        self.time_array = uv.time_array
+        self.lst_array = uv.lst_array
         self.nblts = self.time_array.size
 
         self.Nants_telescope = int(uv.Nants_telescope)
