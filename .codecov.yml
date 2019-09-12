@@ -1,3 +1,4 @@
 codecov:
   ci:
     - !travis-ci  # ignore CI builds by Travis
+    - !azure-pipelines  # ignore CI builds by azure pipelines
