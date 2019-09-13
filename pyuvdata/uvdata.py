@@ -4656,7 +4656,7 @@ class UVData(UVBase):
         self.check()
 
     def bda_upsample(self, max_int_time, blt_order="time", minor_order="baseline",
-                     allow_drift=False):
+                     integrate=False, allow_drift=False):
         """
         Resample to a shorter integration time.
 
@@ -4673,6 +4673,11 @@ class UVData(UVBase):
             the documentation on the `reorder_blts` method for more info.
         minor_order : str
             Minor baseline ordering for output object. Default is "baseline".
+        integrate : bool
+            Option to split the flux from the original samples into the new
+            samples rather than duplicating the original samples in all the new
+            samples (undoing an integration rather than an average) to emulate
+            undoing the behavior in some correlators (i.e. HERA).
         allow_drift : bool
             Option to allow resampling of drift mode data. If this is False,
             drift mode data will be phased before resampling and then unphased
@@ -4739,7 +4744,10 @@ class UVData(UVBase):
             i1 = i0 + n_new_samples[i]
             temp_baseline[i0:i1] = self.baseline_array[ind]
             if not self.metadata_only:
-                temp_data[i0:i1] = self.data_array[ind]
+                if integrate:
+                    temp_data[i0:i1] = self.data_array[ind] / n_new_samples[i]
+                else:
+                    temp_data[i0:i1] = self.data_array[ind]
                 temp_flag[i0:i1] = self.flag_array[ind]
                 temp_nsample[i0:i1] = self.nsample_array[ind]
 
@@ -4807,7 +4815,7 @@ class UVData(UVBase):
         return
 
     def bda_downsample(self, min_int_time, blt_order="time", minor_order="baseline",
-                       keep_ragged=True, allow_drift=False):
+                       keep_ragged=True, integrate=False, allow_drift=False):
         """
         Resample to a longer integration time.
 
@@ -4834,6 +4842,9 @@ class UVData(UVBase):
             keep_ragged controls whether to keep the (summed) integrations
             corresponding to the remaining samples (keep_ragged=True), or
             discard them (keep_ragged=False).
+        integrate : bool
+            Option to integrate the flux from the original samples rather than
+            average the flux to emulate the behavior in some correlators (i.e. HERA).
         allow_drift : bool
             Option to allow resampling of drift mode data. If this is False,
             drift mode data will be phased before resampling and then unphased
@@ -4983,9 +4994,12 @@ class UVData(UVBase):
 
                         masked_data = np.ma.masked_array(self.data_array[averaging_idx],
                                                          mask=mask)
-                        temp_data[temp_idx] = np.mean(masked_data, axis=0)
+                        if integrate:
+                            temp_data[temp_idx] = np.sum(masked_data, axis=0)
+                        else:
+                            temp_data[temp_idx] = np.mean(masked_data, axis=0)
                         # nsample array is the fraction of data that we actually kept,
-                        # relative to the amount that went into the sum
+                        # relative to the amount that went into the sum or average
                         masked_nsample = np.ma.masked_array(self.nsample_array[averaging_idx],
                                                             mask=mask)
                         temp_nsample[temp_idx] = (np.sum(masked_nsample, axis=0)
@@ -5054,7 +5068,7 @@ class UVData(UVBase):
 
     def bda_resample(self, target_time, only_downsample=False, only_upsample=False,
                      blt_order="time", minor_order="baseline", keep_ragged=True,
-                     allow_drift=False):
+                     integrate=False, allow_drift=False):
         """Intelligently upsample or downsample a UVData object to the target time.
 
         Parameters
@@ -5076,6 +5090,10 @@ class UVData(UVBase):
             corresponding to the remaining samples (keep_ragged=True), or
             discard them (keep_ragged=False). Note this option only applies to the
             `bda_downsample` method.
+        integrate : bool
+            Option to integrate or split the flux from the original samples
+            rather than average or duplicate the flux from the original samples
+            to emulate the behavior in some correlators (i.e. HERA).
         allow_drift : bool
             Option to allow resampling of drift mode data. If this is False,
             drift mode data will be phased before resampling and then unphased
@@ -5103,17 +5121,19 @@ class UVData(UVBase):
         if downsample:
             self.bda_downsample(
                 target_time,
-                keep_ragged=keep_ragged,
-                allow_drift=allow_drift,
                 blt_order=blt_order,
                 minor_order=minor_order,
+                keep_ragged=keep_ragged,
+                integrate=integrate,
+                allow_drift=allow_drift
             )
         if upsample:
             self.bda_upsample(
                 target_time,
-                allow_drift=allow_drift,
                 blt_order=blt_order,
-                minor_order=minor_order
+                minor_order=minor_order,
+                integrate=integrate,
+                allow_drift=allow_drift
             )
 
         return
