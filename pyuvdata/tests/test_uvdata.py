@@ -4034,6 +4034,78 @@ def test_bda_upsample_errors():
 @uvtest.skipIf_no_h5py
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
 @pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
+def test_bda_upsample_integrate():
+    """Test the bda_upsample method with integration"""
+    uv_object = UVData()
+    testfile = os.path.join(DATA_PATH, 'zen.2458661.23480.HH.uvh5')
+    uv_object.read(testfile)
+    uv_object.phase_to_time(Time(uv_object.time_array[0], format="jd"))
+
+    # reorder to make sure we get the right value later
+    uv_object.reorder_blts(order="baseline")
+    uv_object_copy = uv_object.copy()
+    uv_object_copy2 = uv_object.copy()
+
+    # save some values for later
+    init_data_size = uv_object.data_array.size
+    init_wf = uv_object.get_data(0, 1)
+    # check that there are no flags
+    assert np.nonzero(uv_object.flag_array)[0].size == 0
+    init_ns = uv_object.get_nsamples(0, 1)
+
+    # change the target integration time
+    max_integration_time = np.amin(uv_object.integration_time) / 2.0
+    uv_object.bda_upsample(max_integration_time, blt_order="baseline",
+                           integrate=True)
+
+    assert np.allclose(uv_object.integration_time, max_integration_time)
+    # we should double the size of the data arrays
+    assert uv_object.data_array.size == 2 * init_data_size
+    # output data should be the half the input
+    out_wf = uv_object.get_data(0, 1)
+    assert np.isclose(init_wf[0, 0, 0] / 2, out_wf[0, 0, 0])
+
+    # this should be true because there are no flags
+    out_ns = uv_object.get_nsamples(0, 1)
+    assert np.isclose(init_ns[0, 0, 0], out_ns[0, 0, 0])
+
+    # add flags and try again
+    inds01 = uv_object_copy.antpair2ind(0, 1)
+    uv_object_copy.flag_array[inds01[0], 0, 0, 0] = True
+    uv_object_copy.bda_upsample(max_integration_time, blt_order="baseline",
+                                integrate=True)
+
+    # data and nsamples should be changed as normal, but flagged
+    out_wf = uv_object_copy.get_data(0, 1)
+    assert np.isclose(init_wf[0, 0, 0] / 2, out_wf[0, 0, 0])
+    out_flags = uv_object_copy.get_flags(0, 1)
+    assert np.all(out_flags[:2, 0, 0])
+    out_ns = uv_object.get_nsamples(0, 1)
+    assert np.isclose(init_ns[0, 0, 0], out_ns[0, 0, 0])
+
+    # try again with a non-integer resampling factor
+    # change the target integration time
+    max_integration_time = np.amin(uv_object_copy2.integration_time) * 0.75
+    uv_object_copy2.bda_upsample(max_integration_time, blt_order="baseline",
+                                 integrate=True)
+
+    assert np.allclose(uv_object_copy2.integration_time, max_integration_time * 0.5 / 0.75)
+    # we should double the size of the data arrays
+    assert uv_object_copy2.data_array.size == 2 * init_data_size
+    # output data should be half the input
+    out_wf = uv_object_copy2.get_data(0, 1)
+    assert np.isclose(init_wf[0, 0, 0] / 2, out_wf[0, 0, 0])
+
+    # this should be true because there are no flags
+    out_ns = uv_object_copy2.get_nsamples(0, 1)
+    assert np.isclose(init_ns[0, 0, 0], out_ns[0, 0, 0])
+
+    return
+
+
+@uvtest.skipIf_no_h5py
+@pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
+@pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
 def test_bda_partial_upsample():
     """Test the bda_upsample method"""
     uv_object = UVData()
@@ -4236,6 +4308,117 @@ def test_bda_downsample():
     # as usual, the new data should be the average of the input data
     out_wf = uv_object_copy4.get_data(0, 1)
     assert np.isclose(np.mean(init_wf[0:3, 0, 0]), out_wf[0, 0, 0])
+
+    return
+
+
+@uvtest.skipIf_no_h5py
+@pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
+@pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
+def test_bda_downsample_integrate():
+    """Test the bda downsample method with integration"""
+    uv_object = UVData()
+    testfile = os.path.join(DATA_PATH, 'zen.2458661.23480.HH.uvh5')
+    uv_object.read(testfile)
+    uv_object.phase_to_time(Time(uv_object.time_array[0], format="jd"))
+    # reorder to make sure we get the right value later
+    uv_object.reorder_blts(order="baseline", minor_order="time")
+
+    # make a copy for later
+    uv_object_copy = uv_object.copy()
+    uv_object_copy2 = uv_object.copy()
+    uv_object_copy3 = uv_object.copy()
+    uv_object_copy4 = uv_object.copy()
+
+    # save some values for later
+    init_data_size = uv_object.data_array.size
+    init_wf = uv_object.get_data(0, 1)
+    original_int_time = np.amax(uv_object.integration_time)
+    # check that there are no flags
+    assert np.nonzero(uv_object.flag_array)[0].size == 0
+    init_ns = uv_object.get_nsamples(0, 1)
+
+    # change the target integration time
+    min_integration_time = original_int_time * 2.0
+    uv_object.bda_downsample(min_integration_time, blt_order="baseline",
+                             minor_order="time", integrate=True)
+
+    # Should have half the size of the data array and all the new integration time
+    # (for this file with 20 integrations and a factor of 2 downsampling)
+    assert np.all(np.isclose(uv_object.integration_time, min_integration_time))
+    assert uv_object.data_array.size * 2 == init_data_size
+
+    # output data should be the sum
+    out_wf = uv_object.get_data(0, 1)
+    assert np.isclose((init_wf[0, 0, 0] + init_wf[1, 0, 0]), out_wf[0, 0, 0])
+
+    # this should be true because there are no flags
+    out_ns = uv_object.get_nsamples(0, 1)
+    assert np.isclose((init_ns[0, 0, 0] + init_ns[1, 0, 0]) / 2., out_ns[0, 0, 0])
+
+    # add flags and try again. With one of the 2 inputs flagged, the data should
+    # just be the unflagged value and nsample should be half the unflagged one
+    # and the output should not be flagged.
+    inds01 = uv_object_copy.antpair2ind(0, 1)
+    uv_object_copy.flag_array[inds01[0], 0, 0, 0] = True
+    uv_object_copy.bda_downsample(min_integration_time, blt_order="baseline",
+                                  minor_order="time", integrate=True)
+    out_wf = uv_object_copy.get_data(0, 1)
+    assert np.isclose(init_wf[1, 0, 0], out_wf[0, 0, 0])
+
+    # make sure nsamples is correct
+    out_ns = uv_object_copy.get_nsamples(0, 1)
+    assert np.isclose((init_ns[1, 0, 0]) / 2., out_ns[0, 0, 0])
+
+    # check that there are still no flags
+    assert np.nonzero(uv_object_copy.flag_array)[0].size == 0
+
+    # add more flags and try again. When all the input points are flagged,
+    # data and nsample should have the same results as no flags but the output
+    # should be flagged
+    uv_object_copy2.flag_array[inds01[:2], 0, 0, 0] = True
+    uv_object_copy2.bda_downsample(min_integration_time, blt_order="baseline",
+                                   minor_order="time", integrate=True)
+    out_wf = uv_object_copy2.get_data(0, 1)
+    assert np.isclose((init_wf[0, 0, 0] + init_wf[1, 0, 0]), out_wf[0, 0, 0])
+
+    # make sure nsamples is correct
+    out_ns = uv_object_copy2.get_nsamples(0, 1)
+    assert np.isclose((init_ns[0, 0, 0] + init_ns[1, 0, 0]) / 2., out_ns[0, 0, 0])
+
+    # check that the new sample is flagged
+    out_flag = uv_object_copy2.get_flags(0, 1)
+    assert out_flag[0, 0, 0]
+
+    # test again with a downsample factor that doesn't go evenly into the number of samples
+    min_integration_time = original_int_time * 3.0
+    uv_object_copy3.bda_downsample(min_integration_time, blt_order="baseline",
+                                   minor_order="time", keep_ragged=False,
+                                   integrate=True)
+
+    # Only some baselines have an even number of times, so the output integration time
+    # is not uniformly the same. For the test case, we'll have *either* the original
+    # integration time or twice that.
+    assert np.all(np.logical_or(
+        np.isclose(uv_object_copy3.integration_time, original_int_time),
+        np.isclose(uv_object_copy3.integration_time, min_integration_time)))
+
+    # as usual, the new data should be the average of the input data (3 points now)
+    out_wf = uv_object_copy3.get_data(0, 1)
+    assert np.isclose(np.sum(init_wf[0:3, 0, 0]), out_wf[0, 0, 0])
+
+    # test again with keep_ragged=False
+    uv_object_copy4.bda_downsample(min_integration_time, blt_order="baseline",
+                                   minor_order="time", keep_ragged=False,
+                                   integrate=True)
+
+    # make sure integration time is correct
+    # in this case, all integration times should be the target one
+    assert np.all(np.isclose(uv_object_copy4.integration_time, min_integration_time))
+
+    # as usual, the new data should be the average of the input data
+    out_wf = uv_object_copy4.get_data(0, 1)
+    assert np.isclose(np.sum(init_wf[0:3, 0, 0]), out_wf[0, 0, 0])
 
     return
 
