@@ -294,13 +294,13 @@ def test_wronglatlon():
     uvtest.checkWarnings(
         uv_in.read,
         func_args=[latlonfile],
-        nwarnings=2,
+        func_kwargs={'correct_lat_lon': False},
+        nwarnings=1,
         message=[
             "Altitude is not present in file and latitude and longitude "
             "values do not match",
-            "drift RA, Dec is off from lst, latitude"
         ],
-        category=[UserWarning, UserWarning])
+        category=UserWarning)
 
     uvtest.checkWarnings(
         uv_in.read,
