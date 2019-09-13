@@ -1098,8 +1098,6 @@ def test_to_waterfall_bl_flags_or():
     uvf = UVFlag(test_f_file)
     uvf.to_flag()
     uvf.to_waterfall(method='or')
-    # uvtest.checkWarnings(uvf.to_waterfall, [], {'method': 'or'}, nwarnings=1,
-                         # message='Currently weights are')
     assert uvf.type == 'waterfall'
     assert uvf.mode == 'flag'
     assert uvf.flag_array.shape == (len(uvf.time_array), len(uvf.freq_array),
