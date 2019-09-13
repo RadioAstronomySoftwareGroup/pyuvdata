@@ -158,8 +158,7 @@ def test_init_UVData_copy_flags():
     assert hasattr(uvf, 'metric_array')
     assert uvf.metric_array is None
     assert np.array_equal(uvf.flag_array, uv.flag_array)
-    assert uvf.weights_array.shape == uv.flag_array.shape
-    assert np.all(uvf.weights_array == 1)
+    assert uvf.weights_array is None
     assert uvf.type == 'baseline'
     assert uvf.mode == 'flag'
     assert np.all(uvf.time_array == uv.time_array)
@@ -182,8 +181,7 @@ def test_init_UVData_mode_flag():
     assert hasattr(uvf, 'metric_array')
     assert uvf.metric_array is None
     assert np.array_equal(uvf.flag_array, uv.flag_array)
-    assert uvf.weights_array.shape == uv.flag_array.shape
-    assert np.all(uvf.weights_array == 1)
+    assert uvf.weights_array is None
     assert uvf.type == 'baseline'
     assert uvf.mode == 'flag'
     assert np.all(uvf.time_array == uv.time_array)
@@ -224,8 +222,7 @@ def test_init_UVCal_mode_flag():
     assert hasattr(uvf, 'metric_array')
     assert uvf.metric_array is None
     assert np.array_equal(uvf.flag_array, uvc.flag_array)
-    assert uvf.weights_array.shape == uvc.flag_array.shape
-    assert np.all(uvf.weights_array == 1)
+    assert uvf.weights_array is None
     assert uvf.type == 'antenna'
     assert uvf.mode == 'flag'
     assert np.all(uvf.time_array == uvc.time_array)
@@ -247,7 +244,6 @@ def test_init_cal_copy_flags():
     assert hasattr(uvf, 'metric_array')
     assert uvf.metric_array is None
     assert np.array_equal(uvf.flag_array, uv.flag_array)
-    assert uvf.weights_array.shape == uv.flag_array.shape
     assert uvf.type == 'antenna'
     assert uvf.mode == 'flag'
     assert np.all(uvf.time_array == np.unique(uv.time_array))
@@ -298,8 +294,7 @@ def test_init_waterfall_flag_uvcal():
     uvf = UVFlag(uv, waterfall=True, mode='flag')
     assert uvf.flag_array.shape == (uv.Ntimes, uv.Nfreqs, uv.Njones)
     assert not np.any(uvf.flag_array)
-    assert uvf.weights_array.shape == (uv.Ntimes, uv.Nfreqs, uv.Njones)
-    assert np.all(uvf.weights_array == 1)
+    assert uvf.weights_array is None
     assert uvf.type == 'waterfall'
     assert uvf.mode == 'flag'
     assert np.all(uvf.time_array == np.unique(uv.time_array))
@@ -315,8 +310,7 @@ def test_init_waterfall_flag_uvdata():
     uvf = UVFlag(uv, waterfall=True, mode='flag')
     assert uvf.flag_array.shape == (uv.Ntimes, uv.Nfreqs, uv.Npols)
     assert not np.any(uvf.flag_array)
-    assert uvf.weights_array.shape == (uv.Ntimes, uv.Nfreqs, uv.Npols)
-    assert np.all(uvf.weights_array == 1)
+    assert uvf.weights_array is None
     assert uvf.type == 'waterfall'
     assert uvf.mode == 'flag'
     assert np.all(uvf.time_array == np.unique(uv.time_array))
@@ -830,8 +824,6 @@ def test_add_flag():
                           uv3.lst_array)
     assert np.array_equal(np.concatenate((uv1.flag_array, uv2.flag_array), axis=0),
                           uv3.flag_array)
-    assert np.array_equal(np.concatenate((uv1.weights_array, uv2.weights_array), axis=0),
-                          uv3.weights_array)
     assert np.array_equal(uv1.freq_array, uv3.freq_array)
     assert uv3.type == 'baseline'
     assert uv3.mode == 'flag'
@@ -1024,7 +1016,7 @@ def test_collapse_pol_add_pol_axis():
 def test_collapse_pol_or():
     uvf = UVFlag(test_f_file)
     uvf.to_flag()
-    uvf.weights_array = np.ones_like(uvf.weights_array)
+    assert uvf.weights_array is None
     uvf2 = uvf.copy()
     uvf2.polarization_array[0] = -4
     uvf.__add__(uvf2, inplace=True, axis='pol')  # Concatenate to form multi-pol object
@@ -1041,7 +1033,6 @@ def test_collapse_pol_or():
 def test_collapse_pol_add_version_str():
     uvf = UVFlag(test_f_file)
     uvf.to_flag()
-    uvf.weights_array = np.ones_like(uvf.weights_array)
 
     uvf2 = uvf.copy()
     uvf2.polarization_array[0] = -4
@@ -1068,7 +1059,7 @@ def test_collapse_single_pol():
 def test_collapse_pol_flag():
     uvf = UVFlag(test_f_file)
     uvf.to_flag()
-    uvf.weights_array = np.ones_like(uvf.weights_array)
+    assert uvf.weights_array is None
     uvf2 = uvf.copy()
     uvf2.polarization_array[0] = -4
     uvf.__add__(uvf2, inplace=True, axis='pol')  # Concatenate to form multi-pol object
@@ -1085,7 +1076,6 @@ def test_collapse_pol_flag():
 def test_to_waterfall_bl_flags():
     uvf = UVFlag(test_f_file)
     uvf.to_flag()
-    uvf.weights_array = np.ones_like(uvf.weights_array)
     uvf.to_waterfall()
     assert uvf.type == 'waterfall'
     assert uvf.mode == 'metric'
@@ -1098,25 +1088,22 @@ def test_to_waterfall_bl_flags():
 def test_to_waterfall_bl_flags_or():
     uvf = UVFlag(test_f_file)
     uvf.to_flag()
-    uvf.weights_array = np.ones_like(uvf.weights_array)
+    assert uvf.weights_array is None
     uvf.to_waterfall(method='or')
     assert uvf.type == 'waterfall'
     assert uvf.mode == 'flag'
     assert uvf.flag_array.shape == (len(uvf.time_array), len(uvf.freq_array),
                                     len(uvf.polarization_array))
-    assert np.array_equal(uvf.weights_array, np.ones_like(uvf.flag_array, np.float))
     assert len(uvf.lst_array) == len(uvf.time_array)
     uvf = UVFlag(test_f_file)
     uvf.to_flag()
-    uvf.weights_array = np.ones_like(uvf.weights_array)
-    uvf.weights_array[0, 0, 0, 0] = 0.2
-    uvtest.checkWarnings(uvf.to_waterfall, [], {'method': 'or'}, nwarnings=1,
-                         message='Currently weights are')
+    uvf.to_waterfall(method='or')
+    # uvtest.checkWarnings(uvf.to_waterfall, [], {'method': 'or'}, nwarnings=1,
+                         # message='Currently weights are')
     assert uvf.type == 'waterfall'
     assert uvf.mode == 'flag'
     assert uvf.flag_array.shape == (len(uvf.time_array), len(uvf.freq_array),
                                     len(uvf.polarization_array))
-    assert np.array_equal(uvf.weights_array, np.ones_like(uvf.flag_array, np.float))
     assert len(uvf.lst_array) == len(uvf.time_array)
 
 
