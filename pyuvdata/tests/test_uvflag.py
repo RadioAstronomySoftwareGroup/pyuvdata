@@ -1230,8 +1230,24 @@ def test_to_baseline_from_antenna(uvf_from_uvcal):
     ants_data = np.unique(uv.ant_1_array.tolist() + uv.ant_2_array.tolist())
     new_ants = np.setdiff1d(ants_data, uvf.ant_array)
 
+    old_baseline = (uvf.ant_array[0], uvf.ant_array[1])
+    old_times = np.unique(uvf.time_array)
+    or_flags = np.logical_or(uvf.flag_array[0], uvf.flag_array[1])
+    or_flags = np.transpose(or_flags, [2, 0, 1, 3])
+
+    uv2 = copy.deepcopy(uv)
+    uvf2 = uvf.copy()
+
+    # hack in the exact times so we can compare some values later
+    uv2.select(bls=old_baseline)
+    uv2.time_array[:uvf2.time_array.size] = uvf.time_array
+
     uvf.to_baseline(uv, force_pol=True)
+    uvf2.to_baseline(uv2, force_pol=True)
     assert uvf.check()
+
+    uvf2.select(bls=old_baseline, times=old_times)
+    assert np.allclose(or_flags, uvf2.flag_array)
 
     # all new antenna should be completely flagged
     # checks auto correlations
