@@ -283,7 +283,7 @@ class UVFlag(UVBase):
         if not hasattr(self, "mode") or self.mode is None:
             return None
         elif self.mode == "flag":
-            return ['flag_array', 'weights_array']
+            return ['flag_array']
         elif self.mode == "metric":
             return ['metric_array', 'weights_array']
         else:
@@ -325,6 +325,7 @@ class UVFlag(UVBase):
         self.mode = 'flag'
         self._flag_array.required = True
         self._metric_array.required = False
+        self._weights_array.required = False
         return
 
     def _set_mode_metric(self):
@@ -332,6 +333,10 @@ class UVFlag(UVBase):
         self.mode = 'metric'
         self._flag_array.required = False
         self._metric_array.required = True
+        self._weights_array.required = True
+
+        if self.weights_array is None and self.metric_array is not None:
+            self.weights_array = np.ones_like(self.metric_array, dtype=float)
         return
 
     def _set_type_antenna(self):
@@ -424,7 +429,6 @@ class UVFlag(UVBase):
         self._Nants_data.required = False
         self._Nbls.required = False
         self._Nspws.required = False
-        self._weights_array.required = True
 
         self.Nblts = self.Ntimes
 
@@ -1138,10 +1142,9 @@ class UVFlag(UVBase):
                 dgrp = f['/Data']
                 if self.mode == 'metric':
                     self.metric_array = dgrp['metric_array'][()]
+                    self.weights_array = dgrp['weights_array'][()]
                 elif self.mode == 'flag':
                     self.flag_array = dgrp['flag_array'][()]
-
-                self.weights_array = dgrp['weights_array'][()]
 
             self.clear_unused_attributes()
 
@@ -1218,13 +1221,13 @@ class UVFlag(UVBase):
                 header['Nspws'] = self.Nspws
 
             dgrp = f.create_group("Data")
-            wtsdata = dgrp.create_dataset('weights_array', chunks=True,
-                                          data=self.weights_array,
-                                          compression=data_compression)
             if self.mode == 'metric':
                 data = dgrp.create_dataset('metric_array', chunks=True,
                                            data=self.metric_array,
                                            compression=data_compression)
+                wtsdata = dgrp.create_dataset('weights_array', chunks=True,
+                                              data=self.weights_array,
+                                              compression=data_compression)
             elif self.mode == 'flag':
                 data = dgrp.create_dataset('flag_array', chunks=True,
                                            data=self.flag_array,
@@ -1337,8 +1340,8 @@ class UVFlag(UVBase):
         elif this.mode == 'metric':
             this.metric_array = np.concatenate([this.metric_array,
                                                 other.metric_array], axis=ax)
-        this.weights_array = np.concatenate([this.weights_array,
-                                             other.weights_array], axis=ax)
+            this.weights_array = np.concatenate([this.weights_array,
+                                                 other.weights_array], axis=ax)
 
         this.history += 'Data combined along ' + axis + ' axis. '
         if not uvutils._check_history_version(this.history, this.pyuvdata_version_str):
@@ -1580,9 +1583,8 @@ class UVFlag(UVBase):
                 elif self.mode == 'metric':
                     self.metric_array = (np.zeros_like(input.flag_array)
                                          .astype(np.float))
-        if self.mode == 'flag':
-            self.weights_array = np.ones(self.flag_array.shape)
-        else:
+
+        if self.mode == "metric":
             self.weights_array = np.ones(self.metric_array.shape)
 
         if history not in self.history:
@@ -1708,10 +1710,7 @@ class UVFlag(UVBase):
                 elif self.mode == 'metric':
                     self.metric_array = (np.zeros_like(input.flag_array)
                                          .astype(np.float))
-
-        if self.mode == 'flag':
-            self.weights_array = np.ones(self.flag_array.shape)
-        else:
+        if self.mode == "metric":
             self.weights_array = np.ones(self.metric_array.shape)
 
         if history not in self.history:
@@ -1809,11 +1808,19 @@ class UVFlag(UVBase):
         else:
             darr = self.metric_array
         if len(self.polarization_array) > 1:
+            if self.mode == "metric":
+                _weights = self.weights_array
+            else:
+                _weights = np.ones_like(darr)
             # Collapse pol dimension. But note we retain a polarization axis.
-            d, w = uvutils.collapse(darr, method, axis=-1, weights=self.weights_array,
+            d, w = uvutils.collapse(darr, method, axis=-1,
+                                    weights=_weights,
                                     return_weights=True)
             darr = np.expand_dims(d, axis=d.ndim)
-            self.weights_array = np.expand_dims(w, axis=w.ndim)
+
+            if self.mode == "metric":
+                self.weights_array = np.expand_dims(w, axis=w.ndim)
+
             self.polarization_array = np.array([','.join(map(str, self.polarization_array))],
                                                dtype=np.str_)
 
@@ -1877,7 +1884,8 @@ class UVFlag(UVBase):
             d, w = uvutils.collapse(darr, method, axis=(0, 1), weights=self.weights_array,
                                     return_weights=True)
             darr = np.swapaxes(d, 0, 1)
-            self.weights_array = np.swapaxes(w, 0, 1)
+            if self.mode == "metric":
+                self.weights_array = np.swapaxes(w, 0, 1)
         elif self.type == 'baseline':
             Nt = len(np.unique(self.time_array))
             Nf = len(self.freq_array[0, :])
@@ -1886,12 +1894,17 @@ class UVFlag(UVBase):
             w = np.zeros((Nt, Nf, Np))
             for i, t in enumerate(np.unique(self.time_array)):
                 ind = self.time_array == t
+                if self.mode == "metric":
+                    _weights = self.weights_array[ind, :, :]
+                else:
+                    _weights = np.ones_like(darr[ind, :, :], dtype=float)
                 d[i, :, :], w[i, :, :] = uvutils.collapse(darr[ind, :, :], method,
                                                           axis=0,
-                                                          weights=self.weights_array[ind, :, :],
+                                                          weights=_weights,
                                                           return_weights=True)
             darr = d
-            self.weights_array = w
+            if self.mode == "metric":
+                self.weights_array = w
             self.time_array, ri = np.unique(self.time_array, return_index=True)
             self.lst_array = self.lst_array[ri]
         if ((method == 'or') or (method == 'and')) and (self.mode == 'flag'):
@@ -1947,6 +1960,7 @@ class UVFlag(UVBase):
         if not (issubclass(uv.__class__, UVData) or (isinstance(uv, UVFlag) and uv.type == 'baseline')):
             raise ValueError('Must pass in UVData object or UVFlag object of type '
                              '"baseline" to match.')
+
         # Deal with polarization
         if force_pol and self.polarization_array.size == 1:
             # Use single pol for all pols, regardless
@@ -1956,7 +1970,7 @@ class UVFlag(UVBase):
                 self.flag_array = self.flag_array.repeat(self.polarization_array.size, axis=-1)
             else:
                 self.metric_array = self.metric_array.repeat(self.polarization_array.size, axis=-1)
-            self.weights_array = self.weights_array.repeat(self.polarization_array.size, axis=-1)
+                self.weights_array = self.weights_array.repeat(self.polarization_array.size, axis=-1)
         # Now the pol axes should match regardless of force_pol.
         if not np.array_equal(uv.polarization_array, self.polarization_array):
             if self.polarization_array.size == 1:
@@ -1966,22 +1980,23 @@ class UVFlag(UVBase):
                 raise ValueError('Polarizations could not be made to match.')
         if self.type == "waterfall":
             # Populate arrays
-            warr = np.zeros_like(uv.flag_array, dtype=np.float)
             if self.mode == 'flag':
                 arr = np.zeros_like(uv.flag_array)
                 sarr = self.flag_array
             elif self.mode == 'metric':
                 arr = np.zeros_like(uv.flag_array, dtype=float)
+                warr = np.zeros_like(uv.flag_array, dtype=np.float)
                 sarr = self.metric_array
-            for i, t in enumerate(np.unique(uv.time_array)):
+            for i, t in enumerate(np.unique(self.time_array)):
                 ti = np.where(uv.time_array == t)
                 arr[ti, :, :, :] = sarr[i, :, :][np.newaxis, np.newaxis, :, :]
-                warr[ti, :, :, :] = self.weights_array[i, :, :][np.newaxis, np.newaxis, :, :]
+                if self.mode == "metric":
+                    warr[ti, :, :, :] = self.weights_array[i, :, :][np.newaxis, np.newaxis, :, :]
             if self.mode == 'flag':
                 self.flag_array = arr
             elif self.mode == 'metric':
                 self.metric_array = arr
-            self.weights_array = warr
+                self.weights_array = warr
 
         elif self.type == "antenna":
             if self.mode == "metric":
@@ -2003,10 +2018,6 @@ class UVFlag(UVBase):
                     self.flag_array = np.append(self.flag_array,
                                                 new_flags,
                                                 axis=0)
-                    new_weights = np.ones(new_flags.shape, dtype=np.float)
-                    self.weights_array = np.append(self.weights_array,
-                                                   new_weights,
-                                                   axis=0)
 
                 baseline_flags = np.full((uv.Nblts, self.Nspws,
                                           self.Nfreqs, self.Npols),
@@ -2030,8 +2041,6 @@ class UVFlag(UVBase):
                         baseline_flags[t_index, :, :, :] = or_flag.copy()
 
                 self.flag_array = baseline_flags
-                self.weights_array = np.ones_like(baseline_flags,
-                                                  dtype=np.float)
 
         # Check the frequency array for Nspws, otherwise broadcast to 1,Nfreqs
         self.freq_array = np.atleast_2d(self.freq_array)
@@ -2046,7 +2055,7 @@ class UVFlag(UVBase):
 
         self.time_array = uv.time_array
         self.lst_array = uv.lst_array
-        self.nblts = self.time_array.size
+        self.Nblts = self.time_array.size
 
         self.Nants_telescope = int(uv.Nants_telescope)
         self._set_type_baseline()
@@ -2106,7 +2115,7 @@ class UVFlag(UVBase):
                 self.flag_array = self.flag_array.repeat(self.polarization_array.size, axis=-1)
             else:
                 self.metric_array = self.metric_array.repeat(self.polarization_array.size, axis=-1)
-            self.weights_array = self.weights_array.repeat(self.polarization_array.size, axis=-1)
+                self.weights_array = self.weights_array.repeat(self.polarization_array.size, axis=-1)
         # Now the pol axes should match regardless of force_pol.
         if not np.array_equal(polarr, self.polarization_array):
             if self.polarization_array.size == 1:
@@ -2123,9 +2132,9 @@ class UVFlag(UVBase):
             self.metric_array = np.swapaxes(self.metric_array, 0, 1)[np.newaxis, np.newaxis,
                                                                      :, :, :]
             self.metric_array = self.metric_array.repeat(len(uv.ant_array), axis=0)
-        self.weights_array = np.swapaxes(self.weights_array, 0, 1)[np.newaxis, np.newaxis,
-                                                                   :, :, :]
-        self.weights_array = self.weights_array.repeat(len(uv.ant_array), axis=0)
+            self.weights_array = np.swapaxes(self.weights_array, 0, 1)[np.newaxis, np.newaxis,
+                                                                       :, :, :]
+            self.weights_array = self.weights_array.repeat(len(uv.ant_array), axis=0)
         self.ant_array = uv.ant_array
         self.Nants_data = len(uv.ant_array)
         # Check the frequency array for Nspws, otherwise broadcast to 1,Nfreqs
@@ -2170,7 +2179,6 @@ class UVFlag(UVBase):
             self.flag_array = np.where(self.metric_array >= threshold,
                                        True, False)
             self._set_mode_flag()
-            self.weights_array = np.ones_like(self.metric_array, dtype=np.float)
         else:
             raise ValueError('Unknown UVFlag mode: ' + self.mode + '. Cannot convert to flag.')
         self.history += 'Converted to mode "flag". '
@@ -2213,6 +2221,7 @@ class UVFlag(UVBase):
         elif self.mode == 'flag':
             self.metric_array = self.flag_array.astype(np.float)
             self._set_mode_metric()
+
             if convert_wgts:
                 self.weights_array = np.ones_like(self.weights_array)
                 if self.type == 'waterfall':
