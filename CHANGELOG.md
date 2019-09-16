@@ -21,6 +21,8 @@ All notable changes to this project will be documented in this file.
 - UVData.get_antenna_redundancies will no longer automatically conjugate baselines.
 - UVData.get_baseline_redundancies and UVData.get_antenna_redundancies have been combined.
 - `UVFlag` inherits from `UVBase` object.
+- `UVFlag` objects can now convert from antenna type to baseline type
+- `UVFlag` objects can now be initialized without inputs
 
 ### Fixed
 - A bug in get_antenna_redundancies for nearly N-S baselines.
