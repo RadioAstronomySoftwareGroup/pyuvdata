@@ -2546,3 +2546,22 @@ def test_inequality_different_classes(uvf_from_miriad):
     other_class = test_class()
 
     assert uvf.__ne__(other_class, check_history=False)
+
+
+def test_h5py_error_if_no_h5py():
+    try:
+        import h5py  # noqa
+        return
+    except ImportError:
+        with pytest.raises(ImportError) as cm:
+            uvf = UVFlag()
+            uvf.read(test_f_file)
+        assert str(cm.value).startswith('The h5py module is required for reading')
+
+        with pytest.raises(ImportError) as cm:
+            uv = UVData()
+            uv.read(test_d_file)
+            uvf = UVFlag()
+            uvf.from_uvdata(uv)
+            uvf.write(test_outfile)
+        assert str(cm.value).startswith('The h5py module is required for writing')
