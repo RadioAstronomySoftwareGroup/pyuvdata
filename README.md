@@ -75,8 +75,7 @@ see the [phasing memo](docs/references/phasing.pdf) for more details).
 * UVCal/UVData: method to apply calibration to data.
 * package version detection can cause issues with installation directly from the
 repo for some users (see [issue #590](https://github.com/RadioAstronomySoftwareGroup/pyuvdata/issues/590))
-* UVFlag: cannot convert between "antenna" and "baseline" types. (see [issue #565](https://github.com/RadioAstronomySoftwareGroup/pyuvdata/issues/565))
-* UVFlag: cannot initialize a blank object. (see [issue #652](https://github.com/RadioAstronomySoftwareGroup/pyuvdata/issues/652))
+* UVFlag: Adding requires a high level knowledge of individual objects. (see [issue #653](https://github.com/RadioAstronomySoftwareGroup/pyuvdata/issues/653))
 
 For details see the [issue log](https://github.com/RadioAstronomySoftwareGroup/pyuvdata/issues).
 
