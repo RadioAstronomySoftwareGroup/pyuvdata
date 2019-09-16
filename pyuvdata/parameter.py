@@ -323,6 +323,7 @@ class LocationParameter(UVParameter):
         if self.value is None:
             return None
         else:
+            # check defaults to False b/c exposed check kwarg exists in UVData
             return utils.LatLonAlt_from_XYZ(self.value, check_acceptability=False)
 
     def set_lat_lon_alt(self, lat_lon_alt):
@@ -344,8 +345,7 @@ class LocationParameter(UVParameter):
         if self.value is None:
             return None
         else:
-            latitude, longitude, altitude = utils.LatLonAlt_from_XYZ(self.value,
-                                                                     check_acceptability=False)
+            latitude, longitude, altitude = self.lat_lon_alt()
             return latitude * 180. / np.pi, longitude * 180. / np.pi, altitude
 
     def set_lat_lon_alt_degrees(self, lat_lon_alt_degree):
