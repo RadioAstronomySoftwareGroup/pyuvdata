@@ -14,6 +14,7 @@ All notable changes to this project will be documented in this file.
 - `UVFlag` information on Read The Docs
 
 ### Changed
+- `h5py` is now a required package instead of an optional one.
 - Phasing now supports metadata only `UVData` objects
 - utils.get_baseline_redundancies uses scipy pdist functions instead of for loops (faster)
 - UVData.get_antenna_redundancies will no longer automatically conjugate baselines.

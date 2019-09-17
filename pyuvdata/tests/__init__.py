@@ -52,17 +52,6 @@ reason = 'healpy is not installed, skipping tests that require it.'
 skipIf_no_healpy = pytest.mark.skipif(not healpy_installed, reason=reason)
 
 
-# defines a decorator to skip tests that require h5py.
-try:
-    import h5py
-
-    h5py_installed = True
-except(ImportError):
-    h5py_installed = False
-reason = 'h5py is not installed, skipping tests that require it.'
-skipIf_no_h5py = pytest.mark.skipif(not h5py_installed, reason=reason)
-
-
 # defines a decorator to skip tests that require yaml.
 try:
     import yaml

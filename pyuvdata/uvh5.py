@@ -11,15 +11,11 @@ import numpy as np
 import os
 import warnings
 import six
+import h5py
 
 from . import UVData
 from . import utils as uvutils
 
-try:
-    import h5py
-except ImportError:  # pragma: no cover
-    uvutils._reraise_context('h5py is not installed but is required for '
-                             'uvh5 functionality')
 
 # define HDF5 type for interpreting HERA correlator outputs (integers) as complex numbers
 _hera_corr_dtype = np.dtype([('r', '<i4'), ('i', '<i4')])
