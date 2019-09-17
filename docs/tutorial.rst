@@ -300,7 +300,7 @@ entire file to plot one waterfall.
 
   >>> from pyuvdata import UVData
   >>> import numpy as np
-  >>> import matplotlib.pyplot as plt
+  >>> import matplotlib.pyplot as plt # doctest: +SKIP
   >>> UV = UVData()
   >>> filename = 'pyuvdata/data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
   >>> UV.read(filename)
@@ -1067,7 +1067,7 @@ a) Reading a cal fits gain calibration file.
 
   >>> from pyuvdata import UVCal
   >>> import numpy as np
-  >>> import matplotlib.pyplot as plt
+  >>> import matplotlib.pyplot as plt # doctest: +SKIP
   >>> cal = UVCal()
   >>> filename = 'pyuvdata/data/zen.2457698.40355.xx.gain.calfits'
   >>> cal.read_calfits(filename)
@@ -1336,7 +1336,7 @@ a) Reading a CST power beam file
 
   >>> from pyuvdata import UVBeam
   >>> import numpy as np
-  >>> import matplotlib.pyplot as plt
+  >>> import matplotlib.pyplot as plt # doctest: +SKIP
   >>> beam = UVBeam()
 
   # you can pass several filenames and the objects from each file will be
@@ -1441,7 +1441,7 @@ a) Selecting a range of Zenith Angles
 
   >>> from pyuvdata import UVBeam
   >>> import numpy as np
-  >>> import matplotlib.pyplot as plt
+  >>> import matplotlib.pyplot as plt # doctest: +SKIP
   >>> beam = UVBeam()
   >>> settings_file = 'pyuvdata/data/NicCSTbeams/NicCSTbeams.yaml'
   >>> beam.read_cst_beam(settings_file, beam_type='power')
@@ -1465,8 +1465,8 @@ a) Convert a regularly gridded az_za power beam to HEALpix (leaving original int
   >>> from pyuvdata import UVBeam
   >>> import numpy as np
   >>> from astropy_healpix import HEALPix
-  >>> import matplotlib.pyplot as plt
-  >>> from matplotlib.colors import LogNorm
+  >>> import matplotlib.pyplot as plt # doctest: +SKIP
+  >>> from matplotlib.colors import LogNorm # doctest: +SKIP
   >>> beam = UVBeam()
   >>> settings_file = 'pyuvdata/data/NicCSTbeams/NicCSTbeams.yaml'
   >>> beam.read_cst_beam(settings_file, beam_type='power')
@@ -1485,8 +1485,8 @@ b) Convert a regularly gridded az_za efield beam to HEALpix (leaving original in
   >>> from pyuvdata import UVBeam
   >>> import numpy as np
   >>> from astropy_healpix import HEALPix
-  >>> import matplotlib.pyplot as plt
-  >>> from matplotlib.colors import LogNorm
+  >>> import matplotlib.pyplot as plt # doctest: +SKIP
+  >>> from matplotlib.colors import LogNorm # doctest: +SKIP
   >>> beam = UVBeam()
   >>> settings_file = 'pyuvdata/data/NicCSTbeams/NicCSTbeams.yaml'
   >>> beam.read_cst_beam(settings_file, beam_type='efield')
@@ -1506,7 +1506,7 @@ c) Convert a regularly gridded efield beam to a power beam (leaving original int
   >>> from pyuvdata import UVBeam
   >>> import copy
   >>> import numpy as np
-  >>> import matplotlib.pyplot as plt
+  >>> import matplotlib.pyplot as plt # doctest: +SKIP
   >>> beam = UVBeam()
   >>> settings_file = 'pyuvdata/data/NicCSTbeams/NicCSTbeams.yaml'
   >>> beam.read_cst_beam(settings_file, beam_type='efield')
@@ -1529,8 +1529,8 @@ Generating pseudo Stokes ('pI', 'pQ', 'pU', 'pV') beams
   >>> from pyuvdata import utils as uvutils
   >>> import numpy as np
   >>> from astropy_healpix import HEALPix
-  >>> import matplotlib.pyplot as plt
-  >>> from matplotlib.colors import LogNorm
+  >>> import matplotlib.pyplot as plt # doctest: +SKIP
+  >>> from matplotlib.colors import LogNorm # doctest: +SKIP
   >>> beam = UVBeam()
   >>> settings_file = 'pyuvdata/data/NicCSTbeams/NicCSTbeams.yaml'
   >>> beam.read_cst_beam(settings_file, beam_type='efield')
