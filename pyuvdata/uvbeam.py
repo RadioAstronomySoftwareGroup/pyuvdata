@@ -8,11 +8,14 @@
 from __future__ import absolute_import, division, print_function
 
 import os
-import numpy as np
 import warnings
 import copy
+
+import numpy as np
 import six
 from scipy import interpolate
+from astropy import units
+from astropy.coordinates import Angle
 
 from .uvbase import UVBase
 from . import parameter as uvp
@@ -45,7 +48,7 @@ class UVBeam(UVBase):
     interpolation_function_dict = {
         'az_za_simple': {'description': 'scipy RectBivariate spline interpolation',
                          'func': '_interp_az_za_rect_spline'},
-        'healpix_simple': {'description': 'healpy nearest-neighbor bilinear interpolation',
+        'healpix_simple': {'description': 'healpix nearest-neighbor bilinear interpolation',
                            'func': '_interp_healpix_bilinear'}}
 
     def __init__(self):
@@ -1030,10 +1033,10 @@ class UVBeam(UVBase):
 
         """
         try:
-            import healpy as hp
+            from astropy_healpix import HEALPix
         except ImportError:  # pragma: no cover
-            uvutils._reraise_context('healpy is not installed but is required for '
-                                     'healpix functionality')
+            uvutils._reraise_context('astropy_healpix is not installed but is '
+                                     'required for healpix functionality')
 
         if self.pixel_coordinate_system != 'healpix':
             raise ValueError('pixel_coordinate_system must be "healpix"')
@@ -1108,25 +1111,34 @@ class UVBeam(UVBase):
         else:
             interp_basis_vector = None
 
+        hp_obj = HEALPix(nside=self.nside, order=self.ordering)
+        lat_array = Angle(np.pi / 2, units.radian) - Angle(za_array, units.radian)
+        lon_array = Angle(az_array, units.radian)
         for index1 in range(self.Nspws):
             for index3 in range(input_nfreqs):
                 freq = freq_array[index3]
                 for index0 in range(self.Naxes_vec):
                     for index2 in range(Npol_feeds):
                         if np.iscomplexobj(input_data_array):
+                            assert self.Npixels == 12 * self.nside ** 2
+                            assert np.max(np.abs(np.diff(self.pixel_array))) == 1
                             # interpolate real and imaginary parts separately
-                            real_hmap = hp.get_interp_val(
-                                input_data_array[index0, index1, pol_inds[index2], index3, :].real,
-                                za_array, az_array)
-                            imag_hmap = hp.get_interp_val(
-                                input_data_array[index0, index1, pol_inds[index2], index3, :].imag,
-                                za_array, az_array)
+                            real_hmap = hp_obj.interpolate_bilinear_lonlat(
+                                lon_array, lat_array,
+                                input_data_array[index0, index1, pol_inds[index2],
+                                                 index3, :].real)
+                            imag_hmap = hp_obj.interpolate_bilinear_lonlat(
+                                lon_array, lat_array,
+                                input_data_array[index0, index1, pol_inds[index2],
+                                                 index3, :].imag)
+
                             hmap = real_hmap + 1j * imag_hmap
                         else:
                             # interpolate once
-                            hmap = hp.get_interp_val(
-                                input_data_array[index0, index1, pol_inds[index2], index3, :],
-                                za_array, az_array)
+                            hmap = hp_obj.interpolate_bilinear_lonlat(
+                                lon_array, lat_array,
+                                input_data_array[index0, index1, pol_inds[index2],
+                                                 index3, :])
 
                         interp_data[index0, index1, index2, index3, :] = hmap
 
@@ -1240,13 +1252,19 @@ class UVBeam(UVBase):
                 raise ValueError('healpix_nside and healpix_inds can not be '
                                  'set if az_array or za_array is set.')
             try:
-                import healpy as hp
+                from astropy_healpix import HEALPix
             except ImportError:  # pragma: no cover
-                uvutils._reraise_context('healpy is not installed but is required for '
-                                         'healpix functionality')
+                uvutils._reraise_context('astropy_healpix is not installed but '
+                                         'is required for healpix functionality')
+
+            hp_obj = HEALPix(nside=healpix_nside)
             if healpix_inds is None:
-                healpix_inds = np.arange(hp.nside2npix(healpix_nside))
-            za_array_use, az_array_use = hp.pix2ang(healpix_nside, healpix_inds)
+                healpix_inds = np.arange(hp_obj.npix)
+
+            hpx_lon, hpx_lat = hp_obj.healpix_to_lonlat(healpix_inds)
+
+            za_array_use = (Angle(np.pi / 2, units.radian) - hpx_lat).radian
+            az_array_use = hpx_lon.radian
 
         interp_func = self.interpolation_function_dict[self.interpolation_function]['func']
 
@@ -1379,9 +1397,9 @@ class UVBeam(UVBase):
 
         """
         try:
-            import healpy as hp
+            from astropy_healpix import HEALPix
         except ImportError:  # pragma: no cover
-            uvutils._reraise_context('healpy is not installed but is required for '
+            uvutils._reraise_context('astropy_healpix is not installed but is required for '
                                      'healpix functionality')
 
         if nside is None:
@@ -1389,17 +1407,20 @@ class UVBeam(UVBase):
                                        np.diff(self.axis2_array)[0]]))
             nside_min_res = np.sqrt(3 / np.pi) * np.radians(60.) / min_res
             nside = int(2**np.ceil(np.log2(nside_min_res)))
-            assert(hp.pixelfunc.nside2resol(nside) < min_res)
-
-        npix = hp.nside2npix(nside)
-        hpx_res = hp.pixelfunc.nside2resol(nside)
+            hp_obj = HEALPix(nside=nside)
+            assert(hp_obj.pixel_resolution.to_value(units.radian) < min_res)
+        else:
+            hp_obj = HEALPix(nside=nside)
 
         if np.iscomplexobj(self.data_array):
             data_type = np.complex
         else:
             data_type = np.float
-        pixels = np.arange(hp.nside2npix(nside))
-        hpx_theta, hpx_phi = hp.pix2ang(nside, pixels)
+        pixels = np.arange(hp_obj.npix)
+        hpx_lon, hpx_lat = hp_obj.healpix_to_lonlat(pixels)
+
+        hpx_theta = (Angle(np.pi / 2, units.radian) - hpx_lat).radian
+        hpx_phi = hpx_lon.radian
 
         phi_vals, theta_vals = np.meshgrid(self.axis1_array, self.axis2_array)
 
@@ -1408,12 +1429,12 @@ class UVBeam(UVBase):
         for index in range(pixels.size):
             pix_dists = np.sqrt((theta_vals - hpx_theta[index])**2.
                                 + (phi_vals - hpx_phi[index])**2.)
-            if np.min(pix_dists) < hpx_res * 2:
+            if np.min(pix_dists) < hp_obj.pixel_resolution.to_value(units.radian) * 2:
                 inds_to_use.append(index)
 
         inds_to_use = np.array(inds_to_use)
 
-        if inds_to_use.size < npix:
+        if inds_to_use.size < hp_obj.npix:
             pixels = pixels[inds_to_use]
 
         beam_object = self.interp(healpix_nside=nside, healpix_inds=pixels,

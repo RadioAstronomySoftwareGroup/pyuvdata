@@ -41,15 +41,15 @@ reason = 'casacore is not installed, skipping tests that require it.'
 skipIf_no_casa = pytest.mark.skipif(not casa_installed, reason=reason)
 
 
-# define a pytest marker to skip healpy tests
+# define a pytest marker to skip astropy_healpix tests
 try:
-    import healpy
+    import astropy_healpix
 
-    healpy_installed = True
+    healpix_installed = True
 except(ImportError):
-    healpy_installed = False
-reason = 'healpy is not installed, skipping tests that require it.'
-skipIf_no_healpy = pytest.mark.skipif(not healpy_installed, reason=reason)
+    healpix_installed = False
+reason = 'astropy_healpix is not installed, skipping tests that require it.'
+skipIf_no_healpix = pytest.mark.skipif(not healpix_installed, reason=reason)
 
 
 # defines a decorator to skip tests that require yaml.

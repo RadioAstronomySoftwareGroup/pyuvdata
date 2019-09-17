@@ -152,13 +152,13 @@ Required:
 Optional:
 
 * python-casacore (for working with CASA measurement sets)
-* healpy (for working with beams in HEALPix formats)
+* astropy_healpix (for working with beams in HEALPix formats)
 * pyyaml (for working with settings files for CST beam files)
 
 The numpy and astropy versions are important, so make sure these are up to date.
 
 We suggest using conda to install all the dependencies. If you want to install
-python-casacore and healpy, you'll need to add conda-forge as a channel
+python-casacore and astropy_healpix, you'll need to add conda-forge as a channel
 (```conda config --add channels conda-forge```).
 
 If you do not want to use conda, most of the packages are also available on PyPI

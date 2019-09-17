@@ -18,10 +18,10 @@ import pyuvdata.utils as uvutils
 from pyuvdata.data import DATA_PATH
 
 try:
-    import healpy as hp
-    healpy_installed = True
+    import healpix_installed
+    healpix_installed = True
 except(ImportError):
-    healpy_installed = False
+    healpix_installed = False
 
 filenames = ['HERA_NicCST_150MHz.txt', 'HERA_NicCST_123MHz.txt']
 cst_folder = 'NicCSTbeams'
@@ -213,7 +213,7 @@ def test_stokes_matrix():
     pytest.raises(ValueError, beam._stokes_matrix, 5)
 
 
-@uvtest.skipIf_no_healpy
+@uvtest.skipIf_no_healpix
 def test_efield_to_pstokes():
     efield_beam = UVBeam()
     efield_beam.read_cst_beam(cst_files, beam_type='efield', frequency=[150e6, 123e6],
@@ -307,7 +307,7 @@ def test_efield_to_power():
 
     assert new_power_beam == new_power_beam2
 
-    if healpy_installed:
+    if healpix_installed:
         # check that this raises an error if trying to convert to HEALPix:
         efield_beam2.interpolation_function = 'az_za_simple'
         pytest.raises(NotImplementedError, efield_beam2.to_healpix,
@@ -746,7 +746,7 @@ def test_interp_longitude_branch_cut():
                        atol=beam._data_array.tols[1]))
 
 
-@uvtest.skipIf_no_healpy
+@uvtest.skipIf_no_healpix
 def test_healpix_interpolation():
     efield_beam = UVBeam()
     efield_beam.read_cst_beam(cst_files, beam_type='efield', frequency=[150e6, 123e6],
@@ -897,7 +897,7 @@ def test_healpix_interpolation():
     pytest.raises(ValueError, power_beam.interp, az_array=az_orig_vals, za_array=za_orig_vals)
 
 
-@uvtest.skipIf_no_healpy
+@uvtest.skipIf_no_healpix
 def test_to_healpix():
     power_beam = UVBeam()
     power_beam.read_cst_beam(cst_files[0], beam_type='power', frequency=150e6,
@@ -1627,7 +1627,7 @@ def test_add():
     pytest.raises(ValueError, beam1.__iadd__, beam2)
 
 
-@uvtest.skipIf_no_healpy
+@uvtest.skipIf_no_healpix
 def test_healpix():
     # put all the testing on healpix in this one function to minimize slow calls
     # to uvbeam.to_healpix()
@@ -1974,7 +1974,7 @@ def test_get_beam_functions():
     pytest.raises(ValueError, power_beam.get_beam_area)
     pytest.raises(ValueError, power_beam.get_beam_sq_area)
 
-    if healpy_installed:
+    if healpix_installed:
         power_beam = UVBeam()
         power_beam.read_cst_beam(cst_files[0], beam_type='power', frequency=150e6,
                                  telescope_name='TEST', feed_name='bob',
