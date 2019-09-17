@@ -4655,8 +4655,8 @@ class UVData(UVBase):
 
         self.check()
 
-    def bda_upsample(self, max_int_time, blt_order="time", minor_order="baseline",
-                     integrate=False, allow_drift=False):
+    def upsample_in_time(self, max_int_time, blt_order="time", minor_order="baseline",
+                         summing_correlator_mode=False, allow_drift=False):
         """
         Resample to a shorter integration time.
 
@@ -4673,11 +4673,11 @@ class UVData(UVBase):
             the documentation on the `reorder_blts` method for more info.
         minor_order : str
             Minor baseline ordering for output object. Default is "baseline".
-        integrate : bool
+        summing_correlator_mode : bool
             Option to split the flux from the original samples into the new
             samples rather than duplicating the original samples in all the new
             samples (undoing an integration rather than an average) to emulate
-            undoing the behavior in some correlators (i.e. HERA).
+            undoing the behavior in some correlators (e.g. HERA).
         allow_drift : bool
             Option to allow resampling of drift mode data. If this is False,
             drift mode data will be phased before resampling and then unphased
@@ -4744,7 +4744,7 @@ class UVData(UVBase):
             i1 = i0 + n_new_samples[i]
             temp_baseline[i0:i1] = self.baseline_array[ind]
             if not self.metadata_only:
-                if integrate:
+                if summing_correlator_mode:
                     temp_data[i0:i1] = self.data_array[ind] / n_new_samples[i]
                 else:
                     temp_data[i0:i1] = self.data_array[ind]
@@ -4812,10 +4812,16 @@ class UVData(UVBase):
         # check the resulting object
         self.check()
 
+        # add to the history
+        history_update_string = (" Upsampled data to {:f} second integration time "
+                                 "using pyuvdata.".format(max_int_time))
+        self.history = self.history + history_update_string
+
         return
 
-    def bda_downsample(self, min_int_time, blt_order="time", minor_order="baseline",
-                       keep_ragged=True, integrate=False, allow_drift=False):
+    def downsample_in_time(self, min_int_time, blt_order="time", minor_order="baseline",
+                           keep_ragged=True, summing_correlator_mode=False,
+                           allow_drift=False):
         """
         Resample to a longer integration time.
 
@@ -4842,9 +4848,9 @@ class UVData(UVBase):
             keep_ragged controls whether to keep the (summed) integrations
             corresponding to the remaining samples (keep_ragged=True), or
             discard them (keep_ragged=False).
-        integrate : bool
+        summing_correlator_mode : bool
             Option to integrate the flux from the original samples rather than
-            average the flux to emulate the behavior in some correlators (i.e. HERA).
+            average the flux to emulate the behavior in some correlators (e.g. HERA).
         allow_drift : bool
             Option to allow resampling of drift mode data. If this is False,
             drift mode data will be phased before resampling and then unphased
@@ -4994,7 +5000,7 @@ class UVData(UVBase):
 
                         masked_data = np.ma.masked_array(self.data_array[averaging_idx],
                                                          mask=mask)
-                        if integrate:
+                        if summing_correlator_mode:
                             temp_data[temp_idx] = np.sum(masked_data, axis=0)
                         else:
                             temp_data[temp_idx] = np.mean(masked_data, axis=0)
@@ -5064,11 +5070,16 @@ class UVData(UVBase):
         # check the resulting object
         self.check()
 
+        # add to the history
+        history_update_string = (" Upsampled data to {:f} second integration time "
+                                 "using pyuvdata.".format(min_int_time))
+        self.history = self.history + history_update_string
+
         return
 
-    def bda_resample(self, target_time, only_downsample=False, only_upsample=False,
-                     blt_order="time", minor_order="baseline", keep_ragged=True,
-                     integrate=False, allow_drift=False):
+    def resample_in_time(self, target_time, only_downsample=False, only_upsample=False,
+                         blt_order="time", minor_order="baseline", keep_ragged=True,
+                         summing_correlator_mode=False, allow_drift=False):
         """Intelligently upsample or downsample a UVData object to the target time.
 
         Parameters
@@ -5090,10 +5101,10 @@ class UVData(UVBase):
             corresponding to the remaining samples (keep_ragged=True), or
             discard them (keep_ragged=False). Note this option only applies to the
             `bda_downsample` method.
-        integrate : bool
+        summing_correlator_mode : bool
             Option to integrate or split the flux from the original samples
             rather than average or duplicate the flux from the original samples
-            to emulate the behavior in some correlators (i.e. HERA).
+            to emulate the behavior in some correlators (e.g. HERA).
         allow_drift : bool
             Option to allow resampling of drift mode data. If this is False,
             drift mode data will be phased before resampling and then unphased
@@ -5119,21 +5130,21 @@ class UVData(UVBase):
             upsample = False
 
         if downsample:
-            self.bda_downsample(
+            self.downsample_in_time(
                 target_time,
                 blt_order=blt_order,
                 minor_order=minor_order,
                 keep_ragged=keep_ragged,
-                integrate=integrate,
-                allow_drift=allow_drift
+                summing_correlator_mode=summing_correlator_mode,
+                allow_drift=allow_drift,
             )
         if upsample:
-            self.bda_upsample(
+            self.upsample_in_time(
                 target_time,
                 blt_order=blt_order,
                 minor_order=minor_order,
-                integrate=integrate,
-                allow_drift=allow_drift
+                summing_correlator_mode=summing_correlator_mode,
+                allow_drift=allow_drift,
             )
 
         return
