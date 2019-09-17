@@ -14,6 +14,7 @@ All notable changes to this project will be documented in this file.
 - `UVFlag` information on Read The Docs
 
 ### Changed
+- Use `astropy_healpix` rather than `healpy` for HEALPix functionality because `healpy` has a GPL license which is incompatible with ours.
 - `h5py` is now a required package instead of an optional one.
 - Phasing now supports metadata only `UVData` objects
 - utils.get_baseline_redundancies uses scipy pdist functions instead of for loops (faster)
