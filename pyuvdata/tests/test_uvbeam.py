@@ -7,10 +7,13 @@
 """
 from __future__ import absolute_import, division, print_function
 
-import pytest
 import os
-import numpy as np
 import copy
+
+import numpy as np
+from astropy import units
+from astropy.coordinates import Angle
+import pytest
 
 from pyuvdata import UVBeam
 import pyuvdata.tests as uvtest
@@ -18,7 +21,7 @@ import pyuvdata.utils as uvutils
 from pyuvdata.data import DATA_PATH
 
 try:
-    import healpix_installed
+    from astropy_healpix import HEALPix
     healpix_installed = True
 except(ImportError):
     healpix_installed = False
@@ -770,7 +773,11 @@ def test_healpix_interpolation():
 
     # check that interpolating to existing points gives the same answer
     efield_beam.interpolation_function = 'healpix_simple'
-    za_orig_vals, az_orig_vals = hp.pix2ang(efield_beam.nside, np.arange(hp.nside2npix(efield_beam.nside)))
+    hp_obj = HEALPix(nside=efield_beam.nside)
+    hpx_lon, hpx_lat = hp_obj.healpix_to_lonlat(np.arange(hp_obj.npix))
+    za_orig_vals = (Angle(np.pi / 2, units.radian) - hpx_lat).radian
+    az_orig_vals = hpx_lon.radian
+
     az_orig_vals = az_orig_vals.ravel(order='C')
     za_orig_vals = za_orig_vals.ravel(order='C')
     freq_orig_vals = np.array([123e6, 150e6])
@@ -827,8 +834,9 @@ def test_healpix_interpolation():
     assert new_reg_beam == orig_efield_beam
 
     # test errors with specifying healpix_inds without healpix_nside
+    hp_obj = HEALPix(nside=efield_beam.nside)
     with pytest.raises(ValueError) as cm:
-        efield_beam.interp(healpix_inds=np.arange(hp.nside2npix(efield_beam.nside)),
+        efield_beam.interp(healpix_inds=np.arange(hp_obj.npix),
                            freq_array=freq_orig_vals)
     assert str(cm.value).startswith('healpix_nside must be set if healpix_inds is set')
 
@@ -912,16 +920,14 @@ def test_to_healpix():
     power_beam_healpix = power_beam.to_healpix(inplace=False)
 
     # check that history is updated appropriately
-    assert power_beam_healpix.history == (power_beam.history
-                                          + ' Interpolated from '
-                                          + power_beam.coordinate_system_dict['az_za']['description']
-                                          + ' to '
-                                          + power_beam.coordinate_system_dict['healpix']['description']
-                                          + ' using pyuvdata with '
-                                          'interpolation_function = az_za_simple.')
+    assert power_beam_healpix.history == (
+        power_beam.history + ' Interpolated from '
+        + power_beam.coordinate_system_dict['az_za']['description'] + ' to '
+        + power_beam.coordinate_system_dict['healpix']['description']
+        + ' using pyuvdata with interpolation_function = az_za_simple.')
 
-    npix = hp.nside2npix(power_beam_healpix.nside)
-    assert power_beam_healpix.Npixels <= npix * 0.55
+    hp_obj = HEALPix(nside=power_beam_healpix.nside)
+    assert power_beam_healpix.Npixels <= hp_obj.npix * 0.55
 
     # Test error if not az_za
     power_beam.pixel_coordinate_system = 'sin_zenith'
@@ -1867,7 +1873,8 @@ def test_healpix():
     assert beam_sq_int.shape[0] == numfreqs
 
     # Check for the case of a uniform beam over the whole sky
-    dOmega = hp.nside2pixarea(healpix_norm.nside)
+    hp_obj = HEALPix(nside=healpix_norm.nside)
+    dOmega = hp_obj.pixel_area.to('steradian').value
     npix = healpix_norm.Npixels
     healpix_norm.data_array = np.ones_like(healpix_norm.data_array)
     assert np.allclose(np.sum(healpix_norm.get_beam_area(pol='xx')), numfreqs * npix * dOmega)
