@@ -5,7 +5,7 @@ channels:
 dependencies:
   - astropy
   - h5py
-  - astropy_healpix
+  - astropy-healpix
   - numpy
   - python-casacore
   - pyyaml
