@@ -142,7 +142,6 @@ g) miriad -> uvh5
   >>> UV.read(miriad_file)
 
   # Write out the uvh5 file
-  # note that writing uvh5 files requires h5py to be installed
   >>> UV.write_uvh5('tutorial.uvh5')
 
 h) uvfits -> uvh5
@@ -156,7 +155,6 @@ h) uvfits -> uvh5
    >>> UV.read(uvfits_file)
 
    # Write out the uvh5 file
-   # note that writing uvh5 files requires h5py to be installed
    >>> write_file = 'tutorial.uvh5'
    >>> if os.path.exists(write_file):
    ...    os.remove(write_file)

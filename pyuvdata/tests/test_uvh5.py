@@ -13,21 +13,15 @@ import copy
 import numpy as np
 import pytest
 from astropy.time import Time
+import h5py
 
-from pyuvdata import UVData
+from pyuvdata import UVData, uvh5
 import pyuvdata.utils as uvutils
 from pyuvdata.data import DATA_PATH
 import pyuvdata.tests as uvtest
-
-try:
-    import h5py
-    from pyuvdata import uvh5
-    from pyuvdata.uvh5 import _hera_corr_dtype
-except(ImportError):
-    pass
+from pyuvdata.uvh5 import _hera_corr_dtype
 
 
-@uvtest.skipIf_no_h5py
 def test_ReadMiriadWriteUVH5ReadUVH5():
     """
     Miriad round trip test
@@ -56,7 +50,6 @@ def test_ReadMiriadWriteUVH5ReadUVH5():
     return
 
 
-@uvtest.skipIf_no_h5py
 def test_ReadUVFITSWriteUVH5ReadUVH5():
     """
     UVFITS round trip test
@@ -82,7 +75,6 @@ def test_ReadUVFITSWriteUVH5ReadUVH5():
     return
 
 
-@uvtest.skipIf_no_h5py
 def test_ReadUVH5Errors():
     """
     Test raising errors in read function
@@ -94,7 +86,6 @@ def test_ReadUVH5Errors():
     return
 
 
-@uvtest.skipIf_no_h5py
 def test_WriteUVH5Errors():
     """
     Test raising errors in write_uvh5 function
@@ -121,7 +112,6 @@ def test_WriteUVH5Errors():
     return
 
 
-@uvtest.skipIf_no_h5py
 def test_UVH5OptionalParameters():
     """
     Test reading and writing optional parameters not in sample files
@@ -158,7 +148,6 @@ def test_UVH5OptionalParameters():
     return
 
 
-@uvtest.skipIf_no_h5py
 def test_UVH5CompressionOptions():
     """
     Test writing data with compression filters
@@ -181,7 +170,6 @@ def test_UVH5CompressionOptions():
     return
 
 
-@uvtest.skipIf_no_h5py
 def test_UVH5ReadMultiple_files():
     """
     Test reading multiple uvh5 files
@@ -214,7 +202,6 @@ def test_UVH5ReadMultiple_files():
     return
 
 
-@uvtest.skipIf_no_h5py
 def test_UVH5ReadMultiple_files_metadata_only():
     """
     Test reading multiple uvh5 files with metadata only
@@ -251,7 +238,6 @@ def test_UVH5ReadMultiple_files_metadata_only():
     return
 
 
-@uvtest.skipIf_no_h5py
 def test_UVH5ReadMultiple_files_axis():
     """
     Test reading multiple uvh5 files with setting axis
@@ -284,7 +270,6 @@ def test_UVH5ReadMultiple_files_axis():
     return
 
 
-@uvtest.skipIf_no_h5py
 def test_UVH5PartialRead():
     """
     Test reading in only part of a dataset from disk
@@ -361,7 +346,6 @@ def test_UVH5PartialRead():
     return
 
 
-@uvtest.skipIf_no_h5py
 def test_UVH5PartialWrite():
     """
     Test writing an entire UVH5 file in pieces
@@ -500,7 +484,6 @@ def test_UVH5PartialWrite():
     return
 
 
-@uvtest.skipIf_no_h5py
 def test_UVH5PartialWriteIrregular():
     """
     Test writing a uvh5 file using irregular intervals
@@ -867,7 +850,6 @@ def test_UVH5PartialWriteIrregular():
     return
 
 
-@uvtest.skipIf_no_h5py
 def test_UVH5PartialWriteErrors():
     """
     Test errors in uvh5_write_part method
@@ -926,7 +908,6 @@ def test_UVH5PartialWriteErrors():
     return
 
 
-@uvtest.skipIf_no_h5py
 def test_UVH5InitializeFile():
     """
     Test initializing a UVH5 file on disk
@@ -968,7 +949,6 @@ def test_UVH5InitializeFile():
     return
 
 
-@uvtest.skipIf_no_h5py
 def test_UVH5SingleIntegrationTime():
     """
     Check backwards compatibility warning for files with a single integration time
@@ -997,7 +977,6 @@ def test_UVH5SingleIntegrationTime():
     return
 
 
-@uvtest.skipIf_no_h5py
 def test_UVH5LstArray():
     """
     Test different cases of the lst_array
@@ -1033,7 +1012,6 @@ def test_UVH5LstArray():
     return
 
 
-@uvtest.skipIf_no_h5py
 def test_UVH5StringBackCompat():
     """
     Test backwards compatibility handling of strings
@@ -1061,7 +1039,6 @@ def test_UVH5StringBackCompat():
     return
 
 
-@uvtest.skipIf_no_h5py
 def test_UVH5ReadHeaderSpecialCases():
     """
     Test special cases values when reading files
@@ -1103,7 +1080,6 @@ def test_UVH5ReadHeaderSpecialCases():
     return
 
 
-@uvtest.skipIf_no_h5py
 def test_UVH5ReadInts():
     """
     Test reading visibility data saved as integers
@@ -1133,7 +1109,6 @@ def test_UVH5ReadInts():
     return
 
 
-@uvtest.skipIf_no_h5py
 def test_UVH5WriteInts():
     """
     Test writing visibility data as integers
@@ -1163,7 +1138,6 @@ def test_UVH5WriteInts():
     return
 
 
-@uvtest.skipIf_no_h5py
 def test_UVH5PartialReadInts():
     """
     Test reading in only part of a dataset from disk
@@ -1233,7 +1207,6 @@ def test_UVH5PartialReadInts():
     return
 
 
-@uvtest.skipIf_no_h5py
 def test_UVH5PartialWriteInts():
     """
     Test writing an entire UVH5 file in pieces with integer outputs
@@ -1357,7 +1330,6 @@ def test_UVH5PartialWriteInts():
     return
 
 
-@uvtest.skipIf_no_h5py
 def test_read_complex_astype():
     # make a testfile with a test dataset
     test_file = os.path.join(DATA_PATH, 'test', 'test_file.h5')
@@ -1393,7 +1365,6 @@ def test_read_complex_astype():
     return
 
 
-@uvtest.skipIf_no_h5py
 def test_write_complex_astype():
     # make sure we can write data out
     test_file = os.path.join(DATA_PATH, 'test', 'test_file.h5')
@@ -1421,7 +1392,6 @@ def test_write_complex_astype():
     return
 
 
-@uvtest.skipIf_no_h5py
 def test_check_uvh5_dtype_errors():
     # test passing in something that's not a dtype
     pytest.raises(ValueError, uvh5._check_uvh5_dtype, 'hi')
@@ -1437,7 +1407,6 @@ def test_check_uvh5_dtype_errors():
     return
 
 
-@uvtest.skipIf_no_h5py
 def test_UVH5PartialWriteIntsIrregular():
     """
     Test writing a uvh5 file using irregular intervals
@@ -1801,7 +1770,6 @@ def test_UVH5PartialWriteIntsIrregular():
     return
 
 
-@uvtest.skipIf_no_h5py
 @pytest.mark.skipif(not six.PY3, reason="Skipping. This test is only relevant in python3.")
 def test_antenna_names_not_list():
     """Test if antenna_names is cast to an array, dimensions are preserved in np.string_ call during uvh5 write."""

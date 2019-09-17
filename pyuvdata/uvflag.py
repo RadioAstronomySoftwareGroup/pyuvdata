@@ -10,6 +10,7 @@ import warnings
 import copy
 import six
 from six.moves import map
+import h5py
 
 from .uvbase import UVBase
 from . import parameter as uvp
@@ -1090,8 +1091,6 @@ class UVFlag(UVBase):
             reading data.
 
         """
-        import h5py
-
         if isinstance(filename, (tuple, list)):
             self.read(filename[0])
             if len(filename) > 1:
@@ -1266,8 +1265,6 @@ class UVFlag(UVBase):
             If no compression is wanted, set to None.
 
         """
-        import h5py
-
         if os.path.exists(filename):
             if clobber:
                 print('File ' + filename + ' exists; clobbering')

@@ -146,10 +146,11 @@ Required:
 * numpy >= 1.15
 * scipy
 * astropy >= 2.0
+* h5py
+* six
 
 Optional:
 
-* h5py (for reading and writing uvh5 format and uvflag save files)
 * python-casacore (for working with CASA measurement sets)
 * healpy (for working with beams in HEALPix formats)
 * pyyaml (for working with settings files for CST beam files)
