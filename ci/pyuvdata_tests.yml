@@ -5,7 +5,7 @@ channels:
 dependencies:
   - astropy
   - h5py
-  - healpy
+  - astropy_healpix
   - numpy
   - python-casacore
   - pyyaml
@@ -13,7 +13,7 @@ dependencies:
   - six
   - coverage
   - pytest-cov
-  - setuptools_scm 
+  - setuptools_scm
   - pip
   - pip:
       - pytest-cases

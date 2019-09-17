@@ -1425,7 +1425,7 @@ d) Writing a HEALPix beam FITS file
   # have to specify which interpolation function to use
   >>> beam.interpolation_function = 'az_za_simple'
 
-  # note that the `to_healpix` method requires healpy to be installed
+  # note that the `to_healpix` method requires astropy_healpix to be installed
   >>> beam.to_healpix()
   >>> beam.write_beamfits('tutorial.fits', clobber=True)
 
@@ -1464,7 +1464,9 @@ a) Convert a regularly gridded az_za power beam to HEALpix (leaving original int
 
   >>> from pyuvdata import UVBeam
   >>> import numpy as np
-  >>> import healpy as hp
+  >>> from astropy_healpix import HEALPix
+  >>> import matplotlib.pyplot as plt
+  >>> from matplotlib.colors import LogNorm
   >>> beam = UVBeam()
   >>> settings_file = 'pyuvdata/data/NicCSTbeams/NicCSTbeams.yaml'
   >>> beam.read_cst_beam(settings_file, beam_type='power')
@@ -1472,7 +1474,9 @@ a) Convert a regularly gridded az_za power beam to HEALpix (leaving original int
   # have to specify which interpolation function to use
   >>> beam.interpolation_function = 'az_za_simple'
   >>> hpx_beam = beam.to_healpix(inplace=False)
-  >>> hp.mollview(hpx_beam.data_array[0,0,0,0,:]) # doctest: +SKIP
+  >>> hpx_obj = HEALPix(nside=hpx_beam.nside, order=hpx_beam.ordering)
+  >>> lon, lat = hpx_obj.healpix_to_lonlat(hpx_beam.pixel_array)
+  >>> plt.scatter(lon, lat, c=hpx_beam.data_array[0,0,0,0,:], norm=LogNorm()) # doctest: +SKIP
 
 b) Convert a regularly gridded az_za efield beam to HEALpix (leaving original intact).
 ********************************************************************
@@ -1480,7 +1484,9 @@ b) Convert a regularly gridded az_za efield beam to HEALpix (leaving original in
 
   >>> from pyuvdata import UVBeam
   >>> import numpy as np
-  >>> import healpy as hp
+  >>> from astropy_healpix import HEALPix
+  >>> import matplotlib.pyplot as plt
+  >>> from matplotlib.colors import LogNorm
   >>> beam = UVBeam()
   >>> settings_file = 'pyuvdata/data/NicCSTbeams/NicCSTbeams.yaml'
   >>> beam.read_cst_beam(settings_file, beam_type='efield')
@@ -1488,7 +1494,9 @@ b) Convert a regularly gridded az_za efield beam to HEALpix (leaving original in
   # have to specify which interpolation function to use
   >>> beam.interpolation_function = 'az_za_simple'
   >>> hpx_beam = beam.to_healpix(inplace=False)
-  >>> hp.mollview(np.abs(hpx_beam.data_array[0,0,0,0,:])) # doctest: +SKIP
+  >>> hpx_obj = HEALPix(nside=hpx_beam.nside, order=hpx_beam.ordering)
+  >>> lon, lat = hpx_obj.healpix_to_lonlat(hpx_beam.pixel_array)
+  >>> plt.scatter(lon, lat, c=hpx_beam.data_array[0,0,0,0,:], norm=LogNorm()) # doctest: +SKIP
 
 
 c) Convert a regularly gridded efield beam to a power beam (leaving original intact).
@@ -1520,7 +1528,9 @@ Generating pseudo Stokes ('pI', 'pQ', 'pU', 'pV') beams
   >>> from pyuvdata import UVBeam
   >>> from pyuvdata import utils as uvutils
   >>> import numpy as np
-  >>> import healpy as hp
+  >>> from astropy_healpix import HEALPix
+  >>> import matplotlib.pyplot as plt
+  >>> from matplotlib.colors import LogNorm
   >>> beam = UVBeam()
   >>> settings_file = 'pyuvdata/data/NicCSTbeams/NicCSTbeams.yaml'
   >>> beam.read_cst_beam(settings_file, beam_type='efield')
@@ -1533,7 +1543,9 @@ Generating pseudo Stokes ('pI', 'pQ', 'pU', 'pV') beams
   >>> pol_array = pstokes_beam.polarization_array
   >>> pstokes = uvutils.polstr2num('pI')
   >>> pstokes_ind = np.where(np.isin(pol_array, pstokes))[0][0]
-  >>> hp.mollview(np.abs(pstokes_beam.data_array[0, 0, pstokes_ind, 0, :])) # doctest: +SKIP
+  >>> hpx_obj = HEALPix(nside=hpx_beam.nside, order=hpx_beam.ordering)
+  >>> lon, lat = hpx_obj.healpix_to_lonlat(hpx_beam.pixel_array)
+  >>> plt.scatter(lon, lat, c=np.abs(pstokes_beam.data_array[0, 0, pstokes_ind, 0, :]), norm=LogNorm()) # doctest: +SKIP
 
 Calculating pseudo Stokes ('pI', 'pQ', 'pU', 'pV') beam area and beam squared area
 ********************************************************************
@@ -1546,7 +1558,7 @@ Calculating pseudo Stokes ('pI', 'pQ', 'pU', 'pV') beam area and beam squared ar
   >>> beam.read_cst_beam(settings_file, beam_type='efield')
   >>> beam.interpolation_function = 'az_za_simple'
 
-  # note that the `to_healpix` method requires healpy to be installed
+  # note that the `to_healpix` method requires astropy_healpix to be installed
   >>> pstokes_beam = beam.to_healpix(inplace=False)
   >>> pstokes_beam.efield_to_pstokes()
   >>> pstokes_beam.peak_normalize()
