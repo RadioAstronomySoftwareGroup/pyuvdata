@@ -768,7 +768,9 @@ def test_healpix_interpolation():
 
     new_efield_beam = efield_beam.interp(healpix_nside=nside,
                                          new_object=True)
-    efield_beam.to_healpix()
+    efield_beam2 = efield_beam.to_healpix(inplace=False)
+    efield_beam.to_healpix(nside=nside)
+    assert efield_beam2 == efield_beam
     assert new_efield_beam == efield_beam
 
     # check that interpolating to existing points gives the same answer
