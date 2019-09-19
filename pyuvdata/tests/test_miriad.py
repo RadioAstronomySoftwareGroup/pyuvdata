@@ -996,7 +996,7 @@ def test_readWriteReadMiriad_partial_bls(select_kwargs):
     # check partial read selections
     full = UVData()
     full.read(testfile)
-    full.write_miriad(write_file, clobber=True)
+    uvtest.checkWarnings(full.read, [testfile], known_warning='miriad')
     uv_in = UVData()
 
     # test only specified bls were read, and that flipped antpair is loaded too
