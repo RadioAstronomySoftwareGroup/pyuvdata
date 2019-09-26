@@ -703,7 +703,7 @@ def test_readWriteReadMiriad():
 
 
 @pytest.mark.filterwarnings("ignore:Altitude is not present in Miriad file")
-def test_readWriteReadMiriad_partial():
+def test_readWriteReadMiriad_partial_bls():
     testfile = os.path.join(DATA_PATH, 'zen.2456865.60537.xy.uvcRREAA')
     write_file = os.path.join(DATA_PATH, 'test/outtest_miriad.uv')
 
@@ -758,14 +758,70 @@ def test_readWriteReadMiriad_partial():
     exp_uv = full.select(bls=[(4, 2, 'yx')], inplace=False)
     assert uv_in == exp_uv
 
-    # test time loading
+    uv_in = UVData()
+    # assert partial-read and select are same
+    uv_in.read(write_file, polarizations=[-7], bls=[(4, 4)])
+    exp_uv = full.select(polarizations=[-7], bls=[(4, 4)], inplace=False)
+    assert uv_in == exp_uv
+
     del(uv_in)
+    uv_in = UVData()
+    # assert partial-read and select are same
+    uv_in.read(write_file, bls=[(4, 4, 'xy')])
+    exp_uv = full.select(bls=[(4, 4, 'xy')], inplace=False)
+    assert uv_in == exp_uv
+
+    del(uv_in)
+
+
+@pytest.mark.filterwarnings("ignore:Altitude is not present in Miriad file")
+def test_readWriteReadMiriad_partial_times():
+    testfile = os.path.join(DATA_PATH, 'zen.2456865.60537.xy.uvcRREAA')
+    write_file = os.path.join(DATA_PATH, 'test/outtest_miriad.uv')
+
+    # check partial read selections
+    full = UVData()
+    full.read(testfile)
+    full.write_miriad(write_file, clobber=True)
+
+    # test time loading
     uv_in = UVData()
     uv_in.read(write_file, time_range=[2456865.607, 2456865.609])
     full_times = np.unique(full.time_array[(full.time_array > 2456865.607) & (full.time_array < 2456865.609)])
     assert np.isclose(np.unique(uv_in.time_array), full_times).all()
     exp_uv = full.select(times=full_times, inplace=False)
     assert uv_in == exp_uv
+
+    uv_in = UVData()
+    # assert partial-read and select are same
+    unique_times = np.unique(full.time_array)
+    time_range = [2456865.607, 2456865.609]
+    times_to_keep = unique_times[((unique_times > 2456865.607)
+                                 & (unique_times < 2456865.609))]
+    uv_in.read(write_file, antenna_nums=[0], time_range=time_range)
+    exp_uv = full.select(antenna_nums=[0], times=times_to_keep, inplace=False)
+    assert uv_in == exp_uv
+
+    del(uv_in)
+    uv_in = UVData()
+    # assert partial-read and select are same
+    uv_in.read(write_file, polarizations=[-7], time_range=time_range)
+    exp_uv = full.select(polarizations=[-7], times=times_to_keep, inplace=False)
+    assert uv_in == exp_uv
+
+    del(uv_in)
+
+
+@pytest.mark.filterwarnings("ignore:Altitude is not present in Miriad file")
+def test_readWriteReadMiriad_partial_pols():
+    testfile = os.path.join(DATA_PATH, 'zen.2456865.60537.xy.uvcRREAA')
+    write_file = os.path.join(DATA_PATH, 'test/outtest_miriad.uv')
+
+    # check partial read selections
+    full = UVData()
+    full.read(testfile)
+    full.write_miriad(write_file, clobber=True)
+    uv_in = UVData()
 
     # test polarization loading
     del(uv_in)
@@ -782,6 +838,17 @@ def test_readWriteReadMiriad_partial():
     exp_uv = full.select(polarizations=[-7], inplace=False)
     uv_in == exp_uv
 
+
+@pytest.mark.filterwarnings("ignore:Altitude is not present in Miriad file")
+def test_readWriteReadMiriad_partial_ant_str():
+    testfile = os.path.join(DATA_PATH, 'zen.2456865.60537.xy.uvcRREAA')
+    write_file = os.path.join(DATA_PATH, 'test/outtest_miriad.uv')
+
+    # check partial read selections
+    full = UVData()
+    full.read(testfile)
+    full.write_miriad(write_file, clobber=True)
+    uv_in = UVData()
     # test ant_str
     del(uv_in)
     uv_in = UVData()
@@ -803,47 +870,55 @@ def test_readWriteReadMiriad_partial():
     assert uv_in == full
 
     del(uv_in)
+
+
+@pytest.mark.filterwarnings("ignore:Altitude is not present in Miriad file")
+@pytest.mark.parametrize("err_type,select_kwargs,err_msg",
+                         [(AssertionError, {"ant_str": 'auto', "antenna_nums": [0, 1]}, "ant_str must be None if antenna_nums or bls is not None"),
+                          (ValueError, {"bls": 'foo'}, "bls must be a list of tuples of antenna numbers"),
+                          (ValueError, {"bls": [[0, 1]]}, "bls must be a list of tuples of antenna numbers"),
+                          (ValueError, {"bls": [('foo', 'bar')]}, "bls must be a list of tuples of antenna numbers"),
+                          (ValueError, {"bls": [('foo', )]}, "bls tuples must be all length-2 or all length-3"),
+                          (ValueError, {"bls": [(1, 2), (2, 3, 'xx')]}, "bls tuples must be all length-2 or all length-3"),
+                          (ValueError, {"bls": [(2, 4, 0)]}, "The third element in each bl must be a polarization string"),
+                          (ValueError, {"bls": [(2, 4, 'xy')], "polarizations": ['xy']}, "Cannot provide length-3 tuples and also specify polarizations."),
+                          (AssertionError, {"antenna_nums": np.array([(0, 10)])}, "antenna_nums must be fed as a list of antenna number integers"),
+                          (AssertionError, {"polarizations": 'xx'}, "pols must be a list of polarization strings or ints"),
+                          (ValueError, {"polarizations": ['yy']}, "No data is present, probably as a result of select on read"),
+                          (AssertionError, {"time_range": 'foo'}, "time_range must be a len-2 list of Julian Date floats"),
+                          (AssertionError, {"time_range": [1, 2, 3]}, "time_range must be a len-2 list of Julian Date floats"),
+                          (AssertionError, {"time_range": ['foo', 'bar']}, "time_range must be a len-2 list of Julian Date floats"),
+                          (ValueError, {"time_range": [10.1, 10.2]}, "No data is present, probably as a result of select on read"),
+                          (AssertionError, {"ant_str": 0}, "ant_str must be fed as a string")
+                          ]
+                         )
+def test_readWriteReadMiriad_partial_errors(err_type, select_kwargs, err_msg):
+    testfile = os.path.join(DATA_PATH, 'zen.2456865.60537.xy.uvcRREAA')
+    write_file = os.path.join(DATA_PATH, 'test/outtest_miriad.uv')
+
+    # check partial read selections
+    full = UVData()
+    full.read(testfile)
+    full.write_miriad(write_file, clobber=True)
     uv_in = UVData()
-    # assert exceptions
-    with pytest.raises(AssertionError) as cm:
-        uv_in.read(write_file, ant_str='auto', antenna_nums=[0, 1])
-    assert str(cm.value).startswith("ant_str must be None if antenna_nums or bls is not None")
 
-    with pytest.raises(ValueError) as cm:
-        uv_in.read(write_file, bls='foo')
-    assert str(cm.value).startswith("bls must be a list of tuples of antenna numbers")
+    with pytest.raises(err_type) as cm:
+        uv_in.read(write_file, **select_kwargs)
+    assert str(cm.value).startswith(err_msg)
 
-    with pytest.raises(ValueError) as cm:
-        uv_in.read(write_file, bls=[[0, 1]])
-    assert str(cm.value).startswith("bls must be a list of tuples of antenna numbers")
+    del(uv_in)
 
-    with pytest.raises(ValueError) as cm:
-        uv_in.read(write_file, bls=[('foo', 'bar')])
-    assert str(cm.value).startswith("bls must be a list of tuples of antenna numbers")
 
-    with pytest.raises(ValueError) as cm:
-        uv_in.read(write_file, bls=[('foo', )])
-    assert str(cm.value).startswith("bls tuples must be all length-2 or all length-3")
+@pytest.mark.filterwarnings("ignore:Altitude is not present in Miriad file")
+def test_readWriteReadMiriad_partial_error_special_cases():
+    testfile = os.path.join(DATA_PATH, 'zen.2456865.60537.xy.uvcRREAA')
+    write_file = os.path.join(DATA_PATH, 'test/outtest_miriad.uv')
 
-    with pytest.raises(ValueError) as cm:
-        uv_in.read(write_file, bls=[(1, 2), (2, 3, 'xx')])
-    assert str(cm.value).startswith("bls tuples must be all length-2 or all length-3")
-
-    with pytest.raises(ValueError) as cm:
-        uv_in.read(write_file, bls=[(2, 4, 0)])
-    assert str(cm.value).startswith("The third element in each bl must be a polarization string")
-
-    with pytest.raises(ValueError) as cm:
-        uv_in.read(write_file, bls=[(2, 4, 'xy')], polarizations=['xy'])
-    assert str(cm.value).startswith("Cannot provide length-3 tuples and also specify polarizations.")
-
-    with pytest.raises(AssertionError) as cm:
-        uv_in.read(write_file, antenna_nums=np.array([(0, 10)]))
-    assert str(cm.value).startswith("antenna_nums must be fed as a list of antenna number integers")
-
-    with pytest.raises(AssertionError) as cm:
-        uv_in.read(write_file, polarizations='xx')
-    assert str(cm.value).startswith("pols must be a list of polarization strings or ints")
+    # check partial read selections
+    full = UVData()
+    full.read(testfile)
+    full.write_miriad(write_file, clobber=True)
+    uv_in = UVData()
 
     if six.PY2:
         with pytest.raises(AssertionError) as cm:
@@ -854,65 +929,22 @@ def test_readWriteReadMiriad_partial():
             uv_in.read(write_file, polarizations=[1.0])
         assert str(cm.value).startswith("Polarization 1.0 cannot be converted to a polarization number")
 
-    with pytest.raises(ValueError) as cm:
-        uv_in.read(write_file, polarizations=['yy'])
-    assert str(cm.value).startswith("No data is present, probably as a result of select on read")
 
-    with pytest.raises(AssertionError) as cm:
-        uv_in.read(write_file, time_range='foo')
-    assert str(cm.value).startswith("time_range must be a len-2 list of Julian Date floats")
+@pytest.mark.filterwarnings("ignore:Altitude is not present in Miriad file")
+def test_readWriteReadMiriad_partial_with_warnings():
+    testfile = os.path.join(DATA_PATH, 'zen.2456865.60537.xy.uvcRREAA')
+    write_file = os.path.join(DATA_PATH, 'test/outtest_miriad.uv')
 
-    with pytest.raises(AssertionError) as cm:
-        uv_in.read(write_file, time_range=[1, 2, 3])
-    assert str(cm.value).startswith("time_range must be a len-2 list of Julian Date floats")
+    # check partial read selections
+    full = UVData()
+    full.read(testfile)
+    full.write_miriad(write_file, clobber=True)
 
-    with pytest.raises(AssertionError) as cm:
-        uv_in.read(write_file, time_range=['foo', 'bar'])
-    assert str(cm.value).startswith("time_range must be a len-2 list of Julian Date floats")
-
-    with pytest.raises(ValueError) as cm:
-        uv_in.read(write_file, time_range=[10.1, 10.2])
-    assert str(cm.value).startswith("No data is present, probably as a result of select on read")
-
-    with pytest.raises(AssertionError) as cm:
-        uv_in.read(write_file, ant_str=0)
-    assert str(cm.value).startswith("ant_str must be fed as a string")
-
-    del(uv_in)
-    uv_in = UVData()
-    # assert partial-read and select are same
-    uv_in.read(write_file, polarizations=[-7], bls=[(4, 4)])
-    exp_uv = full.select(polarizations=[-7], bls=[(4, 4)], inplace=False)
-    assert uv_in == exp_uv
-
-    del(uv_in)
-    uv_in = UVData()
-    # assert partial-read and select are same
-    uv_in.read(write_file, bls=[(4, 4, 'xy')])
-    exp_uv = full.select(bls=[(4, 4, 'xy')], inplace=False)
-    assert uv_in == exp_uv
-
-    del(uv_in)
-    uv_in = UVData()
-    # assert partial-read and select are same
-    unique_times = np.unique(full.time_array)
-    time_range = [2456865.607, 2456865.609]
-    times_to_keep = unique_times[((unique_times > 2456865.607)
-                                 & (unique_times < 2456865.609))]
-    uv_in.read(write_file, antenna_nums=[0], time_range=time_range)
-    exp_uv = full.select(antenna_nums=[0], times=times_to_keep, inplace=False)
-    assert uv_in == exp_uv
-
-    del(uv_in)
-    uv_in = UVData()
-    # assert partial-read and select are same
-    uv_in.read(write_file, polarizations=[-7], time_range=time_range)
-    exp_uv = full.select(polarizations=[-7], times=times_to_keep, inplace=False)
-    assert uv_in == exp_uv
-
-    del(uv_in)
     uv_in = UVData()
     # check handling for generic read selections unsupported by read_miriad
+    unique_times = np.unique(full.time_array)
+    times_to_keep = unique_times[((unique_times > 2456865.607)
+                                 & (unique_times < 2456865.609))]
     uvtest.checkWarnings(uv_in.read, [write_file], {'times': times_to_keep},
                          message=['Warning: a select on read keyword is set'])
     exp_uv = full.select(times=times_to_keep, inplace=False)
