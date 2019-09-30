@@ -25,6 +25,10 @@ from pyuvdata.data import DATA_PATH
 
 from .. import aipy_extracts
 
+# always ignore the Altitude not present warning
+# This does NOT break uvutils.checkWarnings tests for this warning
+pytestmark = pytest.mark.filterwarnings("ignore:Altitude is not present in Miriad")
+
 
 @pytest.mark.filterwarnings("ignore:Telescope ATCA is not")
 def test_ReadWriteReadATCA():
@@ -64,7 +68,6 @@ def test_ReadNRAOWriteMiriadReadMiriad():
     assert uvfits_uv == miriad_uv
 
 
-@pytest.mark.filterwarnings("ignore:Altitude is not present in Miriad file")
 def test_ReadMiriadWriteUVFits():
     """
     Miriad to uvfits loopback test.
@@ -183,7 +186,6 @@ def test_miriad_location_handling():
     uv_in = UVData()
     uv_out = UVData()
     miriad_file = os.path.join(DATA_PATH, 'zen.2456865.60537.xy.uvcRREAA')
-    testdir = os.path.join(DATA_PATH, 'test/')
     testfile = os.path.join(DATA_PATH, 'test/outtest_miriad.uv')
     aipy_uv = aipy_extracts.UV(miriad_file)
 
@@ -367,7 +369,6 @@ def test_miriad_location_handling():
                                   'Telescope foo is not in known_telescopes.'])
 
 
-@pytest.mark.filterwarnings("ignore:Altitude is not present in Miriad file")
 def test_singletimeselect_drift():
     """
     Check behavior with writing & reading after selecting a single time from a drift file.
@@ -406,7 +407,6 @@ def test_singletimeselect_drift():
     assert uv_in == uv_out
 
 
-@pytest.mark.filterwarnings("ignore:Altitude is not present in Miriad file")
 def test_poltoind():
     miriad_uv = UVData()
     miriad_file = os.path.join(DATA_PATH, 'zen.2456865.60537.xy.uvcRREAA')
@@ -425,7 +425,6 @@ def test_poltoind():
     assert str(cm.value).startswith('multiple matches for pol=-7 in polarization_array')
 
 
-@pytest.mark.filterwarnings("ignore:Altitude is not present in Miriad file")
 def test_miriad_extra_keywords():
     uv_in = UVData()
     uv_out = UVData()
@@ -545,7 +544,6 @@ def test_miriad_extra_keywords():
         assert str(cm.value).startswith("Extra keyword complex2 is of <class 'complex'>")
 
 
-@pytest.mark.filterwarnings("ignore:Altitude is not present in Miriad file")
 def test_roundtrip_optional_params():
     uv_in = UVData()
     uv_out = UVData()
@@ -570,7 +568,6 @@ def test_roundtrip_optional_params():
     assert uv_in == uv_out
 
 
-@pytest.mark.filterwarnings("ignore:Altitude is not present in Miriad file")
 def test_breakReadMiriad():
     """Test Miriad file checking."""
     uv_in = UVData()
@@ -601,7 +598,6 @@ def test_breakReadMiriad():
                          message=['Ntimes does not match the number of unique times in the data'])
 
 
-@pytest.mark.filterwarnings("ignore:Altitude is not present in Miriad file")
 def test_readWriteReadMiriad():
     """
     PAPER file Miriad loopback test.
@@ -710,7 +706,6 @@ def test_readWriteReadMiriad():
                                            {"bls": [(4, 4, 'xy')]}
                                            ]
                          )
-@pytest.mark.filterwarnings("ignore:Altitude is not present in Miriad file")
 def test_readWriteReadMiriad_partial_bls(select_kwargs):
     testfile = os.path.join(DATA_PATH, 'zen.2456865.60537.xy.uvcRREAA')
     write_file = os.path.join(DATA_PATH, 'test/outtest_miriad.uv')
@@ -735,7 +730,6 @@ def test_readWriteReadMiriad_partial_bls(select_kwargs):
     del(full)
 
 
-@pytest.mark.filterwarnings("ignore:Altitude is not present in Miriad file")
 def test_readWriteReadMiriad_partial_antenna_nums():
     testfile = os.path.join(DATA_PATH, 'zen.2456865.60537.xy.uvcRREAA')
     write_file = os.path.join(DATA_PATH, 'test/outtest_miriad.uv')
@@ -763,7 +757,6 @@ def test_readWriteReadMiriad_partial_antenna_nums():
                                            {"time_range": [2456865.607, 2456865.609], "polarizations": [-7]}
                                            ]
                          )
-@pytest.mark.filterwarnings("ignore:Altitude is not present in Miriad file")
 def test_readWriteReadMiriad_partial_times(select_kwargs):
     testfile = os.path.join(DATA_PATH, 'zen.2456865.60537.xy.uvcRREAA')
     write_file = os.path.join(DATA_PATH, 'test/outtest_miriad.uv')
@@ -791,7 +784,6 @@ def test_readWriteReadMiriad_partial_times(select_kwargs):
 
 
 @pytest.mark.parametrize("pols", [['xy'], [-7]])
-@pytest.mark.filterwarnings("ignore:Altitude is not present in Miriad file")
 def test_readWriteReadMiriad_partial_pols(pols):
     testfile = os.path.join(DATA_PATH, 'zen.2456865.60537.xy.uvcRREAA')
     write_file = os.path.join(DATA_PATH, 'test/outtest_miriad.uv')
@@ -814,7 +806,6 @@ def test_readWriteReadMiriad_partial_pols(pols):
     del(uv_in)
 
 
-@pytest.mark.filterwarnings("ignore:Altitude is not present in Miriad file")
 def test_readWriteReadMiriad_partial_ant_str():
     testfile = os.path.join(DATA_PATH, 'zen.2456865.60537.xy.uvcRREAA')
     write_file = os.path.join(DATA_PATH, 'test/outtest_miriad.uv')
@@ -859,7 +850,6 @@ def test_readWriteReadMiriad_partial_ant_str():
     del(uv_in)
 
 
-@pytest.mark.filterwarnings("ignore:Altitude is not present in Miriad file")
 @pytest.mark.parametrize("err_type,select_kwargs,err_msg",
                          [(AssertionError, {"ant_str": 'auto', "antenna_nums": [0, 1]}, "ant_str must be None if antenna_nums or bls is not None"),
                           (ValueError, {"bls": 'foo'}, "bls must be a list of tuples of antenna numbers"),
@@ -897,7 +887,6 @@ def test_readWriteReadMiriad_partial_errors(err_type, select_kwargs, err_msg):
     shutil.rmtree(write_file)
 
 
-@pytest.mark.filterwarnings("ignore:Altitude is not present in Miriad file")
 def test_readWriteReadMiriad_partial_error_special_cases():
     testfile = os.path.join(DATA_PATH, 'zen.2456865.60537.xy.uvcRREAA')
     write_file = os.path.join(DATA_PATH, 'test/outtest_miriad.uv')
@@ -920,7 +909,6 @@ def test_readWriteReadMiriad_partial_error_special_cases():
     shutil.rmtree(write_file)
 
 
-@pytest.mark.filterwarnings("ignore:Altitude is not present in Miriad file")
 def test_readWriteReadMiriad_partial_with_warnings():
     testfile = os.path.join(DATA_PATH, 'zen.2456865.60537.xy.uvcRREAA')
     write_file = os.path.join(DATA_PATH, 'test/outtest_miriad.uv')
@@ -961,7 +949,6 @@ def test_readWriteReadMiriad_partial_with_warnings():
     del(uv_in)
 
 
-@pytest.mark.filterwarnings("ignore:Altitude is not present in Miriad file")
 def test_readWriteReadMiriad_partial_metadata_only():
     testfile = os.path.join(DATA_PATH, 'zen.2456865.60537.xy.uvcRREAA')
     write_file = os.path.join(DATA_PATH, 'test/outtest_miriad.uv')
@@ -1029,7 +1016,6 @@ def test_readMSWriteMiriad_CASAHistory():
     assert miriad_uv == ms_uv
 
 
-@pytest.mark.filterwarnings("ignore:Altitude is not present in Miriad file")
 def test_rwrMiriad_antpos_issues():
     """
     test warnings and errors associated with antenna position issues in Miriad files
