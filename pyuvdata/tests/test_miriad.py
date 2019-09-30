@@ -727,7 +727,7 @@ def test_readWriteReadMiriad_partial_bls(select_kwargs):
     # indexing here is to ignore polarization if present, maybe there is a better way
     assert np.all([bl[:2] in antpairs or bl[:2][::-1] in antpairs
                    for bl in select_kwargs["bls"]])
-    exp_uv = full.select(**select_kwargs, inplace=False)
+    exp_uv = full.select(inplace=False, **select_kwargs)
     assert uv_in == exp_uv
 
     shutil.rmtree(write_file)
@@ -782,7 +782,7 @@ def test_readWriteReadMiriad_partial_times(select_kwargs):
     # The exact time are calculated above, pop out the time range to compare time range with
     # selecting on exact times
     select_kwargs.pop("time_range", None)
-    exp_uv = full.select(times=full_times, **select_kwargs, inplace=False)
+    exp_uv = full.select(times=full_times, inplace=False, **select_kwargs)
     assert uv_in == exp_uv
 
     shutil.rmtree(write_file)
