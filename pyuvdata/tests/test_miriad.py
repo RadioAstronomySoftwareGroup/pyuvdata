@@ -702,8 +702,16 @@ def test_readWriteReadMiriad():
     assert uv_in == new_uv
 
 
+@pytest.mark.parametrize("select_kwargs", [{"bls": [(0, 0), (0, 1), (4, 2)]},
+                                           {"bls": [(0, 0), (2, 4)], "antenna_nums": [0, 2, 4]},
+                                           {"bls": [(2, 4, 'xy')]},
+                                           {"bls": [(4, 2, 'yx')]},
+                                           {"polarizations": [-7], "bls": [(4, 4)]},
+                                           {"bls": [(4, 4, 'xy')]}
+                                           ]
+                         )
 @pytest.mark.filterwarnings("ignore:Altitude is not present in Miriad file")
-def test_readWriteReadMiriad_partial_bls():
+def test_readWriteReadMiriad_partial_bls(select_kwargs):
     testfile = os.path.join(DATA_PATH, 'zen.2456865.60537.xy.uvcRREAA')
     write_file = os.path.join(DATA_PATH, 'test/outtest_miriad.uv')
 
@@ -714,12 +722,28 @@ def test_readWriteReadMiriad_partial_bls():
     uv_in = UVData()
 
     # test only specified bls were read, and that flipped antpair is loaded too
-    uv_in.read(write_file, bls=[(0, 0), (0, 1), (4, 2)])
-    assert uv_in.get_antpairs() == [(0, 0), (0, 1), (2, 4)]
-    exp_uv = full.select(bls=[(0, 0), (0, 1), (4, 2)], inplace=False)
+    uv_in.read(write_file, **select_kwargs)
+    antpairs = uv_in.get_antpairs()
+    # indexing here is to ignore polarization if present, maybe there is a better way
+    assert np.all([bl[:2] in antpairs or bl[:2][::-1] in antpairs
+                   for bl in select_kwargs["bls"]])
+    exp_uv = full.select(**select_kwargs, inplace=False)
     assert uv_in == exp_uv
 
+    shutil.rmtree(write_file)
     del(uv_in)
+    del(full)
+
+
+@pytest.mark.filterwarnings("ignore:Altitude is not present in Miriad file")
+def test_readWriteReadMiriad_partial_antenna_nums():
+    testfile = os.path.join(DATA_PATH, 'zen.2456865.60537.xy.uvcRREAA')
+    write_file = os.path.join(DATA_PATH, 'test/outtest_miriad.uv')
+
+    # check partial read selections
+    full = UVData()
+    full.read(testfile)
+    full.write_miriad(write_file, clobber=True)
     uv_in = UVData()
     # test all bls w/ 0 are loaded
     uv_in.read(write_file, antenna_nums=[0])
@@ -730,52 +754,17 @@ def test_readWriteReadMiriad_partial_bls():
     assert np.max(exp_uv.ant_2_array) == 0
     assert uv_in == exp_uv
 
-    del(uv_in)
-    uv_in = UVData()
-    uv_in.read(write_file, antenna_nums=[0, 2, 4], bls=[(0, 0), (2, 4)])
-    assert np.array([bl in uv_in.get_antpairs() for bl in [(0, 0), (2, 4)]]).all()
-    exp_uv = full.select(antenna_nums=[0, 2, 4], bls=[(0, 0), (2, 4)], inplace=False)
-    assert uv_in == exp_uv
-
-    del(uv_in)
-    uv_in = UVData()
-    uv_in.read(write_file, bls=[(2, 4, 'xy')])
-    assert np.array([bl in uv_in.get_antpairs() for bl in [(2, 4)]]).all()
-    exp_uv = full.select(bls=[(2, 4, 'xy')], inplace=False)
-    assert uv_in == exp_uv
-
-    del(uv_in)
-    uv_in = UVData()
-    uv_in.read(write_file, bls=[(4, 2, 'yx')])
-    assert np.array([bl in uv_in.get_antpairs() for bl in [(2, 4)]]).all()
-    exp_uv = full.select(bls=[(4, 2, 'yx')], inplace=False)
-    assert uv_in == exp_uv
-
-    del(uv_in)
-    uv_in = UVData()
-    uv_in.read(write_file, bls=(4, 2, 'yx'))
-    assert np.array([bl in uv_in.get_antpairs() for bl in [(2, 4)]]).all()
-    exp_uv = full.select(bls=[(4, 2, 'yx')], inplace=False)
-    assert uv_in == exp_uv
-
-    uv_in = UVData()
-    # assert partial-read and select are same
-    uv_in.read(write_file, polarizations=[-7], bls=[(4, 4)])
-    exp_uv = full.select(polarizations=[-7], bls=[(4, 4)], inplace=False)
-    assert uv_in == exp_uv
-
-    del(uv_in)
-    uv_in = UVData()
-    # assert partial-read and select are same
-    uv_in.read(write_file, bls=[(4, 4, 'xy')])
-    exp_uv = full.select(bls=[(4, 4, 'xy')], inplace=False)
-    assert uv_in == exp_uv
-
+    shutil.rmtree(write_file)
     del(uv_in)
 
 
+@pytest.mark.parametrize("select_kwargs", [{"time_range": [2456865.607, 2456865.609]},
+                                           {"time_range": [2456865.607, 2456865.609], "antenna_nums": [0]},
+                                           {"time_range": [2456865.607, 2456865.609], "polarizations": [-7]}
+                                           ]
+                         )
 @pytest.mark.filterwarnings("ignore:Altitude is not present in Miriad file")
-def test_readWriteReadMiriad_partial_times():
+def test_readWriteReadMiriad_partial_times(select_kwargs):
     testfile = os.path.join(DATA_PATH, 'zen.2456865.60537.xy.uvcRREAA')
     write_file = os.path.join(DATA_PATH, 'test/outtest_miriad.uv')
 
@@ -786,34 +775,24 @@ def test_readWriteReadMiriad_partial_times():
 
     # test time loading
     uv_in = UVData()
-    uv_in.read(write_file, time_range=[2456865.607, 2456865.609])
-    full_times = np.unique(full.time_array[(full.time_array > 2456865.607) & (full.time_array < 2456865.609)])
+    uv_in.read(write_file, **select_kwargs)
+    full_times = np.unique(full.time_array[(full.time_array > select_kwargs["time_range"][0])
+                                           & (full.time_array < select_kwargs["time_range"][1])])
     assert np.isclose(np.unique(uv_in.time_array), full_times).all()
-    exp_uv = full.select(times=full_times, inplace=False)
+    # The exact time are calculated above, pop out the time range to compare time range with
+    # selecting on exact times
+    select_kwargs.pop("time_range", None)
+    exp_uv = full.select(times=full_times, **select_kwargs, inplace=False)
     assert uv_in == exp_uv
 
-    uv_in = UVData()
-    # assert partial-read and select are same
-    unique_times = np.unique(full.time_array)
-    time_range = [2456865.607, 2456865.609]
-    times_to_keep = unique_times[((unique_times > 2456865.607)
-                                 & (unique_times < 2456865.609))]
-    uv_in.read(write_file, antenna_nums=[0], time_range=time_range)
-    exp_uv = full.select(antenna_nums=[0], times=times_to_keep, inplace=False)
-    assert uv_in == exp_uv
-
+    shutil.rmtree(write_file)
     del(uv_in)
-    uv_in = UVData()
-    # assert partial-read and select are same
-    uv_in.read(write_file, polarizations=[-7], time_range=time_range)
-    exp_uv = full.select(polarizations=[-7], times=times_to_keep, inplace=False)
-    assert uv_in == exp_uv
-
-    del(uv_in)
+    del(full)
 
 
+@pytest.mark.parametrize("pols", [['xy'], [-7]])
 @pytest.mark.filterwarnings("ignore:Altitude is not present in Miriad file")
-def test_readWriteReadMiriad_partial_pols():
+def test_readWriteReadMiriad_partial_pols(pols):
     testfile = os.path.join(DATA_PATH, 'zen.2456865.60537.xy.uvcRREAA')
     write_file = os.path.join(DATA_PATH, 'test/outtest_miriad.uv')
 
@@ -826,17 +805,13 @@ def test_readWriteReadMiriad_partial_pols():
     # test polarization loading
     del(uv_in)
     uv_in = UVData()
-    uv_in.read(write_file, polarizations=['xy'])
+    uv_in.read(write_file, polarizations=pols)
     assert full.polarization_array == uv_in.polarization_array
-    exp_uv = full.select(polarizations=['xy'], inplace=False)
+    exp_uv = full.select(polarizations=pols, inplace=False)
     assert uv_in == exp_uv
 
+    shutil.rmtree(write_file)
     del(uv_in)
-    uv_in = UVData()
-    uv_in.read(write_file, polarizations=[-7])
-    assert full.polarization_array == uv_in.polarization_array
-    exp_uv = full.select(polarizations=[-7], inplace=False)
-    uv_in == exp_uv
 
 
 @pytest.mark.filterwarnings("ignore:Altitude is not present in Miriad file")
@@ -858,6 +833,12 @@ def test_readWriteReadMiriad_partial_ant_str():
     assert uv_in == exp_uv
 
     del(uv_in)
+    shutil.rmtree(write_file)
+
+    full = UVData()
+    full.read(testfile)
+    full.write_miriad(write_file, clobber=True)
+
     uv_in = UVData()
     uv_in.read(write_file, ant_str='cross')
     assert np.array([blp[0] != blp[1] for blp in uv_in.get_antpairs()]).all()
@@ -865,6 +846,12 @@ def test_readWriteReadMiriad_partial_ant_str():
     assert uv_in == exp_uv
 
     del(uv_in)
+    shutil.rmtree(write_file)
+
+    full = UVData()
+    full.read(testfile)
+    full.write_miriad(write_file, clobber=True)
+
     uv_in = UVData()
     uv_in.read(write_file, ant_str='all')
     assert uv_in == full
@@ -907,6 +894,7 @@ def test_readWriteReadMiriad_partial_errors(err_type, select_kwargs, err_msg):
     assert str(cm.value).startswith(err_msg)
 
     del(uv_in)
+    shutil.rmtree(write_file)
 
 
 @pytest.mark.filterwarnings("ignore:Altitude is not present in Miriad file")
@@ -928,6 +916,8 @@ def test_readWriteReadMiriad_partial_error_special_cases():
         with pytest.raises(ValueError) as cm:
             uv_in.read(write_file, polarizations=[1.0])
         assert str(cm.value).startswith("Polarization 1.0 cannot be converted to a polarization number")
+
+    shutil.rmtree(write_file)
 
 
 @pytest.mark.filterwarnings("ignore:Altitude is not present in Miriad file")
@@ -951,6 +941,12 @@ def test_readWriteReadMiriad_partial_with_warnings():
     assert uv_in == exp_uv
 
     del(uv_in)
+    shutil.rmtree(write_file)
+
+    full = UVData()
+    full.read(testfile)
+    full.write_miriad(write_file, clobber=True)
+
     uv_in = UVData()
     # check handling for generic read selections unsupported by read_miriad
     blts_select = np.where(full.time_array == unique_times[0])[0]
@@ -960,6 +956,9 @@ def test_readWriteReadMiriad_partial_with_warnings():
                          message=['Warning: blt_inds is set along with select on read'])
     exp_uv = full.select(blt_inds=blts_select, antenna_nums=ants_keep, inplace=False)
     assert uv_in != exp_uv
+
+    shutil.rmtree(write_file)
+    del(uv_in)
 
 
 @pytest.mark.filterwarnings("ignore:Altitude is not present in Miriad file")
@@ -981,6 +980,7 @@ def test_readWriteReadMiriad_partial_metadata_only():
 
     # metadata only multiple file read-in
     del(uv_in)
+
     uv_in = UVData()
     uv_in.read(testfile)
     new_uv = uv_in.select(freq_chans=np.arange(5), inplace=False)
@@ -999,6 +999,9 @@ def test_readWriteReadMiriad_partial_metadata_only():
     # test exceptions
     # read-in when data already exists
     del(uv_in)
+    shutil.rmtree(write_file)
+    shutil.rmtree(write_file2)
+
     uv_in = UVData()
     uv_in.read(testfile)
     with pytest.raises(ValueError) as cm:
