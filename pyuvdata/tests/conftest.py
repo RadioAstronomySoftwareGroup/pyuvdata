@@ -27,6 +27,7 @@ def setup_and_teardown_package():
     # tests. If it fails, turn off auto downloading for the tests and turn it
     # back on once all tests are completed (done by extending auto_max_age).
     # Also, the checkWarnings function will ignore IERS-related warnings.
+    iers.auto_download = False
     try:
         iers.IERS.iers_table = iers.IERS_A.open(iers.IERS_A_URL)
         t1 = Time.now()
@@ -42,3 +43,4 @@ def setup_and_teardown_package():
     yield
 
     iers.conf.auto_max_age = 30
+    iers.auto_download = True
