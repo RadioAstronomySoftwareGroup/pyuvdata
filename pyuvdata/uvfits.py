@@ -2,9 +2,7 @@
 # Copyright (c) 2018 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 
-"""Class for reading and writing uvfits files.
-
-"""
+"""Class for reading and writing uvfits files."""
 from __future__ import absolute_import, division, print_function
 
 import numpy as np
@@ -20,13 +18,15 @@ from . import utils as uvutils
 
 class UVFITS(UVData):
     """
-    Defines a uvfits-specific subclass of UVData for reading and writing uvfits files.
+    Defines a uvfits-specific subclass of UVData for reading and writing uvfits.
+
     This class should not be interacted with directly, instead use the read_uvfits
     and write_uvfits methods on the UVData class.
 
     Attributes:
         uvfits_required_extra: Names of optional UVParameters that are required
             for uvfits.
+
     """
 
     uvfits_required_extra = ['antenna_positions', 'gst0', 'rdate',
@@ -34,9 +34,10 @@ class UVFITS(UVData):
 
     def _get_parameter_data(self, vis_hdu, run_check_acceptability):
         """
-        Internal function to read just the random parameters portion of the
-        uvfits file (referred to as metadata).
-        Separated from full read so that header, metadata and data can be read independently.
+        Read just the random parameters portion of the uvfits file ("metadata").
+
+        Separated from full read so that header, metadata and data can be read
+        independently.
         """
         # astropy.io fits reader scales date according to relevant PZER0 (?)
         # uvfits standard is to have 2 DATE parameters, both floats:
@@ -129,10 +130,11 @@ class UVFITS(UVData):
                   blt_inds, read_metadata, run_check, check_extra,
                   run_check_acceptability, keep_all_metadata):
         """
-        Internal function to read just the visibility and flag data of the uvfits file.
-        Separated from full read so that header, metadata and data can be read independently.
-        """
+        Read just the visibility and flag data of the uvfits file.
 
+        Separated from full read so that header, metadata and data can be read
+        independently.
+        """
         if self.time_array is None or read_metadata:
             # first read in random group parameters
             self._get_parameter_data(vis_hdu, run_check_acceptability)
@@ -243,8 +245,9 @@ class UVFITS(UVData):
                     run_check=True, check_extra=True, run_check_acceptability=True,
                     keep_all_metadata=True):
         """
-        Read in header, metadata and data from a uvfits file. Supports reading
-        only selected portions of the data.
+        Read in header, metadata and data from a uvfits file.
+
+        Supports reading only selected portions of the data.
 
         Args:
             filename: The uvfits file to read from.
@@ -449,8 +452,32 @@ class UVFITS(UVData):
             # stuff in columns
             ant_names = ant_hdu.data.field('ANNAME').tolist()
             self.antenna_names = []
-            for name in ant_names:
-                self.antenna_names.append(name.replace('\x00!', ''))
+            for ant_ind, name in enumerate(ant_names):
+                # Sometimes CASA writes antnames as bytes not strings.
+                # If the ant name is shorter than 8 characters, the trailing
+                # characters may not be able to be decoded.
+                # So we try to decode the whole thing then iteratively strip
+                # off characters until it can be decoded.
+                # If no characters can be decoded, use the antenna number.
+                if isinstance(name, bytes):
+                    ant_name_str = None
+                    try:
+                        ant_name_str = uvutils._bytes_to_str(name)
+                    except UnicodeDecodeError:
+                        done = False
+                        end_char = -1
+                        while not done and abs(end_char) < len(name):
+                            try:
+                                ant_name_str = uvutils._bytes_to_str(name[:end_char])
+                                done = True
+                            except UnicodeDecodeError:
+                                pass
+                            end_char += -1
+                    if ant_name_str is None:
+                        ant_name_str = str(ant_hdu.data.field('NOSTA')[ant_ind])
+                else:
+                    ant_name_str = name
+                self.antenna_names.append(ant_name_str.replace('\x00!', ''))
 
             # subtract one to get to 0-indexed values rather than 1-indexed values
             self.antenna_numbers = ant_hdu.data.field('NOSTA') - 1
@@ -498,8 +525,8 @@ class UVFITS(UVData):
         run_check_acceptability : bool
             Option to check acceptable range of the values of parameters after
             reading in the file. Default is True.
-        """
 
+        """
         if self.data_array is not None:
             raise ValueError('data_array is already defined, cannot read metadata')
 
@@ -517,8 +544,9 @@ class UVFITS(UVData):
                          check_extra=True, run_check_acceptability=True,
                          keep_all_metadata=True):
         """
-        Read in data but not header info from a uvfits file
-        (useful for an object that already has the associated header info).
+        Read in data but not header info from a uvfits file.
+
+        Useful for an object that already has the associated header info.
 
         Args:
             filename: The uvfits file to read from.
@@ -566,8 +594,8 @@ class UVFITS(UVData):
                 parameters after reading in the file. Default is True.
             keep_all_metadata: Option to keep all the metadata associated with antennas,
                 even those that do not remain after the select option. Default is True.
-        """
 
+        """
         with fits.open(filename, memmap=True) as hdu_list:
             vis_hdu = hdu_list[0]  # assumes the visibilities are in the primary hdu
 
@@ -604,6 +632,7 @@ class UVFITS(UVData):
         run_check_acceptability : bool
             Option to check acceptable range of the values of parameters before
             writing the file.
+
         """
         if run_check:
             self.check(check_extra=check_extra,
