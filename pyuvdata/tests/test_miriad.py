@@ -949,8 +949,9 @@ def test_readWriteReadMiriad_partial_errors(err_type, select_kwargs, err_msg):
         uv_in.read(write_file, **select_kwargs)
     assert str(cm.value).startswith(err_msg)
 
-    del(uv_in)
-    shutil.rmtree(write_file)
+    del(uv_in, full)
+    if os.path.exists(write_file):
+        shutil.rmtree(write_file)
 
 
 def test_readWriteReadMiriad_partial_error_special_cases():
