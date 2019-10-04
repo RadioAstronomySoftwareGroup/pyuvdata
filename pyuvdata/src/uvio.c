@@ -1127,7 +1127,7 @@ private void uv_vartable_out(UV *uv)
   for(i=0, v = uv->variable; i < uv->nvar; i++,v++){
     Sprintf(line,"%c %s",VARTYPE(v),v->name);
     hwritea_c(item,line,strlen(line)+1,&iostat);
-    CHECK(iostat,(message,"Error writing to vartable (var # %d %s), in UVCLOSE(vartable_out)", i, v->name));
+    CHECK(iostat,(message,"Error writing to vartable, in UVCLOSE(vartable_out)"));
   }
   hdaccess_c(item,&iostat);
   CHECK(iostat,(message,"Error closing vartable, in UVCLOSE(vartable_out)"));
