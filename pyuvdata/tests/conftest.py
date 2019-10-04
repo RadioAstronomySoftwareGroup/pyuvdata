@@ -35,6 +35,7 @@ def setup_and_teardown_package():
         t1.ut1
     except(urllib.error.URLError):
         if six.PY3:
+            # python 3 offers a mirror for the download url.
             try:
                 iers.IERS.iers_table = iers.IERS_A.open(iers.IERS_A_URL_MIRROR)
                 t1 = Time.now()
