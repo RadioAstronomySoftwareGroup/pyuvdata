@@ -2,9 +2,7 @@
 # Copyright (c) 2018 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 
-"""Tests for Miriad object.
-
-"""
+"""Tests for Miriad object."""
 from __future__ import absolute_import, division, print_function
 
 import os
@@ -63,6 +61,7 @@ def uv_in_uvfits():
     if os.path.exists(write_file):
         os.remove(write_file)
     gc.collect()
+
 
 @pytest.mark.filterwarnings("ignore:Telescope ATCA is not")
 def test_ReadWriteReadATCA():
