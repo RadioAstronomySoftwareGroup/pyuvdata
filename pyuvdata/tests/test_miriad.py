@@ -118,19 +118,9 @@ def test_ReadNRAOWriteMiriadReadMiriad():
     testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
     writefile = os.path.join(DATA_PATH, "test/outtest_miriad.uv")
     expected_extra_keywords = ["OBSERVER", "SORTORD", "SPECSYS", "RESTFREQ", "ORIGIN"]
-    uvtest.checkWarnings(
-        uvfits_uv.read_uvfits,
-        [testfile],
-        message=["Telescope EVLA is not in known_telescopes"],
-    )
-    # uvfits_uv.read_uvfits(testfile)
+    uvfits_uv.read_uvfits(testfile)
     uvfits_uv.write_miriad(writefile, clobber=True)
-    uvtest.checkWarnings(
-        miriad_uv.read_uvfits,
-        [testfile],
-        message=["Telescope EVLA is not in known_telescopes"],
-    )
-    # miriad_uv.read(writefile)
+    miriad_uv.read(writefile)
     assert uvfits_uv == miriad_uv
 
     # cleanup
@@ -881,7 +871,6 @@ def test_readWriteReadMiriad(uv_in_paper):
 def test_miriad_antenna_diameters(uv_in_paper):
     # check that if antenna_diameters is set, it's read back out properly
     uv_in, uv_out, write_file = uv_in_paper
-    # uv_in.read(testfile)
     uv_in.antenna_diameters = np.zeros((uv_in.Nants_telescope,), dtype=np.float) + 14.0
     uv_in.write_miriad(write_file, clobber=True)
     uv_out.read(write_file)
@@ -922,7 +911,7 @@ def test_miriad_and_aipy_reads(uv_in_paper):
     uv_in.read(write_file)
     uv_aipy = aipy_extracts.UV(
         write_file
-    )  # on enterprise, this line makes it so you cant delete the file
+    )
     nfreqs = uv_in.Nfreqs
     nschan = uv_aipy["nschan"]
     ischan = uv_aipy["ischan"]
