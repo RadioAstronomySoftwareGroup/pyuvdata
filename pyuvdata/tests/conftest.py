@@ -7,6 +7,7 @@ from __future__ import absolute_import, division, print_function
 
 import os
 import pytest
+import six
 import six.moves.urllib as urllib
 from astropy.utils import iers
 from astropy.time import Time
@@ -33,11 +34,14 @@ def setup_and_teardown_package():
         t1 = Time.now()
         t1.ut1
     except(urllib.error.URLError):
-        try:
-            iers.IERS.iers_table = iers.IERS_A.open(iers.IERS_A_URL_MIRROR)
-            t1 = Time.now()
-            t1.ut1
-        except(urllib.error.URLError):
+        if six.PY3:
+            try:
+                iers.IERS.iers_table = iers.IERS_A.open(iers.IERS_A_URL_MIRROR)
+                t1 = Time.now()
+                t1.ut1
+            except(urllib.error.URLError):
+                iers.conf.auto_max_age = None
+        else:
             iers.conf.auto_max_age = None
 
     yield
