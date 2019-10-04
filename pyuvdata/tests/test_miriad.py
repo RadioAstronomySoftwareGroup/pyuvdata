@@ -977,7 +977,7 @@ def test_miriad_integration_time_precision():
     [
         {"bls": [(0, 0), (0, 1), (4, 2)]},
         {"bls": [(0, 0), (2, 4)], "antenna_nums": [0, 2, 4]},
-        {"bls": [(2, 4, "xy")]},
+        {"bls": (2, 4, "xy")},
         {"bls": [(4, 2, "yx")]},
         {"polarizations": [-7], "bls": [(4, 4)]},
         {"bls": [(4, 4, "xy")]},
@@ -997,8 +997,11 @@ def test_readWriteReadMiriad_partial_bls(select_kwargs):
     uv_in.read(write_file, **select_kwargs)
     antpairs = uv_in.get_antpairs()
     # indexing here is to ignore polarization if present, maybe there is a better way
+    bls = select_kwargs["bls"]
+    if isinstance(bls, tuple):
+        bls = [bls]
     assert np.all(
-        [bl[:2] in antpairs or bl[:2][::-1] in antpairs for bl in select_kwargs["bls"]]
+        [bl[:2] in antpairs or bl[:2][::-1] in antpairs for bl in bls]
     )
     exp_uv = full.select(inplace=False, **select_kwargs)
     assert uv_in == exp_uv
