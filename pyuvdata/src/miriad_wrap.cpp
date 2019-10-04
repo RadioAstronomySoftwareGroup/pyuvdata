@@ -112,6 +112,8 @@ PyObject * UVObject_read(UVObject *self, PyObject *args) {
                      (float *)PyArray_DATA(data), (int *)PyArray_DATA(flags), n2read, &nread);
         } catch (MiriadError &e) {
             PyErr_Format(PyExc_RuntimeError, "%s", e.get_message());
+            Py_DECREF(data);
+            Py_DECREF(flags);
             return NULL;
         }
         if (preamble[3] != self->curtime) {
