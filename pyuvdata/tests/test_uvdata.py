@@ -353,7 +353,6 @@ def test_baseline_to_antnums_vectorized(uvdata_baseline):
     baseline_array = uvdata_baseline.uv_object.antnums_to_baseline(ant_1, ant_2)
     assert np.array_equal(baseline_array, [88085, 641335])
     ant_1_out, ant_2_out = uvdata_baseline.uv_object.baseline_to_antnums(baseline_array.tolist())
-    print('out:', ant_1_out, ant_2_out)
     assert np.array_equal(ant_1, ant_1_out)
     assert np.array_equal(ant_2, ant_2_out)
 
@@ -4678,6 +4677,7 @@ def test_downsample_in_time_errors():
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
 @pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
 @pytest.mark.filterwarnings("ignore:Data will be unphased and rephased")
+@pytest.mark.filterwarnings("ignore:There is a gap in the times of baseline")
 def test_upsample_downsample_in_time():
     """Test round trip works"""
     uv_object = UVData()
@@ -4727,7 +4727,7 @@ def test_upsample_downsample_in_time():
 
     # make sure that history is correct
     assert "Upsampled data to 0.939524 second integration time using pyuvdata." in uv_object.history
-    assert "Upsampled data to 1.879048 second integration time using pyuvdata." in uv_object.history
+    assert "Downsampled data to 1.879048 second integration time using pyuvdata." in uv_object.history
 
     # overwrite history and check for equality
     uv_object.history = uv_object2.history
@@ -4762,7 +4762,55 @@ def test_upsample_downsample_in_time():
 
     # make sure that history is correct
     assert "Upsampled data to 0.626349 second integration time using pyuvdata." in uv_object.history
-    assert "Upsampled data to 1.879048 second integration time using pyuvdata." in uv_object.history
+    assert "Downsampled data to 1.879048 second integration time using pyuvdata." in uv_object.history
+
+    # overwrite history and check for equality
+    uv_object.history = uv_object2.history
+    assert uv_object == uv_object2
+
+
+@uvtest.skipIf_no_h5py
+@pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
+@pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
+@pytest.mark.filterwarnings("ignore:Data will be unphased and rephased")
+@pytest.mark.filterwarnings("ignore:There is a gap in the times of baseline")
+def test_upsample_downsample_in_time_metadata_only():
+    """Test round trip works with metadata-only objects"""
+    uv_object = UVData()
+    testfile = os.path.join(DATA_PATH, 'zen.2458661.23480.HH.uvh5')
+    uv_object.read(testfile)
+
+    # drop the data arrays
+    uv_object.data_array = None
+    uv_object.flag_array = None
+    uv_object.nsample_array = None
+
+    # set uvws from antenna positions so they'll agree later.
+    # the fact that this is required is a bit concerning, it means that
+    # our calculated uvws from the antenna positions do not match what's in the file
+    uv_object.set_uvws_from_antenna_positions()
+
+    uv_object.phase_to_time(Time(uv_object.time_array[0], format="jd"))
+
+    # reorder to make sure we get the right value later
+    uv_object.reorder_blts(order="baseline", minor_order="time")
+    uv_object2 = uv_object.copy()
+
+    max_integration_time = np.amin(uv_object.integration_time) / 2.0
+    uv_object.upsample_in_time(max_integration_time, blt_order="baseline")
+    assert np.amax(uv_object.integration_time) <= max_integration_time
+    new_Nblts = uv_object.Nblts
+
+    uv_object.downsample_in_time(np.amin(uv_object2.integration_time), blt_order="baseline")
+
+    # increase tolerance on LST if iers.conf.auto_max_age is set to None, as we
+    # do in testing if the iers url is down. See conftest.py for more info.
+    if iers.conf.auto_max_age is None:
+        uv_object._lst_array.tols = (0, 1e-4)
+
+    # make sure that history is correct
+    assert "Upsampled data to 0.939524 second integration time using pyuvdata." in uv_object.history
+    assert "Downsampled data to 1.879048 second integration time using pyuvdata." in uv_object.history
 
     # overwrite history and check for equality
     uv_object.history = uv_object2.history
@@ -4852,7 +4900,6 @@ def test_resample_in_time():
     # again, with only_upsample set
     uv_object3.resample_in_time(8, only_upsample=True)
     # Should have all greater than or equal to the target integration time
-    print(np.unique(uv_object3.integration_time))
     assert np.all(np.logical_or(np.logical_or(
         np.isclose(uv_object3.integration_time, 2.),
         np.isclose(uv_object3.integration_time, 4.)),

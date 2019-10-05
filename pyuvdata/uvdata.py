@@ -523,7 +523,7 @@ class UVData(UVBase):
         uv = UVData()
         for param in self:
             # parameter names have a leading underscore we want to ignore
-            if metadata_only and param[1:] in self._data_params:
+            if metadata_only and param.lstrip("_") in self._data_params:
                 continue
             setattr(uv, param, copy.deepcopy(getattr(self, param)))
 
@@ -1396,9 +1396,10 @@ class UVData(UVBase):
         self.time_array = self.time_array[index_array]
         self.lst_array = self.lst_array[index_array]
         self.integration_time = self.integration_time[index_array]
-        self.data_array = self.data_array[index_array, :, :, :]
-        self.flag_array = self.flag_array[index_array, :, :, :]
-        self.nsample_array = self.nsample_array[index_array, :, :, :]
+        if not self.metadata_only:
+            self.data_array = self.data_array[index_array, :, :, :]
+            self.flag_array = self.flag_array[index_array, :, :, :]
+            self.nsample_array = self.nsample_array[index_array, :, :, :]
 
         # check if object is self-consistent
         if run_check:
@@ -4655,6 +4656,59 @@ class UVData(UVBase):
 
         self.check()
 
+    def _harmonize_resample_arrays(
+            self,
+            inds_to_keep,
+            temp_baseline,
+            temp_time,
+            temp_int_time,
+            temp_data,
+            temp_flag,
+            temp_nsample,
+    ):
+        """
+        Make a self-consistent object after up/downsampling.
+
+        This function is called by both upsample_in_time and downsample_in_time.
+        See those functions for more information about arguments.
+        """
+        self.baseline_array = self.baseline_array[inds_to_keep]
+        self.time_array = self.time_array[inds_to_keep]
+        self.integration_time = self.integration_time[inds_to_keep]
+
+        self.baseline_array = np.concatenate((self.baseline_array, temp_baseline))
+        self.time_array = np.concatenate((self.time_array, temp_time))
+        self.integration_time = np.concatenate((self.integration_time, temp_int_time))
+        if not self.metadata_only:
+            self.data_array = self.data_array[inds_to_keep]
+            self.flag_array = self.flag_array[inds_to_keep]
+            self.nsample_array = self.nsample_array[inds_to_keep]
+
+            # concatenate temp array with existing arrays
+            self.data_array = np.concatenate((self.data_array, temp_data), axis=0)
+            self.flag_array = np.concatenate((self.flag_array, temp_flag), axis=0)
+            self.nsample_array = np.concatenate((self.nsample_array, temp_nsample), axis=0)
+
+        # set antenna arrays from baseline_array
+        self.ant_1_array, self.ant_2_array = self.baseline_to_antnums(self.baseline_array)
+
+        # update metadata
+        self.Nblts = self.baseline_array.shape[0]
+        self.Ntimes = np.unique(self.time_array).size
+        self.uvw_array = np.zeros((self.Nblts, 3))
+
+        # set lst array
+        self.set_lsts_from_time_array()
+
+        # temporarily store the metadata only to calculate UVWs correctly
+        uv_temp = self.copy(metadata_only=True)
+
+        # properly calculate the UVWs self-consistently
+        uv_temp.set_uvws_from_antenna_positions(allow_phasing=True)
+        self.uvw_array = uv_temp.uvw_array
+
+        return
+
     def upsample_in_time(self, max_int_time, blt_order="time", minor_order="baseline",
                          summing_correlator_mode=False, allow_drift=False):
         """
@@ -4667,7 +4721,7 @@ class UVData(UVBase):
         Parameters
         ----------
         max_int_time : float
-            Maximum integration time to upsample the to in seconds.
+            Maximum integration time to upsample to in seconds.
         blt_order : str
             Major baseline ordering for output object. Default is "time". See
             the documentation on the `reorder_blts` method for more info.
@@ -4731,7 +4785,11 @@ class UVData(UVBase):
         temp_baseline = np.zeros((temp_Nblts,), dtype=np.int)
         temp_time = np.zeros((temp_Nblts,))
         temp_int_time = np.zeros((temp_Nblts,))
-        if not self.metadata_only:
+        if self.metadata_only:
+            temp_data = None
+            temp_flag = None
+            temp_nsample = None
+        else:
             temp_data = np.zeros((temp_Nblts, self.Nspws, self.Nfreqs, self.Npols),
                                  dtype=self.data_array.dtype)
             temp_flag = np.zeros((temp_Nblts, self.Nspws, self.Nfreqs, self.Npols),
@@ -4755,8 +4813,17 @@ class UVData(UVBase):
             t0 = self.time_array[ind]
             dt = self.integration_time[ind] / n_new_samples[i]
 
+            # `offset` will be 0.5 or 1, depending on whether n_new_samples for
+            # this baseline is even or odd.
             offset = 0.5 + 0.5 * (n_new_samples[i] % 2)
             n2 = n_new_samples[i] // 2
+
+            # Figure out the new center for sample ii taking offset into
+            # account. Because `t0` is the central time for the original time
+            # sample, `nt` will range from negative to positive so that
+            # `temp_time` will result in the central time for the new samples.
+            # `idx2` tells us how to far to shift and in what direction for each
+            # new sample.
             for ii, idx in enumerate(range(i0, i1)):
                 idx2 = ii + offset + n2 - n_new_samples[i]
                 nt = ((t0 * units.day) + (dt * idx2 * units.s)).to(units.day).value
@@ -4766,41 +4833,17 @@ class UVData(UVBase):
 
             i0 = i1
 
-        # drop data where we upsampled
+        # harmonize temporary arrays with existing ones
         inds_to_keep = np.nonzero(self.integration_time <= max_int_time)
-        self.baseline_array = self.baseline_array[inds_to_keep]
-        self.time_array = self.time_array[inds_to_keep]
-        self.integration_time = self.integration_time[inds_to_keep]
-        self.baseline_array = np.concatenate((self.baseline_array, temp_baseline))
-        self.time_array = np.concatenate((self.time_array, temp_time))
-        self.integration_time = np.concatenate((self.integration_time, temp_int_time))
-        if not self.metadata_only:
-            self.data_array = self.data_array[inds_to_keep]
-            self.flag_array = self.flag_array[inds_to_keep]
-            self.nsample_array = self.nsample_array[inds_to_keep]
-
-            # concatenate temp array with existing arrays
-            self.data_array = np.concatenate((self.data_array, temp_data), axis=0)
-            self.flag_array = np.concatenate((self.flag_array, temp_flag), axis=0)
-            self.nsample_array = np.concatenate((self.nsample_array, temp_nsample), axis=0)
-
-        # set antenna arrays from baseline_array
-        self.ant_1_array, self.ant_2_array = self.baseline_to_antnums(self.baseline_array)
-
-        # update metadata
-        self.Nblts = self.data_array.shape[0]
-        self.Ntimes = np.unique(self.time_array).size
-        self.uvw_array = np.zeros((self.Nblts, 3))
-
-        # set lst array
-        self.set_lsts_from_time_array()
-
-        # temporarily store the metadata only to calculate UVWs correctly
-        uv_temp = self.copy(metadata_only=True)
-
-        # properly calculate the uvws self-consistently
-        uv_temp.set_uvws_from_antenna_positions(allow_phasing=True)
-        self.uvw_array = uv_temp.uvw_array
+        self._harmonize_resample_arrays(
+            inds_to_keep,
+            temp_baseline,
+            temp_time,
+            temp_int_time,
+            temp_data,
+            temp_flag,
+            temp_nsample,
+        )
 
         if input_phase_type == "drift" and not allow_drift:
             print('Unphasing back to drift mode.')
@@ -4948,7 +4991,11 @@ class UVData(UVBase):
         temp_time = np.zeros((temp_Nblts,))
         temp_uvw = np.zeros((temp_Nblts, 3))
         temp_int_time = np.zeros((temp_Nblts,))
-        if not self.metadata_only:
+        if self.metadata_only:
+            temp_data = None
+            temp_flag = None
+            temp_nsample = None
+        else:
             temp_data = np.zeros((temp_Nblts, self.Nspws, self.Nfreqs, self.Npols),
                                  dtype=self.data_array.dtype)
             temp_flag = np.zeros((temp_Nblts, self.Nspws, self.Nfreqs, self.Npols),
@@ -4980,7 +5027,12 @@ class UVData(UVBase):
                     temp_baseline[temp_idx] = bl
                     # this might be wrong if some of the constituent times are *totally* flagged
                     averaging_idx = bl_inds[summing_idx:summing_idx + n_sum]
-                    temp_time[temp_idx] = np.average(self.time_array[averaging_idx])
+                    # take potential non-uniformity of integration_time into account
+                    temp_time[temp_idx] = (
+                        np.sum(self.time_array[averaging_idx]
+                               * self.integration_time[averaging_idx])
+                        / np.sum(self.integration_time[averaging_idx])
+                    )
                     temp_int_time[temp_idx] = running_int_time
                     if not self.metadata_only:
                         # if all inputs are flagged, the flag array should be True,
@@ -4995,15 +5047,31 @@ class UVData(UVBase):
                         # so that we don't set it to zero
                         if (temp_flag[temp_idx]).any():
                             ax1_inds, ax2_inds, ax3_inds = np.nonzero(temp_flag[temp_idx])
-                            for ii in range(ax1_inds.size):
-                                mask[:, ax1_inds[ii], ax2_inds[ii], ax3_inds[ii]] = False
+                            mask[:, ax1_inds, ax2_inds, ax3_inds] = False
 
                         masked_data = np.ma.masked_array(self.data_array[averaging_idx],
                                                          mask=mask)
                         if summing_correlator_mode:
                             temp_data[temp_idx] = np.sum(masked_data, axis=0)
                         else:
-                            temp_data[temp_idx] = np.mean(masked_data, axis=0)
+                            # take potential non-uniformity of integration_time into
+                            # account
+                            masked_int_time = np.ma.masked_array(
+                                np.ones_like(
+                                    self.data_array[averaging_idx], dtype=self.integration_time.dtype
+                                )
+                                * self.integration_time[
+                                    averaging_idx,
+                                    np.newaxis,
+                                    np.newaxis,
+                                    np.newaxis
+                                ],
+                                mask=mask,
+                            )
+                            weighted_data = masked_data * masked_int_time
+                            temp_data[temp_idx] = (
+                                np.sum(weighted_data, axis=0) / np.sum(masked_int_time, axis=0)
+                            )
                         # nsample array is the fraction of data that we actually kept,
                         # relative to the amount that went into the sum or average
                         masked_nsample = np.ma.masked_array(self.nsample_array[averaging_idx],
@@ -5023,42 +5091,17 @@ class UVData(UVBase):
                                         "RadioAstronomySoftwareGroup/pyuvdata/"
                                         "issues".format(temp_idx, temp_Nblts))
 
-        # drop data where we downsampled
+        # harmonize temporary arrays with existing ones
         inds_to_keep = np.nonzero(self.integration_time >= min_int_time)
-        self.baseline_array = self.baseline_array[inds_to_keep]
-        self.time_array = self.time_array[inds_to_keep]
-        self.integration_time = self.integration_time[inds_to_keep]
-
-        self.baseline_array = np.concatenate((self.baseline_array, temp_baseline))
-        self.time_array = np.concatenate((self.time_array, temp_time))
-        self.integration_time = np.concatenate((self.integration_time, temp_int_time))
-        if not self.metadata_only:
-            self.data_array = self.data_array[inds_to_keep]
-            self.flag_array = self.flag_array[inds_to_keep]
-            self.nsample_array = self.nsample_array[inds_to_keep]
-
-            # concatenate temp array with existing arrays
-            self.data_array = np.concatenate((self.data_array, temp_data), axis=0)
-            self.flag_array = np.concatenate((self.flag_array, temp_flag), axis=0)
-            self.nsample_array = np.concatenate((self.nsample_array, temp_nsample), axis=0)
-
-        # set antenna arrays from baseline_array
-        self.ant_1_array, self.ant_2_array = self.baseline_to_antnums(self.baseline_array)
-
-        # update metadata
-        self.Nblts = self.data_array.shape[0]
-        self.Ntimes = np.unique(self.time_array).size
-        self.uvw_array = np.zeros((self.Nblts, 3))
-
-        # set lst array
-        self.set_lsts_from_time_array()
-
-        # temporarily store the metadata only to calculate UVWs correctly
-        uv_temp = self.copy(metadata_only=True)
-
-        # properly calculate the uvws self-consistently
-        uv_temp.set_uvws_from_antenna_positions(allow_phasing=True)
-        self.uvw_array = uv_temp.uvw_array
+        self._harmonize_resample_arrays(
+            inds_to_keep,
+            temp_baseline,
+            temp_time,
+            temp_int_time,
+            temp_data,
+            temp_flag,
+            temp_nsample,
+        )
 
         if input_phase_type == "drift" and not allow_drift:
             print('Unphasing back to drift mode.')
@@ -5071,8 +5114,8 @@ class UVData(UVBase):
         self.check()
 
         # add to the history
-        history_update_string = (" Upsampled data to {:f} second integration time "
-                                 "using pyuvdata.".format(min_int_time))
+        history_update_string = (" Downsampled data to {:f} second integration "
+                                 "time using pyuvdata.".format(min_int_time))
         self.history = self.history + history_update_string
 
         return
