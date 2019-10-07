@@ -560,6 +560,15 @@ def test_phase_to_time_jd_input(uv_phase_and_raw):
     assert UV_phase == UV_raw
 
 
+@pytest.mark.filterwarnings('ignore:Altitude is not present in file and latitude')
+def test_phase_to_time_error(uv_phase_and_raw):
+    UV_phase, UV_raw = uv_phase_and_raw
+    # check error if not passing a Time object to phase_to_time
+    with pytest.raises(TypeError) as cm:
+        UV_phase.phase_to_time('foo')
+    assert str(cm.value).startswith("time must be an astropy.time.Time object")
+
+
 @pytest.mark.parametrize(
     "phase_mode,err_msg",
     [("", "The data is already drift scanning;"),
