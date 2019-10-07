@@ -974,7 +974,7 @@ class UVData(UVBase):
             time = Time(time, format='jd')
 
         if not isinstance(time, Time):
-            raise TypeError("time must be an astropy.time.Time object")
+            raise TypeError("time must be an astropy.time.Time object or a float")
 
         # Generate ra/dec of zenith at time in the phase_frame coordinate system
         # to use for phasing
