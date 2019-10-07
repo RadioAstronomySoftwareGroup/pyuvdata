@@ -943,8 +943,8 @@ class UVData(UVBase):
 
         Parameters
         ----------
-        time : astropy.time.Time object
-            The time to phase to, an astropy Time object.
+        time : astropy.time.Time object or float
+            The time to phase to, an astropy Time object or a float Julian Date
         phase_frame : str
             The astropy frame to phase to. Either 'icrs' or 'gcrs'.
             'gcrs' accounts for precession & nutation,
@@ -958,7 +958,7 @@ class UVData(UVBase):
         ValueError
             If the phase_type is not 'drift'
         TypeError
-            If time is not an astropy.time.Time object
+            If time is not an astropy.time.Time object or Julian Date as a float
         """
         if self.phase_type == 'drift':
             pass
@@ -969,6 +969,9 @@ class UVData(UVBase):
             raise ValueError('The phasing type of the data is unknown. '
                              'Set the phase_type to drift or phased to '
                              'reflect the phasing status of the data')
+
+        if isinstance(time, (float, np.float32)):
+            time = Time(time, format='jd')
 
         if not isinstance(time, Time):
             raise TypeError("time must be an astropy.time.Time object")
