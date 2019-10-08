@@ -120,6 +120,8 @@ class MWACorrFITS(UVData):
                 continue
 
         # checks:
+        if metafits_file is None:
+            raise ValueError('no metafits files submitted')
         if 'data' not in file_dict.keys():
             raise ValueError('no fits files submitted')
         if 'flags' not in file_dict.keys():
@@ -156,12 +158,13 @@ class MWACorrFITS(UVData):
 
             # get parameters from header
             # this assumes no averaging by this code so will need to be updated
-            self.channel_width = meta_hdr['FINECHAN'] * 1000
-            self.history = str(meta_hdr['HISTORY'])
+            self.channel_width = float(meta_hdr['FINECHAN'] * 1000)
+            self.history = str(meta_hdr['HISTORY'])+'\n AIPS WTSCAL = 1.0 \n'
+            # TODO: figure out 'AIPS WTSCAL = 1.0'
             if not uvutils._check_history_version(self.history,
                                                   self.pyuvdata_version_str):
                 self.history += self.pyuvdata_version_str
-            self.instrument = meta_hdr['INSTRUME']
+            self.instrument = meta_hdr['TELESCOP']
             self.telescope_name = meta_hdr['TELESCOP']
             self.object_name = meta_hdr['FILENAME']
             # TODO: remove these keys and store remaining keys in extra keywords
@@ -218,7 +221,7 @@ class MWACorrFITS(UVData):
 
         self.Nblts = int(self.Nbls * self.Ntimes)
 
-        lat, lon, alt = self.telescope_location_lat_lon_alt
+        lat, lon, alt = self.telescope_location_lat_lon_alt_degrees
 
         # convert times to lst
         self.lst_array = uvutils.get_lst_for_time(self.time_array, lat, lon, alt)
@@ -245,9 +248,10 @@ class MWACorrFITS(UVData):
         self.ant_1_array = np.tile(np.array(ant_1_array), self.Ntimes)
         self.ant_2_array = np.tile(np.array(ant_2_array), self.Ntimes)
 
-        self.baseline_array = np.tile(np.arange(self.Nbls), self.Ntimes)
+        self.baseline_array = \
+            self.antnums_to_baseline(self.ant_1_array, self.ant_2_array)
 
-        # create self.uvw_array        
+        # create self.uvw_array
         self.set_uvws_from_antenna_positions(allow_phasing=False)
 
         # coarse channel mapping:
@@ -314,9 +318,8 @@ class MWACorrFITS(UVData):
         #                   =lowest_fine_center+offset
         # Calculate offset=((avg_factor-1)*10)/2 to build the frequency array
         avg_factor = self.channel_width / 10000
-        num_avg_chans = 128 / avg_factor
         width = self.channel_width / 1000
-        offset = (avg_factor - 1) * 10 / 2.0
+        offset = (avg_factor - 1) * width / 2.0
 
         for i in range(len(included_coarse_chans)):
             # get the lowest fine freq of the coarse channel (kHz)
@@ -325,14 +328,14 @@ class MWACorrFITS(UVData):
             first_center = lower_fine_freq + offset
             # add the channel centers for this coarse channel into
             # the frequency array (converting from kHz to Hz)
-            self.freq_array[0, int(i * 128 / avg_factor):int((i + 1) * 128 / avg_factor)] = \
-                np.arange(first_center, first_center + num_avg_chans * width, width) * 1000
+            self.freq_array[0, int(i * num_fine_chans):int((i + 1) * num_fine_chans)] = \
+                np.arange(first_center, first_center + num_fine_chans * width, width) * 1000
 
         # initialize a flag array; as data is read in unflag that data
         # this way missing data is automatically flagged
         flag_dump = np.full((self.Ntimes, self.Nfreqs, self.Nbls * self.Npols), True)
         # read data into an array with dimensions (time, uv, baselines*pols)
-        data_dump = np.zeros((self.Ntimes, self.Nfreqs, self.Nbls * self.Npols), dtype=np.complex)
+        data_dump = np.zeros((self.Ntimes, self.Nfreqs, self.Nbls * self.Npols), dtype=np.complex64)
         # read data files
         for file in file_dict['data']:
             # get the file number from the file name
@@ -351,14 +354,16 @@ class MWACorrFITS(UVData):
                         hdu_list[i].data[:, 0::2] + 1j * hdu_list[i].data[:, 1::2]
                     # unflag where data is
                     flag_dump[time_ind, freq_ind:freq_ind + num_fine_chans, :] = False
-        
+
         # TODO: check conjugation
         # build new data array
         # polarizations are ordered yy, yx, xy, xx
         self.polarization_array = np.array([-6, -8, -7, -5])
         # initialize matrix for data reordering
-        data_reorder = np.zeros((self.Ntimes, self.Nbls, self.Nfreqs, self.Npols), dtype=np.complex)
-        flag_reorder = np.full((self.Ntimes, self.Nbls, self.Nfreqs, self.Npols), True)
+        # TODO: talk to Bryna about what makes sense for this!
+        self.nsample_array = np.zeros((self.Nblts, self.Nspws, self.Nfreqs, self.Npols), dtype=np.float32)
+        self.data_array = np.zeros((self.Ntimes, self.Nbls, self.Nfreqs, self.Npols), dtype=np.complex64)
+        self.flag_array = np.full((self.Ntimes, self.Nbls, self.Nfreqs, self.Npols), True)
         # build mapper from antenna numbers and polarizations to pfb inputs
         corr_ants_to_pfb_inputs = {}
         for i in range(len(antenna_numbers)):
@@ -375,7 +380,7 @@ class MWACorrFITS(UVData):
             for ant2 in range(ant1, 128):
                 for p1 in range(2):
                     for p2 in range(2):
-                        # generate the indices in data_reorder for this combination
+                        # generate the indices in self.data_array for this combination
                         # baselines are ordered (0,0),(0,1),...,(0,127),(1,1),.....
                         # polarizion of 0 (1) corresponds to y (x)
                         pol_ind = int(2 * p1 + p2)
@@ -383,7 +388,7 @@ class MWACorrFITS(UVData):
                         # find the pfb input indices for this combination
                         (ind1_1, ind1_2) = (corr_ants_to_pfb_inputs[(ant1, p1)],
                                             corr_ants_to_pfb_inputs[(ant2, p2)])
-                        # finde the pfb output indices
+                        # find the pfb output indices
                         (ind2_1, ind2_2) = (pfb_inputs_to_outputs[(ind1_1)],
                                             pfb_inputs_to_outputs[(ind1_2)])
                         out_ant1 = int(ind2_1 / 2)
@@ -392,20 +397,20 @@ class MWACorrFITS(UVData):
                         out_p2 = ind2_2 % 2
                         # the correlator has antenna 1 >= antenna2,
                         # so check if ind2_1 and ind2_2 satisfy this
-                        # get the index for the data
                         if out_ant1 < out_ant2:
+                            # get the index for the data
                             data_index = int(2 * out_ant2 * (out_ant2 + 1) + 4 * out_ant1 + 2 * out_p2 + out_p1)
                             # need to take the complex conjugate of the data
-                            data_reorder[:, bls_ind, :, pol_ind] = np.conj(data_dump[:, :, data_index])
+                            self.data_array[:, bls_ind, :, pol_ind] = np.conj(data_dump[:, :, data_index])
                         else:
                             data_index = int(2 * out_ant1 * (out_ant1 + 1) + 4 * out_ant2 + 2 * out_p1 + out_p2)
-                            data_reorder[:, bls_ind, :, pol_ind] = data_dump[:, :, data_index]
+                            self.data_array[:, bls_ind, :, pol_ind] = data_dump[:, :, data_index]
                         # reorder flags
-                        flag_reorder[:, bls_ind, :, pol_ind] = flag_dump[:, :, data_index]
+                        self.flag_array[:, bls_ind, :, pol_ind] = flag_dump[:, :, data_index]
 
         # add spectral window index
-        data_reorder = data_reorder[:, :, np.newaxis, :, :]
-        flag_reorder = flag_reorder[:, :, np.newaxis, :, :]
+        self.data_array = self.data_array[:, :, np.newaxis, :, :]
+        self.flag_array = self.flag_array[:, :, np.newaxis, :, :]
 
         # generage baseline flags for flagged ants
         baseline_flags = np.full(self.Nbls, False)
@@ -414,13 +419,10 @@ class MWACorrFITS(UVData):
                 if ant1 in flagged_ants or ant2 in flagged_ants:
                     baseline_flags[int(128 * ant1 - ant1 * (ant1 + 1) / 2 + ant2)] = True
 
-        flag_reorder[:, np.where(baseline_flags is True), :, :] = True
+        self.flag_array[:, np.where(baseline_flags is True), :, :] = True
 
         # combine baseline and time axes
-        self.data_array = data_reorder.reshape((self.Nblts, self.Nspws, self.Nfreqs, self.Npols))
-        self.flag_array = flag_reorder.reshape((self.Nblts, self.Nspws, self.Nfreqs, self.Npols))
+        self.data_array = self.data_array.reshape((self.Nblts, self.Nspws, self.Nfreqs, self.Npols))
+        self.flag_array = self.flag_array.reshape((self.Nblts, self.Nspws, self.Nfreqs, self.Npols))
 
         # TODO: add support for cotter flag files
-
-        # TODO: talk to Bryna about what makes sense for this!
-        self.nsample_array = np.zeros((self.Nblts, self.Nspws, self.Nfreqs, self.Npols))
