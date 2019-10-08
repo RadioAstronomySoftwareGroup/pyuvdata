@@ -5181,6 +5181,11 @@ def test_upsample_downsample_in_time_odd_resample(resample_in_time_file):
 
     uv_object.downsample_in_time(np.amin(uv_object2.integration_time), blt_order="baseline")
 
+    # increase tolerance on LST if iers.conf.auto_max_age is set to None, as we
+    # do in testing if the iers url is down. See conftest.py for more info.
+    if iers.conf.auto_max_age is None:
+        uv_object._lst_array.tols = (0, 1e-4)
+
     # make sure that history is correct
     assert "Upsampled data to 0.626349 second integration time using pyuvdata." in uv_object.history
     assert "Downsampled data to 1.879048 second integration time using pyuvdata." in uv_object.history
