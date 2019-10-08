@@ -800,7 +800,8 @@ class UVData(UVBase):
         self.phase_center_epoch = None
         self.set_drift()
 
-    def phase(self, ra, dec, epoch='J2000', phase_frame='icrs', use_ant_pos=False):
+    def phase(self, ra, dec, epoch='J2000', phase_frame='icrs',
+              use_ant_pos=False, allow_rephase=True):
         """
         Phase a drift scan dataset to a single ra/dec at a particular epoch.
 
@@ -829,18 +830,26 @@ class UVData(UVBase):
         use_ant_pos : bool
             If True, calculate the uvws directly from the antenna positions
             rather than from the existing uvws.
+        allow_rephase : bool
+            If True, allow unphasing and rephasing if this object is already
+            phased.
 
         Raises
         ------
         ValueError
             If the phase_type is not 'drift'
+
         """
         if self.phase_type == 'drift':
             pass
         elif self.phase_type == 'phased':
-            raise ValueError('The data is already phased; can only phase '
-                             'drift scan data. Use unphase_to_drift to '
-                             'convert to a drift scan.')
+            if allow_rephase:
+                if self.phase_center_ra != ra or self.phase_center_dec != dec:
+                    self.unphase_to_drift(phase_frame=phase_frame,
+                                          use_ant_pos=use_ant_pos)
+            else:
+                raise ValueError('The data is already phased; set allow_rephase'
+                                 ' to True to unphase and rephase.')
         else:
             raise ValueError('The phasing type of the data is unknown. '
                              'Set the phase_type to "drift" or "phased" to '
@@ -1524,7 +1533,8 @@ class UVData(UVBase):
                                 run_check_acceptability=run_check_acceptability,
                                 inplace=inplace)
 
-    def __add__(self, other, run_check=True, check_extra=True,
+    def __add__(self, other, phase_center_radec=None,
+                run_check=True, check_extra=True,
                 run_check_acceptability=True, inplace=False):
         """
         Combine two UVData objects along frequency, polarization and/or baseline-time.
@@ -1533,6 +1543,9 @@ class UVData(UVBase):
         ----------
         other : UVData object
             Another UVData object which will be added to self.
+        phase_center_radec : array_like of float
+            The phase center to phase the files to before adding the objects in
+            radians (in the ICRS frame).
         run_check : bool
             Option to check for the existence and proper shapes of parameters
             after combining objects.
@@ -1550,6 +1563,7 @@ class UVData(UVBase):
         ValueError
             If other is not a UVData object, self and other are not compatible
             or if data in self and other overlap.
+
         """
         if inplace:
             this = self
@@ -1563,6 +1577,20 @@ class UVData(UVBase):
                 raise ValueError('Only UVData (or subclass) objects can be '
                                  'added to a UVData (or subclass) object')
         other.check(check_extra=check_extra, run_check_acceptability=run_check_acceptability)
+
+        if phase_center_radec is not None:
+            if np.array(phase_center_radec).size != 2:
+                raise ValueError('phase_center_radec should have length 2.')
+
+            if (this.phase_center_ra != phase_center_radec[0]
+                    or this.phase_center_dec != phase_center_radec[1]):
+                warnings.warn("Phasing this UVData object to phase_center_radec")
+                this.phase(phase_center_radec[0], phase_center_radec[1])
+
+            if (other.phase_center_ra != phase_center_radec[0]
+                    or other.phase_center_dec != phase_center_radec[1]):
+                warnings.warn("Phasing other UVData object to phase_center_radec")
+                other.phase(phase_center_radec[0], phase_center_radec[1])
 
         # Define parameters that must be the same to add objects
         # But phase_center should be the same, even if in drift (empty parameters)
@@ -2557,8 +2585,8 @@ class UVData(UVBase):
 
         Parameters
         ----------
-        filename : str or list of str
-            The uvfits file or list of files to read from.
+        filename : str or array_like of str
+            The uvfits file or list/array of files to read from.
         axis : str
             Axis to concatenate files along. This enables fast concatenation
             along the specified axis without the normal checking that all other
@@ -2674,7 +2702,7 @@ class UVData(UVBase):
                 # use read_uvfits to get a new object
                 func = 'read_uvfits'
 
-        if isinstance(filename, (list, tuple)):
+        if isinstance(filename, (list, tuple, np.ndarray)):
             if not read_data and not read_metadata:
                 raise ValueError('A list of files cannot be used when just '
                                  'reading the header (read_data and read_metadata are False)')
@@ -2790,8 +2818,9 @@ class UVData(UVBase):
 
         Parameters
         ----------
-        filepath : str or list of str
-            The measurement set file directory or list of directories to read from.
+        filepath : str or array_like of str
+            The measurement set file directory or list/array of directories to
+            read from.
         axis : str
             Axis to concatenate files along. This enables fast concatenation
             along the specified axis without the normal checking that all other
@@ -2818,7 +2847,7 @@ class UVData(UVBase):
         """
         from . import ms
 
-        if isinstance(filepath, (list, tuple)):
+        if isinstance(filepath, (list, tuple, np.ndarray)):
             self.read_ms(filepath[0], run_check=run_check, check_extra=check_extra,
                          run_check_acceptability=run_check_acceptability,
                          data_column=data_column, pol_order=pol_order)
@@ -2851,10 +2880,10 @@ class UVData(UVBase):
 
         Parameters
         ----------
-        filelist : list of str
-            The list of FHD save files to read from. Must include at least one
-            polarization file, a params file and a flag file. Can also be a list
-            of lists to read multiple data sets.
+        filelist : array_like of str
+            The list/array of FHD save files to read from. Must include at
+            least one polarization file, a params file and a flag file.
+            Can also be a list of lists to read multiple data sets.
         use_model : bool
             Option to read in the model visibilities rather than the dirty
             visibilities (the default is False, meaning the dirty visibilities
@@ -2879,7 +2908,7 @@ class UVData(UVBase):
             range check will be done).
         """
         from . import fhd
-        if isinstance(filelist[0], (list, tuple)):
+        if isinstance(filelist[0], (list, tuple, np.ndarray)):
             self.read_fhd(filelist[0], use_model=use_model, run_check=run_check,
                           check_extra=check_extra,
                           run_check_acceptability=run_check_acceptability)
@@ -2914,8 +2943,8 @@ class UVData(UVBase):
 
         Parameters
         ----------
-        filepath : str or list of str
-            The miriad file directory or list of directories to read from.
+        filepath : str or array_like of str
+            The miriad file directory or list/array of directories to read from.
         axis : str
             Axis to concatenate files along. This enables fast concatenation
             along the specified axis without the normal checking that all other
@@ -2975,7 +3004,7 @@ class UVData(UVBase):
             range check will be done). Ignored if read_data is False.
         """
         from . import miriad
-        if isinstance(filepath, (list, tuple)):
+        if isinstance(filepath, (list, tuple, np.ndarray)):
             self.read_miriad(filepath[0], correct_lat_lon=correct_lat_lon,
                              run_check=run_check, check_extra=check_extra,
                              run_check_acceptability=run_check_acceptability,
@@ -3139,8 +3168,8 @@ class UVData(UVBase):
 
         Parameters
         ----------
-        filename : str or list of str
-             The UVH5 file or list of files to read from.
+        filename : str or array_like of str
+             The UVH5 file or list/array of files to read from.
         axis : str
             Axis to concatenate files along. This enables fast concatenation
             along the specified axis without the normal checking that all other
@@ -3221,7 +3250,7 @@ class UVData(UVBase):
             range check will be done). Ignored if read_data is False.
         """
         from . import uvh5
-        if isinstance(filename, (list, tuple)):
+        if isinstance(filename, (list, tuple, np.ndarray)):
 
             self.read_uvh5(filename[0], antenna_nums=antenna_nums,
                            antenna_names=antenna_names, ant_str=ant_str, bls=bls,
@@ -3456,8 +3485,8 @@ class UVData(UVBase):
 
         Parameters
         ----------
-        filename : str or list of str
-            The file(s) or list(s) of files to read from.
+        filename : str or array_like of str
+            The file(s) or list(s) (or array(s)) of files to read from.
         file_type : str
             One of ['uvfits', 'miriad', 'fhd', 'ms', 'uvh5'] or None.
             If None, the code attempts to guess what the file type is.
@@ -3576,9 +3605,9 @@ class UVData(UVBase):
             reading in the file (the default is True, meaning the acceptable
             range check will be done). Ignored if read_data is False.
         """
-        if isinstance(filename, (list, tuple)):
+        if isinstance(filename, (list, tuple, np.ndarray)):
             # this is either a list of separate files to read or a list of FHD files
-            if isinstance(filename[0], (list, tuple)):
+            if isinstance(filename[0], (list, tuple, np.ndarray)):
                 # this must be a list of lists for FHD
                 file_type = 'fhd'
                 multi = True

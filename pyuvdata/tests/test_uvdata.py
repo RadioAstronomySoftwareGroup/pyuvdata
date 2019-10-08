@@ -2,9 +2,7 @@
 # Copyright (c) 2018 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 
-"""Tests for uvdata object.
-
-"""
+"""Tests for uvdata object."""
 from __future__ import absolute_import, division, print_function
 
 import pytest
@@ -131,7 +129,7 @@ def bda_test_file():
 
 
 def test_parameter_iter(uvdata_props):
-    "Test expected parameters."
+    """Test expected parameters."""
     all = []
     for prop in uvdata_props.uv_object:
         all.append(prop)
@@ -140,8 +138,7 @@ def test_parameter_iter(uvdata_props):
 
 
 def test_required_parameter_iter(uvdata_props):
-    "Test expected required parameters."
-
+    """Test expected required parameters."""
     # at first it's a metadata_only object, so need to modify required_parameters
     required = []
     for prop in uvdata_props.uv_object.required():
@@ -164,7 +161,7 @@ def test_required_parameter_iter(uvdata_props):
 
 
 def test_extra_parameter_iter(uvdata_props):
-    "Test expected optional parameters."
+    """Test expected optional parameters."""
     extra = []
     for prop in uvdata_props.uv_object.extra():
         extra.append(prop)
@@ -173,7 +170,7 @@ def test_extra_parameter_iter(uvdata_props):
 
 
 def test_unexpected_parameters(uvdata_props):
-    "Test for extra parameters."
+    """Test for extra parameters."""
     expected_parameters = uvdata_props.required_parameters + uvdata_props.extra_parameters
     attributes = [i for i in uvdata_props.uv_object.__dict__.keys() if i[0] == '_']
     for a in attributes:
@@ -181,7 +178,7 @@ def test_unexpected_parameters(uvdata_props):
 
 
 def test_unexpected_attributes(uvdata_props):
-    "Test for extra attributes."
+    """Test for extra attributes."""
     expected_attributes = uvdata_props.required_properties + \
         uvdata_props.extra_properties + uvdata_props.other_properties
     attributes = [i for i in uvdata_props.uv_object.__dict__.keys() if i[0] != '_']
@@ -190,7 +187,7 @@ def test_unexpected_attributes(uvdata_props):
 
 
 def test_properties(uvdata_props):
-    "Test that properties can be get and set properly."
+    """Test that properties can be get and set properly."""
     prop_dict = dict(list(zip(uvdata_props.required_properties + uvdata_props.extra_properties,
                               uvdata_props.required_parameters + uvdata_props.extra_parameters)))
     for k, v in prop_dict.items():
@@ -604,9 +601,9 @@ def test_unknown_phase_unphaseHERA_errors(
 
 @pytest.mark.parametrize(
     "phase_func,phase_kwargs,err_msg",
-    [("phase", {"ra": 0, "dec": 0, "epoch": "J2000"},
+    [("phase", {"ra": 0, "dec": 0, "epoch": "J2000", "allow_rephase": False},
       "The data is already phased;"),
-     ("phase_to_time", {"time": 0},
+     ("phase_to_time", {"time": 0, "allow_rephase": False},
       "The data is already phased;")
      ]
 )
@@ -637,7 +634,7 @@ def test_phase_unphaseHERA_bad_frame(uv_phase_and_raw):
 
 
 def test_phasing():
-    """ Use MWA files phased to 2 different places to test phasing. """
+    """Use MWA files phased to 2 different places to test phasing."""
     file1 = os.path.join(DATA_PATH, '1133866760.uvfits')
     file2 = os.path.join(DATA_PATH, '1133866760_rephase.uvfits')
     uvd1 = UVData()
@@ -655,29 +652,32 @@ def test_phasing():
     uvd2_drift_antpos = copy.deepcopy(uvd2)
     uvd2_drift_antpos.unphase_to_drift(phase_frame='gcrs', use_ant_pos=True)
 
-    # the tolerances here are empirical -- based on what was seen in the external
-    # phasing test. See the phasing memo in docs/references for details
+    # the tolerances here are empirical -- based on what was seen in the
+    # external phasing test. See the phasing memo in docs/references for
+    # details.
     assert np.allclose(uvd1_drift.uvw_array, uvd2_drift.uvw_array, atol=2e-2)
     assert np.allclose(uvd1_drift_antpos.uvw_array, uvd2_drift_antpos.uvw_array)
 
-    uvd2_rephase = copy.deepcopy(uvd2_drift)
+    uvd2_rephase = copy.deepcopy(uvd2)
     uvd2_rephase.phase(uvd1.phase_center_ra,
                        uvd1.phase_center_dec,
                        uvd1.phase_center_epoch,
                        phase_frame='gcrs')
-    uvd2_rephase_antpos = copy.deepcopy(uvd2_drift_antpos)
+    uvd2_rephase_antpos = copy.deepcopy(uvd2)
     uvd2_rephase_antpos.phase(uvd1.phase_center_ra,
                               uvd1.phase_center_dec,
                               uvd1.phase_center_epoch,
                               phase_frame='gcrs',
                               use_ant_pos=True)
 
-    # the tolerances here are empirical -- based on what was seen in the external
-    # phasing test. See the phasing memo in docs/references for details
+    # the tolerances here are empirical -- based on what was seen in the
+    # external phasing test. See the phasing memo in docs/references for
+    # details.
     assert np.allclose(uvd1.uvw_array, uvd2_rephase.uvw_array, atol=2e-2)
     assert np.allclose(uvd1.uvw_array, uvd2_rephase_antpos.uvw_array, atol=5e-3)
 
-    # rephase the drift objects to the original pointing and verify that they match
+    # rephase the drift objects to the original pointing and verify that they
+    # match
     uvd1_drift.phase(uvd1.phase_center_ra, uvd1.phase_center_dec,
                      uvd1.phase_center_epoch, phase_frame='gcrs')
     uvd1_drift_antpos.phase(uvd1.phase_center_ra, uvd1.phase_center_dec,
@@ -685,8 +685,9 @@ def test_phasing():
                             use_ant_pos=True)
 
     # the tolerances here are empirical -- caused by one unphase/phase cycle.
-    # the antpos-based phasing differences are based on what was seen in the external
-    # phasing test. See the phasing memo in docs/references for details
+    # the antpos-based phasing differences are based on what was seen in the
+    # external phasing test. See the phasing memo in docs/references for
+    # details.
     assert np.allclose(uvd1.uvw_array, uvd1_drift.uvw_array, atol=1e-4)
     assert np.allclose(uvd1.uvw_array, uvd1_drift_antpos.uvw_array, atol=5e-3)
 
@@ -697,8 +698,9 @@ def test_phasing():
                             use_ant_pos=True)
 
     # the tolerances here are empirical -- caused by one unphase/phase cycle.
-    # the antpos-based phasing differences are based on what was seen in the external
-    # phasing test. See the phasing memo in docs/references for details
+    # the antpos-based phasing differences are based on what was seen in the
+    # external phasing test. See the phasing memo in docs/references for
+    # details.
     assert np.allclose(uvd2.uvw_array, uvd2_drift.uvw_array, atol=1e-4)
     assert np.allclose(uvd2.uvw_array, uvd2_drift_antpos.uvw_array, atol=2e-2)
 
@@ -4060,7 +4062,7 @@ def test_overlapping_data_add():
     uv4.write_uvfits(uv4_out)
 
     uvfull = UVData()
-    uvfull.read([uv1_out, uv2_out, uv3_out, uv4_out])
+    uvfull.read(np.array([uv1_out, uv2_out, uv3_out, uv4_out]))
     assert uvutils._check_histories(uvfull.history, uv.history + extra_history)
     uvfull.history = uv.history  # make histories match
     assert uvfull == uv
