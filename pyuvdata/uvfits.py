@@ -466,7 +466,7 @@ class UVFITS(UVData):
                     except UnicodeDecodeError:
                         done = False
                         end_char = -1
-                        while not done and abs(end_char) < len(name):
+                        while not done or abs(end_char) < len(name):
                             try:
                                 ant_name_str = uvutils._bytes_to_str(name[:end_char])
                                 done = True
