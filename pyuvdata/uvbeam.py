@@ -1036,7 +1036,9 @@ class UVBeam(UVBase):
             from astropy_healpix import HEALPix
         except ImportError:  # pragma: no cover
             uvutils._reraise_context('astropy_healpix is not installed but is '
-                                     'required for healpix functionality')
+                                     'required for healpix functionality. '
+                                     'Install "astropy-healpix" using conda or '
+                                     'pip.')
 
         if self.pixel_coordinate_system != 'healpix':
             raise ValueError('pixel_coordinate_system must be "healpix"')
@@ -1255,7 +1257,9 @@ class UVBeam(UVBase):
                 from astropy_healpix import HEALPix
             except ImportError:  # pragma: no cover
                 uvutils._reraise_context('astropy_healpix is not installed but '
-                                         'is required for healpix functionality')
+                                         'is required for healpix functionality'
+                                         'Install "astropy-healpix" using '
+                                         'conda or pip.')
 
             hp_obj = HEALPix(nside=healpix_nside)
             if healpix_inds is None:
