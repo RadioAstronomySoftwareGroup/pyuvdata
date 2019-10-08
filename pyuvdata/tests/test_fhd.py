@@ -314,14 +314,12 @@ def test_ReadFHD_model():
 
 
 def test_multi_files():
-    """
-    Reading multiple files at once.
-    """
+    """Reading multiple files at once."""
     fhd_uv1 = UVData()
     fhd_uv2 = UVData()
     test1 = list(np.array(testfiles)[[0, 1, 2, 4, 6, 7]])
     test2 = list(np.array(testfiles)[[0, 2, 3, 5, 6, 7]])
-    uvtest.checkWarnings(fhd_uv1.read, [[test1, test2]], {'use_model': True},
+    uvtest.checkWarnings(fhd_uv1.read_fhd, [np.array([test1, test2])], {'use_model': True},
                          message=['Telescope location derived from obs'],
                          nwarnings=2)
 
@@ -336,9 +334,7 @@ def test_multi_files():
 
 
 def test_multi_files_axis():
-    """
-    Reading multiple files at once with axis keyword.
-    """
+    """Reading multiple files at once with axis keyword."""
     fhd_uv1 = UVData()
     fhd_uv2 = UVData()
     test1 = list(np.array(testfiles)[[0, 1, 2, 4, 6, 7]])

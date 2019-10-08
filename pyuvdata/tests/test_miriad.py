@@ -1366,7 +1366,7 @@ def test_readWriteReadMiriad_partial_metadata_only():
     uv_in.read(testfile)
     uv_in.select(freq_chans=np.arange(10))
     uv_in2 = UVData()
-    uv_in2.read([write_file, write_file2])
+    uv_in2.read_miriad(np.array([write_file, write_file2]))
 
     assert uv_in.history != uv_in2.history
     uv_in2.history = uv_in.history
@@ -1522,7 +1522,7 @@ def test_multi_files():
     uv2.write_miriad(testfile2, clobber=True)
     del uv1
     uv1 = UVData()
-    uv1.read([testfile1, testfile2])
+    uv1.read_miriad([testfile1, testfile2])
     # Check history is correct, before replacing and doing a full object check
     assert uvutils._check_histories(
         uv_full.history + "  Downselected to "

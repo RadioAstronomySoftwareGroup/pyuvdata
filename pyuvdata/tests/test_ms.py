@@ -211,7 +211,7 @@ def test_multi_files():
     uvtest.checkWarnings(uv_full.read_uvfits, [uvfits_file], message='Telescope EVLA is not')
     testfile1 = os.path.join(DATA_PATH, 'multi_1.ms')
     testfile2 = os.path.join(DATA_PATH, 'multi_2.ms')
-    uv_multi.read([testfile1, testfile2])
+    uv_multi.read_ms(np.array([testfile1, testfile2]))
     # Casa scrambles the history parameter. Replace for now.
     uv_multi.history = uv_full.history
 

@@ -674,7 +674,7 @@ def test_multi_files():
     uv2.select(freq_chans=np.arange(32, 64))
     uv1.write_uvfits(testfile1)
     uv2.write_uvfits(testfile2)
-    uv1.read([testfile1, testfile2])
+    uv1.read_uvfits(np.array([testfile1, testfile2]))
     # Check history is correct, before replacing and doing a full object check
     assert uvutils._check_histories(uv_full.history + '  Downselected to '
                                     'specific frequencies using pyuvdata. '
