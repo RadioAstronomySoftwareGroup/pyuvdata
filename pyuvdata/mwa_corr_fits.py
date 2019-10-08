@@ -96,11 +96,16 @@ class MWACorrFITS(UVData):
                     if end_time < last_time:
                         end_time = last_time
                     # get number of fine channels
-                    if num_fine_chans == 0:
-                        num_fine_chans = data[1].header['NAXIS2']
-                    elif num_fine_chans != data[1].header['NAXIS2']:
-                        raise ValueError('files submitted have different fine \
-                        channel widths')
+                    if 'NAXIS2' in data[1].header.keys():
+                        if num_fine_chans == 0:
+                            num_fine_chans = data[1].header['NAXIS2']
+                        elif num_fine_chans != data[1].header['NAXIS2']:
+                            raise ValueError('files submitted have different fine \
+                            channel widths')
+                    # have to add this for the test file to work
+                    else:
+                        num_fine_chans = 1
+
                 # organize files
                 if 'data' not in file_dict.keys():
                     file_dict['data'] = [file]
@@ -159,7 +164,7 @@ class MWACorrFITS(UVData):
             # get parameters from header
             # this assumes no averaging by this code so will need to be updated
             self.channel_width = float(meta_hdr['FINECHAN'] * 1000)
-            self.history = str(meta_hdr['HISTORY'])+'\n AIPS WTSCAL = 1.0 \n'
+            self.history = str(meta_hdr['HISTORY']) + '\n AIPS WTSCAL = 1.0 \n'
             # TODO: figure out 'AIPS WTSCAL = 1.0'
             if not uvutils._check_history_version(self.history,
                                                   self.pyuvdata_version_str):
@@ -189,7 +194,7 @@ class MWACorrFITS(UVData):
         # reorder antenna parameters from metafits ordering
         reordered_inds = antenna_numbers.argsort()
         self.antenna_numbers = antenna_numbers[reordered_inds]
-        self.antenna_names = antenna_names[reordered_inds]
+        self.antenna_names = list(antenna_names[reordered_inds])
         antenna_positions = antenna_positions[reordered_inds, :]
         antenna_flags = antenna_flags[reordered_inds]
 
@@ -351,16 +356,14 @@ class MWACorrFITS(UVData):
                     # dump data into matrix
                     # and take data from real to complex numbers
                     data_dump[time_ind, freq_ind:freq_ind + num_fine_chans, :] = \
-                        hdu_list[i].data[:, 0::2] + 1j * hdu_list[i].data[:, 1::2]
+                        hdu_list[i].data[..., 0::2] + 1j * hdu_list[i].data[..., 1::2]
                     # unflag where data is
                     flag_dump[time_ind, freq_ind:freq_ind + num_fine_chans, :] = False
 
-        # TODO: check conjugation
-        # build new data array
         # polarizations are ordered yy, yx, xy, xx
         self.polarization_array = np.array([-6, -8, -7, -5])
-        # initialize matrix for data reordering
-        # TODO: talk to Bryna about what makes sense for this!
+        
+        # initialize matrices for data reordering
         self.nsample_array = np.zeros((self.Nblts, self.Nspws, self.Nfreqs, self.Npols), dtype=np.float32)
         self.data_array = np.zeros((self.Ntimes, self.Nbls, self.Nfreqs, self.Npols), dtype=np.complex64)
         self.flag_array = np.full((self.Ntimes, self.Nbls, self.Nfreqs, self.Npols), True)
@@ -411,6 +414,9 @@ class MWACorrFITS(UVData):
         # add spectral window index
         self.data_array = self.data_array[:, :, np.newaxis, :, :]
         self.flag_array = self.flag_array[:, :, np.newaxis, :, :]
+
+        # should have nsample_array = 1 where data is present
+        self.nsample_array = np.where(self.flag_array, self.nsample_array, 1)
 
         # generage baseline flags for flagged ants
         baseline_flags = np.full(self.Nbls, False)
