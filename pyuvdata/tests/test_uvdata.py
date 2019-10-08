@@ -1,4 +1,4 @@
-# -*- mode: python; coding: utf-8 -*
+# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2018 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 
@@ -446,7 +446,6 @@ def test_generic_read():
     pytest.raises(ValueError, uv_in.read, 'foo')
 
 
-@uvtest.skipIf_no_h5py
 def test_phase_unphaseHERA():
     """
     Read in drift data, phase to an RA/DEC, unphase and check for object equality.
@@ -3979,7 +3978,6 @@ def test_copy():
     return
 
 
-@uvtest.skipIf_no_h5py
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
 @pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
 def test_upsample_in_time(resample_in_time_file):
@@ -4015,7 +4013,6 @@ def test_upsample_in_time(resample_in_time_file):
     return
 
 
-@uvtest.skipIf_no_h5py
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
 @pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
 def test_upsample_in_time_with_flags(resample_in_time_file):
@@ -4052,7 +4049,6 @@ def test_upsample_in_time_with_flags(resample_in_time_file):
     return
 
 
-@uvtest.skipIf_no_h5py
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
 @pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
 def test_upsample_in_time_noninteger_resampling(resample_in_time_file):
@@ -4088,7 +4084,6 @@ def test_upsample_in_time_noninteger_resampling(resample_in_time_file):
     return
 
 
-@uvtest.skipIf_no_h5py
 def test_upsample_in_time_errors(resample_in_time_file):
     """Test errors and warnings raised by upsample_in_time"""
     uv_object = resample_in_time_file
@@ -4110,7 +4105,6 @@ def test_upsample_in_time_errors(resample_in_time_file):
     return
 
 
-@uvtest.skipIf_no_h5py
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
 @pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
 def test_upsample_in_time_summing_correlator_mode(resample_in_time_file):
@@ -4147,7 +4141,6 @@ def test_upsample_in_time_summing_correlator_mode(resample_in_time_file):
     return
 
 
-@uvtest.skipIf_no_h5py
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
 @pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
 def test_upsample_in_time_summing_correlator_mode_with_flags(resample_in_time_file):
@@ -4183,7 +4176,6 @@ def test_upsample_in_time_summing_correlator_mode_with_flags(resample_in_time_fi
     return
 
 
-@uvtest.skipIf_no_h5py
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
 @pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
 def test_upsample_in_time_summing_correlator_mode_nonint_resampling(resample_in_time_file):
@@ -4223,7 +4215,6 @@ def test_upsample_in_time_summing_correlator_mode_nonint_resampling(resample_in_
     return
 
 
-@uvtest.skipIf_no_h5py
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
 @pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
 def test_partial_upsample_in_time(resample_in_time_file):
@@ -4268,7 +4259,6 @@ def test_partial_upsample_in_time(resample_in_time_file):
     return
 
 
-@uvtest.skipIf_no_h5py
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
 @pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
 def test_upsample_in_time_drift(resample_in_time_file):
@@ -4307,7 +4297,6 @@ def test_upsample_in_time_drift(resample_in_time_file):
     return
 
 
-@uvtest.skipIf_no_h5py
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
 @pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
 def test_upsample_in_time_drift_no_phasing(resample_in_time_file):
@@ -4347,7 +4336,6 @@ def test_upsample_in_time_drift_no_phasing(resample_in_time_file):
     return
 
 
-@uvtest.skipIf_no_h5py
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
 @pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
 def test_downsample_in_time(resample_in_time_file):
@@ -4386,7 +4374,6 @@ def test_downsample_in_time(resample_in_time_file):
     return
 
 
-@uvtest.skipIf_no_h5py
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
 @pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
 def test_downsample_in_time_partial_flags(resample_in_time_file):
@@ -4427,7 +4414,6 @@ def test_downsample_in_time_partial_flags(resample_in_time_file):
     return
 
 
-@uvtest.skipIf_no_h5py
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
 @pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
 def test_downsample_in_time_totally_flagged(resample_in_time_file):
@@ -4469,7 +4455,6 @@ def test_downsample_in_time_totally_flagged(resample_in_time_file):
     return
 
 
-@uvtest.skipIf_no_h5py
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
 @pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
 def test_downsample_in_time_uneven_samples(resample_in_time_file):
@@ -4509,7 +4494,6 @@ def test_downsample_in_time_uneven_samples(resample_in_time_file):
     return
 
 
-@uvtest.skipIf_no_h5py
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
 @pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
 def test_downsample_in_time_uneven_samples_discard_ragged(resample_in_time_file):
@@ -4547,7 +4531,6 @@ def test_downsample_in_time_uneven_samples_discard_ragged(resample_in_time_file)
     return
 
 
-@uvtest.skipIf_no_h5py
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
 @pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
 def test_downsample_in_time_summing_correlator_mode(resample_in_time_file):
@@ -4586,7 +4569,6 @@ def test_downsample_in_time_summing_correlator_mode(resample_in_time_file):
     return
 
 
-@uvtest.skipIf_no_h5py
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
 @pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
 def test_downsample_in_time_summing_correlator_mode_partial_flags(
@@ -4631,7 +4613,6 @@ def test_downsample_in_time_summing_correlator_mode_partial_flags(
     return
 
 
-@uvtest.skipIf_no_h5py
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
 @pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
 def test_downsample_in_time_summing_correlator_mode_totally_flagged(
@@ -4677,7 +4658,6 @@ def test_downsample_in_time_summing_correlator_mode_totally_flagged(
     return
 
 
-@uvtest.skipIf_no_h5py
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
 @pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
 def test_downsample_in_time_summing_correlator_mode_uneven_samples(
@@ -4730,7 +4710,6 @@ def test_downsample_in_time_summing_correlator_mode_uneven_samples(
     return
 
 
-@uvtest.skipIf_no_h5py
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
 @pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
 def test_downsample_in_time_summing_correlator_mode_uneven_samples_drop_ragged(
@@ -4777,7 +4756,6 @@ def test_downsample_in_time_summing_correlator_mode_uneven_samples_drop_ragged(
     return
 
 
-@uvtest.skipIf_no_h5py
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
 @pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
 def test_partial_downsample_in_time(resample_in_time_file):
@@ -4826,7 +4804,6 @@ def test_partial_downsample_in_time(resample_in_time_file):
     return
 
 
-@uvtest.skipIf_no_h5py
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
 @pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
 def test_downsample_in_time_drift(resample_in_time_file):
@@ -4868,7 +4845,6 @@ def test_downsample_in_time_drift(resample_in_time_file):
     return
 
 
-@uvtest.skipIf_no_h5py
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
 @pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
 def test_downsample_in_time_drift_no_phasing(resample_in_time_file):
@@ -4916,7 +4892,6 @@ def test_downsample_in_time_drift_no_phasing(resample_in_time_file):
     return
 
 
-@uvtest.skipIf_no_h5py
 def test_downsample_in_time_errors(resample_in_time_file):
     """Test various errors and warnings are raised"""
     uv_object = resample_in_time_file
@@ -4973,7 +4948,6 @@ def test_downsample_in_time_errors(resample_in_time_file):
     return
 
 
-@uvtest.skipIf_no_h5py
 def test_downsample_in_time_int_time_mismatch_warning(resample_in_time_file):
     """Test warning in downsample_in_time about mismatch between integration
     times and the time between integrations.
@@ -5016,7 +4990,6 @@ def test_downsample_in_time_int_time_mismatch_warning(resample_in_time_file):
     return
 
 
-@uvtest.skipIf_no_h5py
 def test_downsample_in_time_varying_integration_time(resample_in_time_file):
     """Test downsample_in_time handling of file with integration time changing
     within a baseline
@@ -5062,7 +5035,6 @@ def test_downsample_in_time_varying_integration_time(resample_in_time_file):
     return
 
 
-@uvtest.skipIf_no_h5py
 def test_downsample_in_time_varying_integration_time_warning(resample_in_time_file):
     """Test downsample_in_time handling of file with integration time changing
     within a baseline, but without adjusting the time_array so there is a mismatch.
@@ -5104,7 +5076,6 @@ def test_downsample_in_time_varying_integration_time_warning(resample_in_time_fi
     return
 
 
-@uvtest.skipIf_no_h5py
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
 @pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
 @pytest.mark.filterwarnings("ignore:Data will be unphased and rephased")
@@ -5182,7 +5153,6 @@ def test_upsample_downsample_in_time(resample_in_time_file):
     return
 
 
-@uvtest.skipIf_no_h5py
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
 @pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
 @pytest.mark.filterwarnings("ignore:Data will be unphased and rephased")
@@ -5220,7 +5190,6 @@ def test_upsample_downsample_in_time_odd_resample(resample_in_time_file):
     assert uv_object == uv_object2
 
 
-@uvtest.skipIf_no_h5py
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
 @pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
 def test_upsample_downsample_in_time_metadata_only(resample_in_time_file):
@@ -5264,7 +5233,6 @@ def test_upsample_downsample_in_time_metadata_only(resample_in_time_file):
     assert uv_object == uv_object2
 
 
-@uvtest.skipIf_no_h5py
 @pytest.mark.filterwarnings("ignore:Telescope mock-HERA is not in known_telescopes")
 @pytest.mark.filterwarnings("ignore:There is a gap in the times of baseline")
 def test_resample_in_time(bda_test_file):
@@ -5314,7 +5282,6 @@ def test_resample_in_time(bda_test_file):
     return
 
 
-@uvtest.skipIf_no_h5py
 @pytest.mark.filterwarnings("ignore:Telescope mock-HERA is not in known_telescopes")
 @pytest.mark.filterwarnings("ignore:There is a gap in the times of baseline")
 def test_resample_in_time_downsample_only(bda_test_file):
@@ -5370,7 +5337,6 @@ def test_resample_in_time_downsample_only(bda_test_file):
     return
 
 
-@uvtest.skipIf_no_h5py
 @pytest.mark.filterwarnings("ignore:Telescope mock-HERA is not in known_telescopes")
 @pytest.mark.filterwarnings("ignore:There is a gap in the times of baseline")
 def test_resample_in_time_only_upsample(bda_test_file):
