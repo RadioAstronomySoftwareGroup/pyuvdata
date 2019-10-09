@@ -796,7 +796,7 @@ class UVBeam(UVBase):
                     imag_lut = interpolate.interp1d(self.freq_array[0, :], data.imag, kind=kind, axis=ax)
                     lut = get_lambda(real_lut, imag_lut)
                 else:
-                    lut = interpolate.interp1d(self.freq_array[0, :], data, axis=ax)
+                    lut = interpolate.interp1d(self.freq_array[0, :], data, kind=kind, axis=ax)
                     lut = get_lambda(lut)
 
                 interp_arrays.append(lut(freq_array))
