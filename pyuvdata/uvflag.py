@@ -19,11 +19,6 @@ from . import UVCal
 from . import utils as uvutils
 from . import telescopes as uvtel
 
-try:
-    import h5py
-except ImportError:
-    h5py = None
-
 
 class UVFlag(UVBase):
     """Object to handle flag arrays and waterfalls for interferometric datasets.
