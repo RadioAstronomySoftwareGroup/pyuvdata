@@ -2019,8 +2019,6 @@ class UVFlag(UVBase):
                                          True, dtype=bool)
 
                 for t_index, bl in enumerate(uv.baseline_array):
-                    # TODO: match times within the time_range if the UVFlag
-                    # object was created from a UVCal object
                     uvf_t_index = np.nonzero(uv.time_array[t_index]
                                              == self.time_array)[0]
                     if uvf_t_index.size > 0:
