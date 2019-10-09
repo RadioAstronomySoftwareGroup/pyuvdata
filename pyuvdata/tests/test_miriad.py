@@ -995,7 +995,7 @@ def test_readWriteReadMiriad_partial_bls(select_kwargs):
 
     # check partial read selections
     full = UVData()
-    uvtest.checkWarnings(full.read, [testfile], known_warning='miriad')
+    full.read(testfile)
     full.write_miriad(write_file, clobber=True)
     uv_in = UVData()
 
