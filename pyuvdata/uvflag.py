@@ -1999,11 +1999,11 @@ class UVFlag(UVBase):
                                           "antenna type, metric mode to "
                                           "baseline type UVFlag object.")
             else:
-                if uv.Nants_data > self.Nants_data:
-                    ants_data = np.unique(uv.ant_1_array.tolist()
-                                          + uv.ant_2_array.tolist()
-                                          )
-                    new_ants = np.setdiff1d(ants_data, self.ant_array)
+                ants_data = np.unique(uv.ant_1_array.tolist()
+                                      + uv.ant_2_array.tolist()
+                                      )
+                new_ants = np.setdiff1d(ants_data, self.ant_array)
+                if new_ants.size > 0:
                     self.ant_array = np.append(self.ant_array, new_ants).tolist()
                     # make new flags of the same shape but with first axis the
                     # size of the new ants
