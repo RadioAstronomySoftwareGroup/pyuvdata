@@ -2942,6 +2942,23 @@ def test_get_ENU_antpos():
     assert np.isclose(antpos[0, 0], -0.0026981323386223721)
 
 
+@pytest.mark.filterwarnings("ignore:Altitude is not present in Miriad file")
+def test_telescope_loc_XYZ_check():
+    # test that improper telescope locations can still be read
+    miriad_file = os.path.join(DATA_PATH, 'zen.2456865.60537.xy.uvcRREAA')
+    uv = UVData()
+    uv.read(miriad_file)
+    uv.telescope_location = uvutils.XYZ_from_LatLonAlt(*uv.telescope_location)
+    fname = DATA_PATH + "/test/test.uv"
+    uv.write_miriad(fname, run_check=False, check_extra=False, clobber=True)
+
+    # try to read file without checks (passing is implicit)
+    uv.read(fname, run_check=False)
+
+    # try to read without checks: assert it fails
+    pytest.raises(ValueError, uv.read, fname)
+
+
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 def test_get_pols():
     # Test function to get unique polarizations in string format
