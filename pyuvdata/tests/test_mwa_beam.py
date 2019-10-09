@@ -15,7 +15,6 @@ import pyuvdata.tests as uvtest
 filename = os.path.join(DATA_PATH, 'mwa_full_EE_test.h5')
 
 
-@uvtest.skipIf_no_h5py
 def test_read_write_mwa():
     """Basic read/write test."""
     beam1 = UVBeam()
