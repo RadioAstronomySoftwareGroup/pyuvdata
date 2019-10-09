@@ -1262,11 +1262,6 @@ def test_to_baseline_errors():
         uvf.to_baseline(7.3)  # invalid matching object
     assert str(cm.value).startswith('Must pass in UVData object or UVFlag object')
 
-    # uvf = UVFlag(uvc)
-    # with pytest.raises(ValueError) as cm:
-    #     uvf.to_baseline(uv)  # Cannot pass in antenna type
-    # assert str(cm.value).startswith('Cannot convert from type "'
-    #                                 + uvf.type + '" to "baseline"')
     uvf = UVFlag(test_f_file)
     uvf.to_waterfall()
     uvf2 = uvf.copy()
