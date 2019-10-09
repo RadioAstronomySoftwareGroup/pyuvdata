@@ -5188,7 +5188,7 @@ def test_upsample_downsample_in_time(resample_in_time_file):
 @pytest.mark.filterwarnings("ignore:Data will be unphased and rephased")
 @pytest.mark.filterwarnings("ignore:There is a gap in the times of baseline")
 def test_upsample_downsample_in_time_odd_resample(resample_in_time_file):
-    """Test round trip works with odd resampling"""
+    """Test round trip works with odd resampling."""
     uv_object = resample_in_time_file
 
     # set uvws from antenna positions so they'll agree later.
@@ -5214,6 +5214,11 @@ def test_upsample_downsample_in_time_odd_resample(resample_in_time_file):
     # make sure that history is correct
     assert "Upsampled data to 0.626349 second integration time using pyuvdata." in uv_object.history
     assert "Downsampled data to 1.879048 second integration time using pyuvdata." in uv_object.history
+
+    # increase tolerance on LST if iers.conf.auto_max_age is set to None, as we
+    # do in testing if the iers url is down. See conftest.py for more info.
+    if iers.conf.auto_max_age is None:
+        uv_object._lst_array.tols = (0, 1e-4)
 
     # overwrite history and check for equality
     uv_object.history = uv_object2.history
