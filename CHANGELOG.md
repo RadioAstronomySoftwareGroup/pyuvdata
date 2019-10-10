@@ -14,6 +14,7 @@ All notable changes to this project will be documented in this file.
 - `UVFlag` information on Read The Docs
 
 ### Changed
+- `UVData.phase_to_time` now accepts a float as an input. Assumes float represents a JD.
 - Added optional acceptability check for `utils.LatLonAlt_from_XYZ`
 - Use `astropy_healpix` rather than `healpy` for HEALPix functionality because `healpy` has a GPL license which is incompatible with ours.
 - `h5py` is now a required package instead of an optional one.
