@@ -554,7 +554,6 @@ def test_phase_unphaseHERA_zenith_timestamp(uv_phase_and_raw):
 @pytest.mark.filterwarnings('ignore:Altitude is not present in file and latitude')
 def test_phase_to_time_jd_input(uv_phase_and_raw):
     UV_phase, UV_raw = uv_phase_and_raw
-    # check error if not passing a Time object to phase_to_time
     UV_phase.phase_to_time(UV_raw.time_array[0])
     UV_phase.unphase_to_drift()
     assert UV_phase == UV_raw
