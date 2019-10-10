@@ -448,17 +448,17 @@ def test_generic_read():
 
 @pytest.fixture
 def uv_phase_and_raw():
-    testfile = os.path.join(DATA_PATH, 'hera_testfile')
+    testfile = os.path.join(DATA_PATH, 'zen.2458661.23480.HH.uvh5')
     UV_raw = UVData()
     # Note the RA/DEC values in the raw file were calculated from the lat/long
     # in the file, which don't agree with our known_telescopes.
     # So for this test we use the lat/lon in the file.
-    UV_raw.read_miriad(testfile, correct_lat_lon=False)
+    UV_raw.read_uvh5(testfile)
     # uvtest.checkWarnings(UV_raw.read_miriad, [testfile], {'correct_lat_lon': False},
     #                      message='Altitude is not present in file and latitude and '
     #                              'longitude values do not match')
     UV_phase = UVData()
-    UV_phase.read_miriad(testfile, correct_lat_lon=False)
+    UV_phase.read_uvh5(testfile)
 
     yield UV_phase, UV_raw
 
@@ -478,7 +478,6 @@ def uv_phase_and_raw():
 
     ]
 )
-@pytest.mark.filterwarnings('ignore:Altitude is not present in file and latitude')
 def test_phase_unphaseHERA(uv_phase_and_raw, phase_kwargs):
     """
     Read in drift data, phase to an RA/DEC, unphase and check for object equality.
@@ -490,7 +489,6 @@ def test_phase_unphaseHERA(uv_phase_and_raw, phase_kwargs):
     assert UV_raw == UV_phase
 
 
-@pytest.mark.filterwarnings('ignore:Altitude is not present in file and latitude')
 def test_phase_unphaseHERA_one_bl(uv_phase_and_raw):
     UV_phase, UV_raw = uv_phase_and_raw
     # check that phase + unphase work with one baseline
@@ -501,7 +499,6 @@ def test_phase_unphaseHERA_one_bl(uv_phase_and_raw):
     assert UV_raw_small == UV_phase_small
 
 
-@pytest.mark.filterwarnings('ignore:Altitude is not present in file and latitude')
 def test_phase_unphaseHERA_antpos(uv_phase_and_raw):
     UV_phase, UV_raw = uv_phase_and_raw
     # check that they match if you phase & unphase using antenna locations
@@ -536,7 +533,6 @@ def test_phase_unphaseHERA_antpos(uv_phase_and_raw):
     assert UV_raw_new == UV_phase
 
 
-@pytest.mark.filterwarnings('ignore:Altitude is not present in file and latitude')
 def test_phase_unphaseHERA_zenith_timestamp(uv_phase_and_raw):
     UV_phase, UV_raw = uv_phase_and_raw
     # check that phasing to zenith with one timestamp has small changes
@@ -551,7 +547,6 @@ def test_phase_unphaseHERA_zenith_timestamp(uv_phase_and_raw):
     assert np.allclose(UV_phase_simple_small.uvw_array, UV_raw_small.uvw_array, atol=1e-1)
 
 
-@pytest.mark.filterwarnings('ignore:Altitude is not present in file and latitude')
 def test_phase_to_time_jd_input(uv_phase_and_raw):
     UV_phase, UV_raw = uv_phase_and_raw
     UV_phase.phase_to_time(UV_raw.time_array[0])
@@ -559,7 +554,6 @@ def test_phase_to_time_jd_input(uv_phase_and_raw):
     assert UV_phase == UV_raw
 
 
-@pytest.mark.filterwarnings('ignore:Altitude is not present in file and latitude')
 def test_phase_to_time_error(uv_phase_and_raw):
     UV_phase, UV_raw = uv_phase_and_raw
     # check error if not passing a Time object to phase_to_time
@@ -568,55 +562,68 @@ def test_phase_to_time_error(uv_phase_and_raw):
     assert str(cm.value).startswith("time must be an astropy.time.Time object")
 
 
-@pytest.mark.parametrize(
-    "phase_mode,err_msg",
-    [("", "The data is already drift scanning;"),
-     ("set_unknown_phase_type",
-      "The phasing type of the data is unknown. Set the phase_type to drift"
-      )
-     ]
-)
-@pytest.mark.filterwarnings('ignore:Altitude is not present in file and latitude')
-def test_phase_unphaseHERA_errors(uv_phase_and_raw, phase_mode, err_msg):
+def test_unphase_drift_data_error(uv_phase_and_raw):
     UV_phase, UV_raw = uv_phase_and_raw
-
-    # Set phase type to unkown on some tests, ignore on others.
-    if hasattr(UV_raw, phase_mode):
-        getattr(UV_raw, phase_mode)()
-    # check errors when trying to unphase drift or unknown data
+    # check error if not passing a Time object to phase_to_time
     with pytest.raises(ValueError) as cm:
-        UV_raw.unphase_to_drift()
-    assert str(cm.value).startswith(err_msg)
+        UV_phase.unphase_to_drift()
+    assert str(cm.value).startswith("The data is already drift scanning;")
 
 
 @pytest.mark.parametrize(
-    "phase_mode,err_msg",
-    [("", "The data is already phased;"),
-     ("set_unknown_phase_type",
-      "The phasing type of the data is unknown. Set the phase_type"
-      )
+    "phase_func,phase_kwargs,err_msg",
+    [("unphase_to_drift", {},
+      "The phasing type of the data is unknown. Set the phase_type"),
+     ("phase", {"ra": 0, "dec": 0, "epoch": "J2000"},
+      "The phasing type of the data is unknown. Set the phase_type"),
+     ("phase_to_time", {"time": 0},
+      "The phasing type of the data is unknown. Set the phase_type")
      ]
 )
-@pytest.mark.filterwarnings('ignore:Altitude is not present in file and latitude')
-def test_phase_unphaseHERA_input_errors(uv_phase_and_raw, phase_mode, err_msg):
+def test_unknown_phase_unphaseHERA_errors(
+    uv_phase_and_raw, phase_func, phase_kwargs, err_msg
+):
     UV_phase, UV_raw = uv_phase_and_raw
+
     # Set phase type to unkown on some tests, ignore on others.
-    if hasattr(UV_phase, phase_mode):
-        getattr(UV_phase, phase_mode)()
-    # check errors when trying to phase phased or unknown data
-    if phase_mode == '':
-        UV_phase.phase(0., 0., epoch="J2000")
+    UV_raw.set_unknown_phase_type()
+    # if this is phase_to_time, use this index set in the dictionary and
+    # assign the value of the time_array associated with that index
+    # this is a little hacky, but we cannot acces UV_raw.time_array in the parametrize
+    if phase_func == "phsae_to_time":
+        phase_kwargs["time"] = UV_raw.time_array[phase_kwargs["time"]]
 
     with pytest.raises(ValueError) as cm:
-        UV_phase.phase(0., 0., epoch="J2000")
-    assert str(cm.value).startswith(err_msg)
-
-    with pytest.raises(ValueError) as cm:
-        UV_phase.phase_to_time(UV_phase.time_array[0])
+        getattr(UV_raw, phase_func)(**phase_kwargs)
     assert str(cm.value).startswith(err_msg)
 
 
-@pytest.mark.filterwarnings('ignore:Altitude is not present in file and latitude')
+@pytest.mark.parametrize(
+    "phase_func,phase_kwargs,err_msg",
+    [("phase", {"ra": 0, "dec": 0, "epoch": "J2000"},
+      "The data is already phased;"),
+     ("phase_to_time", {"time": 0},
+      "The data is already phased;")
+     ]
+)
+def test_phase_rephaseHERA_errors(
+    uv_phase_and_raw, phase_func, phase_kwargs, err_msg
+):
+    UV_phase, UV_raw = uv_phase_and_raw
+
+    # Set phase type to unkown on some tests, ignore on others.
+    UV_raw.phase(0., 0., epoch="J2000")
+    # if this is phase_to_time, use this index set in the dictionary and
+    # assign the value of the time_array associated with that index
+    # this is a little hacky, but we cannot acces UV_raw.time_array in the parametrize
+    if phase_func == "phsae_to_time":
+        phase_kwargs["time"] = UV_raw.time_array[phase_kwargs["time"]]
+
+    with pytest.raises(ValueError) as cm:
+        getattr(UV_raw, phase_func)(**phase_kwargs)
+    assert str(cm.value).startswith(err_msg)
+
+
 def test_phase_unphaseHERA_bad_frame(uv_phase_and_raw):
     UV_phase, UV_raw = uv_phase_and_raw
     # check errors when trying to phase to an unsupported frame
