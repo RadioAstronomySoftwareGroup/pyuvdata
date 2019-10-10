@@ -464,12 +464,10 @@ class UVFITS(UVData):
                     try:
                         ant_name_str = uvutils._bytes_to_str(name)
                     except UnicodeDecodeError:
-                        done = False
                         end_char = -1
-                        while not done or abs(end_char) < len(name):
+                        while (ant_name_str is None) and (abs(end_char) < len(name)):
                             try:
                                 ant_name_str = uvutils._bytes_to_str(name[:end_char])
-                                done = True
                             except UnicodeDecodeError:
                                 pass
                             end_char += -1
@@ -477,7 +475,7 @@ class UVFITS(UVData):
                         ant_name_str = str(ant_hdu.data.field('NOSTA')[ant_ind])
                 else:
                     ant_name_str = name
-                self.antenna_names.append(ant_name_str.replace('\x00!', ''))
+                self.antenna_names.append(ant_name_str.replace('\x00', '').replace('\x07', ''))
 
             # subtract one to get to 0-indexed values rather than 1-indexed values
             self.antenna_numbers = ant_hdu.data.field('NOSTA') - 1
