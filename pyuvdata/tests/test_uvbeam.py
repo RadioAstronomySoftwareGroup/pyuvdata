@@ -484,6 +484,36 @@ def test_freq_interpolation():
                   freq_array=freq_orig_vals, polarizations=['xx'])
 
 
+def test_freq_interp_real_and_complex():
+    # test interpolation of real and complex data are the same
+    power_beam = UVBeam()
+    power_beam.read_cst_beam(cst_files, beam_type='power', frequency=[150e6, 123e6],
+                             telescope_name='TEST', feed_name='bob',
+                             feed_version='0.1', feed_pol=['x'],
+                             model_name='E-field pattern - Rigging height 4.9m',
+                             model_version='1.0')
+    power_beam.interpolation_function = 'az_za_simple'
+
+    # make a new object with more frequencies
+    freqs = np.linspace(123e6, 150e6, 4)
+    power_beam.freq_interp_kind = 'linear'
+    pbeam = power_beam.interp(freq_array=freqs, new_object=True)
+
+    # modulate the data
+    pbeam.data_array[:, :, :, 1] *= 2
+    pbeam.data_array[:, :, :, 2] *= 0.5
+
+    # interpolate cubic on real data
+    freqs = np.linspace(123e6, 150e6, 10)
+    pbeam.freq_interp_kind = 'cubic'
+    pb_int = pbeam.interp(freq_array=freqs)[0]
+
+    # interpolate cubic on complex data and compare to ensure they are the same
+    pbeam.data_array = pbeam.data_array.astype(np.complex)
+    pb_int2 = pbeam.interp(freq_array=freqs)[0]
+    assert np.all(np.isclose(np.abs(pb_int - pb_int2), 0))
+
+
 def test_power_spatial_interpolation():
     power_beam = UVBeam()
     power_beam.read_cst_beam(cst_files, beam_type='power', frequency=[150e6, 123e6],

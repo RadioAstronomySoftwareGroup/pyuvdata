@@ -26,6 +26,7 @@ All notable changes to this project will be documented in this file.
 - `UVFlag` objects can now be initialized without inputs
 
 ### Fixed
+- A bug in UVBeam._interp_freq where kind parameter was not passed for real-only beams
 - A bug in get_antenna_redundancies for nearly N-S baselines.
 - A bug where `conj_pol` could not handle cardinal direction polarizations.
 - A bug that gave the wrong error message when calling `UVData.phase_to_time` without an Astropy Time object.
