@@ -286,8 +286,20 @@ Phasing/unphasing data
   # Undo phasing to try another phase center
   >>> UV.unphase_to_drift()
 
+  # Phase the data to the zenith at first time step
+  # The time_array can be used directly now as input floats
+  # are assumed to be a JD
+  >>> UV.phase_to_time(UV.time_array[0])
+  >>> print(UV.phase_type)
+  phased
+
+  # Undo phasing to try another phase center
+  >>> UV.unphase_to_drift()
+
   # Phase to a specific ra/dec/epoch (in radians)
   >>> UV.phase(5.23368, 0.710940, epoch="J2000")
+
+
 
 UVData: Plotting
 ------------------
