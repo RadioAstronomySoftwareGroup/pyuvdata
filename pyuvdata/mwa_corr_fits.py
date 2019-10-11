@@ -6,6 +6,7 @@ from astropy.io import fits
 import numpy as np
 import warnings
 from astropy.time import Time
+from astropy import constants as const
 
 from . import UVData
 from . import utils as uvutils
@@ -40,7 +41,28 @@ class MWACorrFITS(UVData):
     correlator fits files. This class should not be interacted with directly,
     instead use the read_mwa_corr_fits method on the UVData class.
     """
-    def read_mwa_corr_fits(self, filelist, use_cotter_flags=False,
+
+    def correct_cable_length(self, cable_lens):
+        """
+        A helper function that applies a cable length correction to the data.
+        """
+        # velocity factor for RG-6 coax cable
+        v_factor = 1.204
+        # check if the cable length already has the velocity factor applied
+        cable_array = []
+        for i in cable_lens:
+            if i[0:3] == 'EL_':
+                cable_array.append(float(i[3:]))
+            else:
+                cable_array.append(float(i)*v_factor)
+        # build array of differences
+        cable_len_diffs = np.zeros((self.Nblts, 1))
+        for j in range(self.Nblts):
+            cable_len_diffs[j] = cable_array[self.ant_2_array[j]] - cable_array[self.ant_1_array[j]]
+        self.data_array *= np.exp(-1j * 2 * np.pi * cable_len_diffs / const.c.to('m/s').value
+                                  * self.freq_array.reshape(1, self.Nfreqs))[:, :, None]
+
+    def read_mwa_corr_fits(self, filelist, use_cotter_flags=False, correct_cable_len=True,
                            run_check=True, check_extra=True,
                            run_check_acceptability=True):
         """
@@ -181,6 +203,7 @@ class MWACorrFITS(UVData):
             antenna_numbers = meta_tbl['Antenna'][1::2]
             antenna_names = meta_tbl['TileName'][1::2]
             antenna_flags = meta_tbl['Flag'][1::2]
+            cable_lens = meta_tbl['Length'][1::2]
 
             # get antenna postions in enu coordinates
             antenna_positions = np.zeros((len(antenna_numbers), 3))
@@ -197,6 +220,7 @@ class MWACorrFITS(UVData):
         self.antenna_names = list(antenna_names[reordered_inds])
         antenna_positions = antenna_positions[reordered_inds, :]
         antenna_flags = antenna_flags[reordered_inds]
+        cable_lens = cable_lens[reordered_inds]
 
         # find flagged antenna
         flagged_ants = self.antenna_numbers[np.where(antenna_flags == 1)]
@@ -324,7 +348,7 @@ class MWACorrFITS(UVData):
         # Calculate offset=((avg_factor-1)*10)/2 to build the frequency array
         avg_factor = self.channel_width / 10000
         width = self.channel_width / 1000
-        offset = (avg_factor - 1) * width / 2.0
+        offset = (avg_factor - 1) * 10 / 2.0
 
         for i in range(len(included_coarse_chans)):
             # get the lowest fine freq of the coarse channel (kHz)
@@ -408,15 +432,8 @@ class MWACorrFITS(UVData):
                         else:
                             data_index = int(2 * out_ant1 * (out_ant1 + 1) + 4 * out_ant2 + 2 * out_p1 + out_p2)
                             self.data_array[:, bls_ind, :, pol_ind] = data_dump[:, :, data_index]
-                        # reorder flags
+                        # TODO: fix this reorder flags
                         self.flag_array[:, bls_ind, :, pol_ind] = flag_dump[:, :, data_index]
-
-        # add spectral window index
-        self.data_array = self.data_array[:, :, np.newaxis, :, :]
-        self.flag_array = self.flag_array[:, :, np.newaxis, :, :]
-
-        # should have nsample_array = 1 where data is present
-        self.nsample_array = np.where(self.flag_array, self.nsample_array, 1)
 
         # generage baseline flags for flagged ants
         baseline_flags = np.full(self.Nbls, False)
@@ -428,7 +445,22 @@ class MWACorrFITS(UVData):
         self.flag_array[:, np.where(baseline_flags is True), :, :] = True
 
         # combine baseline and time axes
-        self.data_array = self.data_array.reshape((self.Nblts, self.Nspws, self.Nfreqs, self.Npols))
-        self.flag_array = self.flag_array.reshape((self.Nblts, self.Nspws, self.Nfreqs, self.Npols))
+        self.data_array = self.data_array.reshape((self.Nblts, self.Nfreqs, self.Npols))
+        self.flag_array = self.flag_array.reshape((self.Nblts, self.Nfreqs, self.Npols))
+        
+        # cable delay corrections
+        if correct_cable_len is True:
+            self.correct_cable_length(cable_lens)
+        
+        # add spectral window index
+        self.data_array = self.data_array[:, np.newaxis, :, :]
+        self.flag_array = self.flag_array[:, np.newaxis, :, :]
+        
+        #phasing
 
+        # TODO: fix this should have nsample_array = 1 where data is present
+        self.nsample_array = np.where(self.flag_array, self.nsample_array, 1)
+        
         # TODO: add support for cotter flag files
+
+        
