@@ -360,9 +360,6 @@ class MWACorrFITS(UVData):
             self.freq_array[0, int(i * num_fine_chans):int((i + 1) * num_fine_chans)] = \
                 np.arange(first_center, first_center + num_fine_chans * width, width) * 1000
 
-        # initialize a flag array; as data is read in unflag that data
-        # this way missing data is automatically flagged
-        flag_dump = np.full((self.Ntimes, self.Nfreqs, self.Nbls * self.Npols), True)
         # read data into an array with dimensions (time, uv, baselines*pols)
         data_dump = np.zeros((self.Ntimes, self.Nfreqs, self.Nbls * self.Npols), dtype=np.complex64)
         # read data files
@@ -381,14 +378,12 @@ class MWACorrFITS(UVData):
                     # and take data from real to complex numbers
                     data_dump[time_ind, freq_ind:freq_ind + num_fine_chans, :] = \
                         hdu_list[i].data[..., 0::2] + 1j * hdu_list[i].data[..., 1::2]
-                    # unflag where data is
-                    flag_dump[time_ind, freq_ind:freq_ind + num_fine_chans, :] = False
 
         # polarizations are ordered yy, yx, xy, xx
         self.polarization_array = np.array([-6, -8, -7, -5])
-        
+
         # initialize matrices for data reordering
-        self.nsample_array = np.zeros((self.Nblts, self.Nspws, self.Nfreqs, self.Npols), dtype=np.float32)
+        self.nsample_array = np.zeros((self.Ntimes, self.Nbls, self.Nfreqs, self.Npols), dtype=np.float32)
         self.data_array = np.zeros((self.Ntimes, self.Nbls, self.Nfreqs, self.Npols), dtype=np.complex64)
         self.flag_array = np.full((self.Ntimes, self.Nbls, self.Nfreqs, self.Npols), True)
         # build mapper from antenna numbers and polarizations to pfb inputs
@@ -432,35 +427,34 @@ class MWACorrFITS(UVData):
                         else:
                             data_index = int(2 * out_ant1 * (out_ant1 + 1) + 4 * out_ant2 + 2 * out_p1 + out_p2)
                             self.data_array[:, bls_ind, :, pol_ind] = data_dump[:, :, data_index]
-                        # TODO: fix this reorder flags
-                        self.flag_array[:, bls_ind, :, pol_ind] = flag_dump[:, :, data_index]
+                        # unflag where the data is
+                        self.flag_array[:, bls_ind, :, pol_ind] = False
+                        # nsamples = 1 where the data is
+                        self.nsample_array[:, bls_ind, :, pol_ind] = 1.0
 
         # generage baseline flags for flagged ants
-        baseline_flags = np.full(self.Nbls, False)
+        bad_ant_inds = []
         for ant1 in range(128):
             for ant2 in range(ant1, 128):
                 if ant1 in flagged_ants or ant2 in flagged_ants:
-                    baseline_flags[int(128 * ant1 - ant1 * (ant1 + 1) / 2 + ant2)] = True
+                    bad_ant_inds.append(int(128 * ant1 - ant1 * (ant1 + 1) / 2 + ant2))
 
-        self.flag_array[:, np.where(baseline_flags is True), :, :] = True
+        self.flag_array[:, bad_ant_inds, :, :] = True
 
         # combine baseline and time axes
         self.data_array = self.data_array.reshape((self.Nblts, self.Nfreqs, self.Npols))
         self.flag_array = self.flag_array.reshape((self.Nblts, self.Nfreqs, self.Npols))
-        
+        self.nsample_array = self.nsample_array.reshape((self.Nblts, self.Nfreqs, self.Npols))
+
         # cable delay corrections
         if correct_cable_len is True:
             self.correct_cable_length(cable_lens)
-        
+
         # add spectral window index
         self.data_array = self.data_array[:, np.newaxis, :, :]
         self.flag_array = self.flag_array[:, np.newaxis, :, :]
-        
-        #phasing
+        self.nsample_array = self.nsample_array[:, np.newaxis, :, :]
 
-        # TODO: fix this should have nsample_array = 1 where data is present
-        self.nsample_array = np.where(self.flag_array, self.nsample_array, 1)
-        
+        # phasing
+
         # TODO: add support for cotter flag files
-
-        
