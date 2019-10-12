@@ -1007,6 +1007,71 @@ def test_uvcalibrate_flag_propagation():
     assert uvdcal.get_flags(20, 72, 'xx').min()  # assert completely flagged
 
 
+def test_apply_uvflag():
+    # load data and insert some flags
+    uvd = pyuvdata.UVData()
+    uvd.read(os.path.join(DATA_PATH, 'zen.2457698.40355.xx.HH.uvcAA'))
+    uvd.flag_array[uvd.antpair2ind(9, 20)] = True
+
+    # load a UVFlag into flag type
+    uvf = pyuvdata.UVFlag(uvd)
+    uvf.to_flag()
+
+    # insert flags for 2 out of 3 times
+    uvf.flag_array[uvf.antpair2ind(9, 10)[:2]] = True
+
+    # apply flags and check for basic flag propagation
+    uvdf = uvutils.apply_uvflag(uvd, uvf, inplace=False)
+    assert np.all(uvdf.flag_array[uvdf.antpair2ind(9, 10)][:2])
+
+    # test inplace
+    uvdf = copy.deepcopy(uvd)
+    uvutils.apply_uvflag(uvdf, uvf, inplace=True)
+    assert np.all(uvdf.flag_array[uvdf.antpair2ind(9, 10)][:2])
+
+    # test flag missing
+    uvf2 = uvf.select(bls=uvf.get_antpairs()[:-1], inplace=False)
+    uvdf = uvutils.apply_uvflag(uvd, uvf2, inplace=False, flag_missing=True)
+    assert np.all(uvdf.flag_array[uvdf.antpair2ind(uvf.get_antpairs()[-1])])
+    uvdf = uvutils.apply_uvflag(uvd, uvf2, inplace=False, flag_missing=False)
+    assert not np.any(uvdf.flag_array[uvdf.antpair2ind(uvf.get_antpairs()[-1])])
+
+    # test force polarization
+    uvdf = copy.deepcopy(uvd)
+    uvdf2 = copy.deepcopy(uvd)
+    uvdf2.polarization_array[0] = -6
+    uvdf += uvdf2
+    uvdf = uvutils.apply_uvflag(uvdf, uvf, inplace=False, force_pol=True)
+    assert np.all(uvdf.flag_array[uvdf.antpair2ind(9, 10)][:2])
+    pytest.raises(ValueError, uvutils.apply_uvflag, uvdf, uvf, inplace=False, force_pol=False)
+
+    # test unflag first
+    uvdf = uvutils.apply_uvflag(uvd, uvf, inplace=False, unflag_first=True)
+    assert np.all(uvdf.flag_array[uvdf.antpair2ind(9, 10)][:2])
+    assert not np.any(uvdf.flag_array[uvdf.antpair2ind(9, 20)])
+
+    # convert uvf to waterfall and test
+    uvfw = copy.deepcopy(uvf)
+    uvfw.to_waterfall(method='or')
+    uvdf = uvutils.apply_uvflag(uvd, uvfw, inplace=False)
+    assert np.all(uvdf.flag_array[uvdf.antpair2ind(9, 10)][:2])
+    assert np.all(uvdf.flag_array[uvdf.antpair2ind(9, 20)][:2])
+    assert np.all(uvdf.flag_array[uvdf.antpair2ind(20, 22)][:2])
+
+    # test mode exception
+    uvfm = copy.deepcopy(uvf)
+    uvfm.mode = 'metric'
+    pytest.raises(AssertionError, utils.apply_uvflag, uvd, uvfm)
+
+    # test polarization exception
+    uvd2 = copy.deepcopy(uvd)
+    uvd2.polarization_array[0] = -6
+    uvf2 = UVFlag(uvd)
+    uvf2.to_flag()
+    uvd2.polarization_array[0] = -8
+    pytest.raises(ValueError, utils.apply_uvflag, uvd2, uvf2)
+
+
 def test_upos_tol_reds():
     # Checks that the u-positive convention in get_antenna_redundancies
     # is enforced to the specificed tolerance.
