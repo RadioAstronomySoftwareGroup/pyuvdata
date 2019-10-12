@@ -9,6 +9,7 @@ All notable changes to this project will be documented in this file.
 ## [1.4.2] - 2019-10-15
 
 ### Added
+- `utils.apply_uvflag` for applying UVFlag objects to UVData objects
 - `copy` method for `UVData`, which can optionally make a copy of just metadata
 - `upsample_in_time`, `downsample_in_time`, and `resample_in_time` methods on `UVData` objects
 - `utils.uvcalibrate(.., undo=True)` kwarg for undo-ing a calibration.
@@ -32,6 +33,7 @@ All notable changes to this project will be documented in this file.
 - `UVFlag` objects can now be initialized without inputs
 
 ### Fixed
+- A bug in UVFlag.to_baseline() where force_pol kwarg did not work for UVData Npols > 1
 - A bug in UVBeam._interp_freq where kind parameter was not passed for real-only beams
 - A bug in get_antenna_redundancies for nearly N-S baselines.
 - A bug where `conj_pol` could not handle cardinal direction polarizations.

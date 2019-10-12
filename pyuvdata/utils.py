@@ -492,6 +492,83 @@ def uvcalibrate(uvdata, uvcal, inplace=True, prop_flags=True, flag_missing=True,
         return uvdata
 
 
+def apply_uvflag(uvd, uvf, inplace=True, force_pol=True, unflag_first=False,
+                 flag_missing=True):
+    """
+    Apply flags from a UVFlag to a UVData instantiation. This edits inplace by default.
+
+    Parameters
+    ----------
+    uvd : UVData object
+        UVData object to add flags to.
+    uvf : UVFlag object
+        A UVFlag object in flag mode.
+    inplace : bool
+        If True overwrite flags in uvd, otherwise return new object
+    force_pol : bool
+        If True, broadcast flags to all polarizations if they do not match.
+        Only works if uvf.Npols == 1.
+    unflag_first : bool
+        If True, completely unflag the UVData before applying flags.
+    flag_missing : bool
+        If input uvf is a baseline type and antpairs in uvd do not exist in uvf,
+        flag them in uvd. Otherwise leave them untouched.
+
+    Returns
+    -------
+    UVData
+        If not inplace, returns new UVData object with flags applied
+    """
+    # assertions
+    assert uvf.mode == 'flag'
+
+    if not inplace:
+        uvd = copy.deepcopy(uvd)
+
+    # make a deepcopy by default b/c it is generally edited inplace downstream
+    uvf = copy.deepcopy(uvf)
+
+    # convert to baseline type
+    if uvf.type != 'baseline':
+        # edits inplace
+        uvf.to_baseline(uvd, force_pol=force_pol)
+
+    else:
+        # make sure polarizations match or force_pol
+        uvd_pols, uvf_pols = uvd.polarization_array.tolist(), uvf.polarization_array.tolist()
+        if set(uvd_pols) != set(uvf_pols):
+            if uvf.Npols == 1 and force_pol:
+                # if uvf is 1pol we can make them match: also edits inplace
+                uvf.polarization_array = np.repeat(uvf.polarization_array, uvd.Npols, axis=-1)
+                uvf.Npols = len(uvf.polarization_array)
+                uvf_pols = uvf.polarization_array.tolist()
+
+            else:
+                raise ValueError("Input uvf and uvd polarizations do not match")
+
+        # make sure polarization ordering is correct: also edits inplace
+        uvf.polarization_array = uvf.polarization_array[[uvd_pols.index(pol) for pol in uvf_pols]]
+
+    # unflag if desired
+    if unflag_first:
+        uvd.flag_array[:] = False
+
+    # iterate over antpairs and apply flags: TODO need to be able to handle conjugated antpairs
+    uvf_antpairs = uvf.get_antpairs()
+    for ap in uvd.get_antpairs():
+        uvd_ap_inds = uvd.antpair2ind(ap)
+        if ap not in uvf_antpairs:
+            if flag_missing:
+                uvd.flag_array[uvd_ap_inds] = True
+            continue
+        uvf_ap_inds = uvf.antpair2ind(*ap)
+        # addition of boolean is OR
+        uvd.flag_array[uvd_ap_inds] += uvf.flag_array[uvf_ap_inds]
+
+    if not inplace:
+        return uvd
+
+
 def get_iterable(x):
     warnings.warn('The get_iterable function is deprecated in favor of '
                   '_get_iterable because it is not API level code. This '
