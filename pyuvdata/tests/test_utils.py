@@ -1066,7 +1066,7 @@ def test_apply_uvflag():
     # test polarization exception
     uvd2 = copy.deepcopy(uvd)
     uvd2.polarization_array[0] = -6
-    uvf2 = UVFlag(uvd)
+    uvf2 = pyuvdata.UVFlag(uvd)
     uvf2.to_flag()
     uvd2.polarization_array[0] = -8
     pytest.raises(ValueError, uvutils.apply_uvflag, uvd2, uvf2)
