@@ -1299,6 +1299,22 @@ def test_to_baseline_force_pol():
     assert np.all(uvf.flag_array[ind, 0, 15, 0])
     assert uvf.flag_array.mean() == ntrue / uvf.flag_array.size
 
+def test_to_baseline_force_pol_Npol_gt_1():
+    uv = UVData()
+    uv.read_miriad(test_d_file)
+    uvf = UVFlag(uv)
+    uvf.to_waterfall()
+    uvf.to_flag()
+    uvf.flag_array[0, 10, 0] = True  # Flag time0, chan10
+    uvf.flag_array[1, 15, 0] = True  # Flag time1, chan15
+
+    uv2 = copy.deepcopy(uv)
+    uv2.polarization_array[0] = -6
+    uv += uv2
+    uvf.to_baseline(uv, force_pol=True)
+    assert np.all(uvf.baseline_array == uv.baseline_array)
+    assert np.all(uvf.time_array == uv.time_array)
+    assert np.array_equal(uvf.polarization_array, uv.polarization_array)
 
 def test_to_baseline_metric_force_pol():
     uv = UVData()
