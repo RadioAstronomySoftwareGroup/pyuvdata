@@ -1061,7 +1061,7 @@ def test_apply_uvflag():
     # test mode exception
     uvfm = copy.deepcopy(uvf)
     uvfm.mode = 'metric'
-    pytest.raises(AssertionError, utils.apply_uvflag, uvd, uvfm)
+    pytest.raises(AssertionError, uvutils.apply_uvflag, uvd, uvfm)
 
     # test polarization exception
     uvd2 = copy.deepcopy(uvd)
@@ -1069,7 +1069,7 @@ def test_apply_uvflag():
     uvf2 = UVFlag(uvd)
     uvf2.to_flag()
     uvd2.polarization_array[0] = -8
-    pytest.raises(ValueError, utils.apply_uvflag, uvd2, uvf2)
+    pytest.raises(ValueError, uvutils.apply_uvflag, uvd2, uvf2)
 
 
 def test_upos_tol_reds():
