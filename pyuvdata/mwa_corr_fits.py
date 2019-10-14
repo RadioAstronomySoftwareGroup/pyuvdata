@@ -195,11 +195,6 @@ class MWACorrFITS(UVData):
             self.telescope_name = meta_hdr['TELESCOP']
             self.object_name = meta_hdr['FILENAME']
 
-            # pointing center in degrees
-            ra_deg = meta_hdr['RA']
-            dec_deg = meta_hdr['DEC']
-            ra_rad = np.pi * ra_deg / 180
-            dec_rad = np.pi * dec_deg / 180
             # TODO: remove these keys and store remaining keys in extra keywords
 
             # get antenna data from metafits file table
@@ -466,11 +461,9 @@ class MWACorrFITS(UVData):
         # be conjugated
         self.data_array = np.conj(self.data_array)
 
-#==============================================================================
-#         # phasing
-#         if phase_data is True:
-#             (ra, dec) = pointing_center
-#             self.phase(ra, dec, phase_frame='icrs')
-#==============================================================================
+        # phasing
+        if phase_data is True:
+            (ra, dec) = pointing_center
+            self.phase(ra, dec, phase_frame='icrs')
 
         # TODO: add support for cotter flag files
