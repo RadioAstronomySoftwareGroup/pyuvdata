@@ -3,7 +3,7 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
-## [1.4.2] - 2019-10-10
+## [1.4.2] - 2019-10-15
 
 ### Added
 - `copy` method for `UVData`, which can optionally make a copy of just metadata
