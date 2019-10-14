@@ -510,6 +510,7 @@ def apply_uvflag(uvd, uvf, inplace=True, force_pol=True, unflag_first=False,
         Only works if uvf.Npols == 1.
     unflag_first : bool
         If True, completely unflag the UVData before applying flags.
+        Else, OR the inheret uvd flags with uvf flags.
     flag_missing : bool
         If input uvf is a baseline type and antpairs in uvd do not exist in uvf,
         flag them in uvd. Otherwise leave them untouched.
@@ -520,7 +521,8 @@ def apply_uvflag(uvd, uvf, inplace=True, force_pol=True, unflag_first=False,
         If not inplace, returns new UVData object with flags applied
     """
     # assertions
-    assert uvf.mode == 'flag'
+    if uvf.mode != 'flag':
+        raise ValueError("UVFlag must be flag mode")
 
     if not inplace:
         uvd = copy.deepcopy(uvd)
@@ -548,6 +550,12 @@ def apply_uvflag(uvd, uvf, inplace=True, force_pol=True, unflag_first=False,
 
         # make sure polarization ordering is correct: also edits inplace
         uvf.polarization_array = uvf.polarization_array[[uvd_pols.index(pol) for pol in uvf_pols]]
+
+        # check time and freq shapes match: if Ntimes or Nfreqs is 1, allow implicit broadcasting
+        if uvf.Ntimes != uvd.Ntimes and uvf.Ntimes > 1:
+            raise ValueError("UVFlag and UVData have mismatched Ntimes")
+        if uvf.Nfreqs != uvd.Nfreqs and uvf.Nfreqs > 1:
+            raise ValueError("UVFlag and UVData have mismatched Nfreqs")
 
     # unflag if desired
     if unflag_first:
