@@ -63,7 +63,7 @@ class MWACorrFITS(UVData):
                                   * self.freq_array.reshape(1, self.Nfreqs))[:, :, None]
 
     def read_mwa_corr_fits(self, filelist, use_cotter_flags=False, correct_cable_len=True,
-                           run_check=True, check_extra=True,
+                           phase_data=True, pointing_center=None, run_check=True, check_extra=True,
                            run_check_acceptability=True):
         """
         Read in data from a list of MWA correlator fits files.
@@ -162,16 +162,6 @@ class MWACorrFITS(UVData):
         self.vis_units = 'uncalib'
         self.Npols = 4
 
-# ==============================================================================
-#         #set antenna array location latitude (radians), longitude (radians),
-#         #altitude
-#         #(meters above sea level)
-#         lat = -26.703319 * np.pi/180
-#         lon = 116.67081 * np.pi/180
-#         alt = 377
-#         self.telescope_location_lat_lon_alt=[lat,lon,alt]
-# ==============================================================================
-
         # get information from metafits file
         with fits.open(metafits_file, memmap=True) as meta:
             meta_hdr = meta[0].header
@@ -182,6 +172,16 @@ class MWACorrFITS(UVData):
 
             # integration time in seconds
             int_time = meta_hdr['INTTIME']
+
+            # pointing center in degrees
+            ra_deg = meta_hdr['RA']
+            dec_deg = meta_hdr['DEC']
+            ra_rad = np.pi * ra_deg / 180
+            dec_rad = np.pi * dec_deg / 180
+
+            # check if other pointing center has been specified
+            if pointing_center is None:
+                pointing_center = (ra_rad, dec_rad)
 
             # get parameters from header
             # this assumes no averaging by this code so will need to be updated
@@ -194,6 +194,12 @@ class MWACorrFITS(UVData):
             self.instrument = meta_hdr['TELESCOP']
             self.telescope_name = meta_hdr['TELESCOP']
             self.object_name = meta_hdr['FILENAME']
+
+            # pointing center in degrees
+            ra_deg = meta_hdr['RA']
+            dec_deg = meta_hdr['DEC']
+            ra_rad = np.pi * ra_deg / 180
+            dec_rad = np.pi * dec_deg / 180
             # TODO: remove these keys and store remaining keys in extra keywords
 
             # get antenna data from metafits file table
@@ -250,19 +256,19 @@ class MWACorrFITS(UVData):
 
         self.Nblts = int(self.Nbls * self.Ntimes)
 
-        lat, lon, alt = self.telescope_location_lat_lon_alt_degrees
-
         # convert times to lst
-        self.lst_array = uvutils.get_lst_for_time(self.time_array, lat, lon, alt)
+        self.lst_array = uvutils.get_lst_for_time(self.time_array,
+                                                  *self.telescope_location_lat_lon_alt_degrees)
 
         # assumes no averaging
         self.integration_time = np.array([int_time for i in range(self.Nblts)])
 
         # convert antenna positions from enu to ecef
-        # TODO: ask Bryna does this work? antenna positions are "relative to
+        # antenna positions are "relative to
         # the centre of the array in local topocentric \"east\", \"north\",
         # \"height\". Units are meters."
-        antenna_positions_ecef = uvutils.ECEF_from_ENU(antenna_positions, lat, lon, alt)
+        antenna_positions_ecef = uvutils.ECEF_from_ENU(antenna_positions,
+                                                       *self.telescope_location_lat_lon_alt)
         # convert to ITRF
         self.antenna_positions = antenna_positions_ecef - self.telescope_location
 
@@ -455,6 +461,16 @@ class MWACorrFITS(UVData):
         self.flag_array = self.flag_array[:, np.newaxis, :, :]
         self.nsample_array = self.nsample_array[:, np.newaxis, :, :]
 
-        # phasing
+        # because of an annoying discrepancy between file conventions, in order
+        # to be consistent with the uvw vector direction, all the data must
+        # be conjugated
+        self.data_array = np.conj(self.data_array)
+
+#==============================================================================
+#         # phasing
+#         if phase_data is True:
+#             (ra, dec) = pointing_center
+#             self.phase(ra, dec, phase_frame='icrs')
+#==============================================================================
 
         # TODO: add support for cotter flag files
