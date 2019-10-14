@@ -1061,7 +1061,7 @@ def test_apply_uvflag():
     # test mode exception
     uvfm = copy.deepcopy(uvf)
     uvfm.mode = 'metric'
-    pytest.raises(AssertionError, uvutils.apply_uvflag, uvd, uvfm)
+    pytest.raises(ValueError, uvutils.apply_uvflag, uvd, uvfm)
 
     # test polarization exception
     uvd2 = copy.deepcopy(uvd)
@@ -1070,6 +1070,20 @@ def test_apply_uvflag():
     uvf2.to_flag()
     uvd2.polarization_array[0] = -8
     pytest.raises(ValueError, uvutils.apply_uvflag, uvd2, uvf2)
+
+    # test time and frequency mismatch exceptions
+    uvf2 = uvf.select(frequencies=uvf.freq_array[:, :2], inplace=False)
+    pytest.raises(ValueError, uvutils.apply_uvflag, uvd, uvf2)
+    uvf2 = uvf.select(times=np.unique(uvf.time_array)[:2], inplace=False)
+    pytest.raises(ValueError, uvutils.apply_uvflag, uvd, uvf2)
+
+    # assert implicit broadcasting works
+    uvf2 = uvf.select(frequencies=uvf.freq_array[:, :1], inplace=False)
+    uvd2 = uvutils.apply_uvflag(uvd, uvf2, inplace=False)
+    assert np.all(uvd2.get_flags(9, 10)[:2])
+    uvf2 = uvf.select(times=np.unique(uvf.time_array)[:1], inplace=False)
+    uvd2 = uvutils.apply_uvflag(uvd, uvf2, inplace=False)
+    assert np.all(uvd2.get_flags(9, 10))
 
 
 def test_upos_tol_reds():
