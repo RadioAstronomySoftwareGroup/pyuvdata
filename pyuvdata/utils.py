@@ -589,6 +589,9 @@ def apply_uvflag(uvd, uvf, inplace=True, unflag_first=False,
         # addition of boolean is OR
         uvd.flag_array[uvd_ap_inds] += uvf.flag_array[uvf_ap_inds]
 
+    uvd.history += "\nFlagged with pyuvdata.utils.apply_uvflags."
+
+
     if not inplace:
         return uvd
 
