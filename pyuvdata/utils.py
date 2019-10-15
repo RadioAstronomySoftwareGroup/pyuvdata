@@ -492,10 +492,11 @@ def uvcalibrate(uvdata, uvcal, inplace=True, prop_flags=True, flag_missing=True,
         return uvdata
 
 
-def apply_uvflag(uvd, uvf, inplace=True, force_pol=True, unflag_first=False,
-                 flag_missing=True):
+def apply_uvflag(uvd, uvf, inplace=True, unflag_first=False,
+                 flag_missing=True, force_pol=True):
     """
     Apply flags from a UVFlag to a UVData instantiation. This edits inplace by default.
+    Note: if uvf.Nfreqs or uvf.Ntimes is 1, will broadcast flags across that axis.
 
     Parameters
     ----------
@@ -505,15 +506,15 @@ def apply_uvflag(uvd, uvf, inplace=True, force_pol=True, unflag_first=False,
         A UVFlag object in flag mode.
     inplace : bool
         If True overwrite flags in uvd, otherwise return new object
-    force_pol : bool
-        If True, broadcast flags to all polarizations if they do not match.
-        Only works if uvf.Npols == 1.
     unflag_first : bool
         If True, completely unflag the UVData before applying flags.
-        Else, OR the inheret uvd flags with uvf flags.
+        Else, OR the inherent uvd flags with uvf flags.
     flag_missing : bool
         If input uvf is a baseline type and antpairs in uvd do not exist in uvf,
         flag them in uvd. Otherwise leave them untouched.
+    force_pol : bool
+        If True, broadcast flags to all polarizations if they do not match.
+        Only works if uvf.Npols == 1.
 
     Returns
     -------
@@ -541,7 +542,7 @@ def apply_uvflag(uvd, uvf, inplace=True, force_pol=True, unflag_first=False,
         if set(uvd_pols) != set(uvf_pols):
             if uvf.Npols == 1 and force_pol:
                 # if uvf is 1pol we can make them match: also edits inplace
-                uvf.polarization_array = np.repeat(uvf.polarization_array, uvd.Npols, axis=-1)
+                uvf.polarization_array = uvd.polarization_array
                 uvf.Npols = len(uvf.polarization_array)
                 uvf_pols = uvf.polarization_array.tolist()
 
@@ -551,11 +552,26 @@ def apply_uvflag(uvd, uvf, inplace=True, force_pol=True, unflag_first=False,
         # make sure polarization ordering is correct: also edits inplace
         uvf.polarization_array = uvf.polarization_array[[uvd_pols.index(pol) for pol in uvf_pols]]
 
-        # check time and freq shapes match: if Ntimes or Nfreqs is 1, allow implicit broadcasting
-        if uvf.Ntimes != uvd.Ntimes and uvf.Ntimes > 1:
-            raise ValueError("UVFlag and UVData have mismatched Ntimes")
-        if uvf.Nfreqs != uvd.Nfreqs and uvf.Nfreqs > 1:
-            raise ValueError("UVFlag and UVData have mismatched Nfreqs")
+    # check time and freq shapes match: if Ntimes or Nfreqs is 1, allow implicit broadcasting
+    if uvf.Ntimes == 1:
+        mismatch_times = False
+    elif uvf.Ntimes == uvd.Ntimes:
+        tdiff = np.unique(uvf.time_array) - np.unique(uvd.time_array)
+        mismatch_times = np.any(tdiff > np.max(np.abs(uvf._time_array.tols)))
+    else:
+        mismatch_times = True
+    if mismatch_times:
+        raise ValueError("UVFlag and UVData have mismatched time arrays.")
+
+    if uvf.Nfreqs == 1:
+        mismatch_freqs = False
+    elif uvf.Nfreqs == uvd.Nfreqs:
+        fdiff = np.unique(uvf.freq_array) - np.unique(uvd.freq_array)
+        mismatch_freqs = np.any(fdiff > np.max(np.abs(uvf._freq_array.tols)))
+    else:
+        mismatch_freqs = True
+    if mismatch_freqs:
+        raise ValueError("UVFlag and UVData have mismatched frequency arrays.")
 
     # unflag if desired
     if unflag_first:
