@@ -458,9 +458,7 @@ class UVFITS(UVData):
                 # Sometimes CASA writes antnames as bytes not strings.
                 # If the ant name is shorter than 8 characters, the trailing
                 # characters may not be able to be decoded.
-                # So we try to decode the whole thing then iteratively strip
-                # off characters until it can be decoded.
-                # If no characters can be decoded, use the antenna number.
+                # So we just ignore any non-ascii bytes in the decode.
                 if isinstance(name, bytes):
                     ant_name_str = None
                     ant_name_str = name.decode("utf-8", "ignore")
