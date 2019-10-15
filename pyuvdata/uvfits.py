@@ -5,8 +5,10 @@
 """Class for reading and writing uvfits files."""
 from __future__ import absolute_import, division, print_function
 
-import numpy as np
 import warnings
+
+import six
+import numpy as np
 from astropy import constants as const
 from astropy.time import Time
 from astropy.io import fits
@@ -461,18 +463,7 @@ class UVFITS(UVData):
                 # If no characters can be decoded, use the antenna number.
                 if isinstance(name, bytes):
                     ant_name_str = None
-                    try:
-                        ant_name_str = uvutils._bytes_to_str(name)
-                    except UnicodeDecodeError:
-                        end_char = -1
-                        while (ant_name_str is None) and (abs(end_char) < len(name)):
-                            try:
-                                ant_name_str = uvutils._bytes_to_str(name[:end_char])
-                            except UnicodeDecodeError:
-                                pass
-                            end_char += -1
-                    if ant_name_str is None:
-                        ant_name_str = str(ant_hdu.data.field('NOSTA')[ant_ind])
+                    ant_name_str = name.decode("utf-8", "ignore")
                 else:
                     ant_name_str = name
                 self.antenna_names.append(ant_name_str.replace(
