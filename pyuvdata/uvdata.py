@@ -959,7 +959,8 @@ class UVData(UVBase):
         self.phase_center_frame = phase_frame
         self.set_phased()
 
-    def phase_to_time(self, time, phase_frame='icrs', use_ant_pos=False):
+    def phase_to_time(self, time, phase_frame='icrs', use_ant_pos=False,
+                      allow_rephase=True):
         """
         Phase a drift scan dataset to the ra/dec of zenith at a particular time.
 
@@ -976,6 +977,9 @@ class UVData(UVBase):
         use_ant_pos : bool
             If True, calculate the uvws directly from the antenna positions
             rather than from the existing uvws.
+        allow_rephase : bool
+            If True, allow unphasing and rephasing if this object is already
+            phased.
 
         Raises
         ------
@@ -984,38 +988,29 @@ class UVData(UVBase):
         TypeError
             If time is not an astropy.time.Time object or Julian Date as a float
         """
-        if self.phase_type == 'drift':
-            pass
-        elif self.phase_type == 'phased':
-            raise ValueError('The data is already phased; can only phase '
-                             'drift scanning data.')
-        else:
-            raise ValueError('The phasing type of the data is unknown. '
-                             'Set the phase_type to drift or phased to '
-                             'reflect the phasing status of the data')
-
         if isinstance(time, (float, np.float32)):
             time = Time(time, format='jd')
 
         if not isinstance(time, Time):
-            raise TypeError("time must be an astropy.time.Time object or a float")
+            raise TypeError(
+                "time must be an astropy.time.Time object or a float")
 
-        # Generate ra/dec of zenith at time in the phase_frame coordinate system
-        # to use for phasing
-        telescope_location = EarthLocation.from_geocentric(self.telescope_location[0],
-                                                           self.telescope_location[1],
-                                                           self.telescope_location[2],
-                                                           unit='m')
+        # Generate ra/dec of zenith at time in the phase_frame coordinate
+        # system to use for phasing
+        telescope_location = EarthLocation.from_geocentric(
+            *self.telescope_location, unit='m')
 
-        zenith_coord = SkyCoord(alt=Angle(90 * units.deg), az=Angle(0 * units.deg),
-                                obstime=time, frame='altaz', location=telescope_location)
+        zenith_coord = SkyCoord(
+            alt=Angle(90 * units.deg), az=Angle(0 * units.deg), obstime=time,
+            frame='altaz', location=telescope_location)
 
         obs_zenith_coord = zenith_coord.transform_to(phase_frame)
         zenith_ra = obs_zenith_coord.ra
         zenith_dec = obs_zenith_coord.dec
 
-        self.phase(zenith_ra, zenith_dec, epoch='J2000', phase_frame=phase_frame,
-                   use_ant_pos=use_ant_pos)
+        self.phase(zenith_ra, zenith_dec, epoch='J2000',
+                   phase_frame=phase_frame, use_ant_pos=use_ant_pos,
+                   allow_rephase=allow_rephase)
 
     def set_uvws_from_antenna_positions(self, allow_phasing=False,
                                         orig_phase_frame=None,
