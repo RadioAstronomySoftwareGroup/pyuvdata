@@ -202,8 +202,13 @@ class MWACorrFITS(UVData):
             self.instrument = meta_hdr['TELESCOP']
             self.telescope_name = meta_hdr.pop('TELESCOP')
             self.object_name = meta_hdr.pop('FILENAME')
+
             # get rid of the instrument keyword so it doesn't get put back in
             meta_hdr.remove('INSTRUME')
+            # get rid of keywords that uvfits.py gets rid of
+            bad_keys = ['SIMPLE', 'EXTEND', 'BITPIX', 'NAXIS', 'DATE-OBS']
+            for key in bad_keys:
+                meta_hdr.remove(key, remove_all=True)
             # store remaining keys in extra keywords
             for key in meta_hdr:
                 if key == 'COMMENT':
