@@ -5,9 +5,9 @@
 """Class for reading and writing uvfits files."""
 from __future__ import absolute_import, division, print_function
 
+import re
 import warnings
 
-import six
 import numpy as np
 from astropy import constants as const
 from astropy.time import Time
@@ -457,15 +457,15 @@ class UVFITS(UVData):
             for ant_ind, name in enumerate(ant_names):
                 # Sometimes CASA writes antnames as bytes not strings.
                 # If the ant name is shorter than 8 characters, the trailing
-                # characters may not be able to be decoded.
+                # characters may be non-ascii.
+                # This is technically a FITS violation as FITS requires ascii.
                 # So we just ignore any non-ascii bytes in the decode.
                 if isinstance(name, bytes):
-                    ant_name_str = None
                     ant_name_str = str(name.decode('utf-8', 'ignore'))
                 else:
                     ant_name_str = name
-                self.antenna_names.append(ant_name_str.replace(
-                    '\x00', '').replace('\x07', '').replace('!', ''))
+                self.antenna_names.append(re.sub(r'[^a-zA-Z0-9 -]', '',
+                                                 ant_name_str))
 
             # subtract one to get to 0-indexed values rather than 1-indexed values
             self.antenna_numbers = ant_hdu.data.field('NOSTA') - 1
