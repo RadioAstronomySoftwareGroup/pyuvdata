@@ -1043,7 +1043,9 @@ def test_apply_uvflag():
     uvdf += uvdf2
     uvdf = uvutils.apply_uvflag(uvdf, uvf, inplace=False, force_pol=True)
     assert np.all(uvdf.flag_array[uvdf.antpair2ind(9, 10)][:2])
-    pytest.raises(ValueError, uvutils.apply_uvflag, uvdf, uvf, inplace=False, force_pol=False)
+    with pytest.raises(ValueError) as cm:
+        uvutils.apply_uvflag(uvdf, uvf, inplace=False, force_pol=False)
+    assert "Input uvf and uvd polarizations do not match" in str(cm.value)
 
     # test unflag first
     uvdf = uvutils.apply_uvflag(uvd, uvf, inplace=False, unflag_first=True)
@@ -1061,7 +1063,9 @@ def test_apply_uvflag():
     # test mode exception
     uvfm = copy.deepcopy(uvf)
     uvfm.mode = 'metric'
-    pytest.raises(ValueError, uvutils.apply_uvflag, uvd, uvfm)
+    with pytest.raises(ValueError) as cm:
+        uvutils.apply_uvflag(uvd, uvfm)
+    assert "UVFlag must be flag mode" in str(cm.value)
 
     # test polarization exception
     uvd2 = copy.deepcopy(uvd)
@@ -1069,13 +1073,32 @@ def test_apply_uvflag():
     uvf2 = pyuvdata.UVFlag(uvd)
     uvf2.to_flag()
     uvd2.polarization_array[0] = -8
-    pytest.raises(ValueError, uvutils.apply_uvflag, uvd2, uvf2)
+    with pytest.raises(ValueError) as cm:
+        uvutils.apply_uvflag(uvd2, uvf2, force_pol=False)
+    assert "Input uvf and uvd polarizations do not match" in str(cm.value)
 
     # test time and frequency mismatch exceptions
     uvf2 = uvf.select(frequencies=uvf.freq_array[:, :2], inplace=False)
-    pytest.raises(ValueError, uvutils.apply_uvflag, uvd, uvf2)
+    with pytest.raises(ValueError) as cm:
+        uvutils.apply_uvflag(uvd, uvf2)
+    assert "UVFlag and UVData have mismatched frequency arrays" in str(cm.value)
+
+    uvf2 = copy.deepcopy(uvf)
+    uvf2.freq_array += 1.0
+    with pytest.raises(ValueError) as cm:
+        uvutils.apply_uvflag(uvd, uvf2)
+    assert "UVFlag and UVData have mismatched frequency arrays" in str(cm.value)
+
     uvf2 = uvf.select(times=np.unique(uvf.time_array)[:2], inplace=False)
-    pytest.raises(ValueError, uvutils.apply_uvflag, uvd, uvf2)
+    with pytest.raises(ValueError) as cm:
+        uvutils.apply_uvflag(uvd, uvf2)
+    assert "UVFlag and UVData have mismatched time arrays" in str(cm.value)
+
+    uvf2 = copy.deepcopy(uvf)
+    uvf2.time_array += 1.0
+    with pytest.raises(ValueError) as cm:
+        uvutils.apply_uvflag(uvd, uvf2)
+    assert "UVFlag and UVData have mismatched time arrays" in str(cm.value)
 
     # assert implicit broadcasting works
     uvf2 = uvf.select(frequencies=uvf.freq_array[:, :1], inplace=False)
