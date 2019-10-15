@@ -3,6 +3,9 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+- `UVData.read_uvfits` no longer breaks if there are non-ascii bytes in antenna names (which CASA sometimes writes).
+
 ## [1.4.2] - 2019-10-15
 
 ### Added
