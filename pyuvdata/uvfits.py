@@ -461,7 +461,7 @@ class UVFITS(UVData):
                 # So we just ignore any non-ascii bytes in the decode.
                 if isinstance(name, bytes):
                     ant_name_str = None
-                    ant_name_str = name.decode("utf-8", "ignore")
+                    ant_name_str = str(name.decode('utf-8', 'ignore'))
                 else:
                     ant_name_str = name
                 self.antenna_names.append(ant_name_str.replace(
