@@ -54,7 +54,7 @@ class MWACorrFITS(UVData):
             if i[0:3] == 'EL_':
                 cable_array.append(float(i[3:]))
             else:
-                cable_array.append(float(i)*v_factor)
+                cable_array.append(float(i) * v_factor)
         # build array of differences
         cable_len_diffs = np.zeros((self.Nblts, 1))
         for j in range(self.Nblts):
@@ -69,9 +69,16 @@ class MWACorrFITS(UVData):
         Read in data from a list of MWA correlator fits files.
 
         Args:
-            filelist : The list of MWA correlator files to read from. Currently
-                only a single observation is supported. Must include one
-                metafits file.
+            filelist : The list of MWA correlator files to read from. Must
+                include one metafits file.
+            use_cotter_flags : Option to read COTTER flag files into the flag
+                array. Default is False.
+            correct_cable_len : Option to apply a cable delay correction.
+                Default is True.
+            phase_data : Option to phase data. Default is True.
+            pointing_center : Option to phase data to a location that is
+                different from the observation pointing center. Default uses
+                the observation pointing center when phase_data is True.
             run_check : Option to check for the existence and proper shapes of
                 parameters after reading in the file. Default is True.
             check_extra : Option to check optional parameters as well as
@@ -171,7 +178,7 @@ class MWACorrFITS(UVData):
             coarse_chans = np.array([int(i) for i in coarse_chans])
 
             # integration time in seconds
-            int_time = meta_hdr['INTTIME']
+            int_time = meta_hdr.pop('INTTIME')
 
             # pointing center in degrees
             ra_deg = meta_hdr['RA']
@@ -179,23 +186,30 @@ class MWACorrFITS(UVData):
             ra_rad = np.pi * ra_deg / 180
             dec_rad = np.pi * dec_deg / 180
 
-            # check if other pointing center has been specified
+            # check if a different pointing center has been specified
             if pointing_center is None:
                 pointing_center = (ra_rad, dec_rad)
 
             # get parameters from header
             # this assumes no averaging by this code so will need to be updated
-            self.channel_width = float(meta_hdr['FINECHAN'] * 1000)
+            self.channel_width = float(meta_hdr.pop('FINECHAN') * 1000)
             self.history = str(meta_hdr['HISTORY']) + '\n AIPS WTSCAL = 1.0 \n'
             # TODO: figure out 'AIPS WTSCAL = 1.0'
             if not uvutils._check_history_version(self.history,
                                                   self.pyuvdata_version_str):
                 self.history += self.pyuvdata_version_str
+            meta_hdr.remove('HISTORY', remove_all=True)
             self.instrument = meta_hdr['TELESCOP']
-            self.telescope_name = meta_hdr['TELESCOP']
-            self.object_name = meta_hdr['FILENAME']
-
-            # TODO: remove these keys and store remaining keys in extra keywords
+            self.telescope_name = meta_hdr.pop('TELESCOP')
+            self.object_name = meta_hdr.pop('FILENAME')
+            # get rid of the instrument keyword so it doesn't get put back in
+            meta_hdr.remove('INSTRUME')
+            # store remaining keys in extra keywords
+            for key in meta_hdr:
+                if key == 'COMMENT':
+                    self.extra_keywords[key] = str(meta_hdr.get(key))
+                elif key != '':
+                    self.extra_keywords[key] = meta_hdr.get(key)
 
             # get antenna data from metafits file table
             meta_tbl = meta[1].data
