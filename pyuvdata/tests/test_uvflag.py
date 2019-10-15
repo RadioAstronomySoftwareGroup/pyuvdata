@@ -1316,7 +1316,7 @@ def test_to_baseline_force_pol_Npol_gt_1():
     assert np.all(uvf.baseline_array == uv.baseline_array)
     assert np.all(uvf.time_array == uv.time_array)
     assert np.array_equal(uvf.polarization_array, uv.polarization_array)
-    assert uvf.Npol == len(uvf.polarization_array)
+    assert uvf.Npols == len(uvf.polarization_array)
 
 
 def test_to_baseline_metric_force_pol():
