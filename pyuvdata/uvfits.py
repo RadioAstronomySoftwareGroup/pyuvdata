@@ -465,8 +465,8 @@ class UVFITS(UVData):
                 else:
                     ant_name_str = name
                 # remove non-printing ascii characters and exclamation points
-                ant_name_str.replace('\x00', '').replace('\x07', '').replace(
-                    '!', '')
+                ant_name_str = ant_name_str.replace('\x00', '').replace(
+                    '\x07', '').replace('!', '')
                 self.antenna_names.append(ant_name_str)
 
             # subtract one to get to 0-indexed values rather than 1-indexed values
