@@ -464,8 +464,10 @@ class UVFITS(UVData):
                     ant_name_str = str(name.decode('utf-8', 'ignore'))
                 else:
                     ant_name_str = name
-                self.antenna_names.append(re.sub(r'[^a-zA-Z0-9 -]', '',
-                                                 ant_name_str))
+                # remove non-printing ascii characters and exclamation points
+                ant_name_str.replace('\x00', '').replace('\x07', '').replace(
+                    '!', '')
+                self.antenna_names.append(ant_name_str)
 
             # subtract one to get to 0-indexed values rather than 1-indexed values
             self.antenna_numbers = ant_hdu.data.field('NOSTA') - 1
