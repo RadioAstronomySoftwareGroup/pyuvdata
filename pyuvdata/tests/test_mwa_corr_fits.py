@@ -35,7 +35,6 @@ def test_ReadMWAWriteUVFits():
                          message=['no flag files submitted', 'telescope_location is not set',
                          'some coarse channel files were not submitted'])
     testfile = os.path.join(DATA_PATH, 'test/outtest_MWAcorr.uvfits')
-    mwa_uv.reorder_pols()
     mwa_uv.write_uvfits(testfile, spoof_nonessential=True, force_phase=True)
     uvfits_uv.read_uvfits(testfile)
     assert mwa_uv == uvfits_uv

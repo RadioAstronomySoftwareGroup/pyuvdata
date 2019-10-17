@@ -480,6 +480,9 @@ class MWACorrFITS(UVData):
         # be conjugated
         self.data_array = np.conj(self.data_array)
 
+        # reorder polarizations
+        self.reorder_pols()
+        
         # phasing
         if phase_data is True:
             (ra, dec) = pointing_center
