@@ -1388,7 +1388,8 @@ def get_antenna_redundancies(antenna_numbers, antenna_positions, tol=1.0, includ
     return gps, vecs, lens
 
 
-def collapse(arr, alg, weights=None, axis=None, return_weights=False):
+def collapse(arr, alg, weights=None, axis=None, return_weights=False,
+             return_weights_square=False):
     """
     Parent function to collapse an array with a given algorithm.
 
@@ -1407,14 +1408,15 @@ def collapse(arr, alg, weights=None, axis=None, return_weights=False):
         Axis or axes to collapse. Default is all.
     return_weights : bool
         Whether to return sum of weights.
-
+    return_weights_square: bool
+        Whether to return the sum of the squares of the weights. Default is False.
     """
     collapse_dict = {'mean': mean_collapse, 'absmean': absmean_collapse,
                      'quadmean': quadmean_collapse, 'or': or_collapse,
                      'and': and_collapse}
     try:
-        out = collapse_dict[alg](arr, weights=weights, axis=axis,
-                                 return_weights=return_weights)
+        out = collapse_dict[alg](arr, weights=weights, axis=axis, return_weights=return_weights,
+                                 return_weights_square=return_weights_square)
     except KeyError:
         raise ValueError('Collapse algorithm must be one of: '
                          + ', '.join(collapse_dict.keys()) + '.')
@@ -1469,7 +1471,8 @@ def mean_collapse(arr, weights=None, axis=None, return_weights=False,
         return out
 
 
-def absmean_collapse(arr, weights=None, axis=None, return_weights=False):
+def absmean_collapse(arr, weights=None, axis=None, return_weights=False,
+                     return_weights_square=False):
     """
     Collapse by averaging absolute value of data.
 
@@ -1484,13 +1487,17 @@ def absmean_collapse(arr, weights=None, axis=None, return_weights=False):
         Axis or axes to collapse (passed to np.sum). Default is all.
     return_weights : bool
         Whether to return sum of weights.
+    return_weights_square: bool
+        whether to return the sum of the squares of the weights. Default is False.
 
     """
     return mean_collapse(np.abs(arr), weights=weights, axis=axis,
-                         return_weights=return_weights)
+                         return_weights=return_weights,
+                         return_weights_square=return_weights_square)
 
 
-def quadmean_collapse(arr, weights=None, axis=None, return_weights=False):
+def quadmean_collapse(arr, weights=None, axis=None, return_weights=False,
+                      return_weights_square=False):
     """
     Collapse by averaging in quadrature.
 
@@ -1505,9 +1512,12 @@ def quadmean_collapse(arr, weights=None, axis=None, return_weights=False):
         Axis or axes to collapse (passed to np.sum). Default is all.
     return_weights : bool
         Whether to return sum of weights.
-
+    return_weights_square: bool
+        whether to return the sum of the squares of the weights. Default is False.
     """
-    out = mean_collapse(np.abs(arr)**2, weights=weights, axis=axis, return_weights=return_weights)
+    out = mean_collapse(np.abs(arr)**2, weights=weights, axis=axis,
+                        return_weights=return_weights,
+                        return_weights_square=return_weights_square)
     if return_weights:
         return np.sqrt(out[0]), out[1]
     else:
