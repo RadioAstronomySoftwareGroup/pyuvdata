@@ -1450,10 +1450,11 @@ def mean_collapse(arr, weights=None, axis=None, return_weights=False,
     else:
         weights = copy.deepcopy(weights)
     weights = weights * np.logical_not(np.isinf(arr))
-    weights_square = weights**2
     arr[np.isinf(arr)] = 0
     weight_out = np.sum(weights, axis=axis)
-    weights_square_out = np.sum(weights_square, axis=axis)
+    if return_weights_square:
+        weights_square = weights**2
+        weights_square_out = np.sum(weights_square, axis=axis)
     out = np.sum(weights * arr, axis=axis)
     where = (weight_out > 1e-10)
     out = np.true_divide(out, weight_out, where=where)
