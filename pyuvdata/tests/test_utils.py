@@ -773,18 +773,22 @@ def test_mean_no_weights():
     assert out == np.mean(np.arange(data.shape[1]))
 
 
-def test_mean_weights():
+def test_mean_weights_and_weights_square():
     # Fake data
     data = np.zeros((50, 25))
     for i in range(data.shape[1]):
         data[:, i] = i * np.ones_like(data[:, i]) + 1
     w = 1. / data
-    out, wo = uvutils.mean_collapse(data, weights=w, axis=0, return_weights=True)
+    out, wo, wso = uvutils.mean_collapse(data, weights=w, axis=0, return_weights=True,
+                                         return_weights_square=True)
     assert np.allclose(out * wo, data.shape[0])
     assert np.allclose(wo, float(data.shape[0]) / (np.arange(data.shape[1]) + 1))
-    out, wo = uvutils.mean_collapse(data, weights=w, axis=1, return_weights=True)
+    assert np.allclose(wso, float(data.shape[0]) / (np.arange(data.shape[1] + 1)**2))
+    out, wo, wso = uvutils.mean_collapse(data, weights=w, axis=1, return_weights=True,
+                                         return_weights_square=True)
     assert np.allclose(out * wo, data.shape[1])
     assert np.allclose(wo, np.sum(1. / (np.arange(data.shape[1]) + 1)))
+    assert np.allclose(wso, np.sum(1. / (np.arange(data.shape[1] + 1)**2)))
 
     # Zero weights
     w = np.ones_like(w)
