@@ -695,6 +695,21 @@ def test_collapse_mean_returned_with_weights_and_weights_square():
     assert np.array_equal(wso, wso1)
 
 
+def test_collapse_mean_returned_with_weights_square_no_return_weights():
+    # Fake data
+    data = np.zeros((50, 25))
+    for i in range(data.shape[1]):
+        data[:, i] = i * np.ones_like(data[:, i]) + 1
+    w = 1. / data
+    out, wso = uvutils.collapse(data, 'mean', weights=w, axis=0, return_weights=False,
+                                return_weights_square=True)
+    out1, wso1 = uvutils.mean_collapse(data, weights=w, axis=0, return_weights=False,
+                                       return_weights_square=True)
+    # Actual values are tested in test_mean_weights
+    assert np.array_equal(out, out1)
+    assert np.array_equal(wso, wso1)
+
+
 def test_collapse_absmean_no_return_no_weights():
     # Fake data
     data = np.zeros((50, 25))
