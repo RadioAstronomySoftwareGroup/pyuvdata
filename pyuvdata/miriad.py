@@ -86,6 +86,11 @@ class Miriad(UVData):
         (default_miriad_variables, other_miriad_variables, extra_miriad_variables,
          check_variables) = self.read_miriad_metadata(uv, correct_lat_lon=correct_lat_lon)
 
+        if not read_data:
+            # don't read in the data. This means the object is incomplete,
+            # but that may not matter for many purposes.
+            return
+
         # read through the file and get the data
         _source = uv['source']  # check source of initial visibility
 

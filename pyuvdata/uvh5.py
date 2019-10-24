@@ -493,9 +493,6 @@ class UVH5(UVData):
         if not os.path.exists(filename):
             raise IOError(filename + ' not found')
 
-        if not read_data:
-            run_check = False
-
         # open hdf5 file for reading
         with h5py.File(filename, 'r') as f:
             # extract header information
