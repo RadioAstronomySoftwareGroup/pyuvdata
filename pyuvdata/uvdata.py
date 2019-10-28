@@ -1424,6 +1424,74 @@ class UVData(UVBase):
             self.check(check_extra=check_extra,
                        run_check_acceptability=run_check_acceptability)
 
+    def sum_vis(self, other, difference=False, run_check_acceptability=True, inplace=False):
+        '''
+        Adds or differences matched visibilities between 2 objects.
+        '''
+
+        if inplace:
+            this = self
+        else:
+            this = copy.deepcopy(self)
+
+        # Check that both objects are UVData and valid
+        this.check(check_extra=check_extra, run_check_acceptability=run_check_acceptability)
+        if not issubclass(other.__class__, this.__class__):
+            if not issubclass(this.__class__, other.__class__):
+                raise ValueError('Only UVData (or subclass) objects can be '
+                                    'added to a UVData (or subclass) object')
+        other.check(check_extra=check_extra, run_check_acceptability=run_check_acceptability)
+
+        # currently this is all of them -- list(UVData.__iter__)
+        compatibility_params = ['_Nants_data', '_Nants_telescope',
+                                '_Nbls', '_Nblts', '_Nfreqs', '_Npols',
+                                '_Nspws', '_Ntimes', '_ant_1_array',
+                                '_ant_2_array', '_antenna_diameters',
+                                '_antenna_names', '_antenna_numbers',
+                                '_antenna_positions', '_baseline_array',
+                                '_blt_order', '_channel_width',
+                                '_data_array', '_dut1', '_earth_omega',
+                                '_extra_keywords', '_flag_array',
+                                '_freq_array', '_gst0', '_history',
+                                '_instrument', '_integration_time',
+                                '_lst_array', '_nsample_array',
+                                '_object_name', '_phase_center_dec',
+                                '_phase_center_epoch', '_phase_center_frame',
+                                '_phase_center_ra', '_phase_type',
+                                '_polarization_array', '_rdate',
+                                '_spw_array', '_telescope_location',
+                                '_telescope_name', '_time_array',
+                                '_timesys', '_uvplane_reference_time',
+                                '_uvw_array', '_vis_units', '_x_orientation']
+
+        # Check metadata check metadata: baselines, phasing, time,
+        # frequencies, pols, etc.
+        for a in compatibility_params:
+            params_match = (getattr(this, a) == getattr(other, a))
+        if not params_match:
+            msg = 'UVParameter ' + \
+                a[1:] + ' does not match. Cannot combine objects.'
+            raise ValueError(msg)
+
+        '''
+        if difference:
+            difference visibilities
+        else:
+            sum visibilities
+        '''
+        # Update history?
+
+        # Check final object is self-consistent
+        if run_check:
+            this.check(check_extra=check_extra,
+            run_check_acceptability=run_check_acceptability)
+
+        if not inplace:
+            return this
+
+    def diff_vis(self, other, run_check_acceptability=True, inplace=False):
+        return sum_vis(self, other, difference=True, run_check_acceptability=run_check_acceptability, inplace=inplace)
+
     def __add__(self, other, run_check=True, check_extra=True,
                 run_check_acceptability=True, inplace=False):
         """
@@ -1473,6 +1541,13 @@ class UVData(UVBase):
                                 '_antenna_numbers', '_antenna_positions',
                                 '_phase_center_ra', '_phase_center_dec',
                                 '_phase_center_epoch']
+
+        '''
+        if not params_match:
+            msg = 'UVParameter ' + \
+                a[1:] + ' does not match. Cannot combine objects.'
+            raise ValueError(msg)
+        '''
 
         # Build up history string
         history_update_string = ' Combined data along '
