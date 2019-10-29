@@ -1424,7 +1424,8 @@ class UVData(UVBase):
             self.check(check_extra=check_extra,
                        run_check_acceptability=run_check_acceptability)
 
-    def sum_vis(self, other, difference=False, run_check_acceptability=True, inplace=False):
+    def sum_vis(self, other, difference=False, check_extra=True,
+                run_check_acceptability=True, inplace=False):
         '''
         Adds or differences matched visibilities between 2 objects.
         '''
@@ -1442,7 +1443,7 @@ class UVData(UVBase):
                                     'added to a UVData (or subclass) object')
         other.check(check_extra=check_extra, run_check_acceptability=run_check_acceptability)
 
-        # currently this is all of them -- list(UVData.__iter__)
+        # currently this is all of them -- list(UV.__iter__)
         compatibility_params = ['_Nants_data', '_Nants_telescope',
                                 '_Nbls', '_Nblts', '_Nfreqs', '_Npols',
                                 '_Nspws', '_Ntimes', '_ant_1_array',
@@ -1479,12 +1480,18 @@ class UVData(UVBase):
         else:
             sum visibilities
         '''
-        # Update history?
+
+        # Update history
+        if difference:
+            this.history += ' Visibilities differenced using pyuvdata.'
+        else:
+            this.history += ' Visibilities summed using pyuvdata.'
+
+        this.history = uvutils._combine_histories(this.history, other.history)
 
         # Check final object is self-consistent
-        if run_check:
-            this.check(check_extra=check_extra,
-            run_check_acceptability=run_check_acceptability)
+        this.check(check_extra=check_extra,
+                    run_check_acceptability=run_check_acceptability)
 
         if not inplace:
             return this
