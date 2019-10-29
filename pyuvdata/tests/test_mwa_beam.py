@@ -37,3 +37,39 @@ def test_read_write_mwa():
     beam2.read_beamfits(outfile_name)
 
     assert beam1 == beam2
+
+
+def test_bad_amps():
+    beam1 = UVBeam()
+
+    amps = np.ones([2, 8])
+    with pytest.raises(ValueError) as cm:
+        beam1.read_mwa_beam(filename, pixels_per_deg=1, amplitudes=amps)
+    assert str(cm.value).startswith('amplitudes must be shape')
+
+
+def test_bad_delays():
+    beam1 = UVBeam()
+
+    delays = np.zeros([2, 8])
+    with pytest.raises(ValueError) as cm:
+        beam1.read_mwa_beam(filename, pixels_per_deg=1, delays=delays)
+    assert str(cm.value).startswith('delays must be shape')
+
+    delays = np.zeros((2, 16))
+    delays = delays + 64
+    with pytest.raises(ValueError) as cm:
+        beam1.read_mwa_beam(filename, pixels_per_deg=1, delays=delays)
+    assert str(cm.value).startswith('There are delays greater than 32')
+
+
+def test_dead_dipoles():
+    beam1 = UVBeam()
+
+    delays = np.zeros((2, 16))
+    delays[:, 0] = 32
+
+    uvtest.checkWarnings(
+        beam1.read_mwa_beam, func_args=[filename],
+        func_kwargs={'pixels_per_deg': 1, 'delays': delays},
+        message=('There are some terminated dipoles'))
