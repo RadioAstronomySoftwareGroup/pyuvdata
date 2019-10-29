@@ -1366,30 +1366,17 @@ def test_readWriteReadMiriad_partial_metadata_only():
     uv_in.read(testfile)
     uv_in.select(freq_chans=np.arange(10))
     uv_in2 = UVData()
-    uv_in2.read_miriad(np.array([write_file, write_file2]))
+    uv_in2.read(np.array([write_file, write_file2]))
 
     assert uv_in.history != uv_in2.history
     uv_in2.history = uv_in.history
     assert uv_in == uv_in2
 
-    # test exceptions
-    # read-in when data already exists
+    # cleanup
     del uv_in, new_uv
     gc.collect()
     shutil.rmtree(write_file)
     shutil.rmtree(write_file2)
-
-    uv_in = UVData()
-    uv_in.read(testfile)
-    with pytest.raises(ValueError) as cm:
-        uv_in.read(testfile, read_data=False)
-    assert str(cm.value).startswith(
-        "data_array is already defined, cannot read metadata"
-    )
-
-    # cleanup
-    del uv_in, uv_in2
-    gc.collect()
 
 
 @uvtest.skipIf_no_casa
@@ -1403,7 +1390,7 @@ def test_readMSWriteMiriad_CASAHistory():
     ms_file = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.ms")
     testfile = os.path.join(DATA_PATH, "test/outtest_miriad")
     uvtest.checkWarnings(
-        ms_uv.read_ms, [ms_file], message="Telescope EVLA is not", nwarnings=0
+        ms_uv.read, [ms_file], message="Telescope EVLA is not", nwarnings=0
     )
     ms_uv.write_miriad(testfile, clobber=True)
     uvtest.checkWarnings(miriad_uv.read, [testfile], message="Telescope EVLA is not")
@@ -1507,6 +1494,7 @@ def test_multi_files():
     testfile1 = os.path.join(DATA_PATH, "test/uv1")
     testfile2 = os.path.join(DATA_PATH, "test/uv2")
     uv_full.read_uvfits(uvfits_file)
+    # rename telescope to avoid name warning
     uvtest.checkWarnings(
         uv_full.unphase_to_drift,
         category=DeprecationWarning,
@@ -1522,7 +1510,11 @@ def test_multi_files():
     uv2.write_miriad(testfile2, clobber=True)
     del uv1
     uv1 = UVData()
-    uv1.read_miriad([testfile1, testfile2])
+    uvtest.checkWarnings(uv1.read_miriad, func_args=[[testfile1, testfile2]],
+                         message=(['Please use the generic']
+                                  + 2 * ['Telescope EVLA is not']),
+                         category=[DeprecationWarning] + 2 * [UserWarning],
+                         nwarnings=3)
     # Check history is correct, before replacing and doing a full object check
     assert uvutils._check_histories(
         uv_full.history + "  Downselected to "

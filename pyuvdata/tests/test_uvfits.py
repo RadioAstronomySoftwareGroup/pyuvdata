@@ -25,38 +25,45 @@ from pyuvdata.data import DATA_PATH
 def test_ReadNRAO():
     """Test reading in a CASA tutorial uvfits file."""
     UV = UVData()
-    testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    testfile = os.path.join(DATA_PATH,
+                            'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
     expected_extra_keywords = ['OBSERVER', 'SORTORD', 'SPECSYS',
                                'RESTFREQ', 'ORIGIN']
-    uvtest.checkWarnings(UV.read, [testfile], message='Telescope EVLA is not')
-    assert expected_extra_keywords.sort() == list(UV.extra_keywords.keys()).sort()
+    uvtest.checkWarnings(UV.read_uvfits, func_args=[testfile],
+                         message='Telescope EVLA is not')
+    assert (expected_extra_keywords.sort()
+            == list(UV.extra_keywords.keys()).sort())
 
     # test reading in header data first, then metadata and then data
     UV2 = UVData()
-    uvtest.checkWarnings(UV2.read, [testfile], {'read_data': False, 'read_metadata': False},
+    uvtest.checkWarnings(UV2.read, func_args=[testfile],
+                         func_kwargs={'read_data': False,
+                                      'read_metadata': False},
                          message='Telescope EVLA is not')
-    assert expected_extra_keywords.sort() == list(UV2.extra_keywords.keys()).sort()
+    assert (expected_extra_keywords.sort()
+            == list(UV2.extra_keywords.keys()).sort())
     with pytest.raises(ValueError) as cm:
         UV2.check()
     assert str(cm.value).startswith('Required UVParameter')
 
-    UV2.read(testfile, read_data=False)
+    uvtest.checkWarnings(UV2.read, func_args=[testfile],
+                         func_kwargs={'read_data': False},
+                         message='Telescope EVLA is not')
     assert UV2.check()
-    UV2.read(testfile)
+    uvtest.checkWarnings(UV2.read, func_args=[testfile],
+                         message='Telescope EVLA is not')
     assert UV == UV2
     # test reading in header & metadata first, then data
     UV2 = UVData()
-    uvtest.checkWarnings(UV2.read, [testfile], {'read_data': False},
+    uvtest.checkWarnings(UV2.read, func_args=[testfile],
+                         func_kwargs={'read_data': False},
                          message='Telescope EVLA is not')
-    assert expected_extra_keywords.sort() == list(UV2.extra_keywords.keys()).sort()
+    assert (expected_extra_keywords.sort()
+            == list(UV2.extra_keywords.keys()).sort())
     assert UV2.check()
-    UV2.read(testfile)
+    uvtest.checkWarnings(UV2.read, func_args=[testfile],
+                         message='Telescope EVLA is not')
     assert UV == UV2
-
-    # check error trying to read metadata after data is already present
-    with pytest.raises(ValueError) as cm:
-        UV2.read(testfile, read_data=False)
-    assert str(cm.value).startswith('data_array is already defined, cannot read metadata')
 
 
 @pytest.mark.filterwarnings("ignore:Required Antenna frame keyword")
@@ -674,7 +681,11 @@ def test_multi_files():
     uv2.select(freq_chans=np.arange(32, 64))
     uv1.write_uvfits(testfile1)
     uv2.write_uvfits(testfile2)
-    uv1.read_uvfits(np.array([testfile1, testfile2]))
+    uvtest.checkWarnings(
+        uv1.read_uvfits, func_args=[np.array([testfile1, testfile2])],
+        message=(['Please use the generic'] + 2 * ['Telescope EVLA is not']),
+        category=[DeprecationWarning] + 2 * [UserWarning],
+        nwarnings=3)
     # Check history is correct, before replacing and doing a full object check
     assert uvutils._check_histories(uv_full.history + '  Downselected to '
                                     'specific frequencies using pyuvdata. '
@@ -715,14 +726,6 @@ def test_multi_files():
         uv1.read([testfile1, testfile2], read_data=False, read_metadata=False)
     assert str(cm.value).startswith('A list of files cannot be used when just '
                                     'reading the header')
-
-    # check raises error if only reading data on a list of files (metadata already read)
-    uv1 = UVData()
-    uv1.read(uvfits_file, read_data=False)
-    with pytest.raises(ValueError) as cm:
-        uv1.read([testfile1, testfile2])
-    assert str(cm.value).startswith('A list of files cannot be used when just '
-                                    'reading data (metadata already exists)')
 
 
 @uvtest.skipIf_no_casa
