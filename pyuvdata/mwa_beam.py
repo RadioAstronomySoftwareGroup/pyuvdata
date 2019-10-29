@@ -369,8 +369,7 @@ class MWABeam(UVBeam):
 
                 # form P(cos\theta)/(sin\theta) and P^{m+1}(cos\theta)with FEKO M,N order
                 nmax = int(np.max(N))
-                if np.max(N) - nmax != 0:
-                    raise ValueError('The maximum of N should be an integer value!')
+                assert np.max(N) - nmax == 0, 'The maximum of N should be an integer value!'
 
                 # form pre-multiplying constants in (1) of "Calculating...."
                 C_MN = (0.5 * (2 * N + 1) * factorial(N - abs(M)) / factorial(N + abs(M))) ** 0.5
@@ -440,10 +439,10 @@ class MWABeam(UVBeam):
             amplitudes = np.ones([n_pol, n_dp])
 
         if amplitudes.shape != (n_pol, n_dp):
-            raise ValueError('amplitudes must be shape ({np, nd})'.format(np=n_pol, nd=n_dp))
+            raise ValueError('amplitudes must be shape ({npol}, {nd})'.format(npol=n_pol, nd=n_dp))
 
         if delays.shape != (n_pol, n_dp):
-            raise ValueError('delays must be shape ({np, nd})'.format(np=n_pol, nd=n_dp))
+            raise ValueError('delays must be shape ({npol}, {nd})'.format(npol=n_pol, nd=n_dp))
 
         if (delays > 32).any():
             raise ValueError('There are delays greater than 32: {delays}'.format(delays=delays))
@@ -451,7 +450,9 @@ class MWABeam(UVBeam):
         # check for terminated dipoles and reset delays and amplitudes
         terminated = delays == 32
         if (terminated).any():
-            warnings.Warn('Terminated dipoles (delay setting 32)... setting amplitude and delay to zero.')
+            warnings.warn('There are some terminated dipoles '
+                          '(delay setting 32). Setting the amplitudes and '
+                          'delays of terminated dipoles to zero.')
             delays[terminated] = 0
             amplitudes[terminated] = 0
 
