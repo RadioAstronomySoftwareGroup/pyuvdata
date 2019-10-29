@@ -1528,8 +1528,8 @@ class UVData(UVBase):
                                 run_check_acceptability=run_check_acceptability,
                                 inplace=inplace)
 
-    def __add__(self, other, phase_center_radec=None, allow_rephase=True,
-                run_check=True, check_extra=True,
+    def __add__(self, other, phase_center_radec=None,
+                unphase_to_drift=False, run_check=True, check_extra=True,
                 run_check_acceptability=True, inplace=False):
         """
         Combine two UVData objects along frequency, polarization and/or baseline-time.
@@ -1544,9 +1544,8 @@ class UVData(UVBase):
             and the two UVData objects are phased to different phase centers
             or if one is phased and one is drift, this method will error
             because the objects are not compatible.
-        allow_rephase : bool
-            If True, allow unphasing and rephasing if either object is already
-            phased.
+        unphase_to_drift : bool
+            If True, unphase the objects to drift before combining them.
         run_check : bool
             Option to check for the existence and proper shapes of parameters
             after combining objects.
@@ -1579,6 +1578,19 @@ class UVData(UVBase):
                                  'added to a UVData (or subclass) object')
         other.check(check_extra=check_extra, run_check_acceptability=run_check_acceptability)
 
+        if phase_center_radec is not None and unphase_to_drift:
+            raise ValueError('phase_center_radec cannot be set if '
+                             'unphase_to_drift is True.')
+
+        if unphase_to_drift:
+            if (this.phase_type != 'drift'):
+                warnings.warn("Unphasing this UVData object to drift")
+                this.unphase_to_drift()
+
+            if (other.phase_type != 'drift'):
+                warnings.warn("Unphasing other UVData object to drift")
+                other.unphase_to_drift()
+
         if phase_center_radec is not None:
             if np.array(phase_center_radec).size != 2:
                 raise ValueError('phase_center_radec should have length 2.')
@@ -1587,13 +1599,13 @@ class UVData(UVBase):
                     or this.phase_center_dec != phase_center_radec[1]):
                 warnings.warn("Phasing this UVData object to phase_center_radec")
                 this.phase(phase_center_radec[0], phase_center_radec[1],
-                           allow_rephase=allow_rephase)
+                           allow_rephase=True)
 
             if (other.phase_center_ra != phase_center_radec[0]
                     or other.phase_center_dec != phase_center_radec[1]):
                 warnings.warn("Phasing other UVData object to phase_center_radec")
                 other.phase(phase_center_radec[0], phase_center_radec[1],
-                            allow_rephase=allow_rephase)
+                            allow_rephase=True)
 
         # Define parameters that must be the same to add objects
         # But phase_center should be the same, even if in drift (empty parameters)
@@ -1838,7 +1850,7 @@ class UVData(UVBase):
         if not inplace:
             return this
 
-    def __iadd__(self, other, phase_center_radec=None, allow_rephase=True,
+    def __iadd__(self, other, phase_center_radec=None, unphase_to_drift=False,
                  run_check=True, check_extra=True,
                  run_check_acceptability=True):
         """
@@ -1854,9 +1866,8 @@ class UVData(UVBase):
             and the two UVData objects are phased to different phase centers
             or if one is phased and one is drift, this method will error
             because the objects are not compatible.
-        allow_rephase : bool
-            If True, allow unphasing and rephasing if either object is already
-            phased.
+        unphase_to_drift : bool
+            If True, unphase the objects to drift before combining them.
         run_check : bool
             Option to check for the existence and proper shapes of parameters
             after combining objects.
@@ -1873,14 +1884,14 @@ class UVData(UVBase):
             or if data in self and other overlap.
         """
         self.__add__(other, phase_center_radec=phase_center_radec,
-                     allow_rephase=allow_rephase,
+                     unphase_to_drift=unphase_to_drift,
                      run_check=run_check, check_extra=check_extra,
                      run_check_acceptability=run_check_acceptability,
                      inplace=True)
         return self
 
     def fast_concat(self, other, axis, phase_center_radec=None,
-                    allow_rephase=True,
+                    unphase_to_drift=False,
                     run_check=True, check_extra=True,
                     run_check_acceptability=True, inplace=False):
         """
@@ -1905,9 +1916,8 @@ class UVData(UVBase):
             and the two UVData objects are phased to different phase centers
             or if one is phased and one is drift, this method will error
             because the objects are not compatible.
-        allow_rephase : bool
-            If True, allow unphasing and rephasing if either object is already
-            phased.
+        unphase_to_drift : bool
+            If True, unphase the objects to drift before combining them.
         run_check : bool
             Option to check for the existence and proper shapes of parameters
             after combining objects.
@@ -1938,6 +1948,19 @@ class UVData(UVBase):
                                  'added to a UVData (or subclass) object')
         other.check(check_extra=check_extra, run_check_acceptability=run_check_acceptability)
 
+        if phase_center_radec is not None and unphase_to_drift:
+            raise ValueError('phase_center_radec cannot be set if '
+                             'unphase_to_drift is True.')
+
+        if unphase_to_drift:
+            if (this.phase_type != 'drift'):
+                warnings.warn("Unphasing this UVData object to drift")
+                this.unphase_to_drift()
+
+            if (other.phase_type != 'drift'):
+                warnings.warn("Unphasing other UVData object to drift")
+                other.unphase_to_drift()
+
         if phase_center_radec is not None:
             if np.array(phase_center_radec).size != 2:
                 raise ValueError('phase_center_radec should have length 2.')
@@ -1946,13 +1969,13 @@ class UVData(UVBase):
                     or this.phase_center_dec != phase_center_radec[1]):
                 warnings.warn("Phasing this UVData object to phase_center_radec")
                 this.phase(phase_center_radec[0], phase_center_radec[1],
-                           allow_rephase=allow_rephase)
+                           allow_rephase=True)
 
             if (other.phase_center_ra != phase_center_radec[0]
                     or other.phase_center_dec != phase_center_radec[1]):
                 warnings.warn("Phasing other UVData object to phase_center_radec")
                 other.phase(phase_center_radec[0], phase_center_radec[1],
-                            allow_rephase=allow_rephase)
+                            allow_rephase=True)
 
         allowed_axes = ['blt', 'freq', 'polarization']
         if axis not in allowed_axes:
@@ -3423,7 +3446,7 @@ class UVData(UVBase):
         del(uvh5_obj)
 
     def read(self, filename, axis=None, file_type=None, allow_rephase=True,
-             phase_center_radec=None,
+             phase_center_radec=None, unphase_to_drift=False,
              antenna_nums=None, antenna_names=None, ant_str=None, bls=None,
              frequencies=None, freq_chans=None, times=None, polarizations=None,
              blt_inds=None, time_range=None, keep_all_metadata=True,
@@ -3462,6 +3485,8 @@ class UVData(UVBase):
             radians (in the ICRS frame). If set to None and multiple files are
             read with different phase centers, the phase center of the first
             file will be used.
+        unphase_to_drift : bool
+            Unphase the data from the files before combining them.
         antenna_nums : array_like of int, optional
             The antennas numbers to include when reading data into the object
             (antenna positions and names for the removed antennas will be retained
@@ -3639,7 +3664,7 @@ class UVData(UVBase):
                       run_check_acceptability=run_check_acceptability)
 
             if (allow_rephase and phase_center_radec is None
-                    and self.phase_type == 'phased'):
+                    and not unphase_to_drift and self.phase_type == 'phased'):
                 # set the phase center to be the phase center of the first file
                 phase_center_radec = [self.phase_center_ra,
                                       self.phase_center_dec]
@@ -3667,14 +3692,14 @@ class UVData(UVBase):
                     if axis is not None:
                         self.fast_concat(
                             uv2, axis, phase_center_radec=phase_center_radec,
-                            allow_rephase=allow_rephase,
+                            unphase_to_drift=unphase_to_drift,
                             run_check=run_check, check_extra=check_extra,
                             run_check_acceptability=run_check_acceptability,
                             inplace=True)
                     else:
                         self.__iadd__(
                             uv2, phase_center_radec=phase_center_radec,
-                            allow_rephase=allow_rephase,
+                            unphase_to_drift=unphase_to_drift,
                             run_check=run_check, check_extra=check_extra,
                             run_check_acceptability=run_check_acceptability)
 
