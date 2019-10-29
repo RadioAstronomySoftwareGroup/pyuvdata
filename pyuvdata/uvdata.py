@@ -2914,7 +2914,6 @@ class UVData(UVBase):
         """
         from . import fhd
         if isinstance(filelist[0], (list, tuple, np.ndarray)):
-
             warnings.warn('Please use the generic `read` '
                           'method to read multiple fhd files. Support for '
                           'reading multiple files with this method will be '
@@ -3641,7 +3640,7 @@ class UVData(UVBase):
             raise ValueError('Only one of antenna_nums and antenna_names can '
                              'be provided.')
 
-        if isinstance(filename, (list, tuple, np.ndarray)):
+        if multi:
             if file_type == 'uvfits':
                 if not read_data and not read_metadata:
                     raise ValueError('A list of files cannot be used when just '

@@ -158,7 +158,7 @@ def test_read_miriad_write_uvh5_read_uvh5(uv_miriad):
     # also test round-tripping phased data
     uv_in.phase_to_time(Time(np.mean(uv_in.time_array), format='jd'))
     uv_in.write_uvh5(testfile, clobber=True)
-    uv_out.read(testfile)
+    uv_out.read_uvh5(testfile)
 
     assert uv_in == uv_out
 
@@ -302,7 +302,13 @@ def test_uvh5_read_multiple_files(uv_uvfits):
     uv2.select(freq_chans=np.arange(32, 64))
     uv1.write_uvh5(testfile1, clobber=True)
     uv2.write_uvh5(testfile2, clobber=True)
-    uv1.read([testfile1, testfile2])
+    uvtest.checkWarnings(
+        uv1.read_uvh5,
+        func_args=[np.array([testfile1, testfile2])],
+        message=(['Please use the generic'] + 2 * ['Telescope EVLA is not']),
+        category=[DeprecationWarning] + 2 * [UserWarning],
+        nwarnings=3,
+    )
     # Check history is correct, before replacing and doing a full object check
     assert uvutils._check_histories(uv_in.history + '  Downselected to '
                                     'specific frequencies using pyuvdata. '
@@ -1458,7 +1464,7 @@ def test_uvh5_read_ints(uv_uvh5):
     uv_in.write_uvh5(testfile, clobber=True)
 
     # read it back in to make sure data is the same
-    uv_out.read_uvh5(testfile)
+    uv_out.read(testfile)
     assert uv_in == uv_out
 
     # now read in as np.complex128
@@ -1498,7 +1504,7 @@ def test_uvh5_write_ints(uv_uvh5):
     uv_in.write_uvh5(testfile, clobber=True, data_write_dtype=_hera_corr_dtype)
 
     # read it back in to make sure data is the same
-    uv_out.read_uvh5(testfile)
+    uv_out.read(testfile)
     assert uv_in == uv_out
 
     # also check that the datatype on disk is the right type
