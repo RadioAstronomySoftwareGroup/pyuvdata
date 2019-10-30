@@ -7,7 +7,7 @@ dependencies:
   - astropy
   - pyephem
   - h5py
-  - healpy
+  - astropy-healpix
   - matplotlib
   - numpy
   - scikit-learn
