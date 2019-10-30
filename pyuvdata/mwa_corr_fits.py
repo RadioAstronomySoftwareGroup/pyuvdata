@@ -482,10 +482,10 @@ class MWACorrFITS(UVData):
 
         # reorder polarizations
         self.reorder_pols()
-        
+
         # phasing
         if phase_data is True:
             (ra, dec) = pointing_center
-            self.phase(ra, dec, phase_frame='icrs')
+            self.phase(ra, dec)
 
         # TODO: add support for cotter flag files
