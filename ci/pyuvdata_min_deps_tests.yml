@@ -1,7 +1,7 @@
 name: pyuvdata_min_deps_tests
 channels:
-  - defaults
   - conda-forge
+  - defaults
 dependencies:
   - astropy
   - numpy
