@@ -1,7 +1,7 @@
 name: hera_qm
 channels:
-  - defaults
   - conda-forge
+  - defaults
 dependencies:
   - aipy
   - astropy

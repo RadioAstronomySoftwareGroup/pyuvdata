@@ -1,7 +1,7 @@
 name: hera_cal
 channels:
-  - defaults
   - conda-forge
+  - defaults
 dependencies:
   - aipy
   - astropy
