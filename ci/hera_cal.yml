@@ -7,7 +7,7 @@ dependencies:
   - astropy
   - cached-property
   - h5py
-  - healpy
+  - astropy-healpix
   - matplotlib
   - pytest
   - numpy
