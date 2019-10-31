@@ -363,6 +363,14 @@ class UVData(UVBase):
                                                        description=desc,
                                                        spoof_val=0)
 
+        desc = "Per-antenna and per-frequency equalization coefficients"
+        self._eq_coeffs = uvp.UVParameter("eq_coeffs",
+                                          required=False,
+                                          description=desc,
+                                          form=("Nants_telescope", "Nfreqs"),
+                                          expected_type=np.float,
+                                          spoof_val=1.0)
+
         super(UVData, self).__init__()
 
     @property
@@ -5192,5 +5200,55 @@ class UVData(UVBase):
                 summing_correlator_mode=summing_correlator_mode,
                 allow_drift=allow_drift,
             )
+
+        return
+
+    def remove_eq_coeffs(self, convention="divide"):
+        """Remove equalization coefficients from the data.
+
+        Some telescopes, e.g. HERA, apply per-antenna, per-frequency gain
+        coefficients as part of the signal chain. These are stored in the
+        `eq_coeffs` attribute of the object. This method will remove them, so
+        that the data are in "unnormalized" raw units.
+
+        Parameters
+        ----------
+        convention : str
+            How to remove the equalization coefficients. Must be one of:
+            "multiply", "divide".
+
+        Returns
+        -------
+        None
+        """
+        if self.eq_coeffs is None:
+            raise ValueError(
+                "The eq_coeffs attribute must be defined on the object to apply them."
+            )
+        if convention not in ("multiply", "divide"):
+            raise ValueError(
+                "Got unknown convention {}. Must be one of: "
+                '"multiply", "divide"'.format(convention)
+            )
+
+        # apply coefficients for each baseline
+        for key in self.get_antpairs():
+            # get indices for this key
+            blt_inds = self.antpair2ind(key)
+
+            ant1_index = np.asarray(self.antenna_numbers == key[0]).nonzero()[0][0]
+            ant2_index = np.asarray(self.antenna_numbers == key[1]).nonzero()[0][0]
+
+            eq_coeff1 = self.eq_coeffs[ant1_index, :]
+            eq_coeff2 = self.eq_coeffs[ant2_index, :]
+
+            # make sure coefficients are the right size to broadcast
+            eq_coeff1 = np.repeat(eq_coeff1[:, np.newaxis], self.Npols, axis=1)
+            eq_coeff2 = np.repeat(eq_coeff2[:, np.newaxis], self.Npols, axis=1)
+
+            if convention == "multiply":
+                self.data_array[blt_inds, 0, :, :] *= eq_coeff1 * eq_coeff2
+            else:
+                self.data_array[blt_inds, 0, :, :] /= eq_coeff1 * eq_coeff2
 
         return
