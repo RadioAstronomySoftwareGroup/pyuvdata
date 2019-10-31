@@ -1473,7 +1473,7 @@ class UVData(UVBase):
                                 '_antenna_names', '_antenna_numbers',
                                 '_antenna_positions', '_baseline_array',
                                 '_blt_order', '_channel_width',
-                                '_data_array', '_dut1', '_earth_omega',
+                                '_dut1', '_earth_omega',
                                 '_extra_keywords', '_flag_array',
                                 '_freq_array', '_gst0', '_history',
                                 '_instrument', '_integration_time',
@@ -1513,9 +1513,13 @@ class UVData(UVBase):
         if not inplace:
             return this
 
-    def diff_vis(self, other, run_check=True, check_extra=True, run_check_acceptability=True,
-                inplace=False):
-        return sum_vis(self, other, difference=True, run_check_acceptability=run_check_acceptability, inplace=inplace)
+    def diff_vis(self, other, run_check=True, check_extra=True,
+                    run_check_acceptability=True,
+                    inplace=False):
+
+        self.sum_vis(other, difference=True, run_check=True, check_extra=check_extra,
+                            run_check_acceptability=run_check_acceptability,
+                            inplace=inplace)
 
     def __add__(self, other, run_check=True, check_extra=True,
                 run_check_acceptability=True, inplace=False):
