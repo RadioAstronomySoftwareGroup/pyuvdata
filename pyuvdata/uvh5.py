@@ -61,13 +61,13 @@ def _check_uvh5_dtype(dtype):
         None
     """
     if not isinstance(dtype, np.dtype):
-        raise ValueError("dtype in a uvh5 must be a numpy dtype")
+        raise ValueError("dtype in a uvh5 file must be a numpy dtype")
     if 'r' not in dtype.names or 'i' not in dtype.names:
-        raise ValueError("datatype must be be a compound datatype with an 'r' field and an 'i' field")
+        raise ValueError("dtype must be a compound datatype with an 'r' field and an 'i' field")
     rkind = dtype['r'].kind
     ikind = dtype['i'].kind
     if rkind != ikind:
-        raise ValueError("datatype must have the same kind ('i4', 'r8', etc.) for both real and imaginary fields")
+        raise ValueError("dtype must have the same kind ('i4', 'r8', etc.) for both real and imaginary fields")
     return
 
 
@@ -816,7 +816,7 @@ class UVH5(UVData):
             del uvd_file
         return
 
-    def write_uvh5_part(self, filename, data_array, flags_array, nsample_array, check_header=True,
+    def write_uvh5_part(self, filename, data_array, flag_array, nsample_array, check_header=True,
                         antenna_nums=None, antenna_names=None, ant_str=None, bls=None,
                         frequencies=None, freq_chans=None, times=None, polarizations=None,
                         blt_inds=None, run_check_acceptability=True, add_to_history=None):
@@ -829,7 +829,7 @@ class UVH5(UVData):
             data_array: the data to write to disk. A check is done to ensure that
                 the dimensions of the data passed in conform to the ones specified by
                 the "selection" arguments.
-            flags_array: the flags array to write to disk. A check is done to ensure
+            flag_array: the flags array to write to disk. A check is done to ensure
                 that the dimensions of the data passed in conform to the ones specified
                 by the "selection" arguments.
             nsample_array: the nsample array to write to disk. A check is done to ensure
@@ -896,8 +896,8 @@ class UVH5(UVData):
             polarizations, blt_inds)
 
         # make sure that the dimensions of the data to write are correct
-        if data_array.shape != flags_array.shape:
-            raise AssertionError("data_array and flags_array must have the same shape")
+        if data_array.shape != flag_array.shape:
+            raise AssertionError("data_array and flag_array must have the same shape")
         if data_array.shape != nsample_array.shape:
             raise AssertionError("data_array and nsample_array must have the same shape")
 
@@ -988,7 +988,7 @@ class UVH5(UVData):
                     _write_complex_astype(data_array, visdata_dset, indices)
                 else:
                     visdata_dset[blt_inds, :, freq_inds, pol_inds] = data_array
-                flags_dset[blt_inds, :, freq_inds, pol_inds] = flags_array
+                flags_dset[blt_inds, :, freq_inds, pol_inds] = flag_array
                 nsamples_dset[blt_inds, :, freq_inds, pol_inds] = nsample_array
             elif n_reg_spaced == 1:
                 # figure out which axis is regularly spaced
@@ -1000,7 +1000,7 @@ class UVH5(UVData):
                                 _write_complex_astype(data_array[:, :, ifreq, ipol], visdata_dset, indices)
                             else:
                                 visdata_dset[blt_inds, :, freq_idx, pol_idx] = data_array[:, :, ifreq, ipol]
-                            flags_dset[blt_inds, :, freq_idx, pol_idx] = flags_array[:, :, ifreq, ipol]
+                            flags_dset[blt_inds, :, freq_idx, pol_idx] = flag_array[:, :, ifreq, ipol]
                             nsamples_dset[blt_inds, :, freq_idx, pol_idx] = nsample_array[:, :, ifreq, ipol]
                 elif freq_reg_spaced:
                     for iblt, blt_idx in enumerate(blt_inds):
@@ -1010,7 +1010,7 @@ class UVH5(UVData):
                                 _write_complex_astype(data_array[iblt, :, :, ipol], visdata_dset, indices)
                             else:
                                 visdata_dset[blt_idx, :, freq_inds, pol_idx] = data_array[iblt, :, :, ipol]
-                            flags_dset[blt_idx, :, freq_inds, pol_idx] = flags_array[iblt, :, :, ipol]
+                            flags_dset[blt_idx, :, freq_inds, pol_idx] = flag_array[iblt, :, :, ipol]
                             nsamples_dset[blt_idx, :, freq_inds, pol_idx] = nsample_array[iblt, :, :, ipol]
                 else:  # pol_reg_spaced
                     for iblt, blt_idx in enumerate(blt_inds):
@@ -1020,7 +1020,7 @@ class UVH5(UVData):
                                 _write_complex_astype(data_array[iblt, :, ifreq, :], visdata_dset, indices)
                             else:
                                 visdata_dset[blt_idx, :, freq_idx, pol_inds] = data_array[iblt, :, ifreq, :]
-                            flags_dset[blt_idx, :, freq_idx, pol_inds] = flags_array[iblt, :, ifreq, :]
+                            flags_dset[blt_idx, :, freq_idx, pol_inds] = flag_array[iblt, :, ifreq, :]
                             nsamples_dset[blt_idx, :, freq_idx, pol_inds] = nsample_array[iblt, :, ifreq, :]
             else:
                 # all axes irregularly spaced
@@ -1033,7 +1033,7 @@ class UVH5(UVData):
                                 _write_complex_astype(data_array[iblt, :, ifreq, ipol], visdata_dset, indices)
                             else:
                                 visdata_dset[blt_idx, :, freq_idx, pol_idx] = data_array[iblt, :, ifreq, ipol]
-                            flags_dset[blt_idx, :, freq_idx, pol_idx] = flags_array[iblt, :, ifreq, ipol]
+                            flags_dset[blt_idx, :, freq_idx, pol_idx] = flag_array[iblt, :, ifreq, ipol]
                             nsamples_dset[blt_idx, :, freq_idx, pol_idx] = nsample_array[iblt, :, ifreq, ipol]
 
             # append to history if desired

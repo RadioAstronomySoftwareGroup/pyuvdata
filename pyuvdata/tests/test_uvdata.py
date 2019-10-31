@@ -61,14 +61,16 @@ def uvdata_props():
                         '_gst0', '_rdate', '_earth_omega', '_dut1',
                         '_timesys', '_uvplane_reference_time',
                         '_phase_center_ra', '_phase_center_dec',
-                        '_phase_center_epoch', '_phase_center_frame']
+                        '_phase_center_epoch', '_phase_center_frame',
+                        '_eq_coeffs']
 
     extra_properties = ['extra_keywords', 'antenna_positions',
                         'x_orientation', 'antenna_diameters', 'blt_order', 'gst0',
                         'rdate', 'earth_omega', 'dut1', 'timesys',
                         'uvplane_reference_time',
                         'phase_center_ra', 'phase_center_dec',
-                        'phase_center_epoch', 'phase_center_frame']
+                        'phase_center_epoch', 'phase_center_frame',
+                        'eq_coeffs']
 
     other_properties = ['telescope_location_lat_lon_alt',
                         'telescope_location_lat_lon_alt_degrees',
