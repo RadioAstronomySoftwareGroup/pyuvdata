@@ -327,9 +327,11 @@ def test_ant2_array_not_in_antnums(uvdata_data):
 def test_converttofiletype(uvdata_data):
     fhd_obj = uvdata_data.uv_object._convert_to_filetype('fhd')
     uvdata_data.uv_object._convert_from_filetype(fhd_obj)
-    assert uvdata_data.uv_object, uvdata_data.uv_object2
+    assert uvdata_data.uv_object == uvdata_data.uv_object2
 
-    pytest.raises(ValueError, uvdata_data.uv_object._convert_to_filetype, 'foo')
+    with pytest.raises(ValueError) as cm:
+        uvdata_data.uv_object._convert_to_filetype('foo')
+    assert str(cm.value).startswith("filetype must be uvfits, miriad, fhd, or uvh5")
 
 
 @pytest.fixture(scope='function')
@@ -5494,5 +5496,69 @@ def test_resample_in_time_only_upsample(bda_test_file):
     assert np.isclose(init_data_1_137[0, 0, 0], out_data_1_137[0, 0, 0])
     assert np.isclose(init_data_1_138[0, 0, 0], out_data_1_138[0, 0, 0])
     assert np.isclose(init_data_136_137[0, 0, 0], out_data_136_137[0, 0, 0])
+
+    return
+
+
+def test_remove_eq_coeffs(uvdata_data):
+    """Test using the remove_eq_coeffs method"""
+    # give eq_coeffs to the object
+    eq_coeffs = np.empty(
+        (uvdata_data.uv_object.Nants_telescope, uvdata_data.uv_object.Nfreqs),
+        dtype=np.float
+    )
+    for i, ant in enumerate(uvdata_data.uv_object.antenna_numbers):
+        eq_coeffs[i, :] = ant + 1
+    uvdata_data.uv_object.eq_coeffs = eq_coeffs
+    uvdata_data.uv_object.remove_eq_coeffs(convention="divide")
+
+    # make sure the right coefficients were removed
+    for key in uvdata_data.uv_object.get_antpairs():
+        eq1 = key[0] + 1
+        eq2 = key[1] + 1
+        blt_inds = uvdata_data.uv_object.antpair2ind(key)
+        norm_data = uvdata_data.uv_object.data_array[blt_inds, 0, :, :]
+        unnorm_data = uvdata_data.uv_object2.data_array[blt_inds, 0, :, :]
+        assert np.allclose(norm_data, unnorm_data / (eq1 * eq2))
+
+    return
+
+
+def test_remove_eq_coeffs_multiply(uvdata_data):
+    """Test using the remove_eq_coeffs method with multiply convention"""
+    # give eq_coeffs to the object
+    eq_coeffs = np.empty(
+        (uvdata_data.uv_object.Nants_telescope, uvdata_data.uv_object.Nfreqs),
+        dtype=np.float
+    )
+    for i, ant in enumerate(uvdata_data.uv_object.antenna_numbers):
+        eq_coeffs[i, :] = ant + 1
+    uvdata_data.uv_object.eq_coeffs = eq_coeffs
+    uvdata_data.uv_object.remove_eq_coeffs(convention="multiply")
+
+    # make sure the right coefficients were removed
+    for key in uvdata_data.uv_object.get_antpairs():
+        eq1 = key[0] + 1
+        eq2 = key[1] + 1
+        blt_inds = uvdata_data.uv_object.antpair2ind(key)
+        norm_data = uvdata_data.uv_object.data_array[blt_inds, 0, :, :]
+        unnorm_data = uvdata_data.uv_object2.data_array[blt_inds, 0, :, :]
+        assert np.allclose(norm_data, unnorm_data * (eq1 * eq2))
+
+    return
+
+
+def test_remove_eq_coeffs_errors(uvdata_data):
+    """Test errors raised by remove_eq_coeffs method"""
+    with pytest.raises(ValueError) as cm:
+        uvdata_data.uv_object.remove_eq_coeffs()
+    assert str(cm.value).startswith("The eq_coeffs attribute must be defined")
+
+    uvdata_data.uv_object.eq_coeffs = np.ones(
+        (uvdata_data.uv_object.Nants_telescope, uvdata_data.uv_object.Nfreqs)
+    )
+    with pytest.raises(ValueError) as cm:
+        uvdata_data.uv_object.remove_eq_coeffs(convention="foo")
+    assert str(cm.value).startswith("Got unknown convention foo. Must be one of")
 
     return

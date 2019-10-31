@@ -198,6 +198,8 @@ class UVH5(UVData):
             self.antenna_diameters = header['antenna_diameters'][()]
         if 'uvplane_reference_time' in header:
             self.uvplane_reference_time = int(header['uvplane_reference_time'][()])
+        if 'eq_coeffs' in header:
+            self.eq_coeffs = header['eq_coeffs'][()]
 
         # check for phasing information
         self.phase_type = _read_uvh5_string(header['phase_type'], filename)
@@ -583,6 +585,8 @@ class UVH5(UVData):
             header['antenna_diameters'] = self.antenna_diameters
         if self.uvplane_reference_time is not None:
             header['uvplane_reference_time'] = self.uvplane_reference_time
+        if self.eq_coeffs is not None:
+            header['eq_coeffs'] = self.eq_coeffs
 
         # write out extra keywords if it exists and has elements
         if self.extra_keywords:
