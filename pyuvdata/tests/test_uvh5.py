@@ -1897,7 +1897,7 @@ def test_read_complex_astype_errors():
     test_data_shape = (2, 3, 4, 5)
     test_data = np.zeros(test_data_shape, dtype=np.complex64)
     test_data.real = 1.
-    test_data.imag = 2.    
+    test_data.imag = 2.
     with h5py.File(test_file, 'w') as h5f:
         dgrp = h5f.create_group('Data')
         dset = dgrp.create_dataset('testdata', test_data_shape,
