@@ -1424,11 +1424,33 @@ class UVData(UVBase):
             self.check(check_extra=check_extra,
                        run_check_acceptability=run_check_acceptability)
 
-    def sum_vis(self, other, difference=False, check_extra=True,
+    def sum_vis(self, other, difference=False, run_check=True, check_extra=True,
                 run_check_acceptability=True, inplace=False):
-        '''
-        Adds or differences matched visibilities between 2 objects.
-        '''
+        """
+        Sums visibilities between two UVData objects.
+
+        Parameters
+        ----------
+        other : UVData object
+            Another UVData object which will be added to self.
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            after combining objects.
+        check_extra : bool
+            Option to check optional parameters as well as required ones.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters after
+            combining objects.
+        inplace : bool
+            If True, overwrite self as we go, otherwise create a third object
+            as the sum of the two.
+
+        Raises
+        ------
+        ValueError
+            If other is not a UVData object, or if self and other
+            are not compatible.
+        """
 
         if inplace:
             this = self
@@ -1465,8 +1487,7 @@ class UVData(UVBase):
                                 '_timesys', '_uvplane_reference_time',
                                 '_uvw_array', '_vis_units', '_x_orientation']
 
-        # Check metadata check metadata: baselines, phasing, time,
-        # frequencies, pols, etc.
+        # Check each metadata element in compatibility_params
         for a in compatibility_params:
             params_match = (getattr(this, a) == getattr(other, a))
         if not params_match:
@@ -1474,29 +1495,26 @@ class UVData(UVBase):
                 a[1:] + ' does not match. Cannot combine objects.'
             raise ValueError(msg)
 
-        '''
+        # Do the summing / differencing
         if difference:
-            difference visibilities
-        else:
-            sum visibilities
-        '''
-
-        # Update history
-        if difference:
+            this.data_array = np.subtract(this.data_array, other.data_array)
             this.history += ' Visibilities differenced using pyuvdata.'
         else:
+            this.data_array = np.add(this.data_array, other.data_array)
             this.history += ' Visibilities summed using pyuvdata.'
 
         this.history = uvutils._combine_histories(this.history, other.history)
 
         # Check final object is self-consistent
-        this.check(check_extra=check_extra,
-                    run_check_acceptability=run_check_acceptability)
+        if run_check:
+            this.check(check_extra=check_extra,
+                        run_check_acceptability=run_check_acceptability)
 
         if not inplace:
             return this
 
-    def diff_vis(self, other, run_check_acceptability=True, inplace=False):
+    def diff_vis(self, other, run_check=True, check_extra=True, run_check_acceptability=True,
+                inplace=False):
         return sum_vis(self, other, difference=True, run_check_acceptability=run_check_acceptability, inplace=inplace)
 
     def __add__(self, other, run_check=True, check_extra=True,
