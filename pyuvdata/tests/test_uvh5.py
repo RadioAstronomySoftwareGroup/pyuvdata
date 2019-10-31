@@ -1658,7 +1658,7 @@ def test_uvh5_partial_read_multi3():
     uvh5_file = os.path.join(DATA_PATH, 'zen.2458432.34569.uvh5')
 
     # polarizations first
-    ants_to_keep = np.array([0, 1])
+    ants_to_keep = np.array([0, 1, 2, 3, 6, 7, 8, 11, 14, 18, 19, 20, 21, 22])
     chans_to_keep = np.arange(12, 64)
     pols_to_keep = [-5, -6]
     uvh5_uv.read(
