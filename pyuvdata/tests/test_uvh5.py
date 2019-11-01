@@ -2370,6 +2370,7 @@ def test_eq_coeffs_roundtrip(uv_uvfits):
     uv_out = UVData()
     testfile = os.path.join(DATA_PATH, "test", "outtest_eq_coeffs.uvh5")
     uv_in.eq_coeffs = np.ones((uv_in.Nants_telescope, uv_in.Nfreqs))
+    uv_in.eq_coeffs_convention = "divide"
     uv_in.write_uvh5(testfile, clobber=True)
     uv_out.read(testfile)
 

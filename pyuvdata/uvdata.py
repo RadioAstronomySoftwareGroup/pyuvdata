@@ -371,6 +371,13 @@ class UVData(UVBase):
                                           expected_type=np.float,
                                           spoof_val=1.0)
 
+        desc = "Convention for how to remove eq_coeffs from data"
+        self._eq_coeffs_convention = uvp.UVParameter("eq_coeffs_convention",
+                                                     required=False,
+                                                     description=desc,
+                                                     form="str",
+                                                     spoof_val="divide")
+
         super(UVData, self).__init__()
 
     @property
@@ -5203,7 +5210,7 @@ class UVData(UVBase):
 
         return
 
-    def remove_eq_coeffs(self, convention="divide"):
+    def remove_eq_coeffs(self):
         """Remove equalization coefficients from the data.
 
         Some telescopes, e.g. HERA, apply per-antenna, per-frequency gain
@@ -5213,22 +5220,31 @@ class UVData(UVBase):
 
         Parameters
         ----------
-        convention : str
-            How to remove the equalization coefficients. Must be one of:
-            "multiply", "divide".
+        None
 
         Returns
         -------
         None
+
+        Raises
+        ------
+        ValueError
+            Raised if eq_coeffs or eq_coeffs_convention are not defined on the
+            object, or if eq_coeffs_convention is not one of "multiply" or "divide".
         """
         if self.eq_coeffs is None:
             raise ValueError(
                 "The eq_coeffs attribute must be defined on the object to apply them."
             )
-        if convention not in ("multiply", "divide"):
+        if self.eq_coeffs_convention is None:
+            raise ValueError(
+                "The eq_coeffs_convention attribute must be defined on the object "
+                "to apply them."
+            )
+        if self.eq_coeffs_convention not in ("multiply", "divide"):
             raise ValueError(
                 "Got unknown convention {}. Must be one of: "
-                '"multiply", "divide"'.format(convention)
+                '"multiply", "divide"'.format(self.eq_coeffs_convention)
             )
 
         # apply coefficients for each baseline
@@ -5246,7 +5262,7 @@ class UVData(UVBase):
             eq_coeff1 = np.repeat(eq_coeff1[:, np.newaxis], self.Npols, axis=1)
             eq_coeff2 = np.repeat(eq_coeff2[:, np.newaxis], self.Npols, axis=1)
 
-            if convention == "multiply":
+            if self.eq_coeffs_convention == "multiply":
                 self.data_array[blt_inds, 0, :, :] *= eq_coeff1 * eq_coeff2
             else:
                 self.data_array[blt_inds, 0, :, :] /= eq_coeff1 * eq_coeff2

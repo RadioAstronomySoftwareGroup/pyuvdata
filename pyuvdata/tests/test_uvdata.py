@@ -62,7 +62,7 @@ def uvdata_props():
                         '_timesys', '_uvplane_reference_time',
                         '_phase_center_ra', '_phase_center_dec',
                         '_phase_center_epoch', '_phase_center_frame',
-                        '_eq_coeffs']
+                        '_eq_coeffs', '_eq_coeffs_convention']
 
     extra_properties = ['extra_keywords', 'antenna_positions',
                         'x_orientation', 'antenna_diameters', 'blt_order', 'gst0',
@@ -70,7 +70,7 @@ def uvdata_props():
                         'uvplane_reference_time',
                         'phase_center_ra', 'phase_center_dec',
                         'phase_center_epoch', 'phase_center_frame',
-                        'eq_coeffs']
+                        'eq_coeffs', 'eq_coeffs_convention']
 
     other_properties = ['telescope_location_lat_lon_alt',
                         'telescope_location_lat_lon_alt_degrees',
@@ -5502,8 +5502,8 @@ def test_resample_in_time_only_upsample(bda_test_file):
     return
 
 
-def test_remove_eq_coeffs(uvdata_data):
-    """Test using the remove_eq_coeffs method"""
+def test_remove_eq_coeffs_divide(uvdata_data):
+    """Test using the remove_eq_coeffs method with divide convention."""
     # give eq_coeffs to the object
     eq_coeffs = np.empty(
         (uvdata_data.uv_object.Nants_telescope, uvdata_data.uv_object.Nfreqs),
@@ -5512,7 +5512,8 @@ def test_remove_eq_coeffs(uvdata_data):
     for i, ant in enumerate(uvdata_data.uv_object.antenna_numbers):
         eq_coeffs[i, :] = ant + 1
     uvdata_data.uv_object.eq_coeffs = eq_coeffs
-    uvdata_data.uv_object.remove_eq_coeffs(convention="divide")
+    uvdata_data.uv_object.eq_coeffs_convention = "divide"
+    uvdata_data.uv_object.remove_eq_coeffs()
 
     # make sure the right coefficients were removed
     for key in uvdata_data.uv_object.get_antpairs():
@@ -5527,7 +5528,7 @@ def test_remove_eq_coeffs(uvdata_data):
 
 
 def test_remove_eq_coeffs_multiply(uvdata_data):
-    """Test using the remove_eq_coeffs method with multiply convention"""
+    """Test using the remove_eq_coeffs method with multiply convention."""
     # give eq_coeffs to the object
     eq_coeffs = np.empty(
         (uvdata_data.uv_object.Nants_telescope, uvdata_data.uv_object.Nfreqs),
@@ -5536,7 +5537,8 @@ def test_remove_eq_coeffs_multiply(uvdata_data):
     for i, ant in enumerate(uvdata_data.uv_object.antenna_numbers):
         eq_coeffs[i, :] = ant + 1
     uvdata_data.uv_object.eq_coeffs = eq_coeffs
-    uvdata_data.uv_object.remove_eq_coeffs(convention="multiply")
+    uvdata_data.uv_object.eq_coeffs_convention = "multiply"
+    uvdata_data.uv_object.remove_eq_coeffs()
 
     # make sure the right coefficients were removed
     for key in uvdata_data.uv_object.get_antpairs():
@@ -5551,16 +5553,24 @@ def test_remove_eq_coeffs_multiply(uvdata_data):
 
 
 def test_remove_eq_coeffs_errors(uvdata_data):
-    """Test errors raised by remove_eq_coeffs method"""
+    """Test errors raised by remove_eq_coeffs method."""
+    # raise error when eq_coeffs are not defined
     with pytest.raises(ValueError) as cm:
         uvdata_data.uv_object.remove_eq_coeffs()
     assert str(cm.value).startswith("The eq_coeffs attribute must be defined")
 
+    # raise error when eq_coeffs are defined but not eq_coeffs_convention
     uvdata_data.uv_object.eq_coeffs = np.ones(
         (uvdata_data.uv_object.Nants_telescope, uvdata_data.uv_object.Nfreqs)
     )
     with pytest.raises(ValueError) as cm:
-        uvdata_data.uv_object.remove_eq_coeffs(convention="foo")
+        uvdata_data.uv_object.remove_eq_coeffs()
+    assert str(cm.value).startswith("The eq_coeffs_convention attribute must be defined")
+
+    # raise error when convention is not a valid choice
+    uvdata_data.uv_object.eq_coeffs_convention = "foo"
+    with pytest.raises(ValueError) as cm:
+        uvdata_data.uv_object.remove_eq_coeffs()
     assert str(cm.value).startswith("Got unknown convention foo. Must be one of")
 
     return
