@@ -500,7 +500,7 @@ def test_uvh5_partial_read_multi1(uv_uvfits):
     uvh5_uv.read(testfile)
 
     # now test selecting on multiple axes
-    # frequencies first
+    # read frequencies first
     ants_to_keep = np.array([0, 19, 11, 24, 3, 23, 1, 20, 21])
     chans_to_keep = np.arange(12, 22)
     pols_to_keep = [-1, -2]
@@ -531,7 +531,7 @@ def test_uvh5_partial_read_multi2(uv_uvfits):
     uvh5_uv.read(testfile)
 
     # now test selecting on multiple axes
-    # baselines first
+    # read baselines first
     ants_to_keep = np.array([0, 1])
     chans_to_keep = np.arange(12, 22)
     pols_to_keep = [-1, -2]
@@ -562,7 +562,7 @@ def test_uvh5_partial_read_multi3(uv_uvfits):
     uvh5_uv.read(testfile)
 
     # now test selecting on multiple axes
-    # polarizations first
+    # read polarizations first
     ants_to_keep = np.array([0, 1, 2, 3, 6, 7, 8, 11, 14, 18, 19, 20, 21, 22])
     chans_to_keep = np.arange(12, 64)
     pols_to_keep = [-1, -2]
@@ -1593,7 +1593,7 @@ def test_uvh5_partial_read_ints_times():
     return
 
 
-def test_uvh5_partial_read_multi1():
+def test_uvh5_partial_read_ints_multi1():
     """
     Test select-on-read for multiple axes, frequencies being smallest fraction.
     """
@@ -1620,7 +1620,7 @@ def test_uvh5_partial_read_multi1():
     return
 
 
-def test_uvh5_partial_read_multi2():
+def test_uvh5_partial_read_ints_multi2():
     """
     Test select-on-read for multiple axes, baselines being smallest fraction.
     """
@@ -1631,7 +1631,7 @@ def test_uvh5_partial_read_multi2():
     # read baselines first
     ants_to_keep = np.array([0, 1])
     chans_to_keep = np.arange(12, 22)
-    pols_to_keep = [-5, -6]
+    pols_to_keep = [-5, -6, -7]
     uvh5_uv.read(
         uvh5_file,
         antenna_nums=ants_to_keep,
@@ -1649,7 +1649,7 @@ def test_uvh5_partial_read_multi2():
     return
 
 
-def test_uvh5_partial_read_multi3():
+def test_uvh5_partial_read_ints_multi3():
     """
     Test select-on-read for multiple axes, polarizations being smallest fraction.
     """
@@ -1657,8 +1657,8 @@ def test_uvh5_partial_read_multi3():
     uvh5_uv2 = UVData()
     uvh5_file = os.path.join(DATA_PATH, 'zen.2458432.34569.uvh5')
 
-    # polarizations first
-    ants_to_keep = np.array([0, 1, 2, 3, 6, 7, 8, 11, 14, 18, 19, 20, 21, 22])
+    # read polarizations first
+    ants_to_keep = np.array([0, 1, 12])
     chans_to_keep = np.arange(12, 64)
     pols_to_keep = [-5, -6]
     uvh5_uv.read(
