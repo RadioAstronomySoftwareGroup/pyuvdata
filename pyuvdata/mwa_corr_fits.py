@@ -125,15 +125,11 @@ class MWACorrFITS(UVData):
                     if end_time < last_time:
                         end_time = last_time
                     # get number of fine channels
-                    if 'NAXIS2' in data[1].header.keys():
-                        if num_fine_chans == 0:
-                            num_fine_chans = data[1].header['NAXIS2']
-                        elif num_fine_chans != data[1].header['NAXIS2']:
-                            raise ValueError('files submitted have different fine \
-                            channel widths')
-                    # have to add this for the test file to work
-                    else:
-                        num_fine_chans = 1
+                    if num_fine_chans == 0:
+                        num_fine_chans = data[1].header['NAXIS2']
+                    elif num_fine_chans != data[1].header['NAXIS2']:
+                        raise ValueError('files submitted have different fine \
+                        channel widths')
 
                 # organize files
                 if 'data' not in file_dict.keys():
@@ -326,23 +322,21 @@ class MWACorrFITS(UVData):
         for i in included_file_nums:
             included_coarse_chans.append(file_nums_to_coarse[i])
         included_coarse_chans = sorted(included_coarse_chans)
-
+        print(included_coarse_chans)
         # count the number of included coarse channels that are in group 0-128
         count = 0
         for i in included_coarse_chans:
             if i <= 128:
                 count += 1
         # map included file numbers to an index that orders them
-        file_nums_to_index = {i + 1: i if i < count else (len(included_coarse_chans)
-                              + count - i - 1) for i in range(len(included_coarse_chans))}
-
+        file_nums_to_index = {included_file_nums[i]: i if i < count else (len(included_file_nums)
+                              + count - i - 1) for i in range(len(included_file_nums))}
         # check that coarse channels are contiguous.
         # TODO: look at a data file where the coarse channels aren't contiguous to make sure this works
         chans = np.array([int(i) for i in included_coarse_chans])
         for i in np.diff(chans):
             if i != 1:
-                warnings.warn('coarse channels are not contiguous \
-                for this observation')
+                warnings.warn('coarse channels are not contiguous for this observation')
                 break
 
         # warn user if not all coarse channels are included
