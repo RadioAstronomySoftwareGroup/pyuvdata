@@ -139,8 +139,7 @@ class MWACorrFITS(UVData):
             # look for flag files
             elif file.lower().endswith('.mwaf'):
                 if use_cotter_flags is False and cotter_warning is False:
-                    warnings.warn('mwaf files submitted but will not be used. \
-                    User might wish to rerun with use_cotter_flags=True')
+                    warnings.warn('mwaf files submitted with use_cotter_flags=False')
                     cotter_warning = True
                 elif 'flags' not in file_dict.keys():
                     file_dict['flags'] = [file]
@@ -154,8 +153,9 @@ class MWACorrFITS(UVData):
             raise ValueError('no metafits files submitted')
         if 'data' not in file_dict.keys():
             raise ValueError('no fits files submitted')
-        if 'flags' not in file_dict.keys():
-            warnings.warn('no flag files submitted')
+        if 'flags' not in file_dict.keys() and use_cotter_flags is True:
+            raise ValueError('no flag files submitted. Rerun with flag files \
+                             or use_cotter_flags=False')
         # TODO: think about what checks make sense for missing data
 
         # first set parameters that are always true
@@ -322,7 +322,6 @@ class MWACorrFITS(UVData):
         for i in included_file_nums:
             included_coarse_chans.append(file_nums_to_coarse[i])
         included_coarse_chans = sorted(included_coarse_chans)
-        print(included_coarse_chans)
         # count the number of included coarse channels that are in group 0-128
         count = 0
         for i in included_coarse_chans:
