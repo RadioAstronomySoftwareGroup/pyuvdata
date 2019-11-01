@@ -432,7 +432,7 @@ def test_uvh5_partial_read_freqs(uv_uvfits):
     return
 
 
-def test_uvh5_partia_read_pols(uv_uvfits):
+def test_uvh5_partial_read_pols(uv_uvfits):
     """
     Test reading in only certain polarizations from disk.
     """
