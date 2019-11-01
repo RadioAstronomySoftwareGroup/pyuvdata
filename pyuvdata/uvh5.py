@@ -200,6 +200,10 @@ class UVH5(UVData):
             self.uvplane_reference_time = int(header['uvplane_reference_time'][()])
         if 'eq_coeffs' in header:
             self.eq_coeffs = header['eq_coeffs'][()]
+        if 'eq_coeffs_convention' in header:
+            self.eq_coeffs_convention = _read_uvh5_string(
+                header['eq_coeffs_convention'], filename
+            )
 
         # check for phasing information
         self.phase_type = _read_uvh5_string(header['phase_type'], filename)
@@ -587,6 +591,8 @@ class UVH5(UVData):
             header['uvplane_reference_time'] = self.uvplane_reference_time
         if self.eq_coeffs is not None:
             header['eq_coeffs'] = self.eq_coeffs
+        if self.eq_coeffs_convention is not None:
+            header['eq_coeffs_convention'] = np.string_(self.eq_coeffs_convention)
 
         # write out extra keywords if it exists and has elements
         if self.extra_keywords:
