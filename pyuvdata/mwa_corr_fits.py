@@ -150,9 +150,9 @@ class MWACorrFITS(UVData):
 
         # checks:
         if metafits_file is None:
-            raise ValueError('no metafits files submitted')
+            raise ValueError('no metafits file submitted')
         if 'data' not in file_dict.keys():
-            raise ValueError('no fits files submitted')
+            raise ValueError('no data files submitted')
         if 'flags' not in file_dict.keys() and use_cotter_flags is True:
             raise ValueError('no flag files submitted. Rerun with flag files \
                              or use_cotter_flags=False')
@@ -482,3 +482,5 @@ class MWACorrFITS(UVData):
             self.phase(ra, dec)
 
         # TODO: add support for cotter flag files
+        if use_cotter_flags is True:
+            warnings.warn('reading in cotter flag files is not yet available')
