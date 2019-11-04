@@ -18,7 +18,7 @@ testdir = os.path.join(DATA_PATH, 'mwa_corr_fits_testfiles/')
 
 testfiles = ['1131733552.metafits', '1131733552_20151116182537_mini_gpubox01_00.fits',
              '1131733552_20151116182637_mini_gpubox06_01.fits', '1131733552_mini_01.mwaf',
-             '1131733552_2.metafits']
+             '1131733552_mod.metafits']
 filelist = [testdir + i for i in testfiles]
 
 
@@ -41,9 +41,25 @@ def test_ReadMWAWriteUVFits():
     assert mwa_uv == uvfits_uv
 
 
+def test_ReadMWA_multi():
+    """
+    Test reading in two sets of files.
+    """
+    set1 = filelist[0:2]
+    set2 = [filelist[0], filelist[2]]
+    mwa_uv = UVData()
+    messages = ['telescope_location is not set',
+                'some coarse channel files were not submitted']
+    uvtest.checkWarnings(mwa_uv.read_mwa_corr_fits, func_args=[[[set1], [set2]]],
+                         nwarnings=2, message=messages)
+
+
 def test_ReadMWAWriteUVFits_flags():
     """
-    Test handling of flag files
+    Test handling of flag files in loopback test.
+
+    Read in MWA correlator files, write out as uvfits, read back in and check
+    for object equality.
     """
     mwa_uv = UVData()
     subfiles = [filelist[0], filelist[1], filelist[3]]
@@ -54,10 +70,10 @@ def test_ReadMWAWriteUVFits_flags():
                          nwarnings=3, message=messages)
 
 
-def test_noncontiguous_coarse():
+def test_multiple_coarse():
     """
-    Read in MWA correlator files and check that non-contiguous coarse channel
-    warning is given.
+    Read in MWA correlator files with two different orderings of the files
+    and check for object equality.
     """
     mwa_uv = UVData()
     messages = ['telescope_location is not set',
