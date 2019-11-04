@@ -33,8 +33,8 @@ def test_ReadMWAWriteUVFits():
     uvfits_uv = UVData()
     messages = ['telescope_location is not set',
                 'some coarse channel files were not submitted']
-    uvtest.checkWarnings(mwa_uv.read_mwa_corr_fits, [filelist[0:2]], nwarnings=2,
-                         message=messages)
+    uvtest.checkWarnings(mwa_uv.read_mwa_corr_fits, func_args=[filelist[0:2]],
+                         nwarnings=2, message=messages)
     testfile = os.path.join(DATA_PATH, 'test/outtest_MWAcorr.uvfits')
     mwa_uv.write_uvfits(testfile, spoof_nonessential=True, force_phase=True)
     uvfits_uv.read_uvfits(testfile)
@@ -50,8 +50,8 @@ def test_ReadMWAWriteUVFits_flags():
     messages = ['mwaf files submitted with use_cotter_flags=False',
                 'telescope_location is not set',
                 'some coarse channel files were not submitted']
-    uvtest.checkWarnings(mwa_uv.read_mwa_corr_fits, [subfiles], nwarnings=3,
-                         message=messages)
+    uvtest.checkWarnings(mwa_uv.read_mwa_corr_fits, func_args=[subfiles],
+                         nwarnings=3, message=messages)
 
 
 def test_noncontiguous_coarse():
@@ -63,29 +63,21 @@ def test_noncontiguous_coarse():
     messages = ['telescope_location is not set',
                 'coarse channels are not contiguous for this observation',
                 'some coarse channel files were not submitted']
-    uvtest.checkWarnings(mwa_uv.read_mwa_corr_fits, [filelist[0:3]], nwarnings=3,
-                         message=messages)
+    uvtest.checkWarnings(mwa_uv.read_mwa_corr_fits, func_args=[filelist[0:3]],
+                         nwarnings=3, message=messages)
 
 
-def break_ReadMWAcorrFITS():
+@pytest.mark.parametrize("files,err_msg",
+                         [([filelist[0]], "no data files submitted"),
+                          ([filelist[1]], "no metafits file submitted"),
+                          ([filelist[0], filelist[1], filelist[4]],
+                           "multiple metafits files in filelist")])
+def test_break_ReadMWAcorrFITS(files, err_msg):
     """
     Break read_mwa_corr_fits by submitting files incorrectly.
     """
-    # no data files
     mwa_uv = UVData()
-    pytest.raises(ValueError, mwa_uv.read_mwa_corr_fits, filelist[0])
-    del(mwa_uv)
-    # no metafits file
-    mwa_uv = UVData()
-    pytest.raises(ValueError, mwa_uv.read_mwa_corr_fits, filelist[1])
-    del(mwa_uv)
-    # more than one metafits file
-    mwa_uv = UVData()
-    subfiles = [filelist[0], filelist[1], filelist[4]]
-    pytest.raises(ValueError, mwa_uv.read_mwa_corr_fits, subfiles)
-    del(mwa_uv)
-    # no flag file with use_cotter_flags=True
-    mwa_uv = UVData()
-    pytest.raises(ValueError, mwa_uv.read_mwa_corr_fits, filelist[0:2],
-                  use_cotter_flags=True)
+    with pytest.raises(ValueError) as cm:
+        mwa_uv.read_mwa_corr_fits(files)
+    assert str(cm.value).startswith(err_msg)
     del(mwa_uv)
