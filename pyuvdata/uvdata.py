@@ -1424,8 +1424,8 @@ class UVData(UVBase):
             self.check(check_extra=check_extra,
                        run_check_acceptability=run_check_acceptability)
 
-    def sum_vis(self, other, difference=False, run_check=True, check_extra=True,
-                run_check_acceptability=True, inplace=False):
+    def sum_vis(self, other, run_check=True, check_extra=True,
+                run_check_acceptability=True, inplace=False, difference=False):
         """
         Sums visibilities between two UVData objects.
 
@@ -1444,12 +1444,20 @@ class UVData(UVBase):
         inplace : bool
             If True, overwrite self as we go, otherwise create a third object
             as the sum of the two.
+        difference : bool
+            If True, differences the visibilities of the two UVData objects rather than summing them.
+
+        Returns
+        ------
+        UVData Object
+            If inplace parameter is False.
 
         Raises
         ------
         ValueError
             If other is not a UVData object, or if self and other
             are not compatible.
+
         """
 
         if inplace:
@@ -1465,7 +1473,7 @@ class UVData(UVBase):
                                     'added to a UVData (or subclass) object')
         other.check(check_extra=check_extra, run_check_acceptability=run_check_acceptability)
 
-        # currently this is all of them -- list(UV.__iter__)
+        # currently this is all of them -- list(UV.__iter__) -- except data_array
         compatibility_params = ['_Nants_data', '_Nants_telescope',
                                 '_Nbls', '_Nblts', '_Nfreqs', '_Npols',
                                 '_Nspws', '_Ntimes', '_ant_1_array',
@@ -1497,13 +1505,14 @@ class UVData(UVBase):
 
         # Do the summing / differencing
         if difference:
-            this.data_array = np.subtract(this.data_array, other.data_array)
-            this.history += ' Visibilities differenced using pyuvdata.'
+            this.data_array = this.data_array - other.data_array
+            history_update_string = ' Visibilities differenced using pyuvdata.'
         else:
-            this.data_array = np.add(this.data_array, other.data_array)
-            this.history += ' Visibilities summed using pyuvdata.'
+            this.data_array = this.data_array + other.data_array
+            history_update_string = ' Visibilities summed using pyuvdata.'
 
         this.history = uvutils._combine_histories(this.history, other.history)
+        this.history += history_update_string
 
         # Check final object is self-consistent
         if run_check:
@@ -1517,9 +1526,16 @@ class UVData(UVBase):
                     run_check_acceptability=True,
                     inplace=False):
 
-        self.sum_vis(other, difference=True, run_check=True, check_extra=check_extra,
-                            run_check_acceptability=run_check_acceptability,
-                            inplace=inplace)
+        if inplace:
+            self.sum_vis(other, difference=True, run_check=True,
+                check_extra=check_extra,
+                run_check_acceptability=run_check_acceptability,
+                inplace=inplace)
+        else:
+            return self.sum_vis(other, difference=True, run_check=True,
+                check_extra=check_extra,
+                run_check_acceptability=run_check_acceptability,
+                inplace=inplace)
 
     def __add__(self, other, run_check=True, check_extra=True,
                 run_check_acceptability=True, inplace=False):
