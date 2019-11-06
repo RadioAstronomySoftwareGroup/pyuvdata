@@ -2193,13 +2193,14 @@ def test_add_this_phased_unphase_to_drift(
         uv_phase_1, uv_phase_2, uv_phase, uv_raw_1, uv_raw_2, uv_raw
     ) = uv_phase_time_split
 
+    func_kwargs = {"unphase_to_drift": True,
+                   "inplace": False,
+                   }
+    func_kwargs.update(extra_kwargs)
     uv_out = uvtest.checkWarnings(
         getattr(uv_phase_1, test_func),
         func_args=[uv_raw_2],
-        func_kwargs={"unphase_to_drift": True,
-                     "inplace": False,
-                     **extra_kwargs
-                     },
+        func_kwargs=func_kwargs,
         message=['Unphasing this UVData object to drift']
     )
     # the histories will be different here
@@ -2224,13 +2225,15 @@ def test_add_other_phased_unphase_to_drift(
         uv_phase_1, uv_phase_2, uv_phase, uv_raw_1, uv_raw_2, uv_raw
     ) = uv_phase_time_split
 
+
+    func_kwargs = {"unphase_to_drift": True,
+                   "inplace": False,
+                   }
+    func_kwargs.update(extra_kwargs)
     uv_out = uvtest.checkWarnings(
         getattr(uv_raw_1, test_func),
         func_args=[uv_phase_2],
-        func_kwargs={"unphase_to_drift": True,
-                     "inplace": False,
-                     **extra_kwargs
-                     },
+        func_kwargs=func_kwargs,
         message=['Unphasing other UVData object to drift']
     )
     # the histories will be different here
@@ -2272,13 +2275,14 @@ def test_add_this_rephase_new_phase_center(
                  epoch="J2000"
                  )
 
+    func_kwargs = {"inplace": False,
+                   "phase_center_radec": phase_center_radec,
+                   }
+    func_kwargs.update(extra_kwargs)
     uv_out = uvtest.checkWarnings(
         getattr(uv_raw_1, test_func),
         func_args=[uv_raw_2],
-        func_kwargs={"inplace": False,
-                     "phase_center_radec": phase_center_radec,
-                     **extra_kwargs
-                     },
+        func_kwargs=func_kwargs,
         message=['Phasing this UVData object to phase_center_radec']
     )
     # the histories will be different here
@@ -2321,13 +2325,14 @@ def test_add_other_rephase_new_phase_center(
                  epoch="J2000"
                  )
 
+    func_kwargs = {"inplace": False,
+                   "phase_center_radec": phase_center_radec,
+                   }
+    func_kwargs.update(extra_kwargs)
     uv_out = uvtest.checkWarnings(
         getattr(uv_raw_1, test_func),
         func_args=[uv_raw_2],
-        func_kwargs={"inplace": False,
-                     "phase_center_radec": phase_center_radec,
-                     **extra_kwargs
-                     },
+        func_kwargs=func_kwargs,
         message=['Phasing other UVData object to phase_center_radec']
     )
     # the histories will be different here
