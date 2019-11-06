@@ -2225,7 +2225,6 @@ def test_add_other_phased_unphase_to_drift(
         uv_phase_1, uv_phase_2, uv_phase, uv_raw_1, uv_raw_2, uv_raw
     ) = uv_phase_time_split
 
-
     func_kwargs = {"unphase_to_drift": True,
                    "inplace": False,
                    }
