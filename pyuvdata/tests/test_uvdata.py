@@ -2147,14 +2147,21 @@ def test_break_add():
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-def test_add_error_drift_and_rephase():
+@pytest.mark.parametrize("test_func,extra_kwargs",
+                         [("__add__", {}),
+                          ("fast_concat", {"axis": "blt"})
+                          ]
+                         )
+def test_add_error_drift_and_rephase(test_func, extra_kwargs):
     uv_full = UVData()
     testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
     uv_full.read_uvfits(testfile)
 
     with pytest.raises(ValueError) as cm:
-        uv_full.__add__(uv_full, phase_center_radec=(0, 45),
-                        unphase_to_drift=True)
+        getattr(uv_full, test_func)(uv_full, phase_center_radec=(0, 45),
+                                    unphase_to_drift=True,
+                                    **extra_kwargs
+                                    )
     assert str(cm.value).startswith('phase_center_radec cannot be set if '
                                     'unphase_to_drift is True.')
 
