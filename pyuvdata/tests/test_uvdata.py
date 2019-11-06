@@ -2346,6 +2346,27 @@ def test_add_other_rephase_new_phase_center(
     assert uv_out == uv_raw
 
 
+@pytest.mark.parametrize("test_func,extra_kwargs",
+                         [("__add__", {}),
+                          ("fast_concat", {"axis": "blt"})
+                          ]
+                         )
+def test_add_error_too_long_phase_center(
+    uv_phase_time_split, test_func, extra_kwargs
+):
+    (
+        uv_phase_1, uv_phase_2, uv_phase, uv_raw_1, uv_raw_2, uv_raw
+    ) = uv_phase_time_split
+    phase_center_radec = (Angle('0d').rad, Angle('-30d').rad, 7)
+    func_kwargs = {"inplace": False,
+                   "phase_center_radec": phase_center_radec,
+                   }
+    func_kwargs.update(extra_kwargs)
+    with pytest.raises(ValueError) as cm:
+        getattr(uv_phase_1, test_func)(uv_phase_2, **func_kwargs)
+    assert str(cm.value).startswith('phase_center_radec should have length 2.')
+
+
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 def test_fast_concat():
     uv_full = UVData()
