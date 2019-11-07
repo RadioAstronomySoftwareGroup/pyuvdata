@@ -129,7 +129,7 @@ class FHDCal(UVCal):
         if raw:
             res_gain_array_in = cal_data['gain_residual'][0]
             res_gain_array = np.zeros(self._gain_array.expected_shape(self), dtype=np.complex_)
-            for jones_i, arr in enumerate(fit_gain_array_in):
+            for jones_i, arr in enumerate(res_gain_array_in):
                 res_gain_array[:, 0, :, 0, jones_i] = arr
             self.gain_array = fit_gain_array + res_gain_array
         else:
