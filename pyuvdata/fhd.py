@@ -7,7 +7,6 @@
 """
 from __future__ import absolute_import, division, print_function
 
-from itertools import islice
 import numpy as np
 import warnings
 from scipy.io.idl import readsav
@@ -187,7 +186,6 @@ class FHD(UVData):
 
         obs = this_obs
         bl_info = obs['BASELINE_INFO'][0]
-        meta_data = obs['META_DATA'][0]
         astrometry = obs['ASTR'][0]
         fhd_pol_list = []
         for pol in obs['POL_NAMES'][0]:
@@ -317,7 +315,7 @@ class FHD(UVData):
         if self.telescope_name.lower() == 'mwa':
             if np.isclose(obs['ORIG_PHASERA'][0], 0) and \
                     np.isclose(obs['ORIG_PHASEDEC'][0], -27):
-                object_name = 'EoR 0 Field'
+                self.object_name = 'EoR 0 Field'
 
         self.instrument = self.telescope_name
         latitude = np.deg2rad(float(obs['LAT'][0]))

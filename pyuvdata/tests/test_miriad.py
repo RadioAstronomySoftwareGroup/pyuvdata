@@ -117,7 +117,6 @@ def test_ReadNRAOWriteMiriadReadMiriad():
     miriad_uv = UVData()
     testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
     writefile = os.path.join(DATA_PATH, "test/outtest_miriad.uv")
-    expected_extra_keywords = ["OBSERVER", "SORTORD", "SPECSYS", "RESTFREQ", "ORIGIN"]
     uvfits_uv.read_uvfits(testfile)
     uvfits_uv.write_miriad(writefile, clobber=True)
     miriad_uv.read(writefile)

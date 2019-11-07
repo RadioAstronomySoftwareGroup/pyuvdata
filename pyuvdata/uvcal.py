@@ -23,9 +23,9 @@ class UVCal(UVBase):
                 (http://pyuvdata.readthedocs.io/en/latest/uvcal.html).
                 Some are always required, some are required for certain cal_types
                 and others are always optional.
+
     """
     def __init__(self):
-        radian_tol = 10 * 2 * np.pi * 1e-3 / (60.0 * 60.0 * 360.0)
         self._Nfreqs = uvp.UVParameter('Nfreqs',
                                        description='Number of frequency channels',
                                        expected_type=int)
@@ -820,7 +820,7 @@ class UVCal(UVBase):
             setattr(self, p, param)
 
     def _convert_to_filetype(self, filetype):
-        if filetype is 'calfits':
+        if filetype == 'calfits':
             from . import calfits
             other_obj = calfits.CALFITS()
         else:
@@ -1046,23 +1046,21 @@ class UVCal(UVBase):
         temp = np.nonzero(~np.in1d(other.ant_array, this.ant_array))[0]
         if len(temp) > 0:
             anew_inds = temp
-            new_ants = other.ant_array[temp]
             history_update_string += 'antenna'
             n_axes += 1
         else:
-            anew_inds, new_ants = ([], [])
+            anew_inds, _ = ([], [])
 
         temp = np.nonzero(~np.in1d(other.time_array, this.time_array))[0]
         if len(temp) > 0:
             tnew_inds = temp
-            new_times = other.time_array[temp]
             if n_axes > 0:
                 history_update_string += ', time'
             else:
                 history_update_string += 'time'
             n_axes += 1
         else:
-            tnew_inds, new_times = ([], [])
+            tnew_inds, _ = ([], [])
 
         # adding along frequency axis is not supported for delay-type cal files
         if this.cal_type == 'gain':
@@ -1070,29 +1068,27 @@ class UVCal(UVBase):
                 ~np.in1d(other.freq_array[0, :], this.freq_array[0, :]))[0]
             if len(temp) > 0:
                 fnew_inds = temp
-                new_freqs = other.freq_array[0, temp]
                 if n_axes > 0:
                     history_update_string += ', frequency'
                 else:
                     history_update_string += 'frequency'
                 n_axes += 1
             else:
-                fnew_inds, new_freqs = ([], [])
+                fnew_inds, _ = ([], [])
         else:
-            fnew_inds, new_freqs = ([], [])
+            fnew_inds, _ = ([], [])
 
         temp = np.nonzero(~np.in1d(other.jones_array,
                                    this.jones_array))[0]
         if len(temp) > 0:
             jnew_inds = temp
-            new_jones = other.jones_array[temp]
             if n_axes > 0:
                 history_update_string += ', jones'
             else:
                 history_update_string += 'jones'
             n_axes += 1
         else:
-            jnew_inds, new_jones = ([], [])
+            jnew_inds, _ = ([], [])
 
         # Initialize tqa variables
         can_combine_tqa = True

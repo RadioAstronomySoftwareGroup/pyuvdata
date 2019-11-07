@@ -111,9 +111,9 @@ def initialize_with_zeros(uvd, filename):
         data_dset = dgrp['visdata']
         flags_dset = dgrp['flags']
         nsample_dset = dgrp['nsamples']
-        data_dset = data
-        flags_dset = flags
-        nsample_dset = nsamples
+        data_dset = data  # noqa
+        flags_dset = flags  # noqa
+        nsample_dset = nsamples  # noqa
     return
 
 
@@ -139,8 +139,8 @@ def initialize_with_zeros_ints(uvd, filename):
         with data_dset.astype(_hera_corr_dtype):
             data_dset[:, :, :, :, 'r'] = data.real
             data_dset[:, :, :, :, 'i'] = data.imag
-        flags_dset = flags
-        nsample_dset = nsamples
+        flags_dset = flags  # noqa
+        nsample_dset = nsamples  # noqa
     return
 
 

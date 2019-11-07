@@ -1217,16 +1217,16 @@ class UVFlag(UVBase):
 
             dgrp = f.create_group("Data")
             if self.mode == 'metric':
-                data = dgrp.create_dataset('metric_array', chunks=True,
-                                           data=self.metric_array,
-                                           compression=data_compression)
-                wtsdata = dgrp.create_dataset('weights_array', chunks=True,
-                                              data=self.weights_array,
-                                              compression=data_compression)
+                dgrp.create_dataset('metric_array', chunks=True,
+                                    data=self.metric_array,
+                                    compression=data_compression)
+                dgrp.create_dataset('weights_array', chunks=True,
+                                    data=self.weights_array,
+                                    compression=data_compression)
             elif self.mode == 'flag':
-                data = dgrp.create_dataset('flag_array', chunks=True,
-                                           data=self.flag_array,
-                                           compression=data_compression)
+                dgrp.create_dataset('flag_array', chunks=True,
+                                    data=self.flag_array,
+                                    compression=data_compression)
 
     def __add__(self, other, inplace=False, axis='time',
                 run_check=True, check_extra=True, run_check_acceptability=True):

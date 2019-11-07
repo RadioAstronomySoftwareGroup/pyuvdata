@@ -763,8 +763,6 @@ class UVBeam(UVBase):
         assert(isinstance(freq_array, np.ndarray))
         assert(freq_array.ndim == 1)
 
-        nfreqs = freq_array.size
-
         # use the beam at nearest neighbors if not kind is 'nearest'
         if kind == 'nearest':
             freq_dists = np.abs(self.freq_array - freq_array.reshape(-1, 1))
@@ -931,7 +929,6 @@ class UVBeam(UVBase):
                 Npol_feeds = self.Npols
                 pol_inds = np.arange(Npol_feeds)
             else:
-                Npol_feeds_total = self.Npols
                 pols = [uvutils.polstr2num(p, x_orientation=self.x_orientation) for p in polarizations]
                 pol_inds = []
                 for pol in pols:
@@ -943,7 +940,6 @@ class UVBeam(UVBase):
                 Npol_feeds = len(pol_inds)
 
         else:
-            Npol_feeds_total = self.Nfeeds
             Npol_feeds = self.Nfeeds
             pol_inds = np.arange(Npol_feeds)
 
@@ -1118,7 +1114,6 @@ class UVBeam(UVBase):
         lon_array = Angle(az_array, units.radian)
         for index1 in range(self.Nspws):
             for index3 in range(input_nfreqs):
-                freq = freq_array[index3]
                 for index0 in range(self.Naxes_vec):
                     for index2 in range(Npol_feeds):
                         if np.iscomplexobj(input_data_array):
@@ -1416,10 +1411,6 @@ class UVBeam(UVBase):
         else:
             hp_obj = HEALPix(nside=nside)
 
-        if np.iscomplexobj(self.data_array):
-            data_type = np.complex
-        else:
-            data_type = np.float
         pixels = np.arange(hp_obj.npix)
         hpx_lon, hpx_lat = hp_obj.healpix_to_lonlat(pixels)
 
@@ -1542,72 +1533,66 @@ class UVBeam(UVBase):
             temp = np.nonzero(~np.in1d(other.pixel_array, this.pixel_array))[0]
             if len(temp) > 0:
                 pix_new_inds = temp
-                new_pixels = other.pixel_array[temp]
                 history_update_string += 'healpix pixel'
                 n_axes += 1
             else:
-                pix_new_inds, new_pixels = ([], [])
+                pix_new_inds, _ = ([], [])
         else:
             temp = np.nonzero(~np.in1d(other.axis1_array, this.axis1_array))[0]
             if len(temp) > 0:
                 ax1_new_inds = temp
-                new_ax1 = other.axis1_array[temp]
                 history_update_string += 'first image'
                 n_axes += 1
             else:
-                ax1_new_inds, new_ax1 = ([], [])
+                ax1_new_inds, _ = ([], [])
 
             temp = np.nonzero(~np.in1d(other.axis2_array, this.axis2_array))[0]
             if len(temp) > 0:
                 ax2_new_inds = temp
-                new_ax2 = other.axis2_array[temp]
                 if n_axes > 0:
                     history_update_string += ', second image'
                 else:
                     history_update_string += 'second image'
                 n_axes += 1
             else:
-                ax2_new_inds, new_ax2 = ([], [])
+                ax2_new_inds, _ = ([], [])
 
         temp = np.nonzero(~np.in1d(other.freq_array[0, :],
                                    this.freq_array[0, :]))[0]
         if len(temp) > 0:
             fnew_inds = temp
-            new_freqs = other.freq_array[0, temp]
             if n_axes > 0:
                 history_update_string += ', frequency'
             else:
                 history_update_string += 'frequency'
             n_axes += 1
         else:
-            fnew_inds, new_freqs = ([], [])
+            fnew_inds, _ = ([], [])
 
         if this.beam_type == 'power':
             temp = np.nonzero(~np.in1d(other.polarization_array,
                                        this.polarization_array))[0]
             if len(temp) > 0:
                 pnew_inds = temp
-                new_pols = other.polarization_array[temp]
                 if n_axes > 0:
                     history_update_string += ', polarization'
                 else:
                     history_update_string += 'polarization'
                 n_axes += 1
             else:
-                pnew_inds, new_pols = ([], [])
+                pnew_inds, _ = ([], [])
         else:
             temp = np.nonzero(~np.in1d(other.feed_array,
                                        this.feed_array))[0]
             if len(temp) > 0:
                 pnew_inds = temp
-                new_pols = other.feed_array[temp]
                 if n_axes > 0:
                     history_update_string += ', feed'
                 else:
                     history_update_string += 'feed'
                 n_axes += 1
             else:
-                pnew_inds, new_pols = ([], [])
+                pnew_inds, _ = ([], [])
 
         # Pad out self to accommodate new data
         if this.pixel_coordinate_system == 'healpix':
@@ -2174,7 +2159,7 @@ class UVBeam(UVBase):
             setattr(self, p, param)
 
     def _convert_to_filetype(self, filetype):
-        if filetype is 'beamfits':
+        if filetype == 'beamfits':
             from . import beamfits
             other_obj = beamfits.BeamFITS()
         else:

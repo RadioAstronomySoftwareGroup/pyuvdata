@@ -686,12 +686,12 @@ class UVH5(UVData):
                                               data=self.data_array,
                                               compression=data_compression,
                                               dtype=data_write_dtype)
-            flags = dgrp.create_dataset("flags", chunks=True,
-                                        data=self.flag_array,
-                                        compression=flags_compression)
-            nsample_array = dgrp.create_dataset("nsamples", chunks=True,
-                                                data=self.nsample_array.astype(np.float32),
-                                                compression=nsample_compression)
+            dgrp.create_dataset("flags", chunks=True,
+                                data=self.flag_array,
+                                compression=flags_compression)
+            dgrp.create_dataset("nsamples", chunks=True,
+                                data=self.nsample_array.astype(np.float32),
+                                compression=nsample_compression)
 
         return
 
@@ -758,12 +758,12 @@ class UVH5(UVData):
             if data_write_dtype not in ('c8', 'c16'):
                 # make sure the data type is correct
                 _check_uvh5_dtype(data_write_dtype)
-            visdata = dgrp.create_dataset("visdata", data_size, chunks=True,
-                                          dtype=data_write_dtype, compression=data_compression)
-            flags = dgrp.create_dataset("flags", data_size, chunks=True,
-                                        dtype='b1', compression=flags_compression)
-            nsample_array = dgrp.create_dataset("nsamples", data_size, chunks=True,
-                                                dtype='f4', compression=nsample_compression)
+            dgrp.create_dataset("visdata", data_size, chunks=True,
+                                dtype=data_write_dtype, compression=data_compression)
+            dgrp.create_dataset("flags", data_size, chunks=True,
+                                dtype='b1', compression=flags_compression)
+            dgrp.create_dataset("nsamples", data_size, chunks=True,
+                                dtype='f4', compression=nsample_compression)
 
         return
 

@@ -4,8 +4,6 @@
 
 from __future__ import absolute_import, division, print_function
 
-import os
-import sys
 import re
 import numpy as np
 import warnings
@@ -212,7 +210,6 @@ class CSTBeam(UVBeam):
                 raise ValueError('Rotating by pi/2 failed')
 
             # theta is not affected by the rotation
-            rot_theta = theta_data
 
         # get beam
         if self.beam_type == 'power':

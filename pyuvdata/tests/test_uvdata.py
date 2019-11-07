@@ -915,9 +915,6 @@ def test_select_bls():
     ant_pairs_to_keep = list(zip(first_ants, second_ants))
     sorted_pairs_to_keep = [sort_bl(p) for p in ant_pairs_to_keep]
 
-    sorted_pairs_object = [sort_bl(p) for p in zip(
-        uv_object.ant_1_array, uv_object.ant_2_array)]
-
     blts_select = [sort_bl((a1, a2)) in sorted_pairs_to_keep for (a1, a2) in
                    zip(uv_object.ant_1_array, uv_object.ant_2_array)]
     Nblts_selected = np.sum(blts_select)
@@ -949,9 +946,6 @@ def test_select_bls():
     new_unique_ants = np.unique(first_ants + second_ants)
     bls_to_keep = list(zip(first_ants, second_ants, pols))
     sorted_bls_to_keep = [sort_bl(p) for p in bls_to_keep]
-
-    sorted_pairs_object = [sort_bl(p) for p in zip(
-        uv_object.ant_1_array, uv_object.ant_2_array)]
 
     blts_select = [sort_bl((a1, a2, 'RR')) in sorted_bls_to_keep for (a1, a2) in
                    zip(uv_object.ant_1_array, uv_object.ant_2_array)]
@@ -1271,8 +1265,6 @@ def test_select():
                          1242, 702, 567, 557, 1032, 1352, 504, 545, 422, 179, 780,
                          280, 890, 774, 884])
 
-    unique_ants = np.unique(
-        uv_object.ant_1_array.tolist() + uv_object.ant_2_array.tolist())
     ants_to_keep = np.array([11, 6, 20, 26, 2, 27, 7, 14])
 
     ant_pairs_to_keep = [(2, 11), (20, 26), (6, 7), (3, 27), (14, 6)]
@@ -2286,7 +2278,6 @@ def test_fast_concat():
     # Add multiple axes
     uv1 = copy.deepcopy(uv_full)
     uv2 = copy.deepcopy(uv_full)
-    uv_ref = copy.deepcopy(uv_full)
     times = np.unique(uv_full.time_array)
     uv1.select(times=times[0:len(times) // 2],
                polarizations=uv1.polarization_array[0:2])
@@ -2297,7 +2288,6 @@ def test_fast_concat():
     # Another combo
     uv1 = copy.deepcopy(uv_full)
     uv2 = copy.deepcopy(uv_full)
-    uv_ref = copy.deepcopy(uv_full)
     times = np.unique(uv_full.time_array)
     uv1.select(times=times[0:len(times) // 2], freq_chans=np.arange(0, 32))
     uv2.select(times=times[len(times) // 2:], freq_chans=np.arange(32, 64))
@@ -2912,7 +2902,9 @@ def test_antpair2ind():
 
     # test ordered
     inds3 = uv.antpair2ind(1, 0, ordered=True)
-    np.testing.assert_array_equal(inds, inds2)
+    assert inds3.size == 0
+    inds3 = uv.antpair2ind(0, 1, ordered=True)
+    np.testing.assert_array_equal(inds, inds3)
 
     # test autos w/ and w/o ordered
     inds4 = uv.antpair2ind(0, 0, ordered=True)
@@ -3806,7 +3798,6 @@ def test_redundancy_contract_expand_nblts_not_nbls_times_ntimes():
     blt_inds = []
     missing_inds = []
     for bl, t in zip(uv0.baseline_array, uv0.time_array):
-        antpair = uv2.baseline_to_antnums(bl)
         if (bl, t) in zip(uv2.baseline_array, uv2.time_array):
             this_ind = np.where((uv2.baseline_array == bl) & (uv2.time_array == t))[0]
             blt_inds.append(this_ind[0])
@@ -4127,7 +4118,6 @@ def test_upsample_in_time_with_flags(resample_in_time_file):
     uv_object.reorder_blts(order="baseline")
 
     # save some values for later
-    init_data_size = uv_object.data_array.size
     init_wf = uv_object.get_data(0, 1)
     # check that there are no flags
     assert np.nonzero(uv_object.flag_array)[0].size == 0
@@ -4255,7 +4245,6 @@ def test_upsample_in_time_summing_correlator_mode_with_flags(resample_in_time_fi
     uv_object.reorder_blts(order="baseline")
 
     # save some values for later
-    init_data_size = uv_object.data_array.size
     init_wf = uv_object.get_data(0, 1)
     # check that there are no flags
     assert np.nonzero(uv_object.flag_array)[0].size == 0
@@ -4333,7 +4322,6 @@ def test_partial_upsample_in_time(resample_in_time_file):
     uv_object.reorder_blts(order="baseline")
 
     # save some values for later
-    init_data_size = uv_object.data_array.size
     init_wf_01 = uv_object.get_data(0, 1)
     init_wf_02 = uv_object.get_data(0, 2)
     # check that there are no flags
@@ -4487,7 +4475,6 @@ def test_downsample_in_time_partial_flags(resample_in_time_file):
     uv_object.reorder_blts(order="baseline", minor_order="time")
 
     # save some values for later
-    init_data_size = uv_object.data_array.size
     init_wf = uv_object.get_data(0, 1)
     original_int_time = np.amax(uv_object.integration_time)
     # check that there are no flags
@@ -4527,7 +4514,6 @@ def test_downsample_in_time_totally_flagged(resample_in_time_file):
     uv_object.reorder_blts(order="baseline", minor_order="time")
 
     # save some values for later
-    init_data_size = uv_object.data_array.size
     init_wf = uv_object.get_data(0, 1)
     original_int_time = np.amax(uv_object.integration_time)
     # check that there are no flags
@@ -4568,12 +4554,10 @@ def test_downsample_in_time_uneven_samples(resample_in_time_file):
     uv_object.reorder_blts(order="baseline", minor_order="time")
 
     # save some values for later
-    init_data_size = uv_object.data_array.size
     init_wf = uv_object.get_data(0, 1)
     original_int_time = np.amax(uv_object.integration_time)
     # check that there are no flags
     assert np.nonzero(uv_object.flag_array)[0].size == 0
-    init_ns = uv_object.get_nsamples(0, 1)
 
     # test again with a downsample factor that doesn't go evenly into the number of samples
     min_integration_time = original_int_time * 3.0
@@ -4609,12 +4593,10 @@ def test_downsample_in_time_uneven_samples_discard_ragged(resample_in_time_file)
     uv_object.reorder_blts(order="baseline", minor_order="time")
 
     # save some values for later
-    init_data_size = uv_object.data_array.size
     init_wf = uv_object.get_data(0, 1)
     original_int_time = np.amax(uv_object.integration_time)
     # check that there are no flags
     assert np.nonzero(uv_object.flag_array)[0].size == 0
-    init_ns = uv_object.get_nsamples(0, 1)
 
     # test again with a downsample factor that doesn't go evenly into the number of samples
     min_integration_time = original_int_time * 3.0
@@ -4686,7 +4668,6 @@ def test_downsample_in_time_summing_correlator_mode_partial_flags(
     uv_object.reorder_blts(order="baseline", minor_order="time")
 
     # save some values for later
-    init_data_size = uv_object.data_array.size
     init_wf = uv_object.get_data(0, 1)
     original_int_time = np.amax(uv_object.integration_time)
     # check that there are no flags
@@ -4730,7 +4711,6 @@ def test_downsample_in_time_summing_correlator_mode_totally_flagged(
     uv_object.reorder_blts(order="baseline", minor_order="time")
 
     # save some values for later
-    init_data_size = uv_object.data_array.size
     init_wf = uv_object.get_data(0, 1)
     original_int_time = np.amax(uv_object.integration_time)
     # check that there are no flags
@@ -4775,7 +4755,6 @@ def test_downsample_in_time_summing_correlator_mode_uneven_samples(
     uv_object.reorder_blts(order="baseline", minor_order="time")
 
     # save some values for later
-    init_data_size = uv_object.data_array.size
     init_wf = uv_object.get_data(0, 1)
     original_int_time = np.amax(uv_object.integration_time)
     # check that there are no flags
@@ -4827,7 +4806,6 @@ def test_downsample_in_time_summing_correlator_mode_uneven_samples_drop_ragged(
     uv_object.reorder_blts(order="baseline", minor_order="time")
 
     # save some values for later
-    init_data_size = uv_object.data_array.size
     init_wf = uv_object.get_data(0, 1)
     original_int_time = np.amax(uv_object.integration_time)
     # check that there are no flags
@@ -4874,7 +4852,6 @@ def test_partial_downsample_in_time(resample_in_time_file):
     uv_object.reorder_blts(order="baseline")
 
     # save some values for later
-    init_data_size = uv_object.data_array.size
     init_wf_01 = uv_object.get_data(0, 1)
     init_wf_02 = uv_object.get_data(0, 2)
     # check that there are no flags
@@ -5020,7 +4997,6 @@ def test_downsample_in_time_errors(resample_in_time_file):
     # save some values for later
     init_data_size = uv_object.data_array.size
     init_wf = uv_object.get_data(0, 1)
-    original_int_time = np.amax(uv_object.integration_time)
     # check that there are no flags
     assert np.nonzero(uv_object.flag_array)[0].size == 0
     init_ns = uv_object.get_nsamples(0, 1)
@@ -5063,7 +5039,6 @@ def test_downsample_in_time_int_time_mismatch_warning(resample_in_time_file):
     # save some values for later
     init_data_size = uv_object.data_array.size
     init_wf = uv_object.get_data(0, 1)
-    original_int_time = np.amax(uv_object.integration_time)
     # check that there are no flags
     assert np.nonzero(uv_object.flag_array)[0].size == 0
     init_ns = uv_object.get_nsamples(0, 1)
@@ -5103,9 +5078,7 @@ def test_downsample_in_time_varying_integration_time(resample_in_time_file):
     uv_object.reorder_blts(order="baseline", minor_order="time")
 
     # save some values for later
-    init_data_size = uv_object.data_array.size
     init_wf = uv_object.get_data(0, 1)
-    original_int_time = np.amax(uv_object.integration_time)
     # check that there are no flags
     assert np.nonzero(uv_object.flag_array)[0].size == 0
     init_ns = uv_object.get_nsamples(0, 1)
@@ -5148,9 +5121,7 @@ def test_downsample_in_time_varying_integration_time_warning(resample_in_time_fi
     uv_object.reorder_blts(order="baseline", minor_order="time")
 
     # save some values for later
-    init_data_size = uv_object.data_array.size
     init_wf = uv_object.get_data(0, 1)
-    original_int_time = np.amax(uv_object.integration_time)
     # check that there are no flags
     assert np.nonzero(uv_object.flag_array)[0].size == 0
     init_ns = uv_object.get_nsamples(0, 1)
@@ -5280,8 +5251,6 @@ def test_upsample_downsample_in_time_odd_resample(resample_in_time_file):
     uv_object.upsample_in_time(max_integration_time, blt_order="baseline")
     assert np.amax(uv_object.integration_time) <= max_integration_time
 
-    new_Nblts = uv_object.Nblts
-
     uv_object.downsample_in_time(np.amin(uv_object2.integration_time), blt_order="baseline")
 
     # increase tolerance on LST if iers.conf.auto_max_age is set to None, as we
@@ -5323,7 +5292,6 @@ def test_upsample_downsample_in_time_metadata_only(resample_in_time_file):
     max_integration_time = np.amin(uv_object.integration_time) / 2.0
     uv_object.upsample_in_time(max_integration_time, blt_order="baseline")
     assert np.amax(uv_object.integration_time) <= max_integration_time
-    new_Nblts = uv_object.Nblts
 
     uv_object.downsample_in_time(np.amin(uv_object2.integration_time), blt_order="baseline")
 
@@ -5349,8 +5317,6 @@ def test_resample_in_time(bda_test_file):
     # that causes our gap test to issue a warning, but the variations are small
     # We aren't worried about them, so we filter those warnings
     uv_object = bda_test_file
-
-    ant_pairs = uv_object.get_antpairs()
 
     # save some initial info
     # 2s integration time
@@ -5398,8 +5364,6 @@ def test_resample_in_time_downsample_only(bda_test_file):
     # that causes our gap test to issue a warning, but the variations are small
     # We aren't worried about them, so we filter those warnings
     uv_object = bda_test_file
-
-    ant_pairs = uv_object.get_antpairs()
 
     # save some initial info
     # 2s integration time
@@ -5453,8 +5417,6 @@ def test_resample_in_time_only_upsample(bda_test_file):
     # that causes our gap test to issue a warning, but the variations are small
     # We aren't worried about them, so we filter those warnings
     uv_object = bda_test_file
-
-    ant_pairs = uv_object.get_antpairs()
 
     # save some initial info
     # 2s integration time

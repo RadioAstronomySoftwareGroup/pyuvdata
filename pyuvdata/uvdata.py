@@ -1538,28 +1538,26 @@ class UVData(UVBase):
             ~np.in1d(other.freq_array[0, :], this.freq_array[0, :]))[0]
         if len(temp) > 0:
             fnew_inds = temp
-            new_freqs = other.freq_array[0, temp]
             if n_axes > 0:
                 history_update_string += ', frequency'
             else:
                 history_update_string += 'frequency'
             n_axes += 1
         else:
-            fnew_inds, new_freqs = ([], [])
+            fnew_inds, _ = ([], [])
 
         # find the pol indices in "other" but not in "this"
         temp = np.nonzero(~np.in1d(other.polarization_array,
                                    this.polarization_array))[0]
         if len(temp) > 0:
             pnew_inds = temp
-            new_pols = other.polarization_array[temp]
             if n_axes > 0:
                 history_update_string += ', polarization'
             else:
                 history_update_string += 'polarization'
             n_axes += 1
         else:
-            pnew_inds, new_pols = ([], [])
+            pnew_inds, _ = ([], [])
 
         # Actually check compatibility parameters
         for a in compatibility_params:
@@ -2430,16 +2428,16 @@ class UVData(UVBase):
         ValueError
             if filetype is not a known type
         """
-        if filetype is 'uvfits':
+        if filetype == 'uvfits':
             from . import uvfits
             other_obj = uvfits.UVFITS()
-        elif filetype is 'fhd':
+        elif filetype == 'fhd':
             from . import fhd
             other_obj = fhd.FHD()
-        elif filetype is 'miriad':
+        elif filetype == 'miriad':
             from . import miriad
             other_obj = miriad.Miriad()
-        elif filetype is 'uvh5':
+        elif filetype == 'uvh5':
             from . import uvh5
             other_obj = uvh5.UVH5()
         else:
@@ -3686,7 +3684,6 @@ class UVData(UVBase):
         list of tuples of int
             list of unique antpair + pol tuples (ant1, ant2, pol) with data associated with them.
         """
-        bli = 0
         pols = self.get_pols()
         bls = self.get_antpairs()
         return [(bl) + (pol,) for bl in bls for pol in pols]
@@ -4003,10 +4000,10 @@ class UVData(UVBase):
         if squeeze == 'full':
             out = np.squeeze(out)
         elif squeeze == 'default':
-            if out.shape[3] is 1:
+            if out.shape[3] == 1:
                 # one polarization dimension
                 out = np.squeeze(out, axis=3)
-            if out.shape[1] is 1:
+            if out.shape[1] == 1:
                 # one spw dimension
                 out = np.squeeze(out, axis=1)
         elif squeeze != 'none':
@@ -5007,7 +5004,6 @@ class UVData(UVBase):
         # make temporary arrays
         temp_baseline = np.zeros((temp_Nblts,), dtype=np.int)
         temp_time = np.zeros((temp_Nblts,))
-        temp_uvw = np.zeros((temp_Nblts, 3))
         temp_int_time = np.zeros((temp_Nblts,))
         if self.metadata_only:
             temp_data = None
