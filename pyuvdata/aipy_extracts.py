@@ -419,7 +419,7 @@ class UV(_miriad.UV):
             assert t == 'b'
 
             for t in itype:
-                v, o = _miread.hread(h, offset, t)
+                v, o = _miriad.hread(h, offset, t)
                 rv.append(v)
                 offset += o
 
@@ -500,14 +500,14 @@ class UV(_miriad.UV):
         """
         if name == 'freqs':
             h = self.haccess(name, 'write')
-            o = _miriad.hwrite(h, 0, val[0], 'i')
+            _miriad.hwrite(h, 0, val[0], 'i')
             offset = 8
 
             for i, v in enumerate(val[1:]):
                 if i % 3 == 0:
-                    o = _miriad.hwrite(h, offset, v, 'i')
+                    _miriad.hwrite(h, offset, v, 'i')
                 else:
-                    o = _miriad.hwrite(h, offset, v, 'd')
+                    _miriad.hwrite(h, offset, v, 'd')
                 offset += 8
 
             _miriad.hdaccess(h)

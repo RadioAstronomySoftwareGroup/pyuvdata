@@ -496,7 +496,6 @@ class CALFITS(UVCal):
                     self.quality_array = data[:, :, :, :, :, 1]
                 sechdu = F[hdunames['FLAGS']]
                 flag_data = sechdu.data
-                flag_hdr = sechdu.header
                 if sechdu.header['NAXIS1'] == 2:
                     self.flag_array = flag_data[:, :, :, :, :, 0].astype('bool')
                     self.input_flag_array = flag_data[:, :, :, :, :, 1].astype('bool')

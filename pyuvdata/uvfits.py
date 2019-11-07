@@ -5,7 +5,6 @@
 """Class for reading and writing uvfits files."""
 from __future__ import absolute_import, division, print_function
 
-import re
 import warnings
 
 import numpy as np

@@ -10,7 +10,6 @@ from __future__ import absolute_import, division, print_function
 import os
 import shutil
 import numpy as np
-import copy
 import itertools
 import six
 import warnings
@@ -240,7 +239,10 @@ class Miriad(UVData):
                 cnt = np.ones(d.shape, dtype=np.float)
             ra = uv['ra']
             dec = uv['dec']
-            lst = uv['lst']
+            # NOTE: Using our lst calculator, which uses astropy,
+            # instead of _miriad values which come from pyephem.
+            # The differences are of order 5 seconds.
+            # lst = uv['lst']
             inttime = uv['inttime']
             source = uv['source']
             if source != _source:
@@ -462,9 +464,9 @@ class Miriad(UVData):
 
         # first check to see if the phase_type was specified.
         if phase_type is not None:
-            if phase_type is 'phased':
+            if phase_type == 'phased':
                 self.set_phased()
-            elif phase_type is 'drift':
+            elif phase_type == 'drift':
                 self.set_drift()
             else:
                 raise ValueError('The phase_type was not recognized. '

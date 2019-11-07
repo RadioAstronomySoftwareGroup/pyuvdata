@@ -70,11 +70,6 @@ def construct_version_info():
     with open(version_file) as f:
         version = f.read().strip()
 
-    git_origin = ''
-    git_hash = ''
-    git_description = ''
-    git_branch = ''
-
     version_info = {'version': version, 'git_origin': '', 'git_hash': '',
                     'git_description': '', 'git_branch': ''}
 

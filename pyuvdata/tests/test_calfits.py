@@ -528,7 +528,6 @@ def test_total_quality_array_size():
     """
 
     cal_in = UVCal()
-    cal_out = UVCal()
     testfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.gain.calfits')
     cal_in.read_calfits(testfile)
 

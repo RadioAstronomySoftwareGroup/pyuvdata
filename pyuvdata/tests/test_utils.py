@@ -221,8 +221,6 @@ def test_phasing_funcs():
     ants_enu = np.array([-101.94, 0156.41, 0001.24])
 
     ant_xyz_abs = uvutils.ECEF_from_ENU(ants_enu, lat_lon_alt[0], lat_lon_alt[1], lat_lon_alt[2])
-    ant_xyz_rel_itrs = ant_xyz_abs - array_center_xyz
-    ant_xyz_rel_rot = uvutils.rotECEF_from_ECEF(ant_xyz_rel_itrs, lat_lon_alt[1])
 
     array_center_coord = SkyCoord(x=array_center_xyz[0] * units.m,
                                   y=array_center_xyz[1] * units.m,
@@ -987,9 +985,6 @@ def test_uvcalibrate_flag_propagation():
     # downselect to match each other
     uvd.select(frequencies=uvd.freq_array[0, :10])
     uvc.select(times=uvc.time_array[:3])
-    key = (43, 72, 'xx')
-    ant1 = (43, 'Jxx')
-    ant2 = (72, 'Jxx')
 
     # test flag propagation
     uvc.flag_array[0] = True

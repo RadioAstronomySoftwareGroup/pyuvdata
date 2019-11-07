@@ -16,8 +16,9 @@ from pyuvdata import UVData
 def parse_range(string):
     m = re.match(r'(\d+)(?:-(\d+))?$', string)
     if not m:
-        raise ArgumentTypeError("'" + string + "' is not a range of numbers."
-                                " Expected forms like '0-5' or '2'.")
+        raise argparse.ArgumentTypeError(
+            "'" + string + "' is not a range of numbers. Expected forms "
+            "like '0-5' or '2'.")
     start = int(m.group(1))
     end = int(m.group(2)) or start
 

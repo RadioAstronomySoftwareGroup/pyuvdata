@@ -663,7 +663,6 @@ def get_lst_for_time(jd_array, latitude, longitude, altitude):
     Returns:
         an array of lst times corresponding to the jd_array
     """
-    lsts = []
     lst_array = np.zeros_like(jd_array)
     for ind, jd in enumerate(np.unique(jd_array)):
         t = Time(jd, format='jd', location=(Angle(longitude, unit='deg'),
@@ -1090,7 +1089,7 @@ def _combine_histories(history1, history2):
             add_hist += ' ' + word
             keep_going = (i + 1 < len(hist2_words))
             while keep_going:
-                if ((hist2_words[i + 1] is ' ')
+                if ((hist2_words[i + 1] == ' ')
                         or (' ' + hist2_words[i + 1] + ' ' not in test_hist1)):
                     add_hist += ' ' + hist2_words[i + 1]
                     del(hist2_words[i + 1])

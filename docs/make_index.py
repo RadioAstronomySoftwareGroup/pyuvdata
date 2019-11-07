@@ -25,8 +25,6 @@ def write_index_rst(readme_file=None, write_file=None):
         main_path = os.path.dirname(os.path.dirname(os.path.abspath(inspect.stack()[0][1])))
         readme_file = os.path.join(main_path, 'README.md')
 
-    readme_md = pypandoc.convert_file(readme_file, 'md')
-
     readme_text = pypandoc.convert_file(readme_file, 'rst')
 
     title_badge_text = (
@@ -48,8 +46,6 @@ def write_index_rst(readme_file=None, write_file=None):
     # convert relative links in readme to explicit links
     version_info = construct_version_info()
     branch = version_info['git_branch']
-
-    first_docs_loc = readme_text.find('docs/')
 
     readme_text = readme_text.replace(
         '<docs/', '<https://github.com/RadioAstronomySoftwareGroup/pyuvdata/tree/'

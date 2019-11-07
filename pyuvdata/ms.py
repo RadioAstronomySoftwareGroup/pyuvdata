@@ -10,14 +10,10 @@ from __future__ import absolute_import, division, print_function
 
 import numpy as np
 import os
-import re
 import warnings
-from astropy import constants as const
 import astropy.time as time
 
 from . import UVData
-from . import parameter as uvp
-from . import telescopes
 from . import utils as uvutils
 
 try:
@@ -277,7 +273,6 @@ class MS(UVData):
             # importuvfits measurement sets store antenna names in the STATION column.
             self.antenna_names = tbAnt.getcol('NAME')
         self.antenna_numbers = np.arange(len(self.antenna_names)).astype(int)
-        nAntOrig = len(self.antenna_names)
         ant_names = []
         for antNum in range(len(self.antenna_names)):
             if not(antFlags[antNum]):
