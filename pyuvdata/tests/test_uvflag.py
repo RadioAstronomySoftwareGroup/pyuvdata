@@ -2560,3 +2560,21 @@ def test_inequality_different_classes(uvf_from_miriad):
     other_class = test_class()
 
     assert uvf.__ne__(other_class, check_history=False)
+
+
+def test_to_antenna_collapsed_pols(uvf_from_uvcal):
+    uvf = uvf_from_uvcal
+
+    assert not uvf.pol_collapsed
+    uvc = UVCal()
+    uvc.read_calfits(test_c_file)
+
+    uvf.collapse_pol()
+    assert uvf.pol_collapsed
+    assert uvf.check()
+
+    uvf.to_antenna(uvc, force_pol=True)
+    print(uvc.jones_array)
+
+    assert not uvf.pol_collapsed
+    assert uvf.check()
