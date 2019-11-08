@@ -2111,6 +2111,7 @@ class UVFlag(UVBase):
             else:
                 self.metric_array = self.metric_array.repeat(self.polarization_array.size, axis=-1)
                 self.weights_array = self.weights_array.repeat(self.polarization_array.size, axis=-1)
+            self.Npols = len(self.polarization_array)
         # Now the pol axes should match regardless of force_pol.
         if not np.array_equal(polarr, self.polarization_array):
             if self.polarization_array.size == 1:
