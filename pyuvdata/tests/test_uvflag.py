@@ -2573,8 +2573,7 @@ def test_to_antenna_collapsed_pols(uvf_from_uvcal):
     assert uvf.pol_collapsed
     assert uvf.check()
 
+    uvf.to_waterfall()
     uvf.to_antenna(uvc, force_pol=True)
-    print(uvc.jones_array)
-
     assert not uvf.pol_collapsed
     assert uvf.check()
