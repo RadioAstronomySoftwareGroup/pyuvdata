@@ -2952,15 +2952,18 @@ class UVData(UVBase):
         del(miriad_obj)
 
     def read_mwa_corr_fits(self, filelist, axis=None, use_cotter_flags=False,
-                           run_check=True, check_extra=True,
-                           run_check_acceptability=True):
+                           correct_cable_len=True, phase_data=True,
+                           pointing_center=None, run_check=True,
+                           check_extra=True, run_check_acceptability=True):
         """
         Read in data from a measurement set
 
         Parameters
         ----------
-        filepath : list of str or list of lists of str
-            The measurement set file directory or list of directories to read from.
+        filelist : list of str
+            The list of MWA correlator files to read from. Must include at
+            least one fits file and only one metafits file per data set.
+            Can also be a list of lists to read multiple data sets.
         axis : str
             Axis to concatenate files along. This enables fast concatenation
             along the specified axis without the normal checking that all other
@@ -2971,6 +2974,12 @@ class UVData(UVBase):
         use_cotter_flags : bool
             Option to use cotter output mwaf flag files. Otherwise flagging
             will only be applied to missing data and bad antennas.
+        correct_cable_len : Option to apply a cable delay correction.
+            Default is True.
+        phase_data : Option to phase data. Default is True.
+        pointing_center : Option to phase data to a location that is
+            different from the observation pointing center. Default uses
+            the observation pointing center when phase_data is True.
         run_check : bool
             Option to check for the existence and proper shapes of parameters
             after after reading in the file (the default is True,
