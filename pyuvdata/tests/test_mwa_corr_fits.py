@@ -20,7 +20,7 @@ testdir = os.path.join(DATA_PATH, 'mwa_corr_fits_testfiles/')
 
 testfiles = ['1131733552.metafits', '1131733552_20151116182537_mini_gpubox01_00.fits',
              '1131733552_20151116182637_mini_gpubox06_01.fits', '1131733552_mini_01.mwaf',
-             '1131733552_mini_06.mwaf']
+             '1131733552_mini_06.mwaf', '1131733552_mod.metafits']
 filelist = [testdir + i for i in testfiles]
 
 
@@ -52,17 +52,9 @@ def test_ReadMWAWriteUVFits_meta_mod():
     """
     mwa_uv = UVData()
     uvfits_uv = UVData()
-    mod_metafile = os.path.join(DATA_PATH, 'test/1131733552_mod.metafits')
-    with fits.open(filelist[0]) as meta:
-        meta[0].header['channels'] = '127,128,129,130,131,132,133,134,135,136,137,138,139,140,141,142,143,144,145,146,147,148,149,150'
-        v_factor = 1.204
-        length = float(meta[1].data['length'][10][3:])
-        length /= v_factor
-        meta[1].data['length'][11] = str(length)
-        meta.writeto(mod_metafile)
     messages = ['telescope_location is not set',
                 'some coarse channel files were not submitted']
-    files = [filelist[1], mod_metafile]
+    files = [filelist[1], filelist[5]]
     uvtest.checkWarnings(mwa_uv.read_mwa_corr_fits, func_args=[files],
                          nwarnings=2, message=messages)
     testfile = os.path.join(DATA_PATH, 'test/outtest_MWAcorr.uvfits')
@@ -172,7 +164,7 @@ def test_fine_channels():
 @pytest.mark.parametrize("files,err_msg",
                          [([filelist[0]], "no data files submitted"),
                           ([filelist[1]], "no metafits file submitted"),
-                          ([filelist[0], filelist[1], filelist[4]],
+                          ([filelist[0], filelist[1], filelist[5]],
                            "multiple metafits files in filelist")])
 def test_break_ReadMWAcorrFITS(files, err_msg):
     """
