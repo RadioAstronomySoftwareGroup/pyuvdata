@@ -146,7 +146,7 @@ class MWACorrFITS(UVData):
                 else:
                     file_dict['flags'].append(file)
             else:
-                continue
+                raise ValueError('only fits, metafits, and mwaf files supported')
 
         # checks:
         if metafits_file is None:
@@ -171,7 +171,7 @@ class MWACorrFITS(UVData):
 
             # get a list of coarse channels
             coarse_chans = meta_hdr['CHANNELS'].split(',')
-            coarse_chans = np.array([int(i) for i in coarse_chans])
+            coarse_chans = np.array(sorted([int(i) for i in coarse_chans]))
 
             # integration time in seconds
             int_time = meta_hdr.pop('INTTIME')
@@ -316,23 +316,19 @@ class MWACorrFITS(UVData):
         file_nums_to_coarse = {i + 1: coarse_chans[i] if i < count else
                                coarse_chans[(len(coarse_chans) + count - i - 1)]
                                for i in range(len(coarse_chans))}
-
-        # find which coarse channels are actually included
-        included_coarse_chans = []
+        # map included coarse channels to file numbers
+        coarse_to_incl_files = {}
         for i in included_file_nums:
-            included_coarse_chans.append(file_nums_to_coarse[i])
-        included_coarse_chans = sorted(included_coarse_chans)
-        # count the number of included coarse channels that are in group 0-128
-        count = 0
-        for i in included_coarse_chans:
-            if i <= 128:
-                count += 1
+            coarse_to_incl_files[file_nums_to_coarse[i]] = i
+        # sort included coarse channels
+        included_coarse_chans = sorted(coarse_to_incl_files.keys())
         # map included file numbers to an index that orders them
-        file_nums_to_index = {included_file_nums[i]: i if i < count else (len(included_file_nums)
-                              + count - i - 1) for i in range(len(included_file_nums))}
+        file_nums_to_index = {}
+        for i in included_coarse_chans:
+            file_nums_to_index[coarse_to_incl_files[i]] = included_coarse_chans.index(i)
         # check that coarse channels are contiguous.
         # TODO: look at a data file where the coarse channels aren't contiguous to make sure this works
-        chans = np.array([int(i) for i in included_coarse_chans])
+        chans = np.array(included_coarse_chans)
         for i in np.diff(chans):
             if i != 1:
                 warnings.warn('coarse channels are not contiguous for this observation')
@@ -390,7 +386,7 @@ class MWACorrFITS(UVData):
                     # dump data into matrix
                     # and take data from real to complex numbers
                     data_dump[time_ind, freq_ind:freq_ind + num_fine_chans, :] = \
-                        hdu_list[i].data[..., 0::2] + 1j * hdu_list[i].data[..., 1::2]
+                        hdu_list[i].data[:, 0::2] + 1j * hdu_list[i].data[:, 1::2]
 
         # polarizations are ordered yy, yx, xy, xx
         self.polarization_array = np.array([-6, -8, -7, -5])
