@@ -1641,6 +1641,25 @@ def test_reorder_blts():
         uv3.reorder_blts(order='time', minor_order='foo')
     assert str(cm.value).startswith('minor_order can only be one of')
 
+def test_sum_vis():
+    # check sum_vis
+    uv_full = UVData()
+    testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    uv_full.read_uvfits(testfile)
+
+    uv_half = copy.deepcopy(uv_full)
+    uv_half.data_array = uv_full.data_array / 2
+
+    uv_half_copy = copy.deepcopy(uv_half)
+    uv_summed = uv_half.sum_vis(uv_half_copy)
+
+    assert np.array_equal(uv_summed.data_array, uv_full.data_array)
+
+    #check diff_vis
+    uv_halved = copy.deepcopy(uv_full)
+    uv_halved.data_array = uv_full.data_array / 2
+    uv_diffed = uv_full.diff_vis(uv_halved)
+    assert np.array_equal(uv_diffed.data_array, uv_halved.data_array)
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 def test_add():
