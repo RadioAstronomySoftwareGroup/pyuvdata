@@ -1587,13 +1587,6 @@ class UVData(UVBase):
                                 '_phase_center_ra', '_phase_center_dec',
                                 '_phase_center_epoch']
 
-        '''
-        if not params_match:
-            msg = 'UVParameter ' + \
-                a[1:] + ' does not match. Cannot combine objects.'
-            raise ValueError(msg)
-        '''
-
         # Build up history string
         history_update_string = ' Combined data along '
         n_axes = 0
