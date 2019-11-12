@@ -1641,6 +1641,7 @@ def test_reorder_blts():
         uv3.reorder_blts(order='time', minor_order='foo')
     assert str(cm.value).startswith('minor_order can only be one of')
 
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 def test_sum_vis():
     # check sum_vis
     uv_full = UVData()
@@ -1649,17 +1650,18 @@ def test_sum_vis():
 
     uv_half = copy.deepcopy(uv_full)
     uv_half.data_array = uv_full.data_array / 2
-
-    uv_half_copy = copy.deepcopy(uv_half)
-    uv_summed = uv_half.sum_vis(uv_half_copy)
+    uv_summed = uv_half.sum_vis(uv_half)
 
     assert np.array_equal(uv_summed.data_array, uv_full.data_array)
+    assert uvutils._check_histories(uv_half.history +
+            ' Visibilities summed using pyuvdata.', uv_summed.history)
 
     #check diff_vis
-    uv_halved = copy.deepcopy(uv_full)
-    uv_halved.data_array = uv_full.data_array / 2
-    uv_diffed = uv_full.diff_vis(uv_halved)
-    assert np.array_equal(uv_diffed.data_array, uv_halved.data_array)
+    uv_diffed = uv_full.diff_vis(uv_half)
+
+    assert np.array_equal(uv_diffed.data_array, uv_half.data_array)
+    assert uvutils._check_histories(uv_full.history +
+            ' Visibilities differenced using pyuvdata.', uv_diffed.history)
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 def test_sum_vis():
