@@ -1473,7 +1473,6 @@ class UVData(UVBase):
                                     'added to a UVData (or subclass) object')
         other.check(check_extra=check_extra, run_check_acceptability=run_check_acceptability)
 
-        # currently this is all of them -- list(UV.__iter__) -- except data_array
         compatibility_params = ['_Nants_data', '_Nants_telescope',
                                 '_Nbls', '_Nblts', '_Nfreqs', '_Npols',
                                 '_Nspws', '_Ntimes', '_ant_1_array',
