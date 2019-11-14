@@ -2200,7 +2200,8 @@ class UVData(UVBase):
             return this
 
     def _select_preprocess(self, antenna_nums, antenna_names, ant_str, bls,
-                           frequencies, freq_chans, times, polarizations, blt_inds):
+                           frequencies, freq_chans, times, time_range,
+                           polarizations, blt_inds):
         """
         Internal function to build up blt_inds, freq_inds, pol_inds
         and history_update_string for select.
@@ -2243,7 +2244,11 @@ class UVData(UVBase):
             The frequency channel numbers to keep in the object.
         times : array_like of float, optional
             The times to keep in the object, each value passed here should
-            exist in the time_array.
+            exist in the time_array. Cannot be used with `time_range`.
+        time_range : array_like of float, optional
+            The time range in Julian Date to keep in the object, must be
+            length 2. Some of the times in the object should fall between the
+            first and last elements. Cannot be used with `times`.
         polarizations : array_like of int, optional
             The polarizations numbers to keep in the object, each value passed
             here should exist in the polarization_array.
@@ -2397,6 +2402,10 @@ class UVData(UVBase):
                 blt_inds = ant_blt_inds
 
         if times is not None:
+            if time_range is not None:
+                raise ValueError(
+                    'Only one of "times" and "time_range" can be set')
+
             times = uvutils._get_iterable(times)
             if np.array(times).ndim > 1:
                 times = np.array(times).flatten()
@@ -2414,6 +2423,34 @@ class UVData(UVBase):
                 else:
                     raise ValueError(
                         'Time {t} is not present in the time_array'.format(t=jd))
+
+            if blt_inds is not None:
+                # Use intesection (and) to join antenna_names/nums/ant_pairs_nums/blt_inds with times
+                blt_inds = np.array(
+                    list(set(blt_inds).intersection(time_blt_inds)), dtype=np.int)
+            else:
+                blt_inds = time_blt_inds
+
+        if time_range is not None:
+            if np.array(time_range).size != 2:
+                raise ValueError('time_range must be length 2.')
+
+            times = uvutils._get_iterable(times)
+            if np.array(times).ndim > 1:
+                times = np.array(times).flatten()
+            if n_selects > 0:
+                history_update_string += ', times'
+            else:
+                history_update_string += 'times'
+            n_selects += 1
+
+            time_blt_inds = np.nonzero(
+                (self.time_array <= time_range[1])
+                & (self.time_array >= time_range[0]))[0]
+            if time_blt_inds.size == 0:
+                raise ValueError(
+                    'No elements in time range between {t0} and t1'
+                    .format(t0=time_range[0], t1=time_range[1]))
 
             if blt_inds is not None:
                 # Use intesection (and) to join antenna_names/nums/ant_pairs_nums/blt_inds with times
@@ -2574,7 +2611,8 @@ class UVData(UVBase):
 
     def select(self, antenna_nums=None, antenna_names=None, ant_str=None,
                bls=None, frequencies=None, freq_chans=None,
-               times=None, polarizations=None, blt_inds=None, run_check=True,
+               times=None, time_range=None, polarizations=None, blt_inds=None,
+               run_check=True,
                check_extra=True, run_check_acceptability=True, inplace=True,
                metadata_only=None, keep_all_metadata=True):
         """
@@ -2582,7 +2620,8 @@ class UVData(UVBase):
 
         Axes that can be selected along include antenna names or numbers,
         antenna pairs, frequencies, times and polarizations. Specific
-        baseline-time indices can also be selected, but this is not commonly used.
+        baseline-time indices can also be selected, but this is not commonly
+        used.
         The history attribute on the object will be updated to identify the
         operations performed.
 
@@ -2624,7 +2663,11 @@ class UVData(UVBase):
             The frequency channel numbers to keep in the object.
         times : array_like of float, optional
             The times to keep in the object, each value passed here should
-            exist in the time_array.
+            exist in the time_array. Cannot be used with `time_range`.
+        time_range : array_like of float, optional
+            The time range in Julian Date to keep in the object, must be
+            length 2. Some of the times in the object should fall between the
+            first and last elements. Cannot be used with `times`.
         polarizations : array_like of int, optional
             The polarizations numbers to keep in the object, each value passed
             here should exist in the polarization_array.
@@ -2684,8 +2727,9 @@ class UVData(UVBase):
             uv_object = copy.deepcopy(self)
 
         blt_inds, freq_inds, pol_inds, history_update_string = \
-            uv_object._select_preprocess(antenna_nums, antenna_names, ant_str, bls,
-                                         frequencies, freq_chans, times, polarizations, blt_inds)
+            uv_object._select_preprocess(
+                antenna_nums, antenna_names, ant_str, bls, frequencies,
+                freq_chans, times, time_range, polarizations, blt_inds)
 
         # do select operations on everything except data_array, flag_array and nsample_array
         uv_object._select_metadata(blt_inds, freq_inds, pol_inds, history_update_string,
@@ -2771,6 +2815,7 @@ class UVData(UVBase):
     def read_uvfits(self, filename, axis=None, antenna_nums=None,
                     antenna_names=None, ant_str=None, bls=None,
                     frequencies=None, freq_chans=None, times=None,
+                    time_range=None,
                     polarizations=None, blt_inds=None,
                     keep_all_metadata=True, read_data=True, read_metadata=True,
                     run_check=True, check_extra=True,
@@ -2830,7 +2875,13 @@ class UVData(UVBase):
             object. Ignored if read_data is False.
         times : array_like of float, optional
             The times to include when reading data into the object, each value
-            passed here should exist in the time_array. Ignored if read_data is False.
+            passed here should exist in the time_array in the file.
+            Cannot be used with `time_range`.
+        time_range : array_like of float, optional
+            The time range in Julian Date to include when reading data into
+            the object, must be length 2. Some of the times in the file should
+            fall between the first and last elements.
+            Cannot be used with `times`.
         polarizations : array_like of int, optional
             The polarizations numbers to include when reading data into the
             object, each value passed here should exist in the polarization_array.
@@ -2891,7 +2942,7 @@ class UVData(UVBase):
                       antenna_nums=antenna_nums,
                       antenna_names=antenna_names, ant_str=ant_str,
                       bls=bls, frequencies=frequencies,
-                      freq_chans=freq_chans, times=times,
+                      freq_chans=freq_chans, times=times, time_range=time_range,
                       polarizations=polarizations, blt_inds=blt_inds,
                       read_data=read_data, read_metadata=read_metadata,
                       run_check=run_check, check_extra=check_extra,
@@ -2904,6 +2955,7 @@ class UVData(UVBase):
                                antenna_names=antenna_names, ant_str=ant_str,
                                bls=bls, frequencies=frequencies,
                                freq_chans=freq_chans, times=times,
+                               time_range=time_range,
                                polarizations=polarizations, blt_inds=blt_inds,
                                read_data=read_data, read_metadata=read_metadata,
                                run_check=run_check, check_extra=check_extra,
@@ -3359,7 +3411,7 @@ class UVData(UVBase):
 
     def read_uvh5(self, filename, axis=None, antenna_nums=None, antenna_names=None,
                   ant_str=None, bls=None, frequencies=None, freq_chans=None,
-                  times=None, polarizations=None, blt_inds=None,
+                  times=None, time_range=None, polarizations=None, blt_inds=None,
                   keep_all_metadata=True, read_data=True, data_array_dtype=np.complex128,
                   run_check=True, check_extra=True, run_check_acceptability=True):
         """
@@ -3418,7 +3470,13 @@ class UVData(UVBase):
             object. Ignored if read_data is False.
         times : array_like of float, optional
             The times to include when reading data into the object, each value
-            passed here should exist in the time_array. Ignored if read_data is False.
+            passed here should exist in the time_array in the file.
+            Cannot be used with `time_range`.
+        time_range : array_like of float, optional
+            The time range in Julian Date to include when reading data into
+            the object, must be length 2. Some of the times in the file should
+            fall between the first and last elements.
+            Cannot be used with `times`.
         polarizations : array_like of int, optional
             The polarizations numbers to include when reading data into the
             object, each value passed here should exist in the polarization_array.
@@ -3472,7 +3530,8 @@ class UVData(UVBase):
             self.read(filename, file_type='uvh5', axis=axis,
                       antenna_nums=antenna_nums,
                       antenna_names=antenna_names, ant_str=ant_str, bls=bls,
-                      frequencies=frequencies, freq_chans=freq_chans, times=times,
+                      frequencies=frequencies, freq_chans=freq_chans,
+                      times=times, time_range=time_range,
                       polarizations=polarizations, blt_inds=blt_inds,
                       read_data=read_data, run_check=run_check,
                       check_extra=check_extra,
@@ -3484,7 +3543,8 @@ class UVData(UVBase):
         uvh5_obj = uvh5.UVH5()
         uvh5_obj.read_uvh5(filename, antenna_nums=antenna_nums,
                            antenna_names=antenna_names, ant_str=ant_str, bls=bls,
-                           frequencies=frequencies, freq_chans=freq_chans, times=times,
+                           frequencies=frequencies, freq_chans=freq_chans,
+                           times=times, time_range=time_range,
                            polarizations=polarizations, blt_inds=blt_inds,
                            read_data=read_data, run_check=run_check, check_extra=check_extra,
                            run_check_acceptability=run_check_acceptability,
@@ -3734,12 +3794,12 @@ class UVData(UVBase):
             The antennas numbers to include when reading data into the object
             (antenna positions and names for the removed antennas will be retained
             unless `keep_all_metadata` is False). This cannot be provided if
-            `antenna_names` is also provided. Ignored if read_data is False.
+            `antenna_names` is also provided.
         antenna_names : array_like of str, optional
             The antennas names to include when reading data into the object
             (antenna positions and names for the removed antennas will be retained
             unless `keep_all_metadata` is False). This cannot be provided if
-            `antenna_nums` is also provided. Ignored if read_data is False.
+            `antenna_nums` is also provided.
         bls : list of tuple, optional
             A list of antenna number tuples (e.g. [(0, 1), (3, 2)]) or a list of
             baseline 3-tuples (e.g. [(0, 1, 'xx'), (2, 3, 'yy')]) specifying baselines
@@ -3747,7 +3807,7 @@ class UVData(UVBase):
             the ordering of the numbers within the tuple does not matter. For
             length-3 tuples, the polarization string is in the order of the two
             antennas. If length-3 tuples are provided, `polarizations` must be
-            None. Ignored if read_data is False.
+            None.
         ant_str : str, optional
             A string containing information about what antenna numbers
             and polarizations to include when reading data into the object.
@@ -3759,28 +3819,28 @@ class UVData(UVBase):
             pyuvdata object.
             An ant_str cannot be passed in addition to any of `antenna_nums`,
             `antenna_names`, `bls` args or the `polarizations` parameters,
-            if it is a ValueError will be raised. Ignored if read_data is False.
+            if it is a ValueError will be raised.
         frequencies : array_like of float, optional
             The frequencies to include when reading data into the object, each
-            value passed here should exist in the freq_array. Ignored if
-            read_data is False.
+            value passed here should exist in the freq_array.
         freq_chans : array_like of int, optional
             The frequency channel numbers to include when reading data into the
             object. Ignored if read_data is False.
         times : array_like of float, optional
             The times to include when reading data into the object, each value
-            passed here should exist in the time_array. Ignored if read_data is False.
-        time_range : list of float, optional
-            len-2 list containing min and max range of times in Julian Date to
-            include when reading data into the object. e.g. [2458115.20, 2458115.40]
-            Cannot be set with times.
+            passed here should exist in the time_array in the file.
+            Cannot be used with `time_range`.
+        time_range : array_like of float, optional
+            The time range in Julian Date to include when reading data into
+            the object, must be length 2. Some of the times in the file should
+            fall between the first and last elements.
+            Cannot be used with `times`.
         polarizations : array_like of int, optional
             The polarizations numbers to include when reading data into the
             object, each value passed here should exist in the polarization_array.
-            Ignored if read_data is False.
         blt_inds : array_like of int, optional
             The baseline-time indices to include when reading data into the
-            object. This is not commonly used. Ignored if read_data is False.
+            object. This is not commonly used.
         keep_all_metadata : bool
             Option to keep all the metadata associated with antennas, even those
             that do not have data associated with them after the select option.
@@ -3989,20 +4049,11 @@ class UVData(UVBase):
         else:
             # reading a single "file". Call the appropriate file-type read
             if file_type == 'uvfits':
-                if time_range is not None:
-                    select = True
-                    warnings.warn(
-                        'Warning: "time_range" keyword is set which is not '
-                        'supported by read_uvfits. This select will be '
-                        'done after reading the file.')
-                else:
-                    select = False
-
                 self.read_uvfits(
                     filename, antenna_nums=antenna_nums,
                     antenna_names=antenna_names, ant_str=ant_str,
                     bls=bls, frequencies=frequencies,
-                    freq_chans=freq_chans, times=times,
+                    freq_chans=freq_chans, times=times, time_range=time_range,
                     polarizations=polarizations, blt_inds=blt_inds,
                     read_data=read_data, read_metadata=read_metadata,
                     run_check=run_check, check_extra=check_extra,
@@ -4108,20 +4159,11 @@ class UVData(UVBase):
                              data_column=data_column, pol_order=pol_order)
 
             elif file_type == 'uvh5':
-                if (time_range is not None):
-                    select = True
-                    warnings.warn(
-                        'Warning: "time_range" keyword is set which is not '
-                        'supported by read_uvh5. This select will be '
-                        'done after reading the file.')
-                else:
-                    select = False
-
                 self.read_uvh5(
                     filename, antenna_nums=antenna_nums,
                     antenna_names=antenna_names, ant_str=ant_str, bls=bls,
                     frequencies=frequencies, freq_chans=freq_chans,
-                    times=times,
+                    times=times, time_range=time_range,
                     polarizations=polarizations, blt_inds=blt_inds,
                     read_data=read_data, run_check=run_check,
                     check_extra=check_extra,
@@ -4140,14 +4182,9 @@ class UVData(UVBase):
                     select_frequencies = frequencies
                     select_freq_chans = freq_chans
                     select_times = times
+                    select_time_range = time_range
                     select_polarizations = polarizations
                     select_blt_inds = blt_inds
-
-                    if time_range is not None:
-                        unique_times = np.unique(self.time_array)
-                        select_times = unique_times[
-                            np.where((unique_times >= np.min(time_range))
-                                     & (unique_times <= np.max(time_range)))]
 
                 elif file_type in ['uvfits', 'uvh5']:
                     # these are all done by partial read, so set to None here
@@ -4158,15 +4195,10 @@ class UVData(UVBase):
                     select_frequencies = None
                     select_freq_chans = None
                     select_times = None
+                    select_time_range = None
                     select_polarizations = None
                     select_blt_inds = None
 
-                    # this isn't supported by partial read, so do it here
-                    if time_range is not None:
-                        unique_times = np.unique(self.time_array)
-                        select_times = unique_times[
-                            np.where((unique_times >= np.min(time_range))
-                                     & (unique_times <= np.max(time_range)))]
                 elif file_type in ['miriad']:
                     # these are all done by partial read, so set to None here
                     select_antenna_nums = None
@@ -4189,6 +4221,7 @@ class UVData(UVBase):
                     frequencies=select_frequencies,
                     freq_chans=select_freq_chans,
                     times=select_times,
+                    time_range=select_time_range,
                     polarizations=select_polarizations,
                     blt_inds=select_blt_inds,
                     run_check=run_check,

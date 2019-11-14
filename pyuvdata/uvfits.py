@@ -138,7 +138,8 @@ class UVFITS(UVData):
         # figure out what data to read in
         blt_inds, freq_inds, pol_inds, history_update_string = \
             self._select_preprocess(antenna_nums, antenna_names, ant_str, bls,
-                                    frequencies, freq_chans, times, polarizations, blt_inds)
+                                    frequencies, freq_chans, times, time_range,
+                                    polarizations, blt_inds)
 
         if blt_inds is not None:
             blt_frac = len(blt_inds) / float(self.Nblts)
@@ -236,7 +237,8 @@ class UVFITS(UVData):
 
     def read_uvfits(self, filename, antenna_nums=None, antenna_names=None,
                     ant_str=None, bls=None, frequencies=None,
-                    freq_chans=None, times=None, polarizations=None, blt_inds=None,
+                    freq_chans=None, times=None, time_range=None,
+                    polarizations=None, blt_inds=None,
                     read_data=True, read_metadata=True,
                     run_check=True, check_extra=True, run_check_acceptability=True,
                     keep_all_metadata=True):
@@ -288,7 +290,11 @@ class UVFITS(UVData):
             object. Ignored if read_data is False.
         times : array_like of float, optional
             The times to include when reading data into the object, each value
-            passed here should exist in the time_array. Ignored if read_data is False.
+            passed here should exist in the time_array.
+        time_range : array_like of float, optional
+            The time range in Julian Date to keep in the object, must be
+            length 2. Some of the times in the object should fall between the
+            first and last elements. Cannot be used with `times`.
         polarizations : array_like of int, optional
             The polarizations numbers to include when reading data into the
             object, each value passed here should exist in the polarization_array.
