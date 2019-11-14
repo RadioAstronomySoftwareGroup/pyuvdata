@@ -10,6 +10,7 @@ import numpy as np
 
 from pyuvdata.data import DATA_PATH
 from pyuvdata import UVBeam
+from pyuvdata.mwa_beam import P1sin, P1sin_array
 import pyuvdata.tests as uvtest
 
 filename = os.path.join(DATA_PATH, 'mwa_full_EE_test.h5')
@@ -37,6 +38,24 @@ def test_read_write_mwa():
     beam2.read_beamfits(outfile_name)
 
     assert beam1 == beam2
+
+
+def test_P1sin_array():
+    pixels_per_deg = 5
+    nmax = 10
+    n_theta = np.floor(90 * pixels_per_deg) + 1
+    theta_arr = np.deg2rad(np.arange(0, n_theta) / pixels_per_deg)
+    (P_sin, P1) = P1sin_array(nmax, theta_arr)
+
+    P_sin_orig = np.zeros((nmax ** 2 + 2 * nmax, np.size(theta_arr)))
+    P1_orig = np.zeros((nmax ** 2 + 2 * nmax, np.size(theta_arr)))
+    for theta_i, theta in enumerate(theta_arr):
+        P_sin_temp, P1_temp = P1sin(nmax, theta)
+        P_sin_orig[:, theta_i] = P_sin_temp
+        P1_orig[:, theta_i] = P1_temp
+
+    assert np.allclose(P1_orig, P1.T)
+    assert np.allclose(P_sin_orig, P_sin.T)
 
 
 def test_bad_amps():
