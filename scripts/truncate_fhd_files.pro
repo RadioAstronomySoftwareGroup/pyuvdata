@@ -6,12 +6,12 @@ pro truncate_fhd_files, npol=npol, chan_range=chan_range, time_range=time_range,
   observation = '1061316296'
   if n_elements(outdir_str) eq 0 then outdir_str = ''
   outdir = dir+'data_for_tests' + outdir_str + '/'
-  
+
   if file_test(outdir, /directory) eq 0 then file_mkdir, outdir
-  
+
   file_copy, dir+'metadata/'+observation+'_layout.sav', outdir+observation+'_layout.sav', /overwrite
   file_copy, dir+'metadata/'+observation+'_settings.txt', outdir+observation+'_settings.txt', /overwrite
-  
+
   if n_elements(chan_range) eq 0 then chan_range = [204-1,204+1]
   ; Starting time so we don't include the first two seconds (which are flagged)
   if n_elements(time_range) eq 0 then time_range =[4, 7] ; Will keep roughly 1/10 the times
@@ -31,8 +31,8 @@ pro truncate_fhd_files, npol=npol, chan_range=chan_range, time_range=time_range,
   if n_elements(npol) eq 0 then npol = 2
   if npol lt 0 or npol gt 2 then message, 'npol can only be 1 or 2'
   if npol eq 1 then pols=['XX'] else pols=['XX','YY']
-  
-  
+
+
   ; Now for the hard part
   print,'Reorganizing obs structure'
   bin_offset = Lonarr(n_times)
@@ -47,7 +47,7 @@ pro truncate_fhd_files, npol=npol, chan_range=chan_range, time_range=time_range,
     freq_use = ((*obs.baseline_info).freq_use)[chan_range[0]:chan_range[1]], $
     time_use = ((*obs.baseline_info).time_use)[time_range[0]:time_range[1]], $
     tile_use = ((*obs.baseline_info).tile_use)[tile_range[0]:tile_range[1]])
-    
+
   obs_new = structure_update(obs, n_freq=chan_range[1]-chan_range[0]+1, $
     n_time = n_times, nf_vis = obs.nf_vis[chan_range[0]:chan_range[1]],$
     nbaselines = n_tiles*(n_tiles-1)/2, n_pol = npol)
@@ -55,13 +55,15 @@ pro truncate_fhd_files, npol=npol, chan_range=chan_range, time_range=time_range,
   *obs_new.vis_noise = (*obs.vis_noise)[*,chan_range[0]:chan_range[1]]
   obs=obs_new
   save,obs,filename=outdir+observation+'_obs.sav'
-  
+
   print,'Reorganizing cal structure'
   gain = cal.gain[0:npol-1]
+  gain_residual = cal.gain_residual[0:npol-1]
   convergence = cal.convergence[0:npol-1]
   auto_params = cal.auto_params[0:npol-1]
   for pol=0,npol-1 do begin
     *gain[pol] = (*gain[pol])[chan_range[0]:chan_range[1],tile_range[0]:tile_range[1]]
+    *gain_residual[pol] = (*gain_residual[pol])[chan_range[0]:chan_range[1],tile_range[0]:tile_range[1]]
     *convergence[pol] = (*convergence[pol])[chan_range[0]:chan_range[1],tile_range[0]:tile_range[1]]
     *auto_params[pol] = (*auto_params[pol])[*,tile_range[0]:tile_range[1]]
   endfor
@@ -80,6 +82,7 @@ pro truncate_fhd_files, npol=npol, chan_range=chan_range, time_range=time_range,
     vv = cal.vv[blt_inds], tile_a=cal.tile_a[blt_inds], tile_b=cal.tile_b[blt_inds], $
     tile_names = cal.tile_names[tile_range[0]:tile_range[1]], bin_offset=bin_offset, $
     freq = cal.freq[chan_range[0]:chan_range[1]], gain = gain, $
+    gain_residual = gain_residual, $
     convergence = convergence, auto_params = auto_params, $
     amp_params = cal.amp_params[*,tile_range[0]:tile_range[1]], $
     phase_params = cal.phase_params[*,tile_range[0]:tile_range[1]], $
@@ -87,7 +90,7 @@ pro truncate_fhd_files, npol=npol, chan_range=chan_range, time_range=time_range,
     skymodel=new_skymodel)
   cal=cal_new
   save,cal,filename=outdir+observation+'_cal.sav'
-  
+
   ; params
   print,'Slicing params'
   params_new = structure_update(params, $
@@ -98,7 +101,7 @@ pro truncate_fhd_files, npol=npol, chan_range=chan_range, time_range=time_range,
     time=params.time[blt_inds])
   params = params_new
   save,params,filename=outdir+observation+'_params.sav'
-  
+
   restore,dir+'vis_data/'+observation+'_flags.sav'  ; Flag file
   if n_elements(flag_arr) gt 0 then begin
     for pol=0,1 do begin
@@ -107,7 +110,7 @@ pro truncate_fhd_files, npol=npol, chan_range=chan_range, time_range=time_range,
     save,flag_arr,filename=outdir+observation+'_flags.sav'
     undefine,flag_arr
   endif
-  
+
   for pol=0, npol-1 do begin
     print,'Slicing pol '+pols[pol]
     restore,dir+'vis_data/'+observation+'_vis_'+pols[pol]+'.sav' ; Dirty data
@@ -119,5 +122,5 @@ pro truncate_fhd_files, npol=npol, chan_range=chan_range, time_range=time_range,
     *vis_model_ptr = (*vis_model_ptr)[chan_range[0]:chan_range[1],blt_inds]
     save,vis_model_ptr,obs,filename=outdir+observation+'_vis_model_'+pols[pol]+'.sav'
   endfor
-  
+
 end
