@@ -2,9 +2,7 @@
 # Copyright (c) 2018 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 
-"""Tests for FHD_cal object.
-
-"""
+"""Tests for FHD_cal object."""
 from __future__ import absolute_import, division, print_function
 
 import pytest
@@ -26,12 +24,13 @@ def test_ReadFHDcalWriteReadcalfits():
     """
     FHD cal to calfits loopback test.
 
-    Read in FHD cal files, write out as calfits, read back in and check for object
-    equality.
+    Read in FHD cal files, write out as calfits, read back in and check for
+    object equality.
     """
     fhd_cal = UVCal()
     calfits_cal = UVCal()
-    fhd_cal.read_fhd_cal(cal_testfile, obs_testfile, settings_file=settings_testfile)
+    fhd_cal.read_fhd_cal(cal_testfile, obs_testfile,
+                         settings_file=settings_testfile)
 
     outfile = os.path.join(DATA_PATH, 'test/outtest_FHDcal_1061311664.calfits')
     fhd_cal.write_calfits(outfile, clobber=True)
@@ -48,9 +47,7 @@ def test_ReadFHDcalWriteReadcalfits():
 
 
 def test_extra_history():
-    """
-    test that setting the extra_history keyword works
-    """
+    """Test that setting the extra_history keyword works."""
     fhd_cal = UVCal()
     calfits_cal = UVCal()
     extra_history = 'Some extra history for testing\n'
@@ -80,13 +77,12 @@ def test_extra_history():
 
 
 def test_flags_galaxy():
-    """
-    test that files with time, freq and tile flags and galaxy models behave as expected
-    """
+    """Test files with time, freq and tile flags and galaxy models behave."""
     testdir = os.path.join(DATA_PATH, 'fhd_cal_data/flag_set')
     obs_testfile_flag = os.path.join(testdir, testfile_prefix + 'obs.sav')
     cal_testfile_flag = os.path.join(testdir, testfile_prefix + 'cal.sav')
-    settings_testfile_flag = os.path.join(testdir, testfile_prefix + 'settings.txt')
+    settings_testfile_flag = os.path.join(testdir,
+                                          testfile_prefix + 'settings.txt')
 
     fhd_cal = UVCal()
     calfits_cal = UVCal()
@@ -114,14 +110,19 @@ def test_breakReadFHDcal():
 def test_read_multi():
     """Test reading in multiple files."""
     testdir2 = os.path.join(DATA_PATH, 'fhd_cal_data/set2')
-    obs_testfile_list = [obs_testfile, os.path.join(testdir2, testfile_prefix + 'obs.sav')]
-    cal_testfile_list = [cal_testfile, os.path.join(testdir2, testfile_prefix + 'cal.sav')]
-    settings_testfile_list = [settings_testfile, os.path.join(testdir2, testfile_prefix + 'settings.txt')]
+    obs_testfile_list = [obs_testfile,
+                         os.path.join(testdir2, testfile_prefix + 'obs.sav')]
+    cal_testfile_list = [cal_testfile,
+                         os.path.join(testdir2, testfile_prefix + 'cal.sav')]
+    settings_testfile_list = [settings_testfile,
+                              os.path.join(testdir2,
+                                           testfile_prefix + 'settings.txt')]
 
     fhd_cal = UVCal()
     calfits_cal = UVCal()
-    uvtest.checkWarnings(fhd_cal.read_fhd_cal, [cal_testfile_list, obs_testfile_list],
-                         {'settings_file': settings_testfile_list},
+    uvtest.checkWarnings(fhd_cal.read_fhd_cal, func_args=[cal_testfile_list,
+                                                          obs_testfile_list],
+                         func_kwargs={'settings_file': settings_testfile_list},
                          message='UVParameter diffuse_model does not match')
 
     outfile = os.path.join(DATA_PATH, 'test/outtest_FHDcal_1061311664.calfits')
@@ -132,11 +133,14 @@ def test_read_multi():
 
 def test_break_read_multi():
     """Test errors for different numbers of files."""
-
     testdir2 = os.path.join(DATA_PATH, 'fhd_cal_data/set2')
-    obs_testfile_list = [obs_testfile, os.path.join(testdir2, testfile_prefix + 'obs.sav')]
-    cal_testfile_list = [cal_testfile, os.path.join(testdir2, testfile_prefix + 'cal.sav')]
-    settings_testfile_list = [settings_testfile, os.path.join(testdir2, testfile_prefix + 'settings.txt')]
+    obs_testfile_list = [obs_testfile,
+                         os.path.join(testdir2, testfile_prefix + 'obs.sav')]
+    cal_testfile_list = [cal_testfile,
+                         os.path.join(testdir2, testfile_prefix + 'cal.sav')]
+    settings_testfile_list = [settings_testfile,
+                              os.path.join(testdir2,
+                                           testfile_prefix + 'settings.txt')]
 
     fhd_cal = UVCal()
     pytest.raises(ValueError, fhd_cal.read_fhd_cal, cal_testfile_list,
@@ -144,9 +148,11 @@ def test_break_read_multi():
     pytest.raises(ValueError, fhd_cal.read_fhd_cal, cal_testfile_list,
                   obs_testfile_list, settings_file=settings_testfile_list[0])
     pytest.raises(ValueError, fhd_cal.read_fhd_cal, cal_testfile_list,
-                  obs_testfile_list + obs_testfile_list, settings_file=settings_testfile_list)
+                  obs_testfile_list + obs_testfile_list,
+                  settings_file=settings_testfile_list)
     pytest.raises(ValueError, fhd_cal.read_fhd_cal, cal_testfile_list,
-                  obs_testfile_list, settings_file=settings_testfile_list + settings_testfile_list)
+                  obs_testfile_list, settings_file=settings_testfile_list
+                  + settings_testfile_list)
     pytest.raises(ValueError, fhd_cal.read_fhd_cal, cal_testfile_list[0],
                   obs_testfile_list, settings_file=settings_testfile_list[0])
     pytest.raises(ValueError, fhd_cal.read_fhd_cal, cal_testfile_list[0],
