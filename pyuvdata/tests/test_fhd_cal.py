@@ -8,6 +8,8 @@ from __future__ import absolute_import, division, print_function
 import pytest
 import os
 
+import numpy as np
+
 from pyuvdata import UVCal
 import pyuvdata.tests as uvtest
 from pyuvdata.data import DATA_PATH
@@ -31,6 +33,8 @@ def test_ReadFHDcalWriteReadcalfits():
     calfits_cal = UVCal()
     fhd_cal.read_fhd_cal(cal_testfile, obs_testfile,
                          settings_file=settings_testfile)
+
+    assert np.max(fhd_cal.gain_array) < 2.
 
     outfile = os.path.join(DATA_PATH, 'test/outtest_FHDcal_1061311664.calfits')
     fhd_cal.write_calfits(outfile, clobber=True)
