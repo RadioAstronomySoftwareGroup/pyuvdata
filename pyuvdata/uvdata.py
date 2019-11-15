@@ -1544,7 +1544,7 @@ class UVData(UVBase):
                 history_update_string += 'frequency'
             n_axes += 1
         else:
-            fnew_inds, _ = ([], [])
+            fnew_inds = []
 
         # find the pol indices in "other" but not in "this"
         temp = np.nonzero(~np.in1d(other.polarization_array,
@@ -1557,7 +1557,7 @@ class UVData(UVBase):
                 history_update_string += 'polarization'
             n_axes += 1
         else:
-            pnew_inds, _ = ([], [])
+            pnew_inds = []
 
         # Actually check compatibility parameters
         for a in compatibility_params:

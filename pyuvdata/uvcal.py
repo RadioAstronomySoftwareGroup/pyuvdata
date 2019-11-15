@@ -1049,7 +1049,7 @@ class UVCal(UVBase):
             history_update_string += 'antenna'
             n_axes += 1
         else:
-            anew_inds, _ = ([], [])
+            anew_inds = []
 
         temp = np.nonzero(~np.in1d(other.time_array, this.time_array))[0]
         if len(temp) > 0:
@@ -1060,7 +1060,7 @@ class UVCal(UVBase):
                 history_update_string += 'time'
             n_axes += 1
         else:
-            tnew_inds, _ = ([], [])
+            tnew_inds = []
 
         # adding along frequency axis is not supported for delay-type cal files
         if this.cal_type == 'gain':
@@ -1074,9 +1074,9 @@ class UVCal(UVBase):
                     history_update_string += 'frequency'
                 n_axes += 1
             else:
-                fnew_inds, _ = ([], [])
+                fnew_inds = []
         else:
-            fnew_inds, _ = ([], [])
+            fnew_inds = []
 
         temp = np.nonzero(~np.in1d(other.jones_array,
                                    this.jones_array))[0]
@@ -1088,7 +1088,7 @@ class UVCal(UVBase):
                 history_update_string += 'jones'
             n_axes += 1
         else:
-            jnew_inds, _ = ([], [])
+            jnew_inds = []
 
         # Initialize tqa variables
         can_combine_tqa = True
