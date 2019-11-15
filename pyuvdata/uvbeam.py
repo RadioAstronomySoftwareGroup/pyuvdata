@@ -1536,7 +1536,7 @@ class UVBeam(UVBase):
                 history_update_string += 'healpix pixel'
                 n_axes += 1
             else:
-                pix_new_inds, _ = ([], [])
+                pix_new_inds = []
         else:
             temp = np.nonzero(~np.in1d(other.axis1_array, this.axis1_array))[0]
             if len(temp) > 0:
@@ -1544,7 +1544,7 @@ class UVBeam(UVBase):
                 history_update_string += 'first image'
                 n_axes += 1
             else:
-                ax1_new_inds, _ = ([], [])
+                ax1_new_inds = []
 
             temp = np.nonzero(~np.in1d(other.axis2_array, this.axis2_array))[0]
             if len(temp) > 0:
@@ -1555,7 +1555,7 @@ class UVBeam(UVBase):
                     history_update_string += 'second image'
                 n_axes += 1
             else:
-                ax2_new_inds, _ = ([], [])
+                ax2_new_inds = []
 
         temp = np.nonzero(~np.in1d(other.freq_array[0, :],
                                    this.freq_array[0, :]))[0]
@@ -1567,7 +1567,7 @@ class UVBeam(UVBase):
                 history_update_string += 'frequency'
             n_axes += 1
         else:
-            fnew_inds, _ = ([], [])
+            fnew_inds = []
 
         if this.beam_type == 'power':
             temp = np.nonzero(~np.in1d(other.polarization_array,
@@ -1580,7 +1580,7 @@ class UVBeam(UVBase):
                     history_update_string += 'polarization'
                 n_axes += 1
             else:
-                pnew_inds, _ = ([], [])
+                pnew_inds = []
         else:
             temp = np.nonzero(~np.in1d(other.feed_array,
                                        this.feed_array))[0]
@@ -1592,7 +1592,7 @@ class UVBeam(UVBase):
                     history_update_string += 'feed'
                 n_axes += 1
             else:
-                pnew_inds, _ = ([], [])
+                pnew_inds = []
 
         # Pad out self to accommodate new data
         if this.pixel_coordinate_system == 'healpix':

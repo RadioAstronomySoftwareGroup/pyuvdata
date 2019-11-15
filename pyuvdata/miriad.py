@@ -242,7 +242,7 @@ class Miriad(UVData):
             # NOTE: Using our lst calculator, which uses astropy,
             # instead of _miriad values which come from pyephem.
             # The differences are of order 5 seconds.
-            # lst = uv['lst']
+            # To use the values from the file you'd want: lst = uv['lst']
             inttime = uv['inttime']
             source = uv['source']
             if source != _source:

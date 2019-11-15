@@ -5,4 +5,5 @@ channels:
 dependencies:
   - flake8
   - pip:
-     - flake8-docstrings
+    - flake8-docstrings
+    - flake8-pytest
