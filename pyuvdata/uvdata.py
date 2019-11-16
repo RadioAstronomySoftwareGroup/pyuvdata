@@ -1482,7 +1482,7 @@ class UVData(UVBase):
                                 '_blt_order', '_channel_width',
                                 '_dut1', '_earth_omega',
                                 '_extra_keywords', '_flag_array',
-                                '_freq_array', '_gst0', '_history',
+                                '_freq_array', '_gst0',
                                 '_instrument', '_integration_time',
                                 '_lst_array', '_nsample_array',
                                 '_object_name', '_phase_center_dec',
