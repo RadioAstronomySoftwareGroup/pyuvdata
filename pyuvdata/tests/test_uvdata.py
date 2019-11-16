@@ -450,20 +450,16 @@ def test_generic_read():
 @pytest.fixture
 def uv_phase_and_raw():
     testfile = os.path.join(DATA_PATH, 'zen.2458661.23480.HH.uvh5')
-    UV_raw = UVData()
-    # Note the RA/DEC values in the raw file were calculated from the lat/long
-    # in the file, which don't agree with our known_telescopes.
-    # So for this test we use the lat/lon in the file.
-    UV_raw.read_uvh5(testfile)
-    # uvtest.checkWarnings(UV_raw.read_miriad, [testfile], {'correct_lat_lon': False},
-    #                      message='Altitude is not present in file and latitude and '
-    #                              'longitude values do not match')
-    UV_phase = UVData()
-    UV_phase.read_uvh5(testfile)
+    uv_raw = UVData()
+    uv_raw.read_uvh5(testfile)
+    # uvws in the file are wrong. reset them.
+    uv_raw.set_uvws_from_antenna_positions()
 
-    yield UV_phase, UV_raw
+    uv_phase = uv_raw.copy()
 
-    del UV_phase, UV_raw
+    yield uv_phase, uv_raw
+
+    del uv_phase, uv_raw
 
     return
 
@@ -2173,7 +2169,7 @@ def uv_phase_time_split(uv_phase_and_raw):
     uv_phase.reorder_blts(order="time", minor_order="baseline")
     uv_raw.reorder_blts(order="time", minor_order="baseline")
 
-    uv_phase.phase(ra=0, dec=0, epoch="J2000")
+    uv_phase.phase(ra=0, dec=0, epoch="J2000", use_ant_pos=True)
     times = np.unique(uv_phase.time_array)
     time_set_1, time_set_2 = times[::2], times[1::2]
 
@@ -2269,20 +2265,21 @@ def test_add_this_rephase_new_phase_center(
     # phase each half to different spots
     uv_raw_1.phase(ra=0,
                    dec=0,
-                   epoch="J2000"
+                   use_ant_pos=True,
                    )
     uv_raw_2.phase(ra=phase_center_radec[0],
                    dec=phase_center_radec[1],
-                   epoch="J2000"
+                   use_ant_pos=True
                    )
     # phase original to phase_center_radec
     uv_raw.phase(ra=phase_center_radec[0],
                  dec=phase_center_radec[1],
-                 epoch="J2000"
+                 use_ant_pos=True
                  )
 
     func_kwargs = {"inplace": False,
                    "phase_center_radec": phase_center_radec,
+                   "use_ant_pos": True
                    }
     func_kwargs.update(extra_kwargs)
     uv_out = uvtest.checkWarnings(
@@ -2297,7 +2294,6 @@ def test_add_this_rephase_new_phase_center(
     # ensure baseline time order is the same
     # because fast_concat will not order for us
     uv_out.reorder_blts(order='time', minor_order='baseline')
-    print(uv_out.uvw_array - uv_raw.uvw_array)
     assert (uv_out.phase_center_ra, uv_out.phase_center_dec) == phase_center_radec
     assert uv_out == uv_raw
 
@@ -2319,20 +2315,21 @@ def test_add_other_rephase_new_phase_center(
     # phase each half to different spots
     uv_raw_1.phase(ra=phase_center_radec[0],
                    dec=phase_center_radec[1],
-                   epoch="J2000"
+                   use_ant_pos=True,
                    )
     uv_raw_2.phase(ra=0,
                    dec=0,
-                   epoch="J2000"
+                   use_ant_pos=True,
                    )
     # phase original to phase_center_radec
     uv_raw.phase(ra=phase_center_radec[0],
                  dec=phase_center_radec[1],
-                 epoch="J2000"
+                   use_ant_pos=True,
                  )
 
     func_kwargs = {"inplace": False,
                    "phase_center_radec": phase_center_radec,
+                   "use_ant_pos": True,
                    }
     func_kwargs.update(extra_kwargs)
     uv_out = uvtest.checkWarnings(
