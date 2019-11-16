@@ -70,6 +70,7 @@ class UVData(UVBase):
         self._data_array = uvp.UVParameter('data_array', description=desc,
                                            form=('Nblts', 'Nspws',
                                                  'Nfreqs', 'Npols'),
+                                           tols=(0, 1e-08),
                                            expected_type=np.complex)
 
         desc = 'Visibility units, options are: "uncalib", "Jy" or "K str"'
@@ -1064,9 +1065,8 @@ class UVData(UVBase):
                                  'Use unphase_to_drift or set '
                                  'allow_phasing=True.'
                                  )
-        antenna_locs_ENU = uvutils.ENU_from_ECEF(
-            (self.antenna_positions + self.telescope_location),
-            *self.telescope_location_lat_lon_alt)
+        antenna_locs_ENU, _ = self.get_ENU_antpos(center=False)
+
         uvw_array = np.zeros((self.baseline_array.size, 3))
         for baseline in list(set(self.baseline_array)):
             baseline_inds = np.where(self.baseline_array == baseline)[0]
@@ -1529,7 +1529,8 @@ class UVData(UVBase):
                                 inplace=inplace)
 
     def __add__(self, other, phase_center_radec=None,
-                unphase_to_drift=False, run_check=True, check_extra=True,
+                unphase_to_drift=False, phase_frame=None, use_ant_pos=False,
+                run_check=True, check_extra=True,
                 run_check_acceptability=True, inplace=False):
         """
         Combine two UVData objects along frequency, polarization and/or baseline-time.
@@ -1546,6 +1547,15 @@ class UVData(UVBase):
             because the objects are not compatible.
         unphase_to_drift : bool
             If True, unphase the objects to drift before combining them.
+        phase_frame : str
+            The astropy frame to phase to/from. Either 'icrs' or 'gcrs'.
+            'gcrs' accounts for precession & nutation,
+            'icrs' accounts for precession, nutation & abberation.
+            Only used if `unphase_to_drift` or `phase_center_radec` are set.
+        use_ant_pos : bool
+            If True, calculate the phased or unphased uvws directly from the
+            antenna positions rather than from the existing uvws.
+            Only used if `unphase_to_drift` or `phase_center_radec` are set.
         run_check : bool
             Option to check for the existence and proper shapes of parameters
             after combining objects.
@@ -1571,12 +1581,14 @@ class UVData(UVBase):
             this = copy.deepcopy(self)
 
         # Check that both objects are UVData and valid
-        this.check(check_extra=check_extra, run_check_acceptability=run_check_acceptability)
+        this.check(check_extra=check_extra,
+                   run_check_acceptability=run_check_acceptability)
         if not issubclass(other.__class__, this.__class__):
             if not issubclass(this.__class__, other.__class__):
                 raise ValueError('Only UVData (or subclass) objects can be '
                                  'added to a UVData (or subclass) object')
-        other.check(check_extra=check_extra, run_check_acceptability=run_check_acceptability)
+        other.check(check_extra=check_extra,
+                    run_check_acceptability=run_check_acceptability)
 
         if phase_center_radec is not None and unphase_to_drift:
             raise ValueError('phase_center_radec cannot be set if '
@@ -1585,13 +1597,17 @@ class UVData(UVBase):
         if unphase_to_drift:
             if (this.phase_type != 'drift'):
                 warnings.warn("Unphasing this UVData object to drift")
-                this.unphase_to_drift()
+                this.unphase_to_drift(phase_frame=phase_frame,
+                                      use_ant_pos=use_ant_pos)
 
             if (other.phase_type != 'drift'):
                 warnings.warn("Unphasing other UVData object to drift")
-                other.unphase_to_drift()
+                other.unphase_to_drift(phase_frame=phase_frame,
+                                       use_ant_pos=use_ant_pos)
 
         if phase_center_radec is not None:
+            if phase_frame is None:
+                phase_frame = 'icrs'
             if np.array(phase_center_radec).size != 2:
                 raise ValueError('phase_center_radec should have length 2.')
 
@@ -1599,12 +1615,14 @@ class UVData(UVBase):
                     or this.phase_center_dec != phase_center_radec[1]):
                 warnings.warn("Phasing this UVData object to phase_center_radec")
                 this.phase(phase_center_radec[0], phase_center_radec[1],
+                           phase_frame=phase_frame, use_ant_pos=use_ant_pos,
                            allow_rephase=True)
 
             if (other.phase_center_ra != phase_center_radec[0]
                     or other.phase_center_dec != phase_center_radec[1]):
                 warnings.warn("Phasing other UVData object to phase_center_radec")
                 other.phase(phase_center_radec[0], phase_center_radec[1],
+                            phase_frame=phase_frame, use_ant_pos=use_ant_pos,
                             allow_rephase=True)
 
         # Define parameters that must be the same to add objects
@@ -1851,6 +1869,7 @@ class UVData(UVBase):
             return this
 
     def __iadd__(self, other, phase_center_radec=None, unphase_to_drift=False,
+                 phase_frame=None, use_ant_pos=False,
                  run_check=True, check_extra=True,
                  run_check_acceptability=True):
         """
@@ -1868,6 +1887,15 @@ class UVData(UVBase):
             because the objects are not compatible.
         unphase_to_drift : bool
             If True, unphase the objects to drift before combining them.
+        phase_frame : str
+            The astropy frame to phase to/from. Either 'icrs' or 'gcrs'.
+            'gcrs' accounts for precession & nutation,
+            'icrs' accounts for precession, nutation & abberation.
+            Only used if `unphase_to_drift` or `phase_center_radec` are set.
+        use_ant_pos : bool
+            If True, calculate the phased or unphased uvws directly from the
+            antenna positions rather than from the existing uvws.
+            Only used if `unphase_to_drift` or `phase_center_radec` are set.
         run_check : bool
             Option to check for the existence and proper shapes of parameters
             after combining objects.
@@ -1885,6 +1913,7 @@ class UVData(UVBase):
         """
         self.__add__(other, phase_center_radec=phase_center_radec,
                      unphase_to_drift=unphase_to_drift,
+                     phase_frame=phase_frame, use_ant_pos=use_ant_pos,
                      run_check=run_check, check_extra=check_extra,
                      run_check_acceptability=run_check_acceptability,
                      inplace=True)
@@ -1892,6 +1921,7 @@ class UVData(UVBase):
 
     def fast_concat(self, other, axis, phase_center_radec=None,
                     unphase_to_drift=False,
+                    phase_frame=None, use_ant_pos=False,
                     run_check=True, check_extra=True,
                     run_check_acceptability=True, inplace=False):
         """
@@ -1918,6 +1948,15 @@ class UVData(UVBase):
             because the objects are not compatible.
         unphase_to_drift : bool
             If True, unphase the objects to drift before combining them.
+        phase_frame : str
+            The astropy frame to phase to/from. Either 'icrs' or 'gcrs'.
+            'gcrs' accounts for precession & nutation,
+            'icrs' accounts for precession, nutation & abberation.
+            Only used if `unphase_to_drift` or `phase_center_radec` are set.
+        use_ant_pos : bool
+            If True, calculate the phased or unphased uvws directly from the
+            antenna positions rather than from the existing uvws.
+            Only used if `unphase_to_drift` or `phase_center_radec` are set.
         run_check : bool
             Option to check for the existence and proper shapes of parameters
             after combining objects.
@@ -1941,12 +1980,14 @@ class UVData(UVBase):
         else:
             this = copy.deepcopy(self)
         # Check that both objects are UVData and valid
-        this.check(check_extra=check_extra, run_check_acceptability=run_check_acceptability)
+        this.check(check_extra=check_extra,
+                   run_check_acceptability=run_check_acceptability)
         if not issubclass(other.__class__, this.__class__):
             if not issubclass(this.__class__, other.__class__):
                 raise ValueError('Only UVData (or subclass) objects can be '
                                  'added to a UVData (or subclass) object')
-        other.check(check_extra=check_extra, run_check_acceptability=run_check_acceptability)
+        other.check(check_extra=check_extra,
+                    run_check_acceptability=run_check_acceptability)
 
         if phase_center_radec is not None and unphase_to_drift:
             raise ValueError('phase_center_radec cannot be set if '
@@ -1955,13 +1996,17 @@ class UVData(UVBase):
         if unphase_to_drift:
             if (this.phase_type != 'drift'):
                 warnings.warn("Unphasing this UVData object to drift")
-                this.unphase_to_drift()
+                this.unphase_to_drift(phase_frame=phase_frame,
+                                      use_ant_pos=use_ant_pos)
 
             if (other.phase_type != 'drift'):
                 warnings.warn("Unphasing other UVData object to drift")
-                other.unphase_to_drift()
+                other.unphase_to_drift(phase_frame=phase_frame,
+                                      use_ant_pos=use_ant_pos)
 
         if phase_center_radec is not None:
+            if phase_frame is None:
+                phase_frame = 'icrs'
             if np.array(phase_center_radec).size != 2:
                 raise ValueError('phase_center_radec should have length 2.')
 
@@ -1969,12 +2014,14 @@ class UVData(UVBase):
                     or this.phase_center_dec != phase_center_radec[1]):
                 warnings.warn("Phasing this UVData object to phase_center_radec")
                 this.phase(phase_center_radec[0], phase_center_radec[1],
+                           phase_frame=phase_frame, use_ant_pos=use_ant_pos,
                            allow_rephase=True)
 
             if (other.phase_center_ra != phase_center_radec[0]
                     or other.phase_center_dec != phase_center_radec[1]):
                 warnings.warn("Phasing other UVData object to phase_center_radec")
                 other.phase(phase_center_radec[0], phase_center_radec[1],
+                            phase_frame=phase_frame, use_ant_pos=use_ant_pos,
                             allow_rephase=True)
 
         allowed_axes = ['blt', 'freq', 'polarization']
