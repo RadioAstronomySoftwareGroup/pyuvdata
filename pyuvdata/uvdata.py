@@ -1470,7 +1470,7 @@ class UVData(UVBase):
         if not issubclass(other.__class__, this.__class__):
             if not issubclass(this.__class__, other.__class__):
                 raise ValueError('Only UVData (or subclass) objects can be '
-                                    'added to a UVData (or subclass) object')
+                                'added to a UVData (or subclass) object')
         other.check(check_extra=check_extra, run_check_acceptability=run_check_acceptability)
 
         compatibility_params = ['_Nants_data', '_Nants_telescope',
@@ -1516,25 +1516,25 @@ class UVData(UVBase):
         # Check final object is self-consistent
         if run_check:
             this.check(check_extra=check_extra,
-                        run_check_acceptability=run_check_acceptability)
+                    run_check_acceptability=run_check_acceptability)
 
         if not inplace:
             return this
 
     def diff_vis(self, other, run_check=True, check_extra=True,
-                    run_check_acceptability=True,
-                    inplace=False):
+                run_check_acceptability=True,
+                inplace=False):
 
         if inplace:
             self.sum_vis(other, difference=True, run_check=True,
-                check_extra=check_extra,
-                run_check_acceptability=run_check_acceptability,
-                inplace=inplace)
+                        check_extra=check_extra,
+                        run_check_acceptability=run_check_acceptability,
+                        inplace=inplace)
         else:
             return self.sum_vis(other, difference=True, run_check=True,
-                check_extra=check_extra,
-                run_check_acceptability=run_check_acceptability,
-                inplace=inplace)
+                                check_extra=check_extra,
+                                run_check_acceptability=run_check_acceptability,
+                                inplace=inplace)
 
     def __add__(self, other, run_check=True, check_extra=True,
                 run_check_acceptability=True, inplace=False):
