@@ -1517,7 +1517,7 @@ class UVData(UVBase):
         # Check final object is self-consistent
         if run_check:
             this.check(check_extra=check_extra,
-                        run_check_acceptability=run_check_acceptability)
+                       run_check_acceptability=run_check_acceptability)
 
         if not inplace:
             return this
