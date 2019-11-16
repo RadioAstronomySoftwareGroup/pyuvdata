@@ -1474,34 +1474,11 @@ class UVData(UVBase):
         other.check(check_extra=check_extra,
                     run_check_acceptability=run_check_acceptability)
 
-<<<<<<< HEAD
         # Define the parameters that need to be the same for objects to be
         # summed or diffed.
         compatibility_params = list(temp.__iter__())
         compatibility_params.remove('_data_array')
         compatibility_params.remove('_history')
-=======
-        compatibility_params = ['_Nants_data', '_Nants_telescope',
-                                '_Nbls', '_Nblts', '_Nfreqs', '_Npols',
-                                '_Nspws', '_Ntimes', '_ant_1_array',
-                                '_ant_2_array', '_antenna_diameters',
-                                '_antenna_names', '_antenna_numbers',
-                                '_antenna_positions', '_baseline_array',
-                                '_blt_order', '_channel_width',
-                                '_dut1', '_earth_omega',
-                                '_extra_keywords', '_flag_array',
-                                '_freq_array', '_gst0',
-                                '_instrument', '_integration_time',
-                                '_lst_array', '_nsample_array',
-                                '_object_name', '_phase_center_dec',
-                                '_phase_center_epoch', '_phase_center_frame',
-                                '_phase_center_ra', '_phase_type',
-                                '_polarization_array', '_rdate',
-                                '_spw_array', '_telescope_location',
-                                '_telescope_name', '_time_array',
-                                '_timesys', '_uvplane_reference_time',
-                                '_uvw_array', '_vis_units', '_x_orientation']
->>>>>>> Remove history compatibility parameter. Add error tests for sum_vis.
 
         # Check each metadata element in compatibility_params
         for a in compatibility_params:
