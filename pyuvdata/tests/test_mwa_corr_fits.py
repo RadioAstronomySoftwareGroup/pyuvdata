@@ -112,12 +112,9 @@ def test_ReadMWA_flags():
                          nwarnings=3, message=messages)
     del(mwa_uv)
     mwa_uv = UVData()
-    messages = ['telescope_location is not set',
-                'some coarse channel files were not submitted',
-                'reading in cotter flag files is not yet available']
-    uvtest.checkWarnings(mwa_uv.read_mwa_corr_fits, func_args=[subfiles],
-                         func_kwargs={'use_cotter_flags': True},
-                         nwarnings=3, message=messages)
+    with pytest.raises(NotImplementedError) as cm:
+        mwa_uv.read_mwa_corr_fits(subfiles, use_cotter_flags=True)
+    assert str(cm.value).startswith('reading in cotter flag files')
     del(mwa_uv)
     mwa_uv = UVData()
     with pytest.raises(ValueError) as cm:
