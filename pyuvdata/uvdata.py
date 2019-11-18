@@ -2953,10 +2953,10 @@ class UVData(UVBase):
 
     def read_mwa_corr_fits(self, filelist, axis=None, use_cotter_flags=False,
                            correct_cable_len=True, phase_data=True,
-                           pointing_center=None, run_check=True,
+                           phase_center=None, run_check=True,
                            check_extra=True, run_check_acceptability=True):
         """
-        Read in data from a measurement set
+        Read in MWA correlator gpu box files.
 
         Parameters
         ----------
@@ -2977,7 +2977,7 @@ class UVData(UVBase):
         correct_cable_len : Option to apply a cable delay correction.
             Default is True.
         phase_data : Option to phase data. Default is True.
-        pointing_center : Option to phase data to a location that is
+        phase_center : Option to phase data to a location that is
             different from the observation pointing center. Default uses
             the observation pointing center when phase_data is True.
         run_check : bool
@@ -2997,12 +2997,16 @@ class UVData(UVBase):
 
         if isinstance(filelist[0], (list, tuple)):
             self.read_mwa_corr_fits(filelist[0], use_cotter_flags=use_cotter_flags,
+                                    correct_cable_len=correct_cable_len,
+                                    phase_data=phase_data, phase_center=phase_center,
                                     run_check=run_check, check_extra=check_extra,
                                     run_check_acceptability=run_check_acceptability)
             if len(filelist) > 1:
                 for f in filelist[1:]:
                     uv2 = UVData()
                     uv2.read_mwa_corr_fits(f, use_cotter_flags=use_cotter_flags,
+                                           correct_cable_len=correct_cable_len,
+                                           phase_data=phase_data, phase_center=phase_center,
                                            run_check=run_check, check_extra=check_extra,
                                            run_check_acceptability=run_check_acceptability)
                     if axis is not None:
@@ -3016,6 +3020,8 @@ class UVData(UVBase):
         else:
             corr_obj = mwa_corr_fits.MWACorrFITS()
             corr_obj.read_mwa_corr_fits(filelist, use_cotter_flags=use_cotter_flags,
+                                        correct_cable_len=correct_cable_len,
+                                        phase_data=phase_data, phase_center=phase_center,
                                         run_check=run_check, check_extra=check_extra,
                                         run_check_acceptability=run_check_acceptability)
             self._convert_from_filetype(corr_obj)
