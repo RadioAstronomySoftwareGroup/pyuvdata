@@ -10,6 +10,8 @@ jobs:
         PYTHON: '3.6'
       Python37:
         PYTHON: '3.7'
+      Python37:
+        PYTHON: '3.8'
 
   steps:
   - bash: echo "##vso[task.prependpath]$CONDA/bin"
