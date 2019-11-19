@@ -2324,7 +2324,7 @@ def test_add_other_rephase_new_phase_center(
     # phase original to phase_center_radec
     uv_raw.phase(ra=phase_center_radec[0],
                  dec=phase_center_radec[1],
-                   use_ant_pos=True,
+                 use_ant_pos=True,
                  )
 
     func_kwargs = {"inplace": False,
