@@ -2002,7 +2002,7 @@ class UVData(UVBase):
             if (other.phase_type != 'drift'):
                 warnings.warn("Unphasing other UVData object to drift")
                 other.unphase_to_drift(phase_frame=phase_frame,
-                                      use_ant_pos=use_ant_pos)
+                                       use_ant_pos=use_ant_pos)
 
         if phase_center_radec is not None:
             if phase_frame is None:
