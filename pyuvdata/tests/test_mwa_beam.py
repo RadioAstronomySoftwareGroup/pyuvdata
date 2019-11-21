@@ -1,5 +1,5 @@
 # -*- mode: python; coding: utf-8 -*
-# Copyright (c) 2018 Radio Astronomy Software Group
+# Copyright (c) 2019 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 
 from __future__ import absolute_import, division, print_function
@@ -26,6 +26,10 @@ def test_read_write_mwa():
     assert beam1.pixel_coordinate_system == 'az_za'
     assert beam1.beam_type == 'efield'
     assert beam1.data_array.shape == (2, 1, 2, 3, 91, 360)
+
+    # this is entirely empirical, just to prevent unexpected changes.
+    # The actual values have been validated through external tests against
+    # the mwa_pb repo.
     assert np.isclose(np.max(np.abs(beam1.data_array)), 0.6823676193472403)
 
     assert 'x' in beam1.feed_array
@@ -38,6 +42,35 @@ def test_read_write_mwa():
     beam2.read_beamfits(outfile_name)
 
     assert beam1 == beam2
+
+
+def test_freq_range():
+    beam1 = UVBeam()
+    beam2 = UVBeam()
+
+    beam1.read_mwa_beam(filename, pixels_per_deg=1)
+    # include all
+    beam2.read_mwa_beam(filename, pixels_per_deg=1, freq_range=[100e6, 200e6])
+    assert beam1 == beam2
+
+    beam2.read_mwa_beam(filename, pixels_per_deg=1, freq_range=[100e6, 150e6])
+    beam1.select(freq_chans=[0, 1])
+    assert beam1.history != beam2.history
+    beam1.history = beam2.history
+    assert beam1 == beam2
+
+    uvtest.checkWarnings(
+        beam1.read_mwa_beam, func_args=[filename],
+        func_kwargs={'pixels_per_deg': 1, 'freq_range': [100e6, 130e6]},
+        message=('Only one available frequency in freq_range'))
+
+    with pytest.raises(ValueError) as cm:
+        beam2.read_mwa_beam(filename, pixels_per_deg=1, freq_range=[100e6, 110e6])
+    assert str(cm.value).startswith('No frequencies available in freq_range')
+
+    with pytest.raises(ValueError) as cm:
+        beam2.read_mwa_beam(filename, pixels_per_deg=1, freq_range=[100e6])
+    assert str(cm.value).startswith('freq_range must have 2 elements.')
 
 
 def test_P1sin_array():

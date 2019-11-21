@@ -2529,8 +2529,10 @@ class UVBeam(UVBase):
             self._convert_from_filetype(cst_beam_obj)
             del(cst_beam_obj)
 
-    def read_mwa_beam(self, h5filepath, delays=None, amplitudes=None, pixels_per_deg=5,
-                      run_check=True, check_extra=True, run_check_acceptability=True):
+    def read_mwa_beam(self, h5filepath, delays=None, amplitudes=None,
+                      pixels_per_deg=5, freq_range=None,
+                      run_check=True, check_extra=True,
+                      run_check_acceptability=True):
         """
         Read in the full embedded element MWA beam.
 
@@ -2542,16 +2544,29 @@ class UVBeam(UVBase):
         delays : array of ints
             Array of MWA beamformer delay steps. Should be shape (n_pols, n_dipoles).
         amplitudes : array of floats
-            Array of dipole amplitudes, hese are absolute values (i.e. relatable to physical units).
+            Array of dipole amplitudes, these are absolute values  (i.e. relatable to physical units).
             Should be shape (n_pols, n_dipoles).
         pixels_per_deg : float
             Number of theta/phi pixels per degree. Sets the resolution of the beam.
+        freq_range : array_like of float
+            Range of frequencies to include in Hz, defaults to all available
+            frequencies. Must be length 2.
+        run_check : bool
+            Option to check for the existence and proper shapes of
+            required parameters after reading in the file.
+        check_extra : bool
+            Option to check optional parameters as well as required ones.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of
+            required parameters after reading in the file.
 
         """
         from . import mwa_beam
         mwabeam_obj = mwa_beam.MWABeam()
-        mwabeam_obj.read_mwa_beam(h5filepath, delays=delays, amplitudes=amplitudes,
+        mwabeam_obj.read_mwa_beam(h5filepath, delays=delays,
+                                  amplitudes=amplitudes,
                                   pixels_per_deg=pixels_per_deg,
+                                  freq_range=freq_range,
                                   run_check=run_check, check_extra=check_extra,
                                   run_check_acceptability=run_check_acceptability)
         self._convert_from_filetype(mwabeam_obj)
