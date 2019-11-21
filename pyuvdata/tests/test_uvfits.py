@@ -210,7 +210,9 @@ def test_casa_nonascii_bytes_antenna_names():
     testfile = os.path.join(DATA_PATH,
                             'corrected2_zen.2458106.28114.ant012.HH.uvfits')
     # this file has issues with the telescope location so turn checking off
-    uv1.read(testfile, run_check=False)
+    uvtest.checkWarnings(uv1.read, func_args=[testfile],
+                         func_kwargs={'run_check': False},
+                         message='Telescope mock-HERA is not in known_telescopes')
     expected_ant_names = [
         'HH0', 'HH1', 'HH2', 'H2', 'H2', 'H2', 'H2', 'H2', 'H2', 'H2',
         'H2', 'HH11', 'HH12', 'HH13', 'HH14', 'H14', 'H14', 'H14', 'H14',

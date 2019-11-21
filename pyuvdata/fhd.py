@@ -160,11 +160,11 @@ class FHD(UVData):
                 continue  # pragma: no cover
 
         if len(datafiles) < 1:
-            raise Exception('No data files included in file list')
+            raise ValueError('No data files included in file list')
         if params_file is None:
-            raise Exception('No params file included in file list')
+            raise ValueError('No params file included in file list')
         if flags_file is None:
-            raise Exception('No flags file included in file list')
+            raise ValueError('No flags file included in file list')
         if layout_file is None:
             warnings.warn('No layout file included in file list. '
                           'Support for FHD data without layout files will be '
