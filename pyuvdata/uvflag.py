@@ -1579,6 +1579,9 @@ class UVFlag(UVBase):
                     self.metric_array = (np.zeros_like(input.flag_array)
                                          .astype(np.float))
 
+        if input.x_orientation is not None:
+            self.x_orientation = input.x_orientation
+
         if self.mode == "metric":
             self.weights_array = np.ones(self.metric_array.shape)
 
@@ -1707,6 +1710,9 @@ class UVFlag(UVBase):
                                          .astype(np.float))
         if self.mode == "metric":
             self.weights_array = np.ones(self.metric_array.shape)
+
+        if input.x_orientation is not None:
+            self.x_orientation = input.x_orientation
 
         if history not in self.history:
             self.history += history
