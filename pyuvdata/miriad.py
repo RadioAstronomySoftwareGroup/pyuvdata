@@ -867,7 +867,6 @@ class Miriad(UVData):
             uv = filename
         self._read_miriad_metadata(uv)
 
-
     def _read_miriad_metadata(self, uv, correct_lat_lon=True):
         """
         Read in metadata (parameter info) but not data from a miriad file.
