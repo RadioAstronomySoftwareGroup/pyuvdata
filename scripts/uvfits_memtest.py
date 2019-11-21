@@ -2,6 +2,7 @@
 # -*- mode: python; coding: utf-8 -*
 # Copyright (c) 2018 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
+"""Test memory usage of read_uvfits."""
 
 from __future__ import absolute_import, division, print_function
 
@@ -14,6 +15,7 @@ from pyuvdata import UVData
 
 @profile
 def read_uvfits():
+    """Test memory usage of read_uvfits."""
     filename = '/Volumes/Data1/mwa_uvfits/1066571272.uvfits'
 
     # first test uvdata.read_uvfits. First read metadata then full data

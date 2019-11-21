@@ -2,9 +2,7 @@
 # Copyright (c) 2018 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 
-"""Commonly used utility functions.
-
-"""
+"""Commonly used utility functions."""
 from __future__ import absolute_import, division, print_function
 
 import numpy as np
@@ -73,13 +71,22 @@ def LatLonAlt_from_XYZ(xyz, check_acceptability=True):
     """
     Calculate lat/lon/alt from ECEF x,y,z.
 
-    Args:
-        xyz: numpy array, shape (Npts, 3), with ECEF x,y,z coordinates
-        check_acceptability: bool, check XYZ coordinates are reasonable.
+    Parameters
+    ----------
+    xyz : ndarray of float
+        numpy array, shape (Npts, 3), with ECEF x,y,z coordinates.
+    check_acceptability : bool
+        Flag to check XYZ coordinates are reasonable.
 
-    Returns:
-        tuple of latitude, longitude, altitude numpy arrays (if Npts > 1) or
-            values (if Npts = 1) in radians & meters
+    Returns
+    -------
+    latitude :  ndarray or float
+        latitude, numpy array (if Npts > 1) or value (if Npts = 1) in radians
+    longitude :  ndarray or float
+        longitude, numpy array (if Npts > 1) or value (if Npts = 1) in radians
+    altitude :  ndarray or float
+        altitude, numpy array (if Npts > 1) or value (if Npts = 1) in meters
+
     """
     # convert to a numpy array
     xyz = np.array(xyz)
@@ -135,13 +142,20 @@ def XYZ_from_LatLonAlt(latitude, longitude, altitude):
     """
     Calculate ECEF x,y,z from lat/lon/alt values.
 
-    Args:
-        latitude: latitude in radians, can be a single value or a vector of length Npts
-        longitude: longitude in radians, can be a single value or a vector of length Npts
-        altitude: altitude in meters, can be a single value or a vector of length Npts
+    Parameters
+    ----------
+    latitude :  ndarray or float
+        latitude, numpy array (if Npts > 1) or value (if Npts = 1) in radians
+    longitude :  ndarray or float
+        longitude, numpy array (if Npts > 1) or value (if Npts = 1) in radians
+    altitude :  ndarray or float
+        altitude, numpy array (if Npts > 1) or value (if Npts = 1) in meters
 
-    Returns:
-        numpy array, shape (Npts, 3) (if Npts > 1) or (3,) (if Npts = 1), with ECEF x,y,z coordinates
+    Returns
+    -------
+    xyz : ndarray of float
+        numpy array, shape (Npts, 3), with ECEF x,y,z coordinates.
+
     """
     latitude = np.array(latitude)
     longitude = np.array(longitude)
@@ -168,17 +182,24 @@ def XYZ_from_LatLonAlt(latitude, longitude, altitude):
 
 def rotECEF_from_ECEF(xyz, longitude):
     """
-    Calculate a rotated ECEF from ECEF such that the x-axis goes through the
-    specified longitude.
+    Get rotated ECEF positions such that the x-axis goes through the longitude.
 
-    Miriad (and maybe uvfits) expect antenna positions in this frame
+    Miriad and uvfits expect antenna positions in this frame
     (with longitude of the array center/telescope location)
 
-    Args:
-        xyz: numpy array, shape (Npts, 3), with ECEF x,y,z coordinates
-        longitude: longitude in radians to rotate coordinates to (usually the array center/telescope location)
-    Returns:
-        numpy array, shape (Npts, 3), with rotated ECEF coordinates
+    Parameters
+    ----------
+    xyz : ndarray of float
+        numpy array, shape (Npts, 3), with ECEF x,y,z coordinates.
+    longitude : float
+        longitude in radians to rotate coordinates to
+        (usually the array center/telescope location).
+
+    Returns
+    -------
+    ndarray of float
+        Rotated ECEF coordinates, shape (Npts, 3).
+
     """
     angle = -1 * longitude
     rot_matrix = np.array([[np.cos(angle), -1 * np.sin(angle), 0],
@@ -189,14 +210,21 @@ def rotECEF_from_ECEF(xyz, longitude):
 
 def ECEF_from_rotECEF(xyz, longitude):
     """
-    Calculate ECEF from a rotated ECEF such that the x-axis goes through the
-    specified longitude. (Inverse of rotECEF_from_ECEF)
+    Calculate ECEF from a rotated ECEF (Inverse of rotECEF_from_ECEF).
 
-    Args:
-        xyz: numpy array, shape (Npts, 3), with rotated ECEF x,y,z coordinates
-        longitude: longitude in radians to rotate coordinates to (usually the array center/telescope location)
-    Returns:
-        numpy array, shape (Npts, 3), with ECEF coordinates
+    Parameters
+    ----------
+    xyz : ndarray of float
+        numpy array, shape (Npts, 3), with rotated ECEF x,y,z coordinates.
+    longitude : float
+        longitude in radians giving the x direction of the rotated coordinates
+        (usually the array center/telescope location).
+
+    Returns
+    -------
+    ndarray of float
+        ECEF coordinates, shape (Npts, 3).
+
     """
     angle = longitude
     rot_matrix = np.array([[np.cos(angle), -1 * np.sin(angle), 0],
@@ -209,14 +237,22 @@ def ENU_from_ECEF(xyz, latitude, longitude, altitude):
     """
     Calculate local ENU (east, north, up) coordinates from ECEF coordinates.
 
-    Args:
-        xyz: numpy array, shape (Npts, 3), with ECEF x,y,z coordinates
-        latitude: latitude of center of ENU coordinates in radians
-        longitude: longitude of center of ENU coordinates in radians
-        altitude: altitude of center of ENU coordinates in radians
+    Parameters
+    ----------
+    xyz : ndarray of float
+        numpy array, shape (Npts, 3), with ECEF x,y,z coordinates.
+    latitude : float
+        Latitude of center of ENU coordinates in radians.
+    longitude : float
+        Longitude of center of ENU coordinates in radians.
+    altitude : float
+        Altitude of center of ENU coordinates in radians.
 
-    Returns:
+    Returns
+    -------
+    ndarray of float
         numpy array, shape (Npts, 3), with local ENU coordinates
+
     """
     xyz = np.array(xyz)
     if xyz.ndim > 1 and xyz.shape[1] != 3:
@@ -279,13 +315,23 @@ def ECEF_from_ENU(enu, latitude, longitude, altitude):
     """
     Calculate ECEF coordinates from local ENU (east, north, up) coordinates.
 
-    Args:
-        enu: numpy array, shape (Npts, 3), with local ENU coordinates
-        latitude: latitude of center of ENU coordinates in radians
-        longitude: longitude of center of ENU coordinates in radians
+    Parameters
+    ----------
+    enu : ndarray of float
+        numpy array, shape (Npts, 3), with local ENU coordinates.
+    latitude : float
+        Latitude of center of ENU coordinates in radians.
+    longitude : float
+        Longitude of center of ENU coordinates in radians.
+    altitude : float
+        Altitude of center of ENU coordinates in radians.
 
-    Returns:
-        numpy array, shape (Npts, 3), with ECEF x,y,z coordinates
+
+    Returns
+    -------
+    xyz : ndarray of float
+        numpy array, shape (Npts, 3), with ECEF x,y,z coordinates.
+
     """
     enu = np.array(enu)
     if enu.ndim > 1 and enu.shape[1] != 3:
@@ -333,67 +379,88 @@ def ECEF_from_ENU(enu, latitude, longitude, altitude):
     return xyz
 
 
-def phase_uvw(ra, dec, xyz):
+def phase_uvw(ra, dec, initial_uvw):
     """
-    This code expects xyz locations relative to the telescope location in the
-    same frame that ra/dec are in (e.g. icrs or gcrs) and returns uvws in the
-    same frame.
+    Calculate phased uvws/positions from unphased ones in an icrs or gcrs frame.
 
-    Note that this code is nearly identical to ENU_from_ECEF, except that it uses
-    an arbitrary phasing center rather than a coordinate center.
+    This code expects input uvws or positions relative to the telescope
+    location in the same frame that ra/dec are in (e.g. icrs or gcrs) and
+    returns phased ones in the same frame.
 
-    Args:
-        ra: right ascension to phase to in desired frame
-        dec: declination to phase to in desired frame
-        xyz: locations relative to the array center in desired frame, shape (Nlocs, 3)
+    Note that this code is nearly identical to ENU_from_ECEF, except that it
+    uses an arbitrary phasing center rather than a coordinate center.
 
-    Returns:
-        uvw array in the same frame as xyz, ra and dec
+    Parameters
+    ----------
+    ra : float
+        Right ascension of phase center.
+    dec : float
+        Declination of phase center.
+    initial_uvw : ndarray of float
+        Unphased uvws or positions relative to the array center,
+        shape (Nlocs, 3).
+
+    Returns
+    -------
+    uvw : ndarray of float
+        uvw array in the same frame as initial_uvws, ra and dec.
+
     """
-    if xyz.ndim == 1:
-        xyz = xyz[np.newaxis, :]
+    if initial_uvw.ndim == 1:
+        initial_uvw = initial_uvw[np.newaxis, :]
 
-    uvw = np.zeros_like(xyz)
-    uvw[:, 0] = (-np.sin(ra) * xyz[:, 0]
-                 + np.cos(ra) * xyz[:, 1])
-    uvw[:, 1] = (-np.sin(dec) * np.cos(ra) * xyz[:, 0]
-                 - np.sin(dec) * np.sin(ra) * xyz[:, 1]
-                 + np.cos(dec) * xyz[:, 2])
-    uvw[:, 2] = (np.cos(dec) * np.cos(ra) * xyz[:, 0]
-                 + np.cos(dec) * np.sin(ra) * xyz[:, 1]
-                 + np.sin(dec) * xyz[:, 2])
+    uvw = np.zeros_like(initial_uvw)
+    uvw[:, 0] = (-np.sin(ra) * initial_uvw[:, 0]
+                 + np.cos(ra) * initial_uvw[:, 1])
+    uvw[:, 1] = (-np.sin(dec) * np.cos(ra) * initial_uvw[:, 0]
+                 - np.sin(dec) * np.sin(ra) * initial_uvw[:, 1]
+                 + np.cos(dec) * initial_uvw[:, 2])
+    uvw[:, 2] = (np.cos(dec) * np.cos(ra) * initial_uvw[:, 0]
+                 + np.cos(dec) * np.sin(ra) * initial_uvw[:, 1]
+                 + np.sin(dec) * initial_uvw[:, 2])
     return(uvw)
 
 
 def unphase_uvw(ra, dec, uvw):
     """
-    This code expects uvw locations in the same frame that ra/dec are in
-    (e.g. icrs or gcrs) and returns relative xyz values in the same frame.
+    Calculate unphased uvws/positions from phased ones in an icrs or gcrs frame.
 
-    Args:
-        ra: right ascension data are phased to
-        dec: declination data are phased to
-        uvw: phased uvw values
+    This code expects phased uvws or positions in the same frame that ra/dec
+    are in (e.g. icrs or gcrs) and returns unphased ones in the same frame.
 
-    Returns:
-        xyz locations relative to the array center in the phased frame
+    Parameters
+    ----------
+    ra : float
+        Right ascension of phase center.
+    dec : float
+        Declination of phase center.
+    uvw : ndarray of float
+        Phased uvws or positions relative to the array center,
+        shape (Nlocs, 3).
+
+    Returns
+    -------
+    unphased_uvws : ndarray of float
+        Unphased uvws or positions relative to the array center,
+        shape (Nlocs, 3).
+
     """
     if uvw.ndim == 1:
         uvw = uvw[np.newaxis, :]
 
-    xyz = np.zeros_like(uvw)
-    xyz[:, 0] = (-np.sin(ra) * uvw[:, 0]
-                 - np.sin(dec) * np.cos(ra) * uvw[:, 1]
-                 + np.cos(dec) * np.cos(ra) * uvw[:, 2])
+    unphased_uvws = np.zeros_like(uvw)
+    unphased_uvws[:, 0] = (-np.sin(ra) * uvw[:, 0]
+                           - np.sin(dec) * np.cos(ra) * uvw[:, 1]
+                           + np.cos(dec) * np.cos(ra) * uvw[:, 2])
 
-    xyz[:, 1] = (np.cos(ra) * uvw[:, 0]
-                 - np.sin(dec) * np.sin(ra) * uvw[:, 1]
-                 + np.cos(dec) * np.sin(ra) * uvw[:, 2])
+    unphased_uvws[:, 1] = (np.cos(ra) * uvw[:, 0]
+                           - np.sin(dec) * np.sin(ra) * uvw[:, 1]
+                           + np.cos(dec) * np.sin(ra) * uvw[:, 2])
 
-    xyz[:, 2] = (np.cos(dec) * uvw[:, 1]
-                 + np.sin(dec) * uvw[:, 2])
+    unphased_uvws[:, 2] = (np.cos(dec) * uvw[:, 1]
+                           + np.sin(dec) * uvw[:, 2])
 
-    return(xyz)
+    return(unphased_uvws)
 
 
 def uvcalibrate(uvdata, uvcal, inplace=True, prop_flags=True, flag_missing=True,
@@ -495,8 +562,10 @@ def uvcalibrate(uvdata, uvcal, inplace=True, prop_flags=True, flag_missing=True,
 def apply_uvflag(uvd, uvf, inplace=True, unflag_first=False,
                  flag_missing=True, force_pol=True):
     """
-    Apply flags from a UVFlag to a UVData instantiation. This edits inplace by default.
-    Note: if uvf.Nfreqs or uvf.Ntimes is 1, will broadcast flags across that axis.
+    Apply flags from a UVFlag to a UVData instantiation.
+
+    Note that if uvf.Nfreqs or uvf.Ntimes is 1, it will broadcast flags across
+    that axis.
 
     Parameters
     ----------
@@ -520,6 +589,7 @@ def apply_uvflag(uvd, uvf, inplace=True, unflag_first=False,
     -------
     UVData
         If not inplace, returns new UVData object with flags applied
+
     """
     # assertions
     if uvf.mode != 'flag':
@@ -596,6 +666,7 @@ def apply_uvflag(uvd, uvf, inplace=True, unflag_first=False,
 
 
 def get_iterable(x):
+    """Deprecated: return iterable version of input."""
     warnings.warn('The get_iterable function is deprecated in favor of '
                   '_get_iterable because it is not API level code. This '
                   'function will be removed in version 1.5', DeprecationWarning)
@@ -603,7 +674,7 @@ def get_iterable(x):
 
 
 def _get_iterable(x):
-    """Helper function to ensure iterability."""
+    """Return iterable version of input."""
     if isinstance(x, Iterable):
         return x
     else:
@@ -611,6 +682,7 @@ def _get_iterable(x):
 
 
 def fits_gethduaxis(HDU, axis, strict_fits=True):
+    """Deprecated: make axis arrays for fits files."""
     warnings.warn('The fits_gethduaxis function is deprecated in favor of '
                   '_fits_gethduaxis because it is not API level code. This '
                   'function will be removed in version 1.5', DeprecationWarning)
@@ -619,20 +691,25 @@ def fits_gethduaxis(HDU, axis, strict_fits=True):
 
 def _fits_gethduaxis(HDU, axis, strict_fits=True):
     """
-    Helper function for making axis arrays for fits files.
+    Make axis arrays for fits files.
 
-    Args:
-        HDU: a fits HDU
-        axis: the axis number of interest
-        strict_fits: boolean
-            If True, require that the axis has cooresponding NAXIS, CRVAL,
-            CDELT and CRPIX keywords. If False, allow CRPIX to be missing and
-            set it equal to zero (as a way of supporting old calfits files).
-            Default is False.
-    Returns:
-        numpy array of values for that axis
+    Parameters
+    ----------
+    HDU : astropy.io.fits HDU object
+        The HDU to make an axis array for.
+    axis : int
+        The axis number of interest (1-based).
+    strict_fits: bool
+        If True, require that the axis has cooresponding NAXIS, CRVAL,
+        CDELT and CRPIX keywords. If False, allow CRPIX to be missing and
+        set it equal to zero (as a way of supporting old calfits files).
+
+    Returns
+    -------
+    ndarray of float
+        Array of values for the specified axis.
+
     """
-
     ax = str(axis)
     N = HDU.header['NAXIS' + ax]
     X0 = HDU.header['CRVAL' + ax]
@@ -654,14 +731,22 @@ def get_lst_for_time(jd_array, latitude, longitude, altitude):
     """
     Get the lsts for a set of jd times at an earth location.
 
-    Args:
-        jd_array: an array of JD times to get lst for
-        latitude: latitude of location to get lst for in degrees
-        longitude: longitude of location to get lst for in degrees
-        altitude: altitude of location to get lst for in meters
+    Parameters
+    ----------
+    jd_array : ndarray of float
+        JD times to get lsts for.
+    latitude : float
+        Latitude of location to get lst for in degrees.
+    longitude : float
+        Longitude of location to get lst for in degrees.
+    altitude : float
+        Altitude of location to get lst for in meters.
 
-    Returns:
-        an array of lst times corresponding to the jd_array
+    Returns
+    -------
+    ndarray of float
+        LSTs in radians corresponding to the jd_array.
+
     """
     lst_array = np.zeros_like(jd_array)
     for ind, jd in enumerate(np.unique(jd_array)):
@@ -682,6 +767,7 @@ def get_lst_for_time(jd_array, latitude, longitude, altitude):
 
 
 def fits_indexhdus(hdulist):
+    """Deprecated: get a dict of tablenames from a FITS HDU list."""
     warnings.warn('The fits_indexhdus function is deprecated in favor of '
                   '_fits_indexhdus because it is not API level code. This '
                   'function will be removed in version 1.5', DeprecationWarning)
@@ -690,13 +776,18 @@ def fits_indexhdus(hdulist):
 
 def _fits_indexhdus(hdulist):
     """
-    Helper function for fits I/O.
+    Get a dict of table names and HDU numbers from a FITS HDU list.
 
-    Args:
-        hdulist: a list of hdus
+    Parameters
+    ----------
+    hdulist : list of astropy.io.fits HDU objects
+        List of HDUs to get names for
 
-    Returns:
-        dictionary of table names
+    Returns
+    -------
+    dict
+        dictionary with table names as keys and HDU number as values.
+
     """
     tablenames = {}
     for i in range(len(hdulist)):
@@ -708,7 +799,7 @@ def _fits_indexhdus(hdulist):
 
 
 def _x_orientation_rep_dict(x_orientation):
-    """"Helper function to create replacement dict based on x_orientation"""
+    """Create replacement dict based on x_orientation."""
     if x_orientation.lower() == 'east' or x_orientation.lower() == 'e':
         return {'x': 'e', 'y': 'n'}
     elif x_orientation.lower() == 'north' or x_orientation.lower() == 'n':
@@ -735,7 +826,7 @@ def polstr2num(pol, x_orientation=None):
         for more details.
 
     Returns
-    ----------
+    -------
     int
         Number corresponding to string
 
@@ -745,9 +836,10 @@ def polstr2num(pol, x_orientation=None):
         If the pol string cannot be converted to a polarization number.
 
     Warns
-    ------
+    -----
     UserWarning
         If the x_orientation not recognized.
+
     """
     dict_use = copy.deepcopy(POL_STR2NUM_DICT)
     if x_orientation is not None:
@@ -786,7 +878,7 @@ def polnum2str(num, x_orientation=None):
         E/N strings. See corresonding parameter on UVData for more details.
 
     Returns
-    ----------
+    -------
     str
         String corresponding to polarization number
 
@@ -796,9 +888,10 @@ def polnum2str(num, x_orientation=None):
         If the polarization number cannot be converted to a polarization string.
 
     Warns
-    ------
+    -----
     UserWarning
         If the x_orientation not recognized.
+
     """
     dict_use = copy.deepcopy(POL_NUM2STR_DICT)
     if x_orientation is not None:
@@ -834,7 +927,7 @@ def jstr2num(jstr, x_orientation=None):
         for more details.
 
     Returns
-    ----------
+    -------
     int
         antenna (jones) polarization number corresponding to string
 
@@ -844,9 +937,10 @@ def jstr2num(jstr, x_orientation=None):
         If the jones string cannot be converted to a polarization number.
 
     Warns
-    ------
+    -----
     UserWarning
         If the x_orientation not recognized.
+
     """
     dict_use = copy.deepcopy(JONES_STR2NUM_DICT)
     if x_orientation is not None:
@@ -882,7 +976,7 @@ def jnum2str(jnum, x_orientation=None):
         E/N strings. See corresonding parameter on UVData for more details.
 
     Returns
-    ----------
+    -------
     str
         antenna (jones) polarization string corresponding to number
 
@@ -892,9 +986,10 @@ def jnum2str(jnum, x_orientation=None):
         If the jones polarization number cannot be converted to a jones polarization string.
 
     Warns
-    ------
+    -----
     UserWarning
         If the x_orientation not recognized.
+
     """
     dict_use = copy.deepcopy(JONES_NUM2STR_DICT)
     if x_orientation is not None:
@@ -932,7 +1027,7 @@ def parse_polstr(polstr, x_orientation=None):
         for more details.
 
     Returns
-    ----------
+    -------
     str
         AIPS Memo 117 standard string
 
@@ -942,9 +1037,10 @@ def parse_polstr(polstr, x_orientation=None):
         If the pol string cannot be converted to a polarization number.
 
     Warns
-    ------
+    -----
     UserWarning
         If the x_orientation not recognized.
+
     """
     return polnum2str(polstr2num(polstr, x_orientation=x_orientation),
                       x_orientation=x_orientation)
@@ -962,7 +1058,7 @@ def parse_jpolstr(jpolstr, x_orientation=None):
         Jones polarization string
 
     Returns
-    ----------
+    -------
     str
         calfits memo standard string
 
@@ -972,9 +1068,10 @@ def parse_jpolstr(jpolstr, x_orientation=None):
         If the jones string cannot be converted to a polarization number.
 
     Warns
-    ------
+    -----
     UserWarning
         If the x_orientation not recognized.
+
     """
     return jnum2str(jstr2num(jpolstr, x_orientation=x_orientation),
                     x_orientation=x_orientation)
@@ -982,20 +1079,26 @@ def parse_jpolstr(jpolstr, x_orientation=None):
 
 def conj_pol(pol):
     """
-    Returns the polarization for the conjugate baseline.
+    Return the polarization for the conjugate baseline.
+
     For example, (1, 2, 'xy') = conj(2, 1, 'yx').
-    The returned polarization is determined by assuming the antenna pair is reversed
-    in the data, and finding the correct polarization correlation which will yield
-    the requested baseline when conjugated. Note this means changing the polarization
-    for linear cross-pols, but keeping auto-pol (e.g. xx) and Stokes the same.
+    The returned polarization is determined by assuming the antenna pair is
+    reversed in the data, and finding the correct polarization correlation
+    which will yield the requested baseline when conjugated. Note this means
+    changing the polarization for linear cross-pols, but keeping auto-pol
+    (e.g. xx) and Stokes the same.
 
-    Args:
-        pol: Polarization (str or int)
+    Parameters
+    ----------
+    pol : str or int
+        Polarization string or integer.
 
-    Returns:
-        cpol: Polarization as if antennas are swapped (type matches input)
+    Returns
+    -------
+    cpol : str or int
+        Polarization as if antennas are swapped (type matches input)
+
     """
-
     deprecated_jones_dict = {'jxx': 'Jxx', 'jyy': 'Jyy', 'jxy': 'Jyx', 'jyx': 'Jxy',
                              'jrr': 'Jrr', 'jll': 'Jll', 'jrl': 'Jlr', 'jlr': 'Jrl'}
 
@@ -1020,21 +1123,26 @@ def conj_pol(pol):
 
 def reorder_conj_pols(pols):
     """
-    Reorders a list of pols, swapping pols that are conjugates of one another.
+    Reorder multiple pols, swapping pols that are conjugates of one another.
+
     For example ('xx', 'xy', 'yx', 'yy') -> ('xx', 'yx', 'xy', 'yy')
     This is useful for the _key2inds function in the case where an antenna
     pair is specified but the conjugate pair exists in the data. The conjugated
-    data should be returned in the order of the polarization axis, so after conjugating
-    the data, the pols need to be reordered.
+    data should be returned in the order of the polarization axis, so after
+    conjugating the data, the pols need to be reordered.
     For example, if a file contains antpair (0, 1) and pols 'xy' and 'yx', but
     the user requests antpair (1, 0), they should get:
     [(1x, 0y), (1y, 0x)] = [conj(0y, 1x), conj(0x, 1y)]
 
-    Args:
-        pols: Polarization array (strings or ints)
+    Parameters
+    ----------
+    pols : array_like of str or int
+        Polarization array (strings or ints).
 
-    Returns:
-        conj_order: Indices to reorder polarization axis
+    Returns
+    -------
+    conj_order : ndarray of int
+        Indices to reorder polarization array.
     """
     if not isinstance(pols, Iterable):
         raise ValueError('reorder_conj_pols must be given an array of polarizations.')
@@ -1046,6 +1154,7 @@ def reorder_conj_pols(pols):
 
 
 def check_history_version(history, version_string):
+    """Deprecated: check if version_string is present in history string."""
     warnings.warn('The check_history_version function is deprecated in favor of '
                   '_check_history_version because it is not API level code. This '
                   'function will be removed in version 1.5', DeprecationWarning)
@@ -1053,6 +1162,7 @@ def check_history_version(history, version_string):
 
 
 def _check_history_version(history, version_string):
+    """Check if version_string is present in history string."""
     if (version_string.replace(' ', '') in history.replace('\n', '').replace(' ', '')):
         return True
     else:
@@ -1060,6 +1170,7 @@ def _check_history_version(history, version_string):
 
 
 def check_histories(history1, history2):
+    """Deprecated: check if two histories are the same."""
     warnings.warn('The check_histories function is deprecated in favor of '
                   '_check_histories because it is not API level code. This '
                   'function will be removed in version 1.5', DeprecationWarning)
@@ -1067,6 +1178,7 @@ def check_histories(history1, history2):
 
 
 def _check_histories(history1, history2):
+    """Check if two histories are the same."""
     if (history1.replace('\n', '').replace(' ', '') == history2.replace('\n', '').replace(' ', '')):
         return True
     else:
@@ -1074,6 +1186,7 @@ def _check_histories(history1, history2):
 
 
 def combine_histories(history1, history2):
+    """Deprecated: combine histories with minimal repeats."""
     warnings.warn('The combine_histories function is deprecated in favor of '
                   '_combine_histories because it is not API level code. This '
                   'function will be removed in version 1.5', DeprecationWarning)
@@ -1081,6 +1194,7 @@ def combine_histories(history1, history2):
 
 
 def _combine_histories(history1, history2):
+    """Combine histories with minimal repeats."""
     hist2_words = history2.split(' ')
     add_hist = ''
     test_hist1 = ' ' + history1 + ' '
@@ -1117,6 +1231,7 @@ def baseline_to_antnums(baseline, Nants_telescope):
         first antenna number(s)
     int or array_like of int
         second antenna number(s)
+
     """
     if Nants_telescope > 2048:
         raise Exception('error Nants={Nants}>2048 not '
@@ -1153,6 +1268,7 @@ def antnums_to_baseline(ant1, ant2, Nants_telescope, attempt256=False):
     -------
     int or array of int
         baseline number corresponding to the two antenna numbers.
+
     """
     ant1, ant2 = np.int64((ant1, ant2))
     if Nants_telescope is not None and Nants_telescope > 2048:
@@ -1179,16 +1295,14 @@ def antnums_to_baseline(ant1, ant2, Nants_telescope, attempt256=False):
 
 
 def baseline_index_flip(baseline, Nants_telescope):
-    """
-    Change baseline number to reverse antenna order.
-    """
+    """Change baseline number to reverse antenna order."""
     ant1, ant2 = baseline_to_antnums(baseline, Nants_telescope)
     return antnums_to_baseline(ant2, ant1, Nants_telescope)
 
 
 def get_baseline_redundancies(baselines, baseline_vecs, tol=1.0, with_conjugates=False):
     """
-    Find redundant baseline groups
+    Find redundant baseline groups.
 
     Parameters
     ----------
@@ -1212,6 +1326,7 @@ def get_baseline_redundancies(baselines, baseline_vecs, tol=1.0, with_conjugates
     baseline_ind_conj : list of int
         List of baselines that are redundant when reversed. Only returned if
         with_conjugates is True
+
     """
     Nbls = baselines.shape[0]
 
@@ -1304,7 +1419,6 @@ def get_antenna_redundancies(antenna_numbers, antenna_positions, tol=1.0, includ
 
     Notes
     -----
-
     The baseline numbers refer to antenna pairs (a1, a2) such that
     the baseline vector formed from ENU antenna positions,
         blvec = enu[a1] - enu[a2]
@@ -1317,6 +1431,7 @@ def get_antenna_redundancies(antenna_numbers, antenna_positions, tol=1.0, includ
     To guarantee that the same baseline numbers are present in a UVData
     object, ``UVData.conjugate_bls('u>0', uvw_tol=tol)``, where `tol` is
     the tolerance used here.
+
     """
     Nants = antenna_numbers.size
 
@@ -1346,7 +1461,8 @@ def get_antenna_redundancies(antenna_numbers, antenna_positions, tol=1.0, includ
 
 
 def _reraise_context(fmt, *args):
-    """Reraise an exception with its message modified to specify additional context.
+    r"""
+    Reraise an exception with its message modified to specify additional context.
 
     This function tries to help provide context when a piece of code
     encounters an exception while trying to get something done, and it wishes
@@ -1360,7 +1476,8 @@ def _reraise_context(fmt, *args):
     the first argument is treated as an old-fashioned ``printf``-type
     (``%``-based) format string, and the remaining arguments are the formatted
     values.
-    Borrowed from pwkit (https://github.com/pkgw/pwkit/blob/master/pwkit/__init__.py)
+    Borrowed from `pwkit <https://github.com/pkgw/pwkit/blob/master/pwkit/__init__.py>`_
+
     Example usage::
       from pyuvdata.utils import reraise_context
       filename = 'my-filename.txt'
@@ -1396,21 +1513,32 @@ def _reraise_context(fmt, *args):
 
 
 def collapse(arr, alg, weights=None, axis=None, return_weights=False):
-    ''' Parent function to collapse an array with a given algorithm.
-    Args:
-        arr (array): Input array to process.
-        alg (str): Algorithm to use. Must be defined in this function with
-            corresponding subfunction below.
-        weights (array, optional): weights for collapse operation (e.g. weighted mean).
-            NOTE: Some subfunctions do not use the weights. See corresponding doc strings.
-        axis (int, tuple, optional): Axis or axes to collapse. Default is all.
-        return_weights (Bool): Whether to return sum of weights. Default is False.
-    '''
+    """
+    Parent function to collapse an array with a given algorithm.
+
+    Parameters
+    ----------
+    arr : array
+        Input array to process.
+    alg : str
+        Algorithm to use. Must be defined in this function with
+        corresponding subfunction below.
+    weights: ndarray, optional
+        weights for collapse operation (e.g. weighted mean).
+        NOTE: Some subfunctions do not use the weights. See corresponding
+        doc strings.
+    axis : int or tuple, optional
+        Axis or axes to collapse. Default is all.
+    return_weights : bool
+        Whether to return sum of weights.
+
+    """
     collapse_dict = {'mean': mean_collapse, 'absmean': absmean_collapse,
                      'quadmean': quadmean_collapse, 'or': or_collapse,
                      'and': and_collapse}
     try:
-        out = collapse_dict[alg](arr, weights=weights, axis=axis, return_weights=return_weights)
+        out = collapse_dict[alg](arr, weights=weights, axis=axis,
+                                 return_weights=return_weights)
     except KeyError:
         raise ValueError('Collapse algorithm must be one of: '
                          + ', '.join(collapse_dict.keys()) + '.')
@@ -1418,16 +1546,26 @@ def collapse(arr, alg, weights=None, axis=None, return_weights=False):
 
 
 def mean_collapse(arr, weights=None, axis=None, return_weights=False):
-    ''' Function to average data. This is similar to np.average, except it
-    handles infs (by giving them zero weight) and zero weight axes (by forcing
-    result to be inf with zero output weight).
-    Args:
-        arr - array to process
-        weights - weights for average. If none, will default to equal weight for
-                  all non-infinite data.
-        axis - axis keyword to pass to np.sum
-        return_weights - whether to return sum of weights. Default is False.
-    '''
+    """
+    Collapse by averaging data.
+
+    This is similar to np.average, except it handles infs (by giving them
+    zero weight) and zero weight axes (by forcing result to be inf with zero
+    output weight).
+
+    Parameters
+    ----------
+    arr : array
+        Input array to process.
+    weights: ndarray, optional
+        weights for average. If none, will default to equal weight for all
+        non-infinite data.
+    axis : int or tuple, optional
+        Axis or axes to collapse (passed to np.sum). Default is all.
+    return_weights : bool
+        Whether to return sum of weights.
+
+    """
     arr = copy.deepcopy(arr)  # avoid changing outside
     if weights is None:
         weights = np.ones_like(arr)
@@ -1447,24 +1585,43 @@ def mean_collapse(arr, weights=None, axis=None, return_weights=False):
 
 
 def absmean_collapse(arr, weights=None, axis=None, return_weights=False):
-    ''' Function to average absolute value
-    Args:
-        arr - array to process
-        weights - weights for average
-        axis - axis keyword to pass to np.mean
-        return_weights - whether to return sum of weights. Default is False.
-    '''
-    return mean_collapse(np.abs(arr), weights=weights, axis=axis, return_weights=return_weights)
+    """
+    Collapse by averaging absolute value of data.
+
+    Parameters
+    ----------
+    arr : array
+        Input array to process.
+    weights: ndarray, optional
+        weights for average. If none, will default to equal weight for all
+        non-infinite data.
+    axis : int or tuple, optional
+        Axis or axes to collapse (passed to np.sum). Default is all.
+    return_weights : bool
+        Whether to return sum of weights.
+
+    """
+    return mean_collapse(np.abs(arr), weights=weights, axis=axis,
+                         return_weights=return_weights)
 
 
 def quadmean_collapse(arr, weights=None, axis=None, return_weights=False):
-    ''' Function to average in quadrature
-    Args:
-        arr - array to process
-        weights - weights for average
-        axis - axis keyword to pass to np.mean
-        return_weights - whether to return sum of weights. Default is False.
-    '''
+    """
+    Collapse by averaging in quadrature.
+
+    Parameters
+    ----------
+    arr : array
+        Input array to process.
+    weights: ndarray, optional
+        weights for average. If none, will default to equal weight for all
+        non-infinite data.
+    axis : int or tuple, optional
+        Axis or axes to collapse (passed to np.sum). Default is all.
+    return_weights : bool
+        Whether to return sum of weights.
+
+    """
     out = mean_collapse(np.abs(arr)**2, weights=weights, axis=axis, return_weights=return_weights)
     if return_weights:
         return np.sqrt(out[0]), out[1]
@@ -1473,14 +1630,22 @@ def quadmean_collapse(arr, weights=None, axis=None, return_weights=False):
 
 
 def or_collapse(arr, weights=None, axis=None, return_weights=False):
-    ''' Function to collapse axes using OR operation
-    Args:
-        arr - boolean array to process
-        weights - NOT USED, but kept for symmetry with other averaging functions
-        axis - axis or axes over which to OR
-        return_weights - whether to return dummy weights array. NOTE: the dummy weights
-            will simply be an array of ones. Default is False.
-    '''
+    """
+    Collapse using OR operation.
+
+    Parameters
+    ----------
+    arr : array
+        Input array to process.
+    weights: ndarray, optional
+        NOT USED, but kept for symmetry with other collapsing functions.
+    axis : int or tuple, optional
+        Axis or axes to collapse (take OR over). Default is all.
+    return_weights : bool
+        Whether to return dummy weights array.
+        NOTE: the dummy weights will simply be an array of ones
+
+    """
     if arr.dtype != np.bool:
         raise ValueError('Input to or_collapse function must be boolean array')
     out = np.any(arr, axis=axis)
@@ -1493,14 +1658,22 @@ def or_collapse(arr, weights=None, axis=None, return_weights=False):
 
 
 def and_collapse(arr, weights=None, axis=None, return_weights=False):
-    ''' Function to collapse axes using AND operation
-    Args:
-        arr - boolean array to process
-        weights - NOT USED, but kept for symmetry with other averaging functions
-        axis - axis or axes over which to AND
-        return_weights - whether to return dummy weights array. NOTE: the dummy weights
-            will simply be an array of ones. Default is False.
-    '''
+    """
+    Collapse using AND operation.
+
+    Parameters
+    ----------
+    arr : array
+        Input array to process.
+    weights: ndarray, optional
+        NOT USED, but kept for symmetry with other collapsing functions.
+    axis : int or tuple, optional
+        Axis or axes to collapse (take AND over). Default is all.
+    return_weights : bool
+        Whether to return dummy weights array.
+        NOTE: the dummy weights will simply be an array of ones
+
+    """
     if arr.dtype != np.bool:
         raise ValueError('Input to and_collapse function must be boolean array')
     out = np.all(arr, axis=axis)

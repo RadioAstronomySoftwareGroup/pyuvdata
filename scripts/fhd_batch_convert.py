@@ -2,6 +2,7 @@
 # -*- mode: python; coding: utf-8 -*
 # Copyright (c) 2018 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
+"""Convert multiple FHD datasets to UVFITS format."""
 
 
 from __future__ import absolute_import, division, print_function
@@ -14,6 +15,7 @@ from pyuvdata import UVData
 
 
 def parse_range(string):
+    """Parse numbers from a range string."""
     m = re.match(r'(\d+)(?:-(\d+))?$', string)
     if not m:
         raise argparse.ArgumentTypeError(
