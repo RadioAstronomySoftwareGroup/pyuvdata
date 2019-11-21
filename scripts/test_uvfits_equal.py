@@ -2,6 +2,7 @@
 # -*- mode: python; coding: utf-8 -*
 # Copyright (c) 2018 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
+"""Test if two UVData compatible files are equal."""
 
 from __future__ import absolute_import, division, print_function
 

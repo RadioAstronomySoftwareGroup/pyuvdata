@@ -23,38 +23,43 @@ class UVParameter(object):
     """
     Data and metadata objects for interferometric data sets.
 
-    Attributes:
-        name: A string giving the name of the attribute. Used as the associated
-            property name in classes based on UVBase.
+    Attributes
+    ----------
+    name : str
+        The name of the attribute. Used as the associated property name in
+        classes based on UVBase.
+    required : bool
+        Flag indicating whether this is required metadata for
+        the class with this UVParameter as an attribute. Default is True.
+    value
+        The value of the data or metadata.
+    spoof_val
+        A fake value that can be assigned to a non-required UVParameter if the
+        metadata is required for a particular file-type.
+        This is not an attribute of required UVParameters.
+    form : 'str' or tuple
+        Either 'str' or a tuple giving information about the expected
+        shape of the value. Elements of the tuple may be the name of other
+        UVParameters that indicate data shapes.
 
-        required: A boolean indicating whether this is required metadata for
-            the class with this UVParameter as an attribute. Default is True.
+        Form examples:
+            - 'str': a string value
+            - ('Nblts', 3): the value should be an array of shape:
+            Nblts (another UVParameter name), 3
+    description : str
+        Description of the data or metadata in the object.
+    expected_type
+        The type that the data or metadata should be.
+        Default is np.int or str if form is 'str'
+    acceptable_vals : list, optional
+        List giving allowed values for elements of value.
+    acceptable_range: 2-tuple, optional
+        Tuple giving a range of allowed magnitudes for elements of value.
+    tols : float or 2-tuple of float
+        Tolerances for testing the equality of UVParameters. Either a
+        single absolute value or a tuple of relative and absolute values to
+        be used by np.isclose()
 
-        value: The value of the data or metadata.
-
-        spoof_val: A fake value that can be assigned to a non-required
-            UVParameter if the metadata is required for a particular file-type.
-            This is not an attribute of required UVParameters.
-
-        form: Either 'str' or a tuple giving information about the expected
-            shape of the value. Elements of the tuple may be the name of other
-            UVParameters that indicate data shapes. \n
-            Examples:\n
-                'str': a string value\n
-                ('Nblts', 3): the value should be an array of shape: Nblts (another UVParameter name), 3
-
-        description: A string description of the data or metadata in the object.
-
-        expected_type: The type that the data or metadata should be.
-            Default is np.int or str if form is 'str'
-
-        acceptable_vals: Optional. List giving allowed values for elements of value.
-
-        acceptable_range: Optional. Tuple giving a range of allowed magnitudes for elements of value.
-
-        tols: Tolerances for testing the equality of UVParameters. Either a
-            single absolute value or a tuple of relative and absolute values to
-            be used by np.isclose()
     """
 
     def __init__(self, name, required=True, value=None, spoof_val=None,
@@ -188,11 +193,15 @@ class UVParameter(object):
         """
         Get the expected shape of the value based on the form.
 
-        Args:
-            uvbase: object with this UVParameter as an attribute. Needed
-                because the form can refer to other UVParameters on this object.
+        Parameters
+        ----------
+        uvbase : object
+            Object with this UVParameter as an attribute. Needed
+            because the form can refer to other UVParameters on this object.
 
-        Returns:
+        Returns
+        -------
+        tuple
             The expected shape of the value.
         """
         if self.form == 'str':
@@ -265,11 +274,14 @@ class AntPositionParameter(UVParameter):
         """
         Set value to zeroed array of shape: number of antennas, 3.
 
-        Args:
-            uvbase: object with this UVParameter as an attribute. Needed
-                to get the number of antennas.
-            antnum_name: A string giving the name of the UVParameter containing
-                the number of antennas.
+        Parameters
+        ----------
+        uvbase : object
+            object with this UVParameter as an attribute. Needed
+            to get the number of antennas.
+        antnum_name : str
+            A string giving the name of the UVParameter containing
+            the number of antennas.
         """
         self.value = np.zeros((getattr(uvbase, antnum_name), 3))
 
@@ -293,8 +305,10 @@ class AngleParameter(UVParameter):
         """
         Set value in degrees.
 
-        Args:
-            degree_val: value in degrees to use to set the value attribute.
+        Parameters
+        ----------
+        degree_val : float
+            Value in degrees to use to set the value attribute.
         """
         if degree_val is None:
             self.value = None
@@ -309,7 +323,9 @@ class LocationParameter(UVParameter):
     Adds extra methods for conversion to & from lat/lon/alt in radians or
     degrees (used by UVBase objects for _lat_lon_alt and _lat_lon_alt_degrees
     properties associated with these parameters).
+
     """
+
     def __init__(self, name, required=True, value=None, spoof_val=None, description='',
                  acceptable_range=(6.35e6, 6.39e6), tols=1e-3):
         super(LocationParameter, self).__init__(name, required=required, value=value,
@@ -330,9 +346,11 @@ class LocationParameter(UVParameter):
         """
         Set value from (latitude, longitude, altitude) tuple in radians.
 
-        Args:
-            lat_lon_alt: tuple giving the latitude (radians), longitude (radians)
-                and altitude to use to set the value attribute.
+        Parameters
+        ----------
+        lat_lon_alt : 3-tuple of float
+            Tuple with the latitude (radians), longitude (radians)
+            and altitude (meters) to use to set the value attribute.
         """
         if lat_lon_alt is None:
             self.value = None
@@ -352,9 +370,12 @@ class LocationParameter(UVParameter):
         """
         Set value from (latitude, longitude, altitude) tuple in degrees.
 
-        Args:
-            lat_lon_alt: tuple giving the latitude (degrees), longitude (degrees)
-                and altitude to use to set the value attribute.
+        Parameters
+        ----------
+        lat_lon_alt : 3-tuple of float
+            Tuple with the latitude (degrees), longitude (degrees)
+            and altitude (meters) to use to set the value attribute.
+
         """
         if lat_lon_alt_degree is None:
             self.value = None
@@ -365,9 +386,7 @@ class LocationParameter(UVParameter):
                                                   altitude)
 
     def check_acceptability(self):
-        """Check that values are acceptable. Special case for location, where
-            we want to check the vector magnitude
-        """
+        """Check that vector magnitudes are in range."""
         if self.acceptable_range is None:
             return True, 'No acceptability check'
         else:

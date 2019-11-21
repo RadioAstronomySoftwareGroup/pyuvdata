@@ -155,7 +155,7 @@ def test_unexpected_attributes(uvbeam_data):
 
 
 def test_properties(uvbeam_data):
-    "Test that properties can be get and set properly."
+    """Test that properties can be get and set properly."""
     prop_dict = dict(list(zip(uvbeam_data.required_properties + uvbeam_data.extra_properties,
                               uvbeam_data.required_parameters + uvbeam_data.extra_parameters)))
     for k, v in prop_dict.items():
