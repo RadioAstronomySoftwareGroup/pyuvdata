@@ -149,6 +149,14 @@ def test_init_UVData():
     assert uvf.label == 'test'
 
 
+def test_init_UVData_x_orientation():
+    uv = UVData()
+    uv.read_miriad(test_d_file)
+    uv.x_orientation = 'east'
+    uvf = UVFlag(uv, history='I made a UVFlag object', label='test')
+    assert uvf.x_orientation == uv.x_orientation
+
+
 def test_init_UVData_copy_flags():
     uv = UVData()
     uv.read_miriad(test_d_file)
@@ -206,6 +214,7 @@ def test_init_UVCal():
     assert uvf.type == 'antenna'
     assert uvf.mode == 'metric'
     assert np.all(uvf.time_array == uvc.time_array)
+    assert uvf.x_orientation == uvc.x_orientation
     lst = lst_from_uv(uvc)
     assert np.all(uvf.lst_array == lst)
     assert np.all(uvf.freq_array == uvc.freq_array[0])
