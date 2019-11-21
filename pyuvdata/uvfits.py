@@ -133,13 +133,8 @@ class UVFITS(UVData):
         """
         Read just the visibility and flag data of the uvfits file.
 
-        Separated from full read so that header, metadata and data can be read
-        independently.
+        Separated from full read so header and metadata can be read without data.
         """
-        if self.time_array is None or read_metadata:
-            # first read in random group parameters
-            self._get_parameter_data(vis_hdu, run_check_acceptability)
-
         # figure out what data to read in
         blt_inds, freq_inds, pol_inds, history_update_string = \
             self._select_preprocess(antenna_nums, antenna_names, ant_str, bls,

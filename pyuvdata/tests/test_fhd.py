@@ -213,7 +213,7 @@ def test_ReadFHDWriteReadUVFits_no_settings():
                          nwarnings=2)
 
     # Check only pyuvdata history with no settings file
-    assert fhd_uv.history == fhd_uv.pyuvdata_version_str  # Check empty history with no settings
+    assert fhd_uv.history == fhd_uv.pyuvdata_version_str
 
     fhd_uv.write_uvfits(os.path.join(DATA_PATH, 'test/outtest_FHD_1061316296.uvfits'),
                         spoof_nonessential=True)
@@ -224,17 +224,26 @@ def test_ReadFHDWriteReadUVFits_no_settings():
 def test_breakReadFHD():
     """Try various cases of incomplete file lists."""
     fhd_uv = UVData()
-    pytest.raises(Exception, fhd_uv.read, testfiles[1:])  # Missing flags
-    del(fhd_uv)
-    fhd_uv = UVData()
+    # missing flags
+    with pytest.raises(ValueError) as cm:
+        fhd_uv.read(testfiles[1:])
+    assert str(cm.value).startswith('No flags file included in file list')
+
+    # Missing params
     subfiles = [item for sublist in [testfiles[0:2], testfiles[3:]] for item in sublist]
-    pytest.raises(Exception, fhd_uv.read, subfiles)  # Missing params
-    del(fhd_uv)
-    fhd_uv = UVData()
-    pytest.raises(Exception, fhd_uv.read, ['foo'])  # No data files
+    with pytest.raises(ValueError) as cm:
+        fhd_uv.read(subfiles)
+    assert str(cm.value).startswith('No params file included in file list')
+
+    # No data files
+    with pytest.raises(ValueError) as cm:
+        fhd_uv.read(['foo.sav'])
+    assert str(cm.value).startswith('No data files included in file list')
     del(fhd_uv)
 
-    # test warnings with various broken inputs
+
+def test_ReadFHD_warnings():
+    """Test warnings with various broken inputs."""
     # bad obs structure values
     broken_data_file = testdir + testfile_prefix + 'broken_vis_XX.sav'
     bad_filelist = [testfiles[0], testfiles[2],

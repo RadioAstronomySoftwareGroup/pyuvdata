@@ -84,7 +84,7 @@ class Miriad(UVData):
 
         # load metadata
         (default_miriad_variables, other_miriad_variables, extra_miriad_variables,
-         check_variables) = self.read_miriad_metadata(uv, correct_lat_lon=correct_lat_lon)
+         check_variables) = self._read_miriad_metadata(uv, correct_lat_lon=correct_lat_lon)
 
         if not read_data:
             # don't read in the data. This means the object is incomplete,
@@ -835,7 +835,10 @@ class Miriad(UVData):
 
     def read_miriad_metadata(self, filename, correct_lat_lon=True):
         """
-        Read in metadata (parameter info) but not data from a miriad file.
+        Deprecated: Read in metadata (parameter info) but not data from a miriad file.
+
+        Deprecated in favor of `_read_miriad_metadata` because it is not an
+        API level method (it's only called internally.)
 
         Args:
             filename : The miriad file to read
@@ -847,7 +850,12 @@ class Miriad(UVData):
             other_miriad_variables: list of other miriad variables
             extra_miriad_variables: list of extra, non-standard variables
             check_variables: dict of extra miriad variables
+
         """
+        warnings.warn('The read_miriad_metadata method is deprecated in favor of '
+                      '_read_miriad_metadata because it is not API level code. This '
+                      'function will be removed in version 1.6', DeprecationWarning)
+
         # check for data array
         if self.data_array is not None:
             raise ValueError('data_array is already defined, cannot read metadata')
@@ -857,7 +865,25 @@ class Miriad(UVData):
             uv = aipy_extracts.UV(filename)
         elif isinstance(filename, aipy_extracts.UV):
             uv = filename
+        self._read_miriad_metadata(uv)
 
+
+    def _read_miriad_metadata(self, uv, correct_lat_lon=True):
+        """
+        Read in metadata (parameter info) but not data from a miriad file.
+
+        Args:
+            uv : aipy_extracts.UV object
+            correct_lat_lon: flag -- that only matters if altitude is missing --
+                to update the latitude and longitude from the known_telescopes list
+
+        Returns:
+            default_miriad_variables: list of default miriad variables
+            other_miriad_variables: list of other miriad variables
+            extra_miriad_variables: list of extra, non-standard variables
+            check_variables: dict of extra miriad variables
+
+        """
         # load miriad variables
         (default_miriad_variables, other_miriad_variables,
          extra_miriad_variables) = self._load_miriad_variables(uv)
