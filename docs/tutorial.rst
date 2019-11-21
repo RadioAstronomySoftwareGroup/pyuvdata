@@ -20,12 +20,12 @@ a) miriad -> uvfits
   >>> UV = UVData()
 
   # This miriad file is known to be a drift scan.
-  # Use either the file type specific read_miriad or the generic read function,
-  # optionally specify the file type
+  # Use the `read` method, optionally specify the file type. Can also use the
+  # file type specific `read_miriad` method, but only if reading a single file.
   >>> miriad_file = 'pyuvdata/data/new.uvA'
-  >>> UV.read_miriad(miriad_file)
-  >>> UV.read(miriad_file, file_type='miriad')
   >>> UV.read(miriad_file)
+  >>> UV.read(miriad_file, file_type='miriad')
+  >>> UV.read_miriad(miriad_file)
 
   # Write out the uvfits file
   >>> UV.write_uvfits('tutorial.uvfits', force_phase=True, spoof_nonessential=True)
@@ -41,11 +41,11 @@ b) uvfits -> miriad
   >>> UV = UVData()
   >>> uvfits_file = 'pyuvdata/data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
 
-  # Use either the file type specific read_uvfits or the generic read function,
-  # optionally specify the file type
-  >>> UV.read_uvfits(uvfits_file)
-  >>> UV.read(uvfits_file, file_type='uvfits')
+  # Use the `read` method, optionally specify the file type. Can also use the
+  # file type specific `read_uvfits` method, but only if reading a single file.
   >>> UV.read(uvfits_file)
+  >>> UV.read(uvfits_file, file_type='uvfits')
+  >>> UV.read_uvfits(uvfits_file)
 
   # Write out the miriad file
   >>> write_file = 'tutorial.uv'
@@ -55,7 +55,7 @@ b) uvfits -> miriad
 
 c) FHD -> uvfits
 ****************
-When reading FHD format, we need to point to several files.
+When reading FHD format, we need to point to several files for each observation.
 ::
 
   >>> from pyuvdata import UVData
@@ -67,11 +67,11 @@ When reading FHD format, we need to point to several files.
   ...                                       'vis_YY.sav', 'vis_model_XX.sav',
   ...                                       'vis_model_YY.sav', 'settings.txt']]
 
-  # Use either the file type specific read_fhd or the generic read function,
-  # optionally specify the file type
-  >>> UV.read_fhd(fhd_files)
-  >>> UV.read(fhd_files, file_type='fhd')
+  # Use the `read` method, optionally specify the file type. Can also use the
+  # file type specific `read_fhd` method, but only if reading a single observation.
   >>> UV.read(fhd_files)
+  >>> UV.read(fhd_files, file_type='fhd')
+  >>> UV.read_fhd(fhd_files)
   >>> UV.write_uvfits('tutorial.uvfits', spoof_nonessential=True)
 
 d) FHD -> miriad
@@ -103,9 +103,11 @@ e) CASA -> uvfits
   >>> UV = UVData()
   >>> ms_file = 'pyuvdata/data/day2_TDEM0003_10s_norx_1src_1spw.ms'
 
-  # Use either the file type specific read_ms or the generic read function,
-  # optionally specify the file type
+  # Use the `read` method, optionally specify the file type. Can also use the
+  # file type specific `read_ms` method, but only if reading a single file.
   # note that reading CASA measurement sets requires casacore to be installed
+  >>> UV.read(ms_file)
+  >>> UV.read(ms_file, file_type='ms')
   >>> UV.read_ms(ms_file)
 
   # Write out uvfits file
@@ -160,11 +162,12 @@ h) uvfits -> uvh5
    ...    os.remove(write_file)
    >>> UV.write_uvh5(write_file)
 
-   # Read the uvh5 file back in. Use either the file type specific read_uvh5 or
-   # the generic read function, optionally specify the file type
-   >>> UV.read_uvh5(write_file)
-   >>> UV.read(write_file, file_type='uvh5')
+   # Read the uvh5 file back in.
+   # Use the `read` method, optionally specify the file type. Can also use the
+   # file type specific `read_uvh5` method, but only if reading a single file.
    >>> UV.read(write_file)
+   >>> UV.read(write_file, file_type='uvh5')
+   >>> UV.read_uvh5(write_file)
 
 i) MWA correlator -> uvfits
 *****************
@@ -296,24 +299,23 @@ Phasing/unphasing data
   >>> print(UV.phase_type)
   drift
 
-  # Phase the data to the zenith at first time step
+  # Phase the data to the zenith at first time step. Can either be specified
+  # as a astropy Time object or as a float which is taken to be in JD.
   >>> UV.phase_to_time(Time(UV.time_array[0], format='jd'))
   >>> print(UV.phase_type)
   phased
 
-  # Undo phasing to try another phase center
+  # Undo phasing
   >>> UV.unphase_to_drift()
+  >>> print(UV.phase_type)
+  drift
 
-  # Phase the data to the zenith at first time step
-  # The time_array can be used directly now as input floats
-  # are assumed to be a JD
+  # Phase the data to the zenith at first time step using float JD.
   >>> UV.phase_to_time(UV.time_array[0])
   >>> print(UV.phase_type)
   phased
 
-  # Undo phasing to try another phase center
-  >>> UV.unphase_to_drift()
-
+  # Rephase to another phase center (unphases and rephases under the hood)
   # Phase to a specific ra/dec/epoch (in radians)
   >>> UV.phase(5.23368, 0.710940, epoch="J2000")
 
@@ -1040,7 +1042,7 @@ antenna pairs with no associated data).
     >>> uvd = UVData()
 
     # This file contains a HERA19 layout.
-    >>> uvd.read_uvfits("pyuvdata/data/fewant_randsrc_airybeam_Nsrc100_10MHz.uvfits")
+    >>> uvd.read("pyuvdata/data/fewant_randsrc_airybeam_Nsrc100_10MHz.uvfits")
     >>> uvd.unphase_to_drift(use_ant_pos=True)
     >>> tol = 0.05  # Tolerance in meters
     >>> uvd.select(times=uvd.time_array[0])
@@ -1083,7 +1085,7 @@ baselines from the antenna positions and fills in the full data array based on r
     >>> import copy
     >>> import numpy as np
     >>> uv0 = UVData()
-    >>> uv0.read_uvfits("pyuvdata/data/fewant_randsrc_airybeam_Nsrc100_10MHz.uvfits")
+    >>> uv0.read("pyuvdata/data/fewant_randsrc_airybeam_Nsrc100_10MHz.uvfits")
     >>> tol = 0.02   # In meters
 
     # Compression can be run in-place or return a separate UVData object.
