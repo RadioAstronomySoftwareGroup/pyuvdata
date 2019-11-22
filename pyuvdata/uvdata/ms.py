@@ -13,14 +13,16 @@ import os
 import warnings
 import astropy.time as time
 
-from . import UVData
-from . import utils as uvutils
+from .uvdata import UVData
+from .. import utils as uvutils
 
 try:
     import casacore.tables as tables
 except ImportError:  # pragma: no cover
     uvutils._reraise_context('casacore is not installed but is required for '
                              'measurement set functionality')
+
+__all__ = ['MS']
 
 
 """

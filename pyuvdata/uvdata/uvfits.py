@@ -12,9 +12,11 @@ from astropy import constants as const
 from astropy.time import Time
 from astropy.io import fits
 
-from . import UVData
-from . import parameter as uvp
-from . import utils as uvutils
+from .uvdata import UVData
+from .. import parameter as uvp
+from .. import utils as uvutils
+
+__all__ = ["UVFITS"]
 
 
 class UVFITS(UVData):
