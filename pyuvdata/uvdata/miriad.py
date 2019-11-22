@@ -16,11 +16,13 @@ import warnings
 from astropy import constants as const
 from astropy.coordinates import Angle, SkyCoord
 
-from . import UVData
-from . import telescopes as uvtel
-from . import utils as uvutils
+from .uvdata import UVData
+from .. import telescopes as uvtel
+from .. import utils as uvutils
 
 from . import aipy_extracts
+
+__all__ = 'Miriad'
 
 
 class Miriad(UVData):

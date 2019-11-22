@@ -17,9 +17,11 @@ from scipy import interpolate
 from astropy import units
 from astropy.coordinates import Angle
 
-from .uvbase import UVBase
-from . import parameter as uvp
-from . import utils as uvutils
+from ..uvbase import UVBase
+from .. import parameter as uvp
+from .. import utils as uvutils
+
+__all__ = ['UVBeam']
 
 
 class UVBeam(UVBase):

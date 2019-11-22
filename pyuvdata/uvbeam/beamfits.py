@@ -11,8 +11,10 @@ import numpy as np
 import warnings
 from astropy.io import fits
 
-from . import UVBeam
-from . import utils as uvutils
+from .uvbeam import UVBeam
+from .. import utils as uvutils
+
+__all__ = ['BeamFITS']
 
 hpx_primary_ax_nums = {'pixel': 1, 'freq': 2, 'feed_pol': 3, 'spw': 4,
                        'basisvec': 5, 'complex': 6}

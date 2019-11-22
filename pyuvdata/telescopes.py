@@ -11,6 +11,13 @@ from astropy.coordinates import Angle
 from . import uvbase
 from . import parameter as uvp
 
+__all__ = [
+    "Telescope",
+    "known_telescopes",
+    "get_telescope"
+]
+
+
 # center_xyz is the location of the telescope in ITRF (earth-centered frame)
 KNOWN_TELESCOPES = {
     'PAPER': {'center_xyz': None,
