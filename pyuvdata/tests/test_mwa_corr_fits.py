@@ -20,7 +20,8 @@ testdir = os.path.join(DATA_PATH, 'mwa_corr_fits_testfiles/')
 
 testfiles = ['1131733552.metafits', '1131733552_20151116182537_mini_gpubox01_00.fits',
              '1131733552_20151116182637_mini_gpubox06_01.fits', '1131733552_mini_01.mwaf',
-             '1131733552_mini_06.mwaf', '1131733552_mod.metafits']
+             '1131733552_mini_06.mwaf', '1131733552_mod.metafits',
+             '1131733552_mini_cotter.uvfits']
 filelist = [testdir + i for i in testfiles]
 
 
@@ -41,6 +42,30 @@ def test_ReadMWAWriteUVFits():
     mwa_uv.write_uvfits(testfile, spoof_nonessential=True)
     uvfits_uv.read_uvfits(testfile)
     assert mwa_uv == uvfits_uv
+
+
+def test_ReadMWA_ReadCotter():
+    """
+    Read in MWA correlator files and the corresponding cotter file and check
+    for data array equality.
+    """
+    mwa_uv = UVData()
+    cotter_uv = UVData()
+    # cotter data has cable correction and is unphased
+    mwa_uv.read_mwa_corr_fits(filelist[0:2], phase_data=False)
+    cotter_uv.read(filelist[6])
+    # first check the xx and yy polarizations
+    assert np.allclose(mwa_uv.data_array[:, :, :, 0:2],
+                       cotter_uv.data_array[:, :, :, 0:2], 1e-6)
+    # cotter doesn't record the auto xy polarizations
+    autos = np.isclose(mwa_uv.ant_1_array - mwa_uv.ant_2_array, 0.0)
+    crosses = np.invert(autos)
+    assert np.allclose(mwa_uv.data_array[crosses, :, :, 2],
+                       cotter_uv.data_array[crosses, :, :, 2], 1e-6)
+    # due to a possible bug in cotter, the auto yx polarizations are conjugated
+    cotter_uv.data_array[autos, :, :, 3] = np.conj(cotter_uv.data_array[autos, :, :, 3])
+    assert np.allclose(mwa_uv.data_array[:, :, :, 3],
+                       cotter_uv.data_array[:, :, :, 3], 1e-6)
 
 
 def test_ReadMWAWriteUVFits_meta_mod():

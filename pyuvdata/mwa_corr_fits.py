@@ -170,7 +170,7 @@ class MWACorrFITS(UVData):
         self.vis_units = 'uncalib'
         self.Npols = 4
         self.xorientation = 'east'
-        
+
         # get information from metafits file
         with fits.open(metafits_file, memmap=True) as meta:
             meta_hdr = meta[0].header
@@ -428,10 +428,10 @@ class MWACorrFITS(UVData):
                         out_p2 = ind2_2 % 2
                         # the correlator has ind2_2 <= ind2_1 except for
                         # redundant data. The redundant data is not perfectly
-                        # redundant; sometimes the values of redundant data 
-                        # are off by one in the imaginary part. 
+                        # redundant; sometimes the values of redundant data
+                        # are off by one in the imaginary part.
                         # For consistency, we are ignoring the redundant values
-                        # that have ind2_2 > ind1_2
+                        # that have ind2_2 > ind2_1
                         if ind2_2 > ind2_1:
                             # get the index for the data
                             data_index = int(2 * out_ant2 * (out_ant2 + 1) + 4 * out_ant1 + 2 * out_p2 + out_p1)
