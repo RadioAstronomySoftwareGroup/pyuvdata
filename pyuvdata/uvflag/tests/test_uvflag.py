@@ -8,14 +8,10 @@ import pytest
 import os
 import numpy as np
 import pyuvdata.tests as uvtest
-from pyuvdata import UVData
-from pyuvdata import UVCal
-from pyuvdata import utils as uvutils
+from pyuvdata import UVData, UVCal, utils as uvutils
 from pyuvdata.data import DATA_PATH
 from pyuvdata import UVFlag
-from pyuvdata.uvflag import lst_from_uv
-from pyuvdata.uvflag import flags2waterfall
-from pyuvdata.uvflag import and_rows_cols
+from ..uvflag import lst_from_uv,flags2waterfall, and_rows_cols
 from pyuvdata import version as uvversion
 import shutil
 import copy

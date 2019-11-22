@@ -10,9 +10,11 @@ import six
 import warnings
 from scipy.io.idl import readsav
 
-from . import UVCal
-from . import utils as uvutils
-from .fhd import get_fhd_history
+from .uvcal import UVCal
+from .. import utils as uvutils
+from ..uvdata.fhd import get_fhd_history
+
+__all__ = ["FHDCal"]
 
 
 class FHDCal(UVCal):

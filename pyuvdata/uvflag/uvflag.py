@@ -12,12 +12,14 @@ import six
 from six.moves import map, zip
 import h5py
 
-from .uvbase import UVBase
-from . import parameter as uvp
-from . import UVData
-from . import UVCal
-from . import utils as uvutils
-from . import telescopes as uvtel
+from ..uvbase import UVBase
+from .. import parameter as uvp
+from ..uvdata import UVData
+from ..uvcal import UVCal
+from .. import utils as uvutils
+from .. import telescopes as uvtel
+
+__all__ = ["UVFlag", "flags2waterfall", "and_rows_cols", "lst_from_uv"]
 
 
 class UVFlag(UVBase):

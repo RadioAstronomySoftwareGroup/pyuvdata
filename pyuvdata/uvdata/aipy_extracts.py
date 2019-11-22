@@ -19,7 +19,7 @@ import numpy as np
 import re
 
 try:
-    from . import _miriad
+    from .. import _miriad
 except ImportError:
     # See setup.py for an explanation. The workaround here is kind of annoying
     # since the code below needs the name `_miriad.UV` to be a class in order
