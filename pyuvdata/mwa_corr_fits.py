@@ -19,15 +19,16 @@ def input_output_mapping():
     These input numbers can be mapped to antenna numbers using metadata.
     '''
     # this comes from mwa_build_lfiles/mwac_utils.c
-    # inputs are mapped to the indices of pfb_mapper as follows
+    # inputs are mapped to outputs via pfb_mapper as follows
     # (from mwa_build_lfiles/antenna_mapping.h):
     # floor(index/4) + index%4 * 16 = input
+    # for the first 64 outputs, pfb_mapper[output] = input
     pfb_mapper = [0, 16, 32, 48, 1, 17, 33, 49, 2, 18, 34, 50, 3, 19, 35, 51,
                   4, 20, 36, 52, 5, 21, 37, 53, 6, 22, 38, 54, 7, 23, 39, 55,
                   8, 24, 40, 56, 9, 25, 41, 57, 10, 26, 42, 58, 11, 27, 43, 59,
                   12, 28, 44, 60, 13, 29, 45, 61, 14, 30, 46, 62, 15, 31, 47,
                   63]
-    # pfb_mapper maps the first 64 inputs; build a mapper for all 256 inputs
+    # build a mapper for all 256 inputs
     pfb_inputs_to_outputs = {}
     for p in range(4):
         for i in range(64):
@@ -46,7 +47,8 @@ class MWACorrFITS(UVData):
         """
         A helper function that applies a cable length correction to the data.
         """
-        # velocity factor for RG-6 coax cable
+        # "the velocity factor of electic fields in RG-6 like coax"
+        # from MWA_Tools/CONV2UVFITS/convutils.h
         v_factor = 1.204
         # check if the cable length already has the velocity factor applied
         cable_array = []
@@ -63,7 +65,7 @@ class MWACorrFITS(UVData):
                                   * self.freq_array.reshape(1, self.Nfreqs))[:, :, None]
 
     def read_mwa_corr_fits(self, filelist, use_cotter_flags=False, correct_cable_len=True,
-                           phase_data=True, pointing_center=None, run_check=True, check_extra=True,
+                           phase_data=True, phase_center=None, run_check=True, check_extra=True,
                            run_check_acceptability=True):
         """
         Read in data from a list of MWA correlator fits files.
@@ -76,7 +78,7 @@ class MWACorrFITS(UVData):
             correct_cable_len : Option to apply a cable delay correction.
                 Default is True.
             phase_data : Option to phase data. Default is True.
-            pointing_center : Option to phase data to a location that is
+            phase_center : Option to phase data to a location that is
                 different from the observation pointing center. Default uses
                 the observation pointing center when phase_data is True.
             run_check : Option to check for the existence and proper shapes of
@@ -88,6 +90,7 @@ class MWACorrFITS(UVData):
         """
 
         metafits_file = None
+        obs_id = None
         file_dict = {}
         start_time = 0.0
         end_time = 0.0
@@ -95,26 +98,29 @@ class MWACorrFITS(UVData):
         cotter_warning = False
         num_fine_chans = 0
 
-        # TOOD: what (if anything) to do with the metafits_ppds file?
         # iterate through files and organize
         # create a list of included coarse channels
         # find the first and last times that have data
         for file in filelist:
             if file.lower().endswith('.metafits'):
-                # check that have a metafits file
-                # TODO: figure out what to do with multiple metafits files
-                # for now, force only one metafits file
+                # force only one metafits file
                 if metafits_file is not None:
                     raise ValueError('multiple metafits files in filelist')
                 metafits_file = file
             # organize data files
-            elif file.lower().endswith('00.fits') or file.lower().endswith('01.fits'):
+            elif file.lower().endswith('.fits'):
                 # get the file number from the file name;
                 # this will later be mapped to a coarse channel
                 file_num = int(file.split('_')[-2][-2:])
                 if file_num not in included_file_nums:
                     included_file_nums.append(file_num)
                 with fits.open(file) as data:
+                    # check obs id
+                    if obs_id is None:
+                        obs_id = data[0].header['OBSID']
+                    else:
+                        if data[0].header['OBSID'] != obs_id:
+                            raise ValueError('files from different observations submitted in same list')
                     # check headers for first and last times containing data
                     first_time = data[1].header['TIME'] + data[1].header['MILLITIM'] / 1000.0
                     last_time = data[-1].header['TIME'] + data[-1].header['MILLITIM'] / 1000.0
@@ -156,7 +162,6 @@ class MWACorrFITS(UVData):
         if 'flags' not in file_dict.keys() and use_cotter_flags is True:
             raise ValueError('no flag files submitted. Rerun with flag files \
                              or use_cotter_flags=False')
-        # TODO: think about what checks make sense for missing data
 
         # first set parameters that are always true
         self.Nspws = 1
@@ -164,7 +169,8 @@ class MWACorrFITS(UVData):
         self.phase_type = 'drift'
         self.vis_units = 'uncalib'
         self.Npols = 4
-
+        self.xorientation = 'east'
+        
         # get information from metafits file
         with fits.open(metafits_file, memmap=True) as meta:
             meta_hdr = meta[0].header
@@ -174,7 +180,7 @@ class MWACorrFITS(UVData):
             coarse_chans = np.array(sorted([int(i) for i in coarse_chans]))
 
             # integration time in seconds
-            int_time = meta_hdr.pop('INTTIME')
+            int_time = meta_hdr['INTTIME']
 
             # pointing center in degrees
             ra_deg = meta_hdr['RA']
@@ -183,14 +189,13 @@ class MWACorrFITS(UVData):
             dec_rad = np.pi * dec_deg / 180
 
             # check if a different pointing center has been specified
-            if pointing_center is None:
-                pointing_center = (ra_rad, dec_rad)
+            if phase_center is None:
+                phase_center = (ra_rad, dec_rad)
 
             # get parameters from header
             # this assumes no averaging by this code so will need to be updated
             self.channel_width = float(meta_hdr.pop('FINECHAN') * 1000)
-            self.history = str(meta_hdr['HISTORY']) + '\n AIPS WTSCAL = 1.0 \n'
-            # TODO: figure out 'AIPS WTSCAL = 1.0'
+            self.history = str(meta_hdr['HISTORY'])
             if not uvutils._check_history_version(self.history,
                                                   self.pyuvdata_version_str):
                 self.history += self.pyuvdata_version_str
@@ -226,9 +231,6 @@ class MWACorrFITS(UVData):
             antenna_positions[:, 0] = meta_tbl['East'][1::2]
             antenna_positions[:, 1] = meta_tbl['North'][1::2]
             antenna_positions[:, 2] = meta_tbl['Height'][1::2]
-
-            # TODO: self.antenna_diameters
-            # TODO: self.x_orientation
 
         # reorder antenna parameters from metafits ordering
         reordered_inds = antenna_numbers.argsort()
@@ -270,7 +272,6 @@ class MWACorrFITS(UVData):
         self.lst_array = uvutils.get_lst_for_time(self.time_array,
                                                   *self.telescope_location_lat_lon_alt_degrees)
 
-        # assumes no averaging
         self.integration_time = np.array([int_time for i in range(self.Nblts)])
 
         # convert antenna positions from enu to ecef
@@ -279,7 +280,7 @@ class MWACorrFITS(UVData):
         # \"height\". Units are meters."
         antenna_positions_ecef = uvutils.ECEF_from_ENU(antenna_positions,
                                                        *self.telescope_location_lat_lon_alt)
-        # convert to ITRF
+        # make antenna positions relative to telescope location
         self.antenna_positions = antenna_positions_ecef - self.telescope_location
 
         # make initial antenna arrays, where ant_1 <= ant_2
@@ -327,7 +328,6 @@ class MWACorrFITS(UVData):
         for i in included_coarse_chans:
             file_nums_to_index[coarse_to_incl_files[i]] = included_coarse_chans.index(i)
         # check that coarse channels are contiguous.
-        # TODO: look at a data file where the coarse channels aren't contiguous to make sure this works
         chans = np.array(included_coarse_chans)
         for i in np.diff(chans):
             if i != 1:
@@ -426,9 +426,13 @@ class MWACorrFITS(UVData):
                         out_ant2 = int(ind2_2 / 2)
                         out_p1 = ind2_1 % 2
                         out_p2 = ind2_2 % 2
-                        # the correlator has antenna 1 >= antenna2,
-                        # so check if ind2_1 and ind2_2 satisfy this
-                        if out_ant1 < out_ant2:
+                        # the correlator has ind2_2 <= ind2_1 except for
+                        # redundant data. The redundant data is not perfectly
+                        # redundant; sometimes the values of redundant data 
+                        # are off by one in the imaginary part. 
+                        # For consistency, we are ignoring the redundant values
+                        # that have ind2_2 > ind1_2
+                        if ind2_2 > ind2_1:
                             # get the index for the data
                             data_index = int(2 * out_ant2 * (out_ant2 + 1) + 4 * out_ant1 + 2 * out_p2 + out_p1)
                             # need to take the complex conjugate of the data
@@ -474,9 +478,8 @@ class MWACorrFITS(UVData):
 
         # phasing
         if phase_data is True:
-            (ra, dec) = pointing_center
+            (ra, dec) = phase_center
             self.phase(ra, dec)
 
-        # TODO: add support for cotter flag files
         if use_cotter_flags is True:
-            warnings.warn('reading in cotter flag files is not yet available')
+            raise NotImplementedError('reading in cotter flag files is not yet available')
