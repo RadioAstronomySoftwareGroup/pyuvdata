@@ -12,7 +12,7 @@ import shutil
 import pytest
 
 from .. import aipy_extracts as ae
-from ..data import DATA_PATH
+from ...data import DATA_PATH
 
 
 def test_bl2ij():

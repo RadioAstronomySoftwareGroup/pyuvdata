@@ -8,9 +8,11 @@ import numpy as np
 import warnings
 import copy
 
-from .uvbase import UVBase
-from . import parameter as uvp
-from . import utils as uvutils
+from ..uvbase import UVBase
+from .. import parameter as uvp
+from .. import utils as uvutils
+
+__all__ = ['UVCal']
 
 
 class UVCal(UVBase):

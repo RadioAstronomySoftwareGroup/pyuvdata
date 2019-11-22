@@ -10,7 +10,7 @@ import numpy as np
 
 from pyuvdata.data import DATA_PATH
 from pyuvdata import UVBeam
-from pyuvdata.cst_beam import CSTBeam
+from pyuvdata.uvbeam.cst_beam import CSTBeam
 import pyuvdata.tests as uvtest
 
 filenames = ['HERA_NicCST_150MHz.txt', 'HERA_NicCST_123MHz.txt']

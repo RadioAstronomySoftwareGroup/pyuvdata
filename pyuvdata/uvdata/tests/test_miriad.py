@@ -29,7 +29,7 @@ from astropy import constants as const
 from astropy.utils import iers
 
 from pyuvdata import UVData
-from pyuvdata.miriad import Miriad
+from ..miriad import Miriad
 import pyuvdata.utils as uvutils
 import pyuvdata.tests as uvtest
 from pyuvdata.data import DATA_PATH
