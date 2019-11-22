@@ -11,8 +11,10 @@ import warnings
 import six
 import h5py
 
-from . import UVData
-from . import utils as uvutils
+from .uvdata import UVData
+from .. import utils as uvutils
+
+__all__ = ['UVH5']
 
 
 # define HDF5 type for interpreting HERA correlator outputs (integers) as complex numbers
