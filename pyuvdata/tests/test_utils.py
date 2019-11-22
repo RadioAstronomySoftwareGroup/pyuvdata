@@ -17,7 +17,7 @@ from astropy.coordinates import SkyCoord, Angle
 from astropy.io import fits
 import copy
 
-import pyuvdata
+from pyuvdata import UVData, UVFlag, UVCal
 from pyuvdata.data import DATA_PATH
 import pyuvdata.utils as uvutils
 import pyuvdata.tests as uvtest
@@ -469,7 +469,7 @@ def test_redundancy_finder():
     Check that get_baseline_redundancies and get_antenna_redundancies return consistent
     redundant groups for a test file with the HERA19 layout.
     """
-    uvd = pyuvdata.UVData()
+    uvd = UVData()
     uvd.read_uvfits(os.path.join(DATA_PATH, 'fewant_randsrc_airybeam_Nsrc100_10MHz.uvfits'))
 
     uvd.select(times=uvd.time_array[0])
@@ -623,7 +623,7 @@ def test_redundancy_conjugates():
 
 def test_redundancy_finder_fully_redundant_array():
     """Test the redundancy finder only returns one baseline group for fully redundant array."""
-    uvd = pyuvdata.UVData()
+    uvd = UVData()
     uvd.read_uvfits(os.path.join(DATA_PATH, 'test_redundant_array.uvfits'))
     uvd.select(times=uvd.time_array[0])
 
@@ -953,9 +953,9 @@ def test_and_collapse_errors():
 
 def test_uvcalibrate_apply_gains():
     # read data
-    uvd = pyuvdata.UVData()
+    uvd = UVData()
     uvd.read(os.path.join(DATA_PATH, 'zen.2457698.40355.xx.HH.uvcAA'))
-    uvc = pyuvdata.UVCal()
+    uvc = UVCal()
     uvc.read_calfits(os.path.join(DATA_PATH, 'zen.2457698.40355.xx.gain.calfits'))
     # assign gain scale manually
     uvc.gain_scale = 'Jy'
@@ -999,9 +999,9 @@ def test_uvcalibrate_apply_gains():
 
 def test_uvcalibrate_flag_propagation():
     # read data
-    uvd = pyuvdata.UVData()
+    uvd = UVData()
     uvd.read(os.path.join(DATA_PATH, 'zen.2457698.40355.xx.HH.uvcAA'))
-    uvc = pyuvdata.UVCal()
+    uvc = UVCal()
     uvc.read_calfits(os.path.join(DATA_PATH, 'zen.2457698.40355.xx.gain.calfits'))
     # downselect to match each other
     uvd.select(frequencies=uvd.freq_array[0, :10])
@@ -1025,12 +1025,12 @@ def test_uvcalibrate_flag_propagation():
 
 def test_apply_uvflag():
     # load data and insert some flags
-    uvd = pyuvdata.UVData()
+    uvd = UVData()
     uvd.read(os.path.join(DATA_PATH, 'zen.2457698.40355.xx.HH.uvcAA'))
     uvd.flag_array[uvd.antpair2ind(9, 20)] = True
 
     # load a UVFlag into flag type
-    uvf = pyuvdata.UVFlag(uvd)
+    uvf = UVFlag(uvd)
     uvf.to_flag()
 
     # insert flags for 2 out of 3 times
@@ -1086,7 +1086,7 @@ def test_apply_uvflag():
     # test polarization exception
     uvd2 = copy.deepcopy(uvd)
     uvd2.polarization_array[0] = -6
-    uvf2 = pyuvdata.UVFlag(uvd)
+    uvf2 = UVFlag(uvd)
     uvf2.to_flag()
     uvd2.polarization_array[0] = -8
     with pytest.raises(ValueError) as cm:

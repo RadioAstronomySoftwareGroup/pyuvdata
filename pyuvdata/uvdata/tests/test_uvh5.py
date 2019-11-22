@@ -14,11 +14,11 @@ import pytest
 from astropy.time import Time
 import h5py
 
-from pyuvdata import UVData, uvh5
+from pyuvdata import UVData
+from .. import uvh5
 import pyuvdata.utils as uvutils
 from pyuvdata.data import DATA_PATH
 import pyuvdata.tests as uvtest
-from pyuvdata.uvh5 import _hera_corr_dtype
 
 
 # ignore common file-read warnings
@@ -125,7 +125,7 @@ def initialize_with_zeros_ints(uvd, filename):
     integer data types.
     """
     uvd.initialize_uvh5_file(
-        filename, clobber=True, data_write_dtype=_hera_corr_dtype
+        filename, clobber=True, data_write_dtype=uvh5._hera_corr_dtype
     )
     data_shape = (uvd.Nblts, 1, uvd.Nfreqs, uvd.Npols)
     data = np.zeros(data_shape, dtype=np.complex64)
@@ -136,7 +136,7 @@ def initialize_with_zeros_ints(uvd, filename):
         data_dset = dgrp['visdata']
         flags_dset = dgrp['flags']
         nsample_dset = dgrp['nsamples']
-        with data_dset.astype(_hera_corr_dtype):
+        with data_dset.astype(uvh5._hera_corr_dtype):
             data_dset[:, :, :, :, 'r'] = data.real
             data_dset[:, :, :, :, 'i'] = data.imag
         flags_dset = flags  # noqa
@@ -1496,7 +1496,7 @@ def test_uvh5_write_ints(uv_uvh5):
     uv_in = uv_uvh5
     uv_out = UVData()
     testfile = os.path.join(DATA_PATH, 'test', 'outtest.uvh5')
-    uv_in.write_uvh5(testfile, clobber=True, data_write_dtype=_hera_corr_dtype)
+    uv_in.write_uvh5(testfile, clobber=True, data_write_dtype=uvh5._hera_corr_dtype)
 
     # read it back in to make sure data is the same
     uv_out.read(testfile)
@@ -1689,7 +1689,7 @@ def test_uvh5_partial_write_ints_antapirs(uv_uvh5):
     partial_uvh5.initialize_uvh5_file(
         partial_testfile,
         clobber=True,
-        data_write_dtype=_hera_corr_dtype,
+        data_write_dtype=uvh5._hera_corr_dtype,
     )
 
     # write to file by iterating over antpairpol
@@ -1727,7 +1727,7 @@ def test_uvh5_partial_write_ints_frequencies(uv_uvh5):
     # initialize file on disk
     partial_testfile = os.path.join(DATA_PATH, 'test', 'outtest_partial.uvh5')
     partial_uvh5.initialize_uvh5_file(
-        partial_testfile, clobber=True, data_write_dtype=_hera_corr_dtype
+        partial_testfile, clobber=True, data_write_dtype=uvh5._hera_corr_dtype
     )
 
     # only write certain frequencies
@@ -1773,7 +1773,7 @@ def test_uvh5_partial_write_ints_blts(uv_uvh5):
     # initialize file on disk
     partial_testfile = os.path.join(DATA_PATH, 'test', 'outtest_partial.uvh5')
     partial_uvh5.initialize_uvh5_file(
-        partial_testfile, clobber=True, data_write_dtype=_hera_corr_dtype
+        partial_testfile, clobber=True, data_write_dtype=uvh5._hera_corr_dtype
     )
 
     # only write certain blts
@@ -1819,7 +1819,7 @@ def test_uvh5_partial_write_ints_pols(uv_uvh5):
     # initialize file on disk
     partial_testfile = os.path.join(DATA_PATH, 'test', 'outtest_partial.uvh5')
     partial_uvh5.initialize_uvh5_file(
-        partial_testfile, clobber=True, data_write_dtype=_hera_corr_dtype
+        partial_testfile, clobber=True, data_write_dtype=uvh5._hera_corr_dtype
     )
 
     # only write certain polarizations
@@ -1868,8 +1868,8 @@ def test_read_complex_astype():
     with h5py.File(test_file, 'w') as h5f:
         dgrp = h5f.create_group('Data')
         dset = dgrp.create_dataset('testdata', test_data_shape,
-                                   dtype=_hera_corr_dtype)
-        with dset.astype(_hera_corr_dtype):
+                                   dtype=uvh5._hera_corr_dtype)
+        with dset.astype(uvh5._hera_corr_dtype):
             dset[:, :, :, :, 'r'] = test_data.real
             dset[:, :, :, :, 'i'] = test_data.imag
 
@@ -1897,8 +1897,8 @@ def test_read_complex_astype_errors():
     with h5py.File(test_file, 'w') as h5f:
         dgrp = h5f.create_group('Data')
         dset = dgrp.create_dataset('testdata', test_data_shape,
-                                   dtype=_hera_corr_dtype)
-        with dset.astype(_hera_corr_dtype):
+                                   dtype=uvh5._hera_corr_dtype)
+        with dset.astype(uvh5._hera_corr_dtype):
             dset[:, :, :, :, 'r'] = test_data.real
             dset[:, :, :, :, 'i'] = test_data.imag
 
@@ -1926,7 +1926,7 @@ def test_write_complex_astype():
     with h5py.File(test_file, 'w') as h5f:
         dgrp = h5f.create_group('Data')
         dset = dgrp.create_dataset('testdata', test_data_shape,
-                                   dtype=_hera_corr_dtype)
+                                   dtype=uvh5._hera_corr_dtype)
         inds = (np.s_[:], np.s_[:], np.s_[:], np.s_[:])
         uvh5._write_complex_astype(test_data, dset, inds)
 
@@ -1934,7 +1934,7 @@ def test_write_complex_astype():
     with h5py.File(test_file, 'r') as h5f:
         dset = h5f['Data/testdata']
         file_data = np.zeros(test_data_shape, dtype=np.complex64)
-        with dset.astype(_hera_corr_dtype):
+        with dset.astype(uvh5._hera_corr_dtype):
             file_data.real = dset['r'][:, :, :, :]
             file_data.imag = dset['i'][:, :, :, :]
 

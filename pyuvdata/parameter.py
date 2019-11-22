@@ -18,6 +18,13 @@ import six
 
 from . import utils
 
+__all__ = [
+    "UVParameter",
+    "AntPositionParameter",
+    "AngleParameter",
+    "LocationParameter"
+]
+
 
 class UVParameter(object):
     """

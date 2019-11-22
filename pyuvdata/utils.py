@@ -25,7 +25,6 @@ gps_a = 6378137
 e_squared = 6.69437999014e-3
 e_prime_squared = 6.73949674228e-3
 
-
 if six.PY2:
     def _str_to_bytes(s):
         return s
@@ -38,6 +37,50 @@ else:
 
     def _bytes_to_str(b):
         return b.decode('utf8')
+
+__all__ = [
+    "POL_STR2NUM_DICT",
+    "POL_NUM2STR_DICT",
+    "CONJ_POL_DICT",
+    "JONES_STR2NUM_DICT",
+    "JONES_NUM2STR_DICT",
+    "LatLonAlt_from_XYZ",
+    "XYZ_from_LatLonAlt",
+    "rotECEF_from_ECEF",
+    "ECEF_from_rotECEF",
+    "ENU_from_ECEF",
+    "ECEF_from_ENU",
+    "phase_uvw",
+    "unphase_uvw",
+    "uvcalibrate",
+    "apply_uvflag",
+    "get_iterable",
+    "fits_gethduaxis",
+    "get_lst_for_time",
+    "fits_indexhdus",
+    "polstr2num",
+    "polnum2str",
+    "jstr2num",
+    "jnum2str",
+    "parse_polstr",
+    "parse_jpolstr",
+    "conj_pol",
+    "reorder_conj_pols",
+    "check_history_version",
+    "check_histories",
+    "combine_histories",
+    "baseline_to_antnums",
+    "antnums_to_baseline",
+    "baseline_index_flip",
+    "get_baseline_redundancies",
+    "get_antenna_redundancies",
+    "collapse",
+    "mean_collapse",
+    "absmean_collapse",
+    "quadmean_collapse",
+    "or_collapse",
+    "and_collapse",
+]
 
 # polarization constants
 # maps polarization strings to polarization integers
@@ -1686,3 +1729,17 @@ def and_collapse(arr, weights=None, axis=None, return_weights=False):
         return out, np.ones_like(out, dtype=np.float)
     else:
         return out
+
+
+def module_deprecation(filename):
+    import warnings
+    warnings.simplefilter("default", DeprecationWarning)
+    warnings.warn(
+        ("This module has been imported as {} which will be deprecated "
+         "in version 1.6. Please update to import the desired class from "
+         "pyuvdata directly"
+         ).format(filename),
+        DeprecationWarning,
+        stacklevel=2
+    )
+    return

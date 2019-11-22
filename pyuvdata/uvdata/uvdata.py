@@ -18,15 +18,17 @@ import astropy.units as units
 from astropy.time import Time
 from astropy.coordinates import SkyCoord, EarthLocation, FK5, Angle
 
-from .uvbase import UVBase
-from . import parameter as uvp
-from . import telescopes as uvtel
-from . import utils as uvutils
+from ..uvbase import UVBase
+from .. import parameter as uvp
+from .. import telescopes as uvtel
+from .. import utils as uvutils
 
 if six.PY2:
     from collections import Iterable
 else:
     from collections.abc import Iterable
+
+__all__ = ['UVData']
 
 
 class UVData(UVBase):
