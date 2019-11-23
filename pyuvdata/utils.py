@@ -762,7 +762,7 @@ def _fits_gethduaxis(HDU, axis, strict_fits=True):
         Xi0 = HDU.header['CRPIX' + ax] - 1
     except(KeyError):
         if not strict_fits:
-            from . import calfits
+            from .uvcal import calfits
             calfits._warn_oldcalfits('This file')
             Xi0 = 0
         else:
