@@ -1726,17 +1726,3 @@ def and_collapse(arr, weights=None, axis=None, return_weights=False):
         return out, np.ones_like(out, dtype=np.float)
     else:
         return out
-
-
-def module_deprecation(filename):
-    import warnings
-    warnings.simplefilter("default", DeprecationWarning)
-    warnings.warn(
-        ("This module has been imported as {} which will be deprecated "
-         "in version 1.6. Please update to import the desired class from "
-         "pyuvdata directly"
-         ).format(filename),
-        DeprecationWarning,
-        stacklevel=2
-    )
-    return
