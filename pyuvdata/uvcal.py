@@ -761,7 +761,7 @@ class UVCal(UVBase):
             Index in data arrays
         """
         if isinstance(jpol, (str, np.str)):
-            jpol = uvutils.jstr2num(jpol)
+            jpol = uvutils.jstr2num(jpol, x_orientation=self.x_orientation)
 
         if not self._has_key(jpol=jpol):
             raise ValueError("{} not found in jones_array".format(jpol))
@@ -777,7 +777,7 @@ class UVCal(UVBase):
                 return False
         if jpol is not None:
             if isinstance(jpol, (str, np.str)):
-                jpol = uvutils.jstr2num(jpol)
+                jpol = uvutils.jstr2num(jpol, x_orientation=self.x_orientation)
             if jpol not in self.jones_array:
                 return False
 
