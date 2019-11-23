@@ -19,7 +19,7 @@ jobs:
           key: deps-{{ .Branch }}-{{ checksum "ci/pyuvdata_linting.yml" }}
       - run:
           name: configure conda environment
-          command: ./ci/install-circle.sh
+          command: ./ci/install_conda.sh
       - run:
           name: linting for PEP8 and PEP257 (with numpy style) compliance
           command: |
@@ -47,7 +47,7 @@ jobs:
           key: deps-{{ .Branch }}-{{ checksum "ci/pyuvdata_tests.yml" }}
       - run:
           name: configure conda environment
-          command: ./ci/install-circle.sh
+          command: ./ci/install_conda.sh
       - run:
           name: install
           command: |
@@ -87,7 +87,7 @@ jobs:
           key: deps-{{ .Branch }}-{{ checksum "ci/pyuvdata_tests.yml" }}
       - run:
           name: configure conda environment
-          command: ./ci/install-circle.sh
+          command: ./ci/install_conda.sh
       - run:
           name: install
           command: |
