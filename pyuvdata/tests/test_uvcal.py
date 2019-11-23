@@ -1443,7 +1443,7 @@ def test_uvcal_get_methods():
     uvc.read_calfits(os.path.join(DATA_PATH, 'zen.2457698.40355.xx.gain.calfits'))
 
     # test get methods: add in a known value and make sure it is returned
-    key = (10, 'Jxx')
+    key = (10, 'Jee')
     uvc.gain_array[1] = 0.0
     d, f, q = uvc.get_gains(key), uvc.get_flags(key), uvc.get_quality(key)
 
@@ -1470,14 +1470,14 @@ def test_uvcal_get_methods():
 
     # check has_key
     assert uvc._has_key(antnum=10)
-    assert uvc._has_key(jpol='Jxx')
-    assert uvc._has_key(antnum=10, jpol='Jxx')
-    assert not uvc._has_key(antnum=10, jpol='Jyy')
-    assert not uvc._has_key(antnum=101, jpol='Jxx')
+    assert uvc._has_key(jpol='Jee')
+    assert uvc._has_key(antnum=10, jpol='Jee')
+    assert not uvc._has_key(antnum=10, jpol='Jnn')
+    assert not uvc._has_key(antnum=101, jpol='Jee')
 
     # test exceptions
     pytest.raises(ValueError, uvc.get_gains, 1)
-    pytest.raises(ValueError, uvc.get_gains, (10, 'Jyy'))
+    pytest.raises(ValueError, uvc.get_gains, (10, 'Jnn'))
     uvc.cal_type = 'delay'
     pytest.raises(ValueError, uvc.get_gains, 10)
 
