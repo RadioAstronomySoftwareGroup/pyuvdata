@@ -1,0 +1,47 @@
+name: Run Tests
+on: [push, pull_request]
+
+tests:
+    env:
+      ENV_NAME: pyuvdata_tests
+      PYTHON: ${{ matrix.python-version }}
+      OS: ${{ matrix.os }}
+    name: Testing
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest]
+        python-version: [2.7, 3.6, 3.7]
+    steps:
+      - uses: actions/checkout@master
+        with:
+          fetch-depth: 1
+
+      - name: Get Miniconda (Mac OSX)
+        if: matrix.os == 'macos-latest'
+        run: |
+          wget https://repo.continuum.io/miniconda/Miniconda3-latest-MacOSX-x86_64.sh -O $HOME/miniconda.sh;
+          bash $HOME/miniconda.sh -b -p $HOME/miniconda
+
+      - name: Setup Environment
+        run: |
+          export PATH="$HOME/miniconda/bin:$PATH"
+          ./ci/install_conda.sh
+
+      - name: Install
+        run: |
+          export PATH="$HOME/miniconda/bin:$PATH"
+          source activate ${ENV_NAME}
+          python setup.py build_ext --force --inplace
+
+      - name: Run Tests
+        run: |
+          export PATH="$HOME/miniconda/bin:$PATH"
+          source activate $ENV_NAME
+          python -m pytest pyuvdata -v --cov=pyuvdata --cov-config=.coveragerc --cov-report xml:./coverage.xml
+
+      - name: Upload Coverage (Mac OS)
+        if:  ${{secrets.CODECOV_TOKEN}} != Null
+        run: |
+          bash <(curl -s https://codecov.io/bash) -t ${{secrets.CODECOV_TOKEN}}
