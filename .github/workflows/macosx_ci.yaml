@@ -1,7 +1,10 @@
 name: Run Tests
 on: [push, pull_request]
 
-tests:
+jobs:
+  tests:
+    name: Mac OSX tests
+
     env:
       ENV_NAME: pyuvdata_tests
       PYTHON: ${{ matrix.python-version }}
