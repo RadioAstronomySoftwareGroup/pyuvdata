@@ -8,12 +8,12 @@ All notable changes to this project will be documented in this file.
 - `utils.apply_uvflag` for applying UVFlag objects to UVData objects
 
 ### Fixed
+- A bug in `UVCal` objects that prevented them from properly getting data with `ee`/`nn`-style polarizations.
 - a bug in `UVFlag` where `x_orientation` was not set during initialization.
 - A bug in `UVCal.read_fhd_cal` that caused calibration solutions to be approximately doubled.
 - A bug in UVFlag where polarization array states were not updated when using `force_pol` keyword in `to_antenna` and `to_baseline`
 - A bug in UVFlag.to_baseline() where force_pol kwarg did not work for UVData Npols > 1
 - `UVData.read_uvfits` no longer breaks if there are non-ascii bytes in antenna names (which CASA sometimes writes).
-- A bug in `UVCal` objects that prevented them from properly getting data with `ee`/`nn`-style polarizations.
 
 ## [1.4.2] - 2019-10-15
 
