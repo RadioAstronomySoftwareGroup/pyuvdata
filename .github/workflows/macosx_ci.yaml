@@ -3,13 +3,11 @@ on: [push, pull_request]
 
 jobs:
   tests:
-    name: Mac OSX tests
-
+    name: Mac OSX Tests
     env:
       ENV_NAME: pyuvdata_tests
       PYTHON: ${{ matrix.python-version }}
       OS: ${{ matrix.os }}
-    name: Testing
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
