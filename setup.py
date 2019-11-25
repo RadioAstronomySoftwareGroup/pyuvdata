@@ -85,7 +85,14 @@ setup_args = {
     'long_description': readme,
     'long_description_content_type': 'text/markdown',
     'package_dir': {'pyuvdata': 'pyuvdata'},
-    'packages': ['pyuvdata', 'pyuvdata.tests'],
+    'packages': [
+        'pyuvdata',
+        'pyuvdata.tests',
+        'pyuvdata.uvbeam',
+        'pyuvdata.uvcal',
+        'pyuvdata.uvdata',
+        'pyuvdata.uvflag',
+    ],
     'cmdclass': {'build_ext': CustomBuildExtCommand},
     'ext_modules': [
         Extension(
