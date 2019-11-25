@@ -178,8 +178,8 @@ i) MWA correlator -> uvfits
    >>> filelist = [data_path + i for i in ['1131733552.metafits', '1131733552_20151116182537_mini_gpubox01_00.fits']]
    
    # Use the file type specific read_mwa_corr_fits
-   # Default settings apply cable corrections and phase data
-   >>> UV.read_mwa_corr_fits(filelist)
+   # Apply cable corrections and phase data before writing to uvfits
+   >>> UV.read_mwa_corr_fits(filelist, correct_cable_len=True, phase_data=True)
    
    # Write out uvfits file
    >>> UV.write_uvfits('tutorial.uvfits', spoof_nonessential=True)
