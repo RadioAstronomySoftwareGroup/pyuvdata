@@ -16,7 +16,7 @@ from .telescopes import known_telescopes, Telescope, get_telescope  # noqa
 from .uvcal import UVCal  # noqa
 from .uvbeam import UVBeam  # noqa
 from . import version  # noqa
-from .uvflag import UVFlag  # noqa
+from .uvflag import *  # noqa
 from .uvbase import *  # noqa
 
 
