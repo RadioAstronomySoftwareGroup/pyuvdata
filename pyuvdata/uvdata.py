@@ -2952,7 +2952,7 @@ class UVData(UVBase):
         del(miriad_obj)
 
     def read_mwa_corr_fits(self, filelist, axis=None, use_cotter_flags=False,
-                           correct_cable_len=True, phase_data=True,
+                           correct_cable_len=False, phase_data=False,
                            phase_center=None, run_check=True,
                            check_extra=True, run_check_acceptability=True):
         """
@@ -2973,13 +2973,16 @@ class UVData(UVBase):
             multiple files are passed.
         use_cotter_flags : bool
             Option to use cotter output mwaf flag files. Otherwise flagging
-            will only be applied to missing data and bad antennas.
-        correct_cable_len : Option to apply a cable delay correction.
-            Default is True.
-        phase_data : Option to phase data. Default is True.
-        phase_center : Option to phase data to a location that is
-            different from the observation pointing center. Default uses
-            the observation pointing center when phase_data is True.
+            will only be applied to missing data and bad antennas. Default is 
+            False.
+        correct_cable_len : bool
+            Option to apply a cable delay correction. Default is False.
+        phase_data : bool
+            Option to phase data. Default is False.
+        phase_center : tuple, optional
+            A tuple containing the ra and dec coordinates in radians of a 
+            specific location to phase data to. If not specified, the
+            observation pointing center will be used when phase_data is True.
         run_check : bool
             Option to check for the existence and proper shapes of parameters
             after after reading in the file (the default is True,

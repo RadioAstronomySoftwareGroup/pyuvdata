@@ -37,6 +37,7 @@ def test_ReadMWAWriteUVFits():
     messages = ['telescope_location is not set',
                 'some coarse channel files were not submitted']
     uvtest.checkWarnings(mwa_uv.read_mwa_corr_fits, func_args=[filelist[0:2]],
+                         func_kwargs={'correct_cable_len': True, 'phase_data': True},
                          nwarnings=2, message=messages)
     testfile = os.path.join(DATA_PATH, 'test/outtest_MWAcorr.uvfits')
     mwa_uv.write_uvfits(testfile, spoof_nonessential=True)
@@ -52,25 +53,24 @@ def test_ReadMWA_ReadCotter():
     mwa_uv = UVData()
     cotter_uv = UVData()
     # cotter data has cable correction and is unphased
-    mwa_uv.read_mwa_corr_fits(filelist[0:2], phase_data=False)
+    mwa_uv.read_mwa_corr_fits(filelist[0:2], correct_cable_len=True)
     cotter_uv.read(filelist[6])
-    # first check the xx and yy polarizations
-    assert np.allclose(mwa_uv.data_array[:, :, :, 0:2],
-                       cotter_uv.data_array[:, :, :, 0:2], atol=1e-4,rtol=0)
     # cotter doesn't record the auto xy polarizations
-    autos = np.isclose(mwa_uv.ant_1_array - mwa_uv.ant_2_array, 0.0)
-    crosses = np.invert(autos)
-    assert np.allclose(mwa_uv.data_array[crosses, :, :, 2],
-                       cotter_uv.data_array[crosses, :, :, 2], atol=1e-4,rtol=0)
     # due to a possible bug in cotter, the auto yx polarizations are conjugated
+    # fix these before testing data_array
+    autos = np.isclose(mwa_uv.ant_1_array - mwa_uv.ant_2_array, 0.0)
+    cotter_uv.data_array[autos, :, :, 2] = cotter_uv.data_array[autos, :, :, 3]
     cotter_uv.data_array[autos, :, :, 3] = np.conj(cotter_uv.data_array[autos, :, :, 3])
-    assert np.allclose(mwa_uv.data_array[:, :, :, 3],
-                       cotter_uv.data_array[:, :, :, 3], atol=1e-4,rtol=0)
+    assert np.allclose(mwa_uv.data_array[:, :, :, :],
+                       cotter_uv.data_array[:, :, :, :], atol=1e-4, rtol=0)
 
 
 def test_ReadMWAWriteUVFits_meta_mod():
     """
     MWA correlator fits to uvfits loopback test with a modified metafits file.
+    
+    The metafits file has been modified to contain some coarse channels < 129,
+    and to have an uncorrected cable length.
 
     Read in MWA correlator files, write out as uvfits, read back in and check
     for object equality.
@@ -81,6 +81,7 @@ def test_ReadMWAWriteUVFits_meta_mod():
                 'some coarse channel files were not submitted']
     files = [filelist[1], filelist[5]]
     uvtest.checkWarnings(mwa_uv.read_mwa_corr_fits, func_args=[files],
+                         func_kwargs={'correct_cable_len': True, 'phase_data': True},
                          nwarnings=2, message=messages)
     testfile = os.path.join(DATA_PATH, 'test/outtest_MWAcorr.uvfits')
     mwa_uv.write_uvfits(testfile, spoof_nonessential=True)
