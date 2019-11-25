@@ -46,6 +46,11 @@ class MWACorrFITS(UVData):
     def correct_cable_length(self, cable_lens):
         """
         A helper function that applies a cable length correction to the data.
+
+        Parameters
+        ----------
+        cable_lens : list of strings
+        A list of strings containing the cable lengths for each antenna.
         """
         # "the velocity factor of electic fields in RG-6 like coax"
         # from MWA_Tools/CONV2UVFITS/convutils.h
@@ -64,29 +69,48 @@ class MWACorrFITS(UVData):
         self.data_array *= np.exp(-1j * 2 * np.pi * cable_len_diffs / const.c.to('m/s').value
                                   * self.freq_array.reshape(1, self.Nfreqs))[:, :, None]
 
-    def read_mwa_corr_fits(self, filelist, use_cotter_flags=False, correct_cable_len=True,
-                           phase_data=True, phase_center=None, run_check=True, check_extra=True,
+    def read_mwa_corr_fits(self, filelist, use_cotter_flags=False, correct_cable_len=False,
+                           phase_data=False, phase_center=None, run_check=True, check_extra=True,
                            run_check_acceptability=True):
         """
-        Read in data from a list of MWA correlator fits files.
+        Read in MWA correlator gpu box files.
 
-        Args:
-            filelist : The list of MWA correlator files to read from. Must
-                include one metafits file.
-            use_cotter_flags : Option to read COTTER flag files into the flag
-                array. Default is False.
-            correct_cable_len : Option to apply a cable delay correction.
-                Default is True.
-            phase_data : Option to phase data. Default is True.
-            phase_center : Option to phase data to a location that is
-                different from the observation pointing center. Default uses
-                the observation pointing center when phase_data is True.
-            run_check : Option to check for the existence and proper shapes of
-                parameters after reading in the file. Default is True.
-            check_extra : Option to check optional parameters as well as
-                required ones. Default is True.
-            run_check_acceptability: Option to check acceptable range of the
-                values of parameters after reading in the file. Default is True
+        Parameters
+        ----------
+        filelist : list of str
+            The list of MWA correlator files to read from. Must include at
+            least one fits file and only one metafits file per data set.
+            Can also be a list of lists to read multiple data sets.
+        axis : str
+            Axis to concatenate files along. This enables fast concatenation
+            along the specified axis without the normal checking that all other
+            metadata agrees. This method does not guarantee correct resulting
+            objects. Please see the docstring for fast_concat for details.
+            Allowed values are: 'blt', 'freq', 'polarization'. Only used if
+            multiple files are passed.
+        use_cotter_flags : bool
+            Option to use cotter output mwaf flag files. Otherwise flagging
+            will only be applied to missing data and bad antennas. Default is 
+            False.
+        correct_cable_len : bool
+            Option to apply a cable delay correction. Default is False.
+        phase_data : bool
+            Option to phase data. Default is False.
+        phase_center : tuple, optional
+            A tuple containing the ra and dec coordinates in radians of a 
+            specific location to phase data to. If not specified, the
+            observation pointing center will be used when phase_data is True.
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            after after reading in the file (the default is True,
+            meaning the check will be run).
+        check_extra : bool
+            Option to check optional parameters as well as required ones (the
+            default is True, meaning the optional parameters will be checked).
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters after
+            reading in the file (the default is True, meaning the acceptable
+            range check will be done).
         """
 
         metafits_file = None
