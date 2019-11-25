@@ -68,7 +68,7 @@ def test_ReadMWA_ReadCotter():
 def test_ReadMWAWriteUVFits_meta_mod():
     """
     MWA correlator fits to uvfits loopback test with a modified metafits file.
-    
+
     The metafits file has been modified to contain some coarse channels < 129,
     and to have an uncorrected cable length.
 
