@@ -90,14 +90,14 @@ class MWACorrFITS(UVData):
             multiple files are passed.
         use_cotter_flags : bool
             Option to use cotter output mwaf flag files. Otherwise flagging
-            will only be applied to missing data and bad antennas. Default is 
+            will only be applied to missing data and bad antennas. Default is
             False.
         correct_cable_len : bool
             Option to apply a cable delay correction. Default is False.
         phase_data : bool
             Option to phase data. Default is False.
         phase_center : tuple, optional
-            A tuple containing the ra and dec coordinates in radians of a 
+            A tuple containing the ra and dec coordinates in radians of a
             specific location to phase data to. If not specified, the
             observation pointing center will be used when phase_data is True.
         run_check : bool
