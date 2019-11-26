@@ -1476,7 +1476,7 @@ class UVData(UVBase):
 
         # Define the parameters that need to be the same for objects to be
         # summed or diffed.
-        compatibility_params = list(temp.__iter__())
+        compatibility_params = list(this.__iter__())
         compatibility_params.remove('_data_array')
         compatibility_params.remove('_history')
 
