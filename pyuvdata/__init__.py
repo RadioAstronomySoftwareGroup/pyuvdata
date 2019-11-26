@@ -13,12 +13,11 @@ import warnings
 warnings.filterwarnings("ignore", message="numpy.dtype size changed")
 warnings.filterwarnings("ignore", message="numpy.ufunc size changed")
 
-from .uvdata import *  # noqa
+from .uvdata.uvdata import UVData  # noqa
 from .telescopes import *  # noqa
-from .uvcal import *  # noqa
-from .uvbeam import *  # noqa
+from .uvcal.uvcal import UVCal  # noqa
+from .uvbeam.uvbeam import UVBeam  # noqa
 from . import version  # noqa
-from .uvflag import *  # noqa
-from .uvbase import *  # noqa
+from .uvflag.uvflag import UVFlag  # noqa
 
 __version__ = version.version
