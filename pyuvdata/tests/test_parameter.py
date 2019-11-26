@@ -8,7 +8,7 @@ import pytest
 import numpy as np
 
 from pyuvdata import parameter as uvp
-from pyuvdata import UVBase
+from pyuvdata.uvbase import UVBase
 
 
 def test_class_inequality():
