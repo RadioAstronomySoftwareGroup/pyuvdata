@@ -13,5 +13,6 @@ dependencies:
   - scikit-learn
   - scipy
   - six
+  - basemap
   - pytest
   - pytest-cov

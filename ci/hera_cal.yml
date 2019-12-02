@@ -16,3 +16,4 @@ dependencies:
   - scikit-learn
   - scipy
   - six
+  - basemap
