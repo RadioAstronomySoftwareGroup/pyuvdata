@@ -2,9 +2,7 @@
 # Copyright (c) 2019 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 
-"""Tests for MWACorrFITS object.
-
-"""
+"""Tests for MWACorrFITS object."""
 
 import pytest
 import os
@@ -47,6 +45,8 @@ def test_ReadMWAWriteUVFits():
 
 def test_ReadMWA_ReadCotter():
     """
+    Pyuvdata and cotter equality test.
+
     Read in MWA correlator files and the corresponding cotter file and check
     for data array equality.
     """
@@ -69,12 +69,11 @@ def test_ReadMWAWriteUVFits_meta_mod():
     """
     MWA correlator fits to uvfits loopback test with a modified metafits file.
 
-    The metafits file has been modified to contain some coarse channels < 129,
-    and to have an uncorrected cable length.
-
     Read in MWA correlator files, write out as uvfits, read back in and check
     for object equality.
     """
+    # The metafits file has been modified to contain some coarse channels < 129,
+    # and to have an uncorrected cable length.
     mwa_uv = UVData()
     uvfits_uv = UVData()
     messages = ['telescope_location is not set',
@@ -90,9 +89,7 @@ def test_ReadMWAWriteUVFits_meta_mod():
 
 
 def test_ReadMWA_multi():
-    """
-    Test reading in two sets of files.
-    """
+    """Test reading in two sets of files."""
     set1 = filelist[0:2]
     set2 = [filelist[0], filelist[2]]
     mwa_uv = UVData()
@@ -106,9 +103,7 @@ def test_ReadMWA_multi():
 
 
 def test_ReadMWA_multi_concat():
-    """
-    Test reading in two sets of files with fast concatenation.
-    """
+    """Test reading in two sets of files with fast concatenation."""
     # modify file so that time arrays are matching
     mod_mini_6 = os.path.join(DATA_PATH, 'test/mini_gpubox06_01.fits')
     with fits.open(filelist[2]) as mini6:
@@ -126,9 +121,7 @@ def test_ReadMWA_multi_concat():
 
 
 def test_ReadMWA_flags():
-    """
-    Test handling of flag files
-    """
+    """Test handling of flag files."""
     mwa_uv = UVData()
     subfiles = [filelist[0], filelist[1], filelist[3], filelist[4]]
     messages = ['mwaf files submitted with use_cotter_flags=False',
@@ -151,6 +144,8 @@ def test_ReadMWA_flags():
 
 def test_multiple_coarse():
     """
+    Test two coarse channel files.
+
     Read in MWA correlator files with two different orderings of the files
     and check for object equality.
     """
@@ -170,6 +165,8 @@ def test_multiple_coarse():
 
 def test_fine_channels():
     """
+    Break read_mwa_corr_fits by submitting files with different fine channels.
+
     Test that error is raised if files with different numbers of fine channels
     are submitted.
     """
@@ -190,9 +187,7 @@ def test_fine_channels():
                           ([filelist[0], filelist[1], filelist[5]],
                            "multiple metafits files in filelist")])
 def test_break_ReadMWAcorrFITS(files, err_msg):
-    """
-    Break read_mwa_corr_fits by submitting files incorrectly.
-    """
+    """Break read_mwa_corr_fits by submitting files incorrectly."""
     mwa_uv = UVData()
     with pytest.raises(ValueError) as cm:
         mwa_uv.read_mwa_corr_fits(files)
@@ -202,6 +197,8 @@ def test_break_ReadMWAcorrFITS(files, err_msg):
 
 def test_file_extension():
     """
+    Break read_mwa_corr_fits by submitting file with the wrong extension.
+
     Test that error is raised if a file with an extension that is not fits,
     metafits, or mwaf is submitted.
     """
@@ -217,6 +214,8 @@ def test_file_extension():
 
 def test_diff_obs():
     """
+    Break read_mwa_corr_fits by submitting files from different observations.
+    
     Test that error is raised if files from different observations are
     submitted in the same file list.
     """

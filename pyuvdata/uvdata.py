@@ -2995,7 +2995,6 @@ class UVData(UVBase):
             reading in the file (the default is True, meaning the acceptable
             range check will be done).
         """
-
         from . import mwa_corr_fits
 
         if isinstance(filelist[0], (list, tuple)):
