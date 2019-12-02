@@ -1,10 +1,11 @@
-# - * - coding: utf-8 - * -
-"""Class for reading MWA correlator FITS files
+# -*- mode: python; coding: utf-8 -*
+# Copyright (c) 2019 Radio Astronomy Software Group
+# Licensed under the 2-clause BSD License
 
-"""
-from astropy.io import fits
+"""Class for reading MWA correlator FITS files."""
 import numpy as np
 import warnings
+from astropy.io import fits
 from astropy.time import Time
 from astropy import constants as const
 
@@ -13,12 +14,10 @@ from . import utils as uvutils
 
 
 def input_output_mapping():
-    '''
-    Builds a mapping dictionary from the pfb output numbers (the correlator
-    indices for antenna number and polarization) to the pfb input numbers.
-    These input numbers can be mapped to antenna numbers using metadata.
-    '''
-    # this comes from mwa_build_lfiles/mwac_utils.c
+    """Build a mapping dictionary from pfb input to output numbers."""
+    # the polyphase filter bank maps inputs to outputs, which the MWA
+    # correlator then records as the antenna indices.
+    # the following is taken from mwa_build_lfiles/mwac_utils.c
     # inputs are mapped to outputs via pfb_mapper as follows
     # (from mwa_build_lfiles/antenna_mapping.h):
     # floor(index/4) + index%4 * 16 = input
@@ -38,14 +37,15 @@ def input_output_mapping():
 
 class MWACorrFITS(UVData):
     """
-    Defines a MWA correlator fits-specific subclass of UVData for reading MWA
-    correlator fits files. This class should not be interacted with directly,
-    instead use the read_mwa_corr_fits method on the UVData class.
+    UVData subclass for reading MWA correlator fits files.
+
+    This class should not be interacted with directly; instead use the
+    read_mwa_corr_fits method on the UVData class.
     """
 
     def correct_cable_length(self, cable_lens):
         """
-        A helper function that applies a cable length correction to the data.
+        Apply a cable length correction to the data array.
 
         Parameters
         ----------
@@ -112,7 +112,6 @@ class MWACorrFITS(UVData):
             reading in the file (the default is True, meaning the acceptable
             range check will be done).
         """
-
         metafits_file = None
         obs_id = None
         file_dict = {}
