@@ -1674,6 +1674,7 @@ def test_sum_vis():
     with pytest.raises(ValueError, match='is not the appropriate type. Is:'):
         uv_full.sum_vis(uv_half, difference=False, check_extra=True,
                         run_check_acceptability=True)
+                        
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 def test_add():
