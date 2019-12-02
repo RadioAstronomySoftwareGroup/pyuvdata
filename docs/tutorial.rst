@@ -690,7 +690,27 @@ and added to the previous.
   >>> filenames = ['tutorial1.uvfits', 'tutorial2.uvfits', 'tutorial3.uvfits']
   >>> uv.read(filenames)
 
-e) Fast concatenation
+e) Summing and differencing visibilities
+*****************************************
+Simple summing and differencing of visibilities can be done with the ``sum_vis`` and ``diff_vis`` methods.
+::
+
+  >>> from pyuvdata import UVData
+  >>> import copy
+  >>> filename = 'pyuvdata/data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
+  >>> uv1 = UVData()
+  >>> uv1.read(filename)
+  >>> uv2 = copy.deepcopy(uv1)
+
+  # sum visibilities
+  >>> uv1 = uv1.sum_vis(uv2)
+  # diff visibilities
+  >>> uv1 = uv1.diff_vis(uv2)
+
+  # in place option
+  >>> uv1.sum_vis(uv2, inplace=True)
+
+f) Fast concatenation
 *******************************
 As an alternative to the ``__add__`` operation, the ``fast_concat`` method can
 be used. The user specifies a UVData object to combine with the existing one,

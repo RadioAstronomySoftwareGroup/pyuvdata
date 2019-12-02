@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- `sum_vis` and `diff_vis` for summing or differencing visibilities in the data_array.
 - `read_mwa_corr_fits` for reading in MWA correlator gpubox files and applying cable corrections.
 - `eq_coeffs` for storing equalization coefficients and `remove_eq_coeffs` for removing them.
 - `utils.apply_uvflag` for applying UVFlag objects to UVData objects
