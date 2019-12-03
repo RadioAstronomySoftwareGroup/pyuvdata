@@ -704,6 +704,7 @@ Simple summing and differencing of visibilities can be done with the ``sum_vis``
 
   # sum visibilities
   >>> uv1 = uv1.sum_vis(uv2)
+
   # diff visibilities
   >>> uv1 = uv1.diff_vis(uv2)
 
