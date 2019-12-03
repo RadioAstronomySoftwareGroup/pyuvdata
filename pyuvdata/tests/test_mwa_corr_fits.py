@@ -215,7 +215,7 @@ def test_file_extension():
 def test_diff_obs():
     """
     Break read_mwa_corr_fits by submitting files from different observations.
-    
+
     Test that error is raised if files from different observations are
     submitted in the same file list.
     """
