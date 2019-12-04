@@ -802,7 +802,7 @@ class UVData(UVBase):
         self.set_drift()
 
     def phase(self, ra, dec, epoch='J2000', phase_frame='icrs',
-              use_ant_pos=False, allow_rephase=True):
+              use_ant_pos=False, allow_rephase=True, orig_phase_frame=None):
         """
         Phase a drift scan dataset to a single ra/dec at a particular epoch.
 
@@ -834,6 +834,12 @@ class UVData(UVBase):
         allow_rephase : bool
             If True, allow unphasing and rephasing if this object is already
             phased.
+        orig_phase_frame : str
+            The original phase frame of this object (to use in unphasing). Only
+            used if the object is already phased, `allow_rephase` is True and
+            the phase_center_ra/dec of the object does not match `ra` and `dec`.
+            Defaults to using the 'phase_center_frame' attribute or 'icrs' if
+            that attribute is None.
 
         Raises
         ------
@@ -851,7 +857,7 @@ class UVData(UVBase):
                     or not np.isclose(self.phase_center_dec, dec,
                                       rtol=self._phase_center_dec.tols[0],
                                       atol=self._phase_center_dec.tols[1])):
-                    self.unphase_to_drift(phase_frame=phase_frame,
+                    self.unphase_to_drift(phase_frame=orig_phase_frame,
                                           use_ant_pos=use_ant_pos)
             else:
                 raise ValueError('The data is already phased; set allow_rephase'
@@ -966,7 +972,7 @@ class UVData(UVBase):
         self.set_phased()
 
     def phase_to_time(self, time, phase_frame='icrs', use_ant_pos=False,
-                      allow_rephase=True):
+                      allow_rephase=True, orig_phase_frame=None):
         """
         Phase a drift scan dataset to the ra/dec of zenith at a particular time.
 
@@ -986,6 +992,12 @@ class UVData(UVBase):
         allow_rephase : bool
             If True, allow unphasing and rephasing if this object is already
             phased.
+        orig_phase_frame : str
+            The original phase frame of this object (to use in unphasing). Only
+            used if the object is already phased, `allow_rephase` is True and
+            the phase_center_ra/dec of the object does not match `ra` and `dec`.
+            Defaults to using the 'phase_center_frame' attribute or 'icrs' if
+            that attribute is None.
 
         Raises
         ------
@@ -1016,7 +1028,7 @@ class UVData(UVBase):
 
         self.phase(zenith_ra, zenith_dec, epoch='J2000',
                    phase_frame=phase_frame, use_ant_pos=use_ant_pos,
-                   allow_rephase=allow_rephase)
+                   allow_rephase=allow_rephase, orig_phase_frame=orig_phase_frame)
 
     def set_uvws_from_antenna_positions(self, allow_phasing=False,
                                         orig_phase_frame=None,
@@ -1534,7 +1546,9 @@ class UVData(UVBase):
                                 inplace=inplace)
 
     def __add__(self, other, phase_center_radec=None,
-                unphase_to_drift=False, phase_frame=None, use_ant_pos=False,
+                unphase_to_drift=False, phase_frame='icrs',
+                orig_phase_frame=None,
+                use_ant_pos=False,
                 run_check=True, check_extra=True,
                 run_check_acceptability=True, inplace=False):
         """
@@ -1553,12 +1567,15 @@ class UVData(UVBase):
         unphase_to_drift : bool
             If True, unphase the objects to drift before combining them.
         phase_frame : str
-            The astropy frame to phase to/from. Either 'icrs' or 'gcrs'.
+            The astropy frame to phase to. Either 'icrs' or 'gcrs'.
             'gcrs' accounts for precession & nutation,
             'icrs' accounts for precession, nutation & abberation.
-            Only used if `unphase_to_drift` or `phase_center_radec` are set.
-            For phasing, defaults to 'icrs', for unphasing, defaults to using
-            the 'phase_center_frame' attribute or 'icrs' if that attribute is None.
+            Only used if `phase_center_radec` is set.
+        orig_phase_frame : str
+            The original phase frame of the data (if it is already phased). Used
+            for unphasing, only if `unphase_to_drift` or `phase_center_radec`
+            are set. Defaults to using the 'phase_center_frame' attribute or
+            'icrs' if that attribute is None.
         use_ant_pos : bool
             If True, calculate the phased or unphased uvws directly from the
             antenna positions rather than from the existing uvws.
@@ -1604,12 +1621,12 @@ class UVData(UVBase):
         if unphase_to_drift:
             if (this.phase_type != 'drift'):
                 warnings.warn("Unphasing this UVData object to drift")
-                this.unphase_to_drift(phase_frame=phase_frame,
+                this.unphase_to_drift(phase_frame=orig_phase_frame,
                                       use_ant_pos=use_ant_pos)
 
             if (other.phase_type != 'drift'):
                 warnings.warn("Unphasing other UVData object to drift")
-                other.unphase_to_drift(phase_frame=phase_frame,
+                other.unphase_to_drift(phase_frame=orig_phase_frame,
                                        use_ant_pos=use_ant_pos)
 
         if phase_center_radec is not None:
@@ -1626,8 +1643,9 @@ class UVData(UVBase):
                                   atol=this._phase_center_dec.tols[1])):
                 warnings.warn("Phasing this UVData object to phase_center_radec")
                 this.phase(phase_center_radec[0], phase_center_radec[1],
-                           phase_frame=phase_frame, use_ant_pos=use_ant_pos,
-                           allow_rephase=True)
+                           phase_frame=phase_frame,
+                           orig_phase_frame=orig_phase_frame,
+                           use_ant_pos=use_ant_pos, allow_rephase=True)
 
             if (not np.isclose(other.phase_center_ra, phase_center_radec[0],
                                rtol=other._phase_center_ra.tols[0],
@@ -1637,8 +1655,9 @@ class UVData(UVBase):
                                   atol=other._phase_center_dec.tols[1])):
                 warnings.warn("Phasing other UVData object to phase_center_radec")
                 other.phase(phase_center_radec[0], phase_center_radec[1],
-                            phase_frame=phase_frame, use_ant_pos=use_ant_pos,
-                            allow_rephase=True)
+                            phase_frame=phase_frame,
+                            orig_phase_frame=orig_phase_frame,
+                            use_ant_pos=use_ant_pos, allow_rephase=True)
 
         # Define parameters that must be the same to add objects
         # But phase_center should be the same, even if in drift (empty parameters)
@@ -1884,7 +1903,7 @@ class UVData(UVBase):
             return this
 
     def __iadd__(self, other, phase_center_radec=None, unphase_to_drift=False,
-                 phase_frame=None, use_ant_pos=False,
+                 phase_frame='icrs', orig_phase_frame=None, use_ant_pos=False,
                  run_check=True, check_extra=True,
                  run_check_acceptability=True):
         """
@@ -1903,12 +1922,15 @@ class UVData(UVBase):
         unphase_to_drift : bool
             If True, unphase the objects to drift before combining them.
         phase_frame : str
-            The astropy frame to phase to/from. Either 'icrs' or 'gcrs'.
+            The astropy frame to phase to. Either 'icrs' or 'gcrs'.
             'gcrs' accounts for precession & nutation,
             'icrs' accounts for precession, nutation & abberation.
-            For phasing, defaults to 'icrs', for unphasing, defaults to using
-            the 'phase_center_frame' attribute or 'icrs' if that attribute is None.
-            Only used if `unphase_to_drift` or `phase_center_radec` are set.
+            Only used if `phase_center_radec` is set.
+        orig_phase_frame : str
+            The original phase frame of the data (if it is already phased). Used
+            for unphasing, only if `unphase_to_drift` or `phase_center_radec`
+            are set. Defaults to using the 'phase_center_frame' attribute or
+            'icrs' if that attribute is None.
         use_ant_pos : bool
             If True, calculate the phased or unphased uvws directly from the
             antenna positions rather than from the existing uvws.
@@ -1930,7 +1952,8 @@ class UVData(UVBase):
         """
         self.__add__(other, phase_center_radec=phase_center_radec,
                      unphase_to_drift=unphase_to_drift,
-                     phase_frame=phase_frame, use_ant_pos=use_ant_pos,
+                     phase_frame=phase_frame, orig_phase_frame=orig_phase_frame,
+                     use_ant_pos=use_ant_pos,
                      run_check=run_check, check_extra=check_extra,
                      run_check_acceptability=run_check_acceptability,
                      inplace=True)
@@ -1938,7 +1961,7 @@ class UVData(UVBase):
 
     def fast_concat(self, other, axis, phase_center_radec=None,
                     unphase_to_drift=False,
-                    phase_frame=None, use_ant_pos=False,
+                    phase_frame=None, orig_phase_frame=None, use_ant_pos=False,
                     run_check=True, check_extra=True,
                     run_check_acceptability=True, inplace=False):
         """
@@ -1966,12 +1989,15 @@ class UVData(UVBase):
         unphase_to_drift : bool
             If True, unphase the objects to drift before combining them.
         phase_frame : str
-            The astropy frame to phase to/from. Either 'icrs' or 'gcrs'.
+            The astropy frame to phase to. Either 'icrs' or 'gcrs'.
             'gcrs' accounts for precession & nutation,
             'icrs' accounts for precession, nutation & abberation.
-            For phasing, defaults to 'icrs', for unphasing, defaults to using
-            the 'phase_center_frame' attribute or 'icrs' if that attribute is None.
-            Only used if `unphase_to_drift` or `phase_center_radec` are set.
+            Only used if `phase_center_radec` is set.
+        orig_phase_frame : str
+            The original phase frame of the data (if it is already phased). Used
+            for unphasing, only if `unphase_to_drift` or `phase_center_radec`
+            are set. Defaults to using the 'phase_center_frame' attribute or
+            'icrs' if that attribute is None.
         use_ant_pos : bool
             If True, calculate the phased or unphased uvws directly from the
             antenna positions rather than from the existing uvws.
@@ -2015,12 +2041,12 @@ class UVData(UVBase):
         if unphase_to_drift:
             if (this.phase_type != 'drift'):
                 warnings.warn("Unphasing this UVData object to drift")
-                this.unphase_to_drift(phase_frame=phase_frame,
+                this.unphase_to_drift(phase_frame=orig_phase_frame,
                                       use_ant_pos=use_ant_pos)
 
             if (other.phase_type != 'drift'):
                 warnings.warn("Unphasing other UVData object to drift")
-                other.unphase_to_drift(phase_frame=phase_frame,
+                other.unphase_to_drift(phase_frame=orig_phase_frame,
                                        use_ant_pos=use_ant_pos)
 
         if phase_center_radec is not None:
@@ -2037,7 +2063,9 @@ class UVData(UVBase):
                                   atol=this._phase_center_dec.tols[1])):
                 warnings.warn("Phasing this UVData object to phase_center_radec")
                 this.phase(phase_center_radec[0], phase_center_radec[1],
-                           phase_frame=phase_frame, use_ant_pos=use_ant_pos,
+                           phase_frame=phase_frame,
+                           orig_phase_frame=orig_phase_frame,
+                           use_ant_pos=use_ant_pos,
                            allow_rephase=True)
 
             if (not np.isclose(other.phase_center_ra, phase_center_radec[0],
@@ -2048,7 +2076,9 @@ class UVData(UVBase):
                                   atol=other._phase_center_dec.tols[1])):
                 warnings.warn("Phasing other UVData object to phase_center_radec")
                 other.phase(phase_center_radec[0], phase_center_radec[1],
-                            phase_frame=phase_frame, use_ant_pos=use_ant_pos,
+                            phase_frame=phase_frame,
+                            orig_phase_frame=orig_phase_frame,
+                            use_ant_pos=use_ant_pos,
                             allow_rephase=True)
 
         allowed_axes = ['blt', 'freq', 'polarization']
@@ -3521,7 +3551,8 @@ class UVData(UVBase):
         del(uvh5_obj)
 
     def read(self, filename, axis=None, file_type=None, allow_rephase=True,
-             phase_center_radec=None, unphase_to_drift=False,
+             phase_center_radec=None, unphase_to_drift=False, phase_frame='icrs',
+             orig_phase_frame=None, phase_use_ant_pos=False,
              antenna_nums=None, antenna_names=None, ant_str=None, bls=None,
              frequencies=None, freq_chans=None, times=None, polarizations=None,
              blt_inds=None, time_range=None, keep_all_metadata=True,
@@ -3564,6 +3595,20 @@ class UVData(UVBase):
             file will be used.
         unphase_to_drift : bool
             Unphase the data from the files before combining them.
+        phase_frame : str
+            The astropy frame to phase to. Either 'icrs' or 'gcrs'.
+            'gcrs' accounts for precession & nutation,
+            'icrs' accounts for precession, nutation & abberation.
+            Only used if `phase_center_radec` is set.
+        orig_phase_frame : str
+            The original phase frame of the data (if it is already phased). Used
+            for unphasing, only if `unphase_to_drift` or `phase_center_radec`
+            are set. Defaults to using the 'phase_center_frame' attribute or
+            'icrs' if that attribute is None.
+        phase_use_ant_pos : bool
+            If True, calculate the phased or unphased uvws directly from the
+            antenna positions rather than from the existing uvws.
+            Only used if `unphase_to_drift` or `phase_center_radec` are set.
         antenna_nums : array_like of int, optional
             The antennas numbers to include when reading data into the object
             (antenna positions and names for the removed antennas will be retained
@@ -3791,6 +3836,9 @@ class UVData(UVBase):
                         self.fast_concat(
                             uv2, axis, phase_center_radec=phase_center_radec,
                             unphase_to_drift=unphase_to_drift,
+                            phase_frame=phase_frame,
+                            orig_phase_frame=orig_phase_frame,
+                            use_ant_pos=phase_use_ant_pos,
                             run_check=run_check, check_extra=check_extra,
                             run_check_acceptability=run_check_acceptability,
                             inplace=True)
@@ -3798,6 +3846,9 @@ class UVData(UVBase):
                         self.__iadd__(
                             uv2, phase_center_radec=phase_center_radec,
                             unphase_to_drift=unphase_to_drift,
+                            phase_frame=phase_frame,
+                            orig_phase_frame=orig_phase_frame,
+                            use_ant_pos=phase_use_ant_pos,
                             run_check=run_check, check_extra=check_extra,
                             run_check_acceptability=run_check_acceptability)
 
@@ -3827,14 +3878,9 @@ class UVData(UVBase):
 
                 if select:
                     unique_times = np.unique(self.time_array)
-                    times_to_keep = unique_times[
+                    select_times = unique_times[
                         np.where((unique_times >= np.min(time_range))
                                  & (unique_times <= np.max(time_range)))]
-                    self.select(
-                        times=times_to_keep, run_check=run_check,
-                        check_extra=check_extra,
-                        run_check_acceptability=run_check_acceptability,
-                        keep_all_metadata=keep_all_metadata)
 
             elif file_type == 'miriad':
                 if (antenna_names is not None or frequencies is not None
@@ -3870,13 +3916,11 @@ class UVData(UVBase):
                     run_check_acceptability=run_check_acceptability)
 
                 if select:
-                    self.select(
-                        antenna_names=antenna_names, frequencies=frequencies,
-                        freq_chans=freq_chans, times=times,
-                        blt_inds=blt_inds, run_check=run_check,
-                        check_extra=check_extra,
-                        run_check_acceptability=run_check_acceptability,
-                        keep_all_metadata=keep_all_metadata)
+                    select_antenna_names = antenna_names
+                    select_frequencies = frequencies
+                    select_freq_chans = freq_chans
+                    select_times = times
+                    select_blt_inds = blt_inds
 
             elif file_type == 'mwa_corr_fits':
                 if (antenna_nums is not None or antenna_names is not None
@@ -3901,15 +3945,6 @@ class UVData(UVBase):
                     check_extra=check_extra,
                     run_check_acceptability=run_check_acceptability)
 
-                if select:
-                    self.select(
-                        antenna_nums=antenna_nums, antenna_names=antenna_names,
-                        ant_str=ant_str, bls=bls, frequencies=frequencies,
-                        freq_chans=freq_chans, times=times,
-                        polarizations=polarizations, blt_inds=blt_inds,
-                        run_check=run_check, check_extra=check_extra,
-                        run_check_acceptability=run_check_acceptability,
-                        keep_all_metadata=keep_all_metadata)
             elif file_type == 'fhd':
                 if (antenna_nums is not None or antenna_names is not None
                         or ant_str is not None or bls is not None
@@ -3929,15 +3964,6 @@ class UVData(UVBase):
                               run_check=run_check, check_extra=check_extra,
                               run_check_acceptability=run_check_acceptability)
 
-                if select:
-                    self.select(
-                        antenna_nums=antenna_nums, antenna_names=antenna_names,
-                        ant_str=ant_str, bls=bls, frequencies=frequencies,
-                        freq_chans=freq_chans, times=times,
-                        polarizations=polarizations, blt_inds=blt_inds,
-                        run_check=run_check, check_extra=check_extra,
-                        run_check_acceptability=run_check_acceptability,
-                        keep_all_metadata=keep_all_metadata)
             elif file_type == 'ms':
                 if (antenna_nums is not None or antenna_names is not None
                         or ant_str is not None or bls is not None
@@ -3958,15 +3984,6 @@ class UVData(UVBase):
                              run_check_acceptability=run_check_acceptability,
                              data_column=data_column, pol_order=pol_order)
 
-                if select:
-                    self.select(
-                        antenna_nums=antenna_nums, antenna_names=antenna_names,
-                        ant_str=ant_str, bls=bls, frequencies=frequencies,
-                        freq_chans=freq_chans, times=times,
-                        polarizations=polarizations, blt_inds=blt_inds,
-                        run_check=run_check, check_extra=check_extra,
-                        run_check_acceptability=run_check_acceptability,
-                        keep_all_metadata=keep_all_metadata)
             elif file_type == 'uvh5':
                 if (time_range is not None):
                     select = True
@@ -3991,14 +4008,69 @@ class UVData(UVBase):
 
                 if select:
                     unique_times = np.unique(self.time_array)
-                    times_to_keep = unique_times[
+                    select_times = unique_times[
                         np.where((unique_times >= np.min(time_range))
                                  & (unique_times <= np.max(time_range)))]
-                    self.select(
-                        times=times_to_keep, run_check=run_check,
-                        check_extra=check_extra,
-                        run_check_acceptability=run_check_acceptability,
-                        keep_all_metadata=keep_all_metadata)
+
+            if select:
+                if file_type in ['fhd', 'ms', 'mwa_corr_fits']:
+                    # these file types do not have select on read, so set all
+                    # select parameters
+                    select_antenna_nums = antenna_nums
+                    select_antenna_names = antenna_names
+                    select_ant_str = ant_str
+                    select_bls = bls
+                    select_frequencies = frequencies
+                    select_freq_chans = freq_chans
+                    select_times = times
+                    select_polarizations = polarizations
+                    select_blt_inds = blt_inds
+
+                    if time_range is not None:
+                        unique_times = np.unique(self.time_array)
+                        select_times = unique_times[
+                            np.where((unique_times >= np.min(time_range))
+                                     & (unique_times <= np.max(time_range)))]
+
+                self.select(
+                    antenna_nums=select_antenna_nums,
+                    antenna_names=select_antenna_names,
+                    ant_str=select_ant_str,
+                    bls=select_bls,
+                    frequencies=select_frequencies,
+                    freq_chans=select_freq_chans,
+                    times=select_times,
+                    polarizations=select_polarizations,
+                    blt_inds=select_blt_inds,
+                    run_check=run_check,
+                    check_extra=check_extra,
+                    run_check_acceptability=run_check_acceptability,
+                    keep_all_metadata=keep_all_metadata)
+
+            if unphase_to_drift:
+                if (self.phase_type != 'drift'):
+                    warnings.warn("Unphasing this UVData object to drift")
+                    self.unphase_to_drift(phase_frame=orig_phase_frame,
+                                          use_ant_pos=phase_use_ant_pos)
+
+            if phase_center_radec is not None:
+                if phase_frame is None:
+                    phase_frame = 'icrs'
+                if np.array(phase_center_radec).size != 2:
+                    raise ValueError('phase_center_radec should have length 2.')
+
+                if (not np.isclose(self.phase_center_ra, phase_center_radec[0],
+                                   rtol=self._phase_center_ra.tols[0],
+                                   atol=self._phase_center_ra.tols[1])
+                    or not np.isclose(self.phase_center_dec, phase_center_radec[1],
+                                      rtol=self._phase_center_dec.tols[0],
+                                      atol=self._phase_center_dec.tols[1])):
+                    warnings.warn("Phasing this UVData object to phase_center_radec")
+                    self.phase(phase_center_radec[0], phase_center_radec[1],
+                               phase_frame=phase_frame,
+                               orig_phase_frame=orig_phase_frame,
+                               use_ant_pos=phase_use_ant_pos,
+                               allow_rephase=True)
 
     def get_ants(self):
         """
