@@ -323,7 +323,7 @@ def test_ReadFHD_model():
 
 
 def test_multi_files():
-    """Reading multiple files at once."""
+    """Read multiple files at once."""
     fhd_uv1 = UVData()
     fhd_uv2 = UVData()
     test1 = list(np.array(testfiles)[[0, 1, 2, 4, 6, 7]])
@@ -346,7 +346,7 @@ def test_multi_files():
 
 
 def test_multi_files_axis():
-    """Reading multiple files at once with axis keyword."""
+    """Read multiple files at once with axis keyword."""
     fhd_uv1 = UVData()
     fhd_uv2 = UVData()
     test1 = list(np.array(testfiles)[[0, 1, 2, 4, 6, 7]])

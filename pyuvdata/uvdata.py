@@ -845,7 +845,12 @@ class UVData(UVBase):
             pass
         elif self.phase_type == 'phased':
             if allow_rephase:
-                if self.phase_center_ra != ra or self.phase_center_dec != dec:
+                if (not np.isclose(self.phase_center_ra, ra,
+                                   rtol=self._phase_center_ra.tols[0],
+                                   atol=self._phase_center_ra.tols[1])
+                    or not np.isclose(self.phase_center_dec, dec,
+                                      rtol=self._phase_center_dec.tols[0],
+                                      atol=self._phase_center_dec.tols[1])):
                     self.unphase_to_drift(phase_frame=phase_frame,
                                           use_ant_pos=use_ant_pos)
             else:
@@ -1552,6 +1557,8 @@ class UVData(UVBase):
             'gcrs' accounts for precession & nutation,
             'icrs' accounts for precession, nutation & abberation.
             Only used if `unphase_to_drift` or `phase_center_radec` are set.
+            For phasing, defaults to 'icrs', for unphasing, defaults to using
+            the 'phase_center_frame' attribute or 'icrs' if that attribute is None.
         use_ant_pos : bool
             If True, calculate the phased or unphased uvws directly from the
             antenna positions rather than from the existing uvws.
@@ -1611,15 +1618,23 @@ class UVData(UVBase):
             if np.array(phase_center_radec).size != 2:
                 raise ValueError('phase_center_radec should have length 2.')
 
-            if (this.phase_center_ra != phase_center_radec[0]
-                    or this.phase_center_dec != phase_center_radec[1]):
+            if (not np.isclose(this.phase_center_ra, phase_center_radec[0],
+                               rtol=this._phase_center_ra.tols[0],
+                               atol=this._phase_center_ra.tols[1])
+                or not np.isclose(this.phase_center_dec, phase_center_radec[1],
+                                  rtol=this._phase_center_dec.tols[0],
+                                  atol=this._phase_center_dec.tols[1])):
                 warnings.warn("Phasing this UVData object to phase_center_radec")
                 this.phase(phase_center_radec[0], phase_center_radec[1],
                            phase_frame=phase_frame, use_ant_pos=use_ant_pos,
                            allow_rephase=True)
 
-            if (other.phase_center_ra != phase_center_radec[0]
-                    or other.phase_center_dec != phase_center_radec[1]):
+            if (not np.isclose(other.phase_center_ra, phase_center_radec[0],
+                               rtol=other._phase_center_ra.tols[0],
+                               atol=other._phase_center_ra.tols[1])
+                or not np.isclose(other.phase_center_dec, phase_center_radec[1],
+                                  rtol=other._phase_center_dec.tols[0],
+                                  atol=other._phase_center_dec.tols[1])):
                 warnings.warn("Phasing other UVData object to phase_center_radec")
                 other.phase(phase_center_radec[0], phase_center_radec[1],
                             phase_frame=phase_frame, use_ant_pos=use_ant_pos,
@@ -1891,6 +1906,8 @@ class UVData(UVBase):
             The astropy frame to phase to/from. Either 'icrs' or 'gcrs'.
             'gcrs' accounts for precession & nutation,
             'icrs' accounts for precession, nutation & abberation.
+            For phasing, defaults to 'icrs', for unphasing, defaults to using
+            the 'phase_center_frame' attribute or 'icrs' if that attribute is None.
             Only used if `unphase_to_drift` or `phase_center_radec` are set.
         use_ant_pos : bool
             If True, calculate the phased or unphased uvws directly from the
@@ -1952,6 +1969,8 @@ class UVData(UVBase):
             The astropy frame to phase to/from. Either 'icrs' or 'gcrs'.
             'gcrs' accounts for precession & nutation,
             'icrs' accounts for precession, nutation & abberation.
+            For phasing, defaults to 'icrs', for unphasing, defaults to using
+            the 'phase_center_frame' attribute or 'icrs' if that attribute is None.
             Only used if `unphase_to_drift` or `phase_center_radec` are set.
         use_ant_pos : bool
             If True, calculate the phased or unphased uvws directly from the
@@ -2010,15 +2029,23 @@ class UVData(UVBase):
             if np.array(phase_center_radec).size != 2:
                 raise ValueError('phase_center_radec should have length 2.')
 
-            if (this.phase_center_ra != phase_center_radec[0]
-                    or this.phase_center_dec != phase_center_radec[1]):
+            if (not np.isclose(this.phase_center_ra, phase_center_radec[0],
+                               rtol=this._phase_center_ra.tols[0],
+                               atol=this._phase_center_ra.tols[1])
+                or not np.isclose(this.phase_center_dec, phase_center_radec[1],
+                                  rtol=this._phase_center_dec.tols[0],
+                                  atol=this._phase_center_dec.tols[1])):
                 warnings.warn("Phasing this UVData object to phase_center_radec")
                 this.phase(phase_center_radec[0], phase_center_radec[1],
                            phase_frame=phase_frame, use_ant_pos=use_ant_pos,
                            allow_rephase=True)
 
-            if (other.phase_center_ra != phase_center_radec[0]
-                    or other.phase_center_dec != phase_center_radec[1]):
+            if (not np.isclose(other.phase_center_ra, phase_center_radec[0],
+                               rtol=other._phase_center_ra.tols[0],
+                               atol=other._phase_center_ra.tols[1])
+                or not np.isclose(other.phase_center_dec, phase_center_radec[1],
+                                  rtol=other._phase_center_dec.tols[0],
+                                  atol=other._phase_center_dec.tols[1])):
                 warnings.warn("Phasing other UVData object to phase_center_radec")
                 other.phase(phase_center_radec[0], phase_center_radec[1],
                             phase_frame=phase_frame, use_ant_pos=use_ant_pos,
@@ -2712,7 +2739,7 @@ class UVData(UVBase):
         ----------
         filename : str
             The uvfits file to read from. Support for a list of files will be
-            deprecated in version 1.6 in favor of a call to the generic
+            deprecated in version 2.0 in favor of a call to the generic
             `read` method.
         axis : str
             Axis to concatenate files along. This enables fast concatenation
@@ -2801,7 +2828,7 @@ class UVData(UVBase):
             warnings.warn('Please use the generic `read` '
                           'method to read multiple uvfits files. Support for '
                           'reading multiple files with this method will be '
-                          'removed in version 1.6.', DeprecationWarning)
+                          'removed in version 2.0.', DeprecationWarning)
 
             self.read(filename, file_type='uvfits', axis=axis,
                       antenna_nums=antenna_nums,
@@ -2875,7 +2902,7 @@ class UVData(UVBase):
         filepath : str
             The measurement set file directory.
             Support for a list/array of file directories will be
-            deprecated in version 1.6 in favor of a call to the generic
+            deprecated in version 2.0 in favor of a call to the generic
             `read` method.
         axis : str
             Axis to concatenate files along. This enables fast concatenation
@@ -2908,7 +2935,7 @@ class UVData(UVBase):
             warnings.warn('Please use the generic `read` '
                           'method to read multiple ms files. Support for '
                           'reading multiple files with this method will be '
-                          'removed in version 1.6.', DeprecationWarning)
+                          'removed in version 2.0.', DeprecationWarning)
 
             self.read(filepath, file_type='ms', axis=axis, run_check=run_check,
                       check_extra=check_extra,
@@ -2934,7 +2961,7 @@ class UVData(UVBase):
             The list/array of FHD save files to read from. Must include at
             least one polarization file, a params file and a flag file.
             Support for a list of lists of files for multiple data sets will be
-            deprecated in version 1.6 in favor of a call to the generic
+            deprecated in version 2.0 in favor of a call to the generic
             `read` method.
         use_model : bool
             Option to read in the model visibilities rather than the dirty
@@ -2964,7 +2991,7 @@ class UVData(UVBase):
             warnings.warn('Please use the generic `read` '
                           'method to read multiple fhd files. Support for '
                           'reading multiple files with this method will be '
-                          'removed in version 1.6.', DeprecationWarning)
+                          'removed in version 2.0.', DeprecationWarning)
 
             self.read(filelist, file_type='fhd', axis=axis, use_model=use_model,
                       run_check=run_check,
@@ -2991,7 +3018,7 @@ class UVData(UVBase):
         filepath : str
             The miriad file directoryto read from.
             Support for a list/array of file directories will be
-            deprecated in version 1.6 in favor of a call to the generic
+            deprecated in version 2.0 in favor of a call to the generic
             `read` method.
         axis : str
             Axis to concatenate files along. This enables fast concatenation
@@ -3050,13 +3077,14 @@ class UVData(UVBase):
             Option to check acceptable range of the values of parameters after
             reading in the file (the default is True, meaning the acceptable
             range check will be done). Ignored if read_data is False.
+
         """
         from . import miriad
         if isinstance(filepath, (list, tuple, np.ndarray)):
             warnings.warn('Please use the generic `read` '
                           'method to read multiple miriad files. Support for '
                           'reading multiple files with this method will be '
-                          'removed in version 1.6.', DeprecationWarning)
+                          'removed in version 2.0.', DeprecationWarning)
 
             self.read(filepath, file_type='miriad', axis=axis,
                       correct_lat_lon=correct_lat_lon,
@@ -3103,6 +3131,7 @@ class UVData(UVBase):
         no_antnums : bool
             Option to not write the antnums variable to the file.
             Should only be used for testing purposes.
+
         """
         miriad_obj = self._convert_to_filetype('miriad')
         miriad_obj.write_miriad(filepath, run_check=run_check, check_extra=check_extra,
@@ -3122,7 +3151,9 @@ class UVData(UVBase):
         filelist : list of str
             The list of MWA correlator files to read from. Must include at
             least one fits file and only one metafits file per data set.
-            Can also be a list of lists to read multiple data sets.
+            Support for a list of lists of files for multiple data sets will be
+            deprecated in version 2.0 in favor of a call to the generic
+            `read` method.
         axis : str
             Axis to concatenate files along. This enables fast concatenation
             along the specified axis without the normal checking that all other
@@ -3156,37 +3187,35 @@ class UVData(UVBase):
         """
         from . import mwa_corr_fits
 
-        if isinstance(filelist[0], (list, tuple)):
-            self.read_mwa_corr_fits(filelist[0], use_cotter_flags=use_cotter_flags,
+        if isinstance(filelist[0], (list, tuple, np.ndarray)):
+            warnings.warn('Please use the generic `read` '
+                          'method to read multiple mwa_corr_fits file sets. '
+                          'Support for '
+                          'reading multiple file sets with this method will be '
+                          'removed in version 2.0.', DeprecationWarning)
+
+            if phase_data and phase_center is None:
+                phase_to_pointing_center = True
+            else:
+                phase_to_pointing_center = False
+
+            self.read(filelist, file_type='mwa_corr_fits', axis=axis,
+                      use_cotter_flags=use_cotter_flags,
+                      correct_cable_len=correct_cable_len,
+                      phase_to_pointing_center=phase_to_pointing_center,
+                      phase_center_radec=phase_center, run_check=run_check,
+                      check_extra=check_extra,
+                      run_check_acceptability=run_check_acceptability)
+            return
+
+        corr_obj = mwa_corr_fits.MWACorrFITS()
+        corr_obj.read_mwa_corr_fits(filelist, use_cotter_flags=use_cotter_flags,
                                     correct_cable_len=correct_cable_len,
                                     phase_data=phase_data, phase_center=phase_center,
                                     run_check=run_check, check_extra=check_extra,
                                     run_check_acceptability=run_check_acceptability)
-            if len(filelist) > 1:
-                for f in filelist[1:]:
-                    uv2 = UVData()
-                    uv2.read_mwa_corr_fits(f, use_cotter_flags=use_cotter_flags,
-                                           correct_cable_len=correct_cable_len,
-                                           phase_data=phase_data, phase_center=phase_center,
-                                           run_check=run_check, check_extra=check_extra,
-                                           run_check_acceptability=run_check_acceptability)
-                    if axis is not None:
-                        self.fast_concat(uv2, axis, run_check=run_check,
-                                         check_extra=check_extra,
-                                         run_check_acceptability=run_check_acceptability,
-                                         inplace=True)
-                    else:
-                        self += uv2
-                del(uv2)
-        else:
-            corr_obj = mwa_corr_fits.MWACorrFITS()
-            corr_obj.read_mwa_corr_fits(filelist, use_cotter_flags=use_cotter_flags,
-                                        correct_cable_len=correct_cable_len,
-                                        phase_data=phase_data, phase_center=phase_center,
-                                        run_check=run_check, check_extra=check_extra,
-                                        run_check_acceptability=run_check_acceptability)
-            self._convert_from_filetype(corr_obj)
-            del(corr_obj)
+        self._convert_from_filetype(corr_obj)
+        del(corr_obj)
 
     def read_uvh5(self, filename, axis=None, antenna_nums=None, antenna_names=None,
                   ant_str=None, bls=None, frequencies=None, freq_chans=None,
@@ -3201,7 +3230,7 @@ class UVData(UVBase):
         filename : str
              The UVH5 file to read from.
              Support for a list/array of files will be
-             deprecated in version 1.6 in favor of a call to the generic
+             deprecated in version 2.0 in favor of a call to the generic
              `read` method.
         axis : str
             Axis to concatenate files along. This enables fast concatenation
@@ -3287,7 +3316,7 @@ class UVData(UVBase):
             warnings.warn('Please use the generic `read` '
                           'method to read multiple uvh5 files. Support for '
                           'reading multiple files with this method will be '
-                          'removed in version 1.6.', DeprecationWarning)
+                          'removed in version 2.0.', DeprecationWarning)
 
             self.read(filename, file_type='uvh5', axis=axis,
                       antenna_nums=antenna_nums,
@@ -3500,6 +3529,8 @@ class UVData(UVBase):
              phase_type=None, correct_lat_lon=True, use_model=False,
              data_column='DATA', pol_order='AIPS',
              data_array_dtype=np.complex128,
+             use_cotter_flags=False, correct_cable_len=False,
+             phase_to_pointing_center=False,
              run_check=True, check_extra=True, run_check_acceptability=True):
         """
         Read a generic file into a UVData object.
@@ -3623,6 +3654,14 @@ class UVData(UVBase):
             np.complex64 (single-precision real and imaginary) or np.complex128 (double-
             precision real and imaginary). Only used if the datatype of the visibility
             data on-disk is not 'c8' or 'c16'. Only used if file_type is 'uvh5'.
+        use_cotter_flags : bool
+            Flag to apply cotter flags. Only used if file_type is 'mwa_corr_fits'.
+        correct_cable_len : bool
+            Flag to apply cable length correction. Only used if file_type is
+            'mwa_corr_fits'.
+        phase_to_pointing_center : bool
+            Flag to phase to the pointing center. Only used if file_type is
+            'mwa_corr_fits'. Cannot be set if phase_center_radec is not None.
         run_check : bool
             Option to check for the existence and proper shapes of parameters
             after after reading in the file (the default is True,
@@ -3639,15 +3678,27 @@ class UVData(UVBase):
         """
         if isinstance(filename, (list, tuple, np.ndarray)):
             # this is either a list of separate files to read or a list of
-            # FHD files
+            # FHD files or MWA correlator FITS files
             if isinstance(filename[0], (list, tuple, np.ndarray)):
-                # this must be a list of lists for FHD
-                file_type = 'fhd'
+                if file_type is None:
+                    # this must be a list of lists of FHD or MWA correlator FITS
+                    basename, extension = os.path.splitext(filename[0][0])
+                    if extension == '.sav' or extension == '.txt':
+                        file_type = 'fhd'
+                    elif (extension == '.fits' or extension == '.metafits'
+                          or extension == '.mwaf'):
+                        file_type = 'mwa_corr_fits'
                 multi = True
             else:
-                basename, extension = os.path.splitext(filename[0])
-                if extension == '.sav' or extension == '.txt':
-                    file_type = 'fhd'
+                if file_type is None:
+                    basename, extension = os.path.splitext(filename[0])
+                    if extension == '.sav' or extension == '.txt':
+                        file_type = 'fhd'
+                    elif (extension == '.fits' or extension == '.metafits'
+                          or extension == '.mwaf'):
+                        file_type = 'mwa_corr_fits'
+
+                if file_type == 'fhd' or file_type == 'mwa_corr_fits':
                     multi = False
                 else:
                     multi = True
@@ -3676,7 +3727,8 @@ class UVData(UVBase):
                     file_type = 'uvh5'
 
         if file_type is None:
-            raise ValueError('File type could not be determined.')
+            raise ValueError('File type could not be determined, use the '
+                             'file_type keyword to specify the type.')
 
         if time_range is not None:
             if times is not None:
@@ -3826,6 +3878,38 @@ class UVData(UVBase):
                         run_check_acceptability=run_check_acceptability,
                         keep_all_metadata=keep_all_metadata)
 
+            elif file_type == 'mwa_corr_fits':
+                if (antenna_nums is not None or antenna_names is not None
+                        or ant_str is not None or bls is not None
+                        or frequencies is not None or freq_chans is not None
+                        or times is not None or polarizations is not None
+                        or blt_inds is not None):
+                    select = True
+                    warnings.warn(
+                        'Warning: select on read keyword set, but '
+                        'file_type is "mwa_corr_fits" which does not support select '
+                        'on read. Entire file will be read and then select '
+                        'will be performed')
+                else:
+                    select = False
+
+                self.read_mwa_corr_fits(
+                    filename, run_check=run_check,
+                    use_cotter_flags=use_cotter_flags,
+                    correct_cable_len=correct_cable_len,
+                    phase_data=phase_to_pointing_center,
+                    check_extra=check_extra,
+                    run_check_acceptability=run_check_acceptability)
+
+                if select:
+                    self.select(
+                        antenna_nums=antenna_nums, antenna_names=antenna_names,
+                        ant_str=ant_str, bls=bls, frequencies=frequencies,
+                        freq_chans=freq_chans, times=times,
+                        polarizations=polarizations, blt_inds=blt_inds,
+                        run_check=run_check, check_extra=check_extra,
+                        run_check_acceptability=run_check_acceptability,
+                        keep_all_metadata=keep_all_metadata)
             elif file_type == 'fhd':
                 if (antenna_nums is not None or antenna_names is not None
                         or ant_str is not None or bls is not None
@@ -4103,7 +4187,7 @@ class UVData(UVBase):
                 Return all times for that baseline, pol. pol may be a string.
 
         Returns
-        ----------
+        -------
         blt_ind1 : ndarray of int
             blt indices for antenna pair.
         blt_ind2 : ndarray of int
@@ -4115,6 +4199,7 @@ class UVData(UVBase):
             complete conjugation mapping.
         pol_ind : tuple of ndarray of int
             polarization indices for blt_ind1 and blt_ind2
+
         """
         key = uvutils._get_iterable(key)
         if type(key) is str:
@@ -4791,9 +4876,10 @@ class UVData(UVBase):
         samples.
 
         Returns
-        ----------
+        -------
         int_time : int
             integration time in seconds to be assigned to all samples in the data.
+
         """
         # The time_array is in units of days, and integration_time has units of
         # seconds, so we need to convert.
@@ -4840,10 +4926,11 @@ class UVData(UVBase):
             Only returned if include_conjugates is True
 
         Notes
-        ----
+        -----
         If use_antpos is set, then this function will find all redundant baseline groups
         for this telescope, under the u>0 antenna ordering convention. If use_antpos is not set,
         this function will look for redundant groups in the data.
+
         """
         if use_antpos:
             antpos, numbers = self.get_ENU_antpos(center=False)
