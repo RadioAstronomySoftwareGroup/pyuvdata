@@ -656,21 +656,24 @@ def test_phasing():
     assert np.allclose(uvd1_drift.uvw_array, uvd2_drift.uvw_array, atol=2e-2)
     assert np.allclose(uvd1_drift_antpos.uvw_array, uvd2_drift_antpos.uvw_array)
 
-    uvd2_rephase = copy.deepcopy(uvd2)
+    uvd2_rephase = uvd2.copy()
     uvd2_rephase.phase(uvd1.phase_center_ra,
                        uvd1.phase_center_dec,
                        uvd1.phase_center_epoch,
+                       orig_phase_frame='gcrs',
                        phase_frame='gcrs')
-    uvd2_rephase_antpos = copy.deepcopy(uvd2)
+    uvd2_rephase_antpos = uvd2.copy()
     uvd2_rephase_antpos.phase(uvd1.phase_center_ra,
                               uvd1.phase_center_dec,
                               uvd1.phase_center_epoch,
+                              orig_phase_frame='gcrs',
                               phase_frame='gcrs',
                               use_ant_pos=True)
 
     # the tolerances here are empirical -- based on what was seen in the
     # external phasing test. See the phasing memo in docs/references for
     # details.
+    print(np.max(np.abs(uvd1.uvw_array - uvd2_rephase.uvw_array)))
     assert np.allclose(uvd1.uvw_array, uvd2_rephase.uvw_array, atol=2e-2)
     assert np.allclose(uvd1.uvw_array, uvd2_rephase_antpos.uvw_array, atol=5e-3)
 
