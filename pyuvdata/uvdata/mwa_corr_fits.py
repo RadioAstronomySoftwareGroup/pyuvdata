@@ -10,7 +10,7 @@ from astropy.time import Time
 from astropy import constants as const
 
 from . import UVData
-from . import utils as uvutils
+from .. import utils as uvutils
 
 
 def input_output_mapping():
