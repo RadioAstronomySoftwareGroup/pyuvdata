@@ -6,6 +6,8 @@
 from __future__ import absolute_import, division, print_function
 
 import os
+import shutil
+
 import pytest
 from astropy.utils import iers
 from astropy.time import Time
@@ -37,3 +39,5 @@ def setup_and_teardown_package():
     yield
 
     iers.conf.auto_max_age = 30
+
+    shutil.rmtree(testdir)

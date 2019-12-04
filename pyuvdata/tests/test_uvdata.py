@@ -448,18 +448,18 @@ def test_generic_read():
 
 
 @pytest.fixture
-def uv_phase_and_raw():
+def uv1_2_set_uvws():
     testfile = os.path.join(DATA_PATH, 'zen.2458661.23480.HH.uvh5')
-    uv_raw = UVData()
-    uv_raw.read_uvh5(testfile)
+    uv1 = UVData()
+    uv1.read_uvh5(testfile)
     # uvws in the file are wrong. reset them.
-    uv_raw.set_uvws_from_antenna_positions()
+    uv1.set_uvws_from_antenna_positions()
 
-    uv_phase = uv_raw.copy()
+    uv2 = uv1.copy()
 
-    yield uv_phase, uv_raw
+    yield uv1, uv2
 
-    del uv_phase, uv_raw
+    del uv1, uv2
 
     return
 
@@ -475,19 +475,19 @@ def uv_phase_and_raw():
 
     ]
 )
-def test_phase_unphaseHERA(uv_phase_and_raw, phase_kwargs):
+def test_phase_unphaseHERA(uv1_2_set_uvws, phase_kwargs):
     """
     Read in drift data, phase to an RA/DEC, unphase and check for object equality.
     """
-    UV_phase, UV_raw = uv_phase_and_raw
-    UV_phase.phase(**phase_kwargs)
-    UV_phase.unphase_to_drift()
+    uv1, UV_raw = uv1_2_set_uvws
+    uv1.phase(**phase_kwargs)
+    uv1.unphase_to_drift()
     # check that phase + unphase gets back to raw
-    assert UV_raw == UV_phase
+    assert UV_raw == uv1
 
 
-def test_phase_unphaseHERA_one_bl(uv_phase_and_raw):
-    UV_phase, UV_raw = uv_phase_and_raw
+def test_phase_unphaseHERA_one_bl(uv1_2_set_uvws):
+    UV_phase, UV_raw = uv1_2_set_uvws
     # check that phase + unphase work with one baseline
     UV_raw_small = UV_raw.select(blt_inds=[0], inplace=False)
     UV_phase_small = copy.deepcopy(UV_raw_small)
@@ -496,8 +496,8 @@ def test_phase_unphaseHERA_one_bl(uv_phase_and_raw):
     assert UV_raw_small == UV_phase_small
 
 
-def test_phase_unphaseHERA_antpos(uv_phase_and_raw):
-    UV_phase, UV_raw = uv_phase_and_raw
+def test_phase_unphaseHERA_antpos(uv1_2_set_uvws):
+    UV_phase, UV_raw = uv1_2_set_uvws
     # check that they match if you phase & unphase using antenna locations
     # first replace the uvws with the right values
     antenna_enu = uvutils.ENU_from_ECEF((UV_raw.antenna_positions + UV_raw.telescope_location),
@@ -530,8 +530,8 @@ def test_phase_unphaseHERA_antpos(uv_phase_and_raw):
     assert UV_raw_new == UV_phase
 
 
-def test_phase_unphaseHERA_zenith_timestamp(uv_phase_and_raw):
-    UV_phase, UV_raw = uv_phase_and_raw
+def test_phase_unphaseHERA_zenith_timestamp(uv1_2_set_uvws):
+    UV_phase, UV_raw = uv1_2_set_uvws
     # check that phasing to zenith with one timestamp has small changes
     # (it won't be identical because of precession/nutation changing the coordinate axes)
     # use gcrs rather than icrs to reduce differences (don't include abberation)
@@ -544,23 +544,23 @@ def test_phase_unphaseHERA_zenith_timestamp(uv_phase_and_raw):
     assert np.allclose(UV_phase_simple_small.uvw_array, UV_raw_small.uvw_array, atol=1e-1)
 
 
-def test_phase_to_time_jd_input(uv_phase_and_raw):
-    UV_phase, UV_raw = uv_phase_and_raw
+def test_phase_to_time_jd_input(uv1_2_set_uvws):
+    UV_phase, UV_raw = uv1_2_set_uvws
     UV_phase.phase_to_time(UV_raw.time_array[0])
     UV_phase.unphase_to_drift()
     assert UV_phase == UV_raw
 
 
-def test_phase_to_time_error(uv_phase_and_raw):
-    UV_phase, UV_raw = uv_phase_and_raw
+def test_phase_to_time_error(uv1_2_set_uvws):
+    UV_phase, UV_raw = uv1_2_set_uvws
     # check error if not passing a Time object to phase_to_time
     with pytest.raises(TypeError) as cm:
         UV_phase.phase_to_time('foo')
     assert str(cm.value).startswith("time must be an astropy.time.Time object")
 
 
-def test_unphase_drift_data_error(uv_phase_and_raw):
-    UV_phase, UV_raw = uv_phase_and_raw
+def test_unphase_drift_data_error(uv1_2_set_uvws):
+    UV_phase, UV_raw = uv1_2_set_uvws
     # check error if not passing a Time object to phase_to_time
     with pytest.raises(ValueError) as cm:
         UV_phase.unphase_to_drift()
@@ -578,21 +578,21 @@ def test_unphase_drift_data_error(uv_phase_and_raw):
      ]
 )
 def test_unknown_phase_unphaseHERA_errors(
-    uv_phase_and_raw, phase_func, phase_kwargs, err_msg
+    uv1_2_set_uvws, phase_func, phase_kwargs, err_msg
 ):
-    UV_phase, UV_raw = uv_phase_and_raw
+    UV_phase, UV_raw = uv1_2_set_uvws
 
     # Set phase type to unkown on some tests, ignore on others.
-    UV_raw.set_unknown_phase_type()
+    UV_phase.set_unknown_phase_type()
     # if this is phase_to_time, use this index set in the dictionary and
     # assign the value of the time_array associated with that index
-    # this is a little hacky, but we cannot acces UV_raw.time_array in the
+    # this is a little hacky, but we cannot acces UV_phase.time_array in the
     # parametrize
     if phase_func == "phase_to_time":
-        phase_kwargs["time"] = UV_raw.time_array[phase_kwargs["time"]]
+        phase_kwargs["time"] = UV_phase.time_array[phase_kwargs["time"]]
 
     with pytest.raises(ValueError) as cm:
-        getattr(UV_raw, phase_func)(**phase_kwargs)
+        getattr(UV_phase, phase_func)(**phase_kwargs)
     assert str(cm.value).startswith(err_msg)
 
 
@@ -605,26 +605,26 @@ def test_unknown_phase_unphaseHERA_errors(
      ]
 )
 def test_phase_rephaseHERA_errors(
-    uv_phase_and_raw, phase_func, phase_kwargs, err_msg
+    uv1_2_set_uvws, phase_func, phase_kwargs, err_msg
 ):
-    UV_phase, UV_raw = uv_phase_and_raw
+    UV_phase, UV_raw = uv1_2_set_uvws
 
     # Set phase type to unkown on some tests, ignore on others.
-    UV_raw.phase(0., 0., epoch="J2000")
+    UV_phase.phase(0., 0., epoch="J2000")
     # if this is phase_to_time, use this index set in the dictionary and
     # assign the value of the time_array associated with that index
-    # this is a little hacky, but we cannot acces UV_raw.time_array in the
+    # this is a little hacky, but we cannot acces UV_phase.time_array in the
     # parametrize
     if phase_func == "phase_to_time":
-        phase_kwargs["time"] = UV_raw.time_array[phase_kwargs["time"]]
+        phase_kwargs["time"] = UV_phase.time_array[phase_kwargs["time"]]
 
     with pytest.raises(ValueError) as cm:
-        getattr(UV_raw, phase_func)(**phase_kwargs)
+        getattr(UV_phase, phase_func)(**phase_kwargs)
     assert str(cm.value).startswith(err_msg)
 
 
-def test_phase_unphaseHERA_bad_frame(uv_phase_and_raw):
-    UV_phase, UV_raw = uv_phase_and_raw
+def test_phase_unphaseHERA_bad_frame(uv1_2_set_uvws):
+    UV_phase, UV_raw = uv1_2_set_uvws
     # check errors when trying to phase to an unsupported frame
     with pytest.raises(ValueError) as cm:
         UV_phase.phase(0., 0., epoch="J2000", phase_frame='cirs')
@@ -2163,8 +2163,8 @@ def test_add_error_drift_and_rephase(test_func, extra_kwargs):
 
 
 @pytest.fixture()
-def uv_phase_time_split(uv_phase_and_raw):
-    uv_phase, uv_raw = uv_phase_and_raw
+def uv_phase_time_split(uv1_2_set_uvws):
+    uv_phase, uv_raw = uv1_2_set_uvws
 
     uv_phase.reorder_blts(order="time", minor_order="baseline")
     uv_raw.reorder_blts(order="time", minor_order="baseline")
