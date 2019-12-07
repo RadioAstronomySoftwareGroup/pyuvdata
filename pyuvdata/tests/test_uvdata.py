@@ -1665,15 +1665,22 @@ def test_sum_vis():
                                     'differenced using pyuvdata.',
                                     uv_diffed.history)
 
+    # check in place
+    uv_summed.diff_vis(uv_half, inplace=True)
+    assert np.array_equal(uv_summed.data_array, uv_half.data_array)
+
     # check error messages
-    with pytest.raises(ValueError, match=r'Only UVData \(or subclass\) objects can be'):
+    with pytest.raises(ValueError) as cm:
         uv_full.sum_vis('foo', difference=False, check_extra=True,
                         run_check_acceptability=True)
+    assert str(cm.value).startswith('Only UVData (or subclass) objects can be')
 
     uv_full.polarization_array = uv_full.polarization_array / 2
-    with pytest.raises(ValueError, match='is not the appropriate type. Is:'):
+    with pytest.raises(ValueError) as cm:
         uv_full.sum_vis(uv_half, difference=False, check_extra=True,
                         run_check_acceptability=True)
+    assert str(cm.value).startswith('UVParameter _polarization_array '
+                                    'is not the appropriate type.')
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")

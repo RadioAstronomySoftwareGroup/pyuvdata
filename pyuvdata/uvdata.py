@@ -1445,7 +1445,8 @@ class UVData(UVBase):
             If True, overwrite self as we go, otherwise create a third object
             as the sum of the two.
         difference : bool
-            If True, differences the visibilities of the two UVData objects rather than summing them.
+            If True, differences the visibilities of the two UVData objects
+            rather than summing them.
 
         Returns
         ------
@@ -1466,7 +1467,8 @@ class UVData(UVBase):
             this = copy.deepcopy(self)
 
         # Check that both objects are UVData and valid
-        this.check(check_extra=check_extra, run_check_acceptability=run_check_acceptability)
+        this.check(check_extra=check_extra,
+                   run_check_acceptability=run_check_acceptability)
         if not issubclass(other.__class__, this.__class__):
             if not issubclass(this.__class__, other.__class__):
                 raise ValueError('Only UVData (or subclass) objects can be '
