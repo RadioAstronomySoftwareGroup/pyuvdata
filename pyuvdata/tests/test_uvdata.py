@@ -1671,16 +1671,14 @@ def test_sum_vis():
 
     # check error messages
     with pytest.raises(ValueError) as cm:
-        uv_full.sum_vis('foo', difference=False, check_extra=True,
-                        run_check_acceptability=True)
+        uv_full.sum_vis('foo')
     assert str(cm.value).startswith('Only UVData (or subclass) objects can be')
 
-    uv_full.polarization_array = uv_full.polarization_array / 2
+    uv_full.instrument = 'foo'
     with pytest.raises(ValueError) as cm:
-        uv_full.sum_vis(uv_half, difference=False, check_extra=True,
-                        run_check_acceptability=True)
-    assert str(cm.value).startswith('UVParameter _polarization_array '
-                                    'is not the appropriate type.')
+        uv_full.sum_vis(uv_half, inplace=True)
+    assert str(cm.value).startswith('UVParameter instrument '
+                                    'does not match')
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
