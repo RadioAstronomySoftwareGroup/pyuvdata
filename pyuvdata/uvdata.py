@@ -1485,10 +1485,10 @@ class UVData(UVBase):
         # Check each metadata element in compatibility_params
         for a in compatibility_params:
             params_match = (getattr(this, a) == getattr(other, a))
-        if not params_match:
-            msg = 'UVParameter ' + \
-                a[1:] + ' does not match. Cannot combine objects.'
-            raise ValueError(msg)
+            if not params_match:
+                msg = 'UVParameter ' + \
+                    a[1:] + ' does not match. Cannot combine objects.'
+                raise ValueError(msg)
 
         # Do the summing / differencing
         if difference:
