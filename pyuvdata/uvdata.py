@@ -1652,7 +1652,7 @@ class UVData(UVBase):
                                    atol=other._phase_center_ra.tols[1])
                     or not np.isclose(other.phase_center_dec, phase_center_radec[1],
                                       rtol=other._phase_center_dec.tols[0],
-                                      atol=other._phase_center_dec.tols[1])):
+                                      atol=other._phase_center_dec.tols[1]))):
                 warnings.warn("Phasing other UVData object to phase_center_radec")
                 other.phase(phase_center_radec[0], phase_center_radec[1],
                             phase_frame=phase_frame,
@@ -2072,7 +2072,7 @@ class UVData(UVBase):
                                    atol=other._phase_center_ra.tols[1])
                     or not np.isclose(other.phase_center_dec, phase_center_radec[1],
                                       rtol=other._phase_center_dec.tols[0],
-                                      atol=other._phase_center_dec.tols[1])):
+                                      atol=other._phase_center_dec.tols[1]))):
                 warnings.warn("Phasing other UVData object to phase_center_radec")
                 other.phase(phase_center_radec[0], phase_center_radec[1],
                             phase_frame=phase_frame,
