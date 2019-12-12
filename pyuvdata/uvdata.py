@@ -3168,8 +3168,8 @@ class UVData(UVBase):
         del(miriad_obj)
 
     def read_mwa_corr_fits(self, filelist, axis=None, use_cotter_flags=False,
-                           correct_cable_len=False, phase_data=False,
-                           phase_center=None, run_check=True,
+                           correct_cable_len=False, phase_to_pointing_center=False,
+                           phase_data=None, phase_center=None, run_check=True,
                            check_extra=True, run_check_acceptability=True):
         """
         Read in MWA correlator gpu box files.
@@ -3191,16 +3191,18 @@ class UVData(UVBase):
             multiple files are passed.
         use_cotter_flags : bool
             Option to use cotter output mwaf flag files. Otherwise flagging
-            will only be applied to missing data and bad antennas. Default is
-            False.
+            will only be applied to missing data and bad antennas.
         correct_cable_len : bool
-            Option to apply a cable delay correction. Default is False.
+            Option to apply a cable delay correction.
+        phase_to_pointing_center : bool
+            Option to phase to the observation pointing center.
         phase_data : bool
-            Option to phase data. Default is False.
+            Deprecated, use phase_to_pointing_center. Option to phase data,
+            default is no phasing.
         phase_center : tuple, optional
+            Deprecated, use the `read` method to phase to arbitrary locations.
             A tuple containing the ra and dec coordinates in radians of a
-            specific location to phase data to. If not specified, the
-            observation pointing center will be used when phase_data is True.
+            specific location to phase data to.
         run_check : bool
             Option to check for the existence and proper shapes of parameters
             after after reading in the file (the default is True,
@@ -3215,17 +3217,35 @@ class UVData(UVBase):
         """
         from . import mwa_corr_fits
 
+        call_read = False
+        if phase_center is not None:
+            warnings.warn('The `phase_center` keyword is deprecated. '
+                          'Please use the generic `read` '
+                          'method to phase to an arbitrary phase center. '
+                          'Support for the `phase_center` keyword will be '
+                          'removed in version 2.0.', DeprecationWarning)
+            call_read = True
+
+        if phase_data is not None:
+            warnings.warn('The `phase_data` keyword is deprecated. '
+                          'Please use the `phase_to_pointing_center` '
+                          'keyword to phase to the pointing center. '
+                          'Support for the `phase_data` keyword will be '
+                          'removed in version 2.0.', DeprecationWarning)
+            if phase_center is None:
+                phase_to_pointing_center = True
+            else:
+                phase_to_pointing_center = False
+
         if isinstance(filelist[0], (list, tuple, np.ndarray)):
             warnings.warn('Please use the generic `read` '
                           'method to read multiple mwa_corr_fits file sets. '
                           'Support for '
                           'reading multiple file sets with this method will be '
                           'removed in version 2.0.', DeprecationWarning)
+            call_read = True
 
-            if phase_data and phase_center is None:
-                phase_to_pointing_center = True
-            else:
-                phase_to_pointing_center = False
+        if call_read:
 
             self.read(filelist, file_type='mwa_corr_fits', axis=axis,
                       use_cotter_flags=use_cotter_flags,
@@ -3239,7 +3259,7 @@ class UVData(UVBase):
         corr_obj = mwa_corr_fits.MWACorrFITS()
         corr_obj.read_mwa_corr_fits(filelist, use_cotter_flags=use_cotter_flags,
                                     correct_cable_len=correct_cable_len,
-                                    phase_data=phase_data, phase_center=phase_center,
+                                    phase_to_pointing_center=phase_to_pointing_center,
                                     run_check=run_check, check_extra=check_extra,
                                     run_check_acceptability=run_check_acceptability)
         self._convert_from_filetype(corr_obj)
@@ -3911,7 +3931,8 @@ class UVData(UVBase):
                 if (antenna_nums is not None or antenna_names is not None
                         or ant_str is not None or bls is not None
                         or frequencies is not None or freq_chans is not None
-                        or times is not None or polarizations is not None
+                        or times is not None or time_range is not None
+                        or polarizations is not None
                         or blt_inds is not None):
                     select = True
                     warnings.warn(
@@ -3926,7 +3947,7 @@ class UVData(UVBase):
                     filename, run_check=run_check,
                     use_cotter_flags=use_cotter_flags,
                     correct_cable_len=correct_cable_len,
-                    phase_data=phase_to_pointing_center,
+                    phase_to_pointing_center=phase_to_pointing_center,
                     check_extra=check_extra,
                     run_check_acceptability=run_check_acceptability)
 
@@ -3934,7 +3955,8 @@ class UVData(UVBase):
                 if (antenna_nums is not None or antenna_names is not None
                         or ant_str is not None or bls is not None
                         or frequencies is not None or freq_chans is not None
-                        or times is not None or polarizations is not None
+                        or times is not None or time_range is not None
+                        or polarizations is not None
                         or blt_inds is not None):
                     select = True
                     warnings.warn(
@@ -3953,7 +3975,8 @@ class UVData(UVBase):
                 if (antenna_nums is not None or antenna_names is not None
                         or ant_str is not None or bls is not None
                         or frequencies is not None or freq_chans is not None
-                        or times is not None or polarizations is not None
+                        or times is not None or time_range is not None
+                        or polarizations is not None
                         or blt_inds is not None):
                     select = True
                     warnings.warn(
