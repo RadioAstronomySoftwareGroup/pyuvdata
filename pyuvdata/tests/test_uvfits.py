@@ -730,6 +730,85 @@ def test_multi_files():
                                     'reading the header')
 
 
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+@pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
+def test_multi_unphase_on_read():
+    uv_full = UVData()
+    uvfits_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    testfile1 = os.path.join(DATA_PATH, 'test/uv1.uvfits')
+    testfile2 = os.path.join(DATA_PATH, 'test/uv2.uvfits')
+    uv_full.read(uvfits_file)
+    uv1 = copy.deepcopy(uv_full)
+    uv2 = copy.deepcopy(uv_full)
+    uv1.select(freq_chans=np.arange(0, 32))
+    uv2.select(freq_chans=np.arange(32, 64))
+    uv1.write_uvfits(testfile1)
+    uv2.write_uvfits(testfile2)
+    uvtest.checkWarnings(
+        uv1.read, func_args=[np.array([testfile1, testfile2])],
+        func_kwargs={'unphase_to_drift': True},
+        message=(['Telescope EVLA is not'] * 2
+                 + ['Unphasing this UVData object to drift',
+                    'The xyz array in ENU_from_ECEF is being interpreted',
+                    'Unphasing other UVData object to drift',
+                    'The xyz array in ENU_from_ECEF is being interpreted']),
+        category=[UserWarning] * 2 + [UserWarning, DeprecationWarning] * 2,
+        nwarnings=6)
+
+    # Check history is correct, before replacing and doing a full object check
+    assert uvutils._check_histories(uv_full.history + '  Downselected to '
+                                    'specific frequencies using pyuvdata. '
+                                    'Combined data along frequency axis '
+                                    'using pyuvdata.', uv1.history)
+
+    uv_full.unphase_to_drift()
+
+    uv1.history = uv_full.history
+    assert uv1 == uv_full
+
+
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+@pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
+@pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
+def test_multi_phase_on_read():
+    uv_full = UVData()
+    uvfits_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    testfile1 = os.path.join(DATA_PATH, 'test/uv1.uvfits')
+    testfile2 = os.path.join(DATA_PATH, 'test/uv2.uvfits')
+    uv_full.read(uvfits_file)
+    phase_center_radec = [uv_full.phase_center_ra + 0.01,
+                          uv_full.phase_center_dec + 0.01]
+    uv1 = copy.deepcopy(uv_full)
+    uv2 = copy.deepcopy(uv_full)
+    uv1.select(freq_chans=np.arange(0, 32))
+    uv2.select(freq_chans=np.arange(32, 64))
+    uv1.write_uvfits(testfile1)
+    uv2.write_uvfits(testfile2)
+    uvtest.checkWarnings(
+        uv1.read, func_args=[np.array([testfile1, testfile2])],
+        func_kwargs={'phase_center_radec': phase_center_radec},
+        message=(['Telescope EVLA is not'] * 2
+                 + ['Phasing this UVData object to phase_center_radec',
+                    'The xyz array in ENU_from_ECEF is being interpreted',
+                    'The enu array in ECEF_from_ENU is being interpreted',
+                    'Phasing this UVData object to phase_center_radec',
+                    'The xyz array in ENU_from_ECEF is being interpreted',
+                    'The enu array in ECEF_from_ENU is being interpreted']),
+        category=([UserWarning] * 2
+                  + [UserWarning, DeprecationWarning, DeprecationWarning] * 2),
+        nwarnings=8)
+
+    # Check history is correct, before replacing and doing a full object check
+    assert uvutils._check_histories(uv_full.history + '  Downselected to '
+                                    'specific frequencies using pyuvdata. '
+                                    'Combined data along frequency axis '
+                                    'using pyuvdata.', uv1.history)
+
+    uv_full.phase(*phase_center_radec)
+    uv1.history = uv_full.history
+    assert uv1 == uv_full
+
+
 @uvtest.skipIf_no_casa
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 def test_readMSWriteUVFits_CASAHistory():
