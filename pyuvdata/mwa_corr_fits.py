@@ -70,7 +70,7 @@ class MWACorrFITS(UVData):
                                   * self.freq_array.reshape(1, self.Nfreqs))[:, :, None]
 
     def read_mwa_corr_fits(self, filelist, use_cotter_flags=False, correct_cable_len=False,
-                           phase_data=False, phase_center=None, run_check=True, check_extra=True,
+                           phase_to_pointing_center=False, run_check=True, check_extra=True,
                            run_check_acceptability=True):
         """
         Read in MWA correlator gpu box files.
@@ -90,16 +90,11 @@ class MWACorrFITS(UVData):
             multiple files are passed.
         use_cotter_flags : bool
             Option to use cotter output mwaf flag files. Otherwise flagging
-            will only be applied to missing data and bad antennas. Default is
-            False.
+            will only be applied to missing data and bad antennas.
         correct_cable_len : bool
-            Option to apply a cable delay correction. Default is False.
-        phase_data : bool
-            Option to phase data. Default is False.
-        phase_center : tuple, optional
-            A tuple containing the ra and dec coordinates in radians of a
-            specific location to phase data to. If not specified, the
-            observation pointing center will be used when phase_data is True.
+            Option to apply a cable delay correction.
+        phase_to_pointing_center : bool
+            Option to phase to the observation pointing center.
         run_check : bool
             Option to check for the existence and proper shapes of parameters
             after after reading in the file (the default is True,
@@ -210,10 +205,6 @@ class MWACorrFITS(UVData):
             dec_deg = meta_hdr['DEC']
             ra_rad = np.pi * ra_deg / 180
             dec_rad = np.pi * dec_deg / 180
-
-            # check if a different pointing center has been specified
-            if phase_center is None:
-                phase_center = (ra_rad, dec_rad)
 
             # get parameters from header
             # this assumes no averaging by this code so will need to be updated
@@ -500,9 +491,8 @@ class MWACorrFITS(UVData):
         self.reorder_pols()
 
         # phasing
-        if phase_data is True:
-            (ra, dec) = phase_center
-            self.phase(ra, dec)
+        if phase_to_pointing_center is True:
+            self.phase(ra_rad, dec_rad)
 
         if use_cotter_flags is True:
             raise NotImplementedError('reading in cotter flag files is not yet available')

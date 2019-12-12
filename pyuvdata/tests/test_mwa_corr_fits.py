@@ -32,15 +32,50 @@ def test_ReadMWAWriteUVFits():
     """
     mwa_uv = UVData()
     uvfits_uv = UVData()
-    messages = ['telescope_location is not set',
+    messages = ['The `phase_data` keyword is deprecated.',
+                'telescope_location is not set',
                 'some coarse channel files were not submitted']
+    category = [DeprecationWarning] + [UserWarning] * 2
     uvtest.checkWarnings(mwa_uv.read_mwa_corr_fits, func_args=[filelist[0:2]],
                          func_kwargs={'correct_cable_len': True, 'phase_data': True},
-                         nwarnings=2, message=messages)
+                         nwarnings=3, message=messages, category=category)
     testfile = os.path.join(DATA_PATH, 'test/outtest_MWAcorr.uvfits')
     mwa_uv.write_uvfits(testfile, spoof_nonessential=True)
     uvfits_uv.read_uvfits(testfile)
     assert mwa_uv == uvfits_uv
+
+    phase_center = (mwa_uv.phase_center_ra + 0.01, mwa_uv.phase_center_dec + 0.01)
+
+    messages = ['The `phase_center` keyword is deprecated.',
+                'The `phase_data` keyword is deprecated.',
+                'telescope_location is not set',
+                'some coarse channel files were not submitted',
+                'Phasing this UVData object to phase_center_radec']
+    category = [DeprecationWarning] * 2 + [UserWarning] * 3
+    uvtest.checkWarnings(mwa_uv.read_mwa_corr_fits, func_args=[filelist[0:2]],
+                         func_kwargs={'correct_cable_len': True,
+                                      'phase_data': True,
+                                      'phase_center': phase_center},
+                         nwarnings=5, message=messages, category=category)
+    testfile = os.path.join(DATA_PATH, 'test/outtest_MWAcorr.uvfits')
+    mwa_uv.write_uvfits(testfile, spoof_nonessential=True)
+    uvfits_uv.read_uvfits(testfile)
+    assert mwa_uv == uvfits_uv
+
+
+def test_select_on_read():
+    mwa_uv = UVData()
+    mwa_uv2 = UVData()
+    mwa_uv.read_mwa_corr_fits(filelist[0:2], correct_cable_len=True)
+    unique_times = np.unique(mwa_uv.time_array)
+    select_times = unique_times[np.where((unique_times >= np.min(mwa_uv.time_array))
+                                         & (unique_times <= np.mean(mwa_uv.time_array)))]
+    print(unique_times)
+    print(select_times)
+    mwa_uv.select(times=select_times)
+    mwa_uv2.read(filelist[0:2], correct_cable_len=True,
+                 time_range=[np.min(mwa_uv.time_array), np.mean(mwa_uv.time_array)])
+    assert mwa_uv == mwa_uv2
 
 
 @pytest.mark.filterwarnings("ignore:telescope_location is not set. ")
