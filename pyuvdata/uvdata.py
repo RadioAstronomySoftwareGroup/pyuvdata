@@ -1635,24 +1635,26 @@ class UVData(UVBase):
             if np.array(phase_center_radec).size != 2:
                 raise ValueError('phase_center_radec should have length 2.')
 
-            if (not np.isclose(this.phase_center_ra, phase_center_radec[0],
-                               rtol=this._phase_center_ra.tols[0],
-                               atol=this._phase_center_ra.tols[1])
-                or not np.isclose(this.phase_center_dec, phase_center_radec[1],
-                                  rtol=this._phase_center_dec.tols[0],
-                                  atol=this._phase_center_dec.tols[1])):
+            if (this.phase_type == 'drift'
+                or (not np.isclose(this.phase_center_ra, phase_center_radec[0],
+                                   rtol=this._phase_center_ra.tols[0],
+                                   atol=this._phase_center_ra.tols[1])
+                    or not np.isclose(this.phase_center_dec, phase_center_radec[1],
+                                      rtol=this._phase_center_dec.tols[0],
+                                      atol=this._phase_center_dec.tols[1]))):
                 warnings.warn("Phasing this UVData object to phase_center_radec")
                 this.phase(phase_center_radec[0], phase_center_radec[1],
                            phase_frame=phase_frame,
                            orig_phase_frame=orig_phase_frame,
                            use_ant_pos=use_ant_pos, allow_rephase=True)
 
-            if (not np.isclose(other.phase_center_ra, phase_center_radec[0],
-                               rtol=other._phase_center_ra.tols[0],
-                               atol=other._phase_center_ra.tols[1])
-                or not np.isclose(other.phase_center_dec, phase_center_radec[1],
-                                  rtol=other._phase_center_dec.tols[0],
-                                  atol=other._phase_center_dec.tols[1])):
+            if (other.phase_type == 'drift'
+                or (not np.isclose(other.phase_center_ra, phase_center_radec[0],
+                                   rtol=other._phase_center_ra.tols[0],
+                                   atol=other._phase_center_ra.tols[1])
+                    or not np.isclose(other.phase_center_dec, phase_center_radec[1],
+                                      rtol=other._phase_center_dec.tols[0],
+                                      atol=other._phase_center_dec.tols[1])):
                 warnings.warn("Phasing other UVData object to phase_center_radec")
                 other.phase(phase_center_radec[0], phase_center_radec[1],
                             phase_frame=phase_frame,
@@ -2055,31 +2057,31 @@ class UVData(UVBase):
             if np.array(phase_center_radec).size != 2:
                 raise ValueError('phase_center_radec should have length 2.')
 
-            if (not np.isclose(this.phase_center_ra, phase_center_radec[0],
-                               rtol=this._phase_center_ra.tols[0],
-                               atol=this._phase_center_ra.tols[1])
-                or not np.isclose(this.phase_center_dec, phase_center_radec[1],
-                                  rtol=this._phase_center_dec.tols[0],
-                                  atol=this._phase_center_dec.tols[1])):
+            if (this.phase_type == 'drift'
+                or (not np.isclose(this.phase_center_ra, phase_center_radec[0],
+                                   rtol=this._phase_center_ra.tols[0],
+                                   atol=this._phase_center_ra.tols[1])
+                    or not np.isclose(this.phase_center_dec, phase_center_radec[1],
+                                      rtol=this._phase_center_dec.tols[0],
+                                      atol=this._phase_center_dec.tols[1]))):
                 warnings.warn("Phasing this UVData object to phase_center_radec")
                 this.phase(phase_center_radec[0], phase_center_radec[1],
                            phase_frame=phase_frame,
                            orig_phase_frame=orig_phase_frame,
-                           use_ant_pos=use_ant_pos,
-                           allow_rephase=True)
+                           use_ant_pos=use_ant_pos, allow_rephase=True)
 
-            if (not np.isclose(other.phase_center_ra, phase_center_radec[0],
-                               rtol=other._phase_center_ra.tols[0],
-                               atol=other._phase_center_ra.tols[1])
-                or not np.isclose(other.phase_center_dec, phase_center_radec[1],
-                                  rtol=other._phase_center_dec.tols[0],
-                                  atol=other._phase_center_dec.tols[1])):
+            if (other.phase_type == 'drift'
+                or (not np.isclose(other.phase_center_ra, phase_center_radec[0],
+                                   rtol=other._phase_center_ra.tols[0],
+                                   atol=other._phase_center_ra.tols[1])
+                    or not np.isclose(other.phase_center_dec, phase_center_radec[1],
+                                      rtol=other._phase_center_dec.tols[0],
+                                      atol=other._phase_center_dec.tols[1])):
                 warnings.warn("Phasing other UVData object to phase_center_radec")
                 other.phase(phase_center_radec[0], phase_center_radec[1],
                             phase_frame=phase_frame,
                             orig_phase_frame=orig_phase_frame,
-                            use_ant_pos=use_ant_pos,
-                            allow_rephase=True)
+                            use_ant_pos=use_ant_pos, allow_rephase=True)
 
         allowed_axes = ['blt', 'freq', 'polarization']
         if axis not in allowed_axes:
@@ -4072,12 +4074,13 @@ class UVData(UVBase):
                 if np.array(phase_center_radec).size != 2:
                     raise ValueError('phase_center_radec should have length 2.')
 
-                if (not np.isclose(self.phase_center_ra, phase_center_radec[0],
-                                   rtol=self._phase_center_ra.tols[0],
-                                   atol=self._phase_center_ra.tols[1])
-                    or not np.isclose(self.phase_center_dec, phase_center_radec[1],
-                                      rtol=self._phase_center_dec.tols[0],
-                                      atol=self._phase_center_dec.tols[1])):
+                if (self.phase_type == 'drift'
+                    or (not np.isclose(self.phase_center_ra, phase_center_radec[0],
+                                       rtol=self._phase_center_ra.tols[0],
+                                       atol=self._phase_center_ra.tols[1])
+                        or not np.isclose(self.phase_center_dec, phase_center_radec[1],
+                                          rtol=self._phase_center_dec.tols[0],
+                                          atol=self._phase_center_dec.tols[1]))):
                     warnings.warn("Phasing this UVData object to phase_center_radec")
                     self.phase(phase_center_radec[0], phase_center_radec[1],
                                phase_frame=phase_frame,
