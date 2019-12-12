@@ -1389,10 +1389,9 @@ def get_baseline_redundancies(baselines, baseline_vecs, tol=1.0, with_conjugates
         vec_bin_centers[gi] = np.mean(baseline_vecs[inds, :], axis=0)
 
     lens = np.sqrt(np.sum(vec_bin_centers**2, axis=1))
-
     if np.sum([len(bg) for bg in bl_gps]) > Nbls:
-        raise ValueError("Tolerance is too high. Some baselines are falling into multiple"
-                         " redundant groups.")
+        raise ValueError("Some baselines are falling into multiple"
+                         " redundant groups. Redundancy tolerance is causing ambiguity.")
 
     return bl_gps, vec_bin_centers, lens
 
