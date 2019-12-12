@@ -570,7 +570,7 @@ def test_redundancy_finder():
                               lens[gi], atol=tol)
 
 
-def test_hitol_redundancy():
+def test_high_tolerance_redundancy_error():
     """
     Confirm that an error is raised if the redundancy tolerance is set too high,
     such that baselines end up in multiple
