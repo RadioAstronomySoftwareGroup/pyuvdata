@@ -23,7 +23,8 @@ def P1sin(nmax, theta):
 
     See:
     Calculating Far-Field Radiation Based on FEKO Spherical Wave Coefficients,
-    draft 10 June 2015
+    draft 10 June 2015.
+    Available at pyuvdata/docs/references/Far_field_spherical_FEKO_draft2.pdf
 
     Parameters
     ----------
@@ -304,6 +305,9 @@ class MWABeam(UVBeam):
 
                         # find s=1 and s=2 indices
                         # only find s1 and s2 for this dipole
+                        # s = 1 and s = 2 refer to TE and TM modes, respectively
+                        # see the Far_field_spherical_FEKO_draft2 memo under
+                        # pyuvdata/docs/references/
                         s1 = Q_modes[0:my_len, 0] <= 1
                         s2 = Q_modes[0:my_len, 0] > 1
 
@@ -371,7 +375,10 @@ class MWABeam(UVBeam):
                 nmax = int(np.max(N))
                 assert np.max(N) - nmax == 0, 'The maximum of N should be an integer value!'
 
-                # form pre-multiplying constants in (1) of "Calculating...."
+                # calculate equation C_mn from equation 4 of
+                # pyuvdata/docs/references/Far_field_spherical_FEKO_draft2.pdf
+                # These are the normalization factors for the associated
+                # Legendre function of order n and rank |m|
                 C_MN = (0.5 * (2 * N + 1) * factorial(N - abs(M)) / factorial(N + abs(M))) ** 0.5
 
                 # 1 for M<=0, -1 for odd M>0
