@@ -1630,8 +1630,6 @@ class UVData(UVBase):
                                        use_ant_pos=use_ant_pos)
 
         if phase_center_radec is not None:
-            if phase_frame is None:
-                phase_frame = 'icrs'
             if np.array(phase_center_radec).size != 2:
                 raise ValueError('phase_center_radec should have length 2.')
 
@@ -2052,8 +2050,6 @@ class UVData(UVBase):
                                        use_ant_pos=use_ant_pos)
 
         if phase_center_radec is not None:
-            if phase_frame is None:
-                phase_frame = 'icrs'
             if np.array(phase_center_radec).size != 2:
                 raise ValueError('phase_center_radec should have length 2.')
 
@@ -4069,8 +4065,6 @@ class UVData(UVBase):
                                           use_ant_pos=phase_use_ant_pos)
 
             if phase_center_radec is not None:
-                if phase_frame is None:
-                    phase_frame = 'icrs'
                 if np.array(phase_center_radec).size != 2:
                     raise ValueError('phase_center_radec should have length 2.')
 
