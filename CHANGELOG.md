@@ -10,6 +10,7 @@ All notable changes to this project will be documented in this file.
 - `utils.apply_uvflag` for applying UVFlag objects to UVData objects
 
 ### Fixed
+- Redundancy finder will now error if any baselines appear in multiple groups.
 - A bug in `UVCal` objects that prevented them from properly getting data with `ee`/`nn`-style polarizations.
 - a bug in `UVFlag` where `x_orientation` was not set during initialization.
 - A bug in `UVCal.read_fhd_cal` that caused calibration solutions to be approximately doubled.
