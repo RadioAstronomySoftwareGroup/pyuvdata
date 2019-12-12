@@ -1961,7 +1961,7 @@ class UVData(UVBase):
 
     def fast_concat(self, other, axis, phase_center_radec=None,
                     unphase_to_drift=False,
-                    phase_frame=None, orig_phase_frame=None, use_ant_pos=False,
+                    phase_frame='icrs', orig_phase_frame=None, use_ant_pos=False,
                     run_check=True, check_extra=True,
                     run_check_acceptability=True, inplace=False):
         """
