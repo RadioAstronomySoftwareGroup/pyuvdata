@@ -570,6 +570,27 @@ def test_redundancy_finder():
                               lens[gi], atol=tol)
 
 
+def test_hitol_redundancy():
+    """
+    Confirm that an error is raised if the redundancy tolerance is set too high,
+    such that baselines end up in multiple
+    """
+    uvd = pyuvdata.UVData()
+    uvd.read_uvfits(os.path.join(DATA_PATH, 'fewant_randsrc_airybeam_Nsrc100_10MHz.uvfits'))
+
+    uvd.select(times=uvd.time_array[0])
+    uvd.unphase_to_drift(use_ant_pos=True)   # uvw_array is now equivalent to baseline positions
+    uvd.conjugate_bls(convention='ant1<ant2', use_enu=True)
+    bl_positions = uvd.uvw_array
+
+    tol = 20.05  # meters
+
+    with pytest.raises(ValueError) as cm:
+        baseline_groups, vec_bin_centers, lens, conjugates = uvutils.get_baseline_redundancies(
+            uvd.baseline_array, bl_positions, tol=tol, with_conjugates=True)
+    assert "Tolerance is too high." in str(cm.value)
+
+
 def test_redundancy_conjugates():
     # Check that the correct baselines are flipped when returning redundancies with conjugates.
 
