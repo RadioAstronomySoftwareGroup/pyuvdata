@@ -3858,7 +3858,7 @@ def test_redundancy_contract_expand_nblts_not_nbls_times_ntimes():
 def test_compress_redundancy_metadata_only():
     uv0 = UVData()
     uv0.read_uvfits(os.path.join(DATA_PATH, 'fewant_randsrc_airybeam_Nsrc100_10MHz.uvfits'))
-    tol = 0.01
+    tol = 0.05
 
     # Assign identical data to each redundant group:
     red_gps, centers, lengths = uv0.get_redundancies(tol=tol, use_antpos=True, conjugate_bls=True)

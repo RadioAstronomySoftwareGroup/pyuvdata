@@ -588,7 +588,7 @@ def test_high_tolerance_redundancy_error():
     with pytest.raises(ValueError) as cm:
         baseline_groups, vec_bin_centers, lens, conjugates = uvutils.get_baseline_redundancies(
             uvd.baseline_array, bl_positions, tol=tol, with_conjugates=True)
-    assert "Tolerance is too high." in str(cm.value)
+    assert "Some baselines are falling into" in str(cm.value)
 
 
 def test_redundancy_conjugates():
