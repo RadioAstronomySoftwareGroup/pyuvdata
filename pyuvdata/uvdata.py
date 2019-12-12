@@ -3876,12 +3876,6 @@ class UVData(UVBase):
                     run_check_acceptability=run_check_acceptability,
                     keep_all_metadata=keep_all_metadata)
 
-                if select:
-                    unique_times = np.unique(self.time_array)
-                    select_times = unique_times[
-                        np.where((unique_times >= np.min(time_range))
-                                 & (unique_times <= np.max(time_range)))]
-
             elif file_type == 'miriad':
                 if (antenna_names is not None or frequencies is not None
                         or freq_chans is not None
@@ -3914,13 +3908,6 @@ class UVData(UVBase):
                     phase_type=phase_type, correct_lat_lon=correct_lat_lon,
                     run_check=run_check, check_extra=check_extra,
                     run_check_acceptability=run_check_acceptability)
-
-                if select:
-                    select_antenna_names = antenna_names
-                    select_frequencies = frequencies
-                    select_freq_chans = freq_chans
-                    select_times = times
-                    select_blt_inds = blt_inds
 
             elif file_type == 'mwa_corr_fits':
                 if (antenna_nums is not None or antenna_names is not None
@@ -4006,12 +3993,6 @@ class UVData(UVBase):
                     data_array_dtype=data_array_dtype,
                     keep_all_metadata=keep_all_metadata)
 
-                if select:
-                    unique_times = np.unique(self.time_array)
-                    select_times = unique_times[
-                        np.where((unique_times >= np.min(time_range))
-                                 & (unique_times <= np.max(time_range)))]
-
             if select:
                 if file_type in ['fhd', 'ms', 'mwa_corr_fits']:
                     # these file types do not have select on read, so set all
@@ -4031,6 +4012,38 @@ class UVData(UVBase):
                         select_times = unique_times[
                             np.where((unique_times >= np.min(time_range))
                                      & (unique_times <= np.max(time_range)))]
+
+                elif file_type in ['uvfits', 'uvh5']:
+                    # these are all done by partial read, so set to None here
+                    select_antenna_nums = None
+                    select_antenna_names = None
+                    select_ant_str = None
+                    select_bls = None
+                    select_frequencies = None
+                    select_freq_chans = None
+                    select_times = None
+                    select_polarizations = None
+                    select_blt_inds = None
+
+                    # this isn't supported by partial read, so do it here
+                    if time_range is not None:
+                        unique_times = np.unique(self.time_array)
+                        select_times = unique_times[
+                            np.where((unique_times >= np.min(time_range))
+                                     & (unique_times <= np.max(time_range)))]
+                elif file_type in ['miriad']:
+                    # these are all done by partial read, so set to None here
+                    select_antenna_nums = None
+                    select_ant_str = None
+                    select_bls = None
+                    select_polarizations = None
+
+                    # these aren't supported by partial read, so do it here
+                    select_antenna_names = antenna_names
+                    select_frequencies = frequencies
+                    select_freq_chans = freq_chans
+                    select_times = times
+                    select_blt_inds = blt_inds
 
                 self.select(
                     antenna_nums=select_antenna_nums,
