@@ -734,6 +734,7 @@ def test_multi_files():
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
 def test_multi_unphase_on_read():
     uv_full = UVData()
+    uv_full2 = UVData()
     uvfits_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
     testfile1 = os.path.join(DATA_PATH, 'test/uv1.uvfits')
     testfile2 = os.path.join(DATA_PATH, 'test/uv2.uvfits')
@@ -766,12 +767,24 @@ def test_multi_unphase_on_read():
     uv1.history = uv_full.history
     assert uv1 == uv_full
 
+    # check unphasing when reading only one file
+    uvtest.checkWarnings(
+        uv_full2.read, func_args=[uvfits_file],
+        func_kwargs={'unphase_to_drift': True},
+        message=(['Telescope EVLA is not',
+                  'Unphasing this UVData object to drift',
+                  'The xyz array in ENU_from_ECEF is being interpreted']),
+        category=[UserWarning, UserWarning, DeprecationWarning],
+        nwarnings=3)
+    assert uv_full2 == uv_full
+
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
 @pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
 def test_multi_phase_on_read():
     uv_full = UVData()
+    uv_full2 = UVData()
     uvfits_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
     testfile1 = os.path.join(DATA_PATH, 'test/uv1.uvfits')
     testfile2 = os.path.join(DATA_PATH, 'test/uv2.uvfits')
@@ -807,6 +820,22 @@ def test_multi_phase_on_read():
     uv_full.phase(*phase_center_radec)
     uv1.history = uv_full.history
     assert uv1 == uv_full
+
+    # check phasing when reading only one file
+    uvtest.checkWarnings(
+        uv_full2.read, func_args=[uvfits_file],
+        func_kwargs={'phase_center_radec': phase_center_radec},
+        message=(['Telescope EVLA is not',
+                  'Phasing this UVData object to phase_center_radec',
+                  'The xyz array in ENU_from_ECEF is being interpreted',
+                  'The enu array in ECEF_from_ENU is being interpreted']),
+        category=[UserWarning, UserWarning, DeprecationWarning, DeprecationWarning],
+        nwarnings=4)
+    assert uv_full2 == uv_full
+
+    with pytest.raises(ValueError) as cm:
+        uv_full2.read(uvfits_file, phase_center_radec=phase_center_radec[0])
+    assert str(cm.value).startswith('phase_center_radec should have length 2.')
 
 
 @uvtest.skipIf_no_casa
