@@ -49,14 +49,26 @@ def test_ReadNRAO():
         UV2.check()
     assert str(cm.value).startswith('Required UVParameter')
 
+    # do this two ways, with `read` and with deprecated `read_uvfits_metadata`
+    UV3 = UV2.copy()
     uvtest.checkWarnings(UV2.read, func_args=[testfile],
                          func_kwargs={'read_data': False},
                          message='Telescope EVLA is not')
     assert UV2.check()
+
+    uvfits_obj = UV3._convert_to_filetype('uvfits')
+    uvtest.checkWarnings(uvfits_obj.read_uvfits_metadata, func_args=[testfile],
+                         message='The read_uvfits_metadata method is deprecated',
+                         category=DeprecationWarning)
+    UV3._convert_from_filetype(uvfits_obj)
+    assert UV3 == UV2
+
     uvtest.checkWarnings(UV2.read, func_args=[testfile],
                          message='Telescope EVLA is not')
     assert UV == UV2
+
     # test reading in header & metadata first, then data
+    # do this two ways, with `read` and with deprecated `read_uvfits_data`
     UV2 = UVData()
     uvtest.checkWarnings(UV2.read, func_args=[testfile],
                          func_kwargs={'read_data': False},
@@ -64,9 +76,17 @@ def test_ReadNRAO():
     assert (expected_extra_keywords.sort()
             == list(UV2.extra_keywords.keys()).sort())
     assert UV2.check()
+    UV3 = UV2.copy()
     uvtest.checkWarnings(UV2.read, func_args=[testfile],
                          message='Telescope EVLA is not')
     assert UV == UV2
+
+    uvfits_obj = UV3._convert_to_filetype('uvfits')
+    uvtest.checkWarnings(uvfits_obj.read_uvfits_data, func_args=[testfile],
+                         message='The read_uvfits_data method is deprecated',
+                         category=DeprecationWarning)
+    UV3._convert_from_filetype(uvfits_obj)
+    assert UV3 == UV2
 
 
 @pytest.mark.filterwarnings("ignore:Required Antenna frame keyword")
