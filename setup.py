@@ -13,7 +13,6 @@ from setuptools import setup, Extension
 from setuptools.command.build_ext import build_ext
 from distutils.sysconfig import get_config_var
 from distutils.version import LooseVersion
-import json
 from pygitversion import branch_scheme
 
 # When setting up, the binary extension modules haven't yet been built, so
@@ -37,9 +36,9 @@ class CustomBuildExtCommand(build_ext):
         build_ext.run(self)
 
 
-data = [version.git_origin, version.git_hash, version.git_description, version.git_branch]
-with open(os.path.join('pyuvdata', 'GIT_INFO'), 'w') as outfile:
-    json.dump(data, outfile)
+# data = [version.git_origin, version.git_hash, version.git_description, version.git_branch]
+# with open(os.path.join('pyuvdata', 'GIT_INFO'), 'w') as outfile:
+#     json.dump(data, outfile)
 
 with io.open('README.md', 'r', encoding='utf-8') as readme_file:
     readme = readme_file.read()
