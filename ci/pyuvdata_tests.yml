@@ -17,4 +17,3 @@ dependencies:
   - pip
   - pip:
       - pytest-cases
-      - pygitversion
