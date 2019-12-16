@@ -19,7 +19,11 @@ import numpy as np
 import re
 
 try:
+<<<<<<< HEAD:pyuvdata/uvdata/aipy_extracts.py
     from .. import _miriad
+=======
+    from . import _miriad
+>>>>>>> Try forcing build_ext:pyuvdata/aipy_extracts.py
 except ImportError:
     # See setup.py for an explanation. The workaround here is kind of annoying
     # since the code below needs the name `_miriad.UV` to be a class in order
