@@ -16,7 +16,7 @@ from pyuvdata import UVFlag
 from pyuvdata.uvflag import lst_from_uv
 from pyuvdata.uvflag import flags2waterfall
 from pyuvdata.uvflag import and_rows_cols
-from pyuvdata import version as uvversion
+from pyuvdata import __version__
 import shutil
 import copy
 import warnings
@@ -102,13 +102,7 @@ test_f_file = test_d_file + '.testuvflag.h5'
 test_outfile = os.path.join(DATA_PATH, 'test', 'outtest_uvflag.h5')
 
 pyuvdata_version_str = ('  Read/written with pyuvdata version: '
-                        + uvversion.version + '.')
-if uvversion.git_hash != '':
-    pyuvdata_version_str += ('  Git origin: ' + uvversion.git_origin
-                             + '.  Git hash: ' + uvversion.git_hash
-                             + '.  Git branch: ' + uvversion.git_branch
-                             + '.  Git description: ' + uvversion.git_description + '.')
-
+                        + __version__ + '.')
 
 def test_init_bad_mode():
     uv = UVData()

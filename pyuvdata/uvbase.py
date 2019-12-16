@@ -13,8 +13,7 @@ import numpy as np
 import warnings
 
 from . import parameter as uvp
-from . import version as uvversion
-
+from . import __version__
 
 def _warning(msg, *a, **kwargs):
     """Improve the printing of user warnings."""
@@ -62,12 +61,14 @@ class UVBase(object):
 
         # String to add to history of any files written with this version of pyuvdata
         self.pyuvdata_version_str = ('  Read/written with pyuvdata version: '
-                                     + uvversion.version + '.')
-        if uvversion.git_hash != '':
-            self.pyuvdata_version_str += ('  Git origin: ' + uvversion.git_origin
-                                          + '.  Git hash: ' + uvversion.git_hash
-                                          + '.  Git branch: ' + uvversion.git_branch
-                                          + '.  Git description: ' + uvversion.git_description + '.')
+                                     + __version__ + '.')
+
+        # remove the following because __version__ has this info in it if available.
+        # if uvversion.git_hash != '':
+        #     self.pyuvdata_version_str += ('  Git origin: ' + uvversion.git_origin
+        #                                   + '.  Git hash: ' + uvversion.git_hash
+        #                                   + '.  Git branch: ' + uvversion.git_branch
+        #                                   + '.  Git description: ' + uvversion.git_description + '.')
 
     def prop_fget(self, param_name):
         """Getter method for UVParameter properties."""
