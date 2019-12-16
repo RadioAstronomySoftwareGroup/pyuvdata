@@ -20,11 +20,10 @@ from pyuvdata import (
     UVData,
     UVFlag,
     UVCal,
-    utils as uvutils,
-    tests as uvtest,
-    version as uvversion
 )
-from pyuvdata.data import DATA_PATH
+import pyuvdata.utils as uvutils
+import pyuvdata.tests as uvtest
+from pyuvdata import __version__
 
 
 ref_latlonalt = (-26.7 * np.pi / 180.0, 116.7 * np.pi / 180.0, 377.8)
@@ -452,7 +451,7 @@ def test_deprecated_funcs():
                              message='The fits_gethduaxis function is deprecated')
 
     uvtest.checkWarnings(uvutils.check_history_version, ['some random history',
-                                                         uvversion.version],
+                                                         __version__],
                          category=DeprecationWarning,
                          message='The check_history_version function is deprecated')
 
@@ -462,7 +461,7 @@ def test_deprecated_funcs():
                          message='The check_histories function is deprecated')
 
     uvtest.checkWarnings(uvutils.combine_histories, ['some random history',
-                                                     uvversion.version],
+                                                     __version__],
                          category=DeprecationWarning,
                          message='The combine_histories function is deprecated')
 
