@@ -2828,10 +2828,11 @@ class UVData(UVBase):
             that do not have data associated with them after the select option.
         read_data : bool
             Read in the visibility and flag data. If set to false, only the
-            basic header info and metadata (if read_metadata is True) will be
-            read in. Setting read_data to False results in a metdata only
-            object.
-        read_metadata: : bool
+            basic header info and metadata read in. Setting read_data to False
+            results in a metdata only object.
+        read_metadata : bool
+            Deprecated, will be removed in version 2.0, after which metadata
+            will always be read along with header data.
             Read in metadata (times, baselines, uvws) as well as basic header
             info. Only used if read_data is False (metadata will be read if data
             is read). If both read_data and read_metadata are false, only basic
@@ -3682,6 +3683,8 @@ class UVData(UVBase):
             Option to keep all the metadata associated with antennas, even those
             that do not have data associated with them after the select option.
         read_metadata : bool
+            Deprecated, will be removed in version 2.0, after which metadata
+            will always be read along with header data.
             Option to read in metadata (times, baselines, uvws) as well as
             basic header info. Only used if file_type is 'uvfits' and read_data
             is False (metadata will be read if data is read). If file_type is
@@ -3690,9 +3693,8 @@ class UVData(UVBase):
         read_data : bool
             Read in the data. Only used if file_type is 'uvfits',
             'miriad' or 'uvh5'. If set to False, only the metadata will be
-            read in (for uvfits, this can be further restricted to just the
-            header if read_metadata is False). Setting read_data to False
-            results in an incompletely defined object (check will not pass).
+            read in. Setting read_data to False results in a metdata only
+            object.
         phase_type : str, optional
             Option to specify the phasing status of the data. Only used if
             file_type is 'miriad'. Options are 'drift', 'phased' or None.

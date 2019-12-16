@@ -39,7 +39,10 @@ def test_ReadNRAO():
     uvtest.checkWarnings(UV2.read, func_args=[testfile],
                          func_kwargs={'read_data': False,
                                       'read_metadata': False},
-                         message='Telescope EVLA is not')
+                         message=['Telescope EVLA is not',
+                                  'Support for reading only the header'],
+                         category=[UserWarning, DeprecationWarning],
+                         nwarnings=2)
     assert (expected_extra_keywords.sort()
             == list(UV2.extra_keywords.keys()).sort())
     with pytest.raises(ValueError) as cm:
