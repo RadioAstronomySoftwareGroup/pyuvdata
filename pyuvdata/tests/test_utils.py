@@ -19,11 +19,10 @@ from pyuvdata import (
     UVData,
     UVFlag,
     UVCal,
-    utils as uvutils,
-    tests as uvtest,
-    version as uvversion
 )
-from pyuvdata.data import DATA_PATH
+import pyuvdata.utils as uvutils
+import pyuvdata.tests as uvtest
+from pyuvdata import __version__
 
 
 ref_latlonalt = (-26.7 * np.pi / 180.0, 116.7 * np.pi / 180.0, 377.8)

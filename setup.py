@@ -14,9 +14,7 @@ from setuptools.command.build_ext import build_ext
 from distutils.sysconfig import get_config_var
 from distutils.version import LooseVersion
 import json
-
-sys.path.append('pyuvdata')
-import version  # noqa
+from pygitversion import branch_scheme
 
 # When setting up, the binary extension modules haven't yet been built, so
 # without a workaround we can't use the pyuvdata code to get the version.
@@ -112,7 +110,9 @@ setup_args = {
         )
     ],
     'scripts': glob.glob('scripts/*'),
-    'version': version.version,
+    'use_scm_version': {
+        'local_scheme': branch_scheme
+    },
     'include_package_data': True,
     'setup_requires': ['pytest-runner', 'numpy>=1.15'],
     'install_requires': ['numpy>=1.15', 'six>=1.10', 'scipy', 'astropy>=2.0', 'h5py'],
