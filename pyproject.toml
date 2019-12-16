@@ -1,2 +1,2 @@
 [build-system]
-requires = ["setuptools>=30.3.0", "wheel", "setuptools_scm", "pygitversion"]
+requires = ["setuptools>=30.3.0", "wheel", "setuptools_scm", "pygitversion>=1.0.1", 'numpy>=1.15']
