@@ -88,6 +88,12 @@ def test_ReadNRAO():
     UV3._convert_from_filetype(uvfits_obj)
     assert UV3 == UV2
 
+    # check error trying to read metadata after data is already present
+    uvfits_obj = UV3._convert_to_filetype('uvfits')
+    with pytest.raises(ValueError) as cm:
+        uvfits_obj.read_uvfits_metadata(testfile)
+    assert str(cm.value).startswith('data_array is already defined, cannot read metadata')
+
 
 @pytest.mark.filterwarnings("ignore:Required Antenna frame keyword")
 @pytest.mark.filterwarnings("ignore:telescope_location is not set")
