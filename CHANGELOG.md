@@ -12,7 +12,6 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 - Arrays of file names can now be passed to `read` (not just lists).
-- The relative tolerance on UVData.data_array is now zero to prevent cases where large differences were missed by the `__eq__` method.
 - run_check is no longer turned off in `read_uvfits` and `read_uvh5` when `read_data` is False.
 - Redundancy finder will now error if any baselines appear in multiple groups.
 - A bug in `UVCal` objects that prevented them from properly getting data with `ee`/`nn`-style polarizations.
