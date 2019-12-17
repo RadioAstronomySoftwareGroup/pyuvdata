@@ -70,7 +70,6 @@ class UVData(UVBase):
         self._data_array = uvp.UVParameter('data_array', description=desc,
                                            form=('Nblts', 'Nspws',
                                                  'Nfreqs', 'Npols'),
-                                           tols=(0, 1e-08),
                                            expected_type=np.complex)
 
         desc = 'Visibility units, options are: "uncalib", "Jy" or "K str"'
