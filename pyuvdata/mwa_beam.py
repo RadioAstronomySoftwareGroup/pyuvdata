@@ -25,6 +25,13 @@ def P1sin(nmax, theta):
     Calculating Far-Field Radiation Based on FEKO Spherical Wave Coefficients,
     draft 10 June 2015.
     Available at pyuvdata/docs/references/Far_field_spherical_FEKO_draft2.pdf
+    This memo gives a full description of the equations implemented here,
+    including descriptions of the approximations and numerical approaches used.
+    In line comments below are helpful reminders, but see the memo for the full
+    detail.
+    Also see Sokolowski, M. et al, "Calibration and Stokes Imaging with Full
+    Embedded Element Primary Beam Model for the Murchison Widefield Array",
+    PASA, 2017 (10.1017/pasa.2017.54) for details specific to the MWA.
 
     Parameters
     ----------
@@ -271,7 +278,8 @@ class MWABeam(UVBeam):
             beam_modes[pol] = {}
             for freq in freqs_hz:
                 # Calculate complex excitation voltages
-                # convert delay to phase (What is 435e-12?)
+                # convert delay to phase
+                # 435e-12 is the delay step size in seconds (435 picosec)
                 phases = 2 * np.pi * freq * (-delays[pol_i, :]) * 435e-12
                 # complex excitation col voltage
                 Vcplx = amplitudes[pol_i, :] * np.exp(1.0j * phases)
