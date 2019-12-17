@@ -1379,14 +1379,18 @@ def test_readWriteReadMiriad_partial_metadata_only():
     shutil.rmtree(write_file2)
 
 
-def test_read_miriad_metadata():
-    # check that it can be initiated with a string filename or an
-    # aipy_extracts.UV object
+@pytest.mark.parametrize(
+    "input",
+    [os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA"),
+     aipy_extracts.UV(os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA"))],
+)
+def test_read_miriad_metadata(input):
+    # check that it can be initiated with a string filename or an aipy_extracts.UV object
     testfile = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA")
     uv_in = UVData()
     miriad_uv = uv_in._convert_to_filetype('miriad')
     uvtest.checkWarnings(
-        miriad_uv.read_miriad_metadata, func_args=[testfile],
+        miriad_uv.read_miriad_metadata, func_args=[input],
         message=['The read_miriad_metadata method is deprecated',
                  'Altitude is not present in Miriad file'],
         nwarnings=2,
@@ -1402,7 +1406,7 @@ def test_read_miriad_metadata():
     miriad_uv = uv_in._convert_to_filetype('miriad')
     with pytest.raises(ValueError) as cm:
         uvtest.checkWarnings(
-            miriad_uv.read_miriad_metadata, func_args=[testfile],
+            miriad_uv.read_miriad_metadata, func_args=[input],
             message=['The read_miriad_metadata method is deprecated',
                      'Altitude is not present in Miriad file'],
             nwarnings=2,
