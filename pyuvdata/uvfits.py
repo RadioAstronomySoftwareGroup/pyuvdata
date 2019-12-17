@@ -534,7 +534,7 @@ class UVFITS(UVData):
 
             # Now read in the data
             self._get_data(vis_hdu, antenna_nums, antenna_names, ant_str,
-                           bls, frequencies, freq_chans, times, polarizations,
+                           bls, frequencies, freq_chans, times, time_range, polarizations,
                            blt_inds, False, run_check, check_extra, run_check_acceptability,
                            keep_all_metadata)
 

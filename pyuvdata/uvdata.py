@@ -4047,20 +4047,36 @@ class UVData(UVBase):
 
                 del(uv2)
         else:
-            # reading a single "file". Call the appropriate file-type read
-            if file_type == 'uvfits':
-                self.read_uvfits(
-                    filename, antenna_nums=antenna_nums,
-                    antenna_names=antenna_names, ant_str=ant_str,
-                    bls=bls, frequencies=frequencies,
-                    freq_chans=freq_chans, times=times, time_range=time_range,
-                    polarizations=polarizations, blt_inds=blt_inds,
-                    read_data=read_data, read_metadata=read_metadata,
-                    run_check=run_check, check_extra=check_extra,
-                    run_check_acceptability=run_check_acceptability,
-                    keep_all_metadata=keep_all_metadata)
-
-            elif file_type == 'miriad':
+            if file_type in ['fhd', 'ms', 'mwa_corr_fits']:
+                if (antenna_nums is not None or antenna_names is not None
+                        or ant_str is not None or bls is not None
+                        or frequencies is not None or freq_chans is not None
+                        or times is not None or time_range is not None
+                        or polarizations is not None
+                        or blt_inds is not None):
+                    select = True
+                    warnings.warn(
+                        'Warning: select on read keyword set, but '
+                        'file_type is "{ftype}" which does not support select '
+                        'on read. Entire file will be read and then select '
+                        'will be performed'.format(ftype=file_type))
+                    # these file types do not have select on read, so set all
+                    # select parameters
+                    select_antenna_nums = antenna_nums
+                    select_antenna_names = antenna_names
+                    select_ant_str = ant_str
+                    select_bls = bls
+                    select_frequencies = frequencies
+                    select_freq_chans = freq_chans
+                    select_times = times
+                    select_time_range = time_range
+                    select_polarizations = polarizations
+                    select_blt_inds = blt_inds
+                else:
+                    select = False
+            elif file_type in ['uvfits', 'uvh5']:
+                select = False
+            elif file_type in ['miriad']:
                 if (antenna_names is not None or frequencies is not None
                         or freq_chans is not None
                         or times is not None or blt_inds is not None):
@@ -4082,9 +4098,36 @@ class UVData(UVBase):
                             'not supported by read_miriad. This select will '
                             'be done after reading the file.')
                     select = True
+                    # these are all done by partial read, so set to None
+                    select_antenna_nums = None
+                    select_ant_str = None
+                    select_bls = None
+                    select_time_range = None
+                    select_polarizations = None
+
+                    # these aren't supported by partial read, so do it in select
+                    select_antenna_names = antenna_names
+                    select_frequencies = frequencies
+                    select_freq_chans = freq_chans
+                    select_times = times
+                    select_blt_inds = blt_inds
                 else:
                     select = False
 
+            # reading a single "file". Call the appropriate file-type read
+            if file_type == 'uvfits':
+                self.read_uvfits(
+                    filename, antenna_nums=antenna_nums,
+                    antenna_names=antenna_names, ant_str=ant_str,
+                    bls=bls, frequencies=frequencies,
+                    freq_chans=freq_chans, times=times, time_range=time_range,
+                    polarizations=polarizations, blt_inds=blt_inds,
+                    read_data=read_data, read_metadata=read_metadata,
+                    run_check=run_check, check_extra=check_extra,
+                    run_check_acceptability=run_check_acceptability,
+                    keep_all_metadata=keep_all_metadata)
+
+            elif file_type == 'miriad':
                 self.read_miriad(
                     filename, antenna_nums=antenna_nums, ant_str=ant_str,
                     bls=bls, polarizations=polarizations,
@@ -4094,21 +4137,6 @@ class UVData(UVBase):
                     run_check_acceptability=run_check_acceptability)
 
             elif file_type == 'mwa_corr_fits':
-                if (antenna_nums is not None or antenna_names is not None
-                        or ant_str is not None or bls is not None
-                        or frequencies is not None or freq_chans is not None
-                        or times is not None or time_range is not None
-                        or polarizations is not None
-                        or blt_inds is not None):
-                    select = True
-                    warnings.warn(
-                        'Warning: select on read keyword set, but '
-                        'file_type is "mwa_corr_fits" which does not support select '
-                        'on read. Entire file will be read and then select '
-                        'will be performed')
-                else:
-                    select = False
-
                 self.read_mwa_corr_fits(
                     filename, run_check=run_check,
                     use_cotter_flags=use_cotter_flags,
@@ -4118,41 +4146,11 @@ class UVData(UVBase):
                     run_check_acceptability=run_check_acceptability)
 
             elif file_type == 'fhd':
-                if (antenna_nums is not None or antenna_names is not None
-                        or ant_str is not None or bls is not None
-                        or frequencies is not None or freq_chans is not None
-                        or times is not None or time_range is not None
-                        or polarizations is not None
-                        or blt_inds is not None):
-                    select = True
-                    warnings.warn(
-                        'Warning: select on read keyword set, but '
-                        'file_type is "fhd" which does not support select '
-                        'on read. Entire file will be read and then select '
-                        'will be performed')
-                else:
-                    select = False
-
                 self.read_fhd(filename, use_model=use_model,
                               run_check=run_check, check_extra=check_extra,
                               run_check_acceptability=run_check_acceptability)
 
             elif file_type == 'ms':
-                if (antenna_nums is not None or antenna_names is not None
-                        or ant_str is not None or bls is not None
-                        or frequencies is not None or freq_chans is not None
-                        or times is not None or time_range is not None
-                        or polarizations is not None
-                        or blt_inds is not None):
-                    select = True
-                    warnings.warn(
-                        'Warning: select on read keyword set, but '
-                        'file_type is "ms" which does not support select '
-                        'on read. Entire file will be read and then select '
-                        'will be performed')
-                else:
-                    select = False
-
                 self.read_ms(filename, run_check=run_check,
                              check_extra=check_extra,
                              run_check_acceptability=run_check_acceptability,
@@ -4170,49 +4168,9 @@ class UVData(UVBase):
                     run_check_acceptability=run_check_acceptability,
                     data_array_dtype=data_array_dtype,
                     keep_all_metadata=keep_all_metadata)
+                select = False
 
             if select:
-                if file_type in ['fhd', 'ms', 'mwa_corr_fits']:
-                    # these file types do not have select on read, so set all
-                    # select parameters
-                    select_antenna_nums = antenna_nums
-                    select_antenna_names = antenna_names
-                    select_ant_str = ant_str
-                    select_bls = bls
-                    select_frequencies = frequencies
-                    select_freq_chans = freq_chans
-                    select_times = times
-                    select_time_range = time_range
-                    select_polarizations = polarizations
-                    select_blt_inds = blt_inds
-
-                elif file_type in ['uvfits', 'uvh5']:
-                    # these are all done by partial read, so set to None here
-                    select_antenna_nums = None
-                    select_antenna_names = None
-                    select_ant_str = None
-                    select_bls = None
-                    select_frequencies = None
-                    select_freq_chans = None
-                    select_times = None
-                    select_time_range = None
-                    select_polarizations = None
-                    select_blt_inds = None
-
-                elif file_type in ['miriad']:
-                    # these are all done by partial read, so set to None here
-                    select_antenna_nums = None
-                    select_ant_str = None
-                    select_bls = None
-                    select_polarizations = None
-
-                    # these aren't supported by partial read, so do it here
-                    select_antenna_names = antenna_names
-                    select_frequencies = frequencies
-                    select_freq_chans = freq_chans
-                    select_times = times
-                    select_blt_inds = blt_inds
-
                 self.select(
                     antenna_nums=select_antenna_nums,
                     antenna_names=select_antenna_names,
