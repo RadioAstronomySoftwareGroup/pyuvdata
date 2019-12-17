@@ -127,7 +127,7 @@ class UVFITS(UVData):
                                  'one time present')
 
     def _get_data(self, vis_hdu, antenna_nums, antenna_names, ant_str,
-                  bls, frequencies, freq_chans, times, polarizations,
+                  bls, frequencies, freq_chans, times, time_range, polarizations,
                   blt_inds, read_metadata, run_check, check_extra,
                   run_check_acceptability, keep_all_metadata):
         """
