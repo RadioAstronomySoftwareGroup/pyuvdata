@@ -385,8 +385,8 @@ a) Getting antenna positions in topocentric frame in units of meters
 UVData: Selecting data
 -----------------------
 The select method lets you select specific antennas (by number or name),
-antenna pairs, frequencies (in Hz or by channel number), times or polarizations
-to keep in the object while removing others.
+antenna pairs, frequencies (in Hz or by channel number), times (or time_range)
+or polarizations to keep in the object while removing others.
 
 Note: The same select interface is now supported on the read for uvfits, uvh5
 and miriad files (see :ref:`large_files`), so you need not
@@ -793,8 +793,7 @@ Note that these keywords can be used for any file type, but for FHD,
 MWA correlator FITS files, and
 measurement set (ms) files, the select is done after the read, which does not
 save memory. Miriad only supports some of the selections on the read, the
-unsupported ones are done after the read. Note that miriad supports a select on
-read for a time range, while uvfits and uvh5 support a list of times to include.
+unsupported ones are done after the read.
 Any of the select keywords can be used for any file type, but selects for keywords
 that are not supported by the select on read for a given file type will be
 done after the read, which does not save memory.
