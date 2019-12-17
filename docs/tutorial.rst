@@ -175,15 +175,15 @@ i) MWA correlator -> uvfits
 
    >>> from pyuvdata import UVData
    >>> UV = UVData()
-   
+
    # Construct the list of files
    >>> data_path = 'pyuvdata/data/mwa_corr_fits_testfiles/'
    >>> filelist = [data_path + i for i in ['1131733552.metafits', '1131733552_20151116182537_mini_gpubox01_00.fits']]
-   
+
    # Use the file type specific read_mwa_corr_fits
    # Apply cable corrections and phase data before writing to uvfits
    >>> UV.read_mwa_corr_fits(filelist, correct_cable_len=True, phase_data=True)
-   
+
    # Write out uvfits file
    >>> UV.write_uvfits('tutorial.uvfits', spoof_nonessential=True)
 
@@ -757,43 +757,16 @@ UVData: Working with large files
 To save on memory and time, pyuvdata supports reading only parts of uvfits, uvh5 and
 miriad files.
 
-a) Reading just the header of a uvfits file
+a) Reading the metadata of a uvfits, uvh5 or miriad file
 ******************************************
-This option is only available for uvfits files, which separate the header which
-is very lightweight to read from the metadata which takes a little more memory.
-When only the header info is read in, the UVData object is not fully specified,
-so only some of the expected attributes are filled out.
-
-The read_metadata keyword is ignored for other file types.
-::
-
-  >>> from pyuvdata import UVData
-  >>> uv = UVData()
-  >>> filename = 'pyuvdata/data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
-  >>> uv.read(filename, read_data=False, read_metadata=False)
-  >>> print((uv.Nblts, uv.Nfreqs, uv.Npols))
-  (1360, 64, 4)
-
-  >>> print(uv.freq_array.size)
-  64
-
-  >>> print(uv.time_array)
-  None
-
-  >>> print(uv.data_array)
-  None
-
-b) Reading the metadata of a uvfits, uvh5 or miriad file
-******************************************
-For uvh5 and uvfits files, reading in the metadata results in a UVData object
-that is still not fully specified, but every attribute except the data_array,
-flag_array and nsample_array are filled out. For Miriad files, less of the
+For uvh5 and uvfits files, reading in the metadata results in a metadata only
+UVData object (which has every attribute except the data_array,
+flag_array and nsample_array filled out). For Miriad files, less of the
 metadata can be read without reading the data, but many of the attributes
-are available. For uvfits files, the metadata can be read in at the same time
-as the header, or you can read in the header followed by the metadata
-(both shown below).
+are available.
 
-FHD and measurement set (ms) files do not support reading only the metadata
+FHD, MWA correlator FITS files, and measurement set (ms) files do not support
+reading only the metadata
 (the read_data keyword is ignored for these file types).
 ::
 
@@ -801,11 +774,7 @@ FHD and measurement set (ms) files do not support reading only the metadata
   >>> uv = UVData()
   >>> filename = 'pyuvdata/data/day2_TDEM0003_10s_norx_1src_1spw.uvfits'
 
-  # read the header and metadata but not the data
-  >>> uv.read(filename, read_data=False)
-
-  # read the header first, then the metadata but not the data
-  >>> uv.read(filename, read_data=False, read_metadata=False)
+  # read the metadata but not the data
   >>> uv.read(filename, read_data=False)
 
   >>> print(uv.time_array.size)
@@ -814,19 +783,14 @@ FHD and measurement set (ms) files do not support reading only the metadata
   >>> print(uv.data_array)
   None
 
-  # If the data_array, flag_array or nsample_array are needed later, they can be
-  # read into the existing object:
-  >>> uv.read(filename)
-  >>> print(uv.data_array.shape)
-  (1360, 1, 64, 4)
-
-c) Reading only parts of uvfits, uvh5 or miriad data
+b) Reading only parts of uvfits, uvh5 or miriad data
 ****************************************************
 The same options that are available for the select function can also be passed to
 the read method to do the select on the read, saving memory and time if only a
 portion of the data are needed.
 
-Note that these keywords can be used for any file type, but for FHD and
+Note that these keywords can be used for any file type, but for FHD,
+MWA correlator FITS files, and
 measurement set (ms) files, the select is done after the read, which does not
 save memory. Miriad only supports some of the selections on the read, the
 unsupported ones are done after the read. Note that miriad supports a select on
@@ -844,7 +808,7 @@ done after the read, which does not save memory.
   >>> print(uv.data_array.shape)
   (1360, 1, 32, 4)
 
-  # Reading in the header and metadata can help with specifying what data to read in
+  # Reading in the metadata can help with specifying what data to read in
   >>> uv = UVData()
   >>> uv.read(filename, read_data=False)
   >>> unique_times = np.unique(uv.time_array)
@@ -868,7 +832,7 @@ done after the read, which does not save memory.
   >>> print(uv.data_array.shape)
   (80, 1, 32, 4)
 
-d) Writing to a uvh5 file in parts
+c) Writing to a uvh5 file in parts
 **********************************
 
 It is possible to write to a uvh5 file in parts, so not all of the file needs to
