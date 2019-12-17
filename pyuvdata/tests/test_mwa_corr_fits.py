@@ -63,6 +63,8 @@ def test_ReadMWAWriteUVFits():
     assert mwa_uv == uvfits_uv
 
 
+@pytest.mark.filterwarnings("ignore:telescope_location is not set. ")
+@pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
 def test_select_on_read():
     mwa_uv = UVData()
     mwa_uv2 = UVData()
@@ -71,8 +73,14 @@ def test_select_on_read():
     select_times = unique_times[np.where((unique_times >= np.min(mwa_uv.time_array))
                                          & (unique_times <= np.mean(mwa_uv.time_array)))]
     mwa_uv.select(times=select_times)
-    mwa_uv2.read(filelist[0:2], correct_cable_len=True,
-                 time_range=[np.min(mwa_uv.time_array), np.mean(mwa_uv.time_array)])
+    uvtest.checkWarnings(
+        mwa_uv2.read, func_args=[filelist[0:2]],
+        func_kwargs={'correct_cable_len': True,
+                     'time_range': [np.min(mwa_uv.time_array), np.mean(mwa_uv.time_array)]},
+        message=['Warning: select on read keyword set, but file_type is "mwa_corr_fits"',
+                 'telescope_location is not set. Using known values for MWA.',
+                 'some coarse channel files were not submitted'],
+        nwarnings=3)
     assert mwa_uv == mwa_uv2
 
 

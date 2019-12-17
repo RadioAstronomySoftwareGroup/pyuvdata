@@ -476,14 +476,9 @@ def test_uvh5_partial_read_times(uv_uvfits):
 
     # select on read using time_range
     unique_times = np.unique(uvh5_uv.time_array)
-    uvtest.checkWarnings(
-        uvh5_uv.read,
-        [testfile],
-        {'time_range': [unique_times[0], unique_times[1]]},
-        message=['Warning: "time_range" keyword is set']
-    )
+    uvh5_uv.read(testfile, time_range=[unique_times[0], unique_times[1]])
     uvh5_uv2.read(testfile)
-    uvh5_uv2.select(times=unique_times[0:2])
+    uvh5_uv2.select(time_range=[unique_times[0], unique_times[1]])
     assert uvh5_uv == uvh5_uv2
 
     # clean up
@@ -1586,12 +1581,7 @@ def test_uvh5_partial_read_ints_times():
     # select on read using time_range
     uvh5_uv.read_uvh5(uvh5_file, read_data=False)
     unique_times = np.unique(uvh5_uv.time_array)
-    uvtest.checkWarnings(
-        uvh5_uv.read,
-        [uvh5_file],
-        {'time_range': [unique_times[0], unique_times[1]]},
-        message=['Warning: "time_range" keyword is set'],
-    )
+    uvh5_uv.read(uvh5_file, time_range=[unique_times[0], unique_times[1]])
     uvh5_uv2.read(uvh5_file)
     uvh5_uv2.select(times=unique_times[0:2])
     assert uvh5_uv == uvh5_uv2

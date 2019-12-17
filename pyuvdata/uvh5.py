@@ -547,8 +547,9 @@ class UVH5(UVData):
             # Now read in the data
             dgrp = f['/Data']
             self._get_data(dgrp, antenna_nums, antenna_names, ant_str,
-                           bls, frequencies, freq_chans, times, polarizations,
-                           blt_inds, run_check, check_extra, run_check_acceptability,
+                           bls, frequencies, freq_chans, times, time_range,
+                           polarizations, blt_inds, run_check,
+                           check_extra, run_check_acceptability,
                            data_array_dtype, keep_all_metadata)
 
         return
