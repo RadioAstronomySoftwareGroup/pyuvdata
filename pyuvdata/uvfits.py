@@ -572,7 +572,8 @@ class UVFITS(UVData):
 
     def read_uvfits_data(self, filename, antenna_nums=None, antenna_names=None,
                          ant_str=None, bls=None, frequencies=None,
-                         freq_chans=None, times=None, polarizations=None,
+                         freq_chans=None, times=None, time_range=None,
+                         polarizations=None,
                          blt_inds=None, read_metadata=True, run_check=True,
                          check_extra=True, run_check_acceptability=True,
                          keep_all_metadata=True):
@@ -639,8 +640,9 @@ class UVFITS(UVData):
             vis_hdu = hdu_list[0]  # assumes the visibilities are in the primary hdu
 
             self._get_data(vis_hdu, antenna_nums, antenna_names, ant_str,
-                           bls, frequencies, freq_chans, times, polarizations,
-                           blt_inds, read_metadata, run_check, check_extra,
+                           bls, frequencies, freq_chans, times, time_range,
+                           polarizations, blt_inds, read_metadata,
+                           run_check, check_extra,
                            run_check_acceptability, keep_all_metadata)
 
         del(vis_hdu)

@@ -556,11 +556,7 @@ def test_select_read():
 
     # select on read using time_range
     unique_times = np.unique(uvfits_uv.time_array)
-    uvtest.checkWarnings(uvfits_uv.read, [uvfits_file],
-                         {'time_range': [unique_times[0], unique_times[1]]},
-                         nwarnings=2,
-                         message=['Warning: "time_range" keyword is set',
-                                  'Telescope EVLA is not'])
+    uvfits_uv.read(uvfits_file, time_range=[unique_times[0], unique_times[1]])
     uvfits_uv2.read(uvfits_file)
     uvfits_uv2.select(times=unique_times[0:2])
     assert uvfits_uv == uvfits_uv2
