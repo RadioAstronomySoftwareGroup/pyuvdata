@@ -91,7 +91,9 @@ def test_ReadNRAO():
     # check error trying to read metadata after data is already present
     uvfits_obj = UV3._convert_to_filetype('uvfits')
     with pytest.raises(ValueError) as cm:
-        uvfits_obj.read_uvfits_metadata(testfile)
+        uvtest.checkWarnings(uvfits_obj.read_uvfits_metadata, func_args=[testfile],
+                             message='The read_uvfits_metadata method is deprecated',
+                             category=DeprecationWarning)
     assert str(cm.value).startswith('data_array is already defined, cannot read metadata')
 
 
