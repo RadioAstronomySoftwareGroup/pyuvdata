@@ -260,8 +260,8 @@ class UVFITS(UVData):
             unless `keep_all_metadata` is False). This cannot be provided if
             `antenna_nums` is also provided. Ignored if read_data is False.
         bls : list of tuple, optional
-            A list of antenna number tuples (e.g. [(0,1), (3,2)]) or a list of
-            baseline 3-tuples (e.g. [(0,1,'xx'), (2,3,'yy')]) specifying baselines
+            A list of antenna number tuples (e.g. [(0, 1), (3, 2)]) or a list of
+            baseline 3-tuples (e.g. [(0, 1, 'xx'), (2, 3, 'yy')]) specifying baselines
             to include when reading data into the object. For length-2 tuples,
             the ordering of the numbers within the tuple does not matter. For
             length-3 tuples, the polarization string is in the order of the two
@@ -274,7 +274,7 @@ class UVFITS(UVData):
             and polarizations (e.g. '1', '1_2', '1x_2y').  See tutorial for more
             examples of valid strings and the behavior of different forms for ant_str.
             If '1x_2y,2y_3y' is passed, both polarizations 'xy' and 'yy' will
-            be kept for both baselines (1,2) and (2,3) to return a valid
+            be kept for both baselines (1, 2) and (2, 3) to return a valid
             pyuvdata object.
             An ant_str cannot be passed in addition to any of `antenna_nums`,
             `antenna_names`, `bls` args or the `polarizations` parameters,
@@ -323,6 +323,19 @@ class UVFITS(UVData):
             Option to check acceptable range of the values of parameters after
             reading in the file (the default is True, meaning the acceptable
             range check will be done). Ignored if read_data is False.
+
+        Raises
+        ------
+        IOError
+            If filename doesn't exist.
+        ValueError
+            If incompatible select keywords are set (e.g. `ant_str` with other
+            antenna selectors, `times` and `time_range`) or select keywords
+            exclude all data or if keywords are set to the wrong type.
+            If the data are multi source or have multiple
+            spectral windows.
+            If the metadata are internally consistent or missing.
+
         """
         with fits.open(filename, memmap=True) as hdu_list:
             vis_hdu = hdu_list[0]  # assumes the visibilities are in the primary hdu
@@ -575,8 +588,8 @@ class UVFITS(UVData):
                 the object (antenna positions and names for the excluded antennas
                 will be retained). This cannot be provided if antenna_nums is
                 also provided.
-            bls: A list of antenna number tuples (e.g. [(0,1), (3,2)]) or a list of
-                baseline 3-tuples (e.g. [(0,1,'xx'), (2,3,'yy')]) specifying baselines
+            bls: A list of antenna number tuples (e.g. [(0, 1), (3, 2)]) or a list of
+                baseline 3-tuples (e.g. [(0, 1, 'xx'), (2, 3, 'yy')]) specifying baselines
                 to keep in the object. For length-2 tuples, the  ordering of the numbers
                 within the tuple does not matter. For length-3 tuples, the polarization
                 string is in the order of the two antennas. If length-3 tuples are provided,
@@ -588,7 +601,7 @@ class UVFITS(UVData):
                 See tutorial for more examples of valid strings and
                 the behavior of different forms for ant_str.
                 If '1x_2y,2y_3y' is passed, both polarizations 'xy' and 'yy' will
-                be kept for both baselines (1,2) and (2,3) to return a valid
+                be kept for both baselines (1, 2) and (2, 3) to return a valid
                 pyuvdata object.
                 An ant_str cannot be passed in addition to any of the above antenna
                 args or the polarizations arg.
@@ -652,6 +665,20 @@ class UVFITS(UVData):
         run_check_acceptability : bool
             Option to check acceptable range of the values of parameters before
             writing the file.
+
+        Raises
+        ------
+        ValueError
+            The `phase_type` of the object is "drift" and the `force_phase` keyword is not set.
+            The `phase_type` of the object is "unknown".
+            If the frequencies are not evenly spaced or are separated by more
+            than their channel width.
+            The polarization values are not evenly spaced.
+            Any of ['antenna_positions', 'gst0', 'rdate', 'earth_omega', 'dut1',
+            'timesys'] are not set on the object and `spoof_nonessential` is False.
+            If the `timesys` parameter is not set to "UTC".
+        TypeError
+            If any entry in extra_keywords is not a single string or number.
 
         """
         if run_check:

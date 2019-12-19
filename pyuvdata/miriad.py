@@ -52,15 +52,15 @@ class Miriad(UVData):
         Parameters
         ----------
         filepath : str
-            The miriad file directoryto read from.
+            The miriad root directory to read from.
             Support for a list/array of file directories will be
             deprecated in version 2.0 in favor of a call to the generic
             `read` method.
         antenna_nums : array_like of int, optional
             The antennas numbers to read into the object.
         bls : list of tuple, optional
-            A list of antenna number tuples (e.g. [(0,1), (3,2)]) or a list of
-            baseline 3-tuples (e.g. [(0,1,'xx'), (2,3,'yy')]) specifying baselines
+            A list of antenna number tuples (e.g. [(0, 1), (3, 2)]) or a list of
+            baseline 3-tuples (e.g. [(0, 1, 'xx'), (2, 3, 'yy')]) specifying baselines
             to include when reading data into the object. For length-2 tuples,
             the ordering of the numbers within the tuple does not matter. For
             length-3 tuples, the polarization string is in the order of the two
@@ -73,7 +73,7 @@ class Miriad(UVData):
             and polarizations (e.g. '1', '1_2', '1x_2y').  See tutorial for more
             examples of valid strings and the behavior of different forms for ant_str.
             If '1x_2y,2y_3y' is passed, both polarizations 'xy' and 'yy' will
-            be kept for both baselines (1,2) and (2,3) to return a valid
+            be kept for both baselines (1, 2) and (2, 3) to return a valid
             pyuvdata object.
             An ant_str cannot be passed in addition to any of `antenna_nums`,
             `bls` or `polarizations` parameters, if it is a ValueError will be raised.
@@ -83,8 +83,11 @@ class Miriad(UVData):
             len-2 list containing min and max range of times in Julian Date to
             include when reading data into the object. e.g. [2458115.20, 2458115.40]
         read_data : bool
-            Read in the visibility and flag data. If set to false,
-            only the metadata will be read in. Setting read_data to False
+            Read in the uvws, times, visibility and flag data. If set to False,
+            only the metadata that can be read quickly (without reading the data)
+            will be read in. For Miriad, some of the normally required metadata
+            are not fast to read in (e.g. uvws, times) so will not be read in
+            if this keyword is False. Therefore, setting read_data to False
             results in an incompletely defined object (check will not pass).
         phase_type : str, optional
             Option to specify the phasing status of the data. Options are 'drift',
@@ -106,6 +109,18 @@ class Miriad(UVData):
             Option to check acceptable range of the values of parameters after
             reading in the file (the default is True, meaning the acceptable
             range check will be done). Ignored if read_data is False.
+
+        Raises
+        ------
+        IOError
+            If root file directory doesn't exist.
+        ValueError
+            If incompatible select keywords are set (e.g. `ant_str` with other
+            antenna selectors, `times` and `time_range`) or select keywords
+            exclude all data or if keywords are set to the wrong type.
+            If the data are multi source or have multiple
+            spectral windows.
+            If the metadata are internally consistent.
 
         """
         if not os.path.exists(filepath):
@@ -584,7 +599,7 @@ class Miriad(UVData):
         Parameters
         ----------
         filename : str
-            The miriad file directory to write to.
+            The miriad root directory to write to.
         run_check : bool
             Option to check for the existence and proper shapes of parameters
             after before writing the file (the default is True,
@@ -601,6 +616,15 @@ class Miriad(UVData):
         no_antnums : bool
             Option to not write the antnums variable to the file.
             Should only be used for testing purposes.
+
+        Raises
+        ------
+        ValueError
+            If the frequencies are not evenly spaced or are separated by more
+            than their channel width.
+            The `phase_type` of the object is "unknown".
+        TypeError
+            If any entry in extra_keywords is not a single string or number.
 
         """
         # change time_array and lst_array to mark beginning of integration, per Miriad format
@@ -920,8 +944,8 @@ class Miriad(UVData):
 
         Parameters
         ----------
-        filename : str
-            The miriad file to read.
+        uv : aipy.miriad.UV
+            aipy object to load metadata from.
         correct_lat_lon : bool
             Option to update the latitude and longitude from the known_telescopes
             list if the altitude is missing.
