@@ -120,7 +120,7 @@ class Miriad(UVData):
             exclude all data or if keywords are set to the wrong type.
             If the data are multi source or have multiple
             spectral windows.
-            If the metadata are internally consistent.
+            If the metadata are not internally consistent.
 
         """
         if not os.path.exists(filepath):
