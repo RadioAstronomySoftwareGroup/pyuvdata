@@ -2409,11 +2409,6 @@ class UVData(UVBase):
             times = uvutils._get_iterable(times)
             if np.array(times).ndim > 1:
                 times = np.array(times).flatten()
-            if n_selects > 0:
-                history_update_string += ', times'
-            else:
-                history_update_string += 'times'
-            n_selects += 1
 
             time_blt_inds = np.zeros(0, dtype=np.int)
             for jd in times:
@@ -2424,25 +2419,9 @@ class UVData(UVBase):
                     raise ValueError(
                         'Time {t} is not present in the time_array'.format(t=jd))
 
-            if blt_inds is not None:
-                # Use intesection (and) to join antenna_names/nums/ant_pairs_nums/blt_inds with times
-                blt_inds = np.array(
-                    list(set(blt_inds).intersection(time_blt_inds)), dtype=np.int)
-            else:
-                blt_inds = time_blt_inds
-
         if time_range is not None:
             if np.array(time_range).size != 2:
                 raise ValueError('time_range must be length 2.')
-
-            times = uvutils._get_iterable(times)
-            if np.array(times).ndim > 1:
-                times = np.array(times).flatten()
-            if n_selects > 0:
-                history_update_string += ', times'
-            else:
-                history_update_string += 'times'
-            n_selects += 1
 
             time_blt_inds = np.nonzero(
                 (self.time_array <= time_range[1])
@@ -2451,6 +2430,13 @@ class UVData(UVBase):
                 raise ValueError(
                     'No elements in time range between {t0} and t1'
                     .format(t0=time_range[0], t1=time_range[1]))
+
+        if times is not None or time_range is not None:
+            if n_selects > 0:
+                history_update_string += ', times'
+            else:
+                history_update_string += 'times'
+            n_selects += 1
 
             if blt_inds is not None:
                 # Use intesection (and) to join antenna_names/nums/ant_pairs_nums/blt_inds with times
