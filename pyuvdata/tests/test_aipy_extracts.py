@@ -11,8 +11,8 @@ import os
 import shutil
 import pytest
 
-from .. import aipy_extracts as ae
-from ..data import DATA_PATH
+from pyuvdata import aipy_extracts as ae
+from pyuvdata.data import DATA_PATH
 
 
 def test_bl2ij():
