@@ -128,6 +128,89 @@ def bda_test_file():
     return
 
 
+@pytest.fixture(scope='function')
+def uvdata_data():
+    uv_object = UVData()
+    testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    uvtest.checkWarnings(uv_object.read_uvfits, [testfile],
+                         message='Telescope EVLA is not')
+
+    class DataHolder():
+        def __init__(self, uv_object):
+            self.uv_object = uv_object
+            self.uv_object2 = copy.deepcopy(uv_object)
+
+    uvdata_data = DataHolder(uv_object)
+    # yields the data we need but will continue to the del call after tests
+    yield uvdata_data
+
+    # some post-test object cleanup
+    del(uvdata_data)
+
+    return
+
+
+@pytest.fixture(scope='function')
+def uvdata_baseline():
+    uv_object = UVData()
+    uv_object.Nants_telescope = 128
+    uv_object2 = UVData()
+    uv_object2.Nants_telescope = 2049
+
+    class DataHolder():
+        def __init__(self, uv_object, uv_object2):
+            self.uv_object = uv_object
+            self.uv_object2 = uv_object2
+
+    uvdata_baseline = DataHolder(uv_object, uv_object2)
+
+    # yields the data we need but will continue to the del call after tests
+    yield uvdata_baseline
+
+    # Post test clean-up
+    del(uvdata_baseline)
+    return
+
+
+@pytest.fixture
+def uv1_2_set_uvws():
+    testfile = os.path.join(DATA_PATH, 'zen.2458661.23480.HH.uvh5')
+    uv1 = UVData()
+    uv1.read_uvh5(testfile)
+    # uvws in the file are wrong. reset them.
+    uv1.set_uvws_from_antenna_positions()
+
+    uv2 = uv1.copy()
+
+    yield uv1, uv2
+
+    del uv1, uv2
+
+    return
+
+
+@pytest.fixture()
+def uv_phase_time_split(uv1_2_set_uvws):
+    uv_phase, uv_raw = uv1_2_set_uvws
+
+    uv_phase.reorder_blts(order="time", minor_order="baseline")
+    uv_raw.reorder_blts(order="time", minor_order="baseline")
+
+    uv_phase.phase(ra=0, dec=0, epoch="J2000", use_ant_pos=True)
+    times = np.unique(uv_phase.time_array)
+    time_set_1, time_set_2 = times[::2], times[1::2]
+
+    uv_phase_1 = uv_phase.select(times=time_set_1, inplace=False)
+    uv_phase_2 = uv_phase.select(times=time_set_2, inplace=False)
+
+    uv_raw_1 = uv_raw.select(times=time_set_1, inplace=False)
+    uv_raw_2 = uv_raw.select(times=time_set_2, inplace=False)
+
+    yield uv_phase_1, uv_phase_2, uv_phase, uv_raw_1, uv_raw_2, uv_raw
+
+    del uv_phase_1, uv_phase_2, uv_raw_1, uv_raw_2, uv_phase, uv_raw
+
+
 def test_parameter_iter(uvdata_props):
     """Test expected parameters."""
     all = []
@@ -199,28 +282,6 @@ def test_properties(uvdata_props):
         except AssertionError:
             print('setting {prop_name} to a random number failed'.format(prop_name=k))
             raise
-
-
-@pytest.fixture(scope='function')
-def uvdata_data():
-    uv_object = UVData()
-    testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-    uvtest.checkWarnings(uv_object.read_uvfits, [testfile],
-                         message='Telescope EVLA is not')
-
-    class DataHolder():
-        def __init__(self, uv_object):
-            self.uv_object = uv_object
-            self.uv_object2 = copy.deepcopy(uv_object)
-
-    uvdata_data = DataHolder(uv_object)
-    # yields the data we need but will continue to the del call after tests
-    yield uvdata_data
-
-    # some post-test object cleanup
-    del(uvdata_data)
-
-    return
 
 
 def test_metadata_only_property(uvdata_data):
@@ -333,28 +394,6 @@ def test_converttofiletype(uvdata_data):
     assert str(cm.value).startswith("filetype must be uvfits, miriad, fhd, or uvh5")
 
 
-@pytest.fixture(scope='function')
-def uvdata_baseline():
-    uv_object = UVData()
-    uv_object.Nants_telescope = 128
-    uv_object2 = UVData()
-    uv_object2.Nants_telescope = 2049
-
-    class DataHolder():
-        def __init__(self, uv_object, uv_object2):
-            self.uv_object = uv_object
-            self.uv_object2 = uv_object2
-
-    uvdata_baseline = DataHolder(uv_object, uv_object2)
-
-    # yields the data we need but will continue to the del call after tests
-    yield uvdata_baseline
-
-    # Post test clean-up
-    del(uvdata_baseline)
-    return
-
-
 def test_baseline_to_antnums(uvdata_baseline):
     """Test baseline to antnum conversion for 256 & larger conventions."""
     assert uvdata_baseline.uv_object.baseline_to_antnums(67585) == (0, 0)
@@ -445,23 +484,6 @@ def test_generic_read():
                   antenna_names=uv_in.antenna_names[1])
 
     pytest.raises(ValueError, uv_in.read, 'foo')
-
-
-@pytest.fixture
-def uv1_2_set_uvws():
-    testfile = os.path.join(DATA_PATH, 'zen.2458661.23480.HH.uvh5')
-    uv1 = UVData()
-    uv1.read_uvh5(testfile)
-    # uvws in the file are wrong. reset them.
-    uv1.set_uvws_from_antenna_positions()
-
-    uv2 = uv1.copy()
-
-    yield uv1, uv2
-
-    del uv1, uv2
-
-    return
 
 
 @pytest.mark.parametrize(
@@ -673,7 +695,6 @@ def test_phasing():
     # the tolerances here are empirical -- based on what was seen in the
     # external phasing test. See the phasing memo in docs/references for
     # details.
-    print(np.max(np.abs(uvd1.uvw_array - uvd2_rephase.uvw_array)))
     assert np.allclose(uvd1.uvw_array, uvd2_rephase.uvw_array, atol=2e-2)
     assert np.allclose(uvd1.uvw_array, uvd2_rephase_antpos.uvw_array, atol=5e-3)
 
@@ -2163,28 +2184,6 @@ def test_add_error_drift_and_rephase(test_func, extra_kwargs):
                                     )
     assert str(cm.value).startswith('phase_center_radec cannot be set if '
                                     'unphase_to_drift is True.')
-
-
-@pytest.fixture()
-def uv_phase_time_split(uv1_2_set_uvws):
-    uv_phase, uv_raw = uv1_2_set_uvws
-
-    uv_phase.reorder_blts(order="time", minor_order="baseline")
-    uv_raw.reorder_blts(order="time", minor_order="baseline")
-
-    uv_phase.phase(ra=0, dec=0, epoch="J2000", use_ant_pos=True)
-    times = np.unique(uv_phase.time_array)
-    time_set_1, time_set_2 = times[::2], times[1::2]
-
-    uv_phase_1 = uv_phase.select(times=time_set_1, inplace=False)
-    uv_phase_2 = uv_phase.select(times=time_set_2, inplace=False)
-
-    uv_raw_1 = uv_raw.select(times=time_set_1, inplace=False)
-    uv_raw_2 = uv_raw.select(times=time_set_2, inplace=False)
-
-    yield uv_phase_1, uv_phase_2, uv_phase, uv_raw_1, uv_raw_2, uv_raw
-
-    del uv_phase_1, uv_phase_2, uv_raw_1, uv_raw_2, uv_phase, uv_raw
 
 
 @pytest.mark.parametrize("test_func,extra_kwargs",

@@ -4,6 +4,7 @@
 
 """
 Class for reading and writing casa measurement sets.
+
 Requires casacore.
 """
 from __future__ import absolute_import, division, print_function
@@ -36,6 +37,7 @@ polDict = {1: 1, 2: 2, 3: 3, 4: 4, 5: -1, 6: -3,
 class MS(UVData):
     """
     Defines a class for reading and writing casa measurement sets.
+
     Attributes
     ----------
     ms_required_extra : list of str
@@ -103,25 +105,46 @@ class MS(UVData):
         writing ms is not yet supported
         '''
 
-    def read_ms(self, filepath, run_check=True, check_extra=True,
-                run_check_acceptability=True,
-                data_column='DATA', pol_order='AIPS'):
-        '''
+    def read_ms(self, filepath, data_column='DATA', pol_order='AIPS',
+                run_check=True, check_extra=True,
+                run_check_acceptability=True):
+        """
         read in a casa measurement set
 
-        Args:
-            filepath: name of the measurement set folder
-            run_check: Option to check for the existence and proper shapes of
-                parameters after reading in the file. Default is True.
-            check_extra: Option to check optional parameters as well as required
-                ones. Default is True.
-            run_check_acceptability: Option to check the values of parameters
-                after reading in the file. Default is True.
-            data_column: specify which CASA measurement set data column to read from (can be 'DATA','CORRECTED', or 'MODEL')
-            pol_order: use 'AIPS' or 'CASA' ordering of polarizations?
-        '''
+        Parameters
+        ----------
+        filepath : str
+            The measurement set root directory to read from.
+        data_column : str
+            name of CASA data column to read into data_array. Options are:
+            'DATA', 'MODEL', or 'CORRECTED_DATA'
+        pol_order : str
+            Option to specify polarizations order convention, options are 'CASA' or 'AIPS'.
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            after after reading in the file (the default is True,
+            meaning the check will be run).
+        check_extra : bool
+            Option to check optional parameters as well as required ones (the
+            default is True, meaning the optional parameters will be checked).
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters after
+            reading in the file (the default is True, meaning the acceptable
+            range check will be done).
+
+        Raises
+        ------
+        IOError
+            If root file directory doesn't exist.
+        ValueError
+            If the `data_column` is not set to an allowed value.
+            If the data are have multiple subarrays or are multi source or have
+            multiple spectral windows.
+            If the data have multiple data description ID values.
+
+        """
         # make sure user requests a valid data_column
-        if data_column != 'DATA' and data_column != 'CORRECTED_DATA' and data_column != 'MODEL':
+        if data_column not in ['DATA', 'CORRECTED_DATA', 'MODEL']:
             raise ValueError(
                 'Invalid data_column value supplied. Use \'Data\',\'MODEL\' or \'CORRECTED_DATA\'')
         if not os.path.exists(filepath):

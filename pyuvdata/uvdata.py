@@ -1595,7 +1595,11 @@ class UVData(UVBase):
         ------
         ValueError
             If other is not a UVData object, self and other are not compatible
-            or if data in self and other overlap.
+            or if data in self and other overlap. One way they can not be
+            compatible if if they have different phasing, in that case set
+            `unphase_to_drift` or `phase_center_radec`to (un)phase them so they
+            are compatible.
+            If phase_center_radec is not None and is not length 2.
 
         """
         if inplace:
@@ -1632,6 +1636,9 @@ class UVData(UVBase):
             if np.array(phase_center_radec).size != 2:
                 raise ValueError('phase_center_radec should have length 2.')
 
+            # If this object is not phased or is not phased close to
+            # phase_center_radec, (re)phase it.
+            # Close is defined using the phase_center_ra/dec tolerances.
             if (this.phase_type == 'drift'
                 or (not np.isclose(this.phase_center_ra, phase_center_radec[0],
                                    rtol=this._phase_center_ra.tols[0],
@@ -1645,6 +1652,9 @@ class UVData(UVBase):
                            orig_phase_frame=orig_phase_frame,
                            use_ant_pos=use_ant_pos, allow_rephase=True)
 
+            # If other object is not phased or is not phased close to
+            # phase_center_radec, (re)phase it.
+            # Close is defined using the phase_center_ra/dec tolerances.
             if (other.phase_type == 'drift'
                 or (not np.isclose(other.phase_center_ra, phase_center_radec[0],
                                    rtol=other._phase_center_ra.tols[0],
@@ -2052,6 +2062,9 @@ class UVData(UVBase):
             if np.array(phase_center_radec).size != 2:
                 raise ValueError('phase_center_radec should have length 2.')
 
+            # If this object is not phased or is not phased close to
+            # phase_center_radec, (re)phase it.
+            # Close is defined using the phase_center_ra/dec tolerances.
             if (this.phase_type == 'drift'
                 or (not np.isclose(this.phase_center_ra, phase_center_radec[0],
                                    rtol=this._phase_center_ra.tols[0],
@@ -2065,6 +2078,9 @@ class UVData(UVBase):
                            orig_phase_frame=orig_phase_frame,
                            use_ant_pos=use_ant_pos, allow_rephase=True)
 
+            # If other object is not phased or is not phased close to
+            # phase_center_radec, (re)phase it.
+            # Close is defined using the phase_center_ra/dec tolerances.
             if (other.phase_type == 'drift'
                 or (not np.isclose(other.phase_center_ra, phase_center_radec[0],
                                    rtol=other._phase_center_ra.tols[0],
@@ -2202,8 +2218,8 @@ class UVData(UVBase):
             `keep_all_metadata` is False). This cannot be provided if
             `antenna_nums` is also provided.
         bls : list of tuple, optional
-            A list of antenna number tuples (e.g. [(0,1), (3,2)]) or a list of
-            baseline 3-tuples (e.g. [(0,1,'xx'), (2,3,'yy')]) specifying baselines
+            A list of antenna number tuples (e.g. [(0, 1), (3, 2)]) or a list of
+            baseline 3-tuples (e.g. [(0, 1, 'xx'), (2, 3, 'yy')]) specifying baselines
             to keep in the object. For length-2 tuples, the ordering of the numbers
             within the tuple does not matter. For length-3 tuples, the polarization
             string is in the order of the two antennas. If length-3 tuples are
@@ -2215,7 +2231,7 @@ class UVData(UVBase):
             '1_2', '1x_2y').  See tutorial for more examples of valid strings and
             the behavior of different forms for ant_str.
             If '1x_2y,2y_3y' is passed, both polarizations 'xy' and 'yy' will
-            be kept for both baselines (1,2) and (2,3) to return a valid
+            be kept for both baselines (1, 2) and (2, 3) to return a valid
             pyuvdata object.
             An ant_str cannot be passed in addition to any of `antenna_nums`,
             `antenna_names`, `bls` args or the `polarizations` parameters,
@@ -2583,8 +2599,8 @@ class UVData(UVBase):
             `keep_all_metadata` is False). This cannot be provided if
             `antenna_nums` is also provided.
         bls : list of tuple, optional
-            A list of antenna number tuples (e.g. [(0,1), (3,2)]) or a list of
-            baseline 3-tuples (e.g. [(0,1,'xx'), (2,3,'yy')]) specifying baselines
+            A list of antenna number tuples (e.g. [(0, 1), (3, 2)]) or a list of
+            baseline 3-tuples (e.g. [(0, 1, 'xx'), (2, 3, 'yy')]) specifying baselines
             to keep in the object. For length-2 tuples, the ordering of the numbers
             within the tuple does not matter. For length-3 tuples, the polarization
             string is in the order of the two antennas. If length-3 tuples are
@@ -2596,7 +2612,7 @@ class UVData(UVBase):
             '1_2', '1x_2y').  See tutorial for more examples of valid strings and
             the behavior of different forms for ant_str.
             If '1x_2y,2y_3y' is passed, both polarizations 'xy' and 'yy' will
-            be kept for both baselines (1,2) and (2,3) to return a valid
+            be kept for both baselines (1, 2) and (2, 3) to return a valid
             pyuvdata object.
             An ant_str cannot be passed in addition to any of `antenna_nums`,
             `antenna_names`, `bls` args or the `polarizations` parameters,
@@ -2786,8 +2802,8 @@ class UVData(UVBase):
             unless `keep_all_metadata` is False). This cannot be provided if
             `antenna_nums` is also provided. Ignored if read_data is False.
         bls : list of tuple, optional
-            A list of antenna number tuples (e.g. [(0,1), (3,2)]) or a list of
-            baseline 3-tuples (e.g. [(0,1,'xx'), (2,3,'yy')]) specifying baselines
+            A list of antenna number tuples (e.g. [(0, 1), (3, 2)]) or a list of
+            baseline 3-tuples (e.g. [(0, 1, 'xx'), (2, 3, 'yy')]) specifying baselines
             to include when reading data into the object. For length-2 tuples,
             the ordering of the numbers within the tuple does not matter. For
             length-3 tuples, the polarization string is in the order of the two
@@ -2800,7 +2816,7 @@ class UVData(UVBase):
             and polarizations (e.g. '1', '1_2', '1x_2y').  See tutorial for more
             examples of valid strings and the behavior of different forms for ant_str.
             If '1x_2y,2y_3y' is passed, both polarizations 'xy' and 'yy' will
-            be kept for both baselines (1,2) and (2,3) to return a valid
+            be kept for both baselines (1, 2) and (2, 3) to return a valid
             pyuvdata object.
             An ant_str cannot be passed in addition to any of `antenna_nums`,
             `antenna_names`, `bls` args or the `polarizations` parameters,
@@ -2849,6 +2865,19 @@ class UVData(UVBase):
             Option to check acceptable range of the values of parameters after
             reading in the file (the default is True, meaning the acceptable
             range check will be done). Ignored if read_data is False.
+
+        Raises
+        ------
+        IOError
+            If filename doesn't exist.
+        ValueError
+            If incompatible select keywords are set (e.g. `ant_str` with other
+            antenna selectors, `times` and `time_range`) or select keywords
+            exclude all data or if keywords are set to the wrong type.
+            If the data are multi source or have multiple
+            spectral windows.
+            If the metadata are internally consistent or missing.
+
         """
         from . import uvfits
 
@@ -2912,6 +2941,21 @@ class UVData(UVBase):
             Option to check acceptable range of the values of parameters before
             writing the file (the default is True, meaning the acceptable
             range check will be done).
+
+        Raises
+        ------
+        ValueError
+            The `phase_type` of the object is "drift" and the `force_phase` keyword is not set.
+            The `phase_type` of the object is "unknown".
+            If the frequencies are not evenly spaced or are separated by more
+            than their channel width.
+            The polarization values are not evenly spaced.
+            Any of ['antenna_positions', 'gst0', 'rdate', 'earth_omega', 'dut1',
+            'timesys'] are not set on the object and `spoof_nonessential` is False.
+            If the `timesys` parameter is not set to "UTC".
+        TypeError
+            If any entry in extra_keywords is not a single string or number.
+
         """
         uvfits_obj = self._convert_to_filetype('uvfits')
         uvfits_obj.write_uvfits(filename, spoof_nonessential=spoof_nonessential,
@@ -2928,7 +2972,7 @@ class UVData(UVBase):
         Parameters
         ----------
         filepath : str
-            The measurement set file directory.
+            The measurement set root directory to read from.
             Support for a list/array of file directories will be
             deprecated in version 2.0 in favor of a call to the generic
             `read` method.
@@ -2955,6 +2999,17 @@ class UVData(UVBase):
             Option to check acceptable range of the values of parameters after
             reading in the file (the default is True, meaning the acceptable
             range check will be done).
+
+        Raises
+        ------
+        IOError
+            If root file directory doesn't exist.
+        ValueError
+            If the `data_column` is not set to an allowed value.
+            If the data are have multiple subarrays or are multi source or have
+            multiple spectral windows.
+            If the data have multiple data description ID values.
+
         """
         from . import ms
 
@@ -3013,6 +3068,14 @@ class UVData(UVBase):
             Option to check acceptable range of the values of parameters after
             reading in the file (the default is True, meaning the acceptable
             range check will be done).
+
+        Raises
+        ------
+        ValueError
+            If required files are missing or multiple files for any polarization
+            are included in filelist.
+            If there is no recognized key for visibility weights in the flags_file.
+
         """
         from . import fhd
         if isinstance(filelist[0], (list, tuple, np.ndarray)):
@@ -3044,7 +3107,7 @@ class UVData(UVBase):
         Parameters
         ----------
         filepath : str
-            The miriad file directoryto read from.
+            The miriad root directory to read from.
             Support for a list/array of file directories will be
             deprecated in version 2.0 in favor of a call to the generic
             `read` method.
@@ -3058,8 +3121,8 @@ class UVData(UVBase):
         antenna_nums : array_like of int, optional
             The antennas numbers to read into the object.
         bls : list of tuple, optional
-            A list of antenna number tuples (e.g. [(0,1), (3,2)]) or a list of
-            baseline 3-tuples (e.g. [(0,1,'xx'), (2,3,'yy')]) specifying baselines
+            A list of antenna number tuples (e.g. [(0, 1), (3, 2)]) or a list of
+            baseline 3-tuples (e.g. [(0, 1, 'xx'), (2, 3, 'yy')]) specifying baselines
             to include when reading data into the object. For length-2 tuples,
             the ordering of the numbers within the tuple does not matter. For
             length-3 tuples, the polarization string is in the order of the two
@@ -3072,7 +3135,7 @@ class UVData(UVBase):
             and polarizations (e.g. '1', '1_2', '1x_2y').  See tutorial for more
             examples of valid strings and the behavior of different forms for ant_str.
             If '1x_2y,2y_3y' is passed, both polarizations 'xy' and 'yy' will
-            be kept for both baselines (1,2) and (2,3) to return a valid
+            be kept for both baselines (1, 2) and (2, 3) to return a valid
             pyuvdata object.
             An ant_str cannot be passed in addition to any of `antenna_nums`,
             `bls` or `polarizations` parameters, if it is a ValueError will be raised.
@@ -3106,6 +3169,17 @@ class UVData(UVBase):
             reading in the file (the default is True, meaning the acceptable
             range check will be done). Ignored if read_data is False.
 
+        Raises
+        ------
+        IOError
+            If root file directory doesn't exist.
+        ValueError
+            If incompatible select keywords are set (e.g. `ant_str` with other
+            antenna selectors, `times` and `time_range`) or select keywords
+            exclude all data or if keywords are set to the wrong type.
+            If the data are multi source or have multiple
+            spectral windows.
+            If the metadata are internally consistent.
         """
         from . import miriad
         if isinstance(filepath, (list, tuple, np.ndarray)):
@@ -3142,7 +3216,7 @@ class UVData(UVBase):
         Parameters
         ----------
         filename : str
-            The miriad file directory to write to.
+            The miriad root directory to write to.
         run_check : bool
             Option to check for the existence and proper shapes of parameters
             after before writing the file (the default is True,
@@ -3159,6 +3233,15 @@ class UVData(UVBase):
         no_antnums : bool
             Option to not write the antnums variable to the file.
             Should only be used for testing purposes.
+
+        Raises
+        ------
+        ValueError
+            If the frequencies are not evenly spaced or are separated by more
+            than their channel width.
+            The `phase_type` of the object is "unknown".
+        TypeError
+            If any entry in extra_keywords is not a single string or number.
 
         """
         miriad_obj = self._convert_to_filetype('miriad')
@@ -3214,6 +3297,15 @@ class UVData(UVBase):
             Option to check acceptable range of the values of parameters after
             reading in the file (the default is True, meaning the acceptable
             range check will be done).
+
+        Raises
+        ------
+        ValueError
+            If required files are missing or multiple files metafits files are included in filelist.
+            If files from different observations are included in filelist.
+            If files in fileslist have different fine channel widths
+            If file types other than fits, metafits, and mwaf files are included in filelist.
+
         """
         from . import mwa_corr_fits
 
@@ -3298,8 +3390,8 @@ class UVData(UVBase):
             unless `keep_all_metadata` is False). This cannot be provided if
             `antenna_nums` is also provided. Ignored if read_data is False.
         bls : list of tuple, optional
-            A list of antenna number tuples (e.g. [(0,1), (3,2)]) or a list of
-            baseline 3-tuples (e.g. [(0,1,'xx'), (2,3,'yy')]) specifying baselines
+            A list of antenna number tuples (e.g. [(0, 1), (3, 2)]) or a list of
+            baseline 3-tuples (e.g. [(0, 1, 'xx'), (2, 3, 'yy')]) specifying baselines
             to include when reading data into the object. For length-2 tuples,
             the ordering of the numbers within the tuple does not matter. For
             length-3 tuples, the polarization string is in the order of the two
@@ -3312,7 +3404,7 @@ class UVData(UVBase):
             and polarizations (e.g. '1', '1_2', '1x_2y').  See tutorial for more
             examples of valid strings and the behavior of different forms for ant_str.
             If '1x_2y,2y_3y' is passed, both polarizations 'xy' and 'yy' will
-            be kept for both baselines (1,2) and (2,3) to return a valid
+            be kept for both baselines (1, 2) and (2, 3) to return a valid
             pyuvdata object.
             An ant_str cannot be passed in addition to any of `antenna_nums`,
             `antenna_names`, `bls` args or the `polarizations` parameters,
@@ -3358,6 +3450,17 @@ class UVData(UVBase):
             Option to check acceptable range of the values of parameters after
             reading in the file (the default is True, meaning the acceptable
             range check will be done). Ignored if read_data is False.
+
+        Raises
+        ------
+        IOError
+            If filename doesn't exist.
+        ValueError
+            If the data_array_dtype is not a complex dtype.
+            If incompatible select keywords are set (e.g. `ant_str` with other
+            antenna selectors, `times` and `time_range`) or select keywords
+            exclude all data or if keywords are set to the wrong type.
+
         """
         from . import uvh5
         if isinstance(filename, (list, tuple, np.ndarray)):
@@ -3517,8 +3620,8 @@ class UVData(UVBase):
             (antenna positions and names for the removed antennas will be retained).
             This cannot be provided if `antenna_nums` is also provided.
         bls : list of tuple, optional
-            A list of antenna number tuples (e.g. [(0,1), (3,2)]) or a list of
-            baseline 3-tuples (e.g. [(0,1,'xx'), (2,3,'yy')]) specifying baselines
+            A list of antenna number tuples (e.g. [(0, 1), (3, 2)]) or a list of
+            baseline 3-tuples (e.g. [(0, 1, 'xx'), (2, 3, 'yy')]) specifying baselines
             to include when writing data into the file. For length-2 tuples,
             the ordering of the numbers within the tuple does not matter. For
             length-3 tuples, the polarization string is in the order of the two
@@ -3531,7 +3634,7 @@ class UVData(UVBase):
             and polarizations (e.g. '1', '1_2', '1x_2y').  See tutorial for more
             examples of valid strings and the behavior of different forms for ant_str.
             If '1x_2y,2y_3y' is passed, both polarizations 'xy' and 'yy' will
-            be kept for both baselines (1,2) and (2,3) to return a valid
+            be kept for both baselines (1, 2) and (2, 3) to return a valid
             pyuvdata object.
             An ant_str cannot be passed in addition to any of `antenna_nums`,
             `antenna_names`, `bls` args or the `polarizations` parameters,
@@ -3638,8 +3741,8 @@ class UVData(UVBase):
             unless `keep_all_metadata` is False). This cannot be provided if
             `antenna_nums` is also provided. Ignored if read_data is False.
         bls : list of tuple, optional
-            A list of antenna number tuples (e.g. [(0,1), (3,2)]) or a list of
-            baseline 3-tuples (e.g. [(0,1,'xx'), (2,3,'yy')]) specifying baselines
+            A list of antenna number tuples (e.g. [(0, 1), (3, 2)]) or a list of
+            baseline 3-tuples (e.g. [(0, 1, 'xx'), (2, 3, 'yy')]) specifying baselines
             to include when reading data into the object. For length-2 tuples,
             the ordering of the numbers within the tuple does not matter. For
             length-3 tuples, the polarization string is in the order of the two
@@ -3652,7 +3755,7 @@ class UVData(UVBase):
             and polarizations (e.g. '1', '1_2', '1x_2y').  See tutorial for more
             examples of valid strings and the behavior of different forms for ant_str.
             If '1x_2y,2y_3y' is passed, both polarizations 'xy' and 'yy' will
-            be kept for both baselines (1,2) and (2,3) to return a valid
+            be kept for both baselines (1, 2) and (2, 3) to return a valid
             pyuvdata object.
             An ant_str cannot be passed in addition to any of `antenna_nums`,
             `antenna_names`, `bls` args or the `polarizations` parameters,
@@ -3738,6 +3841,17 @@ class UVData(UVBase):
             Option to check acceptable range of the values of parameters after
             reading in the file (the default is True, meaning the acceptable
             range check will be done). Ignored if read_data is False.
+
+        Raises
+        ------
+        ValueError
+            If the file_type is not set and cannot be determined from the file name.
+            If incompatible select keywords are set (e.g. `ant_str` with other
+            antenna selectors, `times` and `time_range`) or select keywords
+            exclude all data or if keywords are set to the wrong type.
+            If the data are multi source or have multiple
+            spectral windows.
+            If phase_center_radec is not None and is not length 2.
 
         """
         if isinstance(filename, (list, tuple, np.ndarray)):
@@ -4092,6 +4206,9 @@ class UVData(UVBase):
                 if np.array(phase_center_radec).size != 2:
                     raise ValueError('phase_center_radec should have length 2.')
 
+                # If this object is not phased or is not phased close to
+                # phase_center_radec, (re)phase it.
+                # Close is defined using the phase_center_ra/dec tolerances.
                 if (self.phase_type == 'drift'
                     or (not np.isclose(self.phase_center_ra, phase_center_radec[0],
                                        rtol=self._phase_center_ra.tols[0],

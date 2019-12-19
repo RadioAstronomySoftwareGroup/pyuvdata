@@ -70,8 +70,6 @@ def test_select_on_read():
     unique_times = np.unique(mwa_uv.time_array)
     select_times = unique_times[np.where((unique_times >= np.min(mwa_uv.time_array))
                                          & (unique_times <= np.mean(mwa_uv.time_array)))]
-    print(unique_times)
-    print(select_times)
     mwa_uv.select(times=select_times)
     mwa_uv2.read(filelist[0:2], correct_cable_len=True,
                  time_range=[np.min(mwa_uv.time_array), np.mean(mwa_uv.time_array)])
