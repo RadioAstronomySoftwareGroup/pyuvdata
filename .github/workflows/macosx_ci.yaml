@@ -34,14 +34,14 @@ jobs:
         run: |
           export PATH="$HOME/miniconda/bin:$PATH"
           source activate ${ENV_NAME}
-          pip install -e .
+          pip install .
 #          pip install --global-option=build_ext --global-option="--inplace" --global-option="--force" .
 
       - name: Run Tests
         run: |
           export PATH="$HOME/miniconda/bin:$PATH"
           source activate $ENV_NAME
-          python -m pytest pyuvdata -v --cov=pyuvdata --cov-config=.coveragerc --cov-report xml:./coverage.xml
+          pytest -v --cov=pyuvdata --cov-config=.coveragerc --cov-report xml:./coverage.xml
 
       - name: Upload Coverage (Mac OS)
         if: matrix.os == 'macos-latest' && success()
