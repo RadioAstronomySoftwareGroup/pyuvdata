@@ -125,3 +125,5 @@ def test_dead_dipoles():
         beam1.read_mwa_beam, func_args=[filename],
         func_kwargs={'pixels_per_deg': 1, 'delays': delays},
         message=('There are some terminated dipoles'))
+
+    assert beam1.check()
