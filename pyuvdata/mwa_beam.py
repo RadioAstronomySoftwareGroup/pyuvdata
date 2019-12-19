@@ -1,4 +1,4 @@
-# -- mode: python; coding: utf-8 --
+# -*- mode: python; coding: utf-8 -*
 # Copyright (c) 2019 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 """Read in the Sujinto et al. full embedded element MWA Beam."""
@@ -35,10 +35,11 @@ def P1sin(nmax, theta):
 
     Parameters
     ----------
-    theta : float
-        (rad) is the cos_theta or sin_theta arguments
     nmax : int
         Maximum n from FEKO Q1mn and Q2mn, n must be >=1
+    theta : float
+        The argument of the cosine or sine function used in the associated
+        Legendre functions, in radians.
 
     Returns
     -------
@@ -121,10 +122,11 @@ def P1sin_array(nmax, theta):
 
     Parameters
     ----------
-    theta : array of float
-        (rad) is the cos\theta or sin\theta arguments
     nmax : int
         Maximum n from FEKO Q1mn and Q2mn, n must be >=1
+    theta : array of float
+        The argument of the cosine or sine functions used in the associated
+        Legendre functions, in radians.
 
     Returns
     -------
@@ -437,7 +439,7 @@ class MWABeam(UVBeam):
         delays : array of ints
             Array of MWA beamformer delay steps. Should be shape (n_pols, n_dipoles).
         amplitudes : array of floats
-            Array of dipole amplitudes, hese are absolute values (i.e. relatable to physical units).
+            Array of dipole amplitudes, these are absolute values (i.e. relatable to physical units).
             Should be shape (n_pols, n_dipoles).
         pixels_per_deg : float
             Number of theta/phi pixels per degree. Sets the resolution of the beam.
@@ -560,6 +562,12 @@ class MWABeam(UVBeam):
         self.axis2_array = theta_arr
         self.Naxes2 = self.axis2_array.size
 
+        # The array that come from `_get_response` has shape shape (Npol, 2, Nfreq, Nphi, Ntheta)
+        # UVBeam wants shape ('Naxes_vec', 'Nspws', 'Nfeeds', 'Nfreqs', 'Naxes2', 'Naxes1')
+        # where the Naxes_vec dimension lines up with the 2 from `_get_response`,
+        # Nfeeds is UVBeam's Npol for E-field beams,
+        # and axes (2, 1) correspond to (theta, phi)
+        # Then add an empty dimension for Nspws.
         self.data_array = np.transpose(jones, axes=[1, 0, 2, 4, 3])
         self.data_array = self.data_array[:, np.newaxis, :, :, :, :]
 
