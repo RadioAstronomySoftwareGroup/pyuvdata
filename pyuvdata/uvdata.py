@@ -2876,7 +2876,7 @@ class UVData(UVBase):
             exclude all data or if keywords are set to the wrong type.
             If the data are multi source or have multiple
             spectral windows.
-            If the metadata are internally consistent or missing.
+            If the metadata are not internally consistent or missing.
 
         """
         from . import uvfits
@@ -3179,7 +3179,7 @@ class UVData(UVBase):
             exclude all data or if keywords are set to the wrong type.
             If the data are multi source or have multiple
             spectral windows.
-            If the metadata are internally consistent.
+            If the metadata are not internally consistent.
         """
         from . import miriad
         if isinstance(filepath, (list, tuple, np.ndarray)):

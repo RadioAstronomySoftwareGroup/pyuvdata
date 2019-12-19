@@ -334,7 +334,7 @@ class UVFITS(UVData):
             exclude all data or if keywords are set to the wrong type.
             If the data are multi source or have multiple
             spectral windows.
-            If the metadata are internally consistent or missing.
+            If the metadata are not internally consistent or missing.
 
         """
         with fits.open(filename, memmap=True) as hdu_list:
