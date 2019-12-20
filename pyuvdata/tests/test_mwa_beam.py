@@ -142,7 +142,4 @@ def test_dead_dipoles():
                    'https://github.com/MWATelescope/mwa_pb/'
                    + '  delays set to ' + delay_str + '  gains set to ' + gain_str
                    + beam1.pyuvdata_version_str)
-    print(beam1.history)
-    print(history_str)
-
     assert uvutils._check_histories(history_str, beam1.history)
