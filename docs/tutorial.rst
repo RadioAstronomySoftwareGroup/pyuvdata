@@ -1442,7 +1442,7 @@ c) Reading in the MWA full embedded element beam
   >>> print(beam.beam_type)
   efield
 
-  >>> delays = np.zeros((2, 16))
+  >>> delays = np.zeros((2, 16), dtype='int')
   >>> delays[:, 0] = 32
   >>> beam.read_mwa_beam(mwa_beam_file, pixels_per_deg=1, delays=delays)
 
