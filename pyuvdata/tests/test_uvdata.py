@@ -1118,7 +1118,7 @@ def test_select_time_range():
     Nblts_selected = np.nonzero((uv_object.time_array <= time_range[1])
                                 & (uv_object.time_array >= time_range[0]))[0].size
 
-    uv_object2 = copy.deepcopy(uv_object)
+    uv_object2 = uv_object.copy()
     uv_object2.select(time_range=time_range)
 
     assert times_to_keep.size == uv_object2.Ntimes
@@ -1132,19 +1132,47 @@ def test_select_time_range():
                                     'specific times using pyuvdata.',
                                     uv_object2.history)
 
-    # check for error associated with times not included in data
+
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+def test_select_time_range_no_data():
+    """Check for error associated with times not included in data."""
+    uv_object = UVData()
+    testfile = os.path.join(
+        DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    uv_object.read(testfile)
+    unique_times = np.unique(uv_object.time_array)
     with pytest.raises(ValueError) as cm:
         uv_object.select(time_range=[np.min(unique_times) - uv_object.integration_time[0] * 2,
                                      np.min(unique_times) - uv_object.integration_time[0]])
     assert str(cm.value).startswith('No elements in time range')
 
-    # check for error setting times and time_range
+
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+def test_select_time_and_time_range():
+    """Check for error setting times and time_range."""
+    uv_object = UVData()
+    testfile = os.path.join(
+        DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    uv_object.read(testfile)
+    unique_times = np.unique(uv_object.time_array)
+    mean_time = np.mean(unique_times)
+    time_range = [np.min(unique_times), mean_time]
     times_to_keep = unique_times[[0, 3, 5, 6, 7, 10, 14]]
     with pytest.raises(ValueError) as cm:
         uv_object.select(time_range=time_range, times=times_to_keep)
     assert str(cm.value).startswith('Only one of "times" and "time_range" can be set')
 
-    # check for errors time_range not length 2
+
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+def test_select_time_range_one_elem():
+    """Check for error if time_range not length 2."""
+    uv_object = UVData()
+    testfile = os.path.join(
+        DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    uv_object.read(testfile)
+    unique_times = np.unique(uv_object.time_array)
+    mean_time = np.mean(unique_times)
+    time_range = [np.min(unique_times), mean_time]
     with pytest.raises(ValueError) as cm:
         uv_object.select(time_range=time_range[0])
     assert str(cm.value).startswith('time_range must be length 2')

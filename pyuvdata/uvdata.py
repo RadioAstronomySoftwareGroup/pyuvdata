@@ -2420,7 +2420,7 @@ class UVData(UVBase):
                         'Time {t} is not present in the time_array'.format(t=jd))
 
         if time_range is not None:
-            if np.array(time_range).size != 2:
+            if np.size(time_range) != 2:
                 raise ValueError('time_range must be length 2.')
 
             time_blt_inds = np.nonzero(
