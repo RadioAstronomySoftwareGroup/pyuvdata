@@ -463,7 +463,8 @@ class MWABeam(UVBeam):
         ------
         ValueError
             If the amplitudes or delays are the wrong shape or there are delays
-            greater than 32 or the frequency range doesn't include any
+            greater than 32 or delays are not integer types.
+            If the frequency range doesn't include any
             available frequencies.
 
         """
@@ -473,7 +474,10 @@ class MWABeam(UVBeam):
         n_pol = len(pol_names)
 
         if delays is None:
-            delays = np.zeros([n_pol, n_dp])
+            delays = np.zeros([n_pol, n_dp], dtype='int')
+        else:
+            if not np.issubdtype(delays.dtype, np.integer):
+                raise ValueError('Delays must be integers.')
 
         if amplitudes is None:
             amplitudes = np.ones([n_pol, n_dp])
@@ -530,7 +534,18 @@ class MWABeam(UVBeam):
         self.feed_version = '1.0'
         self.model_name = 'full embedded element'
         self.model_version = '1.0'
-        self.history = 'Sujito et al. full embedded element beam, derived from https://github.com/MWATelescope/mwa_pb/'
+        self.history = ('Sujito et al. full embedded element beam, derived from '
+                        'https://github.com/MWATelescope/mwa_pb/')
+
+        delay_str_list = []
+        gain_str_list = []
+        for pol in range(n_pol):
+            delay_str_list.append('[' + ', '.join([str(x) for x in delays[pol, :]]) + ']')
+            gain_str_list.append('[' + ', '.join([str(x) for x in amplitudes[pol, :]]) + ']')
+        delay_str = '[' + ', '.join(delay_str_list) + ']'
+        gain_str = '[' + ', '.join(gain_str_list) + ']'
+
+        self.history += ('  delays set to ' + delay_str + '  gains set to ' + gain_str)
         if not uvutils._check_history_version(self.history, self.pyuvdata_version_str):
             self.history += self.pyuvdata_version_str
 

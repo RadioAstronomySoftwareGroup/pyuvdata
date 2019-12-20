@@ -12,6 +12,7 @@ from pyuvdata.data import DATA_PATH
 from pyuvdata import UVBeam
 from pyuvdata.mwa_beam import P1sin, P1sin_array
 import pyuvdata.tests as uvtest
+import pyuvdata.utils as uvutils
 
 filename = os.path.join(DATA_PATH, 'mwa_full_EE_test.h5')
 
@@ -103,22 +104,27 @@ def test_bad_amps():
 def test_bad_delays():
     beam1 = UVBeam()
 
-    delays = np.zeros([2, 8])
+    delays = np.zeros([2, 8], dtype='int')
     with pytest.raises(ValueError) as cm:
         beam1.read_mwa_beam(filename, pixels_per_deg=1, delays=delays)
     assert str(cm.value).startswith('delays must be shape')
 
-    delays = np.zeros((2, 16))
+    delays = np.zeros((2, 16), dtype='int')
     delays = delays + 64
     with pytest.raises(ValueError) as cm:
         beam1.read_mwa_beam(filename, pixels_per_deg=1, delays=delays)
     assert str(cm.value).startswith('There are delays greater than 32')
 
+    delays = np.zeros((2, 16), dtype='float')
+    with pytest.raises(ValueError) as cm:
+        beam1.read_mwa_beam(filename, pixels_per_deg=1, delays=delays)
+    assert str(cm.value).startswith('Delays must be integers.')
+
 
 def test_dead_dipoles():
     beam1 = UVBeam()
 
-    delays = np.zeros((2, 16))
+    delays = np.zeros((2, 16), dtype='int')
     delays[:, 0] = 32
 
     uvtest.checkWarnings(
@@ -126,4 +132,17 @@ def test_dead_dipoles():
         func_kwargs={'pixels_per_deg': 1, 'delays': delays},
         message=('There are some terminated dipoles'))
 
-    assert beam1.check()
+    delay_str = ('[[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], '
+                 '[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]]')
+    gain_str = ('[[0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, '
+                '1.0, 1.0, 1.0, 1.0, 1.0], '
+                '[0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, '
+                '1.0, 1.0, 1.0, 1.0]]')
+    history_str = ('Sujito et al. full embedded element beam, derived from '
+                   'https://github.com/MWATelescope/mwa_pb/'
+                   + '  delays set to ' + delay_str + '  gains set to ' + gain_str
+                   + beam1.pyuvdata_version_str)
+    print(beam1.history)
+    print(history_str)
+
+    assert uvutils._check_histories(history_str, beam1.history)
