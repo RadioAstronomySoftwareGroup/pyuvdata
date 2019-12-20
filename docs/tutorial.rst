@@ -1417,7 +1417,37 @@ b) Reading a CST E-field beam file
   >>> print(beam.beam_type)
   efield
 
-c) Writing a regularly gridded beam FITS file
+c) Reading in the MWA full embedded element beam
+************************************************
+::
+
+  # To get all the frequencies available for the MWA full embedded element beam
+  # you need to download the output simulation file via
+  # `wget http://cerberus.mwa128t.org/mwa_full_embedded_element_pattern.h5`
+  # For this tutorial we use the file saved in the test data which only
+  # contains a few frequencies.
+  # The `read_mwa_beam` method takes delay and amplitude arrays to generate beams
+  # pointed any where or with varying gains per dipole. Set a delay to 32
+  # to get a beam where that dipole is turned off (or set the amplitude to zero).
+  # The native format of the beam is spherical harmonic modes, so there is also
+  # an option `pixels_per_deg` to set the output beam resolution
+  # (default is 5 pixels per degree).
+
+  >>> from pyuvdata import UVBeam
+  >>> import numpy as np
+  >>> beam = UVBeam()
+
+  >>> mwa_beam_file = 'pyuvdata/data/mwa_full_EE_test.h5'
+  >>> beam.read_mwa_beam(mwa_beam_file)
+  >>> print(beam.beam_type)
+  efield
+
+  >>> delays = np.zeros((2, 16))
+  >>> delays[:, 0] = 32
+  >>> beam.read_mwa_beam(mwa_beam_file, pixels_per_deg=1, delays=delays)
+
+
+d) Writing a regularly gridded beam FITS file
 **********************************************
 ::
 
@@ -1428,7 +1458,7 @@ c) Writing a regularly gridded beam FITS file
   >>> beam.read_cst_beam(settings_file, beam_type='power')
   >>> beam.write_beamfits('tutorial.fits', clobber=True)
 
-d) Writing a HEALPix beam FITS file
+e) Writing a HEALPix beam FITS file
 ******************************************
 ::
 

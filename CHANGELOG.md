@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- Support for reading the MWA full embedded element beam into a UVBeam object.
 - New `time_range` keyword to `select` so exact times don't need to be specified (also added to `read` methods for select on read).
 - Support for rephasing phased data including on `read`, `__add__` and `fast_concat` so that files with different phasing can be read in together.
 - `sum_vis` and `diff_vis` for summing or differencing visibilities in the data_array.
