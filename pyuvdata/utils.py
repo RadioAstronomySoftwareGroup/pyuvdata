@@ -244,9 +244,8 @@ def ENU_from_ECEF(xyz, latitude, longitude, altitude):
     xyz = np.array(xyz)
     if xyz.ndim > 1 and xyz.shape[1] != 3:
         raise ValueError('The expected shape of ECEF xyz array is (Npts, 3).')
-    else:
-        xyz_in = xyz
-        transpose = False
+
+    xyz_in = xyz
 
     if xyz_in.ndim == 1:
         xyz_in = xyz_in[np.newaxis, :]
@@ -278,8 +277,6 @@ def ENU_from_ECEF(xyz, latitude, longitude, altitude):
                  + np.sin(latitude) * xyz_use[:, 2])
     if len(xyz.shape) == 1:
         enu = np.squeeze(enu)
-    elif transpose:
-        return enu.T
 
     return enu
 
@@ -309,9 +306,8 @@ def ECEF_from_ENU(enu, latitude, longitude, altitude):
     enu = np.array(enu)
     if enu.ndim > 1 and enu.shape[1] != 3:
         raise ValueError('The expected shape of the ENU array is (Npts, 3).')
-    else:
-        enu_use = enu
-        transpose = False
+
+    enu_use = enu
 
     if enu_use.ndim == 1:
         enu_use = enu_use[np.newaxis, :]
@@ -332,8 +328,6 @@ def ECEF_from_ENU(enu, latitude, longitude, altitude):
     xyz[:, 2] = xyz[:, 2] + xyz_center[2]
     if len(enu.shape) == 1:
         xyz = np.squeeze(xyz)
-    elif transpose:
-        return xyz.T
 
     return xyz
 
