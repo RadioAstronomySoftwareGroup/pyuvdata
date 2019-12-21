@@ -65,7 +65,8 @@ When reading FHD format, we need to point to several files for each observation.
   >>> fhd_prefix = 'pyuvdata/data/fhd_vis_data/1061316296_'
   >>> fhd_files = [fhd_prefix + f for f in ['flags.sav', 'vis_XX.sav', 'params.sav',
   ...                                       'vis_YY.sav', 'vis_model_XX.sav',
-  ...                                       'vis_model_YY.sav', 'settings.txt']]
+  ...                                       'vis_model_YY.sav', 'settings.txt',
+  ...                                       'layout.sav']]
 
   # Use the `read` method, optionally specify the file type. Can also use the
   # file type specific `read_fhd` method, but only if reading a single observation.
@@ -88,7 +89,8 @@ d) FHD -> miriad
   >>> fhd_prefix = 'pyuvdata/data/fhd_vis_data/1061316296_'
   >>> fhd_files = [fhd_prefix + f for f in ['flags.sav', 'vis_XX.sav', 'params.sav',
   ...                                       'vis_YY.sav', 'vis_model_XX.sav',
-  ...                                       'vis_model_YY.sav', 'settings.txt']]
+  ...                                       'vis_model_YY.sav', 'settings.txt',
+  ...                                       'layout.sav']]
   >>> UV.read(fhd_files)
   >>> write_file = 'tutorial.uv'
   >>> if os.path.exists(write_file):
