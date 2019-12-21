@@ -14,14 +14,12 @@ import six
 from astropy import units
 from astropy.time import Time
 from astropy.coordinates import SkyCoord, Angle
-from astropy.io import fits
 import copy
 
 import pyuvdata
 from pyuvdata.data import DATA_PATH
 import pyuvdata.utils as uvutils
 import pyuvdata.tests as uvtest
-import pyuvdata.version as uvversion
 
 
 ref_latlonalt = (-26.7 * np.pi / 180.0, 116.7 * np.pi / 180.0, 377.8)
@@ -55,17 +53,15 @@ def test_LatLonAlt_from_XYZ():
     xyz_mult = np.stack((np.array(ref_xyz), np.array(ref_xyz)))
     lat_vec, lon_vec, alt_vec = uvutils.LatLonAlt_from_XYZ(xyz_mult)
     assert np.allclose(ref_latlonalt, (lat_vec[1], lon_vec[1], alt_vec[1]), rtol=0, atol=1e-3)
-    # check warning if array transposed
-    uvtest.checkWarnings(uvutils.LatLonAlt_from_XYZ, [xyz_mult.T],
-                         message='The expected shape of ECEF xyz array',
-                         category=DeprecationWarning)
-    # check warning if  3 x 3 array
-    xyz_3 = np.stack((np.array(ref_xyz), np.array(ref_xyz), np.array(ref_xyz)))
-    uvtest.checkWarnings(uvutils.LatLonAlt_from_XYZ, [xyz_3],
-                         message='The xyz array in LatLonAlt_from_XYZ is',
-                         category=DeprecationWarning)
+    # check error if array transposed
+    with pytest.raises(ValueError) as cm:
+        uvutils.LatLonAlt_from_XYZ(xyz_mult.T)
+    assert str(cm.value).startswith('The expected shape of ECEF xyz array is (Npts, 3).')
+
     # check error if only 2 coordinates
-    pytest.raises(ValueError, uvutils.LatLonAlt_from_XYZ, xyz_mult[:, 0:2])
+    with pytest.raises(ValueError) as cm:
+        uvutils.LatLonAlt_from_XYZ(xyz_mult[:, 0:2])
+    assert str(cm.value).startswith('The expected shape of ECEF xyz array is (Npts, 3).')
 
     # test error checking
     pytest.raises(ValueError, uvutils.LatLonAlt_from_XYZ, ref_xyz[0:1])
@@ -112,36 +108,28 @@ def test_ENU_tofrom_ECEF():
 
     enu = uvutils.ENU_from_ECEF(xyz, center_lat, center_lon, center_alt)
     assert np.allclose(np.stack((east, north, up), axis=1), enu, atol=1e-3)
-    # check warning if array transposed
-    uvtest.checkWarnings(uvutils.ENU_from_ECEF, [xyz.T, center_lat, center_lon,
-                                                 center_alt],
-                         message='The expected shape of ECEF xyz array',
-                         category=DeprecationWarning)
-    # check warning if  3 x 3 array
-    uvtest.checkWarnings(uvutils.ENU_from_ECEF, [xyz[0:3], center_lat, center_lon,
-                                                 center_alt],
-                         message='The xyz array in ENU_from_ECEF is',
-                         category=DeprecationWarning)
+    # check error if array transposed
+    with pytest.raises(ValueError) as cm:
+        uvutils.ENU_from_ECEF(xyz.T, center_lat, center_lon, center_alt)
+    assert str(cm.value).startswith('The expected shape of ECEF xyz array is (Npts, 3).')
+
     # check error if only 2 coordinates
-    pytest.raises(ValueError, uvutils.ENU_from_ECEF, xyz[:, 0:2],
-                  center_lat, center_lon, center_alt)
+    with pytest.raises(ValueError) as cm:
+        uvutils.ENU_from_ECEF(xyz[:, 0:2], center_lat, center_lon, center_alt)
+    assert str(cm.value).startswith('The expected shape of ECEF xyz array is (Npts, 3).')
 
     # check that a round trip gives the original value.
     xyz_from_enu = uvutils.ECEF_from_ENU(enu, center_lat, center_lon, center_alt)
     assert np.allclose(xyz, xyz_from_enu, atol=1e-3)
-    # check warning if array transposed
-    uvtest.checkWarnings(uvutils.ECEF_from_ENU, [enu.T, center_lat, center_lon,
-                                                 center_alt],
-                         message='The expected shape the ENU array',
-                         category=DeprecationWarning)
-    # check warning if  3 x 3 array
-    uvtest.checkWarnings(uvutils.ECEF_from_ENU, [enu[0:3], center_lat, center_lon,
-                                                 center_alt],
-                         message='The enu array in ECEF_from_ENU is',
-                         category=DeprecationWarning)
+    # check error if array transposed
+    with pytest.raises(ValueError) as cm:
+        uvutils.ECEF_from_ENU(enu.T, center_lat, center_lon, center_alt)
+    assert str(cm.value).startswith('The expected shape of the ENU array is (Npts, 3).')
+
     # check error if only 2 coordinates
-    pytest.raises(ValueError, uvutils.ENU_from_ECEF, enu[:, 0:2], center_lat,
-                  center_lon, center_alt)
+    with pytest.raises(ValueError) as cm:
+        uvutils.ECEF_from_ENU(enu[:, 0:2], center_lat, center_lon, center_alt)
+    assert str(cm.value).startswith('The expected shape of the ENU array is (Npts, 3).')
 
     # check passing a single value
     enu_single = uvutils.ENU_from_ECEF(xyz[0, :], center_lat, center_lon, center_alt)
@@ -157,10 +145,10 @@ def test_ENU_tofrom_ECEF():
 
 
 def test_mwa_ecef_conversion():
-    '''
+    """
     Test based on comparing the antenna locations in a Cotter uvfits file to
     the antenna locations in MWA_tools.
-    '''
+    """
 
     test_data_file = os.path.join(DATA_PATH, 'mwa128_ant_layouts.npz')
     f = np.load(test_data_file)
@@ -422,46 +410,14 @@ def test_conj_pol():
     assert uvutils.conj_pol(pol_str) == cpol_str
     assert [pol_str, pol_nums] == uvutils.conj_pol([cpol_str, cpol_nums])
 
-    jstr = ['Jyx', 'Jxy', 'Jyy', 'Jxx', 'Jlr', 'Jrl', 'Jll', 'Jrr']
+    # Test error with jones
     cjstr = ['Jxy', 'Jyx', 'Jyy', 'Jxx', 'Jrl', 'Jlr', 'Jll', 'Jrr']
-    conj_cjstr = uvtest.checkWarnings(uvutils.conj_pol, [cjstr], nwarnings=8,
-                                      category=DeprecationWarning,
-                                      message='conj_pol should not be called with jones')
-    assert jstr == conj_cjstr
+    assert pytest.raises(KeyError, uvutils.conj_pol, cjstr)
 
     # Test invalid pol
-    pytest.raises(ValueError, uvutils.conj_pol, 2.3)
-
-
-def test_deprecated_funcs():
-    uvtest.checkWarnings(uvutils.get_iterable, [5], category=DeprecationWarning,
-                         message='The get_iterable function is deprecated')
-
-    testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-    with fits.open(testfile, memmap=True) as hdu_list:
-        uvtest.checkWarnings(uvutils.fits_indexhdus, [hdu_list],
-                             category=DeprecationWarning,
-                             message='The fits_indexhdus function is deprecated')
-
-        vis_hdu = hdu_list[0]
-        uvtest.checkWarnings(uvutils.fits_gethduaxis, [vis_hdu, 5],
-                             category=DeprecationWarning,
-                             message='The fits_gethduaxis function is deprecated')
-
-    uvtest.checkWarnings(uvutils.check_history_version, ['some random history',
-                                                         uvversion.version],
-                         category=DeprecationWarning,
-                         message='The check_history_version function is deprecated')
-
-    uvtest.checkWarnings(uvutils.check_histories, ['some random history',
-                                                   'some random history'],
-                         category=DeprecationWarning,
-                         message='The check_histories function is deprecated')
-
-    uvtest.checkWarnings(uvutils.combine_histories, ['some random history',
-                                                     uvversion.version],
-                         category=DeprecationWarning,
-                         message='The combine_histories function is deprecated')
+    with pytest.raises(ValueError) as cm:
+        uvutils.conj_pol(2.3)
+    assert str(cm.value).startswith('Polarization not recognized, cannot be conjugated.')
 
 
 def test_redundancy_finder():
@@ -531,10 +487,7 @@ def test_redundancy_finder():
 
     tol = 0.05
 
-    antpos, antnums = uvtest.checkWarnings(uvd.get_ENU_antpos,
-                                           message=['The default for the `center`'],
-                                           category=DeprecationWarning,
-                                           nwarnings=1)
+    antpos, antnums = uvd.get_ENU_antpos()
 
     baseline_groups_ants, vec_bin_centers, lens = uvutils.get_antenna_redundancies(
         antnums, antpos, tol=tol, include_autos=False)

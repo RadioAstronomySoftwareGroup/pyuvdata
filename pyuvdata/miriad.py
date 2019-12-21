@@ -1384,34 +1384,9 @@ class Miriad(UVData):
             # name information if we have it:
             # make it into one long comma-separated string
             ant_name_var = uv['antnames']
-            if isinstance(ant_name_var, str):
-                ant_name_str = ant_name_var.replace('\x00', '')
-                ant_name_list = ant_name_str[1:-1].split(', ')
-                self.antenna_names = ant_name_list
-            else:
-                # Backwards compatibility for old way of storing antenna_names.
-                # This is a horrible hack to save & recover antenna_names array.
-                # Miriad can't handle arrays of strings and AIPY use to not handle
-                # long enough single strings to put them all into one string
-                # so we convert them into hex values and then into floats on
-                # write and convert back to strings here
-                warnings.warn('This file was written with an old version of '
-                              'pyuvdata, which has been deprecated. Rewrite this '
-                              'file with write_miriad to ensure future '
-                              'compatibility. Support for this file will end in '
-                              'version 1.5', DeprecationWarning)
-                ant_name_flt = uv['antnames']
-                ant_name_list = []
-                for elem in ant_name_flt:
-                    an = '%x' % elem.astype(np.int64)
-                    # python2 in try, python3 in except
-                    try:
-                        an = an.decode('hex')
-                    except AttributeError:
-                        an = bytes.fromhex(an).decode()
-                    ant_name_list.append(an)
-                self.antenna_names = ant_name_list
-
+            ant_name_str = ant_name_var.replace('\x00', '')
+            ant_name_list = ant_name_str[1:-1].split(', ')
+            self.antenna_names = ant_name_list
         except(KeyError):
             self.antenna_names = self.antenna_numbers.astype(str).tolist()
 

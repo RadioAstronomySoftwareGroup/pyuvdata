@@ -5,4 +5,4 @@ CORR-DACQ: created file.
 DDR FILTER, DDR:/usr/local/bin/ddr_filter_coarse.py -a all -p xx,xy,yx,yy --maxbl=301 --clean=1e-3 --output=ddr --nsections=20 zen.2456865.59841.xy.uvcR zen.2456865.60537.xy.uvcRR zen.2456865.61232.xy.uvcR
 PULL CHANS:/Users/djacobs/scripts/pull_chans.py -c 100_110 zen.2456865.60537.xy.uvcRRE
 PULL ANTPOLS:/Users/djacobs/scripts/pull_antpols.py -a (0,1,2,3,4,5)_(0,1,2,3,4,5) zen.2456865.60537.xy.uvcRREA
-  Read/written with pyuvdata version: 1.1.  Git origin: git@github.com:HERA-Team/pyuvdata.git.  Git hash: 910d76b45876431ac488086d65de6275d973ef1f.  Git branch: master.  Git description: v1.1-79-g910d76b-dirty  Downselected to specific times using pyuvdata.  Downselected to specific frequencies using pyuvdata.
+  Read/written with pyuvdata version: 1.4.2.  Git origin: https://github.com/RadioAstronomySoftwareGroup/pyuvdata.git.  Git hash: 3e18b8b4b8fab07067857d6025700df5367334e7.  Git branch: new_version.  Git description: v1.4-532-g3e18b8b4-dirty.  Downselected to specific times using pyuvdata.  Downselected to specific frequencies using pyuvdata.

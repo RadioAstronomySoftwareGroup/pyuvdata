@@ -1313,35 +1313,6 @@ def test_initialize_uvh5_file_compression_opts(uv_partial_write):
     return
 
 
-def test_uvh5_single_integration_time(uv_uvfits):
-    """
-    Check backwards compatibility warning for files with a single integration time.
-    """
-    uv_in = uv_uvfits
-    uv_out = UVData()
-    testfile = os.path.join(DATA_PATH, 'test', 'outtest_uvfits.uvh5')
-    uv_in.telescope_name = "PAPER"
-    uv_in.write_uvh5(testfile, clobber=True)
-
-    # change integration_time in file to be a single number
-    with h5py.File(testfile, 'r+') as h5f:
-        int_time = h5f['/Header/integration_time'][0]
-        del(h5f['/Header/integration_time'])
-        h5f['/Header/integration_time'] = int_time
-    uvtest.checkWarnings(
-        uv_out.read_uvh5,
-        [testfile],
-        message='outtest_uvfits.uvh5 appears to be an old uvh5 format',
-        category=DeprecationWarning,
-    )
-    assert uv_in == uv_out
-
-    # clean up
-    os.remove(testfile)
-
-    return
-
-
 def test_uvh5_lst_array(uv_uvfits):
     """
     Test different cases of the lst_array.
@@ -1378,34 +1349,6 @@ def test_uvh5_lst_array(uv_uvfits):
     return
 
 
-def test_uvh5_string_back_compat(uv_uvfits):
-    """
-    Test backwards compatibility handling of strings.
-    """
-    uv_in = uv_uvfits
-    uv_out = UVData()
-    testfile = os.path.join(DATA_PATH, 'test', 'outtest_uvfits.uvh5')
-    uv_in.telescope_name = "PAPER"
-    uv_in.write_uvh5(testfile, clobber=True)
-
-    # write a string-type data as-is, without casting to np.string_
-    with h5py.File(testfile, 'r+') as h5f:
-        del(h5f['Header/instrument'])
-        h5f['Header/instrument'] = uv_in.instrument
-    uvtest.checkWarnings(
-        uv_out.read_uvh5,
-        [testfile],
-        message='Strings in metadata of outtest_uvfits.uvh5 are not the correct type',
-        category=DeprecationWarning,
-    )
-    assert uv_in == uv_out
-
-    # clean up
-    os.remove(testfile)
-
-    return
-
-
 def test_uvh5_read_header_special_cases(uv_uvfits):
     """
     Test special cases values when reading files.
@@ -1421,18 +1364,9 @@ def test_uvh5_read_header_special_cases(uv_uvfits):
         del(h5f['Header/history'])
         del(h5f['Header/vis_units'])
         del(h5f['Header/phase_type'])
-        del(h5f['Header/latitude'])
-        del(h5f['Header/longitude'])
         h5f['Header/history'] = np.string_('blank history')
         h5f['Header/phase_type'] = np.string_('blah')
-        h5f['Header/latitude'] = uv_in.telescope_location_lat_lon_alt[0]
-        h5f['Header/longitude'] = uv_in.telescope_location_lat_lon_alt[1]
-    uvtest.checkWarnings(
-        uv_out.read_uvh5,
-        [testfile],
-        category=DeprecationWarning,
-        message='It seems that the latitude and longitude are in radians',
-    )
+    uv_out.read_uvh5(testfile)
 
     # make input and output values match now
     uv_in.history = uv_out.history

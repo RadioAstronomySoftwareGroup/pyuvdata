@@ -119,7 +119,7 @@ def test_errors():
 
         hdulist.writeto(write_file, overwrite=True)
 
-        pytest.raises(ValueError, cal_out.read_calfits, write_file, strict_fits=True)
+        pytest.raises(ValueError, cal_out.read_calfits, write_file)
 
     # repeat for gain type file
     testfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.gain.calfits')
@@ -163,7 +163,7 @@ def test_errors():
 
         hdulist.writeto(write_file, overwrite=True)
 
-        pytest.raises(ValueError, cal_out.read_calfits, write_file, strict_fits=True)
+        pytest.raises(ValueError, cal_out.read_calfits, write_file)
 
 
 def test_extra_keywords():
@@ -248,169 +248,6 @@ def test_extra_keywords():
     cal_in.write_calfits(testfile, clobber=True)
     cal_out.read_calfits(testfile)
 
-    assert cal_in == cal_out
-
-
-def test_read_oldcalfits_gain():
-    """
-    Test for proper behavior with old calfits gain-style files.
-    """
-    cal_in = UVCal()
-    cal_out = UVCal()
-    testfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.gain.calfits')
-    write_file = os.path.join(DATA_PATH, 'test/outtest_omnical.fits')
-    cal_in.read_calfits(testfile)
-
-    # add total_quality_array so that can be tested as well
-    cal_in.total_quality_array = np.zeros(cal_in._total_quality_array.expected_shape(cal_in))
-
-    # now read in the file and remove various CRPIX and CRVAL keywords to
-    # emulate old calfits files
-    header_vals_to_remove = [{'primary': 'CRVAL5'}, {'primary': 'CRPIX4'},
-                             {'totqual': 'CRVAL4'}, {'primary': 'CALSTYLE'}]
-    messages = [write_file, 'This file', write_file, write_file]
-    messages = [m + ' appears to be an old calfits format' for m in messages]
-    for i, hdr_dict in enumerate(header_vals_to_remove):
-        cal_in.write_calfits(write_file, clobber=True)
-
-        unit = list(hdr_dict.keys())[0]
-        keyword = hdr_dict[unit]
-
-        F = fits.open(write_file)
-        data = F[0].data
-        primary_hdr = F[0].header
-        hdunames = uvutils._fits_indexhdus(F)
-        ant_hdu = F[hdunames['ANTENNAS']]
-        totqualhdu = F[hdunames['TOTQLTY']]
-        totqualhdr = totqualhdu.header
-
-        if unit == 'primary':
-            primary_hdr.pop(keyword)
-        elif unit == 'totqual':
-            totqualhdr.pop(keyword)
-
-        prihdu = fits.PrimaryHDU(data=data, header=primary_hdr)
-        hdulist = fits.HDUList([prihdu, ant_hdu])
-        totqualhdu = fits.ImageHDU(data=totqualhdu.data, header=totqualhdr)
-        hdulist.append(totqualhdu)
-
-        hdulist.writeto(write_file, overwrite=True)
-
-        uvtest.checkWarnings(cal_out.read_calfits, [write_file], message=messages[i],
-                             category=DeprecationWarning)
-        assert cal_in == cal_out
-        if keyword.startswith('CR'):
-            pytest.raises(KeyError, cal_out.read_calfits, write_file, strict_fits=True)
-
-
-def test_read_oldcalfits_delay():
-    """
-    Test for proper behavior with old calfits delay-style files.
-    """
-    cal_in = UVCal()
-    cal_out = UVCal()
-    testfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.delay.calfits')
-    write_file = os.path.join(DATA_PATH, 'test/outtest_firstcal.fits')
-    cal_in.read_calfits(testfile)
-
-    # add total_quality_array so that can be tested as well
-    cal_in.total_quality_array = np.zeros(cal_in._total_quality_array.expected_shape(cal_in))
-
-    # now read in the file and remove various CRPIX and CRVAL keywords to
-    # emulate old calfits files
-    header_vals_to_remove = [{'primary': 'CRVAL5'}, {'flag': 'CRVAL5'},
-                             {'flag': 'CRPIX4'}, {'totqual': 'CRVAL4'},
-                             {'primary': 'CALSTYLE'}]
-    messages = [write_file, 'This file', 'This file', write_file, write_file]
-    messages = [m + ' appears to be an old calfits format' for m in messages]
-    for i, hdr_dict in enumerate(header_vals_to_remove):
-        cal_in.write_calfits(write_file, clobber=True)
-
-        unit = list(hdr_dict.keys())[0]
-        keyword = hdr_dict[unit]
-
-        F = fits.open(write_file)
-        data = F[0].data
-        primary_hdr = F[0].header
-        hdunames = uvutils._fits_indexhdus(F)
-        ant_hdu = F[hdunames['ANTENNAS']]
-        flag_hdu = F[hdunames['FLAGS']]
-        flag_hdr = flag_hdu.header
-        totqualhdu = F[hdunames['TOTQLTY']]
-        totqualhdr = totqualhdu.header
-
-        if unit == 'primary':
-            primary_hdr.pop(keyword)
-        elif unit == 'flag':
-            flag_hdr.pop(keyword)
-        elif unit == 'totqual':
-            totqualhdr.pop(keyword)
-
-        prihdu = fits.PrimaryHDU(data=data, header=primary_hdr)
-        hdulist = fits.HDUList([prihdu, ant_hdu])
-        flag_hdu = fits.ImageHDU(data=flag_hdu.data, header=flag_hdr)
-        hdulist.append(flag_hdu)
-        totqualhdu = fits.ImageHDU(data=totqualhdu.data, header=totqualhdr)
-        hdulist.append(totqualhdu)
-
-        hdulist.writeto(write_file, overwrite=True)
-
-        uvtest.checkWarnings(cal_out.read_calfits, [write_file], message=messages[i],
-                             category=DeprecationWarning)
-        assert cal_in == cal_out
-        if keyword.startswith('CR'):
-            pytest.raises(KeyError, cal_out.read_calfits, write_file, strict_fits=True)
-
-
-def test_read_oldcalfits_delay_nofreqaxis():
-    """
-    Test for proper behavior with old calfits delay-style files that have no freq axis.
-    """
-    cal_in = UVCal()
-    cal_out = UVCal()
-    testfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.delay.calfits')
-    write_file = os.path.join(DATA_PATH, 'test/outtest_firstcal.fits')
-    cal_in.read_calfits(testfile)
-
-    # add total_quality_array so that can be tested as well
-    cal_in.total_quality_array = np.zeros(cal_in._total_quality_array.expected_shape(cal_in))
-
-    # now read in the file and remove the freq axis to emulate old calfits files
-    cal_in.write_calfits(write_file, clobber=True)
-
-    F = fits.open(write_file)
-    data = F[0].data
-    primary_hdr = F[0].header
-    hdunames = uvutils._fits_indexhdus(F)
-    ant_hdu = F[hdunames['ANTENNAS']]
-    flag_hdu = F[hdunames['FLAGS']]
-    flag_hdr = flag_hdu.header
-    totqualhdu = F[hdunames['TOTQLTY']]
-    totqualhdr = totqualhdu.header
-
-    axis_keyword_base = ['CTYPE', 'CUNIT', 'CRPIX', 'CRVAL', 'CDELT']
-    for keyword in axis_keyword_base:
-        primary_hdr.pop(keyword + '4')
-
-    # need to renumber spw & antenna indices
-    for keyword in axis_keyword_base:
-        primary_hdr[keyword + '4'] = primary_hdr.pop(keyword + '5')
-        primary_hdr[keyword + '5'] = primary_hdr.pop(keyword + '6')
-
-    data = data[:, :, 0, :, :, :]
-
-    prihdu = fits.PrimaryHDU(data=data, header=primary_hdr)
-    hdulist = fits.HDUList([prihdu, ant_hdu])
-    flag_hdu = fits.ImageHDU(data=flag_hdu.data, header=flag_hdr)
-    hdulist.append(flag_hdu)
-    totqualhdu = fits.ImageHDU(data=totqualhdu.data, header=totqualhdr)
-    hdulist.append(totqualhdu)
-
-    hdulist.writeto(write_file, overwrite=True)
-
-    message = write_file + ' appears to be an old calfits format'
-    uvtest.checkWarnings(cal_out.read_calfits, [write_file], message=message,
-                         category=DeprecationWarning)
     assert cal_in == cal_out
 
 
@@ -589,67 +426,6 @@ def test_read_noversion_history():
 
     prihdu = fits.PrimaryHDU(data=data, header=primary_hdr)
     hdulist = fits.HDUList([prihdu, ant_hdu])
-
-    hdulist.writeto(write_file, overwrite=True)
-
-    cal_out.read_calfits(write_file)
-    assert cal_in == cal_out
-
-
-def test_spw_zero_indexed_gain():
-    """
-    Test that old files with zero-indexed spw array are read correctly for gain-type
-    """
-    cal_in = UVCal()
-    cal_out = UVCal()
-    testfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.gain.calfits')
-    write_file = os.path.join(DATA_PATH, 'test/outtest_omnical.fits')
-    cal_in.read_calfits(testfile)
-
-    cal_in.write_calfits(write_file, clobber=True)
-
-    F = fits.open(write_file)
-    data = F[0].data
-    primary_hdr = F[0].header
-    hdunames = uvutils._fits_indexhdus(F)
-    ant_hdu = F[hdunames['ANTENNAS']]
-
-    primary_hdr['CRVAL5'] = 0
-
-    prihdu = fits.PrimaryHDU(data=data, header=primary_hdr)
-    hdulist = fits.HDUList([prihdu, ant_hdu])
-
-    hdulist.writeto(write_file, overwrite=True)
-
-    cal_out.read_calfits(write_file)
-    assert cal_in == cal_out
-
-
-def test_spw_zero_indexed_delay():
-    """
-    Test that old files with zero-indexed spw array are read correctly for delay-type
-    """
-    cal_in = UVCal()
-    cal_out = UVCal()
-    testfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.delay.calfits')
-    write_file = os.path.join(DATA_PATH, 'test/outtest_firstcal.fits')
-    cal_in.read_calfits(testfile)
-
-    cal_in.write_calfits(write_file, clobber=True)
-    F = fits.open(write_file)
-    data = F[0].data
-    primary_hdr = F[0].header
-    hdunames = uvutils._fits_indexhdus(F)
-    ant_hdu = F[hdunames['ANTENNAS']]
-    flag_hdu = F[hdunames['FLAGS']]
-    flag_hdr = flag_hdu.header
-
-    primary_hdr['CRVAL5'] = 0
-
-    prihdu = fits.PrimaryHDU(data=data, header=primary_hdr)
-    hdulist = fits.HDUList([prihdu, ant_hdu])
-    flag_hdu = fits.ImageHDU(data=flag_hdu.data, header=flag_hdr)
-    hdulist.append(flag_hdu)
 
     hdulist.writeto(write_file, overwrite=True)
 

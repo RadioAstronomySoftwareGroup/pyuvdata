@@ -1501,26 +1501,3 @@ def test_write_read_optional_attrs():
     cal_in2.read_calfits(write_file_calfits)
     assert cal_in == cal_in2
     os.remove(write_file_calfits)
-
-
-def test_deprecated_x_orientation():
-    cal_in = UVCal()
-    testfile = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.gain.calfits')
-    cal_in.read_calfits(testfile)
-
-    cal_in.x_orientation = 'e'
-
-    uvtest.checkWarnings(cal_in.check, category=DeprecationWarning,
-                         message=['x_orientation e is not one of [east, north], '
-                                  'converting to "east".'])
-
-    cal_in.x_orientation = 'N'
-    uvtest.checkWarnings(cal_in.check, category=DeprecationWarning,
-                         message=['x_orientation N is not one of [east, north], '
-                                  'converting to "north".'])
-
-    cal_in.x_orientation = 'foo'
-    pytest.raises(ValueError, uvtest.checkWarnings, cal_in.check,
-                  category=DeprecationWarning,
-                  message=['x_orientation n is not one of [east, north], '
-                           'cannot be converted.'])

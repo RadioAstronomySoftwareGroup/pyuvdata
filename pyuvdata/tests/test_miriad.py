@@ -243,12 +243,12 @@ def test_wronglatlon():
     lat, lon, alt = uv_in.telescope_location_lat_lon_alt
     lat_wrong = lat + 10 * np.pi / 180.
     uv_in.telescope_location_lat_lon_alt = (lat_wrong, lon, alt)
-    uv_in.write_miriad(latfile)
+    uv_in.write_miriad(latfile, clobber=True)
     uv_out.read(latfile)
 
     lon_wrong = lon + 10 * np.pi / 180.
     uv_in.telescope_location_lat_lon_alt = (lat, lon_wrong, alt)
-    uv_in.write_miriad(lonfile)
+    uv_in.write_miriad(lonfile, clobber=True)
     uv_out.read(lonfile)
 
     uv_in.telescope_location_lat_lon_alt = (lat_wrong, lon_wrong, alt)
@@ -257,7 +257,7 @@ def test_wronglatlon():
 
     uv_in.telescope_location_lat_lon_alt = (lat, lon, alt)
     uv_in.telescope_name = 'foo'
-    uv_in.write_miriad(telescopefile)
+    uv_in.write_miriad(telescopefile, clobber=True)
     uv_out.read(telescopefile, run_check=False)
     """
     uv_in = UVData()
@@ -271,24 +271,18 @@ def test_wronglatlon():
     uvtest.checkWarnings(
         uv_in.read,
         [latfile],
-        nwarnings=3,
+        nwarnings=2,
         message=[
             "Altitude is not present in file and latitude value does not match",
-            "This file was written with an old version of pyuvdata",
-            "This file was written with an old version of pyuvdata",
-        ],
-        category=[UserWarning, DeprecationWarning, DeprecationWarning],
+            "drift RA, Dec is off from lst, latitude by more than 1.0 deg"],
     )
     uvtest.checkWarnings(
         uv_in.read,
         [lonfile],
-        nwarnings=3,
+        nwarnings=2,
         message=[
             "Altitude is not present in file and longitude value does not match",
-            "This file was written with an old version of pyuvdata",
-            "This file was written with an old version of pyuvdata",
-        ],
-        category=[UserWarning, DeprecationWarning, DeprecationWarning],
+            "drift RA, Dec is off from lst, latitude by more than 1.0 deg"],
     )
     uvtest.checkWarnings(
         uv_in.read,
@@ -299,24 +293,22 @@ def test_wronglatlon():
             "Altitude is not present in file and latitude and longitude "
             "values do not match",
         ],
-        category=UserWarning)
+    )
 
     uvtest.checkWarnings(
         uv_in.read,
         [telescopefile],
         {"run_check": False},
-        nwarnings=6,
+        nwarnings=4,
         message=[
             "Altitude is not present in Miriad file, and telescope",
             "Altitude is not present in Miriad file, and telescope",
-            "Telescope location is set at sealevel at the "
-            "file lat/lon coordinates. Antenna positions "
-            "are present, but the mean antenna position",
-            "This file was written with an old version of pyuvdata",
-            "This file was written with an old version of pyuvdata",
+            "Telescope location is not set, but antenna positions are "
+            "present. Mean antenna latitude and longitude values match file "
+            "values, so telescope_position will be set using the mean of the "
+            "antenna altitudes",
             "Telescope foo is not in known_telescopes.",
         ],
-        category=(3 * [UserWarning] + 2 * [DeprecationWarning] + [UserWarning]),
     )
 
     # cleanup
@@ -1457,23 +1449,17 @@ def test_rwrMiriad_antpos_issues():
     write_file = os.path.join(DATA_PATH, "test/outtest_miriad.uv")
     uv_in.read(testfile)
     uv_in.antenna_positions = None
-    uvtest.checkWarnings(
-        uv_in.write_miriad,
-        [write_file],
-        {"clobber": True},
-        message=["antenna_positions are not defined."],
-        category=DeprecationWarning,
-    )
+    uv_in.write_miriad(write_file, clobber=True, run_check=False)
     uvtest.checkWarnings(
         uv_out.read,
-        [write_file],
-        nwarnings=3,
+        func_args=[write_file],
+        func_kwargs={"run_check": False},
+        nwarnings=2,
         message=[
             "Antenna positions are not present in the file.",
             "Antenna positions are not present in the file.",
-            "antenna_positions are not defined.",
         ],
-        category=[UserWarning, UserWarning, DeprecationWarning],
+        category=[UserWarning, UserWarning],
     )
 
     assert uv_in == uv_out
@@ -1498,23 +1484,17 @@ def test_rwrMiriad_antpos_issues():
     uv_in.antenna_numbers = np.array(new_nums)
     uv_in.antenna_names = new_names
     uv_in.Nants_telescope = len(uv_in.antenna_numbers)
-    uvtest.checkWarnings(
-        uv_in.write_miriad,
-        [write_file],
-        {"clobber": True, "no_antnums": True},
-        message=["antenna_positions are not defined."],
-        category=DeprecationWarning,
-    )
+    uv_in.write_miriad(write_file, clobber=True, no_antnums=True, run_check=False)
     uvtest.checkWarnings(
         uv_out.read,
-        [write_file],
-        nwarnings=3,
+        func_args=[write_file],
+        func_kwargs={"run_check": False},
+        nwarnings=2,
         message=[
             "Antenna positions are not present in the file.",
             "Antenna positions are not present in the file.",
-            "antenna_positions are not defined.",
         ],
-        category=[UserWarning, UserWarning, DeprecationWarning],
+        category=[UserWarning, UserWarning],
     )
 
     assert uv_in == uv_out
@@ -1536,11 +1516,7 @@ def test_multi_files():
     testfile2 = os.path.join(DATA_PATH, "test/uv2")
     uv_full.read_uvfits(uvfits_file)
     # rename telescope to avoid name warning
-    uvtest.checkWarnings(
-        uv_full.unphase_to_drift,
-        category=DeprecationWarning,
-        message="The xyz array in ENU_from_ECEF is being " "interpreted as (Npts, 3)",
-    )
+    uv_full.unphase_to_drift()
     uv_full.conjugate_bls("ant1<ant2")
 
     uv1 = copy.deepcopy(uv_full)

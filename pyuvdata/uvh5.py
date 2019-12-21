@@ -21,35 +21,6 @@ from . import utils as uvutils
 _hera_corr_dtype = np.dtype([('r', '<i4'), ('i', '<i4')])
 
 
-def _read_uvh5_string(dataset, filename):
-    """
-    Handle backwards compatibility of string types for legacy uvh5 files.
-
-    Args:
-        dataset: HDF5 dataset containing string-like data
-        filename: name of uvh5 file
-
-    Returns:
-        string: string of type <str> corresponding to data saved in dataset
-
-    Notes:
-        This function is only designed to work on scalar datasets. Arrays of strings should be
-        handled differently. (See how antenna_names are handled below for an example.)
-    """
-    if dataset.dtype.type is np.object_:
-        warnings.warn("Strings in metadata of {file} are not the correct type; rewrite with "
-                      "write_uvh5 to ensure future compatibility. Suppoort for reading these "
-                      "files will be removed in version 1.5.".format(file=filename),
-                      DeprecationWarning)
-        try:
-            return uvutils._bytes_to_str(dataset[()])
-        except AttributeError:
-            # dataset[()] is already <str> type, and doesn't need to be decoded
-            return dataset[()]
-    else:
-        return uvutils._bytes_to_str(dataset[()].tostring())
-
-
 def _check_uvh5_dtype(dtype):
     """
     Check that a specified custom datatype conforms to uvh5 standards.
@@ -149,28 +120,21 @@ class UVH5(UVData):
         latitude = header['latitude'][()]
         longitude = header['longitude'][()]
         altitude = header['altitude'][()]
-        if np.abs(latitude) <= np.pi and np.abs(longitude) <= np.pi:
-            warnings.warn("It seems that the latitude and longitude are in radians; "
-                          "support for interpreting these quantities in radians will "
-                          "be removed in version 1.5. Rewrite with write_uvh5 "
-                          "to ensure future compatibility.", DeprecationWarning)
-            self.telescope_location_lat_lon_alt = (latitude, longitude, altitude)
-        else:
-            self.telescope_location_lat_lon_alt_degrees = (latitude, longitude, altitude)
-        self.instrument = _read_uvh5_string(header['instrument'], filename)
-        self.telescope_name = _read_uvh5_string(header['telescope_name'], filename)
+        self.telescope_location_lat_lon_alt_degrees = (latitude, longitude, altitude)
+        self.instrument = uvutils._bytes_to_str(header['instrument'][()].tostring())
+        self.telescope_name = uvutils._bytes_to_str(header['telescope_name'][()].tostring())
 
         # get source information
-        self.object_name = _read_uvh5_string(header['object_name'], filename)
+        self.object_name = uvutils._bytes_to_str(header['object_name'][()].tostring())
 
         # set history appropriately
-        self.history = _read_uvh5_string(header['history'], filename)
+        self.history = uvutils._bytes_to_str(header['history'][()].tostring())
         if not uvutils._check_history_version(self.history, self.pyuvdata_version_str):
             self.history += self.pyuvdata_version_str
 
         # check for vis_units
         if 'vis_units' in header:
-            self.vis_units = _read_uvh5_string(header['vis_units'], filename)
+            self.vis_units = uvutils._bytes_to_str(header['vis_units'][()].tostring())
         else:
             # default to uncalibrated data
             self.vis_units = 'UNCALIB'
@@ -183,13 +147,13 @@ class UVH5(UVData):
         if 'gst0' in header:
             self.gst0 = float(header['gst0'][()])
         if 'rdate' in header:
-            self.rdate = _read_uvh5_string(header['rdate'], filename)
+            self.rdate = uvutils._bytes_to_str(header['rdate'][()].tostring())
         if 'timesys' in header:
-            self.timesys = _read_uvh5_string(header['timesys'], filename)
+            self.timesys = uvutils._bytes_to_str(header['timesys'][()].tostring())
         if 'x_orientation' in header:
-            self.x_orientation = _read_uvh5_string(header['x_orientation'], filename)
+            self.x_orientation = uvutils._bytes_to_str(header['x_orientation'][()].tostring())
         if 'blt_order' in header:
-            blt_order_str = _read_uvh5_string(header['blt_order'], filename)
+            blt_order_str = uvutils._bytes_to_str(header['blt_order'][()].tostring())
             self.blt_order = tuple(blt_order_str.split(', '))
             if self.blt_order == ('bda',):
                 self._blt_order.form = (1,)
@@ -201,19 +165,18 @@ class UVH5(UVData):
         if 'eq_coeffs' in header:
             self.eq_coeffs = header['eq_coeffs'][()]
         if 'eq_coeffs_convention' in header:
-            self.eq_coeffs_convention = _read_uvh5_string(
-                header['eq_coeffs_convention'], filename
-            )
+            self.eq_coeffs_convention = uvutils._bytes_to_str(
+                header['eq_coeffs_convention'][()].tostring())
 
         # check for phasing information
-        self.phase_type = _read_uvh5_string(header['phase_type'], filename)
+        self.phase_type = uvutils._bytes_to_str(header['phase_type'][()].tostring())
         if self.phase_type == 'phased':
             self.set_phased()
             self.phase_center_ra = float(header['phase_center_ra'][()])
             self.phase_center_dec = float(header['phase_center_dec'][()])
             self.phase_center_epoch = float(header['phase_center_epoch'][()])
             if 'phase_center_frame' in header:
-                self.phase_center_frame = _read_uvh5_string(header['phase_center_frame'], filename)
+                self.phase_center_frame = uvutils._bytes_to_str(header['phase_center_frame'][()].tostring())
         elif self.phase_type == 'drift':
             self.set_drift()
         else:
@@ -246,15 +209,7 @@ class UVH5(UVData):
         # get time information
         self.time_array = header['time_array'][:]
         integration_time = header['integration_time']
-        if integration_time.size == 1 and int(header['Nblts'][()]) > 1:
-            warnings.warn('{file} appears to be an old uvh5 format '
-                          'with a single valued integration_time which has been deprecated. '
-                          'Rewrite this file with write_uvh5 to ensure '
-                          'future compatibility. Support for reading these files will be removed '
-                          'in version 1.5.'.format(file=filename), DeprecationWarning)
-            self.integration_time = np.ones_like(self.time_array, dtype=np.float64) * integration_time[()]
-        else:
-            self.integration_time = integration_time[:]
+        self.integration_time = integration_time[:]
         if 'lst_array' in header:
             self.lst_array = header['lst_array'][:]
             # check that lst_array in file is self-consistent
@@ -293,7 +248,7 @@ class UVH5(UVData):
             self.extra_keywords = {}
             for key in header["extra_keywords"].keys():
                 if header["extra_keywords"][key].dtype.type in (np.string_, np.object_):
-                    self.extra_keywords[key] = _read_uvh5_string(header["extra_keywords"][key], filename)
+                    self.extra_keywords[key] = uvutils._bytes_to_str(header["extra_keywords"][key][()].tostring())
                 else:
                     self.extra_keywords[key] = header["extra_keywords"][key][()]
 

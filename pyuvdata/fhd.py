@@ -186,9 +186,8 @@ class FHD(UVData):
         if flags_file is None:
             raise ValueError('No flags file included in file list')
         if layout_file is None:
-            warnings.warn('No layout file included in file list. '
-                          'Support for FHD data without layout files will be '
-                          'deprecated in version 1.5', DeprecationWarning)
+            warnings.warn('No layout file included in file list, '
+                          'antenna_postions will not be defined.')
         if settings_file is None:
             warnings.warn('No settings file included in file list')
 

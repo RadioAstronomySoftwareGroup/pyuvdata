@@ -37,7 +37,8 @@ def uvdata_props():
                            '_instrument', '_telescope_location',
                            '_history', '_vis_units', '_Nants_data',
                            '_Nants_telescope', '_antenna_names',
-                           '_antenna_numbers', '_phase_type']
+                           '_antenna_numbers', '_antenna_positions',
+                           '_phase_type']
 
     required_properties = ['data_array', 'nsample_array',
                            'flag_array', 'Ntimes', 'Nbls',
@@ -51,9 +52,10 @@ def uvdata_props():
                            'instrument', 'telescope_location',
                            'history', 'vis_units', 'Nants_data',
                            'Nants_telescope', 'antenna_names',
-                           'antenna_numbers', 'phase_type']
+                           'antenna_numbers', 'antenna_positions',
+                           'phase_type']
 
-    extra_parameters = ['_extra_keywords', '_antenna_positions',
+    extra_parameters = ['_extra_keywords',
                         '_x_orientation', '_antenna_diameters',
                         '_blt_order',
                         '_gst0', '_rdate', '_earth_omega', '_dut1',
@@ -62,8 +64,8 @@ def uvdata_props():
                         '_phase_center_epoch', '_phase_center_frame',
                         '_eq_coeffs', '_eq_coeffs_convention']
 
-    extra_properties = ['extra_keywords', 'antenna_positions',
-                        'x_orientation', 'antenna_diameters', 'blt_order', 'gst0',
+    extra_properties = ['extra_keywords', 'x_orientation', 'antenna_diameters',
+                        'blt_order', 'gst0',
                         'rdate', 'earth_omega', 'dut1', 'timesys',
                         'uvplane_reference_time',
                         'phase_center_ra', 'phase_center_dec',
@@ -1442,7 +1444,6 @@ def test_select_not_inplace():
     assert uv1 == uv_object
 
 
-@pytest.mark.filterwarnings("ignore:The default for the `center` keyword")
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 def test_conjugate_bls():
     uv1 = UVData()
@@ -1608,12 +1609,6 @@ def test_reorder_pols():
     with pytest.raises(ValueError) as cm:
         uv2.reorder_pols(order=[3, 2, 1])
     assert str(cm.value).startswith('If order is an index array, it must')
-
-    # check warning for order_pols:
-    uvtest.checkWarnings(uv2.order_pols, [], {'order': 'AIPS'},
-                         message=('order_pols method will be deprecated in '
-                                  'favor of reorder_pols'),
-                         category=DeprecationWarning)
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
@@ -2035,10 +2030,8 @@ def test_add_drift():
     testfile = os.path.join(
         DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
     uv_full.read_uvfits(testfile)
+    uv_full.unphase_to_drift()
 
-    uvtest.checkWarnings(uv_full.unphase_to_drift, category=DeprecationWarning,
-                         message='The xyz array in ENU_from_ECEF is being '
-                                 'interpreted as (Npts, 3)')
     # Add frequencies
     uv1 = copy.deepcopy(uv_full)
     uv2 = copy.deepcopy(uv_full)
@@ -2220,9 +2213,8 @@ def test_break_add():
 
     # One phased, one not
     uv2 = copy.deepcopy(uv_full)
-    uvtest.checkWarnings(uv2.unphase_to_drift, category=DeprecationWarning,
-                         message='The xyz array in ENU_from_ECEF is being '
-                                 'interpreted as (Npts, 3)')
+    uv2.unphase_to_drift()
+
     pytest.raises(ValueError, uv1.__iadd__, uv2)
 
     # Different units
@@ -3353,9 +3345,8 @@ def test_get_ENU_antpos():
     assert np.isclose(antpos[0, 0], 19.340211050751535)
     assert ants[0] == 0
     # test default behavior
-    antpos2, ants = uvtest.checkWarnings(uvd.get_ENU_antpos, category=DeprecationWarning,
-                                         message='The default for the `center` '
-                                                 'keyword has changed')
+    antpos2, ants = uvd.get_ENU_antpos()
+
     assert np.all(antpos == antpos2)
     # center
     antpos, ants = uvd.get_ENU_antpos(center=True, pick_data_ants=False)
@@ -3412,30 +3403,6 @@ def test_get_pols_x_orientation():
     pols = uv_in.get_pols()
     pols_data = ['ne']
     assert pols == pols_data
-
-
-@pytest.mark.filterwarnings("ignore:Altitude is not present in Miriad file")
-def test_deprecated_x_orientation():
-    miriad_file = os.path.join(DATA_PATH, 'zen.2456865.60537.xy.uvcRREAA')
-    uv_in = UVData()
-    uv_in.read(miriad_file)
-
-    uv_in.x_orientation = 'e'
-
-    uvtest.checkWarnings(uv_in.check, category=DeprecationWarning,
-                         message=['x_orientation e is not one of [east, north], '
-                                  'converting to "east".'])
-
-    uv_in.x_orientation = 'N'
-    uvtest.checkWarnings(uv_in.check, category=DeprecationWarning,
-                         message=['x_orientation N is not one of [east, north], '
-                                  'converting to "north".'])
-
-    uv_in.x_orientation = 'foo'
-    pytest.raises(ValueError, uvtest.checkWarnings, uv_in.check,
-                  category=DeprecationWarning,
-                  message=['x_orientation n is not one of [east, north], '
-                           'cannot be converted.'])
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
@@ -4003,9 +3970,8 @@ def test_deprecated_redundancy_funcs():
     redant_gps, centers, lengths = uvtest.checkWarnings(
         uv0.get_antenna_redundancies,
         func_kwargs={'include_autos': False, 'conjugate_bls': True},
-        category=DeprecationWarning, nwarnings=2,
-        message=['UVData.get_antenna_redundancies has been replaced',
-                 'The default for the `center` keyword'])
+        category=DeprecationWarning,
+        message=['UVData.get_antenna_redundancies has been replaced'])
     redbl_gps, centers, lengths, _ = uvtest.checkWarnings(
         uv0.get_baseline_redundancies, category=DeprecationWarning,
         message='UVData.get_baseline_redundancies has been replaced')
@@ -4014,7 +3980,6 @@ def test_deprecated_redundancy_funcs():
     assert red_gps_new == redant_gps
 
 
-@pytest.mark.filterwarnings("ignore:The default for the `center` keyword")
 def test_get_antenna_redundancies():
     uv0 = UVData()
     uv0.read_uvfits(os.path.join(DATA_PATH, 'fewant_randsrc_airybeam_Nsrc100_10MHz.uvfits'))
@@ -4047,7 +4012,6 @@ def test_get_antenna_redundancies():
     assert np.allclose(lengths, new_lengths)
 
 
-@pytest.mark.filterwarnings("ignore:The default for the `center` keyword")
 def test_redundancy_contract_expand():
     # Test that a UVData object can be reduced to one baseline from each redundant group
     # and restored to its original form.
@@ -4076,10 +4040,7 @@ def test_redundancy_contract_expand():
     uvtest.checkWarnings(
         uv2.inflate_by_redundancy,
         [tol],
-        nwarnings=3,
-        category=[DeprecationWarning, DeprecationWarning, UserWarning],
-        message=['The default for the `center` keyword', 'The default for the `center` keyword',
-                 'Missing some redundant groups. Filling in available data.']
+        message=['Missing some redundant groups. Filling in available data.']
     )
     uv2.history = uv0.history
     # Inflation changes the baseline ordering into the order of the redundant groups.
@@ -4093,10 +4054,7 @@ def test_redundancy_contract_expand():
     uvtest.checkWarnings(
         uv3.inflate_by_redundancy,
         [tol],
-        nwarnings=3,
-        category=[DeprecationWarning, DeprecationWarning, UserWarning],
-        message=['The default for the `center` keyword', 'The default for the `center` keyword',
-                 'Missing some redundant groups. Filling in available data.']
+        message=['Missing some redundant groups. Filling in available data.']
     )
     # Confirm that we get the same result looping inflate -> compress -> inflate.
     uv3.reorder_blts(conj_convention='u>0')
@@ -4106,7 +4064,6 @@ def test_redundancy_contract_expand():
     assert uv2 == uv3
 
 
-@pytest.mark.filterwarnings("ignore:The default for the `center` keyword")
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 def test_redundancy_contract_expand_nblts_not_nbls_times_ntimes():
     uv0 = UVData()
@@ -4130,9 +4087,7 @@ def test_redundancy_contract_expand_nblts_not_nbls_times_ntimes():
 
     # check inflating gets back to the original
     uvtest.checkWarnings(uv2.inflate_by_redundancy, {tol: tol},
-                         nwarnings=3, category=[DeprecationWarning, DeprecationWarning, UserWarning],
-                         message=['The default for the `center` keyword'] * 2
-                         + ['Missing some redundant groups. Filling in available data.'])
+                         message=['Missing some redundant groups. Filling in available data.'])
 
     uv2.history = uv0.history
     # Inflation changes the baseline ordering into the order of the redundant groups.
@@ -4161,7 +4116,6 @@ def test_redundancy_contract_expand_nblts_not_nbls_times_ntimes():
     assert uv3 == uv1
 
 
-@pytest.mark.filterwarnings("ignore:The default for the `center` keyword")
 def test_compress_redundancy_metadata_only():
     uv0 = UVData()
     uv0.read_uvfits(os.path.join(DATA_PATH, 'fewant_randsrc_airybeam_Nsrc100_10MHz.uvfits'))
@@ -4224,10 +4178,7 @@ def test_redundancy_missing_groups():
     uvtest.checkWarnings(
         uv1.inflate_by_redundancy,
         [tol],
-        nwarnings=3,
-        category=[DeprecationWarning, DeprecationWarning, UserWarning],
-        message=['The default for the `center` keyword', 'The default for the `center` keyword',
-                 'Missing some redundant groups. Filling in available data.']
+        message=['Missing some redundant groups. Filling in available data.']
     )
 
     uv2 = uv1.compress_by_redundancy(tol=tol, inplace=False)
@@ -4241,9 +4192,7 @@ def test_quick_redundant_vs_redundant_test_array():
     uv.read_uvfits(os.path.join(DATA_PATH, 'fewant_randsrc_airybeam_Nsrc100_10MHz.uvfits'))
     uv.select(times=uv.time_array[0])
     uv.unphase_to_drift()
-    uvtest.checkWarnings(uv.conjugate_bls, func_kwargs={'convention': 'u>0', 'use_enu': True},
-                         message=['The default for the `center`'],
-                         nwarnings=1, category=DeprecationWarning)
+    uv.conjugate_bls(convention='u>0', use_enu=True)
     tol = 0.05
     # a quick and dirty redundancy calculation
     unique_bls, baseline_inds = np.unique(uv.baseline_array, return_index=True)
@@ -4281,9 +4230,7 @@ def test_redundancy_finder_when_nblts_not_nbls_times_ntimes():
     uv = UVData()
     testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
     uv.read_uvfits(testfile)
-    uvtest.checkWarnings(uv.conjugate_bls, func_kwargs={'convention': 'u>0', 'use_enu': True},
-                         message=['The default for the `center`'],
-                         nwarnings=1, category=DeprecationWarning)
+    uv.conjugate_bls(convention='u>0', use_enu=True)
     # check that Nblts != Nbls * Ntimes
     assert uv.Nblts != uv.Nbls * uv.Ntimes
 
