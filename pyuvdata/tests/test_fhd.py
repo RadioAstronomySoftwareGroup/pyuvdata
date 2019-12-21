@@ -69,28 +69,19 @@ def test_ReadFHD_select():
 
 def test_ReadFHDWriteReadUVFits_no_layout():
     """
-    FHD to uvfits loopback test with no layout file.
-
-    Read in FHD files, write out as uvfits, read back in and check for object
-    equality.
+    Test errors/warnings with with no layout file.
     """
     fhd_uv = UVData()
-    uvfits_uv = UVData()
     files_use = testfiles[:-3] + [testfiles[-2]]
-    uvtest.checkWarnings(fhd_uv.read, [files_use], nwarnings=2,
-                         message=['No layout file', 'antenna_positions are not defined'],
-                         category=DeprecationWarning)
 
-    uvtest.checkWarnings(fhd_uv.write_uvfits,
-                         [os.path.join(DATA_PATH, 'test/outtest_FHD_1061316296.uvfits')],
-                         func_kwargs={"spoof_nonessential": True},
-                         nwarnings=1,
-                         message=['antenna_positions are not defined'],
-                         category=DeprecationWarning
-                         )
-    uvfits_uv.read_uvfits(os.path.join(DATA_PATH, 'test/outtest_FHD_1061316296.uvfits'))
+    # check warning raised
+    uvtest.checkWarnings(fhd_uv.read, func_args=[files_use],
+                         func_kwargs={'run_check': False},
+                         message=['No layout file'],)
 
-    assert fhd_uv == uvfits_uv
+    with pytest.raises(ValueError) as cm:
+        fhd_uv.read(files_use)
+    assert str(cm.value).startswith('Required UVParameter _antenna_positions has not been set')
 
 
 def test_ReadFHDWriteReadUVFits_variant_flag():

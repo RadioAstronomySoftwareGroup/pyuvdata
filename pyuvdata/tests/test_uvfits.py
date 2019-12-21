@@ -777,11 +777,8 @@ def test_multi_unphase_on_read():
         func_kwargs={'unphase_to_drift': True},
         message=(['Telescope EVLA is not'] * 2
                  + ['Unphasing this UVData object to drift',
-                    'The xyz array in ENU_from_ECEF is being interpreted',
-                    'Unphasing other UVData object to drift',
-                    'The xyz array in ENU_from_ECEF is being interpreted']),
-        category=[UserWarning] * 2 + [UserWarning, DeprecationWarning] * 2,
-        nwarnings=6)
+                    'Unphasing other UVData object to drift']),
+        nwarnings=4)
 
     # Check history is correct, before replacing and doing a full object check
     assert uvutils._check_histories(uv_full.history + '  Downselected to '
@@ -799,10 +796,8 @@ def test_multi_unphase_on_read():
         uv_full2.read, func_args=[uvfits_file],
         func_kwargs={'unphase_to_drift': True},
         message=(['Telescope EVLA is not',
-                  'Unphasing this UVData object to drift',
-                  'The xyz array in ENU_from_ECEF is being interpreted']),
-        category=[UserWarning, UserWarning, DeprecationWarning],
-        nwarnings=3)
+                  'Unphasing this UVData object to drift']),
+        nwarnings=2)
     assert uv_full2 == uv_full
 
 
@@ -829,14 +824,8 @@ def test_multi_phase_on_read():
         func_kwargs={'phase_center_radec': phase_center_radec},
         message=(['Telescope EVLA is not'] * 2
                  + ['Phasing this UVData object to phase_center_radec',
-                    'The xyz array in ENU_from_ECEF is being interpreted',
-                    'The enu array in ECEF_from_ENU is being interpreted',
-                    'Phasing this UVData object to phase_center_radec',
-                    'The xyz array in ENU_from_ECEF is being interpreted',
-                    'The enu array in ECEF_from_ENU is being interpreted']),
-        category=([UserWarning] * 2
-                  + [UserWarning, DeprecationWarning, DeprecationWarning] * 2),
-        nwarnings=8)
+                    'Phasing this UVData object to phase_center_radec']),
+        nwarnings=4)
 
     # Check history is correct, before replacing and doing a full object check
     assert uvutils._check_histories(uv_full.history + '  Downselected to '
@@ -853,11 +842,8 @@ def test_multi_phase_on_read():
         uv_full2.read, func_args=[uvfits_file],
         func_kwargs={'phase_center_radec': phase_center_radec},
         message=(['Telescope EVLA is not',
-                  'Phasing this UVData object to phase_center_radec',
-                  'The xyz array in ENU_from_ECEF is being interpreted',
-                  'The enu array in ECEF_from_ENU is being interpreted']),
-        category=[UserWarning, UserWarning, DeprecationWarning, DeprecationWarning],
-        nwarnings=4)
+                  'Phasing this UVData object to phase_center_radec']),
+        nwarnings=2)
     assert uv_full2 == uv_full
 
     with pytest.raises(ValueError) as cm:

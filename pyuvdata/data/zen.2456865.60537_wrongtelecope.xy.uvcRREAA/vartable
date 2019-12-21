@@ -2,12 +2,13 @@ r corr
 i nchan
 i npol
 i nspect
-d inttime
 d sdf
 a source
 a telescop
 d latitud
 d longitu
+i nschan
+i ischan
 i nants
 d antpos
 d sfreq
@@ -17,8 +18,9 @@ i nblts
 a visunits
 a instrume
 d antnums
-d antnames
+a antnames
 d lst
+d inttime
 d ra
 d dec
 i pol

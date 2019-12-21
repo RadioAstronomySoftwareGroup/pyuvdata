@@ -91,23 +91,10 @@ def LatLonAlt_from_XYZ(xyz, check_acceptability=True):
     # convert to a numpy array
     xyz = np.array(xyz)
     if xyz.ndim > 1 and xyz.shape[1] != 3:
-        if xyz.shape[0] == 3:
-            warnings.warn('The expected shape of ECEF xyz array is (Npts, 3). '
-                          'Support for arrays shaped (3, Npts) will go away in '
-                          'version 1.5', DeprecationWarning)
-            xyz_use = xyz.T
-        else:
-            raise ValueError('The expected shape of ECEF xyz array is (Npts, 3).')
+        raise ValueError('The expected shape of ECEF xyz array is (Npts, 3).')
 
     else:
         xyz_use = xyz
-
-    if xyz.shape == (3, 3):
-        warnings.warn('The xyz array in LatLonAlt_from_XYZ is being '
-                      'interpreted as (Npts, 3). Historically this function '
-                      'has supported (3, Npts) arrays, please verify that '
-                      'array ordering is as expected. This warning will be '
-                      'removed in version 1.5', DeprecationWarning)
 
     if xyz_use.ndim == 1:
         xyz_use = xyz_use[np.newaxis, :]
@@ -256,24 +243,10 @@ def ENU_from_ECEF(xyz, latitude, longitude, altitude):
     """
     xyz = np.array(xyz)
     if xyz.ndim > 1 and xyz.shape[1] != 3:
-        if xyz.shape[0] == 3:
-            warnings.warn('The expected shape of ECEF xyz array is (Npts, 3). '
-                          'Support for arrays shaped (3, Npts) will go away in '
-                          'version 1.5', DeprecationWarning)
-            xyz_in = xyz.T
-            transpose = True
-        else:
-            raise ValueError('The expected shape of ECEF xyz array is (Npts, 3).')
+        raise ValueError('The expected shape of ECEF xyz array is (Npts, 3).')
     else:
         xyz_in = xyz
         transpose = False
-
-    if xyz.shape == (3, 3):
-        warnings.warn('The xyz array in ENU_from_ECEF is being '
-                      'interpreted as (Npts, 3). Historically this function '
-                      'has supported (3, Npts) arrays, please verify that '
-                      'array ordering is as expected. This warning will be '
-                      'removed in version 1.5', DeprecationWarning)
 
     if xyz_in.ndim == 1:
         xyz_in = xyz_in[np.newaxis, :]
@@ -335,24 +308,10 @@ def ECEF_from_ENU(enu, latitude, longitude, altitude):
     """
     enu = np.array(enu)
     if enu.ndim > 1 and enu.shape[1] != 3:
-        if enu.shape[0] == 3:
-            warnings.warn('The expected shape of the ENU array is (Npts, 3). '
-                          'Support for arrays shaped (3, Npts) will go away in '
-                          'version 1.5', DeprecationWarning)
-            enu_use = enu.T
-            transpose = True
-        else:
-            raise ValueError('The expected shape of the ENU array array is (Npts, 3).')
+        raise ValueError('The expected shape of the ENU array is (Npts, 3).')
     else:
         enu_use = enu
         transpose = False
-
-    if enu.shape == (3, 3):
-        warnings.warn('The enu array in ECEF_from_ENU is being '
-                      'interpreted as (Npts, 3). Historically this function '
-                      'has supported (3, Npts) arrays, please verify that '
-                      'array ordering is as expected. This warning will be '
-                      'removed in version 1.5', DeprecationWarning)
 
     if enu_use.ndim == 1:
         enu_use = enu_use[np.newaxis, :]
@@ -665,14 +624,6 @@ def apply_uvflag(uvd, uvf, inplace=True, unflag_first=False,
         return uvd
 
 
-def get_iterable(x):
-    """Deprecated: return iterable version of input."""
-    warnings.warn('The get_iterable function is deprecated in favor of '
-                  '_get_iterable because it is not API level code. This '
-                  'function will be removed in version 1.5', DeprecationWarning)
-    return _get_iterable(x)
-
-
 def _get_iterable(x):
     """Return iterable version of input."""
     if isinstance(x, Iterable):
@@ -681,15 +632,7 @@ def _get_iterable(x):
         return (x,)
 
 
-def fits_gethduaxis(HDU, axis, strict_fits=True):
-    """Deprecated: make axis arrays for fits files."""
-    warnings.warn('The fits_gethduaxis function is deprecated in favor of '
-                  '_fits_gethduaxis because it is not API level code. This '
-                  'function will be removed in version 1.5', DeprecationWarning)
-    return _fits_gethduaxis(HDU, axis, strict_fits=strict_fits)
-
-
-def _fits_gethduaxis(HDU, axis, strict_fits=True):
+def _fits_gethduaxis(HDU, axis):
     """
     Make axis arrays for fits files.
 
@@ -699,10 +642,6 @@ def _fits_gethduaxis(HDU, axis, strict_fits=True):
         The HDU to make an axis array for.
     axis : int
         The axis number of interest (1-based).
-    strict_fits: bool
-        If True, require that the axis has cooresponding NAXIS, CRVAL,
-        CDELT and CRPIX keywords. If False, allow CRPIX to be missing and
-        set it equal to zero (as a way of supporting old calfits files).
 
     Returns
     -------
@@ -714,16 +653,8 @@ def _fits_gethduaxis(HDU, axis, strict_fits=True):
     N = HDU.header['NAXIS' + ax]
     X0 = HDU.header['CRVAL' + ax]
     dX = HDU.header['CDELT' + ax]
-    # add this for calfits backwards compatibility when the CRPIX values were often assumed to be 0
-    try:
-        Xi0 = HDU.header['CRPIX' + ax] - 1
-    except(KeyError):
-        if not strict_fits:
-            from . import calfits
-            calfits._warn_oldcalfits('This file')
-            Xi0 = 0
-        else:
-            raise
+    Xi0 = HDU.header['CRPIX' + ax] - 1
+
     return dX * (np.arange(N) - Xi0) + X0
 
 
@@ -764,14 +695,6 @@ def get_lst_for_time(jd_array, latitude, longitude, altitude):
             jd, jd_array, atol=1e-6, rtol=1e-12))] = t.sidereal_time('apparent').radian
 
     return lst_array
-
-
-def fits_indexhdus(hdulist):
-    """Deprecated: get a dict of tablenames from a FITS HDU list."""
-    warnings.warn('The fits_indexhdus function is deprecated in favor of '
-                  '_fits_indexhdus because it is not API level code. This '
-                  'function will be removed in version 1.5', DeprecationWarning)
-    return _fits_indexhdus(hdulist)
 
 
 def _fits_indexhdus(hdulist):
@@ -1099,25 +1022,16 @@ def conj_pol(pol):
         Polarization as if antennas are swapped (type matches input)
 
     """
-    deprecated_jones_dict = {'jxx': 'Jxx', 'jyy': 'Jyy', 'jxy': 'Jyx', 'jyx': 'Jxy',
-                             'jrr': 'Jrr', 'jll': 'Jll', 'jrl': 'Jlr', 'jlr': 'Jrl'}
-
     cpol_dict = {k.lower(): v for k, v in six.iteritems(CONJ_POL_DICT)}
 
     if isinstance(pol, str):
-        if pol.lower().startswith('j'):
-            warnings.warn('conj_pol should not be called with jones matrix elements. '
-                          'Support for the jones matrix elements will go away '
-                          'in version 1.5', DeprecationWarning)
-            cpol = deprecated_jones_dict[pol.lower()]
-        else:
-            cpol = cpol_dict[pol.lower()]
+        cpol = cpol_dict[pol.lower()]
     elif isinstance(pol, Iterable):
         cpol = [conj_pol(p) for p in pol]
     elif isinstance(pol, six.integer_types + (np.int32, np.int64)):
         cpol = polstr2num(cpol_dict[polnum2str(pol).lower()])
     else:
-        raise ValueError('Polarization cannot be conjugated.')
+        raise ValueError('Polarization not recognized, cannot be conjugated.')
     return cpol
 
 
@@ -1153,14 +1067,6 @@ def reorder_conj_pols(pols):
     return conj_order
 
 
-def check_history_version(history, version_string):
-    """Deprecated: check if version_string is present in history string."""
-    warnings.warn('The check_history_version function is deprecated in favor of '
-                  '_check_history_version because it is not API level code. This '
-                  'function will be removed in version 1.5', DeprecationWarning)
-    return _check_history_version(history, version_string)
-
-
 def _check_history_version(history, version_string):
     """Check if version_string is present in history string."""
     if (version_string.replace(' ', '') in history.replace('\n', '').replace(' ', '')):
@@ -1169,28 +1075,12 @@ def _check_history_version(history, version_string):
         return False
 
 
-def check_histories(history1, history2):
-    """Deprecated: check if two histories are the same."""
-    warnings.warn('The check_histories function is deprecated in favor of '
-                  '_check_histories because it is not API level code. This '
-                  'function will be removed in version 1.5', DeprecationWarning)
-    return _check_histories(history1, history2)
-
-
 def _check_histories(history1, history2):
     """Check if two histories are the same."""
     if (history1.replace('\n', '').replace(' ', '') == history2.replace('\n', '').replace(' ', '')):
         return True
     else:
         return False
-
-
-def combine_histories(history1, history2):
-    """Deprecated: combine histories with minimal repeats."""
-    warnings.warn('The combine_histories function is deprecated in favor of '
-                  '_combine_histories because it is not API level code. This '
-                  'function will be removed in version 1.5', DeprecationWarning)
-    return _combine_histories(history1, history2)
 
 
 def _combine_histories(history1, history2):

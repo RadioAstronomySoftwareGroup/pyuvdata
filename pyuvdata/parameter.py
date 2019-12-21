@@ -262,30 +262,6 @@ class UVParameter(object):
                     return False, message
 
 
-class AntPositionParameter(UVParameter):
-    """
-    Subclass of UVParameter for antenna positions.
-
-    Overrides apply_spoof method to generate an array of the correct shape based
-    on the number of antennas on the object with this UVParameter as an attribute.
-    """
-
-    def apply_spoof(self, uvbase, antnum_name):
-        """
-        Set value to zeroed array of shape: number of antennas, 3.
-
-        Parameters
-        ----------
-        uvbase : object
-            object with this UVParameter as an attribute. Needed
-            to get the number of antennas.
-        antnum_name : str
-            A string giving the name of the UVParameter containing
-            the number of antennas.
-        """
-        self.value = np.zeros((getattr(uvbase, antnum_name), 3))
-
-
 class AngleParameter(UVParameter):
     """
     Subclass of UVParameter for Angle type parameters.

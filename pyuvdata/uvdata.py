@@ -285,6 +285,14 @@ class UVData(UVBase):
                                                 form=('Nants_telescope',),
                                                 expected_type=int)
 
+        desc = ('Array giving coordinates of antennas relative to '
+                'telescope_location (ITRF frame), shape (Nants_telescope, 3), '
+                'units meters. See the tutorial page in the documentation '
+                'for an example of how to convert this to topocentric frame.')
+        self._antenna_positions = uvp.UVParameter(
+            'antenna_positions', description=desc, form=('Nants_telescope', 3),
+            expected_type=np.float, tols=1e-3)  # 1 mm
+
         # -------- extra, non-required parameters ----------
         desc = ('Orientation of the physical dipole corresponding to what is '
                 'labelled as the x polarization. Options are "east" '
@@ -309,19 +317,6 @@ class UVData(UVBase):
         self._extra_keywords = uvp.UVParameter('extra_keywords', required=False,
                                                description=desc, value={},
                                                spoof_val={}, expected_type=dict)
-
-        desc = ('Array giving coordinates of antennas relative to '
-                'telescope_location (ITRF frame), shape (Nants_telescope, 3), '
-                'units meters. See the tutorial page in the documentation '
-                'for an example of how to convert this to topocentric frame.'
-                'Will be a required parameter in a future version.')
-        self._antenna_positions = uvp.AntPositionParameter('antenna_positions',
-                                                           required=False,
-                                                           description=desc,
-                                                           form=(
-                                                               'Nants_telescope', 3),
-                                                           expected_type=np.float,
-                                                           tols=1e-3)  # 1 mm
 
         desc = ('Array of antenna diameters in meters. Used by CASA to '
                 'construct a default beam if no beam is supplied.')
@@ -441,27 +436,6 @@ class UVData(UVBase):
         else:
             self.set_unknown_phase_type()
 
-        # check for deprecated x_orientation strings and convert to new values (if possible)
-        if self.x_orientation is not None:
-            # the acceptability check is always done with a `lower` for strings
-            if self.x_orientation.lower() not in self._x_orientation.acceptable_vals:
-                warn_string = ('x_orientation {xval} is not one of [{vals}], '
-                               .format(xval=self.x_orientation,
-                                       vals=(', ').join(self._x_orientation.acceptable_vals)))
-                if self.x_orientation.lower() == 'e':
-                    self.x_orientation = 'east'
-                    warn_string += 'converting to "east".'
-                elif self.x_orientation.lower() == 'n':
-                    self.x_orientation = 'north'
-                    warn_string += 'converting to "north".'
-                else:
-                    warn_string += 'cannot be converted.'
-
-                warnings.warn(warn_string + ' Only [{vals}] will be supported '
-                              'starting in version 1.5'
-                              .format(vals=(', ').join(self._x_orientation.acceptable_vals)),
-                              DeprecationWarning)
-
         super(UVData, self).check(check_extra=check_extra,
                                   run_check_acceptability=run_check_acceptability)
 
@@ -500,12 +474,6 @@ class UVData(UVBase):
                 warnings.warn('{key} in extra_keywords is a list, array or dict, '
                               'which will raise an error when writing uvfits or '
                               'miriad file types'.format(key=key))
-
-        # issue deprecation warning if antenna positions are not set
-        if self.antenna_positions is None:
-            warnings.warn('antenna_positions are not defined. '
-                          'antenna_positions will be a required parameter in '
-                          'version 1.5', DeprecationWarning)
 
         # check auto and cross-corrs have sensible uvws
         autos = np.isclose(self.ant_1_array - self.ant_2_array, 0.0)
@@ -1255,29 +1223,6 @@ class UVData(UVBase):
         if run_check:
             self.check(check_extra=check_extra,
                        run_check_acceptability=run_check_acceptability)
-
-    def order_pols(self, order='AIPS'):
-        """
-        Will be deprecated in version 1.5, now just calls reorder_pols.
-
-        Parameters
-        ----------
-        order : str
-            either 'CASA' or 'AIPS'.
-
-        Raises
-        ------
-        ValueError
-            If the order is not one of the allowed values.
-
-        Warns
-        -----
-        DeprecationWarning
-            Always, because this method will be deprecated in version 1.5
-        """
-        warnings.warn('order_pols method will be deprecated in favor of '
-                      'reorder_pols in version 1.5', DeprecationWarning)
-        self.reorder_pols(order=order)
 
     def reorder_blts(self, order='time', minor_order=None, conj_convention=None, uvw_tol=0.0,
                      conj_convention_use_enu=True, run_check=True, check_extra=True,
@@ -4211,7 +4156,7 @@ class UVData(UVBase):
         """
         return np.unique(np.append(self.ant_1_array, self.ant_2_array))
 
-    def get_ENU_antpos(self, center=None, pick_data_ants=False):
+    def get_ENU_antpos(self, center=False, pick_data_ants=False):
         """
         Returns antenna positions in ENU (topocentric) coordinates in units of meters.
 
@@ -4229,14 +4174,6 @@ class UVData(UVBase):
         ants : ndarray
             Antenna numbers matching ordering of antpos, shape=(Nants,)
         """
-        if center is None:
-            center = False
-            warnings.warn('The default for the `center` keyword has changed. '
-                          'Previously it defaulted to True, using the median '
-                          'antennna location; now it defaults to False, '
-                          'using the telescope_location. This warning will be '
-                          'removed in version 1.5', DeprecationWarning)
-
         antpos = uvutils.ENU_from_ECEF((self.antenna_positions + self.telescope_location),
                                        *self.telescope_location_lat_lon_alt)
         ants = self.antenna_numbers

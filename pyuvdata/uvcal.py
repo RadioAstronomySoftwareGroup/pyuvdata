@@ -303,26 +303,6 @@ class UVCal(UVBase):
         elif self.cal_style == 'redundant':
             self.set_redundant()
 
-        # check for deprecated x_orientation strings and convert to new values (if possible)
-        if self.x_orientation is not None:
-            if self.x_orientation not in self._x_orientation.acceptable_vals:
-                warn_string = ('x_orientation {xval} is not one of [{vals}], '
-                               .format(xval=self.x_orientation,
-                                       vals=(', ').join(self._x_orientation.acceptable_vals)))
-                if self.x_orientation.lower() == 'e':
-                    self.x_orientation = 'east'
-                    warn_string += 'converting to "east".'
-                elif self.x_orientation.lower() == 'n':
-                    self.x_orientation = 'north'
-                    warn_string += 'converting to "north".'
-                else:
-                    warn_string += 'cannot be converted.'
-
-                warnings.warn(warn_string + ' Only [{vals}] will be supported '
-                              'starting in version 1.5'
-                              .format(vals=(', ').join(self._x_orientation.acceptable_vals)),
-                              DeprecationWarning)
-
         # first run the basic check from UVBase
         super(UVCal, self).check(check_extra=check_extra,
                                  run_check_acceptability=run_check_acceptability)
@@ -831,7 +811,7 @@ class UVCal(UVBase):
         return other_obj
 
     def read_calfits(self, filename, run_check=True, check_extra=True,
-                     run_check_acceptability=True, strict_fits=False):
+                     run_check_acceptability=True):
         """
         Read in data from a calfits file.
 
@@ -844,35 +824,25 @@ class UVCal(UVBase):
                 ones. Default is True.
             run_check_acceptability: Option to check acceptable range of the values of
                 parameters after reading in the file. Default is True.
-            strict_fits: boolean
-                If True, require that the data axes have cooresponding NAXIS, CRVAL,
-                CDELT and CRPIX keywords. If False, allow CRPIX to be missing and
-                set it equal to zero and allow the CRVAL for the spw directions to
-                be missing and set it to zero. This keyword exists to support old
-                calfits files that were missing many CRPIX and CRVAL keywords.
-                Default is False.
         """
         from . import calfits
         if isinstance(filename, (list, tuple)):
             self.read_calfits(filename[0], run_check=run_check,
                               check_extra=check_extra,
-                              run_check_acceptability=run_check_acceptability,
-                              strict_fits=strict_fits)
+                              run_check_acceptability=run_check_acceptability)
             if len(filename) > 1:
                 for f in filename[1:]:
                     uvcal2 = UVCal()
                     uvcal2.read_calfits(f, run_check=run_check,
                                         check_extra=check_extra,
-                                        run_check_acceptability=run_check_acceptability,
-                                        strict_fits=strict_fits)
+                                        run_check_acceptability=run_check_acceptability)
                     self += uvcal2
                 del(uvcal2)
         else:
             calfits_obj = calfits.CALFITS()
             calfits_obj.read_calfits(filename, run_check=run_check,
                                      check_extra=check_extra,
-                                     run_check_acceptability=run_check_acceptability,
-                                     strict_fits=strict_fits)
+                                     run_check_acceptability=run_check_acceptability)
             self._convert_from_filetype(calfits_obj)
             del(calfits_obj)
 
