@@ -9,11 +9,8 @@ from __future__ import absolute_import, division, print_function
 
 import warnings
 import sys
-import pytest
-from unittest import SkipTest, TestCase
 
-import functools
-import types
+import pytest
 import six
 
 from astropy.utils import iers
