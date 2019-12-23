@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
+### Changed
+- All references to Python 2 removed from codebase.
 
 ### Added
 - Routine flagging of MWA coarse band edges and center channels, as well as beginning and end integrations. Only done during `read_mwa_corr_fits`.
