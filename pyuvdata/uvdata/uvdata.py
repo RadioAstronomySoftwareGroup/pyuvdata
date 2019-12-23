@@ -11,7 +11,6 @@ import os
 import copy
 import re
 import numpy as np
-import six
 import warnings
 from astropy import constants as const
 import astropy.units as units
@@ -23,10 +22,7 @@ from .. import parameter as uvp
 from .. import telescopes as uvtel
 from .. import utils as uvutils
 
-if six.PY2:
-    from collections import Iterable
-else:
-    from collections.abc import Iterable
+from collections.abc import Iterable
 
 __all__ = ['UVData']
 
@@ -743,10 +739,7 @@ class UVData(UVBase):
                                                         uvws_use)
 
                 # astropy 2 vs 3 use a different keyword name
-                if six.PY2:
-                    rep_keyword = 'representation'
-                else:
-                    rep_keyword = 'representation_type'
+                rep_keyword = 'representation_type'
                 setattr(frame_telescope_location, rep_keyword, 'cartesian')
 
                 rep_dict = {}
@@ -879,10 +872,7 @@ class UVData(UVBase):
             frame_telescope_location = itrs_telescope_location.transform_to(phase_frame)
 
             # astropy 2 vs 3 use a different keyword name
-            if six.PY2:
-                rep_keyword = 'representation'
-            else:
-                rep_keyword = 'representation_type'
+            rep_keyword = 'representation_type'
             setattr(frame_telescope_location, rep_keyword, 'cartesian')
 
             if use_ant_pos:
@@ -2289,8 +2279,8 @@ class UVData(UVBase):
             if len(bls) == 0 or not all(isinstance(item, tuple) for item in bls):
                 raise ValueError(
                     'bls must be a list of tuples of antenna numbers (optionally with polarization).')
-            if not all([isinstance(item[0], six.integer_types + (np.integer,)) for item in bls]
-                       + [isinstance(item[1], six.integer_types + (np.integer,)) for item in bls]):
+            if not all([isinstance(item[0], (int, np.integer,)) for item in bls]
+                       + [isinstance(item[1], (int, np.integer,)) for item in bls]):
                 raise ValueError(
                     'bls must be a list of tuples of antenna numbers (optionally with polarization).')
             if all([len(item) == 3 for item in bls]):

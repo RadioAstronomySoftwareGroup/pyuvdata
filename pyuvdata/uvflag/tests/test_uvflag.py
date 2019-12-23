@@ -16,7 +16,6 @@ from pyuvdata import version as uvversion
 import shutil
 import copy
 import warnings
-import six
 import h5py
 
 
@@ -999,7 +998,7 @@ def test_collapse_pol():
     # test writing it out and reading in to make sure polarization_array has correct type
     uvf2.write(test_outfile, clobber=True)
     uvf = UVFlag(test_outfile)
-    assert uvf._polarization_array.expected_type == six.string_types
+    assert uvf._polarization_array.expected_type == str
     assert uvf._polarization_array.acceptable_vals is None
     assert uvf == uvf2
     os.remove(test_outfile)

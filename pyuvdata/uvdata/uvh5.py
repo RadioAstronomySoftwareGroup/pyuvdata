@@ -8,7 +8,6 @@ from __future__ import absolute_import, division, print_function
 import numpy as np
 import os
 import warnings
-import six
 import h5py
 
 from .uvdata import UVData
@@ -618,13 +617,7 @@ class UVH5(UVData):
         header['antenna_positions'] = self.antenna_positions
 
         # handle antenna_names
-        if six.PY2:
-            n_names = len(self.antenna_names)
-            max_len_names = np.amax([len(n) for n in self.antenna_names])
-            dtype = "S{:d}".format(max_len_names)
-            header.create_dataset('antenna_names', (n_names,), dtype=dtype, data=self.antenna_names)
-        else:
-            header['antenna_names'] = np.string_(self.antenna_names, keepdims=True)
+        header['antenna_names'] = np.string_(self.antenna_names, keepdims=True)
 
         # write out phasing information
         header['phase_type'] = np.string_(self.phase_type)

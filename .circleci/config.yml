@@ -111,10 +111,6 @@ workflows:
           python_version: "3.6"
           env_name: "pyuvdata_linting"
       - pyuvdata:
-          name: pyuvdata_2.7
-          python_version: "2.7"
-          env_name: "pyuvdata_tests"
-      - pyuvdata:
           name: pyuvdata_3.6
           python_version: "3.6"
           env_name: "pyuvdata_tests"
