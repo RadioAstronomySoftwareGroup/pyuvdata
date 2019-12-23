@@ -10,7 +10,6 @@ dependencies:
   - python-casacore
   - pyyaml
   - scipy
-  - six
   - coverage
   - pytest-cov
   - setuptools_scm
