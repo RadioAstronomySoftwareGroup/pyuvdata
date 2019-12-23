@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
+### Changed
+- All references to Python 2 removed from codebase.
 
 ## [1.5.0] - 2020-1-15
 
