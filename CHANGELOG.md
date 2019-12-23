@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
+### Changed
+- All references to Python 2 removed from codebase.
 
 ### Added
 - New `time_range` keyword to `select` so exact times don't need to be specified (also added to `read` methods for select on read).
