@@ -32,7 +32,7 @@ import pyuvdata.utils as uvutils
 import pyuvdata.tests as uvtest
 from pyuvdata.data import DATA_PATH
 
-from pyuvdata import aipy_extracts
+from pyuvdata.uvdata import aipy_extracts
 
 # always ignore the Altitude not present warning
 # This does NOT break uvutils.checkWarnings tests for this warning
