@@ -39,9 +39,12 @@ jobs:
 
       - name: Run Tests
         run: |
+          mkdir -p empty
+          cd empty
           export PATH="$HOME/miniconda/bin:$PATH"
           source activate $ENV_NAME
           pytest --pyargs pyuvdata -v --cov=pyuvdata --cov-config=.coveragerc --cov-report xml:./coverage.xml
+          cd ..
 
       - name: Upload Coverage (Mac OS)
         if: matrix.os == 'macos-latest' && success()
