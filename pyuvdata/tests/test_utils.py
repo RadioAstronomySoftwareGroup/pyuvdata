@@ -22,6 +22,7 @@ from pyuvdata import (
 )
 import pyuvdata.utils as uvutils
 import pyuvdata.tests as uvtest
+from pyuvdata.data import DATA_PATH
 from pyuvdata import __version__
 
 

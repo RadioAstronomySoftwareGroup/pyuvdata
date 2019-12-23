@@ -11,7 +11,7 @@ import os
 import shutil
 import pytest
 
-from pyuvdata import aipy_extracts as ae
+from pyuvdata.uvdata import aipy_extracts as ae
 from pyuvdata.data import DATA_PATH
 
 
