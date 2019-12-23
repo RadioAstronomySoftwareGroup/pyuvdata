@@ -1,4 +1,4 @@
-# -*- mode: python; coding: utf-8 -*
+# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2018 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 
@@ -126,7 +126,7 @@ def test_readMSreadUVFITS():
     ms_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.ms')
     uvfits_file = os.path.join(
         DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-    uvtest.checkWarnings(uvfits_uv.read_uvfits, [uvfits_file],
+    uvtest.checkWarnings(uvfits_uv.read, [uvfits_file],
                          message='Telescope EVLA is not')
     ms_uv.read(ms_file)
     # set histories to identical blank strings since we do not expect
@@ -169,10 +169,10 @@ def test_readMSWriteUVFITS():
     ms_uv = UVData()
     uvfits_uv = UVData()
     ms_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.ms')
-    testfile = os.path.join(DATA_PATH, 'test/outtest_uvfits')
+    testfile = os.path.join(DATA_PATH, 'test/outtest.uvfits')
     ms_uv.read(ms_file)
     ms_uv.write_uvfits(testfile, spoof_nonessential=True)
-    uvtest.checkWarnings(uvfits_uv.read_uvfits, [testfile],
+    uvtest.checkWarnings(uvfits_uv.read, [testfile],
                          message='Telescope EVLA is not')
 
     assert uvfits_uv == ms_uv
@@ -193,7 +193,7 @@ def test_readMSWriteMiriad():
     testfile = os.path.join(DATA_PATH, 'test/outtest_miriad')
     ms_uv.read(ms_file)
     ms_uv.write_miriad(testfile, clobber=True)
-    uvtest.checkWarnings(miriad_uv.read_miriad, [testfile],
+    uvtest.checkWarnings(miriad_uv.read, [testfile],
                          message='Telescope EVLA is not')
 
     assert miriad_uv == ms_uv
@@ -208,10 +208,12 @@ def test_multi_files():
     uv_multi = UVData()
     uvfits_file = os.path.join(
         DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-    uvtest.checkWarnings(uv_full.read_uvfits, [uvfits_file], message='Telescope EVLA is not')
+    uvtest.checkWarnings(uv_full.read, [uvfits_file], message='Telescope EVLA is not')
     testfile1 = os.path.join(DATA_PATH, 'multi_1.ms')
     testfile2 = os.path.join(DATA_PATH, 'multi_2.ms')
-    uv_multi.read([testfile1, testfile2])
+    uvtest.checkWarnings(
+        uv_multi.read_ms, func_args=[np.array([testfile1, testfile2])],
+        message=['Please use the generic'], category=DeprecationWarning)
     # Casa scrambles the history parameter. Replace for now.
     uv_multi.history = uv_full.history
 
@@ -249,7 +251,7 @@ def test_multi_files_axis():
     uv_multi = UVData()
     uvfits_file = os.path.join(
         DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-    uvtest.checkWarnings(uv_full.read_uvfits, [uvfits_file], message='Telescope EVLA is not')
+    uvtest.checkWarnings(uv_full.read, [uvfits_file], message='Telescope EVLA is not')
     testfile1 = os.path.join(DATA_PATH, 'multi_1.ms')
     testfile2 = os.path.join(DATA_PATH, 'multi_2.ms')
     uv_multi.read([testfile1, testfile2], axis='freq')

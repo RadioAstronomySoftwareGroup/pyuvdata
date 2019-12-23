@@ -2,9 +2,7 @@
 # Copyright (c) 2018 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 
-"""Tests for uvdata object.
-
-"""
+"""Tests for uvdata object."""
 from __future__ import absolute_import, division, print_function
 
 import pytest
@@ -130,8 +128,91 @@ def bda_test_file():
     return
 
 
+@pytest.fixture(scope='function')
+def uvdata_data():
+    uv_object = UVData()
+    testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    uvtest.checkWarnings(uv_object.read_uvfits, [testfile],
+                         message='Telescope EVLA is not')
+
+    class DataHolder():
+        def __init__(self, uv_object):
+            self.uv_object = uv_object
+            self.uv_object2 = copy.deepcopy(uv_object)
+
+    uvdata_data = DataHolder(uv_object)
+    # yields the data we need but will continue to the del call after tests
+    yield uvdata_data
+
+    # some post-test object cleanup
+    del(uvdata_data)
+
+    return
+
+
+@pytest.fixture(scope='function')
+def uvdata_baseline():
+    uv_object = UVData()
+    uv_object.Nants_telescope = 128
+    uv_object2 = UVData()
+    uv_object2.Nants_telescope = 2049
+
+    class DataHolder():
+        def __init__(self, uv_object, uv_object2):
+            self.uv_object = uv_object
+            self.uv_object2 = uv_object2
+
+    uvdata_baseline = DataHolder(uv_object, uv_object2)
+
+    # yields the data we need but will continue to the del call after tests
+    yield uvdata_baseline
+
+    # Post test clean-up
+    del(uvdata_baseline)
+    return
+
+
+@pytest.fixture
+def uv1_2_set_uvws():
+    testfile = os.path.join(DATA_PATH, 'zen.2458661.23480.HH.uvh5')
+    uv1 = UVData()
+    uv1.read_uvh5(testfile)
+    # uvws in the file are wrong. reset them.
+    uv1.set_uvws_from_antenna_positions()
+
+    uv2 = uv1.copy()
+
+    yield uv1, uv2
+
+    del uv1, uv2
+
+    return
+
+
+@pytest.fixture()
+def uv_phase_time_split(uv1_2_set_uvws):
+    uv_phase, uv_raw = uv1_2_set_uvws
+
+    uv_phase.reorder_blts(order="time", minor_order="baseline")
+    uv_raw.reorder_blts(order="time", minor_order="baseline")
+
+    uv_phase.phase(ra=0, dec=0, epoch="J2000", use_ant_pos=True)
+    times = np.unique(uv_phase.time_array)
+    time_set_1, time_set_2 = times[::2], times[1::2]
+
+    uv_phase_1 = uv_phase.select(times=time_set_1, inplace=False)
+    uv_phase_2 = uv_phase.select(times=time_set_2, inplace=False)
+
+    uv_raw_1 = uv_raw.select(times=time_set_1, inplace=False)
+    uv_raw_2 = uv_raw.select(times=time_set_2, inplace=False)
+
+    yield uv_phase_1, uv_phase_2, uv_phase, uv_raw_1, uv_raw_2, uv_raw
+
+    del uv_phase_1, uv_phase_2, uv_raw_1, uv_raw_2, uv_phase, uv_raw
+
+
 def test_parameter_iter(uvdata_props):
-    "Test expected parameters."
+    """Test expected parameters."""
     all = []
     for prop in uvdata_props.uv_object:
         all.append(prop)
@@ -140,8 +221,7 @@ def test_parameter_iter(uvdata_props):
 
 
 def test_required_parameter_iter(uvdata_props):
-    "Test expected required parameters."
-
+    """Test expected required parameters."""
     # at first it's a metadata_only object, so need to modify required_parameters
     required = []
     for prop in uvdata_props.uv_object.required():
@@ -164,7 +244,7 @@ def test_required_parameter_iter(uvdata_props):
 
 
 def test_extra_parameter_iter(uvdata_props):
-    "Test expected optional parameters."
+    """Test expected optional parameters."""
     extra = []
     for prop in uvdata_props.uv_object.extra():
         extra.append(prop)
@@ -173,7 +253,7 @@ def test_extra_parameter_iter(uvdata_props):
 
 
 def test_unexpected_parameters(uvdata_props):
-    "Test for extra parameters."
+    """Test for extra parameters."""
     expected_parameters = uvdata_props.required_parameters + uvdata_props.extra_parameters
     attributes = [i for i in uvdata_props.uv_object.__dict__.keys() if i[0] == '_']
     for a in attributes:
@@ -181,7 +261,7 @@ def test_unexpected_parameters(uvdata_props):
 
 
 def test_unexpected_attributes(uvdata_props):
-    "Test for extra attributes."
+    """Test for extra attributes."""
     expected_attributes = uvdata_props.required_properties + \
         uvdata_props.extra_properties + uvdata_props.other_properties
     attributes = [i for i in uvdata_props.uv_object.__dict__.keys() if i[0] != '_']
@@ -190,7 +270,7 @@ def test_unexpected_attributes(uvdata_props):
 
 
 def test_properties(uvdata_props):
-    "Test that properties can be get and set properly."
+    """Test that properties can be get and set properly."""
     prop_dict = dict(list(zip(uvdata_props.required_properties + uvdata_props.extra_properties,
                               uvdata_props.required_parameters + uvdata_props.extra_parameters)))
     for k, v in prop_dict.items():
@@ -202,28 +282,6 @@ def test_properties(uvdata_props):
         except AssertionError:
             print('setting {prop_name} to a random number failed'.format(prop_name=k))
             raise
-
-
-@pytest.fixture(scope='function')
-def uvdata_data():
-    uv_object = UVData()
-    testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-    uvtest.checkWarnings(uv_object.read_uvfits, [testfile],
-                         message='Telescope EVLA is not')
-
-    class DataHolder():
-        def __init__(self, uv_object):
-            self.uv_object = uv_object
-            self.uv_object2 = copy.deepcopy(uv_object)
-
-    uvdata_data = DataHolder(uv_object)
-    # yields the data we need but will continue to the del call after tests
-    yield uvdata_data
-
-    # some post-test object cleanup
-    del(uvdata_data)
-
-    return
 
 
 def test_metadata_only_property(uvdata_data):
@@ -336,28 +394,6 @@ def test_converttofiletype(uvdata_data):
     assert str(cm.value).startswith("filetype must be uvfits, miriad, fhd, or uvh5")
 
 
-@pytest.fixture(scope='function')
-def uvdata_baseline():
-    uv_object = UVData()
-    uv_object.Nants_telescope = 128
-    uv_object2 = UVData()
-    uv_object2.Nants_telescope = 2049
-
-    class DataHolder():
-        def __init__(self, uv_object, uv_object2):
-            self.uv_object = uv_object
-            self.uv_object2 = uv_object2
-
-    uvdata_baseline = DataHolder(uv_object, uv_object2)
-
-    # yields the data we need but will continue to the del call after tests
-    yield uvdata_baseline
-
-    # Post test clean-up
-    del(uvdata_baseline)
-    return
-
-
 def test_baseline_to_antnums(uvdata_baseline):
     """Test baseline to antnum conversion for 256 & larger conventions."""
     assert uvdata_baseline.uv_object.baseline_to_antnums(67585) == (0, 0)
@@ -450,27 +486,6 @@ def test_generic_read():
     pytest.raises(ValueError, uv_in.read, 'foo')
 
 
-@pytest.fixture
-def uv_phase_and_raw():
-    testfile = os.path.join(DATA_PATH, 'zen.2458661.23480.HH.uvh5')
-    UV_raw = UVData()
-    # Note the RA/DEC values in the raw file were calculated from the lat/long
-    # in the file, which don't agree with our known_telescopes.
-    # So for this test we use the lat/lon in the file.
-    UV_raw.read_uvh5(testfile)
-    # uvtest.checkWarnings(UV_raw.read_miriad, [testfile], {'correct_lat_lon': False},
-    #                      message='Altitude is not present in file and latitude and '
-    #                              'longitude values do not match')
-    UV_phase = UVData()
-    UV_phase.read_uvh5(testfile)
-
-    yield UV_phase, UV_raw
-
-    del UV_phase, UV_raw
-
-    return
-
-
 @pytest.mark.parametrize(
     "phase_kwargs",
     [
@@ -482,19 +497,19 @@ def uv_phase_and_raw():
 
     ]
 )
-def test_phase_unphaseHERA(uv_phase_and_raw, phase_kwargs):
+def test_phase_unphaseHERA(uv1_2_set_uvws, phase_kwargs):
     """
     Read in drift data, phase to an RA/DEC, unphase and check for object equality.
     """
-    UV_phase, UV_raw = uv_phase_and_raw
-    UV_phase.phase(**phase_kwargs)
-    UV_phase.unphase_to_drift()
+    uv1, UV_raw = uv1_2_set_uvws
+    uv1.phase(**phase_kwargs)
+    uv1.unphase_to_drift()
     # check that phase + unphase gets back to raw
-    assert UV_raw == UV_phase
+    assert UV_raw == uv1
 
 
-def test_phase_unphaseHERA_one_bl(uv_phase_and_raw):
-    UV_phase, UV_raw = uv_phase_and_raw
+def test_phase_unphaseHERA_one_bl(uv1_2_set_uvws):
+    UV_phase, UV_raw = uv1_2_set_uvws
     # check that phase + unphase work with one baseline
     UV_raw_small = UV_raw.select(blt_inds=[0], inplace=False)
     UV_phase_small = copy.deepcopy(UV_raw_small)
@@ -503,8 +518,8 @@ def test_phase_unphaseHERA_one_bl(uv_phase_and_raw):
     assert UV_raw_small == UV_phase_small
 
 
-def test_phase_unphaseHERA_antpos(uv_phase_and_raw):
-    UV_phase, UV_raw = uv_phase_and_raw
+def test_phase_unphaseHERA_antpos(uv1_2_set_uvws):
+    UV_phase, UV_raw = uv1_2_set_uvws
     # check that they match if you phase & unphase using antenna locations
     # first replace the uvws with the right values
     antenna_enu = uvutils.ENU_from_ECEF((UV_raw.antenna_positions + UV_raw.telescope_location),
@@ -537,8 +552,8 @@ def test_phase_unphaseHERA_antpos(uv_phase_and_raw):
     assert UV_raw_new == UV_phase
 
 
-def test_phase_unphaseHERA_zenith_timestamp(uv_phase_and_raw):
-    UV_phase, UV_raw = uv_phase_and_raw
+def test_phase_unphaseHERA_zenith_timestamp(uv1_2_set_uvws):
+    UV_phase, UV_raw = uv1_2_set_uvws
     # check that phasing to zenith with one timestamp has small changes
     # (it won't be identical because of precession/nutation changing the coordinate axes)
     # use gcrs rather than icrs to reduce differences (don't include abberation)
@@ -551,23 +566,23 @@ def test_phase_unphaseHERA_zenith_timestamp(uv_phase_and_raw):
     assert np.allclose(UV_phase_simple_small.uvw_array, UV_raw_small.uvw_array, atol=1e-1)
 
 
-def test_phase_to_time_jd_input(uv_phase_and_raw):
-    UV_phase, UV_raw = uv_phase_and_raw
+def test_phase_to_time_jd_input(uv1_2_set_uvws):
+    UV_phase, UV_raw = uv1_2_set_uvws
     UV_phase.phase_to_time(UV_raw.time_array[0])
     UV_phase.unphase_to_drift()
     assert UV_phase == UV_raw
 
 
-def test_phase_to_time_error(uv_phase_and_raw):
-    UV_phase, UV_raw = uv_phase_and_raw
+def test_phase_to_time_error(uv1_2_set_uvws):
+    UV_phase, UV_raw = uv1_2_set_uvws
     # check error if not passing a Time object to phase_to_time
     with pytest.raises(TypeError) as cm:
         UV_phase.phase_to_time('foo')
     assert str(cm.value).startswith("time must be an astropy.time.Time object")
 
 
-def test_unphase_drift_data_error(uv_phase_and_raw):
-    UV_phase, UV_raw = uv_phase_and_raw
+def test_unphase_drift_data_error(uv1_2_set_uvws):
+    UV_phase, UV_raw = uv1_2_set_uvws
     # check error if not passing a Time object to phase_to_time
     with pytest.raises(ValueError) as cm:
         UV_phase.unphase_to_drift()
@@ -578,58 +593,60 @@ def test_unphase_drift_data_error(uv_phase_and_raw):
     "phase_func,phase_kwargs,err_msg",
     [("unphase_to_drift", {},
       "The phasing type of the data is unknown. Set the phase_type"),
-     ("phase", {"ra": 0, "dec": 0, "epoch": "J2000"},
+     ("phase", {"ra": 0, "dec": 0, "epoch": "J2000", "allow_rephase": False},
       "The phasing type of the data is unknown. Set the phase_type"),
-     ("phase_to_time", {"time": 0},
+     ("phase_to_time", {"time": 0, "allow_rephase": False},
       "The phasing type of the data is unknown. Set the phase_type")
      ]
 )
 def test_unknown_phase_unphaseHERA_errors(
-    uv_phase_and_raw, phase_func, phase_kwargs, err_msg
+    uv1_2_set_uvws, phase_func, phase_kwargs, err_msg
 ):
-    UV_phase, UV_raw = uv_phase_and_raw
+    UV_phase, UV_raw = uv1_2_set_uvws
 
     # Set phase type to unkown on some tests, ignore on others.
-    UV_raw.set_unknown_phase_type()
+    UV_phase.set_unknown_phase_type()
     # if this is phase_to_time, use this index set in the dictionary and
     # assign the value of the time_array associated with that index
-    # this is a little hacky, but we cannot acces UV_raw.time_array in the parametrize
-    if phase_func == "phsae_to_time":
-        phase_kwargs["time"] = UV_raw.time_array[phase_kwargs["time"]]
+    # this is a little hacky, but we cannot acces UV_phase.time_array in the
+    # parametrize
+    if phase_func == "phase_to_time":
+        phase_kwargs["time"] = UV_phase.time_array[phase_kwargs["time"]]
 
     with pytest.raises(ValueError) as cm:
-        getattr(UV_raw, phase_func)(**phase_kwargs)
+        getattr(UV_phase, phase_func)(**phase_kwargs)
     assert str(cm.value).startswith(err_msg)
 
 
 @pytest.mark.parametrize(
     "phase_func,phase_kwargs,err_msg",
-    [("phase", {"ra": 0, "dec": 0, "epoch": "J2000"},
+    [("phase", {"ra": 0, "dec": 0, "epoch": "J2000", "allow_rephase": False},
       "The data is already phased;"),
-     ("phase_to_time", {"time": 0},
+     ("phase_to_time", {"time": 0, "allow_rephase": False},
       "The data is already phased;")
      ]
 )
 def test_phase_rephaseHERA_errors(
-    uv_phase_and_raw, phase_func, phase_kwargs, err_msg
+    uv1_2_set_uvws, phase_func, phase_kwargs, err_msg
 ):
-    UV_phase, UV_raw = uv_phase_and_raw
+    UV_phase, UV_raw = uv1_2_set_uvws
 
     # Set phase type to unkown on some tests, ignore on others.
-    UV_raw.phase(0., 0., epoch="J2000")
+    UV_phase.phase(0., 0., epoch="J2000")
     # if this is phase_to_time, use this index set in the dictionary and
     # assign the value of the time_array associated with that index
-    # this is a little hacky, but we cannot acces UV_raw.time_array in the parametrize
-    if phase_func == "phsae_to_time":
-        phase_kwargs["time"] = UV_raw.time_array[phase_kwargs["time"]]
+    # this is a little hacky, but we cannot acces UV_phase.time_array in the
+    # parametrize
+    if phase_func == "phase_to_time":
+        phase_kwargs["time"] = UV_phase.time_array[phase_kwargs["time"]]
 
     with pytest.raises(ValueError) as cm:
-        getattr(UV_raw, phase_func)(**phase_kwargs)
+        getattr(UV_phase, phase_func)(**phase_kwargs)
     assert str(cm.value).startswith(err_msg)
 
 
-def test_phase_unphaseHERA_bad_frame(uv_phase_and_raw):
-    UV_phase, UV_raw = uv_phase_and_raw
+def test_phase_unphaseHERA_bad_frame(uv1_2_set_uvws):
+    UV_phase, UV_raw = uv1_2_set_uvws
     # check errors when trying to phase to an unsupported frame
     with pytest.raises(ValueError) as cm:
         UV_phase.phase(0., 0., epoch="J2000", phase_frame='cirs')
@@ -637,7 +654,7 @@ def test_phase_unphaseHERA_bad_frame(uv_phase_and_raw):
 
 
 def test_phasing():
-    """ Use MWA files phased to 2 different places to test phasing. """
+    """Use MWA files phased to 2 different places to test phasing."""
     file1 = os.path.join(DATA_PATH, '1133866760.uvfits')
     file2 = os.path.join(DATA_PATH, '1133866760_rephase.uvfits')
     uvd1 = UVData()
@@ -655,29 +672,34 @@ def test_phasing():
     uvd2_drift_antpos = copy.deepcopy(uvd2)
     uvd2_drift_antpos.unphase_to_drift(phase_frame='gcrs', use_ant_pos=True)
 
-    # the tolerances here are empirical -- based on what was seen in the external
-    # phasing test. See the phasing memo in docs/references for details
+    # the tolerances here are empirical -- based on what was seen in the
+    # external phasing test. See the phasing memo in docs/references for
+    # details.
     assert np.allclose(uvd1_drift.uvw_array, uvd2_drift.uvw_array, atol=2e-2)
     assert np.allclose(uvd1_drift_antpos.uvw_array, uvd2_drift_antpos.uvw_array)
 
-    uvd2_rephase = copy.deepcopy(uvd2_drift)
+    uvd2_rephase = uvd2.copy()
     uvd2_rephase.phase(uvd1.phase_center_ra,
                        uvd1.phase_center_dec,
                        uvd1.phase_center_epoch,
+                       orig_phase_frame='gcrs',
                        phase_frame='gcrs')
-    uvd2_rephase_antpos = copy.deepcopy(uvd2_drift_antpos)
+    uvd2_rephase_antpos = uvd2.copy()
     uvd2_rephase_antpos.phase(uvd1.phase_center_ra,
                               uvd1.phase_center_dec,
                               uvd1.phase_center_epoch,
+                              orig_phase_frame='gcrs',
                               phase_frame='gcrs',
                               use_ant_pos=True)
 
-    # the tolerances here are empirical -- based on what was seen in the external
-    # phasing test. See the phasing memo in docs/references for details
+    # the tolerances here are empirical -- based on what was seen in the
+    # external phasing test. See the phasing memo in docs/references for
+    # details.
     assert np.allclose(uvd1.uvw_array, uvd2_rephase.uvw_array, atol=2e-2)
     assert np.allclose(uvd1.uvw_array, uvd2_rephase_antpos.uvw_array, atol=5e-3)
 
-    # rephase the drift objects to the original pointing and verify that they match
+    # rephase the drift objects to the original pointing and verify that they
+    # match
     uvd1_drift.phase(uvd1.phase_center_ra, uvd1.phase_center_dec,
                      uvd1.phase_center_epoch, phase_frame='gcrs')
     uvd1_drift_antpos.phase(uvd1.phase_center_ra, uvd1.phase_center_dec,
@@ -685,8 +707,9 @@ def test_phasing():
                             use_ant_pos=True)
 
     # the tolerances here are empirical -- caused by one unphase/phase cycle.
-    # the antpos-based phasing differences are based on what was seen in the external
-    # phasing test. See the phasing memo in docs/references for details
+    # the antpos-based phasing differences are based on what was seen in the
+    # external phasing test. See the phasing memo in docs/references for
+    # details.
     assert np.allclose(uvd1.uvw_array, uvd1_drift.uvw_array, atol=1e-4)
     assert np.allclose(uvd1.uvw_array, uvd1_drift_antpos.uvw_array, atol=5e-3)
 
@@ -697,8 +720,9 @@ def test_phasing():
                             use_ant_pos=True)
 
     # the tolerances here are empirical -- caused by one unphase/phase cycle.
-    # the antpos-based phasing differences are based on what was seen in the external
-    # phasing test. See the phasing memo in docs/references for details
+    # the antpos-based phasing differences are based on what was seen in the
+    # external phasing test. See the phasing memo in docs/references for
+    # details.
     assert np.allclose(uvd2.uvw_array, uvd2_drift.uvw_array, atol=1e-4)
     assert np.allclose(uvd2.uvw_array, uvd2_drift_antpos.uvw_array, atol=2e-2)
 
@@ -1076,6 +1100,82 @@ def test_select_times():
 
     # check for errors associated with times not included in data
     pytest.raises(ValueError, uv_object.select, times=[np.min(unique_times) - uv_object.integration_time[0]])
+
+
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+def test_select_time_range():
+    uv_object = UVData()
+    testfile = os.path.join(
+        DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    uv_object.read_uvfits(testfile)
+    old_history = uv_object.history
+    unique_times = np.unique(uv_object.time_array)
+    mean_time = np.mean(unique_times)
+    time_range = [np.min(unique_times), mean_time]
+    times_to_keep = unique_times[np.nonzero((unique_times <= time_range[1])
+                                            & (unique_times >= time_range[0]))]
+
+    Nblts_selected = np.nonzero((uv_object.time_array <= time_range[1])
+                                & (uv_object.time_array >= time_range[0]))[0].size
+
+    uv_object2 = uv_object.copy()
+    uv_object2.select(time_range=time_range)
+
+    assert times_to_keep.size == uv_object2.Ntimes
+    assert Nblts_selected == uv_object2.Nblts
+    for t in times_to_keep:
+        assert t in uv_object2.time_array
+    for t in np.unique(uv_object2.time_array):
+        assert t in times_to_keep
+
+    assert uvutils._check_histories(old_history + '  Downselected to '
+                                    'specific times using pyuvdata.',
+                                    uv_object2.history)
+
+
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+def test_select_time_range_no_data():
+    """Check for error associated with times not included in data."""
+    uv_object = UVData()
+    testfile = os.path.join(
+        DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    uv_object.read(testfile)
+    unique_times = np.unique(uv_object.time_array)
+    with pytest.raises(ValueError) as cm:
+        uv_object.select(time_range=[np.min(unique_times) - uv_object.integration_time[0] * 2,
+                                     np.min(unique_times) - uv_object.integration_time[0]])
+    assert str(cm.value).startswith('No elements in time range')
+
+
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+def test_select_time_and_time_range():
+    """Check for error setting times and time_range."""
+    uv_object = UVData()
+    testfile = os.path.join(
+        DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    uv_object.read(testfile)
+    unique_times = np.unique(uv_object.time_array)
+    mean_time = np.mean(unique_times)
+    time_range = [np.min(unique_times), mean_time]
+    times_to_keep = unique_times[[0, 3, 5, 6, 7, 10, 14]]
+    with pytest.raises(ValueError) as cm:
+        uv_object.select(time_range=time_range, times=times_to_keep)
+    assert str(cm.value).startswith('Only one of "times" and "time_range" can be set')
+
+
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+def test_select_time_range_one_elem():
+    """Check for error if time_range not length 2."""
+    uv_object = UVData()
+    testfile = os.path.join(
+        DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    uv_object.read(testfile)
+    unique_times = np.unique(uv_object.time_array)
+    mean_time = np.mean(unique_times)
+    time_range = [np.min(unique_times), mean_time]
+    with pytest.raises(ValueError) as cm:
+        uv_object.select(time_range=time_range[0])
+    assert str(cm.value).startswith('time_range must be length 2')
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
@@ -1643,6 +1743,45 @@ def test_reorder_blts():
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+def test_sum_vis():
+    # check sum_vis
+    uv_full = UVData()
+    testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    uv_full.read_uvfits(testfile)
+
+    uv_half = copy.deepcopy(uv_full)
+    uv_half.data_array = uv_full.data_array / 2
+    uv_summed = uv_half.sum_vis(uv_half)
+
+    assert np.array_equal(uv_summed.data_array, uv_full.data_array)
+    assert uvutils._check_histories(uv_half.history + ' Visibilities summed '
+                                    'using pyuvdata.', uv_summed.history)
+
+    # check diff_vis
+    uv_diffed = uv_full.diff_vis(uv_half)
+
+    assert np.array_equal(uv_diffed.data_array, uv_half.data_array)
+    assert uvutils._check_histories(uv_full.history + ' Visibilities '
+                                    'differenced using pyuvdata.',
+                                    uv_diffed.history)
+
+    # check in place
+    uv_summed.diff_vis(uv_half, inplace=True)
+    assert np.array_equal(uv_summed.data_array, uv_half.data_array)
+
+    # check error messages
+    with pytest.raises(ValueError) as cm:
+        uv_full.sum_vis('foo')
+    assert str(cm.value).startswith('Only UVData (or subclass) objects can be')
+
+    uv_full.instrument = 'foo'
+    with pytest.raises(ValueError) as cm:
+        uv_full.sum_vis(uv_half, inplace=True)
+    assert str(cm.value).startswith('UVParameter instrument '
+                                    'does not match')
+
+
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 def test_add():
     uv_full = UVData()
     testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
@@ -2101,6 +2240,213 @@ def test_break_add():
     uv2.select(freq_chans=np.arange(32, 64))
     uv2.integration_time *= 2
     pytest.raises(ValueError, uv1.__iadd__, uv2)
+
+
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+@pytest.mark.parametrize("test_func,extra_kwargs",
+                         [("__add__", {}),
+                          ("fast_concat", {"axis": "blt"})
+                          ]
+                         )
+def test_add_error_drift_and_rephase(test_func, extra_kwargs):
+    uv_full = UVData()
+    testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    uv_full.read_uvfits(testfile)
+
+    with pytest.raises(ValueError) as cm:
+        getattr(uv_full, test_func)(uv_full, phase_center_radec=(0, 45),
+                                    unphase_to_drift=True,
+                                    **extra_kwargs
+                                    )
+    assert str(cm.value).startswith('phase_center_radec cannot be set if '
+                                    'unphase_to_drift is True.')
+
+
+@pytest.mark.parametrize("test_func,extra_kwargs",
+                         [("__add__", {}),
+                          ("fast_concat", {"axis": "blt"})
+                          ]
+                         )
+def test_add_this_phased_unphase_to_drift(
+    uv_phase_time_split, test_func, extra_kwargs
+):
+    (
+        uv_phase_1, uv_phase_2, uv_phase, uv_raw_1, uv_raw_2, uv_raw
+    ) = uv_phase_time_split
+
+    func_kwargs = {"unphase_to_drift": True,
+                   "inplace": False,
+                   }
+    func_kwargs.update(extra_kwargs)
+    uv_out = uvtest.checkWarnings(
+        getattr(uv_phase_1, test_func),
+        func_args=[uv_raw_2],
+        func_kwargs=func_kwargs,
+        message=['Unphasing this UVData object to drift']
+    )
+    # the histories will be different here
+    # but everything else should match.
+    uv_out.history = copy.deepcopy(uv_raw.history)
+    # ensure baseline time order is the same
+    # because fast_concat will not order for us
+    uv_out.reorder_blts(order='time', minor_order='baseline')
+    assert uv_out.phase_type == 'drift'
+    assert uv_out == uv_raw
+
+
+@pytest.mark.parametrize("test_func,extra_kwargs",
+                         [("__add__", {}),
+                          ("fast_concat", {"axis": "blt"})
+                          ]
+                         )
+def test_add_other_phased_unphase_to_drift(
+    uv_phase_time_split, test_func, extra_kwargs
+):
+    (
+        uv_phase_1, uv_phase_2, uv_phase, uv_raw_1, uv_raw_2, uv_raw
+    ) = uv_phase_time_split
+
+    func_kwargs = {"unphase_to_drift": True,
+                   "inplace": False,
+                   }
+    func_kwargs.update(extra_kwargs)
+    uv_out = uvtest.checkWarnings(
+        getattr(uv_raw_1, test_func),
+        func_args=[uv_phase_2],
+        func_kwargs=func_kwargs,
+        message=['Unphasing other UVData object to drift']
+    )
+    # the histories will be different here
+    # but everything else should match.
+    uv_out.history = copy.deepcopy(uv_raw.history)
+    # ensure baseline time order is the same
+    # because fast_concat will not order for us
+    uv_out.reorder_blts(order='time', minor_order='baseline')
+    assert uv_out.phase_type == 'drift'
+    assert uv_out == uv_raw
+
+
+@pytest.mark.parametrize("test_func,extra_kwargs",
+                         [("__add__", {}),
+                          ("fast_concat", {"axis": "blt"})
+                          ]
+                         )
+def test_add_this_rephase_new_phase_center(
+    uv_phase_time_split, test_func, extra_kwargs
+):
+    (
+        uv_phase_1, uv_phase_2, uv_phase, uv_raw_1, uv_raw_2, uv_raw
+    ) = uv_phase_time_split
+
+    phase_center_radec = (Angle('0d').rad, Angle('-30d').rad)
+
+    # phase each half to different spots
+    uv_raw_1.phase(ra=0,
+                   dec=0,
+                   use_ant_pos=True,
+                   )
+    uv_raw_2.phase(ra=phase_center_radec[0],
+                   dec=phase_center_radec[1],
+                   use_ant_pos=True
+                   )
+    # phase original to phase_center_radec
+    uv_raw.phase(ra=phase_center_radec[0],
+                 dec=phase_center_radec[1],
+                 use_ant_pos=True
+                 )
+
+    func_kwargs = {"inplace": False,
+                   "phase_center_radec": phase_center_radec,
+                   "use_ant_pos": True
+                   }
+    func_kwargs.update(extra_kwargs)
+    uv_out = uvtest.checkWarnings(
+        getattr(uv_raw_1, test_func),
+        func_args=[uv_raw_2],
+        func_kwargs=func_kwargs,
+        message=['Phasing this UVData object to phase_center_radec']
+    )
+    # the histories will be different here
+    # but everything else should match.
+    uv_out.history = copy.deepcopy(uv_raw.history)
+    # ensure baseline time order is the same
+    # because fast_concat will not order for us
+    uv_out.reorder_blts(order='time', minor_order='baseline')
+    assert (uv_out.phase_center_ra, uv_out.phase_center_dec) == phase_center_radec
+    assert uv_out == uv_raw
+
+
+@pytest.mark.parametrize("test_func,extra_kwargs",
+                         [("__add__", {}),
+                          ("fast_concat", {"axis": "blt"})
+                          ]
+                         )
+def test_add_other_rephase_new_phase_center(
+    uv_phase_time_split, test_func, extra_kwargs
+):
+    (
+        uv_phase_1, uv_phase_2, uv_phase, uv_raw_1, uv_raw_2, uv_raw
+    ) = uv_phase_time_split
+
+    phase_center_radec = (Angle('0d').rad, Angle('-30d').rad)
+
+    # phase each half to different spots
+    uv_raw_1.phase(ra=phase_center_radec[0],
+                   dec=phase_center_radec[1],
+                   use_ant_pos=True,
+                   )
+    uv_raw_2.phase(ra=0,
+                   dec=0,
+                   use_ant_pos=True,
+                   )
+    # phase original to phase_center_radec
+    uv_raw.phase(ra=phase_center_radec[0],
+                 dec=phase_center_radec[1],
+                 use_ant_pos=True,
+                 )
+
+    func_kwargs = {"inplace": False,
+                   "phase_center_radec": phase_center_radec,
+                   "use_ant_pos": True,
+                   }
+    func_kwargs.update(extra_kwargs)
+    uv_out = uvtest.checkWarnings(
+        getattr(uv_raw_1, test_func),
+        func_args=[uv_raw_2],
+        func_kwargs=func_kwargs,
+        message=['Phasing other UVData object to phase_center_radec']
+    )
+    # the histories will be different here
+    # but everything else should match.
+    uv_out.history = copy.deepcopy(uv_raw.history)
+
+    # ensure baseline time order is the same
+    # because fast_concat will not order for us
+    uv_out.reorder_blts(order='time', minor_order='baseline')
+    assert uv_out.phase_type == "phased"
+    assert (uv_out.phase_center_ra, uv_out.phase_center_dec) == phase_center_radec
+    assert uv_out == uv_raw
+
+
+@pytest.mark.parametrize("test_func,extra_kwargs",
+                         [("__add__", {}),
+                          ("fast_concat", {"axis": "blt"})
+                          ]
+                         )
+def test_add_error_too_long_phase_center(
+    uv_phase_time_split, test_func, extra_kwargs
+):
+    (
+        uv_phase_1, uv_phase_2, uv_phase, uv_raw_1, uv_raw_2, uv_raw
+    ) = uv_phase_time_split
+    phase_center_radec = (Angle('0d').rad, Angle('-30d').rad, 7)
+    func_kwargs = {"inplace": False,
+                   "phase_center_radec": phase_center_radec,
+                   }
+    func_kwargs.update(extra_kwargs)
+    with pytest.raises(ValueError) as cm:
+        getattr(uv_phase_1, test_func)(uv_phase_2, **func_kwargs)
+    assert str(cm.value).startswith('phase_center_radec should have length 2.')
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
@@ -3819,7 +4165,7 @@ def test_redundancy_contract_expand_nblts_not_nbls_times_ntimes():
 def test_compress_redundancy_metadata_only():
     uv0 = UVData()
     uv0.read_uvfits(os.path.join(DATA_PATH, 'fewant_randsrc_airybeam_Nsrc100_10MHz.uvfits'))
-    tol = 0.01
+    tol = 0.05
 
     # Assign identical data to each redundant group:
     red_gps, centers, lengths = uv0.get_redundancies(tol=tol, use_antpos=True, conjugate_bls=True)
@@ -4021,7 +4367,7 @@ def test_overlapping_data_add():
     uv4.write_uvfits(uv4_out)
 
     uvfull = UVData()
-    uvfull.read([uv1_out, uv2_out, uv3_out, uv4_out])
+    uvfull.read(np.array([uv1_out, uv2_out, uv3_out, uv4_out]))
     assert uvutils._check_histories(uvfull.history, uv.history + extra_history)
     uvfull.history = uv.history  # make histories match
     assert uvfull == uv

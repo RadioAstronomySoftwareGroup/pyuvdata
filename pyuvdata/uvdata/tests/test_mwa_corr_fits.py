@@ -1,4 +1,4 @@
-# -*- mode: python; coding: utf-8 -*
+# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2019 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 
@@ -32,17 +32,60 @@ def test_ReadMWAWriteUVFits():
     """
     mwa_uv = UVData()
     uvfits_uv = UVData()
-    messages = ['telescope_location is not set',
+    messages = ['The `phase_data` keyword is deprecated.',
+                'telescope_location is not set',
                 'some coarse channel files were not submitted']
+    category = [DeprecationWarning] + [UserWarning] * 2
     uvtest.checkWarnings(mwa_uv.read_mwa_corr_fits, func_args=[filelist[0:2]],
                          func_kwargs={'correct_cable_len': True, 'phase_data': True},
-                         nwarnings=2, message=messages)
+                         nwarnings=3, message=messages, category=category)
+    testfile = os.path.join(DATA_PATH, 'test/outtest_MWAcorr.uvfits')
+    mwa_uv.write_uvfits(testfile, spoof_nonessential=True)
+    uvfits_uv.read_uvfits(testfile)
+    assert mwa_uv == uvfits_uv
+
+    phase_center = (mwa_uv.phase_center_ra + 0.01, mwa_uv.phase_center_dec + 0.01)
+
+    messages = ['The `phase_center` keyword is deprecated.',
+                'The `phase_data` keyword is deprecated.',
+                'telescope_location is not set',
+                'some coarse channel files were not submitted',
+                'Phasing this UVData object to phase_center_radec']
+    category = [DeprecationWarning] * 2 + [UserWarning] * 3
+    uvtest.checkWarnings(mwa_uv.read_mwa_corr_fits, func_args=[filelist[0:2]],
+                         func_kwargs={'correct_cable_len': True,
+                                      'phase_data': True,
+                                      'phase_center': phase_center},
+                         nwarnings=5, message=messages, category=category)
     testfile = os.path.join(DATA_PATH, 'test/outtest_MWAcorr.uvfits')
     mwa_uv.write_uvfits(testfile, spoof_nonessential=True)
     uvfits_uv.read_uvfits(testfile)
     assert mwa_uv == uvfits_uv
 
 
+@pytest.mark.filterwarnings("ignore:telescope_location is not set. ")
+@pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
+def test_select_on_read():
+    mwa_uv = UVData()
+    mwa_uv2 = UVData()
+    mwa_uv.read_mwa_corr_fits(filelist[0:2], correct_cable_len=True)
+    unique_times = np.unique(mwa_uv.time_array)
+    select_times = unique_times[np.where((unique_times >= np.min(mwa_uv.time_array))
+                                         & (unique_times <= np.mean(mwa_uv.time_array)))]
+    mwa_uv.select(times=select_times)
+    uvtest.checkWarnings(
+        mwa_uv2.read, func_args=[filelist[0:2]],
+        func_kwargs={'correct_cable_len': True,
+                     'time_range': [np.min(mwa_uv.time_array), np.mean(mwa_uv.time_array)]},
+        message=['Warning: select on read keyword set, but file_type is "mwa_corr_fits"',
+                 'telescope_location is not set. Using known values for MWA.',
+                 'some coarse channel files were not submitted'],
+        nwarnings=3)
+    assert mwa_uv == mwa_uv2
+
+
+@pytest.mark.filterwarnings("ignore:telescope_location is not set. ")
+@pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
 def test_ReadMWA_ReadCotter():
     """
     Pyuvdata and cotter equality test.
@@ -53,7 +96,7 @@ def test_ReadMWA_ReadCotter():
     mwa_uv = UVData()
     cotter_uv = UVData()
     # cotter data has cable correction and is unphased
-    mwa_uv.read_mwa_corr_fits(filelist[0:2], correct_cable_len=True)
+    mwa_uv.read(filelist[0:2], correct_cable_len=True)
     cotter_uv.read(filelist[6])
     # cotter doesn't record the auto xy polarizations
     # due to a possible bug in cotter, the auto yx polarizations are conjugated
@@ -79,8 +122,9 @@ def test_ReadMWAWriteUVFits_meta_mod():
     messages = ['telescope_location is not set',
                 'some coarse channel files were not submitted']
     files = [filelist[1], filelist[5]]
-    uvtest.checkWarnings(mwa_uv.read_mwa_corr_fits, func_args=[files],
-                         func_kwargs={'correct_cable_len': True, 'phase_data': True},
+    uvtest.checkWarnings(mwa_uv.read, func_args=[files],
+                         func_kwargs={'correct_cable_len': True,
+                                      'phase_to_pointing_center': True},
                          nwarnings=2, message=messages)
     testfile = os.path.join(DATA_PATH, 'test/outtest_MWAcorr.uvfits')
     mwa_uv.write_uvfits(testfile, spoof_nonessential=True)
@@ -88,20 +132,32 @@ def test_ReadMWAWriteUVFits_meta_mod():
     assert mwa_uv == uvfits_uv
 
 
+@pytest.mark.filterwarnings("ignore:telescope_location is not set. ")
+@pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
+@pytest.mark.filterwarnings("ignore:Combined frequencies are not contiguous")
 def test_ReadMWA_multi():
     """Test reading in two sets of files."""
     set1 = filelist[0:2]
     set2 = [filelist[0], filelist[2]]
     mwa_uv = UVData()
-    messages = ['telescope_location is not set',
+    mwa_uv.read([set1, set2])
+
+    mwa_uv2 = UVData()
+    messages = ['Please use the generic `read` method',
+                'telescope_location is not set',
                 'some coarse channel files were not submitted',
                 'telescope_location is not set',
                 'some coarse channel files were not submitted',
-                'Combined frequencies are not contiguous. This will make it impossible to write this data out to some file types.']
-    uvtest.checkWarnings(mwa_uv.read_mwa_corr_fits, func_args=[[[set1], [set2]]],
-                         nwarnings=5, message=messages)
+                'Combined frequencies are not contiguous']
+    category = [DeprecationWarning] + [UserWarning] * 5
+    uvtest.checkWarnings(mwa_uv2.read_mwa_corr_fits, func_args=[[set1, set2]],
+                         nwarnings=6, message=messages, category=category)
+
+    assert(mwa_uv == mwa_uv2)
 
 
+@pytest.mark.filterwarnings("ignore:telescope_location is not set. ")
+@pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
 def test_ReadMWA_multi_concat():
     """Test reading in two sets of files with fast concatenation."""
     # modify file so that time arrays are matching
@@ -112,14 +168,24 @@ def test_ReadMWA_multi_concat():
     set1 = filelist[0:2]
     set2 = [filelist[0], mod_mini_6]
     mwa_uv = UVData()
-    messages = ['telescope_location is not set',
+    mwa_uv.read([set1, set2], axis='freq')
+
+    mwa_uv2 = UVData()
+    messages = ['Please use the generic `read` method',
+                'telescope_location is not set',
                 'some coarse channel files were not submitted',
                 'telescope_location is not set',
                 'some coarse channel files were not submitted']
-    uvtest.checkWarnings(mwa_uv.read_mwa_corr_fits, func_args=[[[set1], [set2]]],
-                         func_kwargs={"axis": "freq"}, nwarnings=4, message=messages)
+    category = [DeprecationWarning] + [UserWarning] * 4
+    uvtest.checkWarnings(mwa_uv2.read_mwa_corr_fits, func_args=[[set1, set2]],
+                         func_kwargs={"axis": "freq"}, nwarnings=5,
+                         message=messages, category=category)
+    assert(mwa_uv == mwa_uv2)
+    os.remove(mod_mini_6)
 
 
+@pytest.mark.filterwarnings("ignore:telescope_location is not set. ")
+@pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
 def test_ReadMWA_flags():
     """Test handling of flag files."""
     mwa_uv = UVData()
@@ -127,17 +193,17 @@ def test_ReadMWA_flags():
     messages = ['mwaf files submitted with use_cotter_flags=False',
                 'telescope_location is not set',
                 'some coarse channel files were not submitted']
-    uvtest.checkWarnings(mwa_uv.read_mwa_corr_fits, func_args=[subfiles],
+    uvtest.checkWarnings(mwa_uv.read, func_args=[subfiles],
                          nwarnings=3, message=messages)
     del(mwa_uv)
     mwa_uv = UVData()
     with pytest.raises(NotImplementedError) as cm:
-        mwa_uv.read_mwa_corr_fits(subfiles, use_cotter_flags=True)
+        mwa_uv.read(subfiles, use_cotter_flags=True)
     assert str(cm.value).startswith('reading in cotter flag files')
     del(mwa_uv)
     mwa_uv = UVData()
     with pytest.raises(ValueError) as cm:
-        mwa_uv.read_mwa_corr_fits(subfiles[0:2], use_cotter_flags=True)
+        mwa_uv.read(subfiles[0:2], use_cotter_flags=True)
     assert str(cm.value).startswith('no flag files submitted')
     del(mwa_uv)
 
@@ -156,9 +222,9 @@ def test_multiple_coarse():
     messages = ['telescope_location is not set',
                 'coarse channels are not contiguous for this observation',
                 'some coarse channel files were not submitted']
-    uvtest.checkWarnings(mwa_uv1.read_mwa_corr_fits, func_args=[order1],
+    uvtest.checkWarnings(mwa_uv1.read, func_args=[order1],
                          nwarnings=3, message=messages)
-    uvtest.checkWarnings(mwa_uv2.read_mwa_corr_fits, func_args=[order2],
+    uvtest.checkWarnings(mwa_uv2.read, func_args=[order2],
                          nwarnings=3, message=messages)
     assert mwa_uv1 == mwa_uv2
 
@@ -176,7 +242,7 @@ def test_fine_channels():
         mini6[1].data = np.concatenate((mini6[1].data, mini6[1].data))
         mini6.writeto(bad_fine)
     with pytest.raises(ValueError) as cm:
-        mwa_uv.read_mwa_corr_fits([bad_fine, filelist[1]])
+        mwa_uv.read([bad_fine, filelist[1]])
     assert str(cm.value).startswith('files submitted have different fine')
     del(mwa_uv)
 
@@ -190,7 +256,7 @@ def test_break_ReadMWAcorrFITS(files, err_msg):
     """Break read_mwa_corr_fits by submitting files incorrectly."""
     mwa_uv = UVData()
     with pytest.raises(ValueError) as cm:
-        mwa_uv.read_mwa_corr_fits(files)
+        mwa_uv.read(files)
     assert str(cm.value).startswith(err_msg)
     del(mwa_uv)
 
@@ -207,7 +273,7 @@ def test_file_extension():
     with fits.open(filelist[0]) as meta:
         meta.writeto(bad_ext)
     with pytest.raises(ValueError) as cm:
-        mwa_uv.read_mwa_corr_fits(bad_ext)
+        mwa_uv.read(bad_ext, file_type='mwa_corr_fits')
     assert str(cm.value).startswith('only fits, metafits, and mwaf files supported')
     del(mwa_uv)
 
@@ -225,6 +291,6 @@ def test_diff_obs():
         mini6[0].header['OBSID'] = '1131733555'
         mini6.writeto(bad_obs)
     with pytest.raises(ValueError) as cm:
-        mwa_uv.read_mwa_corr_fits([bad_obs, filelist[0], filelist[1]])
+        mwa_uv.read([bad_obs, filelist[0], filelist[1]])
     assert str(cm.value).startswith('files from different observations')
     del(mwa_uv)

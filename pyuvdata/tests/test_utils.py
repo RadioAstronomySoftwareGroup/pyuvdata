@@ -1,4 +1,4 @@
-# -*- mode: python; coding: utf-8 -*
+# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2018 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 
@@ -17,11 +17,15 @@ from astropy.coordinates import SkyCoord, Angle
 from astropy.io import fits
 import copy
 
-from pyuvdata import UVData, UVFlag, UVCal
+from pyuvdata import (
+    UVData,
+    UVFlag,
+    UVCal,
+    utils as uvutils,
+    tests as uvtest,
+    version as uvversion
+)
 from pyuvdata.data import DATA_PATH
-import pyuvdata.utils as uvutils
-import pyuvdata.tests as uvtest
-import pyuvdata.version as uvversion
 
 
 ref_latlonalt = (-26.7 * np.pi / 180.0, 116.7 * np.pi / 180.0, 377.8)
@@ -568,6 +572,27 @@ def test_redundancy_finder():
                 bl_vec *= (-1)
             assert np.isclose(np.sqrt(np.dot(bl_vec, vec_bin_centers[gi])),
                               lens[gi], atol=tol)
+
+
+def test_high_tolerance_redundancy_error():
+    """
+    Confirm that an error is raised if the redundancy tolerance is set too high,
+    such that baselines end up in multiple
+    """
+    uvd = UVData()
+    uvd.read_uvfits(os.path.join(DATA_PATH, 'fewant_randsrc_airybeam_Nsrc100_10MHz.uvfits'))
+
+    uvd.select(times=uvd.time_array[0])
+    uvd.unphase_to_drift(use_ant_pos=True)   # uvw_array is now equivalent to baseline positions
+    uvd.conjugate_bls(convention='ant1<ant2', use_enu=True)
+    bl_positions = uvd.uvw_array
+
+    tol = 20.05  # meters
+
+    with pytest.raises(ValueError) as cm:
+        baseline_groups, vec_bin_centers, lens, conjugates = uvutils.get_baseline_redundancies(
+            uvd.baseline_array, bl_positions, tol=tol, with_conjugates=True)
+    assert "Some baselines are falling into" in str(cm.value)
 
 
 def test_redundancy_conjugates():

@@ -1,4 +1,4 @@
-# -*- mode: python; coding: utf-8 -*
+# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2018 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 
@@ -28,8 +28,10 @@ __all__ = 'Miriad'
 class Miriad(UVData):
     """
     Defines a Miriad-specific subclass of UVData for reading and writing Miriad files.
-    This class should not be interacted with directly, instead use the read_miriad
+
+    This class should not be interacted with directly, instead use the read
     and write_miriad methods on the UVData class.
+
     """
 
     def _pol_to_ind(self, pol):
@@ -49,36 +51,79 @@ class Miriad(UVData):
         """
         Read in data from a miriad file.
 
-        Args:
-            filepath: The miriad file directory to read from.
-            antenna_nums: The antennas numbers to read into the object.
-            bls: A list of antenna number tuples (e.g. [(0,1), (3,2)]) or a list of
-                baseline 3-tuples (e.g. [(0,1,'xx'), (2,3,'yy')]) specifying baselines
-                to keep in the object. For length-2 tuples, the  ordering of the numbers
-                within the tuple does not matter. For length-3 tuples, the polarization
-                string is in the order of the two antennas. If length-3 tuples are
-                provided, the polarizations argument below must be None.
-            ant_str: A string containing information about what kinds of visibility data
-                to read-in.  Can be 'auto', 'cross', 'all'. Cannot provide ant_str if
-                antenna_nums and/or bls is not None.
-            polarizations: List of polarization integers or strings to read-in.
-                Ex: ['xx', 'yy', ...]
-            time_range: len-2 list containing min and max range of times (Julian Date) to read-in.
-                Ex: [2458115.20, 2458115.40]
-            read_data: Read in the visibility and flag data. If set to false,
-                only the metadata will be read in. Results in an incompletely
-                defined object (check will not pass). Default True.
-            phase_type: Either 'drift' meaning zenith drift, 'phased' meaning
-                the data are phased to a single RA/Dec or None and it will be
-                guessed at based on the file. Default None.
-            correct_lat_lon: flag -- that only matters if altitude is missing --
-                to update the latitude and longitude from the known_telescopes list
-            run_check: Option to check for the existence and proper shapes of
-                parameters after reading in the file. Default is True.
-            check_extra: Option to check optional parameters as well as required
-                ones. Default is True.
-            run_check_acceptability: Option to check acceptable range of the values of
-                parameters after reading in the file. Default is True.
+        Parameters
+        ----------
+        filepath : str
+            The miriad root directory to read from.
+            Support for a list/array of file directories will be
+            deprecated in version 2.0 in favor of a call to the generic
+            `read` method.
+        antenna_nums : array_like of int, optional
+            The antennas numbers to read into the object.
+        bls : list of tuple, optional
+            A list of antenna number tuples (e.g. [(0, 1), (3, 2)]) or a list of
+            baseline 3-tuples (e.g. [(0, 1, 'xx'), (2, 3, 'yy')]) specifying baselines
+            to include when reading data into the object. For length-2 tuples,
+            the ordering of the numbers within the tuple does not matter. For
+            length-3 tuples, the polarization string is in the order of the two
+            antennas. If length-3 tuples are provided, `polarizations` must be
+            None.
+        ant_str : str, optional
+            A string containing information about what antenna numbers
+            and polarizations to include when reading data into the object.
+            Can be 'auto', 'cross', 'all', or combinations of antenna numbers
+            and polarizations (e.g. '1', '1_2', '1x_2y').  See tutorial for more
+            examples of valid strings and the behavior of different forms for ant_str.
+            If '1x_2y,2y_3y' is passed, both polarizations 'xy' and 'yy' will
+            be kept for both baselines (1, 2) and (2, 3) to return a valid
+            pyuvdata object.
+            An ant_str cannot be passed in addition to any of `antenna_nums`,
+            `bls` or `polarizations` parameters, if it is a ValueError will be raised.
+        polarizations : array_like of int or str, optional
+            List of polarization integers or strings to read-in. e.g. ['xx', 'yy', ...]
+        time_range : list of float, optional
+            len-2 list containing min and max range of times in Julian Date to
+            include when reading data into the object. e.g. [2458115.20, 2458115.40]
+        read_data : bool
+            Read in the uvws, times, visibility and flag data. If set to False,
+            only the metadata that can be read quickly (without reading the data)
+            will be read in. For Miriad, some of the normally required metadata
+            are not fast to read in (e.g. uvws, times) so will not be read in
+            if this keyword is False. Therefore, setting read_data to False
+            results in an incompletely defined object (check will not pass).
+        phase_type : str, optional
+            Option to specify the phasing status of the data. Options are 'drift',
+            'phased' or None. 'drift' means the data are zenith drift data,
+            'phased' means the data are phased to a single RA/Dec. Default is None
+            meaning it will be guessed at based on the file contents.
+        correct_lat_lon : bool
+            Option to update the latitude and longitude from the known_telescopes
+            list if the altitude is missing.
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            after after reading in the file (the default is True,
+            meaning the check will be run). Ignored if read_data is False.
+        check_extra : bool
+            Option to check optional parameters as well as required ones (the
+            default is True, meaning the optional parameters will be checked).
+            Ignored if read_data is False.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters after
+            reading in the file (the default is True, meaning the acceptable
+            range check will be done). Ignored if read_data is False.
+
+        Raises
+        ------
+        IOError
+            If root file directory doesn't exist.
+        ValueError
+            If incompatible select keywords are set (e.g. `ant_str` with other
+            antenna selectors, `times` and `time_range`) or select keywords
+            exclude all data or if keywords are set to the wrong type.
+            If the data are multi source or have multiple
+            spectral windows.
+            If the metadata are not internally consistent.
+
         """
         if not os.path.exists(filepath):
             raise IOError(filepath + ' not found')
@@ -86,7 +131,12 @@ class Miriad(UVData):
 
         # load metadata
         (default_miriad_variables, other_miriad_variables, extra_miriad_variables,
-         check_variables) = self.read_miriad_metadata(uv, correct_lat_lon=correct_lat_lon)
+         check_variables) = self._read_miriad_metadata(uv, correct_lat_lon=correct_lat_lon)
+
+        if not read_data:
+            # don't read in the data. This means the object is incomplete,
+            # but that may not matter for many purposes.
+            return
 
         # read through the file and get the data
         _source = uv['source']  # check source of initial visibility
@@ -548,18 +598,36 @@ class Miriad(UVData):
         """
         Write the data to a miriad file.
 
-        Args:
-            filename: The miriad file directory to write to.
-            run_check: Option to check for the existence and proper shapes of
-                parameters before writing the file. Default is True.
-            check_extra: Option to check optional parameters as well as required
-                ones. Default is True.
-            run_check_acceptability: Option to check acceptable range of the values of
-                parameters before writing the file. Default is True.
-            clobber: Option to overwrite the filename if the file already exists.
-                Default is False. If False and file exists, raises an IOError.
-            no_antnums: Option to not write the antnums variable to the file.
-                Should only be used for testing purposes.
+        Parameters
+        ----------
+        filename : str
+            The miriad root directory to write to.
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            after before writing the file (the default is True,
+            meaning the check will be run).
+        check_extra : bool
+            Option to check optional parameters as well as required ones (the
+            default is True, meaning the optional parameters will be checked).
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters before
+            writing the file (the default is True, meaning the acceptable
+            range check will be done).
+        clobber : bool
+            Option to overwrite the filename if the file already exists.
+        no_antnums : bool
+            Option to not write the antnums variable to the file.
+            Should only be used for testing purposes.
+
+        Raises
+        ------
+        ValueError
+            If the frequencies are not evenly spaced or are separated by more
+            than their channel width.
+            The `phase_type` of the object is "unknown".
+        TypeError
+            If any entry in extra_keywords is not a single string or number.
+
         """
         # change time_array and lst_array to mark beginning of integration, per Miriad format
         miriad_time_array = self.time_array - self.integration_time / (24 * 3600.) / 2
@@ -832,19 +900,35 @@ class Miriad(UVData):
 
     def read_miriad_metadata(self, filename, correct_lat_lon=True):
         """
-        Read in metadata (parameter info) but not data from a miriad file.
+        Deprecated: Read in metadata (parameter info) but not data from a miriad file.
 
-        Args:
-            filename : The miriad file to read
-            correct_lat_lon: flag -- that only matters if altitude is missing --
-                to update the latitude and longitude from the known_telescopes list
+        Deprecated in favor of `_read_miriad_metadata` because it is not an
+        API level method (it's only called internally.)
 
-        Returns:
-            default_miriad_variables: list of default miriad variables
-            other_miriad_variables: list of other miriad variables
-            extra_miriad_variables: list of extra, non-standard variables
-            check_variables: dict of extra miriad variables
+        Parameters
+        ----------
+        filename : str
+            The miriad file to read.
+        correct_lat_lon : bool
+            Option to update the latitude and longitude from the known_telescopes
+            list if the altitude is missing.
+
+        Returns
+        -------
+        default_miriad_variables : list
+            list of default miriad variables
+        other_miriad_variables: list
+            list of other miriad variables
+        extra_miriad_variables: list
+            list of extra, non-standard variables
+        check_variables: dict
+            dict of extra miriad variables
+
         """
+        warnings.warn('The read_miriad_metadata method is deprecated in favor of '
+                      '_read_miriad_metadata because it is not API level code. This '
+                      'function will be removed in version 2.0', DeprecationWarning)
+
         # check for data array
         if self.data_array is not None:
             raise ValueError('data_array is already defined, cannot read metadata')
@@ -854,7 +938,32 @@ class Miriad(UVData):
             uv = aipy_extracts.UV(filename)
         elif isinstance(filename, aipy_extracts.UV):
             uv = filename
+        self._read_miriad_metadata(uv)
 
+    def _read_miriad_metadata(self, uv, correct_lat_lon=True):
+        """
+        Read in metadata (parameter info) but not data from a miriad file.
+
+        Parameters
+        ----------
+        uv : aipy.miriad.UV
+            aipy object to load metadata from.
+        correct_lat_lon : bool
+            Option to update the latitude and longitude from the known_telescopes
+            list if the altitude is missing.
+
+        Returns
+        -------
+        default_miriad_variables : list of str
+            list of default miriad variables
+        other_miriad_variables: list of str
+            list of other miriad variables
+        extra_miriad_variables: list of str
+            list of extra, non-standard variables
+        check_variables: dict
+            dict of extra miriad variables to add to extra_keywords parameter.
+
+        """
         # load miriad variables
         (default_miriad_variables, other_miriad_variables,
          extra_miriad_variables) = self._load_miriad_variables(uv)
@@ -905,15 +1014,22 @@ class Miriad(UVData):
 
     def _load_miriad_variables(self, uv):
         """
-        Load miriad variables from an aipy.miriad UV descriptor.
+        Load miriad variables from an aipy.miriad UV descriptor onto self.
 
-        Args:
-            uv: aipy.miriad.UV instance
+        Parameters
+        ----------
+        uv : aipy.miriad.UV
+            aipy object to load variables from.
 
-        Returns:
-            default_miriad_variables: list of default miriad variables
-            other_miriad_varialbes: list of other miriad varialbes
-            extra_miriad_variables: list of extra, non-standard variables
+        Returns
+        -------
+        default_miriad_variables : list of str
+            list of default miriad variables
+        other_miriad_variables: list of str
+            list of other miriad variables
+        extra_miriad_variables: list of str
+            list of extra, non-standard variables
+
         """
         # list of miriad variables always read
         # NB: this includes variables in try/except (i.e. not all variables are
@@ -998,12 +1114,16 @@ class Miriad(UVData):
 
     def _load_telescope_coords(self, uv, correct_lat_lon=True):
         """
-        Load telescope lat, lon alt coordinates from aipy.miriad UV descriptor.
+        Load telescope lat, lon, alt coordinates from aipy.miriad UV descriptor.
 
-        Args:
-            uv: aipy.miriad.UV instance
-            correct_lat_lon: flag -- that only matters if altitude is missing --
-                to update the latitude and longitude from the known_telescopes list
+        Parameters
+        ----------
+        uv : aipy.miriad.UV
+            aipy object to load lat, lon, alt coordinates from.
+        correct_lat_lon : bool
+            Option to update the latitude and longitude from the known_telescopes
+            list if the altitude is missing.
+
         """
         # check if telescope name is present
         if self.telescope_name is None:
@@ -1065,15 +1185,20 @@ class Miriad(UVData):
                               'set using antenna positions.'
                               .format(telescope_name=self.telescope_name))
 
-    def _load_antpos(self, uv, sorted_unique_ants=[], correct_lat_lon=True):
+    def _load_antpos(self, uv, sorted_unique_ants=None, correct_lat_lon=True):
         """
         Load antennas and their positions from a Miriad UV descriptor.
 
-        Args:
-            uv: aipy.miriad.UV instance.
-            sorted_unique_ants: list of unique antennas
-            correct_lat_lon: flag -- that only matters if altitude is missing --
-                to update the latitude and longitude from the known_telescopes list
+        Parameters
+        ----------
+        uv : aipy.miriad.UV
+            aipy object to antennas and positions from.
+        sorted_unique_ants : list of ints, optional
+            List of unique antennas.
+        correct_lat_lon : bool
+            Option to update the latitude and longitude from the known_telescopes
+            list if the altitude is missing.
+
         """
         # check if telescope coords exist
         if self.telescope_location_lat_lon_alt is None:
@@ -1224,7 +1349,10 @@ class Miriad(UVData):
                 # take the union of the antennas with good positions (good_antpos)
                 # and the antennas that have visisbilities (sorted_unique_ants)
                 # if there are antennas with visibilities but zeroed positions we issue a warning below
-                ants_use = set(good_antpos).union(sorted_unique_ants)
+                if sorted_unique_ants is not None:
+                    ants_use = set(good_antpos).union(sorted_unique_ants)
+                else:
+                    ants_use = set(good_antpos)
                 # ants_use are the antennas we'll keep track of in the UVData
                 # object, so they dictate Nants_telescope
                 self.Nants_telescope = len(ants_use)
@@ -1248,8 +1376,9 @@ class Miriad(UVData):
             # there are no antenna_numbers or antenna_positions, so just use
             # the antennas present in the visibilities
             # (Nants_data will therefore match Nants_telescope)
-            self.antenna_numbers = np.array(sorted_unique_ants)
-            self.Nants_telescope = len(self.antenna_numbers)
+            if sorted_unique_ants is not None:
+                self.antenna_numbers = np.array(sorted_unique_ants)
+                self.Nants_telescope = len(self.antenna_numbers)
 
         # antenna names is a foreign concept in miriad but required in other formats.
         try:

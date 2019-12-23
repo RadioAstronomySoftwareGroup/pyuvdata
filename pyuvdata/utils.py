@@ -1,4 +1,4 @@
-# -*- mode: python; coding: utf-8 -*
+# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2018 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 
@@ -1432,6 +1432,9 @@ def get_baseline_redundancies(baselines, baseline_vecs, tol=1.0, with_conjugates
         vec_bin_centers[gi] = np.mean(baseline_vecs[inds, :], axis=0)
 
     lens = np.sqrt(np.sum(vec_bin_centers**2, axis=1))
+    if np.sum([len(bg) for bg in bl_gps]) > Nbls:
+        raise ValueError("Some baselines are falling into multiple"
+                         " redundant groups. Lower the tolerance to resolve ambiguity.")
 
     return bl_gps, vec_bin_centers, lens
 
