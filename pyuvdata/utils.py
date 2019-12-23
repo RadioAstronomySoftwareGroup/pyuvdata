@@ -21,11 +21,14 @@ gps_a = 6378137
 e_squared = 6.69437999014e-3
 e_prime_squared = 6.73949674228e-3
 
+
 def _str_to_bytes(s):
     return s.encode('utf8')
 
+
 def _bytes_to_str(b):
     return b.decode('utf8')
+
 
 __all__ = [
     "POL_STR2NUM_DICT",
