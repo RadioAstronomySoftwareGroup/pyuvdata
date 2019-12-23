@@ -14,7 +14,6 @@ from unittest import SkipTest, TestCase
 
 import functools
 import types
-import six
 
 from astropy.utils import iers
 
@@ -166,7 +165,7 @@ def checkWarnings(func, func_args=[], func_kwargs={}, nwarnings=1,
             warnings.filterwarnings("ignore", message="failed to download")
             warnings.filterwarnings("ignore", message="time is out of IERS range")
 
-            if isinstance(message, six.string_types):
+            if isinstance(message, str):
                 test_message = [message.startswith("LST values stored in ")]
             else:
                 test_message = []
@@ -224,10 +223,7 @@ def skip(reason):
     warnings.simplefilter('default', DeprecationWarning)  # reset filter
     def decorator(test_item):
 
-        if six.PY2:
-            class_types = (type, types.ClassType)
-        else:
-            class_types = (type)
+        class_types = (type)
         if not isinstance(test_item, class_types):
             @functools.wraps(test_item)
             def skip_wrapper(*args, **kwargs):

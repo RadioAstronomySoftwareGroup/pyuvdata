@@ -11,7 +11,6 @@ import os
 import shutil
 import numpy as np
 import itertools
-import six
 import warnings
 from astropy import constants as const
 from astropy.coordinates import Angle, SkyCoord
@@ -126,8 +125,8 @@ class Miriad(UVData):
                     raise ValueError(
                         'bls must be a list of tuples of antenna numbers (optionally with polarization).')
                 if all([len(item) == 2 for item in bls]):
-                    if not all([isinstance(item[0], six.integer_types + (np.integer,)) for item in bls]
-                               + [isinstance(item[1], six.integer_types + (np.integer,)) for item in bls]):
+                    if not all([isinstance(item[0], (int, np.integer,)) for item in bls]
+                               + [isinstance(item[1], (int, np.integer,)) for item in bls]):
                         raise ValueError(
                             'bls must be a list of tuples of antenna numbers (optionally with polarization).')
                 elif all([len(item) == 3 for item in bls]):

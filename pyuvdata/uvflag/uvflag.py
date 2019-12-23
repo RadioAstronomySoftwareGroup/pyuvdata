@@ -8,8 +8,6 @@ import numpy as np
 import os
 import warnings
 import copy
-import six
-from six.moves import map, zip
 import h5py
 
 from ..uvbase import UVBase
@@ -301,7 +299,7 @@ class UVFlag(UVBase):
         """Determine if this object has had pols collapsed."""
         if not hasattr(self, 'polarization_array') or self.polarization_array is None:
             return False
-        elif isinstance(self.polarization_array.item(0), six.string_types):
+        elif isinstance(self.polarization_array.item(0), str):
             return True
         else:
             return False
@@ -310,7 +308,7 @@ class UVFlag(UVBase):
         if self.pol_collapsed:
             # collapsed pol objects have a different type for
             # the polarization array.
-            self._polarization_array.expected_type = six.string_types
+            self._polarization_array.expected_type = str
             self._polarization_array.acceptable_vals = None
         else:
             self._polarization_array.expected_type = int
@@ -618,8 +616,8 @@ class UVFlag(UVBase):
             if not all(isinstance(item, tuple) for item in bls):
                 raise ValueError(
                     'bls must be a list of tuples of antenna numbers (optionally with polarization).')
-            if not all([isinstance(item[0], six.integer_types + (np.integer,)) for item in bls]
-                       + [isinstance(item[1], six.integer_types + (np.integer,)) for item in bls]):
+            if not all([isinstance(item[0], (int, np.integer,)) for item in bls]
+                       + [isinstance(item[1], (int, np.integer,)) for item in bls]):
                 raise ValueError(
                     'bls must be a list of tuples of integer antenna numbers (optionally with polarization).')
             if all([len(item) == 3 for item in bls]):
@@ -1188,7 +1186,7 @@ class UVFlag(UVBase):
             if self.x_orientation is not None:
                 header['x_orientation'] = uvutils._str_to_bytes(self.x_orientation)
 
-            if isinstance(self.polarization_array.item(0), six.string_types):
+            if isinstance(self.polarization_array.item(0), str):
                 polarization_array = np.asarray(self.polarization_array,
                                                 dtype=np.string_)
             else:
