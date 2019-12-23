@@ -8,8 +8,10 @@ import re
 import numpy as np
 import warnings
 
-from . import UVBeam
-from . import utils as uvutils
+from .uvbeam import UVBeam
+from .. import utils as uvutils
+
+__all__ = ['CSTBeam']
 
 
 class CSTBeam(UVBeam):

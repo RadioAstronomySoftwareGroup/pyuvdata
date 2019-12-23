@@ -74,23 +74,30 @@ setup_args = {
     'long_description': readme,
     'long_description_content_type': 'text/markdown',
     'package_dir': {'pyuvdata': 'pyuvdata'},
-    'packages': ['pyuvdata', 'pyuvdata.tests'],
+    'packages': [
+        'pyuvdata',
+        'pyuvdata.tests',
+        'pyuvdata.uvbeam',
+        'pyuvdata.uvcal',
+        'pyuvdata.uvdata',
+        'pyuvdata.uvflag',
+    ],
     'cmdclass': {'build_ext': CustomBuildExtCommand},
     'ext_modules': [
         Extension(
             'pyuvdata._miriad',
             sources=[
-                'pyuvdata/src/miriad_wrap.cpp',
-                'pyuvdata/src/uvio.c',
-                'pyuvdata/src/hio.c',
-                'pyuvdata/src/pack.c',
-                'pyuvdata/src/bug.c',
-                'pyuvdata/src/dio.c',
-                'pyuvdata/src/headio.c',
-                'pyuvdata/src/maskio.c',
+                'pyuvdata/uvdata/src/miriad_wrap.cpp',
+                'pyuvdata/uvdata/src/uvio.c',
+                'pyuvdata/uvdata/src/hio.c',
+                'pyuvdata/uvdata/src/pack.c',
+                'pyuvdata/uvdata/src/bug.c',
+                'pyuvdata/uvdata/src/dio.c',
+                'pyuvdata/uvdata/src/headio.c',
+                'pyuvdata/uvdata/src/maskio.c',
             ],
             define_macros=global_c_macros,
-            include_dirs=['pyuvdata/src']
+            include_dirs=['pyuvdata/uvdata/src']
         )
     ],
     'scripts': glob.glob('scripts/*'),
