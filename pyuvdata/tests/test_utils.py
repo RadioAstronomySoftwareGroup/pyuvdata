@@ -444,8 +444,6 @@ def test_redundancy_finder():
 
     pytest.raises(ValueError, uvutils.get_baseline_redundancies,
                   uvd.baseline_array, bl_positions[0:2, 0:1])
-    baseline_groups, vec_bin_centers, lens = uvutils.get_baseline_redundancies(
-        uvd.baseline_array, bl_positions, tol=tol)
 
     baseline_groups, vec_bin_centers, lens = uvutils.get_baseline_redundancies(
         uvd.baseline_array, bl_positions, tol=tol)
