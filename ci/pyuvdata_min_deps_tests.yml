@@ -6,7 +6,6 @@ dependencies:
   - astropy
   - numpy
   - scipy
-  - six
   - h5py
   - coverage
   - pytest-cov
