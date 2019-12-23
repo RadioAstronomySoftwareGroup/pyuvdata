@@ -25,7 +25,6 @@ import numpy as np
 import pytest
 from astropy.time import Time, TimeDelta
 from astropy import constants as const
-from astropy.utils import iers
 
 from pyuvdata import UVData
 from ..miriad import Miriad
