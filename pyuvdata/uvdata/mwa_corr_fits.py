@@ -1,4 +1,4 @@
-# -*- mode: python; coding: utf-8 -*
+# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2019 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 
@@ -70,7 +70,7 @@ class MWACorrFITS(UVData):
                                   * self.freq_array.reshape(1, self.Nfreqs))[:, :, None]
 
     def read_mwa_corr_fits(self, filelist, use_cotter_flags=False, correct_cable_len=False,
-                           phase_data=False, phase_center=None, run_check=True, check_extra=True,
+                           phase_to_pointing_center=False, run_check=True, check_extra=True,
                            run_check_acceptability=True):
         """
         Read in MWA correlator gpu box files.
@@ -90,16 +90,11 @@ class MWACorrFITS(UVData):
             multiple files are passed.
         use_cotter_flags : bool
             Option to use cotter output mwaf flag files. Otherwise flagging
-            will only be applied to missing data and bad antennas. Default is
-            False.
+            will only be applied to missing data and bad antennas.
         correct_cable_len : bool
-            Option to apply a cable delay correction. Default is False.
-        phase_data : bool
-            Option to phase data. Default is False.
-        phase_center : tuple, optional
-            A tuple containing the ra and dec coordinates in radians of a
-            specific location to phase data to. If not specified, the
-            observation pointing center will be used when phase_data is True.
+            Option to apply a cable delay correction.
+        phase_to_pointing_center : bool
+            Option to phase to the observation pointing center.
         run_check : bool
             Option to check for the existence and proper shapes of parameters
             after after reading in the file (the default is True,
@@ -111,6 +106,15 @@ class MWACorrFITS(UVData):
             Option to check acceptable range of the values of parameters after
             reading in the file (the default is True, meaning the acceptable
             range check will be done).
+
+        Raises
+        ------
+        ValueError
+            If required files are missing or multiple files metafits files are included in filelist.
+            If files from different observations are included in filelist.
+            If files in fileslist have different fine channel widths
+            If file types other than fits, metafits, and mwaf files are included in filelist.
+
         """
         metafits_file = None
         obs_id = None
@@ -157,8 +161,7 @@ class MWACorrFITS(UVData):
                     if num_fine_chans == 0:
                         num_fine_chans = data[1].header['NAXIS2']
                     elif num_fine_chans != data[1].header['NAXIS2']:
-                        raise ValueError('files submitted have different fine \
-                        channel widths')
+                        raise ValueError('files submitted have different fine channel widths')
 
                 # organize files
                 if 'data' not in file_dict.keys():
@@ -182,7 +185,7 @@ class MWACorrFITS(UVData):
             raise ValueError('no metafits file submitted')
         if 'data' not in file_dict.keys():
             raise ValueError('no data files submitted')
-        if 'flags' not in file_dict.keys() and use_cotter_flags is True:
+        if 'flags' not in file_dict.keys() and use_cotter_flags:
             raise ValueError('no flag files submitted. Rerun with flag files \
                              or use_cotter_flags=False')
 
@@ -210,10 +213,6 @@ class MWACorrFITS(UVData):
             dec_deg = meta_hdr['DEC']
             ra_rad = np.pi * ra_deg / 180
             dec_rad = np.pi * dec_deg / 180
-
-            # check if a different pointing center has been specified
-            if phase_center is None:
-                phase_center = (ra_rad, dec_rad)
 
             # get parameters from header
             # this assumes no averaging by this code so will need to be updated
@@ -483,7 +482,7 @@ class MWACorrFITS(UVData):
         self.nsample_array = self.nsample_array.reshape((self.Nblts, self.Nfreqs, self.Npols))
 
         # cable delay corrections
-        if correct_cable_len is True:
+        if correct_cable_len:
             self.correct_cable_length(cable_lens)
 
         # add spectral window index
@@ -500,9 +499,8 @@ class MWACorrFITS(UVData):
         self.reorder_pols()
 
         # phasing
-        if phase_data is True:
-            (ra, dec) = phase_center
-            self.phase(ra, dec)
+        if phase_to_pointing_center:
+            self.phase(ra_rad, dec_rad)
 
-        if use_cotter_flags is True:
+        if use_cotter_flags:
             raise NotImplementedError('reading in cotter flag files is not yet available')

@@ -1,4 +1,4 @@
-# -*- mode: python; coding: utf-8 -*
+# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2018 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 
@@ -24,37 +24,75 @@ from pyuvdata.data import DATA_PATH
 def test_ReadNRAO():
     """Test reading in a CASA tutorial uvfits file."""
     UV = UVData()
-    testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    testfile = os.path.join(DATA_PATH,
+                            'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
     expected_extra_keywords = ['OBSERVER', 'SORTORD', 'SPECSYS',
                                'RESTFREQ', 'ORIGIN']
-    uvtest.checkWarnings(UV.read, [testfile], message='Telescope EVLA is not')
-    assert expected_extra_keywords.sort() == list(UV.extra_keywords.keys()).sort()
+    uvtest.checkWarnings(UV.read_uvfits, func_args=[testfile],
+                         message='Telescope EVLA is not')
+    assert (expected_extra_keywords.sort()
+            == list(UV.extra_keywords.keys()).sort())
 
     # test reading in header data first, then metadata and then data
     UV2 = UVData()
-    uvtest.checkWarnings(UV2.read, [testfile], {'read_data': False, 'read_metadata': False},
-                         message='Telescope EVLA is not')
-    assert expected_extra_keywords.sort() == list(UV2.extra_keywords.keys()).sort()
+    uvtest.checkWarnings(UV2.read, func_args=[testfile],
+                         func_kwargs={'read_data': False,
+                                      'read_metadata': False},
+                         message=['Telescope EVLA is not',
+                                  'Support for reading only the header'],
+                         category=[UserWarning, DeprecationWarning],
+                         nwarnings=2)
+    assert (expected_extra_keywords.sort()
+            == list(UV2.extra_keywords.keys()).sort())
     with pytest.raises(ValueError) as cm:
         UV2.check()
     assert str(cm.value).startswith('Required UVParameter')
 
-    UV2.read(testfile, read_data=False)
-    assert UV2.check()
-    UV2.read(testfile)
-    assert UV == UV2
-    # test reading in header & metadata first, then data
-    UV2 = UVData()
-    uvtest.checkWarnings(UV2.read, [testfile], {'read_data': False},
+    # do this two ways, with `read` and with deprecated `read_uvfits_metadata`
+    UV3 = UV2.copy()
+    uvtest.checkWarnings(UV2.read, func_args=[testfile],
+                         func_kwargs={'read_data': False},
                          message='Telescope EVLA is not')
-    assert expected_extra_keywords.sort() == list(UV2.extra_keywords.keys()).sort()
     assert UV2.check()
-    UV2.read(testfile)
+
+    uvfits_obj = UV3._convert_to_filetype('uvfits')
+    uvtest.checkWarnings(uvfits_obj.read_uvfits_metadata, func_args=[testfile],
+                         message='The read_uvfits_metadata method is deprecated',
+                         category=DeprecationWarning)
+    UV3._convert_from_filetype(uvfits_obj)
+    assert UV3 == UV2
+
+    uvtest.checkWarnings(UV2.read, func_args=[testfile],
+                         message='Telescope EVLA is not')
     assert UV == UV2
 
+    # test reading in header & metadata first, then data
+    # do this two ways, with `read` and with deprecated `read_uvfits_data`
+    UV2 = UVData()
+    uvtest.checkWarnings(UV2.read, func_args=[testfile],
+                         func_kwargs={'read_data': False},
+                         message='Telescope EVLA is not')
+    assert (expected_extra_keywords.sort()
+            == list(UV2.extra_keywords.keys()).sort())
+    assert UV2.check()
+    UV3 = UV2.copy()
+    uvtest.checkWarnings(UV2.read, func_args=[testfile],
+                         message='Telescope EVLA is not')
+    assert UV == UV2
+
+    uvfits_obj = UV3._convert_to_filetype('uvfits')
+    uvtest.checkWarnings(uvfits_obj.read_uvfits_data, func_args=[testfile],
+                         message='The read_uvfits_data method is deprecated',
+                         category=DeprecationWarning)
+    UV3._convert_from_filetype(uvfits_obj)
+    assert UV3 == UV2
+
     # check error trying to read metadata after data is already present
+    uvfits_obj = UV3._convert_to_filetype('uvfits')
     with pytest.raises(ValueError) as cm:
-        UV2.read(testfile, read_data=False)
+        uvtest.checkWarnings(uvfits_obj.read_uvfits_metadata, func_args=[testfile],
+                             message='The read_uvfits_metadata method is deprecated',
+                             category=DeprecationWarning)
     assert str(cm.value).startswith('data_array is already defined, cannot read metadata')
 
 
@@ -505,11 +543,7 @@ def test_select_read():
 
     # select on read using time_range
     unique_times = np.unique(uvfits_uv.time_array)
-    uvtest.checkWarnings(uvfits_uv.read, [uvfits_file],
-                         {'time_range': [unique_times[0], unique_times[1]]},
-                         nwarnings=2,
-                         message=['Warning: "time_range" keyword is set',
-                                  'Telescope EVLA is not'])
+    uvfits_uv.read(uvfits_file, time_range=[unique_times[0], unique_times[1]])
     uvfits_uv2.read(uvfits_file)
     uvfits_uv2.select(times=unique_times[0:2])
     assert uvfits_uv == uvfits_uv2
@@ -663,7 +697,11 @@ def test_multi_files():
     uv2.select(freq_chans=np.arange(32, 64))
     uv1.write_uvfits(testfile1)
     uv2.write_uvfits(testfile2)
-    uv1.read([testfile1, testfile2])
+    uvtest.checkWarnings(
+        uv1.read_uvfits, func_args=[np.array([testfile1, testfile2])],
+        message=(['Please use the generic'] + 2 * ['Telescope EVLA is not']),
+        category=[DeprecationWarning] + 2 * [UserWarning],
+        nwarnings=3)
     # Check history is correct, before replacing and doing a full object check
     assert uvutils._check_histories(uv_full.history + '  Downselected to '
                                     'specific frequencies using pyuvdata. '
@@ -705,13 +743,113 @@ def test_multi_files():
     assert str(cm.value).startswith('A list of files cannot be used when just '
                                     'reading the header')
 
-    # check raises error if only reading data on a list of files (metadata already read)
-    uv1 = UVData()
-    uv1.read(uvfits_file, read_data=False)
+
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+@pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
+def test_multi_unphase_on_read():
+    uv_full = UVData()
+    uv_full2 = UVData()
+    uvfits_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    testfile1 = os.path.join(DATA_PATH, 'test/uv1.uvfits')
+    testfile2 = os.path.join(DATA_PATH, 'test/uv2.uvfits')
+    uv_full.read(uvfits_file)
+    uv1 = copy.deepcopy(uv_full)
+    uv2 = copy.deepcopy(uv_full)
+    uv1.select(freq_chans=np.arange(0, 32))
+    uv2.select(freq_chans=np.arange(32, 64))
+    uv1.write_uvfits(testfile1)
+    uv2.write_uvfits(testfile2)
+    uvtest.checkWarnings(
+        uv1.read, func_args=[np.array([testfile1, testfile2])],
+        func_kwargs={'unphase_to_drift': True},
+        message=(['Telescope EVLA is not'] * 2
+                 + ['Unphasing this UVData object to drift',
+                    'The xyz array in ENU_from_ECEF is being interpreted',
+                    'Unphasing other UVData object to drift',
+                    'The xyz array in ENU_from_ECEF is being interpreted']),
+        category=[UserWarning] * 2 + [UserWarning, DeprecationWarning] * 2,
+        nwarnings=6)
+
+    # Check history is correct, before replacing and doing a full object check
+    assert uvutils._check_histories(uv_full.history + '  Downselected to '
+                                    'specific frequencies using pyuvdata. '
+                                    'Combined data along frequency axis '
+                                    'using pyuvdata.', uv1.history)
+
+    uv_full.unphase_to_drift()
+
+    uv1.history = uv_full.history
+    assert uv1 == uv_full
+
+    # check unphasing when reading only one file
+    uvtest.checkWarnings(
+        uv_full2.read, func_args=[uvfits_file],
+        func_kwargs={'unphase_to_drift': True},
+        message=(['Telescope EVLA is not',
+                  'Unphasing this UVData object to drift',
+                  'The xyz array in ENU_from_ECEF is being interpreted']),
+        category=[UserWarning, UserWarning, DeprecationWarning],
+        nwarnings=3)
+    assert uv_full2 == uv_full
+
+
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+@pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
+@pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
+def test_multi_phase_on_read():
+    uv_full = UVData()
+    uv_full2 = UVData()
+    uvfits_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    testfile1 = os.path.join(DATA_PATH, 'test/uv1.uvfits')
+    testfile2 = os.path.join(DATA_PATH, 'test/uv2.uvfits')
+    uv_full.read(uvfits_file)
+    phase_center_radec = [uv_full.phase_center_ra + 0.01,
+                          uv_full.phase_center_dec + 0.01]
+    uv1 = copy.deepcopy(uv_full)
+    uv2 = copy.deepcopy(uv_full)
+    uv1.select(freq_chans=np.arange(0, 32))
+    uv2.select(freq_chans=np.arange(32, 64))
+    uv1.write_uvfits(testfile1)
+    uv2.write_uvfits(testfile2)
+    uvtest.checkWarnings(
+        uv1.read, func_args=[np.array([testfile1, testfile2])],
+        func_kwargs={'phase_center_radec': phase_center_radec},
+        message=(['Telescope EVLA is not'] * 2
+                 + ['Phasing this UVData object to phase_center_radec',
+                    'The xyz array in ENU_from_ECEF is being interpreted',
+                    'The enu array in ECEF_from_ENU is being interpreted',
+                    'Phasing this UVData object to phase_center_radec',
+                    'The xyz array in ENU_from_ECEF is being interpreted',
+                    'The enu array in ECEF_from_ENU is being interpreted']),
+        category=([UserWarning] * 2
+                  + [UserWarning, DeprecationWarning, DeprecationWarning] * 2),
+        nwarnings=8)
+
+    # Check history is correct, before replacing and doing a full object check
+    assert uvutils._check_histories(uv_full.history + '  Downselected to '
+                                    'specific frequencies using pyuvdata. '
+                                    'Combined data along frequency axis '
+                                    'using pyuvdata.', uv1.history)
+
+    uv_full.phase(*phase_center_radec)
+    uv1.history = uv_full.history
+    assert uv1 == uv_full
+
+    # check phasing when reading only one file
+    uvtest.checkWarnings(
+        uv_full2.read, func_args=[uvfits_file],
+        func_kwargs={'phase_center_radec': phase_center_radec},
+        message=(['Telescope EVLA is not',
+                  'Phasing this UVData object to phase_center_radec',
+                  'The xyz array in ENU_from_ECEF is being interpreted',
+                  'The enu array in ECEF_from_ENU is being interpreted']),
+        category=[UserWarning, UserWarning, DeprecationWarning, DeprecationWarning],
+        nwarnings=4)
+    assert uv_full2 == uv_full
+
     with pytest.raises(ValueError) as cm:
-        uv1.read([testfile1, testfile2])
-    assert str(cm.value).startswith('A list of files cannot be used when just '
-                                    'reading data (metadata already exists)')
+        uv_full2.read(uvfits_file, phase_center_radec=phase_center_radec[0])
+    assert str(cm.value).startswith('phase_center_radec should have length 2.')
 
 
 @uvtest.skipIf_no_casa

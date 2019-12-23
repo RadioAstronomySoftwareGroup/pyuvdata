@@ -4,17 +4,30 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- New `time_range` keyword to `select` so exact times don't need to be specified (also added to `read` methods for select on read).
+- Support for rephasing phased data including on `read`, `__add__` and `fast_concat` so that files with different phasing can be read in together.
+- `sum_vis` and `diff_vis` for summing or differencing visibilities in the data_array.
 - `read_mwa_corr_fits` for reading in MWA correlator gpubox files and applying cable corrections.
 - `eq_coeffs` for storing equalization coefficients and `remove_eq_coeffs` for removing them.
 - `utils.apply_uvflag` for applying UVFlag objects to UVData objects
 
 ### Fixed
+- Arrays of file names can now be passed to `read` (not just lists).
+- run_check is no longer turned off in `read_uvfits` and `read_uvh5` when `read_data` is False.
+- Redundancy finder will now error if any baselines appear in multiple groups.
 - A bug in `UVCal` objects that prevented them from properly getting data with `ee`/`nn`-style polarizations.
 - a bug in `UVFlag` where `x_orientation` was not set during initialization.
 - A bug in `UVCal.read_fhd_cal` that caused calibration solutions to be approximately doubled.
 - A bug in UVFlag where polarization array states were not updated when using `force_pol` keyword in `to_antenna` and `to_baseline`
 - A bug in UVFlag.to_baseline() where force_pol kwarg did not work for UVData Npols > 1
 - `UVData.read_uvfits` no longer breaks if there are non-ascii bytes in antenna names (which CASA sometimes writes).
+
+### Deprecated
+- Reading in multiple files (or file sets) using file-type specific read methods (e.g. `read_uvfits`) in favor of the generic `read` method.
+- The `phase_center` and `phase_data` keywords to `read_mwa_corr_fits` in favor of `phase_to_pointing_center` and the `phase_center_radec` keyword in the generic `read` method.
+- Support for reading only the header (not all the metadata) of uvfits files.
+- The `read_uvfits_metadata` and `read_uvfits_data` methods on the UVFITS object.
+- The `read_miriad_metadata` method on the Mirad object.
 
 ## [1.4.2] - 2019-10-15
 

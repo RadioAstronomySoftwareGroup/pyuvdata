@@ -75,6 +75,7 @@ def get_fhd_history(settings_file, return_user=False):
 class FHD(UVData):
     """
     Defines a FHD-specific subclass of UVData for reading FHD save files.
+
     This class should not be interacted with directly, instead use the read_fhd
     method on the UVData class.
     """
@@ -101,17 +102,36 @@ class FHD(UVData):
         """
         Read in data from a list of FHD files.
 
-        Args:
-            filelist: The list of FHD save files to read from. Must include at
-                least one polarization file, a params file and a flag file.
-            use_model: Option to read in the model visibilities rather than the
-                dirty visibilities. Default is False.
-            run_check: Option to check for the existence and proper shapes of
-                parameters after reading in the file. Default is True.
-            check_extra: Option to check optional parameters as well as required
-                ones. Default is True.
-            run_check_acceptability: Option to check acceptable range of the values of
-                parameters after reading in the file. Default is True.
+        Parameters
+        ----------
+        filelist : array_like of str
+            The list/array of FHD save files to read from. Must include at
+            least one polarization file, a params file and a flag file.
+        use_model : bool
+            Option to read in the model visibilities rather than the dirty
+            visibilities (the default is False, meaning the dirty visibilities
+            will be read).
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            after after reading in the file (the default is True,
+            meaning the check will be run).
+        check_extra : bool
+            Option to check optional parameters as well as required ones (the
+            default is True, meaning the optional parameters will be checked).
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters after
+            reading in the file (the default is True, meaning the acceptable
+            range check will be done).
+
+        Raises
+        ------
+        IOError
+            If root file directory doesn't exist.
+        ValueError
+            If required files are missing or multiple files for any polarization
+            are included in filelist.
+            If there is no recognized key for visibility weights in the flags_file.
+
         """
         datafiles = {}
         params_file = None
@@ -162,11 +182,11 @@ class FHD(UVData):
                 continue  # pragma: no cover
 
         if len(datafiles) < 1:
-            raise Exception('No data files included in file list')
+            raise ValueError('No data files included in file list')
         if params_file is None:
-            raise Exception('No params file included in file list')
+            raise ValueError('No params file included in file list')
         if flags_file is None:
-            raise Exception('No flags file included in file list')
+            raise ValueError('No flags file included in file list')
         if layout_file is None:
             warnings.warn('No layout file included in file list. '
                           'Support for FHD data without layout files will be '

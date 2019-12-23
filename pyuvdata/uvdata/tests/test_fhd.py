@@ -1,4 +1,4 @@
-# -*- mode: python; coding: utf-8 -*
+# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2018 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 
@@ -39,7 +39,7 @@ def test_ReadFHDWriteReadUVFits():
     """
     fhd_uv = UVData()
     uvfits_uv = UVData()
-    uvtest.checkWarnings(fhd_uv.read, [testfiles], known_warning='fhd')
+    uvtest.checkWarnings(fhd_uv.read_fhd, [testfiles], known_warning='fhd')
 
     fhd_uv.write_uvfits(os.path.join(DATA_PATH, 'test/outtest_FHD_1061316296.uvfits'),
                         spoof_nonessential=True)
@@ -77,7 +77,7 @@ def test_ReadFHDWriteReadUVFits_no_layout():
     fhd_uv = UVData()
     uvfits_uv = UVData()
     files_use = testfiles[:-3] + [testfiles[-2]]
-    uvtest.checkWarnings(fhd_uv.read_fhd, [files_use], nwarnings=2,
+    uvtest.checkWarnings(fhd_uv.read, [files_use], nwarnings=2,
                          message=['No layout file', 'antenna_positions are not defined'],
                          category=DeprecationWarning)
 
@@ -146,7 +146,7 @@ def test_ReadFHDWriteReadUVFits_fix_layout_bad_obs_loc():
                  layout_fixed_file, testfiles[7]]
     messages = ['Telescope location derived from obs',
                 'tile_names from obs structure does not match']
-    uvtest.checkWarnings(fhd_uv.read_fhd, [files_use], message=messages,
+    uvtest.checkWarnings(fhd_uv.read, [files_use], message=messages,
                          nwarnings=2)
 
     fhd_uv.write_uvfits(os.path.join(DATA_PATH, 'test/outtest_FHD_1061316296.uvfits'),
@@ -169,7 +169,7 @@ def test_ReadFHDWriteReadUVFits_bad_obs_loc():
                  testfiles[6], testfiles[7]]
     messages = ['Telescope location derived from obs',
                 'tile_names from obs structure does not match']
-    uvtest.checkWarnings(fhd_uv.read_fhd, [files_use], message=messages,
+    uvtest.checkWarnings(fhd_uv.read, [files_use], message=messages,
                          nwarnings=2)
 
     fhd_uv.write_uvfits(os.path.join(DATA_PATH, 'test/outtest_FHD_1061316296.uvfits'),
@@ -209,11 +209,11 @@ def test_ReadFHDWriteReadUVFits_no_settings():
     fhd_uv = UVData()
     uvfits_uv = UVData()
     messages = ['No settings', 'Telescope location derived from obs']
-    uvtest.checkWarnings(fhd_uv.read_fhd, [testfiles[:-2]], message=messages,
+    uvtest.checkWarnings(fhd_uv.read, [testfiles[:-2]], message=messages,
                          nwarnings=2)
 
     # Check only pyuvdata history with no settings file
-    assert fhd_uv.history == fhd_uv.pyuvdata_version_str  # Check empty history with no settings
+    assert fhd_uv.history == fhd_uv.pyuvdata_version_str
 
     fhd_uv.write_uvfits(os.path.join(DATA_PATH, 'test/outtest_FHD_1061316296.uvfits'),
                         spoof_nonessential=True)
@@ -224,17 +224,26 @@ def test_ReadFHDWriteReadUVFits_no_settings():
 def test_breakReadFHD():
     """Try various cases of incomplete file lists."""
     fhd_uv = UVData()
-    pytest.raises(Exception, fhd_uv.read_fhd, testfiles[1:])  # Missing flags
-    del(fhd_uv)
-    fhd_uv = UVData()
+    # missing flags
+    with pytest.raises(ValueError) as cm:
+        fhd_uv.read(testfiles[1:])
+    assert str(cm.value).startswith('No flags file included in file list')
+
+    # Missing params
     subfiles = [item for sublist in [testfiles[0:2], testfiles[3:]] for item in sublist]
-    pytest.raises(Exception, fhd_uv.read_fhd, subfiles)  # Missing params
-    del(fhd_uv)
-    fhd_uv = UVData()
-    pytest.raises(Exception, fhd_uv.read_fhd, ['foo'])  # No data files
+    with pytest.raises(ValueError) as cm:
+        fhd_uv.read(subfiles)
+    assert str(cm.value).startswith('No params file included in file list')
+
+    # No data files
+    with pytest.raises(ValueError) as cm:
+        fhd_uv.read(['foo.sav'])
+    assert str(cm.value).startswith('No data files included in file list')
     del(fhd_uv)
 
-    # test warnings with various broken inputs
+
+def test_ReadFHD_warnings():
+    """Test warnings with various broken inputs."""
     # bad obs structure values
     broken_data_file = testdir + testfile_prefix + 'broken_vis_XX.sav'
     bad_filelist = [testfiles[0], testfiles[2],
@@ -244,31 +253,39 @@ def test_breakReadFHD():
                      'Telescope location derived from obs',
                      'Telescope foo is not in known_telescopes.']
     fhd_uv = UVData()
-    uvtest.checkWarnings(fhd_uv.read_fhd, [bad_filelist], {'run_check': False},
+    uvtest.checkWarnings(fhd_uv.read, [bad_filelist], {'run_check': False},
                          nwarnings=5, message=warn_messages)
 
     # bad flag file
     broken_flag_file = testdir + testfile_prefix + 'broken_flags.sav'
     bad_filelist = testfiles[1:] + [broken_flag_file]
     fhd_uv = UVData()
-    pytest.raises(ValueError, fhd_uv.read_fhd, bad_filelist)
+    with pytest.raises(ValueError) as cm:
+        fhd_uv.read(bad_filelist)
+    assert str(cm.value).startswith('No recognized key for visibility weights in flags_file.')
 
     # try cases with extra files of each type
     extra_xx_file = testdir + testfile_prefix + 'extra_vis_XX.sav'
     copyfile(testfiles[1], extra_xx_file)
-    pytest.raises(Exception, fhd_uv.read_fhd, testfiles + [extra_xx_file])
+    with pytest.raises(ValueError) as cm:
+        fhd_uv.read(testfiles + [extra_xx_file])
+    assert str(cm.value).startswith('multiple xx datafiles in filelist')
     os.remove(extra_xx_file)
 
     extra_yy_file = testdir + testfile_prefix + 'extra_vis_YY.sav'
     copyfile(testfiles[3], extra_yy_file)
-    pytest.raises(Exception, fhd_uv.read_fhd, testfiles + [extra_yy_file])
+    with pytest.raises(ValueError) as cm:
+        fhd_uv.read(testfiles + [extra_yy_file])
+    assert str(cm.value).startswith('multiple yy datafiles in filelist')
     os.remove(extra_yy_file)
 
     xy_file = testdir + testfile_prefix + 'vis_XY.sav'
     extra_xy_file = testdir + testfile_prefix + 'extra_vis_XY.sav'
     copyfile(testfiles[1], xy_file)
     copyfile(testfiles[1], extra_xy_file)
-    pytest.raises(Exception, fhd_uv.read_fhd, testfiles + [xy_file, extra_xy_file])
+    with pytest.raises(ValueError) as cm:
+        fhd_uv.read(testfiles + [xy_file, extra_xy_file])
+    assert str(cm.value).startswith('multiple xy datafiles in filelist')
     os.remove(xy_file)
     os.remove(extra_xy_file)
 
@@ -276,28 +293,38 @@ def test_breakReadFHD():
     extra_yx_file = testdir + testfile_prefix + 'extra_vis_YX.sav'
     copyfile(testfiles[1], yx_file)
     copyfile(testfiles[1], extra_yx_file)
-    pytest.raises(Exception, fhd_uv.read_fhd, testfiles + [yx_file, extra_yx_file])
+    with pytest.raises(ValueError) as cm:
+        fhd_uv.read(testfiles + [yx_file, extra_yx_file])
+    assert str(cm.value).startswith('multiple yx datafiles in filelist')
     os.remove(yx_file)
     os.remove(extra_yx_file)
 
     extra_params_file = testdir + testfile_prefix + 'extra_params.sav'
     copyfile(testfiles[2], extra_params_file)
-    pytest.raises(Exception, fhd_uv.read_fhd, testfiles + [extra_params_file])
+    with pytest.raises(ValueError) as cm:
+        fhd_uv.read(testfiles + [extra_params_file])
+    assert str(cm.value).startswith('multiple params files in filelist')
     os.remove(extra_params_file)
 
     extra_flags_file = testdir + testfile_prefix + 'extra_flags.sav'
     copyfile(testfiles[0], extra_flags_file)
-    pytest.raises(Exception, fhd_uv.read_fhd, testfiles + [extra_flags_file])
+    with pytest.raises(ValueError) as cm:
+        fhd_uv.read(testfiles + [extra_flags_file])
+    assert str(cm.value).startswith('multiple flags files in filelist')
     os.remove(extra_flags_file)
 
     extra_layout_file = testdir + testfile_prefix + 'extra_layout.sav'
     copyfile(testfiles[6], extra_layout_file)
-    pytest.raises(Exception, fhd_uv.read_fhd, testfiles + [extra_layout_file])
+    with pytest.raises(ValueError) as cm:
+        fhd_uv.read(testfiles + [extra_layout_file])
+    assert str(cm.value).startswith('multiple layout files in filelist')
     os.remove(extra_layout_file)
 
     extra_settings_file = testdir + testfile_prefix + 'extra_settings.txt'
     copyfile(testfiles[7], extra_settings_file)
-    pytest.raises(Exception, fhd_uv.read_fhd, testfiles + [extra_settings_file])
+    with pytest.raises(ValueError) as cm:
+        fhd_uv.read(testfiles + [extra_settings_file])
+    assert str(cm.value).startswith('multiple settings files in filelist')
     os.remove(extra_settings_file)
 
 
@@ -314,16 +341,17 @@ def test_ReadFHD_model():
 
 
 def test_multi_files():
-    """
-    Reading multiple files at once.
-    """
+    """Read multiple files at once."""
     fhd_uv1 = UVData()
     fhd_uv2 = UVData()
     test1 = list(np.array(testfiles)[[0, 1, 2, 4, 6, 7]])
     test2 = list(np.array(testfiles)[[0, 2, 3, 5, 6, 7]])
-    uvtest.checkWarnings(fhd_uv1.read, [[test1, test2]], {'use_model': True},
-                         message=['Telescope location derived from obs'],
-                         nwarnings=2)
+    uvtest.checkWarnings(
+        fhd_uv1.read_fhd, func_args=[np.array([test1, test2])],
+        func_kwargs={'use_model': True},
+        message=(['Please use the generic']
+                 + 2 * ['Telescope location derived from obs']),
+        category=[DeprecationWarning] + 2 * [UserWarning], nwarnings=3)
 
     uvtest.checkWarnings(fhd_uv2.read, [testfiles], {'use_model': True}, known_warning='fhd')
 
@@ -336,9 +364,7 @@ def test_multi_files():
 
 
 def test_multi_files_axis():
-    """
-    Reading multiple files at once with axis keyword.
-    """
+    """Read multiple files at once with axis keyword."""
     fhd_uv1 = UVData()
     fhd_uv2 = UVData()
     test1 = list(np.array(testfiles)[[0, 1, 2, 4, 6, 7]])

@@ -1,5 +1,5 @@
 #! /usr/bin/env python
-# -*- mode: python; coding: utf-8 -*
+# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2018 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 """Read in a uvfits file and write a new one out."""

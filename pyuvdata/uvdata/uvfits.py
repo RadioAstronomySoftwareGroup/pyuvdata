@@ -1,4 +1,4 @@
-# -*- mode: python; coding: utf-8 -*
+# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2018 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 
@@ -129,23 +129,19 @@ class UVFITS(UVData):
                                  'one time present')
 
     def _get_data(self, vis_hdu, antenna_nums, antenna_names, ant_str,
-                  bls, frequencies, freq_chans, times, polarizations,
+                  bls, frequencies, freq_chans, times, time_range, polarizations,
                   blt_inds, read_metadata, run_check, check_extra,
                   run_check_acceptability, keep_all_metadata):
         """
         Read just the visibility and flag data of the uvfits file.
 
-        Separated from full read so that header, metadata and data can be read
-        independently.
+        Separated from full read so header and metadata can be read without data.
         """
-        if self.time_array is None or read_metadata:
-            # first read in random group parameters
-            self._get_parameter_data(vis_hdu, run_check_acceptability)
-
         # figure out what data to read in
         blt_inds, freq_inds, pol_inds, history_update_string = \
             self._select_preprocess(antenna_nums, antenna_names, ant_str, bls,
-                                    frequencies, freq_chans, times, polarizations, blt_inds)
+                                    frequencies, freq_chans, times, time_range,
+                                    polarizations, blt_inds)
 
         if blt_inds is not None:
             blt_frac = len(blt_inds) / float(self.Nblts)
@@ -243,7 +239,8 @@ class UVFITS(UVData):
 
     def read_uvfits(self, filename, antenna_nums=None, antenna_names=None,
                     ant_str=None, bls=None, frequencies=None,
-                    freq_chans=None, times=None, polarizations=None, blt_inds=None,
+                    freq_chans=None, times=None, time_range=None,
+                    polarizations=None, blt_inds=None,
                     read_data=True, read_metadata=True,
                     run_check=True, check_extra=True, run_check_acceptability=True,
                     keep_all_metadata=True):
@@ -252,66 +249,102 @@ class UVFITS(UVData):
 
         Supports reading only selected portions of the data.
 
-        Args:
-            filename: The uvfits file to read from.
-            antenna_nums: The antennas numbers to include when reading data into
-                the object (antenna positions and names for the excluded antennas
-                will be retained). This cannot be provided if antenna_names is
-                also provided. Ignored if read_data is False.
-            antenna_names: The antennas names to include when reading data into
-                the object (antenna positions and names for the excluded antennas
-                will be retained). This cannot be provided if antenna_nums is
-                also provided. Ignored if read_data is False.
-            bls: A list of antenna number tuples (e.g. [(0,1), (3,2)]) or a list of
-                baseline 3-tuples (e.g. [(0,1,'xx'), (2,3,'yy')]) specifying baselines
-                to keep in the object. For length-2 tuples, the  ordering of the numbers
-                within the tuple does not matter. For length-3 tuples, the polarization
-                string is in the order of the two antennas. If length-3 tuples are provided,
-                the polarizations argument below must be None. Ignored if read_data is False.
-            ant_str: A string containing information about what antenna numbers
-                and polarizations to include when reading data into the object.
-                Can be 'auto', 'cross', 'all', or combinations of antenna numbers
-                and polarizations (e.g. '1', '1_2', '1x_2y').
-                See tutorial for more examples of valid strings and
-                the behavior of different forms for ant_str.
-                If '1x_2y,2y_3y' is passed, both polarizations 'xy' and 'yy' will
-                be kept for both baselines (1,2) and (2,3) to return a valid
-                pyuvdata object.
-                An ant_str cannot be passed in addition to any of the above antenna
-                args or the polarizations arg.
-                Ignored if read_data is False.
-            frequencies: The frequencies to include when reading data into the
-                object. Ignored if read_data is False.
-            freq_chans: The frequency channel numbers to include when reading
-                data into the object. Ignored if read_data is False.
-            times: The times to include when reading data into the object.
-                Ignored if read_data is False.
-            polarizations: The polarizations to include when reading data into
-                the object. Ignored if read_data is False.
-            blt_inds: The baseline-time indices to include when reading data into
-                the object. This is not commonly used. Ignored if read_data is False.
-            read_data: Read in the visibility and flag data. If set to false,
-                only the basic header info and metadata (if read_metadata is True)
-                will be read in. Results in an incompletely defined object
-                (check will not pass). Default True.
-            read_metadata: Read in metadata (times, baselines, uvws) as well as
-                basic header info. Only used if read_data is False
-                (metadata will be read if data is read). If both read_data and
-                read_metadata are false, only basic header info is read in. Default True.
-            run_check: Option to check for the existence and proper shapes of
-                parameters after reading in the file. Default is True.
-                Ignored if read_data is False.
-            check_extra: Option to check optional parameters as well as required
-                ones. Default is True. Ignored if read_data is False.
-            run_check_acceptability: Option to check acceptable range of the values of
-                parameters after reading in the file. Default is True.
-                Ignored if read_data is False.
-            keep_all_metadata: Option to keep all the metadata associated with antennas,
-                even those that do not remain after the select option. Default is True.
-        """
-        if not read_data:
-            run_check = False
+        Parameters
+        ----------
+        filename : str
+            The uvfits file to read from.
+        antenna_nums : array_like of int, optional
+            The antennas numbers to include when reading data into the object
+            (antenna positions and names for the removed antennas will be retained
+            unless `keep_all_metadata` is False). This cannot be provided if
+            `antenna_names` is also provided. Ignored if read_data is False.
+        antenna_names : array_like of str, optional
+            The antennas names to include when reading data into the object
+            (antenna positions and names for the removed antennas will be retained
+            unless `keep_all_metadata` is False). This cannot be provided if
+            `antenna_nums` is also provided. Ignored if read_data is False.
+        bls : list of tuple, optional
+            A list of antenna number tuples (e.g. [(0, 1), (3, 2)]) or a list of
+            baseline 3-tuples (e.g. [(0, 1, 'xx'), (2, 3, 'yy')]) specifying baselines
+            to include when reading data into the object. For length-2 tuples,
+            the ordering of the numbers within the tuple does not matter. For
+            length-3 tuples, the polarization string is in the order of the two
+            antennas. If length-3 tuples are provided, `polarizations` must be
+            None. Ignored if read_data is False.
+        ant_str : str, optional
+            A string containing information about what antenna numbers
+            and polarizations to include when reading data into the object.
+            Can be 'auto', 'cross', 'all', or combinations of antenna numbers
+            and polarizations (e.g. '1', '1_2', '1x_2y').  See tutorial for more
+            examples of valid strings and the behavior of different forms for ant_str.
+            If '1x_2y,2y_3y' is passed, both polarizations 'xy' and 'yy' will
+            be kept for both baselines (1, 2) and (2, 3) to return a valid
+            pyuvdata object.
+            An ant_str cannot be passed in addition to any of `antenna_nums`,
+            `antenna_names`, `bls` args or the `polarizations` parameters,
+            if it is a ValueError will be raised. Ignored if read_data is False.
+        frequencies : array_like of float, optional
+            The frequencies to include when reading data into the object, each
+            value passed here should exist in the freq_array. Ignored if
+            read_data is False.
+        freq_chans : array_like of int, optional
+            The frequency channel numbers to include when reading data into the
+            object. Ignored if read_data is False.
+        times : array_like of float, optional
+            The times to include when reading data into the object, each value
+            passed here should exist in the time_array.
+        time_range : array_like of float, optional
+            The time range in Julian Date to keep in the object, must be
+            length 2. Some of the times in the object should fall between the
+            first and last elements. Cannot be used with `times`.
+        polarizations : array_like of int, optional
+            The polarizations numbers to include when reading data into the
+            object, each value passed here should exist in the polarization_array.
+            Ignored if read_data is False.
+        blt_inds : array_like of int, optional
+            The baseline-time indices to include when reading data into the
+            object. This is not commonly used. Ignored if read_data is False.
+        keep_all_metadata : bool
+            Option to keep all the metadata associated with antennas, even those
+            that do not have data associated with them after the select option.
+        read_data : bool
+            Read in the visibility and flag data. If set to false, only the
+            basic header info and metadata read in. Setting read_data to False
+            results in a metdata only object.
+        read_metadata : bool
+            Deprecated, will be removed in version 2.0, after which metadata
+            will always be read along with header data.
+            Read in metadata (times, baselines, uvws) as well as basic header
+            info. Only used if read_data is False (metadata will be read if data
+            is read). If both read_data and read_metadata are false, only basic
+            header info is read in, which will result in an incompletely
+            defined object -- check will not pass.
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            after after reading in the file (the default is True,
+            meaning the check will be run). Ignored if read_data is False.
+        check_extra : bool
+            Option to check optional parameters as well as required ones (the
+            default is True, meaning the optional parameters will be checked).
+            Ignored if read_data is False.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters after
+            reading in the file (the default is True, meaning the acceptable
+            range check will be done). Ignored if read_data is False.
 
+        Raises
+        ------
+        IOError
+            If filename doesn't exist.
+        ValueError
+            If incompatible select keywords are set (e.g. `ant_str` with other
+            antenna selectors, `times` and `time_range`) or select keywords
+            exclude all data or if keywords are set to the wrong type.
+            If the data are multi source or have multiple
+            spectral windows.
+            If the metadata are not internally consistent or missing.
+
+        """
         with fits.open(filename, memmap=True) as hdu_list:
             vis_hdu = hdu_list[0]  # assumes the visibilities are in the primary hdu
             vis_hdr = vis_hdu.header.copy()
@@ -486,25 +519,33 @@ class UVFITS(UVData):
             if not read_data and not read_metadata:
                 # don't read in the data or metadata. This means the object is incomplete,
                 # but that may not matter for many purposes.
+                warnings.warn('Support for reading only the header '
+                              '(by setting the read_metadata keyword to False) is '
+                              'deprecated and will be removed in version 2.0.',
+                              DeprecationWarning)
+                run_check = False
                 return
 
             # Now read in the random parameter info
             self._get_parameter_data(vis_hdu, run_check_acceptability)
 
             if not read_data:
-                # don't read in the data. This means the object is incomplete,
-                # but that may not matter for many purposes.
+                # don't read in the data. This means the object is a metadata
+                # only object but that may not matter for many purposes.
                 return
 
             # Now read in the data
             self._get_data(vis_hdu, antenna_nums, antenna_names, ant_str,
-                           bls, frequencies, freq_chans, times, polarizations,
+                           bls, frequencies, freq_chans, times, time_range, polarizations,
                            blt_inds, False, run_check, check_extra, run_check_acceptability,
                            keep_all_metadata)
 
     def read_uvfits_metadata(self, filename, run_check_acceptability=True):
         """
-        Read in metadata (random parameter info) but not data from a uvfits file.
+        Deprecated: Read in metadata (random parameter info) but not data from a uvfits file.
+
+        Deprecated in favor of `read_uvfits` with `read_data=False` because
+        reading header data without the metadata is deprecated.
 
         This is useful when an object already has the associated header info and
         full visibility data isn't needed.
@@ -516,8 +557,11 @@ class UVFITS(UVData):
         run_check_acceptability : bool
             Option to check acceptable range of the values of parameters after
             reading in the file. Default is True.
-
         """
+        warnings.warn('The read_uvfits_metadata method is deprecated in favor of '
+                      'read_uvfits` with `read_data=False`. This '
+                      'function will be removed in version 2.0', DeprecationWarning)
+
         if self.data_array is not None:
             raise ValueError('data_array is already defined, cannot read metadata')
 
@@ -530,12 +574,16 @@ class UVFITS(UVData):
 
     def read_uvfits_data(self, filename, antenna_nums=None, antenna_names=None,
                          ant_str=None, bls=None, frequencies=None,
-                         freq_chans=None, times=None, polarizations=None,
+                         freq_chans=None, times=None, time_range=None,
+                         polarizations=None,
                          blt_inds=None, read_metadata=True, run_check=True,
                          check_extra=True, run_check_acceptability=True,
                          keep_all_metadata=True):
         """
-        Read in data but not header info from a uvfits file.
+        Deprecated: Read in data but not header info from a uvfits file.
+
+        Deprecated in favor of `read_uvfits` because reading data into
+        an existing metadata only object is deprecated.
 
         Useful for an object that already has the associated header info.
 
@@ -549,8 +597,8 @@ class UVFITS(UVData):
                 the object (antenna positions and names for the excluded antennas
                 will be retained). This cannot be provided if antenna_nums is
                 also provided.
-            bls: A list of antenna number tuples (e.g. [(0,1), (3,2)]) or a list of
-                baseline 3-tuples (e.g. [(0,1,'xx'), (2,3,'yy')]) specifying baselines
+            bls: A list of antenna number tuples (e.g. [(0, 1), (3, 2)]) or a list of
+                baseline 3-tuples (e.g. [(0, 1, 'xx'), (2, 3, 'yy')]) specifying baselines
                 to keep in the object. For length-2 tuples, the  ordering of the numbers
                 within the tuple does not matter. For length-3 tuples, the polarization
                 string is in the order of the two antennas. If length-3 tuples are provided,
@@ -562,7 +610,7 @@ class UVFITS(UVData):
                 See tutorial for more examples of valid strings and
                 the behavior of different forms for ant_str.
                 If '1x_2y,2y_3y' is passed, both polarizations 'xy' and 'yy' will
-                be kept for both baselines (1,2) and (2,3) to return a valid
+                be kept for both baselines (1, 2) and (2, 3) to return a valid
                 pyuvdata object.
                 An ant_str cannot be passed in addition to any of the above antenna
                 args or the polarizations arg.
@@ -585,14 +633,18 @@ class UVFITS(UVData):
                 parameters after reading in the file. Default is True.
             keep_all_metadata: Option to keep all the metadata associated with antennas,
                 even those that do not remain after the select option. Default is True.
-
         """
+        warnings.warn('The read_uvfits_data method is deprecated in favor of '
+                      'read_uvfits`. This '
+                      'function will be removed in version 2.0', DeprecationWarning)
+
         with fits.open(filename, memmap=True) as hdu_list:
             vis_hdu = hdu_list[0]  # assumes the visibilities are in the primary hdu
 
             self._get_data(vis_hdu, antenna_nums, antenna_names, ant_str,
-                           bls, frequencies, freq_chans, times, polarizations,
-                           blt_inds, read_metadata, run_check, check_extra,
+                           bls, frequencies, freq_chans, times, time_range,
+                           polarizations, blt_inds, read_metadata,
+                           run_check, check_extra,
                            run_check_acceptability, keep_all_metadata)
 
         del(vis_hdu)
@@ -623,6 +675,20 @@ class UVFITS(UVData):
         run_check_acceptability : bool
             Option to check acceptable range of the values of parameters before
             writing the file.
+
+        Raises
+        ------
+        ValueError
+            The `phase_type` of the object is "drift" and the `force_phase` keyword is not set.
+            The `phase_type` of the object is "unknown".
+            If the frequencies are not evenly spaced or are separated by more
+            than their channel width.
+            The polarization values are not evenly spaced.
+            Any of ['antenna_positions', 'gst0', 'rdate', 'earth_omega', 'dut1',
+            'timesys'] are not set on the object and `spoof_nonessential` is False.
+            If the `timesys` parameter is not set to "UTC".
+        TypeError
+            If any entry in extra_keywords is not a single string or number.
 
         """
         if run_check:
