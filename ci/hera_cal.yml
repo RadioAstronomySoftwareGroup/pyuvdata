@@ -15,5 +15,4 @@ dependencies:
   - pyyaml
   - scikit-learn
   - scipy
-  - six
   - basemap

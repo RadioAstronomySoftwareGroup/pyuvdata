@@ -149,7 +149,6 @@ Required:
 * scipy
 * astropy >= 2.0
 * h5py
-* six
 
 Optional:
 
