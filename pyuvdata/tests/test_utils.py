@@ -16,10 +16,15 @@ from astropy.time import Time
 from astropy.coordinates import SkyCoord, Angle
 import copy
 
-from pyuvdata import UVData, UVFlag, UVCal
+from pyuvdata import (
+    UVData,
+    UVFlag,
+    UVCal,
+    utils as uvutils,
+    tests as uvtest,
+    version as uvversion
+)
 from pyuvdata.data import DATA_PATH
-import pyuvdata.utils as uvutils
-import pyuvdata.tests as uvtest
 
 
 ref_latlonalt = (-26.7 * np.pi / 180.0, 116.7 * np.pi / 180.0, 377.8)
@@ -528,7 +533,7 @@ def test_high_tolerance_redundancy_error():
     Confirm that an error is raised if the redundancy tolerance is set too high,
     such that baselines end up in multiple
     """
-    uvd = pyuvdata.UVData()
+    uvd = UVData()
     uvd.read_uvfits(os.path.join(DATA_PATH, 'fewant_randsrc_airybeam_Nsrc100_10MHz.uvfits'))
 
     uvd.select(times=uvd.time_array[0])
