@@ -11,15 +11,8 @@ import pyuvdata.tests as uvtest
 from pyuvdata import UVData, UVCal, utils as uvutils
 from pyuvdata.data import DATA_PATH
 from pyuvdata import UVFlag
-<<<<<<< HEAD:pyuvdata/uvflag/tests/test_uvflag.py
 from ..uvflag import lst_from_uv, flags2waterfall, and_rows_cols
-from pyuvdata import version as uvversion
-=======
-from pyuvdata.uvflag import lst_from_uv
-from pyuvdata.uvflag import flags2waterfall
-from pyuvdata.uvflag import and_rows_cols
 from pyuvdata import __version__
->>>>>>> Remove all references to version.py in favour of SCM:pyuvdata/tests/test_uvflag.py
 import shutil
 import copy
 import warnings

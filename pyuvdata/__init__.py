@@ -19,22 +19,17 @@ except DistributionNotFound:
 warnings.filterwarnings("ignore", message="numpy.dtype size changed")
 warnings.filterwarnings("ignore", message="numpy.ufunc size changed")
 
-<<<<<<< HEAD
 from .uvdata import UVData  # noqa
 from .telescopes import known_telescopes, Telescope, get_telescope  # noqa
 from .uvcal import UVCal  # noqa
 from .uvbeam import UVBeam  # noqa
-from . import version  # noqa
 from .uvflag import UVFlag  # noqa
 
-
-__version__ = version.version
 __all__ = [
     "UVData",
     "UVCal",
     "UVFlag",
     "UVBeam",
-    "version",
     "Telescope",
     "known_telescopes",
     "get_telescope"
@@ -51,7 +46,6 @@ from types import ModuleType as __module_type__  # noqa
 for varname in dir():
     if not (
         varname in __all__
-        or varname == "version"
         or (varname.startswith("__") and varname.endswith("__"))
         or (
             varname[0] != "_"
@@ -62,10 +56,3 @@ for varname in dir():
         del locals()[varname]
 
 del varname, __module_type__
-=======
-from .uvdata import *  # noqa
-from .telescopes import *  # noqa
-from .uvcal import *  # noqa
-from .uvbeam import *  # noqa
-from .uvflag import UVFlag  # noqa
->>>>>>> Remove all references to version.py in favour of SCM
