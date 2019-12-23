@@ -6,7 +6,6 @@
 from __future__ import absolute_import, division, print_function
 
 import numpy as np
-import six
 import warnings
 import copy
 from scipy.spatial.distance import pdist, squareform
@@ -14,10 +13,7 @@ from astropy.time import Time
 from astropy.coordinates import Angle
 from astropy.utils import iers
 
-if six.PY2:
-    from collections import Iterable
-else:
-    from collections.abc import Iterable
+from collections.abc import Iterable
 
 # parameters for transforming between xyz & lat/lon/alt
 gps_b = 6356752.31424518
@@ -25,18 +21,11 @@ gps_a = 6378137
 e_squared = 6.69437999014e-3
 e_prime_squared = 6.73949674228e-3
 
-if six.PY2:
-    def _str_to_bytes(s):
-        return s
+def _str_to_bytes(s):
+    return s.encode('utf8')
 
-    def _bytes_to_str(b):
-        return b
-else:
-    def _str_to_bytes(s):
-        return s.encode('utf8')
-
-    def _bytes_to_str(b):
-        return b.decode('utf8')
+def _bytes_to_str(b):
+    return b.decode('utf8')
 
 __all__ = [
     "POL_STR2NUM_DICT",
@@ -805,13 +794,13 @@ def polstr2num(pol, x_orientation=None):
     if x_orientation is not None:
         try:
             rep_dict = _x_orientation_rep_dict(x_orientation)
-            for key, value in six.iteritems(POL_STR2NUM_DICT):
+            for key, value in POL_STR2NUM_DICT.items():
                 new_key = key.replace('x', rep_dict['x']).replace('y', rep_dict['y'])
                 dict_use[new_key] = value
         except ValueError:
             warnings.warn('x_orientation not recognized.')
 
-    poldict = {k.lower(): v for k, v in six.iteritems(dict_use)}
+    poldict = {k.lower(): v for k, v in dict_use.items()}
     if isinstance(pol, str):
         out = poldict[pol.lower()]
     elif isinstance(pol, Iterable):
@@ -857,13 +846,13 @@ def polnum2str(num, x_orientation=None):
     if x_orientation is not None:
         try:
             rep_dict = _x_orientation_rep_dict(x_orientation)
-            for key, value in six.iteritems(POL_NUM2STR_DICT):
+            for key, value in POL_NUM2STR_DICT.items():
                 new_val = value.replace('x', rep_dict['x']).replace('y', rep_dict['y'])
                 dict_use[key] = new_val
         except ValueError:
             warnings.warn('x_orientation not recognized.')
 
-    if isinstance(num, six.integer_types + (np.int32, np.int64)):
+    if isinstance(num, (int, np.int32, np.int64)):
         out = dict_use[num]
     elif isinstance(num, Iterable):
         out = [dict_use[i] for i in num]
@@ -906,13 +895,13 @@ def jstr2num(jstr, x_orientation=None):
     if x_orientation is not None:
         try:
             rep_dict = _x_orientation_rep_dict(x_orientation)
-            for key, value in six.iteritems(JONES_STR2NUM_DICT):
+            for key, value in JONES_STR2NUM_DICT.items():
                 new_key = key.replace('x', rep_dict['x']).replace('y', rep_dict['y'])
                 dict_use[new_key] = value
         except ValueError:
             warnings.warn('x_orientation not recognized.')
 
-    jdict = {k.lower(): v for k, v in six.iteritems(dict_use)}
+    jdict = {k.lower(): v for k, v in dict_use.items()}
     if isinstance(jstr, str):
         out = jdict[jstr.lower()]
     elif isinstance(jstr, Iterable):
@@ -955,13 +944,13 @@ def jnum2str(jnum, x_orientation=None):
     if x_orientation is not None:
         try:
             rep_dict = _x_orientation_rep_dict(x_orientation)
-            for key, value in six.iteritems(JONES_NUM2STR_DICT):
+            for key, value in JONES_NUM2STR_DICT.items():
                 new_val = value.replace('x', rep_dict['x']).replace('y', rep_dict['y'])
                 dict_use[key] = new_val
         except ValueError:
             warnings.warn('x_orientation not recognized.')
 
-    if isinstance(jnum, six.integer_types + (np.int32, np.int64)):
+    if isinstance(jnum, (int, np.int32, np.int64)):
         out = dict_use[jnum]
     elif isinstance(jnum, Iterable):
         out = [dict_use[i] for i in jnum]
@@ -1065,7 +1054,7 @@ def conj_pol(pol):
         cpol = cpol_dict[pol.lower()]
     elif isinstance(pol, Iterable):
         cpol = [conj_pol(p) for p in pol]
-    elif isinstance(pol, six.integer_types + (np.int32, np.int64)):
+    elif isinstance(pol, (int, np.int32, np.int64)):
         cpol = polstr2num(cpol_dict[polnum2str(pol).lower()])
     else:
         raise ValueError('Polarization not recognized, cannot be conjugated.')
@@ -1427,7 +1416,7 @@ def _reraise_context(fmt, *args):
     if len(args):
         cstr = fmt % args
     else:
-        cstr = six.text_type(fmt)
+        cstr = str(fmt)
 
     ex = sys.exc_info()[1]
 

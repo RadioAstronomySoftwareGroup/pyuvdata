@@ -14,7 +14,6 @@ of metadata.
 from __future__ import absolute_import, division, print_function
 
 import numpy as np
-import six
 
 from . import utils
 
@@ -103,7 +102,7 @@ class UVParameter(object):
                                                            lclass=self.value.__class__,
                                                            rclass=other.value.__class__))
                 return False
-            if isinstance(self.value, np.ndarray) and not isinstance(self.value[0], six.string_types):
+            if isinstance(self.value, np.ndarray) and not isinstance(self.value[0], str):
                 if self.value.shape != other.value.shape:
                     print('{name} parameter value is array, shapes are '
                           'different'.format(name=self.name))
@@ -115,10 +114,10 @@ class UVParameter(object):
                     return False
             else:
                 str_type = False
-                if isinstance(self.value, six.string_types):
+                if isinstance(self.value, str):
                     str_type = True
                 if isinstance(self.value, (list, np.ndarray)):
-                    if isinstance(self.value[0], six.string_types):
+                    if isinstance(self.value[0], str):
                         str_type = True
 
                 if not str_type:

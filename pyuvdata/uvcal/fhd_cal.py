@@ -7,7 +7,6 @@ from __future__ import absolute_import, division, print_function
 
 import os
 import numpy as np
-import six
 import warnings
 from scipy.io.idl import readsav
 
@@ -106,7 +105,7 @@ class FHDCal(UVCal):
                                float(cal_data['max_cal_baseline'][0])]
 
         galaxy_model = cal_data['skymodel'][0]['galaxy_model'][0]
-        if isinstance(galaxy_model, six.binary_type):  # In Python 3, we sometimes get Unicode, sometimes bytes
+        if isinstance(galaxy_model, bytes):  # In Python 3, we sometimes get Unicode, sometimes bytes
             galaxy_model = uvutils._bytes_to_str(galaxy_model)
         if galaxy_model == 0:
             galaxy_model = None
@@ -114,7 +113,7 @@ class FHDCal(UVCal):
             galaxy_model = 'gsm'
 
         diffuse_model = cal_data['skymodel'][0]['diffuse_model'][0]
-        if isinstance(diffuse_model, six.binary_type):
+        if isinstance(diffuse_model, bytes):
             diffuse_model = uvutils._bytes_to_str(diffuse_model)
         if diffuse_model == '':
             diffuse_model = None
