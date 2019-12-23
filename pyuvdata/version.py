@@ -12,11 +12,6 @@ import json
 pyuvdata_dir = os.path.dirname(os.path.realpath(__file__))
 
 
-def py_major_version():
-    version_info = sys.version_info
-    return version_info[0]
-
-
 def _get_git_output(args, capture_stderr=False):
     """Get output from Git, ensuring that it is of the ``str`` type,
     not bytes."""
@@ -30,8 +25,6 @@ def _get_git_output(args, capture_stderr=False):
 
     data = data.strip()
 
-    if py_major_version() == 2:
-        return data
     return data.decode('utf8')
 
 
@@ -41,7 +34,7 @@ def _get_gitinfo_file(git_file=None):
         git_file = os.path.join(pyuvdata_dir, 'GIT_INFO')
 
     with open(git_file) as data_file:
-        data = [_unicode_to_str(x) for x in json.loads(data_file.read().strip())]
+        data = [x for x in json.loads(data_file.read().strip())]
         git_origin = data[0]
         git_hash = data[1]
         git_description = data[2]
@@ -49,12 +42,6 @@ def _get_gitinfo_file(git_file=None):
 
     return {'git_origin': git_origin, 'git_hash': git_hash,
             'git_description': git_description, 'git_branch': git_branch}
-
-
-def _unicode_to_str(u):
-    if py_major_version() == 2:
-        return u.encode('utf8')
-    return u
 
 
 def construct_version_info():
