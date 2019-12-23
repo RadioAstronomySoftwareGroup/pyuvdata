@@ -12,7 +12,6 @@ import warnings
 import copy
 
 import numpy as np
-import six
 from scipy import interpolate
 from astropy import units
 from astropy.coordinates import Angle
@@ -2335,7 +2334,7 @@ class UVBeam(UVBase):
                 overriding_keywords['reference_impedance'] = reference_impedance
             if 'x_orientation' in settings_dict:
                 overriding_keywords['x_orientation'] = reference_impedance
-            for key, val in six.iteritems(overriding_keywords):
+            for key, val in overriding_keywords.items():
                 if val is not None:
                     warnings.warn('The {key} keyword is set, overriding the '
                                   'value in the settings yaml file.'.format(key=key))
@@ -2371,7 +2370,7 @@ class UVBeam(UVBase):
             # This causes warnings and straight truncation when writing to beamfits files
             # To avoid these, this defines a standard renaming of that paramter
             rename_extra_keys_map = {'sim_beam_type': 'sim_type'}
-            for key, value in six.iteritems(settings_dict):
+            for key, value in settings_dict.items():
                 if key not in known_keys:
                     if key in rename_extra_keys_map.keys():
                         extra_keywords[rename_extra_keys_map[key]] = value

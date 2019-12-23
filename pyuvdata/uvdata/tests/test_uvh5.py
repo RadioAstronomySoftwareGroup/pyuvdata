@@ -8,7 +8,6 @@
 from __future__ import absolute_import, division, print_function
 
 import os
-import six
 import numpy as np
 import pytest
 from astropy.time import Time
@@ -2337,7 +2336,6 @@ def test_uvh5_partial_write_ints_irregular_multi4(uv_uvh5):
     return
 
 
-@pytest.mark.skipif(not six.PY3, reason="Skipping. This test is only relevant in python3.")
 def test_antenna_names_not_list(uv_uvfits):
     """Test if antenna_names is cast to an array, dimensions are preserved in np.string_ call during uvh5 write."""
     uv_in = uv_uvfits

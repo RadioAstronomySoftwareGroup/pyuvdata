@@ -21,7 +21,6 @@ import os
 import gc
 import shutil
 import copy
-import six
 import numpy as np
 import pytest
 from astropy.time import Time, TimeDelta
@@ -640,14 +639,9 @@ def test_miriad_extra_keywords():
         uv_in.check, message=["testdict in extra_keywords is a " "list, array or dict"]
     )
 
-    if six.PY2:
-        with pytest.raises(TypeError) as cm:
-            uv_in.write_miriad(testfile, clobber=True, run_check=False)
-        assert str(cm.value).startswith("Extra keyword testdict is of <type 'dict'>")
-    else:
-        with pytest.raises(TypeError) as cm:
-            uv_in.write_miriad(testfile, clobber=True, run_check=False)
-        assert str(cm.value).startswith("Extra keyword testdict is of <class 'dict'>")
+    with pytest.raises(TypeError) as cm:
+        uv_in.write_miriad(testfile, clobber=True, run_check=False)
+    assert str(cm.value).startswith("Extra keyword testdict is of <class 'dict'>")
 
     uv_in.extra_keywords.pop("testdict")
 
@@ -655,32 +649,20 @@ def test_miriad_extra_keywords():
     uvtest.checkWarnings(
         uv_in.check, message=["testlist in extra_keywords is a " "list, array or dict"]
     )
-    if six.PY2:
-        with pytest.raises(TypeError) as cm:
-            uv_in.write_miriad(testfile, clobber=True, run_check=False)
-        assert str(cm.value).startswith("Extra keyword testlist is of <type 'list'>")
-    else:
-        with pytest.raises(TypeError) as cm:
-            uv_in.write_miriad(testfile, clobber=True, run_check=False)
-        assert str(cm.value).startswith("Extra keyword testlist is of <class 'list'>")
+    with pytest.raises(TypeError) as cm:
+        uv_in.write_miriad(testfile, clobber=True, run_check=False)
+    assert str(cm.value).startswith("Extra keyword testlist is of <class 'list'>")
     uv_in.extra_keywords.pop("testlist")
 
     uv_in.extra_keywords["testarr"] = np.array([12, 14, 90])
     uvtest.checkWarnings(
         uv_in.check, message=["testarr in extra_keywords is a " "list, array or dict"]
     )
-    if six.PY2:
-        with pytest.raises(TypeError) as cm:
-            uv_in.write_miriad(testfile, clobber=True, run_check=False)
-        assert str(cm.value).startswith(
-            "Extra keyword testarr is of <type 'numpy.ndarray'>"
-        )
-    else:
-        with pytest.raises(TypeError) as cm:
-            uv_in.write_miriad(testfile, clobber=True, run_check=False)
-        assert str(cm.value).startswith(
-            "Extra keyword testarr is of <class 'numpy.ndarray'>"
-        )
+    with pytest.raises(TypeError) as cm:
+        uv_in.write_miriad(testfile, clobber=True, run_check=False)
+    assert str(cm.value).startswith(
+        "Extra keyword testarr is of <class 'numpy.ndarray'>"
+    )
     uv_in.extra_keywords.pop("testarr")
 
     # check for warnings with extra_keywords keys that are too long
@@ -738,31 +720,19 @@ def test_miriad_extra_keywords():
     # check handling of complex-like keywords
     # currently they are NOT supported
     uv_in.extra_keywords["complex1"] = np.complex64(5.3 + 1.2j)
-    if six.PY2:
-        with pytest.raises(TypeError) as cm:
-            uv_in.write_miriad(testfile, clobber=True, run_check=False)
-        assert str(cm.value).startswith(
-            "Extra keyword complex1 is of <type 'numpy.complex64'>"
-        )
-    else:
-        with pytest.raises(TypeError) as cm:
-            uv_in.write_miriad(testfile, clobber=True, run_check=False)
-        assert str(cm.value).startswith(
-            "Extra keyword complex1 is of <class 'numpy.complex64'>"
-        )
+    with pytest.raises(TypeError) as cm:
+        uv_in.write_miriad(testfile, clobber=True, run_check=False)
+    assert str(cm.value).startswith(
+        "Extra keyword complex1 is of <class 'numpy.complex64'>"
+    )
     uv_in.extra_keywords.pop("complex1")
 
     uv_in.extra_keywords["complex2"] = 6.9 + 4.6j
-    if six.PY2:
-        with pytest.raises(TypeError) as cm:
-            uv_in.write_miriad(testfile, clobber=True, run_check=False)
-        assert str(cm.value).startswith("Extra keyword complex2 is of <type 'complex'>")
-    else:
-        with pytest.raises(TypeError) as cm:
-            uv_in.write_miriad(testfile, clobber=True, run_check=False)
-        assert str(cm.value).startswith(
-            "Extra keyword complex2 is of <class 'complex'>"
-        )
+    with pytest.raises(TypeError) as cm:
+        uv_in.write_miriad(testfile, clobber=True, run_check=False)
+    assert str(cm.value).startswith(
+        "Extra keyword complex2 is of <class 'complex'>"
+    )
 
     # cleanup
     del uv_in, uv_out
@@ -868,14 +838,9 @@ def test_readWriteReadMiriad(uv_in_paper):
     del uv_in2
 
     # check that trying to overwrite without clobber raises an error
-    if six.PY2:
-        with pytest.raises(IOError) as cm:
-            uv_in.write_miriad(write_file, clobber=False)
-        assert str(cm.value).startswith("File exists: skipping")
-    else:
-        with pytest.raises(OSError) as cm:
-            uv_in.write_miriad(write_file, clobber=False)
-        assert str(cm.value).startswith("File exists: skipping")
+    with pytest.raises(OSError) as cm:
+        uv_in.write_miriad(write_file, clobber=False)
+    assert str(cm.value).startswith("File exists: skipping")
 
     # check that if x_orientation is set, it's read back out properly
     uv_in.x_orientation = "east"
@@ -1259,18 +1224,11 @@ def test_readWriteReadMiriad_partial_error_special_cases():
     full.write_miriad(write_file, clobber=True)
     uv_in = UVData()
 
-    if six.PY2:
-        with pytest.raises(AssertionError) as cm:
-            uv_in.read(write_file, polarizations=[1.0])
-        assert str(cm.value).startswith(
-            "pols must be a list of polarization strings or ints"
-        )
-    else:
-        with pytest.raises(ValueError) as cm:
-            uv_in.read(write_file, polarizations=[1.0])
-        assert str(cm.value).startswith(
-            "Polarization 1.0 cannot be converted to a polarization number"
-        )
+    with pytest.raises(ValueError) as cm:
+        uv_in.read(write_file, polarizations=[1.0])
+    assert str(cm.value).startswith(
+        "Polarization 1.0 cannot be converted to a polarization number"
+    )
 
     # cleanup
     del uv_in, full
@@ -1638,10 +1596,7 @@ def test_readMiriadwriteMiriad_check_time_format():
     assert np.isclose(uvd_t, uv_t)
 
     # avoid errors if IERS table is too old (if the iers url is down)
-    if iers.conf.auto_max_age is None and six.PY2:
-        tolerance = 2e-5
-    else:
-        tolerance = 1e-8
+    tolerance = 1e-8
     assert np.allclose(uvd_l, uv_l, atol=tolerance)
     # test write-out
     fout = os.path.join(DATA_PATH, "ex_miriad")
