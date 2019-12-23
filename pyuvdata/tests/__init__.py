@@ -13,7 +13,6 @@ import pytest
 from unittest import SkipTest, TestCase
 
 import functools
-import types
 
 from astropy.utils import iers
 
