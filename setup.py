@@ -108,7 +108,7 @@ setup_args = {
             include_dirs=['pyuvdata/uvdata/src']
         )
     ],
-    'scripts': glob.glob('scripts/*'),
+    'scripts': [fl for fl in glob.glob('scripts/*') if not os.path.isdir(fl)],
     'use_scm_version': {
         'local_scheme': branch_scheme
     },
