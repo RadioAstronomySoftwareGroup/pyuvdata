@@ -10,7 +10,6 @@ from __future__ import absolute_import, division, print_function
 import os
 import pytest
 import numpy as np
-import six
 from astropy import units
 from astropy.time import Time
 from astropy.coordinates import SkyCoord, Angle
@@ -621,7 +620,7 @@ def test_reraise_context():
 def test_str_to_bytes():
     test_str = 'HERA'
     test_bytes = uvutils._str_to_bytes(test_str)
-    assert type(test_bytes) == six.binary_type
+    assert type(test_bytes) == bytes
     assert test_bytes == b'\x48\x45\x52\x41'
     return
 

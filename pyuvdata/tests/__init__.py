@@ -163,7 +163,7 @@ def checkWarnings(func, func_args=[], func_kwargs={}, nwarnings=1,
             warnings.filterwarnings("ignore", message="failed to download")
             warnings.filterwarnings("ignore", message="time is out of IERS range")
 
-            if isinstance(message, six.string_types):
+            if isinstance(message, str):
                 test_message = [message.startswith("LST values stored in ")]
             else:
                 test_message = []
