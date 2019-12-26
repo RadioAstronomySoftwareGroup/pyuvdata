@@ -100,7 +100,7 @@ jobs:
           name: run tutorial tests
           command: |
             source activate ${ENV_NAME}
-            python -m doctest tutorial.rst
+            python -m doctest docs/tutorial.rst
       - save_cache:
           key: deps-{{ .Branch }}-{{ checksum "ci/pyuvdata_tests.yml" }}
           paths:
