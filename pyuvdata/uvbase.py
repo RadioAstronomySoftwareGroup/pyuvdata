@@ -15,6 +15,7 @@ import warnings
 from . import parameter as uvp
 from . import __version__
 
+
 def _warning(msg, *a, **kwargs):
     """Improve the printing of user warnings."""
     return str(msg) + '\n'

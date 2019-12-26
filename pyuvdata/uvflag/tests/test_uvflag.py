@@ -99,6 +99,7 @@ test_outfile = os.path.join(DATA_PATH, 'test', 'outtest_uvflag.h5')
 pyuvdata_version_str = ('  Read/written with pyuvdata version: '
                         + __version__ + '.')
 
+
 def test_init_bad_mode():
     uv = UVData()
     uv.read_miriad(test_d_file)
