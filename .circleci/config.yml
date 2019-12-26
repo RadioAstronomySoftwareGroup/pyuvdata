@@ -95,14 +95,12 @@ jobs:
           name: install
           command: |
             source activate ${ENV_NAME}
-            pip install .
+            pip install -e .
       - run:
           name: run tutorial tests
           command: |
             source activate ${ENV_NAME}
-            cd docs
             python -m doctest tutorial.rst
-            cd ..
       - save_cache:
           key: deps-{{ .Branch }}-{{ checksum "ci/pyuvdata_tests.yml" }}
           paths:
