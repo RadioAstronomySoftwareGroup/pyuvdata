@@ -13,6 +13,7 @@ All notable changes to this project will be documented in this file.
 - `utils.apply_uvflag` for applying UVFlag objects to UVData objects
 
 ### Fixed
+- Fixed `utils.uvcalibrate` to handle `x_orientation` attribute
 - Arrays of file names can now be passed to `read` (not just lists).
 - run_check is no longer turned off in `read_uvfits` and `read_uvh5` when `read_data` is False.
 - Redundancy finder will now error if any baselines appear in multiple groups.
