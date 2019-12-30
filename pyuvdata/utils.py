@@ -520,7 +520,7 @@ def uvcalibrate(uvdata, uvcal, inplace=True, prop_flags=True, flag_missing=True,
         for key in uvdata.get_antpairpols():
             # get indices for this key
             blt_inds = uvdata.antpair2ind(key)
-            pol_ind = np.argmin(np.abs(uvdata.polarization_array - polstr2num(key[2])))
+            pol_ind = np.argmin(np.abs(uvdata.polarization_array - polstr2num(key[2], uvdata.x_orientation)))
 
             # try to get gains for each antenna
             ant1 = (key[0], key[2][0])
