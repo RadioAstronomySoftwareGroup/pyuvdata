@@ -113,8 +113,8 @@ setup_args = {
         'local_scheme': branch_scheme
     },
     'include_package_data': True,
-    'setup_requires': ['pytest-runner', 'numpy>=1.15'],
-    'install_requires': ['numpy>=1.15', 'six>=1.10', 'scipy', 'astropy>=2.0', 'h5py'],
+    # 'setup_requires': ['pytest-runner', 'numpy>=1.15'],
+    'install_requires': ['numpy>=1.15', 'scipy', 'astropy>=2.0', 'h5py'],
     'tests_require': ['pytest', 'pytest-cases'],
     'extras_require': {
         'casa': casa_reqs,
