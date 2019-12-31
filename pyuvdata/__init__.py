@@ -10,7 +10,7 @@ from pkg_resources import get_distribution, DistributionNotFound
 # Set the version automatically from the package details.
 try:
     __version__ = get_distribution(__name__).version
-except DistributionNotFound:
+except DistributionNotFound:  # noqa
     # package is not installed
     pass
 

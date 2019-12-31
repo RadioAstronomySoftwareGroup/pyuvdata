@@ -36,10 +36,6 @@ class CustomBuildExtCommand(build_ext):
         build_ext.run(self)
 
 
-# data = [version.git_origin, version.git_hash, version.git_description, version.git_branch]
-# with open(os.path.join('pyuvdata', 'GIT_INFO'), 'w') as outfile:
-#     json.dump(data, outfile)
-
 with io.open('README.md', 'r', encoding='utf-8') as readme_file:
     readme = readme_file.read()
 
@@ -113,7 +109,6 @@ setup_args = {
         'local_scheme': branch_scheme
     },
     'include_package_data': True,
-    # 'setup_requires': ['pytest-runner', 'numpy>=1.15'],
     'install_requires': ['numpy>=1.15', 'scipy', 'astropy>=2.0', 'h5py'],
     'tests_require': ['pytest', 'pytest-cases'],
     'extras_require': {

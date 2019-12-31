@@ -64,13 +64,6 @@ class UVBase(object):
         self.pyuvdata_version_str = ('  Read/written with pyuvdata version: '
                                      + __version__ + '.')
 
-        # remove the following because __version__ has this info in it if available.
-        # if uvversion.git_hash != '':
-        #     self.pyuvdata_version_str += ('  Git origin: ' + uvversion.git_origin
-        #                                   + '.  Git hash: ' + uvversion.git_hash
-        #                                   + '.  Git branch: ' + uvversion.git_branch
-        #                                   + '.  Git description: ' + uvversion.git_description + '.')
-
     def prop_fget(self, param_name):
         """Getter method for UVParameter properties."""
 
