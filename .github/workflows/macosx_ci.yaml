@@ -35,7 +35,6 @@ jobs:
           export PATH="$HOME/miniconda/bin:$PATH"
           source activate ${ENV_NAME}
           pip install .
-#          pip install --global-option=build_ext --global-option="--inplace" --global-option="--force" .
 
       - name: Run Tests
         run: |
