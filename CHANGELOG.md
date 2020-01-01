@@ -3,6 +3,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.5.0] - 2020-1-1
+
 ### Added
 - Support for reading the MWA full embedded element beam into a UVBeam object.
 - New `time_range` keyword to `select` so exact times don't need to be specified (also added to `read` methods for select on read).
