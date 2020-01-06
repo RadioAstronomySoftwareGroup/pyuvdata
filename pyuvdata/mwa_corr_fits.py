@@ -69,6 +69,7 @@ class MWACorrFITS(UVData):
         self.data_array *= np.exp(-1j * 2 * np.pi * cable_len_diffs / const.c.to('m/s').value
                                   * self.freq_array.reshape(1, self.Nfreqs))[:, :, None]
 
+<<<<<<< HEAD
     def flag_init(self, num_fine_chan, edge_width=80e3, start_flag=2.0,
                   end_flag=2.0, flag_dc_offset=True):
         """
@@ -136,11 +137,33 @@ class MWACorrFITS(UVData):
                 self.flag_array[-num_end_flag:, :, :, :, :] = True
             self.flag_array = np.reshape(self.flag_array, shape)
 
+
+    def van_vleck_correction(self):
+        """Apply a van vleck correction to the data array."""
+        # find min and max of data for building matrices?
+        # create correction matrices
+        # select the autos
+        autos = self.select(ant_str='autos', inplace=False)
+        print('autos min')
+        print(np.min(autos.data_array))
+        print('autos max')
+        print(np.max(autos.data_array))
+        # select the crosses
+        crosses = self.select(ant_str='crosses', inplace=False)
+        print('crosses min')
+        print(np.min(crosses.data_array))
+        print('crosses max')
+        print(np.max(crosses.data_array))
+        # correct the autos
+        # correct the crosses
+        # which autos to use in crosses correction?
+
+
     def read_mwa_corr_fits(self, filelist, use_cotter_flags=False, correct_cable_len=False,
-                           phase_to_pointing_center=False, run_check=True, check_extra=True,
-                           run_check_acceptability=True, flag_init=True,
-                           edge_width=80e3, start_flag=2.0, end_flag=2.0,
-                           flag_dc_offset=True):
+                           phase_to_pointing_center=False, correct_van_vleck=False,
+                           run_check=True, check_extra=True, run_check_acceptability=True,
+			   flag_init=True, edge_width=80e3, start_flag=2.0, end_flag=2.0,
+			   flag_dc_offset=True):
         """
         Read in MWA correlator gpu box files.
 
@@ -164,6 +187,8 @@ class MWACorrFITS(UVData):
             Option to apply a cable delay correction.
         phase_to_pointing_center : bool
             Option to phase to the observation pointing center.
+        correct_van_vleck : bool
+            Option to apply a van vleck correction.
         run_check : bool
             Option to check for the existence and proper shapes of parameters
             after after reading in the file (the default is True,
@@ -206,6 +231,7 @@ class MWACorrFITS(UVData):
         """
         metafits_file = None
         obs_id = None
+        bscale = None
         file_dict = {}
         start_time = 0.0
         end_time = 0.0
@@ -250,7 +276,9 @@ class MWACorrFITS(UVData):
                         num_fine_chans = data[1].header['NAXIS2']
                     elif num_fine_chans != data[1].header['NAXIS2']:
                         raise ValueError('files submitted have different fine channel widths')
-
+                    # get scaling info
+                    if bscale is None:
+                        bscale = data[0].header['BSCALE']
                 # organize files
                 if 'data' not in file_dict.keys():
                     file_dict['data'] = [file]
@@ -594,6 +622,16 @@ class MWACorrFITS(UVData):
             self.flag_init(num_fine_chans, edge_width=edge_width,
                            start_flag=start_flag, end_flag=end_flag,
                            flag_dc_offset=flag_dc_offset)
+
+        # van vleck correction
+        if correct_van_vleck:
+            # scale the data
+            # TODO: calculate nsamples
+            nsamples = 20000
+            self.data_array = self.data_array / (nsamples * bscale)
+            self.van_vleck_correction()
+            # rescale the data
+            self.data_array = self.data_array * (nsamples * bscale)
 
         if use_cotter_flags:
             raise NotImplementedError('reading in cotter flag files is not yet available')

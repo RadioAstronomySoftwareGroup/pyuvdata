@@ -3236,8 +3236,9 @@ class UVData(UVBase):
     def read_mwa_corr_fits(self, filelist, axis=None, use_cotter_flags=False,
                            correct_cable_len=False, flag_init=True,
                            edge_width=80e3, start_flag=2.0, end_flag=2.0,
-                           flag_dc_offset=True, phase_to_pointing_center=False,
-                           phase_data=None, phase_center=None, run_check=True,
+                           flag_dc_offset=True, correct_van_vleck=False,
+                           phase_to_pointing_center=False, phase_data=None,
+                           phase_center=None, run_check=True,
                            check_extra=True, run_check_acceptability=True):
         """
         Read in MWA correlator gpu box files.
@@ -3282,6 +3283,8 @@ class UVData(UVBase):
             Only used if flag_init is True. Set to True to flag the center fine
             channel of each coarse channel. Only used if file_type is
             'mwa_corr_fits'.
+        correct_van_vleck : bool
+            Option to apply a van vleck correction.
         phase_to_pointing_center : bool
             Option to phase to the observation pointing center.
         phase_data : bool
@@ -3350,6 +3353,7 @@ class UVData(UVBase):
                       flag_init=flag_init, edge_width=edge_width,
                       start_flag=start_flag, end_flag=end_flag,
                       flag_dc_offset=flag_dc_offset,
+                      correct_van_vleck=correct_van_vleck,
                       phase_to_pointing_center=phase_to_pointing_center,
                       phase_center_radec=phase_center, run_check=run_check,
                       check_extra=check_extra,
@@ -3362,6 +3366,7 @@ class UVData(UVBase):
                                     flag_init=flag_init, edge_width=edge_width,
                                     start_flag=start_flag, end_flag=end_flag,
                                     flag_dc_offset=flag_dc_offset,
+                                    correct_van_vleck=correct_van_vleck,
                                     phase_to_pointing_center=phase_to_pointing_center,
                                     run_check=run_check, check_extra=check_extra,
                                     run_check_acceptability=run_check_acceptability)
@@ -3702,7 +3707,7 @@ class UVData(UVBase):
              data_array_dtype=np.complex128,
              use_cotter_flags=False, correct_cable_len=False, flag_init=True,
              edge_width=80e3, start_flag=2.0, end_flag=2.0, flag_dc_offset=True,
-             phase_to_pointing_center=False,
+             phase_to_pointing_center=False, correct_van_vleck=False,
              run_check=True, check_extra=True, run_check_acceptability=True):
         """
         Read a generic file into a UVData object.
@@ -3870,6 +3875,9 @@ class UVData(UVBase):
             Only used if file_type is 'mwa_corr_fits' and flag_init is True. Set
             to True to flag the center fine channel of each coarse channel. Only
             used if file_type is 'mwa_corr_fits'.
+        correct_van_vleck : bool
+            Flag to apply van vleck correction. Only used if file_type is
+            'mwa_corr_fits'.
         phase_to_pointing_center : bool
             Flag to phase to the pointing center. Only used if file_type is
             'mwa_corr_fits'. Cannot be set if phase_center_radec is not None.
@@ -4128,6 +4136,7 @@ class UVData(UVBase):
                     flag_init=flag_init, edge_width=edge_width,
                     start_flag=start_flag, end_flag=end_flag,
                     flag_dc_offset=True,
+                    correct_van_vleck=correct_van_vleck,
                     phase_to_pointing_center=phase_to_pointing_center,
                     check_extra=check_extra,
                     run_check_acceptability=run_check_acceptability)
