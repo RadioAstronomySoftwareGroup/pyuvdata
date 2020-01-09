@@ -20,7 +20,7 @@ class UVCal(UVBase):
 
         Attributes:
             UVParameter objects: For full list see UVCal Parameters
-                (http://pyuvdata.readthedocs.io/en/latest/uvcal.html).
+                (http://pyuvdata.readthedocs.io/en/latest/uvcal_parameters.html).
                 Some are always required, some are required for certain cal_types
                 and others are always optional.
 
