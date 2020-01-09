@@ -909,7 +909,7 @@ def test_uvcalibrate_apply_gains():
     uvd = pyuvdata.UVData()
     uvd.read(os.path.join(DATA_PATH, 'zen.2457698.40355.xx.HH.uvcAA'))
     # give it an x_orientation
-    uvd.x_orientation = 'e'
+    uvd.x_orientation = 'east'
     uvc = pyuvdata.UVCal()
     uvc.read_calfits(os.path.join(DATA_PATH, 'zen.2457698.40355.xx.gain.calfits'))
     # assign gain scale manually
