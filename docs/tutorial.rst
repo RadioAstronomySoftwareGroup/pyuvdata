@@ -1331,6 +1331,12 @@ each file will be read in succession and added to the previous.
   >>> fhd_cal.read_fhd_cal(cal_testfiles, obs_testfiles, settings_file=settings_testfiles)
   diffuse_model parameter value is a string, values are different
 
+UVCal: Changing cal_type from 'delay' to 'gain'
+-----------------------------------------------
+UVCal includes the method convert_to_gain(), which changes a UVCal object's
+cal_type parameter from 'delay' to 'gain,' and accordingly sets the object's
+gain_array to one consistent with its pre-existing delay_array.
+
 ------
 UVBeam
 ------
