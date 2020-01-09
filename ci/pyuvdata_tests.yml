@@ -15,5 +15,7 @@ dependencies:
   - pytest-cov
   - setuptools_scm
   - pip
+  - defaults::libgfortran =3.0.0
+  - defaults::libgfortran-ng
   - pip:
       - pytest-cases
