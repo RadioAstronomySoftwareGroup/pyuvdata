@@ -32,7 +32,7 @@ Also can convert raw data quality metrics into flags using thresholding.
 (This object is very new and experimental. Consider it to be a beta version)
 
 ## UVData File standard notes
-* miriad has been throughly tested with aipy-style miriad files and minimally
+* miriad has been thoroughly tested with aipy-style miriad files and minimally
 tested with ATCA files
 * uvfits conforms to AIPS memo 117 (as of May 2015).  It is tested against
 FHD, CASA, and AIPS. However AIPS is limited to <80 antennas and CASA uvfits
