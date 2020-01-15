@@ -5,6 +5,7 @@ jobs:
   variables:
     PYTHON: "3.6"
     ENV_NAME: hera_cal
+    WITH_SUDO: true
 
   steps:
   - bash: echo "##vso[task.prependpath]$CONDA/bin"
@@ -29,6 +30,7 @@ jobs:
   variables:
     PYTHON: "3.6"
     ENV_NAME: hera_qm
+    WITH_SUDO: true
 
   steps:
   - bash: echo "##vso[task.prependpath]$CONDA/bin"
