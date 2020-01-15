@@ -46,10 +46,7 @@ __all__ = [
     "unphase_uvw",
     "uvcalibrate",
     "apply_uvflag",
-    "get_iterable",
-    "fits_gethduaxis",
     "get_lst_for_time",
-    "fits_indexhdus",
     "polstr2num",
     "polnum2str",
     "jstr2num",
@@ -58,9 +55,6 @@ __all__ = [
     "parse_jpolstr",
     "conj_pol",
     "reorder_conj_pols",
-    "check_history_version",
-    "check_histories",
-    "combine_histories",
     "baseline_to_antnums",
     "antnums_to_baseline",
     "baseline_index_flip",
@@ -1051,7 +1045,7 @@ def conj_pol(pol):
         Polarization as if antennas are swapped (type matches input)
 
     """
-    cpol_dict = {k.lower(): v for k, v in six.iteritems(CONJ_POL_DICT)}
+    cpol_dict = {k.lower(): v for k, v in CONJ_POL_DICT.items()}
 
     if isinstance(pol, str):
         cpol = cpol_dict[pol.lower()]
