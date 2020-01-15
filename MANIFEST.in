@@ -1,6 +1,5 @@
 include *.md
 include LICENSE
-include pyuvdata/VERSION
 include pyuvdata/GIT_INFO
 include *.bib
 include pyuvdata/uvdata/src/*
