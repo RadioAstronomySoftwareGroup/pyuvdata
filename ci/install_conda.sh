@@ -17,6 +17,13 @@ conda info -a
 conda create --name=${ENV_NAME}  python=$PYTHON --quiet
 conda env update -n ${ENV_NAME} -f ci/${ENV_NAME}.yml
 source activate ${ENV_NAME}
+
+# Mac OSX is having some trouble on python 3.8 with ncurses
+# not being up to date. Trye manually updating it.
+if [[ $OS == 'macos-latest ']]; then
+conda update -n ${ENV_NAME} -c conda-forge ncurses 
+fi
+
 conda list -n ${ENV_NAME}
 # check that the python version matches the desired one; exit immediately if not
 PYVER=`python -c "from __future__ import print_function; import sys; print('{:d}.{:d}'.format(sys.version_info.major, sys.version_info.minor))"`
