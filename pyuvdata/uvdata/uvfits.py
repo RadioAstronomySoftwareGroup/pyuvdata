@@ -13,7 +13,6 @@ from astropy.time import Time
 from astropy.io import fits
 
 from .uvdata import UVData
-from .. import parameter as uvp
 from .. import utils as uvutils
 
 __all__ = ["UVFITS"]
@@ -746,11 +745,7 @@ class UVFITS(UVData):
             if param.name in self.uvfits_required_extra:
                 if param.value is None:
                     if spoof_nonessential:
-                        # spoof extra keywords required for uvfits
-                        if isinstance(param, uvp.AntPositionParameter):
-                            param.apply_spoof(self, 'Nants_telescope')
-                        else:
-                            param.apply_spoof()
+                        param.apply_spoof()
                         setattr(self, p, param)
                     else:
                         raise ValueError('Required attribute {attribute} '
