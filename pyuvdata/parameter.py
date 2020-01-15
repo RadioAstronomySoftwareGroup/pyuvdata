@@ -19,7 +19,6 @@ from . import utils
 
 __all__ = [
     "UVParameter",
-    "AntPositionParameter",
     "AngleParameter",
     "LocationParameter"
 ]
