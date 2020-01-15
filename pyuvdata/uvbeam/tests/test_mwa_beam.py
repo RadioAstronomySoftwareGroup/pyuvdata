@@ -10,7 +10,7 @@ import numpy as np
 
 from pyuvdata.data import DATA_PATH
 from pyuvdata import UVBeam
-from pyuvdata.mwa_beam import P1sin, P1sin_array
+from pyuvdata.uvbeam.mwa_beam import P1sin, P1sin_array
 import pyuvdata.tests as uvtest
 import pyuvdata.utils as uvutils
 
