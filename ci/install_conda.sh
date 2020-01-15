@@ -20,8 +20,8 @@ source activate ${ENV_NAME}
 
 # Mac OSX is having some trouble on python 3.8 with ncurses
 # not being up to date. Trye manually updating it.
-if [[ $OS == 'macos-latest ']]; then
-conda update -n ${ENV_NAME} -c conda-forge ncurses 
+if [[ $OS == 'macos-latest' ]]; then
+conda update -n ${ENV_NAME} -c conda-forge ncurses
 fi
 
 conda list -n ${ENV_NAME}
