@@ -11,7 +11,6 @@ import warnings
 import sys
 
 import pytest
-import six
 
 from astropy.utils import iers
 
