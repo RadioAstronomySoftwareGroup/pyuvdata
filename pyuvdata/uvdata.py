@@ -3672,7 +3672,8 @@ class UVData(UVBase):
              phase_type=None, correct_lat_lon=True, use_model=False,
              data_column='DATA', pol_order='AIPS',
              data_array_dtype=np.complex128,
-             use_cotter_flags=False, correct_cable_len=False,
+             use_cotter_flags=False, correct_cable_len=False, flag_init=False,
+             edge_width=80e3, start_flag=4.0, end_flag=6.0, flag_dc_offset=True
              phase_to_pointing_center=False,
              run_check=True, check_extra=True, run_check_acceptability=True):
         """
@@ -3817,6 +3818,24 @@ class UVData(UVBase):
         correct_cable_len : bool
             Flag to apply cable length correction. Only used if file_type is
             'mwa_corr_fits'.
+        flag_init: bool
+            Set to True in order to do routine flagging of coarse channel edges,
+            start or end integrations, or the center fine channel of each coarse
+            channel. See associated keywords. Only used if file_type is
+            'mwa_corr_fits'.
+        edge_width: float
+            Only used if flag_init is True. The width to flag on the edge of
+            each coarse channel, in hz. Errors if less than the channel_width of
+            the observation. Only used if file_type is 'mwa_corr_fits'.
+        start_flag: float
+            Only used if flag_init is True. The number of seconds to flag at the
+            beginning of the observation. Only used if file_type is 'mwa_corr_fits'.
+        end_flag: floats
+            Only used if flag_init is True. The number of seconds to flag at the
+            end of the observation. Only used if file_type is 'mwa_corr_fits'.
+        flag_dc_offset: bool
+            Only used if flag_init is True. Set to True to flag the center fine
+            channel of each coarse channel. Only used if file_type is 'mwa_corr_fits'.
         phase_to_pointing_center : bool
             Flag to phase to the pointing center. Only used if file_type is
             'mwa_corr_fits'. Cannot be set if phase_center_radec is not None.
@@ -4072,6 +4091,9 @@ class UVData(UVBase):
                     filename, run_check=run_check,
                     use_cotter_flags=use_cotter_flags,
                     correct_cable_len=correct_cable_len,
+                    flag_init=flag_init, edge_width=edge_width,
+                    start_flag=start_flag, end_flag=end_flag,
+                    flag_dc_offset=True
                     phase_to_pointing_center=phase_to_pointing_center,
                     check_extra=check_extra,
                     run_check_acceptability=run_check_acceptability)
