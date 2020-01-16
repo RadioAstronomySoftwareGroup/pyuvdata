@@ -3825,14 +3825,17 @@ class UVData(UVBase):
             'mwa_corr_fits'.
         edge_width: float
             Only used if flag_init is True. The width to flag on the edge of
-            each coarse channel, in hz. Errors if less than the channel_width of
-            the observation. Only used if file_type is 'mwa_corr_fits'.
+            each coarse channel, in hz. Errors if not equal to integer multiple
+            of channel_width. Set to 0 for no edge flagging. Only used if
+            file_type is 'mwa_corr_fits'.
         start_flag: float
             Only used if flag_init is True. The number of seconds to flag at the
-            beginning of the observation. Only used if file_type is 'mwa_corr_fits'.
+            beginning of the observation. Set to 0 for no flagging. Only used if
+            file_type is 'mwa_corr_fits'.
         end_flag: floats
             Only used if flag_init is True. The number of seconds to flag at the
-            end of the observation. Only used if file_type is 'mwa_corr_fits'.
+            end of the observation. Set to 0 for no flagging. Only used if
+            file_type is 'mwa_corr_fits'.
         flag_dc_offset: bool
             Only used if flag_init is True. Set to True to flag the center fine
             channel of each coarse channel. Only used if file_type is 'mwa_corr_fits'.
