@@ -4096,7 +4096,7 @@ class UVData(UVBase):
                     correct_cable_len=correct_cable_len,
                     flag_init=flag_init, edge_width=edge_width,
                     start_flag=start_flag, end_flag=end_flag,
-                    flag_dc_offset=True
+                    flag_dc_offset=True,
                     phase_to_pointing_center=phase_to_pointing_center,
                     check_extra=check_extra,
                     run_check_acceptability=run_check_acceptability)
