@@ -137,8 +137,6 @@ class MWACorrFITS(UVData):
                 self.flag_array[-num_end_flag:, :, :, :, :] = True
             self.flag_array = np.reshape(self.flag_array, shape)
 
-
-
     def read_mwa_corr_fits(self, filelist, use_cotter_flags=False, correct_cable_len=False,
                            phase_to_pointing_center=False, run_check=True, check_extra=True,
                            run_check_acceptability=True, flag_init=False,
