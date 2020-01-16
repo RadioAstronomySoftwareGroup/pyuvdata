@@ -69,9 +69,81 @@ class MWACorrFITS(UVData):
         self.data_array *= np.exp(-1j * 2 * np.pi * cable_len_diffs / const.c.to('m/s').value
                                   * self.freq_array.reshape(1, self.Nfreqs))[:, :, None]
 
+    def flag_init(self, edge_width=80e3, start_flag=4.0, end_flag=6.0,
+                  flag_dc_offset=True):
+        """
+        Do routine flagging of the edges, beginning and end of obs, as well as
+        the center fine channel of each coarse channel.
+
+        Parameters
+        ----------
+        edge_width: float
+            The width to flag on the edge of each coarse channel, in hz.
+        start_flag: float
+            The number of seconds to flag at the beginning of the observation.
+        end_flag: floats
+            The number of seconds to flag at the end of the observation.
+        flag_dc_offset: bool
+            Set to True to flag the center fine channel of each coarse channel.
+
+        Raises
+        ------
+        ValueError
+            If edge_width is not an integer multiple of the channel_width of the data (0 also acceptable).
+            If start_flag is not an integer multiple of the integration time (0 also acceptable).
+            If end_flag is not an integer multiple of the integration time (0 also acceptable).
+        """
+        if (edge_width % self.channel_width) > 0:
+            raise ValueError("The edge_width must be an integer multiple of the"
+                             "channel_width of the data or zero.")
+        if (start_flag % self.integration_time) > 0:
+            raise ValueError("The start_flag must be an integer multiple of the"
+                             "integration_time of the data or zero.")
+        if (end_flag % self.integration_time) > 0:
+            raise ValueError("The end_flag must be an integer multiple of the"
+                             "integration_time of the data or zero.")
+
+        num_ch_flag = int(edge_width / self.channel_width)
+        num_start_flag = int(start_flag / self.integration_time)
+        num_end_flag = int(end_flag / self.integration_time)
+
+        # Constant from the DSP architecture
+        num_coarse_chan = 24
+        num_fine_chan = len(self.Nfreqs) / num_coarse_chan
+
+        if num_ch_flag > 0:
+            edge_inds = []
+            for ch_count in range(num_ch_flag):
+                # count up from the left
+                left_chans = list(range(ch_count, self.Nfreqs, num_fine_chan))
+                # count down from the right
+                right_chans = list(range(self.Nfreqs - 1 - ch_count, 0, -num_fine_chans))
+                edge_inds = edge_inds + left_chans + right_chans
+
+            self.flag_array[:, :, edge_inds, :] = True
+
+        if flag_dc_offset:
+            center_inds = list(range(num_fine_chan / 2, self.Nfreqs, num_fine_chan))
+
+            self.flag_array[:, :, center_inds, :] = True
+
+        if (num_start_flag > 0) or (num_end_flag > 0):
+            shape = self.flag_array.shape
+            reshape = [self.Ntimes, self.Nbls, self.Nspws, self.Nfreqs, self.Npols]
+            self.flag_array = np.reshape(self.flag_array, reshape)
+            if num_start_flag > 0:
+                self.flag_array[:num_start_flag, :, :, :, :] = True
+            if num_end_flag > 0:
+                self.flag_array[-num_end_flag:, :, :, :, :] = True
+            self.flag_array = np.reshape(self.flag_array, shape)
+
+
+
     def read_mwa_corr_fits(self, filelist, use_cotter_flags=False, correct_cable_len=False,
                            phase_to_pointing_center=False, run_check=True, check_extra=True,
-                           run_check_acceptability=True):
+                           run_check_acceptability=True, flag_init=False,
+                           edge_width=80e3, start_flag=4.0, end_flag=6.0,
+                           flag_dc_offset=True):
         """
         Read in MWA correlator gpu box files.
 
@@ -106,6 +178,23 @@ class MWACorrFITS(UVData):
             Option to check acceptable range of the values of parameters after
             reading in the file (the default is True, meaning the acceptable
             range check will be done).
+        flag_init: bool
+            Set to True in order to do routine flagging of coarse channel edges,
+            start or end integrations, or the center fine channel of each coarse
+            channel. See associated keywords.
+        edge_width: float
+            Only used if flag_init is True. The width to flag on the edge of
+            each coarse channel, in hz. Errors if less than the channel_width of
+            the observation.
+        start_flag: float
+            Only used if flag_init is True. The number of seconds to flag at the
+            beginning of the observation.
+        end_flag: floats
+            Only used if flag_init is True. The number of seconds to flag at the
+            end of the observation.
+        flag_dc_offset: bool
+            Only used if flag_init is True. Set to True to flag the center fine
+            channel of each coarse channel.
 
         Raises
         ------
@@ -501,6 +590,10 @@ class MWACorrFITS(UVData):
         # phasing
         if phase_to_pointing_center:
             self.phase(ra_rad, dec_rad)
+
+        if flag_init:
+            self.flag_init(edge_width=edge_width, start_flag=start_flag,
+                           end_flag=end_flag, flag_dc_offset=flag_dc_offset)
 
         if use_cotter_flags:
             raise NotImplementedError('reading in cotter flag files is not yet available')
