@@ -26,7 +26,7 @@
 
 Bug fix checklist:
 - [ ] My fix includes a new test that breaks as a result of the bug (if possible).
-- [ ] All new and existing tests pass in both python 2 and python 3.
+- [ ] All new and existing tests pass.
 - [ ] I have updated the [CHANGELOG](https://github.com/RadioAstronomySoftwareGroup/pyuvdata/blob/master/CHANGELOG.md).
 
 New feature checklist:
