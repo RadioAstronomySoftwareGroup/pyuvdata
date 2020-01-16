@@ -294,3 +294,59 @@ def test_diff_obs():
         mwa_uv.read([bad_obs, filelist[0], filelist[1]])
     assert str(cm.value).startswith('files from different observations')
     del(mwa_uv)
+
+
+def test_flag_init():
+    """
+    Test that routine MWA flagging works as intended.
+    """
+    spoof_file1 = os.path.join(DATA_PATH, 'test/spoof1.fits')
+    spoof_file6 = os.path.join(DATA_PATH, 'test/spoof6.fits')
+    # spoof box files of the appropriate size
+    with fits.open(filelist[1]) as mini1:
+        mini1[1].data = np.repeat(mini1[1].data, 8, axis=0)
+        extra_dat = np.copy(mini1[1].data)
+        for app_ind in range(2):
+            mini1.append(fits.ImageHDU(extra_dat))
+        mini1[2].header['MILLITIM'] = 0
+        mini1[3].header['MILLITIM'] = 500
+        mini1[3].header['MILLITIM'] = 1000
+        mini1[3].header['TIME'] = mini1[1].header + 1
+        mini1.writeto(spoof_file1)
+
+    with fits.open(filelist[2]) as mini6:
+        mini6[1].data = np.repeat(mini6[1].data, 8, axis=0)
+        extra_dat = np.copy(mini6[1].data)
+        for app_ind in range(2):
+            mini6[1].append(fits.ImageHDU(extra_dat))
+        mini6[2].header['MILLITIM'] = 0
+        mini6[3].header['MILLITIM'] = 500
+        mini6[3].header['MILLITIM'] = 1000
+        mini6[3].header['TIME'] = mini6[1].header + 1
+        mini6.writeto(spoof_file6)
+
+    uv = UVData()
+    uv.read([spoof_file1, spoof_file6, filelist[0]], flag_init=True,
+            start_flag=0, end_flag=0)
+    test_flags = np.zeros_like(uv.flag_array)
+    freq_inds = [0, 1, 4, 6, 7, 8, 9, 12, 14, 15]
+    test_flags[:, :, freq_inds, :] = True
+
+    assert np.array_equal(test_flags, uv.flag_array), "Flag arrays have different flagged frequencies!"
+
+    uv.read([spoof_file1, spoof_file6, filelist[0]], flag_init=True,
+            start_flag=0.5, end_flag=0.5, edge_width=0, flag_dc_offset=False)
+    test_flags = np.zeros_like(uv.flag_array)
+    test_flags = test_flags.reshape([uv.Ntimes, uv.Nbls, uv.Nspws, uv.Nfreqs, uv.Npols])
+    test_flags[[0, 2], :, :, :, :] = True
+    test_flags = test_flags.reshape([uv.Nblts, uv.Nspws, uv.Nfreqs, uv.Npols])
+    assert np.array_equal(test_flags, uv.flag_array), "Flag arrays have different flagged times!"
+
+    # give noninteger multiple inputs
+    with pytest.raises(ValueError):
+        uv.read(flag_testfiles, flag_init=True, start_flag=0, end_flag=0, edge_flag=90e3)
+        uv.read(flag_testfiles, flag_init=True, start_flag=1.2, end_flag=0)
+        uv.read(flag_testfiles, flag_init=True, start_flag=0, end_flag=1.2)
+
+    for path in [spoof_file1, spoof_file6]:
+        os.remove(path)
