@@ -33,41 +33,7 @@ def test_ReadNRAO():
     assert (expected_extra_keywords.sort()
             == list(UV.extra_keywords.keys()).sort())
 
-    # test reading in header data first, then metadata and then data
-    UV2 = UVData()
-    uvtest.checkWarnings(UV2.read, func_args=[testfile],
-                         func_kwargs={'read_data': False,
-                                      'read_metadata': False},
-                         message=['Telescope EVLA is not',
-                                  'Support for reading only the header'],
-                         category=[UserWarning, DeprecationWarning],
-                         nwarnings=2)
-    assert (expected_extra_keywords.sort()
-            == list(UV2.extra_keywords.keys()).sort())
-    with pytest.raises(ValueError) as cm:
-        UV2.check()
-    assert str(cm.value).startswith('Required UVParameter')
-
-    # do this two ways, with `read` and with deprecated `read_uvfits_metadata`
-    UV3 = UV2.copy()
-    uvtest.checkWarnings(UV2.read, func_args=[testfile],
-                         func_kwargs={'read_data': False},
-                         message='Telescope EVLA is not')
-    assert UV2.check()
-
-    uvfits_obj = UV3._convert_to_filetype('uvfits')
-    uvtest.checkWarnings(uvfits_obj.read_uvfits_metadata, func_args=[testfile],
-                         message='The read_uvfits_metadata method is deprecated',
-                         category=DeprecationWarning)
-    UV3._convert_from_filetype(uvfits_obj)
-    assert UV3 == UV2
-
-    uvtest.checkWarnings(UV2.read, func_args=[testfile],
-                         message='Telescope EVLA is not')
-    assert UV == UV2
-
     # test reading in header & metadata first, then data
-    # do this two ways, with `read` and with deprecated `read_uvfits_data`
     UV2 = UVData()
     uvtest.checkWarnings(UV2.read, func_args=[testfile],
                          func_kwargs={'read_data': False},
@@ -75,25 +41,9 @@ def test_ReadNRAO():
     assert (expected_extra_keywords.sort()
             == list(UV2.extra_keywords.keys()).sort())
     assert UV2.check()
-    UV3 = UV2.copy()
     uvtest.checkWarnings(UV2.read, func_args=[testfile],
                          message='Telescope EVLA is not')
     assert UV == UV2
-
-    uvfits_obj = UV3._convert_to_filetype('uvfits')
-    uvtest.checkWarnings(uvfits_obj.read_uvfits_data, func_args=[testfile],
-                         message='The read_uvfits_data method is deprecated',
-                         category=DeprecationWarning)
-    UV3._convert_from_filetype(uvfits_obj)
-    assert UV3 == UV2
-
-    # check error trying to read metadata after data is already present
-    uvfits_obj = UV3._convert_to_filetype('uvfits')
-    with pytest.raises(ValueError) as cm:
-        uvtest.checkWarnings(uvfits_obj.read_uvfits_metadata, func_args=[testfile],
-                             message='The read_uvfits_metadata method is deprecated',
-                             category=DeprecationWarning)
-    assert str(cm.value).startswith('data_array is already defined, cannot read metadata')
 
 
 @pytest.mark.filterwarnings("ignore:Required Antenna frame keyword")
@@ -698,10 +648,13 @@ def test_multi_files():
     uv1.write_uvfits(testfile1)
     uv2.write_uvfits(testfile2)
     uvtest.checkWarnings(
-        uv1.read_uvfits, func_args=[np.array([testfile1, testfile2])],
-        message=(['Please use the generic'] + 2 * ['Telescope EVLA is not']),
-        category=[DeprecationWarning] + 2 * [UserWarning],
-        nwarnings=3)
+        uv1.read,
+        func_args=[np.array([testfile1, testfile2])],
+        func_kwargs={"file_type": "uvfits"},
+        message=2 * ["Telescope EVLA is not"],
+        category=2 * [UserWarning],
+        nwarnings=2
+    )
     # Check history is correct, before replacing and doing a full object check
     assert uvutils._check_histories(uv_full.history + '  Downselected to '
                                     'specific frequencies using pyuvdata. '
@@ -736,12 +689,6 @@ def test_multi_files():
 
     uv1.history = uv_full.history
     assert uv1 == uv_full
-
-    # check raises error if read_data and read_metadata are False
-    with pytest.raises(ValueError) as cm:
-        uv1.read([testfile1, testfile2], read_data=False, read_metadata=False)
-    assert str(cm.value).startswith('A list of files cannot be used when just '
-                                    'reading the header')
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")

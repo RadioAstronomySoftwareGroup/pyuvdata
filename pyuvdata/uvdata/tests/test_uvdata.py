@@ -20,6 +20,11 @@ import pyuvdata.utils as uvutils
 import pyuvdata.tests as uvtest
 from pyuvdata.data import DATA_PATH
 
+# needed for multifile read error test
+from pyuvdata.uvdata.tests.test_mwa_corr_fits import filelist as mwa_corr_files
+from pyuvdata.uvdata.tests.test_fhd import testfiles as fhd_files
+
+
 from collections import Counter
 
 
@@ -809,15 +814,6 @@ def test_select_blts():
     # also check with inplace=True
     uv_object3.select(blt_inds=blt_inds)
     assert uv_object3 == uv_object4
-
-    # check for warnings & errors with the metadata_only keyword
-    uv_object3 = copy.deepcopy(uv_object)
-    with pytest.raises(ValueError) as cm:
-        uvtest.checkWarnings(uv_object3.select,
-                             func_kwargs={'blt_inds': blt_inds, 'metadata_only': True},
-                             message='The metadata_only option has been replaced',
-                             category=DeprecationWarning)
-    assert str(cm.value).startswith('The metadata_only option can only be True')
 
     # check for errors associated with out of bounds indices
     pytest.raises(ValueError, uv_object.select, blt_inds=np.arange(-10, -5))
@@ -3964,22 +3960,6 @@ def test_set_uvws_from_antenna_pos():
     assert np.isclose(max_diff, 0., atol=2)
 
 
-def test_deprecated_redundancy_funcs():
-    uv0 = UVData()
-    uv0.read_uvfits(os.path.join(DATA_PATH, 'fewant_randsrc_airybeam_Nsrc100_10MHz.uvfits'))
-    redant_gps, centers, lengths = uvtest.checkWarnings(
-        uv0.get_antenna_redundancies,
-        func_kwargs={'include_autos': False, 'conjugate_bls': True},
-        category=DeprecationWarning,
-        message=['UVData.get_antenna_redundancies has been replaced'])
-    redbl_gps, centers, lengths, _ = uvtest.checkWarnings(
-        uv0.get_baseline_redundancies, category=DeprecationWarning,
-        message='UVData.get_baseline_redundancies has been replaced')
-
-    red_gps_new, _, _, = uv0.get_redundancies(include_autos=False, use_antpos=True)
-    assert red_gps_new == redant_gps
-
-
 def test_get_antenna_redundancies():
     uv0 = UVData()
     uv0.read_uvfits(os.path.join(DATA_PATH, 'fewant_randsrc_airybeam_Nsrc100_10MHz.uvfits'))
@@ -4129,23 +4109,8 @@ def test_compress_redundancy_metadata_only():
             uv0.data_array[inds] *= 0
             uv0.data_array[inds] += complex(i)
 
-    uv2 = copy.deepcopy(uv0)
-    uv2.data_array = None
-    uv2.flag_array = None
-    uv2.nsample_array = None
+    uv2 = uv0.copy(metadata_only=True)
     uv2.compress_by_redundancy(tol=tol, inplace=True)
-
-    # check for deprecation warning with metadata_only keyword
-    uv1 = copy.deepcopy(uv0)
-    uv1.data_array = None
-    uv1.flag_array = None
-    uv1.nsample_array = None
-    uvtest.checkWarnings(uv1.compress_by_redundancy,
-                         func_kwargs={'tol': tol, 'inplace': True,
-                                      'metadata_only': True},
-                         category=DeprecationWarning,
-                         message='The metadata_only option has been replaced')
-    assert uv1 == uv2
 
     uv0.compress_by_redundancy(tol=tol)
     uv0.data_array = None
@@ -5829,3 +5794,35 @@ def test_remove_eq_coeffs_errors(uvdata_data):
     assert str(cm.value).startswith("Got unknown convention foo. Must be one of")
 
     return
+
+
+@pytest.mark.parametrize(
+    "read_func,filelist",
+    [
+        ("read_miriad", [os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcA")] * 2),
+        ("read_mwa_corr_fits", [[mwa_corr_files[0:2], [mwa_corr_files[0], mwa_corr_files[2]]]]),
+        ("read_uvh5", [os.path.join(DATA_PATH, "zen.2458661.23480.HH.uvh5")] * 2),
+        ("read_uvfits", [os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")] * 2),
+        (
+            "read_ms",
+            [
+                os.path.join(DATA_PATH, 'multi_1.ms'),
+                os.path.join(DATA_PATH, 'multi_2.ms')
+            ]
+        ),
+        (
+            "read_fhd",
+            [
+                list(np.array(fhd_files)[[0, 1, 2, 4, 6, 7]]),
+                list(np.array(fhd_files)[[0, 2, 3, 5, 6, 7]])
+            ]
+        )
+    ]
+)
+def test_multifile_read_errors(read_func, filelist):
+    uv = UVData()
+    with pytest.raises(ValueError) as cm:
+        getattr(uv, read_func)(filelist)
+    assert str(cm.value).startswith(
+        "Reading multiple files from class specific read functions is no longer supported."
+    )

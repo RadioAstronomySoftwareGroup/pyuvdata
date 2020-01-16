@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 ### Changed
 - All references to Python 2 removed from codebase.
 
+### Removed
+- Previously deprecated code marked for removal in version > 1.5:
+ - reading multiple files with file format specific read functions (e.g.  read_mirad). Multi-file reads can only be performed with `uvdata.read`
+ - `read_metadata` keyword
+ - `metadata_only` keyword in `select` and `get_redundancies`
+ - `uvdata.miriad.read_miriad_metadata`
+ - `phase_center` keyword in `uvdata.read_mwa_corr_fits`
+ - `phase_data` keyword in `uvdata.read_mwa_corr_fits`
+ - `uvdata.get_antenna_redundancies`
+ - `uvdata.get_baseline_redundancies`
+ - `uvdata.uvfits.read_uvfits_metadata`
+ - `uvdata.uvfits.read_uvfits_data`
+
 ## [1.5.0] - 2020-1-15
 
 ### Added

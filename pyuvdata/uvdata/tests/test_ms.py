@@ -211,9 +211,7 @@ def test_multi_files():
     uvtest.checkWarnings(uv_full.read, [uvfits_file], message='Telescope EVLA is not')
     testfile1 = os.path.join(DATA_PATH, 'multi_1.ms')
     testfile2 = os.path.join(DATA_PATH, 'multi_2.ms')
-    uvtest.checkWarnings(
-        uv_multi.read_ms, func_args=[np.array([testfile1, testfile2])],
-        message=['Please use the generic'], category=DeprecationWarning)
+    uv_multi.read(np.array([testfile1, testfile2]))
     # Casa scrambles the history parameter. Replace for now.
     uv_multi.history = uv_full.history
 
