@@ -1443,11 +1443,14 @@ def test_multi_files():
     uv2.write_miriad(testfile2, clobber=True)
     del uv1
     uv1 = UVData()
-    uvtest.checkWarnings(uv1.read_miriad, func_args=[[testfile1, testfile2]],
-                         message=(['Please use the generic']
-                                  + 2 * ['Telescope EVLA is not']),
-                         category=[DeprecationWarning] + 2 * [UserWarning],
-                         nwarnings=3)
+    uvtest.checkWarnings(
+        uv1.read,
+        func_args=[[testfile1, testfile2]],
+        func_kwargs={"file_type": "miriad"},
+        message=["Telescope EVLA is not"],
+        category=2 * [UserWarning],
+        nwarnings=2
+    )
     # Check history is correct, before replacing and doing a full object check
     assert uvutils._check_histories(
         uv_full.history + "  Downselected to "
