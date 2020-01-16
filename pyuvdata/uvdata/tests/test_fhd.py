@@ -56,10 +56,14 @@ def test_ReadFHD_select():
     """
     fhd_uv = UVData()
     fhd_uv2 = UVData()
-    uvtest.checkWarnings(fhd_uv2.read, [testfiles], {'freq_chans': np.arange(2)},
-                         message=['Warning: select on read keyword set',
-                                  'Telescope location derived from obs'],
-                         nwarnings=2)
+    uvtest.checkWarnings(
+        fhd_uv2.read,
+        func_args=[testfiles],
+        func_kwargs={'freq_chans': np.arange(2)},
+        message=["Warning: select on read keyword set",
+                 "Telescope location derived from obs"],
+        nwarnings=2
+    )
 
     uvtest.checkWarnings(fhd_uv.read, [testfiles], known_warning='fhd')
 
@@ -338,11 +342,10 @@ def test_multi_files():
     test1 = list(np.array(testfiles)[[0, 1, 2, 4, 6, 7]])
     test2 = list(np.array(testfiles)[[0, 2, 3, 5, 6, 7]])
     uvtest.checkWarnings(
-        fhd_uv1.read_fhd, func_args=[np.array([test1, test2])],
-        func_kwargs={'use_model': True},
-        message=(['Please use the generic']
-                 + 2 * ['Telescope location derived from obs']),
-        category=[DeprecationWarning] + 2 * [UserWarning], nwarnings=3)
+        fhd_uv1.read, func_args=[np.array([test1, test2])],
+        func_kwargs={"use_model": True, "file_type": "fhd"},
+        message=(2 * ['Telescope location derived from obs']),
+        category=2 * [UserWarning], nwarnings=2)
 
     uvtest.checkWarnings(fhd_uv2.read, [testfiles], {'use_model': True}, known_warning='fhd')
 
