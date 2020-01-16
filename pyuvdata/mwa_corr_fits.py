@@ -78,11 +78,14 @@ class MWACorrFITS(UVData):
         Parameters
         ----------
         edge_width: float
-            The width to flag on the edge of each coarse channel, in hz.
+            The width to flag on the edge of each coarse channel, in hz. Set to
+            0 for no edge flagging.
         start_flag: float
             The number of seconds to flag at the beginning of the observation.
+            Set to 0 for no flagging.
         end_flag: floats
-            The number of seconds to flag at the end of the observation.
+            The number of seconds to flag at the end of the observation. Set to
+            0 for no flagging.
         flag_dc_offset: bool
             Set to True to flag the center fine channel of each coarse channel.
 
@@ -182,14 +185,14 @@ class MWACorrFITS(UVData):
             channel. See associated keywords.
         edge_width: float
             Only used if flag_init is True. The width to flag on the edge of
-            each coarse channel, in hz. Errors if less than the channel_width of
-            the observation.
+            each coarse channel, in hz. Errors if not equal to integer multiple
+            of channel_width. Set to 0 for no edge flagging.
         start_flag: float
             Only used if flag_init is True. The number of seconds to flag at the
-            beginning of the observation.
+            beginning of the observation. Set to 0 for no flagging.
         end_flag: floats
             Only used if flag_init is True. The number of seconds to flag at the
-            end of the observation.
+            end of the observation. Set to 0 for no flagging.
         flag_dc_offset: bool
             Only used if flag_init is True. Set to True to flag the center fine
             channel of each coarse channel.
