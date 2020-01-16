@@ -2537,7 +2537,7 @@ class UVData(UVBase):
                times=None, time_range=None, polarizations=None, blt_inds=None,
                run_check=True,
                check_extra=True, run_check_acceptability=True, inplace=True,
-               metadata_only=None, keep_all_metadata=True):
+               keep_all_metadata=True):
         """
         Downselect data to keep on the object along various axes.
 
@@ -2612,11 +2612,6 @@ class UVData(UVBase):
             Option to perform the select directly on self or return a new UVData
             object with just the selected data (the default is True, meaning the
             select will be done on self).
-        metadata_only : bool
-            Option to only do the select on the metadata. Not allowed if the
-            data_array, flag_array or nsample_array is not None. Note this option
-            has been replaced by an automatic detection of whether the data like
-            arrays are present. The keyword will be deprecated in version 1.6.
         keep_all_metadata : bool
             Option to keep all the metadata associated with antennas, even those
             that do do not have data associated with them after the select option.
@@ -2633,17 +2628,6 @@ class UVData(UVBase):
             If any of the parameters are set to inappropriate values.
 
         """
-        if metadata_only is not None:
-            warnings.warn('The metadata_only option has been replaced by an '
-                          'automatic detection of whether the data like arrays '
-                          'are present. The keyword will be deprecated in version 1.6.',
-                          DeprecationWarning)
-
-            if metadata_only != self.metadata_only:
-                raise ValueError('The metadata_only option can only be True if '
-                                 'data_array, flag_array or nsample_array are '
-                                 'all None and must be False otherwise.')
-
         if inplace:
             uv_object = self
         else:
@@ -2740,7 +2724,7 @@ class UVData(UVBase):
                     frequencies=None, freq_chans=None, times=None,
                     time_range=None,
                     polarizations=None, blt_inds=None,
-                    keep_all_metadata=True, read_data=True, read_metadata=True,
+                    keep_all_metadata=True, read_data=True,
                     run_check=True, check_extra=True,
                     run_check_acceptability=True):
         """
@@ -2749,9 +2733,7 @@ class UVData(UVBase):
         Parameters
         ----------
         filename : str
-            The uvfits file to read from. Support for a list of files will be
-            deprecated in version 2.0 in favor of a call to the generic
-            `read` method.
+            The uvfits file to read from.
         axis : str
             Axis to concatenate files along. This enables fast concatenation
             along the specified axis without the normal checking that all other
@@ -2819,14 +2801,6 @@ class UVData(UVBase):
             Read in the visibility and flag data. If set to false, only the
             basic header info and metadata read in. Setting read_data to False
             results in a metdata only object.
-        read_metadata : bool
-            Deprecated, will be removed in version 2.0, after which metadata
-            will always be read along with header data.
-            Read in metadata (times, baselines, uvws) as well as basic header
-            info. Only used if read_data is False (metadata will be read if data
-            is read). If both read_data and read_metadata are false, only basic
-            header info is read in, which will result in an incompletely
-            defined object -- check will not pass.
         run_check : bool
             Option to check for the existence and proper shapes of parameters
             after after reading in the file (the default is True,
@@ -2856,22 +2830,11 @@ class UVData(UVBase):
         from . import uvfits
 
         if isinstance(filename, (list, tuple, np.ndarray)):
-            warnings.warn('Please use the generic `read` '
-                          'method to read multiple uvfits files. Support for '
-                          'reading multiple files with this method will be '
-                          'removed in version 2.0.', DeprecationWarning)
-
-            self.read(filename, file_type='uvfits', axis=axis,
-                      antenna_nums=antenna_nums,
-                      antenna_names=antenna_names, ant_str=ant_str,
-                      bls=bls, frequencies=frequencies,
-                      freq_chans=freq_chans, times=times, time_range=time_range,
-                      polarizations=polarizations, blt_inds=blt_inds,
-                      read_data=read_data, read_metadata=read_metadata,
-                      run_check=run_check, check_extra=check_extra,
-                      run_check_acceptability=run_check_acceptability,
-                      keep_all_metadata=keep_all_metadata)
-            return
+            raise ValueError(
+                "Reading multiple files from class specific "
+                "read functions is no longer supported. "
+                "Use the generic `uvdata.read` function instead."
+            )
 
         uvfits_obj = uvfits.UVFITS()
         uvfits_obj.read_uvfits(filename, antenna_nums=antenna_nums,
@@ -2880,7 +2843,7 @@ class UVData(UVBase):
                                freq_chans=freq_chans, times=times,
                                time_range=time_range,
                                polarizations=polarizations, blt_inds=blt_inds,
-                               read_data=read_data, read_metadata=read_metadata,
+                               read_data=read_data,
                                run_check=run_check, check_extra=check_extra,
                                run_check_acceptability=run_check_acceptability,
                                keep_all_metadata=keep_all_metadata)
@@ -2948,9 +2911,6 @@ class UVData(UVBase):
         ----------
         filepath : str
             The measurement set root directory to read from.
-            Support for a list/array of file directories will be
-            deprecated in version 2.0 in favor of a call to the generic
-            `read` method.
         axis : str
             Axis to concatenate files along. This enables fast concatenation
             along the specified axis without the normal checking that all other
@@ -2986,20 +2946,14 @@ class UVData(UVBase):
             If the data have multiple data description ID values.
 
         """
-        from . import ms
-
         if isinstance(filepath, (list, tuple, np.ndarray)):
+            raise ValueError(
+                "Reading multiple files from class specific "
+                "read functions is no longer supported. "
+                "Use the generic `uvdata.read` function instead."
+            )
 
-            warnings.warn('Please use the generic `read` '
-                          'method to read multiple ms files. Support for '
-                          'reading multiple files with this method will be '
-                          'removed in version 2.0.', DeprecationWarning)
-
-            self.read(filepath, file_type='ms', axis=axis, run_check=run_check,
-                      check_extra=check_extra,
-                      run_check_acceptability=run_check_acceptability,
-                      data_column=data_column, pol_order=pol_order)
-            return
+        from . import ms
 
         ms_obj = ms.MS()
         ms_obj.read_ms(filepath, run_check=run_check, check_extra=check_extra,
@@ -3018,9 +2972,6 @@ class UVData(UVBase):
         filelist : array_like of str
             The list/array of FHD save files to read from. Must include at
             least one polarization file, a params file and a flag file.
-            Support for a list of lists of files for multiple data sets will be
-            deprecated in version 2.0 in favor of a call to the generic
-            `read` method.
         use_model : bool
             Option to read in the model visibilities rather than the dirty
             visibilities (the default is False, meaning the dirty visibilities
@@ -3054,16 +3005,11 @@ class UVData(UVBase):
         """
         from . import fhd
         if isinstance(filelist[0], (list, tuple, np.ndarray)):
-            warnings.warn('Please use the generic `read` '
-                          'method to read multiple fhd files. Support for '
-                          'reading multiple files with this method will be '
-                          'removed in version 2.0.', DeprecationWarning)
-
-            self.read(filelist, file_type='fhd', axis=axis, use_model=use_model,
-                      run_check=run_check,
-                      check_extra=check_extra,
-                      run_check_acceptability=run_check_acceptability)
-            return
+            raise ValueError(
+                "Reading multiple files from class specific "
+                "read functions is no longer supported. "
+                "Use the generic `uvdata.read` function instead."
+            )
 
         fhd_obj = fhd.FHD()
         fhd_obj.read_fhd(filelist, use_model=use_model, run_check=run_check,
@@ -3083,9 +3029,6 @@ class UVData(UVBase):
         ----------
         filepath : str
             The miriad root directory to read from.
-            Support for a list/array of file directories will be
-            deprecated in version 2.0 in favor of a call to the generic
-            `read` method.
         axis : str
             Axis to concatenate files along. This enables fast concatenation
             along the specified axis without the normal checking that all other
@@ -3158,19 +3101,11 @@ class UVData(UVBase):
         """
         from . import miriad
         if isinstance(filepath, (list, tuple, np.ndarray)):
-            warnings.warn('Please use the generic `read` '
-                          'method to read multiple miriad files. Support for '
-                          'reading multiple files with this method will be '
-                          'removed in version 2.0.', DeprecationWarning)
-
-            self.read(filepath, file_type='miriad', axis=axis,
-                      correct_lat_lon=correct_lat_lon,
-                      run_check=run_check, check_extra=check_extra,
-                      run_check_acceptability=run_check_acceptability,
-                      phase_type=phase_type, antenna_nums=antenna_nums,
-                      ant_str=ant_str, bls=bls,
-                      polarizations=polarizations, time_range=time_range)
-            return
+            raise ValueError(
+                "Reading multiple files from class specific "
+                "read functions is no longer supported. "
+                "Use the generic `uvdata.read` function instead."
+            )
 
         miriad_obj = miriad.Miriad()
         miriad_obj.read_miriad(filepath, correct_lat_lon=correct_lat_lon,
@@ -3239,9 +3174,6 @@ class UVData(UVBase):
         filelist : list of str
             The list of MWA correlator files to read from. Must include at
             least one fits file and only one metafits file per data set.
-            Support for a list of lists of files for multiple data sets will be
-            deprecated in version 2.0 in favor of a call to the generic
-            `read` method.
         axis : str
             Axis to concatenate files along. This enables fast concatenation
             along the specified axis without the normal checking that all other
@@ -3276,13 +3208,6 @@ class UVData(UVBase):
             'mwa_corr_fits'.
         phase_to_pointing_center : bool
             Option to phase to the observation pointing center.
-        phase_data : bool
-            Deprecated, use phase_to_pointing_center. Option to phase data,
-            default is no phasing.
-        phase_center : tuple, optional
-            Deprecated, use the `read` method to phase to arbitrary locations.
-            A tuple containing the ra and dec coordinates in radians of a
-            specific location to phase data to.
         run_check : bool
             Option to check for the existence and proper shapes of parameters
             after after reading in the file (the default is True,
@@ -3306,47 +3231,12 @@ class UVData(UVBase):
         """
         from . import mwa_corr_fits
 
-        call_read = False
-        if phase_center is not None:
-            warnings.warn('The `phase_center` keyword is deprecated. '
-                          'Please use the generic `read` '
-                          'method to phase to an arbitrary phase center. '
-                          'Support for the `phase_center` keyword will be '
-                          'removed in version 2.0.', DeprecationWarning)
-            call_read = True
-
-        if phase_data is not None:
-            warnings.warn('The `phase_data` keyword is deprecated. '
-                          'Please use the `phase_to_pointing_center` '
-                          'keyword to phase to the pointing center. '
-                          'Support for the `phase_data` keyword will be '
-                          'removed in version 2.0.', DeprecationWarning)
-            if phase_center is None:
-                phase_to_pointing_center = True
-            else:
-                phase_to_pointing_center = False
-
         if isinstance(filelist[0], (list, tuple, np.ndarray)):
-            warnings.warn('Please use the generic `read` '
-                          'method to read multiple mwa_corr_fits file sets. '
-                          'Support for '
-                          'reading multiple file sets with this method will be '
-                          'removed in version 2.0.', DeprecationWarning)
-            call_read = True
-
-        if call_read:
-
-            self.read(filelist, file_type='mwa_corr_fits', axis=axis,
-                      use_cotter_flags=use_cotter_flags,
-                      correct_cable_len=correct_cable_len,
-                      flag_init=flag_init, edge_width=edge_width,
-                      start_flag=start_flag, end_flag=end_flag,
-                      flag_dc_offset=flag_dc_offset,
-                      phase_to_pointing_center=phase_to_pointing_center,
-                      phase_center_radec=phase_center, run_check=run_check,
-                      check_extra=check_extra,
-                      run_check_acceptability=run_check_acceptability)
-            return
+            raise ValueError(
+                "Reading multiple files from class specific "
+                "read functions is no longer supported. "
+                "Use the generic `uvdata.read` function instead."
+            )
 
         corr_obj = mwa_corr_fits.MWACorrFITS()
         corr_obj.read_mwa_corr_fits(filelist, use_cotter_flags=use_cotter_flags,
@@ -3372,9 +3262,6 @@ class UVData(UVBase):
         ----------
         filename : str
              The UVH5 file to read from.
-             Support for a list/array of files will be
-             deprecated in version 2.0 in favor of a call to the generic
-             `read` method.
         axis : str
             Axis to concatenate files along. This enables fast concatenation
             along the specified axis without the normal checking that all other
@@ -3473,23 +3360,11 @@ class UVData(UVBase):
         """
         from . import uvh5
         if isinstance(filename, (list, tuple, np.ndarray)):
-            warnings.warn('Please use the generic `read` '
-                          'method to read multiple uvh5 files. Support for '
-                          'reading multiple files with this method will be '
-                          'removed in version 2.0.', DeprecationWarning)
-
-            self.read(filename, file_type='uvh5', axis=axis,
-                      antenna_nums=antenna_nums,
-                      antenna_names=antenna_names, ant_str=ant_str, bls=bls,
-                      frequencies=frequencies, freq_chans=freq_chans,
-                      times=times, time_range=time_range,
-                      polarizations=polarizations, blt_inds=blt_inds,
-                      read_data=read_data, run_check=run_check,
-                      check_extra=check_extra,
-                      run_check_acceptability=run_check_acceptability,
-                      data_array_dtype=data_array_dtype,
-                      keep_all_metadata=keep_all_metadata)
-            return
+            raise ValueError(
+                "Reading multiple files from class specific "
+                "read functions is no longer supported. "
+                "Use the generic `uvdata.read` function instead."
+            )
 
         uvh5_obj = uvh5.UVH5()
         uvh5_obj.read_uvh5(filename, antenna_nums=antenna_nums,
@@ -3688,7 +3563,7 @@ class UVData(UVBase):
              antenna_nums=None, antenna_names=None, ant_str=None, bls=None,
              frequencies=None, freq_chans=None, times=None, polarizations=None,
              blt_inds=None, time_range=None, keep_all_metadata=True,
-             read_metadata=True, read_data=True,
+             read_data=True,
              phase_type=None, correct_lat_lon=True, use_model=False,
              data_column='DATA', pol_order='AIPS',
              data_array_dtype=np.complex128,
@@ -3796,14 +3671,6 @@ class UVData(UVBase):
         keep_all_metadata : bool
             Option to keep all the metadata associated with antennas, even those
             that do not have data associated with them after the select option.
-        read_metadata : bool
-            Deprecated, will be removed in version 2.0, after which metadata
-            will always be read along with header data.
-            Option to read in metadata (times, baselines, uvws) as well as
-            basic header info. Only used if file_type is 'uvfits' and read_data
-            is False (metadata will be read if data is read). If file_type is
-            'uvfits' and both read_data and read_metadata are false, only basic
-            header info is read in.
         read_data : bool
             Read in the data. Only used if file_type is 'uvfits',
             'miriad' or 'uvh5'. If set to False, only the metadata will be
@@ -3954,11 +3821,6 @@ class UVData(UVBase):
                              'be provided.')
 
         if multi:
-            if file_type == 'uvfits':
-                if not read_data and not read_metadata:
-                    raise ValueError('A list of files cannot be used when just '
-                                     'reading the header (read_data and '
-                                     'read_metadata are both False)')
 
             self.read(filename[0], file_type=file_type,
                       antenna_nums=antenna_nums, antenna_names=antenna_names,
@@ -3967,7 +3829,7 @@ class UVData(UVBase):
                       times=times, polarizations=polarizations,
                       blt_inds=blt_inds, time_range=time_range,
                       keep_all_metadata=keep_all_metadata,
-                      read_metadata=read_metadata, read_data=read_data,
+                      read_data=read_data,
                       phase_type=phase_type, correct_lat_lon=correct_lat_lon,
                       use_model=use_model,
                       data_column=data_column, pol_order=pol_order,
@@ -3993,7 +3855,7 @@ class UVData(UVBase):
                              times=times, polarizations=polarizations,
                              blt_inds=blt_inds, time_range=time_range,
                              keep_all_metadata=keep_all_metadata,
-                             read_metadata=read_metadata, read_data=read_data,
+                             read_data=read_data,
                              phase_type=phase_type,
                              correct_lat_lon=correct_lat_lon,
                              use_model=use_model,
@@ -4098,7 +3960,7 @@ class UVData(UVBase):
                     bls=bls, frequencies=frequencies,
                     freq_chans=freq_chans, times=times, time_range=time_range,
                     polarizations=polarizations, blt_inds=blt_inds,
-                    read_data=read_data, read_metadata=read_metadata,
+                    read_data=read_data,
                     run_check=run_check, check_extra=check_extra,
                     run_check_acceptability=run_check_acceptability,
                     keep_all_metadata=keep_all_metadata)
@@ -5136,30 +4998,7 @@ class UVData(UVBase):
         return uvutils.get_baseline_redundancies(baselines, baseline_vecs,
                                                  tol=tol, with_conjugates=include_conjugates)
 
-    def get_antenna_redundancies(self, *args, **kwargs):
-        """
-        Deprecated -- Please use `get_redundancies` instead.
-        """
-
-        warnings.warn("UVData.get_antenna_redundancies has been replaced with get_redundancies,"
-                      "and will be removed in version 1.6.",
-                      DeprecationWarning)
-        kwargs['use_antpos'] = True
-        red_gps, blvecs, lens = self.get_redundancies(*args, **kwargs)
-        return red_gps, blvecs, lens
-
-    def get_baseline_redundancies(self, *args, **kwargs):
-        """
-        Deprecated -- Please use `get_redundancies` instead.
-        """
-        warnings.warn("UVData.get_baseline_redundancies has been replaced with get_redundancies,"
-                      "and will be removed in version 1.6.",
-                      DeprecationWarning)
-        kwargs['include_conjugates'] = True
-        red_gps, blvecs, lens, conjs = self.get_redundancies(*args, **kwargs)
-        return red_gps, blvecs, lens, conjs
-
-    def compress_by_redundancy(self, tol=1.0, inplace=True, metadata_only=None,
+    def compress_by_redundancy(self, tol=1.0, inplace=True,
                                keep_all_metadata=True):
         """
         Downselect to only have one baseline per redundant group on the object.
@@ -5173,11 +5012,6 @@ class UVData(UVBase):
             Redundancy tolerance in meters, default is 1.0 corresponding to 1 meter.
         inplace : bool
             Option to do selection on current object.
-        metadata_only : bool
-            Option to only do the select on the metadata. Not allowed if the
-            data_array, flag_array or nsample_array is not None. Note this option
-            has been replaced by an automatic detection of whether the data like
-            arrays are present. The keyword will be deprecated in version 1.6.
         keep_all_metadata : bool
             Option to keep all the metadata associated with antennas,
             even those that do not remain after the select option.
@@ -5191,7 +5025,7 @@ class UVData(UVBase):
         red_gps, centers, lengths, conjugates = self.get_redundancies(tol, include_conjugates=True)
 
         bl_ants = [self.baseline_to_antnums(gp[0]) for gp in red_gps]
-        return self.select(bls=bl_ants, inplace=inplace, metadata_only=metadata_only,
+        return self.select(bls=bl_ants, inplace=inplace,
                            keep_all_metadata=keep_all_metadata)
 
     def inflate_by_redundancy(self, tol=1.0, blt_order='time', blt_minor_order=None):

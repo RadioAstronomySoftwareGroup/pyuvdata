@@ -32,31 +32,43 @@ def test_ReadMWAWriteUVFits():
     """
     mwa_uv = UVData()
     uvfits_uv = UVData()
-    messages = ['The `phase_data` keyword is deprecated.',
-                'telescope_location is not set',
-                'some coarse channel files were not submitted']
-    category = [DeprecationWarning] + [UserWarning] * 2
-    uvtest.checkWarnings(mwa_uv.read_mwa_corr_fits, func_args=[filelist[0:2]],
-                         func_kwargs={'correct_cable_len': True, 'phase_data': True},
-                         nwarnings=3, message=messages, category=category)
+    messages = [
+        "telescope_location is not set",
+        "some coarse channel files were not submitted",
+    ]
+    category = [UserWarning] * 2
+    uvtest.checkWarnings(
+        mwa_uv.read_mwa_corr_fits,
+        func_args=[filelist[0:2]],
+        func_kwargs={
+            "correct_cable_len": True,
+            "phase_to_pointing_center": True,
+        },
+        nwarnings=len(messages),
+        message=messages,
+        category=category
+    )
     testfile = os.path.join(DATA_PATH, 'test/outtest_MWAcorr.uvfits')
     mwa_uv.write_uvfits(testfile, spoof_nonessential=True)
     uvfits_uv.read_uvfits(testfile)
     assert mwa_uv == uvfits_uv
 
-    phase_center = (mwa_uv.phase_center_ra + 0.01, mwa_uv.phase_center_dec + 0.01)
-
-    messages = ['The `phase_center` keyword is deprecated.',
-                'The `phase_data` keyword is deprecated.',
-                'telescope_location is not set',
-                'some coarse channel files were not submitted',
-                'Phasing this UVData object to phase_center_radec']
-    category = [DeprecationWarning] * 2 + [UserWarning] * 3
-    uvtest.checkWarnings(mwa_uv.read_mwa_corr_fits, func_args=[filelist[0:2]],
-                         func_kwargs={'correct_cable_len': True,
-                                      'phase_data': True,
-                                      'phase_center': phase_center},
-                         nwarnings=5, message=messages, category=category)
+    messages = [
+        "telescope_location is not set",
+        "some coarse channel files were not submitted",
+    ]
+    category = [UserWarning] * 2
+    uvtest.checkWarnings(
+        mwa_uv.read_mwa_corr_fits,
+        func_args=[filelist[0:2]],
+        func_kwargs={
+            "correct_cable_len": True,
+            "phase_to_pointing_center": True
+        },
+        nwarnings=len(messages),
+        message=messages,
+        category=category
+    )
     testfile = os.path.join(DATA_PATH, 'test/outtest_MWAcorr.uvfits')
     mwa_uv.write_uvfits(testfile, spoof_nonessential=True)
     uvfits_uv.read_uvfits(testfile)
@@ -143,15 +155,22 @@ def test_ReadMWA_multi():
     mwa_uv.read([set1, set2])
 
     mwa_uv2 = UVData()
-    messages = ['Please use the generic `read` method',
-                'telescope_location is not set',
-                'some coarse channel files were not submitted',
-                'telescope_location is not set',
-                'some coarse channel files were not submitted',
-                'Combined frequencies are not contiguous']
-    category = [DeprecationWarning] + [UserWarning] * 5
-    uvtest.checkWarnings(mwa_uv2.read_mwa_corr_fits, func_args=[[set1, set2]],
-                         nwarnings=6, message=messages, category=category)
+    messages = [
+        "telescope_location is not set",
+        "some coarse channel files were not submitted",
+        "telescope_location is not set",
+        "some coarse channel files were not submitted",
+        "Combined frequencies are not contiguous"
+    ]
+    category = [UserWarning] * 5
+    uvtest.checkWarnings(
+        mwa_uv2.read,
+        func_args=[[set1, set2]],
+        func_kwargs={"file_type": "mwa_corr_fits"},
+        nwarnings=5,
+        message=messages,
+        category=category
+    )
 
     assert(mwa_uv == mwa_uv2)
 
@@ -171,15 +190,21 @@ def test_ReadMWA_multi_concat():
     mwa_uv.read([set1, set2], axis='freq')
 
     mwa_uv2 = UVData()
-    messages = ['Please use the generic `read` method',
-                'telescope_location is not set',
-                'some coarse channel files were not submitted',
-                'telescope_location is not set',
-                'some coarse channel files were not submitted']
-    category = [DeprecationWarning] + [UserWarning] * 4
-    uvtest.checkWarnings(mwa_uv2.read_mwa_corr_fits, func_args=[[set1, set2]],
-                         func_kwargs={"axis": "freq"}, nwarnings=5,
-                         message=messages, category=category)
+    messages = [
+        "telescope_location is not set",
+        "some coarse channel files were not submitted",
+        "telescope_location is not set",
+        "some coarse channel files were not submitted"
+    ]
+    category = [UserWarning] * 4
+    uvtest.checkWarnings(
+        mwa_uv2.read,
+        func_args=[[set1, set2]],
+        func_kwargs={"axis": "freq", "file_type": "mwa_corr_fits"},
+        nwarnings=4,
+        message=messages,
+        category=category
+    )
     assert(mwa_uv == mwa_uv2)
     os.remove(mod_mini_6)
 

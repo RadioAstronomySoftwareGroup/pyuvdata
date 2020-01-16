@@ -302,11 +302,12 @@ def test_uvh5_read_multiple_files(uv_uvfits):
     uv1.write_uvh5(testfile1, clobber=True)
     uv2.write_uvh5(testfile2, clobber=True)
     uvtest.checkWarnings(
-        uv1.read_uvh5,
+        uv1.read,
         func_args=[np.array([testfile1, testfile2])],
-        message=(['Please use the generic'] + 2 * ['Telescope EVLA is not']),
-        category=[DeprecationWarning] + 2 * [UserWarning],
-        nwarnings=3,
+        func_kwargs={"file_type": "uvh5"},
+        message=2 * ["Telescope EVLA is not"],
+        category=2 * [UserWarning],
+        nwarnings=2,
     )
     # Check history is correct, before replacing and doing a full object check
     assert uvutils._check_histories(uv_in.history + '  Downselected to '

@@ -52,9 +52,6 @@ class Miriad(UVData):
         ----------
         filepath : str
             The miriad root directory to read from.
-            Support for a list/array of file directories will be
-            deprecated in version 2.0 in favor of a call to the generic
-            `read` method.
         antenna_nums : array_like of int, optional
             The antennas numbers to read into the object.
         bls : list of tuple, optional
@@ -894,48 +891,6 @@ class Miriad(UVData):
                 preamble = (uvw, t, (i, j))
 
                 uv.write(preamble, data, flags)
-
-    def read_miriad_metadata(self, filename, correct_lat_lon=True):
-        """  # noqa D401
-        Deprecated: Read in metadata (parameter info) but not data from a miriad file.
-
-        Deprecated in favor of `_read_miriad_metadata` because it is not an
-        API level method (it's only called internally.)
-
-        Parameters
-        ----------
-        filename : str
-            The miriad file to read.
-        correct_lat_lon : bool
-            Option to update the latitude and longitude from the known_telescopes
-            list if the altitude is missing.
-
-        Returns
-        -------
-        default_miriad_variables : list
-            list of default miriad variables
-        other_miriad_variables: list
-            list of other miriad variables
-        extra_miriad_variables: list
-            list of extra, non-standard variables
-        check_variables: dict
-            dict of extra miriad variables
-
-        """
-        warnings.warn('The read_miriad_metadata method is deprecated in favor of '
-                      '_read_miriad_metadata because it is not API level code. This '
-                      'function will be removed in version 2.0', DeprecationWarning)
-
-        # check for data array
-        if self.data_array is not None:
-            raise ValueError('data_array is already defined, cannot read metadata')
-
-        # get UV descriptor
-        if isinstance(filename, (str, np.str)):
-            uv = aipy_extracts.UV(filename)
-        elif isinstance(filename, aipy_extracts.UV):
-            uv = filename
-        self._read_miriad_metadata(uv)
 
     def _read_miriad_metadata(self, uv, correct_lat_lon=True):
         """
