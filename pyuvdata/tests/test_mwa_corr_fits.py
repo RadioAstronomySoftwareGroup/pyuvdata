@@ -300,29 +300,29 @@ def test_flag_init():
     """
     Test that routine MWA flagging works as intended.
     """
-    spoof_file1 = os.path.join(DATA_PATH, 'test/spoof1.fits')
-    spoof_file6 = os.path.join(DATA_PATH, 'test/spoof6.fits')
+    spoof_file1 = os.path.join(DATA_PATH, 'test/spoof_01_00.fits')
+    spoof_file6 = os.path.join(DATA_PATH, 'test/spoof_06_00.fits')
     # spoof box files of the appropriate size
     with fits.open(filelist[1]) as mini1:
         mini1[1].data = np.repeat(mini1[1].data, 8, axis=0)
         extra_dat = np.copy(mini1[1].data)
         for app_ind in range(2):
             mini1.append(fits.ImageHDU(extra_dat))
-        mini1[2].header['MILLITIM'] = 0
-        mini1[3].header['MILLITIM'] = 500
+        mini1[2].header['MILLITIM'] = 500
+        mini1[2].header['TIME'] = mini1[1].header['TIME'] + 0.5
         mini1[3].header['MILLITIM'] = 1000
-        mini1[3].header['TIME'] = mini1[1].header + 1
+        mini1[3].header['TIME'] = mini1[1].header['TIME'] + 1
         mini1.writeto(spoof_file1)
 
     with fits.open(filelist[2]) as mini6:
         mini6[1].data = np.repeat(mini6[1].data, 8, axis=0)
         extra_dat = np.copy(mini6[1].data)
         for app_ind in range(2):
-            mini6[1].append(fits.ImageHDU(extra_dat))
-        mini6[2].header['MILLITIM'] = 0
-        mini6[3].header['MILLITIM'] = 500
+            mini6.append(fits.ImageHDU(extra_dat))
+        mini6[2].header['MILLITIM'] = 500
+        mini6[2].header['TIME'] = mini6[1].header['TIME'] + 0.5
         mini6[3].header['MILLITIM'] = 1000
-        mini6[3].header['TIME'] = mini6[1].header + 1
+        mini6[3].header['TIME'] = mini6[1].header['TIME'] + 1
         mini6.writeto(spoof_file6)
 
     uv = UVData()
