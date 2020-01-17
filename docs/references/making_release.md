@@ -3,7 +3,7 @@
 ### PyPI
 1. update the changelog to put all the unreleased changes under the new version (leaving the unreleased section empty).
 2. Make a PR for the version change and get it accepted & merged. Only make a PyPI distribution from a clean master branch (no local changes).
-3. Iterate the version number as a new tag. This can be accomplished through the online interface or via the cli with: `git tag <hash> vX.Y.Z`. Our version numbering approach is:
+3. Iterate the version number as a new tag. This can be accomplished through the online interface or via the cli with: `git tag <hash> vX.Y.Z` where the hashed commit must be the merge commit from the previous PR. Our version numbering approach is:
     1. The first number is for very large changes which might happen every couple of years (e.g. 1.0).
     2. The second number is for regular releases, our goal is to issue these ~3-4 times per year.
     3. The third number is for small patches to fix issues. These happen as needed to get critical fixes onto PyPI and conda-forge.
