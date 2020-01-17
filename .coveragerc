@@ -1,5 +1,9 @@
 [run]
-omit = */tests/*
+omit =
+  */tests/*
+  */conftest.py
 
 [report]
-omit = */tests/*
+omit =
+  */tests/*
+  */conftest.py
