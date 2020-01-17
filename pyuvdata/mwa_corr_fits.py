@@ -69,8 +69,8 @@ class MWACorrFITS(UVData):
         self.data_array *= np.exp(-1j * 2 * np.pi * cable_len_diffs / const.c.to('m/s').value
                                   * self.freq_array.reshape(1, self.Nfreqs))[:, :, None]
 
-    def flag_init(self, edge_width=80e3, start_flag=4.0, end_flag=6.0,
-                  flag_dc_offset=True):
+    def flag_init(self, num_fine_chan, edge_width=80e3, start_flag=4.0,
+                  end_flag=6.0, flag_dc_offset=True):
         """
         Do routine flagging of the edges, beginning and end of obs, as well as
         the center fine channel of each coarse channel.
@@ -109,10 +109,6 @@ class MWACorrFITS(UVData):
         num_ch_flag = int(edge_width / self.channel_width)
         num_start_flag = int(start_flag / self.integration_time)
         num_end_flag = int(end_flag / self.integration_time)
-
-        # Constant from the DSP architecture
-        num_coarse_chan = 24
-        num_fine_chan = len(self.Nfreqs) / num_coarse_chan
 
         if num_ch_flag > 0:
             edge_inds = []
@@ -593,8 +589,9 @@ class MWACorrFITS(UVData):
             self.phase(ra_rad, dec_rad)
 
         if flag_init:
-            self.flag_init(edge_width=edge_width, start_flag=start_flag,
-                           end_flag=end_flag, flag_dc_offset=flag_dc_offset)
+            self.flag_init(num_fine_chans, edge_width=edge_width,
+                           start_flag=start_flag, end_flag=end_flag,
+                           flag_dc_offset=flag_dc_offset)
 
         if use_cotter_flags:
             raise NotImplementedError('reading in cotter flag files is not yet available')
