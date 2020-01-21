@@ -1354,21 +1354,25 @@ gain_array to one consistent with its pre-existing delay_array.
 
   # If we want the calibration to use a positive value in its exponent, rather
   # than the default negative value:
+  >>> cal = UVCal()
   >>> cal.read_calfits(filename)
   >>> cal = cal.convert_to_gain(delay_convention='plus')
 
   # Convert to gain *without* running the default check that internal arrays are
   # of compatible shapes:
+  >>> cal = UVCal()
   >>> cal.read_calfits(filename)
   >>> cal.convert_to_gain(run_check=False)
 
   # Convert to gain *without* running the default check that optional parameters
   # are properly shaped and typed:
+  >>> cal = UVCal()
   >>> cal.read_calfits(filename)
   >>> cal.convert_to_gain(check_extra=False)
 
   # Convert to gain *without* running the default checks on the reasonableness
   # of the resulting calibration's parameters.
+  >>> cal = UVCal()
   >>> cal.read_calfits(filename)
   >>> cal.convert_to_gain(run_check_acceptability=False)
 
