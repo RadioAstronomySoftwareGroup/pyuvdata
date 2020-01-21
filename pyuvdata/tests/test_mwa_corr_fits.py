@@ -307,7 +307,6 @@ def test_flag_init():
     spoof_file6 = os.path.join(DATA_PATH, 'test/spoof_06_00.fits')
     # spoof box files of the appropriate size
     with fits.open(filelist[1]) as mini1:
-        print(len(mini1))
         mini1[1].data = np.repeat(mini1[1].data, 8, axis=0)
         extra_dat = np.copy(mini1[1].data)
         for app_ind in range(2):
@@ -334,9 +333,7 @@ def test_flag_init():
 
     uv = UVData()
     uv.read(flag_testfiles, flag_init=True, start_flag=0, end_flag=0)
-    test_flags = np.zeros_like(uv.flag_array)
     freq_inds = [0, 1, 4, 6, 7, 8, 9, 12, 14, 15]
-    print(uv.Ntimes)
 
     assert np.all(uv.flag_array[:, :, freq_inds, :]), "Not all of edge and center channels are flagged!"
 
