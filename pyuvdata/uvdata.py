@@ -3235,7 +3235,7 @@ class UVData(UVBase):
 
     def read_mwa_corr_fits(self, filelist, axis=None, use_cotter_flags=False,
                            correct_cable_len=False, flag_init=False,
-                           edge_width=80e3, start_flag=4.0, end_flag=6.0,
+                           edge_width=80e3, start_flag=2.0, end_flag=2.0,
                            flag_dc_offset=True, phase_to_pointing_center=False,
                            phase_data=None, phase_center=None, run_check=True,
                            check_extra=True, run_check_acceptability=True):

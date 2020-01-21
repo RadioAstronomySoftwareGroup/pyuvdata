@@ -69,8 +69,8 @@ class MWACorrFITS(UVData):
         self.data_array *= np.exp(-1j * 2 * np.pi * cable_len_diffs / const.c.to('m/s').value
                                   * self.freq_array.reshape(1, self.Nfreqs))[:, :, None]
 
-    def flag_init(self, num_fine_chan, edge_width=80e3, start_flag=4.0,
-                  end_flag=6.0, flag_dc_offset=True):
+    def flag_init(self, num_fine_chan, edge_width=80e3, start_flag=2.0,
+                  end_flag=2.0, flag_dc_offset=True):
         """
         Do routine flagging of the edges, beginning and end of obs, as well as
         the center fine channel of each coarse channel.
