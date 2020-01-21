@@ -348,7 +348,9 @@ def test_flag_init():
     # give noninteger multiple inputs
     with pytest.raises(ValueError):
         uv.read(flag_testfiles, flag_init=True, start_flag=0, end_flag=0, edge_width=90e3)
+    with pytest.raises(ValueError):
         uv.read(flag_testfiles, flag_init=True, start_flag=1.2, end_flag=0)
+    with pytest.raises(ValueError):
         uv.read(flag_testfiles, flag_init=True, start_flag=0, end_flag=1.2)
 
     for path in [spoof_file1, spoof_file6]:
