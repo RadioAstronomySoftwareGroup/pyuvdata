@@ -296,6 +296,9 @@ def test_diff_obs():
     del(mwa_uv)
 
 
+@pytest.mark.filterwarnings("ignore:telescope_location is not set. ")
+@pytest.mark.filterwarnings("ignore:coarse channels are not contiguous for this observation")
+@pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
 def test_flag_init():
     """
     Test that routine MWA flagging works as intended.
@@ -304,6 +307,7 @@ def test_flag_init():
     spoof_file6 = os.path.join(DATA_PATH, 'test/spoof_06_00.fits')
     # spoof box files of the appropriate size
     with fits.open(filelist[1]) as mini1:
+        print(len(mini1))
         mini1[1].data = np.repeat(mini1[1].data, 8, axis=0)
         extra_dat = np.copy(mini1[1].data)
         for app_ind in range(2):
@@ -312,6 +316,7 @@ def test_flag_init():
         mini1[2].header['TIME'] = mini1[1].header['TIME'] + 0.5
         mini1[3].header['MILLITIM'] = 1000
         mini1[3].header['TIME'] = mini1[1].header['TIME'] + 1
+        print(mini1[1].data.shape)
         mini1.writeto(spoof_file1)
 
     with fits.open(filelist[2]) as mini6:
@@ -325,26 +330,27 @@ def test_flag_init():
         mini6[3].header['TIME'] = mini6[1].header['TIME'] + 1
         mini6.writeto(spoof_file6)
 
+    flag_testfiles = [spoof_file1, spoof_file6, filelist[0]]
+
     uv = UVData()
-    uv.read([spoof_file1, spoof_file6, filelist[0]], flag_init=True,
-            start_flag=0, end_flag=0)
+    uv.read(flag_testfiles, flag_init=True, start_flag=0, end_flag=0)
     test_flags = np.zeros_like(uv.flag_array)
     freq_inds = [0, 1, 4, 6, 7, 8, 9, 12, 14, 15]
-    test_flags[:, :, freq_inds, :] = True
+    print(uv.Ntimes)
 
-    assert np.array_equal(test_flags, uv.flag_array), "Flag arrays have different flagged frequencies!"
+    assert np.all(uv.flag_array[:, :, freq_inds, :]), "Not all of edge and center channels are flagged!"
 
-    uv.read([spoof_file1, spoof_file6, filelist[0]], flag_init=True,
-            start_flag=0.5, end_flag=0.5, edge_width=0, flag_dc_offset=False)
-    test_flags = np.zeros_like(uv.flag_array)
-    test_flags = test_flags.reshape([uv.Ntimes, uv.Nbls, uv.Nspws, uv.Nfreqs, uv.Npols])
-    test_flags[[0, 2], :, :, :, :] = True
-    test_flags = test_flags.reshape([uv.Nblts, uv.Nspws, uv.Nfreqs, uv.Npols])
-    assert np.array_equal(test_flags, uv.flag_array), "Flag arrays have different flagged times!"
+    uv.read(flag_testfiles, flag_init=True, start_flag=1.0, end_flag=1.0,
+            edge_width=0, flag_dc_offset=False)
+    reshape = [uv.Ntimes, uv.Nbls, uv.Nspws, uv.Nfreqs, uv.Npols]
+    time_inds = [0, 1, -1, -2]
+    assert np.all(uv.flag_array.reshape(reshape)[time_inds, :, :, :, :]), "Not all of start and end times are flagged."
+    # Check that it didn't just flag everything
+    assert not np.all(uv.flag_array.reshape(reshape)[2:-2, :, :, :, :]), "All the data is flagged!"
 
     # give noninteger multiple inputs
     with pytest.raises(ValueError):
-        uv.read(flag_testfiles, flag_init=True, start_flag=0, end_flag=0, edge_flag=90e3)
+        uv.read(flag_testfiles, flag_init=True, start_flag=0, end_flag=0, edge_width=90e3)
         uv.read(flag_testfiles, flag_init=True, start_flag=1.2, end_flag=0)
         uv.read(flag_testfiles, flag_init=True, start_flag=0, end_flag=1.2)
 
