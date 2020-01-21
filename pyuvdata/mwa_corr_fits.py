@@ -99,16 +99,16 @@ class MWACorrFITS(UVData):
         if (edge_width % self.channel_width) > 0:
             raise ValueError("The edge_width must be an integer multiple of the"
                              "channel_width of the data or zero.")
-        if (start_flag % self.integration_time) > 0:
+        if (start_flag % self.integration_time[0]) > 0:
             raise ValueError("The start_flag must be an integer multiple of the"
                              "integration_time of the data or zero.")
-        if (end_flag % self.integration_time) > 0:
+        if (end_flag % self.integration_time[0]) > 0:
             raise ValueError("The end_flag must be an integer multiple of the"
                              "integration_time of the data or zero.")
 
         num_ch_flag = int(edge_width / self.channel_width)
-        num_start_flag = int(start_flag / self.integration_time)
-        num_end_flag = int(end_flag / self.integration_time)
+        num_start_flag = int(start_flag / self.integration_time[0])
+        num_end_flag = int(end_flag / self.integration_time[0])
 
         if num_ch_flag > 0:
             edge_inds = []
