@@ -3327,6 +3327,9 @@ class UVData(UVBase):
             self.read(filelist, file_type='mwa_corr_fits', axis=axis,
                       use_cotter_flags=use_cotter_flags,
                       correct_cable_len=correct_cable_len,
+                      flag_init=flag_init, edge_width=edge_width,
+                      start_flag=start_flag, end_flag=end_flag,
+                      flag_dc_offset=flag_dc_offset,
                       phase_to_pointing_center=phase_to_pointing_center,
                       phase_center_radec=phase_center, run_check=run_check,
                       check_extra=check_extra,
@@ -3336,6 +3339,9 @@ class UVData(UVBase):
         corr_obj = mwa_corr_fits.MWACorrFITS()
         corr_obj.read_mwa_corr_fits(filelist, use_cotter_flags=use_cotter_flags,
                                     correct_cable_len=correct_cable_len,
+                                    flag_init=flag_init, edge_width=edge_width,
+                                    start_flag=start_flag, end_flag=end_flag,
+                                    flag_dc_offset=flag_dc_offset,
                                     phase_to_pointing_center=phase_to_pointing_center,
                                     run_check=run_check, check_extra=check_extra,
                                     run_check_acceptability=run_check_acceptability)
