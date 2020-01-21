@@ -116,7 +116,7 @@ class MWACorrFITS(UVData):
                 # count up from the left
                 left_chans = list(range(ch_count, self.Nfreqs, num_fine_chan))
                 # count down from the right
-                right_chans = list(range(self.Nfreqs - 1 - ch_count, 0, -num_fine_chans))
+                right_chans = list(range(self.Nfreqs - 1 - ch_count, 0, -num_fine_chan))
                 edge_inds = edge_inds + left_chans + right_chans
 
             self.flag_array[:, :, edge_inds, :] = True
