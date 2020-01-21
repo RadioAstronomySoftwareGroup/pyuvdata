@@ -122,7 +122,7 @@ class MWACorrFITS(UVData):
             self.flag_array[:, :, edge_inds, :] = True
 
         if flag_dc_offset:
-            center_inds = list(range(num_fine_chan / 2, self.Nfreqs, num_fine_chan))
+            center_inds = list(range(num_fine_chan // 2, self.Nfreqs, num_fine_chan))
 
             self.flag_array[:, :, center_inds, :] = True
 
