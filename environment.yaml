@@ -1,0 +1,22 @@
+name: pyuvdata
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - astropy
+  - astropy-healpix
+  - h5py
+  - flake8
+  - numpy>=1.15
+  - pypandoc
+  - python-casacore
+  - pyyaml
+  - scipy
+  - six
+  - sphinx
+  - coverage
+  - pytest-cov
+  - pip
+  - pip:
+      - flake8-pytest
+      - pytest-cases

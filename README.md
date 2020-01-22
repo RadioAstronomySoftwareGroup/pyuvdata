@@ -159,10 +159,22 @@ The numpy and astropy versions are important, so make sure these are up to date.
 
 We suggest using conda to install all the dependencies. If you want to install
 python-casacore and astropy-healpix, you'll need to add conda-forge as a channel
-(```conda config --add channels conda-forge```).
+(```conda config --add channels conda-forge```). Developers may wish to use
+the included `environment.yaml` file to create a new environment that will
+contain all the optional dependencies along with dependencies required for
+testing and development (```conda env create -f environment.yml```).
 
-If you do not want to use conda, most of the packages are also available on PyPI
-(except python-casacore, see details for that package below).
+If you do not want to use conda, the packages are also available on PyPI
+(python-casacore may require more effort, see details for that package below).
+You can install the optional dependencies via pip by specifying an option
+when you install pyuvdata, as in ```pip install pyuvdata[healpix]```
+which will install all the required packages for using the HEALPix functionality
+in pyuvdata. The options that can be passed in this way are:
+[casa, healpix, cst, all, test, doc, dev]. The first three (`casa`, `healpix`, `cst`)
+enable various specific functionality while `all` will install all optional
+dependencies. The last three (`test`, `doc`, `dev`) may be useful for developers
+of pyuvdata to install the packages needed for testing (including coverage and
+linting) and documentation development; `dev` includes everything in `test` and `doc`.
 
 ### Installing python-casacore
 python-casacore requires the casacore c++ libraries. It can be installed easily
