@@ -334,8 +334,10 @@ def test_flag_init():
     uv = UVData()
     uv.read(flag_testfiles, flag_init=True, start_flag=0, end_flag=0)
     freq_inds = [0, 1, 4, 6, 7, 8, 9, 12, 14, 15]
+    freq_inds_complement = [ind for ind in range(16) if ind not in freq_inds]
 
     assert np.all(uv.flag_array[:, :, freq_inds, :]), "Not all of edge and center channels are flagged!"
+    assert not np.any(np.all(uv.flag_array[:, :, freq_inds_complement, :], axis=(0, 1, -1))), "Some non-edge/center channels are entirely flagged!"
 
     uv.read(flag_testfiles, flag_init=True, start_flag=1.0, end_flag=1.0,
             edge_width=0, flag_dc_offset=False)
