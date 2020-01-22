@@ -60,11 +60,9 @@ rather than a binary table to support frequency, polarization and E-field vector
 metadata, details here: [cst settings file](docs/cst_settings_yaml.rst)
 
 ## Under Development
-* UVData: uvh5 file format (beta version), note that this is probably not
-compatible with other interferometric HDF5 files defined by other groups.
 * UVCal: object and calfits file format (beta version)
 * UVBeam: object and beamfits file format (beta version)
-* UVFlag: object, initialization, and type changing. (beta version)
+* UVFlag: object and HDF5 file format. (beta version)
 
 ## Known Issues and Planned Improvements
 * UVData: phasing (and the accuracy on the uvw coordinates) is only known to be
