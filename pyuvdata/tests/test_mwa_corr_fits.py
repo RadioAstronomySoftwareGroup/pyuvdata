@@ -313,7 +313,7 @@ def test_flag_init():
             mini1.append(fits.ImageHDU(extra_dat))
         mini1[2].header['MILLITIM'] = 500
         mini1[2].header['TIME'] = mini1[1].header['TIME']
-        mini1[3].header['MILLITIM'] = 1000
+        mini1[3].header['MILLITIM'] = 0
         mini1[3].header['TIME'] = mini1[1].header['TIME'] + 1
         print(mini1[1].data.shape)
         mini1.writeto(spoof_file1)
@@ -325,7 +325,7 @@ def test_flag_init():
             mini6.append(fits.ImageHDU(extra_dat))
         mini6[2].header['MILLITIM'] = 500
         mini6[2].header['TIME'] = mini6[1].header['TIME']
-        mini6[3].header['MILLITIM'] = 1000
+        mini6[3].header['MILLITIM'] = 0
         mini6[3].header['TIME'] = mini6[1].header['TIME'] + 1
         mini6.writeto(spoof_file6)
 
