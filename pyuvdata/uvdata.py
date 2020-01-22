@@ -3234,7 +3234,7 @@ class UVData(UVBase):
         del(miriad_obj)
 
     def read_mwa_corr_fits(self, filelist, axis=None, use_cotter_flags=False,
-                           correct_cable_len=False, flag_init=False,
+                           correct_cable_len=False, flag_init=True,
                            edge_width=80e3, start_flag=2.0, end_flag=2.0,
                            flag_dc_offset=True, phase_to_pointing_center=False,
                            phase_data=None, phase_center=None, run_check=True,
@@ -3680,7 +3680,7 @@ class UVData(UVBase):
              phase_type=None, correct_lat_lon=True, use_model=False,
              data_column='DATA', pol_order='AIPS',
              data_array_dtype=np.complex128,
-             use_cotter_flags=False, correct_cable_len=False, flag_init=False,
+             use_cotter_flags=False, correct_cable_len=False, flag_init=True,
              edge_width=80e3, start_flag=2.0, end_flag=2.0, flag_dc_offset=True,
              phase_to_pointing_center=False,
              run_check=True, check_extra=True, run_check_acceptability=True):
