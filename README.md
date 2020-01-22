@@ -31,19 +31,6 @@ associated metadata (Note that this is a fairly new object, consider it to be a 
 Also can convert raw data quality metrics into flags using thresholding.
 (This object is very new and experimental. Consider it to be a beta version)
 
-# Telescopes
-pyuvdata has been used with data from the following telescopes. If you use it on
-data from a telescope we don't have listed here please let us know how it went
-via an issue! We would like to make pyuvdata generally useful to the community for
-as many telescopes as possible.
-* MWA
-* HERA
-* PAPER
-* LWA
-* ALMA
-* VLA
-* ATCA
-
 ## UVData File standard notes
 * miriad has been thoroughly tested with aipy-style miriad files and minimally
 tested with ATCA files
@@ -95,6 +82,19 @@ Contributions to this package to add new file formats or address any of the
 issues in the [issue log](https://github.com/RadioAstronomySoftwareGroup/pyuvdata/issues)
 are very welcome, as are bug reports and feature requests.
 Please see our [guide on contributing](.github/CONTRIBUTING.md)
+
+# Telescopes
+pyuvdata has been used with data from the following telescopes. If you use it on
+data from a telescope we don't have listed here please let us know how it went
+via an issue! We would like to make pyuvdata generally useful to the community for
+as many telescopes as possible.
+* MWA
+* HERA
+* PAPER
+* LWA
+* ALMA
+* VLA
+* ATCA
 
 # Versioning
 We use a `generation.major.minor` version number format. We use the `generation`
