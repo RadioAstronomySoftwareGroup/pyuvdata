@@ -312,7 +312,7 @@ def test_flag_init():
         for app_ind in range(2):
             mini1.append(fits.ImageHDU(extra_dat))
         mini1[2].header['MILLITIM'] = 500
-        mini1[2].header['TIME'] = mini1[1].header['TIME'] + 0.5
+        mini1[2].header['TIME'] = mini1[1].header['TIME']
         mini1[3].header['MILLITIM'] = 1000
         mini1[3].header['TIME'] = mini1[1].header['TIME'] + 1
         print(mini1[1].data.shape)
@@ -324,7 +324,7 @@ def test_flag_init():
         for app_ind in range(2):
             mini6.append(fits.ImageHDU(extra_dat))
         mini6[2].header['MILLITIM'] = 500
-        mini6[2].header['TIME'] = mini6[1].header['TIME'] + 0.5
+        mini6[2].header['TIME'] = mini6[1].header['TIME']
         mini6[3].header['MILLITIM'] = 1000
         mini6[3].header['TIME'] = mini6[1].header['TIME'] + 1
         mini6.writeto(spoof_file6)
@@ -345,7 +345,7 @@ def test_flag_init():
     time_inds = [0, 1, -1, -2]
     assert np.all(uv.flag_array.reshape(reshape)[time_inds, :, :, :, :]), "Not all of start and end times are flagged."
     # Check that it didn't just flag everything
-    assert not np.all(uv.flag_array.reshape(reshape)[2:-2, :, :, :, :]), "All the data is flagged!"
+    assert not np.any(np.all(uv.flag_array.reshape(reshape)[2:-2, :, :, :, :], axis=(1, 2, 3, 4))), "All the data is flagged for some intermediate times!"
 
     # give noninteger multiple inputs
     with pytest.raises(ValueError):
