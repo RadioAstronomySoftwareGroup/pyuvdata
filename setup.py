@@ -68,6 +68,14 @@ global_c_macros = [
     ('NPY_NO_DEPRECATED_API', 'NPY_1_7_API_VERSION'),
 ]
 
+casa_reqs = ['python-casacore']
+healpix_reqs = ['astropy_healpix']
+cst_reqs = ['pyyaml']
+test_reqs = (casa_reqs + healpix_reqs + cst_reqs
+             + ['pytest', 'pytest-cases', 'pytest-cov', 'coverage', 'flake8',
+                'flake8-pytest'])
+doc_reqs = ['sphinx', 'pypandoc']
+
 setup_args = {
     'name': 'pyuvdata',
     'author': 'Radio Astronomy Software Group',
@@ -103,13 +111,13 @@ setup_args = {
     'install_requires': ['numpy>=1.15', 'six>=1.10', 'scipy', 'astropy>=2.0', 'h5py'],
     'tests_require': ['pytest', 'pytest-cases'],
     'extras_require': {
-        'casa': ['python-casacore'],
-        'healpix': ['astropy-healpix'],
-        'cst': ['pyyaml'],
-        'all': ['python-casacore', 'pyyaml', 'astropy-healpix'],
-        'dev': ['python-casacore', 'pyyaml', 'astropy-healpix', 'pytest',
-                'pytest-cases', 'pytest-cov', 'coverage', 'flake8',
-                'flake8-pytest', 'sphinx', 'pypandoc']
+        'casa': casa_reqs,
+        'healpix': healpix_reqs,
+        'cst': cst_reqs,
+        'all': casa_reqs + healpix_reqs + cst_reqs,
+        'test': test_reqs,
+        'doc': doc_reqs,
+        'dev': test_reqs + doc_reqs
     },
     'classifiers': ['Development Status :: 5 - Production/Stable',
                     'Intended Audience :: Science/Research',
