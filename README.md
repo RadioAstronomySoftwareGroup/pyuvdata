@@ -13,7 +13,7 @@ and reading of CASA measurement sets and FHD
 
 
 # Motivation
-The three main goals are:
+The main goals are:
 
 1. To provide a high quality, well documented path to convert between data formats
 2. Support the direct use of datasets from python with minimal software
@@ -26,10 +26,23 @@ pyuvdata has four major user classes:
 * UVCal: supports interferometric calibration solutions (antenna-based) and
 associated metadata (Note that this is a fairly new object, consider it to be a beta version)
 * UVBeam: supports primary beams (E-field or power) and associated metadata
-(Note that this is a new object and is very experimental, consider it to be an alpha version)
+(Note that this is a fairly new object, consider it to be a beta version)
 * UVFlag: A class to handle the manipulation and combination of flags for data sets.
 Also can convert raw data quality metrics into flags using thresholding.
 (This object is very new and experimental. Consider it to be a beta version)
+
+# Telescopes
+pyuvdata has been used with data from the following telescopes. If you use it on
+data from a telescope we don't have listed here please let us know how it went
+via an issue! We would like to make pyuvdata generally useful to the community for
+as many telescopes as possible.
+* MWA
+* HERA
+* PAPER
+* LWA
+* ALMA
+* VLA
+* ATCA
 
 ## UVData File standard notes
 * miriad has been thoroughly tested with aipy-style miriad files and minimally
@@ -39,7 +52,7 @@ FHD, CASA, and AIPS. However AIPS is limited to <80 antennas and CASA uvfits
 import does not seem to support >255 antennas.
 * uvh5 is an HDF5-based file format defined by the HERA collaboration,
 details in the [uvh5 memo](docs/references/uvh5_memo.pdf). Note that this is a
-new format and is still under development, consider it to be a beta version,
+somewhat new format, so it may evolve a bit
 but we will strive to make future versions backwards compatible with the current format.
 It is probably not compatible with other interferometric HDF5 files defined by other groups.
 * FHD (read-only support, tested against MWA and PAPER data)
@@ -63,7 +76,7 @@ metadata, details here: [cst settings file](docs/cst_settings_yaml.rst)
 * UVData: uvh5 file format (beta version), note that this is probably not
 compatible with other interferometric HDF5 files defined by other groups.
 * UVCal: object and calfits file format (beta version)
-* UVBeam: object and beamfits file format (alpha version)
+* UVBeam: object and beamfits file format (beta version)
 * UVFlag: object, initialization, and type changing. (beta version)
 
 ## Known Issues and Planned Improvements
@@ -73,9 +86,6 @@ see the [phasing memo](docs/references/phasing.pdf) for more details).
 * UVData: Multiple spectral windows or multiple sources are not currently supported
 * UVData: add support for writing CASA measurement sets
 * UVBeam: support phased-array antenna beams (e.g. MWA beams).
-* UVCal/UVData: method to apply calibration to data.
-* package version detection can cause issues with installation directly from the
-repo for some users (see [issue #590](https://github.com/RadioAstronomySoftwareGroup/pyuvdata/issues/590))
 * UVFlag: Adding requires a high level knowledge of individual objects. (see [issue #653](https://github.com/RadioAstronomySoftwareGroup/pyuvdata/issues/653))
 
 For details see the [issue log](https://github.com/RadioAstronomySoftwareGroup/pyuvdata/issues).
