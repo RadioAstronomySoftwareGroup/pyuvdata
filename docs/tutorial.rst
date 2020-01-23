@@ -173,6 +173,13 @@ h) uvfits -> uvh5
 
 i) MWA correlator -> uvfits
 *****************
+The MWA correlator writes FITS files containing the correlator dumps (but
+lacking metadata and not conforming to the uvfits format). pyuvdata can read
+these files along with MWA metafits files (containing the required metadata)
+into a UVData object which can then be written out to uvfits or any other
+supported file type. There are also options for applying cable length corrections,
+common flagging patterns and phasing the data to the pointing center.
+
 ::
 
    >>> from pyuvdata import UVData
@@ -182,10 +189,14 @@ i) MWA correlator -> uvfits
    >>> data_path = 'pyuvdata/data/mwa_corr_fits_testfiles/'
    >>> filelist = [data_path + i for i in ['1131733552.metafits', '1131733552_20151116182537_mini_gpubox01_00.fits']]
 
-   # Use the file type specific read_mwa_corr_fits
+   # Use the `read` method, optionally specify the file type. Can also use the
+   # file type specific `read_mwa_corr_fits` method, but only if reading files
+   # from a single observation.
    # Apply cable corrections and phase data before writing to uvfits
    # Skip routine time/frequency flagging - see flag_init and associated keywords in documentation
-   >>> UV.read_mwa_corr_fits(filelist, correct_cable_len=True, phase_data=True, flag_init=False)
+   >>> UV.read(filelist, correct_cable_len=True, phase_to_pointing_center=True, flag_init=False)
+   >>> UV.read(filelist, file_type='mwa_corr_fits', correct_cable_len=True, phase_to_pointing_center=True, flag_init=False)
+   >>> UV.read_mwa_corr_fits(filelist, correct_cable_len=True, phase_to_pointing_center=True, flag_init=False)
 
    # Write out uvfits file
    >>> UV.write_uvfits('tutorial.uvfits', spoof_nonessential=True)
