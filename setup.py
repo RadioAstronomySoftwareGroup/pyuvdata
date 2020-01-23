@@ -109,7 +109,7 @@ setup_args = {
         'local_scheme': branch_scheme
     },
     'include_package_data': True,
-    'install_requires': ['numpy>=1.15', 'scipy', 'astropy>=2.0', 'h5py'],
+    'install_requires': ['numpy>=1.15', 'scipy', 'astropy>=3.2.3', 'h5py'],
     'tests_require': ['pytest', 'pytest-cases'],
     'extras_require': {
         'casa': casa_reqs,
