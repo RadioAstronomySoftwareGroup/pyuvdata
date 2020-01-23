@@ -132,7 +132,7 @@ There are some optional dependencies that are required for specific functionalit
 which will not be installed automatically by conda or pip.
 See [Dependencies](#dependencies) for details on installing optional dependencies.
 
-Note that as of v2, `pyuvdata` is only supported on python 3.6+. 
+Note that as of v2, `pyuvdata` is only supported on python 3.6+.
 
 ## Optionally install the development version
 Clone the repository using
@@ -156,7 +156,7 @@ Required:
 
 * numpy >= 1.15
 * scipy
-* astropy >= 2.0
+* astropy >= 3.2.3
 * h5py
 
 Optional:
