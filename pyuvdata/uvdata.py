@@ -3262,6 +3262,26 @@ class UVData(UVBase):
             will only be applied to missing data and bad antennas.
         correct_cable_len : bool
             Option to apply a cable delay correction.
+        flag_init: bool
+            Set to True in order to do routine flagging of coarse channel edges,
+            start or end integrations, or the center fine channel of each coarse
+            channel. See associated keywords.
+        edge_width: float
+            Only used if flag_init is True. Set to the width to flag on the edge
+            of each coarse channel, in hz. Errors if not equal to integer
+            multiple of channel_width. Set to 0 for no edge flagging.
+        start_flag: float
+            Only used if flag_init is True. Set to the number of seconds to flag
+            at the beginning of the observation. Set to 0 for no flagging.
+            Errors if not an integer multiple of the integration time.
+        end_flag: floats
+            Only used if flag_init is True. Set to the number of seconds to flag
+            at the end of the observation. Set to 0 for no flagging. Errors if
+            not an integer multiple of the integration time.
+        flag_dc_offset: bool
+            Only used if flag_init is True. Set to True to flag the center fine
+            channel of each coarse channel. Only used if file_type is
+            'mwa_corr_fits'.
         phase_to_pointing_center : bool
             Option to phase to the observation pointing center.
         phase_data : bool
@@ -3827,26 +3847,29 @@ class UVData(UVBase):
             Flag to apply cable length correction. Only used if file_type is
             'mwa_corr_fits'.
         flag_init: bool
-            Set to True in order to do routine flagging of coarse channel edges,
-            start or end integrations, or the center fine channel of each coarse
-            channel. See associated keywords. Only used if file_type is
-            'mwa_corr_fits'.
+            Only used if file_type is 'mwa_corr_fits'. Set to True in order to
+            do routine flagging of coarse channel edges, start or end
+            integrations, or the center fine channel of each coarse
+            channel. See associated keywords.
         edge_width: float
-            Only used if flag_init is True. The width to flag on the edge of
-            each coarse channel, in hz. Errors if not equal to integer multiple
-            of channel_width. Set to 0 for no edge flagging. Only used if
-            file_type is 'mwa_corr_fits'.
+            Only used if file_type is 'mwa_corr_fits' and flag_init is True. Set
+            to the width to flag on the edge of each coarse channel, in hz.
+            Errors if not equal to integer multiple of channel_width. Set to 0
+            for no edge flagging.
         start_flag: float
-            Only used if flag_init is True. The number of seconds to flag at the
-            beginning of the observation. Set to 0 for no flagging. Only used if
-            file_type is 'mwa_corr_fits'.
+            Only used if file_type is 'mwa_corr_fits' and flag_init is True. Set
+            to the number of seconds to flag at the beginning of the observation.
+            Set to 0 for no flagging. Errors if not an integer multiple of the
+            integration time.
         end_flag: floats
-            Only used if flag_init is True. The number of seconds to flag at the
-            end of the observation. Set to 0 for no flagging. Only used if
-            file_type is 'mwa_corr_fits'.
+            Only used if file_type is 'mwa_corr_fits' and flag_init is True. Set
+            to the number of seconds to flag at the end of the observation. Set
+            to 0 for no flagging. Errors if not an integer multiple of the
+            integration time.
         flag_dc_offset: bool
-            Only used if flag_init is True. Set to True to flag the center fine
-            channel of each coarse channel. Only used if file_type is 'mwa_corr_fits'.
+            Only used if file_type is 'mwa_corr_fits' and flag_init is True. Set
+            to True to flag the center fine channel of each coarse channel. Only
+            used if file_type is 'mwa_corr_fits'.
         phase_to_pointing_center : bool
             Flag to phase to the pointing center. Only used if file_type is
             'mwa_corr_fits'. Cannot be set if phase_center_radec is not None.

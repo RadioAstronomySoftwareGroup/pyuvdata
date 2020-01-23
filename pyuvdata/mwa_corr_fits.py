@@ -185,10 +185,12 @@ class MWACorrFITS(UVData):
             of channel_width. Set to 0 for no edge flagging.
         start_flag: float
             Only used if flag_init is True. The number of seconds to flag at the
-            beginning of the observation. Set to 0 for no flagging.
+            beginning of the observation. Set to 0 for no flagging. Errors if
+            not equal to an integer multiple of the integration time.
         end_flag: floats
             Only used if flag_init is True. The number of seconds to flag at the
-            end of the observation. Set to 0 for no flagging.
+            end of the observation. Set to 0 for no flagging. Errors if not
+            equal to an integer multiple of the integration time.
         flag_dc_offset: bool
             Only used if flag_init is True. Set to True to flag the center fine
             channel of each coarse channel.
