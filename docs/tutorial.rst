@@ -184,7 +184,8 @@ i) MWA correlator -> uvfits
 
    # Use the file type specific read_mwa_corr_fits
    # Apply cable corrections and phase data before writing to uvfits
-   >>> UV.read_mwa_corr_fits(filelist, correct_cable_len=True, phase_data=True)
+   # Skip routine time/frequency flagging - see flag_init and associated keywords in documentation
+   >>> UV.read_mwa_corr_fits(filelist, correct_cable_len=True, phase_data=True, flag_init=False)
 
    # Write out uvfits file
    >>> UV.write_uvfits('tutorial.uvfits', spoof_nonessential=True)
