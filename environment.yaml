@@ -12,7 +12,6 @@ dependencies:
   - python-casacore
   - pyyaml
   - scipy
-  - six
   - sphinx
   - coverage
   - pytest-cov
