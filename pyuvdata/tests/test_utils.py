@@ -618,7 +618,14 @@ def test_reraise_context():
 
 def test_str_to_bytes():
     test_str = 'HERA'
-    test_bytes = uvutils._str_to_bytes(test_str)
+
+    test_bytes = uvtest.checkWarnings(
+        uvutils._str_to_bytes,
+        func_args=[test_str],
+        nwarnings=1,
+        category=DeprecationWarning,
+        message="_str_to_bytes is deprecated and will be removed",
+    )
     assert type(test_bytes) == bytes
     assert test_bytes == b'\x48\x45\x52\x41'
     return
@@ -626,7 +633,13 @@ def test_str_to_bytes():
 
 def test_bytes_to_str():
     test_bytes = b'\x48\x45\x52\x41'
-    test_str = uvutils._bytes_to_str(test_bytes)
+    test_str = uvtest.checkWarnings(
+        uvutils._bytes_to_str,
+        func_args=[test_bytes],
+        nwarnings=1,
+        category=DeprecationWarning,
+        message="_bytes_to_str is deprecated and will be removed"
+    )
     assert type(test_str) == str
     assert test_str == 'HERA'
     return
