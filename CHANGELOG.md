@@ -11,7 +11,7 @@ All notable changes to this project will be documented in this file.
 ### Removed
 - Previously deprecated code marked for removal in version > 1.5:
  - reading multiple files with file format specific read functions (e.g.  read_mirad). Multi-file reads can only be performed with `uvdata.read`
- - `read_metadata` keyword
+ - `read_metadata` keyword in various specific read functions (e.g. `read_miriad`)
  - `metadata_only` keyword in `select` and `get_redundancies`
  - `uvdata.miriad.read_miriad_metadata`
  - `phase_center` keyword in `uvdata.read_mwa_corr_fits`
