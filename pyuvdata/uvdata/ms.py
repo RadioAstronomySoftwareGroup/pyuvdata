@@ -23,7 +23,7 @@ except ImportError:  # pragma: no cover
     uvutils._reraise_context('casacore is not installed but is required for '
                              'measurement set functionality')
 
-__all__ = ['MS']
+__all__ = ["MS"]
 
 
 """

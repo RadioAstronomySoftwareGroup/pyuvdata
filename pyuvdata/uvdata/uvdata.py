@@ -24,7 +24,7 @@ from .. import utils as uvutils
 
 from collections.abc import Iterable
 
-__all__ = ['UVData']
+__all__ = ["UVData"]
 
 
 class UVData(UVBase):

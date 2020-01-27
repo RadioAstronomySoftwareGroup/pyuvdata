@@ -12,6 +12,8 @@ from astropy import constants as const
 from . import UVData
 from .. import utils as uvutils
 
+__all__ = ["input_output_mapping", "MWACorrFITS"]
+
 
 def input_output_mapping():
     """Build a mapping dictionary from pfb input to output numbers."""

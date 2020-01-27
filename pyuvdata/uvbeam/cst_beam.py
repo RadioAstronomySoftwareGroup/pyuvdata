@@ -11,7 +11,7 @@ import warnings
 from .uvbeam import UVBeam
 from .. import utils as uvutils
 
-__all__ = ['CSTBeam']
+__all__ = ["CSTBeam"]
 
 
 class CSTBeam(UVBeam):

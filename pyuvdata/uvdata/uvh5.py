@@ -13,7 +13,7 @@ import h5py
 from .uvdata import UVData
 from .. import utils as uvutils
 
-__all__ = ['UVH5']
+__all__ = ["UVH5"]
 
 
 # define HDF5 type for interpreting HERA correlator outputs (integers) as complex numbers

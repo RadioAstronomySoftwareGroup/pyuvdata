@@ -19,7 +19,7 @@ from .. import utils as uvutils
 
 from . import aipy_extracts
 
-__all__ = 'Miriad'
+__all__ = ["Miriad"]
 
 
 class Miriad(UVData):

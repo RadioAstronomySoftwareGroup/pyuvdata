@@ -10,10 +10,7 @@ used by pyuvdata are ``uv_selector`` and ``UV``.
 """
 from __future__ import absolute_import, division, print_function
 
-__all__ = [
-    'uv_selector',
-    'UV',
-]
+__all__ = ["uv_selector", "UV"]
 
 import numpy as np
 import re

@@ -18,7 +18,7 @@ from ..uvbase import UVBase
 from .. import parameter as uvp
 from .. import utils as uvutils
 
-__all__ = ['UVBeam']
+__all__ = ["UVBeam"]
 
 
 class UVBeam(UVBase):
