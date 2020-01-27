@@ -12,7 +12,7 @@ from ..uvbase import UVBase
 from .. import parameter as uvp
 from .. import utils as uvutils
 
-__all__ = ['UVCal']
+__all__ = ["UVCal"]
 
 
 class UVCal(UVBase):

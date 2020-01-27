@@ -12,6 +12,8 @@ from scipy.special import factorial, lpmv  # associated Legendre function
 from . import UVBeam
 from .. import utils as uvutils
 
+__all__ = ["P1sin", "P1sin_array", "MWABeam"]
+
 
 def P1sin(nmax, theta):
     """

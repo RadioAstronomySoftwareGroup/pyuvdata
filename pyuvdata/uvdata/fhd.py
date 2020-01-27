@@ -14,7 +14,7 @@ from .uvdata import UVData
 from .. import utils as uvutils
 from .. import telescopes as uvtel
 
-__all__ = ['get_fhd_history', 'FHD']
+__all__ = ["get_fhd_history", "FHD"]
 
 
 def get_fhd_history(settings_file, return_user=False):
