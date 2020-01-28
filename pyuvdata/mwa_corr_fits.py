@@ -5,9 +5,14 @@
 """Class for reading MWA correlator FITS files."""
 import numpy as np
 import warnings
+
+# import tracemalloc
+
 from astropy.io import fits
 from astropy.time import Time
 from astropy import constants as const
+from scipy.special import erf
+from math import sqrt
 
 from . import UVData
 from . import utils as uvutils
@@ -33,6 +38,125 @@ def input_output_mapping():
         for i in range(64):
             pfb_inputs_to_outputs[pfb_mapper[i] + p * 64] = p * 64 + i
     return pfb_inputs_to_outputs
+
+
+def bisection_search(sortlist, value):
+    """
+    Implement a simple bisection search function.
+
+    Parameters
+    ----------
+    sortlist: sorted list
+        List to be searched for value.
+    value: float
+        Value to be found in list.
+    """
+    # find nearest value in list of keys
+    bottom = 0
+    top = len(sortlist) - 1
+    while True:
+        mid = int((top + bottom)/2)
+        if value < sortlist[bottom]:
+            print(str(value) + 'rounded up to' + str(sortlist[bottom]))
+            return sortlist[bottom]
+        elif value > sortlist[top]:
+            print(str(value) + 'clipped to' + str(sortlist[top]))
+            return sortlist[top]
+        elif value == sortlist[mid]:
+            return value
+        elif value < sortlist[mid] and value > sortlist[mid - 1]:
+            return (sortlist[mid - 1], sortlist[mid])
+        elif value > sortlist[mid] and value < sortlist[mid + 1]:
+            return (sortlist[mid], sortlist[mid + 1])
+        elif value < sortlist[mid]:
+            top = mid
+        else:
+            bottom = mid
+
+
+def linear_interp(x, x1, x2, y1, y2):
+    """
+    Interpolate a function between two points.
+
+    Parameters
+    ----------
+    x: float
+        The function input value.
+    x1: float
+        Function input value at first point.
+    x2: float
+        Function input value at second point.
+    y1: float
+        Function output value at first point.
+    y2: float
+        Function output value at second point.
+    """
+    y = (y1 * (x2 - x) + y2 * (x - x1)) / (x2 - x1)
+    return y
+
+
+def sig_lookup_table(x, bits):
+    """
+    Build a lookup table to correct the xx and yy autos.
+
+    Parameters
+    ----------
+    x : numpy array
+        Array to act as inputs into the inverse correction function.
+    bits : int
+        Number of quantization bits.
+    """
+    # assign the upper level of the quantization
+    m = 2 ** (bits - 1) - 1
+    # create an array
+    y = np.array([range(m)])
+    # create a sparse array to perform the function accross
+    xx, yy = np.meshgrid(x, y, sparse=True)
+    # compute terms of summation
+    z = (2 * yy + 1) * erf((yy + .5) / (xx * sqrt(2)))
+    # sum terms
+    zsum = z.sum(axis=0)
+    # create a new array that is the standard deviation of the quantized signal
+    sighat = np.sqrt(m ** 2 - zsum)
+    # put arrays into a dictionary for lookup
+    sig_table = {i: j for i, j in zip(sighat, x)}
+    return sig_table
+
+
+def cov_lookup_table(rho, bits, xsig, ysig):
+    # TODO: fix this docstring
+    '''corr is an analog correlator output, bits is the number of quantization bits,
+    xsig and ysig are the corresponding standard deviations of the inputs to x.
+    This function returns the expected digitized correlator output from analog signal inputs'''
+    # initialize data structure: dict of dicts
+    # TODO: change this for single xsig, ysig
+    cov_lookup = {}
+    for i in range(len(xsig)):
+        for j in range(i, len(ysig)):
+            cov_lookup[(xsig[i], ysig[j])] = {}
+    # assign the upper level of the quantization
+    lev = 2 ** (bits - 1) - 1
+    # create variables for summation
+    level_sum = np.arange(-lev, lev, 1)
+    # create an integration grid for midpoint summation
+    for k in rho:
+        x = np.arange(.000005, k, .00001)
+        ii, jj, kk, xxsig, yysig = np.meshgrid(level_sum, level_sum, x, xsig, ysig, sparse=True)
+        # set up summation in integrand
+        z = np.exp(-(1 / (2 * (1 - kk ** 2))) * (((ii + .5) ** 2 / xxsig ** 2) + ((jj + .5) ** 2 / yysig ** 2) - 2 * kk * (ii + .5) * (jj + .5) / (xxsig * yysig)))
+        # sum over j
+        zs1 = z.sum(0)
+        # sum over k
+        zs2 = zs1.sum(0)
+        # multiply by a term with x to complete the integrand
+        integrand = np.multiply(1 / np.sqrt(1 - kk ** 2), zs2)
+        integrand = integrand[0, 0, :, :, :]
+        # compute the midpoint Riemann sum
+        result = (1 / (2 * np.pi)) * .00001 * integrand.sum(0)
+        for p in range(len(xsig)):
+            for q in range(p, len(ysig)):
+                cov_lookup[(xsig[p], ysig[q])][result[p, q]] = k
+    return cov_lookup
 
 
 class MWACorrFITS(UVData):
@@ -69,7 +193,7 @@ class MWACorrFITS(UVData):
         self.data_array *= np.exp(-1j * 2 * np.pi * cable_len_diffs / const.c.to('m/s').value
                                   * self.freq_array.reshape(1, self.Nfreqs))[:, :, None]
 
-<<<<<<< HEAD
+
     def flag_init(self, num_fine_chan, edge_width=80e3, start_flag=2.0,
                   end_flag=2.0, flag_dc_offset=True):
         """
@@ -140,23 +264,95 @@ class MWACorrFITS(UVData):
 
     def van_vleck_correction(self):
         """Apply a van vleck correction to the data array."""
-        # find min and max of data for building matrices?
+        # get indices for autos
+        # print(self.data_array.shape)
+        autos = np.where(self.ant_1_array[0: self.Nbls] == self.ant_2_array[0: self.Nbls])[0]
+        # get indices for crosses
+        crosses = np.where(self.ant_1_array[0: self.Nbls] != self.ant_2_array[0: self.Nbls])[0]
+        # generate dict for getting auto pols
+        # polarizations are ordered yy, yx, xy, xx
+        # TODO: fix this for any polarization ordering
+        pol_dict = {0: (0, 0), 1: (0, 3), 2: (3, 0), 3: (3, 3)}
+        # so one weird thing is at low sigma things get rounded up to 0.06
         # create correction matrices
-        # select the autos
-        autos = self.select(ant_str='autos', inplace=False)
-        print('autos min')
-        print(np.min(autos.data_array))
-        print('autos max')
-        print(np.max(autos.data_array))
-        # select the crosses
-        crosses = self.select(ant_str='crosses', inplace=False)
-        print('crosses min')
-        print(np.min(crosses.data_array))
-        print('crosses max')
-        print(np.max(crosses.data_array))
-        # correct the autos
-        # correct the crosses
-        # which autos to use in crosses correction?
+        # print(self.data_array.real[:, autos, :, :].shape)
+        # TODO: think about how to make this
+        min_auto = np.min(self.data_array.real[:, autos, :, [[0], [3]]][self.data_array.real[:, autos, :, [[0], [3]]] > 0.0])
+        print(min_auto)
+        range_min = np.max([1.06, min_auto])
+        max_auto = np.max(self.data_array.real[:, autos, :, [[0], [3]]])
+        print(max_auto)
+        # TODO: think about how fine to make this mesh        
+        sigs = np.arange(range_min - 1, max_auto + 1, 0.000001)
+        sig_lookup = sig_lookup_table(sigs, 4)
+        sig_keys = sorted(sig_lookup.keys())
+
+        # print('after building sigma lookup table')
+        # print(tracemalloc.get_traced_memory())
+
+        # at this point, data_array.shape = (Ntimes, Nbls, Nfreqs, Npols)
+        # correct xx and yy autos
+        pols = [0, 3]
+        for i in pols:
+            for j in range(self.Nfreqs):
+                print('processessing polarization ' + str(i) + 'and frequency ' + str(j))
+                for k in autos:
+                    for l in range(self.Ntimes):
+                        # print('data for auto' + str(k) + 'and time' + str(self.time_array[l]))
+                        # do a bisection search through sorted(sig_lookup.keys)
+                        # don't correct zeros
+                        if self.data_array.real[l, k, j, i] != 0.0:
+                            sig_hat = bisection_search(sig_keys, self.data_array.real[l, k, j, i])
+                            if isinstance(sig_hat, tuple):
+                                # do a linear interpolation
+                                sig_corr = linear_interp(self.data_array.real[l, k, j, i],
+                                                         sig_hat[0], sig_hat[1],
+                                                         sig_lookup[sig_hat[0]], sig_lookup[sig_hat[1]])
+                                # print(str(self.data_array.real[l, k, j, i]) + 'converted to' + str(sig_corr))
+                                self.data_array.real[l, k, j, i] = sig_corr
+                            else:
+                                # correct self.data_array.real[l, k, j, i]
+                                # print(str(self.data_array.real[l, k, j, i]) + 'converted to' + str(sig_lookup[sigkey]))
+                                self.data_array.real[l, k, j, i] = sig_lookup[sig_hat]
+                        else:
+                            continue
+        # del(sig_lookup)
+        # del(sig_keys)
+        # print('after correcting autos')
+        # print(tracemalloc.get_traced_memory())
+
+#==============================================================================
+#         pols = [0, 1, 2, 3]
+#         for i in pols:
+#             # look up auto pol inds
+#             pol_inds = pol_dict[i]
+#             if i == 1 or i == 2:
+#                 bls = np.arange(self.Nbls)
+#             else:
+#                 bls = crosses
+#             for j in range(self.Nfreqs):
+#                 # adjust freq ind if necessary
+#                 for k in bls:
+#                     auto1 = autos[self.ant_1_array[k]]
+#                     auto2 = autos[self.ant_2_array[k]]
+#                     # get indices/values for xx/yy autos: sig1, sig2
+#                     for l in range(self.Ntimes):
+#                         negative = False
+#                         sig1 = self.data_array[l, auto1, j, pol_inds[0]].real
+#                         sig2 = self.data_array[l, auto2, j, pol_inds[1]].real
+#==============================================================================
+                        # generate the lookups for these sigs
+                        # get a reasonable range for rho
+                        # cov_lookup = cov_lookup_table(rho, sig1, sig2)
+                        # the keys of that dict are kappahat
+                        # I search these keys to get the right rho value
+                        # covkey_real = bisection_search(sorted(vv_table.keys()), self.data_array.real[l, k, j, i])
+                        # covkey_imag = bisection_search(sorted(vv_table.keys()), self.data_array.imag[l, k, j, i])
+                        # self.data_array[l, k, j, i] = vv_table[covkey_real] + 1j * vv_table[covkey_imag]
+                        # print('data for bls' + str(k) + 'and time' + str(self.time_array[l]))
+                        # need to correct absolute value, so check if less than zero
+                        # correct self.data_array.real[l, k, j, i]
+                        # correct self.data_array.imag[l, k, j, i]
 
 
     def read_mwa_corr_fits(self, filelist, use_cotter_flags=False, correct_cable_len=False,
@@ -229,6 +425,7 @@ class MWACorrFITS(UVData):
             If file types other than fits, metafits, and mwaf files are included in filelist.
 
         """
+        # tracemalloc.start()
         metafits_file = None
         obs_id = None
         bscale = None
@@ -507,7 +704,10 @@ class MWACorrFITS(UVData):
             self.freq_array[0, int(i * num_fine_chans):int((i + 1) * num_fine_chans)] = \
                 np.arange(first_center, first_center + num_fine_chans * width, width) * 1000
 
-        # read data into an array with dimensions (time, uv, baselines*pols)
+        # print('just before data dump')        
+        # print(tracemalloc.get_traced_memory())
+
+        # read data into an array with dimensions (time, freq, baselines*pols)
         data_dump = np.zeros((self.Ntimes, self.Nfreqs, self.Nbls * self.Npols), dtype=np.complex64)
         # read data files
         for file in file_dict['data']:
@@ -525,6 +725,9 @@ class MWACorrFITS(UVData):
                     # and take data from real to complex numbers
                     data_dump[time_ind, freq_ind:freq_ind + num_fine_chans, :] = \
                         hdu_list[i].data[:, 0::2] + 1j * hdu_list[i].data[:, 1::2]
+
+        # print('just after data dump, before reordering')
+        # print(tracemalloc.get_traced_memory())
 
         # polarizations are ordered yy, yx, xy, xx
         self.polarization_array = np.array([-6, -8, -7, -5])
@@ -592,6 +795,31 @@ class MWACorrFITS(UVData):
 
         self.flag_array[:, bad_ant_inds, :, :] = True
 
+        # print('after reordering, before van vleck')
+        # print(tracemalloc.get_traced_memory())
+
+        # TODO: think about placing this later in code        
+        # van vleck correction
+        if correct_van_vleck:
+            # scale the data
+            # number of samples per 10 kHz fine channel is 20000/s
+            # TODO: think about nsamples
+            nsamples = 20000 * self.integration_time[0] * self.channel_width / 10000
+            # print('nsamples: ' + str(nsamples))
+            # TODO: think about rounding
+            # round the data after scaling to get rid of hash?
+            # round_factor = int(nsamples/10000)+5
+            self.data_array = self.data_array / (nsamples * bscale)
+            # take advantage of cicular polarization! divide by two
+            self.data_array = self.data_array / 2.0
+            # self.data_array = np.around(self.data_array, round_factor)
+            self.van_vleck_correction()
+            # rescale the data
+            self.data_array = self.data_array * (nsamples * bscale*2)
+
+        # print('after van vleck correction')
+        # print(tracemalloc.get_traced_memory())
+
         # combine baseline and time axes
         self.data_array = self.data_array.reshape((self.Nblts, self.Nfreqs, self.Npols))
         self.flag_array = self.flag_array.reshape((self.Nblts, self.Nfreqs, self.Npols))
@@ -623,15 +851,7 @@ class MWACorrFITS(UVData):
                            start_flag=start_flag, end_flag=end_flag,
                            flag_dc_offset=flag_dc_offset)
 
-        # van vleck correction
-        if correct_van_vleck:
-            # scale the data
-            # TODO: calculate nsamples
-            nsamples = 20000
-            self.data_array = self.data_array / (nsamples * bscale)
-            self.van_vleck_correction()
-            # rescale the data
-            self.data_array = self.data_array * (nsamples * bscale)
-
         if use_cotter_flags:
             raise NotImplementedError('reading in cotter flag files is not yet available')
+
+        # tracemalloc.stop()
