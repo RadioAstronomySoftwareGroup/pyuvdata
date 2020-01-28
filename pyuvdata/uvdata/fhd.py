@@ -208,7 +208,7 @@ class FHD(UVData):
         astrometry = obs['ASTR'][0]
         fhd_pol_list = []
         for pol in obs['POL_NAMES'][0]:
-            fhd_pol_list.append(uvutils._bytes_to_str(pol).lower())
+            fhd_pol_list.append(pol.decode("utf8").lower())
 
         params_dict = readsav(params_file, python_dict=True)
         params = params_dict['params']
@@ -321,7 +321,7 @@ class FHD(UVData):
         self.channel_width = float(obs['FREQ_RES'][0])
 
         # # --- observation information ---
-        self.telescope_name = uvutils._bytes_to_str(obs['INSTRUMENT'][0])
+        self.telescope_name = obs['INSTRUMENT'][0].decode("utf8")
 
         # This is a bit of a kludge because nothing like object_name exists
         # in FHD files.
@@ -363,7 +363,7 @@ class FHD(UVData):
             arr_center = layout['array_center'][0]
             layout_fields.remove('array_center')
 
-            xyz_telescope_frame = uvutils._bytes_to_str(layout['coordinate_frame'][0]).lower()
+            xyz_telescope_frame = layout['coordinate_frame'][0].decode("utf8").lower()
             layout_fields.remove('coordinate_frame')
 
             if xyz_telescope_frame == 'itrf':
@@ -415,7 +415,7 @@ class FHD(UVData):
             self.antenna_positions = layout['antenna_coords'][0]
             layout_fields.remove('antenna_coords')
 
-            self.antenna_names = [uvutils._bytes_to_str(ant).strip() for ant in layout['antenna_names'][0].tolist()]
+            self.antenna_names = [ant.decode("utf8").strip() for ant in layout['antenna_names'][0].tolist()]
             layout_fields.remove('antenna_names')
 
             # make these 0-indexed (rather than one indexed)
@@ -428,7 +428,7 @@ class FHD(UVData):
             if self.telescope_name.lower() == 'mwa':
                 # check that obs.baseline_info.tile_names match the antenna names
                 # this only applies for MWA because the tile_names come from metafits files
-                obs_tile_names = [uvutils._bytes_to_str(ant).strip() for ant in bl_info['TILE_NAMES'][0].tolist()]
+                obs_tile_names = [ant.decode("utf8").strip() for ant in bl_info['TILE_NAMES'][0].tolist()]
                 obs_tile_names = ['Tile' + '0' * (3 - len(ant)) + ant for ant in obs_tile_names]
                 # tile_names are assumed to be ordered: so their index gives the antenna number
                 # make an comparison array from self.antenna_names ordered this way.
@@ -442,7 +442,7 @@ class FHD(UVData):
             layout_fields.remove('gst0')
 
             if layout['ref_date'][0] != '':
-                self.rdate = uvutils._bytes_to_str(layout['ref_date'][0]).lower()
+                self.rdate = layout['ref_date'][0].decode("utf8").lower()
             layout_fields.remove('ref_date')
 
             self.earth_omega = float(layout['earth_degpd'][0])
@@ -451,11 +451,11 @@ class FHD(UVData):
             self.dut1 = float(layout['dut1'][0])
             layout_fields.remove('dut1')
 
-            self.timesys = uvutils._bytes_to_str(layout['time_system'][0]).upper().strip()
+            self.timesys = layout['time_system'][0].decode("utf8").upper().strip()
             layout_fields.remove('time_system')
 
             if 'diameters' in layout_fields:
-                self.timesys = uvutils._bytes_to_str(layout['time_system'][0]).upper().strip()
+                self.timesys = layout['time_system'][0].decode("utf8").upper().strip()
                 layout_fields.remove('diameters')
 
             # ignore some fields, put everything else in extra_keywords
@@ -474,12 +474,12 @@ class FHD(UVData):
 
                 value = layout[field][0]
                 if isinstance(value, bytes):
-                    value = uvutils._bytes_to_str(value)
+                    value = value.decode("utf8")
 
                 self.extra_keywords[keyword.upper()] = value
         else:
             self.telescope_location_lat_lon_alt = (latitude, longitude, altitude)
-            self.antenna_names = [uvutils._bytes_to_str(ant).strip() for ant in bl_info['TILE_NAMES'][0].tolist()]
+            self.antenna_names = [ant.decode("utf8").strip() for ant in bl_info['TILE_NAMES'][0].tolist()]
             if self.telescope_name.lower() == 'mwa':
                 self.antenna_names = ['Tile' + '0' * (3 - len(ant)) + ant for ant in self.antenna_names]
             self.Nants_telescope = len(self.antenna_names)
