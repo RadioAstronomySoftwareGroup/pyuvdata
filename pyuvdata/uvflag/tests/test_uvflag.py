@@ -454,7 +454,7 @@ def test_write_add_version_str():
     uvf.write(test_outfile, clobber=True)
 
     with h5py.File(test_outfile, 'r') as h5:
-        hist = uvutils._bytes_to_str(h5['Header/history'][()])
+        hist = h5['Header/history'][()].decode("utf8")
     assert pyuvdata_version_str in hist
 
 

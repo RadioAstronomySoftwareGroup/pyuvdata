@@ -1004,7 +1004,7 @@ class UVFlag(UVBase):
             with h5py.File(filename, 'r') as f:
                 header = f['/Header']
 
-                self.type = uvutils._bytes_to_str(header['type'][()])
+                self.type = header['type'][()].decode("utf8")
                 if self.type == 'antenna':
                     self._set_type_antenna()
                 elif self.type == 'baseline':
@@ -1018,7 +1018,7 @@ class UVFlag(UVBase):
                                      "{expect}".format(receive=self.type,
                                                        expect=(', ').join(self._type.acceptable_vals)))
 
-                self.mode = uvutils._bytes_to_str(header['mode'][()])
+                self.mode = header['mode'][()].decode("utf8")
 
                 if self.mode == "metric":
                     self._set_mode_metric()
@@ -1032,7 +1032,7 @@ class UVFlag(UVBase):
                                                        expect=(', ').join(self._mode.acceptable_vals)))
 
                 if 'x_orientation' in header.keys():
-                    self.x_orientation = uvutils._bytes_to_str(header['x_orientation'][()])
+                    self.x_orientation = header['x_orientation'][()].decode("utf8")
 
                 self.time_array = header['time_array'][()]
                 if 'Ntimes' in header.keys():
@@ -1063,7 +1063,7 @@ class UVFlag(UVBase):
                 else:
                     self.Nfreqs = np.unique(self.freq_array).size
 
-                self.history = uvutils._bytes_to_str(header['history'][()])
+                self.history = header['history'][()].decode("utf8")
 
                 self.history += history
 
@@ -1071,7 +1071,7 @@ class UVFlag(UVBase):
                     self.history += self.pyuvdata_version_str
 
                 if 'label' in header.keys():
-                    self.label = uvutils._bytes_to_str(header['label'][()])
+                    self.label = header['label'][()].decode("utf8")
 
                 polarization_array = header['polarization_array'][()]
                 if isinstance(polarization_array[0], np.string_):
@@ -1171,8 +1171,8 @@ class UVFlag(UVBase):
             header = f.create_group('Header')
 
             # write out metadata
-            header['type'] = uvutils._str_to_bytes(self.type)
-            header['mode'] = uvutils._str_to_bytes(self.mode)
+            header['type'] = self.type.encode("utf8")
+            header['mode'] = self.mode.encode("utf8")
 
             header['Ntimes'] = self.Ntimes
             header['time_array'] = self.time_array
@@ -1184,7 +1184,7 @@ class UVFlag(UVBase):
             header['Npols'] = self.Npols
 
             if self.x_orientation is not None:
-                header['x_orientation'] = uvutils._str_to_bytes(self.x_orientation)
+                header['x_orientation'] = self.x_orientation.encode("utf8")
 
             if isinstance(self.polarization_array.item(0), str):
                 polarization_array = np.asarray(self.polarization_array,
@@ -1196,9 +1196,9 @@ class UVFlag(UVBase):
             if not uvutils._check_history_version(self.history, self.pyuvdata_version_str):
                 self.history += self.pyuvdata_version_str
 
-            header['history'] = uvutils._str_to_bytes(self.history)
+            header['history'] = self.history.encode("utf8")
 
-            header['label'] = uvutils._str_to_bytes(self.label)
+            header['label'] = self.label.encode("utf8")
 
             if self.type == 'baseline':
                 header['baseline_array'] = self.baseline_array
