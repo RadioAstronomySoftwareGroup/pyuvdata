@@ -79,12 +79,23 @@ def test_ReadFHDWriteReadUVFits_no_layout():
     files_use = testfiles[:-3] + [testfiles[-2]]
 
     # check warning raised
-    uvtest.checkWarnings(fhd_uv.read, func_args=[files_use],
-                         func_kwargs={'run_check': False},
-                         message=['No layout file'],)
+    uvtest.checkWarnings(
+        fhd_uv.read,
+        func_args=[files_use],
+        func_kwargs={'run_check': False},
+        message='No layout file',
+        nwarnings=1,
+        category=UserWarning,
+    )
 
     with pytest.raises(ValueError) as cm:
-        fhd_uv.read(files_use)
+        uvtest.checkWarnings(
+            fhd_uv.read,
+            func_args=[files_use],
+            message='No layout file',
+            nwarnings=1,
+            category=UserWarning,
+        )
     assert str(cm.value).startswith('Required UVParameter _antenna_positions has not been set')
 
 
