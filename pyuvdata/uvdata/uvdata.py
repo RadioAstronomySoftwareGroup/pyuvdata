@@ -5702,6 +5702,55 @@ class UVData(UVBase):
 
         return
 
+    def frequency_average(self, n_chan_to_avg):
+        """
+        Average in frequency.
+
+        In the future, this method will support non-equally spaced channels
+        and varying channel widths. It will also support setting the frequency
+        to the true mean of the averaged non-flagged data rather than the mean
+        ignoring flagging. For now it does not.
+
+        Parameters
+        ----------
+        n_chan_to_avg : int
+            Number of channels to average together.
+            (TODO: should we add a target channel width option in Hz?)
+        """
+        self._check_freq_spacing()
+
+        n_final_chan = int(np.floor(self.Nfreqs / n_chan_to_avg))
+        if self.Nfreqs % n_chan_to_avg != 0:
+            # not an even number of final channels
+            warnings.warn("Nfreqs does not divide by `n_chan_to_avg` evenly. "
+                          "The final {} frequencies will be excluded, to "
+                          "control which frequencies to exclude, use a select to control.")
+            chan_to_keep = np.arange(n_final_chan * n_chan_to_avg)
+            self.select(freq_chans=chan_to_keep)
+
+        self.freq_array = self.freq_array.reshape((self.Nspws, n_final_chan,
+                                                   n_chan_to_avg)).mean(axis=2)
+
+        if self.eq_coeffs is not None:
+            eq_coeff_diff = np.diff(self.eq_coeffs, axis=1)
+            if np.abs(np.max(eq_coeff_diff
+                             - np.broadcast_to(np.min(eq_coeff_diff, axis=1),
+                                               (self.Nants_telescope, n_final_chan)))) > 0:
+                warnings.warn("eq_coeffs vary by frequency. They should be "
+                              "applied to the data using `remove_eq_coeffs` "
+                              "before frequency averaging.")
+            self.eq_coeffs = self.eq_coeffs.reshape((self.Nants_telescope,
+                                                     n_final_chan,
+                                                     n_chan_to_avg)).mean(axis=2)
+
+        if not self.metadata_only:
+            temp_data = np.zeros((self.Nblts, self.Nspws, n_final_chan, self.Npols),
+                                 dtype=self.data_array.dtype)
+            temp_flag = np.zeros((self.Nblts, self.Nspws, n_final_chan, self.Npols),
+                                 dtype=self.flag_array.dtype)
+            temp_nsample = np.zeros((self.Nblts, self.Nspws, n_final_chan, self.Npols),
+                                    dtype=self.nsample_array.dtype)
+
     def remove_eq_coeffs(self):
         """
         Remove equalization coefficients from the data.
