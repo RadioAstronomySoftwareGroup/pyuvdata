@@ -398,7 +398,32 @@ class UVData(UVBase):
 
         return metadata_only
 
-    def check(self, check_extra=True, run_check_acceptability=True):
+    def _check_freq_spacing(self):
+        """
+        Check if frequencies are evenly spaced and separated by their channel width.
+
+        This is a requirement for writing uvfits & miriad files.
+        """
+        if self.Nfreqs > 1:
+            freq_spacing = np.diff(self.freq_array, axis=1)
+            if not np.isclose(np.min(freq_spacing), np.max(freq_spacing),
+                              rtol=self._freq_array.tols[0], atol=self._freq_array.tols[1]):
+                raise ValueError('The frequencies are not evenly spaced (probably '
+                                 'because of a select operation). Some file formats '
+                                 '(e.g. uvfits, miriad) and methods (frequency_average) '
+                                 'do not support unevenly spaced frequencies.')
+            if not np.isclose(freq_spacing[0, 0], self.channel_width,
+                              rtol=self._freq_array.tols[0], atol=self._freq_array.tols[1]):
+                raise ValueError('The frequencies are separated by more than their '
+                                 'channel width (probably because of a select operation). '
+                                 'Some file formats (e.g. uvfits, miriad) and '
+                                 'methods (frequency_average) do not support '
+                                 'frequencies that are spaced by more than their '
+                                 'channel width.')
+        return True
+
+    def check(self, check_extra=True, run_check_acceptability=True,
+              check_freq_spacing=False):
         """
         Add some extra checks on top of checks on UVBase class.
 
@@ -483,6 +508,9 @@ class UVData(UVBase):
                              atol=self._uvw_array.tols[1])):
             raise ValueError("Some cross-correlations have near-zero "
                              "uvw_array magnitudes.")
+
+        if check_freq_spacing:
+            self._check_freq_spacing()
 
         return True
 

@@ -634,7 +634,8 @@ class Miriad(UVData):
 
         if run_check:
             self.check(check_extra=check_extra,
-                       run_check_acceptability=run_check_acceptability)
+                       run_check_acceptability=run_check_acceptability,
+                       check_freq_spacing=True)
 
         # check for multiple spws
         if self.data_array.shape[1] > 1:
@@ -646,20 +647,6 @@ class Miriad(UVData):
                 shutil.rmtree(filepath)
             else:
                 raise IOError('File exists: skipping')
-
-        if self.Nfreqs > 1:
-            freq_spacing = self.freq_array[0, 1:] - self.freq_array[0, :-1]
-            if not np.isclose(np.min(freq_spacing), np.max(freq_spacing),
-                              rtol=self._freq_array.tols[0], atol=self._freq_array.tols[1]):
-                raise ValueError('The frequencies are not evenly spaced (probably '
-                                 'because of a select operation). The miriad format '
-                                 'does not support unevenly spaced frequencies.')
-            if not np.isclose(np.max(freq_spacing), self.channel_width,
-                              rtol=self._freq_array.tols[0], atol=self._freq_array.tols[1]):
-                raise ValueError('The frequencies are separated by more than their '
-                                 'channel width (probably because of a select operation). '
-                                 'The miriad format does not support frequencies '
-                                 'that are spaced by more than their channel width.')
 
         uv = aipy_extracts.UV(filepath, status='new')
 
