@@ -27,7 +27,7 @@ a) miriad -> uvfits
   >>> UV.read_miriad(miriad_file)
 
   # Write out the uvfits file
-  >>> write_file = os.path.join(DATA_PATH, 'tutorial.uvfits')
+  >>> write_file = os.path.join(DATA_PATH, 'tutorial_output', 'tutorial.uvfits')
   >>> UV.write_uvfits(write_file, force_phase=True, spoof_nonessential=True)
   The data are in drift mode and do not have a defined phase center. Phasing to zenith of the first timestamp.
 
@@ -49,7 +49,7 @@ b) uvfits -> miriad
   >>> UV.read_uvfits(uvfits_file)
 
   # Write out the miriad file
-  >>> write_file = os.path.join(DATA_PATH, 'tutorial.uv')
+  >>> write_file = os.path.join(DATA_PATH, 'tutorial_output', 'tutorial.uv')
   >>> if os.path.exists(write_file):
   ...    shutil.rmtree(write_file)
   >>> UV.write_miriad(write_file)
@@ -76,7 +76,7 @@ When reading FHD format, we need to point to several files for each observation.
   >>> UV.read(fhd_files)
   >>> UV.read(fhd_files, file_type='fhd')
   >>> UV.read_fhd(fhd_files)
-  >>> write_file = os.path.join(DATA_PATH, 'tutorial.uvfits')
+  >>> write_file = os.path.join(DATA_PATH, 'tutorial_output', 'tutorial.uvfits')
   >>> UV.write_uvfits(write_file, spoof_nonessential=True)
 
 d) FHD -> miriad
@@ -97,7 +97,7 @@ d) FHD -> miriad
   ...                                       'vis_model_YY.sav', 'settings.txt',
   ...                                       'layout.sav']]
   >>> UV.read(fhd_files)
-  >>> write_file = os.path.join(DATA_PATH, 'tutorial.uv')
+  >>> write_file = os.path.join(DATA_PATH, 'tutorial_output','tutorial.uv')
   >>> if os.path.exists(write_file):
   ...    shutil.rmtree(write_file)
   >>> UV.write_miriad(write_file)
@@ -120,7 +120,7 @@ e) CASA -> uvfits
   >>> UV.read_ms(ms_file)
 
   # Write out uvfits file
-  >>> write_file = os.path.join(DATA_PATH, 'tutorial.uvfits')
+  >>> write_file = os.path.join(DATA_PATH, 'tutorial_output', 'tutorial.uvfits')
   >>> UV.write_uvfits(write_file, spoof_nonessential=True)
 
 f) CASA -> miriad
@@ -139,7 +139,7 @@ f) CASA -> miriad
   >>> UV.read(ms_file)
 
   # Write out Miriad file
-  >>> write_file = os.path.join(DATA_PATH, 'tutorial.uv')
+  >>> write_file = os.path.join(DATA_PATH, 'tutorial_output', 'tutorial.uv')
   >>> if os.path.exists(write_file):
   ...    shutil.rmtree(write_file)
   >>> UV.write_miriad(write_file)
@@ -158,7 +158,7 @@ g) miriad -> uvh5
   >>> UV.read(miriad_file)
 
   # Write out the uvh5 file
-  >>> UV.write_uvh5(os.path.join(DATA_PATH, 'tutorial.uvh5'))
+  >>> UV.write_uvh5(os.path.join(DATA_PATH, 'tutorial_output', 'tutorial.uvh5'))
 
 h) uvfits -> uvh5
 *****************
@@ -173,7 +173,7 @@ h) uvfits -> uvh5
   >>> UV.read(uvfits_file)
 
   # Write out the uvh5 file
-  >>> write_file = os.path.join(DATA_PATH, 'tutorial.uvh5')
+  >>> write_file = os.path.join(DATA_PATH, 'tutorial_output', 'tutorial.uvh5')
   >>> if os.path.exists(write_file):
   ...    os.remove(write_file)
   >>> UV.write_uvh5(write_file)
@@ -216,7 +216,7 @@ common flagging patterns and phasing the data to the pointing center.
   >>> UV.read_mwa_corr_fits(filelist, correct_cable_len=True, phase_to_pointing_center=True, flag_init=False)
 
   # Write out uvfits file
-  >>> write_file = os.path.join(DATA_PATH, 'tutorial.uvfits')
+  >>> write_file = os.path.join(DATA_PATH, 'tutorial_output', 'tutorial.uvfits')
   >>> UV.write_uvfits(write_file, spoof_nonessential=True)
 
 
@@ -1621,7 +1621,7 @@ d) Writing a regularly gridded beam FITS file
   >>> beam = UVBeam()
   >>> settings_file = os.path.join(DATA_PATH, 'NicCSTbeams/NicCSTbeams.yaml')
   >>> beam.read_cst_beam(settings_file, beam_type='power')
-  >>> write_file = os.path.join(DATA_PATH, 'tutorial.fits')
+  >>> write_file = os.path.join(DATA_PATH, 'tutorial_output', 'tutorial.fits')
   >>> beam.write_beamfits(write_file, clobber=True)
 
 e) Writing a HEALPix beam FITS file
@@ -1641,7 +1641,7 @@ e) Writing a HEALPix beam FITS file
 
   # note that the `to_healpix` method requires astropy_healpix to be installed
   >>> beam.to_healpix()
-  >>> write_file = os.path.join(DATA_PATH, 'tutorial.fits')
+  >>> write_file = os.path.join(DATA_PATH, 'tutorial_output', 'tutorial.fits')
   >>> beam.write_beamfits(write_file, clobber=True)
 
 UVBeam: Selecting data
@@ -1845,12 +1845,5 @@ Tutorial Cleanup
 -----------------
 ::
 
-  # delete all written files
-  >>> import shutil
-  >>> import os
-  >>> import glob
-  >>> filelist = (glob.glob(os.path.join(DATA_PATH, 'tutorial*fits'))
-  ...             + glob.glob(os.path.join(DATA_PATH, 'tutorial*.uvh5')))
-  >>> for f in filelist:
-  ...     os.remove(f)
-  >>> shutil.rmtree(os.path.join(DATA_PATH, 'tutorial.uv'))
+  # delete all written files.
+  # This is handled by the confest.py automatically when invoked via pytest
