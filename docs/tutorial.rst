@@ -1,6 +1,12 @@
 Tutorial
 ========
 
+In the examples below, output files are written to the
+`pyuvdata/pyuvdata/data/tutorial_output` directory, which you will need to
+create to run the code exactly as written. Alternatively you can change the
+location the output files are saved to by changing the arguments to the
+`os.path.join` calls.
+
 ------
 UVData
 ------
