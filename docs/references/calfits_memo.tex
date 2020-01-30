@@ -12,9 +12,10 @@
     colorlinks = true
 }
 
-\title{Memo : pyuvdata.uvcal}
+\title{Memo: UVCal FITS Format (\emph{.calfits})}
 \author{Zaki Ali, Bryna Hazelton, Adam Beardsley, Paul La Plante and the pyuvdata team}
-\date{July 3, 2017}							% Activate to display a given date or no date
+\date{July 3, 2017\\
+ Revised January 29, 2020} % Activate to display a given date or no date
 
 \begin{document}
 \maketitle
@@ -33,82 +34,85 @@ pyuvdata tutorial on ReadTheDocs: \url{http://pyuvdata.readthedocs.io/en/latest/
 The \textit{calfits} format is a specification for the storage of radio
 interferometer calibration information in a fits file.  The contents of the file
 are defined via explicit mapping to the UVCal object in the pyuvdata package.
-The UVCal object (really, it's a class) is a subclass of the of the UVBase class
-with a set of \textbf{uvparameters} that defines the UVCal object. A
+The UVCal class is a subclass of the of the UVBase class
+with a set of \textbf{uvparameters} which define the UVCal object. A
 \textbf{uvparameter} is a pyuvdata object that has a name, form, description,
 value, required flag, expected type, acceptable values, and tolerances
 associated with it.  \textbf{Uvparameters} are accessed as attributes to the
 UVBase class (and its subclasses, like UVCal).
 
-\section{Parameters}
-In order to conform to the \textit{calfits} file format there are a number of
-required parameters that need to be set as attributes of the UVCal class. Below
-is a list of the required parameters and their descriptions.
+%\section{Parameters}
+%In order to conform to the \textit{calfits} file format there are a number of
+%required parameters that need to be set as attributes of the UVCal class. Below
+%is a list of the required parameters and their descriptions.
+\section{Primary Header}
+The following are required keywords in the primary header of a \emph{calfits} file.
+For a more detailed explanation of what these keywords mean, see the descriptions on pyuvdata's ReadTheDocs uvcal\_parameters page. The uvcal parameter corresponding to each keyword is noted in parentheses. 
+As with all \emph{fits} files, \textbf{HISTORY} and \textbf{COMMENT} cards are optional and allowed.
 
 \begin{itemize}
-\item{\textbf{cal\_type}: cal type parameter. Values are delay, gain or
-    unknown.}
+\item{\textbf{CALTYPE}: \emph{string} cal type parameter. Possible values are delay, gain or
+    unknown. (cal\_type)}
 \item{\textbf{Nants\_data}: Number of antennas that have data associated with them 
     (i.e. number of unique entries in ant\_array). May be smaller than the number of 
-    antennas in the telescope'}
+    antennas in the telescope'. \emph{Nants\_data}}
 \item{\textbf{Nants\_telescope}: Number of antennas in the array. May be larger
-    than the number of antennas with data}
-\item{\textbf{Nfreqs}: Number of frequency channels.}
+    than the number of antennas with data. \emph{Nants\_telescope}}
+\item{\textbf{Nfreqs}: Number of frequency channels. \emph{Nfreqs}}
 \item{\textbf{Njones}: Number of Jones calibration parameters (Number of
-    jones matrix elements calculated in calibration).}
+    jones matrix elements calculated in calibration). \emph{Njones}}
 \item{\textbf{Nspws}: Number of spectral windows (ie non-contiguous spectral
-    chunks). More than one spectral window is not currently supported.}
+    chunks). More than one spectral window is not currently supported. \emph{Nspws}}
 \item{\textbf{Ntimes}: Number of times with different calibrations calculated
     (if a calibration is calculated over a range of integrations, this gives the
-    number of separate calibrations along the time axis).}
+    number of separate calibrations along the time axis). \emph{Ntimes}}
 \item{\textbf{ant\_array}: Array of antenna indices for data arrays, shape
-    (Nants\_data). type = int, 0 indexed}
+    (Nants\_data). type = int, 0 indexed. \emph{ant\_array}}
 \item{\textbf{antenna\_names}: List of antenna names, shape (Nants\_telescope),
     with numbers given by antenna\_numbers (which can be matched to ant\_array).
-    There must be one entry here for each unique entry in ant\_array, but there may be extras as well.}
+    There must be one entry here for each unique entry in ant\_array, but there may be extras as well. \emph{antenna\_names}}
 \item{\textbf{antenna\_numbers}: List of integer antenna numbers corresponding
-    to antenna\_names, shape (Nants\_telescope). There must be one entry here for each unique entry 
-    in ant\_array, but there may be extras as well}
-\item{\textbf{channel\_width}: Channel width of of a frequency bin. Units Hz.}
+    to antenna\_names, shape (Nants\_telescope). There must be one entry here for each unique entry in ant\_array, but there may be extras as well. \emph{antenna\_numbers}}
+\item{\textbf{channel\_width}: Channel width of of a frequency bin. Units Hz. \emph{channel\_width}}
 \item{\textbf{flag\_array}: Array of flags to be applied to calibrated data
     (logical OR of input and flag generated by calibration). True is flagged.
-    Shape: (Nants\_data, Nspws, Nfreqs, Ntimes, Njones), type = bool.}
+    Shape: (Nants\_data, Nspws, Nfreqs, Ntimes, Njones), type = bool. \emph{flag\_array}}
 \item{\textbf{freq\_array}: Array of frequencies, shape (Nspws, Nfreqs), units
-    Hz.}
+    Hz. \emph{freq\_array}}
 \item{\textbf{gain\_convention}: The convention for applying the calibration solutions to data.
     Values are "divide" or "multiply", indicating that to calibrate one should divide or multiply
     uncalibrated data by gains. Mathematically this indicates the alpha exponent in the equation: 
     calibrated data = gain$^{\alpha} \times $ uncalibrated data. A value of
-    ``divide'' represents $\alpha=-1$ and ``multiply'' represents $\alpha=1$.}
-\item{\textbf{history}: String of history}
-\item{\textbf{integration\_time}: Integration time of a time bin, units seconds.}
+    ``divide'' represents $\alpha=-1$ and ``multiply'' represents $\alpha=1$. \emph{gain\_convention}}
+\item{\textbf{history}: String of history. \emph{history}}
+\item{\textbf{integration\_time}: Integration time of a time bin, units seconds. \emph{integration\_time}}
 \item{\textbf{jones\_array}: Array of antenna polarization integers, shape
     (Njones). linear pols -5:-8 (jxx, jyy, jxy, jyx).circular pols -1:-4 (jrr,
-    jll. jrl, jlr).}
+    jll. jrl, jlr). \emph{jones\_array}}
 \item{\textbf{quality\_array}: Array of qualities of calibration solutions. The
     shape depends on cal\_type, if the cal\_type is "gain" or "unknown" the shape is:
     (Nants\_data, Nspws, Nfreqs, Ntimes, Njones), if the cal\_type is "delay" the shape is: 
-    (Nants\_data, Nspws, 1, Ntimes, Njones), type = float}
-\item{\textbf{spw\_array}: Array of spectral window numbers, shape (Nspws)}
-\item{\textbf{telescope\_name}: Name of telescope. e.g. HERA. String.}
+    (Nants\_data, Nspws, 1, Ntimes, Njones), type = float. \emph{quality\_array}}
+\item{\textbf{spw\_array}: Array of spectral window numbers, shape (Nspws). \emph{spw\_array}}
+\item{\textbf{telescope\_name}: Name of telescope. e.g. HERA. String. \emph{telescope\_name}}
 \item{\textbf{time\_array}: Array of calibration solution times, center of integration, shape
-    (Ntimes), units Julian Date}
+    (Ntimes), units Julian Date. \emph{time\_array}}
 \item{\textbf{time\_range}: Time range (in JD) that gain solutions are valid
-    for. list: [start\_time, end\_time] in JD.}
+    for. list: [start\_time, end\_time] in JD. \emph{time\_range}}
 \item{\textbf{x\_orientation}: Orientation of the physical dipole corresponding
     to what is labelled as the x polarization. Values are east (east/west
-    orientation), north (north/south orientation) or unknown.}
+    orientation), north (north/south orientation) or unknown. \emph{x\_orientation}}
 \end{itemize}
 
 There are also some optionally required parameters that depend on the
 calibration type. These parameters include.
 \begin{itemize}
 \item{\textbf{delay\_array}: Required if cal\_type =``delay''. Array of delays with
-    units of seconds. Shape: (Nants\_data, Nspws, 1, Ntimes, Njones), type = float.}
+    units of seconds. Shape: (Nants\_data, Nspws, 1, Ntimes, Njones), type = float. \emph{delay\_array}}
 \item{\textbf{gain\_array}: Required if cal\_type = ``gain''. Array of gains, 
-    shape: (Nants\_data, Nspws, Nfreqs, Ntimes, Njones), type = complex float.}
+    shape: (Nants\_data, Nspws, Nfreqs, Ntimes, Njones), type = complex float. \emph{gain\_array}}
 \item{\textbf{freq\_range}: Required if cal\_type = ``delay''. Frequency range that
-   solutions are valid for. list: [start\_frequency, end\_frequency] in Hz.}
+   solutions are valid for. list: [start\_frequency, end\_frequency] in Hz. \emph{freq\_range}}
 \end{itemize}
 
 In addition to the required parameters, there are a number of truly optional
@@ -116,17 +120,17 @@ parameters that may be passed in. These include:
 
 \begin{itemize}
 \item{\textbf{git\_origin\_cal}: Origin (on github for e.g) of calibration
-    software. Url and branch.}
+    software. Url and branch. \emph{git\_origin\_cal}}
 \item{\textbf{git\_hash\_cal}: Commit hash of calibration software (from
-    git\_origin\_cal) used to generate solutions.}
+    git\_origin\_cal) used to generate solutions. \emph{git\_hash\_cal}}
 \item{\textbf{input\_flag\_array}: Array of input flags, True is flagged. shape:
-    (Nants\_data, Nspws, Nfreqs, Ntimes, Njones), type = bool.}
+    (Nants\_data, Nspws, Nfreqs, Ntimes, Njones), type = bool. \emph{input\_flag\_array}}
 \item{\textbf{observer}: Name of observer who calculated solutions in this
-    file.}
+    file. \emph{observer}}
 \item{\textbf{total\_quality\_array}: Array of qualities of the calibration
     solution for the entire array. The shape depends on cal\_type, if the cal\_type is
     "gain" or "unknown", the shape is: (Nspws, Nfreqs, Ntimes, Njones), if the 
-    cal\_type is "delay", the shape is (Nspws, 1, Ntimes, Njones), type = float.}
+    cal\_type is "delay", the shape is (Nspws, 1, Ntimes, Njones), type = float. \emph{total\_quality\_array}}
 \end{itemize}
 
 Once these parameters are set in the UVCal object, a \textit{calfits} file may
@@ -147,7 +151,7 @@ There are examples of working with pyuvdata UVCal objects and \textit{calfits} f
 the tutorial (\url{http://pyuvdata.readthedocs.io/en/latest/tutorial.html}).
 
 \subsection{The FITS file}
-Depending on the calibration type (gain vs delay), the \textit{calfits} file
+Depending on the calibration type (gain vs delay), the \textit{calfits}
 format can consists of up to 4 HDUs. The primary header in either case is the
 same and consists of relevant meta information for a UVCal object to be
 instantiated. Also, the second HDU is the same in either case and is the ANTENNAS
