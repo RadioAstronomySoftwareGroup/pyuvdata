@@ -1,9 +1,13 @@
 # conda environment specification for Read the Docs
 name: rtd
+channels:
+  - conda-forge
+  - defaults
 dependencies:
   - python=3.6
-  - numpy
-  - scipy
   - astropy
   - h5py
-  - conda-forge::pypandoc
+  - numpy
+  - python-casacore
+  - pypandoc
+  - scipy
