@@ -1308,7 +1308,7 @@ def get_antenna_redundancies(antenna_numbers, antenna_positions, tol=1.0, includ
     -----
     The baseline numbers refer to antenna pairs (a1, a2) such that
     the baseline vector formed from ENU antenna positions,
-        blvec = enu[a1] - enu[a2]
+    blvec = enu[a1] - enu[a2]
     is close to the other baselines in the group.
 
     This is achieved by putting baselines in a form of the u>0

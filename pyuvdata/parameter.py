@@ -44,8 +44,8 @@ class UVParameter(object):
 
         Form examples:
             - 'str': a string value
-            - ('Nblts', 3): the value should be an array of shape:
-            Nblts (another UVParameter name), 3
+            - ('Nblts', 3): the value should be an array of shape: Nblts (another UVParameter name), 3
+
     description : str
         Description of the data or metadata in the object.
     expected_type

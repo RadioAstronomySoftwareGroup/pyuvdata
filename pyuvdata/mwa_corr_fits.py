@@ -72,8 +72,10 @@ class MWACorrFITS(UVData):
     def flag_init(self, num_fine_chan, edge_width=80e3, start_flag=2.0,
                   end_flag=2.0, flag_dc_offset=True):
         """
-        Do routine flagging of the edges, beginning and end of obs, as well as
-        the center fine channel of each coarse channel.
+        Apply routine flagging to the MWA Correlator FITS file data.
+
+        Includes options to flag the coarse channel edges, beginning and end
+        of obs, as well as the center fine channel of each coarse channel.
 
         Parameters
         ----------
@@ -95,6 +97,7 @@ class MWACorrFITS(UVData):
             If edge_width is not an integer multiple of the channel_width of the data (0 also acceptable).
             If start_flag is not an integer multiple of the integration time (0 also acceptable).
             If end_flag is not an integer multiple of the integration time (0 also acceptable).
+
         """
         if (edge_width % self.channel_width) > 0:
             raise ValueError("The edge_width must be an integer multiple of the"

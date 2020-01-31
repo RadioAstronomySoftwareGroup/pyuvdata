@@ -813,17 +813,21 @@ class UVCal(UVBase):
     def read_calfits(self, filename, run_check=True, check_extra=True,
                      run_check_acceptability=True):
         """
-        Read in data from a calfits file.
+        Read in data from calfits file(s).
 
-        Args:
-            filename: The calfits file or list of files to read from.
-                      string path, or list or tuple of string paths.
-            run_check: Option to check for the existence and proper shapes of
-                parameters after reading in the file. Default is True.
-            check_extra: Option to check optional parameters as well as required
-                ones. Default is True.
-            run_check_acceptability: Option to check acceptable range of the values of
-                parameters after reading in the file. Default is True.
+        Parameters
+        ----------
+        filename : str or list of str
+            The calfits file(s) to read from.
+        run_check : bool
+            Option to check for the existence and proper shapes of
+            parameters after reading in the file.
+        check_extra : bool
+            Option to check optional parameters as well as required ones.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of
+            parameters after reading in the file.
+
         """
         from . import calfits
         if isinstance(filename, (list, tuple)):
@@ -848,18 +852,24 @@ class UVCal(UVBase):
 
     def write_calfits(self, filename, run_check=True, check_extra=True,
                       run_check_acceptability=True, clobber=False):
-        """Write data to a calfits file.
+        """
+        Write the data to a calfits file.
 
-        Args:
-            filename: The calfits filename to write to.
-            run_check: Option to check for the existence and proper shapes of
-                parameters before writing the file. Default is True.
-            check_extra: Option to check optional parameters as well as required
-                ones. Default is True.
-            run_check_acceptability: Option to check acceptable range of the values of
-                parameters before writing the file. Default is True.
-            clobber: Option to overwrite the filename if the file already exists.
-                Default is False.
+        Parameters
+        ----------
+        filename : str
+            The calfits file to write to.
+        run_check : bool
+            Option to check for the existence and proper shapes of
+            parameters before writing the file.
+        check_extra : bool
+            Option to check optional parameters as well as required ones.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of
+            parameters before writing the file.
+        clobber : bool
+            Option to overwrite the filename if the file already exists.
+
         """
         calfits_obj = self._convert_to_filetype('calfits')
         calfits_obj.write_calfits(filename,
@@ -874,22 +884,30 @@ class UVCal(UVBase):
         """
         Read data from an FHD cal.sav file.
 
-        Args:
-            cal_file: The cal.sav file to read from.
-            obs_file: The obs.sav file to read from.
-            settings_file: The settings_file to read from. Optional, but very
-                useful for provenance.
-            raw: Option to use the raw (per antenna, per frequency) solution or
-                to use the fitted (polynomial over phase/amplitude) solution.
-                Default is True (meaning use the raw solutions).
-            extra_history: Optional string or list of strings to add to the
-                object's history parameter. Default is None.
-            run_check: Option to check for the existence and proper shapes of
-                parameters after reading in the file. Default is True.
-            check_extra: Option to check optional parameters as well as required
-                ones. Default is True.
-            run_check_acceptability: Option to check acceptable range of the values of
-                parameters after reading in the file. Default is True.
+        Parameters
+        ----------
+        cal_file : str or list of str
+            The cal.sav file or list of files to read from.
+        obs_file : str or list of str
+            The obs.sav file or list of files to read from.
+        settings_file : str or list of str, optional
+            The settings_file or list of files to read from. Optional,
+            but very useful for provenance.
+        raw : bool
+            Option to use the raw (per antenna, per frequency) solution or
+            to use the fitted (polynomial over phase/amplitude) solution.
+            Default is True (meaning use the raw solutions).
+        extra_history : str or list of str, optional
+            String(s) to add to the object's history parameter.
+        run_check : bool
+            Option to check for the existence and proper shapes of
+            parameters after reading in the file.
+        check_extra : bool
+            Option to check optional parameters as well as required ones.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of
+            parameters after reading in the file.
+
         """
         from . import fhd_cal
         if isinstance(cal_file, (list, tuple)):

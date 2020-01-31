@@ -2,9 +2,7 @@
 # Copyright (c) 2018 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 
-"""init file for pyuvdata.
-
-"""
+"""Init file for pyuvdata."""
 from __future__ import absolute_import, division, print_function
 
 # Filter annoying Cython warnings that serve no good purpose. see numpy#432
