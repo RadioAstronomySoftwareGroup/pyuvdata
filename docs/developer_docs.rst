@@ -8,19 +8,16 @@ Base Classes
 These classes are the under-the-hood classes that provide much of the
 infrastructure for pyuvdata's user classes.
 
-```UVParameter``` is the base class for the attributes on pyuvdata's user classes,
+``UVParameter`` is the base class for the attributes on pyuvdata's user classes,
 allowing the attributes to carry information like expected type and shape,
 acceptable values or ranges and tolerances. We also have some type specific
 parameter objects (e.g. for angles and earth locations) with extra functionality.
 
-```UVBase``` is the base class for pyuvdata's user classes which has the common
+``UVBase`` is the base class for pyuvdata's user classes which has the common
 infrastructure to turn the UVParameter attributes into properties and check the
 attribute shapes and values.
 
 .. autoclass:: pyuvdata.parameter.UVParameter
-  :members:
-
-.. autoclass:: pyuvdata.parameter.AntPositionParameter
   :members:
 
 .. autoclass:: pyuvdata.parameter.AngleParameter
