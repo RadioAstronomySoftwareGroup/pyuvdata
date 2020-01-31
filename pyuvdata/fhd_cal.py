@@ -1,6 +1,7 @@
 # -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2018 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
+"""Class for reading FHD calibration save files."""
 
 from __future__ import absolute_import, division, print_function
 
@@ -18,8 +19,10 @@ from .fhd import get_fhd_history
 class FHDCal(UVCal):
     """
     Defines a FHD-specific subclass of UVCal for reading FHD calibration save files.
+
     This class should not be interacted with directly, instead use the read_fhd_cal
     method on the UVCal class.
+
     """
 
     def read_fhd_cal(self, cal_file, obs_file, settings_file=None, raw=True,
@@ -28,24 +31,30 @@ class FHDCal(UVCal):
         """
         Read data from an FHD cal.sav file.
 
-        Args:
-            cal_file: The cal.sav file to read from.
-            obs_file: The obs.sav file to read from.
-            settings_file: The settings_file to read from. Optional, but very
-                useful for provenance.
-            raw: Option to use the raw (per antenna, per frequency) solution or
-                to use the fitted (polynomial over phase/amplitude) solution.
-                Default is True (meaning use the raw solutions).
-            extra_history: Optional string or list of strings to add to the
-                object's history parameter. Default is None.
-            run_check: Option to check for the existence and proper shapes of
-                parameters after reading in the file. Default is True.
-            check_extra: Option to check optional parameters as well as required
-                ones. Default is True.
-            run_check_acceptability: Option to check acceptable range of the values of
-                parameters after reading in the file. Default is True.
-        """
+        Parameters
+        ----------
+        cal_file : str
+            The cal.sav file to read from.
+        obs_file : str
+            The obs.sav file to read from.
+        settings_file : str, optional
+            The settings_file to read from. Optional, but very useful for provenance.
+        raw : bool
+            Option to use the raw (per antenna, per frequency) solution or
+            to use the fitted (polynomial over phase/amplitude) solution.
+            Default is True (meaning use the raw solutions).
+        extra_history : str or list of str, optional
+            String(s) to add to the object's history parameter.
+        run_check : bool
+            Option to check for the existence and proper shapes of
+            parameters after reading in the file.
+        check_extra : bool
+            Option to check optional parameters as well as required ones.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of
+            parameters after reading in the file.
 
+        """
         this_dict = readsav(cal_file, python_dict=True)
         cal_data = this_dict['cal']
 

@@ -1,7 +1,7 @@
 # -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2018 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
-
+"""Class for reading beam CST files."""
 from __future__ import absolute_import, division, print_function
 
 import re
@@ -15,21 +15,29 @@ from . import utils as uvutils
 class CSTBeam(UVBeam):
     """
     Defines a CST-specific subclass of UVBeam for reading CST text files.
+
     This class should not be interacted with directly, instead use the
     read_cst_beam method on the UVBeam class.
+
     """
 
     def name2freq(self, fname):
         """
-        Method to extract the frequency from the file name, assuming the file name
-        contains a substring with the frequency channel in MHz that the data represents.
+        Extract frequency from the filename.
+
+        Assumes the file name contains a substring with the frequency channel
+        in MHz that the data represents.
         e.g. "HERA_Sim_120.87MHz.txt" should yield 120.87e6
 
-        Args:
-            fname: filename (string)
+        Parameters
+        ----------
+        fname : str
+            Filename to parse.
 
-        Returns:
-            extracted frequency
+        Returns
+        -------
+        float
+            Frequency extracted from filename in Hz.
         """
         fi = fname.rfind('Hz')
         frequency = float(re.findall(r'\d*\.\d+|\d+', fname[:fi])[-1])
@@ -47,37 +55,58 @@ class CSTBeam(UVBeam):
                       model_version=None, history='', x_orientation=None,
                       reference_impedance=None, extra_keywords=None,
                       run_check=True, check_extra=True, run_check_acceptability=True):
-
         """
         Read in data from a cst file.
 
-        Args:
-            filename: The cst file to read from.
-            beam_type: what beam_type to read in ('power' or 'efield'). Defaults to 'power'.
-            feed_pol: what feed or polarization the files correspond to.
-                Defaults to 'x' (meaning x for efield or xx for power beams).
-            rotate_pol: If True, assume the structure in the simulation is symmetric under
-                90 degree rotations about the z-axis (so that the y polarization can be
-                constructed by rotating the x polarization or vice versa). Default: True.
-            frequency: the frequency corresponding to the filename.
-                If not passed, the code attempts to parse it from the filename.
-            telescope_name: the name of the telescope corresponding to the filename.
-            feed_name: the name of the feed corresponding to the filename.
-            feed_version: the version of the feed corresponding to the filename.
-            model_name: the name of the model corresponding to the filename.
-            model_version: the version of the model corresponding to the filename.
-            history: A string detailing the history of the filename.
-            x_orientation: Orientation of the physical dipole corresponding to what is
-                labelled as the x polarization. Options are "east" (indicating
-                east/west orientation) and "north" (indicating north/south orientation)
-            reference_impedance (float): The reference impedance of the model(s).
-            extra_keywords (dict): a dictionary containing any extra_keywords.
-            run_check: Option to check for the existence and proper shapes of
-                required parameters after reading in the file. Default is True.
-            check_extra: Option to check optional parameters as well as required
-                ones. Default is True.
-            run_check_acceptability: Option to check acceptable range of the values of
-                required parameters after reading in the file. Default is True.
+        Parameters
+        ----------
+        filename : str
+            The cst file to read from.
+        beam_type : str
+            What beam_type to read in ('power' or 'efield').
+        feed_pol : str
+            The feed or polarization or list of feeds or polarizations the files correspond to.
+            Defaults to 'x' (meaning x for efield or xx for power beams).
+        rotate_pol : bool
+            If True, assume the structure in the simulation is symmetric under
+            90 degree rotations about the z-axis (so that the y polarization can be
+            constructed by rotating the x polarization or vice versa).
+            Default: True if feed_pol is a single value or a list with all
+            the same values in it, False if it is a list with varying values.
+        frequency : float or list of float
+            The frequency or list of frequencies corresponding to the filename(s).
+            This is assumed to be in the same order as the files.
+            If not passed, the code attempts to parse it from the filenames.
+        telescope_name : str
+            The name of the telescope corresponding to the filename(s).
+        feed_name : str
+            The name of the feed corresponding to the filename(s).
+        feed_version : str
+            The version of the feed corresponding to the filename(s).
+        model_name : str
+            The name of the model corresponding to the filename(s).
+        model_version : str
+            The version of the model corresponding to the filename(s).
+        history : str
+            A string detailing the history of the filename(s).
+        x_orientation : str, optional
+            Orientation of the physical dipole corresponding to what is
+            labelled as the x polarization. Options are "east" (indicating
+            east/west orientation) and "north" (indicating north/south orientation)
+        reference_impedance : float, optional
+            The reference impedance of the model(s).
+        extra_keywords : dict, optional
+            A dictionary containing any extra_keywords.
+        run_check : bool
+            Option to check for the existence and proper shapes of
+            required parameters after reading in the file.
+        check_extra : bool
+            Option to check optional parameters as well as
+            required ones.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of
+            required parameters after reading in the file.
+
         """
         self.telescope_name = telescope_name
         self.feed_name = feed_name

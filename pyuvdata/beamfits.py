@@ -2,9 +2,7 @@
 # Copyright (c) 2018 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 
-"""Class for reading and writing beamfits files.
-
-"""
+"""Class for reading and writing beamfits files."""
 from __future__ import absolute_import, division, print_function
 
 import numpy as np
@@ -28,11 +26,12 @@ fits_axisname_dict = {'hpx_inds': 'PIX_IND', 'azimuth': 'AZIMUTH', 'zen_angle': 
 
 class BeamFITS(UVBeam):
     """
-    Defines a fits-specific subclass of UVBeam for reading and writing
-    regularly gridded or healpix beam fits files. This class should not be
-    interacted with directly, instead use the read_beamfits and write_beamfits
-    methods on the UVBeam class.
+    Defines a fits-specific subclass of UVBeam for reading and writing beamfits files.
 
+    This class should not be interacted with directly, instead use the
+    read_beamfits and write_beamfits methods on the UVBeam class.
+
+    The beamfits format supports regularly gridded or healpix beam files.
     The format defined here for healpix beams is not compatible with true healpix
     formats because it needs to support multiple dimensions (e.g. polarization,
     frequency, efield vectors).
@@ -43,14 +42,18 @@ class BeamFITS(UVBeam):
         """
         Read the data from a beamfits file.
 
-        Args:
-            filename: The beamfits file to write to.
-            run_check: Option to check for the existence and proper shapes of
-                required parameters after reading in the file. Default is True.
-            check_extra: Option to check optional parameters as well as
-                required ones. Default is True.
-            run_check_acceptability: Option to check acceptability of the values of
-                required parameters after reading in the file. Default is True.
+        Parameters
+        ----------
+        filename : str
+            The beamfits file to read from.
+        run_check : bool
+            Option to check for the existence and proper shapes of
+            required parameters after reading in the file.
+        check_extra : bool
+            Option to check optional parameters as well as required ones.
+        run_check_acceptabilit : bool
+            Option to check acceptable range of the values of
+            required parameters after reading in the file.
         """
         with fits.open(filename) as F:
             primary_hdu = F[0]
@@ -334,14 +337,21 @@ class BeamFITS(UVBeam):
         """
         Write the data to a beamfits file.
 
-        Args:
-            filename: The beamfits file to write to.
-            run_check: Option to check for the existence and proper shapes of
-                required parameters before writing the file. Default is True.
-            check_extra: Option to check optional parameters as well as
-                required ones. Default is True.
-            run_check_acceptability: Option to check acceptability of the values of
-                required parameters before writing the file. Default is True.
+        Parameters
+        ----------
+        filename : str
+            The beamfits file to write to.
+        run_check : bool
+            Option to check for the existence and proper shapes of
+            required parameters before writing the file.
+        check_extra : bool
+            Option to check optional parameters as well as
+            required ones.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of
+            required parameters before writing the file.
+        clobber : bool
+            Option to overwrite the filename if the file already exists.
 
         """
         if run_check:

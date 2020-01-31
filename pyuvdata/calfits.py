@@ -1,6 +1,7 @@
 # -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2018 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
+"""Class for reading and writing calibration FITS files."""
 
 from __future__ import absolute_import, division, print_function
 
@@ -15,6 +16,10 @@ from . import utils as uvutils
 class CALFITS(UVCal):
     """
     Defines a calfits-specific class for reading and writing calfits files.
+
+    This class should not be interacted with directly, instead use the read_calfits
+    and write_calfits methods on the UVCal class.
+
     """
 
     def write_calfits(self, filename, run_check=True, check_extra=True,
@@ -22,16 +27,21 @@ class CALFITS(UVCal):
         """
         Write the data to a calfits file.
 
-        Args:
-            filename: The calfits file to write to.
-            run_check: Option to check for the existence and proper shapes of
-                parameters before writing the file. Default is True.
-            check_extra: Option to check optional parameters as well as required
-                ones. Default is True.
-            run_check_acceptability: Option to check acceptable range of the values of
-                parameters before writing the file. Default is True.
-            clobber: Option to overwrite the filename if the file already exists.
-                Default is False.
+        Parameters
+        ----------
+        filename : str
+            The calfits file to write to.
+        run_check : bool
+            Option to check for the existence and proper shapes of
+            parameters before writing the file.
+        check_extra : bool
+            Option to check optional parameters as well as required ones.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of
+            parameters before writing the file.
+        clobber : bool
+            Option to overwrite the filename if the file already exists.
+
         """
         if run_check:
             self.check(check_extra=check_extra,
@@ -329,14 +339,19 @@ class CALFITS(UVCal):
         """
         Read data from a calfits file.
 
-        Args:
-            filename: The calfits file to read to.
-            run_check: Option to check for the existence and proper shapes of
-                parameters after reading in the file. Default is True.
-            check_extra: Option to check optional parameters as well as required
-                ones. Default is True.
-            run_check_acceptability: Option to check acceptable range of the values of
-                parameters after reading in the file. Default is True.
+        Parameters
+        ----------
+        filename : str
+            The calfits file to read from.
+        run_check : bool
+            Option to check for the existence and proper shapes of
+            parameters after reading in the file.
+        check_extra : bool
+            Option to check optional parameters as well as required ones.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of
+            parameters after reading in the file.
+
         """
         with fits.open(filename) as F:
             data = F[0].data

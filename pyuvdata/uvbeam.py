@@ -2,9 +2,7 @@
 # Copyright (c) 2018 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 
-"""Primary container for radio telescope antenna beams.
-
-"""
+"""Primary container for radio telescope antenna beams."""
 from __future__ import absolute_import, division, print_function
 
 import os
@@ -26,11 +24,13 @@ class UVBeam(UVBase):
     """
     A class for defining a radio telescope antenna beam.
 
-    Attributes:
-        UVParameter objects: For full list see UVBeam Parameters
-            (http://pyuvdata.readthedocs.io/en/latest/uvbeam_parameters.html).
-            Some are always required, some are required for certain beam_types,
-            antenna_types and pixel_coordinate_systems and others are always optional.
+    Attributes
+    ----------
+    UVParameter objects: For full list see UVBeam Parameters
+        (http://pyuvdata.readthedocs.io/en/latest/uvbeam_parameters.html).
+        Some are always required, some are required for certain beam_types,
+        antenna_types and pixel_coordinate_systems and others are always optional.
+
     """
 
     coordinate_system_dict = {
@@ -368,11 +368,13 @@ class UVBeam(UVBase):
         Check that required parameters exist and have appropriate shapes.
         Optionally check if the values are acceptable.
 
-        Args:
-            check_extra: Option to check optional parameters as well as
-                required ones. Default is True.
-            run_check_acceptability: Option to check if values in required parameters
-                are acceptable. Default is True.
+        Parameters
+        ----------
+        check_extra : bool
+            Option to check optional parameters as well as required ones.
+        run_check_acceptability : bool
+            Option to check if values in required parameters are acceptable.
+
         """
         # first make sure the required parameters and forms are set properly
         # for the pixel_coordinate_system
@@ -404,9 +406,7 @@ class UVBeam(UVBase):
         return True
 
     def set_cs_params(self):
-        """
-        Set various forms and required parameters depending on pixel_coordinate_system.
-        """
+        """Set various forms and required parameters depending on pixel_coordinate_system."""
         if self.pixel_coordinate_system == 'healpix':
             self._Naxes1.required = False
             self._axis1_array.required = False
@@ -498,9 +498,7 @@ class UVBeam(UVBase):
         self._coupling_matrix.required = True
 
     def peak_normalize(self):
-        """
-        Convert to peak normalization.
-        """
+        """Convert to peak normalization."""
         if self.data_normalization == 'solid_angle':
             raise NotImplementedError('Conversion from solid_angle to peak '
                                       'normalization is not yet implemented')
@@ -512,15 +510,24 @@ class UVBeam(UVBase):
 
     def _stokes_matrix(self, pol_index):
         """
-        Calculate Pauli matrices (where indices are reordered from the quantum mechanical
+        Calculate Pauli matrices for pseudo-Stokes conversion.
+
+        Derived from https://arxiv.org/pdf/1401.2095.pdf, the Pauli
+        indices are reordered from the quantum mechanical
         convention to an order which gives the ordering of the pseudo-Stokes vector
-        ['pI', 'pQ', 'pU, 'pV']) according to https://arxiv.org/pdf/1401.2095.pdf.
+        ['pI', 'pQ', 'pU, 'pV'].
 
-        Args:
-            pol_index : Polarization index for which the Pauli matrix is generated, the index
+        Parameters
+        ----------
+        pol_index : int
+            Polarization index for which the Pauli matrix is generated, the index
             must lie between 0 and 3 ('pI': 0, 'pQ': 1, 'pU': 2, 'pV':3).
-        """
 
+        Returns
+        -------
+        array of float
+            Pauli matrix for pol_index. Shape: (2, 2)
+        """
         if pol_index < 0:
             raise ValueError('n must be positive integer.')
         if pol_index > 4:
@@ -538,20 +545,30 @@ class UVBeam(UVBase):
 
     def _construct_mueller(self, jones, pol_index1, pol_index2):
         """
-        Generate Mueller component as done in https://arxiv.org/pdf/1802.04151.pdf
+        Generate Mueller components.
+
+        Following https://arxiv.org/pdf/1802.04151.pdf. Using equation:
 
                 Mij = Tr(J sigma_i J^* sigma_j)
 
-        where sigma_i and sigma_j are Pauli matrices
+        where sigma_i and sigma_j are Pauli matrices.
 
-        Args:
-            jones : Jones matrices containing the electric field for the dipole arms
-                or linear polarizations.
-            pol_index1 : Polarization index referring to the first index of Mij (i).
-            pol_index2 : Polarization index referring to the second index of Mij (j).
+        Parameters
+        ----------
+        jones : array of float
+            Jones matrices containing the electric field for the dipole arms
+            or linear polarizations. Shape: (Npixels, 2, 2) for Healpix beams or
+            (Naxes1 * Naxes2, 2, 2) otherwise.
+        pol_index1 : int
+            Polarization index referring to the first index of Mij (i).
+        pol_index2 : int
+            Polarization index referring to the second index of Mij (j).
 
-        Returns:
-            npix numpy array containing the Mij values.
+        Returns
+        -------
+        array of float
+            Array containing the Mij values, shape: (Npixels,) for Healpix beams
+            or (Naxes1 * Naxes2,) otherwise.
         """
         pauli_mat1 = self._stokes_matrix(pol_index1)
         pauli_mat2 = self._stokes_matrix(pol_index2)
@@ -561,22 +578,31 @@ class UVBeam(UVBase):
 
         return Mij
 
-    def efield_to_pstokes(self, run_check=True, check_extra=True, run_check_acceptability=True, inplace=True):
+    def efield_to_pstokes(self, inplace=True, run_check=True, check_extra=True,
+                          run_check_acceptability=True):
         """
-        Convert E-field to pseudo-stokes power as done in https://arxiv.org/pdf/1802.04151.pdf.
+        Convert E-field to pseudo-stokes power.
+
+        Following https://arxiv.org/pdf/1802.04151.pdf, using the equation:
 
                 M_ij = Tr(sigma_i J sigma_j J^*)
 
         where sigma_i and sigma_j are Pauli matrices.
 
-        Args:
-            run_check : Option to check for the existence and proper shapes of the required parameters
-                after converting to power. Default is True.
-            run_check_acceptability: Option to check acceptable range of the values of required parameters
-                after combining objects. Default is True.
-            check_extra : Option to check optional parameters as well as required ones. Default is True.
-            inplace : Option to perform the select directly on self (True, default) or return a new UVBeam
-                object, which is a subselection of self (False).
+        Parameters
+        ----------
+        inplace : bool
+            Option to apply conversion directly on self or to return a new
+            UVBeam object.
+        run_check : bool
+            Option to check for the existence and proper shapes of the required
+            parameters after converting to power.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of required parameters
+            after converting to power.
+        check_extra : bool
+            Option to check optional parameters as well as required ones.
+
         """
         if inplace:
             beam_object = self
@@ -642,22 +668,28 @@ class UVBeam(UVBase):
         """
         Convert E-field beam to power beam.
 
-        Args:
-            calc_cross_pols: If True, calculate the crossed polarization beams
-                (e.g. 'xy' and 'yx'), otherwise only calculate the same
-                polarization beams (e.g. 'xx' and 'yy'). Default is True.
-            keep_basis_vector: If True, keep the directionality information and
-                just multiply the efields for each basis vector separately
-                (caution: this is not what is standardly meant by the power beam).
-                Default is False.
-            run_check: Option to check for the existence and proper shapes of
-                required parameters after converting to power. Default is True.
-            check_extra: Option to check optional parameters as well as
-                required ones. Default is True.
-            run_check_acceptability: Option to check acceptable range of the values of
-                required parameters after combining objects. Default is True.
-            inplace: Option to perform the select directly on self (True, default) or return
-                a new UVBeam object, which is a subselection of self (False)
+        Parameters
+        ----------
+        calc_cross_pols : bool
+            If True, calculate the crossed polarization beams
+            (e.g. 'xy' and 'yx'), otherwise only calculate the same
+            polarization beams (e.g. 'xx' and 'yy').
+        keep_basis_vector : bool
+            If True, keep the directionality information and
+            just multiply the efields for each basis vector separately
+            (caution: this is not what is standardly meant by the power beam).
+        inplace : bool
+            Option to apply conversion directly on self or to return a new
+            UVBeam object.
+        run_check : bool
+            Option to check for the existence and proper shapes of the required
+            parameters after converting to power.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of required parameters
+            after converting to power.
+        check_extra : bool
+            Option to check optional parameters as well as required ones.
+
         """
         if inplace:
             beam_object = self
@@ -742,7 +774,7 @@ class UVBeam(UVBase):
 
     def _interp_freq(self, freq_array, kind='linear', tol=1.0):
         """
-        Simple interpolation function for frequency axis.
+        Interpolate function along frequency axis.
 
         Parameters
         ----------
@@ -753,12 +785,13 @@ class UVBeam(UVBase):
             See scipy.interpolate.interp1d for details.
 
         Returns
-        --------
+        -------
         interp_data : array_like of float or complex
             The array of interpolated data values,
             shape: (Naxes_vec, Nspws, Nfeeds or Npols, freq_array.size, Npixels or (Naxis2, Naxis1))
         interp_bandpass : array_like of float
             The interpolated bandpass. shape: (Nspws, freq_array.size)
+
         """
         assert(isinstance(freq_array, np.ndarray))
         assert(freq_array.ndim == 1)
@@ -805,7 +838,7 @@ class UVBeam(UVBase):
                                   freq_interp_kind='linear', freq_interp_tol=1.0,
                                   polarizations=None, reuse_spline=False):
         """
-        Simple interpolation function for az_za coordinate system.
+        Interpolate in az_za coordinate system with a simple spline.
 
         Parameters
         ----------
@@ -898,15 +931,15 @@ class UVBeam(UVBase):
         if self.basis_vector_array is not None:
             if (np.any(self.basis_vector_array[0, 1, :] > 0)
                     or np.any(self.basis_vector_array[1, 0, :] > 0)):
-                """ Input basis vectors are not aligned to the native theta/phi
-                coordinate system """
+                # Input basis vectors are not aligned to the native theta/phi
+                # coordinate system
                 raise NotImplementedError('interpolation for input basis '
                                           'vectors that are not aligned to the '
                                           'native theta/phi coordinate system '
                                           'is not yet supported')
             else:
-                """ The basis vector array comes in defined at the rectangular grid.
-                Redefine it for the interpolation points """
+                # The basis vector array comes in defined at the rectangular grid.
+                # Redefine it for the interpolation points
                 interp_basis_vector = np.zeros([self.Naxes_vec,
                                                 self.Ncomponents_vec,
                                                 npoints])
@@ -997,7 +1030,7 @@ class UVBeam(UVBase):
                                  freq_interp_tol=1.0, polarizations=None,
                                  reuse_spline=False):
         """
-        Simple bi-linear interpolation wrapper for healpix.
+        Interpolate in Healpix coordinate system with a simple bilinear function.
 
         Parameters
         ----------
@@ -1368,7 +1401,8 @@ class UVBeam(UVBase):
     def to_healpix(self, nside=None, run_check=True, check_extra=True,
                    run_check_acceptability=True, inplace=True):
         """
-        Convert beam in to healpix coordinates.
+        Convert beam to the healpix coordinate system.
+
         The interpolation is done using the interpolation method specified in
         self.interpolation_function.
 
@@ -1444,22 +1478,30 @@ class UVBeam(UVBase):
                 param = getattr(beam_object, p)
                 setattr(self, p, param)
 
-    def __add__(self, other, run_check=True, check_extra=True,
-                run_check_acceptability=True, inplace=False):
+    def __add__(self, other, inplace=False, run_check=True, check_extra=True,
+                run_check_acceptability=True):
         """
-        Combine two UVBeam objects. Objects can be added along frequency,
-        feed or polarization (for efield or power beams), and/or pixel axes.
+        Combine two UVBeam objects.
 
-        Args:
-            other: Another UVBeam object which will be added to self.
-            run_check: Option to check for the existence and proper shapes of
-                required parameters after combining objects. Default is True.
-            check_extra: Option to check optional parameters as well as
-                required ones. Default is True.
-            run_check_acceptability: Option to check acceptable range of the values of
-                required parameters after combining objects. Default is True.
-            inplace: Overwrite self as we go, otherwise create a third object
-                as the sum of the two (default).
+        Objects can be added along frequency, feed or polarization
+        (for efield or power beams), and/or pixel axes.
+
+        Parameters
+        ----------
+        other : UVBeam object
+            UVBeam object to add to self.
+        inplace : bool
+            Option to overwrite self as we go, otherwise create a third object
+            as the sum of the two.
+        run_check : bool
+            Option to check for the existence and proper shapes of
+            required parameters after combining objects.
+        check_extra : bool
+            Option to check optional parameters as well as required ones.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of
+            required parameters after combining objects.
+
         """
         if inplace:
             this = self
@@ -1801,28 +1843,37 @@ class UVBeam(UVBase):
 
     def __iadd__(self, other):
         """
-        In place add.
+        Add in place.
 
-        Args:
-            other: Another UVBeam object which will be added to self.
+        Parameters
+        ----------
+        other : UVBeam object
+            Another UVBeam object to adding to self.
         """
         self.__add__(other, inplace=True)
         return self
 
     def _get_beam(self, pol):
         """
-        Get the healpix beam map corresponding to the specififed polarization,
-        pseudo-stokes I: 'pI', Q: 'pQ', U: 'pU' and V: 'pV' or linear dipole polarization: 'XX', 'YY', etc.
+        Get the healpix power beam map corresponding to the specififed polarization.
 
-        Args:
-          pol : polarization string or integer, Ex. a pseudo-stokes pol 'pI', or a linear pol 'XX'
+        pseudo-stokes I: 'pI', Q: 'pQ', U: 'pU' and V: 'pV' or linear dipole
+        polarization: 'XX', 'YY', etc.
 
-        Return:
-          beam : healpix beam
+        Parameters
+        ----------
+        pol : str or int
+            polarization string or integer, Ex. a pseudo-stokes pol 'pI', or a linear pol 'XX'.
+
+        Returns
+        -------
+        UVBeam
+            healpix beam
         """
         # assert map is in healpix coords
         assert self.pixel_coordinate_system == 'healpix', "pixel_coordinate_system must be healpix"
-        # assert type is int, not string
+        # assert beam_type is power
+        assert self.beam_type == 'power', "beam_type must be power"
         if isinstance(pol, (str, np.str)):
             pol = uvutils.polstr2num(pol, x_orientation=self.x_orientation)
         pol_array = self.polarization_array
@@ -1836,17 +1887,25 @@ class UVBeam(UVBase):
 
     def get_beam_area(self, pol='pI'):
         """
-        Computes the integral of the beam, which has units of steradians
+        Compute the integral of the beam in units of steradians.
 
-        Pseudo-Stokes 'pI' (I), 'pQ'(Q), 'pU'(U), 'pV'(V) beam and linear dipole 'XX', 'XY', 'YX' and 'YY' are
-        supported. See Equations 4 and 5 of Moore et al. (2017) ApJ 836, 154
-        or arxiv:1502.05072 and Kohn et al. (2018) or https://arxiv.org/pdf/1802.04151.pdf for details.
+        Pseudo-Stokes 'pI' (I), 'pQ'(Q), 'pU'(U), 'pV'(V) beam and linear
+        dipole 'XX', 'XY', 'YX' and 'YY' are supported.
+        See Equations 4 and 5 of Moore et al. (2017) ApJ 836, 154
+        or arxiv:1502.05072 and Kohn et al. (2018) or
+        https://arxiv.org/pdf/1802.04151.pdf for details.
 
-        Args:
-          pol : polarization string, Ex. a pseudo-stokes pol 'pI', or a linear pol 'XX'
+        Parameters
+        ----------
+        pol : str or int
+            polarization string or integer, Ex. a pseudo-stokes pol 'pI', or a
+            linear pol 'XX'.
 
-        Returns:
-          omega : float, integral of the beam across the sky [steradians]
+        Returns
+        -------
+        omega : float
+            Integral of the beam across the sky, units: steradians.
+
         """
         if isinstance(pol, (str, np.str)):
             pol = uvutils.polstr2num(pol, x_orientation=self.x_orientation)
@@ -1871,17 +1930,24 @@ class UVBeam(UVBase):
 
     def get_beam_sq_area(self, pol='pI'):
         """
-        Computes the integral of the beam^2, which has units of steradians
+        Compute the integral of the beam^2 in units of steradians.
 
-        Pseudo-Stokes 'pI' (I), 'pQ'(Q), 'pU'(U), 'pV'(V) beam and linear dipole 'XX', 'XY', 'YX' and 'YY' are
-        supported. See Equations 4 and 5 of Moore et al. (2017) ApJ 836, 154
+        Pseudo-Stokes 'pI' (I), 'pQ'(Q), 'pU'(U), 'pV'(V) beam and
+        linear dipole 'XX', 'XY', 'YX' and 'YY' are supported.
+        See Equations 4 and 5 of Moore et al. (2017) ApJ 836, 154
         or arxiv:1502.05072 for details.
 
-        Args:
-          pol : polarization string, Ex. a pseudo-stokes pol 'pI', or a linear pol 'XX'
+        Parameters
+        ----------
+        pol : str or int
+            polarization string or integer, Ex. a pseudo-stokes pol 'pI', or a
+            linear pol 'XX'.
 
-        Returns:
-          omega : float, integral of the beam^2 across the sky [steradians]
+        Returns
+        -------
+        omega : float
+            Integral of the beam^2 across the sky, units: steradians.
+
         """
         if isinstance(pol, (str, np.str)):
             pol = uvutils.polstr2num(pol, x_orientation=self.x_orientation)
@@ -1906,35 +1972,49 @@ class UVBeam(UVBase):
 
     def select(self, axis1_inds=None, axis2_inds=None, pixels=None,
                frequencies=None, freq_chans=None,
-               feeds=None, polarizations=None, run_check=True, check_extra=True,
-               run_check_acceptability=True, inplace=True):
+               feeds=None, polarizations=None, inplace=True, run_check=True,
+               check_extra=True, run_check_acceptability=True):
         """
-        Select specific image axis indices or pixels (if healpix), frequencies and
-        feeds or polarizations (if power) to keep in the object while discarding others.
+        Downselect data to keep on the object along various axes.
+
+        Axes that can be selected along include image axis indices or pixels
+        (if healpix), frequencies and feeds or polarizations (if power).
 
         The history attribute on the object will be updated to identify the
         operations performed.
 
-        Args:
-            axis1_inds: The indices along the first image axis to keep in the object.
-                Cannot be set if pixel_coordinate_system is "healpix".
-            axis2_inds: The indices along the second image axis to keep in the object.
-                Cannot be set if pixel_coordinate_system is "healpix".
-            pixels: The healpix pixels to keep in the object.
-                Cannot be set if pixel_coordinate_system is not "healpix".
-            frequencies: The frequencies to keep in the object.
-            freq_chans: The frequency channel numbers to keep in the object.
-            feeds: The feeds to keep in the object. Cannot be set if the beam_type is "power".
-            polarizations: The polarizations to keep in the object.
-                Cannot be set if the beam_type is "efield".
-            run_check: Option to check for the existence and proper shapes of
-                required parameters after downselecting data on this object. Default is True.
-            check_extra: Option to check optional parameters as well as
-                required ones. Default is True.
-            run_check_acceptability: Option to check acceptable range of the values of
-                required parameters after  downselecting data on this object. Default is True.
-            inplace: Option to perform the select directly on self (True, default) or return
-                a new UVBeam object, which is a subselection of self (False)
+        Parameters
+        ----------
+        axis1_indss : array_like of int, optional
+            The indices along the first image axis to keep in the object.
+            Cannot be set if pixel_coordinate_system is "healpix".
+        axis2_inds : array_like of int, optional
+            The indices along the second image axis to keep in the object.
+            Cannot be set if pixel_coordinate_system is "healpix".
+        pixels : array_like of int, optional
+            The healpix pixels to keep in the object.
+            Cannot be set if pixel_coordinate_system is not "healpix".
+        frequencies : array_like of float, optional
+            The frequencies to keep in the object.
+        freq_chans : array_like of int, optional
+            The frequency channel numbers to keep in the object.
+        feeds : array_like of int, optional
+            The feeds to keep in the object. Cannot be set if the beam_type is "power".
+        polarizations : array_like of int, optional
+            The polarizations to keep in the object.
+            Cannot be set if the beam_type is "efield".
+        inplace : bool
+            Option to perform the select directly on self or return
+            a new UVBeam object, which is a subselection of self.
+        run_check : bool
+            Option to check for the existence and proper shapes of
+            required parameters after downselecting data on this object.
+        check_extra : bool
+            Option to check optional parameters as well as required ones.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of
+            required parameters after  downselecting data on this object.
+
         """
         if inplace:
             beam_object = self
@@ -2174,14 +2254,19 @@ class UVBeam(UVBase):
         """
         Read in data from a beamfits file.
 
-        Args:
-            filename: The beamfits file or list of files to read from.
-            run_check: Option to check for the existence and proper shapes of
-                required parameters after reading in the file. Default is True.
-            check_extra: Option to check optional parameters as well as
-                required ones. Default is True.
-            run_check_acceptability: Option to check acceptable range of the values of
-                required parameters after reading in the file. Default is True.
+        Parameters
+        ----------
+        filename : str or list of str
+            The beamfits file or list of files to read from.
+        run_check : bool
+            Option to check for the existence and proper shapes of
+            required parameters after reading in the file.
+        check_extra : bool
+            Option to check optional parameters as well as required ones.
+        run_check_acceptabilit : bool
+            Option to check acceptable range of the values of
+            required parameters after reading in the file.
+
         """
         from . import beamfits
         if isinstance(filename, (list, tuple)):
@@ -2209,16 +2294,22 @@ class UVBeam(UVBase):
         """
         Write the data to a beamfits file.
 
-        Args:
-            filename: The beamfits file to write to.
-            run_check: Option to check for the existence and proper shapes of
-                required parameters before writing the file. Default is True.
-            check_extra: Option to check optional parameters as well as
-                required ones. Default is True.
-            run_check_acceptability: Option to check acceptable range of the values of
-                required parameters before writing the file. Default is True.
-            clobber: Option to overwrite the filename if the file already exists.
-                Default is False.
+        Parameters
+        ----------
+        filename : str
+            The beamfits file to write to.
+        run_check : bool
+            Option to check for the existence and proper shapes of
+            required parameters before writing the file.
+        check_extra : bool
+            Option to check optional parameters as well as
+            required ones.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of
+            required parameters before writing the file.
+        clobber : bool
+            Option to overwrite the filename if the file already exists.
+
         """
         beamfits_obj = self._convert_to_filetype('beamfits')
         beamfits_obj.write_beamfits(filename, run_check=run_check,
@@ -2228,6 +2319,20 @@ class UVBeam(UVBase):
         del(beamfits_obj)
 
     def _read_cst_beam_yaml(self, filename):
+        """
+        Parse a CST beam yaml file.
+
+        Paramters
+        ---------
+        filename : str
+            Filename to parse.
+
+        Returns
+        -------
+        dict
+            Containing all the info from the yaml file.
+
+        """
         import yaml
 
         with open(filename, 'r') as file:
@@ -2253,59 +2358,80 @@ class UVBeam(UVBase):
         """
         Read in data from a cst file.
 
-        Args:
-            filename (str): Either a settings yaml file or a cst text file or
-                list of cst text files to read from. If a list is passed,
-                the files are combined along the appropriate axes.
-                Settings yaml files must include the following keywords:
-                    |  - telescope_name (str)
-                    |  - feed_name (str)
-                    |  - feed_version (str)
-                    |  - model_name (str)
-                    |  - model_version (str)
-                    |  - history (str)
-                    |  - frequencies (list(float))
-                    |  - cst text filenames (list(str)) -- path relative to yaml file location
-                    |  - feed_pol (str) or (list(str))
-                and they may include the following optional keywords:
-                    |  - x_orientation (str): Optional but strongly encouraged!
-                    |  - ref_imp (float): beam model reference impedance
-                    |  - sim_beam_type (str): e.g. 'E-farfield'
-                    |  - all other fields will go into the extra_keywords attribute
-                More details and an example are available in the docs (cst_settings_yaml.rst).
-                Specifying any of the associated keywords to this function will
-                override the values in the settings file.
-            beam_type (str): what beam_type to read in ('power' or 'efield'). Defaults to 'power'.
-            feed_pol (str): the feed or polarization or list of feeds or polarizations the files correspond to.
-                Defaults to 'x' (meaning x for efield or xx for power beams).
-            rotate_pol (bool): If True, assume the structure in the simulation is symmetric under
-                90 degree rotations about the z-axis (so that the y polarization can be
-                constructed by rotating the x polarization or vice versa).
-                Default: True if feed_pol is a single value or a list with all
-                the same values in it, False if it is a list with varying values.
-            frequency (list(float)): the frequency or list of frequencies corresponding to the filename(s).
-                This is assumed to be in the same order as the files.
-                If not passed, the code attempts to parse it from the filenames.
-            telescope_name (str): the name of the telescope corresponding to the filename(s).
-            feed_name (str): the name of the feed corresponding to the filename(s).
-            feed_version (str): the version of the feed corresponding to the filename(s).
-            model_name (str): the name of the model corresponding to the filename(s).
-            model_version (str): the version of the model corresponding to the filename(s).
-            history (str): A string detailing the history of the filename(s).
-            x_orientation (str): Orientation of the physical dipole corresponding to what is
-                labelled as the x polarization. Options are "east" (indicating
-                east/west orientation) and "north" (indicating north/south orientation)
-            reference_impedance (float): The reference impedance of the model(s).
-            extra_keywords (dict): a dictionary containing any extra_keywords.
-            frequency_select (list(float)):
-                Only used if the file is a yaml file. Indicates which frequencies
-                to include (only read in files for those frequencies)
-            run_check: Option to check for the existence and proper shapes of
-                required parameters after reading in the file. Default is True.
-            check_extra: Option to check optional parameters as well as
-                required ones. Default is True.
-            run_check_acceptability: Option to check acceptable range of the values of
-                required parameters after reading in the file. Default is True.
+        Parameters
+        ----------
+        filename : str
+            Either a settings yaml file or a cst text file or
+            list of cst text files to read from. If a list is passed,
+            the files are combined along the appropriate axes.
+            Settings yaml files must include the following keywords:
+                |  - telescope_name (str)
+                |  - feed_name (str)
+                |  - feed_version (str)
+                |  - model_name (str)
+                |  - model_version (str)
+                |  - history (str)
+                |  - frequencies (list(float))
+                |  - cst text filenames (list(str)) -- path relative to yaml file location
+                |  - feed_pol (str) or (list(str))
+
+            and they may include the following optional keywords:
+                |  - x_orientation (str): Optional but strongly encouraged!
+                |  - ref_imp (float): beam model reference impedance
+                |  - sim_beam_type (str): e.g. 'E-farfield'
+                |  - all other fields will go into the extra_keywords attribute
+
+            More details and an example are available in the docs (cst_settings_yaml.rst).
+            Specifying any of the associated keywords to this function will
+            override the values in the settings file.
+        beam_type : str
+            What beam_type to read in ('power' or 'efield').
+        feed_pol : str
+            The feed or polarization or list of feeds or polarizations the files correspond to.
+            Defaults to 'x' (meaning x for efield or xx for power beams).
+        rotate_pol : bool
+            If True, assume the structure in the simulation is symmetric under
+            90 degree rotations about the z-axis (so that the y polarization can be
+            constructed by rotating the x polarization or vice versa).
+            Default: True if feed_pol is a single value or a list with all
+            the same values in it, False if it is a list with varying values.
+        frequency : float or list of float, optional
+            The frequency or list of frequencies corresponding to the filename(s).
+            This is assumed to be in the same order as the files.
+            If not passed, the code attempts to parse it from the filenames.
+        telescope_name : str, optional
+            The name of the telescope corresponding to the filename(s).
+        feed_name : str, optional
+            The name of the feed corresponding to the filename(s).
+        feed_version : str, optional
+            The version of the feed corresponding to the filename(s).
+        model_name : str, optional
+            The name of the model corresponding to the filename(s).
+        model_version : str, optional
+            The version of the model corresponding to the filename(s).
+        history : str, optional
+            A string detailing the history of the filename(s).
+        x_orientation : str, optional
+            Orientation of the physical dipole corresponding to what is
+            labelled as the x polarization. Options are "east" (indicating
+            east/west orientation) and "north" (indicating north/south orientation)
+        reference_impedance : float, optional
+            The reference impedance of the model(s).
+        extra_keywords : dict, optional
+            A dictionary containing any extra_keywords.
+        frequency_select : list of float, optional
+            Only used if the file is a yaml file. Indicates which frequencies
+            to include (only read in files for those frequencies)
+        run_check : bool
+            Option to check for the existence and proper shapes of
+            required parameters after reading in the file.
+        check_extra : bool
+            Option to check optional parameters as well as
+            required ones.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of
+            required parameters after reading in the file.
+
         """
         from . import cst_beam
         if isinstance(filename, np.ndarray):
