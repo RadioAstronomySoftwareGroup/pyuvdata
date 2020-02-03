@@ -106,6 +106,7 @@ def sig_lookup_table(x, bits):
     bits : int
         Number of quantization bits.
     """
+    # note: this table maps sighat to sig; correlator outputs are sighat^2
     # assign the upper level of the quantization
     m = 2 ** (bits - 1) - 1
     # create an array
@@ -130,6 +131,7 @@ def cov_lookup_table(rho, bits, xsig, ysig):
     This function returns the expected digitized correlator output from analog signal inputs'''
     # initialize data structure: dict of dicts
     # TODO: change this for single xsig, ysig
+    # note: correlator output is sig^2, so formula is modified to take sig^2
     cov_lookup = {}
     for i in range(len(xsig)):
         for j in range(i, len(ysig)):
@@ -143,10 +145,10 @@ def cov_lookup_table(rho, bits, xsig, ysig):
         x = np.arange(.000005, k, .00001)
         ii, jj, kk, xxsig, yysig = np.meshgrid(level_sum, level_sum, x, xsig, ysig, sparse=True)
         # set up summation in integrand
-        z = np.exp(-(1 / (2 * (1 - kk ** 2))) * (((ii + .5) ** 2 / xxsig ** 2) + ((jj + .5) ** 2 / yysig ** 2) - 2 * kk * (ii + .5) * (jj + .5) / (xxsig * yysig)))
-        # sum over j
+        z = np.exp(-(1 / (2 * (1 - kk ** 2))) * (((ii + .5) ** 2 / xxsig) + ((jj + .5) ** 2 / yysig) - 2 * kk * (ii + .5) * (jj + .5) / (np.sqrt(xxsig) * np.sqrt(yysig))))
+        # sum over i
         zs1 = z.sum(0)
-        # sum over k
+        # sum over j
         zs2 = zs1.sum(0)
         # multiply by a term with x to complete the integrand
         integrand = np.multiply(1 / np.sqrt(1 - kk ** 2), zs2)
@@ -271,7 +273,7 @@ class MWACorrFITS(UVData):
         crosses = np.where(self.ant_1_array[0: self.Nbls] != self.ant_2_array[0: self.Nbls])[0]
         # generate dict for getting auto pols
         # polarizations are ordered yy, yx, xy, xx
-        # TODO: fix this for any polarization ordering
+        # TODO: generalize this for any polarization ordering
         pol_dict = {0: (0, 0), 1: (0, 3), 2: (3, 0), 3: (3, 3)}
         # so one weird thing is at low sigma things get rounded up to 0.06
         # create correction matrices
@@ -291,6 +293,7 @@ class MWACorrFITS(UVData):
         # print(tracemalloc.get_traced_memory())
 
         # at this point, data_array.shape = (Ntimes, Nbls, Nfreqs, Npols)
+        # TODO: generalize this for any data_array shape
         # correct xx and yy autos
         pols = [0, 3]
         for i in pols:
@@ -302,14 +305,15 @@ class MWACorrFITS(UVData):
                         # do a bisection search through sorted(sig_lookup.keys)
                         # don't correct zeros
                         if self.data_array.real[l, k, j, i] != 0.0:
-                            sig_hat = bisection_search(sig_keys, self.data_array.real[l, k, j, i])
+                            # need to take the square root before correcting
+                            sig_hat = bisection_search(sig_keys, np.sqrt(self.data_array.real[l, k, j, i]))
                             if isinstance(sig_hat, tuple):
                                 # do a linear interpolation
                                 sig_corr = linear_interp(self.data_array.real[l, k, j, i],
                                                          sig_hat[0], sig_hat[1],
                                                          sig_lookup[sig_hat[0]], sig_lookup[sig_hat[1]])
                                 # print(str(self.data_array.real[l, k, j, i]) + 'converted to' + str(sig_corr))
-                                self.data_array.real[l, k, j, i] = sig_corr
+                                self.data_array.real[l, k, j, i] = sig_corr**2
                             else:
                                 # correct self.data_array.real[l, k, j, i]
                                 # print(str(self.data_array.real[l, k, j, i]) + 'converted to' + str(sig_lookup[sigkey]))
