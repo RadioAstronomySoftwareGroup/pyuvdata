@@ -5702,34 +5702,44 @@ class UVData(UVBase):
 
         return
 
-    def frequency_average(self, n_chan_to_avg):
+    def frequency_average(self, n_chan_to_avg, summing_correlator_mode=False):
         """
         Average in frequency.
 
+        Does a simple average over an integer number of input channels, leaving
+        flagged samples out of the average.
+
         In the future, this method will support non-equally spaced channels
         and varying channel widths. It will also support setting the frequency
-        to the true mean of the averaged non-flagged data rather than the mean
-        ignoring flagging. For now it does not.
+        to the true mean of the averaged non-flagged frequencies rather than
+        the simple mean of the input channel frequencies. For now it does not.
 
         Parameters
         ----------
         n_chan_to_avg : int
             Number of channels to average together.
-            (TODO: should we add a target channel width option in Hz?)
+        summing_correlator_mode : bool
+            Option to integrate or split the flux from the original samples
+            rather than average or duplicate the flux from the original samples
+            to emulate the behavior in some correlators (e.g. HERA).
         """
         self._check_freq_spacing()
 
         n_final_chan = int(np.floor(self.Nfreqs / n_chan_to_avg))
-        if self.Nfreqs % n_chan_to_avg != 0:
+        nfreq_mod_navg = self.Nfreqs % n_chan_to_avg
+        if nfreq_mod_navg != 0:
             # not an even number of final channels
             warnings.warn("Nfreqs does not divide by `n_chan_to_avg` evenly. "
                           "The final {} frequencies will be excluded, to "
-                          "control which frequencies to exclude, use a select to control.")
+                          "control which frequencies to exclude, use a "
+                          "select to control.".format(nfreq_mod_navg))
             chan_to_keep = np.arange(n_final_chan * n_chan_to_avg)
             self.select(freq_chans=chan_to_keep)
 
         self.freq_array = self.freq_array.reshape((self.Nspws, n_final_chan,
                                                    n_chan_to_avg)).mean(axis=2)
+        self.channel_width = self.channel_width * n_chan_to_avg
+        self.Nfreqs = n_final_chan
 
         if self.eq_coeffs is not None:
             eq_coeff_diff = np.diff(self.eq_coeffs, axis=1)
@@ -5744,12 +5754,37 @@ class UVData(UVBase):
                                                      n_chan_to_avg)).mean(axis=2)
 
         if not self.metadata_only:
-            temp_data = np.zeros((self.Nblts, self.Nspws, n_final_chan, self.Npols),
-                                 dtype=self.data_array.dtype)
-            temp_flag = np.zeros((self.Nblts, self.Nspws, n_final_chan, self.Npols),
-                                 dtype=self.flag_array.dtype)
-            temp_nsample = np.zeros((self.Nblts, self.Nspws, n_final_chan, self.Npols),
-                                    dtype=self.nsample_array.dtype)
+            shape_tuple = (self.Nblts, self.Nspws, n_final_chan, n_chan_to_avg,
+                           self.Npols)
+
+            mask = self.flag_array.reshape(shape_tuple)
+
+            # if all inputs are flagged, the flag array should be True,
+            # otherwise it should be False.
+            # The sum below will be zero if it's all flagged and
+            # greater than zero otherwise
+            # Then we use a test against 0 to turn it into a Boolean
+            self.flag_array = np.sum(~self.flag_array.reshape(shape_tuple), axis=3) == 0
+
+            # need to update mask if a downsampled visibility will be flagged
+            # so that we don't set it to zero
+            for n_chan in np.arange(n_final_chan):
+                if (self.flag_array[:, :, n_chan]).any():
+                    ax0_inds, ax1_inds, ax3_inds, ax4_inds = np.nonzero(self.flag_array[:, :, n_chan])
+                    mask[ax0_inds, ax1_inds, :, ax3_inds, ax4_inds] = False
+
+            masked_data = np.ma.masked_array(self.data_array.reshape(shape_tuple),
+                                             mask=mask)
+            if summing_correlator_mode:
+                self.data_array = np.sum(masked_data, axis=3)
+            else:
+                self.data_array = np.mean(masked_data, axis=3)
+
+            # nsample array is the fraction of data that we actually kept,
+            # relative to the amount that went into the sum or average
+            masked_nsample = np.ma.masked_array(self.nsample_array.reshape(shape_tuple),
+                                                mask=mask)
+            self.nsample_array = (np.sum(masked_nsample, axis=3) / float(n_chan_to_avg))
 
     def remove_eq_coeffs(self):
         """
