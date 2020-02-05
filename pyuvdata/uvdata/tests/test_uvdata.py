@@ -5726,6 +5726,17 @@ def test_resample_in_time_only_upsample(bda_test_file):
     return
 
 
+def test_frequency_average(uvdata_data):
+    """Test averaging in frequency."""
+    uvdata_data.uv_object.frequency_average(n_chan_to_avg=2)
+
+    assert uvdata_data.uv_object.Nfreqs == (uvdata_data.uv_object2.Nfreqs / 2)
+
+    expected_freqs = uvdata_data.uv_object2.freq_array.reshape(
+        uvdata_data.uv_object2.Nspws, int(uvdata_data.uv_object2.Nfreqs / 2), 2).mean(axis=2)
+    assert np.max(np.abs(uvdata_data.uv_object.freq_array - expected_freqs)) == 0
+
+
 def test_remove_eq_coeffs_divide(uvdata_data):
     """Test using the remove_eq_coeffs method with divide convention."""
     # give eq_coeffs to the object
