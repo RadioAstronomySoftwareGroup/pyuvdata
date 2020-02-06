@@ -1845,11 +1845,3 @@ Calculating pseudo Stokes ('pI', 'pQ', 'pU', 'pV') beam area and beam squared ar
   Q: 0.0079
   U: 0.0079
   V: 0.01683
-
------------------
-Tutorial Cleanup
------------------
-::
-
-  # delete all written files.
-  # This is handled by the confest.py automatically when invoked via pytest
