@@ -895,7 +895,7 @@ class Miriad(UVData):
                 uv.write(preamble, data, flags)
 
     def read_miriad_metadata(self, filename, correct_lat_lon=True):
-        """
+        """  # noqa D401
         Deprecated: Read in metadata (parameter info) but not data from a miriad file.
 
         Deprecated in favor of `_read_miriad_metadata` because it is not an
