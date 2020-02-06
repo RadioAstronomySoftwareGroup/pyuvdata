@@ -2,9 +2,7 @@
 # Copyright (c) 2018 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 
-"""Class for reading and writing UVH5 files.
-
-"""
+"""Class for reading and writing UVH5 files."""
 from __future__ import absolute_import, division, print_function
 
 import numpy as np
@@ -23,13 +21,27 @@ _hera_corr_dtype = np.dtype([('r', '<i4'), ('i', '<i4')])
 
 def _check_uvh5_dtype(dtype):
     """
-    Check that a specified custom datatype conforms to uvh5 standards.
+    Check that a specified custom datatype conforms to UVH5 standards.
 
-    Arguments:
-        dtype: numpy datatype with an 'r' field and an 'i' field
+    According to the UVH5 spec, the data type for the data array must be a
+    compound datatype with an "r" field and an "i" field. Additionally, both
+    datatypes must be the same (e.g., "<i4", "<r8", etc.).
 
-    Returns:
-        None
+    Parameters
+    ----------
+    dtype : numpy dtype
+        A numpy dtype object with an "r" field and an "i" field.
+
+    Returns
+    -------
+    None
+
+    Raises
+    ------
+    ValueError
+        This is raised if dtype is not a numpy dtype, if the dtype does not have
+        an "r" field and an "i" field, or if the "r" field and "i" fields have
+        different types.
     """
     if not isinstance(dtype, np.dtype):
         raise ValueError("dtype in a uvh5 file must be a numpy dtype")
@@ -46,15 +58,26 @@ def _read_complex_astype(dset, indices, dtype_out=np.complex64):
     """
     Read the given data set of a specified type to floating point complex data.
 
-    Arguments:
-        dset: reference to an HDF5 dataset on disk.
-        indices: tuple representing indices to extract. Should be either lists of indices or
-            numpy slice objects.
-        dtype_out: the datatype of the output array. One of (complex, np.complex64, np.complex128).
-            Default is np.complex64 (single-precision real and imaginary floats).
+    Parameters
+    ----------
+    dset : h5py dataset
+        A reference to an HDF5 dataset on disk.
+    indices : tuple
+        The indices to extract. Should be either lists of indices or numpy slice objects.
+    dtype_out : str or numpy dtype
+        The datatype of the output array. One of (complex, np.complex64,
+        np.complex128). Default is np.complex64 (single-precision real and
+        imaginary floats).
 
-    Returns:
-        output_array: array referenced in the dataset cast to complex values
+    Returns
+    -------
+    output_array : ndarray
+        The array referenced in the dataset cast to complex values.
+
+    Raises
+    ------
+    ValueError
+        This is raised if dtype_out is not an acceptable value.
     """
     if dtype_out not in (complex, np.complex64, np.complex128):
         raise ValueError("output datatype must be one of (complex, np.complex64, np.complex128)")
@@ -77,15 +100,21 @@ def _write_complex_astype(data, dset, indices):
     """
     Write floating point complex data as a specified type.
 
-    Arguments:
-        data: data array to write out. Should be a complex-valued array that supports
-            the .real and .imag attributes for accessing real and imaginary components.
-        dset: reference to an HDF5 dataset on disk.
-        indices: 4-tuple representing indices to write data to. Should be either lists of
-            indices or numpy slice objects.
+    Parameters
+    ----------
+    data : ndarray
+        The data array to write out. Should be a complex-valued array that
+        supports the .real and .imag attributes for accessing real and imaginary
+        components.
+    dset : h5py dataset
+        A reference to an HDF5 dataset on disk.
+    indices : tuple
+        A 4-tuple representing indices to write data to. Should be either lists
+        of indices or numpy slice objects.
 
-    Returns:
-        None
+    Returns
+    -------
+    None
     """
     # get datatype from dataset
     dtype_out = dset.dtype
@@ -99,22 +128,32 @@ def _write_complex_astype(data, dset, indices):
 
 class UVH5(UVData):
     """
-    Defines an HDF5-specific subclass of UVData for reading and writing uvh5 files.
-    This class should not be interacted with directly, instead use the read_uvh5
-    and write_uvh5 methods on the UVData class.
+    A class for UVH5 file objects.
+
+    This class defines an HDF5-specific subclass of UVData for reading and
+    writing UVH5 files. This class should not be interacted with directly,
+    instead use the read_uvh5 and write_uvh5 methods on the UVData class.
     """
 
     def _read_header(self, header, filename, run_check_acceptability=True):
         """
-        Internal function to read header information from a UVH5 file.
+        Read header information from a UVH5 file.
 
-        Args:
-            header: reference to an h5py data group that contains the header information.
-            run_check_acceptability: Option to check acceptable range of the values of
-                parameters after reading in the file. Default is True.
+        This is an internal function called by the user-space methods.
+        Properties of the UVData object are updated as the file is processed.
 
-        Returns:
-            None
+        Parameters
+        ----------
+        header : h5py datagroup
+            A reference to an h5py data group that contains the header
+            information. Should be "/Header" for UVH5 files conforming to spec.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters after
+            reading in the file.
+
+        Returns
+        -------
+        None
         """
         # get telescope information
         latitude = header['latitude'][()]
@@ -259,8 +298,30 @@ class UVH5(UVData):
                   blt_inds, run_check, check_extra, run_check_acceptability,
                   data_array_dtype, keep_all_metadata):
         """
-        Internal function to read just the visibility, flag, and nsample data of the uvh5 file.
-        Separated from full read so that header/metadata and data can be read independently.
+        Read the data-size arrays (data, flags, nsamples) from a file.
+
+        This is an internal function to read just the visibility, flag, and
+        nsample data of the UVH5 file. This is separated from full read so that
+        header/metadata and data can be read independently. See the
+        documentation of `read_uvh5` for a full description of most of the
+        descriptions of parameters. Below we only include a description of args
+        unique to this function.
+
+        Parameters
+        ----------
+        dgrp : h5py datagroup
+            The HDF5 datagroup containing the datasets. Should be "/Data" for
+            UVH5 files conforming to spec.
+
+        Returns
+        -------
+        None
+
+        Raises
+        ------
+        ValueError
+            This is raised if the data array read from the file is not a complex
+            datatype (np.complex64 or np.complex128).
         """
         # figure out what data to read in
         blt_inds, freq_inds, pol_inds, history_update_string = \
@@ -510,7 +571,18 @@ class UVH5(UVData):
         return
 
     def _write_header(self, header):
-        """Internal function to write uvh5 header information.
+        """
+        Write data to the header datagroup of a UVH5 file.
+
+        Parameters
+        ----------
+        header : h5py datagroup
+            The datagroup to write the header information to. For a UVH5 file
+            conforming to the spec, it should be "/Header"
+
+        Returns
+        -------
+        None
         """
         # write out telescope and source information
         header['latitude'] = self.telescope_location_lat_lon_alt_degrees[0]
@@ -608,42 +680,62 @@ class UVH5(UVData):
         """
         Write an in-memory UVData object to a UVH5 file.
 
-        Args:
-            filename: The UVH5 file to write to.
-            run_check: Option to check for the existence and proper shapes of
-                parameters before writing the file. Default is True.
-            check_extra: Option to check optional parameters as well as required
-                ones. Default is True.
-            run_check_acceptability: Option to check acceptable range of the values of
-                parameters before writing the file. Default is True.
-            clobber: Option to overwrite the file if it already exists.
-                Default is False. If False and file exists, raises an IOError.
-            data_compression: HDF5 filter to apply when writing the data_array. Default is
-                 None (no filter/compression).
-            flags_compression: HDF5 filter to apply when writing the flags_array. Default is
-                 the LZF filter.
-            nsample_compression: HDF5 filter to apply when writing the nsample_array. Default is
-                 the LZF filter.
-            data_write_dtype: datatype of output visibility data. If 'None', then the same datatype
-                as data_array will be used. Otherwise, a numpy dtype object must be specified with
-                an 'r' field and an 'i' field for real and imaginary parts, respectively. See
-                uvh5.py for an example of defining such a datatype. Default is None.
+        Parameters
+        ----------
+        filename : str
+            The UVH5 file to write to.
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            before writing the file.
+        check_extra : bool
+            Option to check optional parameters as well as required ones.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters before
+            writing the file.
+        clobber : bool
+            Option to overwrite the file if it already exists.
+        data_compression : str
+            HDF5 filter to apply when writing the data_array. Default is None
+            (no filter/compression).
+        flags_compression : str
+            HDF5 filter to apply when writing the flags_array. Default is the
+            LZF filter.
+        nsample_compression : str
+            HDF5 filter to apply when writing the nsample_array. Default is the
+            LZF filter.
+        data_write_dtype : numpy dtype
+            The datatype of output visibility data. If 'None', then the same
+            datatype as data_array will be used. The user may specify 'c8' for
+            single-precision floats or 'c16' for double-presicion. Otherwise, a
+            numpy dtype object must be specified with an 'r' field and an 'i'
+            field for real and imaginary parts, respectively. See uvh5.py for
+            an example of defining such a datatype.
 
-        Returns:
-            None
+        Returns
+        -------
+        None
 
-        Notes:
-            The HDF5 library allows for the application of "filters" when writing data, which can
-            provide moderate to significant levels of compression for the datasets in question.
-            Testing has shown that for some typical cases of UVData objects (empty/sparse flag_array
-            objects, and/or uniform nsample_arrays), the built-in LZF filter provides significant
-            compression for minimal computational overhead.
+        Raises
+        ------
+        IOError
+            If the file located at `filename` already exists and clobber=False,
+            an IOError is raised.
 
-            Note that for typical HERA data files written after mid-2018, the bitshuffle filter was
-            applied to the data_array. Because of the lack of portability, it is not included as an
-            option here; in the future, it may be added. Note that as long as bitshuffle is installed
-            on the system in a way that h5py can find it, no action needs to be taken to _read_ a
-            data_array encoded with bitshuffle (or an error will be raised).
+        Notes
+        -----
+        The HDF5 library allows for the application of "filters" when writing
+        data, which can provide moderate to significant levels of compression
+        for the datasets in question.  Testing has shown that for some typical
+        cases of UVData objects (empty/sparse flag_array objects, and/or uniform
+        nsample_arrays), the built-in LZF filter provides significant
+        compression for minimal computational overhead.
+
+        Note that for typical HERA data files written after mid-2020, the
+        bitshuffle filter was applied to the data_array. Because of the lack of
+        portability, it is not included as an option here; in the future, it may
+        be added. Note that as long as bitshuffle is installed on the system in
+        a way that h5py can find it, no action needs to be taken to _read_ a
+        data_array encoded with bitshuffle (or an error will be raised).
         """
         if run_check:
             self.check(check_extra=check_extra,
@@ -691,44 +783,62 @@ class UVH5(UVData):
     def initialize_uvh5_file(self, filename, clobber=False, data_compression=None,
                              flags_compression="lzf", nsample_compression="lzf",
                              data_write_dtype=None):
-        """Initialize a UVH5 file on disk to be written to in parts.
+        """
+        Initialize a UVH5 file on disk to be written to in parts.
 
-        Args:
-            filename: The UVH5 file to write to.
-            clobber: Option to overwrite the file if it already exists.
-                Default is False. If False and file exists, raises an IOError.
-            data_compression: HDF5 filter to apply when writing the data_array. Default is
-                 None (no filter/compression).
-            flags_compression: HDF5 filter to apply when writing the flags_array. Default is
-                 the LZF filter.
-            nsample_compression: HDF5 filter to apply when writing the nsample_array. Default is
-                 the LZF filter.
-            data_write_dtype: datatype of output visibility data. If 'None', then double-precision
-                floats will be used. The user may specify 'c8' for single-precision floats or 'c16'
-                for double-presicion. Otherwise, a numpy dtype object must be specified with
-                an 'r' field and an 'i' field for real and imaginary parts, respectively. See
-                uvh5.py for an example of defining such a datatype. Default is None.
+        Parameters
+        ----------
+        filename : str
+            The UVH5 file to write to.
+        clobber : bool
+            Option to overwrite the file if it already exists.
+        data_compression : str
+            HDF5 filter to apply when writing the data_array. Default is None
+            (no filter/compression).
+        flags_compression : str
+            HDF5 filter to apply when writing the flags_array. Default is the
+            LZF filter.
+        nsample_compression : str
+            HDF5 filter to apply when writing the nsample_array. Default is the
+            LZF filter.
+        data_write_dtype : str or numpy dtype
+            The datatype of output visibility data. If 'None', then double-
+            precision floats will be used. The user may specify 'c8' for
+            single-precision floats or 'c16' for double-presicion. Otherwise, a
+            numpy dtype object must be specified with an 'r' field and an 'i'
+            field for real and imaginary parts, respectively. See uvh5.py for
+            an example of defining such a datatype.
 
-        Returns:
-            None
+        Returns
+        -------
+        None
 
-        Notes:
-            When partially writing out data, this function should be called first to initialize the
-            file on disk. The data is then actually written by calling the write_uvh5_part method,
-            with the same filename as the one specified in this function. See the tutorial for a
-            worked example.
+        Raises
+        ------
+        IOError
+            If the file located at `filename` already exists and clobber=False,
+            an IOError is raised.
 
-            The HDF5 library allows for the application of "filters" when writing data, which can
-            provide moderate to significant levels of compression for the datasets in question.
-            Testing has shown that for some typical cases of UVData objects (empty/sparse flag_array
-            objects, and/or uniform nsample_arrays), the built-in LZF filter provides significant
-            compression for minimal computational overhead.
+        Notes
+        -----
+        When partially writing out data, this function should be called first to
+        initialize the file on disk. The data is then actually written by
+        calling the write_uvh5_part method, with the same filename as the one
+        specified in this function. See the tutorial for a worked example.
 
-            Note that for typical HERA data files written after mid-2018, the bitshuffle filter was
-            applied to the data_array. Because of the lack of portability, it is not included as an
-            option here; in the future, it may be added. Note that as long as bitshuffle is installed
-            on the system in a way that h5py can find it, no action needs to be taken to _read_ a
-            data_array encoded with bitshuffle (or an error will be raised).
+        The HDF5 library allows for the application of "filters" when writing
+        data, which can provide moderate to significant levels of compression
+        for the datasets in question.  Testing has shown that for some typical
+        cases of UVData objects (empty/sparse flag_array objects, and/or uniform
+        nsample_arrays), the built-in LZF filter provides significant
+        compression for minimal computational overhead.
+
+        Note that for typical HERA data files written after mid-2018, the
+        bitshuffle filter was applied to the data_array. Because of the lack of
+        portability, it is not included as an option here; in the future, it may
+        be added. Note that as long as bitshuffle is installed on the system in
+        a way that h5py can find it, no action needs to be taken to _read_ a
+        data_array encoded with bitshuffle (or an error will be raised).
         """
         if os.path.exists(filename):
             if clobber:
@@ -762,20 +872,28 @@ class UVH5(UVData):
 
     def _check_header(self, filename, run_check_acceptability=True):
         """
-        Check that the metadata present in a file header matches the object's metadata.
+        Check that the metadata in a file header matches the object's metadata.
 
-        Args:
-            header: reference to an h5py data group that contains the header information.
-            run_check_acceptability: Option to check acceptable range of the values of
-                parameters after reading in the file. Default is True.
+        Parameters
+        ----------
+        header : h5py datagroup
+            A reference to an h5py data group that contains the header
+            information. For UVH5 files conforming to the spec, this should be
+            "/Header".
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters after
+            reading in the file.
 
-        Returns:
-            None
+        Returns
+        -------
+        None
 
-        Notes:
-            This function creates a new UVData object an reads in the header information saved
-            on disk to compare with the object in memory. Note that this adds some small
-            memory overhead, but this amount is typically much smaller than the size of the data.
+        Notes
+        -----
+        This function creates a new UVData object an reads in the header
+        information saved on disk to compare with the object in memory. Note
+        that this adds some small memory overhead, but this amount is typically
+        much smaller than the size of the data.
         """
         uvd_file = UVH5()
         with h5py.File(filename, 'r') as f:
@@ -898,12 +1016,21 @@ class UVH5(UVData):
         -------
         None
 
+        Raises
+        ------
+        AssertionError
+            An AsserionError is raised if: (1) the location specified by
+            `filename` does not exist; (2) the data_array, flag_array, and
+            nsample_array do not all have the same shape; (3) the shape of the
+            data arrays do not correspond to the sizes specified by the
+            properties to write out.
+
         Notes
         -----
-        When partially writing out data, this function should be called after calling
-        initialize_uvh5_file. The same filename is passed in, with an optional check to ensure
-        that the object's metadata in-memory matches the header on-disk. See the tutorial for a
-        worked example.
+        When partially writing out data, this function should be called after
+        calling initialize_uvh5_file. The same filename is passed in, with an
+        optional check to ensure that the object's metadata in-memory matches
+        the header on-disk. See the tutorial for a worked example.
         """
         # check that the file already exists
         if not os.path.exists(filename):
