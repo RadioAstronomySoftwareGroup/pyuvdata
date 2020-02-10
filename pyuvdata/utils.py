@@ -1518,8 +1518,12 @@ def quadmean_collapse(arr, weights=None, axis=None, return_weights=False,
     out = mean_collapse(np.abs(arr)**2, weights=weights, axis=axis,
                         return_weights=return_weights,
                         return_weights_square=return_weights_square)
-    if return_weights:
+    if return_weights and return_weights_square:
+        return np.sqrt(out[0]), out[1], out[2]
+    elif return_weights:
         return np.sqrt(out[0]), out[1]
+    elif return_weights_square:
+        return np.sqrt(out[0]), out[2]
     else:
         return np.sqrt(out)
 
