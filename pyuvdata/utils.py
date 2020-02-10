@@ -1541,7 +1541,7 @@ def or_collapse(arr, weights=None, axis=None, return_weights=False,
         Whether to return dummy weights array.
         NOTE: the dummy weights will simply be an array of ones
     return_weights_square: bool
-        Whether to return the sum of the squares of the weights. Default is False.
+        NOT USED, but kept for symmetry with other collapsing functions.
     """
     if arr.dtype != np.bool:
         raise ValueError('Input to or_collapse function must be boolean array')
@@ -1571,7 +1571,7 @@ def and_collapse(arr, weights=None, axis=None, return_weights=False,
         Whether to return dummy weights array.
         NOTE: the dummy weights will simply be an array of ones
     return_weights_square: bool
-        Whether to return the sum of the squares of the weights. Default is False.
+        NOT USED, but kept for symmetry with other collapsing functions.
     """
     if arr.dtype != np.bool:
         raise ValueError('Input to and_collapse function must be boolean array')
