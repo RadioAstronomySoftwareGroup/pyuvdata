@@ -1524,7 +1524,8 @@ def quadmean_collapse(arr, weights=None, axis=None, return_weights=False,
         return np.sqrt(out)
 
 
-def or_collapse(arr, weights=None, axis=None, return_weights=False):
+def or_collapse(arr, weights=None, axis=None, return_weights=False,
+                return_weights_square=False):
     """
     Collapse using OR operation.
 
@@ -1539,7 +1540,8 @@ def or_collapse(arr, weights=None, axis=None, return_weights=False):
     return_weights : bool
         Whether to return dummy weights array.
         NOTE: the dummy weights will simply be an array of ones
-
+    return_weights_square: bool
+        Whether to return the sum of the squares of the weights. Default is False.
     """
     if arr.dtype != np.bool:
         raise ValueError('Input to or_collapse function must be boolean array')
@@ -1552,7 +1554,8 @@ def or_collapse(arr, weights=None, axis=None, return_weights=False):
         return out
 
 
-def and_collapse(arr, weights=None, axis=None, return_weights=False):
+def and_collapse(arr, weights=None, axis=None, return_weights=False,
+                 return_weights_square=False):
     """
     Collapse using AND operation.
 
@@ -1567,7 +1570,8 @@ def and_collapse(arr, weights=None, axis=None, return_weights=False):
     return_weights : bool
         Whether to return dummy weights array.
         NOTE: the dummy weights will simply be an array of ones
-
+    return_weights_square: bool
+        Whether to return the sum of the squares of the weights. Default is False.
     """
     if arr.dtype != np.bool:
         raise ValueError('Input to and_collapse function must be boolean array')
