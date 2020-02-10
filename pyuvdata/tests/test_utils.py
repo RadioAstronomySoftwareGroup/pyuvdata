@@ -783,12 +783,12 @@ def test_mean_weights_and_weights_square():
                                          return_weights_square=True)
     assert np.allclose(out * wo, data.shape[0])
     assert np.allclose(wo, float(data.shape[0]) / (np.arange(data.shape[1]) + 1))
-    assert np.allclose(wso, float(data.shape[0]) / (np.arange(data.shape[1] + 1)**2))
+    assert np.allclose(wso, float(data.shape[0]) / (np.arange(data.shape[1]) + 1)**2)
     out, wo, wso = uvutils.mean_collapse(data, weights=w, axis=1, return_weights=True,
                                          return_weights_square=True)
     assert np.allclose(out * wo, data.shape[1])
     assert np.allclose(wo, np.sum(1. / (np.arange(data.shape[1]) + 1)))
-    assert np.allclose(wso, np.sum(1. / (np.arange(data.shape[1] + 1)**2)))
+    assert np.allclose(wso, np.sum(1. / (np.arange(data.shape[1]) + 1)**2))
 
     # Zero weights
     w = np.ones_like(w)
