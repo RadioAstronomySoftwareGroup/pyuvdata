@@ -593,29 +593,6 @@ def test_redundancy_finder_fully_redundant_array():
     assert baseline_groups[0].sort() == np.unique(uvd.baseline_array).sort()
 
 
-def test_reraise_context():
-    with pytest.raises(ValueError) as cm:
-        try:
-            uvutils.LatLonAlt_from_XYZ(ref_xyz[0:1])
-        except ValueError:
-            uvutils._reraise_context('Add some info')
-    assert 'Add some info: xyz values should be ECEF x, y, z coordinates in meters' in str(cm.value)
-
-    with pytest.raises(ValueError) as cm:
-        try:
-            uvutils.LatLonAlt_from_XYZ(ref_xyz[0:1])
-        except ValueError:
-            uvutils._reraise_context('Add some info %s', 'and then more')
-    assert 'Add some info and then more: xyz values should be ECEF x, y, z coordinates in meters' in str(cm.value)
-
-    with pytest.raises(EnvironmentError) as cm:
-        try:
-            raise EnvironmentError(1, 'some bad problem')
-        except EnvironmentError:
-            uvutils._reraise_context('Add some info')
-    assert 'Add some info: some bad problem' in str(cm.value)
-
-
 def test_str_to_bytes():
     test_str = 'HERA'
 
