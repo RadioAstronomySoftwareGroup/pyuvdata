@@ -728,8 +728,55 @@ def test_collapse_quadmean_no_return_no_weights():
         data[:, i] = i * np.ones_like(data[:, i])
     out = uvutils.collapse(data, 'quadmean', axis=0)
     out1 = uvutils.quadmean_collapse(data, axis=0)
-    # Actual values are tested in test_absmean_no_weights
+    # Actual values are tested elsewhere?
     assert np.array_equal(out, out1)
+
+
+def test_collapse_quadmean_returned_with_weights_and_weights_square():
+    # Fake data
+    data = np.zeros((50, 25))
+    for i in range(data.shape[1]):
+        data[:, i] = i * np.ones_like(data[:, i]) + 1
+    w = 1. / data
+    out, wo, wso = uvutils.collapse(data, 'quadmean', weights=w, axis=0,
+                                    return_weights=True, return_weights_square=True)
+    out1, wo1, wso1 = uvutils.quadmean_collapse(data, weights=w, axis=0,
+                                                return_weights=True,
+                                                return_weights_square=True)
+    # Actual values are tested elsewhere?
+    assert np.array_equal(out, out1)
+    assert np.array_equal(wo, wo1)
+    assert np.array_equal(wso, wso1)
+
+
+def test_collapse_quadmean_returned_with_weights_square_no_return_weights():
+    # Fake data
+    data = np.zeros((50, 25))
+    for i in range(data.shape[1]):
+        data[:, i] = i * np.ones_like(data[:, i]) + 1
+    w = 1. / data
+    out, wso = uvutils.collapse(data, 'mean', weights=w, axis=0, return_weights=False,
+                                return_weights_square=True)
+    out1, wso1 = uvutils.mean_collapse(data, weights=w, axis=0, return_weights=False,
+                                       return_weights_square=True)
+    # Actual values are tested elsewhere?
+    assert np.array_equal(out, out1)
+    assert np.array_equal(wso, wso1)
+
+
+def test_collapse_quadmean_returned_without_weights_square_with_return_weights():
+    # Fake data
+    data = np.zeros((50, 25))
+    for i in range(data.shape[1]):
+        data[:, i] = i * np.ones_like(data[:, i]) + 1
+    w = 1. / data
+    out, wo = uvutils.collapse(data, 'mean', weights=w, axis=0, return_weights=True,
+                               return_weights_square=False)
+    out1, wo1 = uvutils.mean_collapse(data, weights=w, axis=0, return_weights=True,
+                                      return_weights_square=False)
+    # Actual values are tested elsewhere?
+    assert np.array_equal(out, out1)
+    assert np.array_equal(wo, wo1)
 
 
 def test_collapse_or_no_return_no_weights():
