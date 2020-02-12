@@ -13,11 +13,21 @@ from setuptools import setup, Extension
 from setuptools.command.build_ext import build_ext
 from distutils.sysconfig import get_config_var
 from distutils.version import LooseVersion
-from pygitversion import branch_scheme
 
 # When setting up, the binary extension modules haven't yet been built, so
 # without a workaround we can't use the pyuvdata code to get the version.
 os.environ['PYUVDATA_IGNORE_EXTMOD_IMPORT_FAIL'] = '1'
+
+
+def branch_scheme(version):
+    """Local version scheme that adds the branch name for absolute reproducibility."""
+    if version.exact or version.node is None:
+        return version.format_choice("", "+d{time:{time_format}}", time_format="%Y%m%d")
+    else:
+        if version.branch == "master":
+            return version.format_choice("+{node}", "+{node}.dirty")
+        else:
+            return version.format_choice("+{node}.{branch}", "+{node}.{branch}.dirty")
 
 
 # this solution works for `pip install .`` but not `python setup.py install`...
