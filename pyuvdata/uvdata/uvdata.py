@@ -5743,9 +5743,7 @@ class UVData(UVBase):
 
         if self.eq_coeffs is not None:
             eq_coeff_diff = np.diff(self.eq_coeffs, axis=1)
-            if np.abs(np.max(eq_coeff_diff
-                             - np.broadcast_to(np.min(eq_coeff_diff, axis=1),
-                                               (self.Nants_telescope, n_final_chan)))) > 0:
+            if np.abs(np.max(eq_coeff_diff)) > 0:
                 warnings.warn("eq_coeffs vary by frequency. They should be "
                               "applied to the data using `remove_eq_coeffs` "
                               "before frequency averaging.")
