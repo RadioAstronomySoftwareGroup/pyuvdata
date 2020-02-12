@@ -755,7 +755,7 @@ def test_collapse_quadmean_returned_with_weights_square_no_return_weights():
     for i in range(data.shape[1]):
         data[:, i] = i * np.ones_like(data[:, i]) + 1
     w = 1. / data
-    out, wso = uvutils.collapse(data, 'mean', weights=w, axis=0, return_weights=False,
+    out, wso = uvutils.collapse(data, 'quadmean', weights=w, axis=0, return_weights=False,
                                 return_weights_square=True)
     out1, wso1 = uvutils.mean_collapse(data, weights=w, axis=0, return_weights=False,
                                        return_weights_square=True)
@@ -770,7 +770,7 @@ def test_collapse_quadmean_returned_without_weights_square_with_return_weights()
     for i in range(data.shape[1]):
         data[:, i] = i * np.ones_like(data[:, i]) + 1
     w = 1. / data
-    out, wo = uvutils.collapse(data, 'mean', weights=w, axis=0, return_weights=True,
+    out, wo = uvutils.collapse(data, 'quadmean', weights=w, axis=0, return_weights=True,
                                return_weights_square=False)
     out1, wo1 = uvutils.mean_collapse(data, weights=w, axis=0, return_weights=True,
                                       return_weights_square=False)
