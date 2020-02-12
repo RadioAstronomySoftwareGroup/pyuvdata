@@ -46,9 +46,9 @@ def P1sin(nmax, theta):
     Returns
     -------
     P_sin : array of float
-        P_{n}^{|m|}(cos\theta)/sin(theta) with FEKO order M,N. Shape (nmax ** 2 + 2 * nmax).
+        P_{n}^{|m|}(cos(theta))/sin(theta) with FEKO order M,N. Shape (nmax ** 2 + 2 * nmax).
     P1 : array of float
-        P_{n}^{|m|+1}(cos\theta) with FEKO order M,N.  Shape (nmax ** 2 + 2 * nmax).
+        P_{n}^{|m|+1}(cos(theta)) with FEKO order M,N.  Shape (nmax ** 2 + 2 * nmax).
 
     """
     # initialize for nmax, we have 2(1+...+nmax)+nmax=nmax^2+2*nmax long array
@@ -133,9 +133,9 @@ def P1sin_array(nmax, theta):
     Returns
     -------
     P_sin : array of float
-        P_{n}^{|m|}(cos\theta)/sin(theta) with FEKO order M,N. Shape (nmax ** 2 + 2 * nmax, theta.size).
+        P_{n}^{|m|}(cos(theta))/sin(theta) with FEKO order M,N. Shape (nmax ** 2 + 2 * nmax, theta.size).
     P1 : array of float
-        P_{n}^{|m|+1}(cos\theta) with FEKO order M,N.  Shape (nmax ** 2 + 2 * nmax, theta.size).
+        P_{n}^{|m|+1}(cos(theta)) with FEKO order M,N.  Shape (nmax ** 2 + 2 * nmax, theta.size).
 
     """
     cos_th = np.cos(theta)
@@ -192,7 +192,7 @@ class MWABeam(UVBeam):
 
     def _read_metadata(self, h5filepath):
         """
-        Get metadata (frequencies, polarizations, dipole numbers) from input file
+        Get metadata (frequencies, polarizations, dipole numbers) from input file.
 
         Parameters
         ----------
@@ -383,7 +383,7 @@ class MWABeam(UVBeam):
                 Q1 = beam_modes[pol][freq]['Q1']
                 Q2 = beam_modes[pol][freq]['Q2']
 
-                # form P(cos\theta)/(sin\theta) and P^{m+1}(cos\theta)with FEKO M,N order
+                # form P(cos(theta))/(sin\theta) and P^{m+1}(cos(theta))with FEKO M,N order
                 nmax = int(np.max(N))
                 assert np.max(N) - nmax == 0, 'The maximum of N should be an integer value!'
 

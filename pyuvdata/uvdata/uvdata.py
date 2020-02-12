@@ -2,9 +2,7 @@
 # Copyright (c) 2018 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 
-"""Primary container for radio interferometer datasets.
-
-"""
+"""Primary container for radio interferometer datasets."""
 from __future__ import absolute_import, division, print_function
 
 import os
@@ -375,12 +373,12 @@ class UVData(UVBase):
 
     @property
     def _data_params(self):
-        """List of strings giving the data-like parameters"""
+        """List of strings giving the data-like parameters."""
         return ['data_array', 'nsample_array', 'flag_array']
 
     @property
     def data_like_parameters(self):
-        """An iterator of defined parameters which are data-like (not metadata-like)"""
+        """Iterate defined parameters which are data-like (not metadata-like)."""
         for key in self._data_params:
             if hasattr(self, key):
                 yield getattr(self, key)
@@ -993,7 +991,7 @@ class UVData(UVBase):
                                         orig_phase_frame=None,
                                         output_phase_frame='icrs'):
         """
-        Calculate UVWs based on antenna_positions
+        Calculate UVWs based on antenna_positions.
 
         Parameters
         ----------
@@ -1018,6 +1016,7 @@ class UVData(UVBase):
         -----
         UserWarning
             If the phase_type is 'phased'
+
         """
         phase_type = self.phase_type
         if phase_type == 'phased':
@@ -1082,6 +1081,7 @@ class UVData(UVBase):
         ------
         ValueError
             If convention is not an allowed value or if not all conjugate pols exist.
+
         """
         if isinstance(convention, (np.ndarray, list, tuple)):
             convention = np.array(convention)
@@ -1185,6 +1185,7 @@ class UVData(UVBase):
         ------
         ValueError
             If the order is not one of the allowed values.
+
         """
         if isinstance(order, (np.ndarray, list, tuple)):
             order = np.array(order)
@@ -1257,6 +1258,7 @@ class UVData(UVBase):
         ------
         ValueError
             If parameter values are inappropriate
+
         """
         if isinstance(order, (np.ndarray, list, tuple)):
             order = np.array(order)
@@ -1384,7 +1386,7 @@ class UVData(UVBase):
     def sum_vis(self, other, run_check=True, check_extra=True,
                 run_check_acceptability=True, inplace=False, difference=False):
         """
-        Sums visibilities between two UVData objects.
+        Sum visibilities between two UVData objects.
 
         Parameters
         ----------
@@ -1406,7 +1408,7 @@ class UVData(UVBase):
             rather than summing them.
 
         Returns
-        ------
+        -------
         UVData Object
             If inplace parameter is False.
 
@@ -1417,7 +1419,6 @@ class UVData(UVBase):
             are not compatible.
 
         """
-
         if inplace:
             this = self
         else:
@@ -1469,7 +1470,37 @@ class UVData(UVBase):
     def diff_vis(self, other, run_check=True, check_extra=True,
                  run_check_acceptability=True,
                  inplace=False):
+        """
+        Difference visibilities between two UVData objects.
 
+        Parameters
+        ----------
+        other : UVData object
+            Another UVData object which will be added to self.
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            after combining objects.
+        check_extra : bool
+            Option to check optional parameters as well as required ones.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters after
+            combining objects.
+        inplace : bool
+            If True, overwrite self as we go, otherwise create a third object
+            as the sum of the two.
+
+        Returns
+        -------
+        UVData Object
+            If inplace parameter is False.
+
+        Raises
+        ------
+        ValueError
+            If other is not a UVData object, or if self and other
+            are not compatible.
+
+        """
         if inplace:
             self.sum_vis(other, difference=True, run_check=True,
                          check_extra=check_extra,
@@ -2140,8 +2171,7 @@ class UVData(UVBase):
                            frequencies, freq_chans, times, time_range,
                            polarizations, blt_inds):
         """
-        Internal function to build up blt_inds, freq_inds, pol_inds
-        and history_update_string for select.
+        Build up blt_inds, freq_inds, pol_inds and history_update_string for select.
 
         Parameters
         ----------
@@ -2482,7 +2512,7 @@ class UVData(UVBase):
     def _select_metadata(self, blt_inds, freq_inds, pol_inds, history_update_string,
                          keep_all_metadata=True):
         """
-        Internal function to perform select on everything except the data-sized arrays.
+        Perform select on everything except the data-sized arrays.
 
         Parameters
         ----------
@@ -2670,7 +2700,7 @@ class UVData(UVBase):
 
     def _convert_from_filetype(self, other):
         """
-        Internal function to convert from a file-type specific object to a UVData object.
+        Convert from a file-type specific object to a UVData object.
 
         Used in reads.
 
@@ -2685,7 +2715,7 @@ class UVData(UVBase):
 
     def _convert_to_filetype(self, filetype):
         """
-        Internal function to convert from a UVData object to a file-type specific object.
+        Convert from a UVData object to a file-type specific object.
 
         Used in writes.
 
@@ -2905,7 +2935,7 @@ class UVData(UVBase):
     def read_ms(self, filepath, axis=None, data_column='DATA', pol_order='AIPS',
                 run_check=True, check_extra=True, run_check_acceptability=True):
         """
-        Read in data from a measurement set
+        Read in data from a measurement set.
 
         Parameters
         ----------
@@ -3098,6 +3128,7 @@ class UVData(UVBase):
             If the data are multi source or have multiple
             spectral windows.
             If the metadata are not internally consistent.
+
         """
         from . import miriad
         if isinstance(filepath, (list, tuple, np.ndarray)):
@@ -4068,7 +4099,7 @@ class UVData(UVBase):
 
     def get_ENU_antpos(self, center=False, pick_data_ants=False):
         """
-        Returns antenna positions in ENU (topocentric) coordinates in units of meters.
+        Get antenna positions in ENU (topocentric) coordinates in units of meters.
 
         Parameters
         ----------
@@ -4083,6 +4114,7 @@ class UVData(UVBase):
             Antenna positions in ENU (topocentric) coordinates in units of meters, shape=(Nants, 3)
         ants : ndarray
             Antenna numbers matching ordering of antpos, shape=(Nants,)
+
         """
         antpos = uvutils.ENU_from_ECEF((self.antenna_positions + self.telescope_location),
                                        *self.telescope_location_lat_lon_alt)
@@ -4367,7 +4399,7 @@ class UVData(UVBase):
     def _smart_slicing(self, data, ind1, ind2, indp, squeeze='default',
                        force_copy=False):
         """
-        Method to quickly get the relevant section of a data-like array.
+        Quickly get the relevant section of a data-like array.
 
         Used in get_data, get_flags and get_nsamples.
 
@@ -4672,7 +4704,7 @@ class UVData(UVBase):
 
     def antpairpol_iter(self, squeeze='default'):
         """
-        Iterator to get the data for each antpair, polarization combination.
+        Iterate the data for each antpair, polarization combination.
 
         Parameters
         ----------
@@ -4724,8 +4756,8 @@ class UVData(UVBase):
         polarizations : list of int or None
             List of desired polarizations or None if ant_str does not contain a
             polarization specification.
-        """
 
+        """
         ant_re = r'(\(((-?\d+[lrxy]?,?)+)\)|-?\d+[lrxy]?)'
         bl_re = '(^(%s_%s|%s),?)' % (ant_re, ant_re, ant_re)
         str_pos = 0
@@ -4936,9 +4968,10 @@ class UVData(UVBase):
                          include_conjugates=False, include_autos=True,
                          conjugate_bls=False):
         """
-        Get redundant baselines to a given tolerance. This can be used to identify
-        redundant baselines present in the data, or find all possible redundant
-        baselines given the antenna positions.
+        Get redundant baselines to a given tolerance.
+
+        This can be used to identify redundant baselines present in the data,
+        or find all possible redundant baselines given the antenna positions.
 
         Parameters
         ----------
@@ -5020,8 +5053,8 @@ class UVData(UVBase):
         -------
         UVData object or None
             if inplace is False, return the compressed UVData object
-        """
 
+        """
         red_gps, centers, lengths, conjugates = self.get_redundancies(tol, include_conjugates=True)
 
         bl_ants = [self.baseline_to_antnums(gp[0]) for gp in red_gps]
@@ -5043,8 +5076,8 @@ class UVData(UVBase):
             string specifying primary order along the blt axis (see `reorder_blts`)
         blt_minor_order : str
             string specifying minor order along the blt axis (see `reorder_blts`)
-        """
 
+        """
         self.conjugate_bls(convention='u>0')
         red_gps, centers, lengths = self.get_redundancies(tol=tol, use_antpos=True, conjugate_bls=True)
 
@@ -5570,7 +5603,8 @@ class UVData(UVBase):
     def resample_in_time(self, target_time, only_downsample=False, only_upsample=False,
                          blt_order="time", minor_order="baseline", keep_ragged=True,
                          summing_correlator_mode=False, allow_drift=False):
-        """Intelligently upsample or downsample a UVData object to the target time.
+        """
+        Intelligently upsample or downsample a UVData object to the target time.
 
         Parameters
         ----------
@@ -5640,7 +5674,8 @@ class UVData(UVBase):
         return
 
     def remove_eq_coeffs(self):
-        """Remove equalization coefficients from the data.
+        """
+        Remove equalization coefficients from the data.
 
         Some telescopes, e.g. HERA, apply per-antenna, per-frequency gain
         coefficients as part of the signal chain. These are stored in the

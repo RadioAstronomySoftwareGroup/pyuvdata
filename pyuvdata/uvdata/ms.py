@@ -45,16 +45,29 @@ class MS(UVData):
     ms_required_extra : list of str
         Names of optional UVParameters that are required for MS
     """
+
     ms_required_extra = ['datacolumn', 'antenna_positions']
 
     def _ms_hist_to_string(self, history_table):
-        '''
-        converts a CASA history table into a string that can be stored as the uvdata history parameter.
+        """
+        Convert a CASA history table into a string for the uvdata history parameter.
+
         Also stores messages column as a list for consitency with other uvdata types
-        Args: history_table, a casa table object
-        Returns: string containing only message column (consistent with other UVDATA history strings)
-                 string enconding complete casa history table converted with \n denoting rows and ';' denoting column breaks
-        '''
+
+        Parameters
+        ----------
+        history_table : a casa table object
+            CASA table with history information.
+
+        Returns
+        -------
+        str
+            string containing only message column (consistent with other UVDATA
+            history strings)
+        str
+            string enconding complete casa history table converted with a new
+            line denoting rows and a ';' denoting column breaks.
+        """
         # string to store just the usual uvdata history
         message_str = ''
         # string to store all the casa history info
@@ -103,15 +116,13 @@ class MS(UVData):
 
     # ms write functionality to be added later.
     def write_ms(self):
-        '''
-        writing ms is not yet supported
-        '''
+        """Write ms: Not yet supported."""
 
     def read_ms(self, filepath, data_column='DATA', pol_order='AIPS',
                 run_check=True, check_extra=True,
                 run_check_acceptability=True):
         """
-        read in a casa measurement set
+        Read in a casa measurement set.
 
         Parameters
         ----------
