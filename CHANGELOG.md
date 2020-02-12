@@ -10,6 +10,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 - Routine flagging of MWA coarse band edges and center channels, as well as beginning and end integrations. Only done during `read_mwa_corr_fits`.
+- Added a return_weights_square option to `utils.collapse` function, which returns the sum of the squares of the weights.
 
 ### Removed
 - Previously deprecated code marked for removal in version > 1.5:
