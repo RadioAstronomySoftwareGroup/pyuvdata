@@ -1064,11 +1064,10 @@ class UVBeam(UVBase):
         """
         try:
             from astropy_healpix import HEALPix
-        except ImportError:  # pragma: no cover
-            uvutils._reraise_context('astropy_healpix is not installed but is '
-                                     'required for healpix functionality. '
-                                     'Install "astropy-healpix" using conda or '
-                                     'pip.')
+        except ImportError as e:  # pragma: no cover
+            raise ImportError('astropy_healpix is not installed but is '
+                              'required for healpix functionality. '
+                              'Install "astropy-healpix" using conda or pip.') from e
 
         if self.pixel_coordinate_system != 'healpix':
             raise ValueError('pixel_coordinate_system must be "healpix"')
@@ -1284,11 +1283,10 @@ class UVBeam(UVBase):
                                  'set if az_array or za_array is set.')
             try:
                 from astropy_healpix import HEALPix
-            except ImportError:  # pragma: no cover
-                uvutils._reraise_context('astropy_healpix is not installed but '
-                                         'is required for healpix functionality'
-                                         'Install "astropy-healpix" using '
-                                         'conda or pip.')
+            except ImportError as e:  # pragma: no cover
+                raise ImportError('astropy_healpix is not installed but is '
+                                  'required for healpix functionality. '
+                                  'Install "astropy-healpix" using conda or pip.') from e
 
             hp_obj = HEALPix(nside=healpix_nside)
             if healpix_inds is None:
@@ -1432,9 +1430,10 @@ class UVBeam(UVBase):
         """
         try:
             from astropy_healpix import HEALPix
-        except ImportError:  # pragma: no cover
-            uvutils._reraise_context('astropy_healpix is not installed but is required for '
-                                     'healpix functionality')
+        except ImportError as e:  # pragma: no cover
+            raise ImportError('astropy_healpix is not installed but is '
+                              'required for healpix functionality. '
+                              'Install "astropy-healpix" using conda or pip.') from e
 
         if nside is None:
             min_res = np.min(np.array([np.diff(self.axis1_array)[0],

@@ -19,9 +19,9 @@ from .. import utils as uvutils
 
 try:
     import casacore.tables as tables
-except ImportError:  # pragma: no cover
-    uvutils._reraise_context('casacore is not installed but is required for '
-                             'measurement set functionality')
+except ImportError as e:  # pragma: no cover
+    raise ImportError('casacore is not installed but is required for '
+                      'measurement set functionality') from e
 
 __all__ = ["MS"]
 
