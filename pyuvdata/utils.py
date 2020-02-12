@@ -36,7 +36,7 @@ def _bytes_to_str(b):
     warnings.warn(
         "_bytes_to_str is deprecated and will be removed in pyuvdata version 2.2. "
         "For an input string s, this function is a thin wrapper on s.decode('utf8'). "
-        "The use of encode is preferred over calling this function.",
+        "The use of decode is preferred over calling this function.",
         DeprecationWarning
     )
     return b.decode('utf8')
