@@ -20,6 +20,44 @@ from .. import telescopes as uvtel
 __all__ = ["UVFlag", "flags2waterfall", "and_rows_cols", "lst_from_uv"]
 
 
+def _read_uvflag_string(dataset, filename):
+    """
+    Handle backwards compatibility of string stypes for legacy UVFlag files.
+
+    Parameters
+    ----------
+    dataset : h5py dataset
+        The dataset containing string-like data.
+    filename : str
+        The name of the file being read.
+
+    Returns
+    -------
+    str
+        The string from the dataset as a `str` type.
+
+    Notes
+    -----
+    This function is only designed to work on scalar datasets. Arrays of strings
+    should be handled differently.
+
+    """
+    if dataset.dtype.type is np.object_:
+        warnings.warn(
+            f"Strings in metadata of {filename} are not the correct type; "
+            "rewrite with UVFlag.write to ensure future compatibility. "
+            "Suppoort for reading these files will be removed in version 2.2.",
+            DeprecationWarning
+        )
+        try:
+            return dataset[()].decode("utf8")
+        except AttributeError:
+            # dataset[()] is already <str> type, and doesn't need to be decoded
+            return dataset[()]
+    else:
+        return dataset[()].tostring().decode("utf8")
+
+
 class UVFlag(UVBase):
     """Object to handle flag arrays and waterfalls for interferometric datasets.
 
@@ -1004,7 +1042,7 @@ class UVFlag(UVBase):
             with h5py.File(filename, 'r') as f:
                 header = f['/Header']
 
-                self.type = header['type'][()].decode("utf8")
+                self.type = _read_uvflag_string(header['type'], filename)
                 if self.type == 'antenna':
                     self._set_type_antenna()
                 elif self.type == 'baseline':
@@ -1018,7 +1056,7 @@ class UVFlag(UVBase):
                                      "{expect}".format(receive=self.type,
                                                        expect=(', ').join(self._type.acceptable_vals)))
 
-                self.mode = header['mode'][()].decode("utf8")
+                self.mode = _read_uvflag_string(header['mode'], filename)
 
                 if self.mode == "metric":
                     self._set_mode_metric()
@@ -1032,7 +1070,7 @@ class UVFlag(UVBase):
                                                        expect=(', ').join(self._mode.acceptable_vals)))
 
                 if 'x_orientation' in header.keys():
-                    self.x_orientation = header['x_orientation'][()].decode("utf8")
+                    self.x_orientation = _read_uvflag_string(header['x_orientation'], filename)
 
                 self.time_array = header['time_array'][()]
                 if 'Ntimes' in header.keys():
@@ -1063,7 +1101,7 @@ class UVFlag(UVBase):
                 else:
                     self.Nfreqs = np.unique(self.freq_array).size
 
-                self.history = header['history'][()].decode("utf8")
+                self.history = _read_uvflag_string(header['history'], filename)
 
                 self.history += history
 
@@ -1071,12 +1109,24 @@ class UVFlag(UVBase):
                     self.history += self.pyuvdata_version_str
 
                 if 'label' in header.keys():
-                    self.label = header['label'][()].decode("utf8")
+                    self.label = _read_uvflag_string(header['label'], filename)
 
-                polarization_array = header['polarization_array'][()]
-                if isinstance(polarization_array[0], np.string_):
-                    polarization_array = np.asarray(polarization_array,
-                                                    dtype=np.str_)
+                polarization_array = header['polarization_array']
+                if polarization_array.dtype in (np.int, np.int32, np.int64):
+                    polarization_array = polarization_array[()]
+                else:
+                    try:
+                        polarization_array = np.asarray(
+                            [
+                                pol.tostring().decode("utf8") for pol in polarization_array[:]
+                            ]
+                        )
+                    except AttributeError:
+                        polarization_array = np.asarray(
+                            [
+                                pol.decode("utf8") for pol in polarization_array[:]
+                            ]
+                        )
 
                 self.polarization_array = polarization_array
                 self._check_pol_state()
@@ -1171,8 +1221,8 @@ class UVFlag(UVBase):
             header = f.create_group('Header')
 
             # write out metadata
-            header['type'] = self.type.encode("utf8")
-            header['mode'] = self.mode.encode("utf8")
+            header['type'] = np.string_(self.type)
+            header['mode'] = np.string_(self.mode)
 
             header['Ntimes'] = self.Ntimes
             header['time_array'] = self.time_array
@@ -1184,7 +1234,7 @@ class UVFlag(UVBase):
             header['Npols'] = self.Npols
 
             if self.x_orientation is not None:
-                header['x_orientation'] = self.x_orientation.encode("utf8")
+                header['x_orientation'] = np.string_(self.x_orientation)
 
             if isinstance(self.polarization_array.item(0), str):
                 polarization_array = np.asarray(self.polarization_array,
@@ -1196,9 +1246,9 @@ class UVFlag(UVBase):
             if not uvutils._check_history_version(self.history, self.pyuvdata_version_str):
                 self.history += self.pyuvdata_version_str
 
-            header['history'] = self.history.encode("utf8")
+            header['history'] = np.string_(self.history)
 
-            header['label'] = self.label.encode("utf8")
+            header['label'] = np.string_(self.label)
 
             if self.type == 'baseline':
                 header['baseline_array'] = self.baseline_array
