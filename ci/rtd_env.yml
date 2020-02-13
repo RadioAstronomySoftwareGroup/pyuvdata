@@ -11,3 +11,4 @@ dependencies:
   - python-casacore
   - pypandoc
   - scipy
+  - setuptools_scm

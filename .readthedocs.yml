@@ -1,11 +1,27 @@
-# Don't build any extra formats
-formats:
-    - none
-conda:
-    file: ci/rtd_env.yml
+# .readthedocs.yml
+# Read the Docs configuration file
+# See https://docs.readthedocs.io/en/stable/config-file/v2.html for details
+
+# Required
+version: 2
+
+# Build documentation in the docs/ directory with Sphinx
+sphinx:
+  configuration: docs/conf.py
+
+# Do not build the docs in additional formats (e.g. PDF and ePub), use default
+formats: []
+
 build:
     image: latest
+
+# specify the conda environment yaml to use
+conda:
+  environment: ci/rtd_env.yml
+
+# Optionally set the version of Python and requirements required to build your docs
 python:
-   version: 3.6
-python:
-   setup_py_install: true
+  version: 3.7
+  install:
+    - method: pip
+      path: .
