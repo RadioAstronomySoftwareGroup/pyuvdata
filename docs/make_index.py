@@ -31,6 +31,8 @@ def write_index_rst(readme_file=None, write_file=None):
         'pyuvdata\n========\n\n'
         '.. image:: https://circleci.com/gh/RadioAstronomySoftwareGroup/pyuvdata.svg?style=svg\n'
         '    :target: https://circleci.com/gh/RadioAstronomySoftwareGroup/pyuvdata\n\n'
+        '.. image:: https://github.com/RadioAstronomySoftwareGroup/pyuvdata/workflows/Run%20Tests/badge.svg?branch=master\n'
+        '    :target: https://github.com/RadioAstronomySoftwareGroup/pyuvdata/actions\n\n'
         '.. image:: https://dev.azure.com/radioastronomysoftwaregroup/pyuvdata/_apis/build/status/RadioAstronomySoftwareGroup.pyuvdata?branchName=master\n'
         '    :target: https://dev.azure.com/radioastronomysoftwaregroup/pyuvdata/_build/latest?definitionId=1&branchName=master\n\n'
         '.. image:: https://codecov.io/gh/RadioAstronomySoftwareGroup/pyuvdata/branch/master/graph/badge.svg\n'
