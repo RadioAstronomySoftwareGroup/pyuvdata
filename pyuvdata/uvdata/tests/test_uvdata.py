@@ -5737,6 +5737,9 @@ def test_frequency_average(uvdata_data):
     uvdata_data.uv_object.eq_coeffs = eq_coeffs
     uvdata_data.uv_object.check()
 
+    # check that there's no flagging
+    assert np.nonzero(uvdata_data.uv_object.flag_array)[0].size == 0
+
     uvtest.checkWarnings(uvdata_data.uv_object.frequency_average, [2],
                          message="eq_coeffs vary by frequency")
 
@@ -5750,9 +5753,23 @@ def test_frequency_average(uvdata_data):
         uvdata_data.uv_object2.Nants_telescope, int(uvdata_data.uv_object2.Nfreqs / 2), 2).mean(axis=2)
     assert np.max(np.abs(uvdata_data.uv_object.eq_coeffs - expected_coeffs)) == 0
 
+    # no flagging, so the following is true
+    expected_data = uvdata_data.uv_object2.get_data(0, 1, squeeze='none')
+    reshape_tuple = (expected_data.shape[0], uvdata_data.uv_object2.Nspws,
+                     int(uvdata_data.uv_object2.Nfreqs / 2),
+                     2,
+                     uvdata_data.uv_object2.Npols)
+    expected_data = expected_data.reshape(reshape_tuple).mean(axis=3)
+    assert np.allclose(uvdata_data.uv_object.get_data(0, 1, squeeze='none'), expected_data)
+
+    assert np.nonzero(uvdata_data.uv_object.flag_array)[0].size == 0
+
 
 def test_frequency_average_uneven(uvdata_data):
     """Test averaging in frequency with a number that is not a factor of Nfreqs."""
+    # check that there's no flagging
+    assert np.nonzero(uvdata_data.uv_object.flag_array)[0].size == 0
+
     uvdata_data.uv_object.frequency_average(7)
 
     assert uvdata_data.uv_object2.Nfreqs % 7 != 0
@@ -5765,6 +5782,102 @@ def test_frequency_average_uneven(uvdata_data):
     expected_freqs = expected_freqs.reshape(
         uvdata_data.uv_object2.Nspws, int(uvdata_data.uv_object2.Nfreqs // 7), 7).mean(axis=2)
     assert np.max(np.abs(uvdata_data.uv_object.freq_array - expected_freqs)) == 0
+
+    # no flagging, so the following is true
+    expected_data = uvdata_data.uv_object2.get_data(0, 1, squeeze='none')
+    expected_data = expected_data[
+        :, :, 0:((uvdata_data.uv_object2.Nfreqs // 7) * 7), :]
+    reshape_tuple = (expected_data.shape[0], uvdata_data.uv_object2.Nspws,
+                     int(uvdata_data.uv_object2.Nfreqs // 7),
+                     7,
+                     uvdata_data.uv_object2.Npols)
+    expected_data = expected_data.reshape(reshape_tuple).mean(axis=3)
+    assert np.allclose(uvdata_data.uv_object.get_data(0, 1, squeeze='none'), expected_data)
+
+    assert np.nonzero(uvdata_data.uv_object.flag_array)[0].size == 0
+
+
+def test_frequency_average_flagging(uvdata_data):
+    """Test averaging in frequency."""
+    # check that there's no flagging
+    assert np.nonzero(uvdata_data.uv_object.flag_array)[0].size == 0
+
+    # apply some flagging for testing
+    inds01 = uvdata_data.uv_object.antpair2ind(0, 1)
+    uvdata_data.uv_object.flag_array[inds01[0], :, 0:2, :] = True
+
+    uvdata_data.uv_object.frequency_average(2)
+
+    assert uvdata_data.uv_object.Nfreqs == (uvdata_data.uv_object2.Nfreqs / 2)
+
+    expected_freqs = uvdata_data.uv_object2.freq_array.reshape(
+        uvdata_data.uv_object2.Nspws, int(uvdata_data.uv_object2.Nfreqs / 2), 2).mean(axis=2)
+    assert np.max(np.abs(uvdata_data.uv_object.freq_array - expected_freqs)) == 0
+
+    expected_data = uvdata_data.uv_object2.get_data(0, 1, squeeze='none')
+    reshape_tuple = (expected_data.shape[0], uvdata_data.uv_object2.Nspws,
+                     int(uvdata_data.uv_object2.Nfreqs / 2),
+                     2,
+                     uvdata_data.uv_object2.Npols)
+    expected_data = expected_data.reshape(reshape_tuple).mean(axis=3)
+    assert np.allclose(uvdata_data.uv_object.get_data(0, 1, squeeze='none'), expected_data)
+
+    assert np.sum(uvdata_data.uv_object.flag_array[inds01[0], :, 0, :]) == 4
+    assert np.nonzero(uvdata_data.uv_object.flag_array[inds01[1:], :, 0, :])[0].size == 0
+
+
+def test_frequency_average_flagging_partial(uvdata_data):
+    """Test averaging in frequency."""
+    # check that there's no flagging
+    assert np.nonzero(uvdata_data.uv_object.flag_array)[0].size == 0
+
+    # apply some flagging for testing
+    inds01 = uvdata_data.uv_object.antpair2ind(0, 1)
+    uvdata_data.uv_object.flag_array[inds01[0], :, 0, :] = True
+
+    uvdata_data.uv_object.frequency_average(2)
+
+    assert uvdata_data.uv_object.Nfreqs == (uvdata_data.uv_object2.Nfreqs / 2)
+
+    expected_freqs = uvdata_data.uv_object2.freq_array.reshape(
+        uvdata_data.uv_object2.Nspws, int(uvdata_data.uv_object2.Nfreqs / 2), 2).mean(axis=2)
+    assert np.max(np.abs(uvdata_data.uv_object.freq_array - expected_freqs)) == 0
+
+    expected_data = uvdata_data.uv_object2.get_data(0, 1, squeeze='none')
+    reshape_tuple = (expected_data.shape[0], uvdata_data.uv_object2.Nspws,
+                     int(uvdata_data.uv_object2.Nfreqs / 2),
+                     2,
+                     uvdata_data.uv_object2.Npols)
+    expected_data = expected_data.reshape(reshape_tuple).mean(axis=3)
+    expected_data[0, :, 0, :] = uvdata_data.uv_object2.data_array[inds01[0], :, 1, :]
+    assert np.allclose(uvdata_data.uv_object.get_data(0, 1, squeeze='none'), expected_data)
+
+    assert np.nonzero(uvdata_data.uv_object.flag_array[inds01[1:], :, 0, :])[0].size == 0
+
+
+def test_frequency_average_summing_corr_mode(uvdata_data):
+    """Test averaging in frequency."""
+    # check that there's no flagging
+    assert np.nonzero(uvdata_data.uv_object.flag_array)[0].size == 0
+
+    uvdata_data.uv_object.frequency_average(2, summing_correlator_mode=True)
+
+    assert uvdata_data.uv_object.Nfreqs == (uvdata_data.uv_object2.Nfreqs / 2)
+
+    expected_freqs = uvdata_data.uv_object2.freq_array.reshape(
+        uvdata_data.uv_object2.Nspws, int(uvdata_data.uv_object2.Nfreqs / 2), 2).mean(axis=2)
+    assert np.max(np.abs(uvdata_data.uv_object.freq_array - expected_freqs)) == 0
+
+    # no flagging, so the following is true
+    expected_data = uvdata_data.uv_object2.get_data(0, 1, squeeze='none')
+    reshape_tuple = (expected_data.shape[0], uvdata_data.uv_object2.Nspws,
+                     int(uvdata_data.uv_object2.Nfreqs / 2),
+                     2,
+                     uvdata_data.uv_object2.Npols)
+    expected_data = expected_data.reshape(reshape_tuple).sum(axis=3)
+    assert np.allclose(uvdata_data.uv_object.get_data(0, 1, squeeze='none'), expected_data)
+
+    assert np.nonzero(uvdata_data.uv_object.flag_array)[0].size == 0
 
 
 def test_remove_eq_coeffs_divide(uvdata_data):
