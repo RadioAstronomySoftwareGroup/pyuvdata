@@ -1,8 +1,8 @@
 # conda environment specification for Read the Docs
 name: rtd
 channels:
-  - conda-forge
   - defaults
+  - conda-forge
 dependencies:
   - python=3.6
   - astropy

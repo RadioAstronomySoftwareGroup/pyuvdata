@@ -9,10 +9,10 @@ from __future__ import absolute_import, division, print_function
 import os
 import inspect
 import re
+import subprocess
+
 import pypandoc
 from astropy.time import Time
-
-from pyuvdata.version import construct_version_info
 
 
 def write_index_rst(readme_file=None, write_file=None):
@@ -44,8 +44,11 @@ def write_index_rst(readme_file=None, write_file=None):
     readme_text = readme_text[start_desc:]
 
     # convert relative links in readme to explicit links
-    version_info = construct_version_info()
-    branch = version_info['git_branch']
+
+    pyuvdata_dir = os.path.dirname(os.path.realpath(__file__))
+    branch = subprocess.check_output(
+        ['git', '-C', pyuvdata_dir, 'rev-parse', '--abbrev-ref', 'HEAD'],
+        stderr=subprocess.STDOUT).decode('utf8').strip()
 
     readme_text = readme_text.replace(
         '<docs/', '<https://github.com/RadioAstronomySoftwareGroup/pyuvdata/tree/'
