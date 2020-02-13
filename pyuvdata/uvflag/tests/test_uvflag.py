@@ -422,7 +422,7 @@ def test_bad_mode_savefile():
     # manually re-read and tamper with parameters
     with h5py.File(test_outfile, 'a') as h5:
         mode = h5['Header/mode']
-        mode[...] = 'test'
+        mode[...] = np.string_('test')
 
     with pytest.raises(ValueError) as cm:
         uvf = UVFlag(test_outfile)
@@ -437,7 +437,7 @@ def test_bad_type_savefile():
     # manually re-read and tamper with parameters
     with h5py.File(test_outfile, 'a') as h5:
         mode = h5['Header/type']
-        mode[...] = 'test'
+        mode[...] = np.string_('test')
 
     with pytest.raises(ValueError) as cm:
         uvf = UVFlag(test_outfile)
@@ -454,7 +454,8 @@ def test_write_add_version_str():
     uvf.write(test_outfile, clobber=True)
 
     with h5py.File(test_outfile, 'r') as h5:
-        hist = h5['Header/history'][()].decode("utf8")
+        assert h5['Header/history'].dtype.type is np.string_
+        hist = h5['Header/history'][()].tostring().decode("utf8")
     assert pyuvdata_version_str in hist
 
 
@@ -992,6 +993,8 @@ def test_collapse_pol():
 
     # test writing it out and reading in to make sure polarization_array has correct type
     uvf2.write(test_outfile, clobber=True)
+    with h5py.File(test_outfile, "r") as h5:
+        assert h5["Header/polarization_array"].dtype.type is np.string_
     uvf = UVFlag(test_outfile)
     assert uvf._polarization_array.expected_type == str
     assert uvf._polarization_array.acceptable_vals is None
@@ -1724,8 +1727,16 @@ def test_missing_Nants_telescope():
 
     with h5py.File(testfile, 'r+') as f:
         del(f['/Header/Nants_telescope'])
-    uvf = uvtest.checkWarnings(UVFlag, [testfile], {}, nwarnings=1,
-                               message=['Nants_telescope not available in file,'])
+    messages = 4 * ['Strings in metadata'] + ['Nants_telescope not available in file']
+    category = 4 * [DeprecationWarning] + [UserWarning]
+    uvf = uvtest.checkWarnings(
+        UVFlag,
+        [testfile],
+        {},
+        nwarnings=5,
+        message=messages,
+        category=category,
+    )
     uvf2 = UVFlag(test_f_file)
     uvf2.Nants_telescope = 2047
     assert uvf == uvf2
