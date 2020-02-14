@@ -36,43 +36,41 @@ specific code. The read and write methods on the user classes convert between
 the user classes and the file-specific classes automatically as needed, so users
 generally do not need to interact with these classes, but developers may need to.
 
-.. autoclass:: pyuvdata.uvfits.UVFITS
+.. autoclass:: pyuvdata.uvdata.uvfits.UVFITS
   :members:
 
-.. autoclass:: pyuvdata.miriad.Miriad
+.. autoclass:: pyuvdata.uvdata.miriad.Miriad
   :members:
 
-.. autoclass:: pyuvdata.fhd.FHD
+.. autoclass:: pyuvdata.uvdata.fhd.FHD
   :members:
 
-.. autoclass:: pyuvdata.ms.MS
+.. autoclass:: pyuvdata.uvdata.ms.MS
   :members:
 
-.. autoclass:: pyuvdata.uvh5.UVH5
+.. autoclass:: pyuvdata.uvdata.uvh5.UVH5
   :members:
 
-.. autoclass:: pyuvdata.fhd_cal.FHDCal
+.. autoclass:: pyuvdata.uvcal.fhd_cal.FHDCal
   :members:
 
-.. autoclass:: pyuvdata.calfits.CALFITS
+.. autoclass:: pyuvdata.uvcal.calfits.CALFITS
   :members:
 
-.. autoclass:: pyuvdata.beamfits.BeamFITS
+.. autoclass:: pyuvdata.uvbeam.beamfits.BeamFITS
   :members:
 
-.. autoclass:: pyuvdata.cst_beam.CSTBeam
+.. autoclass:: pyuvdata.uvbeam.cst_beam.CSTBeam
   :members:
 
 
 Functions
 ----------
 
-.. autofunction:: pyuvdata.version.construct_version_info
-
-.. autofunction:: pyuvdata.fhd.get_fhd_history
+.. autofunction:: pyuvdata.uvdata.fhd.get_fhd_history
 
 aipy extracts
 _____________
 
-.. automodule:: pyuvdata.aipy_extracts
+.. automodule:: pyuvdata.uvdata.aipy_extracts
   :members:
