@@ -45,15 +45,11 @@ def _read_uvflag_string(dataset, filename):
     if dataset.dtype.type is np.object_:
         warnings.warn(
             f"Strings in metadata of {filename} are not the correct type; "
-            "rewrite with UVFlag.write to ensure future compatibility. "
+            "rewrite with `UVFlag.write` to ensure future compatibility. "
             "Suppoort for reading these files will be removed in version 2.2.",
             DeprecationWarning
         )
-        try:
-            return dataset[()].decode("utf8")
-        except AttributeError:
-            # dataset[()] is already <str> type, and doesn't need to be decoded
-            return dataset[()]
+        return dataset[()].decode("utf8")
     else:
         return dataset[()].tostring().decode("utf8")
 
@@ -1111,22 +1107,14 @@ class UVFlag(UVBase):
                 if 'label' in header.keys():
                     self.label = _read_uvflag_string(header['label'], filename)
 
-                polarization_array = header['polarization_array']
-                if polarization_array.dtype in (np.int, np.int32, np.int64):
-                    polarization_array = polarization_array[()]
+                polarization_array_type = header['polarization_array'][()].dtype.type
+                if polarization_array_type in (np.int, np.int32, np.int64):
+                    polarization_array = header['polarization_array'][()]
                 else:
-                    try:
-                        polarization_array = np.asarray(
-                            [
-                                pol.tostring().decode("utf8") for pol in polarization_array[:]
-                            ]
-                        )
-                    except AttributeError:
-                        polarization_array = np.asarray(
-                            [
-                                pol.decode("utf8") for pol in polarization_array[:]
-                            ]
-                        )
+                    # we have a string-type polarization array from collapsing
+                    polarization_array = np.asarray(
+                        header['polarization_array'][()], dtype=str
+                    )
 
                 self.polarization_array = polarization_array
                 self._check_pol_state()
