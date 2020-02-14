@@ -365,6 +365,108 @@ Phasing/unphasing data
   >>> UV.phase(5.23368, 0.710940, epoch="J2000")
 
 
+UVData: Averaging and Resampling
+--------------------------------
+pyuvdata has methods to average (downsample) in time and frequency and also to
+upsample in time (useful to get all baselines on the shortest time integration
+for a data set that has had baseline dependent time averaging applied).
+
+Use the ``downsample_in_time``, ``upsample_in_time`` and ``resample_in_time`` methods to
+average (downsample) and upsample in time or to do both at once on data
+that have had baseline dependent averaging (BDA) applied to put all the baselines
+on the same time integrations. Resampling in time is done on phased data by default,
+drift mode data are phased, resampled, and then unphased. Set ``allow_drift=True``
+to do resampling without phasing.
+
+Use the ``frequency_average`` method to average along the frequency axis.
+
+a) Averaging (Downsampling) in time
+***********************************
+::
+
+  >>> import os
+  >>> import numpy as np
+  >>> from pyuvdata import UVData
+  >>> from pyuvdata.data import DATA_PATH
+  >>> uv_object = UVData()
+  >>> datafile = os.path.join(DATA_PATH, "zen.2458661.23480.HH.uvh5")
+  >>> uv_object.read(datafile)
+  >>> print("Range of integration times: ", np.amin(uv_object.integration_time),
+  ...       "-", np.amax(uv_object.integration_time))
+  Range of integration times:  1.879048192 - 1.879048192
+
+  >>> min_integration_time = np.amax(uv_object.integration_time) * 2.0
+  >>> uv_object.downsample_in_time(min_integration_time)
+  Data are in drift mode, phasing before resampling.
+  Unphasing back to drift mode.
+
+  >>> print("Range of integration times after downsampling: ", np.amin(uv_object.integration_time),
+  ...       "-", np.amax(uv_object.integration_time))
+  Range of integration times after downsampling:  3.758096384 - 3.758096384
+
+b) Upsampling in time
+*********************
+::
+
+  >>> import os
+  >>> import numpy as np
+  >>> from pyuvdata import UVData
+  >>> from pyuvdata.data import DATA_PATH
+  >>> uv_object = UVData()
+  >>> datafile = os.path.join(DATA_PATH, "zen.2458661.23480.HH.uvh5")
+  >>> uv_object.read(datafile)
+  >>> print("Range of integration times: ", np.amin(uv_object.integration_time),
+  ...       "-", np.amax(uv_object.integration_time))
+  Range of integration times:  1.879048192 - 1.879048192
+
+  >>> max_integration_time = np.amin(uv_object.integration_time) / 2.0
+  >>> uv_object.upsample_in_time(max_integration_time)
+  Data are in drift mode, phasing before resampling.
+  Unphasing back to drift mode.
+
+  >>> print("Range of integration times after upsampling: ", np.amin(uv_object.integration_time),
+  ...       "-", np.amax(uv_object.integration_time))
+  Range of integration times after upsampling:  0.939524096 - 0.939524096
+
+c) Resampling a BDA dataset in time
+***********************************
+::
+
+  >>> import os
+  >>> import numpy as np
+  >>> from pyuvdata import UVData
+  >>> from pyuvdata.data import DATA_PATH
+  >>> uv_object = UVData()
+  >>> testfile = os.path.join(DATA_PATH, "simulated_bda_file.uvh5")
+  >>> uv_object.read(testfile)
+  >>> print("Range of integration times: ", np.amin(uv_object.integration_time),
+  ...       "-", np.amax(uv_object.integration_time))
+  Range of integration times:  2.0 - 16.0
+
+  # Resample all baselines to an 8s integration time
+  >>> uv_object.resample_in_time(8)
+  >>> print("Range of integration times after resampling: ", np.amin(uv_object.integration_time),
+  ...       "-", np.amax(uv_object.integration_time))
+  Range of integration times after resampling:  8.0 - 8.0
+
+d) Averaging in frequency
+*************************
+::
+
+  >>> import os
+  >>> import numpy as np
+  >>> from pyuvdata import UVData
+  >>> from pyuvdata.data import DATA_PATH
+  >>> uv_object = UVData()
+  >>> datafile = os.path.join(DATA_PATH, "zen.2458661.23480.HH.uvh5")
+  >>> uv_object.read(datafile)
+  >>> print("Channel width: ", uv_object.channel_width)
+  Channel width:  122070.3125
+
+  # Average by a factor of 2 in frequency
+  >>> uv_object.frequency_average(2)
+  >>> print("Channel width after frequency averaging: ", uv_object.channel_width)
+  Channel width after frequency averaging:  244140.625
 
 UVData: Plotting
 ----------------
@@ -667,13 +769,13 @@ e) Select data and return new object (leaving original intact).
   >>> print(np.unique(UV2.ant_1_array.tolist() + UV2.ant_2_array.tolist()))
   [ 0 11 20]
 
-UVData: Adding data
--------------------
+UVData: Combining and concatenating data
+----------------------------------------
 The __add__ method lets you combine UVData objects along
 the baseline-time, frequency, and/or polarization axis.
 
-a) Add frequencies.
-*******************
+a) Combine frequencies.
+***********************
 ::
 
   >>> import os
@@ -692,8 +794,8 @@ a) Add frequencies.
   >>> print((uv1.Nfreqs, uv2.Nfreqs, uv3.Nfreqs))
   (32, 32, 64)
 
-b) Add times.
-****************
+b) Combine times.
+*****************
 ::
 
   >>> import os
@@ -715,8 +817,8 @@ b) Add times.
   >>> print((uv1.Nblts, uv2.Nblts, uv3.Nblts))
   (459, 901, 1360)
 
-c) Adding in place.
-*******************
+c) Combine in place.
+********************
 The following two commands are equivalent, and act on uv1
 directly without creating a third uvdata object.
 ::
@@ -741,9 +843,9 @@ directly without creating a third uvdata object.
 
 d) Reading multiple files.
 **************************
-If any of the read methods are given a list of files
-(or list of lists for FHD datasets), each file will be read in succession
-and added to the previous.
+If the ``read`` method is given a list of files
+(or list of lists for FHD or MWA correlator files), each file will be read in succession
+and combined with the previous file(s).
 ::
 
   >>> import os
@@ -762,29 +864,7 @@ and added to the previous.
   ...             in ['tutorial1.uvfits', 'tutorial2.uvfits', 'tutorial3.uvfits']]
   >>> uv.read(filenames)
 
-e) Summing and differencing visibilities
-****************************************
-Simple summing and differencing of visibilities can be done with the ``sum_vis`` and ``diff_vis`` methods.
-::
-
-  >>> import os
-  >>> from pyuvdata import UVData
-  >>> from pyuvdata.data import DATA_PATH
-  >>> filename = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-  >>> uv1 = UVData()
-  >>> uv1.read(filename)
-  >>> uv2 = uv1.copy()
-
-  # sum visibilities
-  >>> uv1 = uv1.sum_vis(uv2)
-
-  # diff visibilities
-  >>> uv1 = uv1.diff_vis(uv2)
-
-  # in place option
-  >>> uv1.sum_vis(uv2, inplace=True)
-
-f) Fast concatenation
+e) Fast concatenation
 *********************
 As an alternative to the ``__add__`` operation, the ``fast_concat`` method can
 be used. The user specifies a UVData object to combine with the existing one,
@@ -823,6 +903,30 @@ stored in the uvh5 format.
   >>> filenames = [os.path.join(DATA_PATH, f) for f
   ...             in ['tutorial1.uvfits', 'tutorial2.uvfits', 'tutorial3.uvfits']]
   >>> uv.read(filenames, axis='freq')
+
+
+UVData: Summing and differencing visibilities
+---------------------------------------------
+Simple summing and differencing of visibilities can be done with the ``sum_vis``
+and ``diff_vis`` methods.
+::
+
+  >>> import os
+  >>> from pyuvdata import UVData
+  >>> from pyuvdata.data import DATA_PATH
+  >>> filename = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+  >>> uv1 = UVData()
+  >>> uv1.read(filename)
+  >>> uv2 = uv1.copy()
+
+  # sum visibilities
+  >>> uv1 = uv1.sum_vis(uv2)
+
+  # diff visibilities
+  >>> uv1 = uv1.diff_vis(uv2)
+
+  # in place option
+  >>> uv1.sum_vis(uv2, inplace=True)
 
 .. _large_files:
 
