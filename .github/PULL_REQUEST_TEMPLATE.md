@@ -33,7 +33,7 @@ New feature checklist:
 - [ ] I have added or updated the docstrings associated with my feature using the [numpy docstring format](https://numpydoc.readthedocs.io/en/latest/format.html).
 - [ ] I have updated the tutorial to highlight my new feature (if appropriate).
 - [ ] I have added tests to cover my new feature.
-- [ ] All new and existing tests pass in both python 2 and python 3.
+- [ ] All new and existing tests pass.
 - [ ] I have updated the [CHANGELOG](https://github.com/RadioAstronomySoftwareGroup/pyuvdata/blob/master/CHANGELOG.md).
 
 Breaking change checklist:  
@@ -41,7 +41,7 @@ Breaking change checklist:
 - [ ] I have updated the tutorial to reflect my changes (if appropriate).
 - [ ] My change includes backwards compatibility and deprecation warnings (if possible).
 - [ ] I have added tests to cover my changes.
-- [ ] All new and existing tests pass in both python 2 and python 3.
+- [ ] All new and existing tests pass.
 - [ ] I have updated the [CHANGELOG](https://github.com/RadioAstronomySoftwareGroup/pyuvdata/blob/master/CHANGELOG.md).
 
 Documentation change checklist:

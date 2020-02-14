@@ -200,7 +200,7 @@ https://github.com/casacore/python-casacore
 Uses the `pytest` package to execute test suite.
 From the source pyuvdata directory run ```pytest``` or ```python -m pytest```.
 
-Testing of `UVFlag` module requires the `pytest-cases` plug-in (available from pip; may require `setuptools_scm` for python 2 developers).
+Testing of `UVFlag` module requires the `pytest-cases` plug-in.
 
 # API
 The primary interface to data from python is via the UVData object. It provides
