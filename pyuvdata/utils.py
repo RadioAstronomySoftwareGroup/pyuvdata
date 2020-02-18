@@ -1520,7 +1520,7 @@ def quadmean_collapse(arr, weights=None, axis=None, return_weights=False,
                         return_weights_square=return_weights_square)
     if return_weights and return_weights_square:
         return np.sqrt(out[0]), out[1], out[2]
-    elif return_weights:
+    elif return_weights or return_weights_square:
         return np.sqrt(out[0]), out[1]
     elif return_weights_square:
         return np.sqrt(out[0]), out[2]
