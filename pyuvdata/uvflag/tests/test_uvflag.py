@@ -11,7 +11,7 @@ import pyuvdata.tests as uvtest
 from pyuvdata import UVData, UVCal, utils as uvutils
 from pyuvdata.data import DATA_PATH
 from pyuvdata import UVFlag
-from ..uvflag import lst_from_uv, flags2waterfall, and_rows_cols
+from ..uvflag import lst_from_uv, flags2waterfall, and_rows_cols, _read_uvflag_string
 from pyuvdata import __version__
 import shutil
 import copy
