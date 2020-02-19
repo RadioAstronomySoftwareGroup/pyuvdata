@@ -779,6 +779,21 @@ def test_collapse_quadmean_returned_without_weights_square_with_return_weights()
     assert np.array_equal(wo, wo1)
 
 
+def test_collapse_quadmean_returned_with_weights_square_without_weights():
+    # Fake data
+    data = np.zeros((50, 25))
+    for i in range(data.shape[1]):
+        data[:, i] = i * np.ones_like(data[:, i]) + 1
+    w = 1. / data
+    out, wo = uvutils.collapse(data, 'quadmean', weights=w, axis=0, return_weights=False,
+                               return_weights_square=True)
+    out1, wo1 = uvutils.quadmean_collapse(data, weights=w, axis=0, return_weights=False,
+                                          return_weights_square=True)
+    # Actual values are tested elsewhere?
+    assert np.array_equal(out, out1)
+    assert np.array_equal(wo, wo1)
+
+
 def test_collapse_or_no_return_no_weights():
     # Fake data
     data = np.zeros((50, 25), np.bool)
