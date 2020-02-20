@@ -455,7 +455,7 @@ def test_write_add_version_str():
 
     with h5py.File(test_outfile, 'r') as h5:
         assert h5['Header/history'].dtype.type is np.string_
-        hist = h5['Header/history'][()].tostring().decode("utf8")
+        hist = h5['Header/history'][()].decode("utf8")
     assert pyuvdata_version_str in hist
 
 
