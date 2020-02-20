@@ -11,7 +11,7 @@ import pyuvdata.tests as uvtest
 from pyuvdata import UVData, UVCal, utils as uvutils
 from pyuvdata.data import DATA_PATH
 from pyuvdata import UVFlag
-from ..uvflag import lst_from_uv, flags2waterfall, and_rows_cols, _read_uvflag_string
+from ..uvflag import lst_from_uv, flags2waterfall, and_rows_cols
 from pyuvdata import __version__
 import shutil
 import copy
@@ -1727,16 +1727,8 @@ def test_missing_Nants_telescope():
 
     with h5py.File(testfile, 'r+') as f:
         del(f['/Header/Nants_telescope'])
-    messages = 4 * ['Strings in metadata'] + ['Nants_telescope not available in file']
-    category = 4 * [DeprecationWarning] + [UserWarning]
-    uvf = uvtest.checkWarnings(
-        UVFlag,
-        [testfile],
-        {},
-        nwarnings=5,
-        message=messages,
-        category=category,
-    )
+    with pytest.warns(UserWarning, match="Nants_telescope not available in file"):
+        uvf = UVFlag(testfile)
     uvf2 = UVFlag(test_f_file)
     uvf2.Nants_telescope = 2047
     assert uvf == uvf2
@@ -2587,30 +2579,3 @@ def test_to_antenna_collapsed_pols(uvf_from_uvcal):
     uvf.to_antenna(uvc, force_pol=True)
     assert not uvf.pol_collapsed
     assert uvf.check()
-
-
-def test_read_uvflag_string(tmpdir):
-    # make an empty hdf5 file with unicode- and ascii-strings
-    tmp_path = tmpdir.strpath
-    tmp_file = os.path.join(tmp_path, "test_file.h5")
-    my_string = "my string"
-    with h5py.File(tmp_file, "w") as h5f:
-        h5f["unicode_string"] = my_string.encode("utf8")
-        h5f["ascii_string"] = np.string_(my_string)
-
-    # make sure the types of datasets are as expected
-    with h5py.File(tmp_file, "r") as h5f:
-        assert h5f["unicode_string"].dtype.type is np.object_
-        assert h5f["ascii_string"].dtype.type is np.string_
-
-        # read them in and make sure they're converted to string type
-        with pytest.warns(DeprecationWarning, match="Strings in metadata of"):
-            unicode_string = _read_uvflag_string(h5f["unicode_string"], tmp_file)
-        ascii_string = _read_uvflag_string(h5f["ascii_string"], tmp_file)
-
-    assert unicode_string == my_string
-    assert type(unicode_string) is str
-    assert ascii_string == my_string
-    assert type(ascii_string) is str
-
-    return
