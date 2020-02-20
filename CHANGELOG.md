@@ -3,6 +3,9 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed
+- Handling of strings in UVFlag files has been made more widely compatible.
+
 ## [2.0.0] - 2020-2-12
 
 ### Changed
