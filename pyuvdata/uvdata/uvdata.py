@@ -1144,11 +1144,12 @@ class UVData(UVBase):
             new_pol_inds = uvutils.reorder_conj_pols(self.polarization_array)
 
             self.uvw_array[index_array] *= (-1)
-            orig_data_array = copy.copy(self.data_array)
 
-            for pol_ind in np.arange(self.Npols):
-                self.data_array[index_array, :, :, new_pol_inds[pol_ind]] = \
-                    np.conj(orig_data_array[index_array, :, :, pol_ind])
+            if not self.metadata_only:
+                orig_data_array = copy.copy(self.data_array)
+                for pol_ind in np.arange(self.Npols):
+                    self.data_array[index_array, :, :, new_pol_inds[pol_ind]] = \
+                        np.conj(orig_data_array[index_array, :, :, pol_ind])
 
             ant_1_vals = self.ant_1_array[index_array]
             ant_2_vals = self.ant_2_array[index_array]
