@@ -1440,12 +1440,15 @@ def test_select_not_inplace():
     assert uv1 == uv_object
 
 
+@pytest.mark.parametrize("metadata_only", [True, False])
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-def test_conjugate_bls():
+def test_conjugate_bls(metadata_only):
     uv1 = UVData()
     testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-    uv1.read_uvfits(testfile)
 
+    uv1.read_uvfits(testfile, read_data=not(metadata_only))
+    if metadata_only:
+        assert uv1.metadata_only
     # file comes in with ant1<ant2
     assert(np.min(uv1.ant_2_array - uv1.ant_1_array) >= 0)
 
@@ -1459,19 +1462,20 @@ def test_conjugate_bls():
     assert(np.allclose(uv1.uvw_array, -1 * uv2.uvw_array,
                        rtol=uv1._uvw_array.tols[0], atol=uv1._uvw_array.tols[1]))
 
-    # complicated because of the polarization swaps
-    # polarization_array = [-1 -2 -3 -4]
-    assert(np.allclose(uv1.data_array[:, :, :, :2],
-                       np.conj(uv2.data_array[:, :, :, :2]),
-                       rtol=uv1._data_array.tols[0], atol=uv1._data_array.tols[1]))
+    if not metadata_only:
+        # complicated because of the polarization swaps
+        # polarization_array = [-1 -2 -3 -4]
+        assert(np.allclose(uv1.data_array[:, :, :, :2],
+                           np.conj(uv2.data_array[:, :, :, :2]),
+                           rtol=uv1._data_array.tols[0], atol=uv1._data_array.tols[1]))
 
-    assert(np.allclose(uv1.data_array[:, :, :, 2],
-                       np.conj(uv2.data_array[:, :, :, 3]),
-                       rtol=uv1._data_array.tols[0], atol=uv1._data_array.tols[1]))
+        assert(np.allclose(uv1.data_array[:, :, :, 2],
+                           np.conj(uv2.data_array[:, :, :, 3]),
+                           rtol=uv1._data_array.tols[0], atol=uv1._data_array.tols[1]))
 
-    assert(np.allclose(uv1.data_array[:, :, :, 3],
-                       np.conj(uv2.data_array[:, :, :, 2]),
-                       rtol=uv1._data_array.tols[0], atol=uv1._data_array.tols[1]))
+        assert(np.allclose(uv1.data_array[:, :, :, 3],
+                           np.conj(uv2.data_array[:, :, :, 2]),
+                           rtol=uv1._data_array.tols[0], atol=uv1._data_array.tols[1]))
 
     # check everything returned to original values with original convention
     uv2.conjugate_bls(convention='ant1<ant2')
@@ -1493,29 +1497,29 @@ def test_conjugate_bls():
     assert(np.allclose(uv1.uvw_array[blts_not_conjugated],
                        uv2.uvw_array[blts_not_conjugated],
                        rtol=uv1._uvw_array.tols[0], atol=uv1._uvw_array.tols[1]))
+    if not metadata_only:
+        # complicated because of the polarization swaps
+        # polarization_array = [-1 -2 -3 -4]
+        assert(np.allclose(uv1.data_array[blts_to_conjugate, :, :, :2],
+                           np.conj(uv2.data_array[blts_to_conjugate, :, :, :2]),
+                           rtol=uv1._data_array.tols[0], atol=uv1._data_array.tols[1]))
+        assert(np.allclose(uv1.data_array[blts_not_conjugated, :, :, :2],
+                           uv2.data_array[blts_not_conjugated, :, :, :2],
+                           rtol=uv1._data_array.tols[0], atol=uv1._data_array.tols[1]))
 
-    # complicated because of the polarization swaps
-    # polarization_array = [-1 -2 -3 -4]
-    assert(np.allclose(uv1.data_array[blts_to_conjugate, :, :, :2],
-                       np.conj(uv2.data_array[blts_to_conjugate, :, :, :2]),
-                       rtol=uv1._data_array.tols[0], atol=uv1._data_array.tols[1]))
-    assert(np.allclose(uv1.data_array[blts_not_conjugated, :, :, :2],
-                       uv2.data_array[blts_not_conjugated, :, :, :2],
-                       rtol=uv1._data_array.tols[0], atol=uv1._data_array.tols[1]))
+        assert(np.allclose(uv1.data_array[blts_to_conjugate, :, :, 2],
+                           np.conj(uv2.data_array[blts_to_conjugate, :, :, 3]),
+                           rtol=uv1._data_array.tols[0], atol=uv1._data_array.tols[1]))
+        assert(np.allclose(uv1.data_array[blts_not_conjugated, :, :, 2],
+                           uv2.data_array[blts_not_conjugated, :, :, 2],
+                           rtol=uv1._data_array.tols[0], atol=uv1._data_array.tols[1]))
 
-    assert(np.allclose(uv1.data_array[blts_to_conjugate, :, :, 2],
-                       np.conj(uv2.data_array[blts_to_conjugate, :, :, 3]),
-                       rtol=uv1._data_array.tols[0], atol=uv1._data_array.tols[1]))
-    assert(np.allclose(uv1.data_array[blts_not_conjugated, :, :, 2],
-                       uv2.data_array[blts_not_conjugated, :, :, 2],
-                       rtol=uv1._data_array.tols[0], atol=uv1._data_array.tols[1]))
-
-    assert(np.allclose(uv1.data_array[blts_to_conjugate, :, :, 3],
-                       np.conj(uv2.data_array[blts_to_conjugate, :, :, 2]),
-                       rtol=uv1._data_array.tols[0], atol=uv1._data_array.tols[1]))
-    assert(np.allclose(uv1.data_array[blts_not_conjugated, :, :, 3],
-                       uv2.data_array[blts_not_conjugated, :, :, 3],
-                       rtol=uv1._data_array.tols[0], atol=uv1._data_array.tols[1]))
+        assert(np.allclose(uv1.data_array[blts_to_conjugate, :, :, 3],
+                           np.conj(uv2.data_array[blts_to_conjugate, :, :, 2]),
+                           rtol=uv1._data_array.tols[0], atol=uv1._data_array.tols[1]))
+        assert(np.allclose(uv1.data_array[blts_not_conjugated, :, :, 3],
+                           uv2.data_array[blts_not_conjugated, :, :, 3],
+                           rtol=uv1._data_array.tols[0], atol=uv1._data_array.tols[1]))
 
     # check uv half plane conventions
     uv2.conjugate_bls(convention='u<0', use_enu=False)
