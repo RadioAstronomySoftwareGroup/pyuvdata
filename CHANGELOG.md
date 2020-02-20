@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Changed
+- UVData allows conjugation of metadata only objects.
 - Handling of strings in UVFlag files has been made more widely compatible.
 
 ## [2.0.0] - 2020-2-12
