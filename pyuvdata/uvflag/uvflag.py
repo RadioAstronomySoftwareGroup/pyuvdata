@@ -1073,15 +1073,10 @@ class UVFlag(UVBase):
                 if 'label' in header.keys():
                     self.label = header['label'][()].decode("utf8")
 
-                polarization_array_type = header['polarization_array'][()].dtype.type
-                if polarization_array_type in (np.int, np.int32, np.int64):
-                    polarization_array = header['polarization_array'][()]
-                else:
-                    # we have a string-type polarization array from collapsing
-                    polarization_array = np.asarray(
-                        header['polarization_array'][()], dtype=str
-                    )
-
+                polarization_array = header['polarization_array'][()]
+                if isinstance(polarization_array[0], np.string_):
+                    polarization_array = np.asarray(polarization_array,
+                                                    dtype=np.str_)
                 self.polarization_array = polarization_array
                 self._check_pol_state()
 
