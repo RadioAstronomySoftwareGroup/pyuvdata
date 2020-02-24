@@ -5732,8 +5732,6 @@ def test_frequency_average(uvdata_data):
     eq_coeffs = np.tile(
         np.arange(uvdata_data.uv_object.Nfreqs, dtype=np.float),
         (uvdata_data.uv_object.Nants_telescope, 1))
-    assert eq_coeffs.shape == (uvdata_data.uv_object.Nants_telescope,
-                               uvdata_data.uv_object.Nfreqs)
     uvdata_data.uv_object.eq_coeffs = eq_coeffs
     uvdata_data.uv_object.check()
 
@@ -5798,13 +5796,14 @@ def test_frequency_average_uneven(uvdata_data):
 
 
 def test_frequency_average_flagging(uvdata_data):
-    """Test averaging in frequency."""
+    """Test averaging in frequency with flagging all samples averaged."""
     # check that there's no flagging
     assert np.nonzero(uvdata_data.uv_object.flag_array)[0].size == 0
 
     # apply some flagging for testing
     inds01 = uvdata_data.uv_object.antpair2ind(0, 1)
     uvdata_data.uv_object.flag_array[inds01[0], :, 0:2, :] = True
+    assert np.nonzero(uvdata_data.uv_object.flag_array)[0].size == uvdata_data.uv_object.Npols * 2
 
     uvdata_data.uv_object.frequency_average(2)
 
@@ -5823,17 +5822,19 @@ def test_frequency_average_flagging(uvdata_data):
     assert np.allclose(uvdata_data.uv_object.get_data(0, 1, squeeze='none'), expected_data)
 
     assert np.sum(uvdata_data.uv_object.flag_array[inds01[0], :, 0, :]) == 4
+    assert np.nonzero(uvdata_data.uv_object.flag_array)[0].size == uvdata_data.uv_object.Npols
     assert np.nonzero(uvdata_data.uv_object.flag_array[inds01[1:], :, 0, :])[0].size == 0
 
 
 def test_frequency_average_flagging_partial(uvdata_data):
-    """Test averaging in frequency."""
+    """Test averaging in frequency with flagging only one sample averaged."""
     # check that there's no flagging
     assert np.nonzero(uvdata_data.uv_object.flag_array)[0].size == 0
 
     # apply some flagging for testing
     inds01 = uvdata_data.uv_object.antpair2ind(0, 1)
     uvdata_data.uv_object.flag_array[inds01[0], :, 0, :] = True
+    assert np.nonzero(uvdata_data.uv_object.flag_array)[0].size == uvdata_data.uv_object.Npols
 
     uvdata_data.uv_object.frequency_average(2)
 
@@ -5852,6 +5853,7 @@ def test_frequency_average_flagging_partial(uvdata_data):
     expected_data[0, :, 0, :] = uvdata_data.uv_object2.data_array[inds01[0], :, 1, :]
     assert np.allclose(uvdata_data.uv_object.get_data(0, 1, squeeze='none'), expected_data)
 
+    # check that there's no flagging
     assert np.nonzero(uvdata_data.uv_object.flag_array[inds01[1:], :, 0, :])[0].size == 0
 
 
