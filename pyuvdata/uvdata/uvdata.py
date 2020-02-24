@@ -5771,9 +5771,8 @@ class UVData(UVBase):
             # so that we don't set it to zero
             for n_chan in np.arange(n_final_chan):
                 if (self.flag_array[:, :, n_chan]).any():
-                    ax0_inds, ax1_inds, ax3_inds, ax4_inds = np.nonzero(mask[:, :, n_chan, :, :])
-                    # the axis with a colon below is length 1 (because we're iterating over that axis)
-                    mask[ax0_inds, ax1_inds, :, ax3_inds, ax4_inds] = False
+                    ax0_inds, ax1_inds, ax3_inds = np.nonzero(self.flag_array[:, :, n_chan, :])
+                    mask[ax0_inds, ax1_inds, n_chan, :, ax3_inds] = False
 
             masked_data = np.ma.masked_array(self.data_array.reshape(shape_tuple),
                                              mask=mask)
