@@ -4570,106 +4570,106 @@ class UVData(UVBase):
         self._convert_from_filetype(fhd_obj)
         del(fhd_obj)
 
-        def read_miriad(self, filepath, axis=None, antenna_nums=None, ant_str=None,
-                        bls=None, polarizations=None, time_range=None, read_data=True,
-                        phase_type=None, correct_lat_lon=True, run_check=True,
-                        check_extra=True, run_check_acceptability=True):
-            """
-            Read in data from a miriad file.
+    def read_miriad(self, filepath, axis=None, antenna_nums=None, ant_str=None,
+                    bls=None, polarizations=None, time_range=None, read_data=True,
+                    phase_type=None, correct_lat_lon=True, run_check=True,
+                    check_extra=True, run_check_acceptability=True):
+        """
+        Read in data from a miriad file.
 
-            Parameters
-            ----------
-            filepath : str
-                The miriad root directory to read from.
-            axis : str
-                Axis to concatenate files along. This enables fast concatenation
-                along the specified axis without the normal checking that all other
-                metadata agrees. This method does not guarantee correct resulting
-                objects. Please see the docstring for fast_concat for details.
-                Allowed values are: 'blt', 'freq', 'polarization'. Only used if
-                multiple files are passed.
-            antenna_nums : array_like of int, optional
-                The antennas numbers to read into the object.
-            bls : list of tuple, optional
-                A list of antenna number tuples (e.g. [(0, 1), (3, 2)]) or a list of
-                baseline 3-tuples (e.g. [(0, 1, 'xx'), (2, 3, 'yy')]) specifying baselines
-                to include when reading data into the object. For length-2 tuples,
-                the ordering of the numbers within the tuple does not matter. For
-                length-3 tuples, the polarization string is in the order of the two
-                antennas. If length-3 tuples are provided, `polarizations` must be
-                None.
-            ant_str : str, optional
-                A string containing information about what antenna numbers
-                and polarizations to include when reading data into the object.
-                Can be 'auto', 'cross', 'all', or combinations of antenna numbers
-                and polarizations (e.g. '1', '1_2', '1x_2y').  See tutorial for more
-                examples of valid strings and the behavior of different forms for ant_str.
-                If '1x_2y,2y_3y' is passed, both polarizations 'xy' and 'yy' will
-                be kept for both baselines (1, 2) and (2, 3) to return a valid
-                pyuvdata object.
-                An ant_str cannot be passed in addition to any of `antenna_nums`,
-                `bls` or `polarizations` parameters, if it is a ValueError will be raised.
-            polarizations : array_like of int or str, optional
-                List of polarization integers or strings to read-in. e.g. ['xx', 'yy', ...]
-            time_range : list of float, optional
-                len-2 list containing min and max range of times in Julian Date to
-                include when reading data into the object. e.g. [2458115.20, 2458115.40]
-            read_data : bool
-                Read in the visibility and flag data. If set to false,
-                only the metadata will be read in. Setting read_data to False
-                results in an incompletely defined object (check will not pass).
-            phase_type : str, optional
-                Option to specify the phasing status of the data. Options are 'drift',
-                'phased' or None. 'drift' means the data are zenith drift data,
-                'phased' means the data are phased to a single RA/Dec. Default is None
-                meaning it will be guessed at based on the file contents.
-            correct_lat_lon : bool
-                Option to update the latitude and longitude from the known_telescopes
-                list if the altitude is missing.
-            run_check : bool
-                Option to check for the existence and proper shapes of parameters
-                after after reading in the file (the default is True,
-                meaning the check will be run). Ignored if read_data is False.
-            check_extra : bool
-                Option to check optional parameters as well as required ones (the
-                default is True, meaning the optional parameters will be checked).
-                Ignored if read_data is False.
-            run_check_acceptability : bool
-                Option to check acceptable range of the values of parameters after
-                reading in the file (the default is True, meaning the acceptable
-                range check will be done). Ignored if read_data is False.
+        Parameters
+        ----------
+        filepath : str
+            The miriad root directory to read from.
+        axis : str
+            Axis to concatenate files along. This enables fast concatenation
+            along the specified axis without the normal checking that all other
+            metadata agrees. This method does not guarantee correct resulting
+            objects. Please see the docstring for fast_concat for details.
+            Allowed values are: 'blt', 'freq', 'polarization'. Only used if
+            multiple files are passed.
+        antenna_nums : array_like of int, optional
+            The antennas numbers to read into the object.
+        bls : list of tuple, optional
+            A list of antenna number tuples (e.g. [(0, 1), (3, 2)]) or a list of
+            baseline 3-tuples (e.g. [(0, 1, 'xx'), (2, 3, 'yy')]) specifying baselines
+            to include when reading data into the object. For length-2 tuples,
+            the ordering of the numbers within the tuple does not matter. For
+            length-3 tuples, the polarization string is in the order of the two
+            antennas. If length-3 tuples are provided, `polarizations` must be
+            None.
+        ant_str : str, optional
+            A string containing information about what antenna numbers
+            and polarizations to include when reading data into the object.
+            Can be 'auto', 'cross', 'all', or combinations of antenna numbers
+            and polarizations (e.g. '1', '1_2', '1x_2y').  See tutorial for more
+            examples of valid strings and the behavior of different forms for ant_str.
+            If '1x_2y,2y_3y' is passed, both polarizations 'xy' and 'yy' will
+            be kept for both baselines (1, 2) and (2, 3) to return a valid
+            pyuvdata object.
+            An ant_str cannot be passed in addition to any of `antenna_nums`,
+            `bls` or `polarizations` parameters, if it is a ValueError will be raised.
+        polarizations : array_like of int or str, optional
+            List of polarization integers or strings to read-in. e.g. ['xx', 'yy', ...]
+        time_range : list of float, optional
+            len-2 list containing min and max range of times in Julian Date to
+            include when reading data into the object. e.g. [2458115.20, 2458115.40]
+        read_data : bool
+            Read in the visibility and flag data. If set to false,
+            only the metadata will be read in. Setting read_data to False
+            results in an incompletely defined object (check will not pass).
+        phase_type : str, optional
+            Option to specify the phasing status of the data. Options are 'drift',
+            'phased' or None. 'drift' means the data are zenith drift data,
+            'phased' means the data are phased to a single RA/Dec. Default is None
+            meaning it will be guessed at based on the file contents.
+        correct_lat_lon : bool
+            Option to update the latitude and longitude from the known_telescopes
+            list if the altitude is missing.
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            after after reading in the file (the default is True,
+            meaning the check will be run). Ignored if read_data is False.
+        check_extra : bool
+            Option to check optional parameters as well as required ones (the
+            default is True, meaning the optional parameters will be checked).
+            Ignored if read_data is False.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters after
+            reading in the file (the default is True, meaning the acceptable
+            range check will be done). Ignored if read_data is False.
 
-            Raises
-            ------
-            IOError
-                If root file directory doesn't exist.
-            ValueError
-                If incompatible select keywords are set (e.g. `ant_str` with other
-                antenna selectors, `times` and `time_range`) or select keywords
-                exclude all data or if keywords are set to the wrong type.
-                If the data are multi source or have multiple
-                spectral windows.
-                If the metadata are not internally consistent.
+        Raises
+        ------
+        IOError
+            If root file directory doesn't exist.
+        ValueError
+            If incompatible select keywords are set (e.g. `ant_str` with other
+            antenna selectors, `times` and `time_range`) or select keywords
+            exclude all data or if keywords are set to the wrong type.
+            If the data are multi source or have multiple
+            spectral windows.
+            If the metadata are not internally consistent.
 
-            """
-            from . import miriad
-            if isinstance(filepath, (list, tuple, np.ndarray)):
-                raise ValueError(
-                    "Reading multiple files from class specific "
-                    "read functions is no longer supported. "
-                    "Use the generic `uvdata.read` function instead."
-                )
+        """
+        from . import miriad
+        if isinstance(filepath, (list, tuple, np.ndarray)):
+            raise ValueError(
+                "Reading multiple files from class specific "
+                "read functions is no longer supported. "
+                "Use the generic `uvdata.read` function instead."
+            )
 
-            miriad_obj = miriad.Miriad()
-            miriad_obj.read_miriad(filepath, correct_lat_lon=correct_lat_lon,
-                                   run_check=run_check, check_extra=check_extra,
-                                   run_check_acceptability=run_check_acceptability,
-                                   read_data=read_data,
-                                   phase_type=phase_type, antenna_nums=antenna_nums,
-                                   ant_str=ant_str, bls=bls,
-                                   polarizations=polarizations, time_range=time_range)
-            self._convert_from_filetype(miriad_obj)
-            del(miriad_obj)
+        miriad_obj = miriad.Miriad()
+        miriad_obj.read_miriad(filepath, correct_lat_lon=correct_lat_lon,
+                               run_check=run_check, check_extra=check_extra,
+                               run_check_acceptability=run_check_acceptability,
+                               read_data=read_data,
+                               phase_type=phase_type, antenna_nums=antenna_nums,
+                               ant_str=ant_str, bls=bls,
+                               polarizations=polarizations, time_range=time_range)
+        self._convert_from_filetype(miriad_obj)
+        del(miriad_obj)
 
     def read_ms(self, filepath, axis=None, data_column='DATA', pol_order='AIPS',
                 run_check=True, check_extra=True, run_check_acceptability=True):
