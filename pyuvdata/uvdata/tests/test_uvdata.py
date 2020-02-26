@@ -5762,6 +5762,9 @@ def test_frequency_average(uvdata_data):
 
     assert np.nonzero(uvdata_data.uv_object.flag_array)[0].size == 0
 
+    assert not isinstance(uvdata_data.uv_object.data_array, np.ma.MaskedArray)
+    assert not isinstance(uvdata_data.uv_object.nsample_array, np.ma.MaskedArray)
+
 
 def test_frequency_average_uneven(uvdata_data):
     """Test averaging in frequency with a number that is not a factor of Nfreqs."""
@@ -5888,6 +5891,26 @@ def test_frequency_average_flagging_full_and_partial(uvdata_data):
     assert np.nonzero(uvdata_data.uv_object.flag_array)[0].size == uvdata_data.uv_object.Npols
 
 
+def test_frequency_average_flagging_partial_twostage(uvdata_data):
+    """Test averaging in frequency in two stages with flagging only one sample averaged."""
+    # check that there's no flagging
+    assert np.nonzero(uvdata_data.uv_object.flag_array)[0].size == 0
+
+    # apply some flagging for testing
+    inds01 = uvdata_data.uv_object.antpair2ind(0, 1)
+    uvdata_data.uv_object.flag_array[inds01[0], :, 0, :] = True
+    assert np.nonzero(uvdata_data.uv_object.flag_array)[0].size == uvdata_data.uv_object.Npols
+
+    uv_object3 = uvdata_data.uv_object.copy()
+
+    uvdata_data.uv_object.frequency_average(2)
+    uvdata_data.uv_object.frequency_average(2)
+
+    uv_object3.frequency_average(4)
+
+    assert uvdata_data.uv_object == uv_object3
+
+
 def test_frequency_average_summing_corr_mode(uvdata_data):
     """Test averaging in frequency."""
     # check that there's no flagging
@@ -5911,6 +5934,8 @@ def test_frequency_average_summing_corr_mode(uvdata_data):
     assert np.allclose(uvdata_data.uv_object.get_data(0, 1, squeeze='none'), expected_data)
 
     assert np.nonzero(uvdata_data.uv_object.flag_array)[0].size == 0
+    assert not isinstance(uvdata_data.uv_object.data_array, np.ma.MaskedArray)
+    assert not isinstance(uvdata_data.uv_object.nsample_array, np.ma.MaskedArray)
 
 
 def test_remove_eq_coeffs_divide(uvdata_data):
