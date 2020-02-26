@@ -362,50 +362,6 @@ class UVBeam(UVBase):
 
         super(UVBeam, self).__init__()
 
-    def check(self, check_extra=True, run_check_acceptability=True):
-        """
-        Check that all required parameters are set reasonably.
-
-        Check that required parameters exist and have appropriate shapes.
-        Optionally check if the values are acceptable.
-
-        Parameters
-        ----------
-        check_extra : bool
-            Option to check optional parameters as well as required ones.
-        run_check_acceptability : bool
-            Option to check if values in required parameters are acceptable.
-
-        """
-        # first make sure the required parameters and forms are set properly
-        # for the pixel_coordinate_system
-        self.set_cs_params()
-
-        # first run the basic check from UVBase
-        super(UVBeam, self).check(check_extra=check_extra,
-                                  run_check_acceptability=run_check_acceptability)
-
-        # check that basis_vector_array are basis vectors
-        if self.basis_vector_array is not None:
-            if np.max(np.linalg.norm(self.basis_vector_array, axis=1)) > (1 + 1e-15):
-                raise ValueError('basis vectors must have lengths of 1 or less.')
-
-        # issue warning if extra_keywords keys are longer than 8 characters
-        for key in list(self.extra_keywords.keys()):
-            if len(key) > 8:
-                warnings.warn('key {key} in extra_keywords is longer than 8 '
-                              'characters. It will be truncated to 8 if written '
-                              'to a fits file format.'.format(key=key))
-
-        # issue warning if extra_keywords values are lists, arrays or dicts
-        for key, value in self.extra_keywords.items():
-            if isinstance(value, (list, dict, np.ndarray)):
-                warnings.warn('{key} in extra_keywords is a list, array or dict, '
-                              'which will raise an error when writing fits '
-                              'files'.format(key=key))
-
-        return True
-
     def set_cs_params(self):
         """Set various forms and required parameters depending on pixel_coordinate_system."""
         if self.pixel_coordinate_system == 'healpix':
@@ -508,6 +464,160 @@ class UVBeam(UVBase):
             self.data_array[:, :, :, i, :] /= max_val
             self.bandpass_array[:, i] *= max_val
         self.data_normalization = 'peak'
+
+    def check(self, check_extra=True, run_check_acceptability=True):
+        """
+        Check that all required parameters are set reasonably.
+
+        Check that required parameters exist and have appropriate shapes.
+        Optionally check if the values are acceptable.
+
+        Parameters
+        ----------
+        check_extra : bool
+            Option to check optional parameters as well as required ones.
+        run_check_acceptability : bool
+            Option to check if values in required parameters are acceptable.
+
+        """
+        # first make sure the required parameters and forms are set properly
+        # for the pixel_coordinate_system
+        self.set_cs_params()
+
+        # first run the basic check from UVBase
+        super(UVBeam, self).check(check_extra=check_extra,
+                                  run_check_acceptability=run_check_acceptability)
+
+        # check that basis_vector_array are basis vectors
+        if self.basis_vector_array is not None:
+            if np.max(np.linalg.norm(self.basis_vector_array, axis=1)) > (1 + 1e-15):
+                raise ValueError('basis vectors must have lengths of 1 or less.')
+
+        # issue warning if extra_keywords keys are longer than 8 characters
+        for key in list(self.extra_keywords.keys()):
+            if len(key) > 8:
+                warnings.warn('key {key} in extra_keywords is longer than 8 '
+                              'characters. It will be truncated to 8 if written '
+                              'to a fits file format.'.format(key=key))
+
+        # issue warning if extra_keywords values are lists, arrays or dicts
+        for key, value in self.extra_keywords.items():
+            if isinstance(value, (list, dict, np.ndarray)):
+                warnings.warn('{key} in extra_keywords is a list, array or dict, '
+                              'which will raise an error when writing fits '
+                              'files'.format(key=key))
+
+        return True
+
+    def efield_to_power(self, calc_cross_pols=True, keep_basis_vector=False,
+                        run_check=True, check_extra=True, run_check_acceptability=True,
+                        inplace=True):
+        """
+        Convert E-field beam to power beam.
+
+        Parameters
+        ----------
+        calc_cross_pols : bool
+            If True, calculate the crossed polarization beams
+            (e.g. 'xy' and 'yx'), otherwise only calculate the same
+            polarization beams (e.g. 'xx' and 'yy').
+        keep_basis_vector : bool
+            If True, keep the directionality information and
+            just multiply the efields for each basis vector separately
+            (caution: this is not what is standardly meant by the power beam).
+        inplace : bool
+            Option to apply conversion directly on self or to return a new
+            UVBeam object.
+        run_check : bool
+            Option to check for the existence and proper shapes of the required
+            parameters after converting to power.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of required parameters
+            after converting to power.
+        check_extra : bool
+            Option to check optional parameters as well as required ones.
+
+        """
+        if inplace:
+            beam_object = self
+        else:
+            beam_object = copy.deepcopy(self)
+
+        if beam_object.beam_type != 'efield':
+            raise ValueError('beam_type must be efield')
+
+        efield_data = beam_object.data_array
+        efield_naxes_vec = beam_object.Naxes_vec
+
+        feed_pol_order = [(0, 0)]
+        if beam_object.Nfeeds > 1:
+            feed_pol_order.append((1, 1))
+
+        if calc_cross_pols:
+            beam_object.Npols = beam_object.Nfeeds ** 2
+            if beam_object.Nfeeds > 1:
+                feed_pol_order.extend([(0, 1), (1, 0)])
+        else:
+            beam_object.Npols = beam_object.Nfeeds
+
+        pol_strings = []
+        for pair in feed_pol_order:
+            pol_strings.append(beam_object.feed_array[pair[0]] + beam_object.feed_array[pair[1]])
+        beam_object.polarization_array = np.array(
+            [uvutils.polstr2num(ps.upper(), x_orientation=self.x_orientation) for ps in pol_strings])
+
+        if not keep_basis_vector:
+            beam_object.Naxes_vec = 1
+
+        # adjust requirements, fix data_array form
+        beam_object.set_power()
+        power_data = np.zeros(beam_object._data_array.expected_shape(beam_object), dtype=np.complex)
+
+        if keep_basis_vector:
+            for pol_i, pair in enumerate(feed_pol_order):
+                power_data[:, :, pol_i] = (efield_data[:, :, pair[0]]
+                                           * np.conj(efield_data[:, :, pair[1]]))
+
+        else:
+            for pol_i, pair in enumerate(feed_pol_order):
+                if efield_naxes_vec == 2:
+                    for comp_i in range(2):
+                        power_data[0, :, pol_i] += \
+                            ((efield_data[0, :, pair[0]]
+                              * np.conj(efield_data[0, :, pair[1]]))
+                             * beam_object.basis_vector_array[0, comp_i]**2
+                             + (efield_data[1, :, pair[0]]
+                                * np.conj(efield_data[1, :, pair[1]]))
+                             * beam_object.basis_vector_array[1, comp_i]**2
+                             + (efield_data[0, :, pair[0]]
+                                * np.conj(efield_data[1, :, pair[1]])
+                                + efield_data[1, :, pair[0]]
+                                * np.conj(efield_data[0, :, pair[1]]))
+                             * (beam_object.basis_vector_array[0, comp_i]
+                                * beam_object.basis_vector_array[1, comp_i]))
+                else:
+                    raise ValueError('Conversion to power with 3-vector efields '
+                                     'is not currently supported because we have '
+                                     'no examples to work with.')
+
+        power_data = np.real_if_close(power_data, tol=10)
+
+        beam_object.data_array = power_data
+        beam_object.Nfeeds = None
+        beam_object.feed_array = None
+        if not keep_basis_vector:
+            beam_object.basis_vector_array = None
+            beam_object.Ncomponents_vec = None
+
+        history_update_string = (' Converted from efield to power using pyuvdata.')
+
+        beam_object.history = beam_object.history + history_update_string
+
+        if run_check:
+            beam_object.check(check_extra=check_extra,
+                              run_check_acceptability=run_check_acceptability)
+        if not inplace:
+            return beam_object
 
     def _stokes_matrix(self, pol_index):
         """
@@ -656,116 +766,6 @@ class UVBeam(UVBase):
         beam_object.feed_array = None
         beam_object.basis_vector_array = None
         beam_object.Ncomponents_vec = None
-
-        if run_check:
-            beam_object.check(check_extra=check_extra,
-                              run_check_acceptability=run_check_acceptability)
-        if not inplace:
-            return beam_object
-
-    def efield_to_power(self, calc_cross_pols=True, keep_basis_vector=False,
-                        run_check=True, check_extra=True, run_check_acceptability=True,
-                        inplace=True):
-        """
-        Convert E-field beam to power beam.
-
-        Parameters
-        ----------
-        calc_cross_pols : bool
-            If True, calculate the crossed polarization beams
-            (e.g. 'xy' and 'yx'), otherwise only calculate the same
-            polarization beams (e.g. 'xx' and 'yy').
-        keep_basis_vector : bool
-            If True, keep the directionality information and
-            just multiply the efields for each basis vector separately
-            (caution: this is not what is standardly meant by the power beam).
-        inplace : bool
-            Option to apply conversion directly on self or to return a new
-            UVBeam object.
-        run_check : bool
-            Option to check for the existence and proper shapes of the required
-            parameters after converting to power.
-        run_check_acceptability : bool
-            Option to check acceptable range of the values of required parameters
-            after converting to power.
-        check_extra : bool
-            Option to check optional parameters as well as required ones.
-
-        """
-        if inplace:
-            beam_object = self
-        else:
-            beam_object = copy.deepcopy(self)
-
-        if beam_object.beam_type != 'efield':
-            raise ValueError('beam_type must be efield')
-
-        efield_data = beam_object.data_array
-        efield_naxes_vec = beam_object.Naxes_vec
-
-        feed_pol_order = [(0, 0)]
-        if beam_object.Nfeeds > 1:
-            feed_pol_order.append((1, 1))
-
-        if calc_cross_pols:
-            beam_object.Npols = beam_object.Nfeeds ** 2
-            if beam_object.Nfeeds > 1:
-                feed_pol_order.extend([(0, 1), (1, 0)])
-        else:
-            beam_object.Npols = beam_object.Nfeeds
-
-        pol_strings = []
-        for pair in feed_pol_order:
-            pol_strings.append(beam_object.feed_array[pair[0]] + beam_object.feed_array[pair[1]])
-        beam_object.polarization_array = np.array(
-            [uvutils.polstr2num(ps.upper(), x_orientation=self.x_orientation) for ps in pol_strings])
-
-        if not keep_basis_vector:
-            beam_object.Naxes_vec = 1
-
-        # adjust requirements, fix data_array form
-        beam_object.set_power()
-        power_data = np.zeros(beam_object._data_array.expected_shape(beam_object), dtype=np.complex)
-
-        if keep_basis_vector:
-            for pol_i, pair in enumerate(feed_pol_order):
-                power_data[:, :, pol_i] = (efield_data[:, :, pair[0]]
-                                           * np.conj(efield_data[:, :, pair[1]]))
-
-        else:
-            for pol_i, pair in enumerate(feed_pol_order):
-                if efield_naxes_vec == 2:
-                    for comp_i in range(2):
-                        power_data[0, :, pol_i] += \
-                            ((efield_data[0, :, pair[0]]
-                              * np.conj(efield_data[0, :, pair[1]]))
-                             * beam_object.basis_vector_array[0, comp_i]**2
-                             + (efield_data[1, :, pair[0]]
-                                * np.conj(efield_data[1, :, pair[1]]))
-                             * beam_object.basis_vector_array[1, comp_i]**2
-                             + (efield_data[0, :, pair[0]]
-                                * np.conj(efield_data[1, :, pair[1]])
-                                + efield_data[1, :, pair[0]]
-                                * np.conj(efield_data[0, :, pair[1]]))
-                             * (beam_object.basis_vector_array[0, comp_i]
-                                * beam_object.basis_vector_array[1, comp_i]))
-                else:
-                    raise ValueError('Conversion to power with 3-vector efields '
-                                     'is not currently supported because we have '
-                                     'no examples to work with.')
-
-        power_data = np.real_if_close(power_data, tol=10)
-
-        beam_object.data_array = power_data
-        beam_object.Nfeeds = None
-        beam_object.feed_array = None
-        if not keep_basis_vector:
-            beam_object.basis_vector_array = None
-            beam_object.Ncomponents_vec = None
-
-        history_update_string = (' Converted from efield to power using pyuvdata.')
-
-        beam_object.history = beam_object.history + history_update_string
 
         if run_check:
             beam_object.check(check_extra=check_extra,
@@ -1478,6 +1478,123 @@ class UVBeam(UVBase):
                 param = getattr(beam_object, p)
                 setattr(self, p, param)
 
+    def _get_beam(self, pol):
+        """
+        Get the healpix power beam map corresponding to the specififed polarization.
+
+        pseudo-stokes I: 'pI', Q: 'pQ', U: 'pU' and V: 'pV' or linear dipole
+        polarization: 'XX', 'YY', etc.
+
+        Parameters
+        ----------
+        pol : str or int
+            polarization string or integer, Ex. a pseudo-stokes pol 'pI', or a linear pol 'XX'.
+
+        Returns
+        -------
+        UVBeam
+            healpix beam
+        """
+        # assert map is in healpix coords
+        assert self.pixel_coordinate_system == 'healpix', "pixel_coordinate_system must be healpix"
+        # assert beam_type is power
+        assert self.beam_type == 'power', "beam_type must be power"
+        if isinstance(pol, (str, np.str)):
+            pol = uvutils.polstr2num(pol, x_orientation=self.x_orientation)
+        pol_array = self.polarization_array
+        if pol in pol_array:
+            stokes_p_ind = np.where(np.isin(pol_array, pol))[0][0]
+            beam = self.data_array[0, 0, stokes_p_ind]
+        else:
+            raise ValueError('Do not have the right polarization information')
+
+        return beam
+
+    def get_beam_area(self, pol='pI'):
+        """
+        Compute the integral of the beam in units of steradians.
+
+        Pseudo-Stokes 'pI' (I), 'pQ'(Q), 'pU'(U), 'pV'(V) beam and linear
+        dipole 'XX', 'XY', 'YX' and 'YY' are supported.
+        See Equations 4 and 5 of Moore et al. (2017) ApJ 836, 154
+        or arxiv:1502.05072 and Kohn et al. (2018) or
+        https://arxiv.org/pdf/1802.04151.pdf for details.
+
+        Parameters
+        ----------
+        pol : str or int
+            polarization string or integer, Ex. a pseudo-stokes pol 'pI', or a
+            linear pol 'XX'.
+
+        Returns
+        -------
+        omega : float
+            Integral of the beam across the sky, units: steradians.
+
+        """
+        if isinstance(pol, (str, np.str)):
+            pol = uvutils.polstr2num(pol, x_orientation=self.x_orientation)
+        if self.beam_type != 'power':
+            raise ValueError('beam_type must be power')
+        if self.Naxes_vec > 1:
+            raise ValueError('Expect scalar for power beam, found vector')
+        if self._data_normalization.value != 'peak':
+            raise ValueError('beam must be peak normalized')
+        if self.pixel_coordinate_system != 'healpix':
+            raise ValueError('Currently only healpix format supported')
+
+        nside = self.nside
+
+        # get beam
+        beam = self._get_beam(pol)
+
+        # get integral
+        omega = np.sum(beam, axis=-1) * np.pi / (3. * nside**2)
+
+        return omega
+
+    def get_beam_sq_area(self, pol='pI'):
+        """
+        Compute the integral of the beam^2 in units of steradians.
+
+        Pseudo-Stokes 'pI' (I), 'pQ'(Q), 'pU'(U), 'pV'(V) beam and
+        linear dipole 'XX', 'XY', 'YX' and 'YY' are supported.
+        See Equations 4 and 5 of Moore et al. (2017) ApJ 836, 154
+        or arxiv:1502.05072 for details.
+
+        Parameters
+        ----------
+        pol : str or int
+            polarization string or integer, Ex. a pseudo-stokes pol 'pI', or a
+            linear pol 'XX'.
+
+        Returns
+        -------
+        omega : float
+            Integral of the beam^2 across the sky, units: steradians.
+
+        """
+        if isinstance(pol, (str, np.str)):
+            pol = uvutils.polstr2num(pol, x_orientation=self.x_orientation)
+        if self.beam_type != 'power':
+            raise ValueError('beam_type must be power')
+        if self.Naxes_vec > 1:
+            raise ValueError('Expect scalar for power beam, found vector')
+        if self._data_normalization.value != 'peak':
+            raise ValueError('beam must be peak normalized')
+        if self.pixel_coordinate_system != 'healpix':
+            raise ValueError('Currently only healpix format supported')
+
+        nside = self.nside
+
+        # get beam
+        beam = self._get_beam(pol)
+
+        # get integral
+        omega = np.sum(beam**2, axis=-1) * np.pi / (3. * nside**2)
+
+        return omega
+
     def __add__(self, other, inplace=False, run_check=True, check_extra=True,
                 run_check_acceptability=True):
         """
@@ -1853,123 +1970,6 @@ class UVBeam(UVBase):
         self.__add__(other, inplace=True)
         return self
 
-    def _get_beam(self, pol):
-        """
-        Get the healpix power beam map corresponding to the specififed polarization.
-
-        pseudo-stokes I: 'pI', Q: 'pQ', U: 'pU' and V: 'pV' or linear dipole
-        polarization: 'XX', 'YY', etc.
-
-        Parameters
-        ----------
-        pol : str or int
-            polarization string or integer, Ex. a pseudo-stokes pol 'pI', or a linear pol 'XX'.
-
-        Returns
-        -------
-        UVBeam
-            healpix beam
-        """
-        # assert map is in healpix coords
-        assert self.pixel_coordinate_system == 'healpix', "pixel_coordinate_system must be healpix"
-        # assert beam_type is power
-        assert self.beam_type == 'power', "beam_type must be power"
-        if isinstance(pol, (str, np.str)):
-            pol = uvutils.polstr2num(pol, x_orientation=self.x_orientation)
-        pol_array = self.polarization_array
-        if pol in pol_array:
-            stokes_p_ind = np.where(np.isin(pol_array, pol))[0][0]
-            beam = self.data_array[0, 0, stokes_p_ind]
-        else:
-            raise ValueError('Do not have the right polarization information')
-
-        return beam
-
-    def get_beam_area(self, pol='pI'):
-        """
-        Compute the integral of the beam in units of steradians.
-
-        Pseudo-Stokes 'pI' (I), 'pQ'(Q), 'pU'(U), 'pV'(V) beam and linear
-        dipole 'XX', 'XY', 'YX' and 'YY' are supported.
-        See Equations 4 and 5 of Moore et al. (2017) ApJ 836, 154
-        or arxiv:1502.05072 and Kohn et al. (2018) or
-        https://arxiv.org/pdf/1802.04151.pdf for details.
-
-        Parameters
-        ----------
-        pol : str or int
-            polarization string or integer, Ex. a pseudo-stokes pol 'pI', or a
-            linear pol 'XX'.
-
-        Returns
-        -------
-        omega : float
-            Integral of the beam across the sky, units: steradians.
-
-        """
-        if isinstance(pol, (str, np.str)):
-            pol = uvutils.polstr2num(pol, x_orientation=self.x_orientation)
-        if self.beam_type != 'power':
-            raise ValueError('beam_type must be power')
-        if self.Naxes_vec > 1:
-            raise ValueError('Expect scalar for power beam, found vector')
-        if self._data_normalization.value != 'peak':
-            raise ValueError('beam must be peak normalized')
-        if self.pixel_coordinate_system != 'healpix':
-            raise ValueError('Currently only healpix format supported')
-
-        nside = self.nside
-
-        # get beam
-        beam = self._get_beam(pol)
-
-        # get integral
-        omega = np.sum(beam, axis=-1) * np.pi / (3. * nside**2)
-
-        return omega
-
-    def get_beam_sq_area(self, pol='pI'):
-        """
-        Compute the integral of the beam^2 in units of steradians.
-
-        Pseudo-Stokes 'pI' (I), 'pQ'(Q), 'pU'(U), 'pV'(V) beam and
-        linear dipole 'XX', 'XY', 'YX' and 'YY' are supported.
-        See Equations 4 and 5 of Moore et al. (2017) ApJ 836, 154
-        or arxiv:1502.05072 for details.
-
-        Parameters
-        ----------
-        pol : str or int
-            polarization string or integer, Ex. a pseudo-stokes pol 'pI', or a
-            linear pol 'XX'.
-
-        Returns
-        -------
-        omega : float
-            Integral of the beam^2 across the sky, units: steradians.
-
-        """
-        if isinstance(pol, (str, np.str)):
-            pol = uvutils.polstr2num(pol, x_orientation=self.x_orientation)
-        if self.beam_type != 'power':
-            raise ValueError('beam_type must be power')
-        if self.Naxes_vec > 1:
-            raise ValueError('Expect scalar for power beam, found vector')
-        if self._data_normalization.value != 'peak':
-            raise ValueError('beam must be peak normalized')
-        if self.pixel_coordinate_system != 'healpix':
-            raise ValueError('Currently only healpix format supported')
-
-        nside = self.nside
-
-        # get beam
-        beam = self._get_beam(pol)
-
-        # get integral
-        omega = np.sum(beam**2, axis=-1) * np.pi / (3. * nside**2)
-
-        return omega
-
     def select(self, axis1_inds=None, axis2_inds=None, pixels=None,
                frequencies=None, freq_chans=None,
                feeds=None, polarizations=None, inplace=True, run_check=True,
@@ -2288,35 +2288,6 @@ class UVBeam(UVBase):
                                        run_check_acceptability=run_check_acceptability)
             self._convert_from_filetype(beamfits_obj)
             del(beamfits_obj)
-
-    def write_beamfits(self, filename, run_check=True, check_extra=True,
-                       run_check_acceptability=True, clobber=False):
-        """
-        Write the data to a beamfits file.
-
-        Parameters
-        ----------
-        filename : str
-            The beamfits file to write to.
-        run_check : bool
-            Option to check for the existence and proper shapes of
-            required parameters before writing the file.
-        check_extra : bool
-            Option to check optional parameters as well as
-            required ones.
-        run_check_acceptability : bool
-            Option to check acceptable range of the values of
-            required parameters before writing the file.
-        clobber : bool
-            Option to overwrite the filename if the file already exists.
-
-        """
-        beamfits_obj = self._convert_to_filetype('beamfits')
-        beamfits_obj.write_beamfits(filename, run_check=run_check,
-                                    check_extra=check_extra,
-                                    run_check_acceptability=run_check_acceptability,
-                                    clobber=clobber)
-        del(beamfits_obj)
 
     def _read_cst_beam_yaml(self, filename):
         """
