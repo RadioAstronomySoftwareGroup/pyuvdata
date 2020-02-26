@@ -288,47 +288,6 @@ class UVCal(UVBase):
 
         super(UVCal, self).__init__()
 
-    def check(self, check_extra=True, run_check_acceptability=True):
-        """
-        Check that all required parameters are set reasonably.
-
-        Check that required parameters exist and have appropriate shapes.
-        Optionally check if the values are acceptable.
-
-        Args:
-            run_check_acceptability: Option to check if values in required parameters
-                are acceptable. Default is True.
-        """
-        # Make sure requirements are set properly for cal_style
-        if self.cal_style == 'sky':
-            self.set_sky()
-        elif self.cal_style == 'redundant':
-            self.set_redundant()
-
-        # first run the basic check from UVBase
-        super(UVCal, self).check(check_extra=check_extra,
-                                 run_check_acceptability=run_check_acceptability)
-
-        # require that all entries in ant_array exist in antenna_numbers
-        if not all(ant in self.antenna_numbers for ant in self.ant_array):
-            raise ValueError('All antennas in ant_array must be in antenna_numbers.')
-
-        # issue warning if extra_keywords keys are longer than 8 characters
-        for key in self.extra_keywords.keys():
-            if len(key) > 8:
-                warnings.warn('key {key} in extra_keywords is longer than 8 '
-                              'characters. It will be truncated to 8 if written '
-                              'to a calfits file format.'.format(key=key))
-
-        # issue warning if extra_keywords values are lists, arrays or dicts
-        for key, value in self.extra_keywords.items():
-            if isinstance(value, (list, dict, np.ndarray)):
-                warnings.warn('{key} in extra_keywords is a list, array or dict, '
-                              'which will raise an error when writing calfits '
-                              'files'.format(key=key))
-
-        return True
-
     def set_gain(self):
         """Set cal_type to 'gain' and adjust required parameters."""
         self.cal_type = 'gain'
@@ -370,284 +329,133 @@ class UVCal(UVBase):
         self._sky_catalog.required = False
         self._ref_antenna_name.required = False
 
-    def select(self, antenna_nums=None, antenna_names=None,
-               frequencies=None, freq_chans=None,
-               times=None, jones=None, run_check=True, check_extra=True,
-               run_check_acceptability=True, inplace=True):
+    def check(self, check_extra=True, run_check_acceptability=True):
         """
-        Select specific antennas, frequencies, times and
-        jones polarization terms to keep in the object while discarding others.
+        Check that all required parameters are set reasonably.
 
-        The history attribute on the object will be updated to identify the
-        operations performed.
+        Check that required parameters exist and have appropriate shapes.
+        Optionally check if the values are acceptable.
 
         Args:
-            antenna_nums: The antennas numbers to keep in the object (antenna
-                positions and names for the removed antennas will be retained).
-                This cannot be provided if antenna_names is also provided.
-            antenna_names: The antennas names to keep in the object (antenna
-                positions and names for the removed antennas will be retained).
-                This cannot be provided if antenna_nums is also provided.
-            frequencies: The frequencies to keep in the object.
-            freq_chans: The frequency channel numbers to keep in the object.
-            times: The times to keep in the object.
-            jones: The jones polarization terms to keep in the object.
-            run_check: Option to check for the existence and proper shapes of
-                required parameters after downselecting data on this object. Default is True.
-            check_extra: Option to check shapes and types of optional parameters
-                as well as required ones. Default is True.
-            run_check_acceptability: Option to check acceptable range of the values of
-                required parameters after  downselecting data on this object. Default is True.
-            inplace: Option to perform the select directly on self (True, default) or return
-                a new UVCal object, which is a subselection of self (False)
+            run_check_acceptability: Option to check if values in required parameters
+                are acceptable. Default is True.
         """
-        if inplace:
-            cal_object = self
-        else:
-            cal_object = copy.deepcopy(self)
+        # Make sure requirements are set properly for cal_style
+        if self.cal_style == 'sky':
+            self.set_sky()
+        elif self.cal_style == 'redundant':
+            self.set_redundant()
 
-        # build up history string as we go
-        history_update_string = '  Downselected to specific '
-        n_selects = 0
+        # first run the basic check from UVBase
+        super(UVCal, self).check(check_extra=check_extra,
+                                 run_check_acceptability=run_check_acceptability)
 
-        if antenna_names is not None:
-            if antenna_nums is not None:
-                raise ValueError('Only one of antenna_nums and antenna_names can be provided.')
+        # require that all entries in ant_array exist in antenna_numbers
+        if not all(ant in self.antenna_numbers for ant in self.ant_array):
+            raise ValueError('All antennas in ant_array must be in antenna_numbers.')
 
-            antenna_names = uvutils._get_iterable(antenna_names)
-            antenna_nums = []
-            for s in antenna_names:
-                if s not in cal_object.antenna_names:
-                    raise ValueError('Antenna name {a} is not present in the antenna_names array'.format(a=s))
-                ind = np.where(np.array(cal_object.antenna_names) == s)[0][0]
-                antenna_nums.append(cal_object.antenna_numbers[ind])
+        # issue warning if extra_keywords keys are longer than 8 characters
+        for key in self.extra_keywords.keys():
+            if len(key) > 8:
+                warnings.warn('key {key} in extra_keywords is longer than 8 '
+                              'characters. It will be truncated to 8 if written '
+                              'to a calfits file format.'.format(key=key))
 
-        if antenna_nums is not None:
-            antenna_nums = uvutils._get_iterable(antenna_nums)
-            history_update_string += 'antennas'
-            n_selects += 1
+        # issue warning if extra_keywords values are lists, arrays or dicts
+        for key, value in self.extra_keywords.items():
+            if isinstance(value, (list, dict, np.ndarray)):
+                warnings.warn('{key} in extra_keywords is a list, array or dict, '
+                              'which will raise an error when writing calfits '
+                              'files'.format(key=key))
 
-            ant_inds = np.zeros(0, dtype=np.int)
-            for ant in antenna_nums:
-                if ant in cal_object.ant_array:
-                    ant_inds = np.append(ant_inds, np.where(cal_object.ant_array == ant)[0])
-                else:
-                    raise ValueError('Antenna number {a} is not present in the '
-                                     ' array'.format(a=ant))
+        return True
 
-            ant_inds = list(sorted(set(list(ant_inds))))
-            cal_object.Nants_data = len(ant_inds)
-            cal_object.ant_array = cal_object.ant_array[ant_inds]
-            cal_object.flag_array = cal_object.flag_array[ant_inds, :, :, :, :]
-            cal_object.quality_array = cal_object.quality_array[ant_inds, :, :, :, :]
-            if cal_object.cal_type == 'delay':
-                cal_object.delay_array = cal_object.delay_array[ant_inds, :, :, :, :]
-            else:
-                cal_object.gain_array = cal_object.gain_array[ant_inds, :, :, :, :]
-
-            if cal_object.input_flag_array is not None:
-                cal_object.input_flag_array = cal_object.input_flag_array[ant_inds, :, :, :, :]
-
-            if cal_object.total_quality_array is not None:
-                warnings.warn('Cannot preserve total_quality_array when changing '
-                              'number of antennas; discarding')
-                cal_object.total_quality_array = None
-
-        if times is not None:
-            times = uvutils._get_iterable(times)
-            if n_selects > 0:
-                history_update_string += ', times'
-            else:
-                history_update_string += 'times'
-            n_selects += 1
-
-            time_inds = np.zeros(0, dtype=np.int)
-            for jd in times:
-                if jd in cal_object.time_array:
-                    time_inds = np.append(time_inds, np.where(cal_object.time_array == jd)[0])
-                else:
-                    raise ValueError('Time {t} is not present in the time_array'.format(t=jd))
-
-            time_inds = list(sorted(set(list(time_inds))))
-            cal_object.Ntimes = len(time_inds)
-            cal_object.time_array = cal_object.time_array[time_inds]
-
-            if cal_object.Ntimes > 1:
-                time_separation = np.diff(cal_object.time_array)
-                if not np.isclose(np.min(time_separation), np.max(time_separation),
-                                  rtol=cal_object._time_array.tols[0],
-                                  atol=cal_object._time_array.tols[1]):
-                    warnings.warn('Selected times are not evenly spaced. This '
-                                  'is not supported by the calfits format.')
-
-            cal_object.flag_array = cal_object.flag_array[:, :, :, time_inds, :]
-            cal_object.quality_array = cal_object.quality_array[:, :, :, time_inds, :]
-            if cal_object.cal_type == 'delay':
-                cal_object.delay_array = cal_object.delay_array[:, :, :, time_inds, :]
-            else:
-                cal_object.gain_array = cal_object.gain_array[:, :, :, time_inds, :]
-
-            if cal_object.input_flag_array is not None:
-                cal_object.input_flag_array = cal_object.input_flag_array[:, :, :, time_inds, :]
-
-            if cal_object.total_quality_array is not None:
-                cal_object.total_quality_array = cal_object.total_quality_array[:, :, time_inds, :]
-
-        if freq_chans is not None:
-            freq_chans = uvutils._get_iterable(freq_chans)
-            if frequencies is None:
-                frequencies = cal_object.freq_array[0, freq_chans]
-            else:
-                frequencies = uvutils._get_iterable(frequencies)
-                frequencies = np.sort(list(set(frequencies)
-                                      | set(cal_object.freq_array[0, freq_chans])))
-
-        if frequencies is not None:
-            frequencies = uvutils._get_iterable(frequencies)
-            if n_selects > 0:
-                history_update_string += ', frequencies'
-            else:
-                history_update_string += 'frequencies'
-            n_selects += 1
-
-            freq_inds = np.zeros(0, dtype=np.int)
-            # this works because we only allow one SPW. This will have to be reworked when we support more.
-            freq_arr_use = cal_object.freq_array[0, :]
-            for f in frequencies:
-                if f in freq_arr_use:
-                    freq_inds = np.append(freq_inds, np.where(freq_arr_use == f)[0])
-                else:
-                    raise ValueError('Frequency {f} is not present in the freq_array'.format(f=f))
-
-            freq_inds = list(sorted(set(list(freq_inds))))
-            cal_object.Nfreqs = len(freq_inds)
-            cal_object.freq_array = cal_object.freq_array[:, freq_inds]
-
-            if cal_object.Nfreqs > 1:
-                freq_separation = cal_object.freq_array[0, 1:] - cal_object.freq_array[0, :-1]
-                if not np.isclose(np.min(freq_separation), np.max(freq_separation),
-                                  rtol=cal_object._freq_array.tols[0],
-                                  atol=cal_object._freq_array.tols[1]):
-                    warnings.warn('Selected frequencies are not evenly spaced. This '
-                                  'is not supported by the calfits format')
-
-            cal_object.flag_array = cal_object.flag_array[:, :, freq_inds, :, :]
-            if cal_object.cal_type == 'delay':
-                pass
-            else:
-                cal_object.quality_array = cal_object.quality_array[:, :, freq_inds, :, :]
-                cal_object.gain_array = cal_object.gain_array[:, :, freq_inds, :, :]
-
-            if cal_object.input_flag_array is not None:
-                cal_object.input_flag_array = cal_object.input_flag_array[:, :, freq_inds, :, :]
-
-            if cal_object.cal_type == 'delay':
-                pass
-            else:
-                if cal_object.total_quality_array is not None:
-                    cal_object.total_quality_array = cal_object.total_quality_array[:, freq_inds, :, :]
-
-        if jones is not None:
-            jones = uvutils._get_iterable(jones)
-            if n_selects > 0:
-                history_update_string += ', jones polarization terms'
-            else:
-                history_update_string += 'jones polarization terms'
-            n_selects += 1
-
-            jones_inds = np.zeros(0, dtype=np.int)
-            for j in jones:
-                if j in cal_object.jones_array:
-                    jones_inds = np.append(jones_inds, np.where(cal_object.jones_array == j)[0])
-                else:
-                    raise ValueError('Jones term {j} is not present in the jones_array'.format(j=j))
-
-            jones_inds = list(sorted(set(list(jones_inds))))
-            cal_object.Njones = len(jones_inds)
-            cal_object.jones_array = cal_object.jones_array[jones_inds]
-            if len(jones_inds) > 2:
-                jones_separation = cal_object.jones_array[1:] - cal_object.jones_array[:-1]
-                if np.min(jones_separation) < np.max(jones_separation):
-                    warnings.warn('Selected jones polarization terms are not evenly spaced. This '
-                                  'is not supported by the calfits format')
-
-            cal_object.flag_array = cal_object.flag_array[:, :, :, :, jones_inds]
-            cal_object.quality_array = cal_object.quality_array[:, :, :, :, jones_inds]
-            if cal_object.cal_type == 'delay':
-                cal_object.delay_array = cal_object.delay_array[:, :, :, :, jones_inds]
-            else:
-                cal_object.gain_array = cal_object.gain_array[:, :, :, :, jones_inds]
-
-            if cal_object.input_flag_array is not None:
-                cal_object.input_flag_array = cal_object.input_flag_array[:, :, :, :, jones_inds]
-
-            if cal_object.total_quality_array is not None:
-                cal_object.total_quality_array = cal_object.total_quality_array[:, :, :, jones_inds]
-
-        history_update_string += ' using pyuvdata.'
-        cal_object.history = cal_object.history + history_update_string
-
-        # check if object is self-consistent
-        if run_check:
-            cal_object.check(check_extra=check_extra,
-                             run_check_acceptability=run_check_acceptability)
-
-        if not inplace:
-            return cal_object
-
-    def convert_to_gain(self, delay_convention='minus', run_check=True, check_extra=True,
-                        run_check_acceptability=True):
+    def _has_key(self, antnum=None, jpol=None):
         """
-        Convert non-gain cal_types to gains.
-
-        For the delay cal_type the gain is calculated as:
-            gain = 1 * exp((+/-) * 2 * pi * j * delay * frequency)
-            where the (+/-) is dictated by the delay_convention
-
-        Args:
-            delay_convention: exponent sign to use in the conversion. Defaults to minus.
-            run_check: Option to check for the existence and proper shapes of
-                parameters after converting this object. Default is True.
-            check_extra: Option to check shapes and types of optional parameters
-                as well as required ones. Default is True.
-            run_check_acceptability: Option to check acceptable range of the values of
-                parameters after converting this object. Default is True.
+        Check if this UVCal has the requested antenna or polarization
         """
-        if self.cal_type == 'gain':
-            raise ValueError('The data is already a gain cal_type.')
-        elif self.cal_type == 'delay':
-            if delay_convention == 'minus':
-                conv = -1
-            elif delay_convention == 'plus':
-                conv = 1
-            else:
-                raise ValueError('delay_convention can only be "minus" or "plus"')
+        if antnum is not None:
+            if antnum not in self.ant_array:
+                return False
+        if jpol is not None:
+            if isinstance(jpol, (str, np.str)):
+                jpol = uvutils.jstr2num(jpol, x_orientation=self.x_orientation)
+            if jpol not in self.jones_array:
+                return False
 
-            self.history += '  Converted from delays to gains using pyuvdata.'
+        return True
 
-            phase_array = np.zeros((self.Nants_data, self.Nspws, self.Nfreqs, self.Ntimes, self.Njones))
-            for si in range(self.Nspws):
-                temp = conv * 2 * np.pi * np.dot(self.delay_array[:, si, 0, :, :, np.newaxis],
-                                                 self.freq_array[si, np.newaxis, :])
-                temp = np.transpose(temp, (0, 3, 1, 2))
-                phase_array[:, si, :, :, :] = temp
+    def ant2ind(self, antnum):
+        """
+        Given antenna number return its index in data arrays
 
-            gain_array = np.exp(1j * phase_array)
-            new_quality = np.repeat(self.quality_array[:, :, :, :, :], self.Nfreqs, axis=2)
-            self.set_gain()
-            self.gain_array = gain_array
-            self.quality_array = new_quality
-            self.delay_array = None
-            if self.total_quality_array is not None:
-                new_total_quality_array = np.repeat(self.total_quality_array[:, :, :, :], self.Nfreqs, axis=1)
-                self.total_quality_array = new_total_quality_array
+        Parameters
+        ----------
+        antnum : int
+            Antenna number
 
-            # check if object is self-consistent
-            if run_check:
-                self.check(check_extra=check_extra,
-                           run_check_acceptability=run_check_acceptability)
-        else:
-            raise ValueError('cal_type is unknown, cannot convert to gain')
+        Returns
+        -------
+        int
+            Index in data arrays
+        """
+        if not self._has_key(antnum=antnum):
+            raise ValueError("{} not found in ant_array".format(antnum))
+
+        return np.argmin(np.abs(self.ant_array - antnum))
+
+    def jpol2ind(self, jpol):
+        """
+        Given a jones polarization, return its index in data arrays
+
+        Parameters
+        ----------
+        jpol : int or str
+            Jones polarization
+
+        Returns
+        -------
+        int
+            Index in data arrays
+        """
+        if isinstance(jpol, (str, np.str)):
+            jpol = uvutils.jstr2num(jpol, x_orientation=self.x_orientation)
+
+        if not self._has_key(jpol=jpol):
+            raise ValueError("{} not found in jones_array".format(jpol))
+
+        return np.argmin(np.abs(self.jones_array - jpol))
+
+    def _slice_array(self, key, data_array, squeeze_pol=True):
+        """
+        Slice a data array given a data key
+        """
+        key = uvutils._get_iterable(key)
+        if len(key) == 1:
+            # interpret as a single antenna
+            output = data_array[self.ant2ind(key[0]), 0, :, :, :]
+            if squeeze_pol and output.shape[-1] == 1:
+                output = output[:, :, 0]
+            return output
+        elif len(key) == 2:
+            # interpret as an antenna-pol pair
+            return data_array[self.ant2ind(key[0]), 0, :, :, self.jpol2ind(key[1])]
+
+    def _parse_key(self, ant, jpol=None):
+        """
+        Parse key inputs and return a standard antenna-polarization key
+        """
+        if isinstance(ant, (list, tuple)):
+            # interpret ant as (ant,) or (ant, jpol)
+            key = tuple(ant)
+        elif isinstance(ant, (int, np.integer)):
+            # interpret ant as antenna number
+            key = (ant,)
+            # add jpol if fed
+            if jpol is not None:
+                key += (jpol,)
+
+        return key
 
     def get_gains(self, ant, jpol=None):
         """
@@ -709,255 +517,59 @@ class UVCal(UVBase):
         """
         return self._slice_array(self._parse_key(ant, jpol=jpol), self.quality_array)
 
-    def ant2ind(self, antnum):
+    def convert_to_gain(self, delay_convention='minus', run_check=True, check_extra=True,
+                        run_check_acceptability=True):
         """
-        Given antenna number return its index in data arrays
+        Convert non-gain cal_types to gains.
 
-        Parameters
-        ----------
-        antnum : int
-            Antenna number
+        For the delay cal_type the gain is calculated as:
+            gain = 1 * exp((+/-) * 2 * pi * j * delay * frequency)
+            where the (+/-) is dictated by the delay_convention
 
-        Returns
-        -------
-        int
-            Index in data arrays
+        Args:
+            delay_convention: exponent sign to use in the conversion. Defaults to minus.
+            run_check: Option to check for the existence and proper shapes of
+                parameters after converting this object. Default is True.
+            check_extra: Option to check shapes and types of optional parameters
+                as well as required ones. Default is True.
+            run_check_acceptability: Option to check acceptable range of the values of
+                parameters after converting this object. Default is True.
         """
-        if not self._has_key(antnum=antnum):
-            raise ValueError("{} not found in ant_array".format(antnum))
-
-        return np.argmin(np.abs(self.ant_array - antnum))
-
-    def jpol2ind(self, jpol):
-        """
-        Given a jones polarization, return its index in data arrays
-
-        Parameters
-        ----------
-        jpol : int or str
-            Jones polarization
-
-        Returns
-        -------
-        int
-            Index in data arrays
-        """
-        if isinstance(jpol, (str, np.str)):
-            jpol = uvutils.jstr2num(jpol, x_orientation=self.x_orientation)
-
-        if not self._has_key(jpol=jpol):
-            raise ValueError("{} not found in jones_array".format(jpol))
-
-        return np.argmin(np.abs(self.jones_array - jpol))
-
-    def _has_key(self, antnum=None, jpol=None):
-        """
-        Check if this UVCal has the requested antenna or polarization
-        """
-        if antnum is not None:
-            if antnum not in self.ant_array:
-                return False
-        if jpol is not None:
-            if isinstance(jpol, (str, np.str)):
-                jpol = uvutils.jstr2num(jpol, x_orientation=self.x_orientation)
-            if jpol not in self.jones_array:
-                return False
-
-        return True
-
-    def _slice_array(self, key, data_array, squeeze_pol=True):
-        """
-        Slice a data array given a data key
-        """
-        key = uvutils._get_iterable(key)
-        if len(key) == 1:
-            # interpret as a single antenna
-            output = data_array[self.ant2ind(key[0]), 0, :, :, :]
-            if squeeze_pol and output.shape[-1] == 1:
-                output = output[:, :, 0]
-            return output
-        elif len(key) == 2:
-            # interpret as an antenna-pol pair
-            return data_array[self.ant2ind(key[0]), 0, :, :, self.jpol2ind(key[1])]
-
-    def _parse_key(self, ant, jpol=None):
-        """
-        Parse key inputs and return a standard antenna-polarization key
-        """
-        if isinstance(ant, (list, tuple)):
-            # interpret ant as (ant,) or (ant, jpol)
-            key = tuple(ant)
-        elif isinstance(ant, (int, np.integer)):
-            # interpret ant as antenna number
-            key = (ant,)
-            # add jpol if fed
-            if jpol is not None:
-                key += (jpol,)
-
-        return key
-
-    def _convert_from_filetype(self, other):
-        for p in other:
-            param = getattr(other, p)
-            setattr(self, p, param)
-
-    def _convert_to_filetype(self, filetype):
-        if filetype == 'calfits':
-            from . import calfits
-            other_obj = calfits.CALFITS()
-        else:
-            raise ValueError('filetype must be calfits.')
-        for p in self:
-            param = getattr(self, p)
-            setattr(other_obj, p, param)
-        return other_obj
-
-    def read_calfits(self, filename, run_check=True, check_extra=True,
-                     run_check_acceptability=True):
-        """
-        Read in data from calfits file(s).
-
-        Parameters
-        ----------
-        filename : str or list of str
-            The calfits file(s) to read from.
-        run_check : bool
-            Option to check for the existence and proper shapes of
-            parameters after reading in the file.
-        check_extra : bool
-            Option to check optional parameters as well as required ones.
-        run_check_acceptability : bool
-            Option to check acceptable range of the values of
-            parameters after reading in the file.
-
-        """
-        from . import calfits
-        if isinstance(filename, (list, tuple)):
-            self.read_calfits(filename[0], run_check=run_check,
-                              check_extra=check_extra,
-                              run_check_acceptability=run_check_acceptability)
-            if len(filename) > 1:
-                for f in filename[1:]:
-                    uvcal2 = UVCal()
-                    uvcal2.read_calfits(f, run_check=run_check,
-                                        check_extra=check_extra,
-                                        run_check_acceptability=run_check_acceptability)
-                    self += uvcal2
-                del(uvcal2)
-        else:
-            calfits_obj = calfits.CALFITS()
-            calfits_obj.read_calfits(filename, run_check=run_check,
-                                     check_extra=check_extra,
-                                     run_check_acceptability=run_check_acceptability)
-            self._convert_from_filetype(calfits_obj)
-            del(calfits_obj)
-
-    def write_calfits(self, filename, run_check=True, check_extra=True,
-                      run_check_acceptability=True, clobber=False):
-        """
-        Write the data to a calfits file.
-
-        Parameters
-        ----------
-        filename : str
-            The calfits file to write to.
-        run_check : bool
-            Option to check for the existence and proper shapes of
-            parameters before writing the file.
-        check_extra : bool
-            Option to check optional parameters as well as required ones.
-        run_check_acceptability : bool
-            Option to check acceptable range of the values of
-            parameters before writing the file.
-        clobber : bool
-            Option to overwrite the filename if the file already exists.
-
-        """
-        calfits_obj = self._convert_to_filetype('calfits')
-        calfits_obj.write_calfits(filename,
-                                  run_check=run_check, check_extra=check_extra,
-                                  run_check_acceptability=run_check_acceptability,
-                                  clobber=clobber)
-        del(calfits_obj)
-
-    def read_fhd_cal(self, cal_file, obs_file, settings_file=None, raw=True,
-                     extra_history=None, run_check=True, check_extra=True,
-                     run_check_acceptability=True):
-        """
-        Read data from an FHD cal.sav file.
-
-        Parameters
-        ----------
-        cal_file : str or list of str
-            The cal.sav file or list of files to read from.
-        obs_file : str or list of str
-            The obs.sav file or list of files to read from.
-        settings_file : str or list of str, optional
-            The settings_file or list of files to read from. Optional,
-            but very useful for provenance.
-        raw : bool
-            Option to use the raw (per antenna, per frequency) solution or
-            to use the fitted (polynomial over phase/amplitude) solution.
-            Default is True (meaning use the raw solutions).
-        extra_history : str or list of str, optional
-            String(s) to add to the object's history parameter.
-        run_check : bool
-            Option to check for the existence and proper shapes of
-            parameters after reading in the file.
-        check_extra : bool
-            Option to check optional parameters as well as required ones.
-        run_check_acceptability : bool
-            Option to check acceptable range of the values of
-            parameters after reading in the file.
-
-        """
-        from . import fhd_cal
-        if isinstance(cal_file, (list, tuple)):
-            if isinstance(obs_file, (list, tuple)):
-                if len(obs_file) != len(cal_file):
-                    raise ValueError('Number of obs_files must match number of cal_files')
+        if self.cal_type == 'gain':
+            raise ValueError('The data is already a gain cal_type.')
+        elif self.cal_type == 'delay':
+            if delay_convention == 'minus':
+                conv = -1
+            elif delay_convention == 'plus':
+                conv = 1
             else:
-                raise ValueError('Number of obs_files must match number of cal_files')
+                raise ValueError('delay_convention can only be "minus" or "plus"')
 
-            if settings_file is not None:
-                if isinstance(settings_file, (list, tuple)):
-                    if len(settings_file) != len(cal_file):
-                        raise ValueError('Number of settings_files must match number of cal_files')
-                else:
-                    raise ValueError('Number of settings_files must match number of cal_files')
-                settings_file_use = settings_file[0]
+            self.history += '  Converted from delays to gains using pyuvdata.'
 
-            self.read_fhd_cal(cal_file[0], obs_file[0], settings_file=settings_file_use,
-                              raw=raw, extra_history=extra_history,
-                              run_check=run_check, check_extra=check_extra,
-                              run_check_acceptability=run_check_acceptability)
-            if len(cal_file) > 1:
-                for ind, f in enumerate(cal_file[1:]):
-                    uvcal2 = UVCal()
-                    if settings_file is not None:
-                        settings_file_use = settings_file[ind + 1]
-                    uvcal2.read_fhd_cal(f, obs_file[ind + 1],
-                                        settings_file=settings_file_use,
-                                        raw=raw, extra_history=extra_history,
-                                        run_check=run_check, check_extra=check_extra,
-                                        run_check_acceptability=run_check_acceptability)
+            phase_array = np.zeros((self.Nants_data, self.Nspws, self.Nfreqs, self.Ntimes, self.Njones))
+            for si in range(self.Nspws):
+                temp = conv * 2 * np.pi * np.dot(self.delay_array[:, si, 0, :, :, np.newaxis],
+                                                 self.freq_array[si, np.newaxis, :])
+                temp = np.transpose(temp, (0, 3, 1, 2))
+                phase_array[:, si, :, :, :] = temp
 
-                    self += uvcal2
-                del(uvcal2)
+            gain_array = np.exp(1j * phase_array)
+            new_quality = np.repeat(self.quality_array[:, :, :, :, :], self.Nfreqs, axis=2)
+            self.set_gain()
+            self.gain_array = gain_array
+            self.quality_array = new_quality
+            self.delay_array = None
+            if self.total_quality_array is not None:
+                new_total_quality_array = np.repeat(self.total_quality_array[:, :, :, :], self.Nfreqs, axis=1)
+                self.total_quality_array = new_total_quality_array
+
+            # check if object is self-consistent
+            if run_check:
+                self.check(check_extra=check_extra,
+                           run_check_acceptability=run_check_acceptability)
         else:
-            if isinstance(obs_file, (list, tuple)):
-                raise ValueError('Number of obs_files must match number of cal_files')
-            if settings_file is not None:
-                if isinstance(settings_file, (list, tuple)):
-                    raise ValueError('Number of settings_files must match number of cal_files')
-
-            fhd_cal_obj = fhd_cal.FHDCal()
-            fhd_cal_obj.read_fhd_cal(cal_file, obs_file, settings_file=settings_file,
-                                     raw=raw, extra_history=extra_history,
-                                     run_check=run_check, check_extra=check_extra,
-                                     run_check_acceptability=run_check_acceptability)
-            self._convert_from_filetype(fhd_cal_obj)
-            del(fhd_cal_obj)
+            raise ValueError('cal_type is unknown, cannot convert to gain')
 
     def __add__(self, other, run_check=True, check_extra=True,
                 run_check_acceptability=True, inplace=False):
@@ -1354,3 +966,391 @@ class UVCal(UVBase):
         """
         self.__add__(other, inplace=True)
         return self
+
+    def select(self, antenna_nums=None, antenna_names=None,
+               frequencies=None, freq_chans=None,
+               times=None, jones=None, run_check=True, check_extra=True,
+               run_check_acceptability=True, inplace=True):
+        """
+        Select specific antennas, frequencies, times and
+        jones polarization terms to keep in the object while discarding others.
+
+        The history attribute on the object will be updated to identify the
+        operations performed.
+
+        Args:
+            antenna_nums: The antennas numbers to keep in the object (antenna
+                positions and names for the removed antennas will be retained).
+                This cannot be provided if antenna_names is also provided.
+            antenna_names: The antennas names to keep in the object (antenna
+                positions and names for the removed antennas will be retained).
+                This cannot be provided if antenna_nums is also provided.
+            frequencies: The frequencies to keep in the object.
+            freq_chans: The frequency channel numbers to keep in the object.
+            times: The times to keep in the object.
+            jones: The jones polarization terms to keep in the object.
+            run_check: Option to check for the existence and proper shapes of
+                required parameters after downselecting data on this object. Default is True.
+            check_extra: Option to check shapes and types of optional parameters
+                as well as required ones. Default is True.
+            run_check_acceptability: Option to check acceptable range of the values of
+                required parameters after  downselecting data on this object. Default is True.
+            inplace: Option to perform the select directly on self (True, default) or return
+                a new UVCal object, which is a subselection of self (False)
+        """
+        if inplace:
+            cal_object = self
+        else:
+            cal_object = copy.deepcopy(self)
+
+        # build up history string as we go
+        history_update_string = '  Downselected to specific '
+        n_selects = 0
+
+        if antenna_names is not None:
+            if antenna_nums is not None:
+                raise ValueError('Only one of antenna_nums and antenna_names can be provided.')
+
+            antenna_names = uvutils._get_iterable(antenna_names)
+            antenna_nums = []
+            for s in antenna_names:
+                if s not in cal_object.antenna_names:
+                    raise ValueError('Antenna name {a} is not present in the antenna_names array'.format(a=s))
+                ind = np.where(np.array(cal_object.antenna_names) == s)[0][0]
+                antenna_nums.append(cal_object.antenna_numbers[ind])
+
+        if antenna_nums is not None:
+            antenna_nums = uvutils._get_iterable(antenna_nums)
+            history_update_string += 'antennas'
+            n_selects += 1
+
+            ant_inds = np.zeros(0, dtype=np.int)
+            for ant in antenna_nums:
+                if ant in cal_object.ant_array:
+                    ant_inds = np.append(ant_inds, np.where(cal_object.ant_array == ant)[0])
+                else:
+                    raise ValueError('Antenna number {a} is not present in the '
+                                     ' array'.format(a=ant))
+
+            ant_inds = list(sorted(set(list(ant_inds))))
+            cal_object.Nants_data = len(ant_inds)
+            cal_object.ant_array = cal_object.ant_array[ant_inds]
+            cal_object.flag_array = cal_object.flag_array[ant_inds, :, :, :, :]
+            cal_object.quality_array = cal_object.quality_array[ant_inds, :, :, :, :]
+            if cal_object.cal_type == 'delay':
+                cal_object.delay_array = cal_object.delay_array[ant_inds, :, :, :, :]
+            else:
+                cal_object.gain_array = cal_object.gain_array[ant_inds, :, :, :, :]
+
+            if cal_object.input_flag_array is not None:
+                cal_object.input_flag_array = cal_object.input_flag_array[ant_inds, :, :, :, :]
+
+            if cal_object.total_quality_array is not None:
+                warnings.warn('Cannot preserve total_quality_array when changing '
+                              'number of antennas; discarding')
+                cal_object.total_quality_array = None
+
+        if times is not None:
+            times = uvutils._get_iterable(times)
+            if n_selects > 0:
+                history_update_string += ', times'
+            else:
+                history_update_string += 'times'
+            n_selects += 1
+
+            time_inds = np.zeros(0, dtype=np.int)
+            for jd in times:
+                if jd in cal_object.time_array:
+                    time_inds = np.append(time_inds, np.where(cal_object.time_array == jd)[0])
+                else:
+                    raise ValueError('Time {t} is not present in the time_array'.format(t=jd))
+
+            time_inds = list(sorted(set(list(time_inds))))
+            cal_object.Ntimes = len(time_inds)
+            cal_object.time_array = cal_object.time_array[time_inds]
+
+            if cal_object.Ntimes > 1:
+                time_separation = np.diff(cal_object.time_array)
+                if not np.isclose(np.min(time_separation), np.max(time_separation),
+                                  rtol=cal_object._time_array.tols[0],
+                                  atol=cal_object._time_array.tols[1]):
+                    warnings.warn('Selected times are not evenly spaced. This '
+                                  'is not supported by the calfits format.')
+
+            cal_object.flag_array = cal_object.flag_array[:, :, :, time_inds, :]
+            cal_object.quality_array = cal_object.quality_array[:, :, :, time_inds, :]
+            if cal_object.cal_type == 'delay':
+                cal_object.delay_array = cal_object.delay_array[:, :, :, time_inds, :]
+            else:
+                cal_object.gain_array = cal_object.gain_array[:, :, :, time_inds, :]
+
+            if cal_object.input_flag_array is not None:
+                cal_object.input_flag_array = cal_object.input_flag_array[:, :, :, time_inds, :]
+
+            if cal_object.total_quality_array is not None:
+                cal_object.total_quality_array = cal_object.total_quality_array[:, :, time_inds, :]
+
+        if freq_chans is not None:
+            freq_chans = uvutils._get_iterable(freq_chans)
+            if frequencies is None:
+                frequencies = cal_object.freq_array[0, freq_chans]
+            else:
+                frequencies = uvutils._get_iterable(frequencies)
+                frequencies = np.sort(list(set(frequencies)
+                                      | set(cal_object.freq_array[0, freq_chans])))
+
+        if frequencies is not None:
+            frequencies = uvutils._get_iterable(frequencies)
+            if n_selects > 0:
+                history_update_string += ', frequencies'
+            else:
+                history_update_string += 'frequencies'
+            n_selects += 1
+
+            freq_inds = np.zeros(0, dtype=np.int)
+            # this works because we only allow one SPW. This will have to be reworked when we support more.
+            freq_arr_use = cal_object.freq_array[0, :]
+            for f in frequencies:
+                if f in freq_arr_use:
+                    freq_inds = np.append(freq_inds, np.where(freq_arr_use == f)[0])
+                else:
+                    raise ValueError('Frequency {f} is not present in the freq_array'.format(f=f))
+
+            freq_inds = list(sorted(set(list(freq_inds))))
+            cal_object.Nfreqs = len(freq_inds)
+            cal_object.freq_array = cal_object.freq_array[:, freq_inds]
+
+            if cal_object.Nfreqs > 1:
+                freq_separation = cal_object.freq_array[0, 1:] - cal_object.freq_array[0, :-1]
+                if not np.isclose(np.min(freq_separation), np.max(freq_separation),
+                                  rtol=cal_object._freq_array.tols[0],
+                                  atol=cal_object._freq_array.tols[1]):
+                    warnings.warn('Selected frequencies are not evenly spaced. This '
+                                  'is not supported by the calfits format')
+
+            cal_object.flag_array = cal_object.flag_array[:, :, freq_inds, :, :]
+            if cal_object.cal_type == 'delay':
+                pass
+            else:
+                cal_object.quality_array = cal_object.quality_array[:, :, freq_inds, :, :]
+                cal_object.gain_array = cal_object.gain_array[:, :, freq_inds, :, :]
+
+            if cal_object.input_flag_array is not None:
+                cal_object.input_flag_array = cal_object.input_flag_array[:, :, freq_inds, :, :]
+
+            if cal_object.cal_type == 'delay':
+                pass
+            else:
+                if cal_object.total_quality_array is not None:
+                    cal_object.total_quality_array = cal_object.total_quality_array[:, freq_inds, :, :]
+
+        if jones is not None:
+            jones = uvutils._get_iterable(jones)
+            if n_selects > 0:
+                history_update_string += ', jones polarization terms'
+            else:
+                history_update_string += 'jones polarization terms'
+            n_selects += 1
+
+            jones_inds = np.zeros(0, dtype=np.int)
+            for j in jones:
+                if j in cal_object.jones_array:
+                    jones_inds = np.append(jones_inds, np.where(cal_object.jones_array == j)[0])
+                else:
+                    raise ValueError('Jones term {j} is not present in the jones_array'.format(j=j))
+
+            jones_inds = list(sorted(set(list(jones_inds))))
+            cal_object.Njones = len(jones_inds)
+            cal_object.jones_array = cal_object.jones_array[jones_inds]
+            if len(jones_inds) > 2:
+                jones_separation = cal_object.jones_array[1:] - cal_object.jones_array[:-1]
+                if np.min(jones_separation) < np.max(jones_separation):
+                    warnings.warn('Selected jones polarization terms are not evenly spaced. This '
+                                  'is not supported by the calfits format')
+
+            cal_object.flag_array = cal_object.flag_array[:, :, :, :, jones_inds]
+            cal_object.quality_array = cal_object.quality_array[:, :, :, :, jones_inds]
+            if cal_object.cal_type == 'delay':
+                cal_object.delay_array = cal_object.delay_array[:, :, :, :, jones_inds]
+            else:
+                cal_object.gain_array = cal_object.gain_array[:, :, :, :, jones_inds]
+
+            if cal_object.input_flag_array is not None:
+                cal_object.input_flag_array = cal_object.input_flag_array[:, :, :, :, jones_inds]
+
+            if cal_object.total_quality_array is not None:
+                cal_object.total_quality_array = cal_object.total_quality_array[:, :, :, jones_inds]
+
+        history_update_string += ' using pyuvdata.'
+        cal_object.history = cal_object.history + history_update_string
+
+        # check if object is self-consistent
+        if run_check:
+            cal_object.check(check_extra=check_extra,
+                             run_check_acceptability=run_check_acceptability)
+
+        if not inplace:
+            return cal_object
+
+    def _convert_from_filetype(self, other):
+        for p in other:
+            param = getattr(other, p)
+            setattr(self, p, param)
+
+    def _convert_to_filetype(self, filetype):
+        if filetype == 'calfits':
+            from . import calfits
+            other_obj = calfits.CALFITS()
+        else:
+            raise ValueError('filetype must be calfits.')
+        for p in self:
+            param = getattr(self, p)
+            setattr(other_obj, p, param)
+        return other_obj
+
+    def read_calfits(self, filename, run_check=True, check_extra=True,
+                     run_check_acceptability=True):
+        """
+        Read in data from calfits file(s).
+
+        Parameters
+        ----------
+        filename : str or list of str
+            The calfits file(s) to read from.
+        run_check : bool
+            Option to check for the existence and proper shapes of
+            parameters after reading in the file.
+        check_extra : bool
+            Option to check optional parameters as well as required ones.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of
+            parameters after reading in the file.
+
+        """
+        from . import calfits
+        if isinstance(filename, (list, tuple)):
+            self.read_calfits(filename[0], run_check=run_check,
+                              check_extra=check_extra,
+                              run_check_acceptability=run_check_acceptability)
+            if len(filename) > 1:
+                for f in filename[1:]:
+                    uvcal2 = UVCal()
+                    uvcal2.read_calfits(f, run_check=run_check,
+                                        check_extra=check_extra,
+                                        run_check_acceptability=run_check_acceptability)
+                    self += uvcal2
+                del(uvcal2)
+        else:
+            calfits_obj = calfits.CALFITS()
+            calfits_obj.read_calfits(filename, run_check=run_check,
+                                     check_extra=check_extra,
+                                     run_check_acceptability=run_check_acceptability)
+            self._convert_from_filetype(calfits_obj)
+            del(calfits_obj)
+
+    def read_fhd_cal(self, cal_file, obs_file, settings_file=None, raw=True,
+                     extra_history=None, run_check=True, check_extra=True,
+                     run_check_acceptability=True):
+        """
+        Read data from an FHD cal.sav file.
+
+        Parameters
+        ----------
+        cal_file : str or list of str
+            The cal.sav file or list of files to read from.
+        obs_file : str or list of str
+            The obs.sav file or list of files to read from.
+        settings_file : str or list of str, optional
+            The settings_file or list of files to read from. Optional,
+            but very useful for provenance.
+        raw : bool
+            Option to use the raw (per antenna, per frequency) solution or
+            to use the fitted (polynomial over phase/amplitude) solution.
+            Default is True (meaning use the raw solutions).
+        extra_history : str or list of str, optional
+            String(s) to add to the object's history parameter.
+        run_check : bool
+            Option to check for the existence and proper shapes of
+            parameters after reading in the file.
+        check_extra : bool
+            Option to check optional parameters as well as required ones.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of
+            parameters after reading in the file.
+
+        """
+        from . import fhd_cal
+        if isinstance(cal_file, (list, tuple)):
+            if isinstance(obs_file, (list, tuple)):
+                if len(obs_file) != len(cal_file):
+                    raise ValueError('Number of obs_files must match number of cal_files')
+            else:
+                raise ValueError('Number of obs_files must match number of cal_files')
+
+            if settings_file is not None:
+                if isinstance(settings_file, (list, tuple)):
+                    if len(settings_file) != len(cal_file):
+                        raise ValueError('Number of settings_files must match number of cal_files')
+                else:
+                    raise ValueError('Number of settings_files must match number of cal_files')
+                settings_file_use = settings_file[0]
+
+            self.read_fhd_cal(cal_file[0], obs_file[0], settings_file=settings_file_use,
+                              raw=raw, extra_history=extra_history,
+                              run_check=run_check, check_extra=check_extra,
+                              run_check_acceptability=run_check_acceptability)
+            if len(cal_file) > 1:
+                for ind, f in enumerate(cal_file[1:]):
+                    uvcal2 = UVCal()
+                    if settings_file is not None:
+                        settings_file_use = settings_file[ind + 1]
+                    uvcal2.read_fhd_cal(f, obs_file[ind + 1],
+                                        settings_file=settings_file_use,
+                                        raw=raw, extra_history=extra_history,
+                                        run_check=run_check, check_extra=check_extra,
+                                        run_check_acceptability=run_check_acceptability)
+
+                    self += uvcal2
+                del(uvcal2)
+        else:
+            if isinstance(obs_file, (list, tuple)):
+                raise ValueError('Number of obs_files must match number of cal_files')
+            if settings_file is not None:
+                if isinstance(settings_file, (list, tuple)):
+                    raise ValueError('Number of settings_files must match number of cal_files')
+
+            fhd_cal_obj = fhd_cal.FHDCal()
+            fhd_cal_obj.read_fhd_cal(cal_file, obs_file, settings_file=settings_file,
+                                     raw=raw, extra_history=extra_history,
+                                     run_check=run_check, check_extra=check_extra,
+                                     run_check_acceptability=run_check_acceptability)
+            self._convert_from_filetype(fhd_cal_obj)
+            del(fhd_cal_obj)
+
+    def write_calfits(self, filename, run_check=True, check_extra=True,
+                      run_check_acceptability=True, clobber=False):
+        """
+        Write the data to a calfits file.
+
+        Parameters
+        ----------
+        filename : str
+            The calfits file to write to.
+        run_check : bool
+            Option to check for the existence and proper shapes of
+            parameters before writing the file.
+        check_extra : bool
+            Option to check optional parameters as well as required ones.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of
+            parameters before writing the file.
+        clobber : bool
+            Option to overwrite the filename if the file already exists.
+
+        """
+        calfits_obj = self._convert_to_filetype('calfits')
+        calfits_obj.write_calfits(filename,
+                                  run_check=run_check, check_extra=check_extra,
+                                  run_check_acceptability=run_check_acceptability,
+                                  clobber=clobber)
+        del(calfits_obj)
