@@ -2668,3 +2668,32 @@ class UVBeam(UVBase):
                                   run_check_acceptability=run_check_acceptability)
         self._convert_from_filetype(mwabeam_obj)
         del(mwabeam_obj)
+
+    def write_beamfits(self, filename, run_check=True, check_extra=True,
+                       run_check_acceptability=True, clobber=False):
+        """
+        Write the data to a beamfits file.
+
+        Parameters
+        ----------
+        filename : str
+            The beamfits file to write to.
+        run_check : bool
+            Option to check for the existence and proper shapes of
+            required parameters before writing the file.
+        check_extra : bool
+            Option to check optional parameters as well as
+            required ones.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of
+            required parameters before writing the file.
+        clobber : bool
+            Option to overwrite the filename if the file already exists.
+
+        """
+        beamfits_obj = self._convert_to_filetype('beamfits')
+        beamfits_obj.write_beamfits(filename, run_check=run_check,
+                                    check_extra=check_extra,
+                                    run_check_acceptability=run_check_acceptability,
+                                    clobber=clobber)
+        del(beamfits_obj)
