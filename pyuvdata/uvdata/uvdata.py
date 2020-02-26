@@ -5776,16 +5776,20 @@ class UVData(UVBase):
 
             masked_data = np.ma.masked_array(self.data_array.reshape(shape_tuple),
                                              mask=mask)
+
+            self.nsample_array = self.nsample_array.reshape(shape_tuple)
+            masked_nsample = np.ma.masked_array(self.nsample_array, mask=mask)
+
             if summing_correlator_mode:
-                self.data_array = np.sum(masked_data, axis=3)
+                self.data_array = np.sum(masked_data, axis=3).data
             else:
-                self.data_array = np.mean(masked_data, axis=3)
+                # need to weight by the n_sample_array
+                self.data_array = (np.sum(masked_data * masked_nsample, axis=3)
+                                   / np.sum(masked_nsample, axis=3)).data
 
             # nsample array is the fraction of data that we actually kept,
             # relative to the amount that went into the sum or average
-            masked_nsample = np.ma.masked_array(self.nsample_array.reshape(shape_tuple),
-                                                mask=mask)
-            self.nsample_array = (np.sum(masked_nsample, axis=3) / float(n_chan_to_avg))
+            self.nsample_array = (np.sum(masked_nsample, axis=3) / float(n_chan_to_avg)).data
 
     def remove_eq_coeffs(self):
         """
