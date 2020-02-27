@@ -1186,41 +1186,6 @@ def get_antenna_redundancies(antenna_numbers, antenna_positions, tol=1.0, includ
     return gps, vecs, lens
 
 
-def collapse(arr, alg, weights=None, axis=None, return_weights=False,
-             return_weights_square=False):
-    """
-    Parent function to collapse an array with a given algorithm.
-
-    Parameters
-    ----------
-    arr : array
-        Input array to process.
-    alg : str
-        Algorithm to use. Must be defined in this function with
-        corresponding subfunction below.
-    weights: ndarray, optional
-        weights for collapse operation (e.g. weighted mean).
-        NOTE: Some subfunctions do not use the weights. See corresponding
-        doc strings.
-    axis : int or tuple, optional
-        Axis or axes to collapse. Default is all.
-    return_weights : bool
-        Whether to return sum of weights.
-    return_weights_square: bool
-        Whether to return the sum of the squares of the weights. Default is False.
-    """
-    collapse_dict = {'mean': mean_collapse, 'absmean': absmean_collapse,
-                     'quadmean': quadmean_collapse, 'or': or_collapse,
-                     'and': and_collapse}
-    try:
-        out = collapse_dict[alg](arr, weights=weights, axis=axis, return_weights=return_weights,
-                                 return_weights_square=return_weights_square)
-    except KeyError:
-        raise ValueError('Collapse algorithm must be one of: '
-                         + ', '.join(collapse_dict.keys()) + '.')
-    return out
-
-
 def mean_collapse(arr, weights=None, axis=None, return_weights=False,
                   return_weights_square=False):
     """
@@ -1382,6 +1347,41 @@ def and_collapse(arr, weights=None, axis=None, return_weights=False,
         return out, np.ones_like(out, dtype=np.float)
     else:
         return out
+
+
+def collapse(arr, alg, weights=None, axis=None, return_weights=False,
+             return_weights_square=False):
+    """
+    Parent function to collapse an array with a given algorithm.
+
+    Parameters
+    ----------
+    arr : array
+        Input array to process.
+    alg : str
+        Algorithm to use. Must be defined in this function with
+        corresponding subfunction above.
+    weights: ndarray, optional
+        weights for collapse operation (e.g. weighted mean).
+        NOTE: Some subfunctions do not use the weights. See corresponding
+        doc strings.
+    axis : int or tuple, optional
+        Axis or axes to collapse. Default is all.
+    return_weights : bool
+        Whether to return sum of weights.
+    return_weights_square: bool
+        Whether to return the sum of the squares of the weights. Default is False.
+    """
+    collapse_dict = {'mean': mean_collapse, 'absmean': absmean_collapse,
+                     'quadmean': quadmean_collapse, 'or': or_collapse,
+                     'and': and_collapse}
+    try:
+        out = collapse_dict[alg](arr, weights=weights, axis=axis, return_weights=return_weights,
+                                 return_weights_square=return_weights_square)
+    except KeyError:
+        raise ValueError('Collapse algorithm must be one of: '
+                         + ', '.join(collapse_dict.keys()) + '.')
+    return out
 
 
 def uvcalibrate(uvdata, uvcal, inplace=True, prop_flags=True, flag_missing=True,
