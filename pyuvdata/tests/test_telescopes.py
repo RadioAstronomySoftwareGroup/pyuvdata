@@ -26,11 +26,11 @@ expected_known_telescopes = ['PAPER', 'HERA', 'MWA']
 def test_parameter_iter():
     "Test expected parameters."
     telescope_obj = pyuvdata.Telescope()
-    all = []
+    all_params = []
     for prop in telescope_obj:
-        all.append(prop)
+        all_params.append(prop)
     for a in required_parameters:
-        assert a in all, 'expected attribute ' + a + ' not returned in object iterator'
+        assert a in all_params, 'expected attribute ' + a + ' not returned in object iterator'
 
 
 def test_required_parameter_iter():
