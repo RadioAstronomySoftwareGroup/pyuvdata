@@ -132,7 +132,7 @@ class BeamFITS(UVBeam):
                 elif axis2_units != 'rad':
                     raise ValueError('Units of second axis array are not "deg" or "rad".')
 
-            n_efield_dims = max([ax_nums[key] for key in ax_nums])
+            n_efield_dims = max(ax_nums[key] for key in ax_nums)
 
             if self.beam_type == 'power':
                 # check for case where the data is complex (e.g. for xy beams)

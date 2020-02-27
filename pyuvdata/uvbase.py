@@ -242,9 +242,9 @@ class UVBase(object):
                 on parameters in a partially-defined UVData object.
         """
         if check_extra:
-            p_check = [p for p in self.required()] + [p for p in self.extra()]
+            p_check = list(self.required()) + list(self.extra())
         else:
-            p_check = [p for p in self.required()]
+            p_check = list(self.required())
 
         for p in p_check:
             param = getattr(self, p)

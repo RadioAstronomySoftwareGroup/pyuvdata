@@ -239,11 +239,11 @@ class MWABeam(UVBeam):
                 else:
                     other_names.append(name)
 
-        pol_names = sorted(list(pol_names))
+        pol_names = sorted(pol_names)
 
-        dipole_names = np.array(sorted(list(dipole_names)))
+        dipole_names = np.array(sorted(dipole_names))
 
-        freqs_hz = np.array(sorted(list(freqs_hz)))
+        freqs_hz = np.array(sorted(freqs_hz))
 
         return freqs_hz, pol_names, dipole_names, max_length
 

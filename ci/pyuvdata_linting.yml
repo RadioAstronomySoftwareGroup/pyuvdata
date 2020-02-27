@@ -8,3 +8,4 @@ dependencies:
   - pip:
     - flake8-docstrings
     - flake8-pytest
+    - flake8-comprehensions

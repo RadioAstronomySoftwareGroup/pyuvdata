@@ -169,15 +169,15 @@ class Miriad(UVData):
                 if not all(isinstance(item, tuple) for item in bls):
                     raise ValueError(
                         'bls must be a list of tuples of antenna numbers (optionally with polarization).')
-                if all([len(item) == 2 for item in bls]):
+                if all(len(item) == 2 for item in bls):
                     if not all([isinstance(item[0], (int, np.integer,)) for item in bls]
                                + [isinstance(item[1], (int, np.integer,)) for item in bls]):
                         raise ValueError(
                             'bls must be a list of tuples of antenna numbers (optionally with polarization).')
-                elif all([len(item) == 3 for item in bls]):
+                elif all(len(item) == 3 for item in bls):
                     if polarizations is not None:
                         raise ValueError('Cannot provide length-3 tuples and also specify polarizations.')
-                    if not all([isinstance(item[2], str) for item in bls]):
+                    if not all(isinstance(item[2], str) for item in bls):
                         raise ValueError('The third element in each bl must be a polarization string')
                 else:
                     raise ValueError('bls tuples must be all length-2 or all length-3')
@@ -348,7 +348,7 @@ class Miriad(UVData):
         ant_j_unique = list(set(
             np.concatenate([[k[3] for k in d] for d in data_accumulator.values()])))
 
-        sorted_unique_ants = sorted(list(set(ant_i_unique + ant_j_unique)))
+        sorted_unique_ants = sorted(set(ant_i_unique + ant_j_unique))
         ant_i_unique = np.array(ant_i_unique)
         ant_j_unique = np.array(ant_j_unique)
 

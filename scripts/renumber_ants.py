@@ -49,9 +49,9 @@ elif args.filetype == 'miriad':
 else:
     raise IOError("didn't recognize filetype {}".format(args.filetype))
 
-large_ant_nums = sorted(list(uv_obj.antenna_numbers[np.where(uv_obj.antenna_numbers > 254)[0]]))
+large_ant_nums = sorted(uv_obj.antenna_numbers[np.where(uv_obj.antenna_numbers > 254)[0]])
 
-new_nums = sorted(list(set(range(255)) - set(uv_obj.antenna_numbers)))
+new_nums = sorted(set(range(255)) - set(uv_obj.antenna_numbers))
 if len(new_nums) < len(large_ant_nums):
     raise ValueError('too many antennas in dataset, cannot renumber all below 255')
 new_nums = new_nums[-1 * len(large_ant_nums):]
