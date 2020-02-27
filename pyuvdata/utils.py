@@ -108,6 +108,533 @@ JONES_NUM2STR_DICT = {-1: 'Jrr', -2: 'Jll', -3: 'Jrl', -4: 'Jlr',
                       -5: 'Jxx', -6: 'Jyy', -7: 'Jxy', -8: 'Jyx'}
 
 
+def _get_iterable(x):
+    """Return iterable version of input."""
+    if isinstance(x, Iterable):
+        return x
+    else:
+        return (x,)
+
+
+def _fits_gethduaxis(HDU, axis):
+    """
+    Make axis arrays for fits files.
+
+    Parameters
+    ----------
+    HDU : astropy.io.fits HDU object
+        The HDU to make an axis array for.
+    axis : int
+        The axis number of interest (1-based).
+
+    Returns
+    -------
+    ndarray of float
+        Array of values for the specified axis.
+
+    """
+    ax = str(axis)
+    N = HDU.header['NAXIS' + ax]
+    X0 = HDU.header['CRVAL' + ax]
+    dX = HDU.header['CDELT' + ax]
+    Xi0 = HDU.header['CRPIX' + ax] - 1
+
+    return dX * (np.arange(N) - Xi0) + X0
+
+
+def _fits_indexhdus(hdulist):
+    """
+    Get a dict of table names and HDU numbers from a FITS HDU list.
+
+    Parameters
+    ----------
+    hdulist : list of astropy.io.fits HDU objects
+        List of HDUs to get names for
+
+    Returns
+    -------
+    dict
+        dictionary with table names as keys and HDU number as values.
+
+    """
+    tablenames = {}
+    for i in range(len(hdulist)):
+        try:
+            tablenames[hdulist[i].header['EXTNAME']] = i
+        except(KeyError):
+            continue
+    return tablenames
+
+
+def _check_history_version(history, version_string):
+    """Check if version_string is present in history string."""
+    if (version_string.replace(' ', '') in history.replace('\n', '').replace(' ', '')):
+        return True
+    else:
+        return False
+
+
+def _check_histories(history1, history2):
+    """Check if two histories are the same."""
+    if (history1.replace('\n', '').replace(' ', '') == history2.replace('\n', '').replace(' ', '')):
+        return True
+    else:
+        return False
+
+
+def _combine_histories(history1, history2):
+    """Combine histories with minimal repeats."""
+    hist2_words = history2.split(' ')
+    add_hist = ''
+    test_hist1 = ' ' + history1 + ' '
+    for i, word in enumerate(hist2_words):
+        if ' ' + word + ' ' not in test_hist1:
+            add_hist += ' ' + word
+            keep_going = (i + 1 < len(hist2_words))
+            while keep_going:
+                if ((hist2_words[i + 1] == ' ')
+                        or (' ' + hist2_words[i + 1] + ' ' not in test_hist1)):
+                    add_hist += ' ' + hist2_words[i + 1]
+                    del(hist2_words[i + 1])
+                    keep_going = (i + 1 < len(hist2_words))
+                else:
+                    keep_going = False
+
+    return history1 + add_hist
+
+
+def baseline_to_antnums(baseline, Nants_telescope):
+    """
+    Get the antenna numbers corresponding to a given baseline number.
+
+    Parameters
+    ----------
+    baseline : int or array_like of ints
+        baseline number
+    Nant_telescope : int
+        number of antennas
+
+    Returns
+    -------
+    int or array_like of int
+        first antenna number(s)
+    int or array_like of int
+        second antenna number(s)
+
+    """
+    if Nants_telescope > 2048:
+        raise Exception('error Nants={Nants}>2048 not '
+                        'supported'.format(Nants=Nants_telescope))
+
+    baseline = np.asarray(baseline, dtype=np.int64)
+    if np.min(baseline) > 2**16:
+        ant2 = (baseline - 2**16) % 2048 - 1
+        ant1 = (baseline - 2**16 - (ant2 + 1)) / 2048 - 1
+    else:
+        ant2 = (baseline) % 256 - 1
+        ant1 = (baseline - (ant2 + 1)) / 256 - 1
+    return np.int32(ant1), np.int32(ant2)
+
+
+def antnums_to_baseline(ant1, ant2, Nants_telescope, attempt256=False):
+    """
+    Get the baseline number corresponding to two given antenna numbers.
+
+    Parameters
+    ----------
+    ant1 : int or array_like of int
+        first antenna number
+    ant2 : int or array_like of int
+        second antenna number
+    Nant_telescope : int
+        number of antennas
+    attempt256 : bool
+        Option to try to use the older 256 standard used in
+        many uvfits files (will use 2048 standard if there are more
+        than 256 antennas). Default is False.
+
+    Returns
+    -------
+    int or array of int
+        baseline number corresponding to the two antenna numbers.
+
+    """
+    ant1, ant2 = np.int64((ant1, ant2))
+    if Nants_telescope is not None and Nants_telescope > 2048:
+        raise Exception('cannot convert ant1, ant2 to a baseline index '
+                        'with Nants={Nants}>2048.'
+                        .format(Nants=Nants_telescope))
+    if attempt256:
+        if (np.max(ant1) < 255 and np.max(ant2) < 255):
+            return 256 * (ant1 + 1) + (ant2 + 1)
+        else:
+            print('Max antnums are {} and {}'.format(
+                np.max(ant1), np.max(ant2)))
+            message = 'antnums_to_baseline: found > 256 antennas, using ' \
+                      '2048 baseline indexing. Beware compatibility ' \
+                      'with CASA etc'
+            warnings.warn(message)
+
+    baseline = 2048 * (ant1 + 1) + (ant2 + 1) + 2**16
+
+    if isinstance(baseline, np.ndarray):
+        return np.asarray(baseline, dtype=np.int64)
+    else:
+        return np.int64(baseline)
+
+
+def baseline_index_flip(baseline, Nants_telescope):
+    """Change baseline number to reverse antenna order."""
+    ant1, ant2 = baseline_to_antnums(baseline, Nants_telescope)
+    return antnums_to_baseline(ant2, ant1, Nants_telescope)
+
+
+def _x_orientation_rep_dict(x_orientation):
+    """Create replacement dict based on x_orientation."""
+    if x_orientation.lower() == 'east' or x_orientation.lower() == 'e':
+        return {'x': 'e', 'y': 'n'}
+    elif x_orientation.lower() == 'north' or x_orientation.lower() == 'n':
+        return {'x': 'n', 'y': 'e'}
+    else:
+        raise ValueError('x_orientation not recognized.')
+
+
+def polstr2num(pol, x_orientation=None):
+    """
+    Convert polarization str to number according to AIPS Memo 117.
+
+    Prefer 'pI', 'pQ', 'pU' and 'pV' to make it clear that these are pseudo-Stokes,
+    not true Stokes, but also supports 'I', 'Q', 'U', 'V'.
+
+    Parameters
+    ----------
+    pol : str
+        polarization string
+    x_orientation : str, optional
+        Orientation of the physical dipole corresponding to what is
+        labelled as the x polarization ("east" or "north") to allow for
+        converting from E/N strings. See corresonding parameter on UVData
+        for more details.
+
+    Returns
+    -------
+    int
+        Number corresponding to string
+
+    Raises
+    ------
+    ValueError
+        If the pol string cannot be converted to a polarization number.
+
+    Warns
+    -----
+    UserWarning
+        If the x_orientation not recognized.
+
+    """
+    dict_use = copy.deepcopy(POL_STR2NUM_DICT)
+    if x_orientation is not None:
+        try:
+            rep_dict = _x_orientation_rep_dict(x_orientation)
+            for key, value in POL_STR2NUM_DICT.items():
+                new_key = key.replace('x', rep_dict['x']).replace('y', rep_dict['y'])
+                dict_use[new_key] = value
+        except ValueError:
+            warnings.warn('x_orientation not recognized.')
+
+    poldict = {k.lower(): v for k, v in dict_use.items()}
+    if isinstance(pol, str):
+        out = poldict[pol.lower()]
+    elif isinstance(pol, Iterable):
+        out = [poldict[key.lower()] for key in pol]
+    else:
+        raise ValueError('Polarization {p} cannot be converted to a polarization number.'.format(p=pol))
+    return out
+
+
+def polnum2str(num, x_orientation=None):
+    """
+    Convert polarization number to str according to AIPS Memo 117.
+
+    Uses 'pI', 'pQ', 'pU' and 'pV' to make it clear that these are pseudo-Stokes,
+    not true Stokes
+
+    Parameters
+    ----------
+    num : int
+        polarization number
+    x_orientation : str, optional
+        Orientation of the physical dipole corresponding to what is
+        labelled as the x polarization ("east" or "north") to convert to
+        E/N strings. See corresonding parameter on UVData for more details.
+
+    Returns
+    -------
+    str
+        String corresponding to polarization number
+
+    Raises
+    ------
+    ValueError
+        If the polarization number cannot be converted to a polarization string.
+
+    Warns
+    -----
+    UserWarning
+        If the x_orientation not recognized.
+
+    """
+    dict_use = copy.deepcopy(POL_NUM2STR_DICT)
+    if x_orientation is not None:
+        try:
+            rep_dict = _x_orientation_rep_dict(x_orientation)
+            for key, value in POL_NUM2STR_DICT.items():
+                new_val = value.replace('x', rep_dict['x']).replace('y', rep_dict['y'])
+                dict_use[key] = new_val
+        except ValueError:
+            warnings.warn('x_orientation not recognized.')
+
+    if isinstance(num, (int, np.int32, np.int64)):
+        out = dict_use[num]
+    elif isinstance(num, Iterable):
+        out = [dict_use[i] for i in num]
+    else:
+        raise ValueError('Polarization {p} cannot be converted to string.'.format(p=num))
+    return out
+
+
+def jstr2num(jstr, x_orientation=None):
+    """
+    Convert jones polarization str to number according to calfits memo.
+
+    Parameters
+    ----------
+    jstr : str
+        antenna (jones) polarization string
+    x_orientation : str, optional
+        Orientation of the physical dipole corresponding to what is
+        labelled as the x polarization ("east" or "north") to allow for
+        converting from E/N strings. See corresonding parameter on UVData
+        for more details.
+
+    Returns
+    -------
+    int
+        antenna (jones) polarization number corresponding to string
+
+    Raises
+    ------
+    ValueError
+        If the jones string cannot be converted to a polarization number.
+
+    Warns
+    -----
+    UserWarning
+        If the x_orientation not recognized.
+
+    """
+    dict_use = copy.deepcopy(JONES_STR2NUM_DICT)
+    if x_orientation is not None:
+        try:
+            rep_dict = _x_orientation_rep_dict(x_orientation)
+            for key, value in JONES_STR2NUM_DICT.items():
+                new_key = key.replace('x', rep_dict['x']).replace('y', rep_dict['y'])
+                dict_use[new_key] = value
+        except ValueError:
+            warnings.warn('x_orientation not recognized.')
+
+    jdict = {k.lower(): v for k, v in dict_use.items()}
+    if isinstance(jstr, str):
+        out = jdict[jstr.lower()]
+    elif isinstance(jstr, Iterable):
+        out = [jdict[key.lower()] for key in jstr]
+    else:
+        raise ValueError('Jones polarization {j} cannot be converted to index.'.format(j=jstr))
+    return out
+
+
+def jnum2str(jnum, x_orientation=None):
+    """
+    Convert jones polarization number to str according to calfits memo.
+
+    Parameters
+    ----------
+    num : int
+        antenna (jones) polarization number
+    x_orientation : str, optional
+        Orientation of the physical dipole corresponding to what is
+        labelled as the x polarization ("east" or "north") to convert to
+        E/N strings. See corresonding parameter on UVData for more details.
+
+    Returns
+    -------
+    str
+        antenna (jones) polarization string corresponding to number
+
+    Raises
+    ------
+    ValueError
+        If the jones polarization number cannot be converted to a jones polarization string.
+
+    Warns
+    -----
+    UserWarning
+        If the x_orientation not recognized.
+
+    """
+    dict_use = copy.deepcopy(JONES_NUM2STR_DICT)
+    if x_orientation is not None:
+        try:
+            rep_dict = _x_orientation_rep_dict(x_orientation)
+            for key, value in JONES_NUM2STR_DICT.items():
+                new_val = value.replace('x', rep_dict['x']).replace('y', rep_dict['y'])
+                dict_use[key] = new_val
+        except ValueError:
+            warnings.warn('x_orientation not recognized.')
+
+    if isinstance(jnum, (int, np.int32, np.int64)):
+        out = dict_use[jnum]
+    elif isinstance(jnum, Iterable):
+        out = [dict_use[i] for i in jnum]
+    else:
+        raise ValueError('Jones polarization {j} cannot be converted to string.'.format(j=jnum))
+    return out
+
+
+def parse_polstr(polstr, x_orientation=None):
+    """
+    Parse a polarization string and return pyuvdata standard polarization string.
+
+    See utils.POL_STR2NUM_DICT for options.
+
+    Parameters
+    ----------
+    polstr : str
+        polarization string
+    x_orientation : str, optional
+        Orientation of the physical dipole corresponding to what is
+        labelled as the x polarization ("east" or "north") to allow for
+        converting from E/N strings. See corresonding parameter on UVData
+        for more details.
+
+    Returns
+    -------
+    str
+        AIPS Memo 117 standard string
+
+    Raises
+    ------
+    ValueError
+        If the pol string cannot be converted to a polarization number.
+
+    Warns
+    -----
+    UserWarning
+        If the x_orientation not recognized.
+
+    """
+    return polnum2str(polstr2num(polstr, x_orientation=x_orientation),
+                      x_orientation=x_orientation)
+
+
+def parse_jpolstr(jpolstr, x_orientation=None):
+    """
+    Parse a Jones polarization string and return pyuvdata standard jones string.
+
+    See utils.JONES_STR2NUM_DICT for options.
+
+    Parameters
+    ----------
+    jpolstr : str
+        Jones polarization string
+
+    Returns
+    -------
+    str
+        calfits memo standard string
+
+    Raises
+    ------
+    ValueError
+        If the jones string cannot be converted to a polarization number.
+
+    Warns
+    -----
+    UserWarning
+        If the x_orientation not recognized.
+
+    """
+    return jnum2str(jstr2num(jpolstr, x_orientation=x_orientation),
+                    x_orientation=x_orientation)
+
+
+def conj_pol(pol):
+    """
+    Return the polarization for the conjugate baseline.
+
+    For example, (1, 2, 'xy') = conj(2, 1, 'yx').
+    The returned polarization is determined by assuming the antenna pair is
+    reversed in the data, and finding the correct polarization correlation
+    which will yield the requested baseline when conjugated. Note this means
+    changing the polarization for linear cross-pols, but keeping auto-pol
+    (e.g. xx) and Stokes the same.
+
+    Parameters
+    ----------
+    pol : str or int
+        Polarization string or integer.
+
+    Returns
+    -------
+    cpol : str or int
+        Polarization as if antennas are swapped (type matches input)
+
+    """
+    cpol_dict = {k.lower(): v for k, v in CONJ_POL_DICT.items()}
+
+    if isinstance(pol, str):
+        cpol = cpol_dict[pol.lower()]
+    elif isinstance(pol, Iterable):
+        cpol = [conj_pol(p) for p in pol]
+    elif isinstance(pol, (int, np.int32, np.int64)):
+        cpol = polstr2num(cpol_dict[polnum2str(pol).lower()])
+    else:
+        raise ValueError('Polarization not recognized, cannot be conjugated.')
+    return cpol
+
+
+def reorder_conj_pols(pols):
+    """
+    Reorder multiple pols, swapping pols that are conjugates of one another.
+
+    For example ('xx', 'xy', 'yx', 'yy') -> ('xx', 'yx', 'xy', 'yy')
+    This is useful for the _key2inds function in the case where an antenna
+    pair is specified but the conjugate pair exists in the data. The conjugated
+    data should be returned in the order of the polarization axis, so after
+    conjugating the data, the pols need to be reordered.
+    For example, if a file contains antpair (0, 1) and pols 'xy' and 'yx', but
+    the user requests antpair (1, 0), they should get:
+    [(1x, 0y), (1y, 0x)] = [conj(0y, 1x), conj(0x, 1y)]
+
+    Parameters
+    ----------
+    pols : array_like of str or int
+        Polarization array (strings or ints).
+
+    Returns
+    -------
+    conj_order : ndarray of int
+        Indices to reorder polarization array.
+    """
+    if not isinstance(pols, Iterable):
+        raise ValueError('reorder_conj_pols must be given an array of polarizations.')
+    cpols = np.array([conj_pol(p) for p in pols])  # Array needed for np.where
+    conj_order = [np.where(cpols == p)[0][0] if p in cpols else -1 for p in pols]
+    if -1 in conj_order:
+        raise ValueError('Not all conjugate pols exist in the polarization array provided.')
+    return conj_order
+
+
 def LatLonAlt_from_XYZ(xyz, check_acceptability=True):
     """
     Calculate lat/lon/alt from ECEF x,y,z.
@@ -457,242 +984,6 @@ def unphase_uvw(ra, dec, uvw):
     return(unphased_uvws)
 
 
-def uvcalibrate(uvdata, uvcal, inplace=True, prop_flags=True, flag_missing=True,
-                Dterm_cal=False, delay_convention='minus', undo=False):
-    """
-    Calibrate a UVData object with a UVCal object.
-
-    Parameters
-    ----------
-    uvdata: UVData object
-    uvcal: UVCal object
-    inplace: bool, optional
-        if True edit uvdata in place, else deepcopy
-    prop_flags : bool, optional
-        if True, propagate calibration flags to data flags
-        and doesn't use flagged gains. Otherwise, uses flagged gains and
-        does not propagate calibration flags to data flags.
-    flag_missing : bool, optional
-        if True, flag baselines in uvdata
-        if a participating antenna or polarization is missing in uvcal.
-    Dterm_cal : bool, optional
-        Calibrate the off-diagonal terms in the Jones matrix if present
-        in uvcal. Default is False. Currently not implemented.
-    delay_convention : str, optional
-        Exponent sign to use in conversion of 'delay' to 'gain' cal_type
-        if the input uvcal is not inherently 'gain' cal_type. Default to 'minus'.
-    undo : bool, optional
-        If True, undo the provided calibration. i.e. apply the calibration with
-        flipped gain_convention. Flag propagation rules apply the same.
-
-    Returns
-    -------
-    UVData, optional
-        Returns if not inplace
-    """
-    # deepcopy for not inplace
-    if not inplace:
-        uvdata = copy.deepcopy(uvdata)
-
-    # input checks
-    if uvcal.cal_type == 'delay':
-        # make a copy that is converted to gain
-        uvcal = copy.deepcopy(uvcal)
-        uvcal.convert_to_gain(delay_convention=delay_convention)
-
-    # D-term calibration
-    if Dterm_cal:
-        # check for D-terms
-        if -7 not in uvcal.jones_array and -8 not in uvcal.jones_array:
-            raise ValueError("Cannot apply D-term calibration without -7 or -8"
-                             "Jones polarization in uvcal object.")
-        raise NotImplementedError("D-term calibration is not yet implemented.")
-
-    # No D-term calibration
-    else:
-        # iterate over keys
-        for key in uvdata.get_antpairpols():
-            # get indices for this key
-            blt_inds = uvdata.antpair2ind(key)
-            pol_ind = np.argmin(np.abs(uvdata.polarization_array - polstr2num(key[2], uvdata.x_orientation)))
-
-            # try to get gains for each antenna
-            ant1 = (key[0], key[2][0])
-            ant2 = (key[1], key[2][1])
-            if not uvcal._has_key(*ant1) or not uvcal._has_key(*ant2):
-                if flag_missing:
-                    uvdata.flag_array[blt_inds, 0, :, pol_ind] = True
-                continue
-            gain = (uvcal.get_gains(ant1) * np.conj(uvcal.get_gains(ant2))).T  # tranpose to match uvdata shape
-            flag = (uvcal.get_flags(ant1) | uvcal.get_flags(ant2)).T
-
-            # propagate flags
-            if prop_flags:
-                mask = np.isclose(gain, 0.0) | flag
-                gain[mask] = 1.0
-                uvdata.flag_array[blt_inds, 0, :, pol_ind] += mask
-
-            # apply to data
-            mult_gains = uvcal.gain_convention == 'multiply'
-            if undo:
-                mult_gains = not mult_gains
-            if mult_gains:
-                uvdata.data_array[blt_inds, 0, :, pol_ind] *= gain
-            else:
-                uvdata.data_array[blt_inds, 0, :, pol_ind] /= gain
-
-    # update attributes
-    uvdata.history += "\nCalibrated with pyuvdata.utils.uvcalibrate."
-    if undo:
-        uvdata.vis_units = 'UNCALIB'
-    else:
-        if uvcal.gain_scale is not None:
-            uvdata.vis_units = uvcal.gain_scale
-
-    if not inplace:
-        return uvdata
-
-
-def apply_uvflag(uvd, uvf, inplace=True, unflag_first=False,
-                 flag_missing=True, force_pol=True):
-    """
-    Apply flags from a UVFlag to a UVData instantiation.
-
-    Note that if uvf.Nfreqs or uvf.Ntimes is 1, it will broadcast flags across
-    that axis.
-
-    Parameters
-    ----------
-    uvd : UVData object
-        UVData object to add flags to.
-    uvf : UVFlag object
-        A UVFlag object in flag mode.
-    inplace : bool
-        If True overwrite flags in uvd, otherwise return new object
-    unflag_first : bool
-        If True, completely unflag the UVData before applying flags.
-        Else, OR the inherent uvd flags with uvf flags.
-    flag_missing : bool
-        If input uvf is a baseline type and antpairs in uvd do not exist in uvf,
-        flag them in uvd. Otherwise leave them untouched.
-    force_pol : bool
-        If True, broadcast flags to all polarizations if they do not match.
-        Only works if uvf.Npols == 1.
-
-    Returns
-    -------
-    UVData
-        If not inplace, returns new UVData object with flags applied
-
-    """
-    # assertions
-    if uvf.mode != 'flag':
-        raise ValueError("UVFlag must be flag mode")
-
-    if not inplace:
-        uvd = copy.deepcopy(uvd)
-
-    # make a deepcopy by default b/c it is generally edited inplace downstream
-    uvf = copy.deepcopy(uvf)
-
-    # convert to baseline type
-    if uvf.type != 'baseline':
-        # edits inplace
-        uvf.to_baseline(uvd, force_pol=force_pol)
-
-    else:
-        # make sure polarizations match or force_pol
-        uvd_pols, uvf_pols = uvd.polarization_array.tolist(), uvf.polarization_array.tolist()
-        if set(uvd_pols) != set(uvf_pols):
-            if uvf.Npols == 1 and force_pol:
-                # if uvf is 1pol we can make them match: also edits inplace
-                uvf.polarization_array = uvd.polarization_array
-                uvf.Npols = len(uvf.polarization_array)
-                uvf_pols = uvf.polarization_array.tolist()
-
-            else:
-                raise ValueError("Input uvf and uvd polarizations do not match")
-
-        # make sure polarization ordering is correct: also edits inplace
-        uvf.polarization_array = uvf.polarization_array[[uvd_pols.index(pol) for pol in uvf_pols]]
-
-    # check time and freq shapes match: if Ntimes or Nfreqs is 1, allow implicit broadcasting
-    if uvf.Ntimes == 1:
-        mismatch_times = False
-    elif uvf.Ntimes == uvd.Ntimes:
-        tdiff = np.unique(uvf.time_array) - np.unique(uvd.time_array)
-        mismatch_times = np.any(tdiff > np.max(np.abs(uvf._time_array.tols)))
-    else:
-        mismatch_times = True
-    if mismatch_times:
-        raise ValueError("UVFlag and UVData have mismatched time arrays.")
-
-    if uvf.Nfreqs == 1:
-        mismatch_freqs = False
-    elif uvf.Nfreqs == uvd.Nfreqs:
-        fdiff = np.unique(uvf.freq_array) - np.unique(uvd.freq_array)
-        mismatch_freqs = np.any(fdiff > np.max(np.abs(uvf._freq_array.tols)))
-    else:
-        mismatch_freqs = True
-    if mismatch_freqs:
-        raise ValueError("UVFlag and UVData have mismatched frequency arrays.")
-
-    # unflag if desired
-    if unflag_first:
-        uvd.flag_array[:] = False
-
-    # iterate over antpairs and apply flags: TODO need to be able to handle conjugated antpairs
-    uvf_antpairs = uvf.get_antpairs()
-    for ap in uvd.get_antpairs():
-        uvd_ap_inds = uvd.antpair2ind(ap)
-        if ap not in uvf_antpairs:
-            if flag_missing:
-                uvd.flag_array[uvd_ap_inds] = True
-            continue
-        uvf_ap_inds = uvf.antpair2ind(*ap)
-        # addition of boolean is OR
-        uvd.flag_array[uvd_ap_inds] += uvf.flag_array[uvf_ap_inds]
-
-    uvd.history += "\nFlagged with pyuvdata.utils.apply_uvflags."
-
-    if not inplace:
-        return uvd
-
-
-def _get_iterable(x):
-    """Return iterable version of input."""
-    if isinstance(x, Iterable):
-        return x
-    else:
-        return (x,)
-
-
-def _fits_gethduaxis(HDU, axis):
-    """
-    Make axis arrays for fits files.
-
-    Parameters
-    ----------
-    HDU : astropy.io.fits HDU object
-        The HDU to make an axis array for.
-    axis : int
-        The axis number of interest (1-based).
-
-    Returns
-    -------
-    ndarray of float
-        Array of values for the specified axis.
-
-    """
-    ax = str(axis)
-    N = HDU.header['NAXIS' + ax]
-    X0 = HDU.header['CRVAL' + ax]
-    dX = HDU.header['CDELT' + ax]
-    Xi0 = HDU.header['CRPIX' + ax] - 1
-
-    return dX * (np.arange(N) - Xi0) + X0
-
-
 def get_lst_for_time(jd_array, latitude, longitude, altitude):
     """
     Get the lsts for a set of jd times at an earth location.
@@ -730,499 +1021,6 @@ def get_lst_for_time(jd_array, latitude, longitude, altitude):
             jd, jd_array, atol=1e-6, rtol=1e-12))] = t.sidereal_time('apparent').radian
 
     return lst_array
-
-
-def _fits_indexhdus(hdulist):
-    """
-    Get a dict of table names and HDU numbers from a FITS HDU list.
-
-    Parameters
-    ----------
-    hdulist : list of astropy.io.fits HDU objects
-        List of HDUs to get names for
-
-    Returns
-    -------
-    dict
-        dictionary with table names as keys and HDU number as values.
-
-    """
-    tablenames = {}
-    for i in range(len(hdulist)):
-        try:
-            tablenames[hdulist[i].header['EXTNAME']] = i
-        except(KeyError):
-            continue
-    return tablenames
-
-
-def _x_orientation_rep_dict(x_orientation):
-    """Create replacement dict based on x_orientation."""
-    if x_orientation.lower() == 'east' or x_orientation.lower() == 'e':
-        return {'x': 'e', 'y': 'n'}
-    elif x_orientation.lower() == 'north' or x_orientation.lower() == 'n':
-        return {'x': 'n', 'y': 'e'}
-    else:
-        raise ValueError('x_orientation not recognized.')
-
-
-def polstr2num(pol, x_orientation=None):
-    """
-    Convert polarization str to number according to AIPS Memo 117.
-
-    Prefer 'pI', 'pQ', 'pU' and 'pV' to make it clear that these are pseudo-Stokes,
-    not true Stokes, but also supports 'I', 'Q', 'U', 'V'.
-
-    Parameters
-    ----------
-    pol : str
-        polarization string
-    x_orientation : str, optional
-        Orientation of the physical dipole corresponding to what is
-        labelled as the x polarization ("east" or "north") to allow for
-        converting from E/N strings. See corresonding parameter on UVData
-        for more details.
-
-    Returns
-    -------
-    int
-        Number corresponding to string
-
-    Raises
-    ------
-    ValueError
-        If the pol string cannot be converted to a polarization number.
-
-    Warns
-    -----
-    UserWarning
-        If the x_orientation not recognized.
-
-    """
-    dict_use = copy.deepcopy(POL_STR2NUM_DICT)
-    if x_orientation is not None:
-        try:
-            rep_dict = _x_orientation_rep_dict(x_orientation)
-            for key, value in POL_STR2NUM_DICT.items():
-                new_key = key.replace('x', rep_dict['x']).replace('y', rep_dict['y'])
-                dict_use[new_key] = value
-        except ValueError:
-            warnings.warn('x_orientation not recognized.')
-
-    poldict = {k.lower(): v for k, v in dict_use.items()}
-    if isinstance(pol, str):
-        out = poldict[pol.lower()]
-    elif isinstance(pol, Iterable):
-        out = [poldict[key.lower()] for key in pol]
-    else:
-        raise ValueError('Polarization {p} cannot be converted to a polarization number.'.format(p=pol))
-    return out
-
-
-def polnum2str(num, x_orientation=None):
-    """
-    Convert polarization number to str according to AIPS Memo 117.
-
-    Uses 'pI', 'pQ', 'pU' and 'pV' to make it clear that these are pseudo-Stokes,
-    not true Stokes
-
-    Parameters
-    ----------
-    num : int
-        polarization number
-    x_orientation : str, optional
-        Orientation of the physical dipole corresponding to what is
-        labelled as the x polarization ("east" or "north") to convert to
-        E/N strings. See corresonding parameter on UVData for more details.
-
-    Returns
-    -------
-    str
-        String corresponding to polarization number
-
-    Raises
-    ------
-    ValueError
-        If the polarization number cannot be converted to a polarization string.
-
-    Warns
-    -----
-    UserWarning
-        If the x_orientation not recognized.
-
-    """
-    dict_use = copy.deepcopy(POL_NUM2STR_DICT)
-    if x_orientation is not None:
-        try:
-            rep_dict = _x_orientation_rep_dict(x_orientation)
-            for key, value in POL_NUM2STR_DICT.items():
-                new_val = value.replace('x', rep_dict['x']).replace('y', rep_dict['y'])
-                dict_use[key] = new_val
-        except ValueError:
-            warnings.warn('x_orientation not recognized.')
-
-    if isinstance(num, (int, np.int32, np.int64)):
-        out = dict_use[num]
-    elif isinstance(num, Iterable):
-        out = [dict_use[i] for i in num]
-    else:
-        raise ValueError('Polarization {p} cannot be converted to string.'.format(p=num))
-    return out
-
-
-def jstr2num(jstr, x_orientation=None):
-    """
-    Convert jones polarization str to number according to calfits memo.
-
-    Parameters
-    ----------
-    jstr : str
-        antenna (jones) polarization string
-    x_orientation : str, optional
-        Orientation of the physical dipole corresponding to what is
-        labelled as the x polarization ("east" or "north") to allow for
-        converting from E/N strings. See corresonding parameter on UVData
-        for more details.
-
-    Returns
-    -------
-    int
-        antenna (jones) polarization number corresponding to string
-
-    Raises
-    ------
-    ValueError
-        If the jones string cannot be converted to a polarization number.
-
-    Warns
-    -----
-    UserWarning
-        If the x_orientation not recognized.
-
-    """
-    dict_use = copy.deepcopy(JONES_STR2NUM_DICT)
-    if x_orientation is not None:
-        try:
-            rep_dict = _x_orientation_rep_dict(x_orientation)
-            for key, value in JONES_STR2NUM_DICT.items():
-                new_key = key.replace('x', rep_dict['x']).replace('y', rep_dict['y'])
-                dict_use[new_key] = value
-        except ValueError:
-            warnings.warn('x_orientation not recognized.')
-
-    jdict = {k.lower(): v for k, v in dict_use.items()}
-    if isinstance(jstr, str):
-        out = jdict[jstr.lower()]
-    elif isinstance(jstr, Iterable):
-        out = [jdict[key.lower()] for key in jstr]
-    else:
-        raise ValueError('Jones polarization {j} cannot be converted to index.'.format(j=jstr))
-    return out
-
-
-def jnum2str(jnum, x_orientation=None):
-    """
-    Convert jones polarization number to str according to calfits memo.
-
-    Parameters
-    ----------
-    num : int
-        antenna (jones) polarization number
-    x_orientation : str, optional
-        Orientation of the physical dipole corresponding to what is
-        labelled as the x polarization ("east" or "north") to convert to
-        E/N strings. See corresonding parameter on UVData for more details.
-
-    Returns
-    -------
-    str
-        antenna (jones) polarization string corresponding to number
-
-    Raises
-    ------
-    ValueError
-        If the jones polarization number cannot be converted to a jones polarization string.
-
-    Warns
-    -----
-    UserWarning
-        If the x_orientation not recognized.
-
-    """
-    dict_use = copy.deepcopy(JONES_NUM2STR_DICT)
-    if x_orientation is not None:
-        try:
-            rep_dict = _x_orientation_rep_dict(x_orientation)
-            for key, value in JONES_NUM2STR_DICT.items():
-                new_val = value.replace('x', rep_dict['x']).replace('y', rep_dict['y'])
-                dict_use[key] = new_val
-        except ValueError:
-            warnings.warn('x_orientation not recognized.')
-
-    if isinstance(jnum, (int, np.int32, np.int64)):
-        out = dict_use[jnum]
-    elif isinstance(jnum, Iterable):
-        out = [dict_use[i] for i in jnum]
-    else:
-        raise ValueError('Jones polarization {j} cannot be converted to string.'.format(j=jnum))
-    return out
-
-
-def parse_polstr(polstr, x_orientation=None):
-    """
-    Parse a polarization string and return pyuvdata standard polarization string.
-
-    See utils.POL_STR2NUM_DICT for options.
-
-    Parameters
-    ----------
-    polstr : str
-        polarization string
-    x_orientation : str, optional
-        Orientation of the physical dipole corresponding to what is
-        labelled as the x polarization ("east" or "north") to allow for
-        converting from E/N strings. See corresonding parameter on UVData
-        for more details.
-
-    Returns
-    -------
-    str
-        AIPS Memo 117 standard string
-
-    Raises
-    ------
-    ValueError
-        If the pol string cannot be converted to a polarization number.
-
-    Warns
-    -----
-    UserWarning
-        If the x_orientation not recognized.
-
-    """
-    return polnum2str(polstr2num(polstr, x_orientation=x_orientation),
-                      x_orientation=x_orientation)
-
-
-def parse_jpolstr(jpolstr, x_orientation=None):
-    """
-    Parse a Jones polarization string and return pyuvdata standard jones string.
-
-    See utils.JONES_STR2NUM_DICT for options.
-
-    Parameters
-    ----------
-    jpolstr : str
-        Jones polarization string
-
-    Returns
-    -------
-    str
-        calfits memo standard string
-
-    Raises
-    ------
-    ValueError
-        If the jones string cannot be converted to a polarization number.
-
-    Warns
-    -----
-    UserWarning
-        If the x_orientation not recognized.
-
-    """
-    return jnum2str(jstr2num(jpolstr, x_orientation=x_orientation),
-                    x_orientation=x_orientation)
-
-
-def conj_pol(pol):
-    """
-    Return the polarization for the conjugate baseline.
-
-    For example, (1, 2, 'xy') = conj(2, 1, 'yx').
-    The returned polarization is determined by assuming the antenna pair is
-    reversed in the data, and finding the correct polarization correlation
-    which will yield the requested baseline when conjugated. Note this means
-    changing the polarization for linear cross-pols, but keeping auto-pol
-    (e.g. xx) and Stokes the same.
-
-    Parameters
-    ----------
-    pol : str or int
-        Polarization string or integer.
-
-    Returns
-    -------
-    cpol : str or int
-        Polarization as if antennas are swapped (type matches input)
-
-    """
-    cpol_dict = {k.lower(): v for k, v in CONJ_POL_DICT.items()}
-
-    if isinstance(pol, str):
-        cpol = cpol_dict[pol.lower()]
-    elif isinstance(pol, Iterable):
-        cpol = [conj_pol(p) for p in pol]
-    elif isinstance(pol, (int, np.int32, np.int64)):
-        cpol = polstr2num(cpol_dict[polnum2str(pol).lower()])
-    else:
-        raise ValueError('Polarization not recognized, cannot be conjugated.')
-    return cpol
-
-
-def reorder_conj_pols(pols):
-    """
-    Reorder multiple pols, swapping pols that are conjugates of one another.
-
-    For example ('xx', 'xy', 'yx', 'yy') -> ('xx', 'yx', 'xy', 'yy')
-    This is useful for the _key2inds function in the case where an antenna
-    pair is specified but the conjugate pair exists in the data. The conjugated
-    data should be returned in the order of the polarization axis, so after
-    conjugating the data, the pols need to be reordered.
-    For example, if a file contains antpair (0, 1) and pols 'xy' and 'yx', but
-    the user requests antpair (1, 0), they should get:
-    [(1x, 0y), (1y, 0x)] = [conj(0y, 1x), conj(0x, 1y)]
-
-    Parameters
-    ----------
-    pols : array_like of str or int
-        Polarization array (strings or ints).
-
-    Returns
-    -------
-    conj_order : ndarray of int
-        Indices to reorder polarization array.
-    """
-    if not isinstance(pols, Iterable):
-        raise ValueError('reorder_conj_pols must be given an array of polarizations.')
-    cpols = np.array([conj_pol(p) for p in pols])  # Array needed for np.where
-    conj_order = [np.where(cpols == p)[0][0] if p in cpols else -1 for p in pols]
-    if -1 in conj_order:
-        raise ValueError('Not all conjugate pols exist in the polarization array provided.')
-    return conj_order
-
-
-def _check_history_version(history, version_string):
-    """Check if version_string is present in history string."""
-    if (version_string.replace(' ', '') in history.replace('\n', '').replace(' ', '')):
-        return True
-    else:
-        return False
-
-
-def _check_histories(history1, history2):
-    """Check if two histories are the same."""
-    if (history1.replace('\n', '').replace(' ', '') == history2.replace('\n', '').replace(' ', '')):
-        return True
-    else:
-        return False
-
-
-def _combine_histories(history1, history2):
-    """Combine histories with minimal repeats."""
-    hist2_words = history2.split(' ')
-    add_hist = ''
-    test_hist1 = ' ' + history1 + ' '
-    for i, word in enumerate(hist2_words):
-        if ' ' + word + ' ' not in test_hist1:
-            add_hist += ' ' + word
-            keep_going = (i + 1 < len(hist2_words))
-            while keep_going:
-                if ((hist2_words[i + 1] == ' ')
-                        or (' ' + hist2_words[i + 1] + ' ' not in test_hist1)):
-                    add_hist += ' ' + hist2_words[i + 1]
-                    del(hist2_words[i + 1])
-                    keep_going = (i + 1 < len(hist2_words))
-                else:
-                    keep_going = False
-
-    return history1 + add_hist
-
-
-def baseline_to_antnums(baseline, Nants_telescope):
-    """
-    Get the antenna numbers corresponding to a given baseline number.
-
-    Parameters
-    ----------
-    baseline : int or array_like of ints
-        baseline number
-    Nant_telescope : int
-        number of antennas
-
-    Returns
-    -------
-    int or array_like of int
-        first antenna number(s)
-    int or array_like of int
-        second antenna number(s)
-
-    """
-    if Nants_telescope > 2048:
-        raise Exception('error Nants={Nants}>2048 not '
-                        'supported'.format(Nants=Nants_telescope))
-
-    baseline = np.asarray(baseline, dtype=np.int64)
-    if np.min(baseline) > 2**16:
-        ant2 = (baseline - 2**16) % 2048 - 1
-        ant1 = (baseline - 2**16 - (ant2 + 1)) / 2048 - 1
-    else:
-        ant2 = (baseline) % 256 - 1
-        ant1 = (baseline - (ant2 + 1)) / 256 - 1
-    return np.int32(ant1), np.int32(ant2)
-
-
-def antnums_to_baseline(ant1, ant2, Nants_telescope, attempt256=False):
-    """
-    Get the baseline number corresponding to two given antenna numbers.
-
-    Parameters
-    ----------
-    ant1 : int or array_like of int
-        first antenna number
-    ant2 : int or array_like of int
-        second antenna number
-    Nant_telescope : int
-        number of antennas
-    attempt256 : bool
-        Option to try to use the older 256 standard used in
-        many uvfits files (will use 2048 standard if there are more
-        than 256 antennas). Default is False.
-
-    Returns
-    -------
-    int or array of int
-        baseline number corresponding to the two antenna numbers.
-
-    """
-    ant1, ant2 = np.int64((ant1, ant2))
-    if Nants_telescope is not None and Nants_telescope > 2048:
-        raise Exception('cannot convert ant1, ant2 to a baseline index '
-                        'with Nants={Nants}>2048.'
-                        .format(Nants=Nants_telescope))
-    if attempt256:
-        if (np.max(ant1) < 255 and np.max(ant2) < 255):
-            return 256 * (ant1 + 1) + (ant2 + 1)
-        else:
-            print('Max antnums are {} and {}'.format(
-                np.max(ant1), np.max(ant2)))
-            message = 'antnums_to_baseline: found > 256 antennas, using ' \
-                      '2048 baseline indexing. Beware compatibility ' \
-                      'with CASA etc'
-            warnings.warn(message)
-
-    baseline = 2048 * (ant1 + 1) + (ant2 + 1) + 2**16
-
-    if isinstance(baseline, np.ndarray):
-        return np.asarray(baseline, dtype=np.int64)
-    else:
-        return np.int64(baseline)
-
-
-def baseline_index_flip(baseline, Nants_telescope):
-    """Change baseline number to reverse antenna order."""
-    ant1, ant2 = baseline_to_antnums(baseline, Nants_telescope)
-    return antnums_to_baseline(ant2, ant1, Nants_telescope)
 
 
 def get_baseline_redundancies(baselines, baseline_vecs, tol=1.0, with_conjugates=False):
@@ -1584,3 +1382,205 @@ def and_collapse(arr, weights=None, axis=None, return_weights=False,
         return out, np.ones_like(out, dtype=np.float)
     else:
         return out
+
+
+def uvcalibrate(uvdata, uvcal, inplace=True, prop_flags=True, flag_missing=True,
+                Dterm_cal=False, delay_convention='minus', undo=False):
+    """
+    Calibrate a UVData object with a UVCal object.
+
+    Parameters
+    ----------
+    uvdata: UVData object
+    uvcal: UVCal object
+    inplace: bool, optional
+        if True edit uvdata in place, else deepcopy
+    prop_flags : bool, optional
+        if True, propagate calibration flags to data flags
+        and doesn't use flagged gains. Otherwise, uses flagged gains and
+        does not propagate calibration flags to data flags.
+    flag_missing : bool, optional
+        if True, flag baselines in uvdata
+        if a participating antenna or polarization is missing in uvcal.
+    Dterm_cal : bool, optional
+        Calibrate the off-diagonal terms in the Jones matrix if present
+        in uvcal. Default is False. Currently not implemented.
+    delay_convention : str, optional
+        Exponent sign to use in conversion of 'delay' to 'gain' cal_type
+        if the input uvcal is not inherently 'gain' cal_type. Default to 'minus'.
+    undo : bool, optional
+        If True, undo the provided calibration. i.e. apply the calibration with
+        flipped gain_convention. Flag propagation rules apply the same.
+
+    Returns
+    -------
+    UVData, optional
+        Returns if not inplace
+    """
+    # deepcopy for not inplace
+    if not inplace:
+        uvdata = copy.deepcopy(uvdata)
+
+    # input checks
+    if uvcal.cal_type == 'delay':
+        # make a copy that is converted to gain
+        uvcal = copy.deepcopy(uvcal)
+        uvcal.convert_to_gain(delay_convention=delay_convention)
+
+    # D-term calibration
+    if Dterm_cal:
+        # check for D-terms
+        if -7 not in uvcal.jones_array and -8 not in uvcal.jones_array:
+            raise ValueError("Cannot apply D-term calibration without -7 or -8"
+                             "Jones polarization in uvcal object.")
+        raise NotImplementedError("D-term calibration is not yet implemented.")
+
+    # No D-term calibration
+    else:
+        # iterate over keys
+        for key in uvdata.get_antpairpols():
+            # get indices for this key
+            blt_inds = uvdata.antpair2ind(key)
+            pol_ind = np.argmin(np.abs(uvdata.polarization_array - polstr2num(key[2], uvdata.x_orientation)))
+
+            # try to get gains for each antenna
+            ant1 = (key[0], key[2][0])
+            ant2 = (key[1], key[2][1])
+            if not uvcal._has_key(*ant1) or not uvcal._has_key(*ant2):
+                if flag_missing:
+                    uvdata.flag_array[blt_inds, 0, :, pol_ind] = True
+                continue
+            gain = (uvcal.get_gains(ant1) * np.conj(uvcal.get_gains(ant2))).T  # tranpose to match uvdata shape
+            flag = (uvcal.get_flags(ant1) | uvcal.get_flags(ant2)).T
+
+            # propagate flags
+            if prop_flags:
+                mask = np.isclose(gain, 0.0) | flag
+                gain[mask] = 1.0
+                uvdata.flag_array[blt_inds, 0, :, pol_ind] += mask
+
+            # apply to data
+            mult_gains = uvcal.gain_convention == 'multiply'
+            if undo:
+                mult_gains = not mult_gains
+            if mult_gains:
+                uvdata.data_array[blt_inds, 0, :, pol_ind] *= gain
+            else:
+                uvdata.data_array[blt_inds, 0, :, pol_ind] /= gain
+
+    # update attributes
+    uvdata.history += "\nCalibrated with pyuvdata.utils.uvcalibrate."
+    if undo:
+        uvdata.vis_units = 'UNCALIB'
+    else:
+        if uvcal.gain_scale is not None:
+            uvdata.vis_units = uvcal.gain_scale
+
+    if not inplace:
+        return uvdata
+
+
+def apply_uvflag(uvd, uvf, inplace=True, unflag_first=False,
+                 flag_missing=True, force_pol=True):
+    """
+    Apply flags from a UVFlag to a UVData instantiation.
+
+    Note that if uvf.Nfreqs or uvf.Ntimes is 1, it will broadcast flags across
+    that axis.
+
+    Parameters
+    ----------
+    uvd : UVData object
+        UVData object to add flags to.
+    uvf : UVFlag object
+        A UVFlag object in flag mode.
+    inplace : bool
+        If True overwrite flags in uvd, otherwise return new object
+    unflag_first : bool
+        If True, completely unflag the UVData before applying flags.
+        Else, OR the inherent uvd flags with uvf flags.
+    flag_missing : bool
+        If input uvf is a baseline type and antpairs in uvd do not exist in uvf,
+        flag them in uvd. Otherwise leave them untouched.
+    force_pol : bool
+        If True, broadcast flags to all polarizations if they do not match.
+        Only works if uvf.Npols == 1.
+
+    Returns
+    -------
+    UVData
+        If not inplace, returns new UVData object with flags applied
+
+    """
+    # assertions
+    if uvf.mode != 'flag':
+        raise ValueError("UVFlag must be flag mode")
+
+    if not inplace:
+        uvd = copy.deepcopy(uvd)
+
+    # make a deepcopy by default b/c it is generally edited inplace downstream
+    uvf = copy.deepcopy(uvf)
+
+    # convert to baseline type
+    if uvf.type != 'baseline':
+        # edits inplace
+        uvf.to_baseline(uvd, force_pol=force_pol)
+
+    else:
+        # make sure polarizations match or force_pol
+        uvd_pols, uvf_pols = uvd.polarization_array.tolist(), uvf.polarization_array.tolist()
+        if set(uvd_pols) != set(uvf_pols):
+            if uvf.Npols == 1 and force_pol:
+                # if uvf is 1pol we can make them match: also edits inplace
+                uvf.polarization_array = uvd.polarization_array
+                uvf.Npols = len(uvf.polarization_array)
+                uvf_pols = uvf.polarization_array.tolist()
+
+            else:
+                raise ValueError("Input uvf and uvd polarizations do not match")
+
+        # make sure polarization ordering is correct: also edits inplace
+        uvf.polarization_array = uvf.polarization_array[[uvd_pols.index(pol) for pol in uvf_pols]]
+
+    # check time and freq shapes match: if Ntimes or Nfreqs is 1, allow implicit broadcasting
+    if uvf.Ntimes == 1:
+        mismatch_times = False
+    elif uvf.Ntimes == uvd.Ntimes:
+        tdiff = np.unique(uvf.time_array) - np.unique(uvd.time_array)
+        mismatch_times = np.any(tdiff > np.max(np.abs(uvf._time_array.tols)))
+    else:
+        mismatch_times = True
+    if mismatch_times:
+        raise ValueError("UVFlag and UVData have mismatched time arrays.")
+
+    if uvf.Nfreqs == 1:
+        mismatch_freqs = False
+    elif uvf.Nfreqs == uvd.Nfreqs:
+        fdiff = np.unique(uvf.freq_array) - np.unique(uvd.freq_array)
+        mismatch_freqs = np.any(fdiff > np.max(np.abs(uvf._freq_array.tols)))
+    else:
+        mismatch_freqs = True
+    if mismatch_freqs:
+        raise ValueError("UVFlag and UVData have mismatched frequency arrays.")
+
+    # unflag if desired
+    if unflag_first:
+        uvd.flag_array[:] = False
+
+    # iterate over antpairs and apply flags: TODO need to be able to handle conjugated antpairs
+    uvf_antpairs = uvf.get_antpairs()
+    for ap in uvd.get_antpairs():
+        uvd_ap_inds = uvd.antpair2ind(ap)
+        if ap not in uvf_antpairs:
+            if flag_missing:
+                uvd.flag_array[uvd_ap_inds] = True
+            continue
+        uvf_ap_inds = uvf.antpair2ind(*ap)
+        # addition of boolean is OR
+        uvd.flag_array[uvd_ap_inds] += uvf.flag_array[uvf_ap_inds]
+
+    uvd.history += "\nFlagged with pyuvdata.utils.apply_uvflags."
+
+    if not inplace:
+        return uvd
