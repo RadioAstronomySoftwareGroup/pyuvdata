@@ -20,6 +20,107 @@ from .. import telescopes as uvtel
 __all__ = ["UVFlag", "flags2waterfall", "and_rows_cols", "lst_from_uv"]
 
 
+def and_rows_cols(waterfall):
+    """Perform logical and over rows and cols of a waterfall.
+
+    For a 2D flag waterfall, flag pixels only if fully flagged along
+    time and/or frequency
+
+    Parameters
+    ----------
+    waterfall : 2D boolean array of shape (Ntimes, Nfreqs)
+
+    Returns
+    -------
+    wf : 2D array
+        A 2D array (size same as input) where only times/integrations
+        that were fully flagged are flagged.
+
+    """
+    wf = np.zeros_like(waterfall, dtype=np.bool)
+    Ntimes, Nfreqs = waterfall.shape
+    wf[:, (np.sum(waterfall, axis=0) / Ntimes) == 1] = True
+    wf[(np.sum(waterfall, axis=1) / Nfreqs) == 1] = True
+    return wf
+
+
+def lst_from_uv(uv):
+    """Calculate the lst_array for a UVData or UVCal object.
+
+    Parameters
+    ----------
+    uv : a UVData or UVCal object.
+        Object from which lsts are calculated
+
+    Returns
+    -------
+    lst_array: array of float
+        lst_array corresponding to time_array and at telescope location.
+        Units are radian.
+
+    """
+    if not isinstance(uv, (UVCal, UVData)):
+        raise ValueError('Function lst_from_uv can only operate on '
+                         'UVCal or UVData object.')
+
+    tel = uvtel.get_telescope(uv.telescope_name)
+    lat, lon, alt = tel.telescope_location_lat_lon_alt_degrees
+    lst_array = uvutils.get_lst_for_time(uv.time_array, lat, lon, alt)
+    return lst_array
+
+
+def flags2waterfall(uv, flag_array=None, keep_pol=False):
+    """Convert a flag array to a 2D waterfall of dimensions (Ntimes, Nfreqs).
+
+    Averages over baselines and polarizations (in the case of visibility data),
+    or antennas and jones parameters (in case of calibrationd data).
+    Parameters
+    ----------
+    uv : A UVData or UVCal object
+        Object defines the times and frequencies, and supplies the
+        flag_array to convert (if flag_array not specified)
+    flag_array :  Optional,
+        flag array to convert instead of uv.flag_array.
+        Must have same dimensions as uv.flag_array.
+    keep_pol : bool
+        Option to keep the polarization axis intact.
+
+    Returns
+    -------
+    waterfall : 2D array or 3D array
+        Waterfall of averaged flags, for example fraction of baselines
+        which are flagged for every time and frequency (in case of UVData input)
+        Size is (Ntimes, Nfreqs) or (Ntimes, Nfreqs, Npols).
+
+    """
+    if not isinstance(uv, (UVData, UVCal)):
+        raise ValueError('flags2waterfall() requires a UVData or UVCal object as '
+                         'the first argument.')
+    if flag_array is None:
+        flag_array = uv.flag_array
+    if uv.flag_array.shape != flag_array.shape:
+        raise ValueError('Flag array must align with UVData or UVCal object.')
+
+    if isinstance(uv, UVCal):
+        if keep_pol:
+            waterfall = np.swapaxes(np.mean(flag_array, axis=(0, 1)), 0, 1)
+        else:
+            waterfall = np.mean(flag_array, axis=(0, 1, 4)).T
+    else:
+        if keep_pol:
+            waterfall = np.zeros((uv.Ntimes, uv.Nfreqs, uv.Npols))
+            for i, t in enumerate(np.unique(uv.time_array)):
+                waterfall[i, :] = np.mean(flag_array[uv.time_array == t, 0, :, :],
+                                          axis=0)
+        else:
+            waterfall = np.zeros((uv.Ntimes, uv.Nfreqs))
+            for i, t in enumerate(np.unique(uv.time_array)):
+                waterfall[i, :] = np.mean(flag_array[uv.time_array == t, 0, :, :],
+                                          axis=(0, 2))
+
+    return waterfall
+
+
 class UVFlag(UVBase):
     """Object to handle flag arrays and waterfalls for interferometric datasets.
 
@@ -451,6 +552,20 @@ class UVFlag(UVBase):
                 'shape (Nfreqs), units Hz')
         self._freq_array.form = ('Nfreqs',)
 
+    def clear_unused_attributes(self):
+        """Remove unused attributes.
+
+        Useful when changing type or mode or to save memory.
+        Will set all non-required attributes to None, except x_orientation.
+
+
+        """
+        for p in self:
+            attr = getattr(self, p)
+            if not attr.required and attr.value is not None and attr.name != 'x_orientation':
+                attr.value = None
+                setattr(self, p, attr)
+
     def __eq__(self, other, check_history=True, check_extra=True):
         """Check Equality of two UVFlag objects.
 
@@ -491,6 +606,801 @@ class UVFlag(UVBase):
         """Not Equal."""
         return not self.__eq__(other, check_history=check_history,
                                check_extra=check_extra)
+
+    def copy(self):
+        """Return a copy of this object."""
+        return copy.deepcopy(self)
+
+    def antpair2ind(self, ant1, ant2):
+        """Get blt indices for given (ordered) antenna pair.
+
+        Parameters
+        ----------
+        ant1 : int or array_like of int
+            Number of the first antenna
+        ant2 : int or array_like of int
+            Number of the second antenna
+
+        Returns
+        -------
+        int or array_like of int
+            baseline number(s) corresponding to the input antenna number
+
+        """
+        if self.type != 'baseline':
+            raise ValueError('UVFlag object of type ' + self.type + ' does not '
+                             'contain antenna pairs to index.')
+        return np.where((self.ant_1_array == ant1) & (self.ant_2_array == ant2))[0]
+
+    def baseline_to_antnums(self, baseline):
+        """Get the antenna numbers corresponding to a given baseline number.
+
+        Parameters
+        ----------
+        baseline : int
+            baseline number
+
+        Returns
+        -------
+        tuple
+            Antenna numbers corresponding to baseline.
+
+        """
+        assert self.type == 'baseline', 'Must be "baseline" type UVFlag object.'
+        return uvutils.baseline_to_antnums(baseline, self.Nants_telescope)
+
+    def get_baseline_nums(self):
+        """Return numpy array of unique baseline numbers in data."""
+        assert self.type == 'baseline', 'Must be "baseline" type UVFlag object.'
+        return np.unique(self.baseline_array)
+
+    def get_antpairs(self):
+        """Return list of unique antpair tuples (ant1, ant2) in data."""
+        assert self.type == 'baseline', 'Must be "baseline" type UVFlag object.'
+        return [self.baseline_to_antnums(bl) for bl in self.get_baseline_nums()]
+
+    def collapse_pol(self, method='quadmean', run_check=True, check_extra=True,
+                     run_check_acceptability=True):
+        """Collapse the polarization axis using a given method.
+
+        If the original UVFlag object has more than one polarization,
+        the resulting polarization_array will be a single element array with a
+        comma separated string encoding the original polarizations.
+
+        Parameters
+        ----------
+        method : str, {"quadmean", "absmean", "mean", "or", "and"}
+            How to collapse the dimension(s).
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            after collapsing polarizations.
+        check_extra : bool
+            Option to check optional parameters as well as required ones.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters after
+            collapsing polarizations.
+
+        """
+        method = method.lower()
+        if self.mode == 'flag':
+            darr = self.flag_array
+        else:
+            darr = self.metric_array
+        if len(self.polarization_array) > 1:
+            if self.mode == "metric":
+                _weights = self.weights_array
+            else:
+                _weights = np.ones_like(darr)
+            # Collapse pol dimension. But note we retain a polarization axis.
+            d, w = uvutils.collapse(darr, method, axis=-1,
+                                    weights=_weights,
+                                    return_weights=True)
+            darr = np.expand_dims(d, axis=d.ndim)
+
+            if self.mode == "metric":
+                self.weights_array = np.expand_dims(w, axis=w.ndim)
+
+            self.polarization_array = np.array([','.join(map(str, self.polarization_array))],
+                                               dtype=np.str_)
+
+            self.Npols = len(self.polarization_array)
+            self._check_pol_state()
+        else:
+            warnings.warn('Cannot collapse polarization axis when only one pol present.')
+            return
+        if ((method == 'or') or (method == 'and')) and (self.mode == 'flag'):
+            self.flag_array = darr
+        else:
+            self.metric_array = darr
+            self._set_mode_metric()
+        self.clear_unused_attributes()
+        self.history += 'Pol axis collapse. '
+
+        if not uvutils._check_history_version(self.history, self.pyuvdata_version_str):
+            self.history += self.pyuvdata_version_str
+
+        if run_check:
+            self.check(check_extra=check_extra,
+                       run_check_acceptability=run_check_acceptability)
+
+    def to_waterfall(self, method='quadmean', keep_pol=True, run_check=True,
+                     check_extra=True, run_check_acceptability=True):
+        """Convert an 'antenna' or 'baseline' type object to waterfall.
+
+        Parameters
+        ----------
+        method : str, {"quadmean", "absmean", "mean", "or", "and"}
+            How to collapse the dimension(s).
+        keep_pol : bool
+            Whether to also collapse the polarization dimension
+            If keep_pol is False, and the original UVFlag object has more
+            than one polarization, the resulting polarization_array
+            will be a single element array with a comma separated string
+            encoding the original polarizations.
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            after converting to waterfall type.
+        check_extra : bool
+            Option to check optional parameters as well as required ones.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters after
+            converting to waterfall type.
+
+        """
+        method = method.lower()
+        if self.type == 'waterfall' and (keep_pol or (len(self.polarization_array) == 1)):
+            warnings.warn('This object is already a waterfall. Nothing to change.')
+            return
+        if (not keep_pol) and (len(self.polarization_array) > 1):
+            self.collapse_pol(method)
+
+        if self.mode == 'flag':
+            darr = self.flag_array
+        else:
+            darr = self.metric_array
+
+        if self.type == 'antenna':
+            d, w = uvutils.collapse(darr, method, axis=(0, 1), weights=self.weights_array,
+                                    return_weights=True)
+            darr = np.swapaxes(d, 0, 1)
+            if self.mode == "metric":
+                self.weights_array = np.swapaxes(w, 0, 1)
+        elif self.type == 'baseline':
+            Nt = len(np.unique(self.time_array))
+            Nf = len(self.freq_array[0, :])
+            Np = len(self.polarization_array)
+            d = np.zeros((Nt, Nf, Np))
+            w = np.zeros((Nt, Nf, Np))
+            for i, t in enumerate(np.unique(self.time_array)):
+                ind = self.time_array == t
+                if self.mode == "metric":
+                    _weights = self.weights_array[ind, :, :]
+                else:
+                    _weights = np.ones_like(darr[ind, :, :], dtype=float)
+                d[i, :, :], w[i, :, :] = uvutils.collapse(darr[ind, :, :], method,
+                                                          axis=0,
+                                                          weights=_weights,
+                                                          return_weights=True)
+            darr = d
+            if self.mode == "metric":
+                self.weights_array = w
+            self.time_array, ri = np.unique(self.time_array, return_index=True)
+            self.lst_array = self.lst_array[ri]
+        if ((method == 'or') or (method == 'and')) and (self.mode == 'flag'):
+            # If using a boolean operation (AND/OR) and in flag mode, stay in flag
+            # flags should be bool, but somehow it is cast as float64
+            # is reacasting to bool like this best?
+            self.flag_array = darr.astype(bool)
+        else:
+            # Otherwise change to (or stay in) metric
+            self.metric_array = darr
+            self._set_mode_metric()
+        self.freq_array = self.freq_array.flatten()
+        self.Nspws = None
+        self._set_type_waterfall()
+        self.history += 'Collapsed to type "waterfall". '  # + self.pyuvdata_version_str
+
+        if not uvutils._check_history_version(self.history, self.pyuvdata_version_str):
+            self.history += self.pyuvdata_version_str
+
+        self.clear_unused_attributes()
+        if run_check:
+            self.check(check_extra=check_extra,
+                       run_check_acceptability=run_check_acceptability)
+
+    def to_baseline(self, uv, force_pol=False, run_check=True,
+                    check_extra=True, run_check_acceptability=True):
+        """Convert a UVFlag object of type "waterfall" to type "baseline".
+
+        Broadcasts the flag array to all baselines.
+        This function does NOT apply flags to uv.
+
+        Parameters
+        ----------
+        uv : UVData or UVFlag object
+            Objcet with type baseline to match.
+        force_pol : bool
+            If True, will use 1 pol to broadcast to any other pol.
+            Otherwise, will require polarizations match.
+            For example, this keyword is useful if one flags on all
+            pols combined, and wants to broadcast back to individual pols.
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            after converting to baseline type.
+        check_extra : bool
+            Option to check optional parameters as well as required ones.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters after
+            converting to baseline type.
+
+        """
+        if self.type == 'baseline':
+            return
+        if not (issubclass(uv.__class__, UVData) or (isinstance(uv, UVFlag) and uv.type == 'baseline')):
+            raise ValueError('Must pass in UVData object or UVFlag object of type '
+                             '"baseline" to match.')
+
+        # Deal with polarization
+        if force_pol and self.polarization_array.size == 1:
+            # Use single pol for all pols, regardless
+            self.polarization_array = uv.polarization_array
+            # Broadcast arrays
+            if self.mode == 'flag':
+                self.flag_array = self.flag_array.repeat(self.polarization_array.size, axis=-1)
+            else:
+                self.metric_array = self.metric_array.repeat(self.polarization_array.size, axis=-1)
+                self.weights_array = self.weights_array.repeat(self.polarization_array.size, axis=-1)
+            self.Npols = len(self.polarization_array)
+            self._check_pol_state()
+
+        # Now the pol axes should match regardless of force_pol.
+        if not np.array_equal(uv.polarization_array, self.polarization_array):
+            if self.polarization_array.size == 1:
+                raise ValueError('Polarizations do not match. Try keyword force_pol'
+                                 + ' if you wish to broadcast to all polarizations.')
+            else:
+                raise ValueError('Polarizations could not be made to match.')
+        if self.type == "waterfall":
+            # Populate arrays
+            if self.mode == 'flag':
+                arr = np.zeros_like(uv.flag_array)
+                sarr = self.flag_array
+            elif self.mode == 'metric':
+                arr = np.zeros_like(uv.flag_array, dtype=float)
+                warr = np.zeros_like(uv.flag_array, dtype=np.float)
+                sarr = self.metric_array
+            for i, t in enumerate(np.unique(self.time_array)):
+                ti = np.where(uv.time_array == t)
+                arr[ti, :, :, :] = sarr[i, :, :][np.newaxis, np.newaxis, :, :]
+                if self.mode == "metric":
+                    warr[ti, :, :, :] = self.weights_array[i, :, :][np.newaxis, np.newaxis, :, :]
+            if self.mode == 'flag':
+                self.flag_array = arr
+            elif self.mode == 'metric':
+                self.metric_array = arr
+                self.weights_array = warr
+
+        elif self.type == "antenna":
+            if self.mode == "metric":
+                raise NotImplementedError("Cannot currently convert from "
+                                          "antenna type, metric mode to "
+                                          "baseline type UVFlag object.")
+            else:
+                ants_data = np.unique(uv.ant_1_array.tolist()
+                                      + uv.ant_2_array.tolist()
+                                      )
+                new_ants = np.setdiff1d(ants_data, self.ant_array)
+                if new_ants.size > 0:
+                    self.ant_array = np.append(self.ant_array, new_ants).tolist()
+                    # make new flags of the same shape but with first axis the
+                    # size of the new ants
+                    flag_shape = list(self.flag_array.shape)
+                    flag_shape[0] = new_ants.size
+                    new_flags = np.full(flag_shape, True, dtype=bool)
+                    self.flag_array = np.append(self.flag_array,
+                                                new_flags,
+                                                axis=0)
+
+                baseline_flags = np.full((uv.Nblts, self.Nspws,
+                                          self.Nfreqs, self.Npols),
+                                         True, dtype=bool)
+
+                for t_index, bl in enumerate(uv.baseline_array):
+                    uvf_t_index = np.nonzero(uv.time_array[t_index]
+                                             == self.time_array)[0]
+                    if uvf_t_index.size > 0:
+                        # if the time is found in the array
+                        # input the or'ed data from each antenna
+                        ant1, ant2 = uv.baseline_to_antnums(bl)
+                        ant1_index = np.nonzero(np.array(self.ant_array) == ant1)
+                        ant2_index = np.nonzero(np.array(self.ant_array) == ant2)
+                        or_flag = np.logical_or(
+                            self.flag_array[ant1_index, :, :, uvf_t_index, :],
+                            self.flag_array[ant2_index, :, :, uvf_t_index, :])
+
+                        baseline_flags[t_index, :, :, :] = or_flag.copy()
+
+                self.flag_array = baseline_flags
+
+        # Check the frequency array for Nspws, otherwise broadcast to 1,Nfreqs
+        self.freq_array = np.atleast_2d(self.freq_array)
+        self.Nspws = self.freq_array.shape[0]
+
+        self.baseline_array = uv.baseline_array
+        self.Nbls = np.unique(self.baseline_array).size
+        self.ant_1_array = uv.ant_1_array
+        self.ant_2_array = uv.ant_2_array
+        self.Nants_data = int(len(set(self.ant_1_array.tolist()
+                                      + self.ant_2_array.tolist())))
+
+        self.time_array = uv.time_array
+        self.lst_array = uv.lst_array
+        self.Nblts = self.time_array.size
+
+        self.Nants_telescope = int(uv.Nants_telescope)
+        self._set_type_baseline()
+        self.clear_unused_attributes()
+        self.history += 'Broadcast to type "baseline". '
+
+        if not uvutils._check_history_version(self.history, self.pyuvdata_version_str):
+            self.history += self.pyuvdata_version_str
+
+        if run_check:
+            self.check(check_extra=check_extra,
+                       run_check_acceptability=run_check_acceptability)
+
+    def to_antenna(self, uv, force_pol=False, run_check=True,
+                   check_extra=True, run_check_acceptability=True):
+        """Convert a UVFlag object of type "waterfall" to type "antenna".
+
+        Broadcasts the flag array to all antennas.
+        This function does NOT apply flags to uv.
+
+        Parameters
+        ----------
+        uv : UVCal or UVFlag object
+            object of type antenna to match.
+        force_pol : bool
+            If True, will use 1 pol to broadcast to any other pol.
+            Otherwise, will require polarizations match.
+            For example, this keyword is useful if one flags on all
+            pols combined, and wants to broadcast back to individual pols.
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            after converting to antenna type.
+        check_extra : bool
+            Option to check optional parameters as well as required ones.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters after
+            converting to antenna type.
+
+        """
+        if self.type == 'antenna':
+            return
+        if not (issubclass(uv.__class__, UVCal) or (isinstance(uv, UVFlag) and uv.type == 'antenna')):
+            raise ValueError('Must pass in UVCal object or UVFlag object of type '
+                             '"antenna" to match.')
+        if self.type != 'waterfall':
+            raise ValueError('Cannot convert from type "' + self.type + '" to "antenna".')
+        # Deal with polarization
+        if issubclass(uv.__class__, UVCal):
+            polarr = uv.jones_array
+        else:
+            polarr = uv.polarization_array
+        if force_pol and self.polarization_array.size == 1:
+            # Use single pol for all pols, regardless
+            self.polarization_array = polarr
+            # Broadcast arrays
+            if self.mode == 'flag':
+                self.flag_array = self.flag_array.repeat(self.polarization_array.size, axis=-1)
+            else:
+                self.metric_array = self.metric_array.repeat(self.polarization_array.size, axis=-1)
+                self.weights_array = self.weights_array.repeat(self.polarization_array.size, axis=-1)
+            self.Npols = len(self.polarization_array)
+            self._check_pol_state()
+
+        # Now the pol axes should match regardless of force_pol.
+        if not np.array_equal(polarr, self.polarization_array):
+            if self.polarization_array.size == 1:
+                raise ValueError('Polarizations do not match. Try keyword force_pol'
+                                 + 'if you wish to broadcast to all polarizations.')
+            else:
+                raise ValueError('Polarizations could not be made to match.')
+        # Populate arrays
+        if self.mode == 'flag':
+            self.flag_array = np.swapaxes(self.flag_array, 0, 1)[np.newaxis, np.newaxis,
+                                                                 :, :, :]
+            self.flag_array = self.flag_array.repeat(len(uv.ant_array), axis=0)
+        elif self.mode == 'metric':
+            self.metric_array = np.swapaxes(self.metric_array, 0, 1)[np.newaxis, np.newaxis,
+                                                                     :, :, :]
+            self.metric_array = self.metric_array.repeat(len(uv.ant_array), axis=0)
+            self.weights_array = np.swapaxes(self.weights_array, 0, 1)[np.newaxis, np.newaxis,
+                                                                       :, :, :]
+            self.weights_array = self.weights_array.repeat(len(uv.ant_array), axis=0)
+        self.ant_array = uv.ant_array
+        self.Nants_data = len(uv.ant_array)
+        # Check the frequency array for Nspws, otherwise broadcast to 1,Nfreqs
+        self.freq_array = np.atleast_2d(self.freq_array)
+        self.Nspws = self.freq_array.shape[0]
+
+        self._set_type_antenna()
+        self.history += 'Broadcast to type "antenna". '
+
+        if not uvutils._check_history_version(self.history, self.pyuvdata_version_str):
+            self.history += self.pyuvdata_version_str
+
+        if run_check:
+            self.check(check_extra=check_extra,
+                       run_check_acceptability=run_check_acceptability)
+
+    def to_flag(self, threshold=np.inf, run_check=True,
+                check_extra=True, run_check_acceptability=True):
+        """Convert to flag mode.
+
+        This function is NOT SMART. Removes metric_array and creates a
+        flag_array from a simple threshold on the metric values.
+
+        Parameters
+        ----------
+        threshold : float
+            Metric value over which the corresponding flag is
+            set to True. Default is np.inf, which results in flags of all False.
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            after converting to flag mode.
+        check_extra : bool
+            Option to check optional parameters as well as required ones.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters after
+            converting to flag mode.
+
+        """
+        if self.mode == 'flag':
+            return
+        elif self.mode == 'metric':
+            self.flag_array = np.where(self.metric_array >= threshold,
+                                       True, False)
+            self._set_mode_flag()
+        else:
+            raise ValueError('Unknown UVFlag mode: ' + self.mode + '. Cannot convert to flag.')
+        self.history += 'Converted to mode "flag". '
+        if not uvutils._check_history_version(self.history, self.pyuvdata_version_str):
+            self.history += self.pyuvdata_version_str
+        self.clear_unused_attributes()
+
+        if run_check:
+            self.check(check_extra=check_extra,
+                       run_check_acceptability=run_check_acceptability)
+
+    def to_metric(self, convert_wgts=False, run_check=True,
+                  check_extra=True, run_check_acceptability=True):
+        """Convert to metric mode.
+
+        This function is NOT SMART. Simply recasts flag_array as float
+        and uses this as the metric array.
+
+        Parameters
+        ----------
+        convert_wgts : bool
+            if True convert self.weights_array to ones
+            unless a column or row is completely flagged, in which case
+            convert those pixels to zero. This is used when reinterpretting
+            flags as metrics to calculate flag fraction. Zero weighting
+            completely flagged rows/columns prevents those from counting
+            against a threshold along the other dimension.
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            after converting to metric mode.
+        check_extra : bool
+            Option to check optional parameters as well as required ones.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters after
+            converting to metric mode.
+
+        """
+        if self.mode == 'metric':
+            return
+        elif self.mode == 'flag':
+            self.metric_array = self.flag_array.astype(np.float)
+            self._set_mode_metric()
+
+            if convert_wgts:
+                self.weights_array = np.ones_like(self.weights_array)
+                if self.type == 'waterfall':
+                    for i, pol in enumerate(self.polarization_array):
+                        self.weights_array[:, :, i] *= ~and_rows_cols(self.flag_array[:, :, i])
+                elif self.type == 'baseline':
+                    for i, pol in enumerate(self.polarization_array):
+                        for j, ap in enumerate(self.get_antpairs()):
+                            inds = self.antpair2ind(*ap)
+                            self.weights_array[inds, 0, :, i] *= ~and_rows_cols(self.flag_array[inds, 0, :, i])
+                elif self.type == 'antenna':
+                    for i, pol in enumerate(self.polarization_array):
+                        for j in range(self.weights_array.shape[0]):
+                            self.weights_array[j, 0, :, :, i] *= ~and_rows_cols(self.flag_array[j, 0, :, :, i])
+        else:
+            raise ValueError('Unknown UVFlag mode: ' + self.mode + '. Cannot convert to metric.')
+        self.history += 'Converted to mode "metric". '
+
+        if not uvutils._check_history_version(self.history, self.pyuvdata_version_str):
+            self.history += self.pyuvdata_version_str
+        self.clear_unused_attributes()
+
+        if run_check:
+            self.check(check_extra=check_extra,
+                       run_check_acceptability=run_check_acceptability)
+
+    def __add__(self, other, inplace=False, axis='time',
+                run_check=True, check_extra=True, run_check_acceptability=True):
+        """Add two UVFlag objects together along a given axis.
+
+        Parameters
+        ----------
+        other : UVFlag
+            object to combine with self.
+        axis : str
+            Axis along which to combine UVFlag objects.
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            after combining two objects.
+        check_extra : bool
+            Option to check optional parameters as well as required ones.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters after
+            combining two objects.
+        inplace : bool
+            Option to perform the select directly on self or return a new UVData
+            object with just the selected data.
+
+        Returns
+        --------
+        uvf : UVFlag
+            If inplace==False, return new UVFlag object.
+
+        """
+        # Handle in place
+        if inplace:
+            this = self
+        else:
+            this = self.copy()
+
+        # Check that objects are compatible
+        if not isinstance(other, this.__class__):
+            raise ValueError('Only UVFlag objects can be added to a UVFlag object')
+        if this.type != other.type:
+            raise ValueError('UVFlag object of type ' + other.type + ' cannot be '
+                             'added to object of type ' + this.type + '.')
+        if this.mode != other.mode:
+            raise ValueError('UVFlag object of mode ' + other.mode + ' cannot be '
+                             'added to object of mode ' + this.type + '.')
+
+        # Simplify axis referencing
+        axis = axis.lower()
+        type_nums = {'waterfall': 0, 'baseline': 1, 'antenna': 2}
+        axis_nums = {'time': [0, 0, 3], 'baseline': [None, 0, None],
+                     'antenna': [None, None, 0], 'frequency': [1, 2, 2],
+                     'polarization': [2, 3, 4], 'pol': [2, 3, 4],
+                     'jones': [2, 3, 4]}
+        ax = axis_nums[axis][type_nums[self.type]]
+        if axis == 'time':
+            this.time_array = np.concatenate([this.time_array, other.time_array])
+            this.lst_array = np.concatenate([this.lst_array, other.lst_array])
+            if this.type == 'baseline':
+                this.baseline_array = np.concatenate([this.baseline_array, other.baseline_array])
+                this.ant_1_array = np.concatenate([this.ant_1_array, other.ant_1_array])
+                this.ant_2_array = np.concatenate([this.ant_2_array, other.ant_2_array])
+                this.Nants_data = int(len(set(self.ant_1_array.tolist()
+                                              + self.ant_2_array.tolist())))
+
+            this.Ntimes = np.unique(this.time_array).size
+            this.Nblts = len(this.time_array)
+
+        elif axis == 'baseline':
+            if self.type != 'baseline':
+                raise ValueError('Flag object of type ' + self.type + ' cannot be '
+                                 'concatenated along baseline axis.')
+            this.time_array = np.concatenate([this.time_array, other.time_array])
+            this.lst_array = np.concatenate([this.lst_array, other.lst_array])
+            this.baseline_array = np.concatenate([this.baseline_array, other.baseline_array])
+            this.ant_1_array = np.concatenate([this.ant_1_array, other.ant_1_array])
+            this.ant_2_array = np.concatenate([this.ant_2_array, other.ant_2_array])
+            this.Nants_data = int(len(set(self.ant_1_array.tolist()
+                                          + self.ant_2_array.tolist())))
+
+            this.Nbls = np.unique(this.baseline_array).size
+            this.Nblts = len(this.baseline_array)
+
+        elif axis == 'antenna':
+            if self.type != 'antenna':
+                raise ValueError('Flag object of type ' + self.type + ' cannot be '
+                                 'concatenated along antenna axis.')
+            this.ant_array = np.concatenate([this.ant_array, other.ant_array])
+            this.Nants_data = len(this.ant_array)
+        elif axis == 'frequency':
+            this.freq_array = np.concatenate([this.freq_array,
+                                              other.freq_array],
+                                             axis=-1)
+            this.Nfreqs = np.unique(this.freq_array.flatten()).size
+        elif axis in ['polarization', 'pol', 'jones']:
+            if this.pol_collapsed:
+                raise NotImplementedError("Two UVFlag objects with their "
+                                          "polarizations collapsed cannot be "
+                                          "added along the polarization axis "
+                                          "at this time.")
+            this.polarization_array = np.concatenate([this.polarization_array,
+                                                      other.polarization_array])
+            this.Npols = len(this.polarization_array)
+
+        if this.mode == 'flag':
+            this.flag_array = np.concatenate([this.flag_array, other.flag_array],
+                                             axis=ax)
+        elif this.mode == 'metric':
+            this.metric_array = np.concatenate([this.metric_array,
+                                                other.metric_array], axis=ax)
+            this.weights_array = np.concatenate([this.weights_array,
+                                                 other.weights_array], axis=ax)
+
+        this.history += 'Data combined along ' + axis + ' axis. '
+        if not uvutils._check_history_version(this.history, this.pyuvdata_version_str):
+            this.history += this.pyuvdata_version_str
+
+        this.Ntimes = np.unique(this.time_array).size
+
+        if run_check:
+            this.check(check_extra=check_extra,
+                       run_check_acceptability=run_check_acceptability)
+        if not inplace:
+            return this
+
+    def __iadd__(self, other, axis='time',
+                 run_check=True, check_extra=True, run_check_acceptability=True):
+        """In place add.
+
+        Parameters
+        ----------
+        other : UVFlag
+            object to combine with self.
+        axis : str
+            Axis along which to combine UVFlag objects.
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            after combining two objects.
+        check_extra : bool
+            Option to check optional parameters as well as required ones.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters after
+            combining two objects.
+
+        """
+        self.__add__(other, inplace=True, axis=axis, run_check=True,
+                     check_extra=True, run_check_acceptability=True)
+        return self
+
+    def __or__(self, other, inplace=False, run_check=True,
+               check_extra=True, run_check_acceptability=True,):
+        """Combine two UVFlag objects in "flag" mode by "OR"-ing their flags.
+
+        Parameters
+        ----------
+        other : UVFlag
+            object to combine with self.
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            after combining two objects.
+        check_extra : bool
+            Option to check optional parameters as well as required ones.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters after
+            combining two objects.
+        inplace : bool
+            Option to perform the select directly on self or return a new UVData
+            object with just the selected data.
+
+        Returns
+        --------
+        uvf : UVFlag
+            If inplace==False, return new UVFlag object.
+
+        """
+        if (self.mode != 'flag') or (other.mode != 'flag'):
+            raise ValueError('UVFlag object must be in "flag" mode to use "or" function.')
+
+        # Handle in place
+        if inplace:
+            this = self
+        else:
+            this = self.copy()
+        this.flag_array += other.flag_array
+        if other.history not in this.history:
+            this.history += "Flags OR'd with: " + other.history
+
+        if not uvutils._check_history_version(this.history, this.pyuvdata_version_str):
+            this.history += this.pyuvdata_version_str
+
+        if run_check:
+            this.check(check_extra=check_extra,
+                       run_check_acceptability=run_check_acceptability)
+        if not inplace:
+            return this
+
+    def __ior__(self, other, run_check=True,
+                check_extra=True, run_check_acceptability=True):
+        """Perform an inplace logical or.
+
+        Parameters
+        ----------
+        other : UVFlag
+            object to combine with self.
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            after combining two objects.
+        check_extra : bool
+            Option to check optional parameters as well as required ones.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters after
+            combining two objects.
+
+        """
+        self.__or__(other, inplace=True, run_check=True,
+                    check_extra=True, run_check_acceptability=True)
+        return self
+
+    def combine_metrics(self, others, method='quadmean', inplace=True,
+                        run_check=True, check_extra=True,
+                        run_check_acceptability=True):
+        """Combine metric arrays between different UVFlag objects together.
+
+        Parameters
+        ----------
+        others : UVFlag or list of UVFlags
+            Other UVFlag objects to combine metrics with this one.
+        method : str, {"quadmean", "absmean", "mean", "or", "and"}
+            Method to combine metrics.
+        inplace : bool, optional
+            Perform combination in place.
+
+        Returns
+        --------
+        uvf : UVFlag
+            If inplace==False, return new UVFlag object with combined metrics.
+
+        """
+        # Ensure others is iterable (in case of single UVFlag object)
+        # cannot use uvutils._get_iterable because the object itself is iterable
+        if not isinstance(others, (list, tuple, np.ndarray)):
+            others = [others]
+
+        if np.any([not isinstance(other, UVFlag) for other in others]):
+            raise ValueError('"others" must be UVFlag or list of UVFlag objects')
+        if (self.mode != 'metric') or np.any([other.mode != 'metric' for other in others]):
+            raise ValueError('UVFlag object and "others" must be in "metric" mode '
+                             'to use "add_metrics" function.')
+        if inplace:
+            this = self
+        else:
+            this = self.copy()
+        method = method.lower()
+        darray = np.expand_dims(this.metric_array, 0)
+        warray = np.expand_dims(this.weights_array, 0)
+        for other in others:
+            if this.metric_array.shape != other.metric_array.shape:
+                raise ValueError('UVFlag metric array shapes do not match.')
+            darray = np.vstack([darray, np.expand_dims(other.metric_array, 0)])
+            warray = np.vstack([warray, np.expand_dims(other.weights_array, 0)])
+        darray, warray = uvutils.collapse(darray, method, weights=warray, axis=0, return_weights=True)
+        this.metric_array = darray
+        this.weights_array = warray
+        this.history += 'Combined metric arrays. '
+
+        if not uvutils._check_history_version(this.history, this.pyuvdata_version_str):
+            this.history += this.pyuvdata_version_str
+
+        if run_check:
+            this.check(check_extra=check_extra,
+                       run_check_acceptability=run_check_acceptability)
+        if not inplace:
+            return this
 
     def _select_preprocess(self, antenna_nums, bls,
                            frequencies, freq_chans, times, polarizations,
@@ -1227,239 +2137,6 @@ class UVFlag(UVBase):
                                     data=self.flag_array,
                                     compression=data_compression)
 
-    def __add__(self, other, inplace=False, axis='time',
-                run_check=True, check_extra=True, run_check_acceptability=True):
-        """Add two UVFlag objects together along a given axis.
-
-        Parameters
-        ----------
-        other : UVFlag
-            object to combine with self.
-        axis : str
-            Axis along which to combine UVFlag objects.
-        run_check : bool
-            Option to check for the existence and proper shapes of parameters
-            after combining two objects.
-        check_extra : bool
-            Option to check optional parameters as well as required ones.
-        run_check_acceptability : bool
-            Option to check acceptable range of the values of parameters after
-            combining two objects.
-        inplace : bool
-            Option to perform the select directly on self or return a new UVData
-            object with just the selected data.
-
-        Returns
-        --------
-        uvf : UVFlag
-            If inplace==False, return new UVFlag object.
-
-        """
-        # Handle in place
-        if inplace:
-            this = self
-        else:
-            this = self.copy()
-
-        # Check that objects are compatible
-        if not isinstance(other, this.__class__):
-            raise ValueError('Only UVFlag objects can be added to a UVFlag object')
-        if this.type != other.type:
-            raise ValueError('UVFlag object of type ' + other.type + ' cannot be '
-                             'added to object of type ' + this.type + '.')
-        if this.mode != other.mode:
-            raise ValueError('UVFlag object of mode ' + other.mode + ' cannot be '
-                             'added to object of mode ' + this.type + '.')
-
-        # Simplify axis referencing
-        axis = axis.lower()
-        type_nums = {'waterfall': 0, 'baseline': 1, 'antenna': 2}
-        axis_nums = {'time': [0, 0, 3], 'baseline': [None, 0, None],
-                     'antenna': [None, None, 0], 'frequency': [1, 2, 2],
-                     'polarization': [2, 3, 4], 'pol': [2, 3, 4],
-                     'jones': [2, 3, 4]}
-        ax = axis_nums[axis][type_nums[self.type]]
-        if axis == 'time':
-            this.time_array = np.concatenate([this.time_array, other.time_array])
-            this.lst_array = np.concatenate([this.lst_array, other.lst_array])
-            if this.type == 'baseline':
-                this.baseline_array = np.concatenate([this.baseline_array, other.baseline_array])
-                this.ant_1_array = np.concatenate([this.ant_1_array, other.ant_1_array])
-                this.ant_2_array = np.concatenate([this.ant_2_array, other.ant_2_array])
-                this.Nants_data = int(len(set(self.ant_1_array.tolist()
-                                              + self.ant_2_array.tolist())))
-
-            this.Ntimes = np.unique(this.time_array).size
-            this.Nblts = len(this.time_array)
-
-        elif axis == 'baseline':
-            if self.type != 'baseline':
-                raise ValueError('Flag object of type ' + self.type + ' cannot be '
-                                 'concatenated along baseline axis.')
-            this.time_array = np.concatenate([this.time_array, other.time_array])
-            this.lst_array = np.concatenate([this.lst_array, other.lst_array])
-            this.baseline_array = np.concatenate([this.baseline_array, other.baseline_array])
-            this.ant_1_array = np.concatenate([this.ant_1_array, other.ant_1_array])
-            this.ant_2_array = np.concatenate([this.ant_2_array, other.ant_2_array])
-            this.Nants_data = int(len(set(self.ant_1_array.tolist()
-                                          + self.ant_2_array.tolist())))
-
-            this.Nbls = np.unique(this.baseline_array).size
-            this.Nblts = len(this.baseline_array)
-
-        elif axis == 'antenna':
-            if self.type != 'antenna':
-                raise ValueError('Flag object of type ' + self.type + ' cannot be '
-                                 'concatenated along antenna axis.')
-            this.ant_array = np.concatenate([this.ant_array, other.ant_array])
-            this.Nants_data = len(this.ant_array)
-        elif axis == 'frequency':
-            this.freq_array = np.concatenate([this.freq_array,
-                                              other.freq_array],
-                                             axis=-1)
-            this.Nfreqs = np.unique(this.freq_array.flatten()).size
-        elif axis in ['polarization', 'pol', 'jones']:
-            if this.pol_collapsed:
-                raise NotImplementedError("Two UVFlag objects with their "
-                                          "polarizations collapsed cannot be "
-                                          "added along the polarization axis "
-                                          "at this time.")
-            this.polarization_array = np.concatenate([this.polarization_array,
-                                                      other.polarization_array])
-            this.Npols = len(this.polarization_array)
-
-        if this.mode == 'flag':
-            this.flag_array = np.concatenate([this.flag_array, other.flag_array],
-                                             axis=ax)
-        elif this.mode == 'metric':
-            this.metric_array = np.concatenate([this.metric_array,
-                                                other.metric_array], axis=ax)
-            this.weights_array = np.concatenate([this.weights_array,
-                                                 other.weights_array], axis=ax)
-
-        this.history += 'Data combined along ' + axis + ' axis. '
-        if not uvutils._check_history_version(this.history, this.pyuvdata_version_str):
-            this.history += this.pyuvdata_version_str
-
-        this.Ntimes = np.unique(this.time_array).size
-
-        if run_check:
-            this.check(check_extra=check_extra,
-                       run_check_acceptability=run_check_acceptability)
-        if not inplace:
-            return this
-
-    def __iadd__(self, other, axis='time',
-                 run_check=True, check_extra=True, run_check_acceptability=True):
-        """In place add.
-
-        Parameters
-        ----------
-        other : UVFlag
-            object to combine with self.
-        axis : str
-            Axis along which to combine UVFlag objects.
-        run_check : bool
-            Option to check for the existence and proper shapes of parameters
-            after combining two objects.
-        check_extra : bool
-            Option to check optional parameters as well as required ones.
-        run_check_acceptability : bool
-            Option to check acceptable range of the values of parameters after
-            combining two objects.
-
-        """
-        self.__add__(other, inplace=True, axis=axis, run_check=True,
-                     check_extra=True, run_check_acceptability=True)
-        return self
-
-    def __or__(self, other, inplace=False, run_check=True,
-               check_extra=True, run_check_acceptability=True,):
-        """Combine two UVFlag objects in "flag" mode by "OR"-ing their flags.
-
-        Parameters
-        ----------
-        other : UVFlag
-            object to combine with self.
-        run_check : bool
-            Option to check for the existence and proper shapes of parameters
-            after combining two objects.
-        check_extra : bool
-            Option to check optional parameters as well as required ones.
-        run_check_acceptability : bool
-            Option to check acceptable range of the values of parameters after
-            combining two objects.
-        inplace : bool
-            Option to perform the select directly on self or return a new UVData
-            object with just the selected data.
-
-        Returns
-        --------
-        uvf : UVFlag
-            If inplace==False, return new UVFlag object.
-
-        """
-        if (self.mode != 'flag') or (other.mode != 'flag'):
-            raise ValueError('UVFlag object must be in "flag" mode to use "or" function.')
-
-        # Handle in place
-        if inplace:
-            this = self
-        else:
-            this = self.copy()
-        this.flag_array += other.flag_array
-        if other.history not in this.history:
-            this.history += "Flags OR'd with: " + other.history
-
-        if not uvutils._check_history_version(this.history, this.pyuvdata_version_str):
-            this.history += this.pyuvdata_version_str
-
-        if run_check:
-            this.check(check_extra=check_extra,
-                       run_check_acceptability=run_check_acceptability)
-        if not inplace:
-            return this
-
-    def __ior__(self, other, run_check=True,
-                check_extra=True, run_check_acceptability=True):
-        """Perform an inplace logical or.
-
-        Parameters
-        ----------
-        other : UVFlag
-            object to combine with self.
-        run_check : bool
-            Option to check for the existence and proper shapes of parameters
-            after combining two objects.
-        check_extra : bool
-            Option to check optional parameters as well as required ones.
-        run_check_acceptability : bool
-            Option to check acceptable range of the values of parameters after
-            combining two objects.
-
-        """
-        self.__or__(other, inplace=True, run_check=True,
-                    check_extra=True, run_check_acceptability=True)
-        return self
-
-    def clear_unused_attributes(self):
-        """Remove unused attributes.
-
-        Useful when changing type or mode or to save memory.
-        Will set all non-required attributes to None, except x_orientation.
-
-
-        """
-        for p in self:
-            attr = getattr(self, p)
-            if not attr.required and attr.value is not None and attr.name != 'x_orientation':
-                attr.value = None
-                setattr(self, p, attr)
-
-    def copy(self):
-        """Return a copy of this object."""
-        return copy.deepcopy(self)
-
     def from_uvdata(self, input, mode='metric', copy_flags=False,
                     waterfall=False, history='', label='',
                     run_check=True, check_extra=True,
@@ -1723,680 +2400,3 @@ class UVFlag(UVBase):
             self.check(check_extra=check_extra,
                        run_check_acceptability=run_check_acceptability)
         return
-
-    def combine_metrics(self, others, method='quadmean', inplace=True,
-                        run_check=True, check_extra=True,
-                        run_check_acceptability=True):
-        """Combine metric arrays between different UVFlag objects together.
-
-        Parameters
-        ----------
-        others : UVFlag or list of UVFlags
-            Other UVFlag objects to combine metrics with this one.
-        method : str, {"quadmean", "absmean", "mean", "or", "and"}
-            Method to combine metrics.
-        inplace : bool, optional
-            Perform combination in place.
-
-        Returns
-        --------
-        uvf : UVFlag
-            If inplace==False, return new UVFlag object with combined metrics.
-
-        """
-        # Ensure others is iterable (in case of single UVFlag object)
-        # cannot use uvutils._get_iterable because the object itself is iterable
-        if not isinstance(others, (list, tuple, np.ndarray)):
-            others = [others]
-
-        if np.any([not isinstance(other, UVFlag) for other in others]):
-            raise ValueError('"others" must be UVFlag or list of UVFlag objects')
-        if (self.mode != 'metric') or np.any([other.mode != 'metric' for other in others]):
-            raise ValueError('UVFlag object and "others" must be in "metric" mode '
-                             'to use "add_metrics" function.')
-        if inplace:
-            this = self
-        else:
-            this = self.copy()
-        method = method.lower()
-        darray = np.expand_dims(this.metric_array, 0)
-        warray = np.expand_dims(this.weights_array, 0)
-        for other in others:
-            if this.metric_array.shape != other.metric_array.shape:
-                raise ValueError('UVFlag metric array shapes do not match.')
-            darray = np.vstack([darray, np.expand_dims(other.metric_array, 0)])
-            warray = np.vstack([warray, np.expand_dims(other.weights_array, 0)])
-        darray, warray = uvutils.collapse(darray, method, weights=warray, axis=0, return_weights=True)
-        this.metric_array = darray
-        this.weights_array = warray
-        this.history += 'Combined metric arrays. '
-
-        if not uvutils._check_history_version(this.history, this.pyuvdata_version_str):
-            this.history += this.pyuvdata_version_str
-
-        if run_check:
-            this.check(check_extra=check_extra,
-                       run_check_acceptability=run_check_acceptability)
-        if not inplace:
-            return this
-
-    def collapse_pol(self, method='quadmean', run_check=True, check_extra=True,
-                     run_check_acceptability=True):
-        """Collapse the polarization axis using a given method.
-
-        If the original UVFlag object has more than one polarization,
-        the resulting polarization_array will be a single element array with a
-        comma separated string encoding the original polarizations.
-
-        Parameters
-        ----------
-        method : str, {"quadmean", "absmean", "mean", "or", "and"}
-            How to collapse the dimension(s).
-        run_check : bool
-            Option to check for the existence and proper shapes of parameters
-            after collapsing polarizations.
-        check_extra : bool
-            Option to check optional parameters as well as required ones.
-        run_check_acceptability : bool
-            Option to check acceptable range of the values of parameters after
-            collapsing polarizations.
-
-        """
-        method = method.lower()
-        if self.mode == 'flag':
-            darr = self.flag_array
-        else:
-            darr = self.metric_array
-        if len(self.polarization_array) > 1:
-            if self.mode == "metric":
-                _weights = self.weights_array
-            else:
-                _weights = np.ones_like(darr)
-            # Collapse pol dimension. But note we retain a polarization axis.
-            d, w = uvutils.collapse(darr, method, axis=-1,
-                                    weights=_weights,
-                                    return_weights=True)
-            darr = np.expand_dims(d, axis=d.ndim)
-
-            if self.mode == "metric":
-                self.weights_array = np.expand_dims(w, axis=w.ndim)
-
-            self.polarization_array = np.array([','.join(map(str, self.polarization_array))],
-                                               dtype=np.str_)
-
-            self.Npols = len(self.polarization_array)
-            self._check_pol_state()
-        else:
-            warnings.warn('Cannot collapse polarization axis when only one pol present.')
-            return
-        if ((method == 'or') or (method == 'and')) and (self.mode == 'flag'):
-            self.flag_array = darr
-        else:
-            self.metric_array = darr
-            self._set_mode_metric()
-        self.clear_unused_attributes()
-        self.history += 'Pol axis collapse. '
-
-        if not uvutils._check_history_version(self.history, self.pyuvdata_version_str):
-            self.history += self.pyuvdata_version_str
-
-        if run_check:
-            self.check(check_extra=check_extra,
-                       run_check_acceptability=run_check_acceptability)
-
-    def to_waterfall(self, method='quadmean', keep_pol=True, run_check=True,
-                     check_extra=True, run_check_acceptability=True):
-        """Convert an 'antenna' or 'baseline' type object to waterfall.
-
-        Parameters
-        ----------
-        method : str, {"quadmean", "absmean", "mean", "or", "and"}
-            How to collapse the dimension(s).
-        keep_pol : bool
-            Whether to also collapse the polarization dimension
-            If keep_pol is False, and the original UVFlag object has more
-            than one polarization, the resulting polarization_array
-            will be a single element array with a comma separated string
-            encoding the original polarizations.
-        run_check : bool
-            Option to check for the existence and proper shapes of parameters
-            after converting to waterfall type.
-        check_extra : bool
-            Option to check optional parameters as well as required ones.
-        run_check_acceptability : bool
-            Option to check acceptable range of the values of parameters after
-            converting to waterfall type.
-
-        """
-        method = method.lower()
-        if self.type == 'waterfall' and (keep_pol or (len(self.polarization_array) == 1)):
-            warnings.warn('This object is already a waterfall. Nothing to change.')
-            return
-        if (not keep_pol) and (len(self.polarization_array) > 1):
-            self.collapse_pol(method)
-
-        if self.mode == 'flag':
-            darr = self.flag_array
-        else:
-            darr = self.metric_array
-
-        if self.type == 'antenna':
-            d, w = uvutils.collapse(darr, method, axis=(0, 1), weights=self.weights_array,
-                                    return_weights=True)
-            darr = np.swapaxes(d, 0, 1)
-            if self.mode == "metric":
-                self.weights_array = np.swapaxes(w, 0, 1)
-        elif self.type == 'baseline':
-            Nt = len(np.unique(self.time_array))
-            Nf = len(self.freq_array[0, :])
-            Np = len(self.polarization_array)
-            d = np.zeros((Nt, Nf, Np))
-            w = np.zeros((Nt, Nf, Np))
-            for i, t in enumerate(np.unique(self.time_array)):
-                ind = self.time_array == t
-                if self.mode == "metric":
-                    _weights = self.weights_array[ind, :, :]
-                else:
-                    _weights = np.ones_like(darr[ind, :, :], dtype=float)
-                d[i, :, :], w[i, :, :] = uvutils.collapse(darr[ind, :, :], method,
-                                                          axis=0,
-                                                          weights=_weights,
-                                                          return_weights=True)
-            darr = d
-            if self.mode == "metric":
-                self.weights_array = w
-            self.time_array, ri = np.unique(self.time_array, return_index=True)
-            self.lst_array = self.lst_array[ri]
-        if ((method == 'or') or (method == 'and')) and (self.mode == 'flag'):
-            # If using a boolean operation (AND/OR) and in flag mode, stay in flag
-            # flags should be bool, but somehow it is cast as float64
-            # is reacasting to bool like this best?
-            self.flag_array = darr.astype(bool)
-        else:
-            # Otherwise change to (or stay in) metric
-            self.metric_array = darr
-            self._set_mode_metric()
-        self.freq_array = self.freq_array.flatten()
-        self.Nspws = None
-        self._set_type_waterfall()
-        self.history += 'Collapsed to type "waterfall". '  # + self.pyuvdata_version_str
-
-        if not uvutils._check_history_version(self.history, self.pyuvdata_version_str):
-            self.history += self.pyuvdata_version_str
-
-        self.clear_unused_attributes()
-        if run_check:
-            self.check(check_extra=check_extra,
-                       run_check_acceptability=run_check_acceptability)
-
-    def to_baseline(self, uv, force_pol=False, run_check=True,
-                    check_extra=True, run_check_acceptability=True):
-        """Convert a UVFlag object of type "waterfall" to type "baseline".
-
-        Broadcasts the flag array to all baselines.
-        This function does NOT apply flags to uv.
-
-        Parameters
-        ----------
-        uv : UVData or UVFlag object
-            Objcet with type baseline to match.
-        force_pol : bool
-            If True, will use 1 pol to broadcast to any other pol.
-            Otherwise, will require polarizations match.
-            For example, this keyword is useful if one flags on all
-            pols combined, and wants to broadcast back to individual pols.
-        run_check : bool
-            Option to check for the existence and proper shapes of parameters
-            after converting to baseline type.
-        check_extra : bool
-            Option to check optional parameters as well as required ones.
-        run_check_acceptability : bool
-            Option to check acceptable range of the values of parameters after
-            converting to baseline type.
-
-        """
-        if self.type == 'baseline':
-            return
-        if not (issubclass(uv.__class__, UVData) or (isinstance(uv, UVFlag) and uv.type == 'baseline')):
-            raise ValueError('Must pass in UVData object or UVFlag object of type '
-                             '"baseline" to match.')
-
-        # Deal with polarization
-        if force_pol and self.polarization_array.size == 1:
-            # Use single pol for all pols, regardless
-            self.polarization_array = uv.polarization_array
-            # Broadcast arrays
-            if self.mode == 'flag':
-                self.flag_array = self.flag_array.repeat(self.polarization_array.size, axis=-1)
-            else:
-                self.metric_array = self.metric_array.repeat(self.polarization_array.size, axis=-1)
-                self.weights_array = self.weights_array.repeat(self.polarization_array.size, axis=-1)
-            self.Npols = len(self.polarization_array)
-            self._check_pol_state()
-
-        # Now the pol axes should match regardless of force_pol.
-        if not np.array_equal(uv.polarization_array, self.polarization_array):
-            if self.polarization_array.size == 1:
-                raise ValueError('Polarizations do not match. Try keyword force_pol'
-                                 + ' if you wish to broadcast to all polarizations.')
-            else:
-                raise ValueError('Polarizations could not be made to match.')
-        if self.type == "waterfall":
-            # Populate arrays
-            if self.mode == 'flag':
-                arr = np.zeros_like(uv.flag_array)
-                sarr = self.flag_array
-            elif self.mode == 'metric':
-                arr = np.zeros_like(uv.flag_array, dtype=float)
-                warr = np.zeros_like(uv.flag_array, dtype=np.float)
-                sarr = self.metric_array
-            for i, t in enumerate(np.unique(self.time_array)):
-                ti = np.where(uv.time_array == t)
-                arr[ti, :, :, :] = sarr[i, :, :][np.newaxis, np.newaxis, :, :]
-                if self.mode == "metric":
-                    warr[ti, :, :, :] = self.weights_array[i, :, :][np.newaxis, np.newaxis, :, :]
-            if self.mode == 'flag':
-                self.flag_array = arr
-            elif self.mode == 'metric':
-                self.metric_array = arr
-                self.weights_array = warr
-
-        elif self.type == "antenna":
-            if self.mode == "metric":
-                raise NotImplementedError("Cannot currently convert from "
-                                          "antenna type, metric mode to "
-                                          "baseline type UVFlag object.")
-            else:
-                ants_data = np.unique(uv.ant_1_array.tolist()
-                                      + uv.ant_2_array.tolist()
-                                      )
-                new_ants = np.setdiff1d(ants_data, self.ant_array)
-                if new_ants.size > 0:
-                    self.ant_array = np.append(self.ant_array, new_ants).tolist()
-                    # make new flags of the same shape but with first axis the
-                    # size of the new ants
-                    flag_shape = list(self.flag_array.shape)
-                    flag_shape[0] = new_ants.size
-                    new_flags = np.full(flag_shape, True, dtype=bool)
-                    self.flag_array = np.append(self.flag_array,
-                                                new_flags,
-                                                axis=0)
-
-                baseline_flags = np.full((uv.Nblts, self.Nspws,
-                                          self.Nfreqs, self.Npols),
-                                         True, dtype=bool)
-
-                for t_index, bl in enumerate(uv.baseline_array):
-                    uvf_t_index = np.nonzero(uv.time_array[t_index]
-                                             == self.time_array)[0]
-                    if uvf_t_index.size > 0:
-                        # if the time is found in the array
-                        # input the or'ed data from each antenna
-                        ant1, ant2 = uv.baseline_to_antnums(bl)
-                        ant1_index = np.nonzero(np.array(self.ant_array) == ant1)
-                        ant2_index = np.nonzero(np.array(self.ant_array) == ant2)
-                        or_flag = np.logical_or(
-                            self.flag_array[ant1_index, :, :, uvf_t_index, :],
-                            self.flag_array[ant2_index, :, :, uvf_t_index, :])
-
-                        baseline_flags[t_index, :, :, :] = or_flag.copy()
-
-                self.flag_array = baseline_flags
-
-        # Check the frequency array for Nspws, otherwise broadcast to 1,Nfreqs
-        self.freq_array = np.atleast_2d(self.freq_array)
-        self.Nspws = self.freq_array.shape[0]
-
-        self.baseline_array = uv.baseline_array
-        self.Nbls = np.unique(self.baseline_array).size
-        self.ant_1_array = uv.ant_1_array
-        self.ant_2_array = uv.ant_2_array
-        self.Nants_data = int(len(set(self.ant_1_array.tolist()
-                                      + self.ant_2_array.tolist())))
-
-        self.time_array = uv.time_array
-        self.lst_array = uv.lst_array
-        self.Nblts = self.time_array.size
-
-        self.Nants_telescope = int(uv.Nants_telescope)
-        self._set_type_baseline()
-        self.clear_unused_attributes()
-        self.history += 'Broadcast to type "baseline". '
-
-        if not uvutils._check_history_version(self.history, self.pyuvdata_version_str):
-            self.history += self.pyuvdata_version_str
-
-        if run_check:
-            self.check(check_extra=check_extra,
-                       run_check_acceptability=run_check_acceptability)
-
-    def to_antenna(self, uv, force_pol=False, run_check=True,
-                   check_extra=True, run_check_acceptability=True):
-        """Convert a UVFlag object of type "waterfall" to type "antenna".
-
-        Broadcasts the flag array to all antennas.
-        This function does NOT apply flags to uv.
-
-        Parameters
-        ----------
-        uv : UVCal or UVFlag object
-            object of type antenna to match.
-        force_pol : bool
-            If True, will use 1 pol to broadcast to any other pol.
-            Otherwise, will require polarizations match.
-            For example, this keyword is useful if one flags on all
-            pols combined, and wants to broadcast back to individual pols.
-        run_check : bool
-            Option to check for the existence and proper shapes of parameters
-            after converting to antenna type.
-        check_extra : bool
-            Option to check optional parameters as well as required ones.
-        run_check_acceptability : bool
-            Option to check acceptable range of the values of parameters after
-            converting to antenna type.
-
-        """
-        if self.type == 'antenna':
-            return
-        if not (issubclass(uv.__class__, UVCal) or (isinstance(uv, UVFlag) and uv.type == 'antenna')):
-            raise ValueError('Must pass in UVCal object or UVFlag object of type '
-                             '"antenna" to match.')
-        if self.type != 'waterfall':
-            raise ValueError('Cannot convert from type "' + self.type + '" to "antenna".')
-        # Deal with polarization
-        if issubclass(uv.__class__, UVCal):
-            polarr = uv.jones_array
-        else:
-            polarr = uv.polarization_array
-        if force_pol and self.polarization_array.size == 1:
-            # Use single pol for all pols, regardless
-            self.polarization_array = polarr
-            # Broadcast arrays
-            if self.mode == 'flag':
-                self.flag_array = self.flag_array.repeat(self.polarization_array.size, axis=-1)
-            else:
-                self.metric_array = self.metric_array.repeat(self.polarization_array.size, axis=-1)
-                self.weights_array = self.weights_array.repeat(self.polarization_array.size, axis=-1)
-            self.Npols = len(self.polarization_array)
-            self._check_pol_state()
-
-        # Now the pol axes should match regardless of force_pol.
-        if not np.array_equal(polarr, self.polarization_array):
-            if self.polarization_array.size == 1:
-                raise ValueError('Polarizations do not match. Try keyword force_pol'
-                                 + 'if you wish to broadcast to all polarizations.')
-            else:
-                raise ValueError('Polarizations could not be made to match.')
-        # Populate arrays
-        if self.mode == 'flag':
-            self.flag_array = np.swapaxes(self.flag_array, 0, 1)[np.newaxis, np.newaxis,
-                                                                 :, :, :]
-            self.flag_array = self.flag_array.repeat(len(uv.ant_array), axis=0)
-        elif self.mode == 'metric':
-            self.metric_array = np.swapaxes(self.metric_array, 0, 1)[np.newaxis, np.newaxis,
-                                                                     :, :, :]
-            self.metric_array = self.metric_array.repeat(len(uv.ant_array), axis=0)
-            self.weights_array = np.swapaxes(self.weights_array, 0, 1)[np.newaxis, np.newaxis,
-                                                                       :, :, :]
-            self.weights_array = self.weights_array.repeat(len(uv.ant_array), axis=0)
-        self.ant_array = uv.ant_array
-        self.Nants_data = len(uv.ant_array)
-        # Check the frequency array for Nspws, otherwise broadcast to 1,Nfreqs
-        self.freq_array = np.atleast_2d(self.freq_array)
-        self.Nspws = self.freq_array.shape[0]
-
-        self._set_type_antenna()
-        self.history += 'Broadcast to type "antenna". '
-
-        if not uvutils._check_history_version(self.history, self.pyuvdata_version_str):
-            self.history += self.pyuvdata_version_str
-
-        if run_check:
-            self.check(check_extra=check_extra,
-                       run_check_acceptability=run_check_acceptability)
-
-    def to_flag(self, threshold=np.inf, run_check=True,
-                check_extra=True, run_check_acceptability=True):
-        """Convert to flag mode.
-
-        This function is NOT SMART. Removes metric_array and creates a
-        flag_array from a simple threshold on the metric values.
-
-        Parameters
-        ----------
-        threshold : float
-            Metric value over which the corresponding flag is
-            set to True. Default is np.inf, which results in flags of all False.
-        run_check : bool
-            Option to check for the existence and proper shapes of parameters
-            after converting to flag mode.
-        check_extra : bool
-            Option to check optional parameters as well as required ones.
-        run_check_acceptability : bool
-            Option to check acceptable range of the values of parameters after
-            converting to flag mode.
-
-        """
-        if self.mode == 'flag':
-            return
-        elif self.mode == 'metric':
-            self.flag_array = np.where(self.metric_array >= threshold,
-                                       True, False)
-            self._set_mode_flag()
-        else:
-            raise ValueError('Unknown UVFlag mode: ' + self.mode + '. Cannot convert to flag.')
-        self.history += 'Converted to mode "flag". '
-        if not uvutils._check_history_version(self.history, self.pyuvdata_version_str):
-            self.history += self.pyuvdata_version_str
-        self.clear_unused_attributes()
-
-        if run_check:
-            self.check(check_extra=check_extra,
-                       run_check_acceptability=run_check_acceptability)
-
-    def to_metric(self, convert_wgts=False, run_check=True,
-                  check_extra=True, run_check_acceptability=True):
-        """Convert to metric mode.
-
-        This function is NOT SMART. Simply recasts flag_array as float
-        and uses this as the metric array.
-
-        Parameters
-        ----------
-        convert_wgts : bool
-            if True convert self.weights_array to ones
-            unless a column or row is completely flagged, in which case
-            convert those pixels to zero. This is used when reinterpretting
-            flags as metrics to calculate flag fraction. Zero weighting
-            completely flagged rows/columns prevents those from counting
-            against a threshold along the other dimension.
-        run_check : bool
-            Option to check for the existence and proper shapes of parameters
-            after converting to metric mode.
-        check_extra : bool
-            Option to check optional parameters as well as required ones.
-        run_check_acceptability : bool
-            Option to check acceptable range of the values of parameters after
-            converting to metric mode.
-
-        """
-        if self.mode == 'metric':
-            return
-        elif self.mode == 'flag':
-            self.metric_array = self.flag_array.astype(np.float)
-            self._set_mode_metric()
-
-            if convert_wgts:
-                self.weights_array = np.ones_like(self.weights_array)
-                if self.type == 'waterfall':
-                    for i, pol in enumerate(self.polarization_array):
-                        self.weights_array[:, :, i] *= ~and_rows_cols(self.flag_array[:, :, i])
-                elif self.type == 'baseline':
-                    for i, pol in enumerate(self.polarization_array):
-                        for j, ap in enumerate(self.get_antpairs()):
-                            inds = self.antpair2ind(*ap)
-                            self.weights_array[inds, 0, :, i] *= ~and_rows_cols(self.flag_array[inds, 0, :, i])
-                elif self.type == 'antenna':
-                    for i, pol in enumerate(self.polarization_array):
-                        for j in range(self.weights_array.shape[0]):
-                            self.weights_array[j, 0, :, :, i] *= ~and_rows_cols(self.flag_array[j, 0, :, :, i])
-        else:
-            raise ValueError('Unknown UVFlag mode: ' + self.mode + '. Cannot convert to metric.')
-        self.history += 'Converted to mode "metric". '
-
-        if not uvutils._check_history_version(self.history, self.pyuvdata_version_str):
-            self.history += self.pyuvdata_version_str
-        self.clear_unused_attributes()
-
-        if run_check:
-            self.check(check_extra=check_extra,
-                       run_check_acceptability=run_check_acceptability)
-
-    def antpair2ind(self, ant1, ant2):
-        """Get blt indices for given (ordered) antenna pair.
-
-        Parameters
-        ----------
-        ant1 : int or array_like of int
-            Number of the first antenna
-        ant2 : int or array_like of int
-            Number of the second antenna
-
-        Returns
-        -------
-        int or array_like of int
-            baseline number(s) corresponding to the input antenna number
-
-        """
-        if self.type != 'baseline':
-            raise ValueError('UVFlag object of type ' + self.type + ' does not '
-                             'contain antenna pairs to index.')
-        return np.where((self.ant_1_array == ant1) & (self.ant_2_array == ant2))[0]
-
-    def baseline_to_antnums(self, baseline):
-        """Get the antenna numbers corresponding to a given baseline number.
-
-        Parameters
-        ----------
-        baseline : int
-            baseline number
-
-        Returns
-        -------
-        tuple
-            Antenna numbers corresponding to baseline.
-
-        """
-        assert self.type == 'baseline', 'Must be "baseline" type UVFlag object.'
-        return uvutils.baseline_to_antnums(baseline, self.Nants_telescope)
-
-    def get_baseline_nums(self):
-        """Return numpy array of unique baseline numbers in data."""
-        assert self.type == 'baseline', 'Must be "baseline" type UVFlag object.'
-        return np.unique(self.baseline_array)
-
-    def get_antpairs(self):
-        """Return list of unique antpair tuples (ant1, ant2) in data."""
-        assert self.type == 'baseline', 'Must be "baseline" type UVFlag object.'
-        return [self.baseline_to_antnums(bl) for bl in self.get_baseline_nums()]
-
-
-def flags2waterfall(uv, flag_array=None, keep_pol=False):
-    """Convert a flag array to a 2D waterfall of dimensions (Ntimes, Nfreqs).
-
-    Averages over baselines and polarizations (in the case of visibility data),
-    or antennas and jones parameters (in case of calibrationd data).
-    Parameters
-    ----------
-    uv : A UVData or UVCal object
-        Object defines the times and frequencies, and supplies the
-        flag_array to convert (if flag_array not specified)
-    flag_array :  Optional,
-        flag array to convert instead of uv.flag_array.
-        Must have same dimensions as uv.flag_array.
-    keep_pol : bool
-        Option to keep the polarization axis intact.
-
-    Returns
-    -------
-    waterfall : 2D array or 3D array
-        Waterfall of averaged flags, for example fraction of baselines
-        which are flagged for every time and frequency (in case of UVData input)
-        Size is (Ntimes, Nfreqs) or (Ntimes, Nfreqs, Npols).
-
-    """
-    if not isinstance(uv, (UVData, UVCal)):
-        raise ValueError('flags2waterfall() requires a UVData or UVCal object as '
-                         'the first argument.')
-    if flag_array is None:
-        flag_array = uv.flag_array
-    if uv.flag_array.shape != flag_array.shape:
-        raise ValueError('Flag array must align with UVData or UVCal object.')
-
-    if isinstance(uv, UVCal):
-        if keep_pol:
-            waterfall = np.swapaxes(np.mean(flag_array, axis=(0, 1)), 0, 1)
-        else:
-            waterfall = np.mean(flag_array, axis=(0, 1, 4)).T
-    else:
-        if keep_pol:
-            waterfall = np.zeros((uv.Ntimes, uv.Nfreqs, uv.Npols))
-            for i, t in enumerate(np.unique(uv.time_array)):
-                waterfall[i, :] = np.mean(flag_array[uv.time_array == t, 0, :, :],
-                                          axis=0)
-        else:
-            waterfall = np.zeros((uv.Ntimes, uv.Nfreqs))
-            for i, t in enumerate(np.unique(uv.time_array)):
-                waterfall[i, :] = np.mean(flag_array[uv.time_array == t, 0, :, :],
-                                          axis=(0, 2))
-
-    return waterfall
-
-
-def and_rows_cols(waterfall):
-    """Perform logical and over rows and cols of a waterfall.
-
-    For a 2D flag waterfall, flag pixels only if fully flagged along
-    time and/or frequency
-
-    Parameters
-    ----------
-    waterfall : 2D boolean array of shape (Ntimes, Nfreqs)
-
-    Returns
-    -------
-    wf : 2D array
-        A 2D array (size same as input) where only times/integrations
-        that were fully flagged are flagged.
-
-    """
-    wf = np.zeros_like(waterfall, dtype=np.bool)
-    Ntimes, Nfreqs = waterfall.shape
-    wf[:, (np.sum(waterfall, axis=0) / Ntimes) == 1] = True
-    wf[(np.sum(waterfall, axis=1) / Nfreqs) == 1] = True
-    return wf
-
-
-def lst_from_uv(uv):
-    """Calculate the lst_array for a UVData or UVCal object.
-
-    Parameters
-    ----------
-    uv : a UVData or UVCal object.
-        Object from which lsts are calculated
-
-    Returns
-    -------
-    lst_array: array of float
-        lst_array corresponding to time_array and at telescope location.
-        Units are radian.
-
-    """
-    if not isinstance(uv, (UVCal, UVData)):
-        raise ValueError('Function lst_from_uv can only operate on '
-                         'UVCal or UVData object.')
-
-    tel = uvtel.get_telescope(uv.telescope_name)
-    lat, lon, alt = tel.telescope_location_lat_lon_alt_degrees
-    lst_array = uvutils.get_lst_for_time(uv.time_array, lat, lon, alt)
-    return lst_array
