@@ -77,11 +77,11 @@ def test_parameter_iter(uvcal_data):
     """Test expected parameters."""
     (uv_cal_object, required_parameters, required_properties,
      extra_parameters, extra_properties, other_properties) = uvcal_data
-    all = []
+    all_params = []
     for prop in uv_cal_object:
-        all.append(prop)
+        all_params.append(prop)
     for a in required_parameters + extra_parameters:
-        assert a in all, 'expected attribute ' + a + ' not returned in object iterator'
+        assert a in all_params, 'expected attribute ' + a + ' not returned in object iterator'
 
 
 def test_required_parameter_iter(uvcal_data):

@@ -1825,23 +1825,23 @@ def test_super():
     class test_class(UVFlag):
 
         def __init__(self, input, mode='metric', copy_flags=False,
-                     waterfall=False, history='', label='', property='prop'):
+                     waterfall=False, history='', label='', test_property='prop'):
 
             super(test_class, self).__init__(input, mode=mode, copy_flags=copy_flags,
                                              waterfall=waterfall, history=history,
                                              label=label)
 
-            self.property = property
+            self.test_property = test_property
 
     uv = UVData()
     uv.read_miriad(test_d_file)
 
-    tc = test_class(uv, property='property')
+    tc = test_class(uv, test_property='test_property')
 
     # UVFlag.__init__ is tested, so just see if it has a metric array
     assert hasattr(tc, 'metric_array')
     # Check that it has the property
-    assert tc.property == 'property'
+    assert tc.test_property == 'test_property'
 
 
 def test_flags2waterfall():

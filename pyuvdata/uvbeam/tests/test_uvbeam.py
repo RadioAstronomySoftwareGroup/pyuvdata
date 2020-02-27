@@ -112,11 +112,11 @@ def uvbeam_data():
 
 def test_parameter_iter(uvbeam_data):
     """Test expected parameters."""
-    all = []
+    all_params = []
     for prop in uvbeam_data.beam_obj:
-        all.append(prop)
+        all_params.append(prop)
     for a in uvbeam_data.required_parameters + uvbeam_data.extra_parameters:
-        assert a in all, 'expected attribute ' + a + ' not returned in object iterator'
+        assert a in all_params, 'expected attribute ' + a + ' not returned in object iterator'
 
 
 def test_required_parameter_iter(uvbeam_data):

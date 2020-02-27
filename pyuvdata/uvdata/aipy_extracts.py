@@ -328,8 +328,8 @@ class UV(_miriad.UV):
         vartable = {}
         for line in self._rdhd('vartable').split('\n'):
             try:
-                type, name = line.split()
-                vartable[name] = type
+                var_type, name = line.split()
+                vartable[name] = var_type
             except ValueError:
                 pass
 
@@ -433,29 +433,29 @@ class UV(_miriad.UV):
         """Provide write access to header items via low-level calls.
 
         """
-        type = itemtable[name]
+        item_type = itemtable[name]
 
-        if type == '?':
+        if item_type == '?':
             return self._wrhd_special(name, val)
 
         h = self.haccess(name, 'write')
 
-        if len(type) == 1:
+        if len(item_type) == 1:
             try:
                 len(val)
             except TypeError:
                 val = [val]
 
-            if type == 'a':
+            if item_type == 'a':
                 offset = 0
             else:
-                offset = _miriad.hwrite_init(h, type)
+                offset = _miriad.hwrite_init(h, item_type)
 
             for v in val:
-                offset += _miriad.hwrite(h, offset, v, type)
+                offset += _miriad.hwrite(h, offset, v, item_type)
         else:
             offset = _miriad.hwrite_init(h, 'b')
-            for v, t in zip(val, type):
+            for v, t in zip(val, item_type):
                 offset += _miriad.hwrite(h, offset, v, t)
 
         _miriad.hdaccess(h)
@@ -516,10 +516,10 @@ class UV(_miriad.UV):
 
         """
         try:
-            type = self.vartable[name]
-            return self._rdvr(name, type)
+            var_type = self.vartable[name]
+            return self._rdvr(name, var_type)
         except KeyError:
-            type = itemtable[name]
+            var_type = itemtable[name]
             return self._rdhd(name)
 
     def __setitem__(self, name, val):
@@ -527,8 +527,8 @@ class UV(_miriad.UV):
 
         """
         try:
-            type = self.vartable[name]
-            self._wrvr(name, type, val)
+            var_type = self.vartable[name]
+            self._wrvr(name, var_type, val)
         except KeyError:
             self._wrhd(name, val)
 
@@ -724,7 +724,7 @@ class UV(_miriad.UV):
                 self.copyvr(uv)
                 self.write(np, nd)
 
-    def add_var(self, name, type):
+    def add_var(self, name, var_type):
         """
         Add a variable of the specified type to a UV file.
 
@@ -732,7 +732,7 @@ class UV(_miriad.UV):
         ----------
         name : str
             name of header item to add
-        type : str
+        var_type : str
             string indicating the variable type (e.g. 'a', 'i', 'd')
         """
-        self.vartable[name] = type
+        self.vartable[name] = var_type

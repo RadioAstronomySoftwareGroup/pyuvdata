@@ -220,11 +220,11 @@ def uv_phase_time_split(uv1_2_set_uvws):
 
 def test_parameter_iter(uvdata_props):
     """Test expected parameters."""
-    all = []
+    all_params = []
     for prop in uvdata_props.uv_object:
-        all.append(prop)
+        all_params.append(prop)
     for a in uvdata_props.required_parameters + uvdata_props.extra_parameters:
-        assert a in all, 'expected attribute ' + a + ' not returned in object iterator'
+        assert a in all_params, 'expected attribute ' + a + ' not returned in object iterator'
 
 
 def test_required_parameter_iter(uvdata_props):
