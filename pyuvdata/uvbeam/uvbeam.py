@@ -454,17 +454,6 @@ class UVBeam(UVBase):
         self._gain_array.required = True
         self._coupling_matrix.required = True
 
-    def peak_normalize(self):
-        """Convert to peak normalization."""
-        if self.data_normalization == 'solid_angle':
-            raise NotImplementedError('Conversion from solid_angle to peak '
-                                      'normalization is not yet implemented')
-        for i in range(self.Nfreqs):
-            max_val = abs(self.data_array[:, :, :, i, :]).max()
-            self.data_array[:, :, :, i, :] /= max_val
-            self.bandpass_array[:, i] *= max_val
-        self.data_normalization = 'peak'
-
     def check(self, check_extra=True, run_check_acceptability=True):
         """
         Check that all required parameters are set reasonably.
@@ -508,6 +497,17 @@ class UVBeam(UVBase):
                               'files'.format(key=key))
 
         return True
+
+    def peak_normalize(self):
+        """Convert to peak normalization."""
+        if self.data_normalization == 'solid_angle':
+            raise NotImplementedError('Conversion from solid_angle to peak '
+                                      'normalization is not yet implemented')
+        for i in range(self.Nfreqs):
+            max_val = abs(self.data_array[:, :, :, i, :]).max()
+            self.data_array[:, :, :, i, :] /= max_val
+            self.bandpass_array[:, i] *= max_val
+        self.data_normalization = 'peak'
 
     def efield_to_power(self, calc_cross_pols=True, keep_basis_vector=False,
                         run_check=True, check_extra=True, run_check_acceptability=True,
