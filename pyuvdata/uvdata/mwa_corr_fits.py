@@ -296,7 +296,7 @@ class MWACorrFITS(UVData):
 
             # get a list of coarse channels
             coarse_chans = meta_hdr['CHANNELS'].split(',')
-            coarse_chans = np.array(sorted([int(i) for i in coarse_chans]))
+            coarse_chans = np.array(sorted(int(i) for i in coarse_chans))
 
             # integration time in seconds
             int_time = meta_hdr['INTTIME']

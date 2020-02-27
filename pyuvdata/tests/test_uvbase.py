@@ -180,7 +180,7 @@ def test_list_type():
     test_obj.intlist = ['s' + str(i) for i in np.arange(test_obj.int1)]
     pytest.raises(ValueError, test_obj.check)
 
-    test_obj.intlist = [i for i in np.arange(test_obj.int1)]
+    test_obj.intlist = list(np.arange(test_obj.int1))
     test_obj.intlist[1] = 'test'
     pytest.raises(ValueError, test_obj.check)
 

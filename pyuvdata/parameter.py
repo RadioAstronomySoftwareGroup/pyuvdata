@@ -239,16 +239,16 @@ class UVParameter(object):
                 if self.expected_type is str:
                     # strings need to be converted to lower case
                     if isinstance(self.value, str):
-                        value_set = set([self.value.lower()])
+                        value_set = {self.value.lower()}
                     else:
                         # this is a list or array of strings, make them all lower case
-                        value_set = set([x.lower() for x in self.value])
+                        value_set = {x.lower() for x in self.value}
                     acceptable_vals = [x.lower() for x in self.acceptable_vals]
                 else:
                     if isinstance(self.value, (list, np.ndarray)):
-                        value_set = set(list(self.value))
+                        value_set = set(self.value)
                     else:
-                        value_set = set([self.value])
+                        value_set = set(self.value)
                     acceptable_vals = self.acceptable_vals
                 for elem in value_set:
                     if elem not in acceptable_vals:

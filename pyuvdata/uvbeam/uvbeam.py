@@ -2032,7 +2032,7 @@ class UVBeam(UVBase):
             history_update_string += 'parts of first image axis'
             n_selects += 1
 
-            axis1_inds = list(sorted(set(list(axis1_inds))))
+            axis1_inds = sorted(set(axis1_inds))
             if min(axis1_inds) < 0 or max(axis1_inds) > beam_object.Naxes1 - 1:
                 raise ValueError('axis1_inds must be > 0 and < Naxes1')
             beam_object.Naxes1 = len(axis1_inds)
@@ -2061,7 +2061,7 @@ class UVBeam(UVBase):
                 history_update_string += 'parts of second image axis'
             n_selects += 1
 
-            axis2_inds = list(sorted(set(list(axis2_inds))))
+            axis2_inds = sorted(set(axis2_inds))
             if min(axis2_inds) < 0 or max(axis2_inds) > beam_object.Naxes2 - 1:
                 raise ValueError('axis2_inds must be > 0 and < Naxes2')
             beam_object.Naxes2 = len(axis2_inds)
@@ -2094,7 +2094,7 @@ class UVBeam(UVBase):
                 else:
                     raise ValueError('Pixel {p} is not present in the pixel_array'.format(p=p))
 
-            pix_inds = list(sorted(set(list(pix_inds))))
+            pix_inds = sorted(set(pix_inds))
             beam_object.Npixels = len(pix_inds)
             beam_object.pixel_array = beam_object.pixel_array[pix_inds]
 
@@ -2128,7 +2128,7 @@ class UVBeam(UVBase):
                 else:
                     raise ValueError('Frequency {f} is not present in the freq_array'.format(f=f))
 
-            freq_inds = list(sorted(set(list(freq_inds))))
+            freq_inds = sorted(set(freq_inds))
             beam_object.Nfreqs = len(freq_inds)
             beam_object.freq_array = beam_object.freq_array[:, freq_inds]
             beam_object.bandpass_array = beam_object.bandpass_array[:, freq_inds]
@@ -2179,7 +2179,7 @@ class UVBeam(UVBase):
                 else:
                     raise ValueError('Feed {f} is not present in the feed_array'.format(f=f))
 
-            feed_inds = list(sorted(set(list(feed_inds))))
+            feed_inds = sorted(set(feed_inds))
             beam_object.Nfeeds = len(feed_inds)
             beam_object.feed_array = beam_object.feed_array[feed_inds]
 
@@ -2206,7 +2206,7 @@ class UVBeam(UVBase):
                 else:
                     raise ValueError('polarization {p} is not present in the polarization_array'.format(p=p))
 
-            pol_inds = list(sorted(set(list(pol_inds))))
+            pol_inds = sorted(set(pol_inds))
             beam_object.Npols = len(pol_inds)
             beam_object.polarization_array = beam_object.polarization_array[pol_inds]
 

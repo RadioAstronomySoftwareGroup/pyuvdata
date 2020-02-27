@@ -42,7 +42,7 @@ def test_readNRAO():
     expected_extra_keywords = ['DATA_COL']
 
     UV.read(testfile)
-    assert sorted(expected_extra_keywords) == sorted(list(UV.extra_keywords.keys()))
+    assert sorted(expected_extra_keywords) == sorted(UV.extra_keywords.keys())
 
 
 @uvtest.skipIf_no_casa
@@ -58,7 +58,7 @@ def test_read_LWA():
         tf.extractall(path=DATA_PATH)
 
     UV.read(new_filename, file_type='ms')
-    assert sorted(expected_extra_keywords) == sorted(list(UV.extra_keywords.keys()))
+    assert sorted(expected_extra_keywords) == sorted(UV.extra_keywords.keys())
 
     assert UV.history == UV.pyuvdata_version_str
 

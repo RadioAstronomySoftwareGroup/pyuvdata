@@ -867,7 +867,7 @@ def test_select_antennas():
 
     # now test using antenna_names to specify antennas to keep
     uv_object3 = copy.deepcopy(uv_object)
-    ants_to_keep = np.array(sorted(list(ants_to_keep)))
+    ants_to_keep = np.array(sorted(ants_to_keep))
     ant_names = []
     for a in ants_to_keep:
         ind = np.where(uv_object3.antenna_numbers == a)[0][0]
@@ -879,7 +879,7 @@ def test_select_antennas():
 
     # check that it also works with higher dimension array
     uv_object3 = copy.deepcopy(uv_object)
-    ants_to_keep = np.array(sorted(list(ants_to_keep)))
+    ants_to_keep = np.array(sorted(ants_to_keep))
     ant_names = []
     for a in ants_to_keep:
         ind = np.where(uv_object3.antenna_numbers == a)[0][0]

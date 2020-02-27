@@ -3046,7 +3046,7 @@ class UVData(UVBase):
                         elif not ant_i.isdigit() and not ant_j.isdigit():
                             pols = [ai[1] + aj[1]]
 
-                        ant_tuple = tuple((abs(int(ai[0])), abs(int(aj[0]))))
+                        ant_tuple = (abs(int(ai[0])), abs(int(aj[0])))
 
                         # Order tuple according to order in object
                         if ant_tuple in ant_pairs_data:
@@ -3279,10 +3279,10 @@ class UVData(UVBase):
                        + [isinstance(item[1], (int, np.integer,)) for item in bls]):
                 raise ValueError(
                     'bls must be a list of tuples of antenna numbers (optionally with polarization).')
-            if all([len(item) == 3 for item in bls]):
+            if all(len(item) == 3 for item in bls):
                 if polarizations is not None:
                     raise ValueError('Cannot provide length-3 tuples and also specify polarizations.')
-                if not all([isinstance(item[2], str) for item in bls]):
+                if not all(isinstance(item[2], str) for item in bls):
                     raise ValueError('The third element in each bl must be a polarization string')
 
             if ant_str is None:
@@ -3388,7 +3388,7 @@ class UVData(UVBase):
             if min(blt_inds) < 0:
                 raise ValueError('blt_inds contains indices that are negative')
 
-            blt_inds = list(sorted(set(list(blt_inds))))
+            blt_inds = sorted(set(blt_inds))
 
         if freq_chans is not None:
             freq_chans = uvutils._get_iterable(freq_chans)
@@ -3433,7 +3433,7 @@ class UVData(UVBase):
                                   'will make it impossible to write this data out to '
                                   'some file types.')
 
-            freq_inds = list(sorted(set(list(freq_inds))))
+            freq_inds = sorted(set(freq_inds))
         else:
             freq_inds = None
 
@@ -3467,7 +3467,7 @@ class UVData(UVBase):
                                   'will make it impossible to write this data out to '
                                   'some file types')
 
-            pol_inds = list(sorted(set(list(pol_inds))))
+            pol_inds = sorted(set(pol_inds))
         else:
             pol_inds = None
 

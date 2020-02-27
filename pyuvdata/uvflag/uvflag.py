@@ -1530,10 +1530,10 @@ class UVFlag(UVBase):
                        + [isinstance(item[1], (int, np.integer,)) for item in bls]):
                 raise ValueError(
                     'bls must be a list of tuples of integer antenna numbers (optionally with polarization).')
-            if all([len(item) == 3 for item in bls]):
+            if all(len(item) == 3 for item in bls):
                 if polarizations is not None:
                     raise ValueError('Cannot provide length-3 tuples and also specify polarizations.')
-                if not all([isinstance(item[2], str) for item in bls]):
+                if not all(isinstance(item[2], str) for item in bls):
                     raise ValueError('The third element in each bl must be a polarization string')
 
             if n_selects > 0:
@@ -1619,7 +1619,7 @@ class UVFlag(UVBase):
             if min(blt_inds) < 0:
                 raise ValueError('blt_inds contains indices that are negative')
 
-            blt_inds = list(sorted(set(list(blt_inds))))
+            blt_inds = sorted(set(blt_inds))
 
         if freq_chans is not None:
             freq_chans = uvutils._get_iterable(freq_chans)
@@ -1664,7 +1664,7 @@ class UVFlag(UVBase):
                     raise ValueError(
                         'Frequency {f} is not present in the freq_array'.format(f=f))
 
-            freq_inds = list(sorted(set(list(freq_inds))))
+            freq_inds = sorted(set(freq_inds))
         else:
             freq_inds = None
 
@@ -1691,7 +1691,7 @@ class UVFlag(UVBase):
                     raise ValueError(
                         'Polarization {p} is not present in the polarization_array'.format(p=p))
 
-            pol_inds = list(sorted(set(list(pol_inds))))
+            pol_inds = sorted(set(pol_inds))
         else:
             pol_inds = None
 

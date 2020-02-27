@@ -295,7 +295,7 @@ def test_select_antennas(gain_data):
                                     gain_data.gain_object2.history)
 
     # now test using antenna_names to specify antennas to keep
-    ants_to_keep = np.array(sorted(list(ants_to_keep)))
+    ants_to_keep = np.array(sorted(ants_to_keep))
     ant_names = []
     for a in ants_to_keep:
         ind = np.where(gain_data.gain_object.antenna_numbers == a)[0][0]
@@ -578,7 +578,7 @@ def test_select_antennas_delay(delay_data):
 
     # now test using antenna_names to specify antennas to keep
     delay_data.delay_object3 = copy.deepcopy(delay_data.delay_object)
-    ants_to_keep = np.array(sorted(list(ants_to_keep)))
+    ants_to_keep = np.array(sorted(ants_to_keep))
     ant_names = []
     for a in ants_to_keep:
         ind = np.where(delay_data.delay_object3.antenna_numbers == a)[0][0]

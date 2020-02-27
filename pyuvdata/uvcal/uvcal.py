@@ -1032,7 +1032,7 @@ class UVCal(UVBase):
                     raise ValueError('Antenna number {a} is not present in the '
                                      ' array'.format(a=ant))
 
-            ant_inds = list(sorted(set(list(ant_inds))))
+            ant_inds = sorted(set(ant_inds))
             cal_object.Nants_data = len(ant_inds)
             cal_object.ant_array = cal_object.ant_array[ant_inds]
             cal_object.flag_array = cal_object.flag_array[ant_inds, :, :, :, :]
@@ -1065,7 +1065,7 @@ class UVCal(UVBase):
                 else:
                     raise ValueError('Time {t} is not present in the time_array'.format(t=jd))
 
-            time_inds = list(sorted(set(list(time_inds))))
+            time_inds = sorted(set(time_inds))
             cal_object.Ntimes = len(time_inds)
             cal_object.time_array = cal_object.time_array[time_inds]
 
@@ -1116,7 +1116,7 @@ class UVCal(UVBase):
                 else:
                     raise ValueError('Frequency {f} is not present in the freq_array'.format(f=f))
 
-            freq_inds = list(sorted(set(list(freq_inds))))
+            freq_inds = sorted(set(freq_inds))
             cal_object.Nfreqs = len(freq_inds)
             cal_object.freq_array = cal_object.freq_array[:, freq_inds]
 
@@ -1159,7 +1159,7 @@ class UVCal(UVBase):
                 else:
                     raise ValueError('Jones term {j} is not present in the jones_array'.format(j=j))
 
-            jones_inds = list(sorted(set(list(jones_inds))))
+            jones_inds = sorted(set(jones_inds))
             cal_object.Njones = len(jones_inds)
             cal_object.jones_array = cal_object.jones_array[jones_inds]
             if len(jones_inds) > 2:

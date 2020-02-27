@@ -1390,7 +1390,7 @@ def test_rwrMiriad_antpos_issues():
 
     uv_in.read(testfile)
     uv_in.antenna_positions = None
-    ants_with_data = sorted(list(set(uv_in.ant_1_array).union(uv_in.ant_2_array)))
+    ants_with_data = sorted(set(uv_in.ant_1_array).union(uv_in.ant_2_array))
     new_nums = []
     new_names = []
     for a in ants_with_data:
