@@ -57,10 +57,10 @@ class BeamFITS(UVBeam):
             Option to check acceptable range of the values of
             required parameters after reading in the file.
         """
-        with fits.open(filename) as F:
-            primary_hdu = F[0]
+        with fits.open(filename) as fname:
+            primary_hdu = fname[0]
             primary_header = primary_hdu.header.copy()
-            hdunames = uvutils._fits_indexhdus(F)  # find the rest of the tables
+            hdunames = uvutils._fits_indexhdus(fname)  # find the rest of the tables
 
             data = primary_hdu.data
 
@@ -99,7 +99,7 @@ class BeamFITS(UVBeam):
 
             if self.pixel_coordinate_system == 'healpix':
                 # get pixel values out of HPX_IND extension
-                hpx_hdu = F[hdunames['HPX_INDS']]
+                hpx_hdu = fname[hdunames['HPX_INDS']]
                 self.Npixels = hpx_hdu.header['NAXIS2']
                 hpx_data = hpx_hdu.data
                 self.pixel_array = hpx_data['hpx_inds']
@@ -238,7 +238,7 @@ class BeamFITS(UVBeam):
 
             # read BASISVEC HDU if present
             if 'BASISVEC' in hdunames:
-                basisvec_hdu = F[hdunames['BASISVEC']]
+                basisvec_hdu = fname[hdunames['BASISVEC']]
                 basisvec_header = basisvec_hdu.header
                 self.basis_vector_array = basisvec_hdu.data
 
@@ -298,7 +298,7 @@ class BeamFITS(UVBeam):
 
             # check to see if BANDPARM HDU exists and read it out if it does
             if 'BANDPARM' in hdunames:
-                bandpass_hdu = F[hdunames['BANDPARM']]
+                bandpass_hdu = fname[hdunames['BANDPARM']]
                 bandpass_header = bandpass_hdu.header.copy()
                 self.reference_impedance = bandpass_header.pop('ref_imp', None)
 

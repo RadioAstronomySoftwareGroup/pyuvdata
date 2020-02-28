@@ -88,8 +88,8 @@ try:
                                     + " taken into account !!", append=True)
 
 except ImportError:
-    cases_decorator = uvtest.skipIf_no_pytest_cases
-    cases_decorator_no_waterfall = uvtest.skipIf_no_pytest_cases
+    cases_decorator = pytest.importorskip("pytest_cases")
+    cases_decorator_no_waterfall = pytest.importorskip("pytest_cases")
 
 test_d_file = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.HH.uvcAA')
 test_c_file = os.path.join(DATA_PATH, 'zen.2457555.42443.HH.uvcA.omni.calfits')
@@ -116,7 +116,7 @@ def test_init_bad_mode():
     assert str(cm.value).startswith('Input mode must be within acceptable')
 
 
-def test_init_UVData():
+def test_init_uvdata():
     uv = UVData()
     uv.read_miriad(test_d_file)
     uvf = UVFlag(uv, history='I made a UVFlag object', label='test')
@@ -139,7 +139,7 @@ def test_init_UVData():
     assert uvf.label == 'test'
 
 
-def test_init_UVData_x_orientation():
+def test_init_uvdata_x_orientation():
     uv = UVData()
     uv.read_miriad(test_d_file)
     uv.x_orientation = 'east'
@@ -147,7 +147,7 @@ def test_init_UVData_x_orientation():
     assert uvf.x_orientation == uv.x_orientation
 
 
-def test_init_UVData_copy_flags():
+def test_init_uvdata_copy_flags():
     uv = UVData()
     uv.read_miriad(test_d_file)
     uvf = uvtest.checkWarnings(UVFlag, [uv], {'copy_flags': True, 'mode': 'metric'},
@@ -170,7 +170,7 @@ def test_init_UVData_copy_flags():
     assert pyuvdata_version_str in uvf.history
 
 
-def test_init_UVData_mode_flag():
+def test_init_uvdata_mode_flag():
     uv = UVData()
     uv.read_miriad(test_d_file)
     uvf = UVFlag()
@@ -193,7 +193,7 @@ def test_init_UVData_mode_flag():
     assert pyuvdata_version_str in uvf.history
 
 
-def test_init_UVCal():
+def test_init_uvcal():
     uvc = UVCal()
     uvc.read_calfits(test_c_file)
     uvf = UVFlag(uvc)
@@ -214,7 +214,7 @@ def test_init_UVCal():
     assert pyuvdata_version_str in uvf.history
 
 
-def test_init_UVCal_mode_flag():
+def test_init_uvcal_mode_flag():
     uvc = UVCal()
     uvc.read_calfits(test_c_file)
     uvf = UVFlag(uvc, copy_flags=False, mode='flag')
@@ -1302,7 +1302,7 @@ def test_to_baseline_force_pol():
     assert uvf.flag_array.mean() == ntrue / uvf.flag_array.size
 
 
-def test_to_baseline_force_pol_Npol_gt_1():
+def test_to_baseline_force_pol_npol_gt_1():
     uv = UVData()
     uv.read_miriad(test_d_file)
     uvf = UVFlag(uv)
@@ -1721,7 +1721,7 @@ def test_get_antpairs():
         assert (a1, a2) in antpairs
 
 
-def test_missing_Nants_telescope():
+def test_missing_nants_telescope():
     testfile = os.path.join(DATA_PATH, 'test_missing_Nants.h5')
     shutil.copyfile(test_f_file, testfile)
 
@@ -1822,21 +1822,21 @@ def test_combine_metrics_add_version_str():
 
 def test_super():
 
-    class test_class(UVFlag):
+    class TestClass(UVFlag):
 
         def __init__(self, input, mode='metric', copy_flags=False,
                      waterfall=False, history='', label='', test_property='prop'):
 
-            super(test_class, self).__init__(input, mode=mode, copy_flags=copy_flags,
-                                             waterfall=waterfall, history=history,
-                                             label=label)
+            super(TestClass, self).__init__(input, mode=mode, copy_flags=copy_flags,
+                                            waterfall=waterfall, history=history,
+                                            label=label)
 
             self.test_property = test_property
 
     uv = UVData()
     uv.read_miriad(test_d_file)
 
-    tc = test_class(uv, test_property='test_property')
+    tc = TestClass(uv, test_property='test_property')
 
     # UVFlag.__init__ is tested, so just see if it has a metric array
     assert hasattr(tc, 'metric_array')
@@ -2555,11 +2555,11 @@ def test_equality_no_history(uvf_from_miriad):
 def test_inequality_different_classes(uvf_from_miriad):
     uvf = uvf_from_miriad
 
-    class test_class(object):
+    class TestClass(object):
         def __init__(self):
             pass
 
-    other_class = test_class()
+    other_class = TestClass()
 
     assert uvf.__ne__(other_class, check_history=False)
 

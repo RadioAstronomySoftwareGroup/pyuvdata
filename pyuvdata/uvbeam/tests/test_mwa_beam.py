@@ -74,7 +74,7 @@ def test_freq_range():
     assert str(cm.value).startswith('freq_range must have 2 elements.')
 
 
-def test_P1sin_array():
+def test_p1sin_array():
     pixels_per_deg = 5
     nmax = 10
     n_theta = np.floor(90 * pixels_per_deg) + 1

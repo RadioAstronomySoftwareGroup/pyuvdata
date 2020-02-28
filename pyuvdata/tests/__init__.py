@@ -10,64 +10,15 @@ from __future__ import absolute_import, division, print_function
 import warnings
 import sys
 
-import pytest
-
 from astropy.utils import iers
 
 import pyuvdata.utils as uvutils
 
 __all__ = [
-    "skipIf_no_pytest_cases",
-    "skipIf_no_casa",
-    "skipIf_no_healpix",
-    "skipIf_no_yaml",
     "clearWarnings",
     "checkWarnings",
-    "skip",
 
 ]
-
-# define a pytest marker for skipping pytest-cases
-try:
-    import pytest_cases # noqa
-
-    cases_installed = True
-except ImportError:
-    cases_installed = False
-reason = 'pytest-cases is not installed, skipping tests that require it.'
-skipIf_no_pytest_cases = pytest.mark.skipif(not cases_installed, reason=reason)
-
-# define a pytest marker for skipping casacore tests
-try:
-    import casacore # noqa
-
-    casa_installed = True
-except ImportError:
-    casa_installed = False
-reason = 'casacore is not installed, skipping tests that require it.'
-skipIf_no_casa = pytest.mark.skipif(not casa_installed, reason=reason)
-
-
-# define a pytest marker to skip astropy_healpix tests
-try:
-    import astropy_healpix  # noqa
-
-    healpix_installed = True
-except(ImportError):
-    healpix_installed = False
-reason = 'astropy_healpix is not installed, skipping tests that require it.'
-skipIf_no_healpix = pytest.mark.skipif(not healpix_installed, reason=reason)
-
-
-# defines a decorator to skip tests that require yaml.
-try:
-    import yaml  # noqa
-
-    yaml_installed = True
-except(ImportError):
-    yaml_installed = False
-reason = 'yaml is not installed, skipping tests that require it.'
-skipIf_no_yaml = pytest.mark.skipif(not yaml_installed, reason=reason)
 
 
 # Functions that are useful for testing:

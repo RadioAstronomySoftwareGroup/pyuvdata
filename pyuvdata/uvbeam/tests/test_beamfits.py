@@ -22,7 +22,7 @@ cst_folder = 'NicCSTbeams'
 cst_files = [os.path.join(DATA_PATH, cst_folder, f) for f in filenames]
 
 
-def test_readCST_writereadFITS():
+def test_read_cst_write_read_fits():
     beam_in = UVBeam()
     beam_out = UVBeam()
     beam_in.read_cst_beam(cst_files[0], beam_type='efield', frequency=150e6,
@@ -74,12 +74,12 @@ def test_readCST_writereadFITS():
     assert beam_in == beam_out
 
     # now replace 'power' with 'intensity' for btype
-    F = fits.open(write_file)
-    data = F[0].data
-    primary_hdr = F[0].header
+    fname = fits.open(write_file)
+    data = fname[0].data
+    primary_hdr = fname[0].header
     primary_hdr['BTYPE'] = 'Intensity'
-    hdunames = uvutils._fits_indexhdus(F)
-    bandpass_hdu = F[hdunames['BANDPARM']]
+    hdunames = uvutils._fits_indexhdus(fname)
+    bandpass_hdu = fname[hdunames['BANDPARM']]
 
     prihdu = fits.PrimaryHDU(data=data, header=primary_hdr)
     hdulist = fits.HDUList([prihdu, bandpass_hdu])
@@ -90,12 +90,12 @@ def test_readCST_writereadFITS():
     assert beam_in == beam_out
 
     # now remove coordsys but leave ctypes 1 & 2
-    F = fits.open(write_file)
-    data = F[0].data
-    primary_hdr = F[0].header
+    fname = fits.open(write_file)
+    data = fname[0].data
+    primary_hdr = fname[0].header
     primary_hdr.pop('COORDSYS')
-    hdunames = uvutils._fits_indexhdus(F)
-    bandpass_hdu = F[hdunames['BANDPARM']]
+    hdunames = uvutils._fits_indexhdus(fname)
+    bandpass_hdu = fname[hdunames['BANDPARM']]
 
     prihdu = fits.PrimaryHDU(data=data, header=primary_hdr)
     hdulist = fits.HDUList([prihdu, bandpass_hdu])
@@ -106,14 +106,14 @@ def test_readCST_writereadFITS():
     assert beam_in == beam_out
 
     # now change frequency units
-    F = fits.open(write_file)
-    data = F[0].data
-    primary_hdr = F[0].header
+    fname = fits.open(write_file)
+    data = fname[0].data
+    primary_hdr = fname[0].header
     primary_hdr['CUNIT3'] = 'MHz'
     primary_hdr['CRVAL3'] = primary_hdr['CRVAL3'] / 1e6
     primary_hdr['CDELT3'] = primary_hdr['CRVAL3'] / 1e6
-    hdunames = uvutils._fits_indexhdus(F)
-    bandpass_hdu = F[hdunames['BANDPARM']]
+    hdunames = uvutils._fits_indexhdus(fname)
+    bandpass_hdu = fname[hdunames['BANDPARM']]
 
     prihdu = fits.PrimaryHDU(data=data, header=primary_hdr)
     hdulist = fits.HDUList([prihdu, bandpass_hdu])
@@ -124,8 +124,8 @@ def test_readCST_writereadFITS():
     assert beam_in == beam_out
 
 
-@uvtest.skipIf_no_healpix
 def test_writeread_healpix():
+    pytest.importorskip("astropy_healpix")
     beam_in = UVBeam()
     beam_out = UVBeam()
     # fill UVBeam object with dummy data for now for testing purposes
@@ -178,13 +178,13 @@ def test_writeread_healpix():
     assert beam_in == beam_out
 
     # now remove coordsys but leave ctype 1
-    F = fits.open(write_file)
-    data = F[0].data
-    primary_hdr = F[0].header
+    fname = fits.open(write_file)
+    data = fname[0].data
+    primary_hdr = fname[0].header
     primary_hdr.pop('COORDSYS')
-    hdunames = uvutils._fits_indexhdus(F)
-    hpx_hdu = F[hdunames['HPX_INDS']]
-    bandpass_hdu = F[hdunames['BANDPARM']]
+    hdunames = uvutils._fits_indexhdus(fname)
+    hpx_hdu = fname[hdunames['HPX_INDS']]
+    bandpass_hdu = fname[hdunames['BANDPARM']]
 
     prihdu = fits.PrimaryHDU(data=data, header=primary_hdr)
     hdulist = fits.HDUList([prihdu, hpx_hdu, bandpass_hdu])
@@ -227,12 +227,12 @@ def test_errors():
 
         keyword = list(hdr_dict.keys())[0]
         new_val = hdr_dict[keyword]
-        F = fits.open(write_file)
-        data = F[0].data
-        primary_hdr = F[0].header
-        hdunames = uvutils._fits_indexhdus(F)
-        basisvec_hdu = F[hdunames['BASISVEC']]
-        bandpass_hdu = F[hdunames['BANDPARM']]
+        fname = fits.open(write_file)
+        data = fname[0].data
+        primary_hdr = fname[0].header
+        hdunames = uvutils._fits_indexhdus(fname)
+        basisvec_hdu = fname[hdunames['BASISVEC']]
+        bandpass_hdu = fname[hdunames['BANDPARM']]
 
         if 'NAXIS' in keyword:
             ax_num = keyword.split('NAXIS')[1]
@@ -266,14 +266,14 @@ def test_errors():
 
         keyword = list(hdr_dict.keys())[0]
         new_val = hdr_dict[keyword]
-        F = fits.open(write_file)
-        data = F[0].data
-        primary_hdr = F[0].header
-        hdunames = uvutils._fits_indexhdus(F)
-        basisvec_hdu = F[hdunames['BASISVEC']]
+        fname = fits.open(write_file)
+        data = fname[0].data
+        primary_hdr = fname[0].header
+        hdunames = uvutils._fits_indexhdus(fname)
+        basisvec_hdu = fname[hdunames['BASISVEC']]
         basisvec_hdr = basisvec_hdu.header
         basisvec_data = basisvec_hdu.data
-        bandpass_hdu = F[hdunames['BANDPARM']]
+        bandpass_hdu = fname[hdunames['BANDPARM']]
 
         if 'NAXIS' in keyword:
             ax_num = keyword.split('NAXIS')[1]
@@ -297,8 +297,8 @@ def test_errors():
         pytest.raises(ValueError, beam_out.read_beamfits, write_file)
 
 
-@uvtest.skipIf_no_healpix
 def test_healpix_errors():
+    pytest.importorskip("astropy_healpix")
     beam_in = UVBeam()
     beam_out = UVBeam()
     write_file = os.path.join(DATA_PATH, 'test/outtest_beam_hpx.fits')
@@ -319,13 +319,13 @@ def test_healpix_errors():
 
         keyword = list(hdr_dict.keys())[0]
         new_val = hdr_dict[keyword]
-        F = fits.open(write_file)
-        data = F[0].data
-        primary_hdr = F[0].header
-        hdunames = uvutils._fits_indexhdus(F)
-        basisvec_hdu = F[hdunames['BASISVEC']]
-        hpx_hdu = F[hdunames['HPX_INDS']]
-        bandpass_hdu = F[hdunames['BANDPARM']]
+        fname = fits.open(write_file)
+        data = fname[0].data
+        primary_hdr = fname[0].header
+        hdunames = uvutils._fits_indexhdus(fname)
+        basisvec_hdu = fname[hdunames['BASISVEC']]
+        hpx_hdu = fname[hdunames['HPX_INDS']]
+        bandpass_hdu = fname[hdunames['BANDPARM']]
 
         if 'NAXIS' in keyword:
             ax_num = keyword.split('NAXIS')[1]
@@ -363,15 +363,15 @@ def test_healpix_errors():
 
         keyword = list(hdr_dict.keys())[0]
         new_val = hdr_dict[keyword]
-        F = fits.open(write_file)
-        data = F[0].data
-        primary_hdr = F[0].header
-        hdunames = uvutils._fits_indexhdus(F)
-        basisvec_hdu = F[hdunames['BASISVEC']]
+        fname = fits.open(write_file)
+        data = fname[0].data
+        primary_hdr = fname[0].header
+        hdunames = uvutils._fits_indexhdus(fname)
+        basisvec_hdu = fname[hdunames['BASISVEC']]
         basisvec_hdr = basisvec_hdu.header
         basisvec_data = basisvec_hdu.data
-        hpx_hdu = F[hdunames['HPX_INDS']]
-        bandpass_hdu = F[hdunames['BANDPARM']]
+        hpx_hdu = fname[hdunames['HPX_INDS']]
+        bandpass_hdu = fname[hdunames['BANDPARM']]
 
         if 'NAXIS' in keyword:
             ax_num = keyword.split('NAXIS')[1]

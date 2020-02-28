@@ -21,48 +21,48 @@ import pyuvdata.tests as uvtest
 from pyuvdata.data import DATA_PATH
 
 
-def test_ReadNRAO():
+def test_read_nrao():
     """Test reading in a CASA tutorial uvfits file."""
-    UV = UVData()
+    uvobj = UVData()
     testfile = os.path.join(DATA_PATH,
                             'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
     expected_extra_keywords = ['OBSERVER', 'SORTORD', 'SPECSYS',
                                'RESTFREQ', 'ORIGIN']
-    uvtest.checkWarnings(UV.read_uvfits, func_args=[testfile],
+    uvtest.checkWarnings(uvobj.read_uvfits, func_args=[testfile],
                          message='Telescope EVLA is not')
     assert (expected_extra_keywords.sort()
-            == list(UV.extra_keywords.keys()).sort())
+            == list(uvobj.extra_keywords.keys()).sort())
 
     # test reading in header & metadata first, then data
-    UV2 = UVData()
-    uvtest.checkWarnings(UV2.read, func_args=[testfile],
+    uvobj2 = UVData()
+    uvtest.checkWarnings(uvobj2.read, func_args=[testfile],
                          func_kwargs={'read_data': False},
                          message='Telescope EVLA is not')
     assert (expected_extra_keywords.sort()
-            == list(UV2.extra_keywords.keys()).sort())
-    assert UV2.check()
-    uvtest.checkWarnings(UV2.read, func_args=[testfile],
+            == list(uvobj2.extra_keywords.keys()).sort())
+    assert uvobj2.check()
+    uvtest.checkWarnings(uvobj2.read, func_args=[testfile],
                          message='Telescope EVLA is not')
-    assert UV == UV2
+    assert uvobj == uvobj2
 
 
 @pytest.mark.filterwarnings("ignore:Required Antenna frame keyword")
 @pytest.mark.filterwarnings("ignore:telescope_location is not set")
-def test_noSPW():
+def test_no_spw():
     """Test reading in a PAPER uvfits file with no spw axis."""
-    UV = UVData()
+    uvobj = UVData()
     testfile_no_spw = os.path.join(DATA_PATH, 'zen.2456865.60537.xy.uvcRREAAM.uvfits')
-    UV.read(testfile_no_spw)
-    del(UV)
+    uvobj.read(testfile_no_spw)
+    del(uvobj)
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-def test_breakReadUVFits():
+def test_break_read_uvfits():
     """Test errors on reading in a uvfits file with subarrays and other problems."""
-    UV = UVData()
+    uvobj = UVData()
     multi_subarray_file = os.path.join(DATA_PATH, 'multi_subarray.uvfits')
     with pytest.raises(ValueError) as cm:
-        UV.read(multi_subarray_file)
+        uvobj.read(multi_subarray_file)
     assert str(cm.value).startswith('This file appears to have multiple subarray')
 
 
@@ -176,10 +176,10 @@ def test_multisource_error():
 
 def test_spwnotsupported():
     """Test errors on reading in a uvfits file with multiple spws."""
-    UV = UVData()
+    uvobj = UVData()
     testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1scan.uvfits')
     with pytest.raises(ValueError) as cm:
-        UV.read(testfile)
+        uvobj.read(testfile)
     assert str(cm.value).startswith('Sorry.  Files with more than one spectral'
                                     'window (spw) are not yet supported')
 
@@ -599,7 +599,7 @@ def test_select_read():
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-def test_ReadUVFitsWriteMiriad():
+def test_read_uvfits_write_miriad():
     """
     read uvfits, write miriad test.
     Read in uvfits file, write out as miriad, read back in and check for
@@ -785,13 +785,13 @@ def test_multi_phase_on_read():
     assert str(cm.value).startswith('phase_center_radec should have length 2.')
 
 
-@uvtest.skipIf_no_casa
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-def test_readMSWriteUVFits_CASAHistory():
+def test_read_ms_write_uvfits_casa_history():
     """
     read in .ms file.
     Write to a uvfits file, read back in and check for casa_history parameter
     """
+    pytest.importorskip("casacore")
     ms_uv = UVData()
     uvfits_uv = UVData()
     ms_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.ms')

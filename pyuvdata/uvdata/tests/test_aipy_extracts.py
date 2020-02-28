@@ -82,7 +82,7 @@ def test_parse_ants():
     return
 
 
-def test_UV_wrhd():
+def test_uv_wrhd():
     """Test _wrdh method on UV object"""
     test_file = os.path.join(DATA_PATH, 'test', 'miriad_test.uv')
     if os.path.exists(test_file):
@@ -105,7 +105,7 @@ def test_UV_wrhd():
     return
 
 
-def test_UV_wrhd_special():
+def test_uv_wrhd_special():
     """Test _wrhd_special method on UV object"""
     test_file = os.path.join(DATA_PATH, 'test', 'miriad_test.uv')
     if os.path.exists(test_file):
@@ -126,7 +126,7 @@ def test_UV_wrhd_special():
     return
 
 
-def test_UV_rdhd_special():
+def test_uv_rdhd_special():
     """Test _rdhd_special method on UV object"""
     infile = os.path.join(DATA_PATH, 'zen.2456865.60537.xy.uvcRREAA')
     test_file = os.path.join(DATA_PATH, 'test', 'miriad_test.uv')

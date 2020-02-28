@@ -355,12 +355,12 @@ class CALFITS(UVCal):
             parameters after reading in the file.
 
         """
-        with fits.open(filename) as F:
-            data = F[0].data
-            hdr = F[0].header.copy()
-            hdunames = uvutils._fits_indexhdus(F)
+        with fits.open(filename) as fname:
+            data = fname[0].data
+            hdr = fname[0].header.copy()
+            hdunames = uvutils._fits_indexhdus(fname)
 
-            anthdu = F[hdunames['ANTENNAS']]
+            anthdu = fname[hdunames['ANTENNAS']]
             self.Nants_telescope = anthdu.header['NAXIS2']
             antdata = anthdu.data
             self.antenna_names = np.array(list(map(str, antdata['ANTNAME'])))
@@ -411,13 +411,13 @@ class CALFITS(UVCal):
 
             # generate polarization and time array for either cal_type.
             self.Njones = hdr.pop('NAXIS2')
-            self.jones_array = uvutils._fits_gethduaxis(F[0], 2)
+            self.jones_array = uvutils._fits_gethduaxis(fname[0], 2)
             self.Ntimes = hdr.pop('NAXIS3')
-            self.time_array = uvutils._fits_gethduaxis(F[0], 3)
+            self.time_array = uvutils._fits_gethduaxis(fname[0], 3)
 
             self.Nspws = hdr.pop('NAXIS5')
             # subtract 1 to be zero-indexed
-            self.spw_array = uvutils._fits_gethduaxis(F[0], 5) - 1
+            self.spw_array = uvutils._fits_gethduaxis(fname[0], 5) - 1
 
             # get data.
             if self.cal_type == 'gain':
@@ -434,7 +434,7 @@ class CALFITS(UVCal):
 
                 # generate frequency array from primary data unit.
                 self.Nfreqs = hdr.pop('NAXIS4')
-                self.freq_array = uvutils._fits_gethduaxis(F[0], 4)
+                self.freq_array = uvutils._fits_gethduaxis(fname[0], 4)
                 self.freq_array.shape = (self.Nspws,) + self.freq_array.shape
 
             if self.cal_type == 'delay':
@@ -444,7 +444,7 @@ class CALFITS(UVCal):
                 self.delay_array = data[:, :, :, :, :, 0]
                 self.quality_array = data[:, :, :, :, :, 1]
 
-                sechdu = F[hdunames['FLAGS']]
+                sechdu = fname[hdunames['FLAGS']]
                 flag_data = sechdu.data
                 if sechdu.header['NAXIS1'] == 2:
                     self.flag_array = flag_data[:, :, :, :, :, 0].astype('bool')
@@ -493,7 +493,7 @@ class CALFITS(UVCal):
 
             # get total quality array if present
             if 'TOTQLTY' in hdunames:
-                totqualhdu = F[hdunames['TOTQLTY']]
+                totqualhdu = fname[hdunames['TOTQLTY']]
                 self.total_quality_array = totqualhdu.data
                 spw_array = uvutils._fits_gethduaxis(totqualhdu, 4) - 1
                 if not np.allclose(spw_array, self.spw_array):

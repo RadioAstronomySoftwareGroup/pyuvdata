@@ -17,38 +17,37 @@ from pyuvdata.data import DATA_PATH
 import pyuvdata.tests as uvtest
 from ..uvfits import UVFITS
 
+pytest.importorskip("casacore")
 
-@uvtest.skipIf_no_casa
+
 def test_cotter_ms():
     """Test reading in an ms made from MWA data with cotter (no dysco compression)"""
-    UV = UVData()
+    uvobj = UVData()
     testfile = os.path.join(DATA_PATH, '1102865728_small.ms')
-    UV.read(testfile)
+    uvobj.read(testfile)
 
     # check that a select on read works
-    UV2 = UVData()
-    uvtest.checkWarnings(UV2.read, [testfile], {'freq_chans': np.arange(2)},
+    uvobj2 = UVData()
+    uvtest.checkWarnings(uvobj2.read, [testfile], {'freq_chans': np.arange(2)},
                          message='Warning: select on read keyword set')
-    UV.select(freq_chans=np.arange(2))
-    assert UV == UV2
-    del(UV)
+    uvobj.select(freq_chans=np.arange(2))
+    assert uvobj == uvobj2
+    del(uvobj)
 
 
-@uvtest.skipIf_no_casa
-def test_readNRAO():
+def test_read_nrao():
     """Test reading in a CASA tutorial ms file."""
-    UV = UVData()
+    uvobj = UVData()
     testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.ms')
     expected_extra_keywords = ['DATA_COL']
 
-    UV.read(testfile)
-    assert sorted(expected_extra_keywords) == sorted(UV.extra_keywords.keys())
+    uvobj.read(testfile)
+    assert sorted(expected_extra_keywords) == sorted(uvobj.extra_keywords.keys())
 
 
-@uvtest.skipIf_no_casa
-def test_read_LWA():
+def test_read_lwa():
     """Test reading in an LWA ms file."""
-    UV = UVData()
+    uvobj = UVData()
     testfile = os.path.join(DATA_PATH, 'lwasv_cor_58342_05_00_14.ms.tar.gz')
     expected_extra_keywords = ['DATA_COL']
 
@@ -57,48 +56,44 @@ def test_read_LWA():
         new_filename = os.path.join(DATA_PATH, tf.getnames()[0])
         tf.extractall(path=DATA_PATH)
 
-    UV.read(new_filename, file_type='ms')
-    assert sorted(expected_extra_keywords) == sorted(UV.extra_keywords.keys())
+    uvobj.read(new_filename, file_type='ms')
+    assert sorted(expected_extra_keywords) == sorted(uvobj.extra_keywords.keys())
 
-    assert UV.history == UV.pyuvdata_version_str
+    assert uvobj.history == uvobj.pyuvdata_version_str
 
     # delete the untarred folder
     shutil.rmtree(new_filename)
 
 
-@uvtest.skipIf_no_casa
-def test_noSPW():
+def test_no_spw():
     """Test reading in a PAPER ms converted by CASA from a uvfits with no spw axis."""
-    UV = UVData()
+    uvobj = UVData()
     testfile_no_spw = os.path.join(
         DATA_PATH, 'zen.2456865.60537.xy.uvcRREAAM.ms')
-    UV.read(testfile_no_spw)
-    del(UV)
+    uvobj.read(testfile_no_spw)
+    del(uvobj)
 
 
-@uvtest.skipIf_no_casa
 def test_spwnotsupported():
     """Test errors on reading in an ms file with multiple spws."""
-    UV = UVData()
+    uvobj = UVData()
     testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1scan.ms')
-    pytest.raises(ValueError, UV.read, testfile)
-    del(UV)
+    pytest.raises(ValueError, uvobj.read, testfile)
+    del(uvobj)
 
 
-@uvtest.skipIf_no_casa
 def test_multi_len_spw():
     """Test errors on reading in an ms file with multiple spws with variable lenghth."""
-    UV = UVData()
+    uvobj = UVData()
     testfile = os.path.join(DATA_PATH, 'multi_len_spw.ms')
     with pytest.raises(ValueError) as cm:
-        UV.read(testfile)
+        uvobj.read(testfile)
     assert str(cm.value).startswith('Sorry.  Files with more than one spectral')
 
 
-@uvtest.skipIf_no_casa
 def test_extra_pol_setup():
     """Test reading in an ms file with extra polarization setups (not used in data)."""
-    UV = UVData()
+    uvobj = UVData()
     testfile = os.path.join(DATA_PATH, 'X5707_1spw_1scan_10chan_1time_1bl_noatm.ms.tar.gz')
 
     import tarfile
@@ -106,14 +101,13 @@ def test_extra_pol_setup():
         new_filename = os.path.join(DATA_PATH, tf.getnames()[0])
         tf.extractall(path=DATA_PATH)
 
-    UV.read(new_filename, file_type='ms')
+    uvobj.read(new_filename, file_type='ms')
 
     # delete the untarred folder
     shutil.rmtree(new_filename)
 
 
-@uvtest.skipIf_no_casa
-def test_readMSreadUVFITS():
+def test_read_ms_read_uvfits():
     """
     Test that a uvdata object instantiated from an ms file created with CASA's
     importuvfits is equal to a uvdata object instantiated from the original
@@ -159,8 +153,7 @@ def test_readMSreadUVFITS():
     del(uvfits_uv)
 
 
-@uvtest.skipIf_no_casa
-def test_readMSWriteUVFITS():
+def test_read_ms_write_uvfits():
     """
     read ms, write uvfits test.
     Read in ms file, write out as uvfits, read back in and check for
@@ -180,8 +173,7 @@ def test_readMSWriteUVFITS():
     del(uvfits_uv)
 
 
-@uvtest.skipIf_no_casa
-def test_readMSWriteMiriad():
+def test_read_ms_write_miriad():
     """
     read ms, write miriad test.
     Read in ms file, write out as miriad, read back in and check for
@@ -199,7 +191,6 @@ def test_readMSWriteMiriad():
     assert miriad_uv == ms_uv
 
 
-@uvtest.skipIf_no_casa
 def test_multi_files():
     """
     Reading multiple files at once.
@@ -240,7 +231,6 @@ def test_multi_files():
     del(uv_multi)
 
 
-@uvtest.skipIf_no_casa
 def test_multi_files_axis():
     """
     Reading multiple files at once, setting axis keyword
@@ -279,14 +269,13 @@ def test_multi_files_axis():
     assert uv_multi == uv_full
 
 
-@uvtest.skipIf_no_casa
 def test_bad_col_name():
     """
     Test error with invalid column name.
     """
-    UV = UVData()
+    uvobj = UVData()
     testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.ms')
 
     with pytest.raises(ValueError) as cm:
-        UV.read_ms(testfile, data_column='FOO')
+        uvobj.read_ms(testfile, data_column='FOO')
     assert str(cm.value).startswith('Invalid data_column value supplied')

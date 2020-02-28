@@ -46,7 +46,7 @@ def test_frequencyparse_nicf_path():
     assert parsed_freqs == [150e6, 123e6]
 
 
-def test_frequencyparse_decimal_nonMHz():
+def test_frequencyparse_decimal_non_mhz():
     beam1 = CSTBeam()
     test_path = os.path.join('Simulations', 'Radiation_patterns',
                              'E-field pattern-Rigging height4.9m',
@@ -57,8 +57,8 @@ def test_frequencyparse_decimal_nonMHz():
     assert parsed_freqs == [120.87e3, 120.87e9, 120.87]
 
 
-@uvtest.skipIf_no_yaml
 def test_read_yaml():
+    pytest.importorskip("yaml")
     beam1 = UVBeam()
     beam2 = UVBeam()
 
@@ -82,8 +82,8 @@ def test_read_yaml():
     assert beam2.extra_keywords == extra_keywords
 
 
-@uvtest.skipIf_no_yaml
 def test_read_yaml_override():
+    pytest.importorskip("yaml")
     beam1 = UVBeam()
     beam2 = UVBeam()
 
@@ -110,8 +110,8 @@ def test_read_yaml_override():
     assert beam2.extra_keywords == extra_keywords
 
 
-@uvtest.skipIf_no_yaml
 def test_read_yaml_freq_select():
+    pytest.importorskip("yaml")
     # test frequency_select
     beam1 = UVBeam()
     beam2 = UVBeam()
@@ -137,8 +137,8 @@ def test_read_yaml_freq_select():
                   beam_type='power', frequency_select=[180e6])
 
 
-@uvtest.skipIf_no_yaml
 def test_read_yaml_feed_pol_list():
+    pytest.importorskip("yaml")
     # make yaml with a list of (the same) feed_pols
     import yaml
 
@@ -190,8 +190,8 @@ def test_read_yaml_feed_pol_list():
     os.remove(test_yaml_file)
 
 
-@uvtest.skipIf_no_yaml
 def test_read_yaml_multi_pol():
+    pytest.importorskip("yaml")
     # make yaml for one freq, 2 pols
     import yaml
 
@@ -245,8 +245,8 @@ def test_read_yaml_multi_pol():
     os.remove(test_yaml_file)
 
 
-@uvtest.skipIf_no_yaml
 def test_read_yaml_errors():
+    pytest.importorskip("yaml")
     # test error if required key is not present in yaml file
     import yaml
 
@@ -641,8 +641,8 @@ def test_wrong_column_names():
                   model_version='1.0')
 
 
-@uvtest.skipIf_no_yaml
-def test_HERA_yaml():
+def test_hera_yaml():
+    pytest.importorskip("yaml")
     beam1 = UVBeam()
     beam2 = UVBeam()
 
