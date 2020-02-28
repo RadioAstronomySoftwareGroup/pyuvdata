@@ -2335,7 +2335,9 @@ class UVBeam(UVBase):
             Either a settings yaml file or a cst text file or
             list of cst text files to read from. If a list is passed,
             the files are combined along the appropriate axes.
+
             Settings yaml files must include the following keywords:
+
                 |  - telescope_name (str)
                 |  - feed_name (str)
                 |  - feed_version (str)
@@ -2347,6 +2349,7 @@ class UVBeam(UVBase):
                 |  - feed_pol (str) or (list(str))
 
             and they may include the following optional keywords:
+
                 |  - x_orientation (str): Optional but strongly encouraged!
                 |  - ref_imp (float): beam model reference impedance
                 |  - sim_beam_type (str): e.g. 'E-farfield'

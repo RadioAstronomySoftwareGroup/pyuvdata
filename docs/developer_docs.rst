@@ -36,25 +36,28 @@ specific code. The read and write methods on the user classes convert between
 the user classes and the file-specific classes automatically as needed, so users
 generally do not need to interact with these classes, but developers may need to.
 
-.. autoclass:: pyuvdata.uvdata.uvfits.UVFITS
+.. autoclass:: pyuvdata.uvdata.fhd.FHD
   :members:
 
 .. autoclass:: pyuvdata.uvdata.miriad.Miriad
   :members:
 
-.. autoclass:: pyuvdata.uvdata.fhd.FHD
+.. autoclass:: pyuvdata.uvdata.ms.MS
   :members:
 
-.. autoclass:: pyuvdata.uvdata.ms.MS
+.. autoclass:: pyuvdata.uvdata.mwa_corr_fits.MWACorrFITS
+  :members:
+
+.. autoclass:: pyuvdata.uvdata.uvfits.UVFITS
   :members:
 
 .. autoclass:: pyuvdata.uvdata.uvh5.UVH5
   :members:
 
-.. autoclass:: pyuvdata.uvcal.fhd_cal.FHDCal
+.. autoclass:: pyuvdata.uvcal.calfits.CALFITS
   :members:
 
-.. autoclass:: pyuvdata.uvcal.calfits.CALFITS
+.. autoclass:: pyuvdata.uvcal.fhd_cal.FHDCal
   :members:
 
 .. autoclass:: pyuvdata.uvbeam.beamfits.BeamFITS
@@ -63,11 +66,25 @@ generally do not need to interact with these classes, but developers may need to
 .. autoclass:: pyuvdata.uvbeam.cst_beam.CSTBeam
   :members:
 
+.. autoclass:: pyuvdata.uvbeam.mwa_beam.MWABeam
+  :members:
+
 
 Functions
 ----------
 
 .. autofunction:: pyuvdata.uvdata.fhd.get_fhd_history
+
+.. autofunction:: pyuvdata.uvbeam.mwa_beam.P1sin
+
+.. autofunction:: pyuvdata.uvbeam.mwa_beam.P1sin_array
+
+.. autofunction:: pyuvdata.uvflag.uvflag.and_rows_cols
+
+.. autofunction:: pyuvdata.uvflag.uvflag.lst_from_uv
+
+.. autofunction:: pyuvdata.uvflag.uvflag.flags2waterfall
+
 
 aipy extracts
 _____________

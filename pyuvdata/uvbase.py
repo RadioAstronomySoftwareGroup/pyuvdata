@@ -32,17 +32,20 @@ class UVBase(object):
     defined. The init method of this base class creates properties
     (named using UVParameter.name) from all the UVParameter attributes on the subclass.
     AngleParameter and LocationParameter attributes also have extra convenience
-    properties defined:\n
-        AngleParameter:\n
-            UVParameter.name+'_degrees'\n
-        LocationParameter:\n
-            UVParameter.name+'_lat_lon_alt'\n
-            UVParameter.name+'_lat_lon_alt_degrees'
+    properties defined:
+
+    AngleParameter:
+
+        UVParameter.name+'_degrees'
+
+    LocationParameter:
+
+        UVParameter.name+'_lat_lon_alt'
+        UVParameter.name+'_lat_lon_alt_degrees'
     """
 
     def __init__(self):
         """Create properties from UVParameter attributes."""
-
         warnings.formatwarning = _warning
 
         # set any UVParameter attributes to be properties
@@ -68,7 +71,6 @@ class UVBase(object):
 
     def prop_fget(self, param_name):
         """Getter method for UVParameter properties."""
-
         def fget(self):
             this_param = getattr(self, param_name)
             return this_param.value
@@ -76,7 +78,6 @@ class UVBase(object):
 
     def prop_fset(self, param_name):
         """Setter method for UVParameter properties."""
-
         def fset(self, value):
             this_param = getattr(self, param_name)
             this_param.value = value
@@ -85,7 +86,6 @@ class UVBase(object):
 
     def degree_prop_fget(self, param_name):
         """Degree getter method for AngleParameter properties."""
-
         def fget(self):
             this_param = getattr(self, param_name)
             return this_param.degrees()
@@ -93,7 +93,6 @@ class UVBase(object):
 
     def degree_prop_fset(self, param_name):
         """Degree setter method for AngleParameter properties."""
-
         def fset(self, value):
             this_param = getattr(self, param_name)
             this_param.set_degrees(value)
@@ -102,7 +101,6 @@ class UVBase(object):
 
     def lat_lon_alt_prop_fget(self, param_name):
         """Lat/lon/alt getter method for LocationParameter properties."""
-
         def fget(self):
             this_param = getattr(self, param_name)
             return this_param.lat_lon_alt()
@@ -110,7 +108,6 @@ class UVBase(object):
 
     def lat_lon_alt_prop_fset(self, param_name):
         """Lat/lon/alt setter method for LocationParameter properties."""
-
         def fset(self, value):
             this_param = getattr(self, param_name)
             this_param.set_lat_lon_alt(value)
@@ -119,7 +116,6 @@ class UVBase(object):
 
     def lat_lon_alt_degrees_prop_fget(self, param_name):
         """Lat/lon/alt degree getter method for LocationParameter properties."""
-
         def fget(self):
             this_param = getattr(self, param_name)
             return this_param.lat_lon_alt_degrees()
@@ -127,7 +123,6 @@ class UVBase(object):
 
     def lat_lon_alt_degrees_prop_fset(self, param_name):
         """Lat/lon/alt degree setter method for LocationParameter properties."""
-
         def fset(self, value):
             this_param = getattr(self, param_name)
             this_param.set_lat_lon_alt_degrees(value)
@@ -135,7 +130,7 @@ class UVBase(object):
         return fset
 
     def __iter__(self):
-        """Iterator for all UVParameter attributes."""
+        """Iterate over all UVParameter attributes."""
         attribute_list = [a for a in dir(self) if not a.startswith('__')
                           and not callable(getattr(self, a))]
         param_list = []
@@ -147,7 +142,7 @@ class UVBase(object):
             yield a
 
     def required(self):
-        """Iterator for all required UVParameter attributes."""
+        """Iterate over all required UVParameter attributes."""
         attribute_list = [a for a in dir(self) if not a.startswith('__')
                           and not callable(getattr(self, a))]
         required_list = []
@@ -160,7 +155,7 @@ class UVBase(object):
             yield a
 
     def extra(self):
-        """Iterator for all non-required UVParameter attributes."""
+        """Iterate over all non-required UVParameter attributes."""
         attribute_list = [a for a in dir(self) if not a.startswith('__')
                           and not callable(getattr(self, a))]
         extra_list = []
@@ -230,16 +225,21 @@ class UVBase(object):
     def check(self, check_extra=True, run_check_acceptability=True, ignore_requirements=False):
         """
         Check that required parameters exist and have the correct shapes.
+
         Optionally, check that the values are acceptable.
 
-        Args:
-            check_extra: If true, check shapes and values on all parameters,
-                otherwise only check required parameters.
-            run_check_acceptability: Option to check if values in parameters
-                are acceptable. Default is True.
-            ignore_requirements: Do not error if a required parameter isn't set.
-                Default is False. This allows the user to run the shape/acceptability checks
-                on parameters in a partially-defined UVData object.
+        Parameters
+        ----------
+        check_extra : bool
+            If true, check shapes and values on all parameters,
+            otherwise only check required parameters.
+        run_check_acceptability : bool
+            Option to check if values in parameters are acceptable.
+        ignore_requirements : bool
+            Do not error if a required parameter isn't set.
+            This allows the user to run the shape/acceptability checks
+            on parameters in a partially-defined UVData object.
+
         """
         if check_extra:
             p_check = list(self.required()) + list(self.extra())
