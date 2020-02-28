@@ -1842,7 +1842,6 @@ class UVData(UVBase):
         See the phasing memo under docs/references for more documentation.
 
         Tested against MWA_Tools/CONV2UVFITS/convutils.
-        Will not phase already phased data.
 
         Parameters
         ----------
